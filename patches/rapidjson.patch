@@ -1,0 +1,159 @@
+From b3b191f9eb3cc59acb548d03506bc7fd5749874c Mon Sep 17 00:00:00 2001
+From: ylavic <ylavic.dev@gmail.com>
+Date: Sat, 1 Dec 2018 23:36:45 +0100
+Subject: [PATCH 1/3] Fix a memory leak for invalid std::regex in Schema.
+
+---
+ include/rapidjson/schema.h | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/include/rapidjson/schema.h b/include/rapidjson/schema.h
+index b182aa27..f9695dad 100644
+--- a/include/rapidjson/schema.h
++++ b/include/rapidjson/schema.h
+@@ -1017,10 +1017,12 @@ private:
+     template <typename ValueType>
+     RegexType* CreatePattern(const ValueType& value) {
+         if (value.IsString())
++            RegexType *r = static_cast<RegexType*>(allocator_->Malloc(sizeof(RegexType)));
+             try {
+-                return new (allocator_->Malloc(sizeof(RegexType))) RegexType(value.GetString(), std::size_t(value.GetStringLength()), std::regex_constants::ECMAScript);
++                return new (r) RegexType(value.GetString(), std::size_t(value.GetStringLength()), std::regex_constants::ECMAScript);
+             }
+             catch (const std::regex_error&) {
++                AllocatorType::Free(r);
+             }
+         return 0;
+     }
+-- 
+2.21.0 (Apple Git-122)
+
+
+From 07b286eb2c65a7117b9ace68bcfaaf67ad97cfc2 Mon Sep 17 00:00:00 2001
+From: Veselin Georgiev <veselin.georgiev@garmin.com>
+Date: Fri, 27 Jul 2018 13:33:09 -0500
+Subject: [PATCH 2/3] Fix SIGBUS due to unaligned access
+
+Update RAPIDJSON_ALIGN() to always align on an 8-byte boundary
+unless otherwise overridden.
+
+On some platforms (such as ARM), 64-bit items (such as doubles and
+64-bit integers) must be aligned to an 8 byte address, even though the
+architecture is only 32-bits. On these platforms, MemoryPoolAllocator
+must match the malloc() behavior and return a 8 byte aligned allocation.
+This eliminates any alignment issues that may occur at the expense of
+additional memory overhead.
+
+Failure to do so caused a SIGBUS signal when calling
+GenericValue::SetNull(). The size of the data_ member of the
+GenericValue class is 16 bytes in 32-bit mode and its constructor
+requires an 8-byte aligned access.
+
+While parsing a JSON formatted string using Document::ParseStream(), a
+stack object containing GenericValue items was constructed. Since the
+stack was 8-byte aligned, the constructor calls would succeed. When the
+lifetime of the object ends, SetObjectRaw() is invoked. This triggered
+an allocation with 4-byte alignment to which the previously 8-byte
+aligned GenericValue array was copied. After this, any call to a
+GenericValue API that triggered the constructor and thus the placement
+new operation on the Data type member would trigger a SIGBUS.
+
+Signed-off-by: Veselin Georgiev <veselin.georgiev@garmin.com>
+Signed-off-by: Joshua Watt <Joshua.Watt@garmin.com>
+---
+ include/rapidjson/rapidjson.h    |  9 ++-------
+ test/unittest/allocatorstest.cpp | 26 ++++++++++++--------------
+ 2 files changed, 14 insertions(+), 21 deletions(-)
+
+diff --git a/include/rapidjson/rapidjson.h b/include/rapidjson/rapidjson.h
+index 053b2ce4..ab925012 100644
+--- a/include/rapidjson/rapidjson.h
++++ b/include/rapidjson/rapidjson.h
+@@ -264,16 +264,11 @@
+ /*! \ingroup RAPIDJSON_CONFIG
+     \param x pointer to align
+ 
+-    Some machines require strict data alignment. Currently the default uses 4 bytes
+-    alignment on 32-bit platforms and 8 bytes alignment for 64-bit platforms.
++    Some machines require strict data alignment. The default is 8 bytes.
+     User can customize by defining the RAPIDJSON_ALIGN function macro.
+ */
+ #ifndef RAPIDJSON_ALIGN
+-#if RAPIDJSON_64BIT == 1
+-#define RAPIDJSON_ALIGN(x) (((x) + static_cast<uint64_t>(7u)) & ~static_cast<uint64_t>(7u))
+-#else
+-#define RAPIDJSON_ALIGN(x) (((x) + 3u) & ~3u)
+-#endif
++#define RAPIDJSON_ALIGN(x) (((x) + static_cast<size_t>(7u)) & ~static_cast<size_t>(7u))
+ #endif
+ 
+ ///////////////////////////////////////////////////////////////////////////////
+diff --git a/test/unittest/allocatorstest.cpp b/test/unittest/allocatorstest.cpp
+index a5958de1..2202c11f 100644
+--- a/test/unittest/allocatorstest.cpp
++++ b/test/unittest/allocatorstest.cpp
+@@ -63,23 +63,21 @@ TEST(Allocator, MemoryPoolAllocator) {
+ }
+ 
+ TEST(Allocator, Alignment) {
+-#if RAPIDJSON_64BIT == 1
+-    EXPECT_EQ(RAPIDJSON_UINT64_C2(0x00000000, 0x00000000), RAPIDJSON_ALIGN(0));
+-    for (uint64_t i = 1; i < 8; i++) {
+-        EXPECT_EQ(RAPIDJSON_UINT64_C2(0x00000000, 0x00000008), RAPIDJSON_ALIGN(i));
+-        EXPECT_EQ(RAPIDJSON_UINT64_C2(0x00000000, 0x00000010), RAPIDJSON_ALIGN(RAPIDJSON_UINT64_C2(0x00000000, 0x00000008) + i));
+-        EXPECT_EQ(RAPIDJSON_UINT64_C2(0x00000001, 0x00000000), RAPIDJSON_ALIGN(RAPIDJSON_UINT64_C2(0x00000000, 0xFFFFFFF8) + i));
+-        EXPECT_EQ(RAPIDJSON_UINT64_C2(0xFFFFFFFF, 0xFFFFFFF8), RAPIDJSON_ALIGN(RAPIDJSON_UINT64_C2(0xFFFFFFFF, 0xFFFFFFF0) + i));
++    if (sizeof(size_t) >= 8) {
++        EXPECT_EQ(RAPIDJSON_UINT64_C2(0x00000000, 0x00000000), RAPIDJSON_ALIGN(0));
++        for (uint64_t i = 1; i < 8; i++) {
++            EXPECT_EQ(RAPIDJSON_UINT64_C2(0x00000000, 0x00000008), RAPIDJSON_ALIGN(i));
++            EXPECT_EQ(RAPIDJSON_UINT64_C2(0x00000000, 0x00000010), RAPIDJSON_ALIGN(RAPIDJSON_UINT64_C2(0x00000000, 0x00000008) + i));
++            EXPECT_EQ(RAPIDJSON_UINT64_C2(0x00000001, 0x00000000), RAPIDJSON_ALIGN(RAPIDJSON_UINT64_C2(0x00000000, 0xFFFFFFF8) + i));
++            EXPECT_EQ(RAPIDJSON_UINT64_C2(0xFFFFFFFF, 0xFFFFFFF8), RAPIDJSON_ALIGN(RAPIDJSON_UINT64_C2(0xFFFFFFFF, 0xFFFFFFF0) + i));
++        }
+     }
+-#else
++
+     EXPECT_EQ(0u, RAPIDJSON_ALIGN(0u));
+-    for (uint32_t i = 1; i < 4; i++) {
+-        EXPECT_EQ(4u, RAPIDJSON_ALIGN(i));
+-        EXPECT_EQ(8u, RAPIDJSON_ALIGN(4u + i));
+-        EXPECT_EQ(0xFFFFFFF8u, RAPIDJSON_ALIGN(0xFFFFFFF4u + i));
+-        EXPECT_EQ(0xFFFFFFFCu, RAPIDJSON_ALIGN(0xFFFFFFF8u + i));
++    for (uint32_t i = 1; i < 8; i++) {
++        EXPECT_EQ(8u, RAPIDJSON_ALIGN(i));
++        EXPECT_EQ(0xFFFFFFF8u, RAPIDJSON_ALIGN(0xFFFFFFF0u + i));
+     }
+-#endif
+ }
+ 
+ TEST(Allocator, Issue399) {
+-- 
+2.21.0 (Apple Git-122)
+
+
+From 5269266744d8b61575463df7d8b03615904cc2f4 Mon Sep 17 00:00:00 2001
+From: abolz <lt.morris.schaffer@googlemail.com>
+Date: Sat, 16 Jun 2018 09:41:04 +0200
+Subject: [PATCH 3/3] Fix offset computation in BigInteger::operator<<
+
+---
+ include/rapidjson/internal/biginteger.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/rapidjson/internal/biginteger.h b/include/rapidjson/internal/biginteger.h
+index 9d3e88c9..949cbb1f 100644
+--- a/include/rapidjson/internal/biginteger.h
++++ b/include/rapidjson/internal/biginteger.h
+@@ -133,7 +133,7 @@ public:
+         RAPIDJSON_ASSERT(count_ + offset <= kCapacity);
+ 
+         if (interShift == 0) {
+-            std::memmove(&digits_[count_ - 1 + offset], &digits_[count_ - 1], count_ * sizeof(Type));
++            std::memmove(digits_ + offset, digits_, count_ * sizeof(Type));
+             count_ += offset;
+         }
+         else {
+-- 
+2.21.0 (Apple Git-122)
+

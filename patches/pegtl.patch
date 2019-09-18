@@ -1,0 +1,282 @@
+diff --git a/.gitignore b/.gitignore
+index 87117ea..c3aa46d 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -2,3 +2,4 @@
+ build
+ manual
+ private
++.vscode
+\ No newline at end of file
+diff --git a/pegtl/analysis/analyze_cycles.hh b/pegtl/analysis/analyze_cycles.hh
+index c7aee26..0b4be6a 100644
+--- a/pegtl/analysis/analyze_cycles.hh
++++ b/pegtl/analysis/analyze_cycles.hh
+@@ -10,7 +10,6 @@
+ #include <set>
+ 
+ #include <utility>
+-#include <iostream>
+ 
+ #include "grammar_info.hh"
+ #include "insert_guard.hh"
+@@ -85,7 +84,7 @@ namespace pegtl
+             if ( ! accum ) {
+                ++m_problems;
+                if ( m_verbose ) {
+-                  std::cout << "problem: cycle without progress detected at rule class " << start->first << std::endl;
++                  printf("problem: cycle without progress detected at rule class %s", start->first);
+                }
+             }
+             return m_cache[ start->first ] = accum;
+diff --git a/pegtl/input_error.hh b/pegtl/input_error.hh
+index 119decf..efc032a 100644
+--- a/pegtl/input_error.hh
++++ b/pegtl/input_error.hh
+@@ -4,7 +4,7 @@
+ #ifndef PEGTL_INPUT_ERROR_HH
+ #define PEGTL_INPUT_ERROR_HH
+ 
+-#include <sstream>
++#include <cstdio>
+ #include <stdexcept>
+ #include <cerrno>
+ 
+@@ -24,9 +24,7 @@ namespace pegtl
+ #define PEGTL_THROW_INPUT_ERROR( MESSAGE )                              \
+    do {                                                                 \
+       const int errorno = errno;                                        \
+-      std::ostringstream oss;                                           \
+-      oss << "pegtl: " << MESSAGE << " errno " << errorno;              \
+-      throw pegtl::input_error( oss.str(), errorno );                   \
++      throw pegtl::input_error( MESSAGE, errorno );                     \
+    } while ( false )
+ 
+ } // pegtl
+diff --git a/pegtl/internal/file_mapper.hh b/pegtl/internal/file_mapper.hh
+index cad233e..1f59e42 100644
+--- a/pegtl/internal/file_mapper.hh
++++ b/pegtl/internal/file_mapper.hh
+@@ -28,7 +28,7 @@ namespace pegtl
+                  m_data( static_cast< const char * >( ::mmap( 0, m_size, PROT_READ, MAP_FILE | MAP_PRIVATE, reader.m_fd, 0 ) ) )
+          {
+             if ( intptr_t( m_data ) == -1 ) {
+-               PEGTL_THROW_INPUT_ERROR( "unable to mmap() file " << reader.m_source << " descriptor " << reader.m_fd );
++               PEGTL_THROW_INPUT_ERROR( "unable to mmap() file " + reader.m_source + " descriptor " + std::to_string(reader.m_fd) );
+             }
+          }
+ 
+diff --git a/pegtl/internal/file_opener.hh b/pegtl/internal/file_opener.hh
+index 75df81d..7d83cbc 100644
+--- a/pegtl/internal/file_opener.hh
++++ b/pegtl/internal/file_opener.hh
+@@ -36,7 +36,7 @@ namespace pegtl
+             struct stat st;
+             errno = 0;
+             if ( ::fstat( m_fd, & st ) < 0 ) {
+-               PEGTL_THROW_INPUT_ERROR( "unable to fstat() file " << m_source << " descriptor " << m_fd );
++               PEGTL_THROW_INPUT_ERROR( "unable to fstat() file " + m_source + " descriptor " + std::to_string(m_fd) );
+             }
+             return std::size_t( st.st_size );
+          }
+@@ -52,7 +52,7 @@ namespace pegtl
+             if ( fd >= 0 ) {
+                return fd;
+             }
+-            PEGTL_THROW_INPUT_ERROR( "unable to open() file " << m_source << " for reading" );
++            PEGTL_THROW_INPUT_ERROR( "unable to open() file " + m_source + " for reading" );
+          }
+       };
+ 
+diff --git a/pegtl/internal/file_reader.hh b/pegtl/internal/file_reader.hh
+index 7dd4e99..d83456b 100644
+--- a/pegtl/internal/file_reader.hh
++++ b/pegtl/internal/file_reader.hh
+@@ -29,16 +29,16 @@ namespace pegtl
+          {
+             errno = 0;
+             if ( std::fseek( m_file.get(), 0, SEEK_END ) ) {
+-               PEGTL_THROW_INPUT_ERROR( "unable to fseek() to end of file " << m_source );  // LCOV_EXCL_LINE
++               PEGTL_THROW_INPUT_ERROR( "unable to fseek() to end of file " + m_source );  // LCOV_EXCL_LINE
+             }
+             errno = 0;
+             const auto s = std::ftell( m_file.get() );
+             if ( s < 0 ) {
+-               PEGTL_THROW_INPUT_ERROR( "unable to ftell() file size of file " << m_source );  // LCOV_EXCL_LINE
++               PEGTL_THROW_INPUT_ERROR( "unable to ftell() file size of file " + m_source );  // LCOV_EXCL_LINE
+             }
+             errno = 0;
+             if ( std::fseek( m_file.get(), 0, SEEK_SET ) ) {
+-               PEGTL_THROW_INPUT_ERROR( "unable to fseek() to beginning of file " << m_source );  // LCOV_EXCL_LINE
++               PEGTL_THROW_INPUT_ERROR( "unable to fseek() to beginning of file " + m_source );  // LCOV_EXCL_LINE
+             }
+             return s;
+          }
+@@ -49,7 +49,7 @@ namespace pegtl
+             nrv.resize( size() );
+             errno = 0;
+             if ( nrv.size() && ( std::fread( & nrv[ 0 ], nrv.size(), 1, m_file.get() ) != 1 ) ) {
+-               PEGTL_THROW_INPUT_ERROR( "unable to fread() file " << m_source << " size " << nrv.size() );  // LCOV_EXCL_LINE
++               PEGTL_THROW_INPUT_ERROR( "unable to fread() file " + m_source + " size " + std::to_string(nrv.size()) );  // LCOV_EXCL_LINE
+             }
+             return nrv;
+          }
+@@ -64,7 +64,7 @@ namespace pegtl
+             if ( auto * file = std::fopen( m_source.c_str(), "rb" ) ) {
+                return file;
+             }
+-            PEGTL_THROW_INPUT_ERROR( "unable to fopen() file " << m_source << " for reading" );
++            PEGTL_THROW_INPUT_ERROR( "unable to fopen() file " + m_source + " for reading" );
+          }
+       };
+ 
+diff --git a/pegtl/parse.hh b/pegtl/parse.hh
+index e73a683..56f70e5 100644
+--- a/pegtl/parse.hh
++++ b/pegtl/parse.hh
+@@ -6,7 +6,6 @@
+ 
+ #include <string>
+ #include <cstring>
+-#include <sstream>
+ 
+ #include "input.hh"
+ 
+@@ -26,9 +25,7 @@ namespace pegtl
+    template< typename Rule, template< typename ... > class Action = nothing, template< typename ... > class Control = normal, typename ... States >
+    bool parse( const int argc, char ** argv, States && ... st )
+    {
+-      std::ostringstream os;
+-      os << "argv[" << argc << ']';
+-      const std::string source = os.str();
++      const auto source = "argv[" + std::to_string(argc) + "]";
+       input in( 1, 0, argv[ argc ], argv[ argc ] + ::strlen( argv[ argc ] ), source.c_str() );
+       return parse_input< Rule, Action, Control >( in, st ... );
+    }
+diff --git a/pegtl/parse_error.hh b/pegtl/parse_error.hh
+index 97d7c21..2084e67 100644
+--- a/pegtl/parse_error.hh
++++ b/pegtl/parse_error.hh
+@@ -5,7 +5,6 @@
+ #define PEGTL_PARSE_ERROR_HH
+ 
+ #include <vector>
+-#include <sstream>
+ #include <stdexcept>
+ 
+ #include "position_info.hh"
+@@ -27,9 +26,7 @@ namespace pegtl
+       template< typename Input >
+       std::string source( const Input & in )
+       {
+-         std::ostringstream oss;
+-         oss << pegtl::position_info( in.data() );
+-         return oss.str();
++         return position_info( in.data() ).to_string();
+       }
+ 
+    } // internal
+diff --git a/pegtl/position_info.hh b/pegtl/position_info.hh
+index 8140b61..0aa79c0 100644
+--- a/pegtl/position_info.hh
++++ b/pegtl/position_info.hh
+@@ -6,7 +6,6 @@
+ 
+ #include <string>
+ #include <cstdlib>
+-#include <ostream>
+ 
+ #include "input.hh"
+ 
+@@ -34,12 +33,14 @@ namespace pegtl
+       std::size_t column;
+ 
+       const char * begin;
++
++      std::string to_string() const
++      {
++         return source + ':' + std::to_string(line) + ':' + std::to_string(column);
++      }
+    };
+ 
+-   inline std::ostream & operator<< ( std::ostream & o, const position_info & p )
+-   {
+-      return o << p.source << ':' << p.line << ':' << p.column;
+-   }
++   
+ 
+ } // pegtl
+ 
+diff --git a/pegtl/trace.hh b/pegtl/trace.hh
+index 142720f..9921e42 100644
+--- a/pegtl/trace.hh
++++ b/pegtl/trace.hh
+@@ -5,7 +5,6 @@
+ #define PEGTL_TRACE_HH
+ 
+ #include <utility>
+-#include <iostream>
+ 
+ #include "parse.hh"
+ #include "normal.hh"
+@@ -23,19 +22,22 @@ namespace pegtl
+       template< typename Input, typename ... States >
+       static void start( const Input & in, States && ... )
+       {
+-         std::cerr << pegtl::position_info( in ) << "  start  " << internal::demangle< Rule >() << std::endl;
++         auto pos = pegtl::position_info( in ).to_string();
++         fprintf( stderr, "%s start %s", pos, internal::demangle< Rule >());
+       }
+ 
+       template< typename Input, typename ... States >
+       static void success( const Input & in, States && ... )
+       {
+-         std::cerr << pegtl::position_info( in ) << " success " << internal::demangle< Rule >() << std::endl;
++         auto pos = pegtl::position_info( in ).to_string();
++         fprintf( stderr, "%s success %s", pos, internal::demangle< Rule >());
+       }
+ 
+       template< typename Input, typename ... States >
+       static void failure( const Input & in, States && ... )
+       {
+-         std::cerr << pegtl::position_info( in ) << " failure " << internal::demangle< Rule >() << std::endl;
++         auto pos = pegtl::position_info( in ).to_string();
++         fprintf( stderr, "%s failure %s", pos, internal::demangle< Rule >());
+       }
+    };
+ 
+diff --git a/unit_tests/result_type.hh b/unit_tests/result_type.hh
+index 9ddaea8..b9c829a 100644
+--- a/unit_tests/result_type.hh
++++ b/unit_tests/result_type.hh
+@@ -4,7 +4,6 @@
+ #ifndef PEGTL_UNIT_TESTS_RESULT_TYPE_HH
+ #define PEGTL_UNIT_TESTS_RESULT_TYPE_HH
+ 
+-#include <iostream>
+ 
+ namespace pegtl
+ {
+@@ -16,17 +15,17 @@ namespace pegtl
+    };
+ 
+    // The following is inlined so it shows up as not executed on lcov:
+-   inline std::ostream & operator<< ( std::ostream & o, const result_type t )
++   inline std::string to_string( const std::string& o, const result_type t )
+    {
+       switch ( t ) {
+          case result_type::SUCCESS:
+-            return o << "success";
++            return o + "success";
+          case result_type::LOCAL_FAILURE:
+-            return o << "local failure";
++            return o + "local failure";
+          case result_type::GLOBAL_FAILURE:
+-            return o << "global failure";
++            return o + "global failure";
+       }
+-      return o << int( t );
++      return o + std::to_string( t );
+    }
+ 
+ } // pegtl

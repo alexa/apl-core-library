@@ -1,0 +1,309 @@
+/**
+ * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://aws.amazon.com/apache2.0/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+#ifndef _APL_DOCUMENT_H
+#define _APL_DOCUMENT_H
+
+#include <map>
+#include <set>
+
+#include "apl/content/settings.h"
+#include "apl/common.h"
+#include "apl/engine/event.h"
+#include "apl/engine/info.h"
+#include "apl/content/rootconfig.h"
+#include "apl/utils/userdata.h"
+#include "apl/primitives/keyboard.h"
+
+namespace apl {
+
+class Metrics;
+class RootConfig;
+class RootContextData;
+class TimeManager;
+
+extern const char *ELAPSED_TIME;
+extern const char *LOCAL_TIME;
+extern const char *UTC_TIME;
+
+/**
+ * Represents a top-level APL document.
+ *
+ * The RootContext is initially constructed from metrics and content.
+ * Constructing the RootContext implicitly inflates the component hierarchy
+ * and will make text-measurement callbacks.
+ *
+ * The customer is expected to walk the component hierarchy and inflate appropriate
+ * native components.  The native components may hold onto the shared component pointers
+ * or may choose to keep a mapping of component ID to native component.
+ *
+ * After creation, call topComponent() to return the top of the component hierarchy.
+ *
+ * During normal operation the customer is expected to implement the following loop:
+ *
+ *     unsigned long step(unsigned long currentTime) {
+ *       // Move the clock forward
+ *       updateTime(currentTime);
+ *
+ *       // Check for events
+ *       while (root->hasEvent())
+ *         handleEvent( root->popEvent() );
+ *
+ *       // Check for components that need to be updated
+ *       if (root->isDirty()) {
+ *         for (auto& c : root->getDirty())
+ *           updateComponent(c);
+ *         root->clearDirty();
+ *       }
+ *
+ *       // Return the next requested clock time.
+ *       return nextTime();
+ *     }
+ *
+ * To execute a cloud-driven command, use executeCommands().
+ *
+ * To cancel any currently running commands, use cancelExecution().
+ */
+class RootContext : public std::enable_shared_from_this<RootContext>, public UserData {
+public:
+    /**
+     * Construct a top-level root context.
+     * @param metrics Display metrics
+     * @param content Content to display
+     * @return A pointer to the root context.
+     */
+    static RootContextPtr create(const Metrics& metrics,
+                                 const ContentPtr& content);
+
+    /**
+     * Construct a top-level root context.
+     * @param metrics Display metrics
+     * @param content Content to display
+     * @param config Configuration information
+     * @return A pointer to the root context.
+     */
+    static RootContextPtr create(const Metrics& metrics,
+                                 const ContentPtr& content,
+                                 const RootConfig& config);
+
+    /**
+     * Construct a top-level root context.  This static method is mainly for testing
+     * to support modifying the context before layout inflation.
+     * @param metrics Display metrics
+     * @param content Content to display
+     * @param config Configuration information
+     * @param callback Pre-layout callback
+     * @return A pointer to the root context.
+     */
+    static RootContextPtr create(const Metrics& metrics,
+                                 const ContentPtr& content,
+                                 const RootConfig& config,
+                                 std::function<void(const RootContextPtr&)> callback);
+
+    /**
+     * Clear any pending timers that need to be processed and execute any layout passes that are required.
+     * This method is called internally by hasEvent(), popEvent(), and isDirty() so you normally don't need
+     * to call this directly.
+     */
+    void clearPending() const;
+
+    /**
+     * @return True if there is at least one queued event to be processed.
+     */
+    bool hasEvent() const;
+
+    /**
+     * @return The top event from the event queue.
+     */
+    Event popEvent();
+
+    /**
+     * Public constructor.  Use the ::create method instead.
+     * @param metrics Display metrics
+     * @param json Processed APL document file
+     * @param config Configuration information
+     */
+    RootContext(const Metrics& metrics, const ContentPtr& content, const RootConfig& config);
+
+    ~RootContext();
+
+    /**
+     * @return The top-level context.
+     */
+    Context& context() const { return *mContext; }
+
+    /**
+     * @return The top-level context as a shared pointer
+     */
+    ContextPtr contextPtr() const { return mContext; }
+
+    /**
+     * @return The top-level component
+     */
+    ComponentPtr topComponent();
+
+    /**
+     * @return True if one or more components needs to be updated.
+     */
+    bool isDirty() const;
+
+    /**
+     * External routine to get the set of components that are dirty.
+     * @return The dirty set.
+     */
+    const std::set<ComponentPtr>& getDirty();
+
+    /**
+     * Clear all of the dirty flags.  This routine will clear all dirty
+     * flags from child components.
+     */
+    void clearDirty();
+
+    /**
+     * Execute an externally-driven command
+     * @param commands
+     * @param fastMode
+     */
+    ActionPtr executeCommands(const Object& commands, bool fastMode);
+    /**
+     * Cancel any current commands in execution.  This is typically called
+     * as a result of the user touching on the screen to interrupt.
+     */
+    void cancelExecution();
+
+    /**
+     * Move forward in time. This method also advances UTC and Local time by the
+     * same amount.
+     * @param currentTime The time to move forward to.
+     */
+    void updateTime(apl_time_t currentTime);
+
+    /**
+     * Move forward in time and separately update local/UTC time.
+     * @param currentTime The time to move forward to
+     * @param localTime The current local time on the clock
+     */
+    void updateTime(apl_time_t currentTime, apl_time_t localTime);
+
+    /**
+     * Generates a scroll event that will scroll the target component's sub bounds
+     * to the correct place with the given alignment.
+     * @param component The target component.
+     * @param bounds The relative bounds within the target to scroll to.
+     * @param align The alignment to scroll to.
+     */
+    void scrollToRectInComponent(const ComponentPtr& component, const Rect &bounds,
+                                 CommandScrollAlign align);
+
+    /**
+     * @return The next time an internal timer is scheduled to fire.  This may
+     *         be as short as 1 tick past the currentTime().
+     */
+    apl_time_t nextTime();
+
+    /**
+     * @return The current internal time of the system.
+     */
+    apl_time_t currentTime();
+
+    /**
+     * @return True if a command is executing that holds the screen lock.
+     */
+    bool screenLock();
+
+    /**
+     * @return document-wide properties.
+     */
+    const Settings& settings();
+
+    /**
+     * @return The content
+     */
+    const ContentPtr& content() const { return mContent; }
+
+    /**
+     * Create a suitable document-level data-binding context for evaluating a document-level
+     * event.
+     * @param handler The name of the handler.
+     * @return The document-level data-binding context.
+     */
+    ContextPtr createDocumentContext(const std::string& handler);
+
+    /**
+     * Create a suitable document-level data-binding context for evaluating a document-level
+     * keyboard event.
+     * @param handler The name of the handler.
+     * @param keyboard The keyboard event.
+     * @return The document-level data-binding context.
+     */
+    ContextPtr createKeyboardDocumentContext(const std::string& handler, const ObjectMapPtr& keyboard);
+
+
+    /**
+     * @return Information about the elements defined within the content
+     */
+    Info info() const { return Info(mContext, mCore); }
+
+    /**
+     * @return The cursor position.
+     */
+    Point cursorPosition() const;
+
+    /**
+     * Update cursor position.
+     * @param cursor Cursor positon.
+     */
+    void updateCursorPosition(Point cursorPosition);
+
+    /**
+     * An update message from the viewhost called when a key is pressed.  The
+     * keyboard message is directed to the focused component, or the document
+     * if no component is in focus.  If the key event is handled and not propagated
+     * this method returns True. False will be returned if the key event is not handled,
+     * or the event is handled and propagation of the event is permitted.
+     * @param type The key handler type.
+     * @param keyboard The keyboard message.
+     * @return True, if the key was consumed.
+     */
+    virtual bool handleKeyboard(KeyHandlerType type, const Keyboard &keyboard);
+
+    /**
+     * @return The current logging session
+     */
+    const SessionPtr& getSession() const;
+
+    friend streamer& operator<<(streamer& os, const RootContext& root);
+
+private:
+    bool setup();
+    bool addToDependencyList(std::vector<std::shared_ptr<Package>>& ordered,
+                             std::set<std::shared_ptr<Package>>& inProgress,
+                             const PackagePtr& package);
+    bool verifyAPLVersionCompatibility(const std::vector<std::shared_ptr<Package>>& ordered,
+                                       const APLVersion& compatibilityVersion);
+    bool verifyTypeField(const std::vector<std::shared_ptr<Package>>& ordered, bool enforce);
+    std::shared_ptr<ObjectMap> createDocumentEventProperties(const std::string& handler) const;
+
+private:
+    ContentPtr mContent;
+    ContextPtr mContext;
+    std::shared_ptr<RootContextData> mCore;  // When you die, make sure to tell the data to terminate itself.
+    std::shared_ptr<TimeManager> mTimeManager;
+    apl_time_t mLocalTime;  // Track the current local time
+};
+
+} // namespace apl
+
+#endif //_APL_DOCUMENT_H
