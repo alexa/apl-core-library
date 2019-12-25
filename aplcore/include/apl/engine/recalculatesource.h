@@ -59,7 +59,7 @@ public:
     /**
      * The "key" local element has changed.  Recalculate all downstream objects that depend on key.
      * @param key The key that has changed.
-     * @param useDirtyFlag If true, mark downstream changes with the dirty falg
+     * @param useDirtyFlag If true, mark downstream changes with the dirty flag
      */
     void recalculateDownstream(T key, bool useDirtyFlag) {
         auto dependants = mDownstream.equal_range(key);
