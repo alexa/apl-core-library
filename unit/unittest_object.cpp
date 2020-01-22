@@ -468,3 +468,36 @@ TEST(ObjectTest, DoubleConversion)
         ASSERT_EQ(m.second, result) << m.first << " : " << m.second;
     }
 }
+
+static const std::vector<std::pair<std::string, double>> STRING_TO_DOUBLE{
+    {"0",        0},
+    {"1",        1},
+    {"2.5",      2.5},
+    {"2.",       2},
+    {"-12.25",   -12.25},
+    {"    4   ", 4},
+    {" 125%",    1.25},
+    {"100    %", 1},
+    {"100 /%",   100},  // The '/' terminates the search for %
+    {"1 4",      1},
+    {"1e2",      100},
+    {"",         std::numeric_limits<double>::quiet_NaN()},
+    {"- 10",     std::numeric_limits<double>::quiet_NaN()},
+    {"%",        std::numeric_limits<double>::quiet_NaN()},
+    {"% 123",    std::numeric_limits<double>::quiet_NaN()},
+    {"INF",      std::numeric_limits<double>::infinity()},
+    {"NAN",      std::numeric_limits<double>::quiet_NaN()},
+    {"INF%",     std::numeric_limits<double>::infinity()},
+    {"NAN%",     std::numeric_limits<double>::quiet_NaN()},
+};
+
+TEST(ObjectTest, StringToDouble)
+{
+    for (const auto& m : STRING_TO_DOUBLE) {
+        Object object(m.first);
+        double result = object.asNumber();
+        if (std::isnan(result) && std::isnan(m.second))  // NaN do not compare as equal, but they are valid
+            continue;
+        ASSERT_EQ(m.second, result) << "'" << m.first << "' : " << m.second;
+    }
+}

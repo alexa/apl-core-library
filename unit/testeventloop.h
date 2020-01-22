@@ -639,7 +639,6 @@ template<class... Args>
             return ::testing::AssertionFailure() << "missing graphic element " << key;
     }
 
-    graphic->clearDirty();
     return ::testing::AssertionSuccess();
 };
 
@@ -660,7 +659,6 @@ template<class... Args>
             return ::testing::AssertionFailure() << "missing graphic key " << sGraphicPropertyBimap.at(key);
     }
 
-    element->clearDirtyProperties();
     return ::testing::AssertionSuccess();
 };
 

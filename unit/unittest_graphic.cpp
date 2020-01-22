@@ -695,3 +695,365 @@ TEST_F(GraphicTest, StyledParameters2)
     ASSERT_EQ(1, path->getDirtyProperties().count(kGraphicPropertyFill));
     ASSERT_EQ(Object(Color(Color::OLIVE)), path->getValue(kGraphicPropertyFill));
 }
+
+
+static const char *TIME_TEST =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.3\","
+    "  \"graphics\": {"
+    "    \"clock\": {"
+    "      \"description\": \"Live analog clock\","
+    "      \"type\": \"AVG\","
+    "      \"version\": \"1.0\","
+    "      \"height\": 100,"
+    "      \"width\": 100,"
+    "      \"item\": {"
+    "        \"type\": \"group\","
+    "        \"rotation\": \"${Time.seconds(localTime)*6}\","
+    "        \"pivotX\": 50,"
+    "        \"pivotY\": 50,"
+    "        \"items\": {"
+    "          \"type\": \"path\","
+    "          \"pathData\": \"M50,0 l0,50\","
+    "          \"stroke\": \"red\""
+    "        }"
+    "      }"
+    "    }"
+    "  },"
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"VectorGraphic\","
+    "      \"source\": \"clock\","
+    "      \"width\": \"100%\","
+    "      \"height\": \"100%\","
+    "      \"scale\": \"best-fit\","
+    "      \"align\": \"center\""
+    "    }"
+    "  }"
+    "}";
+
+/**
+ * A popular use of a vector graphic is to create a clock.  This clock example uses
+ * the "localTime" global property to move the second hand directly.
+ */
+TEST_F(GraphicTest, Time)
+{
+    auto content = Content::create(TIME_TEST, session);
+    ASSERT_TRUE(content);
+
+    auto root = RootContext::create(metrics, content);
+    ASSERT_TRUE(root);
+
+    auto box = root->topComponent();
+    ASSERT_TRUE(box);
+
+    auto graphic = box->getCalculated(kPropertyGraphic).getGraphic();
+    ASSERT_EQ(100, graphic->getViewportWidth());
+    ASSERT_EQ(100, graphic->getViewportHeight());
+
+    auto container = graphic->getRoot();
+    ASSERT_EQ(kGraphicElementTypeContainer, container->getType());
+
+    auto group = container->getChildAt(0);
+    ASSERT_EQ(kGraphicElementTypeGroup, group->getType());
+    ASSERT_EQ(0, group->getValue(kGraphicPropertyRotation).asNumber());
+
+    // Now advance local time by 3 seconds
+    root->updateTime(3000);
+    ASSERT_EQ(18, group->getValue(kGraphicPropertyRotation).asNumber());
+    ASSERT_TRUE(CheckDirty(group, kGraphicPropertyRotation));
+    ASSERT_TRUE(CheckDirty(graphic, group));
+    ASSERT_TRUE(CheckDirty(box, kPropertyGraphic));
+    ASSERT_TRUE(CheckDirty(root, box));
+}
+
+
+static const char *PARAMETERIZED_TIME =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.3\","
+    "  \"graphics\": {"
+    "    \"clock\": {"
+    "      \"type\": \"AVG\","
+    "      \"version\": \"1.0\","
+    "      \"height\": 100,"
+    "      \"width\": 100,"
+    "      \"parameters\": ["
+    "        \"time\""
+    "      ],"
+    "      \"item\": {"
+    "        \"type\": \"group\","
+    "        \"rotation\": \"${Time.seconds(time)*6}\","
+    "        \"pivotX\": 50,"
+    "        \"pivotY\": 50,"
+    "        \"items\": {"
+    "          \"type\": \"path\","
+    "          \"pathData\": \"M50,0 l0,50\","
+    "          \"stroke\": \"red\""
+    "        }"
+    "      }"
+    "    }"
+    "  },"
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"VectorGraphic\","
+    "      \"source\": \"clock\","
+    "      \"width\": \"100%\","
+    "      \"height\": \"100%\","
+    "      \"scale\": \"best-fit\","
+    "      \"align\": \"center\","
+    "      \"time\": \"${localTime + 30000}\""
+    "    }"
+    "  }"
+    "}";
+
+/**
+ * This clock test passes the time as a parameter in from the mainTemplate
+ */
+TEST_F(GraphicTest, ParameterizedTime)
+{
+    auto content = Content::create(PARAMETERIZED_TIME, session);
+    ASSERT_TRUE(content);
+
+    auto root = RootContext::create(metrics, content);
+    ASSERT_TRUE(root);
+
+    auto box = root->topComponent();
+    ASSERT_TRUE(box);
+
+    auto graphic = box->getCalculated(kPropertyGraphic).getGraphic();
+    ASSERT_EQ(100, graphic->getViewportWidth());
+    ASSERT_EQ(100, graphic->getViewportHeight());
+
+    auto container = graphic->getRoot();
+    ASSERT_EQ(kGraphicElementTypeContainer, container->getType());
+
+    auto group = container->getChildAt(0);
+    ASSERT_EQ(kGraphicElementTypeGroup, group->getType());
+    ASSERT_EQ(180, group->getValue(kGraphicPropertyRotation).asNumber());
+
+    // Now advance local time by 3 seconds
+    root->updateTime(3000);
+    ASSERT_EQ(198, group->getValue(kGraphicPropertyRotation).asNumber());
+    ASSERT_TRUE(CheckDirty(group, kGraphicPropertyRotation));
+    ASSERT_TRUE(CheckDirty(graphic, group));
+    ASSERT_TRUE(CheckDirty(box, kPropertyGraphic));
+    ASSERT_TRUE(CheckDirty(root, box));
+}
+
+static const char *FULL_CLOCK =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.2\","
+    "  \"graphics\": {"
+    "    \"clock\": {"
+    "      \"type\": \"AVG\","
+    "      \"version\": \"1.0\","
+    "      \"parameters\": ["
+    "        \"time\""
+    "      ],"
+    "      \"width\": 100,"
+    "      \"height\": 100,"
+    "      \"items\": ["
+    "        {"
+    "          \"type\": \"group\","
+    "          \"description\": \"MinuteHand\","
+    "          \"rotation\": \"${Time.minutes(time) * 6}\","
+    "          \"pivotX\": 50,"
+    "          \"pivotY\": 50,"
+    "          \"items\": {"
+    "            \"type\": \"path\","
+    "            \"pathData\": \"M48.5,7 L51.5,7 L51.5,50 L48.5,50 L48.5,7 Z\","
+    "            \"fill\": \"orange\""
+    "          }"
+    "        },"
+    "        {"
+    "          \"type\": \"group\","
+    "          \"description\": \"HourHand\","
+    "          \"rotation\": \"${Time.hours(time) * 30}\","
+    "          \"pivotX\": 50,"
+    "          \"pivotY\": 50,"
+    "          \"items\": {"
+    "            \"type\": \"path\","
+    "            \"pathData\": \"M48.5,17 L51.5,17 L51.5,50 L48.5,50 L48.5,17 Z\","
+    "            \"fill\": \"black\""
+    "          }"
+    "        },"
+    "        {"
+    "          \"type\": \"group\","
+    "          \"description\": \"SecondHand\","
+    "          \"rotation\": \"${Time.seconds(time) * 6}\","
+    "          \"pivotX\": 50,"
+    "          \"pivotY\": 50,"
+    "          \"items\": {"
+    "            \"type\": \"path\","
+    "            \"pathData\": \"M49.5,15 L50.5,15 L50.5,60 L49.5,60 L49.5,15 Z\","
+    "            \"fill\": \"red\""
+    "          }"
+    "        },"
+    "        {"
+    "          \"type\": \"path\","
+    "          \"description\": \"Cap\","
+    "          \"pathData\": \"M50,53 C51.656854,53 53,51.6568542 53,50 C53,48.3431458 51.656854,47 50,47 C48.343146,47 47,48.3431458 47,50 C47,51.6568542 48.343146,53 50,53 Z\","
+    "          \"fill\": \"#d8d8d8ff\","
+    "          \"stroke\": \"#e6e6e6ff\","
+    "          \"strokeWidth\": 1"
+    "        }"
+    "      ]"
+    "    }"
+    "  },"
+    "  \"mainTemplate\": {"
+    "    \"parameters\": ["
+    "      \"payload\""
+    "    ],"
+    "    \"items\": {"
+    "      \"type\": \"VectorGraphic\","
+    "      \"source\": \"clock\","
+    "      \"width\": \"100%\","
+    "      \"height\": \"100%\","
+    "      \"scale\": \"best-fit\","
+    "      \"align\": \"center\","
+    "      \"time\": \"${localTime + 1000 * (payload.seconds + 60 * payload.minutes + 3600 * payload.hours)}\""
+    "    }"
+    "  }"
+    "}";
+
+/**
+ * Sanity check a clock with a second, minute, and hour hand.  We pass in a payload that specifies the
+ * exact hours, minutes, and seconds we wish to set
+ */
+TEST_F(GraphicTest, FullClock)
+{
+    auto content = Content::create(FULL_CLOCK, session);
+    ASSERT_TRUE(content);
+
+    content->addData("payload", R"({"hours": 1, "minutes": 20, "seconds": 30})");
+    ASSERT_TRUE(content->isReady());
+
+    auto root = RootContext::create(metrics, content);
+    ASSERT_TRUE(root);
+
+    auto box = root->topComponent();
+    ASSERT_TRUE(box);
+
+    auto graphic = box->getCalculated(kPropertyGraphic).getGraphic();
+    ASSERT_EQ(100, graphic->getViewportWidth());
+    ASSERT_EQ(100, graphic->getViewportHeight());
+
+    auto container = graphic->getRoot();
+    ASSERT_EQ(kGraphicElementTypeContainer, container->getType());
+    ASSERT_EQ(4, container->getChildCount());
+
+    // The first child should be the minute hand
+    auto minuteHand = container->getChildAt(0);
+    ASSERT_EQ(kGraphicElementTypeGroup, minuteHand->getType());
+    ASSERT_EQ(120, minuteHand->getValue(kGraphicPropertyRotation).asNumber());  // 20 minutes = 120 degrees rotation
+
+    // The second child is the hour hand
+    auto hourHand = container->getChildAt(1);
+    ASSERT_EQ(kGraphicElementTypeGroup, hourHand->getType());
+    ASSERT_EQ(30, hourHand->getValue(kGraphicPropertyRotation).asNumber());  // 1 o'clock = 30 degrees rotation
+
+    // The third child is the second hand
+    auto secondHand = container->getChildAt(2);
+    ASSERT_EQ(kGraphicElementTypeGroup, secondHand->getType());
+    ASSERT_EQ(180, secondHand->getValue(kGraphicPropertyRotation).asNumber());  // 30 seconds = 180 degrees rotation
+
+    // Now advance local time by one hour, one minute, and one second
+    root->updateTime((3600 + 60 + 1) * 1000);
+    ASSERT_EQ(126, minuteHand->getValue(kGraphicPropertyRotation).asNumber());  // 21 minutes = 126 degrees rotation
+    ASSERT_EQ(60, hourHand->getValue(kGraphicPropertyRotation).asNumber());  // 2 o'clock = 60 degrees rotation
+    ASSERT_EQ(186, secondHand->getValue(kGraphicPropertyRotation).asNumber());  // 31 seconds = 186 degrees rotation
+
+    ASSERT_TRUE(CheckDirty(minuteHand, kGraphicPropertyRotation));
+    ASSERT_TRUE(CheckDirty(hourHand, kGraphicPropertyRotation));
+    ASSERT_TRUE(CheckDirty(secondHand, kGraphicPropertyRotation));
+    ASSERT_TRUE(CheckDirty(graphic, minuteHand, hourHand, secondHand));
+    ASSERT_TRUE(CheckDirty(box, kPropertyGraphic));
+    ASSERT_TRUE(CheckDirty(root, box));
+}
+
+
+/**
+ * Viewhost-like clock impl with a second, minute, and hour hand. This test avoids the use of CheckDirty
+ * utilities and calls isDirty() and clearDirty() in a manner like the viewhost.
+ * In a loop the test specifies the exact hours, minutes, and seconds we wish to set, verifies and
+ * clears the dirty state.
+ */
+TEST_F(GraphicTest, ClearDirty)
+{
+    auto content = Content::create(FULL_CLOCK, session);
+    ASSERT_TRUE(content);
+
+    content->addData("payload", R"({"hours": 1, "minutes": 20, "seconds": 30})");
+    ASSERT_TRUE(content->isReady());
+
+    auto root = RootContext::create(metrics, content);
+    ASSERT_TRUE(root);
+
+    auto box = root->topComponent();
+    ASSERT_TRUE(box);
+    ASSERT_EQ(0,box->getChildCount());
+
+    auto graphic = box->getCalculated(kPropertyGraphic).getGraphic();
+    ASSERT_TRUE(graphic);
+    ASSERT_TRUE(graphic->isValid());
+
+    auto container = graphic->getRoot();
+    ASSERT_TRUE(container);
+    ASSERT_EQ(4, container->getChildCount());
+
+    // The first child should be the minute hand
+    auto minuteHand = container->getChildAt(0);
+    ASSERT_TRUE(minuteHand);
+
+    // The second child is the hour hand
+    auto hourHand = container->getChildAt(1);
+    ASSERT_TRUE(hourHand);
+
+    // The third child is the second hand
+    auto secondHand = container->getChildAt(2);
+    ASSERT_TRUE(secondHand);
+
+    // The third child is the second hand
+    auto cap = container->getChildAt(3);
+    ASSERT_TRUE(cap);
+
+    // Now advance local time by one hour, one minute, and one second
+    for (int i=1; i<10; i++) {
+        root->updateTime((3600 + 60 + 1) * 1000*i);
+
+        LOG_IF(true) << "LOOP:"<<i;
+
+        // verify root is dirty
+        ASSERT_TRUE(root->isDirty());
+        ASSERT_TRUE(root->getDirty().size() > 0);
+
+        // verify component is dirty
+        ASSERT_TRUE(box->getDirty().count(kPropertyGraphic) > 0);
+        ASSERT_EQ(3, graphic->getDirty().size());
+
+        // verify elements are dirty
+        ASSERT_TRUE(hourHand->getDirtyProperties().count(kGraphicPropertyRotation) > 0);
+        ASSERT_TRUE(minuteHand->getDirtyProperties().count(kGraphicPropertyRotation) > 0);
+        ASSERT_TRUE(secondHand->getDirtyProperties().count(kGraphicPropertyRotation) > 0);
+        ASSERT_TRUE(cap->getDirtyProperties().count(kGraphicPropertyRotation) == 0);
+
+        // clear dirty state at root context and verify everything is clean
+        root->clearDirty();
+
+        ASSERT_TRUE(root->getDirty().size() == 0);
+
+        // verify component is clean
+        ASSERT_TRUE(box->getDirty().count(kPropertyGraphic) == 0);
+        ASSERT_EQ(0, graphic->getDirty().size());
+
+        // verify elements are clean
+        ASSERT_TRUE(hourHand->getDirtyProperties().count(kGraphicPropertyRotation) == 0);
+        ASSERT_TRUE(minuteHand->getDirtyProperties().count(kGraphicPropertyRotation) == 0);
+        ASSERT_TRUE(secondHand->getDirtyProperties().count(kGraphicPropertyRotation) == 0);
+        ASSERT_TRUE(cap->getDirtyProperties().count(kGraphicPropertyRotation) == 0);
+
+    }
+}

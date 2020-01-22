@@ -182,7 +182,7 @@ public:
     /**
      * Clear the set of properties that have been changed.
      */
-    void clearDirty() { mDirty.clear(); }
+    virtual void clearDirty() { mDirty.clear(); }
 
     /**
      * @return The current map of property name to value set on this component.
@@ -383,7 +383,7 @@ protected:
 
     static id_type             sUniqueIdGenerator;
 
-    ContextPtr   mContext;
+    ContextPtr                 mContext;
     std::string                mUniqueId;
     std::string                mId;
     CalculatedPropertyMap      mCalculated;  // Current calculated object properties

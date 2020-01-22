@@ -265,8 +265,9 @@ Graphic::updateStyle(const StyleInstancePtr& styledPtr)
 void
 Graphic::clearDirty()
 {
-    for (const auto& element : mDirty)
+    for (const auto& element : mDirty) {
         element->clearDirtyProperties();
+    }
     mDirty.clear();
 }
 

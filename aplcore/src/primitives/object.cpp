@@ -878,6 +878,29 @@ Object::asString() const
     return "ERROR";  // TODO: Fix up the string type
 }
 
+inline double
+stringToDouble(const std::string& string)
+{
+    try {
+        auto len = string.size();
+        auto idx = len;
+        double result = std::stod(string, &idx);
+        // Handle percentages.  We skip over whitespace and stop on any other character
+        while (idx < len) {
+            auto c = string[idx];
+            if (c == '%') {
+                result *= 0.01;
+                break;
+            }
+            if (!std::isspace(c))
+                break;
+            idx++;
+        }
+        return result;
+    } catch (...) {}
+    return std::numeric_limits<double>::quiet_NaN();
+}
+
 double
 Object::asNumber() const
 {
@@ -886,8 +909,9 @@ Object::asNumber() const
         case kNumberType:
             return mValue;
         case kStringType:
-            try { return std::stod(mString); } catch (...) {}
-            return std::numeric_limits<double>::quiet_NaN();
+            return stringToDouble(mString);
+        case kStyledTextType:
+            return stringToDouble(mData->getStyledText().asString());
         default:
             return std::numeric_limits<double>::quiet_NaN();
     }
@@ -903,6 +927,9 @@ Object::asInt() const
             return std::rint(mValue);
         case kStringType:
             try { return std::stoi(mString); } catch(...) {}
+            return std::numeric_limits<int>::quiet_NaN();
+        case kStyledTextType:
+            try { return std::stoi(mData->getStyledText().asString()); } catch(...) {}
             return std::numeric_limits<int>::quiet_NaN();
         default:
             return std::numeric_limits<int>::quiet_NaN();
@@ -925,6 +952,8 @@ Object::asColor(const SessionPtr& session) const
             return Color(mValue);
         case kStringType:
             return Color(session, mString);
+        case kStyledTextType:
+            return Color(session, mData->getStyledText().asString());
         default:
             return Color();  // Transparent
     }
@@ -950,6 +979,8 @@ Object::asDimension(const Context& context) const
             return Dimension(DimensionType::Relative, mValue);
         case kAutoDimensionType:
             return Dimension(DimensionType::Auto, 0);
+        case kStyledTextType:
+            return Dimension(context, mData->getStyledText().asString());
         default:
             return Dimension(DimensionType::Absolute, 0);
     }
@@ -963,6 +994,10 @@ Object::asAbsoluteDimension(const Context& context) const
             return Dimension(DimensionType::Absolute, mValue);
         case kStringType: {
             auto d = Dimension(context, mString);
+            return (d.getType() == DimensionType::Absolute ? d : Dimension(DimensionType::Absolute, 0));
+        }
+        case kStyledTextType: {
+            auto d = Dimension(context, mData->getStyledText().asString());
             return (d.getType() == DimensionType::Absolute ? d : Dimension(DimensionType::Absolute, 0));
         }
         case kAbsoluteDimensionType:
@@ -982,6 +1017,10 @@ Object::asNonAutoDimension(const Context& context) const
             auto d = Dimension(context, mString);
             return (d.getType() == DimensionType::Auto ? Dimension(DimensionType::Absolute, 0) : d);
         }
+        case kStyledTextType: {
+            auto d = Dimension(context, mData->getStyledText().asString());
+            return (d.getType() == DimensionType::Auto ? Dimension(DimensionType::Absolute, 0) : d);
+        }
         case kAbsoluteDimensionType:
             return Dimension(DimensionType::Absolute, mValue);
         case kRelativeDimensionType:
@@ -999,6 +1038,10 @@ Object::asNonAutoRelativeDimension(const Context& context) const
             return Dimension(DimensionType::Relative, mValue * 100);
         case kStringType: {
             auto d = Dimension(context, mString, true);
+            return (d.getType() == DimensionType::Auto ? Dimension(DimensionType::Relative, 0) : d);
+        }
+        case kStyledTextType: {
+            auto d = Dimension(context, mData->getStyledText().asString(), true);
             return (d.getType() == DimensionType::Auto ? Dimension(DimensionType::Relative, 0) : d);
         }
         case kAbsoluteDimensionType:
@@ -1097,6 +1140,8 @@ Object::size() const
             return mData->size();
         case kStringType:
             return mString.size();
+        case kStyledTextType:
+            return mData->getStyledText().asString().size();  // Size of the raw text
         default:
             return 0;
     }
@@ -1114,6 +1159,8 @@ Object::empty() const
             return mData->empty();
         case kStringType:
             return mString.empty();
+        case kStyledTextType:
+            return mData->getStyledText().asString().empty();  // Only true if the raw text is empty
         default:
             return false;
     }

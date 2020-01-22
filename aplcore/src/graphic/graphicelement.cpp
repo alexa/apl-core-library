@@ -347,5 +347,13 @@ GraphicElement::build(const GraphicPtr& graphic, const ContextPtr& context, cons
     return GraphicElementContainer::create(graphic, context, json);
 }
 
+void
+GraphicElement::clearDirtyProperties() {
+    for(const auto& child : mChildren) {
+        child->clearDirtyProperties();
+    }
+    mDirtyProperties.clear();
+}
+
 
 } // namespace apl

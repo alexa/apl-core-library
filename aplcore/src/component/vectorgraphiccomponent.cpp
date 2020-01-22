@@ -261,4 +261,15 @@ VectorGraphicComponent::setPropertyInternal(const std::string& key, const apl::O
     return false;
 }
 
+
+void VectorGraphicComponent::clearDirty() {
+    // order is important.  clear the component before the graphic
+    Component::clearDirty();
+    auto graphic = mCalculated.get(kPropertyGraphic);
+    if (graphic.isGraphic()) {
+        auto g = graphic.getGraphic();
+        g->clearDirty();
+    }
+}
+
 } // namespace apl

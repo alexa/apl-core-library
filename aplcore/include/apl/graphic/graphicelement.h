@@ -105,7 +105,7 @@ public:
     /**
      * Clear all properties marked as dirty.
      */
-    void clearDirtyProperties() { mDirtyProperties.clear(); }
+    void clearDirtyProperties();
 
     /**
      * @return The set of properties which are marked as dirty for this element.

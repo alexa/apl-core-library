@@ -618,10 +618,6 @@ TEST_F(GraphicComponentTest, StyleTestWithStretch)
     // Change the state to pressed
     component->setState(kStatePressed, true);
 
-    // The vector graphic component should have a new scale, alignment, and media bounds
-    ASSERT_EQ(Rect(768, 375, 256, 50), component->getCalculated(kPropertyMediaBounds).getRect());  // Right-aligned
-    ASSERT_TRUE(CheckDirty(component, kPropertyScale, kPropertyAlign, kPropertyMediaBounds, kPropertyGraphic));
-    ASSERT_TRUE(CheckDirty(root, component));
 
     // The graphic itself should have a new viewport height and width
     ASSERT_EQ(100, graphic->getViewportWidth());
@@ -641,6 +637,12 @@ TEST_F(GraphicComponentTest, StyleTestWithStretch)
 
     // Internal to the graphic the container and the path should be updated
     ASSERT_TRUE(CheckDirty(graphic, container, path));
+
+    // The vector graphic component should have a new scale, alignment, and media bounds
+    ASSERT_EQ(Rect(768, 375, 256, 50), component->getCalculated(kPropertyMediaBounds).getRect());  // Right-aligned
+    ASSERT_TRUE(CheckDirty(component, kPropertyScale, kPropertyAlign, kPropertyMediaBounds, kPropertyGraphic));
+
+    ASSERT_TRUE(CheckDirty(root, component));
 }
 
 static const char *RELAYOUT_TEST =
@@ -719,20 +721,11 @@ TEST_F(GraphicComponentTest, RelayoutTest)
     component->setState(kStatePressed, true);
     root->clearPending();  // Ensure that the layout has been updated
 
-    // The border width has changed on the frame.
-    ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyBorderWidth));
-    ASSERT_EQ(Rect(100, 100, 824, 600), component->getCalculated(kPropertyInnerBounds).getRect());
-    ASSERT_TRUE(CheckDirty(component, kPropertyInnerBounds, kPropertyBorderWidth));
-
     // The vector graphic component has new, smaller media bounds
     ASSERT_EQ(Rect(0, 0, 824, 600), vg->getCalculated(kPropertyMediaBounds).getRect());
     ASSERT_EQ(Rect(100, 100, 824, 600), vg->getCalculated(kPropertyBounds).getRect());  // Bounds in parent
     // The kPropertyGraphic is marked as dirty.  That's not right - it's merely resized
     ASSERT_EQ(Rect(0, 0, 824, 600), vg->getCalculated(kPropertyInnerBounds).getRect());
-    ASSERT_TRUE(CheckDirty(vg, kPropertyGraphic, kPropertyMediaBounds, kPropertyBounds, kPropertyInnerBounds));
-
-    // The root should be showing dirty for both the vector graphic component and the frame
-    ASSERT_TRUE(CheckDirty(root, component, vg));
 
     // The container should have four updated values
     ASSERT_EQ(Object(Dimension(600)), container->getValue(kGraphicPropertyHeightActual));
@@ -741,10 +734,19 @@ TEST_F(GraphicComponentTest, RelayoutTest)
     ASSERT_EQ(Object(100), container->getValue(kGraphicPropertyViewportWidthActual));
     ASSERT_TRUE(CheckDirty(container, kGraphicPropertyHeightActual, kGraphicPropertyWidthActual));
 
+    // The border width has changed on the frame.
+    ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyBorderWidth));
+    ASSERT_EQ(Rect(100, 100, 824, 600), component->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_TRUE(CheckDirty(component, kPropertyInnerBounds, kPropertyBorderWidth));
+
     // The graphic itself should have a new viewport height and width
     ASSERT_EQ(100, graphic->getViewportWidth());
     ASSERT_EQ(100, graphic->getViewportHeight());
     ASSERT_TRUE(CheckDirty(graphic, container));
+
+    // The root should be showing dirty for both the vector graphic component and the frame
+   ASSERT_TRUE(CheckDirty(vg, kPropertyGraphic, kPropertyMediaBounds, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root, component, vg));
 }
 
 // Assign a vector graphic to a component
@@ -832,47 +834,47 @@ TEST_F(GraphicComponentTest, AssignGraphicLater) {
 
 }
 
-const char* PARAMETERS_DOC = "{\n"
-                             "    \"type\": \"APL\",\n"
-                             "    \"version\": \"1.0\",\n"
-                             "    \"graphics\": {\n"
-                             "        \"myPillShape\": {\n"
-                             "            \"type\": \"AVG\",\n"
-                             "            \"version\": \"1.0\",\n"
-                             "            \"height\": 100,\n"
-                             "            \"width\": 100,\n"
-                             "            \"parameters\": [\n"
-                             "                \"myScaleType\"\n"
-                             "            ],\n"
-                             "            \"scaleTypeHeight\": \"${myScaleType}\",\n"
-                             "            \"items\": [\n"
-                             "                {\n"
-                             "                    \"type\": \"path\",\n"
-                             "                    \"pathData\": \"M25,50 a25,25 0 1 1 50,0 l0 ${height-100} a25,25 0 1 1 -50,0 z\",\n"
-                             "                    \"stroke\": \"black\",\n"
-                             "                    \"strokeWidth\": 20\n"
-                             "                }\n"
-                             "            ]\n"
-                             "        }\n"
-                             "    },\n"
-                             "    \"mainTemplate\": {\n"
-                             "        \"item\": {\n"
-                             "            \"type\": \"Container\",\n"
-                             "            \"direction\": \"row\",\n"
-                             "            \"items\": {\n"
-                             "                \"type\": \"VectorGraphic\",\n"
-                             "                \"source\": \"myPillShape\",\n"
-                             "                \"width\": 100,\n"
-                             "                \"height\": 200,\n"
-                             "                \"scale\": \"fill\",\n"
-                             "                \"myScaleType\": \"${data}\"\n"
-                             "            },\n"
-                             "            \"data\": [\n"
-                             "                \"none\",\n"
-                             "                \"stretch\"\n"
-                             "            ]\n"
-                             "        }\n"
-                             "    }\n"
+const char* PARAMETERS_DOC = "{"
+                             "    \"type\": \"APL\","
+                             "    \"version\": \"1.0\","
+                             "    \"graphics\": {"
+                             "        \"myPillShape\": {"
+                             "            \"type\": \"AVG\","
+                             "            \"version\": \"1.0\","
+                             "            \"height\": 100,"
+                             "            \"width\": 100,"
+                             "            \"parameters\": ["
+                             "                \"myScaleType\""
+                             "            ],"
+                             "            \"scaleTypeHeight\": \"${myScaleType}\","
+                             "            \"items\": ["
+                             "                {"
+                             "                    \"type\": \"path\","
+                             "                    \"pathData\": \"M25,50 a25,25 0 1 1 50,0 l0 ${height-100} a25,25 0 1 1 -50,0 z\","
+                             "                    \"stroke\": \"black\","
+                             "                    \"strokeWidth\": 20"
+                             "                }"
+                             "            ]"
+                             "        }"
+                             "    },"
+                             "    \"mainTemplate\": {"
+                             "        \"item\": {"
+                             "            \"type\": \"Container\","
+                             "            \"direction\": \"row\","
+                             "            \"items\": {"
+                             "                \"type\": \"VectorGraphic\","
+                             "                \"source\": \"myPillShape\","
+                             "                \"width\": 100,"
+                             "                \"height\": 200,"
+                             "                \"scale\": \"fill\","
+                             "                \"myScaleType\": \"${data}\""
+                             "            },"
+                             "            \"data\": ["
+                             "                \"none\","
+                             "                \"stretch\""
+                             "            ]"
+                             "        }"
+                             "    }"
                              "}";
 
 
@@ -903,4 +905,107 @@ TEST_F(GraphicComponentTest, GraphicParameter) {
     pathData = path->getValue(kGraphicPropertyPathData);
     ASSERT_EQ("M25,50 a25,25 0 1 1 50,0 l0 100 a25,25 0 1 1 -50,0 z", pathData.asString());
 
+}
+
+const char* FOCUS_AND_HOVER_STYLE = "{"
+                                    "  \"type\": \"APL\","
+                                    "  \"version\": \"1.2\","
+                                    "  \"theme\": \"dark\","
+                                    "  \"styles\": {"
+                                    "    \"styleHoverable\": {"
+                                    "      \"values\": ["
+                                    "        {"
+                                    "          \"circleColor\": \"white\""
+                                    "        },"
+                                    "        {"
+                                    "          \"when\": \"${state.hover}\","
+                                    "          \"circleColor\": \"red\""
+                                    "        }"
+                                    "      ]"
+                                    "    }"
+                                    "  },"
+                                    "  \"graphics\": {"
+                                    "    \"parameterizedCircle\": {"
+                                    "      \"type\": \"AVG\","
+                                    "      \"version\": \"1.0\","
+                                    "      \"height\": 100,"
+                                    "      \"width\": 100,"
+                                    "      \"parameters\": ["
+                                    "        {"
+                                    "          \"name\": \"circleColor\","
+                                    "          \"type\": \"color\","
+                                    "          \"default\": \"black\""
+                                    "        },"
+                                    "        {"
+                                    "          \"name\": \"circleBorderWidth\","
+                                    "          \"type\": \"number\","
+                                    "          \"default\": 2"
+                                    "        }"
+                                    "      ],"
+                                    "      \"items\": ["
+                                    "        {"
+                                    "          \"type\": \"path\","
+                                    "          \"pathData\": \"M25,50 a25,25 0 1 1 50,0 a25,25 0 1 1 -50,0\","
+                                    "          \"stroke\": \"${circleColor}\","
+                                    "          \"strokeWidth\": \"${circleBorderWidth}\""
+                                    "        }"
+                                    "      ]"
+                                    "    }"
+                                    "  },"
+                                    "  \"mainTemplate\": {"
+                                    "    \"item\": {"
+                                    "      \"type\": \"Container\","
+                                    "      \"items\": ["
+                                    "        {"
+                                    "          \"type\": \"VectorGraphic\","
+                                    "          \"positioning\": \"absolute\","
+                                    "          \"top\": 50,"
+                                    "          \"left\": 50,"
+                                    "          \"source\": \"parameterizedCircle\","
+                                    "          \"width\": 100,"
+                                    "          \"height\": 100,"
+                                    "          \"style\": \"styleHoverable\","
+                                    "          \"circleBorderWidth\": \"5\""
+                                    "        }"
+                                    "      ]"
+                                    "    }"
+                                    "  }"
+                                    "}";
+
+TEST_F(GraphicComponentTest, GraphicFocusAndHover) {
+    loadDocument(FOCUS_AND_HOVER_STYLE);
+
+    auto gc = component->getCoreChildAt(0);
+
+    // The top component is the graphic, but there is no content
+    ASSERT_EQ(kComponentTypeVectorGraphic, gc->getType());
+
+    auto obj = gc->getCalculated(kPropertyGraphic);
+    ASSERT_EQ(obj.getType(), Object::kGraphicType);
+    auto graphic = obj.getGraphic();
+    ASSERT_TRUE(graphic->getRoot() != nullptr);
+    ASSERT_EQ(graphic->getRoot()->getChildCount(), 1);
+    auto path = graphic->getRoot()->getChildAt(0);
+    auto pathData = path->getValue(kGraphicPropertyPathData);
+    ASSERT_EQ("M25,50 a25,25 0 1 1 50,0 a25,25 0 1 1 -50,0", pathData.asString());
+    auto stroke = path->getValue(kGraphicPropertyStroke).asColor();
+    ASSERT_EQ(Color(0xffffffff), stroke);
+
+    // Hover on
+    root->updateCursorPosition(Point(75, 75));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(path, kGraphicPropertyStroke));
+    ASSERT_TRUE(CheckDirty(gc, kPropertyGraphic));
+    ASSERT_TRUE(CheckDirty(root, gc));
+    stroke = path->getValue(kGraphicPropertyStroke).asColor();
+    ASSERT_EQ(Color(0xff0000ff), stroke);
+
+    // Hover off
+    root->updateCursorPosition(Point(200, 200));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(path, kGraphicPropertyStroke));
+    ASSERT_TRUE(CheckDirty(gc, kPropertyGraphic));
+    ASSERT_TRUE(CheckDirty(root, gc));
+    stroke = path->getValue(kGraphicPropertyStroke).asColor();
+    ASSERT_EQ(Color(0xffffffff), stroke);
 }

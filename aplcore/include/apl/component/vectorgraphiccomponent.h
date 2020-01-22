@@ -35,11 +35,14 @@ public:
 
     bool updateGraphic(const GraphicContentPtr& json) override;
 
+    void clearDirty() override;
+
 protected:
     const ComponentPropDefSet& propDefSet() const override;
     void processLayoutChanges(bool useDirtyFlag) override;
     std::string getVisualContextType() override;
     bool setPropertyInternal(const std::string& key, const Object& value) override;
+
 };
 
 
