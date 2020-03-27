@@ -22,8 +22,6 @@
 
 namespace apl {
 
-static const bool DEBUG_ACTIONABLE_COMPONENT = false;
-
 const ComponentPropDefSet&
 ActionableComponent::propDefSet() const {
     static ComponentPropDefSet sActionableComponentProperties(CoreComponent::propDefSet(), {
@@ -61,30 +59,21 @@ ActionableComponent::executeKeyHandlers(KeyHandlerType type, const ObjectMapPtr&
     if (!handlers.isArray())
         return false;
 
-
     ContextPtr eventContext = createKeyboardEventContext(handlerId, keyboard);
-    bool consumed = false;
 
     for (const auto& handler: handlers.getArray()) {
+        if (handler.isMap() && propertyAsBoolean(*eventContext, handler, "when", true)) {
+            // We've identified commands to execute
+            auto commands = Object(arrayifyProperty(eventContext, handler, "commands"));
+            if (!commands.empty())
+                mContext->sequencer().executeCommands(commands, eventContext, shared_from_this(), false);
 
-        if (!handler.isMap()) {
-            continue;
+            // Return TRUE if the next key handler in the hierarchy should be run
+            return !propertyAsBoolean(eventContext, handler, "propagate", false);
         }
-
-        auto when = propertyAsBoolean(*eventContext, handler, "when", false);
-        if (!when)
-            continue;
-
-        auto commands = Object(arrayifyProperty(getContext(), handler, "commands"));
-        if (!commands.empty()) {
-            mContext->sequencer().executeCommands(commands, eventContext, shared_from_this(), false);
-        }
-        consumed = !propertyAsBoolean(getContext(), handler, "propagate", false);
-        break;
-
     }
 
-    return consumed;
+    return false;
 }
 
 } // namespace apl

@@ -553,8 +553,8 @@ TEST_F(CommandTest, TryCatchFinallyAbortAfterOne)
     // Standard commands
     loop->advanceToTime(1000);
     ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(Object("try"), event.getValue(kEventPropertyArguments).at(0));
+    auto evt = root->popEvent();
+    ASSERT_EQ(Object("try"), evt.getValue(kEventPropertyArguments).at(0));
     ASSERT_FALSE(root->hasEvent());
 
     root->cancelExecution();   // Cancel.  This should run catch commands
@@ -1243,4 +1243,297 @@ TEST_F(CommandTest, ExecuteFocusDisabled)
     executeCommand("SetFocus", {{"componentId", "touch1"}}, false);
     ASSERT_FALSE(root->hasEvent());
     ASSERT_FALSE(std::static_pointer_cast<CoreComponent>(touch1)->getState().get(kStateFocused));
+}
+
+static const char *FINISH_BACK =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.3\","
+        "  \"mainTemplate\": {"
+        "    \"parameters\": [],"
+        "    \"item\": {"
+        "      \"type\": \"TouchWrapper\","
+        "      \"width\": \"100%\","
+        "      \"height\": \"100%\","
+        "      \"onPress\": ["
+        "        {"
+        "          \"type\": \"Finish\","
+        "          \"reason\": \"back\""
+        "        }"
+        "      ]"
+        "    }"
+        "  }"
+        "}";
+
+TEST_F(CommandTest, FinishBack)
+{
+    loadDocument(FINISH_BACK);
+
+    component->update(kUpdatePressed, 1);
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFinish, event.getType());
+    ASSERT_EQ(kEventReasonBack, event.getValue(kEventPropertyReason).asInt());
+}
+
+static const char *FINISH_EXIT =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.3\","
+        "  \"mainTemplate\": {"
+        "    \"parameters\": [],"
+        "    \"item\": {"
+        "      \"type\": \"TouchWrapper\","
+        "      \"width\": \"100%\","
+        "      \"height\": \"100%\","
+        "      \"onPress\": ["
+        "        {"
+        "          \"type\": \"Finish\","
+        "          \"reason\": \"exit\""
+        "        }"
+        "      ]"
+        "    }"
+        "  }"
+        "}";
+
+TEST_F(CommandTest, FinishExit)
+{
+    loadDocument(FINISH_EXIT);
+
+    component->update(kUpdatePressed, 1);
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFinish, event.getType());
+    ASSERT_EQ(kEventReasonExit, event.getValue(kEventPropertyReason).asInt());
+}
+
+static const char *FINISH_DEFAULT =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.3\","
+        "  \"mainTemplate\": {"
+        "    \"parameters\": [],"
+        "    \"item\": {"
+        "      \"type\": \"TouchWrapper\","
+        "      \"width\": \"100%\","
+        "      \"height\": \"100%\","
+        "      \"onPress\": ["
+        "        {"
+        "          \"type\": \"Finish\""
+        "        }"
+        "      ]"
+        "    }"
+        "  }"
+        "}";
+
+TEST_F(CommandTest, FinishDefault)
+{
+    loadDocument(FINISH_DEFAULT);
+
+    component->update(kUpdatePressed, 1);
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFinish, event.getType());
+    ASSERT_EQ(kEventReasonExit, event.getValue(kEventPropertyReason).asInt());
+}
+
+static const char *FINISH_COMMAND_LAST =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.3\","
+        "  \"mainTemplate\": {"
+        "    \"parameters\": [],"
+        "    \"item\": {"
+        "      \"type\": \"TouchWrapper\","
+        "      \"width\": \"100%\","
+        "      \"height\": \"100%\","
+        "      \"onPress\": ["
+        "        {"
+        "          \"type\": \"SendEvent\","
+        "          \"arguments\": ["
+        "            \"Sending\""
+        "          ]"
+        "        },"
+        "        {"
+        "          \"type\": \"Finish\","
+        "          \"reason\": \"back\""
+        "        }"
+        "      ]"
+        "    }"
+        "  }"
+        "}";
+
+TEST_F(CommandTest, FinishCommandLast)
+{
+    loadDocument(FINISH_COMMAND_LAST);
+
+    component->update(kUpdatePressed, 1);
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    auto args = event.getValue(kEventPropertyArguments);
+    ASSERT_TRUE(args.isArray());
+    ASSERT_EQ(1, args.size());
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFinish, event.getType());
+    ASSERT_EQ(kEventReasonBack, event.getValue(kEventPropertyReason).asInt());
+}
+
+static const char *FINISH_COMMAND_FIRST =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.3\","
+        "  \"mainTemplate\": {"
+        "    \"parameters\": [],"
+        "    \"item\": {"
+        "      \"type\": \"TouchWrapper\","
+        "      \"width\": \"100%\","
+        "      \"height\": \"100%\","
+        "      \"onPress\": ["
+        "        {"
+        "          \"type\": \"Finish\","
+        "          \"reason\": \"back\""
+        "        },"
+        "        {"
+        "          \"type\": \"SendEvent\","
+        "          \"arguments\": ["
+        "            \"Sending\""
+        "          ]"
+        "        }"
+        "      ]"
+        "    }"
+        "  }"
+        "}";
+
+TEST_F(CommandTest, FinishCommandFirst)
+{
+    loadDocument(FINISH_COMMAND_FIRST);
+
+    component->update(kUpdatePressed, 1);
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFinish, event.getType());
+    ASSERT_EQ(kEventReasonBack, event.getValue(kEventPropertyReason).asInt());
+
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char *EXECUTE_FINISH =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.3\","
+        "  \"mainTemplate\": {"
+        "    \"parameters\": [],"
+        "    \"item\": {"
+        "      \"type\": \"Frame\","
+        "      \"width\": \"100%\","
+        "      \"height\": \"100%\","
+        "      \"backgroundColor\": \"green\""
+        "    }"
+        "  }"
+        "}";
+
+TEST_F(CommandTest, ExecuteFinishBack)
+{
+    loadDocument(EXECUTE_FINISH);
+
+    executeCommand("Finish", {{"reason", "back"}}, false);
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFinish, event.getType());
+    ASSERT_EQ(kEventReasonBack, event.getValue(kEventPropertyReason).asInt());
+
+    ASSERT_FALSE(root->hasEvent());
+}
+
+TEST_F(CommandTest, ExecuteFinishExit)
+{
+    loadDocument(EXECUTE_FINISH);
+
+    executeCommand("Finish", {{"reason", "exit"}}, false);
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFinish, event.getType());
+    ASSERT_EQ(kEventReasonExit, event.getValue(kEventPropertyReason).asInt());
+
+    ASSERT_FALSE(root->hasEvent());
+}
+
+TEST_F(CommandTest, ExecuteFinishDefault)
+{
+    loadDocument(EXECUTE_FINISH);
+
+    executeCommand("Finish", {}, false);
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFinish, event.getType());
+    ASSERT_EQ(kEventReasonExit, event.getValue(kEventPropertyReason).asInt());
+
+    ASSERT_FALSE(root->hasEvent());
+}
+
+TEST_F(CommandTest, ExecuteFinishFastMode)
+{
+    loadDocument(EXECUTE_FINISH);
+
+    executeCommand("Finish", {{"reason", "back"}}, true);
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFinish, event.getType());
+    ASSERT_EQ(kEventReasonBack, event.getValue(kEventPropertyReason).asInt());
+
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char *EXTERNAL_BINDING_UPDATE_TRANSFORM_DOCUMENT = R"({
+      "type": "APL",
+      "version": "1.3",
+      "mainTemplate": {
+        "items": [
+          {
+            "type": "Container",
+            "id": "myContainer",
+            "width": "100%",
+            "height": "100%",
+            "bind": [
+              {
+                "name": "len",
+                "value": 64,
+                "type": "dimension"
+              }
+            ],
+            "items": [
+              {
+                "type": "Text",
+                "text": "Some text.",
+                "transform": [
+                  {
+                    "translateX": "${len}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    })";
+
+TEST_F(CommandTest, BindingUpdateTransform){
+    loadDocument(EXTERNAL_BINDING_UPDATE_TRANSFORM_DOCUMENT);
+
+    ASSERT_EQ(kComponentTypeContainer, component->getType());
+
+    auto text = component->getCoreChildAt(0);
+    ASSERT_TRUE(text);
+    ASSERT_EQ(kComponentTypeText, text->getType());
+
+    ASSERT_TRUE(IsEqual(Transform2D().translateX(64), text->getCalculated(kPropertyTransform).getTransform2D()));
+
+    executeCommand("SetValue", {{"componentId", "myContainer"}, {"property", "len"}, {"value", "${500}"}}, false);
+
+    ASSERT_TRUE(IsEqual(Transform2D().translateX(500), text->getCalculated(kPropertyTransform).getTransform2D()));
 }

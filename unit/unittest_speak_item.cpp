@@ -180,6 +180,7 @@ TEST_F(SpeakItemTest, SpeakItemThenSend)
     ASSERT_EQ(kEventTypeSpeak, event.getType());
     ASSERT_EQ("URL", event.getValue(kEventPropertySource).asString());
     ASSERT_EQ(kEventHighlightModeBlock, event.getValue(kEventPropertyHighlightMode).asInt());
+    ASSERT_EQ(kEventScrollAlignVisible, event.getValue(kEventPropertyAlign).getInteger());
 
     // The send event will execute when we resolve the speak item
     ASSERT_FALSE(root->hasEvent());
@@ -290,6 +291,7 @@ TEST_F(SpeakItemTest, TestStages)
     ASSERT_EQ(kEventTypeSpeak, event.getType());
     ASSERT_EQ(Object("URL2"), event.getValue(kEventPropertySource));
     ASSERT_EQ(Object(kEventHighlightModeBlock), event.getValue(kEventPropertyHighlightMode));
+    ASSERT_EQ(kEventScrollAlignFirst, event.getValue(kEventPropertyAlign).getInteger());
 
     // The item should have updated colors
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
@@ -360,6 +362,7 @@ TEST_F(SpeakItemTest, TestStagesFastSpeech)
     ASSERT_EQ(kEventTypeSpeak, event.getType());
     ASSERT_EQ(Object("URL3"), event.getValue(kEventPropertySource));
     ASSERT_EQ(Object(kEventHighlightModeBlock), event.getValue(kEventPropertyHighlightMode));
+    ASSERT_EQ(kEventScrollAlignCenter, event.getValue(kEventPropertyAlign).getInteger());
 
     // The item should have updated colors
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
@@ -442,6 +445,7 @@ TEST_F(SpeakItemTest, TestStagesNoScrollingRequired)
     ASSERT_EQ(kEventTypeSpeak, event.getType());
     ASSERT_EQ(Object("URL2"), event.getValue(kEventPropertySource));
     ASSERT_EQ(Object(kEventHighlightModeLine), event.getValue(kEventPropertyHighlightMode));
+    ASSERT_EQ(kEventScrollAlignVisible, event.getValue(kEventPropertyAlign).getInteger());
 
     // The item should have updated colors
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
@@ -560,6 +564,7 @@ TEST_F(SpeakItemTest, TestTerminationDuringSpeech)
     ASSERT_EQ(kEventTypeSpeak, event.getType());
     ASSERT_EQ(Object("URL4"), event.getValue(kEventPropertySource));
     ASSERT_EQ(Object(kEventHighlightModeBlock), event.getValue(kEventPropertyHighlightMode));
+    ASSERT_EQ(kEventScrollAlignLast, event.getValue(kEventPropertyAlign).getInteger());
 
     // The item should have updated colors
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
@@ -884,6 +889,7 @@ TEST_F(SpeakItemTest, MissingScroll)
     ASSERT_EQ(kEventTypeSpeak, event.getType());
     ASSERT_EQ(Object("URL2"), event.getValue(kEventPropertySource));
     ASSERT_EQ(Object(kEventHighlightModeBlock), event.getValue(kEventPropertyHighlightMode));
+    ASSERT_EQ(kEventScrollAlignFirst, event.getValue(kEventPropertyAlign).getInteger());
 
     // The item should have updated colors
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));

@@ -46,44 +46,47 @@ TEST_F(ParseTest, Simple)
     ASSERT_EQ(4, foo.asNumber());
 
     foo = parseDataBinding(*context, "${@red}");
-    ASSERT_TRUE(foo.isNode());
-    std::set<std::string> redSet;
-    foo.symbols(redSet);
-    ASSERT_EQ(1, redSet.size());
-    ASSERT_EQ(1, redSet.count("@red"));
+    ASSERT_FALSE(foo.isNode());
+    ASSERT_TRUE(foo.isNull());
 
     context->putConstant("@red", Color(Color::RED));
     foo = parseDataBinding(*context, "${@red}");
-    ASSERT_FALSE(foo.isNode());
+    ASSERT_FALSE(foo.isEvaluable());
     ASSERT_TRUE(foo.isColor());
     ASSERT_TRUE(IsEqual(Color(Color::RED), foo));
 
+    context->putUserWriteable("b", 82);
     foo = parseDataBinding(*context, "${Math.max(23,44,b)}");
-    ASSERT_TRUE(foo.isNode());
+    ASSERT_TRUE(foo.isEvaluable());
 
-    context->putConstant("b", 82);
-    foo = foo.eval(*context);
+    foo = foo.eval();
     ASSERT_TRUE(foo.isNumber());
     ASSERT_EQ(82, foo.asNumber());
 }
 
 static const std::vector<std::pair<std::string, std::set<std::string>>> SYMBOL_TESTS = {
-    {"${a+Math.min(b+(c-d),c/d)} ${e-f}",   {"a", "b", "c", "d", "e", "f"}},
-    {"${a[b].c ? (e || f) : 'foo ${g}'}",   {"a", "b", "e", "f", "g"}},
-    {"${viewport.width > 10000 ? a : b.c}", {"b"}}
+    {"${a+Math.min(b+(c-d),c/d)} ${e-f}",   {"a/", "b/", "c/", "d/", "e/", "f/"}},
+    {"${a[b].c ? (e || f) : 'foo ${g}'}",   {"a/test_b/c/", "b/", "e/", "f/", "g/"}},
+    {"${viewport.width > 10000 ? a : b.c}", {"b/c/"}}
 };
 
 
 TEST_F(ParseTest, Symbols)
 {
+    for (auto m : "abcdefg")
+        context->putUserWriteable(std::string(1, m), "test_"+std::string(1,m));
+
     for (auto& m : SYMBOL_TESTS) {
         auto result = parseDataBinding(*context, m.first);
-        ASSERT_TRUE(result.isNode()) << m.first;
+        ASSERT_TRUE(result.isEvaluable()) << m.first;
 
-        std::set<std::string> symbols;
+        SymbolReferenceMap symbols;
         result.symbols(symbols);
+        std::set<std::string> syms;
+        for (auto& p : symbols.get())
+            syms.insert(p.first);
 
-        ASSERT_EQ(m.second, symbols) << m.first;
+        ASSERT_EQ(m.second, syms) << m.first;
     }
 }
 
@@ -114,16 +117,16 @@ TEST_F(ParseTest, UnaryPlus)
 
     context->putUserWriteable("a", 99);
     auto result = parseDataBinding(*context, "${+a}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : UNARY_PLUS_EVAL) {
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.first, false));
-        ASSERT_TRUE(IsEqual(m.second, result.eval(*context))) << m.first;
+        ASSERT_TRUE(IsEqual(m.second, result.eval())) << m.first;
     }
 
     for (auto& m : UNARY_PLUS_NAN) {
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m, false));
-        ASSERT_TRUE(result.eval(*context).isNaN()) << m;
+        ASSERT_TRUE(result.eval().isNaN()) << m;
     }
 }
 
@@ -155,16 +158,16 @@ TEST_F(ParseTest, UnaryMinus)
 
     context->putUserWriteable("a", 99);
     auto result = parseDataBinding(*context, "${-a}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : UNARY_MINUS_EVAL) {
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.first, false));
-        ASSERT_TRUE(IsEqual(m.second, result.eval(*context))) << m.first;
+        ASSERT_TRUE(IsEqual(m.second, result.eval())) << m.first;
     }
 
     for (auto& m : UNARY_MINUS_NAN) {
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m, false));
-        ASSERT_TRUE(result.eval(*context).isNaN()) << m;
+        ASSERT_TRUE(result.eval().isNaN()) << m;
     }
 }
 
@@ -202,11 +205,11 @@ TEST_F(ParseTest, UnaryNot)
 
     context->putUserWriteable("a", 99);
     auto result = parseDataBinding(*context, "${!a}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : UNARY_NOT_EVAL) {
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.first, false));
-        ASSERT_TRUE(IsEqual(m.second, result.eval(*context))) << m.first;
+        ASSERT_TRUE(IsEqual(m.second, result.eval())) << m.first;
     }
 }
 
@@ -253,12 +256,12 @@ TEST_F(ParseTest, Multiply)
     context->putUserWriteable("a", 99);
     context->putUserWriteable("b", 99);
     auto result = parseDataBinding(*context, "${a*b}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : MULTIPLY_EVAL) {
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
-        ASSERT_TRUE(IsEqual(m.at(2), result.eval(*context))) << m.at(1) << "*" << m.at(2);
+        ASSERT_TRUE(IsEqual(m.at(2), result.eval())) << m.at(1) << "*" << m.at(2);
     }
 }
 
@@ -303,18 +306,18 @@ TEST_F(ParseTest, Divide)
     context->putUserWriteable("a", 99);
     context->putUserWriteable("b", 99);
     auto result = parseDataBinding(*context, "${a/b}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : DIVIDE_EVAL) {
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
-        ASSERT_TRUE(IsEqual(m.at(2), result.eval(*context))) << m.at(1) << "/" << m.at(2);
+        ASSERT_TRUE(IsEqual(m.at(2), result.eval())) << m.at(1) << "/" << m.at(2);
     }
 
     for (auto& m : DIVIDE_NAN_EVAL) {
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
-        ASSERT_TRUE(result.eval(*context).isNaN()) << m.at(1) << "/" << m.at(2);
+        ASSERT_TRUE(result.eval().isNaN()) << m.at(1) << "/" << m.at(2);
     }
 }
 
@@ -360,18 +363,18 @@ TEST_F(ParseTest, Remainder)
     context->putUserWriteable("a", 99);
     context->putUserWriteable("b", 99);
     auto result = parseDataBinding(*context, "${a%b}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : REMAINDER_EVAL) {
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
-        ASSERT_TRUE(IsEqual(m.at(2), result.eval(*context))) << m.at(0) << "%" << m.at(1);
+        ASSERT_TRUE(IsEqual(m.at(2), result.eval())) << m.at(0) << "%" << m.at(1);
     }
 
     for (auto& m : REMAINDER_NAN_EVAL) {
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
-        ASSERT_TRUE(result.eval(*context).isNaN()) << m.at(0) << "%" << m.at(1);
+        ASSERT_TRUE(result.eval().isNaN()) << m.at(0) << "%" << m.at(1);
     }
 }
 
@@ -420,12 +423,12 @@ TEST_F(ParseTest, Add)
     context->putUserWriteable("a", 99);
     context->putUserWriteable("b", 99);
     auto result = parseDataBinding(*context, "${a+b}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : ADD_EVAL) {
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
-        ASSERT_TRUE(IsEqual(m.at(2), result.eval(*context))) << m.at(1) << "+" << m.at(2);
+        ASSERT_TRUE(IsEqual(m.at(2), result.eval())) << m.at(1) << "+" << m.at(2);
     }
 }
 
@@ -477,18 +480,18 @@ TEST_F(ParseTest, Subtract)
     context->putUserWriteable("a", 99);
     context->putUserWriteable("b", 99);
     auto result = parseDataBinding(*context, "${a-b}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : SUBTRACT_EVAL) {
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
-        ASSERT_TRUE(IsEqual(m.at(2), result.eval(*context))) << m.at(0) << "-" << m.at(1);
+        ASSERT_TRUE(IsEqual(m.at(2), result.eval())) << m.at(0) << "-" << m.at(1);
     }
 
     for (auto& m : SUBTRACT_NAN_EVAL) {
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
-        ASSERT_TRUE(result.eval(*context).isNaN()) << m.at(0) << m.at(1);
+        ASSERT_TRUE(result.eval().isNaN()) << m.at(0) << m.at(1);
     }
 }
 
@@ -570,74 +573,74 @@ TEST_F(ParseTest, Compare)
 
     // Less-than
     auto result = parseDataBinding(*context, "${a<b}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : COMPARE_EVAL) {
         auto c = Context::create(context);
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
         bool target = (m.at(2).asInt() == -1);  // Must be less-than
-        ASSERT_TRUE(IsEqual(target, result.eval(*c))) << m.at(0) << "<" << m.at(1);
+        ASSERT_TRUE(IsEqual(target, result.eval())) << m.at(0) << "<" << m.at(1);
     }
 
     // Greater-than
     result = parseDataBinding(*context, "${a>b}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : COMPARE_EVAL) {
         auto c = Context::create(context);
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
         bool target = (m.at(2).asInt() == 1);  // Must be less-than
-        ASSERT_TRUE(IsEqual(target, result.eval(*c))) << m.at(0) << ">" << m.at(1);
+        ASSERT_TRUE(IsEqual(target, result.eval())) << m.at(0) << ">" << m.at(1);
     }
 
     // Less-equal
     result = parseDataBinding(*context, "${a<=b}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : COMPARE_EVAL) {
         auto c = Context::create(context);
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
         bool target = (m.at(2).asInt() != 1);  // Must be equal or less-than
-        ASSERT_TRUE(IsEqual(target, result.eval(*c))) << m.at(0) << "<=" << m.at(1);
+        ASSERT_TRUE(IsEqual(target, result.eval())) << m.at(0) << "<=" << m.at(1);
     }
 
     // Greater-equal
     result = parseDataBinding(*context, "${a>=b}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : COMPARE_EVAL) {
         auto c = Context::create(context);
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
         bool target = (m.at(2).asInt() != -1);  // Must be equal or greater-than
-        ASSERT_TRUE(IsEqual(target, result.eval(*c))) << m.at(0) << ">=" << m.at(1);
+        ASSERT_TRUE(IsEqual(target, result.eval())) << m.at(0) << ">=" << m.at(1);
     }
 
     // Equal
     result = parseDataBinding(*context, "${a==b}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : COMPARE_EVAL) {
         auto c = Context::create(context);
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
         bool target = (m.at(2).asInt() == 0);  // Must be equal
-        ASSERT_TRUE(IsEqual(target, result.eval(*c))) << m.at(0) << "==" << m.at(1);
+        ASSERT_TRUE(IsEqual(target, result.eval())) << m.at(0) << "==" << m.at(1);
     }
 
     // Not-Equal
     result = parseDataBinding(*context, "${a!=b}");
-    ASSERT_TRUE(result.isNode());
+    ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : COMPARE_EVAL) {
         auto c = Context::create(context);
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
         bool target = (m.at(2).asInt() != 0);  // Must be equal
-        ASSERT_TRUE(IsEqual(target, result.eval(*c))) << m.at(0) << "!=" << m.at(1);
+        ASSERT_TRUE(IsEqual(target, result.eval())) << m.at(0) << "!=" << m.at(1);
     }
 }
 

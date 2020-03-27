@@ -25,7 +25,7 @@ RUN dnf distro-sync -y
 #      gcc                9.0.1
 #      gcc-c++            9.0.1
 #      patch              2.7.6
-RUN dnf install make automake cmake gcc gcc-c++ patch kernel-devel -y
+RUN dnf install make automake cmake gcc gcc-c++ patch kernel-devel clang -y
 
 # Make APL Core
 ADD . /apl-core
@@ -34,6 +34,19 @@ RUN cd apl-core \
 	&& mkdir build \
 	&& cd build \
 	&& cmake -DBUILD_TESTS=ON -DCOVERAGE=OFF .. \
+	&& make -j4
+
+# RUN APL Core Tests
+RUN cd apl-core/build \
+	&& unit/unittest
+
+# Make APL Core
+ADD . /apl-core
+RUN cd apl-core \
+	&& rm -rf build-clang \
+	&& mkdir build-clang \
+	&& cd build-clang \
+	&& cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DBUILD_TESTS=ON -DCOVERAGE=OFF .. \
 	&& make -j4
 
 # RUN APL Core Tests

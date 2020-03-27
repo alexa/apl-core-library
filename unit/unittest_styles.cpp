@@ -133,14 +133,15 @@ const char *TEST_DATA =
     "  }"
     "}";
 
-static void dump(std::ostream& os, StyleInstancePtr ptr)
-{
-    streamer s;
-    for (const auto& kv : *ptr) {
-        s << kv.first << ": " << kv.second << "";
-    }
-    os << s.str();
-}
+// Useful utility method for style dumping.
+//static void dump(std::ostream& os, StyleInstancePtr ptr)
+//{
+//    streamer s;
+//    for (const auto& kv : *ptr) {
+//        s << kv.first << ": " << kv.second << "";
+//    }
+//    os << s.str();
+//}
 
 TEST_F(StylesTest, Basic)
 {

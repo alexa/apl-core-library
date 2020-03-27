@@ -51,18 +51,38 @@ VideoComponent::propDefSet() const
         { kPropertyOnPlay,          Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
         { kPropertyOnTimeUpdate,    Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
         { kPropertyOnTrackUpdate,   Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
+        { kPropertyTrackCount,      0,                      asInteger,          kPropRuntimeState },
+        { kPropertyTrackCurrentTime,0,                      asInteger,          kPropRuntimeState },
+        { kPropertyTrackDuration,   0,                      asInteger,          kPropRuntimeState },
+        { kPropertyTrackIndex,      0,                      asInteger,          kPropRuntimeState },
+        { kPropertyTrackPaused,     true,                   asBoolean,          kPropRuntimeState },
+        { kPropertyTrackEnded,      false,                  asBoolean,          kPropRuntimeState }
     });
 
     return sVideoComponentProperties;
 }
 
 void
+VideoComponent::saveMediaState(const MediaState& state)
+{
+    mCalculated.set(kPropertyTrackCount, state.getTrackCount());
+    mCalculated.set(kPropertyTrackCurrentTime, state.getCurrentTime());
+    mCalculated.set(kPropertyTrackDuration, state.getDuration());
+    mCalculated.set(kPropertyTrackIndex, state.getTrackIndex());
+    mCalculated.set(kPropertyTrackPaused, state.isPaused());
+    mCalculated.set(kPropertyTrackEnded, state.isEnded());
+}
+
+void
 VideoComponent::updateMediaState(const MediaState& state, bool fromEvent)
 {
-    MediaState previousState = mMediaState;
-    mMediaState = state;
+    auto previousStatePaused = getCalculated(kPropertyTrackPaused).asBoolean();
+    auto previousStateEnded = getCalculated(kPropertyTrackEnded).asBoolean();
+    auto previousTrackIndex = getCalculated(kPropertyTrackIndex).asInt();
+    auto previousCurrentTime = getCalculated(kPropertyTrackCurrentTime).asInt();
+    saveMediaState(state);
 
-    if (state.isPaused() != previousState.isPaused()) {
+    if (state.isPaused() != previousStatePaused) {
         if (!state.isPaused()) {
             auto& commands = getCalculated(kPropertyOnPlay);
             if (!commands.empty())
@@ -84,7 +104,7 @@ VideoComponent::updateMediaState(const MediaState& state, bool fromEvent)
         }
     }
 
-    if (state.isEnded() != previousState.isEnded() && state.isEnded()) {
+    if (state.isEnded() != previousStateEnded && state.isEnded()) {
         auto& commands = getCalculated(kPropertyOnEnd);
         if (!commands.empty()) {
             mContext->sequencer().executeCommands(
@@ -95,7 +115,7 @@ VideoComponent::updateMediaState(const MediaState& state, bool fromEvent)
         }
     }
 
-    if (state.getTrackIndex() != previousState.getTrackIndex()) {
+    if (state.getTrackIndex() != previousTrackIndex) {
         auto& commands = getCalculated(kPropertyOnTrackUpdate);
         if (!commands.empty()) {
             mContext->sequencer().executeCommands(
@@ -106,7 +126,7 @@ VideoComponent::updateMediaState(const MediaState& state, bool fromEvent)
         }
     }
 
-    if (state.getCurrentTime() != previousState.getCurrentTime()) {
+    if (state.getCurrentTime() != previousCurrentTime) {
         auto& commands = getCalculated(kPropertyOnTimeUpdate);
         if (!commands.empty()) {
             mContext->sequencer().executeCommands(
@@ -121,24 +141,24 @@ VideoComponent::updateMediaState(const MediaState& state, bool fromEvent)
 void
 VideoComponent::addEventSourceProperties(apl::ObjectMap& event) const
 {
-    event.emplace("trackIndex", mMediaState.getTrackIndex());
-    event.emplace("trackCount", mMediaState.getTrackCount());
-    event.emplace("currentTime", mMediaState.getCurrentTime());
-    event.emplace("duration", mMediaState.getDuration());
-    event.emplace("paused", mMediaState.isPaused());
-    event.emplace("ended", mMediaState.isEnded());
+    event.emplace("trackIndex", getCalculated(kPropertyTrackIndex).asInt());
+    event.emplace("trackCount", getCalculated(kPropertyTrackCount).asInt());
+    event.emplace("currentTime", getCalculated(kPropertyTrackCurrentTime).asInt());
+    event.emplace("duration", getCalculated(kPropertyTrackDuration).asInt());
+    event.emplace("paused", getCalculated(kPropertyTrackPaused).asBoolean());
+    event.emplace("ended", getCalculated(kPropertyTrackEnded).asBoolean());
 }
 
 std::shared_ptr<ObjectMap>
 VideoComponent::getEventTargetProperties() const
 {
     auto target = CoreComponent::getEventTargetProperties();
-    target->emplace("trackIndex", mMediaState.getTrackIndex());
-    target->emplace("trackCount", mMediaState.getTrackCount());
-    target->emplace("currentTime", mMediaState.getCurrentTime());
-    target->emplace("duration", mMediaState.getDuration());
-    target->emplace("paused", mMediaState.isPaused());
-    target->emplace("ended", mMediaState.isEnded());
+    target->emplace("trackIndex", getCalculated(kPropertyTrackIndex).asInt());
+    target->emplace("trackCount", getCalculated(kPropertyTrackCount).asInt());
+    target->emplace("currentTime", getCalculated(kPropertyTrackCurrentTime).asInt());
+    target->emplace("duration", getCalculated(kPropertyTrackDuration).asInt());
+    target->emplace("paused", getCalculated(kPropertyTrackPaused).asBoolean());
+    target->emplace("ended", getCalculated(kPropertyTrackEnded).asBoolean());
     return target;
 }
 
@@ -146,20 +166,27 @@ bool
 VideoComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) {
     bool actionable = CoreComponent::getTags(outMap, allocator);
     auto sources = getCalculated(kPropertySource);
-    if(sources.size() > 0) {
-        bool allowAdjustSeekPositionForward = mMediaState.getCurrentTime() < mMediaState.getDuration();
-        bool allowAdjustSeekPositionBackwards = mMediaState.getCurrentTime() > 0;
-        bool allowNext = mMediaState.getTrackIndex() < (mMediaState.getTrackCount() - 1);
-        bool allowPrevious = mMediaState.getTrackIndex() > 0;
+    if (sources.size() > 0) {
+        bool isPaused = getCalculated(kPropertyTrackPaused).asBoolean();
+        bool isEnded = getCalculated(kPropertyTrackEnded).asBoolean();
+        int trackIndex = getCalculated(kPropertyTrackIndex).asInt();
+        int trackCount = getCalculated(kPropertyTrackCount).asInt();
+        int currentTime = getCalculated(kPropertyTrackCurrentTime).asInt();
+        int duration = getCalculated(kPropertyTrackDuration).asInt();
+
+        bool allowAdjustSeekPositionForward = currentTime < duration;
+        bool allowAdjustSeekPositionBackwards = currentTime > 0;
+        bool allowNext = trackIndex < (trackCount - 1);
+        bool allowPrevious = trackIndex > 0;
 
         std::string state = "idle";
-        if (mMediaState.isPaused() && !mMediaState.isEnded() && mMediaState.getCurrentTime() != 0) {
+        if (isPaused && !isEnded && currentTime != 0) {
             state = "paused";
-        } else if (!mMediaState.isPaused()) {
+        } else if (!isPaused) {
             state = "playing";
         }
 
-        auto currentSource = sources.getArray().at(mMediaState.getTrackIndex()).getMediaSource();
+        auto currentSource = sources.getArray().at(trackIndex).getMediaSource();
 
         rapidjson::Value media(rapidjson::kObjectType);
         media.AddMember("allowAdjustSeekPositionForward", allowAdjustSeekPositionForward, allocator);
@@ -168,7 +195,7 @@ VideoComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::Allocator
         media.AddMember("allowPrevious", allowPrevious, allocator);
         media.AddMember("entities", rapidjson::Value(currentSource.getEntities().serialize(allocator),
                 allocator).Move(), allocator);
-        media.AddMember("positionInMilliseconds", mMediaState.getCurrentTime(), allocator);
+        media.AddMember("positionInMilliseconds", currentTime, allocator);
         media.AddMember("state", rapidjson::Value(state.c_str(), allocator).Move(), allocator);
         media.AddMember("url", rapidjson::Value(currentSource.getUrl().c_str(), allocator).Move(), allocator);
         outMap.AddMember("media", media, allocator);

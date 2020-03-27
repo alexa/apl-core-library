@@ -27,6 +27,7 @@
 #include "apl/time/sequencer.h"
 #include "apl/primitives/keyboard.h"
 #include "apl/utils/session.h"
+#include "apl/livedata/layoutrebuilder.h"
 
 namespace apl {
 
@@ -60,6 +61,7 @@ void CoreComponent::initialize()
     // TODO: Would be nice to work this in with the regular properties more cleanly.
     mState.set(kStateChecked, mProperties.asBoolean(*mContext, "checked", false));
     mState.set(kStateDisabled, mProperties.asBoolean(*mContext, "disabled", false));
+    if (multiChild()) mCalculated.set(kPropertyNotifyChildrenChanged, Object::EMPTY_MUTABLE_ARRAY());
 
     // Fix up the state variables that can be assigned as a property
     if (mInheritParentState && mParent)
@@ -208,6 +210,36 @@ CoreComponent::appendChild(const ComponentPtr& child, bool useDirtyFlag)
     return insertChild(child, mChildren.size(), useDirtyFlag);
 }
 
+void
+CoreComponent::notifyChildChanged(size_t index, const std::string& uid, const std::string& action)
+{
+    if (multiChild()) {
+        auto &changes = mCalculated.get(kPropertyNotifyChildrenChanged).getMutableArray();
+        auto change = std::make_shared<ObjectMap>();
+        change->emplace("index", index);
+        change->emplace("uid", uid);
+        change->emplace("action", action);
+        changes.emplace_back(change);
+    }
+
+    setDirty(kPropertyNotifyChildrenChanged);
+}
+
+void
+CoreComponent::attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index)
+{
+    // For most layouts we just attach the Yoga node.
+    // For sequences we don't attach until ensureLayout is called if outside of existing ensured range.
+    if (shouldAttachChildYogaNode(index)
+        || (mEnsuredChildren.contains(index) && index > mEnsuredChildren.lowerBound())) {
+        if (DEBUG_ENSURE) LOG(LogLevel::DEBUG) << "attaching yoga node index=" << index << " this=" << *this;
+        auto offset = mEnsuredChildren.insert(index);
+        YGNodeInsertChild(mYGNodeRef, coreChild->getNode(), offset);
+    } else if (!mEnsuredChildren.empty() && index <= mEnsuredChildren.lowerBound()) {
+        mEnsuredChildren.shift(1);
+    }
+}
+
 bool
 CoreComponent::insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag)
 {
@@ -223,19 +255,14 @@ CoreComponent::insertChild(const ComponentPtr& child, size_t index, bool useDirt
     if (index > mChildren.size())
         index = mChildren.size();
 
+    attachYogaNodeIfRequired(coreChild, index);
+
     mChildren.insert(mChildren.begin() + index, coreChild);
 
     if (useDirtyFlag) {
-        setDirty(kPropertyNotifyChildrenChanged);
+        notifyChildChanged(index, child->getUniqueId(), "insert");
         // If we add a view hierarchy with dirty flags, we need to update the context
         coreChild->markAdded();
-    }
-
-    // For most layouts we just attach the Yoga node.
-    // For sequences we don't attach until ensureLayout is called.
-    if (alwaysAttachChildYogaNode()) {
-        if (DEBUG_ENSURE) LOG(LogLevel::DEBUG) << "attaching yoga node index=" << index << " this=" << *this;
-        YGNodeInsertChild(mYGNodeRef, coreChild->getNode(), index);
     }
 
     coreChild->attachedToParent(shared_from_this());
@@ -245,7 +272,7 @@ CoreComponent::insertChild(const ComponentPtr& child, size_t index, bool useDirt
 bool
 CoreComponent::remove()
 {
-    if (!mParent)
+    if (!mParent || !mParent->canRemoveChild())
         return false;
 
     // When we've been removed, we need to clear Yoga properties that were set based on our parent type.
@@ -267,20 +294,41 @@ CoreComponent::remove()
 }
 
 void
-CoreComponent::removeChild(const CoreComponentPtr& child, bool useDirtyFlag)
+CoreComponent::removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag)
 {
-    auto it = std::find(mChildren.begin(), mChildren.end(), child);
-    assert(it != mChildren.end());
-
     // Release focus for this child and descendants.  Also remove them from the dirty set
     child->markRemoved();
 
     YGNodeRemoveChild(mYGNodeRef, child->getNode());
-    mChildren.erase(it);
+    mChildren.erase(mChildren.begin() + index);
 
     // The parent component has changed the number of children
     if (useDirtyFlag)
-        setDirty(kPropertyNotifyChildrenChanged);
+        notifyChildChanged(index, child->getUniqueId(), "remove");
+
+    if (mEnsuredChildren.contains(index)) {
+        mEnsuredChildren.remove(index);
+    } else if (!mEnsuredChildren.empty() && (int)index < mEnsuredChildren.lowerBound()) {
+        mEnsuredChildren.shift(-1);
+    }
+}
+
+void
+CoreComponent::removeChild(const CoreComponentPtr& child, bool useDirtyFlag)
+{
+    auto it = std::find(mChildren.begin(), mChildren.end(), child);
+    assert(it != mChildren.end());
+    size_t index = std::distance(mChildren.begin(), it);
+    removeChild(child, index, useDirtyFlag);
+}
+
+void
+CoreComponent::removeChildAt(size_t index, bool useDirtyFlag)
+{
+    if (index >= mChildren.size())
+        return;
+    auto child = mChildren.at(index);
+    removeChild(child, index, useDirtyFlag);
 }
 
 /**
@@ -341,19 +389,64 @@ CoreComponent::ensureLayout(bool useDirtyFlag)
 }
 
 void
-CoreComponent::ensureChildAttached(const ComponentPtr& child)
+CoreComponent::reportLoaded(size_t index) {
+    if (mRebuilder) {
+        if (mRebuilder->hasFirstItem() && index == 0) {
+            index++;
+        }
+
+        if (mRebuilder->hasLastItem() && index == mChildren.size() - 1) {
+            index--;
+        }
+
+        mRebuilder->notifyItemOnScreen(index);
+    }
+}
+
+void
+CoreComponent::ensureChildAttached(const CoreComponentPtr& child, int targetIdx)
+{
+    if (mEnsuredChildren.empty() || mEnsuredChildren.above(targetIdx)) {
+        // Ensure from upperBound to target
+        for (int index = mEnsuredChildren.empty() ? 0 : mEnsuredChildren.upperBound() + 1; index <= targetIdx ; index++) {
+            const auto& c = mChildren.at(index);
+            if (attachChild(c, mEnsuredChildren.size())) {
+                mEnsuredChildren.expandTo(index);
+            }
+        }
+    } else if (mEnsuredChildren.below(targetIdx)) {
+        // Ensure from lowerBound down to target
+        for (int index = mEnsuredChildren.lowerBound() - 1; index >= targetIdx ; index--) {
+            const auto& c = mChildren.at(index);
+            if (attachChild(c, 0)) {
+                mEnsuredChildren.expandTo(index);
+            }
+        }
+    } else {
+        // Just attach single one inside of ensured range if needed.
+        attachChild(child, targetIdx - mEnsuredChildren.lowerBound());
+    }
+}
+
+void
+CoreComponent::ensureChildAttached(const CoreComponentPtr& child)
 {
     // This routine guarantees that all the children up to and including this one are attached.
-    for (auto index = 0 ; index < mChildren.size() ; index++) {
-        const auto& c = mChildren.at(index);
-        if (!c->isAttached()) {
-            LOG_IF(DEBUG_ENSURE) << "attaching yoga node index=" << index << " this=" << *this;
-            YGNodeInsertChild(mYGNodeRef, c->getNode(), index);
-            c->updateNodeProperties();
-        }
-        if (c == child)
-            break;
+    auto it = std::find(mChildren.begin(), mChildren.end(), child);
+    int targetIdx = std::distance(mChildren.begin(), it);
+    ensureChildAttached(child, targetIdx);
+}
+
+bool
+CoreComponent::attachChild(const CoreComponentPtr& child, size_t index)
+{
+    if (child->isAttached()) {
+        return false;
     }
+    LOG_IF(DEBUG_ENSURE) << "attaching yoga node index=" << index << " this=" << *this;
+    YGNodeInsertChild(mYGNodeRef, child->getNode(), index);
+    child->updateNodeProperties();
+    return true;
 }
 
 bool
@@ -400,23 +493,24 @@ CoreComponent::assignProperties(const ComponentPropDefSet& propDefSet)
                 // If the user assigned a string, we need to check for data binding
                 if (p->second.isString()) {
                     auto tmp = parseDataBinding(*mContext, p->second.getString());  // Expand data-binding
-                    if (tmp.isNode()) {
-                        std::set<std::string> symbols;
-                        tmp.symbols(symbols);
+                    if (tmp.isEvaluable()) {
                         auto self = std::static_pointer_cast<CoreComponent>(shared_from_this());
-                        for (const auto& symbol : symbols) {
-                            auto c = mContext->findContextContaining(symbol);
-                            if (c != nullptr)
-                                ComponentDependant::create(c, symbol, self, pd.key);
-                        }
+                        ComponentDependant::create(self, pd.key, tmp, mContext, pd.getBindingFunction());
                     }
                     value = pd.calculate(*mContext, evaluate(*mContext, tmp));  // Calculate the final value
-                    mAssigned[pd.key] = tmp;
+                }
+                else if ((pd.flags & kPropEvaluated) != 0) {
+                    // Explicitly marked for evaluation, so do it.
+                    // Will not attach dependant if no valid symbols.
+                    auto tmp = parseDataBindingRecursive(*mContext, p->second);
+                    auto self = std::static_pointer_cast<CoreComponent>(shared_from_this());
+                    ComponentDependant::create(self, pd.key, tmp, mContext, pd.getBindingFunction());
+                    value = pd.calculate(*mContext, p->second);
                 }
                 else {
                     value = pd.calculate(*mContext, p->second);
-                    mAssigned[pd.key] = value;
                 }
+                mAssigned.emplace(pd.key);
             } else {
                 // Make sure this wasn't a required property
                 if ((pd.flags & kPropRequired) != 0) {
@@ -522,13 +616,11 @@ CoreComponent::setPropertyInternal( const ComponentPropDefSet& pds, PropertyKey 
 
     // If this property was previously assigned we need to clear any dependants
     auto assigned = mAssigned.find(key);
-    if (assigned != mAssigned.end() && assigned->second.isNode()) {
-        // Erase all upstream dependants that drive this key
+    if (assigned != mAssigned.end()) // Erase all upstream dependants that drive this key
         removeUpstream(key);
-    }
 
     // Mark this property in the "assigned" set of properties.
-    mAssigned[key] = value;
+    mAssigned.emplace(key);
 
     // Check to see if the actual value of the property changed and update appropriately
     const ComponentPropDef& def = it->second;
@@ -612,32 +704,36 @@ CoreComponent::markProperty(PropertyKey key)
     }
 }
 
-bool
-CoreComponent::recalculatePropertyInternal(const ComponentPropDefSet& propDefSet,
-                                           PropertyKey key,
-                                           const Object& node)
-{
-    auto it = propDefSet.dynamic().find(key);
-    if (it == propDefSet.dynamic().end())
-        return false;
-
-    const ComponentPropDef& def = it->second;
-    handlePropertyChange(def, def.calculate(*mContext, evaluate(*mContext, node)));
-    return true;
-}
-
 void
-CoreComponent::recalculateProperty(PropertyKey key)
+CoreComponent::updateProperty(PropertyKey key, const Object& value)
 {
     auto it = mAssigned.find(key);
-    if (it != mAssigned.end() && it->second.isNode()) {
-        // The property could be a standard component property or a layout property
-        if (!recalculatePropertyInternal(propDefSet(), key, it->second)) {
-            auto layoutPDS = getLayoutPropDefSet();
-            if (layoutPDS)
-                recalculatePropertyInternal(*layoutPDS, key, it->second);
-        }
+    if (it == mAssigned.end())
+        return;
+
+    // Check the standard properties first
+    auto& corePDS = propDefSet().dynamic();
+    auto pd = corePDS.find(key);
+    if (pd != corePDS.end()) {
+        handlePropertyChange(pd->second, value);
+        return;
     }
+
+    // Look for a layout property.  Not all components have a layout
+    auto layoutPDS = getLayoutPropDefSet();
+    if (!layoutPDS)
+        return;
+
+    // Check for a matching layout property
+    auto& layoutDynamicPDS = layoutPDS->dynamic();
+    pd = layoutDynamicPDS.find(key);
+    if (pd != layoutDynamicPDS.end()) {
+        handlePropertyChange(pd->second, value);
+        return;
+    }
+
+    // We should not reach this point.  Only an assigned equation calls updateProperty
+    LOG(LogLevel::ERROR) << "Reached end of updateProperty with key " << sComponentPropertyBimap.at(key);
 }
 
 /**
@@ -852,9 +948,16 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag)
             setDirty(kPropertyInnerBounds);
     }
 
-    // Inform all children that they should re-check their bounds.
+    // Inform all children that they should re-check their bounds. No need to do that for not attached ones.
     for (auto& child : mChildren)
-        child->processLayoutChanges(useDirtyFlag);
+        if (child->isAttached())
+            child->processLayoutChanges(useDirtyFlag);
+
+    if (!mCalculated.get(kPropertyLaidOut).asBoolean() && !mCalculated.get(kPropertyBounds).getRect().isEmpty()) {
+        mCalculated.set(kPropertyLaidOut, true);
+        if (useDirtyFlag)
+            setDirty(kPropertyLaidOut);
+    }
 }
 
 
@@ -936,6 +1039,12 @@ CoreComponent::fixTransform(bool useDirtyFlag)
     Transform2D updated;
 
     auto transform = mCalculated.get(kPropertyTransformAssigned);
+
+    if (transform.isArray()) {
+        transform = Transformation::create(getContext(), transform.getArray());
+        mCalculated.set(kPropertyTransformAssigned, transform);
+    }
+
     if (transform.isTransform()) {
         float width = YGNodeLayoutGetWidth(mYGNodeRef);
         float height = YGNodeLayoutGetHeight(mYGNodeRef);
@@ -973,7 +1082,7 @@ CoreComponent::serialize(rapidjson::Document::AllocatorType& allocator) const
     component.AddMember("type", getType(), allocator);
 
     for (const auto& pds : propDefSet()) {
-        if ((pds.second.flags & kPropOut) != 0)
+        if ((pds.second.flags & kPropOut) != 0 || (pds.second.flags & kPropRuntimeState) != 0)
             component.AddMember(
                 rapidjson::StringRef(pds.second.name.c_str()),   // We assume long-lived strings here
                 mCalculated.get(pds.first).serialize(allocator),
@@ -1325,13 +1434,15 @@ CoreComponent::propDefSet() const {
           {kPropertyShadowRadius,       Dimension(0),          asAbsoluteDimension, kPropInOut | kPropStyled },
           {kPropertyShadowVerticalOffset, Dimension(0),        asAbsoluteDimension, kPropInOut | kPropStyled },
           {kPropertySpeech,             "",                    asString,            kPropIn},
-          {kPropertyTransformAssigned,  Object::NULL_OBJECT(), asTransform,         kPropIn |
-                                                                                    kPropDynamic, inlineFixTransform},
+          {kPropertyTransformAssigned,  Object::NULL_OBJECT(), asTransformOrArray,  kPropIn |
+                                                                                    kPropDynamic |
+                                                                                    kPropEvaluated, inlineFixTransform},
           {kPropertyTransform,          Object::IDENTITY_2D(), nullptr,             kPropOut},
           {kPropertyUser,               Object::NULL_OBJECT(), nullptr,             kPropOut},
           {kPropertyWidth,              Dimension(),           asDimension,         kPropIn,      yn::setWidth, defaultWidth},
           {kPropertyOnCursorEnter,      Object::EMPTY_ARRAY(), asCommand,           kPropIn},
-          {kPropertyOnCursorExit,       Object::EMPTY_ARRAY(), asCommand,           kPropIn}
+          {kPropertyOnCursorExit,       Object::EMPTY_ARRAY(), asCommand,           kPropIn},
+          {kPropertyLaidOut,            false,                 asBoolean,           kPropOut},
       });
 
     return sCommonComponentProperties;

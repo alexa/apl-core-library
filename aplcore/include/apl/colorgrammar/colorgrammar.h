@@ -18,8 +18,8 @@
 #ifndef _COLORGRAMMAR_COLOR_GRAMMAR_H
 #define _COLORGRAMMAR_COLOR_GRAMMAR_H
 
-#include <pegtl.hh>
-#include <pegtl/contrib/abnf.hh>
+#include <tao/pegtl.hpp>
+#include <tao/pegtl/contrib/abnf.hpp>
 #include <cstdint>
 #include <stack>
 #include <algorithm>
@@ -31,6 +31,7 @@
 
 namespace apl {
 namespace colorgrammar {
+    namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
     using namespace pegtl;
 
     static bool DEBUG_GRAMMAR = false;
@@ -77,7 +78,8 @@ namespace colorgrammar {
      */
     template<> struct action< firstarg >
     {
-        static void apply(const input& in, color_state& state) {
+        template< typename Input >
+        static void apply(const Input& in, color_state& state) {
             LOGF_IF(DEBUG_GRAMMAR, "Firstarg: '%s'", in.string().c_str());
             state.push(-1);
         }
@@ -88,7 +90,8 @@ namespace colorgrammar {
      */
     template<> struct action< hexidecimal >
     {
-        static void apply( const input& in, color_state& state ) {
+        template< typename Input >
+        static void apply( const Input& in, color_state& state ) {
             uint32_t color;
 
             if (!colorFromHex(in.string(), color))
@@ -105,7 +108,8 @@ namespace colorgrammar {
      */
     template<> struct action< number >
     {
-        static void apply( const input& in, color_state& state) {
+        template< typename Input >
+        static void apply( const Input& in, color_state& state) {
             std::string s(in.string());
 
             double value;
@@ -126,7 +130,8 @@ namespace colorgrammar {
      */
     template<> struct action< namedcolor >
     {
-        static void apply(const input& in, color_state& state) {
+        template< typename Input >
+        static void apply(const Input& in, color_state& state) {
             auto result = Color::lookup(in.string());
             if (!result.first) {
                 throw parse_error((std::string("Invalid named color: '") + in.string()).c_str() + std::string("'"), in);
@@ -147,7 +152,8 @@ namespace colorgrammar {
      */
     template<> struct action< hsl >
     {
-        static void apply( const input& in, color_state& state) {
+        template< typename Input >
+        static void apply( const Input& in, color_state& state) {
             double v;
             double args[4];
             int argc = 0;
@@ -180,7 +186,8 @@ namespace colorgrammar {
      */
     template<> struct action< rgb >
     {
-        static void apply( const input& in, color_state& state) {
+        template< typename Input >
+        static void apply( const Input& in, color_state& state) {
             double v;
             double args[4];
             int argc = 0;

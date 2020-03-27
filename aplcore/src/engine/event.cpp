@@ -24,6 +24,7 @@ namespace apl {
 Bimap<int, std::string> sEventTypeBimap = {
     {kEventTypeControlMedia, "controlMedia"},
     {kEventTypeFocus,        "focus"},
+    {kEventTypeFinish,       "finish"},
     {kEventTypeOpenURL,      "openURL"},
     {kEventTypePlayMedia,    "playMedia"},
     {kEventTypePreroll,      "preroll"},
@@ -41,8 +42,12 @@ Bimap<int, std::string> sEventPropertyBimap = {
     {kEventPropertyComponent,     "component"},
     {kEventPropertyComponents,    "components"},
     {kEventPropertyDirection,     "direction"},
+    {kEventPropertyExtension,     "extension"},
+    {kEventPropertyExtensionURI,  "extensionURI"},
     {kEventPropertyHighlightMode, "highlightMode"},
+    {kEventPropertyName,          "name"},
     {kEventPropertyPosition,      "position"},
+    {kEventPropertyReason,        "reason"},
     {kEventPropertySource,        "source"},
     {kEventPropertyValue,         "value"}
 };

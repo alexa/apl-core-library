@@ -162,8 +162,8 @@ public:
     inline CoreComponentPtr getFrame(const ComponentPtr& touchWrapper) const {
         return std::static_pointer_cast<CoreComponent>(touchWrapper->getChildAt(0));
     }
-    inline CoreComponentPtr getText(const ComponentPtr& frame) const {
-        return std::static_pointer_cast<CoreComponent>(frame->getChildAt(0));
+    inline CoreComponentPtr getText(const ComponentPtr& cmp) const {
+        return std::static_pointer_cast<CoreComponent>(cmp->getChildAt(0));
     }
 
     void init(const char *json) {
@@ -241,6 +241,7 @@ public:
         auto position = event.getValue(kEventPropertyPosition).asDimension(context);
         event.getComponent()->update(kUpdateScrollPosition, position.getValue());
         event.getActionRef().resolve();
+        root->clearPending();
     }
 
     void executeScrollToComponent(const std::string& component, CommandScrollAlign align) {

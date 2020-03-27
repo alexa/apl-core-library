@@ -54,7 +54,9 @@ ContextPtr
 Context::create(const Metrics& metrics, const RootConfig& config, const std::string& theme)
 {
     auto session = config.getSession() ? config.getSession() : makeDefaultSession();
-    auto rootContextData = std::make_shared<RootContextData>(metrics, config, theme, "1.1", session);
+    auto rootContextData = std::make_shared<RootContextData>(metrics, config,
+                                                             theme, "1.2", session,
+                                                             std::vector<std::pair<std::string, std::string>>());
     return Context::create(metrics, rootContextData);
 }
 
@@ -83,6 +85,7 @@ Context::Context( const Metrics& metrics, const std::shared_ptr<RootContextData>
     env->emplace("disallowVideo", config.getDisallowVideo());
     env->emplace("animation", config.getAnimationQualityString());
     env->emplace("aplVersion", config.getReportedAPLVersion());
+    env->emplace("extension", core->extensionManager().getEnvironment());
     putConstant("environment", env);
     putConstant("viewport", makeViewport(metrics, core->theme));
     createStandardFunctions(*this);
@@ -237,6 +240,16 @@ Context::hoverManager() const {
 KeyboardManager &
 Context::keyboardManager() const {
     return mCore->keyboardManager();
+}
+
+LiveDataManager&
+Context::dataManager() const {
+    return mCore->dataManager();
+}
+
+ExtensionManager&
+Context::extensionManager() const {
+    return mCore->extensionManager();
 }
 
 const SessionPtr&

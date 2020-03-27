@@ -10,6 +10,7 @@ add_library(apl STATIC
         src/action/animateitemaction.cpp
         src/action/autopageaction.cpp
         src/action/arrayaction.cpp
+        src/action/extensioneventaction.cpp
         src/action/documentaction.cpp
         src/action/openurlaction.cpp
         src/action/scrolltoaction.cpp
@@ -17,14 +18,13 @@ add_library(apl STATIC
         src/action/setpageaction.cpp
         src/action/speakitemaction.cpp
         src/action/speaklistaction.cpp
-        src/animation/animation.cpp
         src/animation/animatedproperty.cpp
         src/animation/easing.cpp
         src/command/arraycommand.cpp
-        src/command/command.cpp
         src/command/commandfactory.cpp
         src/command/commandproperties.cpp
         src/command/corecommand.cpp
+        src/command/extensioneventcommand.cpp
         src/command/documentcommand.cpp
         src/component/actionablecomponent.cpp
         src/component/component.cpp
@@ -47,12 +47,17 @@ add_library(apl STATIC
         src/content/content.cpp
         src/content/directive.cpp
         src/content/importrequest.cpp
+        src/content/jsondata.cpp
         src/content/metrics.cpp
         src/content/package.cpp
         src/content/rootconfig.cpp
         src/content/viewport.cpp
+        src/datagrammar/boundsymbol.cpp
         src/datagrammar/functions.cpp
         src/datagrammar/node.cpp
+        src/datasource/datasource.cpp
+        src/datasource/dynamicindexlistdatasourceprovider.cpp
+        src/datasource/offsetindexdatasourceconnection.cpp
         src/engine/arrayify.cpp
         src/engine/binding.cpp
         src/engine/builder.cpp
@@ -60,8 +65,10 @@ add_library(apl STATIC
         src/engine/componentdependant.cpp
         src/engine/contextdependant.cpp
         src/engine/contextobject.cpp
+        src/engine/dependant.cpp
         src/engine/evaluate.cpp
         src/engine/event.cpp
+        src/engine/extensionmanager.cpp
         src/engine/focusmanager.cpp
         src/engine/hovermanager.cpp
         src/engine/info.cpp
@@ -76,6 +83,13 @@ add_library(apl STATIC
         src/engine/styleinstance.cpp
         src/engine/styledefinition.cpp
         src/engine/styles.cpp
+        src/livedata/livearrayobject.cpp
+        src/livedata/livedataobject.cpp
+        src/livedata/livedatamanager.cpp
+        src/livedata/layoutrebuilder.cpp
+        src/livedata/livearray.cpp
+        src/livedata/livemap.cpp
+        src/livedata/livemapobject.cpp
         src/graphic/graphic.cpp
         src/graphic/graphiccontent.cpp
         src/graphic/graphicdependant.cpp
@@ -90,6 +104,7 @@ add_library(apl STATIC
         src/primitives/mediasource.cpp
         src/primitives/radii.cpp
         src/primitives/rect.cpp
+        src/primitives/symbolreferencemap.cpp
         src/primitives/styledtext.cpp
         src/primitives/timefunctions.cpp
         src/primitives/timegrammar.cpp
@@ -105,7 +120,7 @@ add_library(apl STATIC
         src/utils/telemetry.cpp)
 
 set_target_properties(apl PROPERTIES
-                      VERSION ${PROJECT_VERSION}
+                      VERSION "${PROJECT_VERSION}"
                       SOVERSION 1
                       PUBLIC_HEADER include/apl/apl.h)
 
@@ -115,7 +130,7 @@ target_include_directories(apl PRIVATE include)
 add_library(libyoga STATIC IMPORTED)
 set_target_properties(libyoga PROPERTIES
     IMPORTED_LINK_INTERFACE_LIBRARIES ""
-    IMPORTED_LOCATION ${YOGA_LIB}
+    IMPORTED_LOCATION "${YOGA_LIB}"
 )
 target_link_libraries(apl libyoga)
 

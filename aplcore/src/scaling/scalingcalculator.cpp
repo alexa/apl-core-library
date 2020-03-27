@@ -20,8 +20,18 @@ namespace apl {
 namespace scaling {
 
 namespace {
+
+/** Constant PI */
+constexpr double PI = 3.14159265358979323846;
+
+/** How far to check each angle for square viewport in round screen */
+constexpr double ANGLE_DELTA = PI * 1.0f / 180;
+
+/** Maximum allowable viewport aspect ration for square viewport in round screen */
+constexpr double MAX_VIEWPORT_RATIO = 3.0f;
+
 void
-setMetricsSize(Metrics& metrics, double width, double height) {
+ScalingCalculator::setMetricsSize(Metrics& metrics, double width, double height) {
     int pixelWidth = static_cast<int>(std::round(metrics.dpToPx(static_cast<float>(width))));
     int pixelHeight = static_cast<int>(std::round(metrics.dpToPx(static_cast<float>(height))));
     metrics.size(pixelWidth, pixelHeight);
@@ -215,7 +225,7 @@ calculate(const Metrics& metrics, const ScalingOptions& options) {
                 // this will be just the rectangular size, for rectangular content in round
                 // screens it will be whatever the optimal dimensions are within the screen
                 // circle. Metrics taks epixels, so convert dp to px here.
-                setMetricsSize(newMetrics, Vw, Vh);
+                ScalingCalculator::setMetricsSize(newMetrics, Vw, Vh);
                 return std::make_tuple(1.0, newMetrics, size.spec);
             }
 
@@ -238,7 +248,7 @@ calculate(const Metrics& metrics, const ScalingOptions& options) {
 
     // Update the metrics with the optimal size. This is the size that core
     // will use for all internal calculations
-    setMetricsSize(newMetrics, bestSize.w, bestSize.h);
+    ScalingCalculator::setMetricsSize(newMetrics, bestSize.w, bestSize.h);
 
     // Return the scale factor, which the viewhost will use to scale dimensional values
     // coming from core.

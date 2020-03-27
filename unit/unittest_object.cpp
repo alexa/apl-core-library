@@ -16,6 +16,7 @@
 #include <iostream>
 #include <memory>
 #include <clocale>
+#include <cfenv>
 
 #include "gtest/gtest.h"
 
@@ -31,10 +32,10 @@ using namespace apl;
 
 TEST(ObjectTest, Constants)
 {
-    ASSERT_TRUE( Object::TRUE().isBoolean());
-    ASSERT_TRUE( Object::TRUE().getBoolean());
-    ASSERT_TRUE( Object::FALSE().isBoolean());
-    ASSERT_FALSE( Object::FALSE().getBoolean());
+    ASSERT_TRUE( Object::TRUE_OBJECT().isBoolean());
+    ASSERT_TRUE( Object::TRUE_OBJECT().getBoolean());
+    ASSERT_TRUE( Object::FALSE_OBJECT().isBoolean());
+    ASSERT_FALSE( Object::FALSE_OBJECT().getBoolean());
 
     ASSERT_TRUE( Object::NULL_OBJECT().isNull());
     ASSERT_TRUE( Object::NAN_OBJECT().isNumber());
@@ -84,6 +85,12 @@ TEST(ObjectTest, Size)
     ASSERT_TRUE(a.empty());
     ASSERT_EQ(0, a.size());
 
+    rapidjson::Document doc;
+    doc.Parse("[1,2,3]");
+    a = Object(std::move(doc));
+    ASSERT_FALSE(a.empty());
+    ASSERT_EQ(3, a.size());
+
     a = Object(Rect(0,0,0,0));
     ASSERT_TRUE(a.empty());
     ASSERT_EQ(0, a.size());
@@ -103,6 +110,8 @@ TEST(ObjectTest, SharedMap)
     ASSERT_FALSE(a.empty());
     ASSERT_TRUE(a.has("a"));
     ASSERT_FALSE(a.has("z"));
+    ASSERT_EQ(1, a.opt("a", 42).asNumber());
+    ASSERT_EQ(42, a.opt("z", 42).asNumber());
 
     ASSERT_STREQ("fuzzy", a.get("c").getString().c_str());
 }
@@ -172,6 +181,13 @@ TEST(ObjectTest, RapidJson)
     ASSERT_FALSE(o6.empty());
     ASSERT_STREQ("Siva", o6.get("firstname").getString().c_str());
     ASSERT_FALSE(o6.has("surname"));
+
+    rapidjson::Document d;
+    d.Parse(R"({"a":2,"b": 4})");
+    o = Object(std::move(d));
+    ASSERT_TRUE(o.isMap());
+    ASSERT_EQ(2, o.size());
+    ASSERT_EQ(2, o.get("a").getDouble());
 }
 
 TEST(ObjectTest, Color)
@@ -247,13 +263,13 @@ TEST(ObjectTest, Gradient)
     {
         rapidjson::Document doc2;
         doc2.SetObject();
-        rapidjson::Document::AllocatorType& allocator = doc2.GetAllocator();
+        rapidjson::Document::AllocatorType& alloc = doc2.GetAllocator();
 
-        rapidjson::Value colorRange(rapidjson::kArrayType);
-        colorRange.PushBack("blue", allocator);
-        colorRange.PushBack("green", allocator);
-        doc2.AddMember("colorRange", colorRange, allocator);
-        doc2.AddMember("type", "linear", allocator);
+        rapidjson::Value colorRng(rapidjson::kArrayType);
+        colorRng.PushBack("blue", alloc);
+        colorRng.PushBack("green", alloc);
+        doc2.AddMember("colorRange", colorRng, alloc);
+        doc2.AddMember("type", "linear", alloc);
 
         auto p = Gradient::create(*context, doc2);
         c = p;
@@ -462,11 +478,14 @@ static const std::vector<std::pair<double, std::string>> DOUBLE_TEST {
 
 TEST(ObjectTest, DoubleConversion)
 {
+    feclearexcept (FE_ALL_EXCEPT);
     for (const auto& m : DOUBLE_TEST) {
         Object object(m.first);
         std::string result = object.asString();
         ASSERT_EQ(m.second, result) << m.first << " : " << m.second;
     }
+    int fe = fetestexcept (FE_INVALID);
+    ASSERT_EQ(0, fe);
 }
 
 static const std::vector<std::pair<std::string, double>> STRING_TO_DOUBLE{
@@ -500,4 +519,69 @@ TEST(ObjectTest, StringToDouble)
             continue;
         ASSERT_EQ(m.second, result) << "'" << m.first << "' : " << m.second;
     }
+}
+
+TEST(ObjectTest, AbsoluteDimensionConversion)
+{
+    auto dimension = Object(Dimension(DimensionType::Absolute, 42));
+    ASSERT_EQ(42, dimension.asNumber());
+    ASSERT_EQ(42, dimension.asInt());
+    ASSERT_EQ("42dp", dimension.asString());
+    ASSERT_TRUE(dimension.asBoolean());
+}
+
+TEST(ObjectTest, MutableObjects)
+{
+    ASSERT_FALSE(Object::EMPTY_RADII().isMutable());
+    ASSERT_FALSE(Object::NULL_OBJECT().isMutable());
+
+    ASSERT_FALSE(Object::EMPTY_ARRAY().isMutable());
+    ASSERT_TRUE(Object::EMPTY_MUTABLE_ARRAY().isMutable());
+    ASSERT_FALSE(Object::EMPTY_MAP().isMutable());
+    ASSERT_TRUE(Object::EMPTY_MUTABLE_MAP().isMutable());
+
+    // ========= Shared pointer to map
+    auto mapPtr = std::make_shared<ObjectMap>(ObjectMap{{"a", 1}, {"b", 2}});
+    ASSERT_FALSE(Object(mapPtr).isMutable());
+    ASSERT_TRUE(Object(mapPtr, true).isMutable());
+
+    // Check that retrieving the mutable map fails if the object is not marked as mutable
+    try {
+        Object(mapPtr).getMutableMap();
+        FAIL();
+    } catch (...) {
+    }
+
+    // Check that retrieving the mutable map succeeds if the object is marked as mutable
+    ObjectMap& map = Object(mapPtr, true).getMutableMap();
+    ASSERT_EQ(2, map.size());
+
+    // ========= Shared pointer to array
+    auto arrayPtr = std::make_shared<ObjectArray>(ObjectArray{1,2,3,4});
+    ASSERT_FALSE(Object(arrayPtr).isMutable());
+    ASSERT_TRUE(Object(arrayPtr, true).isMutable());
+
+    // Check that retrieving the mutable array fails if the object is not marked as mutable
+    try {
+        Object(arrayPtr).getMutableArray();
+        FAIL();
+    } catch (...) {
+    }
+
+    // Check that retrieving the mutable array succeeds if the object is marked as mutable
+    ObjectArray& array = Object(arrayPtr, true).getMutableArray();
+    ASSERT_EQ(4, array.size());
+
+    // ========= Emplaced object array
+    ASSERT_FALSE(Object(ObjectArray{1,2}).isMutable());
+    ASSERT_TRUE(Object(ObjectArray{2,3}, true).isMutable());
+
+    try {
+        Object(ObjectArray{1,2,3}).getMutableArray();
+        FAIL();
+    } catch (...) {
+    }
+
+    array = Object(ObjectArray{2,3,4}, true).getMutableArray();
+    ASSERT_EQ(3, array.size());
 }

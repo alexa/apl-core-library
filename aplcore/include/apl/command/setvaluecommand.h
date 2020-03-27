@@ -20,7 +20,10 @@
 
 namespace apl {
 
+const static bool DEBUG_SET_VALUE = false;
+
 class SetValueCommand : public CoreCommand {
+
 public:
     static CommandPtr create(const ContextPtr& context,
                              Properties&& properties,
@@ -51,6 +54,7 @@ public:
 
         std::string property = mValues.at(kCommandPropertyProperty).asString();
         Object value = mValues.at(kCommandPropertyValue);
+        LOG_IF(DEBUG_SET_VALUE) << "SetValue - property: "<< property << " value: "<< value;
         mTarget->setProperty(property, value);
 
         return nullptr;

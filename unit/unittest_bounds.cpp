@@ -112,8 +112,8 @@ static const char *VERTICAL_SEQUENCE =
     "    \"item\": {"
     "      \"type\": \"Sequence\","
     "      \"scrollDirection\": \"vertical\","
-    "      \"width\": \"100vw\","
-    "      \"height\": \"100vh\","
+    "      \"width\": 200,"
+    "      \"height\": 500,"
     "      \"items\": {"
     "        \"type\": \"Frame\","
     "        \"width\": 200,"
@@ -134,12 +134,11 @@ TEST_F(BoundsTest, VerticalSequence)
 {
     loadDocument(VERTICAL_SEQUENCE);
 
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,200,500), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(5, component->getChildCount());
 
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        child->ensureLayout();
         ASSERT_EQ(Rect(0, 200*i, 200, 200), child->getCalculated(kPropertyBounds).getRect());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
@@ -163,6 +162,10 @@ TEST_F(BoundsTest, VerticalSequence)
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(0, 200*i - 500, 200, 200), rect);
     }
+
+    // Verify that we can't set out of bounds position
+    component->update(kUpdateScrollPosition, 1000);
+    ASSERT_EQ(500, component->getCalculated(kPropertyScrollPosition).asNumber());
 }
 
 static const char *HORIZONTAL_SEQUENCE =
@@ -174,8 +177,8 @@ static const char *HORIZONTAL_SEQUENCE =
     "    \"item\": {"
     "      \"type\": \"Sequence\","
     "      \"scrollDirection\": \"horizontal\","
-    "      \"width\": \"100vw\","
-    "      \"height\": \"100vh\","
+    "      \"width\": 500,"
+    "      \"height\": 200,"
     "      \"items\": {"
     "        \"type\": \"Frame\","
     "        \"width\": 200,"
@@ -196,12 +199,11 @@ TEST_F(BoundsTest, HorizontalSequence)
 {
     loadDocument(HORIZONTAL_SEQUENCE);
 
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,500,200), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(5, component->getChildCount());
 
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        child->ensureLayout();
         ASSERT_EQ(Rect(200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).getRect());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
@@ -225,6 +227,10 @@ TEST_F(BoundsTest, HorizontalSequence)
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(200*i - 500, 0, 200, 200), rect);
     }
+
+    // Verify that we can't set out of bounds position
+    component->update(kUpdateScrollPosition, 1000);
+    ASSERT_EQ(500, component->getCalculated(kPropertyScrollPosition).asNumber());
 }
 
 static const char *CHILD_IN_PARENT =
@@ -299,7 +305,6 @@ TEST_F(BoundsTest, ChildInParent)
 
     auto sequence = component->getChildAt(1);
     ASSERT_EQ(9, sequence->getChildCount());
-    sequence->getChildAt(8)->ensureLayout(false);
 
     ASSERT_TRUE(IsEqual(Rect(0, 150, 1024, 650), sequence->getCalculated(kPropertyBounds)));
 
@@ -310,7 +315,6 @@ TEST_F(BoundsTest, ChildInParent)
         auto label = child->getChildAt(1);
 
         // Position w.r.t. the holding container
-        child->ensureLayout();
         ASSERT_EQ(Rect(0, 0, 100, 100), number->getCalculated(kPropertyBounds).getRect());
         ASSERT_EQ(Rect(100, 0, 924, 100), label->getCalculated(kPropertyBounds).getRect());
 
@@ -336,7 +340,6 @@ TEST_F(BoundsTest, ChildInParent)
         auto label = child->getChildAt(1);
 
         // Position w.r.t. the holding container doesn't change
-        child->ensureLayout();
         ASSERT_EQ(Rect(0, 0, 100, 100), number->getCalculated(kPropertyBounds).getRect());
         ASSERT_EQ(Rect(100, 0, 924, 100), label->getCalculated(kPropertyBounds).getRect());
 

@@ -16,8 +16,8 @@
 #ifndef _APL_TIME_GRAMMAR_H
 #define _APL_TIME_GRAMMAR_H
 
-#include <pegtl.hh>
-#include <pegtl/contrib/abnf.hh>
+#include <tao/pegtl.hpp>
+#include <tao/pegtl/contrib/abnf.hpp>
 #include <cstdint>
 #include <stack>
 #include <algorithm>
@@ -36,9 +36,9 @@ namespace apl {
  * M    1..12      Month (1=January)
  * MM   01..12     Month (1=January)
  *
- * d    1..31      Day of the month
- * dd   01..31     Day of the month, two digits
- * ddd  N          Days, any number
+ * D    1..31      Day of the month
+ * DD   01..31     Day of the month, two digits
+ * DDD  N          Days, any number
  *
  * H    0..23      24-hour clock
  * HH   00..23     24-hour clock, two digits
@@ -61,6 +61,7 @@ namespace apl {
  */
 namespace timegrammar {
 
+namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 using namespace pegtl;
 
 struct other         : any {};
@@ -71,9 +72,9 @@ struct year_two      : string<'Y', 'Y'> {};
 struct month_two     : string<'M', 'M'> {};
 struct month         : one<'M'> {};
 
-struct days_any      : string<'d', 'd', 'd'> {};
-struct date_two      : string<'d', 'd'> {};
-struct date          : one<'d'> {};
+struct days_any      : string<'D', 'D', 'D'> {};
+struct date_two      : string<'D', 'D'> {};
+struct date          : one<'D'> {};
 
 struct hours_any     : string<'H', 'H', 'H'>{};
 struct hours_two_24  : string<'H', 'H'> {};
@@ -103,8 +104,10 @@ struct unit : sor< year_four, year_two,
                    millisecond, centisecond, decisecond,
                    other > {};
 
-struct raw : until<at<eof>, must<unit>>{};
-struct grammar : must< raw, eof > {};
+// Note- Explicitly specifying namespace pegtl because of this collision in Windows
+// error C2872: 'eof': ambiguous symbol
+struct raw : until<at<pegtl::eof>, must<unit>>{};
+struct grammar : must< raw, pegtl::eof > {};
 
 // ******************** ACTIONS *********************
 
@@ -112,7 +115,7 @@ template<typename Rule>
 struct action : pegtl::nothing<Rule> {};
 
 struct time_state {
-    time_state(double time) : mTime(static_cast<unsigned long>(time)) {}
+    time_state(double time) : mTime(static_cast<apl::time::apl_itime_t>(time)) {}
 
     void append(int number) {
         mString += std::to_string(number);
@@ -126,19 +129,21 @@ struct time_state {
     }
 
     std::string mString;
-    const unsigned long mTime;
+    const apl::time::apl_itime_t mTime;
 };
 
 template<> struct action<other>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.mString += in.string();
     }
 };
 
 template<> struct action<year_four>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         auto year = std::to_string(time::yearFromTime(state.mTime));
         state.mString += year.substr(year.length() - 4);
     }
@@ -146,7 +151,8 @@ template<> struct action<year_four>
 
 template<> struct action<year_two>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         auto year = std::to_string(time::yearFromTime(state.mTime));
         state.mString += year.substr(year.length() - 2);
     }
@@ -154,63 +160,72 @@ template<> struct action<year_two>
 
 template<> struct action<month_two>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.appendTwo(time::monthFromTime(state.mTime) + 1);
     }
 };
 
 template<> struct action<month>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.append(time::monthFromTime(state.mTime) + 1);
     }
 };
 
 template<> struct action<days_any>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.append(time::day(state.mTime));
     }
 };
 
 template<> struct action<date_two>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.appendTwo(time::dateFromTime(state.mTime));
     }
 };
 
 template<> struct action<date>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.append(time::dateFromTime(state.mTime));
     }
 };
 
 template<> struct action<hours_any>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.append(time::hours(state.mTime));
     }
 };
 
 template<> struct action<hours_two_24>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.appendTwo(time::hourOfDay(state.mTime));
     }
 };
 
 template<> struct action<hours_24>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.append(time::hourOfDay(state.mTime));
     }
 };
 
 template<> struct action<hours_two_12>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         auto hour = time::hourOfDay(state.mTime) % 12;
         state.appendTwo(hour == 0 ? 12 : hour);
     }
@@ -218,7 +233,8 @@ template<> struct action<hours_two_12>
 
 template<> struct action<hours_12>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         auto hour = time::hourOfDay(state.mTime) % 12;
         state.append(hour == 0 ? 12 : hour);
     }
@@ -226,21 +242,24 @@ template<> struct action<hours_12>
 
 template<> struct action<minutes_any>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.append(time::minutes(state.mTime));
     }
 };
 
 template<> struct action<minutes_two>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.appendTwo(time::minutesOfHour(state.mTime));
     }
 };
 
 template<> struct action<minutes>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.append(time::minutesOfHour(state.mTime));
     }
 };
@@ -248,28 +267,32 @@ template<> struct action<minutes>
 
 template<> struct action<seconds_any>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.append(time::seconds(state.mTime));
     }
 };
 
 template<> struct action<seconds_two>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.appendTwo(time::secondsOfMinute(state.mTime));
     }
 };
 
 template<> struct action<seconds>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         state.append(time::secondsOfMinute(state.mTime));
     }
 };
 
 template<> struct action<decisecond>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         auto delta = state.mTime / 100 % 10;
         state.mString += std::to_string(delta);
     }
@@ -277,7 +300,8 @@ template<> struct action<decisecond>
 
 template<> struct action<centisecond>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         auto delta = state.mTime / 10 % 100;
         state.appendTwo(delta);
     }
@@ -285,7 +309,8 @@ template<> struct action<centisecond>
 
 template<> struct action<millisecond>
 {
-    static void apply(const input& in, time_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, time_state& state) {
         auto delta = state.mTime % 1000;
         if (delta < 10)
             state.mString += "00" + std::to_string(delta);

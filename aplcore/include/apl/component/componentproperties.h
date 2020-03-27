@@ -251,6 +251,8 @@ enum PropertyKey {
     kPropertyColorKaraokeTarget,
     /// TextComponent color for text that isn't subject to Karaoke
     kPropertyColorNonKaraoke,
+    /// PagerComponent current page display
+    kPropertyCurrentPage,
     /// Component description
     kPropertyDescription,
     /// ContainerComponent layout direction (see #ContainerDirection)
@@ -359,6 +361,8 @@ enum PropertyKey {
     kPropertyRight,
     /// ImageComponent, VideoComponent, and VectorGraphicComponent scale property (see #ImageScale, #VectorGraphicScale, #VideoScale)
     kPropertyScale,
+    /// Scroll position of the Scrollable component.
+    kPropertyScrollPosition,
     /// Component shadow color
     kPropertyShadowColor,
     /// Component shadow horizontal offset
@@ -383,6 +387,23 @@ enum PropertyKey {
     kPropertyTextAlign,
     /// TextComponent vertical alignment (see #TextAlignVertical)
     kPropertyTextAlignVertical,
+    /// Integer property giving the total number of tracks in the video component. This property will be updated
+    /// whenever a new set of tracks is assigned to the video component.
+    kPropertyTrackCount,
+    /// Integer property giving the current time (in milliseconds) of the currently active track in the video component.
+    /// This property will be updated whenever the current time of the active track changes.
+    kPropertyTrackCurrentTime,
+    /// Integer property denoting the total duration (in milliseconds) of the currently active track in the video
+    /// component.
+    kPropertyTrackDuration,
+    /// Boolean property.  True if the final track in the video component has finished and the video component is
+    /// not playing.
+    kPropertyTrackEnded,
+    /// Integer property denoting the index of the currently active track in the the video component. This property
+    /// will be updated whenever there is a track change.
+    kPropertyTrackIndex,
+    /// Boolean property.  True if the current track in the video component is not playing.
+    kPropertyTrackPaused,
     /// Component 2D graphics transformation
     kPropertyTransform,
     /// Calculated Component 2D graphics transformation (output-only)
@@ -396,7 +417,9 @@ enum PropertyKey {
     /// Component handler for cursor enter
     kPropertyOnCursorEnter,
     /// Component handler for cursor exit
-    kPropertyOnCursorExit
+    kPropertyOnCursorExit,
+    /// Component attached to Yoga tree and has flexbox properties calculated.
+    kPropertyLaidOut
 };
 
 // Be careful adding new items to this list or changing the order of the list.

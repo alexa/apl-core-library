@@ -93,7 +93,7 @@ DocumentCommand::context()
     if (!root)
         return nullptr;
 
-    return root->topComponent()->getContext();
+    return root->payloadContext();
 }
 
 /**

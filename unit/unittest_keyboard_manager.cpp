@@ -42,7 +42,7 @@ public:
     }
 };
 
-const char* COMPONENT_KEY_HANDLER_DOC =
+static const char* COMPONENT_KEY_HANDLER_DOC =
         "{"
         "  \"type\": \"APL\","
         "  \"version\": \"1.1\","
@@ -99,8 +99,6 @@ TEST_F(KeyboardManagerTest, ComponentWithFocus) {
 
     loadDocument(COMPONENT_KEY_HANDLER_DOC);
     ASSERT_TRUE(component);
-    // get the KeyboardManager
-    auto& km = root->context().keyboardManager();
 
     // set the focused component
     setFocus(component);
@@ -123,8 +121,6 @@ TEST_F(KeyboardManagerTest, ComponentNoFocus) {
 
     loadDocument(COMPONENT_KEY_HANDLER_DOC);
     ASSERT_TRUE(component);
-    // get the KeyboardManager
-    auto& km = root->context().keyboardManager();
 
     // send keypress without focus component
     ASSERT_NO_FATAL_FAILURE(root->handleKeyboard(kKeyDown, Keyboard::ENTER_KEY()));
@@ -195,7 +191,7 @@ TEST_F(KeyboardManagerTest, WhenIsFalse) {
     ASSERT_TRUE(IsEqual(Color(Color::RED), target->getCalculated(kPropertyBackgroundColor)));
 }
 
-const char* DOCUMENT_KEY_HANDLER_DOC =
+static const char* DOCUMENT_KEY_HANDLER_DOC =
         "{"
         "  \"type\": \"APL\","
         "  \"version\": \"1.1\","
@@ -416,8 +412,6 @@ TEST_F(KeyboardManagerTest, PropagateBlock) {
 
     loadDocument(PROPAGATE_KEY_HANDLER_DOC);
     ASSERT_TRUE(component);
-    // get the KeyboardManager
-    auto& km = root->context().keyboardManager();
 
     auto thing1 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing1"));
     auto thing2 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing2"));
@@ -626,4 +620,244 @@ TEST_F(KeyboardManagerTest, IntrinsicNotConsumed) {
     ASSERT_FALSE(root->handleKeyboard(kKeyUp, Keyboard::PAGE_DOWN_KEY()));
     ASSERT_FALSE(root->handleKeyboard(kKeyUp, Keyboard::HOME_KEY()));
     ASSERT_FALSE(root->handleKeyboard(kKeyUp, Keyboard::END_KEY()));
+}
+
+static const char *DEFAULT_COMPONENT_WHEN_TRUE =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.3\","
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"TouchWrapper\","
+    "      \"items\": {"
+    "        \"type\": \"Text\","
+    "        \"text\": \"Not set\","
+    "        \"id\": \"TestId\""
+    "      },"
+    "      \"handleKeyDown\": ["
+    "        {"
+    "          \"commands\": {"
+    "            \"type\": \"SetValue\","
+    "            \"componentId\": \"TestId\","
+    "            \"property\": \"text\","
+    "            \"value\": \"Is Set\""
+    "          }"
+    "        }"
+    "      ]"
+    "    }"
+    "  }"
+    "}";
+
+/**
+ * Test that the keyboard "when" clause defaults to true for keyboard handler in a component
+ */
+TEST_F(KeyboardManagerTest, DefaultComponentWhenTrue)
+{
+    loadDocument(DEFAULT_COMPONENT_WHEN_TRUE);
+    ASSERT_TRUE(component);
+    auto text = root->context().findComponentById("TestId");
+    ASSERT_TRUE(text);
+
+    component->update(kUpdateTakeFocus, 1);
+    ASSERT_EQ(component, context->focusManager().getFocus());
+
+    root->handleKeyboard(kKeyDown, BLUE_KEY);
+
+    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, text));
+    ASSERT_TRUE(IsEqual("Is Set", text->getCalculated(kPropertyText).asString()));
+}
+
+static const char *DEFAULT_WHEN_TRUE =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.3\","
+    "  \"handleKeyDown\": ["
+    "    {"
+    "      \"commands\": {"
+    "        \"type\": \"SetValue\","
+    "        \"componentId\": \"TestId\","
+    "        \"property\": \"text\","
+    "        \"value\": \"Is Set\""
+    "      }"
+    "    }"
+    "  ],"
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"Text\","
+    "      \"text\": \"Not set\","
+    "      \"id\": \"TestId\""
+    "    }"
+    "  }"
+    "}";
+
+/**
+ * Test that the keyboard "when" clause defaults to true
+ */
+TEST_F(KeyboardManagerTest, DefaultWhenTrue)
+{
+    loadDocument(DEFAULT_WHEN_TRUE);
+    ASSERT_TRUE(component);
+
+    root->handleKeyboard(kKeyDown, BLUE_KEY);
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, component));
+    ASSERT_TRUE(IsEqual("Is Set", component->getCalculated(kPropertyText).asString()));
+}
+
+static const char *ACCESS_ENVIRONMENT_IN_COMPONENT =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.3\","
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"TouchWrapper\","
+    "      \"items\": {"
+    "        \"type\": \"Text\","
+    "        \"text\": \"Not set\","
+    "        \"id\": \"TestId\""
+    "      },"
+    "      \"handleKeyDown\": ["
+    "        {"
+    "          \"commands\": {"
+    "            \"type\": \"SetValue\","
+    "            \"componentId\": \"TestId\","
+    "            \"property\": \"text\","
+    "            \"value\": \"${event.keyboard.code} is set\""
+    "          }"
+    "        }"
+    "      ],"
+    "      \"handleKeyUp\": ["
+    "        {"
+    "          \"commands\": {"
+    "            \"type\": \"SetValue\","
+    "            \"componentId\": \"TestId\","
+    "            \"property\": \"text\","
+    "            \"value\": \"${event.keyboard.code} is not set\""
+    "          }"
+    "        }"
+    "      ]"
+    "    }"
+    "  }"
+    "}";
+
+/**
+ * Test that keyboard events can access environment variables passed in the key event.
+ * This tests if a component-level keyboard handler can access the ${event.keyboard.code} property
+ */
+TEST_F(KeyboardManagerTest, AccessEnvironmentValuesInComponent)
+{
+    loadDocument(ACCESS_ENVIRONMENT_IN_COMPONENT);
+    ASSERT_TRUE(component);
+    auto text = root->context().findComponentById("TestId");
+    ASSERT_TRUE(text);
+
+    component->update(kUpdateTakeFocus, 1);
+    ASSERT_EQ(component, context->focusManager().getFocus());
+
+    root->handleKeyboard(kKeyDown, BLUE_KEY);
+
+    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, text));
+    ASSERT_TRUE(IsEqual("KeyB is set", text->getCalculated(kPropertyText).asString()));
+
+    root->handleKeyboard(kKeyUp, BLUE_KEY);
+
+    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, text));
+    ASSERT_TRUE(IsEqual("KeyB is not set", text->getCalculated(kPropertyText).asString()));
+}
+
+static const char *ACCESS_ENVIRONMENT_VALUES =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.3\","
+    "  \"handleKeyDown\": ["
+    "    {"
+    "      \"commands\": {"
+    "        \"type\": \"SetValue\","
+    "        \"componentId\": \"TestId\","
+    "        \"property\": \"text\","
+    "        \"value\": \"${event.keyboard.code} is set\""
+    "      }"
+    "    }"
+    "  ],"
+    "  \"handleKeyUp\": ["
+    "    {"
+    "      \"commands\": {"
+    "        \"type\": \"SetValue\","
+    "        \"componentId\": \"TestId\","
+    "        \"property\": \"text\","
+    "        \"value\": \"${event.keyboard.code} is not set\""
+    "      }"
+    "    }"
+    "  ],"
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"Text\","
+    "      \"text\": \"Not set\","
+    "      \"id\": \"TestId\""
+    "    }"
+    "  }"
+    "}";
+
+/**
+ * Test that keyboard events can access environment variables passed in the key event
+ * This tests if a document-level keyboard handler can access the ${event.keyboard.code} property
+ */
+TEST_F(KeyboardManagerTest, AccessEnvironmentValues)
+{
+    loadDocument(ACCESS_ENVIRONMENT_VALUES);
+    ASSERT_TRUE(component);
+
+    root->handleKeyboard(kKeyDown, BLUE_KEY);
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, component));
+    ASSERT_TRUE(IsEqual("KeyB is set", component->getCalculated(kPropertyText).asString()));
+
+    root->handleKeyboard(kKeyUp, BLUE_KEY);
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, component));
+    ASSERT_TRUE(IsEqual("KeyB is not set", component->getCalculated(kPropertyText).asString()));
+}
+
+static const char *ACCESS_ENVIRONMENT_AND_PAYLOAD =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.3\","
+    "  \"mainTemplate\": {"
+    "    \"parameters\": ["
+    "      \"payload\""
+    "    ],"
+    "    \"item\": {"
+    "      \"type\": \"Text\","
+    "      \"id\": \"MyText\","
+    "      \"text\": \"${payload.start}\""
+    "    }"
+    "  },"
+    "  \"handleKeyDown\": {"
+    "    \"commands\": {"
+    "      \"type\": \"SetValue\","
+    "      \"componentId\": \"MyText\","
+    "      \"property\": \"text\","
+    "      \"value\": \"${event.keyboard.code} ${payload.end}\""
+    "    }"
+    "  }"
+    "}";
+
+/**
+ * Test that a document-level keyboard event can access the payload.
+ */
+TEST_F(KeyboardManagerTest, AccessEnvironmentAndPayload)
+{
+    loadDocument(ACCESS_ENVIRONMENT_AND_PAYLOAD, R"({"start": "START", "end": "END"})");
+    ASSERT_TRUE(component);
+
+    ASSERT_TRUE(IsEqual("START", component->getCalculated(kPropertyText).asString()));
+
+    root->handleKeyboard(kKeyDown, BLUE_KEY);
+    ASSERT_TRUE(IsEqual("KeyB END", component->getCalculated(kPropertyText).asString()));
 }

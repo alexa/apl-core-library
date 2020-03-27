@@ -35,6 +35,13 @@
 #include <sstream>
 #include <numeric>
 
+#ifdef APL_CORE_UWP
+#include <direct.h>   // _getcwd, _mkdir
+#define getcwd _getcwd
+#else
+#include <sys/stat.h>
+#endif
+
 class Argument {
 public:
     enum ArgCount {
@@ -305,44 +312,8 @@ loadFile(const std::string& filename)
     return buffer.str();
 }
 
-static rapidjson::Document
-loadJSON(const std::string& filename)
-{
-    std::FILE *fp = std::fopen(filename.c_str(), "r");
-    char buffer[65536];
-    rapidjson::FileReadStream is(fp, buffer, sizeof(buffer));
-
-    rapidjson::Document document;
-    rapidjson::ParseResult ok = document.ParseStream(is);
-
-    if (!ok) {
-        std::cerr << "JSON parse error("
-                  << static_cast<unsigned>(ok.Offset())
-                  << ") in " << filename << ": "
-                  << rapidjson::GetParseError_En(ok.Code())
-                  << std::endl;
-        exit(1);
-    }
-
-    assert(document.IsObject());
-    return document;
-}
-
-static void
-printDocument(const rapidjson::Document& doc)
-{
-    char buffer[65536];
-    rapidjson::FileWriteStream os(stdout, buffer, sizeof(buffer));
-    rapidjson::PrettyWriter<rapidjson::FileWriteStream> writer(os);
-    writer.SetIndent(' ', 2);
-
-    if (!doc.Accept(writer)) {
-        std::cerr << "Error writing document" << std::endl;
-        exit(1);
-    }
-}
-
-static apl::RootContextPtr
+// Note: This is an inline function to avoid unused function warnings with -Wunused-function
+inline apl::RootContextPtr
 createContext(std::vector<std::string>& args, const ViewportSettings& settings)
 {
     if (args.size() < 1) {
@@ -368,4 +339,15 @@ createContext(std::vector<std::string>& args, const ViewportSettings& settings)
 
     return apl::RootContext::create(settings.metrics(), content);
 }
+
+int
+createDirectory(const std::string& path) {
+#ifdef APL_CORE_UWP
+	// create a directory with the access token of the calling process
+    return _mkdir(path.c_str());
+#else
+    return mkdir(path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+#endif
+}
+
 #endif // _VIEWPORT_SETTINGS_H

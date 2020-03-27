@@ -103,3 +103,13 @@ TEST_F(ColorTest, Error)
         ASSERT_TRUE(ConsoleMessage()) << m;
     }
 }
+
+TEST_F(ColorTest, BadEnumConversionTest)
+{
+    // cast color to double
+    double d_color = Color::RED;
+
+    // since we force the enum to be stored in a uint32_t,
+    // it should be able to convert back to a color
+    ASSERT_EQ(Color::RED, Color(d_color));
+}

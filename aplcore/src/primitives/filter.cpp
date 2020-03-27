@@ -45,7 +45,7 @@ getFilterMap() {
         {kFilterTypeBlur,  {
                                {kFilterPropertyRadius,   Dimension(0),    asNonNegativeAbsoluteDimension}}},
         {kFilterTypeNoise, {
-                               {kFilterPropertyUseColor, Object::FALSE(), asBoolean},
+                               {kFilterPropertyUseColor, Object::FALSE_OBJECT(), asBoolean},
                                {kFilterPropertyKind, kFilterNoiseKindGaussian, sFilterNoiseKindBimap},
                                {kFilterPropertySigma, 10, asNonNegativeNumber}}},
     };

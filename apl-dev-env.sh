@@ -19,6 +19,15 @@ export APL_DIR=$(pwd)
 # Amazon Linux uses cmake3
 export CMAKE=$(command -v cmake3 || command -v cmake)
 
+if [ -e /proc/cpuinfo ]; then # Linux
+    APL_BUILD_PROCS=$(grep -c ^processor /proc/cpuinfo)
+elif [ $(sysctl -n hw.ncpu) ]; then # Mac
+    APL_BUILD_PROCS=$(sysctl -n hw.ncpu)
+else # Other/fail
+    APL_BUILD_PROCS=4
+fi
+export APL_BUILD_PROCS
+
 
 function apl-parse-args {
     FORCE=false
@@ -96,7 +105,15 @@ function apl-build-core {  # Run make for the core build
     (
         apl-switch-to-build-directory build $@ && \
         $CMAKE -DBUILD_TESTS=ON -DCOVERAGE=OFF .. && \
-        make -j4
+        make -j$APL_BUILD_PROCS
+    )
+}
+
+function apl-check-core {  # Run make for the core build with -Werror
+    (
+        apl-switch-to-build-directory build $@ && \
+        $CMAKE -DBUILD_TESTS=ON -DWERROR=ON -DCOVERAGE=OFF .. && \
+        make -j$APL_BUILD_PROCS
     )
 }
 
@@ -104,7 +121,7 @@ function apl-test-core {  # Run unit tests in the core build
     (
         apl-switch-to-build-directory build $@ && \
         $CMAKE -DBUILD_TESTS=ON -DCOVERAGE=OFF .. && \
-        make -j4 && \
+        make -j$APL_BUILD_PROCS && \
         unit/unittest
     )
 }
@@ -134,7 +151,7 @@ function apl-build-doc {  # Run make for the documentation
     (
         apl-switch-to-build-directory doc-build $@ && \
         $CMAKE .. && \
-        make -j4 doc
+        make -j$APL_BUILD_PROCS doc
     )
 }
 
@@ -142,7 +159,7 @@ function apl-open-doc {   # Open the documentation (works on MacOS)
     (
         apl-switch-to-build-directory doc-build $@ && \
         $CMAKE .. && \
-        make -j4 doc && \
+        make -j$APL_BUILD_PROCS doc && \
         open html/index.html
     )
 }
@@ -215,15 +232,13 @@ function apl-config-android { # Run cmake for Android
             rm -rf android-build
         fi
 
-        if [[ ! -e android-build ]] ; then
-            mkdir android-build
-            cd android-build
-            echo "Running $CMAKE"
-            $CMAKE -DANDROID_ABI="x86" \
-                   -DANDROID_PLATFORM=android-24 \
-                   -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
-                   -DAPL_JNI=ON ..
-        fi
+        mkdir -p android-build
+        cd android-build
+        echo "Running $CMAKE"
+        $CMAKE -DANDROID_ABI="x86" \
+               -DANDROID_PLATFORM=android-24 \
+               -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
+               -DAPL_JNI=ON ..
     )
 }
 
@@ -245,8 +260,8 @@ function apl-clean-android {
 function apl-build-android { # Run make for the Android build
     (
         cd $APL_DIR
-        [[ -e android-build ]] || apl-config-android
-        cd android-build && make -j4
+        apl-config-android
+        cd android-build && make -j$APL_BUILD_PROCS
     )
 }
 
@@ -264,18 +279,16 @@ function apl-verify-android { # verify android - assemble, test, build without l
 function apl-config-wasm {  # Run cmake in the wasm build
     (
         cd $APL_DIR
-        if [[ ! -e wasm-build ]] ; then
-            mkdir wasm-build
-            cd wasm-build
-            emcmake cmake -DEMSCRIPTEN=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Debug -DEMSCRIPTEN_SOURCEMAPS=ON -DBUILD_TESTS=OFF ..
-        fi
+        mkdir -p wasm-build
+        cd wasm-build
+        emcmake cmake -DEMSCRIPTEN=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Debug -DEMSCRIPTEN_SOURCEMAPS=ON -DBUILD_TESTS=OFF ..
     )
 }
 
 function apl-clean-wasm {
     (
         cd $APL_DIR
-        [[ -e wasm-build ]] || apl-config-wasm
+        apl-config-wasm
 
         cd wasm-build && make clean
     )
@@ -284,16 +297,16 @@ function apl-clean-wasm {
 function apl-build-wasm { # Build the wasm source
     (
         cd $APL_DIR
-        [[ -e wasm-build ]] || apl-config-wasm
+        apl-config-wasm
 
-        cd wasm-build && make -j4 && make wasm-build
+        cd wasm-build && make -j$APL_BUILD_PROCS && make wasm-build
     )
 }
 
 function apl-install-wasm {  # Install the wasm source for the sandbox
     (
         cd $APL_DIR
-        [[ -e wasm-build ]] || apl-build-wasm
+        apl-build-wasm
 
         cd wasm-build && make install
     )
@@ -302,7 +315,7 @@ function apl-install-wasm {  # Install the wasm source for the sandbox
 function apl-run-wasm-sandbox {  # Run the wasm sandbox.  Does not return
     (
         cd $APL_DIR
-        [[ -e wasm-build ]] || apl-install-wasm
+        apl-install-wasm
 
         cd wasm/js/apl-wasm-sandbox && node server.js public
     )
@@ -311,7 +324,7 @@ function apl-run-wasm-sandbox {  # Run the wasm sandbox.  Does not return
 function apl-test-wasm {  # Run wasm tests.  Does not return
     (
         cd $APL_DIR
-        [[ -e wasm-build ]] || apl-config-wasm
+        apl-config-wasm
 
         cd wasm-build && make install && make wasm-test
     )
@@ -338,4 +351,10 @@ function apl-build-all { # Build all sources
 function apl-test-all { # Test all sources
     apl-test-core
     apl-test-wasm
+}
+
+function apl-distclean { # Distclean removes all artifacts from building and configuring
+    apl-clean-all
+    rm -rf build # remove core artifacts
+    rm -rf ./*-build* # remove viewhost artifacts
 }

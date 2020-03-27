@@ -184,6 +184,7 @@ static const char *COMPONENT_SCROLLED =
         "    ],"
         "    \"items\": {"
         "      \"type\": \"ScrollView\","
+        "      \"height\": 10,"
         "      \"onScroll\": {"
         "        \"type\": \"SetValue\","
         "        \"componentId\": \"textComp\","
@@ -192,6 +193,7 @@ static const char *COMPONENT_SCROLLED =
         "      },"
         "      \"item\": {"
         "        \"type\": \"Text\","
+        "        \"height\": 50,"
         "        \"id\": \"textComp\","
         "        \"text\": \"One\""
         "      }"
@@ -212,12 +214,14 @@ TEST_F(ComponentEventsTest, ComponentScrolled)
 
     // Simulate scroll "not happening"
     component->update(kUpdateScrollPosition, 0);
+    ASSERT_EQ(Point(0, 0), component->scrollPosition());
     loop->advanceToEnd();
     ASSERT_EQ(0, root->getDirty().size());
     ASSERT_EQ("One", text->getCalculated(kPropertyText).asString());
 
     // Simulate scroll
     component->update(kUpdateScrollPosition, 10);
+    ASSERT_EQ(Point(0, 10), component->scrollPosition());
     loop->advanceToEnd();
     ASSERT_EQ(1, root->getDirty().size());
     ASSERT_EQ("Two", text->getCalculated(kPropertyText).asString());
@@ -267,18 +271,27 @@ TEST_F(ComponentEventsTest, PagerChanged)
     ASSERT_EQ("One", text->getCalculated(kPropertyText).asString());
 
     ASSERT_EQ(1, component->getCalculated(kPropertyInitialPage).asInt());
+    ASSERT_EQ(1, component->getCalculated(kPropertyCurrentPage).getInteger());
 
     // Simulate page "not happening"
     component->update(kUpdatePagerPosition, 1);
     loop->advanceToEnd();
     ASSERT_EQ(0, root->getDirty().size());
     ASSERT_EQ("One", text->getCalculated(kPropertyText).asString());
+    ASSERT_EQ(1, component->getCalculated(kPropertyCurrentPage).getInteger());
 
     // Simulate page
     component->update(kUpdatePagerPosition, 0);
     loop->advanceToEnd();
     ASSERT_EQ(1, root->getDirty().size());
     ASSERT_EQ("Two", text->getCalculated(kPropertyText).asString());
+    ASSERT_EQ(0, component->getCalculated(kPropertyCurrentPage).getInteger());
+
+    // Simulate page with float value
+    component->update(kUpdatePagerPosition, 1.25);
+    loop->advanceToEnd();
+    ASSERT_EQ(1, root->getDirty().size());
+    ASSERT_EQ(1, component->getCalculated(kPropertyCurrentPage).getInteger());
 }
 
 static const char *MEDIA_STATE_CHANGES =
@@ -347,31 +360,41 @@ TEST_F(ComponentEventsTest, MediaStateChanges)
     ASSERT_EQ("One", text->getCalculated(kPropertyText).asString());
 
     // Simulate "no change"
-    video->updateMediaState(MediaState());
+    MediaState state;
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
     ASSERT_EQ(0, root->getDirty().size());
     ASSERT_EQ("One", text->getCalculated(kPropertyText).asString());
 
     // Simulate playback start
-    video->updateMediaState(MediaState(0, 2, 7, 10, false, false));
+    state = MediaState(0, 2, 7, 10, false, false);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
     ASSERT_EQ(1, root->getDirty().size());
     ASSERT_EQ("PLAY", text->getCalculated(kPropertyText).asString());
 
     // Simulate playback pause
-    video->updateMediaState(MediaState(0, 2, 7, 10, true, false));
+    state = MediaState(0, 2, 7, 10, true, false);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
     ASSERT_EQ(1, root->getDirty().size());
     ASSERT_EQ("PAUSE", text->getCalculated(kPropertyText).asString());
 
     // Simulate track change
-    video->updateMediaState(MediaState(1, 2, 7, 10, true, false));
+    state = MediaState(1, 2, 7, 10, true, false);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
     ASSERT_EQ(1, root->getDirty().size());
     ASSERT_EQ("TRACK_UPDATE", text->getCalculated(kPropertyText).asString());
 
     // Simulate playback end
-    video->updateMediaState(MediaState(1, 2, 7, 10, true, true));
+    state = MediaState(1, 2, 7, 10, true, true);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
     ASSERT_EQ(1, root->getDirty().size());
     ASSERT_EQ("END", text->getCalculated(kPropertyText).asString());
@@ -495,6 +518,8 @@ TEST_F(ComponentEventsTest, PagerSendEvent)
     component->update(kUpdatePagerPosition, 2);
     loop->advanceToEnd();
 
+    ASSERT_EQ(2, component->getCalculated(kPropertyCurrentPage).getInteger());
+
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
@@ -535,6 +560,7 @@ static const char *SCROLLABLE_SEND_EVENT =
         "    ],"
         "    \"items\": {"
         "      \"type\": \"ScrollView\","
+        "      \"height\": 10,"
         "      \"onScroll\": {"
         "        \"type\": \"Custom\","
         "        \"arguments\": [ "
@@ -547,6 +573,7 @@ static const char *SCROLLABLE_SEND_EVENT =
         "      \"item\": {"
         "        \"type\": \"Text\","
         "        \"id\": \"textComp\","
+        "        \"height\": 50,"
         "        \"text\": \"One\""
         "      }"
         "    }"
@@ -559,10 +586,11 @@ TEST_F(ComponentEventsTest, ScrollableSendCustomEvent)
     ASSERT_TRUE(component);
     ASSERT_EQ(kComponentTypeScrollView, component->getType());
 
-    // Simulate page change
-    component->update(kUpdateScrollPosition, 150);
+    // Simulate scrolling
+    component->update(kUpdateScrollPosition, 15);
     loop->advanceToEnd();
 
+    ASSERT_EQ(Point(0, 15), component->scrollPosition());
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
     ASSERT_EQ(sEventTypeBimap.at("CustomEvent"), event.getType());
@@ -727,31 +755,41 @@ TEST_F(ComponentEventsTest, MediaSendEvent)
     ASSERT_EQ(kComponentTypeVideo, video->getType());
 
     // Simulate "no change"
-    video->updateMediaState(MediaState());
+    MediaState state;
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
 
     ASSERT_FALSE(root->hasEvent());
 
     // Simulate playback start
-    video->updateMediaState(MediaState(0, 2, 7, 10, false, false));
+    state = MediaState(0, 2, 7, 10, false, false);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
 
     validateMediaEvent(root, "Play", "0", "false", "false", Object::NULL_OBJECT());
 
     // Simulate playback pause
-    video->updateMediaState(MediaState(0, 2, 7, 10, true, false));
+    state = MediaState(0, 2, 7, 10, true, false);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
 
     validateMediaEvent(root, "Pause", "0", "true", "false", Object::NULL_OBJECT());
 
     // Simulate track change
-    video->updateMediaState(MediaState(1, 2, 7, 10, true, false));
+    state = MediaState(1, 2, 7, 10, true, false);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();//
 
     validateMediaEvent(root, "TrackUpdate", "1", "true", "false", Object(1));
 
     // Simulate playback end
-    video->updateMediaState(MediaState(1, 2, 7, 10, true, true));
+    state = MediaState(1, 2, 7, 10, true, true);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
 
     validateMediaEvent(root, "End", "1", "true", "true", Object::NULL_OBJECT());
@@ -810,13 +848,17 @@ TEST_F(ComponentEventsTest, MediaOnTimeUpdate)
     ASSERT_EQ(kComponentTypeVideo, video->getType());
 
     // Simulate "no change"
-    video->updateMediaState(MediaState());
+    MediaState state;
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
 
     ASSERT_FALSE(root->hasEvent());
 
     // Simulate time update
-    video->updateMediaState(MediaState(0, 1, 5, 10, false, false));
+    state = MediaState(0, 1, 5, 10, false, false);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
 
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
@@ -911,7 +953,9 @@ TEST_F(ComponentEventsTest, MediaFastNormal)
 
     // Simulate time update
     ASSERT_FALSE(ConsoleMessage());
-    video->updateMediaState(MediaState(0, 1, 5, 10, false, false));
+    MediaState state(0, 1, 5, 10, false, false);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
 
     // Should have SetValue executed but not SendEvent considering on onTimeUpdate is fast
     ASSERT_FALSE(root->hasEvent());
@@ -922,7 +966,9 @@ TEST_F(ComponentEventsTest, MediaFastNormal)
     ASSERT_EQ("Two", text->getCalculated(kPropertyText).asString());
 
     // Simulate pause from event
-    video->updateMediaState(MediaState(0, 1, 5, 10, true, false), true);
+    state = MediaState(0, 1, 5, 10, true, false);
+    video->updateMediaState(state, true);
+    CheckMediaState(state, video->getCalculated());
 
     ASSERT_FALSE(root->hasEvent());
     ASSERT_TRUE(root->isDirty());
@@ -932,7 +978,9 @@ TEST_F(ComponentEventsTest, MediaFastNormal)
     ASSERT_EQ("Three", text->getCalculated(kPropertyText).asString());
 
     // Switch back to play state
-    video->updateMediaState(MediaState(0, 1, 5, 10, false, false), true);
+    state = MediaState(0, 1, 5, 10, false, false);
+    video->updateMediaState(state, true);
+    CheckMediaState(state, video->getCalculated());
 
     ASSERT_FALSE(root->hasEvent());
     ASSERT_TRUE(root->isDirty());
@@ -942,7 +990,9 @@ TEST_F(ComponentEventsTest, MediaFastNormal)
     ASSERT_EQ("One", text->getCalculated(kPropertyText).asString());
 
     // Pause by user event
-    video->updateMediaState(MediaState(0, 1, 5, 10, true, false));
+    state = MediaState(0, 1, 5, 10, true, false);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
 
     // The onPause event handler runs the SendEvent command in normal mode
     ASSERT_TRUE(root->hasEvent());

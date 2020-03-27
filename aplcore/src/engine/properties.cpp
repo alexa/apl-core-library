@@ -16,9 +16,13 @@
 #include <cmath>
 #include <functional>
 
+#include "apl/content/rootconfig.h"
+#include "apl/engine/context.h"
+#include "apl/engine/contextdependant.h"
 #include "apl/engine/properties.h"
 #include "apl/engine/evaluate.h"
 #include "apl/primitives/dimension.h"
+#include "apl/datasource/datasource.h"
 
 namespace apl {
 
@@ -93,20 +97,51 @@ Properties::emplace(const Object& item)
     }
 }
 
-Object
-Properties::forParameter(const Context& context, const Parameter& parameter )
+void
+Properties::addToContext(const ContextPtr &context, const Parameter &parameter, bool userWriteable)
 {
+    bool validNamedProperty = false;
+    Object tmp;
+    Object result;
+    auto bindingFunc = sBindingFunctions.at(parameter.type);
+
     auto it = mProperties.find(parameter.name);
-    if (it == mProperties.end())
-        return evaluate(context, parameter.defvalue);
+    if (it != mProperties.end()) {
+        tmp = it->second;
+        mProperties.erase(it);   // Remove the property from the list
 
-    auto result = evaluate(context, it->second);
-    mProperties.erase(it);   // Remove the property from the list
+        // Extract as an optional node tree for dependant
+        tmp = tmp.isString() ? parseDataBinding(context, tmp.getString()) : tmp;
 
-    if (result.isNull())
-        return evaluate(context, parameter.defvalue);
+        auto value = evaluate(*context, tmp);
+        if (!value.isNull()) {
+            result = bindingFunc(*context, value);
 
-    return sBindingFunctions.at(parameter.type)(context, result);
+            // If type explicitly specified we may want to "enrich" the object.
+            if (value.isMap() && value.has("type")) {
+                std::string type = value.get("type").getString();
+                if (sBindingMap.has(type)) {
+                    bindingFunc = sBindingFunctions.at(sBindingMap.at(type));
+                    result = bindingFunc(*context, value);
+                } else if (context->getRootConfig().isDataSource(type)) {
+                    result = DataSource::create(context, value, parameter.name);
+                }
+            }
+            validNamedProperty = true;
+        }
+    }
+
+    if (!validNamedProperty) {
+        result = bindingFunc(*context, evaluate(*context, parameter.defvalue));
+    }
+
+    if (userWriteable) {
+        context->putUserWriteable(parameter.name, result);
+        if (validNamedProperty && tmp.isEvaluable())
+            ContextDependant::create(context, parameter.name, tmp, context, bindingFunc);
+    } else {
+        context->putConstant(parameter.name, result);
+    }
 }
 
 }  // namespace apl

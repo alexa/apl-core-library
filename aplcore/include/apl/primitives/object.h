@@ -55,24 +55,40 @@
 #include "apl/primitives/styledtext.h"
 #include "apl/primitives/radii.h"
 #include "apl/primitives/rect.h"
+#include "apl/primitives/symbolreferencemap.h"
 #include "apl/primitives/transform2d.h"
 #include "apl/animation/easing.h"
-#include "apl/animation/animation.h"
+
+#ifdef APL_CORE_UWP
+    #undef TRUE
+    #undef FALSE
+#endif
 
 namespace apl {
 
-namespace datagrammar { class Node; }
+namespace datagrammar {
+    class Node;
+    class BoundSymbol;
+}
 
 class Object;
 class Color;
 class Dimension;
 class Filter;
+class Function;
 class Transformation;
 class MediaSource;
+class LiveDataObject;
 
-using SharedMapPtr = std::shared_ptr< std::map<std::string, Object> >;
-using SharedVectorPtr = std::shared_ptr< std::vector<Object> >;
-using UserFunction = Object (*)(const std::vector<Object>&);
+using ObjectMap = std::map<std::string, Object>;
+using ObjectMapPtr = std::shared_ptr<ObjectMap>;
+using ObjectArray = std::vector<Object>;
+using ObjectArrayPtr = std::shared_ptr<ObjectArray>;
+
+/// @deprecated
+using SharedMapPtr = ObjectMapPtr;
+/// @deprecated
+using SharedVectorPtr = ObjectArrayPtr;
 
 /**
  * A single Object which can hold a variety of types.
@@ -103,12 +119,12 @@ using UserFunction = Object (*)(const std::vector<Object>&);
  * - Radii
  * - Styled Text
  * - 2D Transformations
+ * - Bound Symbol
  *
- * The mutables types are:
+ * The mutable types are:
  * - Vector graphic
  * - Generalized transformation
  * - Node
- *
  */
 class Object
 {
@@ -136,7 +152,7 @@ public:
         kTransformType,
         kTransform2DType,
         kEasingType,
-        kAnimationType,
+        kBoundSymbolType
     };
 
     class Data;  // Forward declaration
@@ -148,15 +164,19 @@ public:
     Object(int i);
     Object(uint32_t u);
     Object(unsigned long l);
+    Object(long l);
+    Object(unsigned long long l);
+    Object(long long l);
     Object(double d);
     Object(const char *s);
     Object(const std::string& s);
     Object(const std::shared_ptr<datagrammar::Node>& n);
-    Object(const SharedMapPtr& m);
-    Object(const SharedVectorPtr& v);
-    Object(std::vector<Object>&& v);
+    Object(const ObjectMapPtr& m, bool isMutable=false);
+    Object(const ObjectArrayPtr& v, bool isMutable=false);
+    Object(ObjectArray&& v, bool isMutable=false);
     Object(const rapidjson::Value& v);
-    Object(UserFunction func);
+    Object(rapidjson::Document&& doc);
+    Object(const std::shared_ptr<Function>& f);
     Object(const Color& color);
     Object(const Dimension& dimension);
     Object(Filter&& filter);
@@ -169,29 +189,33 @@ public:
     Object(const std::shared_ptr<Transformation>& transform);
     Object(Transform2D&& transform2d);
     Object(Easing&& easingCurve);
-    Object(Animation&& animation);
+    Object(const std::shared_ptr<datagrammar::BoundSymbol>& b);
+    Object(const std::shared_ptr<LiveDataObject>& d);
 
     // Statically initialized objects.
-    static Object& TRUE();
-    static Object& FALSE();
-    static Object& NULL_OBJECT();
-    static Object& NAN_OBJECT();
-    static Object& AUTO_OBJECT();
-    static Object& EMPTY_ARRAY();
-    static Object& ZERO_ABS_DIMEN();
-    static Object& EMPTY_RECT();
-    static Object& EMPTY_RADII();
-    static Object& IDENTITY_2D();
-    static Object& LINEAR_EASING();
+    static const Object& TRUE_OBJECT();
+    static const Object& FALSE_OBJECT();
+    static const Object& NULL_OBJECT();
+    static Object NAN_OBJECT();
+    static Object AUTO_OBJECT();
+    static Object EMPTY_ARRAY();
+    static Object EMPTY_MUTABLE_ARRAY();
+    static Object EMPTY_MAP();
+    static Object EMPTY_MUTABLE_MAP();
+    static Object ZERO_ABS_DIMEN();
+    static Object EMPTY_RECT();
+    static Object EMPTY_RADII();
+    static Object IDENTITY_2D();
+    static Object LINEAR_EASING();
 
     // Destructor
     ~Object();
 
     // Copy operations
-    Object(const Object& object) = default;      // Copy-constructor
-    Object(Object&& object) = default;           // Move-constructor
-    Object& operator=(const Object& rhs) = default;     // Assignment
-    Object& operator=(Object&& rhs) = default;
+    Object(const Object& object) noexcept;      // Copy-constructor
+    Object(Object&& object) noexcept;           // Move-constructor
+    Object& operator=(const Object& rhs) noexcept;     // Assignment
+    Object& operator=(Object&& rhs) noexcept;
 
     // Comparisons
     bool operator==(const Object& rhs) const;
@@ -205,6 +229,8 @@ public:
     bool isArray() const { return mType == kArrayType; }
     bool isMap() const { return mType == kMapType; }
     bool isNode() const { return mType == kNodeType; }
+    bool isBoundSymbol() const { return mType == kBoundSymbolType; }
+    bool isEvaluable() const { return mType == kNodeType || mType == kBoundSymbolType; }
     bool isFunction() const { return mType == kFunctionType; }
     bool isAbsoluteDimension() const { return mType == kAbsoluteDimensionType; }
     bool isRelativeDimension() const { return mType == kRelativeDimensionType; }
@@ -225,7 +251,6 @@ public:
     bool isTransform() const { return mType == kTransformType; }
     bool isTransform2D() const { return mType == kTransform2DType; }
     bool isEasing() const { return mType == kEasingType; }
-    bool isAnimation() const { return mType == kAnimationType; }
     bool isJson() const;
 
     // These methods force a conversion to the appropriate type.  We try to return
@@ -252,15 +277,32 @@ public:
     double getAbsoluteDimension() const { assert(mType == kAbsoluteDimensionType); return mValue; }
     double getRelativeDimension() const { assert(mType == kRelativeDimensionType); return mValue; }
     uint32_t getColor() const { assert(mType == kColorType); return static_cast<uint32_t>(mValue); }
-    const std::map<std::string, Object>& getMap() const {
+
+    std::shared_ptr<Function> getFunction() const;
+    std::shared_ptr<datagrammar::BoundSymbol> getBoundSymbol() const;
+    std::shared_ptr<LiveDataObject> getLiveDataObject() const;
+    std::shared_ptr<datagrammar::Node> getNode() const;
+
+    const ObjectMap& getMap() const {
         assert(mType == kMapType); return mData->getMap();
     }
-    const std::vector<Object>& getArray() const {
+
+    ObjectMap& getMutableMap() {
+        assert(mType == kMapType); return mData->getMutableMap();
+    }
+
+    const ObjectArray& getArray() const {
         assert(mType == kArrayType); return mData->getArray();
     }
+
+    ObjectArray& getMutableArray() {
+        assert(mType == kArrayType); return mData->getMutableArray();
+    }
+
     const Filter& getFilter() const {
         assert(mType == kFilterType); return mData->getFilter();
     }
+
     const Gradient& getGradient() const {
         assert(mType == kGradientType); return mData->getGradient();
     }
@@ -296,10 +338,6 @@ public:
         assert(mType == kEasingType); return mData->getEasing();
     }
 
-    const Animation& getAnimation() const {
-        assert(mType == kAnimationType); return mData->getAnimation();
-    }
-
     const rapidjson::Value& getJson() const {
         assert(isJson());
         return *(mData->getJson());
@@ -310,6 +348,7 @@ public:
     // MAP objects
     const Object get(const std::string& key) const;
     bool has(const std::string& key) const;
+    const Object opt(const std::string& key, const Object& def) const;
 
     // ARRAY objects
     const Object at(size_t index) const;
@@ -322,14 +361,20 @@ public:
     // NULL, MAP, ARRAY, RECT, and STRING objects
     bool empty() const;
 
-    // NODE objects
-    Object eval(const Context& context) const;
+    // Mutable objects
+    bool isMutable() const;
 
-    // NODE: Add any symbols defined by this node to the "symbols" set
-    void symbols(std::set<std::string>& symbols) const;
+    // NODE & BoundSymbol objects
+    Object eval() const;
+
+    // NODE & BoundSymbol objects
+    bool isPure() const;
+
+    // NODE & BoundSymbol: Add any symbols defined by this node to the "symbols" set
+    void symbols(SymbolReferenceMap& symbols) const;
 
     // FUNCTION objects
-    Object call(const std::vector<Object>& args) const;
+    Object call(ObjectArray&& args) const;
 
     // Visitor pattern
     void accept(Visitor<Object>& visitor) const;
@@ -352,23 +397,34 @@ public:
 
         virtual const Object get(const std::string& key) const { return Object::NULL_OBJECT(); }
         virtual bool has(const std::string& key) const { return false; }
+        virtual const Object opt(const std::string& key, const Object& def) const { return def; }
 
         virtual const Object at(size_t index) const { return Object::NULL_OBJECT(); }
         virtual size_t size() const { return 0; }
         virtual bool empty() const { return false; }
 
-        virtual Object eval(const Context& context) const { return Object::NULL_OBJECT(); }
-        virtual void symbols(std::set<std::string>& symbols) const {}
-        virtual Object call(const std::vector<Object>& args) const { return Object::NULL_OBJECT(); }
+        virtual bool isMutable() const { return false; }
+
+        virtual Object eval() const { return Object::NULL_OBJECT(); }
+
+        virtual Object call(const ObjectArray& args) const { return Object::NULL_OBJECT(); }
 
         virtual void accept(Visitor<Object>& visitor) const {}
 
-        virtual const std::vector<Object>& getArray() const {
+        virtual const ObjectArray& getArray() const {
             throw std::runtime_error("Illegal array");
         }
 
-        virtual const std::map<std::string, Object>& getMap() const {
+        virtual ObjectArray& getMutableArray() {
+            throw std::runtime_error("Illegal mutable array");
+        }
+
+        virtual const ObjectMap& getMap() const {
             throw std::runtime_error("Illegal map");
+        }
+
+        virtual ObjectMap& getMutableMap() {
+            throw std::runtime_error("Illegal mutable map");
         }
 
         virtual const Filter& getFilter() const {
@@ -411,10 +467,6 @@ public:
             throw std::runtime_error("Illegal easing curve");
         }
 
-        virtual const Animation& getAnimation() const {
-            throw std::runtime_error("Illegal animation");
-        }
-
         virtual const rapidjson::Value* getJson() const {
             return nullptr;
         }
@@ -424,14 +476,13 @@ public:
         }
     };
 
-
 private:
     // In the future we should use a union, but that precludes common std library use
     // If we can bump to C++17, we can get std::variant
     // For now, we'll run fast and dirty
 
     ObjectType mType;
-    double mValue;
+    double mValue = 0;
     std::string mString;
     std::shared_ptr<Data> mData;
 
@@ -441,9 +492,6 @@ private:
     // TODO:  Then getGraphic becomes return std::dynamic_pointer_cast<Graphic>(mData);
 };
 
-using ObjectMap = std::map<std::string, Object>;
-using ObjectMapPtr = std::shared_ptr<ObjectMap>;
-using ObjectArray = std::vector<Object>;
 
 }  // namespace apl
 

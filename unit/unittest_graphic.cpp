@@ -1024,8 +1024,6 @@ TEST_F(GraphicTest, ClearDirty)
     for (int i=1; i<10; i++) {
         root->updateTime((3600 + 60 + 1) * 1000*i);
 
-        LOG_IF(true) << "LOOP:"<<i;
-
         // verify root is dirty
         ASSERT_TRUE(root->isDirty());
         ASSERT_TRUE(root->getDirty().size() > 0);

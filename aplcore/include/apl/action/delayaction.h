@@ -44,7 +44,7 @@ public:
      * @param fastMode True if in fast mode.
      */
     DelayAction(const TimersPtr& timers, CommandPtr command, bool fastMode)
-        : Action(timers), mCommand(command), mFastMode(fastMode), mInDelay(false)
+        : Action(timers), mCommand(command), mFastMode(fastMode)
     {
         addTerminateCallback([this](const TimersPtr&) {
             if (mCurrentAction) {
@@ -127,7 +127,6 @@ private:
     const bool mFastMode;
 
     ActionPtr mCurrentAction;
-    bool mInDelay;
 };
 
 } // namespace apl

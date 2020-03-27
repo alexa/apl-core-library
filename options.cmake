@@ -15,6 +15,7 @@
 option(DEBUG_MEMORY_USE "Track memory use." OFF)
 option(TELEMETRY "Telemetry support. Required for performance tests." OFF)
 option(COVERAGE "Coverage instrumentation" OFF)
+option(WERROR "Build with -Werror enabled." OFF)
 
 # Test options
 option(BUILD_TESTS "Build test programs." OFF)

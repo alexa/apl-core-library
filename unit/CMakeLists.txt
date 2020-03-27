@@ -20,6 +20,7 @@ include_directories(${YOGA_INCLUDE})
 # Google testing
 add_executable( unittest
         testeventloop.cpp
+        testdatasourceprovider.cpp
         unittest_action.cpp
         unittest_apl.cpp
         unittest_arithmetic.cpp
@@ -27,6 +28,7 @@ add_executable( unittest
         unittest_bounds.cpp
         unittest_builder.cpp
         unittest_builder_pager.cpp
+        unittest_builder_sequence.cpp
         unittest_color.cpp
         unittest_session.cpp
         unittest_command_animateitem.cpp
@@ -36,12 +38,16 @@ add_executable( unittest
         unittest_command_media.cpp
         unittest_command_openurl.cpp
         unittest_command_page.cpp
+        unittest_command_select.cpp
         unittest_command_sendevent.cpp
         unittest_command_setvalue.cpp
         unittest_commands.cpp
         unittest_context.cpp
         unittest_component_events.cpp
         unittest_current_time.cpp
+        unittest_extension_command.cpp
+        unittest_extension_handler.cpp
+        unittest_datasource.cpp
         unittest_default_component_size.cpp
         unittest_dependant.cpp
         unittest_dependant_graphic.cpp
@@ -50,6 +56,7 @@ add_executable( unittest
         unittest_document.cpp
         unittest_document_background.cpp
         unittest_dynamic_component.cpp
+        unittest_dynamicindexlist.cpp
         unittest_easing.cpp
         unittest_encoding.cpp
         unittest_filters.cpp
@@ -63,11 +70,16 @@ add_executable( unittest
         unittest_keyboard_manager.cpp
         unittest_keyboard.cpp
         unittest_layouts.cpp
+        unittest_livearray_change.cpp
+        unittest_livearray_rebuild.cpp
+        unittest_livemap_change.cpp
         unittest_log.cpp
         unittest_object.cpp
         unittest_parse.cpp
         unittest_path.cpp
+        unittest_range.cpp
         unittest_rect.cpp
+        unittest_requested_extension.cpp
         unittest_resources.cpp
         unittest_scaling.cpp
         unittest_screenlock.cpp
@@ -81,6 +93,7 @@ add_executable( unittest
         unittest_state.cpp
         unittest_styledtext.cpp
         unittest_styles.cpp
+        unittest_symbols.cpp
         unittest_testeventloop.cpp
         unittest_time_grammar.cpp
         unittest_transform.cpp

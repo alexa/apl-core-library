@@ -104,13 +104,15 @@ TEST_F(StyledTextTest, EscapeCharacters)
 
 TEST_F(StyledTextTest, Wchar)
 {
-    createAndVerifyStyledText(u8"前週\n末<i>比34円</i>80銭", u8"前週 末比34円80銭", 1);
+    createAndVerifyStyledText(u8"\u524D\u9031\n\u672B<i>\u6BD434\u5186</i>80\u92AD",
+		u8"\u524D\u9031 \u672B\u6BD434\u518680\u92AD", 1);
     verifySpan(0, StyledText::kSpanTypeItalic, 4, 8);
 }
 
 TEST_F(StyledTextTest, Cyrillics) {
     // String just means "Russian language"
-    createAndVerifyStyledText(u8"русский <b>язык</b>", u8"русский язык", 1);
+    createAndVerifyStyledText(u8"\u0440\0443\u0441\u043a\u0438\u0439 <b>\u044F\u0437\u044B\u043a</b>",
+		u8"\u0440\0443\u0441\u043a\u0438\u0439 \u044F\u0437\u044B\u043a", 1);
     verifySpan(0, StyledText::kSpanTypeStrong, 8, 12);
 }
 
@@ -191,9 +193,9 @@ TEST_F(StyledTextTest, Complex)
 {
     createAndVerifyStyledText(u8" Since <i>you</i> are <magic>not</magic> going <u>on a? <b>holiday <em>this</em></b> year! "
                               "Boss,</u><br> <strong>I\f    thought</strong> I\t <strike><tt>should</tt> <sup>give</sup> "
-                              "your</strike>\r <sUb>office</suB>\n a <code>holiday;</code> 前週末<i>比34円80銭 look. ",
+                              "your</strike>\r <sUb>office</suB>\n a <code>holiday;</code> \u524D\u9031\u672B<i>\u6BD434\u518680\u92ad look. ",
                               u8"Since you are not going on a? holiday this year! Boss,I thought I should give your office "
-                              "a holiday; 前週末比34円80銭 look.", 12);
+                              "a holiday; \u524D\u9031\u672B\u6BD434\u518680\u92ad look.", 12);
     verifySpan(0, StyledText::kSpanTypeItalic, 6, 9);
     verifySpan(1, StyledText::kSpanTypeUnderline, 24, 54);
     verifySpan(2, StyledText::kSpanTypeStrong, 30, 42);
@@ -220,7 +222,7 @@ TEST_F(StyledTextTest, SpecialEntity)
 
 TEST_F(StyledTextTest, LongSpecialEntity)
 {
-    createAndVerifyStyledText(u8"go &#8594; <i>right</i>", u8"go → right", 1);
+    createAndVerifyStyledText(u8"go &#8594; <i>right</i>", u8"go \u2192 right", 1);
     verifySpan(0, StyledText::kSpanTypeItalic, 5, 10);
 }
 
@@ -279,7 +281,7 @@ TEST_F(StyledTextTest, TagAttribute)
     verifySpan(1, StyledText::kSpanTypeItalic, 16, 20);
 
     // Checking for dec entity collisions
-    createAndVerifyStyledText(u8"go &#8594; <i attr='&#8594;'>right</i>", u8"go → right", 1);
+    createAndVerifyStyledText(u8"go &#8594; <i attr='&#8594;'>right</i>", u8"go \u2192 right", 1);
     verifySpan(0, StyledText::kSpanTypeItalic, 5, 10);
 
     createAndVerifyStyledText(u8"hello <i name='value\">world</i>", u8"hello world", 1);

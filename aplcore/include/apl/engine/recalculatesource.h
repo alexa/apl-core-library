@@ -38,33 +38,65 @@ public:
      * @param dependant The dependant object connecting to the downstream dependant object.
      */
     void addDownstream(T key, const std::shared_ptr<Dependant>& dependant) {
-        mDownstream.emplace(key, dependant);
-    }
+        // For now, we strip off the "/" section of the keys
+        auto name = key.substr(0, key.find("/", 0));
 
-    /**
-     * Remove this downstream dependant object.
-     * @param dependant The object to remove
-     */
-    void removeDownstream(const std::shared_ptr<Dependant>& dependant) {
-        for (auto it = mDownstream.begin() ; it != mDownstream.end() ; it++) {
-            if (it->second == dependant) {
-                mDownstream.erase(it);
-                return;
+        // Don't add this pair if it already exists
+        // While we're searching, we check for weak pointers
+        auto dependants = mDownstream.equal_range(key);
+        auto it = dependants.first;
+        while (it != dependants.second) {
+            auto ptr = it->second.lock();
+            if (ptr) {
+                if (ptr == dependant) {
+                    LOG(LogLevel::WARN) << "Attempted to add duplicate pair " << key;
+                    return;    // This pair already exists
+                }
+                it++;
+            } else {
+                LOG(LogLevel::WARN) << "Unexpected released weak pointer";
+                it = mDownstream.erase(it);  // Throw it away
             }
         }
 
-        LOG(LogLevel::ERROR) << "Unable to find downstream dependant";
+        mDownstream.emplace(name, dependant);
+    }
+
+    /**
+     * Remove this downstream dependant object.  Note that we also clear out
+     * any released weak_ptrs at the same time.
+     * @param dependant The object to remove
+     */
+    void removeDownstream(const std::shared_ptr<Dependant>& dependant) {
+        auto it = mDownstream.begin();
+        while (it != mDownstream.end()) {
+            // TODO: Possible optimization by using owner_before comparison
+            if (it->second.expired() || it->second.lock() == dependant)
+                it = mDownstream.erase(it);
+            else
+                it++;
+        }
     }
 
     /**
      * The "key" local element has changed.  Recalculate all downstream objects that depend on key.
      * @param key The key that has changed.
-     * @param useDirtyFlag If true, mark downstream changes with the dirty falg
+     * @param useDirtyFlag If true, mark downstream changes with the dirty flag
      */
     void recalculateDownstream(T key, bool useDirtyFlag) {
         auto dependants = mDownstream.equal_range(key);
-        for (auto d = dependants.first ; d != dependants.second ; d++)
-            d->second->recalculate(useDirtyFlag);
+        auto it = dependants.first;
+        while (it != dependants.second) {
+            auto ptr = it->second.lock();
+            if (ptr) {
+                ptr->recalculate(useDirtyFlag);
+                it++;
+            }
+            else {
+                LOG(LogLevel::WARN) << "Unexpected released weak pointer";
+                it = mDownstream.erase(it);
+            }
+        }
     }
 
     /**
@@ -84,7 +116,7 @@ public:
     }
 
 private:
-    std::multimap<T, std::shared_ptr<Dependant>> mDownstream;
+    std::multimap<T, std::weak_ptr<Dependant>> mDownstream;
 };
 
 } // namespace apl

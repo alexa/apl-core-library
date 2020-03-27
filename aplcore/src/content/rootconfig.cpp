@@ -24,14 +24,14 @@ RootConfig::RootConfig()
       mAgentVersion("1.0"),
       mTextMeasurement( TextMeasurement::instance() ),
       mTimeManager(std::static_pointer_cast<TimeManager>(std::make_shared<CoreTimeManager>(0))),
-      mLocalTime(0),
+      mUTCTime(0),
       mLocalTimeAdjustment(0),
       mAnimationQuality(kAnimationQualityNormal),
       mAllowOpenUrl(false),
       mDisallowVideo(false),
       mDefaultIdleTimeout(30000),
       mEnforcedAPLVersion(APLVersion::kAPLVersionIgnore),
-      mReportedAPLVersion("1.2"),
+      mReportedAPLVersion("1.3"),
       mEnforceTypeField(false),
       mDefaultFontColor(0xfafafaff),
       mDefaultThemeFontColor({{"light", 0x1E2222FF}, {"dark", 0xfafafaff}}),
@@ -45,7 +45,9 @@ RootConfig::RootConfig()
         {{kComponentTypeSequence, true}, {Dimension(), Dimension(100)}},  // Vertical scrolling, height=100dp width=auto
         {{kComponentTypeSequence, false}, {Dimension(100), Dimension()}}, // Horizontal scrolling, height=auto width=100dp
         {{kComponentTypeVideo, true}, {Dimension(100), Dimension(100)}},
-      })
+      }),
+      mPagerChildCache(1),
+      mSequenceChildCache(1)
 {
 }
 

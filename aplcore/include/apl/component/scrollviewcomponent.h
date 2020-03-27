@@ -29,17 +29,17 @@ public:
     Object getValue() const override;
 
     ScrollType scrollType() const override { return kScrollTypeVertical; }
-    Point scrollPosition() const override { return Point(0, mCurrentPosition); }
+    Point scrollPosition() const override;
     Point trimScroll(const Point& point) const override;
     bool allowForward() const override;
 
 protected:
     const ComponentPropDefSet& propDefSet() const override;
 
+    float maxScroll() const override;
+
 private:
     bool singleChild() const override { return true; }
-
-    float calculateMaxY() const;
 };
 
 } // namespace apl

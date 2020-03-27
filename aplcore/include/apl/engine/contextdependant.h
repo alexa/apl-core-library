@@ -40,55 +40,43 @@ class ContextDependant : public Dependant {
 public:
     /**
      * Construct a dependency between two contexts
-     * @param upstreamContext The upstream or source context.
-     * @param upstreamName The name of the symbol in the upstream context which drives a change downstream
      * @param downstreamContext The downstream or target context.
      * @param downstreamName The name of the symbol in the downstream context which will be recalculated.
-     * @param evaluationContext The context where the node will be evaluated
-     * @param node The Node expression which will be evaluated to recalculate downstream.
-     * @param type The type of binding for the Node expression.
+     * @param equation The expression which will be evaluated to recalculate downstream.
+     * @param bindingContext The context where the equation will be bound
+     * @param bindingFunction The binding function that will be applied after evaluating the equation
      */
-    static void create(const ContextPtr& upstreamContext,
-                       const std::string& upstreamName,
-                       const ContextPtr& downstreamContext,
+    static void create(const ContextPtr& downstreamContext,
                        const std::string& downstreamName,
-                       const ContextPtr& evaluationContext,
-                       const Object& node,
-                       BindingFunction func);
+                       const Object& equation,
+                       const ContextPtr& bindingContext,
+                       BindingFunction bindingFunction);
+
 
     /**
      * Internal constructor - do not call. Use ContextDependant::create instead.
-     * @param upstreamContext
      * @param downstreamContext
+     *
+     * @param evaluationContext
      * @param name
      * @param node
-     * @param type
+     * @param func
      */
-    ContextDependant(const ContextPtr& upstreamContext,
-                     const ContextPtr& downstreamContext,
-                     const ContextPtr& evaluationContext,
-                     const std::string& name,
-                     const Object& node,
-                     BindingFunction func)
-        : mUpstreamContext(upstreamContext),
+    ContextDependant(const ContextPtr& downstreamContext,
+                     const std::string& downstreamName,
+                     const Object& equation,
+                     const ContextPtr& bindingContext,
+                     BindingFunction bindingFunction)
+        : Dependant(equation, bindingContext, bindingFunction),
           mDownstreamContext(downstreamContext),
-          mEvaluationContext(evaluationContext),
-          mName(name),
-          mNode(node),
-          mEval(func)
+          mDownstreamName(downstreamName)
     {}
-
-    void removeFromSource() override;
 
     void recalculate(bool useDirtyFlag) const override;
 
 private:
-    std::weak_ptr<Context> mUpstreamContext;
     std::weak_ptr<Context> mDownstreamContext;
-    std::weak_ptr<Context> mEvaluationContext;
-    std::string mName;
-    Object mNode;
-    BindingFunction mEval;
+    std::string mDownstreamName;
 };
 
 } // namespace apl

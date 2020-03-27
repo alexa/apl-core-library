@@ -22,6 +22,8 @@
 
 namespace apl {
 
+namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
+
 const bool DEBUG_DATA_BINDING = false;
 
 /**
@@ -31,13 +33,13 @@ const bool DEBUG_DATA_BINDING = false;
  *  2. If it is still a string, expand resources and repeat data-binding step
  *  3. Convert the object to the correct internal type.  It is still an object.
  */
-const Object
+Object
 parseDataBinding(const Context& context, const std::string& value)
 {
     try {
-        pegtl::data_parser parser(value, "parseDataBinding");
         datagrammar::Stacks stacks(context);
-        parser.parse<datagrammar::grammar, datagrammar::action>(stacks);
+        pegtl::string_input<> in(value, "");
+        pegtl::parse<datagrammar::grammar, datagrammar::action>(in, stacks);
         Object result = stacks.finish();
         LOG_IF(DEBUG_DATA_BINDING) << "Parse data binding " << value << "=" << result;
         return result;
@@ -49,40 +51,47 @@ parseDataBinding(const Context& context, const std::string& value)
     return value;
 }
 
-const Object
+Object
+parseDataBindingRecursive(const Context& context, const Object& object)
+{
+    if (object.isString()) {
+        return parseDataBinding(context, object.getString());
+    }
+    else if (object.isMap()) {
+        auto result = std::make_shared<std::map<std::string, Object>>();
+        for (const auto& m : object.getMap())
+            result->emplace(m.first, parseDataBindingRecursive(context, m.second));
+        return Object(result);
+    }
+    else if (object.isArray()) {
+        auto v = std::make_shared<std::vector<Object>>();
+        for (auto index = 0 ; index < object.size() ; index++)
+            v->push_back(parseDataBindingRecursive(context, object.at(index)));
+        return Object(v);
+    }
+
+    return object;
+}
+
+Object
 applyDataBinding(const Context& context, const std::string& value)
 {
     Object parsed = parseDataBinding(context, value);
-    if (parsed.isNode())
-        return parsed.eval(context);
+    if (parsed.isEvaluable())
+        return parsed.eval();
 
     return parsed;
 }
 
-const Object
-evaluatePostDataBinding(const Context& context, const Object& object)
-{
-    auto result = object.isNode() ? object.eval(context) : object;
-
-    // Strings get a resource check
-    if (result.isString()) {
-        std::string s = result.getString();
-        if (!s.empty() && s[0] == '@' && context.has(s))
-            return context.opt(s);    // This isn't efficient because we do a has() and a get().
-    }
-
-    return result;
-}
-
-const Object
+Object
 evaluate(const Context& context, const Object& object)
 {
     // If it is a string, we check for data-binding
     auto result = object.isString() ? parseDataBinding(context, object.getString()) : object;
 
     // Nodes get evaluated
-    if (result.isNode())
-        result = result.eval(context);
+    if (result.isEvaluable())
+        result = result.eval();
 
     // Strings get a resource check
     if (result.isString()) {
@@ -94,13 +103,13 @@ evaluate(const Context& context, const Object& object)
     return result;
 }
 
-const Object
+Object
 evaluate(const Context& context, const char *expression)
 {
     return evaluate(context, Object(expression));
 }
 
-const Object
+Object
 evaluateRecursive(const Context& context, const Object& object)
 {
     if (object.isString()) {
@@ -189,15 +198,15 @@ propertyAsObject(const Context& context,
     return evaluate(context, item.get(name));
 }
 
-Dimension
-propertyAsDimension(const Context& context,
-                    const Object& item,
-                    const char *name)
+Object
+propertyAsRecursive(const Context& context,
+                 const Object& item,
+                 const char *name)
 {
     if (!item.isMap() || !item.has(name))
-        return Dimension();  // Returns "auto"
+        return Object::NULL_OBJECT();
 
-    return evaluate(context, item.get(name)).asDimension(context);
+    return evaluateRecursive(context, item.get(name));
 }
 
 Object

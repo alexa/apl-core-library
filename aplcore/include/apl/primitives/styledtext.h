@@ -57,13 +57,13 @@ public:
          * @param start style span starting index.
          * @param type style type.
          */
-        Span(size_t start, SpanType type) : start(start), end(start), type(type) {}
+        Span(size_t start, SpanType type) : type(type), start(start), end(start) {}
 
         /**
          * Copy constructor for emplace to vector<const Span> to work with clang.
          * @param obj object to copy.
          */
-        Span(const Span& obj) : start(obj.start), end(obj.end), type(obj.type) {};
+        Span(const Span& obj) : type(obj.type), start(obj.start), end(obj.end) {};
 
         /**
          * Type of span.

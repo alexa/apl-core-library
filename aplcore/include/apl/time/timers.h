@@ -23,6 +23,9 @@
 
 namespace apl {
 
+// avoids a collision with Windows threads.h
+#undef INFINITE
+
 class Timers
 {
 public:

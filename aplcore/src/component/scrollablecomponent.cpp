@@ -20,12 +20,24 @@
 
 namespace apl {
 
+const ComponentPropDefSet&
+ScrollableComponent::propDefSet() const {
+    static ComponentPropDefSet sScrollableComponentProperties(ActionableComponent::propDefSet(), {
+            {kPropertyScrollPosition, Dimension(0), asAbsoluteDimension, kPropRuntimeState}
+    });
+    return sScrollableComponentProperties;
+}
+
 void
 ScrollableComponent::update(UpdateType type, float value)
 {
     if (type == kUpdateScrollPosition) {
-        if (value != mCurrentPosition) {
-            mCurrentPosition = value;
+        auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
+        // We can't really set scroll position past known laid-out range, so trim it.
+        float maxPos = maxScroll();
+        float trimmedValue = value <= maxPos ? value : maxPos;
+        if (trimmedValue != currentPosition) {
+            mCalculated.set(kPropertyScrollPosition, Dimension(DimensionType::Absolute, trimmedValue));
             ContextPtr eventContext = createEventContext("Scroll", getValue());
             mContext->sequencer().executeCommands(
                 getCalculated(kPropertyOnScroll),
@@ -52,9 +64,10 @@ ScrollableComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::Allo
 
     std::string direction = scrollType() == kScrollTypeHorizontal ? "horizontal" : "vertical";
     bool allowFwd = allowForward();
-    bool allowBackwards = (mCurrentPosition > 0);
+    auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
+    bool allowBackwards = (currentPosition > 0);
 
-    if(mChildren.size() > 0 && (allowBackwards || allowFwd)) {
+    if(!mChildren.empty() && (allowBackwards || allowFwd)) {
         rapidjson::Value scrollable(rapidjson::kObjectType);
         scrollable.AddMember("direction", rapidjson::Value(direction.c_str(), allocator).Move(), allocator);
         scrollable.AddMember("allowForward", allowFwd, allocator);

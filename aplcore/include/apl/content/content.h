@@ -145,13 +145,25 @@ public:
     /**
      * @return Main document APL version.
      */
-    const std::string getAPLVersion() const { return mMainPackage->version(); }
+    std::string getAPLVersion() const { return mMainPackage->version(); }
 
     /**
      * @return The background object (color or gradient) for this document.  Returns
      *         the transparent color if no background is defined.
      */
     Object getBackground(const Metrics& metrics, const RootConfig& config) const;
+
+    /**
+     * @return The set of requested extensions (a list of URI values)
+     */
+    std::set<std::string> getExtensionRequests() const;
+
+    /**
+     * Retrieve the settings associated with an extension request.
+     * @param uri The uri of the extension.
+     * @return Map of settings, Object::NULL_OBJECT() if no settings are specified in the document.
+     */
+    Object getExtensionSettings(const std::string& uri);
 
     /**
      * @return The active session
@@ -161,7 +173,7 @@ public:
 private:  // Non-public methods used by other classes
     friend class RootContext;
 
-    const std::map<ImportRef, PackagePtr>& loaded() const { return mLoaded; }
+    const std::vector<PackagePtr>& ordered() const {return mOrderedDependencies;};
     const rapidjson::Value& getMainTemplate() const { return mMainTemplate; }
     bool getMainProperties(Properties& out) const;
 
@@ -181,7 +193,11 @@ public:
 private:  // Private internal methods
     void addImportList(Package& package);
     void addImport(Package& package, const rapidjson::Value& value);
+    void addExtensions(Package& package);
     void updateStatus();
+    void loadExtensionSettings();
+    bool orderDependencyList();
+    bool addToDependencyList(std::vector<PackagePtr>& ordered, std::set<PackagePtr>& inProgress, const PackagePtr& package);
 
 private:
     enum State {
@@ -190,18 +206,23 @@ private:
         ERROR
     };
 
+private:
     SessionPtr mSession;
     PackagePtr mMainPackage;
     std::vector<std::string> mMainParameters;
+    std::vector<std::pair<std::string, std::string>> mExtensionRequests;  // ordered <NAME,URI>
+    ObjectMapPtr mExtensionSettings; // Map Name -> <settingKey, settingValue> may be null
 
     State mState;
 
     std::set<ImportRequest> mRequested;
     std::set<ImportRequest> mPending;
     std::map<ImportRef, PackagePtr> mLoaded;
+    std::vector<PackagePtr> mOrderedDependencies;
 
     std::map<std::string, JsonData> mParameterValues;
     const rapidjson::Value& mMainTemplate;
+
 };
 
 

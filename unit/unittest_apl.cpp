@@ -108,7 +108,7 @@ class MyTextMeasure : public TextMeasurement {
 public:
     YGSize measure(TextComponent *component, float width, YGMeasureMode widthMode, float height,
                    YGMeasureMode heightMode) override {
-        return YGSize({.width=120.0, .height=60.0});
+        return YGSize({ 120.0, 60.0 });
     }
 
     float baseline(TextComponent *component, float width, float height) override {

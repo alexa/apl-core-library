@@ -58,7 +58,6 @@ TEST_F(VisualContextTest, Basic)
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
     ASSERT_FALSE(context.HasMember("transform"));
-    auto& tags = context["tags"];
     ASSERT_FALSE(context.HasMember("id"));
     ASSERT_TRUE(context.HasMember("uid"));
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
@@ -219,11 +218,6 @@ TEST_F(VisualContextTest, Sequence)
 {
     loadDocument(SEQUENCE, DATA);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
-
-    // Go through sequence and ensure layout of items as viewhost will do
-    for(int i=0; i<component->getChildCount(); i++) {
-        component->getChildAt(i)->ensureLayout(false);
-    }
 
     rapidjson::Document document(rapidjson::kObjectType);
     auto context = component->serializeVisualContext(document.GetAllocator());
@@ -419,11 +413,6 @@ TEST_F(VisualContextTest, HorizontalSequence)
     loadDocument(HORIZONTAL_SEQUENCE, DATA);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
-    // Go through sequence and ensure layout of items as viewhost will do
-    for(int i=0; i<component->getChildCount(); i++) {
-        component->getChildAt(i)->ensureLayout(false);
-    }
-
     rapidjson::Document document(rapidjson::kObjectType);
     auto context = component->serializeVisualContext(document.GetAllocator());
 
@@ -556,11 +545,6 @@ TEST_F(VisualContextTest, RevertedSequence)
 {
     loadDocument(SEQUENCE, DATA);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
-
-    // Go through sequence and ensure layout of items as viewhost will do
-    for(int i=0; i<component->getChildCount(); i++) {
-        component->getChildAt(i)->ensureLayout(false);
-    }
 
     rapidjson::Document document(rapidjson::kObjectType);
     auto context = component->serializeVisualContext(document.GetAllocator());
@@ -769,11 +753,6 @@ TEST_F(VisualContextTest, ShiftedSequence)
     auto seq = component->getCoreChildAt(0);
     ASSERT_EQ(kComponentTypeSequence, seq->getType());
 
-    // Go through sequence and ensure layout of items as viewhost will do
-    for(int i=0; i<seq->getChildCount(); i++) {
-        seq->getChildAt(i)->ensureLayout(false);
-    }
-
     rapidjson::Document document(rapidjson::kObjectType);
     auto context = component->serializeVisualContext(document.GetAllocator());
 
@@ -895,44 +874,6 @@ TEST_F(VisualContextTest, ShiftedSequence)
     component->release();
 }
 
-TEST_F(VisualContextTest, NotEnsuredSequence)
-{
-    loadDocument(SEQUENCE, DATA);
-    ASSERT_EQ(kComponentTypeSequence, component->getType());
-
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
-    // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
-    ASSERT_STREQ("seq", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
-
-    ASSERT_TRUE(tags.HasMember("focused"));
-    ASSERT_TRUE(tags.HasMember("scrollable"));
-    auto& scrollable = tags["scrollable"];
-    ASSERT_EQ("vertical", scrollable["direction"]);
-    ASSERT_EQ(true, scrollable["allowForward"]);
-    ASSERT_EQ(false, scrollable["allowBackwards"]);
-
-    ASSERT_TRUE(tags.HasMember("list"));
-    auto& list = tags["list"];
-    ASSERT_EQ(6, list["itemCount"]);
-    ASSERT_EQ(0, list["lowestIndexSeen"].GetInt());
-    ASSERT_EQ(0, list["highestIndexSeen"].GetInt());
-    ASSERT_FALSE(list.HasMember("lowestOrdinalSeen"));
-    ASSERT_FALSE(list.HasMember("highestOrdinalSeen"));
-
-    // We consider all children invisible when not ensured
-
-    // Check children
-    ASSERT_FALSE(context.HasMember("children"));
-
-    component->release();
-}
-
 static const char *ORDINAL_SEQUENCE = "{"
                                       "  \"type\": \"APL\","
                                       "  \"version\": \"1.1\","
@@ -1001,11 +942,6 @@ TEST_F(VisualContextTest, MissingOrdinalSequence)
 {
     loadDocument(ORDINAL_SEQUENCE, DATA);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
-
-    // Go through sequence and ensure layout of items as viewhost will do
-    for(int i=0; i<component->getChildCount(); i++) {
-        component->getChildAt(i)->ensureLayout(false);
-    }
 
     rapidjson::Document document(rapidjson::kObjectType);
     auto context = component->serializeVisualContext(document.GetAllocator());
@@ -1097,11 +1033,6 @@ TEST_F(VisualContextTest, NoOrdinalSequence)
     loadDocument(NO_ORDINAL_SEQUENCE, DATA);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
-    // Go through sequence and ensure layout of items as viewhost will do
-    for(int i=0; i<component->getChildCount(); i++) {
-        component->getChildAt(i)->ensureLayout(false);
-    }
-
     rapidjson::Document document(rapidjson::kObjectType);
     auto context = component->serializeVisualContext(document.GetAllocator());
 
@@ -1135,7 +1066,6 @@ static const char *PADDED_SEQUENCE = "{\n"
                                      "            \"id\": \"seq\","
                                      "            \"scrollDirection\": \"%s\","
                                      "            \"data\": [\"red\", \"blue\", \"green\", \"yellow\", \"purple\", \"red\", \"blue\", \"green\", \"yellow\", \"purple\", \"red\", \"blue\", \"green\", \"yellow\", \"purple\"],\n"
-                                     "            \"scrollDirection\": \"vertical\",\n"
                                      "            \"width\": 200,\n"
                                      "            \"height\": 200,\n"
                                      "            \"left\": 0,\n"
@@ -1180,52 +1110,49 @@ static const char *PADDED_SCROLLVIEW = "{\n"
                                        "}";
 
 struct PaddedScrollableTest {
-    PaddedScrollableTest(ComponentType type, const char* doc, std::string direction)
-        : type(type), doc(doc), direction(direction) {}
+    PaddedScrollableTest(ComponentType type, const char* doc, std::string direction, int scrollPosition)
+        : type(type), doc(doc), direction(direction), scrollPosition(scrollPosition) {}
     ComponentType type;
     const char* doc;
     std::string direction;
+    int scrollPosition;
 };
 
 TEST_F(VisualContextTest, PaddedScrollableTests)
 {
-    char horizontalSeq[strlen(PADDED_SEQUENCE) * 2];
-    char verticalSeq[strlen(PADDED_SEQUENCE) * 2];
-    std::sprintf(horizontalSeq, PADDED_SEQUENCE, "horizontal");
-    std::sprintf(verticalSeq, PADDED_SEQUENCE, "vertical");
+    const int len = strlen(PADDED_SEQUENCE) * 2;
+    std::unique_ptr<char[]> horizontalSeq(new char[len]);
+    std::unique_ptr<char[]> verticalSeq(new char[len]);
+    snprintf(horizontalSeq.get(), len, PADDED_SEQUENCE, "horizontal");
+    snprintf(verticalSeq.get(), len, PADDED_SEQUENCE, "vertical");
 
     std::vector<PaddedScrollableTest> tests = {
-            {kComponentTypeSequence, horizontalSeq, "horizontal"},
-            {kComponentTypeSequence, verticalSeq, "vertical"},
-            {kComponentTypeScrollView, PADDED_SCROLLVIEW, "vertical"},
+        {kComponentTypeSequence, horizontalSeq.get(), "horizontal", 1300},
+        {kComponentTypeSequence, verticalSeq.get(), "vertical", 1375},
+        {kComponentTypeScrollView, PADDED_SCROLLVIEW, "vertical", 775},
     };
     for(auto& test : tests) {
         loadDocument(test.doc);
         ASSERT_EQ(test.type, component->getType());
         rapidjson::Document document(rapidjson::kObjectType);
 
-        // test before ensure layout
+        // test before any scrolling
         auto context = component->serializeVisualContext(document.GetAllocator());
         auto& tags = context["tags"];
-        auto& scrollable = tags["scrollable"];
-        ASSERT_EQ(test.direction.c_str(), scrollable["direction"]);
-        ASSERT_EQ(true, scrollable["allowForward"]);
-        ASSERT_EQ(false, scrollable["allowBackwards"]);
-
-        // Go through sequence and ensure layout of items as viewhost will do
-        for(int i = 0; i < component->getChildCount(); i++) {
-            component->getChildAt(i)->ensureLayout(false);
-        }
 
         context = component->serializeVisualContext(document.GetAllocator());
         tags = context["tags"];
-        scrollable = tags["scrollable"];
+        auto& scrollable = tags["scrollable"];
         ASSERT_EQ(true, scrollable["allowForward"]);
         ASSERT_EQ(false, scrollable["allowBackwards"]);
 
         // now scroll halfway
-        component->update(kUpdateScrollPosition, 1375 >> 1);
-        root->clearPending();
+        // We can't scroll to position we don't laid out so scroll in steps.
+        while (component->getCalculated(kPropertyScrollPosition).asNumber() != (test.scrollPosition/2)) {
+            component->update(kUpdateScrollPosition, test.scrollPosition/2);
+            root->clearPending();
+            root->clearDirty();
+        }
 
         context = component->serializeVisualContext(document.GetAllocator());
         tags = context["tags"];
@@ -1234,8 +1161,12 @@ TEST_F(VisualContextTest, PaddedScrollableTests)
         ASSERT_EQ(true, scrollable["allowBackwards"]);
 
         // now scroll all the way to the bottom
-        component->update(kUpdateScrollPosition, 1375);
-        root->clearPending();
+        // We can't scroll to position we don't laid out so scroll in steps.
+        while (component->getCalculated(kPropertyScrollPosition).asNumber() != test.scrollPosition) {
+            component->update(kUpdateScrollPosition, test.scrollPosition);
+            root->clearPending();
+            root->clearDirty();
+        }
 
         context = component->serializeVisualContext(document.GetAllocator());
         tags = context["tags"];
@@ -1320,6 +1251,11 @@ TEST_F(VisualContextTest, Pager)
     component->update(kUpdatePagerPosition, 1);
 
     auto context2 = component->serializeVisualContext(document.GetAllocator());
+    auto& tags2 = context2["tags"];
+    ASSERT_TRUE(tags2.HasMember("pager"));
+    auto& pager2 = tags2["pager"];
+    ASSERT_EQ(1, pager2["index"]);
+
     auto& reportedChild2 = context2["children"][0];
     ASSERT_STREQ("item_1", reportedChild2["id"].GetString());
     ASSERT_FALSE(reportedChild2.HasMember("visibility"));
@@ -1438,8 +1374,8 @@ TEST_F(VisualContextTest, EmptyMedia)
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
     auto& tags = context["tags"];
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_FALSE(context["tags"].HasMember("media"));
+    ASSERT_TRUE(tags.HasMember("viewport"));
+    ASSERT_FALSE(tags.HasMember("media"));
 
     component->release();
 }
@@ -1549,7 +1485,6 @@ TEST_F(VisualContextTest, Empty)
 
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
     ASSERT_STREQ("ctr", context["id"].GetString());
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
     ASSERT_STREQ("text", context["type"].GetString());
@@ -1668,7 +1603,6 @@ TEST_F(VisualContextTest, States)
 
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
     ASSERT_STREQ("ctr", context["id"].GetString());
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
     ASSERT_STREQ("text", context["type"].GetString());
@@ -1787,7 +1721,6 @@ TEST_F(VisualContextTest, Type)
 
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
     ASSERT_STREQ("ctr", context["id"].GetString());
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
     ASSERT_STREQ("mixed", context["type"].GetString());
@@ -1853,7 +1786,6 @@ TEST_F(VisualContextTest, TypePropagate)
 
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
     ASSERT_STREQ("ctr", context["id"].GetString());
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
     ASSERT_STREQ("empty", context["type"].GetString());
@@ -1914,7 +1846,6 @@ TEST_F(VisualContextTest, Opacity)
 
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
     ASSERT_STREQ("ctr", context["id"].GetString());
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
     ASSERT_EQ(0.5, context["visibility"]);
@@ -1991,7 +1922,6 @@ TEST_F(VisualContextTest, LayeringDeep)
 
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
     ASSERT_STREQ("ctr", context["id"].GetString());
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
     ASSERT_STREQ("text", context["type"].GetString());
@@ -2070,7 +2000,6 @@ TEST_F(VisualContextTest, LayeringOne)
 
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
     ASSERT_STREQ("ctr", context["id"].GetString());
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
     ASSERT_STREQ("text", context["type"].GetString());
@@ -2127,7 +2056,6 @@ TEST_F(VisualContextTest, LayeringSingle)
 
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
     ASSERT_STREQ("ctr", context["id"].GetString());
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
     ASSERT_STREQ("text", context["type"].GetString());
@@ -2202,7 +2130,6 @@ TEST_F(VisualContextTest, LayeringTwo)
 
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
     ASSERT_STREQ("ctr", context["id"].GetString());
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
     ASSERT_STREQ("text", context["type"].GetString());
@@ -2279,7 +2206,6 @@ TEST_F(VisualContextTest, LayeringIncapsulated)
 
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
     ASSERT_STREQ("ctr", context["id"].GetString());
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
     ASSERT_STREQ("text", context["type"].GetString());
@@ -2330,7 +2256,6 @@ TEST_F(VisualContextTest, OpacityChange)
 
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
     ASSERT_STREQ("ctr", context["id"].GetString());
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
     ASSERT_STREQ("text", context["type"].GetString());
@@ -2397,7 +2322,6 @@ TEST_F(VisualContextTest, DisplayChange)
 
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
     ASSERT_STREQ("ctr", context["id"].GetString());
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
     ASSERT_STREQ("text", context["type"].GetString());
@@ -2468,7 +2392,8 @@ public:
 
         float resultingWidth = line;
         float resultingHeight = count*10;
-        return YGSize({.width=resultingWidth, .height=resultingHeight});
+
+        return YGSize({resultingWidth, resultingHeight});
     }
 
     float baseline(TextComponent *component, float width, float height) override {
@@ -2488,7 +2413,6 @@ TEST_F(VisualContextTest, LayoutChange)
 
     // Check parent
     ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
     ASSERT_STREQ("ctr", context["id"].GetString());
     ASSERT_TRUE(context["tags"].HasMember("viewport"));
     ASSERT_STREQ("text", context["type"].GetString());

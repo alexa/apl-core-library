@@ -128,6 +128,30 @@ enum EventType {
      * The server must resolve the ActionRef when the scroll is completed.
      */
     kEventTypeSpeak,
+
+    /**
+     * Send a finish command.
+     *
+     * kEventPropertyReason: The reason for the finish command. kEventReasonExit or kEventReasonBack
+     *
+     * Does not have an ActionRef
+     */
+    kEventTypeFinish,
+
+    /**
+     * A extension event registered with the core engine by the view host.
+     */
+    kEventTypeExtension,
+
+    /**
+     * DataSourceProvider created event that could be used for data fetch requests.
+     *
+     * kEventPropertyName: name (type) of datasource that requests a fetch.
+     * kEventPropertyValue: implementation specific fetch request.
+     *
+     * Does not have an ActionRef
+     */
+    kEventTypeDataSourceFetchRequest,
 };
 
 enum EventProperty {
@@ -138,8 +162,12 @@ enum EventProperty {
     kEventPropertyComponent,
     kEventPropertyComponents,
     kEventPropertyDirection,
+    kEventPropertyExtension,
+    kEventPropertyExtensionURI,
     kEventPropertyHighlightMode,
+    kEventPropertyName,
     kEventPropertyPosition,
+    kEventPropertyReason,
     kEventPropertySource,
     kEventPropertyValue,
 };
@@ -168,6 +196,18 @@ enum EventControlMediaCommand {
     kEventControlMediaRewind = CommandControlMedia::kCommandControlMediaRewind,
     kEventControlMediaSeek = CommandControlMedia::kCommandControlMediaSeek,
     kEventControlMediaSetTrack = CommandControlMedia::kCommandControlMediaSetTrack
+};
+
+enum EventScrollAlign {
+    kEventScrollAlignFirst = CommandScrollAlign::kCommandScrollAlignFirst,
+    kEventScrollAlignCenter = CommandScrollAlign::kCommandScrollAlignCenter,
+    kEventScrollAlignLast = CommandScrollAlign::kCommandScrollAlignLast,
+    kEventScrollAlignVisible = CommandScrollAlign::kCommandScrollAlignVisible
+};
+
+enum EventReason {
+    kEventReasonBack = CommandReason::kCommandReasonBack,
+    kEventReasonExit = CommandReason::kCommandReasonExit
 };
 
 extern Bimap<int, std::string> sEventTypeBimap;

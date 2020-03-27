@@ -23,11 +23,13 @@
 #include "apl/engine/context.h"
 #include "apl/engine/recalculatetarget.h"
 #include "apl/primitives/keyboard.h"
+#include "apl/utils/range.h"
 
 namespace apl {
 
 class ComponentPropDef;
 class ComponentPropDefSet;
+class LayoutRebuilder;
 
 extern const std::string VISUAL_CONTEXT_TYPE_MIXED;
 extern const std::string VISUAL_CONTEXT_TYPE_GRAPHIC;
@@ -113,16 +115,28 @@ public:
 
     // Documentation from component.h
     bool insertChild(const ComponentPtr& child, size_t index) override {
-        return insertChild(child, index, true);
+        return canInsertChild() && insertChild(child, index, true);
     }
 
     // Documentation from component.h
     bool appendChild(const ComponentPtr& child) override {
-        return appendChild(child, true);
+        return canInsertChild() && appendChild(child, true);
     }
 
     // Documentation from component.h
     bool remove() override;
+
+    // Documentation will be inherited
+    bool canInsertChild() const override {
+        // Child insertion is permitted if (a) there isn't a layout rebuilder and (b) there is space for a child.
+        return !mRebuilder && ((singleChild() && mChildren.empty()) || multiChild());
+    }
+
+    // Documentation will be inherited
+    bool canRemoveChild() const override {
+        // Child removal is permitted if (a) there isn't a layout rebuilder and (b) there is at least one child
+        return !mRebuilder && !mChildren.empty();
+    }
 
     // Documentation will be inherited
     void update(UpdateType type, float value) override;
@@ -165,11 +179,12 @@ public:
     void markProperty(PropertyKey key);
 
     /**
-     * A context that this property depends upon has changed value.  Recalculate the
-     * value of the property
+     * A context that this property depends upon has changed value.  Update the
+     * value of the property and set the dirty flag if it changes.
      * @param key The property to recalculate
+     * @param value The new value to assign
      */
-    void recalculateProperty(PropertyKey key);
+    void updateProperty(PropertyKey key, const Object& value);
 
     /**
      * Change the state of the component.  This may trigger a style change in
@@ -452,15 +467,10 @@ public:
     Rect calculateVisibleRect();
 
     /**
-     * @return True if children should be automatically Yoga-attached to this component
+     * @param index index of child.
+     * @return True if child should be automatically Yoga-attached to this component
      */
-    virtual bool alwaysAttachChildYogaNode() const { return true; }
-
-    /**
-     * Ensure provided child is attached to component Yoga tree.
-     * @param child Child to attach.
-     */
-    virtual void ensureChildAttached(const ComponentPtr& child);
+    virtual bool shouldAttachChildYogaNode(int index) const { return true; }
 
     /**
      * Find and return a child component at the local coordinates.
@@ -486,18 +496,37 @@ public:
      */
     CoreComponentPtr findStateOwner();
 
+    /**
+     * Check if component attached to yoga hierarchy.
+     */
+    bool isAttached() const;
+
+protected:
+    // internal, do not call directly
+    virtual bool insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag);
+    virtual void removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag);
+    virtual void reportLoaded(size_t index);
+
+    void ensureChildAttached(const CoreComponentPtr& child, int targetIdx);
+
 private:
     friend streamer& operator<<(streamer&, const Component&);
 
     friend class Builder;
+    friend class LayoutRebuilder;
+    friend class ChildWalker;
 
-    bool insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag);
+    void ensureChildAttached(const CoreComponentPtr& child);
+
+    bool attachChild(const CoreComponentPtr& child, size_t index);
 
     bool appendChild(const ComponentPtr& child, bool useDirtyFlag);
 
     void attachedToParent(const CoreComponentPtr& parent);
 
     void removeChild(const CoreComponentPtr& child, bool useDirtyFlag);
+
+    void removeChildAt(size_t index, bool useDirtyFlag);
 
     void markRemoved();
 
@@ -512,8 +541,6 @@ private:
 
     bool markPropertyInternal(const ComponentPropDefSet& propDefSet, PropertyKey key);
 
-    bool recalculatePropertyInternal(const ComponentPropDefSet& propDefSet, PropertyKey key, const Object& node);
-
     void handlePropertyChange(const ComponentPropDef& def, const Object& value);
 
     void updateMixedStateProperty(PropertyKey key, bool value);
@@ -524,31 +551,36 @@ private:
 
     virtual const ComponentPropDefSet* layoutPropDefSet() const { return nullptr; };
 
-    bool isAttached() const;
-
     void updateNodeProperties();
 
     void serializeVisualContextInternal(rapidjson::Value& outArray, rapidjson::Document::AllocatorType& allocator,
                                         float realOpacity, float visibility, const Rect& visibleRect, int visualLayer);
 
+    void attachRebuilder(const std::shared_ptr<LayoutRebuilder>& rebuilder) { mRebuilder = rebuilder; }
 
-private:
     YGNodeRef getNode() const { return mYGNodeRef; }
 
     std::shared_ptr<ObjectMap> createEventProperties(const std::string& handler, const Object& value) const;
 
+    void notifyChildChanged(size_t index, const std::string& uid, const std::string& action);
+
+    virtual void finalizePopulate() {}
+
+    void attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index);
+
 
 protected:
-    bool                           mInheritParentState;
-    State                          mState;       // Operating state (pressed, checked, etc)
-    std::string                    mStyle;       // Name of the current STYLE
-    Properties                     mProperties;  // Assigned properties from JSON
-    std::map<PropertyKey, Object>  mAssigned;    // Assigned properties from either JSON or SetValue
-    std::vector<CoreComponentPtr>  mChildren;
-    CoreComponentPtr               mParent;
-    YGNodeRef                      mYGNodeRef;
-    std::string                    mPath;
-
+    bool                             mInheritParentState;
+    State                            mState;       // Operating state (pressed, checked, etc)
+    std::string                      mStyle;       // Name of the current STYLE
+    Properties                       mProperties;  // Assigned properties from JSON
+    std::set<PropertyKey>            mAssigned;    // Properties that have been assigned from JSON or SetValue
+    std::vector<CoreComponentPtr>    mChildren;
+    CoreComponentPtr                 mParent;
+    YGNodeRef                        mYGNodeRef;
+    std::string                      mPath;
+    std::shared_ptr<LayoutRebuilder> mRebuilder;
+    Range                            mEnsuredChildren;
 };
 
 }  // namespace apl

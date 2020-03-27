@@ -33,6 +33,7 @@ enum CommandType {
     kCommandTypeScroll,
     kCommandTypeScrollToIndex,
     kCommandTypeScrollToComponent,
+    kCommandTypeSelect,
     kCommandTypeSetPage,
     kCommandTypeAutoPage,
     kCommandTypePlayMedia,
@@ -40,7 +41,9 @@ enum CommandType {
     kCommandTypeOpenURL,
     kCommandTypeAnimateItem,
     kCommandTypeSetFocus,
-    kCommandTypeClearFocus
+    kCommandTypeClearFocus,
+    kCommandTypeFinish,
+    kCommandTypeCustomEvent,
 };
 
 enum CommandScrollAlign {
@@ -81,6 +84,11 @@ enum CommandRepeatMode {
     kCommandRepeatModeReverse
 };
 
+enum CommandReason {
+    kCommandReasonBack,
+    kCommandReasonExit
+};
+
 enum CommandPropertyKey {
     kCommandPropertyAlign,
     kCommandPropertyArguments,
@@ -91,17 +99,21 @@ enum CommandPropertyKey {
     kCommandPropertyComponents,
     kCommandPropertyComponentId,
     kCommandPropertyCount,
+    kCommandPropertyData,
     kCommandPropertyDelay,
     kCommandPropertyDistance,
     kCommandPropertyDuration,
     kCommandPropertyEasing,
+    kCommandPropertyExtension,
     kCommandPropertyFinally,
     kCommandPropertyHighlightMode,
     kCommandPropertyIndex,
     kCommandPropertyMinimumDwellTime,
     kCommandPropertyOnFail,
+    kCommandPropertyOtherwise,
     kCommandPropertyPosition,
     kCommandPropertyProperty,
+    kCommandPropertyReason,
     kCommandPropertyRepeatCount,
     kCommandPropertyRepeatMode,
     kCommandPropertyScreenLock,
@@ -119,6 +131,7 @@ extern Bimap<int, std::string> sCommandPositionMap;
 extern Bimap<int, std::string> sCommandAudioTrackMap;
 extern Bimap<int, std::string> sControlMediaMap;
 extern Bimap<int, std::string> sCommandRepeatModeMap;
+extern Bimap<int, std::string> sCommandReasonMap;
 
 using CommandBag = ObjectBag<sCommandPropertyBimap>;
 

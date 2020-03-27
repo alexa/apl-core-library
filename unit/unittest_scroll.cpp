@@ -63,6 +63,7 @@ public:
         auto position = event.getValue(kEventPropertyPosition).asDimension(context);
         event.getComponent()->update(kUpdateScrollPosition, position.getValue());
         event.getActionRef().resolve();
+        root->clearPending();
     }
 
     void executeScrollToIndex(const std::string& component, int index, CommandScrollAlign align) {
@@ -85,6 +86,7 @@ public:
         auto position = event.getValue(kEventPropertyPosition).asDimension(context);
         event.getComponent()->update(kUpdateScrollPosition, position.getValue());
         event.getActionRef().resolve();
+        root->clearPending();
     }
 
     void executeScrollToComponent(const std::string& component, CommandScrollAlign align) {
@@ -106,6 +108,7 @@ public:
         auto position = event.getValue(kEventPropertyPosition).asDimension(context);
         event.getComponent()->update(kUpdateScrollPosition, position.getValue());
         event.getActionRef().resolve();
+        root->clearPending();
     }
 
     rapidjson::Document doc;
@@ -362,7 +365,7 @@ TEST_F(ScrollTest, ScrollViewNone)
     // No inner content
     // Max scroll distance is 0
 
-    loadDocument(SCROLLVIEW_SMALL);
+    loadDocument(SCROLLVIEW_NONE);
 
     completeScroll(component, -2.0f);
     ASSERT_EQ(Point(0, 0), component->scrollPosition());
@@ -757,6 +760,33 @@ TEST_F(ScrollTest, DifferentUnits)
     
     completeScroll(component, -0.5f);  // Another -150
     ASSERT_EQ(Point(0, 80), component->scrollPosition());
+}
+
+static const char *SEQUENCE_EMPTY =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.1\","
+        "  \"mainTemplate\": {"
+        "    \"items\": {"
+        "      \"type\": \"Sequence\","
+        "      \"id\": \"foo\","
+        "      \"width\": 200,"
+        "      \"height\": 300,"
+        "      \"items\": []"
+        "    }"
+        "  }"
+        "}";
+
+
+TEST_F(ScrollTest, SequenceEmpty)
+{
+    loadDocument(SEQUENCE_EMPTY);
+
+    completeScroll(component, -1);  // Can't scroll backwards
+    ASSERT_EQ(Point(0,0), component->scrollPosition());
+
+    completeScroll(component, 1);  // Can't scroll forwards
+    ASSERT_EQ(Point(0,0), component->scrollPosition());
 }
 
 static const char *SEQUENCE_WITH_INDEX =
@@ -1409,11 +1439,6 @@ TEST_F(ScrollTest, SequenceToVerticalComponent)
 {
     loadDocument(VERTICAL_DEEP_SEQUENCE);
 
-    // Preload visible + buffer.
-    for(int i=0; i<7; i++) {
-        component->getChildAt(i)->ensureLayout(false);
-    }
-
     // Scroll to ensured one
     ASSERT_FALSE(root->hasEvent());
     executeScrollToComponent("item1", kCommandScrollAlignFirst);
@@ -1424,6 +1449,8 @@ TEST_F(ScrollTest, SequenceToVerticalComponent)
     ASSERT_EQ(150, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
+    root->clearPending();
+    ASSERT_EQ(Point(0, 150), event.getComponent()->scrollPosition());
 
     // Scroll to non-ensured one
     ASSERT_FALSE(root->hasEvent());
@@ -1435,6 +1462,8 @@ TEST_F(ScrollTest, SequenceToVerticalComponent)
     ASSERT_EQ(1500, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
+    root->clearPending();
+    ASSERT_EQ(Point(0, 1500), event.getComponent()->scrollPosition());
 
     // Scroll to non-ensured one by index (we don't forward-ensure)
     ASSERT_FALSE(root->hasEvent());
@@ -1446,16 +1475,13 @@ TEST_F(ScrollTest, SequenceToVerticalComponent)
     ASSERT_EQ(1800, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
+    root->clearPending();
+    ASSERT_EQ(Point(0, 1800), event.getComponent()->scrollPosition());
 }
 
 TEST_F(ScrollTest, SequenceToVerticalSubComponent)
 {
     loadDocument(VERTICAL_DEEP_SEQUENCE);
-
-    // Preload visible + buffer.
-    for(int i=0; i<7; i++) {
-        component->getChildAt(i)->ensureLayout(false);
-    }
 
     // Scroll to ensured one
     ASSERT_FALSE(root->hasEvent());
@@ -1467,6 +1493,8 @@ TEST_F(ScrollTest, SequenceToVerticalSubComponent)
     ASSERT_EQ(150, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
+    root->clearPending();
+    ASSERT_EQ(Point(0, 150), event.getComponent()->scrollPosition());
 
     // Scroll to non-ensured one
     ASSERT_FALSE(root->hasEvent());
@@ -1478,6 +1506,8 @@ TEST_F(ScrollTest, SequenceToVerticalSubComponent)
     ASSERT_EQ(1500, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
+    root->clearPending();
+    ASSERT_EQ(Point(0, 1500), event.getComponent()->scrollPosition());
 }
 
 static const char *HORIZONTAL_DEEP_SEQUENCE =
@@ -1513,11 +1543,6 @@ TEST_F(ScrollTest, SequenceToHorizontalComponent)
 {
     loadDocument(HORIZONTAL_DEEP_SEQUENCE);
 
-    // Preload visible + buffer.
-    for(int i=0; i<7; i++) {
-        component->getChildAt(i)->ensureLayout(false);
-    }
-
     // Scroll to ensured one
     ASSERT_FALSE(root->hasEvent());
     executeScrollToComponent("item1", kCommandScrollAlignFirst);
@@ -1528,6 +1553,8 @@ TEST_F(ScrollTest, SequenceToHorizontalComponent)
     ASSERT_EQ(150, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
+    root->clearPending();
+    ASSERT_EQ(Point(150, 0), event.getComponent()->scrollPosition());
 
     // Scroll to non-ensured one
     ASSERT_FALSE(root->hasEvent());
@@ -1539,6 +1566,8 @@ TEST_F(ScrollTest, SequenceToHorizontalComponent)
     ASSERT_EQ(1500, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
+    root->clearPending();
+    ASSERT_EQ(Point(1500, 0), event.getComponent()->scrollPosition());
 
     // Scroll to non-ensured one by index (we don't forward-ensure)
     ASSERT_FALSE(root->hasEvent());
@@ -1550,16 +1579,13 @@ TEST_F(ScrollTest, SequenceToHorizontalComponent)
     ASSERT_EQ(1800, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
+    root->clearPending();
+    ASSERT_EQ(Point(1800, 0), event.getComponent()->scrollPosition());
 }
 
 TEST_F(ScrollTest, SequenceToHorizontalSubComponent)
 {
     loadDocument(HORIZONTAL_DEEP_SEQUENCE);
-
-    // Preload visible + buffer.
-    for(int i=0; i<7; i++) {
-        component->getChildAt(i)->ensureLayout(false);
-    }
 
     // Scroll to ensured one
     ASSERT_FALSE(root->hasEvent());
@@ -1571,6 +1597,8 @@ TEST_F(ScrollTest, SequenceToHorizontalSubComponent)
     ASSERT_EQ(150, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
+    root->clearPending();
+    ASSERT_EQ(Point(150, 0), event.getComponent()->scrollPosition());
 
     // Scroll to non-ensured one
     ASSERT_FALSE(root->hasEvent());
@@ -1582,6 +1610,8 @@ TEST_F(ScrollTest, SequenceToHorizontalSubComponent)
     ASSERT_EQ(1500, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
+    root->clearPending();
+    ASSERT_EQ(Point(1500, 0), event.getComponent()->scrollPosition());
 }
 
 static const char *PAGER_TEST =

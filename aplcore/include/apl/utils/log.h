@@ -84,9 +84,9 @@ public:
     }
 
 private:
-    const LogLevel mLevel;
     const bool mUncaught;
     const std::shared_ptr<LogBridge> mBridge;
+    const LogLevel mLevel;
 
     apl::streamer mStringStream;
 };
@@ -154,7 +154,11 @@ private:
     bool mWarned;
 };
 
+#ifdef APL_CORE_UWP
+#define __FILENAME__ (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
+#else
 #define __FILENAME__ (__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1 : __FILE__)
+#endif
 #define LOG(LEVEL) apl::LoggerFactory::instance().getLogger(LEVEL,__FILENAME__,__func__)
 #define LOGF(LEVEL,FORMAT,...) apl::LoggerFactory::instance().getLogger(LEVEL,__FILENAME__,__func__).log(FORMAT,__VA_ARGS__)
 #define LOG_IF(CONDITION) \

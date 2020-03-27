@@ -22,9 +22,9 @@ std::string
 timeToString(const std::string& format, double time)
 {
     try {
-        data_parser parser(format.c_str(), "relative_time");
         time_state state(time);
-        parser.parse<grammar, action>(state);
+        pegtl::string_input<> in(format, "");
+        pegtl::parse<grammar, action>(in, state);
         return state.mString;
     }
     catch (parse_error e) {

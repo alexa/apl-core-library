@@ -18,6 +18,7 @@
 
 #include <functional>
 #include <memory>
+#include <set>
 
 namespace apl {
 
@@ -27,19 +28,20 @@ namespace apl {
 using id_type = unsigned int;
 
 /**
- * System value for tracking time.  Nominally milliseconds since the epoch.
- */
-using apl_time_t = unsigned long;
-
-/**
  * Associate a unique ID with a timeout
  */
 using timeout_id = unsigned int;
 
 /**
+ * System value for tracking time.  Nominally milliseconds since the epoch.
+ * We use double values because certain scripting languages have difficulties with 64 bit integers.
+ */
+using apl_time_t = double;
+
+/**
  * Change in time, in milliseconds.
  */
-using apl_duration_t = long;
+using apl_duration_t = double;
 
 // Common definitions of shared pointer data structures.  We define the XXXPtr variations
 // here so they can be conveniently used from any source file.
@@ -50,12 +52,18 @@ class Component;
 class Content;
 class Context;
 class CoreComponent;
+class DataSource;
+class DataSourceProvider;
 class GraphicContent;
 class GraphicElement;
 class Graphic;
+class LiveArray;
+class LiveMap;
+class LiveObject;
 class Package;
 class RootContext;
 class Session;
+class Settings;
 class StyleDefinition;
 class StyleInstance;
 class TextMeasurement;
@@ -67,17 +75,26 @@ using ComponentPtr = std::shared_ptr<Component>;
 using ContentPtr = std::shared_ptr<Content>;
 using ContextPtr = std::shared_ptr<Context>;
 using CoreComponentPtr = std::shared_ptr<CoreComponent>;
+using DataSourcePtr = std::shared_ptr<DataSource>;
+using DataSourceProviderPtr = std::shared_ptr<DataSourceProvider>;
 using GraphicContentPtr = std::shared_ptr<GraphicContent>;
 using GraphicElementPtr = std::shared_ptr<GraphicElement>;
 using GraphicPtr = std::shared_ptr<Graphic>;
+using LiveArrayPtr = std::shared_ptr<LiveArray>;
+using LiveMapPtr = std::shared_ptr<LiveMap>;
+using LiveObjectPtr = std::shared_ptr<LiveObject>;
 using PackagePtr = std::shared_ptr<Package>;
 using RootContextPtr = std::shared_ptr<RootContext>;
 using SessionPtr = std::shared_ptr<Session>;
+using SettingsPtr = std::shared_ptr<Settings>;
 using StyleDefinitionPtr = std::shared_ptr<StyleDefinition>;
 using StyleInstancePtr = std::shared_ptr<StyleInstance>;
 using TextMeasurementPtr = std::shared_ptr<TextMeasurement>;
 using TimersPtr = std::shared_ptr<Timers>;
 
+// Convenience templates for creating sets of weak and strong pointers
+template<class T> using WeakPtrSet = std::set<std::weak_ptr<T>, std::owner_less<std::weak_ptr<T>>>;
+template<class T> using SharedPtrSet = std::set<std::shared_ptr<T>, std::owner_less<std::shared_ptr<T>>>;
 
 } // namespace apl
 

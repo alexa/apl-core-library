@@ -167,11 +167,12 @@ static const char *SEQUENCE_WITH_PADDING =
 
 TEST_F(FindComponentAtPosition, SequenceWithPadding)
 {
+    // Force loading of all items we are looking at to simplify testing.
+    config.sequenceChildCache(5);
     loadDocument(SEQUENCE_WITH_PADDING);
     ASSERT_TRUE(component);
 
     ASSERT_EQ(6, component->getChildCount());
-    component->getChildAt(5)->ensureLayout(false);
 
     ASSERT_EQ(nullptr, component->findComponentAtPosition(Point(-1, -1)));
     ASSERT_EQ(nullptr, component->findComponentAtPosition(Point(101, 41)));
@@ -309,52 +310,3 @@ TEST_F(FindComponentAtPosition, Nested)
     ASSERT_EQ(component, component->findComponentAtPosition(Point(30, 30)));
 }
 
-static const char *NON_LAID_OUT_SEQUENCE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"width\": 100,"
-    "      \"height\": 100,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"width\": 100,"
-    "        \"height\": 40"
-    "      },"
-    "      \"data\": ["
-    "        \"a\","
-    "        \"b\","
-    "        \"c\","
-    "        \"d\""
-    "      ]"
-    "    }"
-    "  }"
-    "}";
-
-TEST_F(FindComponentAtPosition, NonLaidOutSequence)
-{
-    loadDocument(NON_LAID_OUT_SEQUENCE);
-    ASSERT_TRUE(component);
-    ASSERT_EQ(4, component->getChildCount());
-
-    // Deliberately don't lay out the children - the top-level sequence is the only visible object
-    ASSERT_EQ(nullptr, component->findComponentAtPosition(Point(-1, -1)));
-    ASSERT_EQ(nullptr, component->findComponentAtPosition(Point(101, 101)));
-    ASSERT_EQ(component, component->findComponentAtPosition(Point(5, 5)));
-    ASSERT_EQ(component, component->findComponentAtPosition(Point(5, 45)));
-    ASSERT_EQ(component, component->findComponentAtPosition(Point(5, 85)));
-
-    // Now force a few child layouts
-    component->getChildAt(1)->ensureLayout(false);
-    ASSERT_EQ(component->getChildAt(0), component->findComponentAtPosition(Point(5, 5)));
-    ASSERT_EQ(component->getChildAt(1), component->findComponentAtPosition(Point(5, 45)));
-    ASSERT_EQ(component, component->findComponentAtPosition(Point(5, 85)));
-
-    // Finish laying out all children
-    component->getChildAt(3)->ensureLayout(false);
-    ASSERT_EQ(component->getChildAt(0), component->findComponentAtPosition(Point(5, 5)));
-    ASSERT_EQ(component->getChildAt(1), component->findComponentAtPosition(Point(5, 45)));
-    ASSERT_EQ(component->getChildAt(2), component->findComponentAtPosition(Point(5, 85)));
-}

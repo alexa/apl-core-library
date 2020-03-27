@@ -17,28 +17,6 @@
 
 namespace apl {
 
-ConstJSONArray
-arrayify(const rapidjson::Value& value)
-{
-    return ConstJSONArray(&value);
-}
-
-/*
- * Given a JSON object, look up a property by name or names and return the resulting
- * object.  Do not do any data-binding expansion.
- */
-ConstJSONArray
-arrayifyProperty(const rapidjson::Value& value)
-{
-    return ConstJSONArray();
-}
-
-std::vector<Object>
-arrayifyProperty(const Context& context, const Object& value)
-{
-    return std::vector<Object>();
-}
-
 std::vector<Object>
 arrayify(const Context& context, const Object& value)
 {
@@ -74,23 +52,16 @@ arrayify(const Context& context, const Object& value)
     return std::vector<Object>({value});
 }
 
-
-std::vector<Object>
-deepArrayifyProperty(const Context& context, const Object& value)
-{
-    return std::vector<Object>();
-}
-
-std::vector<Object>
-deepArrayify(const Context& context, const Object& value)
+Object
+arrayifyAsObject(const Context& context, const Object& value)
 {
     // A top-level string may be a data-bound expression that expands into an array
     if (value.isString()) {
         Object v = evaluate(context, value);
         if (v.isArray())
-            return v.getArray();
+            return v;
 
-        return std::vector<Object>({v});
+        return Object(std::vector<Object>({v}));
     }
 
     if (value.isArray()) {
@@ -106,14 +77,14 @@ deepArrayify(const Context& context, const Object& value)
                     result.push_back(v);
             }
             else {
-                result.push_back(evaluateRecursive(context, m));
+                result.push_back(m);
             }
         }
-        return result;
+        return Object(std::move(result));
     }
 
-    // Any other type of object gets evaluated recursively
-    return std::vector<Object>({evaluateRecursive(context, value)});
+    // Any other type of object gets returned as [ value ]
+    return Object(std::vector<Object>({value}));
 }
 
 

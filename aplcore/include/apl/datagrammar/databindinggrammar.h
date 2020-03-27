@@ -18,12 +18,13 @@
 #ifndef _APL_DATA_BINDING_GRAMMAR
 #define _APL_DATA_BINDING_GRAMMAR
 
-#include <pegtl.hh>
-#include <pegtl/contrib/abnf.hh>
+#include <tao/pegtl.hpp>
+#include <tao/pegtl/contrib/abnf.hpp>
 
 namespace apl {
 namespace datagrammar {
 
+namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 using namespace pegtl;
 
 // TODO:  These rules are not currently UTF-8 safe (which is our default encoding for RapidJSON)

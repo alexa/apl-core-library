@@ -104,7 +104,17 @@ static const char *SERIALIZE_COMPONENTS =
         "        },"
         "        {"
         "          \"type\": \"Sequence\","
-        "          \"id\": \"sequence\""
+        "          \"id\": \"sequence\","
+        "          \"data\": [1,2,3,4,5],"
+        "          \"items\": ["
+        "            {"
+        "              \"type\": \"Text\","
+        "              \"id\": \"text\","
+        "              \"width\": 100,"
+        "              \"height\": 100,"
+        "              \"text\": \"${data}\""
+        "            }"
+        "          ]"
         "        },"
         "        {"
         "          \"type\": \"TouchWrapper\","
@@ -121,7 +131,17 @@ static const char *SERIALIZE_COMPONENTS =
         "        },"
         "        {"
         "          \"type\": \"Pager\","
-        "          \"id\": \"pager\""
+        "          \"id\": \"pager\","
+        "          \"data\": [1,2,3,4,5],"
+        "          \"items\": ["
+        "            {"
+        "              \"type\": \"Text\","
+        "              \"id\": \"text\","
+        "              \"width\": 100,"
+        "              \"height\": 100,"
+        "              \"text\": \"${data}\""
+        "            }"
+        "          ]"
         "        },"
         "        {"
         "          \"type\": \"VectorGraphic\","
@@ -201,6 +221,7 @@ TEST_F(SerializeTest, Components)
     ASSERT_TRUE(scroll);
     auto& scrollJson = json["children"][2];
     checkCommonProperties(scroll, scrollJson);
+    ASSERT_EQ(scroll->getCalculated(kPropertyScrollPosition).asNumber(), scrollJson["_scrollPosition"].GetDouble());
 
     auto frame = context->findComponentById("frame");
     ASSERT_TRUE(frame);
@@ -220,6 +241,7 @@ TEST_F(SerializeTest, Components)
     auto& sequenceJson = json["children"][4];
     checkCommonProperties(sequence, sequenceJson);
     ASSERT_EQ(sequence->getCalculated(kPropertyScrollDirection), sequenceJson["scrollDirection"].GetDouble());
+    ASSERT_EQ(sequence->getCalculated(kPropertyScrollPosition).asNumber(), sequenceJson["_scrollPosition"].GetDouble());
 
     auto touch = context->findComponentById("touch");
     ASSERT_TRUE(touch);
@@ -231,6 +253,7 @@ TEST_F(SerializeTest, Components)
     auto& pagerJson = json["children"][6];
     checkCommonProperties(pager, pagerJson);
     ASSERT_EQ(pager->getCalculated(kPropertyNavigation), pagerJson["navigation"].GetDouble());
+    ASSERT_EQ(pager->getCalculated(kPropertyCurrentPage), pagerJson["_currentPage"].GetDouble());
 
     auto vector = context->findComponentById("vector");
     ASSERT_TRUE(vector);
@@ -411,7 +434,8 @@ const static char *SERIALIZE_ALL_RESULT =
     "  \"_user\": {},"
     "  \"width\": \"100%\","
     "  \"onCursorEnter\": [],"
-    "  \"onCursorExit\": []"
+    "  \"onCursorExit\": [],"
+    "  \"_laidOut\": true"
     "}";
 
 #include "rapidjson/filewritestream.h"
@@ -435,4 +459,150 @@ TEST_F(SerializeTest, SerializeAll)
 
     // Compare the output - they should be the same
     ASSERT_TRUE(json == result);
+}
+
+static const char *CHILDREN_UPDATE =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.0\","
+        "  \"mainTemplate\": {"
+        "    \"item\": {"
+        "      \"type\": \"Container\","
+        "      \"data\": \"${TestArray}\","
+        "      \"item\": {"
+        "        \"type\": \"Text\","
+        "        \"text\": \"${data} ${index} ${dataIndex} ${length}\""
+        "      }"
+        "    }"
+        "  }"
+        "}";
+
+TEST_F(SerializeTest, ChildrenUpdateNotification)
+{
+    auto myArray = LiveArray::create(ObjectArray{"A", "B"});
+    config.liveData("TestArray", myArray);
+
+    loadDocument(CHILDREN_UPDATE);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(2, component->getChildCount());
+
+    auto removedId = component->getChildAt(1)->getUniqueId();
+
+    myArray->insert(0, "Z");  // Z, A, B
+    myArray->push_back("C");  // Z, A, B, C
+    myArray->remove(2);       // Z, A, C
+    root->clearPending();
+
+    ASSERT_EQ(3, component->getChildCount());
+
+    rapidjson::Document doc;
+
+    auto json = component->serializeDirty(doc.GetAllocator());
+
+    ASSERT_EQ(2, json.MemberCount());
+
+    auto& notify = json["_notify_childrenChanged"];
+
+    ASSERT_EQ(3, notify.Size());
+    ASSERT_EQ(0.0, notify[0]["index"].GetDouble());
+    ASSERT_EQ(component->getChildAt(0)->getUniqueId(), notify[0]["uid"].GetString());
+    ASSERT_STREQ("insert", notify[0]["action"].GetString());
+    ASSERT_EQ(2.0, notify[1]["index"].GetDouble());
+    ASSERT_EQ(component->getChildAt(2)->getUniqueId(), notify[1]["uid"].GetString());
+    ASSERT_STREQ("insert", notify[1]["action"].GetString());
+    ASSERT_EQ(3.0, notify[2]["index"].GetDouble());
+    ASSERT_EQ(removedId, notify[2]["uid"].GetString());
+    ASSERT_STREQ("remove", notify[2]["action"].GetString());
+}
+
+static const char *SEQUENCE_CHILDREN_UPDATE =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.0\","
+        "  \"mainTemplate\": {"
+        "    \"item\": {"
+        "      \"type\": \"Sequence\","
+        "      \"data\": \"${TestArray}\","
+        "      \"item\": {"
+        "        \"type\": \"Text\","
+        "        \"height\": 100,"
+        "        \"width\": \"100%\","
+        "        \"text\": \"${data} ${index} ${dataIndex} ${length}\""
+        "      }"
+        "    }"
+        "  }"
+        "}";
+
+TEST_F(SerializeTest, SequencePositionChildrenUpdate)
+{
+    auto myArray = LiveArray::create(ObjectArray{"A", "B"});
+    config.liveData("TestArray", myArray);
+
+    loadDocument(SEQUENCE_CHILDREN_UPDATE);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(2, component->getChildCount());
+
+    myArray->insert(0, "Z");  // Z, A, B
+    myArray->remove(2);       // Z, A
+    root->clearPending();
+
+    ASSERT_EQ(2, component->getChildCount());
+
+    ASSERT_EQ(100, component->getCalculated(kPropertyScrollPosition).asNumber());
+
+    rapidjson::Document doc;
+
+    auto json = component->serializeDirty(doc.GetAllocator());
+
+    ASSERT_EQ(3, json.MemberCount());
+    ASSERT_EQ(2, json["_notify_childrenChanged"].Size());
+    ASSERT_EQ(component->getCalculated(kPropertyScrollPosition).asNumber(), json["_scrollPosition"].GetDouble());
+}
+
+static const char *PAGER_CHILDREN_UPDATE =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.0\","
+        "  \"mainTemplate\": {"
+        "    \"item\": {"
+        "      \"type\": \"Pager\","
+        "      \"data\": \"${TestArray}\","
+        "      \"item\": {"
+        "        \"type\": \"Text\","
+        "        \"height\": 100,"
+        "        \"width\": \"100%\","
+        "        \"text\": \"${data} ${index} ${dataIndex} ${length}\""
+        "      }"
+        "    }"
+        "  }"
+        "}";
+
+TEST_F(SerializeTest, PagerPositionChildrenUpdate)
+{
+    auto myArray = LiveArray::create(ObjectArray{"A", "B"});
+    config.liveData("TestArray", myArray);
+
+    loadDocument(PAGER_CHILDREN_UPDATE);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(2, component->getChildCount());
+
+    ASSERT_EQ(0, component->getCalculated(kPropertyCurrentPage).getInteger());
+
+    myArray->insert(0, "Z");  // Z, A, B
+    myArray->remove(2);       // Z, A
+    root->clearPending();
+
+    ASSERT_EQ(2, component->getChildCount());
+
+    rapidjson::Document doc;
+
+    auto json = component->serializeDirty(doc.GetAllocator());
+
+    ASSERT_EQ(3, json.MemberCount());
+    ASSERT_EQ(2, json["_notify_childrenChanged"].Size());
+    ASSERT_EQ(1, component->getCalculated(kPropertyCurrentPage).getInteger());
+    ASSERT_EQ(component->getCalculated(kPropertyCurrentPage).getInteger(), json["_currentPage"].GetDouble());
 }

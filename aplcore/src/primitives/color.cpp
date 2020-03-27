@@ -19,6 +19,8 @@
 
 namespace apl {
 
+namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
+
 /**
  * Parse a color string and return an ARGB 32-bit unsigned value.
  * @param color The color string.
@@ -26,9 +28,9 @@ namespace apl {
  */
 uint32_t Color::parse(const SessionPtr& session, const char *color) {
     try {
-        pegtl::data_parser parser(color, "color_parser");
         colorgrammar::color_state state;
-        parser.parse<colorgrammar::grammar, colorgrammar::action>(state);
+        pegtl::string_input<> in(color, "");
+        pegtl::parse<colorgrammar::grammar, colorgrammar::action>(in, state);
         return state.getColor();
     }
     catch (pegtl::parse_error e) {

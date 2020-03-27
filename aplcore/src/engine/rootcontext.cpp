@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -25,20 +25,20 @@
 #include "apl/content/content.h"
 #include "apl/utils/log.h"
 #include "apl/content/metrics.h"
+#include "apl/engine/extensionmanager.h"
 #include "apl/engine/rootcontext.h"
 #include "apl/engine/resources.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/rootcontextdata.h"
 #include "apl/time/timemanager.h"
 #include "apl/graphic/graphic.h"
+#include "apl/livedata/livedataobject.h"
 
 namespace apl {
 
 const char *ELAPSED_TIME = "elapsedTime";
 const char *LOCAL_TIME = "localTime";
 const char *UTC_TIME = "utcTime";
-
-static const bool DEBUG_ROOT_CONTEXT = false;
 
 RootContextPtr
 RootContext::create(const Metrics& metrics, const ContentPtr& content)
@@ -84,19 +84,27 @@ RootContext::RootContext(const Metrics& metrics, const ContentPtr& content, cons
     if (!session)
         session = content->getSession();
 
-    mCore = std::make_shared<RootContextData>(metrics, config, theme, content->getDocument()->version(), session);
+    mCore = std::make_shared<RootContextData>(metrics, config, theme,
+                                              content->getDocument()->version(), session,
+                                              content->mExtensionRequests);
     mContext = Context::create(metrics, mCore);
 
     mContext->putSystemWriteable(ELAPSED_TIME, mTimeManager->currentTime());
 
-    mLocalTime = config.getLocalTime();
-    mContext->putSystemWriteable(LOCAL_TIME, mLocalTime);
-    mContext->putSystemWriteable(UTC_TIME, mLocalTime - config.getLocalTimeAdjustment());
+    mUTCTime = config.getUTCTime();
+    mLocalTimeAdjustment = config.getLocalTimeAdjustment();
+    mContext->putSystemWriteable(UTC_TIME, mUTCTime);
+    mContext->putSystemWriteable(LOCAL_TIME, mUTCTime + mLocalTimeAdjustment);
+
+    // Insert one LiveArrayObject or LiveMapObject into the top-level context for each defined LiveObject
+    for (const auto& m : config.getLiveObjectMap())
+        LiveDataObject::create(m.second, mContext, m.first);
 }
 
 RootContext::~RootContext()
 {
     assert(mCore);
+    clearDirty();
     mCore->terminate();
 }
 
@@ -104,6 +112,10 @@ void
 RootContext::clearPending() const
 {
     assert(mCore);
+
+    // Flush any dynamic data changes
+    mCore->dataManager().flushDirty();
+
     // Make sure any pending events have executed
     mTimeManager->runPending();
 
@@ -133,8 +145,9 @@ RootContext::popEvent()
         return event;
     }
 
+    // This should never be reached.
     LOG(LogLevel::ERROR) << "No events available";
-    assert(false);
+    std::exit(EXIT_FAILURE);
 }
 
 bool
@@ -181,7 +194,7 @@ RootContext::createDocumentEventProperties(const std::string& handler) const {
 ContextPtr
 RootContext::createDocumentContext(const std::string& handler)
 {
-    ContextPtr ctx = Context::create(mContext);
+    ContextPtr ctx = Context::create(payloadContext());
     auto event = createDocumentEventProperties(handler);
     ctx->putConstant("event", event);
     return ctx;
@@ -191,7 +204,7 @@ RootContext::createDocumentContext(const std::string& handler)
 ContextPtr
 RootContext::createKeyboardDocumentContext(const std::string& handler, const ObjectMapPtr& keyboard)
 {
-    ContextPtr ctx = Context::create(mContext);
+    ContextPtr ctx = Context::create(payloadContext());
     auto event = createDocumentEventProperties(handler);
     event->emplace("keyboard", keyboard);
     ctx->putConstant("event", event);
@@ -205,6 +218,22 @@ RootContext::executeCommands(const apl::Object& commands, bool fastMode)
     return mContext->sequencer().executeCommands(commands, ctx, nullptr, fastMode);
 }
 
+ActionPtr
+RootContext::invokeExtensionEventHandler(const std::string& uri, const std::string& name, const ObjectMap& data,
+                                         bool fastMode)
+{
+    auto handler = mCore->extensionManager().findHandler(ExtensionEventHandler{uri, name});
+    if (handler.isNull())
+        return nullptr;
+
+    // Create a document-level context and copy the provided data in
+    ContextPtr ctx = createDocumentContext(name);
+    for (const auto& m : data)
+        ctx->putConstant(m.first, m.second);
+
+    return mContext->sequencer().executeCommands(handler, ctx, nullptr, fastMode);
+}
+
 void
 RootContext::cancelExecution()
 {
@@ -212,28 +241,50 @@ RootContext::cancelExecution()
     mCore->sequencer().reset();
 }
 
-
 ComponentPtr
 RootContext::topComponent()
 {
     return mCore->mTop;
 }
 
-void
-RootContext::updateTime(apl_time_t currentTime)
+ContextPtr
+RootContext::payloadContext() const
 {
-    updateTime(currentTime, currentTime - mTimeManager->currentTime() + mLocalTime);
+    // We could cache the payload context, but it is infrequently used. Instead we search upwards from the
+    // top components context until we find the context right before the top-level context.
+
+    auto context = mCore->mTop->getContext();
+    if (context == nullptr || context == mContext)
+        return mContext;
+
+    while (context->parent() != mContext)
+        context = context->parent();
+
+    return context;
 }
 
 void
-RootContext::updateTime(apl_time_t currentTime, apl_time_t localTime)
+RootContext::updateTime(apl_time_t elapsedTime)
 {
-    mTimeManager->updateTime(currentTime);
+    auto lastTime = mTimeManager->currentTime();
+    mTimeManager->updateTime(elapsedTime);
     mContext->systemUpdateAndRecalculate(ELAPSED_TIME, mTimeManager->currentTime(), true); // Read back in case it gets changed
 
-    mLocalTime = localTime;
-    mContext->systemUpdateAndRecalculate(LOCAL_TIME, mLocalTime, true);
-    mContext->systemUpdateAndRecalculate(UTC_TIME, localTime - mCore->rootConfig().getLocalTimeAdjustment(), true);
+    // Update the local time by how much time passed on the "elapsed" timer
+    mUTCTime += mTimeManager->currentTime() - lastTime;
+    mContext->systemUpdateAndRecalculate(UTC_TIME, mUTCTime, true);
+    mContext->systemUpdateAndRecalculate(LOCAL_TIME, mUTCTime + mLocalTimeAdjustment, true);
+}
+
+void
+RootContext::updateTime(apl_time_t elapsedTime, apl_time_t utcTime)
+{
+    mTimeManager->updateTime(elapsedTime);
+    mContext->systemUpdateAndRecalculate(ELAPSED_TIME, mTimeManager->currentTime(), true); // Read back in case it gets changed
+
+    mUTCTime = utcTime;
+    mContext->systemUpdateAndRecalculate(UTC_TIME, mUTCTime, true);
+    mContext->systemUpdateAndRecalculate(LOCAL_TIME, mUTCTime + mLocalTimeAdjustment, true);
 }
 
 void
@@ -271,11 +322,8 @@ RootContext::settings() {
 bool
 RootContext::setup()
 {
-    // Generate an ordered dependency list
-    std::vector<PackagePtr> ordered;
-    std::set<PackagePtr> inProgress;
-    if (!addToDependencyList(ordered, inProgress, mContent->getDocument()))
-        return false;
+
+    std::vector<PackagePtr> ordered = mContent->ordered();
 
     // check type field of each package
     auto enforceTypeField = mCore->rootConfig().getEnforceTypeField();
@@ -292,15 +340,9 @@ RootContext::setup()
 
     // Read settings
     {
-        const auto& json = mContent->getDocument()->json();
-        auto settingsIter = json.FindMember("settings");
-
-        // NOTE: Backward compatibility for some APL 1.0 users where a runtime allowed "features" instead of "settings"
-        if (settingsIter == json.MemberEnd())
-            settingsIter = json.FindMember("features");
-
-        if (settingsIter != json.MemberEnd() && settingsIter->value.IsObject())
-            mCore->mSettings.read(settingsIter->value);
+        const rapidjson::Value& settingsValue = Settings::findSettings(*mContent->getDocument());
+        if (!settingsValue.IsNull())
+            mCore->mSettings.read(settingsValue);
     }
 
     // Resource processing:
@@ -365,6 +407,21 @@ RootContext::setup()
         }
     }
 
+    // Identify all registered event handlers in all ordered documents
+    auto& em = mCore->extensionManager();
+    for (const auto& handler : em.qualifiedHandlerMap()) {
+        for (const auto& child : ordered) {
+            const auto& json = child->json();
+            auto h = json.FindMember(handler.first.c_str());
+            if (h != json.MemberEnd()) {
+                auto oldHandler = em.findHandler(handler.second);
+                if (!oldHandler.isNull())
+                    CONSOLE_CTP(mContext) << "Overwriting existing command handler " << handler.first;
+                em.addEventHandler(handler.second, asCommand(mContext, evaluate(mContext, h->value)));
+            }
+        }
+    }
+
     // Inflate the top component
     Properties properties;
 
@@ -389,51 +446,6 @@ RootContext::setup()
     return true;
 }
 
-bool
-RootContext::addToDependencyList(std::vector<PackagePtr>& ordered,
-                                 std::set<PackagePtr>& inProgress,
-                                 const PackagePtr& package)
-{
-    LOG_IF(DEBUG_ROOT_CONTEXT) << "addToDependencyList" << package << " dependency count="
-                             << package->getDependencies().size();
-
-    inProgress.insert(package);  // For dependency loop detection
-
-    // Start with the package dependencies
-    for (const auto& ref : package->getDependencies()) {
-        LOG_IF(DEBUG_ROOT_CONTEXT) << "checking child " << ref.toString();
-
-        // Convert the reference into a loaded PackagePtr
-        const auto& pkg = mContent->loaded().find(ref);
-        if (pkg == mContent->loaded().end()) {
-            LOGF(LogLevel::ERROR, "Missing package '%s' in the loaded set", ref.name().c_str());
-            return false;
-        }
-
-        const PackagePtr& child = pkg->second;
-
-        // Check if it is already in the dependency list (someone else included it first)
-        auto it = std::find(ordered.begin(), ordered.end(), child);
-        if (it != ordered.end()) {
-            LOG_IF(DEBUG_ROOT_CONTEXT) << "child package " << ref.toString() << " already in dependency list";
-            continue;
-        }
-
-        // Check for a circular dependency
-        if (inProgress.count(child)) {
-            CONSOLE_CTP(mContext).log("Circular package dependency '%s'", ref.name().c_str());
-            return false;
-        }
-
-        if (!addToDependencyList(ordered, inProgress, child))
-            return false;
-    }
-
-    LOG_IF(DEBUG_ROOT_CONTEXT) << "Pushing package " << package << " onto ordered list";
-    ordered.push_back(package);
-    inProgress.erase(package);
-    return true;
-}
 
 bool
 RootContext::verifyAPLVersionCompatibility(const std::vector<PackagePtr>& ordered,
@@ -453,10 +465,10 @@ RootContext::verifyTypeField(const std::vector<std::shared_ptr<Package>>& ordere
                              bool enforce)
 {
     for(auto& child : ordered) {
-        auto type = child->type().c_str();
-        if (std::strcmp(type, "APML") == 0)
-            CONSOLE_CTP(mContext)<< child->name() << ": Stop using the APML document format!";
-        else if (std::strcmp(type, "APL") != 0) {
+        auto type = child->type();
+        if (type.compare("APML") == 0) CONSOLE_CTP(mContext)
+                    << child->name() << ": Stop using the APML document format!";
+        else if (type.compare("APL") != 0) {
             CONSOLE_CTP(mContext) << child->name() << ": Document type field should be \"APL\"!";
             if(enforce) {
                 return false;

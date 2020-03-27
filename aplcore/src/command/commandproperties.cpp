@@ -31,6 +31,7 @@ Bimap<int, std::string> sCommandNameBimap = {
     {kCommandTypeScrollToIndex,     "ScrollToIndex"},
     {kCommandTypeScrollToComponent, "ScrollToComponent"},
     {kCommandTypeSetPage,           "SetPage"},
+    {kCommandTypeSelect,            "Select"},
     {kCommandTypeAutoPage,          "AutoPage"},
     {kCommandTypePlayMedia,         "PlayMedia"},
     {kCommandTypeControlMedia,      "ControlMedia"},
@@ -38,6 +39,7 @@ Bimap<int, std::string> sCommandNameBimap = {
     {kCommandTypeAnimateItem,       "AnimateItem"},
     {kCommandTypeSetFocus,          "SetFocus"},
     {kCommandTypeClearFocus,        "ClearFocus"},
+    {kCommandTypeFinish,            "Finish"},
 };
 
 Bimap<int, std::string> sCommandPropertyBimap = {
@@ -50,17 +52,21 @@ Bimap<int, std::string> sCommandPropertyBimap = {
     {kCommandPropertyComponents,       "components"},
     {kCommandPropertyComponentId,      "componentId"},
     {kCommandPropertyCount,            "count"},
+    {kCommandPropertyData,             "data"},
     {kCommandPropertyDelay,            "delay"},
     {kCommandPropertyDistance,         "distance"},
     {kCommandPropertyDuration,         "duration"},
     {kCommandPropertyEasing,           "easing"},
+    {kCommandPropertyExtension,        "extension"},
     {kCommandPropertyFinally,          "finally"},
     {kCommandPropertyHighlightMode,    "highlightMode"},
     {kCommandPropertyIndex,            "index"},
     {kCommandPropertyMinimumDwellTime, "minimumDwellTime"},
     {kCommandPropertyOnFail,           "onFail"},
+    {kCommandPropertyOtherwise,        "otherwise"},
     {kCommandPropertyPosition,         "position"},
     {kCommandPropertyProperty,         "property"},
+    {kCommandPropertyReason,           "reason"},
     {kCommandPropertyRepeatCount,      "repeatCount"},
     {kCommandPropertyRepeatMode,       "repeatMode"},
     {kCommandPropertyScreenLock,       "screenLock"},
@@ -107,6 +113,11 @@ Bimap<int, std::string> sControlMediaMap = {
 Bimap<int, std::string> sCommandRepeatModeMap = {
     {kCommandRepeatModeRestart, "restart"},
     {kCommandRepeatModeReverse, "reverse"}
+};
+
+Bimap<int, std::string> sCommandReasonMap = {
+        {kCommandReasonBack, "back"},
+        {kCommandReasonExit, "exit"}
 };
 
 } // namespace apl

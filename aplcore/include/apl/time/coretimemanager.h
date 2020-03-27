@@ -74,8 +74,6 @@ public:
             return;
         }
 
-        auto deltaTime = updatedTime - mTime;
-
         while (!mTimerHeap.empty() && mTimerHeap.begin()->endTime <= updatedTime)
             advanceToNext();
 

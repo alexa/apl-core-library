@@ -20,7 +20,7 @@
 #include <locale>
 #include <codecvt>
 
-#include <pegtl.hh>
+#include <tao/pegtl.hpp>
 
 #include "apl/primitives/object.h"
 #include "apl/primitives/styledtext.h"
@@ -28,6 +28,7 @@
 
 namespace apl {
 
+namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 using namespace pegtl;
 
 const std::map<std::string, StyledText::SpanType> sTextSpanTypeMap = {
@@ -53,7 +54,13 @@ const std::map<std::string, std::string> sTextSpecialEntity = {
 /**
  * Character converter to be used for multi-byte sized characters.
  */
+#ifdef APL_CORE_UWP
+// avoids a runtime crash on UWP
+// see:  https://tinyurl.com/ra2coob
+static std::wstring_convert<std::codecvt_utf8<wchar_t>> wchar_converter;
+#else
 static std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> wchar_converter;
+#endif
 
 /**
  * Internal utility to identify control characters.
@@ -307,42 +314,48 @@ struct action : nothing< Rule >
 
 template<> struct action< stagname >
 {
-    static void apply(const input& in, StyledTextState& state) {
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
         state.start(in.string());
     }
 };
 
 template<> struct action< etagname >
 {
-    static void apply(const input& in, StyledTextState& state) {
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
         state.end(in.string());
     }
 };
 
 template<> struct action< br >
 {
-    static void apply(const input& in, StyledTextState& state) {
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
         state.single(StyledText::kSpanTypeLineBreak);
     }
 };
 
 template<> struct action< word >
 {
-    static void apply(const input& in, StyledTextState& state) {
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
         state.append(in.string());
     }
 };
 
 template<> struct action< ws >
 {
-    static void apply(const input& in, StyledTextState& state) {
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
         state.space();
     }
 };
 
 template<> struct action< markdownchar >
 {
-    static void apply(const input& in, StyledTextState& state) {
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
         // TODO: "Best effort" suggests that we allow that, though spec says: Markup characters in text must be replaced
         // with character entity references. Do we want to log it or restrict it in any way?
         state.append(in.string());
@@ -351,7 +364,8 @@ template<> struct action< markdownchar >
 
 template<> struct action< stringentity >
 {
-    static void apply(const input& in, StyledTextState& state) {
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
         auto str =  in.string();
         auto entity = sTextSpecialEntity.find(str);
         if(entity != sTextSpecialEntity.end()) {
@@ -365,7 +379,8 @@ template<> struct action< stringentity >
 
 template<> struct action< decnum >
 {
-    static void apply(const input& in, StyledTextState& state) {
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
         unsigned long wc = std::stoul(in.string());
         state.append(wchar_converter.to_bytes(wc));
     }
@@ -373,7 +388,8 @@ template<> struct action< decnum >
 
 template<> struct action< hexnum >
 {
-    static void apply(const input& in, StyledTextState& state) {
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
         unsigned long wc = std::stoul(in.string(), 0, 16);
         state.append(wchar_converter.to_bytes(wc));
     }
@@ -387,11 +403,11 @@ StyledText::create(const Object& object) {
     auto str = object.asString();
     auto filtered = rtrim(stripControl(str));
 
-    data_parser parser(filtered, "TextMarkdown");
     StyledTextState state;
-    parser.parse<styledtext, action>(state);
+    pegtl::string_input<> in(filtered, "");
+    pegtl::parse<styledtext, action>(in, state);
 
-    return Object(StyledText(std::move(str), state.getText(), std::move(state.finalize())));
+    return Object(StyledText(std::move(str), state.getText(), state.finalize()));
 }
 
 Object StyledText::EMPTY() {

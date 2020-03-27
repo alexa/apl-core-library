@@ -49,7 +49,7 @@ public:
     void emplace(const Object& item);
     void emplace(const std::string& name, const Object& value) { mProperties.emplace(name, value); }
 
-    Object forParameter(const Context& context, const Parameter& parameter);
+    void addToContext(const ContextPtr &context, const Parameter &parameter, bool userWriteable);
 
     ObjectMap::const_iterator find(const char *name) const { return mProperties.find(name); }
     ObjectMap::const_iterator find(const std::string& name) const { return mProperties.find(name); }

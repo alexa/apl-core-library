@@ -50,24 +50,32 @@ ScrollViewComponent::propDefSet() const {
 Object
 ScrollViewComponent::getValue() const {
     auto height = YGNodeLayoutGetHeight(mYGNodeRef);
-    return height > 0 ? mCurrentPosition / height : 0;
+    auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
+    return height > 0 ? currentPosition / height : 0;
+}
+
+Point
+ScrollViewComponent::scrollPosition() const
+{
+    auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
+    return Point(0, currentPosition);
 }
 
 Point
 ScrollViewComponent::trimScroll(const Point& point) const {
     auto y = point.getY();
-    if (y <= 0 || mChildren.size() == 0)
+    if (y <= 0 || mChildren.empty())
         return Point();
 
-    float maxY = calculateMaxY();
+    float maxY = maxScroll();
 
     return Point(0, y <= maxY ? y : maxY);
 }
 
 float
-ScrollViewComponent::calculateMaxY() const {
+ScrollViewComponent::maxScroll() const {
     float bottom = mCalculated.get(kPropertyInnerBounds).getRect().getBottom();
-    if (mChildren.size() == 0) {
+    if (mChildren.empty()) {
         return bottom;
     }
     auto child = mChildren.at(mChildren.size() - 1);
@@ -82,7 +90,8 @@ ScrollViewComponent::allowForward() const {
     auto child = getChildAt(0);
     auto innerScrollSize = child->getCalculated(kPropertyBounds).getRect().getHeight();
     auto scrollSize = mCalculated.get(kPropertyInnerBounds).getRect().getHeight();
-    return mCurrentPosition + scrollSize < innerScrollSize;
+    auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
+    return currentPosition + scrollSize < innerScrollSize;
 }
 
 } // namespace apl

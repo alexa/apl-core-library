@@ -137,7 +137,7 @@ public:
      */
     RootContext(const Metrics& metrics, const ContentPtr& content, const RootConfig& config);
 
-    ~RootContext();
+    virtual ~RootContext();
 
     /**
      * @return The top-level context.
@@ -153,6 +153,12 @@ public:
      * @return The top-level component
      */
     ComponentPtr topComponent();
+
+    /**
+     * @return The top-level context with payload binding. This context is used when executing document-level
+     *         commands.
+     */
+    ContextPtr payloadContext() const;
 
     /**
      * @return True if one or more components needs to be updated.
@@ -177,6 +183,18 @@ public:
      * @param fastMode
      */
     ActionPtr executeCommands(const Object& commands, bool fastMode);
+
+    /**
+     * Invoke an extension event handler handler
+     * @param uri The URI of the custom document handler
+     * @param name The name of the handler to invoke
+     * @param data The data to associate with the handler
+     * @param fastMode If true, this handler will be invoked in fast mode
+     * @return An ActionPtr
+     */
+    ActionPtr invokeExtensionEventHandler(const std::string& uri, const std::string& name, const ObjectMap& data,
+                                          bool fastMode);
+
     /**
      * Cancel any current commands in execution.  This is typically called
      * as a result of the user touching on the screen to interrupt.
@@ -186,16 +204,25 @@ public:
     /**
      * Move forward in time. This method also advances UTC and Local time by the
      * same amount.
-     * @param currentTime The time to move forward to.
+     * @param elapsedTime The time to move forward to.
      */
-    void updateTime(apl_time_t currentTime);
+    void updateTime(apl_time_t elapsedTime);
 
     /**
      * Move forward in time and separately update local/UTC time.
-     * @param currentTime The time to move forward to
-     * @param localTime The current local time on the clock
+     * @param elapsedTime The time to move forward to
+     * @param utcTime The current UTC time on your system
      */
-    void updateTime(apl_time_t currentTime, apl_time_t localTime);
+    void updateTime(apl_time_t elapsedTime, apl_time_t utcTime);
+
+    /**
+     * Set the local time zone adjustment.  This is the number of milliseconds added to the UTC time
+     * that gives the correct local time including any DST changes.
+     * @param adjustment The adjustment time in milliseconds
+     */
+    void setLocalTimeAdjustment(apl_duration_t adjustment) {
+        mLocalTimeAdjustment = adjustment;
+    }
 
     /**
      * Generates a scroll event that will scroll the target component's sub bounds
@@ -294,14 +321,15 @@ private:
     bool verifyAPLVersionCompatibility(const std::vector<std::shared_ptr<Package>>& ordered,
                                        const APLVersion& compatibilityVersion);
     bool verifyTypeField(const std::vector<std::shared_ptr<Package>>& ordered, bool enforce);
-    std::shared_ptr<ObjectMap> createDocumentEventProperties(const std::string& handler) const;
+    ObjectMapPtr createDocumentEventProperties(const std::string& handler) const;
 
 private:
     ContentPtr mContent;
     ContextPtr mContext;
     std::shared_ptr<RootContextData> mCore;  // When you die, make sure to tell the data to terminate itself.
     std::shared_ptr<TimeManager> mTimeManager;
-    apl_time_t mLocalTime;  // Track the current local time
+    apl_time_t mUTCTime;  // Track the system UTC time
+    apl_duration_t mLocalTimeAdjustment;
 };
 
 } // namespace apl

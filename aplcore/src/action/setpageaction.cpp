@@ -85,6 +85,7 @@ SetPageAction::start()
         resolve();
     }
     else {
+        mTarget->getChildAt(index)->ensureLayout(true);
         EventBag bag;
         bag.emplace(kEventPropertyPosition, index);
         bag.emplace(kEventPropertyDirection, direction);

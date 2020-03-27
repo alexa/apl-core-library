@@ -82,8 +82,8 @@ private:
     const std::vector<ImportRef>& getDependencies() const { return mDependencies; }
 
 private:
-    const JsonData mJson;
     std::string mName;
+    const JsonData mJson;
     std::vector<ImportRef> mDependencies;
 };
 

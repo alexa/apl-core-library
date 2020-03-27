@@ -48,6 +48,15 @@ Component::updateGraphic(const GraphicContentPtr& json) {
     return false;
 }
 
+void
+Component::clearDirty() {
+    mDirty.clear();
+    // Clean out changed children property.
+    auto changedChildren = mCalculated.get(kPropertyNotifyChildrenChanged);
+    if (!changedChildren.empty() && changedChildren.isArray()) {
+        changedChildren.getMutableArray().clear();
+    }
+}
 
 bool
 Component::getBoundsInParent(const ComponentPtr& ancestor, Rect& out) const

@@ -61,7 +61,6 @@ public:
 
         auto bold = component->getCalculated(kPropertyFontWeight).asInt() >= 700;
         auto text = component->getCalculated(kPropertyText).asString();
-        auto len = text.size();
         auto lines = splitString(text, "<br>");
 
         int lineCount = lines.size();
@@ -71,7 +70,7 @@ public:
 
         float w = 10 * widestLine * (bold ? 2 : 1);  // Bold fonts are twice as wide
         float h = 10 * lineCount;
-        return {.width=w, .height=h};
+        return { w, h };
     }
 
     virtual float baseline( TextComponent *component, float width, float height ) override
@@ -149,26 +148,6 @@ TEST_F(FlexboxTest, TooLarge)
     loadDocument(TOO_LARGE);
     ASSERT_EQ(Rect(0,0,2000,2000), component->getCalculated(kPropertyBounds).getRect());
 }
-
-static const char *SIMPLE_BOUNDS =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"maxWidth\": 600,"
-    "      \"maxHeight\": 2000"
-    "    }"
-    "  }"
-    "}";
-
-// TODO: Setting the maxWidth/Height on a top-level component causes problems???
-//TEST_F(FlexboxTest, SimpleBounds)
-//{
-//    loadDocument(SIMPLE_BOUNDS);
-//    ASSERT_EQ(Rect(0,0,0,0), component->getCalculated(kPropertyBounds).getRect());
-//}
 
 static const char *THREE_CHILDREN_TALL =
     "{"
@@ -1036,7 +1015,6 @@ TEST_F(FlexboxTest, SequenceTest)
 
     for (int i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        child->ensureLayout();
         ASSERT_EQ(Rect(0, 400*i, 1024, 400), child->getCalculated(kPropertyBounds).getRect());
     }
 }
@@ -1076,7 +1054,6 @@ TEST_F(FlexboxTest, HorizontalSequenceTest)
 
     for (int i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        child->ensureLayout();
         ASSERT_EQ(Rect(400*i, 0, 400, 800), child->getCalculated(kPropertyBounds).getRect());
     }
 }
@@ -1119,6 +1096,7 @@ const static char *SPACED_SEQUENCE =
 
 TEST_F(FlexboxTest, SequenceWithSpacingTest)
 {
+    config.sequenceChildCache(2);
     loadDocument(SPACED_SEQUENCE);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(8, component->getChildCount());
@@ -1127,7 +1105,6 @@ TEST_F(FlexboxTest, SequenceWithSpacingTest)
     int y = 0;
     for (int i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        child->ensureLayout();
         ASSERT_EQ(std::to_string(i+1), child->getChildAt(0)->getCalculated(kPropertyText).asString());
         ASSERT_EQ(Rect(0, y, 1024, 200), child->getCalculated(kPropertyBounds).getRect());
         y += 200 + (i + 2) * 10;
@@ -1136,13 +1113,11 @@ TEST_F(FlexboxTest, SequenceWithSpacingTest)
 
 TEST_F(FlexboxTest, SequenceWithSpacingTestEnsureJump)
 {
+    config.sequenceChildCache(2);
     loadDocument(SPACED_SEQUENCE);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(8, component->getChildCount());
     ASSERT_EQ(kComponentTypeSequence, component->getType());
-
-    // Calling ensure of the last child should make all of the others appear
-    component->getChildAt(7)->ensureLayout();
 
     int y = 0;
     for (int i = 0 ; i < component->getChildCount() ; i++) {

@@ -19,7 +19,7 @@
 #define _APL_DATA_BINDING_STACK_H
 
 #include <cstdio>
-#include <pegtl.hh>
+#include <tao/pegtl.hpp>
 #include "databindinggrammar.h"
 #include "functions.h"
 #include "node.h"
@@ -226,7 +226,7 @@ public:
                 return Object(std::make_shared<std::vector<Object> >(mObjects));
 
             case kCombineSingle:
-                assert(mObjects.size());
+                assert(mObjects.size() == 1);
                 return mObjects.back();
         }
 

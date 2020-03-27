@@ -77,31 +77,44 @@ static const std::vector<TimeTest> BASIC_TESTS = {
     {"H", 123 * 60 * 60 * 1000, "3"},
     {"HH", 123 * 60 * 60 * 1000, "03"},
     {"HHH", 123 * 60 * 60 * 1000, "123"},
-    {"d", 0, "1"},    // First day of the month
-    {"dd", 0, "01"},
-    {"ddd", 0, "0"},  // No days have passed
-    {"d", 7 * 60 * 60 * 24 * 1000 , "8"},   // Eighth of the month
-    {"dd", 7 * 60 * 60 * 24 * 1000, "08"},
-    {"ddd", 7 * 60 * 60 * 24 * 1000, "7"},   // Seven days have passed
-    {"d", 123L * 60 * 60 * 24 * 1000, "4"},  // May 4th
-    {"dd", 123L * 60 * 60 * 24 * 1000, "04"},
-    {"ddd", 123L * 60 * 60 * 24 * 1000, "123"},
+    {"D", 0, "1"},    // First day of the month
+    {"DD", 0, "01"},
+    {"DDD", 0, "0"},  // No days have passed
+    {"D", 7 * 60 * 60 * 24 * 1000 , "8"},   // Eighth of the month
+    {"DD", 7 * 60 * 60 * 24 * 1000, "08"},
+    {"DDD", 7 * 60 * 60 * 24 * 1000, "7"},   // Seven days have passed
+	
+	// for the Microsoft compiler, for values greater than MAX_INT,
+	// we need to use the 'LL' suffix to force it to use a 64 bit long
+    {"D", 123LL * 60 * 60 * 24 * 1000, "4"},  // May 4th
+    {"DD", 123LL * 60 * 60 * 24 * 1000, "04"},
+    {"DDD", 123LL * 60 * 60 * 24 * 1000, "123"},
     {"M", 0, "1"},   // First month of the year (January)
     {"MM", 0, "01"},
-    {"M", 180 * 24 * 60 * 60 * 1000L, "6"}, // June
-    {"MM", 180 * 24 * 60 * 60 * 1000L, "06"},
-    {"M", 360 * 24 * 60 * 60 * 1000L, "12"}, // December
-    {"MM", 360 * 24 * 60 * 60 * 1000L, "12"},
-    {"M", 367 * 24 * 60 * 60 * 1000L, "1"}, // January
-    {"MM", 367 * 24 * 60 * 60 * 1000L, "01"},
+    {"M", 180LL * 24 * 60 * 60 * 1000, "6"}, // June
+    {"MM", 180LL * 24 * 60 * 60 * 1000, "06"},
+    {"M", 360LL * 24 * 60 * 60 * 1000, "12"}, // December
+    {"MM", 360LL * 24 * 60 * 60 * 1000, "12"},
+    {"M", 367LL * 24 * 60 * 60 * 1000, "1"}, // January
+    {"MM", 367LL * 24 * 60 * 60 * 1000, "01"},
     {"YY", 0, "70"},
     {"YYY", 0, "70Y"},  // Notice the trailing "Y"
     {"YYYY", 0, "1970"},
-    {"YY", 367 * 24 * 60 * 60 * 1000L, "71"},
-    {"YYYY", 367 * 24 * 60 * 60 * 1000L, "1971"},
-    {"YY", 40 * 367 * 24 * 60 * 60 * 1000L, "10"},
-    {"YYYY", 40 * 367 * 24 * 60 * 60 * 1000L, "2010"},
-
+    {"YY", 367LL * 24 * 60 * 60 * 1000, "71"},
+    {"YYYY", 367LL * 24 * 60 * 60 * 1000, "1971"},
+    {"YY", 40LL * 367 * 24 * 60 * 60 * 1000, "10"},
+    {"YYYY", 40LL * 367 * 24 * 60 * 60 * 1000, "2010"},
+    // ensure compliance with unix time, 946684817 (seconds since epoch) is Sat Jan  1 00:00:17 UTC 2000
+    // If this time were incorrectly treated as the true number of seconds elapsed since Jan 1 1970, then it would
+    // incorrectly be rendered as Fri Dec 31 23:59:45 UTC 1999 due to incorrect compensation for the 32 leap seconds
+    // between 1970 and 2000
+    {"YYYY", 946684817000LL, "2000"},
+    {"MM", 946684817000LL, "01"},
+    {"DD", 946684817000LL, "01"},
+    {"HH", 946684817000LL, "00"},
+    {"mm", 946684817000LL, "00"},
+    {"ss", 946684817000LL, "17"},
+    {"sss", 946684817000LL, "946684817"},
 };
 
 TEST(TimeGrammarTest, Basic)

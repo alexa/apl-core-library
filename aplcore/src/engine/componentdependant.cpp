@@ -15,33 +15,47 @@
 
 #include "apl/engine/componentdependant.h"
 #include "apl/engine/context.h"
+#include "apl/engine/evaluate.h"
 #include "apl/component/corecomponent.h"
 
 namespace apl {
 
-void ComponentDependant::create(const ContextPtr& upstreamContext,
-                                const std::string& upstreamName,
-                                const CoreComponentPtr& downstreamComponent,
-                                PropertyKey downstreamKey) {
-    auto dependant = std::make_shared<ComponentDependant>(upstreamContext, downstreamComponent, downstreamKey);
-    upstreamContext->addDownstream(upstreamName, dependant);
-    downstreamComponent->addUpstream(downstreamKey, dependant);
-}
-
-void
-ComponentDependant::removeFromSource()
+void ComponentDependant::create(const CoreComponentPtr& downstreamComponent,
+                                PropertyKey downstreamKey,
+                                const Object& equation,
+                                const ContextPtr& bindingContext,
+                                BindingFunction bindingFunction)
 {
-    auto context = mUpstreamContext.lock();
-    if (context)
-        context->removeDownstream(shared_from_this());
+    SymbolReferenceMap symbols;
+    equation.symbols(symbols);
+    if (symbols.empty())
+        return;
+
+    auto dependant = std::make_shared<ComponentDependant>(downstreamComponent, downstreamKey, equation,
+                                                          bindingContext, bindingFunction);
+
+    for (const auto& symbol : symbols.get())
+        symbol.second->addDownstream(symbol.first, dependant);
+
+    downstreamComponent->addUpstream(downstreamKey, dependant);
 }
 
 void
 ComponentDependant::recalculate(bool useDirtyFlag) const
 {
-    auto component = mDownstreamComponent.lock();
-    if (component)
-        component->recalculateProperty(mDownstreamKey);
+    auto downstream = mDownstreamComponent.lock();
+    auto bindingContext = mBindingContext.lock();
+    if (downstream && bindingContext) {
+        Object value;
+        // If actual equation - evaluate, if object - try to go recursive.
+        if (mEquation.isEvaluable()) {
+            value = mEquation.eval();
+        } else {
+            value = evaluateRecursive(bindingContext, mEquation);
+        }
+        value = mBindingFunction(*bindingContext, value);
+        downstream->updateProperty(mDownstreamKey, value);
+    }
 }
 
 } // namespace apl

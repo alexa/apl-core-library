@@ -74,6 +74,7 @@ private:
     bool mTerminated;
     const std::shared_ptr<TimeManager> mTimeManager;
     std::set<ActionPtr> mOneShotSet;
+    bool mResetInExecute;
 };
 
 } // namespace apl

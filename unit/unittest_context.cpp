@@ -14,22 +14,8 @@
  */
 
 #include "testeventloop.h"
-//#include <iostream>
-//#include <iomanip>
-//
-//#include "gtest/gtest.h"
-//
-//#include "apl/engine/evaluate.h"
-//#include "apl/content/metrics.h"
-//#include "apl/engine/context.h"
-//#include "apl/content/rootconfig.h"
 
 using namespace apl;
-
-static Object o(const char *s){ return Object(s); }
-static Object o(bool b){ return Object(b); }
-static Object o(int i){ return Object(i); }
-static Object o(double d){ return Object(d); }
 
 class ContextTest : public MemoryWrapper {
 protected:
@@ -53,7 +39,7 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ("1.0", c->opt("environment").get("agentVersion").asString());
     EXPECT_EQ("normal", c->opt("environment").get("animation").asString());
     EXPECT_FALSE(c->opt("environment").get("allowOpenURL").asBoolean());
-    EXPECT_EQ("1.2", c->opt("environment").get("aplVersion").asString());
+    EXPECT_EQ("1.3", c->opt("environment").get("aplVersion").asString());
     EXPECT_FALSE(c->opt("environment").get("disallowVideo").asBoolean());
     EXPECT_EQ(2048, c->opt("viewport").get("pixelWidth").asNumber());
     EXPECT_EQ(1024, c->opt("viewport").get("width").asNumber());
@@ -136,17 +122,57 @@ TEST_F(ContextTest, Mode)
     }
 }
 
+static const char * TIME_DOC =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.1\","
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"Text\","
+    "      \"text\": \"${localTime}\""
+    "    }"
+    "  }"
+    "}";
+
+
 TEST_F(ContextTest, Time)
 {
-    // Thu Sep 05 2019 15:39:17  (LocalTime)
-    auto root = RootConfig().localTime(1567697957924).localTimeAdjustment(3600 * 1000);
-    ASSERT_EQ(1567697957924, root.getLocalTime());
-    ASSERT_EQ(3600000, root.getLocalTimeAdjustment());
+    // Thu Sep 05 2019 15:39:17  (UTCTime)
+    const unsigned long long utcTime = 1567697957924;
+    const long long deltaTime = 3600 * 1000;
+
+    auto rootConfig = RootConfig().utcTime(utcTime).localTimeAdjustment(deltaTime);
+    ASSERT_EQ(utcTime, rootConfig.getUTCTime());
+    ASSERT_EQ(deltaTime, rootConfig.getLocalTimeAdjustment());
+
+    auto content = Content::create(TIME_DOC);
+    auto root = RootContext::create(Metrics(), content, rootConfig);
+    auto component = root->topComponent();
+
+    ASSERT_EQ(utcTime + deltaTime, root->context().opt("localTime").asNumber());
+    ASSERT_EQ(utcTime, root->context().opt("utcTime").asNumber());
+
+    ASSERT_TRUE(IsEqual(std::to_string(utcTime + deltaTime), component->getCalculated(kPropertyText).asString()));
+
+    // Change the local time zone
+    const long long deltaNew = -10 * 3600 * 1000;
+    root->setLocalTimeAdjustment(deltaNew);
+    root->updateTime(100);
+    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, component));
+
+    ASSERT_EQ(utcTime + 100, root->context().opt("utcTime").asNumber());
+    ASSERT_EQ(utcTime + deltaNew + 100, root->context().opt("localTime").asNumber());
+    ASSERT_TRUE(IsEqual(std::to_string(utcTime + deltaNew + 100), component->getCalculated(kPropertyText).asString()));
 
     // Demonstrate how to set the root config to reflect the current time in local time.
     auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch());
-    root = RootConfig().localTime(now.count());
+    rootConfig = RootConfig().utcTime(now.count());
 
-    ASSERT_EQ(std::chrono::milliseconds{root.getLocalTime()}, now);
+    ASSERT_EQ(std::chrono::milliseconds{static_cast<long long>(rootConfig.getUTCTime())}, now);
+
+    component->release();
+    component = nullptr;
+    root = nullptr;
 }

@@ -421,7 +421,6 @@ TEST_F(DefaultComponentTest, SequenceVerticalWithChild)
 
     auto sequence = component->getChildAt(0);
     ASSERT_EQ(1, sequence->getChildCount());
-    sequence->getChildAt(0)->ensureLayout(false);
 
     ASSERT_TRUE(IsEqual(Dimension(100), sequence->getCalculated(kPropertyHeight)));
     ASSERT_TRUE(IsEqual(Dimension(), sequence->getCalculated(kPropertyWidth)));
@@ -503,7 +502,6 @@ TEST_F(DefaultComponentTest, SequenceHorizontalWithChild)
 
     auto sequence = component->getChildAt(0);
     ASSERT_EQ(1, sequence->getChildCount());
-    sequence->getChildAt(0)->ensureLayout(false);
 
     ASSERT_TRUE(IsEqual(Dimension(), sequence->getCalculated(kPropertyHeight)));
     ASSERT_TRUE(IsEqual(Dimension(100), sequence->getCalculated(kPropertyWidth)));

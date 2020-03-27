@@ -39,11 +39,11 @@ constexpr int dayFromYear(int year) noexcept {
     return 365 * (year - 1970) + ((year - 1969) / 4) - ((year - 1901) / 100) + ((year - 1601) / 400);
 }
 
-constexpr apl_time_t timeFromYear(int year) noexcept {
-    return MS_PER_DAY * dayFromYear(year);
+constexpr apl_itime_t timeFromYear(int year) noexcept {
+    return MS_PER_DAY * static_cast<apl_itime_t>(dayFromYear(year));
 }
 
-int yearFromTime(apl_time_t t) {
+int yearFromTime(apl_itime_t t) {
     // We guess the starting year by assuming that a year has 365.24 days in it.
     // Tests show that this guess is within a year or two of the correct year.
     auto year = 1970 + static_cast<int>(day(t) / 365.24);
@@ -67,16 +67,16 @@ int yearFromTime(apl_time_t t) {
     return year - 1;
 }
 
-bool inLeapYear(apl_time_t t) {
+bool inLeapYear(apl_itime_t t) {
     auto year = yearFromTime(t);
     return daysInYear(year) == 366;
 }
 
-int dayWithinYear(apl_time_t t) {
+int dayWithinYear(apl_itime_t t) {
     return day(t) - dayFromYear(yearFromTime(t));
 }
 
-int monthFromTime(apl_time_t t) {
+int monthFromTime(apl_itime_t t) {
     int day = dayWithinYear(t);
     if (day < 31) return 0;
     if (inLeapYear(t))
@@ -94,7 +94,7 @@ int monthFromTime(apl_time_t t) {
     return 11;
 }
 
-int dateFromTime(apl_time_t t) {
+int dateFromTime(apl_itime_t t) {
     int day = dayWithinYear(t);
     if (day < 31) return day + 1;
     if (inLeapYear(t)) {

@@ -15,12 +15,17 @@
 
 #include <cmath>
 #include <clocale>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
+#include "apl/datagrammar/boundsymbol.h"
 #include "apl/datagrammar/node.h"
 #include "apl/graphic/graphic.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
 #include "apl/primitives/filter.h"
+#include "apl/primitives/functions.h"
+#include "apl/livedata/livedataobject.h"
 #include "apl/primitives/object.h"
 #include "apl/primitives/mediasource.h"
 #include "apl/primitives/transform.h"
@@ -34,7 +39,9 @@ const bool OBJECT_DEBUG = false;
 
 class ArrayData : public Object::Data {
 public:
-    ArrayData(const SharedVectorPtr& array) : mArray(array) {}
+    ArrayData(const ObjectArrayPtr& array, bool isMutable) : mArray(array), mIsMutable(isMutable) {
+        assert(array);
+    }
 
     const Object
     at(size_t index) const override
@@ -49,11 +56,13 @@ public:
     size_t size() const override { return mArray->size(); }
     bool empty() const override { return mArray->empty(); }
 
+    bool isMutable() const override { return mIsMutable; }
+
     void
     accept(Visitor<Object>& visitor) const override
     {
         visitor.push();
-        for (auto it = mArray->begin() ; it != mArray->end() ; it++)
+        for (auto it = mArray->begin() ; !visitor.isAborted() && it != mArray->end() ; it++)
             it->accept(visitor);
         visitor.pop();
     }
@@ -62,26 +71,33 @@ public:
         return *mArray;
     }
 
-    void symbols(std::set<std::string>& symbols) const override {
-        if (mArray) {
-            for (auto& m : *mArray)
-                m.symbols(symbols);
-        }
+    std::vector<Object>& getMutableArray() override {
+        if (!mIsMutable)
+            throw std::runtime_error("Attempted to retrieve mutable array for non-mutable object");
+        return *mArray;
     }
 
     std::string toDebugString() const override {
-        return "Array<size=" + std::to_string(mArray->size()) + ">";
+        std::string result = "Array<size=" + std::to_string(mArray->size()) + ">[";
+        for (const auto& m : *mArray) {
+            result += m.toDebugString();
+            result += ", ";
+        }
+        result += "]";
+
+        return result;
     }
 
 private:
-    std::shared_ptr<std::vector<Object> > mArray;
+    ObjectArrayPtr mArray;
+    bool mIsMutable;
 };
 
 /****************************************************************************/
 
 class FixedArrayData : public Object::Data {
 public:
-    FixedArrayData(const std::vector<Object>&& array) : mArray(array) {}
+    FixedArrayData(ObjectArray&& array, bool isMutable) : mArray(std::move(array)), mIsMutable(isMutable) {}
 
     const Object
     at(size_t index) const override
@@ -101,12 +117,16 @@ public:
         return mArray.empty();
     }
 
+    bool isMutable() const override {
+        return mIsMutable;
+    }
+
     void
     accept(Visitor<Object>& visitor) const override
     {
         visitor.push();
-        for (const auto& element : mArray)
-            element.accept(visitor);
+        for (auto it = mArray.begin() ; !visitor.isAborted() && it != mArray.end() ; it++)
+            it->accept(visitor);
         visitor.pop();
     }
 
@@ -114,26 +134,35 @@ public:
         return mArray;
     }
 
-    void symbols(std::set<std::string>& symbols) const override {
-        for (auto& m : mArray)
-            m.symbols(symbols);
+    std::vector<Object>& getMutableArray() override {
+        if (!mIsMutable)
+            throw std::runtime_error("Attempted to retrieve mutable array for non-mutable object");
+        return mArray;
     }
 
     std::string toDebugString() const override {
-        return "FixedArray<size=" + std::to_string(mArray.size()) + ">";
+        std::string result = "FixedArray<size=" + std::to_string(mArray.size()) + ">[";
+        for (const auto& m : mArray) {
+            result += m.toDebugString();
+            result += ", ";
+        }
+        result += "]";
+
+        return result;
     }
 
 private:
-    const std::vector<Object> mArray;
+    ObjectArray mArray;
+    bool mIsMutable;
 };
 
 /****************************************************************************/
 
 class MapData : public Object::Data {
 public:
-    MapData(const Object object) : mMap() {};
-
-    MapData(const std::shared_ptr<ObjectMap>& map) : mMap(map) {}
+    explicit MapData(const std::shared_ptr<ObjectMap>& map, bool isMutable) : mMap(map), mIsMutable(isMutable) {
+        assert(map);
+    }
 
     const Object
     get(const std::string& key) const override
@@ -144,12 +173,27 @@ public:
         return Object::NULL_OBJECT();
     }
 
+    const Object
+    opt(const std::string& key, const Object& def) const override
+    {
+        auto it = mMap->find(key);
+        if (it != mMap->end())
+            return it->second;
+        return def;
+    }
+
     size_t size() const override { return mMap->size(); }
     bool empty() const override { return mMap->empty(); }
-
+    bool isMutable() const override { return mIsMutable; }
     bool has(const std::string& key) const override { return mMap->count(key) != 0; }
 
-    const std::map<std::string, Object>& getMap() const override {
+    const ObjectMap& getMap() const override {
+        return *mMap;
+    }
+
+    ObjectMap& getMutableMap() override {
+        if (!mIsMutable)
+            throw std::runtime_error("Attempted to retrieve mutable map for non-mutable object");
         return *mMap;
     }
 
@@ -157,20 +201,28 @@ public:
     accept(Visitor<Object>& visitor) const override
     {
         visitor.push();
-        for (auto m : *mMap) {
-            Object(m.first).accept(visitor);
-            visitor.push();
-            m.second.accept(visitor);
-            visitor.pop();
+        for (auto it = mMap->begin() ; !visitor.isAborted() && it != mMap->end() ; it++) {
+            Object(it->first).accept(visitor);
+            if (!visitor.isAborted()) {
+                visitor.push();
+                it->second.accept(visitor);
+                visitor.pop();
+            }
         }
         visitor.pop();
     }
 
     std::string toDebugString() const override {
-        return "Map<size=" + std::to_string(mMap->size()) + ">";
+        std::string result = "Map<size=" + std::to_string(mMap->size()) + ">[";
+        for (const auto& m : *mMap) {
+            result += "{" + m.first + "," + m.second.toDebugString() + "}, ";
+        }
+        result += "]";
+        return result;
     }
 private:
-    SharedMapPtr mMap;
+    ObjectMapPtr mMap;
+    bool mIsMutable;
 };
 
 
@@ -178,7 +230,7 @@ private:
 
 class JSONData : public Object::Data {
 public:
-    JSONData(const rapidjson::Value *value) : mValue(value) {}
+    JSONData(const rapidjson::Value *value) : mValue(value) { assert(value); }
 
     const Object
     get(const std::string& key) const override
@@ -189,6 +241,17 @@ public:
                 return it->value;
         }
         return Object::NULL_OBJECT();
+    }
+
+    const Object
+    opt(const std::string& key, const Object& def) const override
+    {
+        if (mValue->IsObject()) {
+            auto it = mValue->FindMember(key.c_str());
+            if (it != mValue->MemberEnd())
+                return it->value;
+        }
+        return def;
     }
 
     bool
@@ -247,7 +310,11 @@ public:
     }
 
     std::string toDebugString() const override {
-        return "JSON<size=" + std::to_string(size()) + ">";
+        rapidjson::StringBuffer buffer;
+        buffer.Clear();
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        mValue->Accept(writer);
+        return "JSON<" + std::string(buffer.GetString()) + ">";
     }
 
 private:
@@ -258,28 +325,102 @@ private:
 
 /****************************************************************************/
 
-class FunctionData : public Object::Data {
+class JSONDocumentData : public Object::Data {
 public:
-    FunctionData(Object (*f)(const std::vector<Object>&)) : mFunction(f) {};
+    JSONDocumentData(rapidjson::Document&& doc) : mDoc(std::move(doc)) {}
 
-    Object
-    call(const std::vector<Object>& args) const override {
-        return mFunction(args);
+    const Object
+    get(const std::string& key) const override
+    {
+        if (mDoc.IsObject()) {
+            auto it = mDoc.FindMember(key.c_str());
+            if (it != mDoc.MemberEnd())
+                return it->value;
+        }
+        return Object::NULL_OBJECT();
+    }
+
+    const Object
+    opt(const std::string& key, const Object& def) const override
+    {
+        if (mDoc.IsObject()) {
+            auto it = mDoc.FindMember(key.c_str());
+            if (it != mDoc.MemberEnd())
+                return it->value;
+        }
+        return def;
+    }
+
+    bool
+    has(const std::string& key) const override {
+        if (!mDoc.IsObject())
+            return false;
+
+        return mDoc.FindMember(key.c_str()) != mDoc.MemberEnd();
+    }
+
+    const Object
+    at(size_t index) const override {
+        if (!mDoc.IsArray() || index >= mDoc.Size())
+            return Object::NULL_OBJECT();
+        return mDoc[index];
+    }
+
+    size_t
+    size() const override {
+        if (mDoc.IsArray())
+            return mDoc.Size();
+        if (mDoc.IsObject())
+            return mDoc.MemberCount();
+        return 0;
+    }
+
+    bool
+    empty() const override {
+        if (mDoc.IsArray())
+            return mDoc.Empty();
+        if (mDoc.IsObject())
+            return mDoc.MemberCount() == 0;
+        return false;
+    }
+
+    const std::vector<Object>& getArray() const override {
+        assert(mDoc.IsArray());
+
+        if (mDoc.Size() != mVector.size())
+            for (const auto& v : mDoc.GetArray())
+                const_cast<std::vector<Object>&>(mVector).emplace_back(v);
+        return mVector;
+    }
+
+    const std::map<std::string, Object>& getMap() const override {
+        assert(mDoc.IsObject());
+
+        if (mDoc.MemberCount() != mMap.size())
+            for (const auto& v : mDoc.GetObject())
+                const_cast<std::map<std::string, Object>&>(mMap).emplace(v.name.GetString(), v.value);
+        return mMap;
+    }
+
+    const rapidjson::Value* getJson() const override {
+        return &mDoc;
     }
 
     std::string toDebugString() const override {
-        return "Function<>";
+        return "JSONDoc<size=" + std::to_string(size()) + ">";
     }
 
 private:
-    std::function<Object(const std::vector<Object>&)> mFunction;
+    const rapidjson::Document mDoc;
+    const std::map<std::string, Object> mMap;
+    const std::vector<Object> mVector;
 };
 
 /****************************************************************************/
 
 class FilterData : public Object::Data {
 public:
-    FilterData(const Filter&& filter) : mFilter(std::move(filter)) {}
+    FilterData(Filter&& filter) : mFilter(std::move(filter)) {}
     const Filter& getFilter() const override { return mFilter; }
 
     std::string toDebugString() const override {
@@ -287,14 +428,14 @@ public:
     }
 
 private:
-    const Filter mFilter;
+    Filter mFilter;
 };
 
 /****************************************************************************/
 
 class GradientData : public Object::Data {
 public:
-    GradientData(const Gradient&& gradient) : mGradient(std::move(gradient)) {}
+    GradientData(Gradient&& gradient) : mGradient(std::move(gradient)) {}
     const Gradient& getGradient() const override { return mGradient; }
 
     std::string toDebugString() const override {
@@ -302,7 +443,7 @@ public:
     }
 
 private:
-    const Gradient mGradient;
+    Gradient mGradient;
 };
 
 
@@ -310,7 +451,7 @@ private:
 
 class MediaSourceData : public Object::Data {
 public:
-    MediaSourceData(const MediaSource&& mediaSource) : mMediaSource(std::move(mediaSource)) {}
+    MediaSourceData(MediaSource&& mediaSource) : mMediaSource(std::move(mediaSource)) {}
 
     const MediaSource& getMediaSource() const override { return mMediaSource; }
 
@@ -319,7 +460,7 @@ public:
     }
 
 private:
-    const MediaSource mMediaSource;
+    MediaSource mMediaSource;
 };
 
 /****************************************************************************/
@@ -367,7 +508,7 @@ public:
     }
 
 private:
-    const StyledText mStyledText;
+    StyledText mStyledText;
 };
 
 /****************************************************************************/
@@ -434,20 +575,6 @@ private:
 
 /****************************************************************************/
 
-class AnimationData : public Object::Data {
-public:
-    AnimationData(const Animation&& Animation) : mAnimation(std::move(Animation)) {}
-    const Animation& getAnimation() const override { return mAnimation; }
-
-    std::string toDebugString() const override {
-        return "Animation<>";
-    }
-
-private:
-    const Animation mAnimation;
-};
-/****************************************************************************/
-
 template<typename XData, typename T>
 std::shared_ptr<Object::Data> create(T&& data) {
     return std::make_shared<XData>(std::move(data));
@@ -455,84 +582,181 @@ std::shared_ptr<Object::Data> create(T&& data) {
 
 /****************************************************************************/
 
-Object& Object::TRUE() {
-    static Object* ans = new Object(true);
-    return *ans;
+const Object& Object::TRUE_OBJECT() {
+    static Object *answer = new Object(true);
+    return *answer;
 }
 
-Object& Object::FALSE() {
-    static Object* ans = new Object(false);
-    return *ans;
+const Object& Object::FALSE_OBJECT() {
+    static Object *answer = new Object(false);
+    return *answer;
 }
 
-Object& Object::NULL_OBJECT() {
-    static Object* ans = new Object();
-    return *ans;
+const Object& Object::NULL_OBJECT() {
+    static Object *answer = new Object();
+    return *answer;
 }
 
-Object& Object::NAN_OBJECT() {
-    static Object *ans = new Object(std::numeric_limits<double>::quiet_NaN());
-    return *ans;
+Object Object::NAN_OBJECT() {
+    return Object(std::numeric_limits<double>::quiet_NaN());
 }
 
-Object& Object::AUTO_OBJECT() {
-    static Object *ans = new Object(Dimension());
-    return *ans;
+Object Object::AUTO_OBJECT() {
+    return Object(Dimension());
 }
 
-Object& Object::EMPTY_ARRAY() {
-    static Object *ans = new Object(std::vector<Object>{});
-    return *ans;
+Object Object::EMPTY_ARRAY() {
+    return Object(std::vector<Object>{});
 }
 
-Object& Object::ZERO_ABS_DIMEN() {
-    static Object *ans = new Object(Dimension(DimensionType::Absolute, 0));
-    return *ans;
+Object Object::EMPTY_MUTABLE_ARRAY() {
+    return Object(std::vector<Object>{}, true);
 }
 
-Object& Object::EMPTY_RECT() {
-    static Object *ans = new Object(Rect(0,0,0,0));
-    return *ans;
+Object Object::EMPTY_MAP() {
+    return Object(std::make_shared<ObjectMap>());
 }
 
-Object& Object::EMPTY_RADII() {
-    static Object *ans = new Object(Radii());
-    return *ans;
+Object Object::EMPTY_MUTABLE_MAP() {
+    return Object(std::make_shared<ObjectMap>(), true);
 }
 
-Object& Object::IDENTITY_2D() {
-    static Object *ans = new Object(Transform2D());
-    return *ans;
+Object Object::ZERO_ABS_DIMEN() {
+    return Object(Dimension(DimensionType::Absolute, 0));
 }
 
-Object& Object::LINEAR_EASING() {
-    static Object *ans = new Object(Easing::linear());
-    return *ans;
+Object Object::EMPTY_RECT() {
+    return Object(Rect(0,0,0,0));
+}
+
+Object Object::EMPTY_RADII() {
+    return Object(Radii());
+}
+
+Object Object::IDENTITY_2D() {
+    return Object(Transform2D());
+}
+
+Object Object::LINEAR_EASING() {
+    return Object(Easing::linear());
+}
+
+/****************************************************************************/
+
+Object::Object(const Object& object) noexcept
+        : mType(object.mType)
+{
+    switch (mType) {
+        case kBoolType:
+        case kNumberType:
+        case kAbsoluteDimensionType:
+        case kRelativeDimensionType:
+        case kAutoDimensionType:
+        case kColorType:
+            mValue = object.mValue;
+            break;
+        case kStringType:
+            mString = object.mString;
+            break;
+        default:
+            mData = object.mData;
+            break;
+    }
+}
+
+Object::Object(Object&& object) noexcept
+        : mType(object.mType)
+{
+    switch (mType) {
+        case kBoolType:
+        case kNumberType:
+        case kAbsoluteDimensionType:
+        case kRelativeDimensionType:
+        case kAutoDimensionType:
+        case kColorType:
+            mValue = object.mValue;
+            break;
+        case kStringType:
+            mString = std::move(object.mString);
+            break;
+        default:
+            mData = std::move(object.mData);
+            break;
+    }
+}
+
+Object& Object::operator=(const Object& rhs) noexcept
+{
+    if (this == &rhs)
+        return *this;
+
+    mType = rhs.mType;
+    switch (mType) {
+        case kBoolType:
+        case kNumberType:
+        case kAbsoluteDimensionType:
+        case kRelativeDimensionType:
+        case kAutoDimensionType:
+        case kColorType:
+            mValue = rhs.mValue;
+            break;
+        case kStringType:
+            mString = rhs.mString;
+            break;
+        default:
+            mData = rhs.mData;
+            break;
+    }
+
+    return *this;
+}
+
+Object& Object::operator=(Object&& rhs) noexcept
+{
+    mType = rhs.mType;
+    switch (mType) {
+        case kBoolType:
+        case kNumberType:
+        case kAbsoluteDimensionType:
+        case kRelativeDimensionType:
+        case kAutoDimensionType:
+        case kColorType:
+            mValue = rhs.mValue;
+            break;
+        case kStringType:
+            mString = std::move(rhs.mString);
+            break;
+        default:
+            mData = std::move(rhs.mData);
+            break;
+    }
+
+    return *this;
 }
 
 /****************************************************************************/
 
 Object::~Object() {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "  --- Destroying " << *this;
+    LOG_IF(OBJECT_DEBUG) << "  --- Destroying " << *this;
 }
 
 Object::Object()
     : mType(kNullType)
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object null construtor" << this;
+    LOG_IF(OBJECT_DEBUG) << "Object null constructor" << this;
 }
 
 Object::Object(ObjectType type)
     : mType(type)
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object type construtor" << this;
+    LOG_IF(OBJECT_DEBUG) << "Object type constructor" << this;
 }
 
 Object::Object(bool b)
     : mType(kBoolType),
       mValue(b ? 1 : 0)
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object bool constructor: " << b << " this=" << this;
+    LOG_IF(OBJECT_DEBUG) << "Object bool constructor: " << b << " this=" << this;
 }
 
 Object::Object(int i)
@@ -546,6 +770,21 @@ Object::Object(uint32_t u)
 {}
 
 Object::Object(unsigned long l)
+    : mType(kNumberType),
+      mValue(l)
+{}
+
+Object::Object(long l)
+    : mType(kNumberType),
+      mValue(l)
+{}
+
+Object::Object(unsigned long long l)
+    : mType(kNumberType),
+      mValue(l)
+{}
+
+Object::Object(long long l)
     : mType(kNumberType),
       mValue(l)
 {}
@@ -565,32 +804,46 @@ Object::Object(const std::string& s)
       mString(s)
 {}
 
-Object::Object(const SharedMapPtr& m)
+Object::Object(const ObjectMapPtr& m, bool isMutable)
     : mType(kMapType),
-      mData(std::static_pointer_cast<Data>(std::make_shared<MapData>(m)))
+      mData(std::static_pointer_cast<Data>(std::make_shared<MapData>(m, isMutable)))
 {}
 
-Object::Object(const SharedVectorPtr& v)
+Object::Object(const ObjectArrayPtr& v, bool isMutable)
     : mType(kArrayType),
-      mData(std::static_pointer_cast<Data>(std::make_shared<ArrayData>(v)))
+      mData(std::static_pointer_cast<Data>(std::make_shared<ArrayData>(v, isMutable)))
 {}
 
-Object::Object(std::vector<Object>&& v)
+Object::Object(ObjectArray&& v, bool isMutable)
     : mType(kArrayType),
-      mData(std::static_pointer_cast<Data>(std::make_shared<FixedArrayData>(std::move(v))))
+      mData(std::static_pointer_cast<Data>(std::make_shared<FixedArrayData>(std::move(v),isMutable)))
 {}
 
 Object::Object(const std::shared_ptr<datagrammar::Node>& n)
     : mType(kNodeType),
       mData(std::static_pointer_cast<Data>(n))
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object constructor node: " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object constructor node: " << this;
+}
+
+Object::Object(const std::shared_ptr<datagrammar::BoundSymbol>& bs)
+    : mType(kBoundSymbolType),
+      mData(std::static_pointer_cast<Data>(bs))
+{
+    LOG_IF(OBJECT_DEBUG) << "Object constructor bound symbol: " << this;
+}
+
+Object::Object(const std::shared_ptr<LiveDataObject>& d)
+    : mType(d->getType()),
+      mData(d)
+{
+    LOG_IF(OBJECT_DEBUG) << "Object live data: " << this;
 }
 
 Object::Object(const rapidjson::Value& value)
     : mValue(0)
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object constructor value: " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object constructor value: " << this;
 
     switch(value.GetType()) {
     case rapidjson::kNullType:
@@ -623,11 +876,47 @@ Object::Object(const rapidjson::Value& value)
     }
 }
 
-Object::Object(UserFunction f)
-    : mType(kFunctionType),
-      mData(std::static_pointer_cast<Data>(std::make_shared<FunctionData>(f)))
+Object::Object(rapidjson::Document&& value)
+    : mValue(0)
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "User Function constructor";
+    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object constructor value: " << this;
+
+    switch(value.GetType()) {
+        case rapidjson::kNullType:
+            mType = kNullType;
+            break;
+        case rapidjson::kFalseType:
+            mType = kBoolType;
+            mValue = 0;
+            break;
+        case rapidjson::kTrueType:
+            mType = kBoolType;
+            mValue = 1;
+            break;
+        case rapidjson::kNumberType:
+            mType = kNumberType;
+            mValue = value.GetDouble();
+            break;
+        case rapidjson::kStringType:
+            mType = kStringType;
+            mString = value.GetString();  // TODO: Should we keep the string in place?
+            break;
+        case rapidjson::kObjectType:
+            mType = kMapType;
+            mData = std::static_pointer_cast<Data>(std::make_shared<JSONDocumentData>(std::move(value)));
+            break;
+        case rapidjson::kArrayType:
+            mType = kArrayType;
+            mData = std::static_pointer_cast<Data>(std::make_shared<JSONDocumentData>(std::move(value)));
+            break;
+    }
+}
+
+Object::Object(const std::shared_ptr<Function>& f)
+    : mType(kFunctionType),
+      mData(std::static_pointer_cast<Data>(f))
+{
+    LOG_IF(OBJECT_DEBUG) << "User Function constructor";
 }
 
 Object::Object(const Dimension& d)
@@ -643,21 +932,21 @@ Object::Object(const Color& color)
     : mType(kColorType),
       mValue(color.get())
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object color constructor " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object color constructor " << this;
 }
 
 Object::Object(Filter&& filter)
     : mType(kFilterType),
       mData(create<FilterData, Filter>(std::move(filter)))
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object filter constructor " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object filter constructor " << this;
 }
 
 Object::Object(Gradient&& gradient)
     : mType(kGradientType),
       mData(create<GradientData, Gradient>(std::move(gradient)))
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object gradient constructor " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object gradient constructor " << this;
 }
 
 
@@ -665,69 +954,62 @@ Object::Object(MediaSource&& mediaSource)
     : mType(kMediaSourceType),
       mData(create<MediaSourceData, MediaSource>(std::move(mediaSource)))
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object MediaSource constructor " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object MediaSource constructor " << this;
 }
 
 Object::Object(Rect&& rect)
     : mType(kRectType),
       mData(create<RectData, Rect>(std::move(rect)))
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object Rect constructor " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object Rect constructor " << this;
 }
 
 Object::Object(Radii&& radii)
     : mType(kRadiiType),
       mData(create<RadiiData, Radii>(std::move(radii)))
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object Radii constructor " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object Radii constructor " << this;
 }
 
 Object::Object(StyledText&& styledText)
     : mType(kStyledTextType),
       mData(create<StyledTextData, StyledText>(std::move(styledText)))
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object StyledText constructor " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object StyledText constructor " << this;
 }
 
 Object::Object(const GraphicPtr& graphic)
     : mType(kGraphicType),
       mData(std::make_shared<GraphicData>(graphic))
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object Graphic constructor " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object Graphic constructor " << this;
 }
 
 Object::Object(const std::shared_ptr<Transformation>& transform)
     : mType(kTransformType),
       mData(std::make_shared<TransformData>(transform))
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object transform constructor " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object transform constructor " << this;
 }
 
 Object::Object(Transform2D&& transform)
     : mType(kTransform2DType),
       mData(create<Transform2DData, Transform2D>(std::move(transform)))
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object transform 2D constructor " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object transform 2D constructor " << this;
 }
 
 Object::Object(Easing&& easing)
     : mType(kEasingType),
       mData(create<EasingData, Easing>(std::move(easing)))
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object easing constructor " << this;
-}
-
-Object::Object(Animation&& animation)
-    : mType(kAnimationType),
-      mData(create<AnimationData, Animation>(std::move(animation)))
-{
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object animation constructor " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object easing constructor " << this;
 }
 
 bool
 Object::operator==(const Object& rhs) const
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "comparing " << *this << " to " << rhs;
+    LOG_IF(OBJECT_DEBUG) << "comparing " << *this << " to " << rhs;
 
     if (mType != rhs.mType)
         return false;
@@ -798,7 +1080,7 @@ Object::operator==(const Object& rhs) const
             return mData->getTransform2D() == rhs.mData->getTransform2D();
         case kEasingType:
             return mData->getEasing() == rhs.mData->getEasing();
-        case kAnimationType:
+        case kBoundSymbolType:
             return mData == rhs.mData;
     }
 
@@ -834,6 +1116,12 @@ Object::isJson() const
 static inline std::string
 doubleToString(double value)
 {
+    if (value < std::numeric_limits<int>::max() && value > std::numeric_limits<int>::min()) {
+        auto iValue = static_cast<int>(value);
+        if (value == iValue)
+            return std::to_string(iValue);
+    }
+
     // TODO: Is this cheap enough to run each time?
     //       If so, we could unit test other languages more easily
     static char *separator = std::localeconv()->decimal_point;
@@ -846,6 +1134,14 @@ doubleToString(double value)
     return s;
 }
 
+/**
+ * This method is used when coercing an object to a string.  This can be used
+ * by an APL author to display information in a Text component, so we deliberately
+ * do not return values for many of the internal object types.  Please use
+ * Object::toDebugString() to return strings suitable for writing to the system log.
+ *
+ * @return The user-friendly value of the object as a string.
+ */
 std::string
 Object::asString() const
 {
@@ -860,7 +1156,7 @@ Object::asString() const
         case kColorType: return Color(mValue).asString();
         case kMapType: return "";
         case kArrayType: return "";
-        case kNodeType: return "node<>";
+        case kNodeType: return "";
         case kFunctionType: return "";
         case kFilterType: return "";
         case kGradientType: return "";
@@ -872,7 +1168,7 @@ Object::asString() const
         case kTransformType: return "";
         case kTransform2DType: return "";
         case kEasingType: return "";
-        case kAnimationType: return "";
+        case kBoundSymbolType: return "";
     }
 
     return "ERROR";  // TODO: Fix up the string type
@@ -912,6 +1208,8 @@ Object::asNumber() const
             return stringToDouble(mString);
         case kStyledTextType:
             return stringToDouble(mData->getStyledText().asString());
+        case kAbsoluteDimensionType:
+            return mValue;
         default:
             return std::numeric_limits<double>::quiet_NaN();
     }
@@ -931,6 +1229,8 @@ Object::asInt() const
         case kStyledTextType:
             try { return std::stoi(mData->getStyledText().asString()); } catch(...) {}
             return std::numeric_limits<int>::quiet_NaN();
+        case kAbsoluteDimensionType:
+            return std::rint(mValue);
         default:
             return std::numeric_limits<int>::quiet_NaN();
     }
@@ -1053,6 +1353,33 @@ Object::asNonAutoRelativeDimension(const Context& context) const
     }
 }
 
+std::shared_ptr<Function>
+Object::getFunction() const
+{
+    assert(mType == kFunctionType);
+    return std::static_pointer_cast<Function>(mData);
+}
+
+std::shared_ptr<datagrammar::BoundSymbol>
+Object::getBoundSymbol() const
+{
+    assert(mType == kBoundSymbolType);
+    return std::static_pointer_cast<datagrammar::BoundSymbol>(mData);
+}
+
+std::shared_ptr<LiveDataObject>
+Object::getLiveDataObject() const
+{
+    assert(mType == kArrayType || mType == kMapType);
+    return std::dynamic_pointer_cast<LiveDataObject>(mData);
+}
+
+std::shared_ptr<datagrammar::Node>
+Object::getNode() const
+{
+    assert(mType == kNodeType);
+    return std::static_pointer_cast<datagrammar::Node>(mData);
+}
 
 bool
 Object::truthy() const
@@ -1093,7 +1420,7 @@ Object::truthy() const
             return true;
         case kEasingType:
             return true;
-        case kAnimationType:
+        case kBoundSymbolType:
             return true;
     }
 
@@ -1114,6 +1441,13 @@ Object::has(const std::string& key) const
 {
     assert(mType == kMapType);
     return mData->has(key);
+}
+
+const Object
+Object::opt(const std::string& key, const Object& def) const
+{
+    assert(mType == kMapType);
+    return mData->opt(key, def);
 }
 
 // Methods for ARRAY objects
@@ -1166,23 +1500,125 @@ Object::empty() const
     }
 }
 
-Object
-Object::eval(const Context& context) const
+bool
+Object::isMutable() const
 {
-    return mType == kNodeType ? mData->eval(context) : *this;
+    switch (mType) {
+        case kArrayType:
+        case kMapType:
+            return mData->isMutable();
+        default:
+            return false;
+    }
 }
+
+Object
+Object::eval() const
+{
+    return (mType == kNodeType || mType == kBoundSymbolType) ? mData->eval() : *this;
+}
+
+/**
+ * Internal visitor class used to check if an equation is "pure" - that is, if the result
+ * of the equation does not change each time you calculate it.
+ */
+class PureVisitor : public Visitor<Object> {
+public:
+    void visit(const Object& object) override {
+        if (object.isFunction() && !object.getFunction()->isPure())
+            mIsPure = false;
+    }
+
+    bool isPure() const { return mIsPure; }
+    bool isAborted() const override { return !mIsPure; }  // Abort if the visitor has found a non-pure value
+
+private:
+    bool mIsPure = true;
+};
+
+bool
+Object::isPure() const
+{
+    PureVisitor visitor;
+    accept(visitor);
+    return visitor.isPure();
+}
+
+const bool DEBUG_SYMBOL_VISITOR = false;
+
+/**
+ * Internal visitor class used to extract all symbols and symbol paths from within
+ * an equation.
+ */
+class SymbolVisitor : public Visitor<Object> {
+public:
+    SymbolVisitor(SymbolReferenceMap& map) : mMap(map) {}
+
+    /**
+     * Visit an individual object.  At the end of this visit, the mCurrentSuffix
+     * should be set to a valid suffix (either a continuation of the parent or empty).
+     * @param object The object to visit
+     */
+    void visit(const Object& object) override {
+        LOG_IF(DEBUG_SYMBOL_VISITOR) << object.toDebugString()
+                                     << " mParentSuffix=" << mParentSuffix
+                                     << " mIndex=" << mIndex;
+
+        mCurrentSuffix.clear();  // In the majority of cases there will be no suffix
+
+        if (object.isBoundSymbol()) {  // A bound symbol should be added to the map with existing suffixes
+            auto symbol = object.getBoundSymbol()->getSymbol();
+            if (symbol.second)  // An invalid bound symbol will not have a context
+                mMap.emplace(symbol.first + (mIndex == 0 ? mParentSuffix : ""), symbol.second);
+        }
+        else if (object.isNode()) {  // A node may prepend a string to the suffix or reset the suffix to a new value
+            auto suffix = object.getNode()->getSuffix();
+            if (!suffix.empty())
+                mCurrentSuffix = suffix + "/" + (mIndex == 0 ? mParentSuffix : "");
+        }
+
+        mIndex++;
+    }
+
+    /**
+     * Move down to the child nodes below the current node.  Stash information on the
+     * stack so we can recover state
+     */
+    void push() override {
+        mStack.push({mIndex, mParentSuffix});
+        mParentSuffix = mCurrentSuffix;
+        mIndex = 0;
+    }
+
+    /**
+     * Pop up one level, restoring the state
+     */
+    void pop() override {
+        const auto& ref = mStack.top();
+        mIndex = ref.first;
+        mParentSuffix = ref.second;
+        mStack.pop();
+    }
+
+private:
+    SymbolReferenceMap& mMap;
+    int mIndex = 0;              // The index of the child being visited.
+    std::string mParentSuffix;   // The suffix created by the parent of this object
+    std::string mCurrentSuffix;  // The suffix calculated visiting the current object
+    std::stack<std::pair<int, std::string>> mStack;  // Old indexes and parent suffixes
+};
 
 void
-Object::symbols(std::set<std::string>& symbols) const {
-    if (mType == kArrayType || mType == kNodeType)
-        mData->symbols(symbols);
+Object::symbols(SymbolReferenceMap& symbols) const {
+    SymbolVisitor visitor(symbols);
+    accept(visitor);
 }
 
 Object
-Object::call(const std::vector<Object>& args) const {
+Object::call(ObjectArray&& args) const {
     assert(mType == kFunctionType);
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Calling user function";
-    return mData->call(args);
+    LOG_IF(OBJECT_DEBUG) << "Calling user function";
+    return mData->call(std::move(args));
 }
 
 // Visitor pattern
@@ -1190,7 +1626,7 @@ void
 Object::accept(Visitor<Object>& visitor) const
 {
     visitor.visit(*this);
-    if (mType == kArrayType || mType == kMapType || mType == kNodeType)
+    if (!visitor.isAborted() && (mType == kArrayType || mType == kMapType || mType == kNodeType))
         mData->accept(visitor);
 }
 
@@ -1250,8 +1686,8 @@ Object::serialize(rapidjson::Document::AllocatorType& allocator) const
             return getTransform2D().serialize(allocator);
         case kEasingType:
             return rapidjson::Value("UNABLE TO SERIALIZE EASING", allocator);
-        case kAnimationType:
-            return rapidjson::Value("UNABLE TO SERIALIZE ANIMATION", allocator);
+        case kBoundSymbolType:
+            return rapidjson::Value("UNABLE TO SERIALIZE BOUND SYMBOL", allocator);
     }
 
     return rapidjson::Value();  // Never should be reached
@@ -1281,7 +1717,7 @@ Object::toDebugString() const
         case Object::kNumberType:
             return std::to_string(mValue);
         case Object::kStringType:
-            return mString;
+            return "'" + mString + "'";
         case Object::kMapType:
         case Object::kArrayType:
         case Object::kNodeType:
@@ -1305,7 +1741,7 @@ Object::toDebugString() const
         case Object::kTransformType:
         case Object::kTransform2DType:
         case Object::kEasingType:
-        case Object::kAnimationType:
+        case Object::kBoundSymbolType:
             return mData->toDebugString();
     }
 }

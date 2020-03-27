@@ -24,7 +24,6 @@ AnimateItemAction::AnimateItemAction(const TimersPtr& timers,
                                      bool fastMode)
     : Action(timers),
       mCommand(command),
-      mNextIndex(0),
       mRepeatCounter(0),
       mReversed(false),
       mDuration(command->getValue(kCommandPropertyDuration).asNumber()),

@@ -21,34 +21,26 @@ namespace apl {
 const static bool DEBUG_CONTEXT_DEP = false;
 
 void
-ContextDependant::create(const ContextPtr& upstreamContext,
-                         const std::string& upstreamName,
-                         const ContextPtr& downstreamContext,
+ContextDependant::create(const ContextPtr& downstreamContext,
                          const std::string& downstreamName,
-                         const ContextPtr& evaluationContext,
-                         const Object& node,
-                         BindingFunction func)
+                         const Object& equation,
+                         const ContextPtr& bindingContext,
+                         BindingFunction bindingFunction)
 {
-    LOG_IF(DEBUG_CONTEXT_DEP)
-            << "from: " << upstreamName << "(" << upstreamContext.get()
-            << ") to: " << downstreamName << " (" << downstreamContext.get() << ")";
+    LOG_IF(DEBUG_CONTEXT_DEP) << "to '" << downstreamName << "' (" << downstreamContext.get() << ")";
 
-    auto dependant = std::make_shared<ContextDependant>(upstreamContext,
-                                                        downstreamContext,
-                                                        evaluationContext,
-                                                        downstreamName,
-                                                        node,
-                                                        func);
-    upstreamContext->addDownstream(upstreamName, dependant);
+    SymbolReferenceMap symbols;
+    equation.symbols(symbols);
+    if (symbols.empty())
+        return;
+
+    auto dependant = std::make_shared<ContextDependant>(downstreamContext, downstreamName, equation,
+                                                        bindingContext, bindingFunction);
+
+    for (const auto& symbol : symbols.get())
+        symbol.second->addDownstream(symbol.first, dependant);
+
     downstreamContext->addUpstream(downstreamName, dependant);
-}
-
-void
-ContextDependant::removeFromSource()
-{
-    auto context = mUpstreamContext.lock();
-    if (context)
-        context->removeDownstream(shared_from_this());
 }
 
 /**
@@ -58,10 +50,10 @@ void
 ContextDependant::recalculate(bool useDirtyFlag) const
 {
     auto downstream = mDownstreamContext.lock();
-    auto evaluation = mEvaluationContext.lock();
-    if (downstream && evaluation) {
-        auto value = mEval(*evaluation, evaluate(*evaluation, mNode));
-        downstream->propagate(mName, value, useDirtyFlag);
+    auto bindingContext = mBindingContext.lock();
+    if (downstream && bindingContext) {
+        auto value = mBindingFunction(*bindingContext, mEquation.eval());
+        downstream->propagate(mDownstreamName, value, useDirtyFlag);
     }
 }
 

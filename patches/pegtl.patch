@@ -1,282 +1,480 @@
 diff --git a/.gitignore b/.gitignore
-index 87117ea..c3aa46d 100644
+index 454bccb..adfdd12 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -2,3 +2,4 @@
+@@ -1,3 +1,4 @@
+ *~
  build
- manual
  private
 +.vscode
-\ No newline at end of file
-diff --git a/pegtl/analysis/analyze_cycles.hh b/pegtl/analysis/analyze_cycles.hh
-index c7aee26..0b4be6a 100644
---- a/pegtl/analysis/analyze_cycles.hh
-+++ b/pegtl/analysis/analyze_cycles.hh
+diff --git a/include/tao/pegtl/analysis/analyze_cycles.hpp b/include/tao/pegtl/analysis/analyze_cycles.hpp
+index 697023f..71e059c 100644
+--- a/include/tao/pegtl/analysis/analyze_cycles.hpp
++++ b/include/tao/pegtl/analysis/analyze_cycles.hpp
 @@ -10,7 +10,6 @@
  #include <set>
+ #include <stdexcept>
  
- #include <utility>
 -#include <iostream>
+ #include <utility>
  
- #include "grammar_info.hh"
- #include "insert_guard.hh"
-@@ -85,7 +84,7 @@ namespace pegtl
-             if ( ! accum ) {
-                ++m_problems;
-                if ( m_verbose ) {
--                  std::cout << "problem: cycle without progress detected at rule class " << start->first << std::endl;
-+                  printf("problem: cycle without progress detected at rule class %s", start->first);
+ #include "../config.hpp"
+@@ -90,7 +89,7 @@ namespace tao
+                if( !accum ) {
+                   ++m_problems;
+                   if( m_verbose ) {
+-                     std::cout << "problem: cycle without progress detected at rule class " << start->first << std::endl;  // LCOV_EXCL_LINE
++                     printf("problem: cycle without progress detected at rule class %s", start->first); // NOLINT, LCOV_EXCL_LINE
+                   }
+                }
+                return m_cache[ start->first ] = accum;
+diff --git a/include/tao/pegtl/argv_input.hpp b/include/tao/pegtl/argv_input.hpp
+index e0b119f..da7d70e 100644
+--- a/include/tao/pegtl/argv_input.hpp
++++ b/include/tao/pegtl/argv_input.hpp
+@@ -5,7 +5,6 @@
+ #define TAO_PEGTL_ARGV_INPUT_HPP
+ 
+ #include <cstddef>
+-#include <sstream>
+ #include <string>
+ #include <utility>
+ 
+@@ -22,9 +21,7 @@ namespace tao
+       {
+          inline std::string make_argv_source( const std::size_t argn )
+          {
+-            std::ostringstream os;
+-            os << "argv[" << argn << ']';
+-            return os.str();
++            return "argv[" + std::to_string(argn) + ']';
+          }
+ 
+       }  // namespace internal
+diff --git a/include/tao/pegtl/contrib/tracer.hpp b/include/tao/pegtl/contrib/tracer.hpp
+index 245fbf6..2479c25 100644
+--- a/include/tao/pegtl/contrib/tracer.hpp
++++ b/include/tao/pegtl/contrib/tracer.hpp
+@@ -6,7 +6,6 @@
+ 
+ #include <cassert>
+ #include <iomanip>
+-#include <iostream>
+ #include <utility>
+ #include <vector>
+ 
+@@ -25,29 +24,29 @@ namespace tao
+          void print_current( const Input& in )
+          {
+             if( in.empty() ) {
+-               std::cerr << "<eof>";
++               fprintf( stderr, "<eof>" );
+             }
+             else {
+                const auto c = in.peek_uint8();
+                switch( c ) {
+                   case 0:
+-                     std::cerr << "<nul> = ";
++                     fprintf( stderr, "<nul> = " );
+                      break;
+                   case 9:
+-                     std::cerr << "<ht> = ";
++                     fprintf( stderr, "<ht> = " );
+                      break;
+                   case 10:
+-                     std::cerr << "<lf> = ";
++                     fprintf( stderr, "<lf> = " );
+                      break;
+                   case 13:
+-                     std::cerr << "<cr> = ";
++                     fprintf( stderr, "<cr> = " );
+                      break;
+                   default:
+                      if( isprint( c ) ) {
+-                        std::cerr << '\'' << c << "' = ";
++                        fprintf( stderr, "\' %c ' = ", c);
+                      }
+                }
+-               std::cerr << "(char)" << unsigned( c );
++               fprintf( stderr, "(char) %c", unsigned( c ) );
+             }
+          }
+ 
+@@ -69,15 +68,15 @@ namespace tao
+          template< typename Input, typename... States >
+          static void start( const Input& in, States&&... /*unused*/ )
+          {
+-            std::cerr << in.position() << "  start  " << internal::demangle< Rule >() << "; current ";
++            fprintf( stderr, "%d  start  %s; current", in.position(), internal::demangle< Rule >() );
+             print_current( in );
+-            std::cerr << std::endl;
++            fprintf( stderr, std::endl );
+          }
+ 
+          template< typename Input, typename... States >
+          static void start( const Input& in, trace_state& ts, States&&... st )
+          {
+-            std::cerr << std::setw( 6 ) << ++ts.line << " " << std::setw( 6 ) << ++ts.rule << " ";
++            fprintf( stderr, "%6d %6d ", ++ts.line, ++ts.rule );
+             start( in, st... );
+             ts.stack.push_back( ts.rule );
+          }
+@@ -85,16 +84,16 @@ namespace tao
+          template< typename Input, typename... States >
+          static void success( const Input& in, States&&... /*unused*/ )
+          {
+-            std::cerr << in.position() << " success " << internal::demangle< Rule >() << "; next ";
++            fprintf( stderr, "%d success %s; next", in.position(), internal::demangle< Rule >() );
+             print_current( in );
+-            std::cerr << std::endl;
++            fprintf( stderr, std::endl );
+          }
+ 
+          template< typename Input, typename... States >
+          static void success( const Input& in, trace_state& ts, States&&... st )
+          {
+             assert( !ts.stack.empty() );
+-            std::cerr << std::setw( 6 ) << ++ts.line << " " << std::setw( 6 ) << ts.stack.back() << " ";
++            fprintf( stderr, "%6d $6d ", ++ts.line, ts.stack.back() );
+             success( in, st... );
+             ts.stack.pop_back();
+          }
+@@ -102,14 +101,14 @@ namespace tao
+          template< typename Input, typename... States >
+          static void failure( const Input& in, States&&... /*unused*/ )
+          {
+-            std::cerr << in.position() << " failure " << internal::demangle< Rule >() << std::endl;
++            fprintf( stderr, "%d failure %s \n", in.position(), internal::demangle< Rule >() );
+          }
+ 
+          template< typename Input, typename... States >
+          static void failure( const Input& in, trace_state& ts, States&&... st )
+          {
+             assert( !ts.stack.empty() );
+-            std::cerr << std::setw( 6 ) << ++ts.line << " " << std::setw( 6 ) << ts.stack.back() << " ";
++            fprintf( stderr, "%6d %6d ", ++ts.line, ts.stack.back() );
+             failure( in, st... );
+             ts.stack.pop_back();
+          }
+@@ -118,7 +117,7 @@ namespace tao
+          static auto apply( const Iterator& begin, const Input& in, States&&... st )
+             -> decltype( normal< Rule >::template apply< Action >( begin, in, st... ) )
+          {
+-            std::cerr << in.position() << "  apply  " << internal::demangle< Rule >() << std::endl;
++            fprintf( stderr, "%d  apply  %s\n", in.position(), internal::demangle< Rule >() );
+             return normal< Rule >::template apply< Action >( begin, in, st... );
+          }
+ 
+@@ -126,7 +125,7 @@ namespace tao
+          static auto apply( const Iterator& begin, const Input& in, trace_state& ts, States&&... st )
+             -> decltype( apply< Action >( begin, in, st... ) )
+          {
+-            std::cerr << std::setw( 6 ) << ++ts.line << "        ";
++            fprintf( stderr, "%6d        ", 6 );
+             return apply< Action >( begin, in, st... );
+          }
+ 
+@@ -134,7 +133,7 @@ namespace tao
+          static auto apply0( const Input& in, States&&... st )
+             -> decltype( normal< Rule >::template apply0< Action >( in, st... ) )
+          {
+-            std::cerr << in.position() << "  apply0 " << internal::demangle< Rule >() << std::endl;
++            fprintf( stderr, "%d  apply0 %6\n", in.position(), internal::demangle< Rule >() );
+             return normal< Rule >::template apply0< Action >( in, st... );
+          }
+ 
+@@ -142,7 +141,7 @@ namespace tao
+          static auto apply0( const Input& in, trace_state& ts, States&&... st )
+             -> decltype( apply0< Action >( in, st... ) )
+          {
+-            std::cerr << std::setw( 6 ) << ++ts.line << "        ";
++            fprintf( stderr, "%6d        ", ++ts.line );
+             return apply0< Action >( in, st... );
+          }
+       };
+@@ -159,16 +158,16 @@ namespace tao
+             template< typename Input, typename... States >
+             static void start( const Input& in, States&&... st )
+             {
+-               std::cerr << in.position() << "  start  " << internal::demangle< Rule >() << "; current ";
++               fprintf( stderr, "%d  start  %d; current", in.position(), internal::demangle< Rule >() );
+                print_current( in );
+-               std::cerr << std::endl;
++               fprintf( stderr,  "\n" );
+                Base< Rule >::start( in, st... );
+             }
+ 
+             template< typename Input, typename... States >
+             static void start( const Input& in, trace_state& ts, States&&... st )
+             {
+-               std::cerr << std::setw( 6 ) << ++ts.line << " " << std::setw( 6 ) << ++ts.rule << " ";
++               fprintf( stderr,  "%6d %6d ", ++ts.line, ++ts.rule );
+                start( in, st... );
+                ts.stack.push_back( ts.rule );
+             }
+@@ -176,8 +175,9 @@ namespace tao
+             template< typename Input, typename... States >
+             static void success( const Input& in, States&&... st )
+             {
+-               std::cerr << in.position() << " success " << internal::demangle< Rule >() << "; next ";
++               fprintf( stderr,  "%d success %d; next ", in.position(), internal::demangle< Rule >() );
+                print_current( in );
++               fprintf( stderr,  "\n" );
+                std::cerr << std::endl;
+                Base< Rule >::success( in, st... );
+             }
+@@ -186,7 +186,7 @@ namespace tao
+             static void success( const Input& in, trace_state& ts, States&&... st )
+             {
+                assert( !ts.stack.empty() );
+-               std::cerr << std::setw( 6 ) << ++ts.line << " " << std::setw( 6 ) << ts.stack.back() << " ";
++               fprintf( stderr,  "%6d %6d ", ++ts.line, ts.stack.back() );
+                success( in, st... );
+                ts.stack.pop_back();
+             }
+@@ -194,7 +194,7 @@ namespace tao
+             template< typename Input, typename... States >
+             static void failure( const Input& in, States&&... st )
+             {
+-               std::cerr << in.position() << " failure " << internal::demangle< Rule >() << std::endl;
++               fprintf( stderr,  "%d failure %d\n", in.position(), internal::demangle< Rule >() );
+                Base< Rule >::failure( in, st... );
+             }
+ 
+@@ -202,7 +202,7 @@ namespace tao
+             static void failure( const Input& in, trace_state& ts, States&&... st )
+             {
+                assert( !ts.stack.empty() );
+-               std::cerr << std::setw( 6 ) << ++ts.line << " " << std::setw( 6 ) << ts.stack.back() << " ";
++               fprintf( stderr,  "%6d %6d ", ++ts.line, ts.stack.back() );
+                failure( in, st... );
+                ts.stack.pop_back();
+             }
+@@ -211,7 +211,7 @@ namespace tao
+             static auto apply( const Iterator& begin, const Input& in, States&&... st )
+                -> decltype( Base< Rule >::template apply< Action >( begin, in, st... ) )
+             {
+-               std::cerr << in.position() << "  apply  " << internal::demangle< Rule >() << std::endl;
++               fprintf( stderr,  "%d  apply %d\n", in.position(), internal::demangle< Rule >() );
+                return Base< Rule >::template apply< Action >( begin, in, st... );
+             }
+ 
+@@ -219,7 +219,7 @@ namespace tao
+             static auto apply( const Iterator& begin, const Input& in, trace_state& ts, States&&... st )
+                -> decltype( apply< Action >( begin, in, st... ) )
+             {
+-               std::cerr << std::setw( 6 ) << ++ts.line << "        ";
++               fprintf( stderr,  "%6d        ", ++ts.line );
+                return apply< Action >( begin, in, st... );
+             }
+ 
+@@ -227,7 +227,7 @@ namespace tao
+             static auto apply0( const Input& in, States&&... st )
+                -> decltype( Base< Rule >::template apply0< Action >( in, st... ) )
+             {
+-               std::cerr << in.position() << "  apply0 " << internal::demangle< Rule >() << std::endl;
++               fprintf( stderr,  "%d  apply0 %d\n", in.position(), internal::demangle< Rule >() );
+                return Base< Rule >::template apply0< Action >( in, st... );
+             }
+ 
+@@ -235,7 +235,7 @@ namespace tao
+             static auto apply0( const Input& in, trace_state& ts, States&&... st )
+                -> decltype( apply0< Action >( in, st... ) )
+             {
+-               std::cerr << std::setw( 6 ) << ++ts.line << "        ";
++               fprintf( stderr,  "%6d        ", ++ts.line );
+                return apply0< Action >( in, st... );
+             }
+          };
+diff --git a/include/tao/pegtl/input_error.hpp b/include/tao/pegtl/input_error.hpp
+index 4c7aec5..007661a 100644
+--- a/include/tao/pegtl/input_error.hpp
++++ b/include/tao/pegtl/input_error.hpp
+@@ -5,7 +5,7 @@
+ #define TAO_PEGTL_INPUT_ERROR_HPP
+ 
+ #include <cerrno>
+-#include <sstream>
++#include <string>
+ #include <stdexcept>
+ 
+ #include "config.hpp"
+@@ -35,17 +35,15 @@ namespace tao
+ #define TAO_PEGTL_THROW_INPUT_ERROR( MESSAGE )                                          \
+    do {                                                                                 \
+       const int errorno = errno;                                                        \
+-      std::ostringstream oss;                                                           \
+-      oss << "pegtl: " << TAO_PEGTL_INTERNAL_UNWRAP( MESSAGE ) << " errno " << errorno; \
+-      throw tao::TAO_PEGTL_NAMESPACE::input_error( oss.str(), errorno );                \
++      std::string mess = "pegtl: " + std::string(TAO_PEGTL_INTERNAL_UNWRAP( MESSAGE )) + " errno " + std::to_string(errorno); \
++      throw tao::TAO_PEGTL_NAMESPACE::input_error( mess, errorno );                \
+    } while( false )
+ 
+ #define TAO_PEGTL_THROW_INPUT_WIN32_ERROR( MESSAGE )                                             \
+    do {                                                                                          \
+       const int errorno = GetLastError();                                                        \
+-      std::ostringstream oss;                                                                    \
+-      oss << "pegtl: " << TAO_PEGTL_INTERNAL_UNWRAP( MESSAGE ) << " GetLastError() " << errorno; \
+-      throw tao::TAO_PEGTL_NAMESPACE::input_error( oss.str(), errorno );                         \
++      std::string mess = "pegtl: " + std::string(TAO_PEGTL_INTERNAL_UNWRAP( MESSAGE )) + " GetLastError() " + std::to_string(errorno); \
++      throw tao::TAO_PEGTL_NAMESPACE::input_error( mess, errorno );                         \
+    } while( false )
+ 
+ #endif
+diff --git a/include/tao/pegtl/internal/file_mapper_posix.hpp b/include/tao/pegtl/internal/file_mapper_posix.hpp
+index ff58eda..8d6409d 100644
+--- a/include/tao/pegtl/internal/file_mapper_posix.hpp
++++ b/include/tao/pegtl/internal/file_mapper_posix.hpp
+@@ -32,7 +32,7 @@ namespace tao
+                  m_data( static_cast< const char* >( ::mmap( nullptr, m_size, PROT_READ, MAP_PRIVATE, reader.m_fd, 0 ) ) )
+             {
+                if( ( m_size != 0 ) && ( intptr_t( m_data ) == -1 ) ) {
+-                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to mmap() file " << reader.m_source << " descriptor " << reader.m_fd );
++                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to mmap() file " + std::string(reader.m_source) + " descriptor " + std::to_string(reader.m_fd) );
                 }
              }
-             return m_cache[ start->first ] = accum;
-diff --git a/pegtl/input_error.hh b/pegtl/input_error.hh
-index 119decf..efc032a 100644
---- a/pegtl/input_error.hh
-+++ b/pegtl/input_error.hh
-@@ -4,7 +4,7 @@
- #ifndef PEGTL_INPUT_ERROR_HH
- #define PEGTL_INPUT_ERROR_HH
  
--#include <sstream>
-+#include <cstdio>
- #include <stdexcept>
- #include <cerrno>
+diff --git a/include/tao/pegtl/internal/file_mapper_win32.hpp b/include/tao/pegtl/internal/file_mapper_win32.hpp
+index 11b249e..82ef1db 100644
+--- a/include/tao/pegtl/internal/file_mapper_win32.hpp
++++ b/include/tao/pegtl/internal/file_mapper_win32.hpp
+@@ -58,7 +58,7 @@ namespace tao
+             {
+                LARGE_INTEGER size;
+                if( !::GetFileSizeEx( m_handle, &size ) ) {
+-                  TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "unable to GetFileSizeEx() file " << m_source << " handle " << m_handle );
++                  TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "unable to GetFileSizeEx() file " + std::string(m_source) );
+                }
+                return std::size_t( size.QuadPart );
+             }
+@@ -81,7 +81,7 @@ namespace tao
+                if( handle != INVALID_HANDLE_VALUE ) {
+                   return handle;
+                }
+-               TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "CreateFile2() failed opening file " << m_source << " for reading" );
++               TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "CreateFile2() failed opening file " + std::string(m_source) + " for reading" );
+ #else
+                const HANDLE handle = ::CreateFileW( ws.c_str(),
+                                                     GENERIC_READ,
+@@ -93,7 +93,7 @@ namespace tao
+                if( handle != INVALID_HANDLE_VALUE ) {
+                   return handle;
+                }
+-               TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "CreateFileW() failed opening file " << m_source << " for reading" );
++               TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "CreateFileW() failed opening file " + std::string(m_source) + " for reading" );
+ #endif
+             }
+          };
+@@ -143,7 +143,7 @@ namespace tao
+                if( handle != NULL || file_size == 0 ) {
+                   return handle;
+                }
+-               TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "unable to CreateFileMappingW() file " << reader.m_source << " for reading" );
++               TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "unable to CreateFileMappingW() file " + std::string(reader.m_source) + " for reading" );
+             }
+          };
  
-@@ -24,9 +24,7 @@ namespace pegtl
- #define PEGTL_THROW_INPUT_ERROR( MESSAGE )                              \
-    do {                                                                 \
-       const int errorno = errno;                                        \
--      std::ostringstream oss;                                           \
--      oss << "pegtl: " << MESSAGE << " errno " << errorno;              \
--      throw pegtl::input_error( oss.str(), errorno );                   \
-+      throw pegtl::input_error( MESSAGE, errorno );                     \
-    } while ( false )
+@@ -164,7 +164,7 @@ namespace tao
+                                                                       0 ) ) )
+             {
+                if( ( m_size != 0 ) && ( intptr_t( m_data ) == 0 ) ) {
+-                  TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "unable to MapViewOfFile() file mapping object with handle " << mapper.m_handle );
++                  TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "unable to MapViewOfFile() file mapping object" );
+                }
+             }
  
- } // pegtl
-diff --git a/pegtl/internal/file_mapper.hh b/pegtl/internal/file_mapper.hh
-index cad233e..1f59e42 100644
---- a/pegtl/internal/file_mapper.hh
-+++ b/pegtl/internal/file_mapper.hh
-@@ -28,7 +28,7 @@ namespace pegtl
-                  m_data( static_cast< const char * >( ::mmap( 0, m_size, PROT_READ, MAP_FILE | MAP_PRIVATE, reader.m_fd, 0 ) ) )
-          {
-             if ( intptr_t( m_data ) == -1 ) {
--               PEGTL_THROW_INPUT_ERROR( "unable to mmap() file " << reader.m_source << " descriptor " << reader.m_fd );
-+               PEGTL_THROW_INPUT_ERROR( "unable to mmap() file " + reader.m_source + " descriptor " + std::to_string(reader.m_fd) );
+diff --git a/include/tao/pegtl/internal/file_opener.hpp b/include/tao/pegtl/internal/file_opener.hpp
+index 50f4a4e..32be374 100644
+--- a/include/tao/pegtl/internal/file_opener.hpp
++++ b/include/tao/pegtl/internal/file_opener.hpp
+@@ -44,7 +44,7 @@ namespace tao
+                struct stat st;  // NOLINT
+                errno = 0;
+                if( ::fstat( m_fd, &st ) < 0 ) {
+-                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fstat() file " << m_source << " descriptor " << m_fd );
++                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fstat() file " + std::string(m_source) + " descriptor " + std::to_string(m_fd) );
+                }
+                return std::size_t( st.st_size );
              }
-          }
+@@ -65,7 +65,7 @@ namespace tao
+                if( fd >= 0 ) {
+                   return fd;
+                }
+-               TAO_PEGTL_THROW_INPUT_ERROR( "unable to open() file " << m_source << " for reading" );
++               TAO_PEGTL_THROW_INPUT_ERROR( "unable to open() file " + std::string(m_source) + " for reading" );
+             }
+          };
  
-diff --git a/pegtl/internal/file_opener.hh b/pegtl/internal/file_opener.hh
-index 75df81d..7d83cbc 100644
---- a/pegtl/internal/file_opener.hh
-+++ b/pegtl/internal/file_opener.hh
-@@ -36,7 +36,7 @@ namespace pegtl
-             struct stat st;
-             errno = 0;
-             if ( ::fstat( m_fd, & st ) < 0 ) {
--               PEGTL_THROW_INPUT_ERROR( "unable to fstat() file " << m_source << " descriptor " << m_fd );
-+               PEGTL_THROW_INPUT_ERROR( "unable to fstat() file " + m_source + " descriptor " + std::to_string(m_fd) );
-             }
-             return std::size_t( st.st_size );
-          }
-@@ -52,7 +52,7 @@ namespace pegtl
-             if ( fd >= 0 ) {
-                return fd;
-             }
--            PEGTL_THROW_INPUT_ERROR( "unable to open() file " << m_source << " for reading" );
-+            PEGTL_THROW_INPUT_ERROR( "unable to open() file " + m_source + " for reading" );
-          }
-       };
- 
-diff --git a/pegtl/internal/file_reader.hh b/pegtl/internal/file_reader.hh
-index 7dd4e99..d83456b 100644
---- a/pegtl/internal/file_reader.hh
-+++ b/pegtl/internal/file_reader.hh
-@@ -29,16 +29,16 @@ namespace pegtl
-          {
-             errno = 0;
-             if ( std::fseek( m_file.get(), 0, SEEK_END ) ) {
--               PEGTL_THROW_INPUT_ERROR( "unable to fseek() to end of file " << m_source );  // LCOV_EXCL_LINE
-+               PEGTL_THROW_INPUT_ERROR( "unable to fseek() to end of file " + m_source );  // LCOV_EXCL_LINE
-             }
-             errno = 0;
-             const auto s = std::ftell( m_file.get() );
-             if ( s < 0 ) {
--               PEGTL_THROW_INPUT_ERROR( "unable to ftell() file size of file " << m_source );  // LCOV_EXCL_LINE
-+               PEGTL_THROW_INPUT_ERROR( "unable to ftell() file size of file " + m_source );  // LCOV_EXCL_LINE
-             }
-             errno = 0;
-             if ( std::fseek( m_file.get(), 0, SEEK_SET ) ) {
--               PEGTL_THROW_INPUT_ERROR( "unable to fseek() to beginning of file " << m_source );  // LCOV_EXCL_LINE
-+               PEGTL_THROW_INPUT_ERROR( "unable to fseek() to beginning of file " + m_source );  // LCOV_EXCL_LINE
-             }
-             return s;
-          }
-@@ -49,7 +49,7 @@ namespace pegtl
-             nrv.resize( size() );
-             errno = 0;
-             if ( nrv.size() && ( std::fread( & nrv[ 0 ], nrv.size(), 1, m_file.get() ) != 1 ) ) {
--               PEGTL_THROW_INPUT_ERROR( "unable to fread() file " << m_source << " size " << nrv.size() );  // LCOV_EXCL_LINE
-+               PEGTL_THROW_INPUT_ERROR( "unable to fread() file " + m_source + " size " + std::to_string(nrv.size()) );  // LCOV_EXCL_LINE
-             }
-             return nrv;
-          }
-@@ -64,7 +64,7 @@ namespace pegtl
-             if ( auto * file = std::fopen( m_source.c_str(), "rb" ) ) {
+diff --git a/include/tao/pegtl/internal/file_reader.hpp b/include/tao/pegtl/internal/file_reader.hpp
+index b61386d..58c72b7 100644
+--- a/include/tao/pegtl/internal/file_reader.hpp
++++ b/include/tao/pegtl/internal/file_reader.hpp
+@@ -32,7 +32,7 @@ namespace tao
+             {
                 return file;
              }
--            PEGTL_THROW_INPUT_ERROR( "unable to fopen() file " << m_source << " for reading" );
-+            PEGTL_THROW_INPUT_ERROR( "unable to fopen() file " + m_source + " for reading" );
+-            TAO_PEGTL_THROW_INPUT_ERROR( "unable to fopen() file " << filename << " for reading" );
++            TAO_PEGTL_THROW_INPUT_ERROR( "unable to fopen() file " + std::string(filename) + " for reading" );
           }
-       };
  
-diff --git a/pegtl/parse.hh b/pegtl/parse.hh
-index e73a683..56f70e5 100644
---- a/pegtl/parse.hh
-+++ b/pegtl/parse.hh
-@@ -6,7 +6,6 @@
+          struct file_close
+@@ -70,16 +70,16 @@ namespace tao
+             {
+                errno = 0;
+                if( std::fseek( m_file.get(), 0, SEEK_END ) != 0 ) {
+-                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fseek() to end of file " << m_source );  // LCOV_EXCL_LINE
++                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fseek() to end of file " + std::string(m_source) );  // LCOV_EXCL_LINE
+                }
+                errno = 0;
+                const auto s = std::ftell( m_file.get() );
+                if( s < 0 ) {
+-                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to ftell() file size of file " << m_source );  // LCOV_EXCL_LINE
++                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to ftell() file size of file " + std::string(m_source) );  // LCOV_EXCL_LINE
+                }
+                errno = 0;
+                if( std::fseek( m_file.get(), 0, SEEK_SET ) != 0 ) {
+-                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fseek() to beginning of file " << m_source );  // LCOV_EXCL_LINE
++                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fseek() to beginning of file " + std::string(m_source) );  // LCOV_EXCL_LINE
+                }
+                return std::size_t( s );
+             }
+@@ -90,7 +90,7 @@ namespace tao
+                nrv.resize( size() );
+                errno = 0;
+                if( !nrv.empty() && ( std::fread( &nrv[ 0 ], nrv.size(), 1, m_file.get() ) != 1 ) ) {
+-                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fread() file " << m_source << " size " << nrv.size() );  // LCOV_EXCL_LINE
++                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fread() file " + std::string(m_source) + " size " + std::to_string(nrv.size()) );  // LCOV_EXCL_LINE
+                }
+                return nrv;
+             }
+diff --git a/include/tao/pegtl/position.hpp b/include/tao/pegtl/position.hpp
+index 60904a0..379f707 100644
+--- a/include/tao/pegtl/position.hpp
++++ b/include/tao/pegtl/position.hpp
+@@ -5,8 +5,6 @@
+ #define TAO_PEGTL_POSITION_HPP
  
- #include <string>
- #include <cstring>
--#include <sstream>
- 
- #include "input.hh"
- 
-@@ -26,9 +25,7 @@ namespace pegtl
-    template< typename Rule, template< typename ... > class Action = nothing, template< typename ... > class Control = normal, typename ... States >
-    bool parse( const int argc, char ** argv, States && ... st )
-    {
--      std::ostringstream os;
--      os << "argv[" << argc << ']';
--      const std::string source = os.str();
-+      const auto source = "argv[" + std::to_string(argc) + "]";
-       input in( 1, 0, argv[ argc ], argv[ argc ] + ::strlen( argv[ argc ] ), source.c_str() );
-       return parse_input< Rule, Action, Control >( in, st ... );
-    }
-diff --git a/pegtl/parse_error.hh b/pegtl/parse_error.hh
-index 97d7c21..2084e67 100644
---- a/pegtl/parse_error.hh
-+++ b/pegtl/parse_error.hh
-@@ -5,7 +5,6 @@
- #define PEGTL_PARSE_ERROR_HH
- 
- #include <vector>
--#include <sstream>
- #include <stdexcept>
- 
- #include "position_info.hh"
-@@ -27,9 +26,7 @@ namespace pegtl
-       template< typename Input >
-       std::string source( const Input & in )
-       {
--         std::ostringstream oss;
--         oss << pegtl::position_info( in.data() );
--         return oss.str();
-+         return position_info( in.data() ).to_string();
-       }
- 
-    } // internal
-diff --git a/pegtl/position_info.hh b/pegtl/position_info.hh
-index 8140b61..0aa79c0 100644
---- a/pegtl/position_info.hh
-+++ b/pegtl/position_info.hh
-@@ -6,7 +6,6 @@
- 
- #include <string>
  #include <cstdlib>
 -#include <ostream>
- 
- #include "input.hh"
- 
-@@ -34,12 +33,14 @@ namespace pegtl
-       std::size_t column;
- 
-       const char * begin;
-+
-+      std::string to_string() const
-+      {
-+         return source + ':' + std::to_string(line) + ':' + std::to_string(column);
-+      }
-    };
- 
--   inline std::ostream & operator<< ( std::ostream & o, const position_info & p )
--   {
--      return o << p.source << ':' << p.line << ':' << p.column;
--   }
-+   
- 
- } // pegtl
- 
-diff --git a/pegtl/trace.hh b/pegtl/trace.hh
-index 142720f..9921e42 100644
---- a/pegtl/trace.hh
-+++ b/pegtl/trace.hh
-@@ -5,7 +5,6 @@
- #define PEGTL_TRACE_HH
- 
+-#include <sstream>
+ #include <string>
  #include <utility>
--#include <iostream>
  
- #include "parse.hh"
- #include "normal.hh"
-@@ -23,19 +22,22 @@ namespace pegtl
-       template< typename Input, typename ... States >
-       static void start( const Input & in, States && ... )
+@@ -35,16 +33,9 @@ namespace tao
+          std::string source;
+       };
+ 
+-      inline std::ostream& operator<<( std::ostream& o, const position& p )
+-      {
+-         return o << p.source << ':' << p.line << ':' << p.byte_in_line << '(' << p.byte << ')';
+-      }
+-
+       inline std::string to_string( const position& p )
        {
--         std::cerr << pegtl::position_info( in ) << "  start  " << internal::demangle< Rule >() << std::endl;
-+         auto pos = pegtl::position_info( in ).to_string();
-+         fprintf( stderr, "%s start %s", pos, internal::demangle< Rule >());
+-         std::ostringstream o;
+-         o << p;
+-         return o.str();
++         return p.source + ':' + std::to_string(p.line) + ':' + std::to_string(p.byte_in_line) + '(' + std::to_string(p.byte) + ')';
        }
  
-       template< typename Input, typename ... States >
-       static void success( const Input & in, States && ... )
-       {
--         std::cerr << pegtl::position_info( in ) << " success " << internal::demangle< Rule >() << std::endl;
-+         auto pos = pegtl::position_info( in ).to_string();
-+         fprintf( stderr, "%s success %s", pos, internal::demangle< Rule >());
-       }
- 
-       template< typename Input, typename ... States >
-       static void failure( const Input & in, States && ... )
-       {
--         std::cerr << pegtl::position_info( in ) << " failure " << internal::demangle< Rule >() << std::endl;
-+         auto pos = pegtl::position_info( in ).to_string();
-+         fprintf( stderr, "%s failure %s", pos, internal::demangle< Rule >());
-       }
-    };
- 
-diff --git a/unit_tests/result_type.hh b/unit_tests/result_type.hh
-index 9ddaea8..b9c829a 100644
---- a/unit_tests/result_type.hh
-+++ b/unit_tests/result_type.hh
-@@ -4,7 +4,6 @@
- #ifndef PEGTL_UNIT_TESTS_RESULT_TYPE_HH
- #define PEGTL_UNIT_TESTS_RESULT_TYPE_HH
- 
--#include <iostream>
- 
- namespace pegtl
- {
-@@ -16,17 +15,17 @@ namespace pegtl
-    };
- 
-    // The following is inlined so it shows up as not executed on lcov:
--   inline std::ostream & operator<< ( std::ostream & o, const result_type t )
-+   inline std::string to_string( const std::string& o, const result_type t )
-    {
-       switch ( t ) {
-          case result_type::SUCCESS:
--            return o << "success";
-+            return o + "success";
-          case result_type::LOCAL_FAILURE:
--            return o << "local failure";
-+            return o + "local failure";
-          case result_type::GLOBAL_FAILURE:
--            return o << "global failure";
-+            return o + "global failure";
-       }
--      return o << int( t );
-+      return o + std::to_string( t );
-    }
- 
- } // pegtl
+    }  // namespace TAO_PEGTL_NAMESPACE

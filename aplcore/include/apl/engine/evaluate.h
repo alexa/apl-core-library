@@ -31,7 +31,17 @@ namespace apl {
  * @param value The string value to evaluate
  * @return The evaluated object or a Node object
  */
-const Object parseDataBinding(const Context& context, const std::string& value);
+Object parseDataBinding(const Context& context, const std::string& value);
+
+/**
+ * Parse a data-binding recursively and return the parsed expressiontree.  If the object contains any strings with
+ * data-binding expressions referring to symbols not defined in the current context or symbols that have been marked
+ * as mutable, the returned object will have corresponding Nodes containing the parse tree.
+ * @param context The data-binding context
+ * @param object The object to evaluate
+ * @return The evaluated object or a Node object
+ */
+Object parseDataBindingRecursive(const Context& context, const Object& object);
 
 /**
  * Evaluate an object applying data-binding
@@ -39,8 +49,8 @@ const Object parseDataBinding(const Context& context, const std::string& value);
  * @param object The object to evaluate.
  * @return
  */
-const Object evaluate(const Context& context, const Object& object);
-const Object evaluate(const Context& context, const char *expression);
+Object evaluate(const Context& context, const Object& object);
+Object evaluate(const Context& context, const char *expression);
 
 /**
  * Evaluate an object recursively.  Arrays and maps within the object will also
@@ -49,14 +59,14 @@ const Object evaluate(const Context& context, const char *expression);
  * @param object The object to evaluate.
  * @return
  */
-const Object evaluateRecursive(const Context& context, const Object& object);
+Object evaluateRecursive(const Context& context, const Object& object);
 
 std::string propertyAsString(const Context& context, const Object& object, const char *name);
 bool propertyAsBoolean(const Context& context, const Object& object, const char *name, bool defValue);
 double propertyAsDouble(const Context& context, const Object& object, const char *name, double defValue);
 int propertyAsInt(const Context& context, const Object& object, const char *name, int defValue);
 Object propertyAsObject(const Context& context, const Object& object, const char *name);
-Dimension propertyAsDimension(const Context& context, const Object& object, const char *name);
+Object propertyAsRecursive(const Context& context, const Object& object, const char *name);
 
 /**
  * Retrieve a property from an object and do basic data parsing, but allow a node-tree to

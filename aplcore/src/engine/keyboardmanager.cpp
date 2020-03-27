@@ -84,40 +84,32 @@ KeyboardManager::handleKeyboard(KeyHandlerType type, const CoreComponentPtr& com
 }
 
 bool
-KeyboardManager::executeDocumentKeyHandlers(const RootContextPtr& rootContext, KeyHandlerType type,
-                                            const ObjectMapPtr& keyboard) {
-
+KeyboardManager::executeDocumentKeyHandlers(const RootContextPtr& rootContext,
+                                            KeyHandlerType type,
+                                            const ObjectMapPtr& keyboard)
+{
     const auto& property = sComponentPropertyBimap.at(getHandlerPropertyKey(type));
     auto handlerId = getHandlerId(type);
 
     const auto& json = rootContext->content()->getDocument()->json();
     auto handlers = arrayifyProperty(json, property.c_str());
-    if (handlers.size() == 0) {
-        LOG_IF(DEBUG_KEYBOARD_MANAGER) << " No Document handlers: " << handlerId;
+    if (handlers.empty())
         return false;
-    }
 
     ContextPtr eventContext = rootContext->createKeyboardDocumentContext(handlerId, keyboard);
-    bool consumed = false;
 
     for (const auto& handler : handlers) {
-        auto when = propertyAsBoolean(*eventContext, handler, "when", false);
-        if (!when)
-            continue;
+        if (propertyAsBoolean(*eventContext, handler, "when", true)) {
+            auto commands = Object(arrayifyProperty(*eventContext, handler, "commands"));
+            if (!commands.empty())
+                eventContext->sequencer().executeCommands(commands, eventContext, nullptr, false);
 
-        auto commands = Object(arrayifyProperty(*eventContext, handler, "commands"));
-        if (!commands.empty()) {
-            // execute in normal mode
-            rootContext->executeCommands(commands, false);
-            LOG_IF(DEBUG_KEYBOARD_MANAGER) << "executing document commands: " << commands;
+            // NOTE: Checking for propagation at the document level is useless, except for debugging
+            return !propertyAsBoolean(*eventContext, handler, "propagate", false);
         }
-
-        consumed = !propertyAsBoolean(*eventContext, handler, "propagate", false);
-        break;
     }
 
-    return consumed;
+    return false;
 }
 
-
-}
+} // namespace apl

@@ -24,6 +24,7 @@
 
 #include "rapidjson/document.h"
 
+#include "apl/common.h"
 #include "apl/action/action.h"
 #include "apl/component/component.h"
 #include "apl/component/textmeasurement.h"
@@ -34,8 +35,12 @@
 #include "apl/content/metrics.h"
 #include "apl/content/package.h"
 #include "apl/content/rootconfig.h"
+#include "apl/datasource/datasourceprovider.h"
+#include "apl/datasource/datasourceconnection.h"
 #include "apl/engine/event.h"
 #include "apl/engine/rootcontext.h"
+#include "apl/livedata/livearray.h"
+#include "apl/livedata/livemap.h"
 #include "apl/graphic/graphic.h"
 #include "apl/primitives/dimension.h"
 #include "apl/primitives/mediastate.h"

@@ -101,7 +101,6 @@ TEST_F(CommandSetValueTest, Component)
     ASSERT_TRUE(root->isDirty());
     root->clearDirty();
 
-    auto transform = component->getCalculated(kPropertyTransform).getTransform2D();
     ASSERT_EQ(Object(Transform2D::translateX(10)), component->getCalculated(kPropertyTransform));
 
     executeSetValue("tw", "display", "none");
@@ -267,4 +266,169 @@ TEST_F(CommandSetValueTest, Video)
     ASSERT_EQ("https://video.com/new_video.mp4", source.at(0).getMediaSource().getUrl());
 
     ASSERT_TRUE(CheckNoActions());
+}
+
+static const char *BIND_CHANGE = "{"
+                                 "  \"type\": \"APL\","
+                                 "  \"version\": \"1.3\","
+                                 "  \"mainTemplate\": {"
+                                 "    \"item\": {"
+                                 "      \"id\": \"main\","
+                                 "      \"type\": \"Container\","
+                                 "      \"bind\": ["
+                                 "        {"
+                                 "          \"name\": \"commonPrice\","
+                                 "          \"value\": \"$3.50\""
+                                 "        }"
+                                 "      ],"
+                                 "      \"items\": ["
+                                 "        {"
+                                 "          \"id\": \"text1\","
+                                 "          \"type\": \"Text\","
+                                 "          \"text\": \"Price1 ${commonPrice}\""
+                                 "        },"
+                                 "        {"
+                                 "          \"id\": \"text2\","
+                                 "          \"type\": \"Text\","
+                                 "          \"text\": \"Price2 ${commonPrice}\""
+                                 "        },"
+                                 "        {"
+                                 "          \"id\": \"text3\","
+                                 "          \"type\": \"Text\","
+                                 "          \"text\": \"Price3 ${commonPrice}\""
+                                 "        }"
+                                 "      ]"
+                                 "    }"
+                                 "  }"
+                                 "}";
+
+TEST_F(CommandSetValueTest, Bind)
+{
+    loadDocument(BIND_CHANGE);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeContainer, component->getType());
+
+    auto text1 = component->findComponentById("text1");
+    ASSERT_TRUE(text1);
+    auto t1 = text1->getCalculated(kPropertyText).asString();
+    ASSERT_EQ("Price1 $3.50", t1);
+
+    auto text2 = component->findComponentById("text2");
+    ASSERT_TRUE(text2);
+    auto t2 = text2->getCalculated(kPropertyText).asString();
+    ASSERT_EQ("Price2 $3.50", t2);
+
+    auto text3 = component->findComponentById("text3");
+    ASSERT_TRUE(text3);
+    auto t3 = text3->getCalculated(kPropertyText).asString();
+    ASSERT_EQ("Price3 $3.50", t3);
+
+    // Let's introduce some tax here
+    executeSetValue("main", "commonPrice", "$3.85");
+    ASSERT_TRUE(root->isDirty());
+    root->clearDirty();
+
+    t1 = text1->getCalculated(kPropertyText).asString();
+    ASSERT_EQ("Price1 $3.85", t1);
+
+    t2 = text2->getCalculated(kPropertyText).asString();
+    ASSERT_EQ("Price2 $3.85", t2);
+
+    t3 = text3->getCalculated(kPropertyText).asString();
+    ASSERT_EQ("Price3 $3.85", t3);
+}
+
+static const char *DATA_BIND_OBJECT =  R"({"color": "#000000", "price": "$3.50"})";
+
+static const char *BIND_OBJECT_CHANGE = "{"
+                                 "  \"type\": \"APL\","
+                                 "  \"version\": \"1.3\","
+                                 "  \"mainTemplate\": {"
+                                 "    \"parameters\": ["
+                                 "      \"payload\""
+                                 "    ],"
+                                 "    \"item\": {"
+                                 "      \"id\": \"main\","
+                                 "      \"type\": \"Container\","
+                                 "      \"bind\": ["
+                                 "        {"
+                                 "          \"name\": \"commonPrice\","
+                                 "          \"value\": \"${payload.price}\""
+                                 "        },"
+                                 "        {"
+                                 "          \"name\": \"commonColor\","
+                                 "          \"value\": \"${payload.color}\""
+                                 "        }"
+                                 "      ],"
+                                 "      \"items\": ["
+                                 "        {"
+                                 "          \"id\": \"text1\","
+                                 "          \"type\": \"Text\","
+                                 "          \"color\": \"${commonColor}\","
+                                 "          \"text\": \"Price1 ${commonPrice}\""
+                                 "        },"
+                                 "        {"
+                                 "          \"id\": \"text2\","
+                                 "          \"type\": \"Text\","
+                                 "          \"color\": \"${commonColor}\","
+                                 "          \"text\": \"Price2 ${commonPrice}\""
+                                 "        },"
+                                 "        {"
+                                 "          \"id\": \"text3\","
+                                 "          \"type\": \"Text\","
+                                 "          \"color\": \"${commonColor}\","
+                                 "          \"text\": \"Price3 ${commonPrice}\""
+                                 "        }"
+                                 "      ]"
+                                 "    }"
+                                 "  }"
+                                 "}";
+
+TEST_F(CommandSetValueTest, BindObject)
+{
+    loadDocument(BIND_OBJECT_CHANGE, DATA_BIND_OBJECT);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeContainer, component->getType());
+
+    auto text1 = component->findComponentById("text1");
+    ASSERT_TRUE(text1);
+    auto t1 = text1->getCalculated(kPropertyText).asString();
+    auto c1 = text1->getCalculated(kPropertyColor).asString();
+    ASSERT_EQ("Price1 $3.50", t1);
+    ASSERT_EQ("#000000ff", c1);
+
+    auto text2 = component->findComponentById("text2");
+    ASSERT_TRUE(text2);
+    auto t2 = text2->getCalculated(kPropertyText).asString();
+    auto c2 = text1->getCalculated(kPropertyColor).asString();
+    ASSERT_EQ("Price2 $3.50", t2);
+    ASSERT_EQ("#000000ff", c2);
+
+    auto text3 = component->findComponentById("text3");
+    ASSERT_TRUE(text3);
+    auto t3 = text3->getCalculated(kPropertyText).asString();
+    auto c3 = text1->getCalculated(kPropertyColor).asString();
+    ASSERT_EQ("Price3 $3.50", t3);
+    ASSERT_EQ("#000000ff", c3);
+
+    // Let's introduce some discount...+tax
+    executeSetValue("main", "commonPrice", "$3.47");
+    executeSetValue("main", "commonColor", "#FF0000");
+    ASSERT_TRUE(root->isDirty());
+    root->clearDirty();
+
+    t1 = text1->getCalculated(kPropertyText).asString();
+    c1 = text1->getCalculated(kPropertyColor).asString();
+    ASSERT_EQ("Price1 $3.47", t1);
+    ASSERT_EQ("#ff0000ff", c1);
+
+    t2 = text2->getCalculated(kPropertyText).asString();
+    c2 = text1->getCalculated(kPropertyColor).asString();
+    ASSERT_EQ("Price2 $3.47", t2);
+    ASSERT_EQ("#ff0000ff", c2);
+
+    t3 = text3->getCalculated(kPropertyText).asString();
+    c3 = text1->getCalculated(kPropertyColor).asString();
+    ASSERT_EQ("Price3 $3.47", t3);
+    ASSERT_EQ("#ff0000ff", c3);
 }

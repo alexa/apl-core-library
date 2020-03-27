@@ -16,11 +16,52 @@
 #ifndef _APL_FUNCTIONS_H
 #define _APL_FUNCTIONS_H
 
+#include "apl/primitives/object.h"
+
 namespace apl {
 
-class Context;
+using UserFunction = Object (*)(const std::vector<Object>&);
 
-void createStandardFunctions(Context& context);
+extern void createStandardFunctions(Context& context);
+
+/**
+ * Hold information about a callable function
+ */
+class Function : public Object::Data {
+public:
+    static std::shared_ptr<Function> create(const std::string& name, UserFunction function, bool isPure = true) {
+        return std::make_shared<Function>(name, function, isPure);
+    }
+
+    Function(const std::string& name, UserFunction function, bool isPure)
+        : mName(name), mFunction(function), mIsPure(isPure)
+    {}
+
+    /**
+     * @return The human-readable name of this function
+     */
+    std::string name() const { return mName; }
+
+    /**
+     * @return True if this function is "pure" and has no side effects or internal state
+     *         storage.  A pure function will always return the same result for the same
+     *         arguments.  Functions like a random number generator are not pure.
+     */
+    bool isPure() const { return mIsPure; }
+
+    Object call(const std::vector<Object>& args) const override {
+        return mFunction(args);
+    }
+
+    std::string toDebugString() const override {
+        return "function<" + mName + ">";
+    }
+
+private:
+    std::string mName;
+    UserFunction mFunction;
+    bool mIsPure;
+};
 
 }
 

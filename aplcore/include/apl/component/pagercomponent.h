@@ -33,29 +33,35 @@ public:
 
     const ComponentPropDefSet* layoutPropDefSet() const override;
 
-    Object getValue() const override { return mCurrentPage; }
+    Object getValue() const override { return getCalculated(kPropertyCurrentPage); }
 
     std::shared_ptr<ObjectMap> getEventTargetProperties() const override;
 
     ScrollType scrollType() const override { return kScrollTypeHorizontalPager; }
     PageDirection pageDirection() const override;
-    int pagePosition() const override { return mCurrentPage; }
+    int pagePosition() const override { return getCalculated(kPropertyCurrentPage).asInt(); }
 
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
+
+    void processLayoutChanges(bool useDirtyFlag) override;
 
 protected:
     const ComponentPropDefSet& propDefSet() const override;
 
     ComponentPtr findChildAtPosition(const Point& position) const override;
 
+    bool insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag) override;
+
+    void removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
+
+    bool shouldAttachChildYogaNode(int index) const override;
+
+    void finalizePopulate() override;
 
 private:
     bool multiChild() const override { return true; }
     std::map<int, float> getChildrenVisibility(float realOpacity, const Rect &visibleRect) override;
-
-    int mCurrentPage;  // Current page we're on
-
-    void doPage(float value, bool fastmode);
+    bool attachCurrentAndReportLoaded();
 };
 
 } // namespace apl

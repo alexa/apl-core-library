@@ -13,12 +13,12 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/utils/session.h"
+#include "apl/apl.h"
 #include "apl/engine/arrayify.h"
 #include "apl/command/arraycommand.h"
 #include "apl/command/commandfactory.h"
-#include "apl/engine/evaluate.h"
-#include "apl/command/corecommand.h"
+#include "apl/command/extensioneventcommand.h"
+#include "apl/engine/extensionmanager.h"
 
 namespace apl {
 
@@ -107,7 +107,7 @@ CommandFactory::expandMacro(const ContextPtr& context,
     ParameterArray params(definition);
     for (const auto& param : params) {
         LOG_IF(DEBUG_COMMAND_FACTORY) << "Parsing parameter: " << param.name;
-        cptr->putConstant(param.name, properties.forParameter(*cptr, param));
+        properties.addToContext(cptr, param, false);
     }
 
     return ArrayCommand::create(cptr,
@@ -153,12 +153,17 @@ CommandFactory::inflate(const ContextPtr& context,
     if (method != mCommandMap.end())
         return method->second(context, std::move(props), base);
 
+    // Check to see if it is an extension command
+    auto extensionCommand = context->extensionManager().findCommandDefinition(type);
+    if (extensionCommand != nullptr)
+        return ExtensionEventCommand::create(*extensionCommand, context, std::move(props), base);
+
     // Look up a command macro.
     const auto& resource = context->getCommand(type);
     if (!resource.empty())
         return expandMacro(context, props, resource.json(), base);
 
-    CONSOLE_CTP(context) << "Unable to find primitive or macro command '" << type << "'";
+    CONSOLE_CTP(context) << "Unable to find command '" << type << "'";
     return nullptr;
 }
 

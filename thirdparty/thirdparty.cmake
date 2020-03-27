@@ -25,13 +25,17 @@ list(APPEND CMAKE_ARGS -DCMAKE_CXX_FLAGS=${EXT_CXX_ARGS})
 list(APPEND CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/lib)
 list(APPEND CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
 
+if("${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC")
+    set(PATCH_FLAGS "--binary")
+endif()
+
 ExternalProject_Add(yoga
-        URL ${APL_PROJECT_DIR}/thirdparty/yoga-1.10.0.tar.gz
-        URL_MD5 7245cc2d82c997a4744beec9fd8a3928
+        URL ${APL_PROJECT_DIR}/thirdparty/yoga-1.16.0.tar.gz
+        URL_MD5 c9e88076ec371513fb23a0a5370ec2fd
         EXCLUDE_FROM_ALL TRUE
         INSTALL_DIR ${CMAKE_BINARY_DIR}/lib
-        PATCH_COMMAND patch -p1 < ${APL_PATCH_DIR}/yoga.patch
-        BUILD_BYPRODUCTS <INSTALL_DIR>/libyogacore.a
+        PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/yoga.patch
+        BUILD_BYPRODUCTS <INSTALL_DIR>/${CMAKE_STATIC_LIBRARY_PREFIX}yogacore${CMAKE_STATIC_LIBRARY_SUFFIX}
         CMAKE_ARGS ${CMAKE_ARGS}
         )
 
@@ -39,12 +43,11 @@ ExternalProject_Get_Property(yoga install_dir)
 ExternalProject_Get_Property(yoga source_dir)
 set(YOGA_INCLUDE ${source_dir})
 set(YOGA_LIB ${install_dir}/${CMAKE_STATIC_LIBRARY_PREFIX}yogacore${CMAKE_STATIC_LIBRARY_SUFFIX})
-        
 
 ExternalProject_Add(pegtl
-        URL ${APL_PROJECT_DIR}/thirdparty/pegtl-1.3.1.tar.gz
-        URL_MD5 0d55b3233f7a4737a5c03ab039920bbe
-        PATCH_COMMAND patch -p1 < ${APL_PATCH_DIR}/pegtl.patch
+        URL ${APL_PROJECT_DIR}/thirdparty/pegtl-2.8.1.tar.gz
+        URL_MD5 10d625fb1da9e95c8e29c51be5e0e5e1
+        PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/pegtl.patch
         STEP_TARGETS build
         EXCLUDE_FROM_ALL TRUE
         CONFIGURE_COMMAND ""
@@ -52,12 +55,12 @@ ExternalProject_Add(pegtl
         CMAKE_ARGS ${CMAKE_ARGS}
         )
 ExternalProject_Get_Property(pegtl install_dir)
-set(PEGTL_INCLUDE ${install_dir}/src/pegtl)
+set(PEGTL_INCLUDE ${install_dir}/src/pegtl/include)
 
 ExternalProject_Add(rapidjson
         URL ${APL_PROJECT_DIR}/thirdparty/rapidjson-v1.1.0.tar.gz
         URL_MD5 badd12c511e081fec6c89c43a7027bce
-        PATCH_COMMAND patch -p1 < ${APL_PATCH_DIR}/rapidjson.patch
+        PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/rapidjson.patch
         STEP_TARGETS build
         EXCLUDE_FROM_ALL TRUE
         CONFIGURE_COMMAND ""

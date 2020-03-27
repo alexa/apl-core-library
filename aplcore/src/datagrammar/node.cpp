@@ -20,29 +20,37 @@
 #include "apl/datagrammar/node.h"
 #include "apl/engine/context.h"
 #include "apl/primitives/dimension.h"
-#include "apl/utils/log.h"
 
 namespace apl {
 namespace datagrammar {
 
-void
-Node::symbols(std::set<std::string>& symbols) const
-{
-    if (mOp == SymbolAccess)
-        symbols.emplace(mArgs.at(0).asString());
-
-    for (auto& m : mArgs)
-        m.symbols(symbols);
-}
-
 std::string
 Node::toDebugString() const {
-    return "Node<" + (mOp == SymbolAccess ? mArgs.at(0).asString() : mName) + ">";
+    return "Node<" + mName + ">";
 }
 
 streamer& operator<<(streamer& os, const Node& node) {
     os << node.toDebugString();
     return os;
+}
+
+std::string
+Node::getSuffix() const
+{
+    if (mOp != ApplyArrayAccess && mOp != ApplyFieldAccess)
+        return {};
+
+    assert(mArgs.size() == 2);
+    assert(mArgs.at(0).isEvaluable());
+
+    // If the RHS attribute/array access value is not pure, then each time we read it we may
+    // get a new value.  We can't extend the LHS path with this information, so stash the LHS
+    // path into the driving symbols.
+    if (!mArgs.at(1).isPure())
+        return {};
+
+    // A pure RHS attribute/array access extends the LHS path
+    return mArgs.at(1).eval().asString();
 }
 
 }  // namespace datagrammar

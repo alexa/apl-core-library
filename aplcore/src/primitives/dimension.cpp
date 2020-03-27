@@ -14,13 +14,14 @@
  */
 
 #include <assert.h>
-#include <pegtl.hh>
+#include <tao/pegtl.hpp>
 
 #include "apl/primitives/dimension.h"
 #include "apl/engine/context.h"
 
 namespace apl {
 
+    namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
     using namespace pegtl;
 
     // TODO:  Currently if the grammar doesn't match, we set the result to 0.
@@ -49,21 +50,24 @@ namespace apl {
 
     template<> struct d_action< d_num >
     {
-        static void apply(const input& in, std::string& unit, bool& isAuto, double& value) {
+        template< typename Input >
+        static void apply(const Input& in, std::string& unit, bool& isAuto, double& value) {
             value = std::stod(in.string());
         }
     };
 
     template<> struct d_action< d_op >
     {
-        static void apply(const input& in, std::string& unit, bool& isAuto, double& value) {
+        template< typename Input >
+        static void apply(const Input& in, std::string& unit, bool& isAuto, double& value) {
             unit = in.string();
         }
     };
 
     template<> struct d_action< d_auto >
     {
-        static void apply(const input& in, std::string& unit, bool& isAuto, double& value) {
+        template< typename Input >
+        static void apply(const Input& in, std::string& unit, bool& isAuto, double& value) {
             isAuto = true;
         }
     };
@@ -83,10 +87,10 @@ namespace apl {
     {
         std::string unit;
         bool isAuto = false;
-        pegtl::data_parser parser(value, "parseDimension");
+        pegtl::string_input<> in(value, "");
 
         // If you fail to parse it, return 0
-        if (!parser.parse<d_grammar, d_action>(unit, isAuto, mValue)) {
+        if (!pegtl::parse<d_grammar, d_action>(in, unit, isAuto, mValue)) {
             mValue = 0;
             return;
         }

@@ -16,13 +16,14 @@
 #ifndef _APL_EASING_GRAMMAR_H
 #define _APL_EASING_GRAMMAR_H
 
-#include <pegtl.hh>
-#include <pegtl/contrib/abnf.hh>
+#include <tao/pegtl.hpp>
+#include <tao/pegtl/contrib/abnf.hpp>
 
 namespace apl {
 
 namespace easinggrammar {
 
+namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 using namespace pegtl;
 
 static bool DEBUG_GRAMMAR = false;
@@ -36,13 +37,16 @@ struct arglist     : seq< one<'('>, opt<args>, one<')'> >{};
 struct path        : seq< string<'p','a','t','h'>, arglist> {};
 struct cubicbezier : seq< string<'c','u','b','i','c','-','b','e','z','i','e','r'>, arglist> {};
 struct curve       : sor< path, cubicbezier > {};
-struct grammar     : must<curve, eof> {};  // Expect a single curve
+// Using namespace pegtl,
+// because of this collision in Windows:
+// error C2872: 'eof': ambiguous symbol
+struct grammar     : must<curve, pegtl::eof> {}; // Expect a single curve.
 
 // ******************** ACTIONS ****************
 
 template<typename Rule>
 struct action
-    : pegtl::nothing< Rule > {
+    : nothing< Rule > {
 };
 
 struct easing_state
@@ -55,21 +59,24 @@ struct easing_state
 
 template<> struct action<floatnum>
 {
-    static void apply(const input& in, easing_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, easing_state& state) {
         state.args.push_back(std::stof(in.string()));
     }
 };
 
 template<> struct action< path >
 {
-    static void apply(const input& in, easing_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, easing_state& state) {
         state.type = easing_state::PATH;
     }
 };
 
 template<> struct action< cubicbezier >
 {
-    static void apply(const input& in, easing_state& state) {
+    template< typename Input >
+    static void apply(const Input& in, easing_state& state) {
         state.type = easing_state::CUBIC_BEZIER;
     }
 };

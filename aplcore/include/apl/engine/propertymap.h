@@ -50,6 +50,19 @@ public:
     }
 
     /**
+     * Return object by key lookup.
+     * @param key The key.
+     * @return The value or Object::NULL_OBJECT if it does not exist
+     */
+    Object get(T key) {
+        auto it = mValues.find(key);
+        if (it != mValues.end())
+            return it->second;
+
+        return Object::NULL_OBJECT();
+    }
+
+    /**
      * Return object by string lookup.
      * @param key The key
      * @return The value or Object::NULL_OBJECT if it does not exist
@@ -78,6 +91,15 @@ public:
      * @return The value or Object::NULL_OBJECT if it does not exist
      */
     const Object& get(const char *key) const {
+        return get(std::string(key));
+    }
+
+    /**
+     * Return object by string lookup.
+     * @param key The key
+     * @return The value or Object::NULL_OBJECT if it does not exist
+     */
+    Object get(const char *key) {
         return get(std::string(key));
     }
 

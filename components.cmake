@@ -11,7 +11,7 @@
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
-project (apl VERSION 1.2.0 LANGUAGES C CXX)
+project (apl VERSION 1.0.0 LANGUAGES C CXX)
 
 if (TELEMETRY)
     message("Telemetry enabled.")
@@ -21,6 +21,11 @@ endif(TELEMETRY)
 if (POLICY CMP0048)
     cmake_policy(SET CMP0048 NEW)
 endif (POLICY CMP0048)
+
+if (WERROR)
+    message("Paranoid build (-Werror) enabled.")
+    add_compile_options(-Wall -Werror -Wendif-labels -Wno-sign-compare -Wshadow)
+endif(WERROR)
 
 # Set compilation flags for memory debugging
 if (DEBUG_MEMORY_USE)
@@ -53,6 +58,9 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "(Apple)?[Cc]lang")
 elseif(CMAKE_COMPILER_IS_GNUCXX)
     message("Using gcc")
     include(gcc.cmake)
+elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC")
+    message("Using msvc")
+    include(msvc.cmake)
 else()
     message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER_ID} is not known")
 endif()

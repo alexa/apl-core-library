@@ -29,6 +29,7 @@
 #include "apl/command/scrollcommand.h"
 #include "apl/command/scrolltocomponentcommand.h"
 #include "apl/command/scrolltoindexcommand.h"
+#include "apl/command/selectcommand.h"
 #include "apl/command/sendeventcommand.h"
 #include "apl/command/sequentialcommand.h"
 #include "apl/command/setfocuscommand.h"
@@ -37,6 +38,7 @@
 #include "apl/command/setvaluecommand.h"
 #include "apl/command/speakitemcommand.h"
 #include "apl/command/speaklistcommand.h"
+#include "apl/command/finishcommand.h"
 
 namespace apl {
 
@@ -225,6 +227,7 @@ std::map<int, CommandCreateFunc> sCommandCreatorMap = {
     {kCommandTypeScroll,            ScrollCommand::create},
     {kCommandTypeScrollToIndex,     ScrollToIndexCommand::create},
     {kCommandTypeScrollToComponent, ScrollToComponentCommand::create},
+    {kCommandTypeSelect,            SelectCommand::create},
     {kCommandTypeSendEvent,         SendEventCommand::create},
     {kCommandTypeSequential,        SequentialCommand::create},
     {kCommandTypeSetPage,           SetPageCommand::create},
@@ -235,6 +238,7 @@ std::map<int, CommandCreateFunc> sCommandCreatorMap = {
     {kCommandTypeAnimateItem,       AnimateItemCommand::create},
     {kCommandTypeSetFocus,          SetFocusCommand::create},
     {kCommandTypeClearFocus,        ClearFocusCommand::create},
+    {kCommandTypeFinish,            FinishCommand::create},
 };
 
 }

@@ -38,35 +38,41 @@ class CoreComponent;
 class ComponentDependant : public Dependant {
 public:
     /**
-     * Construct a dependency from a context to a property of a component
-     * @param upstreamContext The upstream context.
-     * @param upstreamName The name of the symbol in the upstream context which drives a change downstream.
-     * @param downstreamComponent The downstream component.
-     * @param downstreamKey The property key in the downstream component which will be recalculated.
+     *
+     * @param downstreamComponent The downstream or target component
+     * @param downstreamKey The property that will be modified
+     * @param equation The expression which will be evaluated to recalculate downstream.
+     * @param bindingContext The context where the equation will be bound
+     * @param bindingFunction The binding function that will be applied after evaluating the equation
      */
-    static void create(const ContextPtr& upstreamContext,
-                       const std::string& upstreamName,
-                       const CoreComponentPtr& downstreamComponent,
-                       PropertyKey downstreamKey);
+    static void create(const CoreComponentPtr& downstreamComponent,
+                       PropertyKey downstreamKey,
+                       const Object& equation,
+                       const ContextPtr& bindingContext,
+                       BindingFunction bindingFunction);
 
     /**
      * Internal constructor: do not call.  Use ComponentDependant::create instead.
-     * @param upstreamContext
+     *
      * @param downstreamComponent
-     * @param propertyKey
+     * @param downstreamKey
+     * @param equation
+     * @param bindingContext
+     * @param bindingFunction
      */
-    ComponentDependant(const ContextPtr& upstreamContext,
-                       const CoreComponentPtr& downstreamComponent,
-                       PropertyKey downstreamKey)
-        : mUpstreamContext(upstreamContext), mDownstreamComponent(downstreamComponent), mDownstreamKey(downstreamKey)
+    ComponentDependant(const CoreComponentPtr& downstreamComponent,
+                       PropertyKey downstreamKey,
+                       const Object& equation,
+                       const ContextPtr& bindingContext,
+                       BindingFunction bindingFunction)
+        : Dependant(equation, bindingContext, bindingFunction),
+          mDownstreamComponent(downstreamComponent),
+          mDownstreamKey(downstreamKey)
     {}
-
-    void removeFromSource() override;
 
     void recalculate(bool useDirtyFlag) const override;
 
 private:
-    std::weak_ptr<Context> mUpstreamContext;
     std::weak_ptr<CoreComponent> mDownstreamComponent;
     PropertyKey mDownstreamKey;
 };

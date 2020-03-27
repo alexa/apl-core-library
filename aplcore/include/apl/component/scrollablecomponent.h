@@ -23,8 +23,7 @@ namespace apl {
 class ScrollableComponent : public ActionableComponent {
 protected:
     ScrollableComponent(const ContextPtr& context, Properties&& properties, const std::string& path) :
-        ActionableComponent(context, std::move(properties), path),
-        mCurrentPosition(0) {};
+        ActionableComponent(context, std::move(properties), path) {};
 
     void update(UpdateType type, float value) override;
 
@@ -34,14 +33,19 @@ protected:
 
     /**
      * Override this to calculate whether the scrollable can continue to scroll forward
-     * @return
+     * @return true if scrollable can continue to scroll forward, false otherwise.
      */
     virtual bool allowForward() const = 0;
 
     bool isFocusable() const override { return true; }
 
-protected:
-    int mCurrentPosition;
+    const ComponentPropDefSet& propDefSet() const override;
+
+    /**
+     * Override this to calculate maximum available scroll position.
+     * @return maximum available scroll position.
+     */
+    virtual float maxScroll() const = 0;
 };
 
 } // namespace apl

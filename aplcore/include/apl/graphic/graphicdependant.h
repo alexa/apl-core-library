@@ -35,34 +35,27 @@ namespace apl {
  */
 class GraphicDependant : public Dependant {
 public:
-    static void create(const ContextPtr& upstreamContext,
-                       const std::string& upstreamName,
-                       const GraphicElementPtr& downstreamGraphicElement,
+    static void create(const GraphicElementPtr& downstreamGraphicElement,
                        GraphicPropertyKey downstreamKey,
-                       const Object& node,
-                       BindingFunction func);
+                       const Object& equation,
+                       const ContextPtr& bindingContext,
+                       BindingFunction bindingFunction);
 
-    GraphicDependant(const ContextPtr& upstreamContext,
-                     const GraphicElementPtr& downstreamGraphicElement,
+    GraphicDependant(const GraphicElementPtr& downstreamGraphicElement,
                      GraphicPropertyKey downstreamKey,
-                     const Object& node,
-                     BindingFunction func)
-        : mUpstreamContext(upstreamContext),
+                     const Object& equation,
+                     const ContextPtr& bindingContext,
+                     BindingFunction bindingFunction)
+        : Dependant(equation, bindingContext, bindingFunction),
           mDownstreamGraphicElement(downstreamGraphicElement),
-          mDownstreamKey(downstreamKey),
-          mNode(node),
-          mEval(func)
+          mDownstreamKey(downstreamKey)
     {}
 
-    void removeFromSource() override;
     void recalculate(bool useDirtyFlag) const override;
 
 private:
-    std::weak_ptr<Context> mUpstreamContext;
     std::weak_ptr<GraphicElement> mDownstreamGraphicElement;
     GraphicPropertyKey mDownstreamKey;
-    Object mNode;
-    BindingFunction mEval;
 };
 
 } // namespace apl

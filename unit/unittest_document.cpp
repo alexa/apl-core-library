@@ -20,7 +20,6 @@
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/rootcontext.h"
-#include "apl/engine/context.h"
 #include "apl/content/importrequest.h"
 
 using namespace apl;
@@ -898,11 +897,8 @@ TEST(DocumentTest, Loop)
         else FAIL() << "Unknown package " << it.reference().name();
     }
 
-    ASSERT_TRUE(content->isReady());
+    ASSERT_TRUE(content->isError());
 
-    // Loop detection happens in the RootContext
-    auto root = RootContext::create(m, content);
-    ASSERT_FALSE(root);
 }
 
 TEST(DocumentTest, NonReversal)
@@ -1022,8 +1018,106 @@ TEST(DocumentTest, DeepLoop)
         }
     }
 
+    ASSERT_TRUE(content->isError());
+}
+
+static const char * PAYLOAD_TEST =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.3\","
+    "  \"onMount\": {"
+    "    \"type\": \"SetValue\","
+    "    \"componentId\": \"TestId\","
+    "    \"property\": \"text\","
+    "    \"value\": \"${payload.value}\""
+    "  },"
+    "  \"mainTemplate\": {"
+    "    \"parameters\": ["
+    "      \"payload\""
+    "    ],"
+    "    \"items\": {"
+    "      \"type\": \"Text\","
+    "      \"text\": \"Not set\","
+    "      \"id\": \"TestId\""
+    "    }"
+    "  }"
+    "}";
+
+/**
+ * Verify that the onMount command has access to the document payload
+ */
+TEST(DocumentTest, PayloadTest)
+{
+    auto content = Content::create(PAYLOAD_TEST, makeDefaultSession());
+
+    ASSERT_TRUE(content);
+    ASSERT_FALSE(content->isReady());
+    ASSERT_FALSE(content->isWaiting());
+    ASSERT_FALSE(content->isError());
+
+    ASSERT_EQ(1, content->getParameterCount());
+    ASSERT_EQ(std::string("payload"), content->getParameterAt(0));
+    content->addData("payload", R"({"value": "Is Set"})");
     ASSERT_TRUE(content->isReady());
 
-    auto doc = RootContext::create(m, content);
-    ASSERT_FALSE(doc);
+    auto doc = RootContext::create(Metrics(), content, RootConfig());
+
+    ASSERT_TRUE(doc);
+    ASSERT_STREQ("Is Set", doc->topComponent()->getCalculated(kPropertyText).asString().c_str());
+}
+
+
+static const char * EXTERNAL_COMMAND_TEST =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.3\","
+    "  \"mainTemplate\": {"
+    "    \"parameters\": ["
+    "      \"payload\""
+    "    ],"
+    "    \"items\": {"
+    "      \"type\": \"Text\","
+    "      \"id\": \"TextId\","
+    "      \"text\": \"${payload.start}\""
+    "    }"
+    "  }"
+    "}";
+
+static const char * EXTERNAL_COMMAND_TEST_COMMAND =
+    "["
+    "  {"
+    "    \"type\": \"SetValue\","
+    "    \"componentId\": \"TextId\","
+    "    \"property\": \"text\","
+    "    \"value\": \"${payload.end}\""
+    "  }"
+    "]";
+
+/**
+ * Verify that an external command has access to the document payload
+ */
+TEST(DocumentTest, ExternalCommandTest)
+{
+    auto content = Content::create(EXTERNAL_COMMAND_TEST, makeDefaultSession());
+
+    ASSERT_TRUE(content);
+    ASSERT_FALSE(content->isReady());
+    ASSERT_FALSE(content->isWaiting());
+    ASSERT_FALSE(content->isError());
+
+    ASSERT_EQ(1, content->getParameterCount());
+    ASSERT_EQ(std::string("payload"), content->getParameterAt(0));
+    content->addData("payload", R"({"start": "Is Not Set", "end": "Is Set"})");
+    ASSERT_TRUE(content->isReady());
+
+    auto doc = RootContext::create(Metrics(), content, RootConfig());
+
+    ASSERT_TRUE(doc);
+    ASSERT_STREQ("Is Not Set", doc->topComponent()->getCalculated(kPropertyText).asString().c_str());
+
+    auto cmd = JsonData(EXTERNAL_COMMAND_TEST_COMMAND);
+    ASSERT_TRUE(cmd);
+
+    doc->executeCommands(cmd.get(), false);
+    ASSERT_STREQ("Is Set", doc->topComponent()->getCalculated(kPropertyText).asString().c_str());
 }

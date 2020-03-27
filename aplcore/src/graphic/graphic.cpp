@@ -102,7 +102,7 @@ Graphic::initialize(const ContextPtr& sourceContext,
 
             // If the assigned property is a string, check for data-binding
             if (it->second.isString()) {
-                parsed = parseDataBinding(mInternalContext, it->second.getString());
+                parsed = parseDataBinding(*sourceContext, it->second.getString());
                 value = conversionFunc(*sourceContext, evaluate(*sourceContext, parsed));
             }
             else {
@@ -120,20 +120,8 @@ Graphic::initialize(const ContextPtr& sourceContext,
         mInternalContext->putUserWriteable(param.name, value);
 
         // After storing the parameter we can wire up any necessary data dependant
-        if (parsed.isNode()) {
-            std::set<std::string> symbols;
-            parsed.symbols(symbols);
-            auto self = std::static_pointer_cast<Graphic>(shared_from_this());
-            for (const auto& symbol : symbols) {
-                auto upstream = sourceContext->findContextContaining(symbol);
-                if (upstream != nullptr)
-                    ContextDependant::create(upstream, symbol,
-                                             mInternalContext, param.name,
-                                             sourceContext,   // The evaluation context is NOT the target context
-                                             parsed, conversionFunc);
-            }
-        }
-
+        if (parsed.isEvaluable())
+            ContextDependant::create(mInternalContext, param.name, parsed, sourceContext, conversionFunc);
     }
 
     auto self = std::static_pointer_cast<Graphic>(shared_from_this());

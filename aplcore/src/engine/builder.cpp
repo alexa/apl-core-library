@@ -15,8 +15,8 @@
  * Construct a virtual DOM hierarchy
  */
 
+
 #include <stdexcept>
-#include <utility>
 #include <cmath>
 
 #include "apl/engine/binding.h"
@@ -25,7 +25,6 @@
 #include "apl/engine/contextdependant.h"
 #include "apl/engine/arrayify.h"
 #include "apl/engine/evaluate.h"
-#include "apl/component/corecomponent.h"
 #include "apl/component/containercomponent.h"
 #include "apl/component/framecomponent.h"
 #include "apl/component/imagecomponent.h"
@@ -39,6 +38,8 @@
 #include "apl/content/rootconfig.h"
 #include "apl/engine/properties.h"
 #include "apl/engine/parameterarray.h"
+#include "apl/livedata/livearrayobject.h"
+#include "apl/livedata/layoutrebuilder.h"
 #include "apl/utils/log.h"
 #include "apl/utils/path.h"
 #include "apl/utils/session.h"
@@ -96,74 +97,87 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                                                 firstProps,
                                                 layout,
                                                 path.addProperty(item, "firstItem"));
-    if (child && child->isValid())
+    bool hasFirstItem = false;
+    if (child && child->isValid()) {
+        hasFirstItem = true;
         layout->appendChild(child, false);
+    }
 
     bool numbered = layout->getCalculated(kPropertyNumbered).asBoolean();
     int ordinal = 1;
     int index = 0;
 
+    std::shared_ptr<LayoutRebuilder> layoutBuilder = nullptr;  // Reserve space for now.  In the future, move all logic in
+
     const auto items = arrayifyProperty(context, item, "item", "items");
     if (!items.empty()) {
         auto childPath = path.addProperty(item, "item", "items");
-        auto dataItems = evaluateRecursive(context, arrayifyProperty(context, item, "data"));
+        auto data = arrayifyPropertyAsObject(context, item, "data");
 
-        if (!dataItems.empty()) {
-            LOG_IF(DEBUG_BUILDER) << "data size=" << dataItems.size();
-            auto length = dataItems.size();
-            for (size_t dataIndex = 0 ; dataIndex < length ; dataIndex++) {
-                const auto& data = dataItems.at(dataIndex);
-                auto childContext = Context::create(context);
-                childContext->putConstant("data", data);
-                childContext->putConstant("index", index);
-                childContext->putConstant("length", length);
-                if (numbered)
-                    childContext->putConstant("ordinal", ordinal);
+        auto liveData = data.getLiveDataObject();
+        if (liveData && liveData->asArray()) {
+            layoutBuilder = LayoutRebuilder::create(context, layout, liveData->asArray(), items, childPath, numbered);
+            layoutBuilder->build();
+        }
+        else {
+            auto dataItems = evaluateRecursive(context, data);
+            if (!dataItems.empty()) {
+                LOG_IF(DEBUG_BUILDER) << "data size=" << dataItems.size();
+                auto length = dataItems.size();
+                for (size_t dataIndex = 0; dataIndex < length; dataIndex++) {
+                    const auto& dataItem = dataItems.at(dataIndex);
+                    auto childContext = Context::create(context);
+                    childContext->putConstant("data", dataItem);
+                    childContext->putConstant("index", index);
+                    childContext->putConstant("length", length);
+                    if (numbered)
+                        childContext->putConstant("ordinal", ordinal);
 
-                Properties childProps;
-                child = expandSingleComponentFromArray(childContext,
-                                                       items,
-                                                       childProps,
-                                                       layout, childPath);
-                if (child && child->isValid()) {
-                    layout->appendChild(child, false);
-                    index++;
+                    Properties childProps;
+                    child = expandSingleComponentFromArray(childContext,
+                                                           items,
+                                                           childProps,
+                                                           layout, childPath);
+                    if (child && child->isValid()) {
+                        layout->appendChild(child, false);
+                        index++;
 
-                    if (numbered) {
-                        int numbering = child->getCalculated(kPropertyNumbering).getInteger();
-                        if (numbering == kNumberingNormal) ordinal++;
-                        else if (numbering == kNumberingReset) ordinal = 1;
+                        if (numbered) {
+                            int numbering = child->getCalculated(kPropertyNumbering).getInteger();
+                            if (numbering == kNumberingNormal) ordinal++;
+                            else if (numbering == kNumberingReset) ordinal = 1;
+                        }
                     }
                 }
             }
-        }
-            // TODO: A list of children.  Ignore the data object???  Or add to context??
-        else {
-            LOG_IF(DEBUG_BUILDER) << "items size=" << items.size();
-            auto length = items.size();
-            for (int i = 0; i < length; i++) {
-                const auto& element = items.at(i);
-                auto childContext = Context::create(context);
-                childContext->putConstant("index", index);
-                childContext->putConstant("length", length);
-                if (numbered)
-                    childContext->putConstant("ordinal", ordinal);
+                // TODO: A list of children.  Ignore the data object???  Or add to context??
+            else {
+                LOG_IF(DEBUG_BUILDER) << "items size=" << items.size();
+                auto length = items.size();
+                for (int i = 0; i < length; i++) {
+                    const auto& element = items.at(i);
+                    auto childContext = Context::create(context);
+                    childContext->putConstant("index", index);
+                    childContext->putConstant("length", length);
+                    if (numbered)
+                        childContext->putConstant("ordinal", ordinal);
 
-                // TODO: Numbered, spacing, ordinal changes
-                Properties childProps;
-                child = expandSingleComponentFromArray(childContext,
-                                                       arrayify(context, element),
-                                                       childProps,
-                                                       layout,
-                                                       childPath.addIndex(i));
-                if (child && child->isValid()) {
-                    layout->appendChild(child, false);
-                    index++;
+                    // TODO: Numbered, spacing, ordinal changes
+                    Properties childProps;
+                    child = expandSingleComponentFromArray(childContext,
+                                                           arrayify(context, element),
+                                                           childProps,
+                                                           layout,
+                                                           childPath.addIndex(i));
+                    if (child && child->isValid()) {
+                        layout->appendChild(child, false);
+                        index++;
 
-                    if (numbered) {
-                        int numbering = child->getCalculated(kPropertyNumbering).getInteger();
-                        if (numbering == kNumberingNormal) ordinal++;
-                        else if (numbering == kNumberingReset) ordinal = 1;
+                        if (numbered) {
+                            int numbering = child->getCalculated(kPropertyNumbering).getInteger();
+                            if (numbering == kNumberingNormal) ordinal++;
+                            else if (numbering == kNumberingReset) ordinal = 1;
+                        }
                     }
                 }
             }
@@ -177,8 +191,17 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                                            layout,
                                            path.addProperty(item, "lastItem"));
 
-    if (child && child->isValid())
+    bool hasLastItem = false;
+    if (child && child->isValid()) {
+        hasLastItem = true;
         layout->appendChild(child, false);
+    }
+
+    // Chance to get final child dependent set-up before actual layout happened.
+    layout->finalizePopulate();
+
+    if (layoutBuilder)
+        layoutBuilder->setFirstLast(hasFirstItem, hasLastItem);
 }
 
 /**
@@ -230,15 +253,8 @@ Builder::expandSingleComponent(const ContextPtr& context,
             expanded->putUserWriteable(name, bindingFunc(*expanded, value));
 
             // If it is a node, we connect up the symbols that it is dependant upon
-            if (tmp.isNode()) {
-                std::set<std::string> symbols;
-                tmp.symbols(symbols);
-                for (const auto& symbol : symbols) {
-                    auto c = expanded->findContextContaining(symbol);
-                    if (c != nullptr)
-                        ContextDependant::create(c, symbol, expanded, name, expanded, tmp, bindingFunc);
-                }
-            }
+            if (tmp.isEvaluable())
+                ContextDependant::create(expanded, name, tmp, expanded, bindingFunc);
         }
 
         // Construct the component
@@ -326,7 +342,7 @@ Builder::expandLayout(const ContextPtr& context,
     ParameterArray params(layout);
     for (const auto& param : params) {
         LOG_IF(DEBUG_BUILDER) << "Parsing parameter: " << param.name;
-        cptr->putUserWriteable(param.name, properties.forParameter(*cptr, param));
+        properties.addToContext(cptr, param, true);
     }
 
     if (DEBUG_BUILDER) {

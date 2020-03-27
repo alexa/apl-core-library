@@ -165,11 +165,11 @@ private:
     void initialize(const ContextPtr& sourceContext, const rapidjson::Value& json, Properties&& properties, const StyleInstancePtr& styledPtr);
     void addDirtyChild(const GraphicElementPtr& child);
 
+    ContextPtr                   mInternalContext;
     GraphicElementPtr            mRootElement;
     GraphicDirtyChildren         mDirty;
     std::set<std::string>        mAssigned;        // Track which parameters have been assigned.  The remainder are styled.
     ParameterArray               mParameterArray;
-    ContextPtr                   mInternalContext;
 
     std::weak_ptr<VectorGraphicComponent> mComponent;
 };

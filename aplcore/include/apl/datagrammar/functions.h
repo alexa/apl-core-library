@@ -26,8 +26,11 @@ class Object;
 
 namespace datagrammar {
 
-extern Object SymbolAccess(const Context&, const std::vector<Object>&);
+// Pull these two out so we can identify them when extracting symbols from a Node.
+Object ApplyArrayAccess(const std::vector<Object>& args);
+Object ApplyFieldAccess(const std::vector<Object>& args);
 
+// Use these to construct an Object which may be a node or a calculated value
 extern Object UnaryPlus(std::vector<Object>&& );
 extern Object UnaryMinus(std::vector<Object>&& );
 extern Object UnaryNot(std::vector<Object>&& );
@@ -54,6 +57,7 @@ extern Object Symbol(const Context&, std::vector<Object>&&, const std::string& )
 extern Object FieldAccess(std::vector<Object>&& );
 extern Object ArrayAccess(std::vector<Object>&& );
 extern Object FunctionCall(std::vector<Object>&& );
+
 
 } // datagrammar
 } // apl

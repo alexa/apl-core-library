@@ -49,7 +49,7 @@ Object asOldArray(const Context &context, const Object &object) {
 Object asOldBoolean(const Context& context, const Object& object)
 {
     if (context.getRequestedAPLVersion() == "1.0" && object.isString() && object.getString() == "false")
-        return Object::FALSE();
+        return Object::FALSE_OBJECT();
 
     return object.asBoolean();
 }

@@ -36,8 +36,15 @@ Sequencer::execute(const CommandPtr& commandPtr, bool fastMode)
 
     ActionPtr ptr = nullptr;
 
-    if (commandPtr)
+    if (commandPtr) {
+        // Executing a command may end up telling the sequencer to reset().
+        mResetInExecute = false;
         ptr = commandPtr->execute(mTimeManager, fastMode);
+        if (mResetInExecute) {
+            ptr->terminate();
+            ptr = nullptr;
+        }
+    }
 
     if (fastMode) {
         if (ptr && ptr->isPending()) {
@@ -91,6 +98,7 @@ void
 Sequencer::reset()
 {
     LOG_IF(DEBUG_SEQUENCER) << "reset start";
+    mResetInExecute = true;
     if (mMasterActionPtr) {
         mMasterActionPtr->terminate();
         mMasterActionPtr = nullptr;

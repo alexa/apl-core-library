@@ -49,7 +49,6 @@ private:
 private:
     std::shared_ptr<CoreCommand> mCommand;
     std::vector<std::unique_ptr<AnimatedProperty>> mAnimators;
-    int mNextIndex;
     int mRepeatCounter;
     bool mReversed;
     ActionPtr mCurrentAction;

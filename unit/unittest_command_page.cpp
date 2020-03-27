@@ -43,6 +43,29 @@ public:
         return root->executeCommands(doc, false);
     }
 
+    ::testing::AssertionResult
+    CheckChild(size_t idx, const std::string& id, const Rect& bounds) {
+        auto child = component->getChildAt(idx);
+
+        auto actualId = child->getId();
+        if (id != actualId) {
+            return ::testing::AssertionFailure()
+                    << "child " << idx
+                    << " id is wrong. Expected: " << id
+                    << ", actual: " << actualId;
+        }
+
+        auto actualBounds = child->getCalculated(kPropertyBounds).getRect();
+        if (bounds != actualBounds) {
+            return ::testing::AssertionFailure()
+                    << "child " << idx
+                    << " bounds is wrong. Expected: " << bounds.toString()
+                    << ", actual: " << actualBounds.toString();
+        }
+
+        return ::testing::AssertionSuccess();
+    }
+
     rapidjson::Document doc;
 };
 
@@ -57,18 +80,14 @@ static const char *PAGER_TEST =
     "      \"id\": \"myPager\","
     "      \"width\": 100,"
     "      \"height\": 100,"
+    "      \"navigation\": \"normal\","
     "      \"items\": {"
     "        \"type\": \"Text\","
     "        \"id\": \"id${data}\","
     "        \"text\": \"TEXT${data}\","
     "        \"speech\": \"URL${data}\""
     "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4"
-    "      ],"
+    "      \"data\": [ 1, 2, 3, 4, 5 ],"
     "      \"onPageChanged\": {"
     "        \"type\": \"SendEvent\","
     "        \"arguments\": ["
@@ -83,28 +102,42 @@ TEST_F(CommandPageTest, Pager)
 {
     loadDocument(PAGER_TEST);
 
-    executeSetPage("myPager", "relative", 1);  // Page forward once
+    ASSERT_EQ(5, component->getChildCount());
+    // Only initial pages ensured
+    ASSERT_TRUE(CheckChild(0, "id1", Rect(0, 0, 100, 100)));
+    ASSERT_TRUE(CheckChild(1, "id2", Rect(0, 0, 100, 100)));
+    ASSERT_TRUE(CheckChild(2, "id3", Rect(0, 0, 0, 0)));
+
+    executeSetPage("myPager", "relative", 2);  // Page forward twice
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
 
     ASSERT_EQ(kEventTypeSetPage, event.getType());
     ASSERT_EQ(component, event.getComponent());
-    ASSERT_EQ(1, event.getValue(kEventPropertyPosition).getInteger());
+    ASSERT_EQ(2, event.getValue(kEventPropertyPosition).getInteger());
     ASSERT_EQ(kEventDirectionForward, event.getValue(kEventPropertyDirection).getInteger());
 
     root->updateTime(500);
     ASSERT_FALSE(root->hasEvent());
+    // Target one becomes ensured
+    ASSERT_TRUE(CheckChild(2, "id3", Rect(0, 0, 100, 100)));
+    ASSERT_TRUE(CheckChild(3, "id4", Rect(0, 0, 0, 0)));
 
     // Update the page and resolve the event
-    component->update(kUpdatePagerPosition, 1);
+    component->update(kUpdatePagerPosition, 2);
+    ASSERT_EQ(2, component->getCalculated(kPropertyCurrentPage).getInteger());
     event.getActionRef().resolve();
+
+    // Ones around visible page ensured too
+    ASSERT_TRUE(CheckChild(3, "id4", Rect(0, 0, 100, 100)));
+    ASSERT_TRUE(CheckChild(4, "id5", Rect(0, 0, 0, 0)));
 
     // We should have a SendEvent
     ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
     ASSERT_EQ(1, event.getValue(kEventPropertyArguments).size());
-    ASSERT_EQ(Object(1), event.getValue(kEventPropertyArguments).at(0));
+    ASSERT_EQ(Object(2), event.getValue(kEventPropertyArguments).at(0));
 
     ASSERT_TRUE(CheckNoActions());
 }
@@ -127,13 +160,7 @@ static const char *SIMPLE_PAGER =
     "        \"text\": \"TEXT${data}\","
     "        \"speech\": \"URL${data}\""
     "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5"
-    "      ]"
+    "      \"data\": [ 1, 2, 3, 4, 5 ]"
     "    }"
     "  }"
     "}";
@@ -231,6 +258,13 @@ static const char *SIMPLE_PAGER_WRAP =
 TEST_F(CommandPageTest, SimplePageRelativeWrap)
 {
     loadDocument(SIMPLE_PAGER_WRAP);
+
+    // Wrap results in all pages ensured straight away.
+    ASSERT_TRUE(CheckChild(0, "id1", Rect(0, 0, 100, 100)));
+    ASSERT_TRUE(CheckChild(1, "id2", Rect(0, 0, 100, 100)));
+    ASSERT_TRUE(CheckChild(2, "id3", Rect(0, 0, 100, 100)));
+    ASSERT_TRUE(CheckChild(3, "id4", Rect(0, 0, 100, 100)));
+    ASSERT_TRUE(CheckChild(4, "id5", Rect(0, 0, 100, 100)));
 
     for (int i = -8 ; i <= 8 ; i++) {
         executeSetPage("myPager", "relative", i);
@@ -436,6 +470,7 @@ TEST_F(CommandPageTest, AutoPageTerminateInDelay)
 
         root->updateTime(root->currentTime() + 500);
         component->update(kUpdatePagerPosition, index);
+        ASSERT_EQ(index, component->getCalculated(kPropertyCurrentPage).getInteger());
         event.getActionRef().resolve();   // Resolve without moving
     }
 

@@ -18,7 +18,10 @@
 
 #include <memory>
 
+#include "apl/common.h"
 #include "apl/utils/counter.h"
+#include "apl/primitives/object.h"
+#include "apl/engine/binding.h"
 
 namespace apl {
 
@@ -37,18 +40,28 @@ public:
 #endif
 
 public:
+    Dependant(const Object& equation, const ContextPtr& bindingContext, BindingFunction bindingFunction)
+        : mEquation(equation),
+          mBindingContext(bindingContext),
+          mBindingFunction(bindingFunction)
+        {}
     virtual ~Dependant() = default;
 
     /**
-     * Remove this dependant from the source or upstream
+     * Remove this dependant from the source or upstream. If you override this, call the base method.
      */
-    virtual void removeFromSource() = 0;
+    virtual void removeFromSource();
 
     /**
      * Recalculate the values in the target object.
      * @param useDirtyFlag If true, mark downstream changes as dirty
      */
     virtual void recalculate(bool useDirtyFlag) const = 0;
+
+protected:
+    Object mEquation;                        // The equation or expression to be evaluated
+    std::weak_ptr<Context> mBindingContext;  // The context the BindingFunction will be applied in
+    BindingFunction mBindingFunction;        // The function to be applied after evaluation
 };
 
 }  // namespace apl

@@ -31,7 +31,7 @@ public:
         : PropDef(key, defvalue, map, flags) {}
 
     GraphicPropDef(GraphicPropertyKey key, const Object& defvalue, BindingFunction func, int flags)
-        : PropDef(key, defvalue, func, flags) {}
+        : PropDef(key, defvalue, std::move(func), flags) {}
 };
 
 class GraphicPropDefSet : public PropDefSet<GraphicPropertyKey, sGraphicPropertyBimap, GraphicPropDef >
@@ -83,15 +83,9 @@ GraphicElement::initialize(const ContextPtr& context, const Object& json)
                 // If the user assigned a string, we need to check for data-binding
                 if (p->second.isString()) {
                     auto tmp = parseDataBinding(context, p->second.getString());
-                    if (tmp.isNode()) {
-                        std::set<std::string> symbols;
-                        tmp.symbols(symbols);
+                    if (tmp.isEvaluable()) {
                         auto self = std::static_pointer_cast<GraphicElement>(shared_from_this());
-                        for (const auto& symbol : symbols) {
-                            auto c = context->findContextContaining(symbol);
-                            if (c != nullptr)
-                                GraphicDependant::create(c, symbol, self, pd.key, tmp, pd.func);
-                        }
+                        GraphicDependant::create(self, pd.key, tmp, context, pd.func);
                     }
                     value = pd.calculate(*context, evaluate(*context, tmp));
                 }
@@ -174,10 +168,10 @@ public:
 
     explicit GraphicElementPath(const GraphicPtr& graphic) : GraphicElement(graphic) {}
 
-    virtual GraphicElementType getType() const override { return kGraphicElementTypePath; }
+    GraphicElementType getType() const override { return kGraphicElementTypePath; }
 
 protected:
-    virtual const GraphicPropDefSet& propDefSet() const override {
+    const GraphicPropDefSet& propDefSet() const override {
         static GraphicPropDefSet sPathProperties = GraphicPropDefSet()
             .add({
                      {kGraphicPropertyFill,          Color(), asColor,             kPropInOut | kPropDynamic},
@@ -214,10 +208,10 @@ public:
 
     explicit GraphicElementGroup(const GraphicPtr& graphic) : GraphicElement(graphic) {}
 
-    virtual GraphicElementType getType() const override { return kGraphicElementTypeGroup; }
+    GraphicElementType getType() const override { return kGraphicElementTypeGroup; }
 
 protected:
-    virtual const GraphicPropDefSet& propDefSet() const override {
+    const GraphicPropDefSet& propDefSet() const override {
         static GraphicPropDefSet sGroupProperties = GraphicPropDefSet()
             .add({
                      {kGraphicPropertyOpacity,    1.0, asOpacity, kPropInOut | kPropDynamic},
@@ -253,10 +247,10 @@ public:
 
     explicit GraphicElementContainer(const GraphicPtr& graphic) : GraphicElement(graphic) {}
 
-    virtual GraphicElementType getType() const override { return kGraphicElementTypeContainer; }
+    GraphicElementType getType() const override { return kGraphicElementTypeContainer; }
 
 protected:
-    virtual const GraphicPropDefSet& propDefSet() const override {
+    const GraphicPropDefSet& propDefSet() const override {
         static GraphicPropDefSet sContainerProperties = GraphicPropDefSet()
             .add({
                      {kGraphicPropertyHeightActual,           Dimension(0),      nullptr,             kPropOut},
@@ -278,7 +272,7 @@ protected:
         return sContainerProperties;
     }
 
-    virtual bool initialize(const ContextPtr& context,
+    bool initialize(const ContextPtr& context,
                             const Object& json) override {
         if (!GraphicElement::initialize(context, json))
             return false;

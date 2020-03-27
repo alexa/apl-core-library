@@ -35,7 +35,7 @@ namespace apl {
  */
 class Color {
 public:
-    enum ColorConstants {
+    enum ColorConstants : uint32_t {
         TRANSPARENT = 0x00000000,
         BLACK = 0x000000ff,
         SILVER = 0xc0c0c0ff,

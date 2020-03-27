@@ -81,12 +81,8 @@ TEST_F(Arrayify, Missing)
         d.Parse(s.c_str());
 
         EXPECT_TRUE(d.IsObject());
-        int count = 0;
-        for (const auto& m : arrayifyProperty(d, "extend", "extends")) {
-            FAIL();
-            count++;
-        }
-        EXPECT_EQ(0, count);
+        auto res = arrayifyProperty(d, "extend", "extends");
+        EXPECT_EQ(0, res.size());
     }
 }
 

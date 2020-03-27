@@ -409,6 +409,175 @@ TEST_F(PathTest, Layout)
     });
 }
 
+static const char *LAYOUT_WITH_DATA =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.3\","
+    "  \"layouts\": {"
+    "    \"ListItem\": {"
+    "      \"parameters\": ["
+    "        \"title\","
+    "        \"subtitle\""
+    "      ],"
+    "      \"items\": {"
+    "        \"type\": \"Container\","
+    "        \"id\": \"Container${index}\","
+    "        \"bind\": {"
+    "          \"name\": \"cindex\","
+    "          \"value\": \"${index}\""
+    "        },"
+    "        \"items\": ["
+    "          {"
+    "            \"type\": \"Text\","
+    "            \"text\": \"${title}\","
+    "            \"id\": \"Title${cindex}\""
+    "          },"
+    "          {"
+    "            \"type\": \"Text\","
+    "            \"test\": \"${subtitle}\","
+    "            \"id\": \"Subtitle${cindex}\""
+    "          }"
+    "        ]"
+    "      }"
+    "    }"
+    "  },"
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"Sequence\","
+    "      \"id\": \"Sequence1\","
+    "      \"items\": {"
+    "        \"type\": \"ListItem\","
+    "        \"title\": \"Title for ${data}\","
+    "        \"subtitle\": \"Subtitle for ${data}\""
+    "      },"
+    "      \"data\": ["
+    "        \"alpha\","
+    "        \"bravo\""
+    "      ]"
+    "    }"
+    "  }"
+    "}";
+
+
+TEST_F(PathTest, LayoutWithData)
+{
+    checkPaths(LAYOUT_WITH_DATA, {
+        {"Sequence1", "_main/mainTemplate/items"},
+        {"Container0", "_main/layouts/ListItem/items"},
+        {"Title0", "_main/layouts/ListItem/items/items/0"},
+        {"Subtitle0", "_main/layouts/ListItem/items/items/1"},
+        {"Container1", "_main/layouts/ListItem/items"},
+        {"Title1", "_main/layouts/ListItem/items/items/0"},
+        {"Subtitle1", "_main/layouts/ListItem/items/items/1"},
+    });
+}
+
+static const char *LAYOUT_WITH_DATA_2 =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.1\","
+    "  \"layouts\": {"
+    "    \"HorizontalListItem\": {"
+    "      \"item\": ["
+    "        {"
+    "          \"type\": \"Container\","
+    "          \"id\": \"ItemContainer${index}\","
+    "          \"bind\": {"
+    "            \"name\": \"cindex\","
+    "            \"value\": \"${index}\""
+    "          },"
+    "          \"items\": ["
+    "            {"
+    "              \"type\": \"Image\","
+    "              \"id\": \"ItemImage${cindex}\","
+    "              \"source\": \"${data.image}\""
+    "            },"
+    "            {"
+    "              \"type\": \"Text\","
+    "              \"id\": \"ItemPrimaryText${cindex}\","
+    "              \"text\": \"<b>${ordinal}.</b> ${data.primaryText}\""
+    "            },"
+    "            {"
+    "              \"type\": \"Text\","
+    "              \"id\": \"ItemSecondaryText${cindex}\","
+    "              \"text\": \"${data.secondaryText}\""
+    "            }"
+    "          ]"
+    "        }"
+    "      ]"
+    "    },"
+    "    \"ListTemplate2\": {"
+    "      \"parameters\": ["
+    "        \"backgroundImage\","
+    "        \"listData\""
+    "      ],"
+    "      \"items\": ["
+    "        {"
+    "          \"type\": \"Container\","
+    "          \"id\": \"TopContainer\","
+    "          \"items\": ["
+    "            {"
+    "              \"type\": \"Image\","
+    "              \"id\": \"BackgroundImage\","
+    "              \"source\": \"${backgroundImage}\""
+    "            },"
+    "            {"
+    "              \"type\": \"Sequence\","
+    "              \"id\": \"MasterSequence\","
+    "              \"scrollDirection\": \"horizontal\","
+    "              \"data\": \"${listData}\","
+    "              \"numbered\": true,"
+    "              \"item\": ["
+    "                {"
+    "                  \"type\": \"HorizontalListItem\""
+    "                }"
+    "              ]"
+    "            }"
+    "          ]"
+    "        }"
+    "      ]"
+    "    }"
+    "  },"
+    "  \"mainTemplate\": {"
+    "    \"item\": ["
+    "      {"
+    "        \"type\": \"ListTemplate2\","
+    "        \"backgroundImage\": \"foo\","
+    "        \"listData\": ["
+    "          {"
+    "            \"image\": \"IMAGE1\","
+    "            \"primaryText\": \"PRIMARY1\","
+    "            \"secondaryText\": \"SECONDARY1\""
+    "          },"
+    "          {"
+    "            \"image\": \"IMAGE1\","
+    "            \"primaryText\": \"PRIMARY1\","
+    "            \"secondaryText\": \"SECONDARY1\""
+    "          }"
+    "        ]"
+    "      }"
+    "    ]"
+    "  }"
+    "}";
+
+
+TEST_F(PathTest, LayoutWithData2)
+{
+    checkPaths(LAYOUT_WITH_DATA_2, {
+        {"TopContainer", "_main/layouts/ListTemplate2/items/0"},
+        {"BackgroundImage", "_main/layouts/ListTemplate2/items/0/items/0"},
+        {"MasterSequence", "_main/layouts/ListTemplate2/items/0/items/1"},
+        {"ItemContainer0", "_main/layouts/HorizontalListItem/item/0"},
+        {"ItemImage0", "_main/layouts/HorizontalListItem/item/0/items/0"},
+        {"ItemPrimaryText0", "_main/layouts/HorizontalListItem/item/0/items/1"},
+        {"ItemSecondaryText0", "_main/layouts/HorizontalListItem/item/0/items/2"},
+        {"ItemContainer1", "_main/layouts/HorizontalListItem/item/0"},
+        {"ItemImage1", "_main/layouts/HorizontalListItem/item/0/items/0"},
+        {"ItemPrimaryText1", "_main/layouts/HorizontalListItem/item/0/items/1"},
+        {"ItemSecondaryText1", "_main/layouts/HorizontalListItem/item/0/items/2"},
+    });
+}
+
 static const char *DOCUMENT_WITH_IMPORT =
     "{"
     "  \"type\": \"APL\","

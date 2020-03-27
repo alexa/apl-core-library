@@ -21,6 +21,7 @@
 
 namespace apl {
 
+namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 const int MAX_EASING_CACHE_SIZE = 1000;
 
 static Easing sDefaultEasingCurve(new LinearEasing());
@@ -56,9 +57,9 @@ Easing::parse(const SessionPtr& session, const std::string& easing) {
         return it->second;
 
     try {
-        pegtl::data_parser parser(s, "Easing");
         easinggrammar::easing_state state;
-        parser.parse<easinggrammar::grammar, easinggrammar::action>(state);
+        pegtl::string_input<> in(s, "");
+        pegtl::parse<easinggrammar::grammar, easinggrammar::action>(in, state);
 
         switch (state.type) {
             case easinggrammar::easing_state::PATH:

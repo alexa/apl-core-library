@@ -30,26 +30,28 @@ static const long MS_PER_MINUTE = SECONDS_PER_MINUTE * MS_PER_SECOND;
 static const long MS_PER_HOUR = MINUTES_PER_HOUR * MS_PER_MINUTE;
 static const long MS_PER_DAY = HOURS_PER_DAY * MS_PER_HOUR;
 
+using apl_itime_t = unsigned long long;
+
 /**
  * Calculate the year.  Only valid between 1970 and 9999
  * @param t The time
  * @return The calculated year.
  */
-int yearFromTime(apl_time_t t);
+int yearFromTime(apl_itime_t t);
 
 /**
  * Calculate the month of the year
  * @param t The time.
  * @return The month, where 0=Jan, 1=Feb, ... 11=Dec
  */
-int monthFromTime(apl_time_t t);
+int monthFromTime(apl_itime_t t);
 
 /**
  * Return the number of days since the epoch
  * @param t The time
  * @return The number of days
  */
-inline constexpr long day(apl_time_t t) noexcept
+inline constexpr apl_itime_t day(apl_itime_t t) noexcept
 {
     return t / MS_PER_DAY;
 }
@@ -59,14 +61,14 @@ inline constexpr long day(apl_time_t t) noexcept
  * @param t The time
  * @return The date, a value between 1..31
  */
-int dateFromTime(apl_time_t t);
+int dateFromTime(apl_itime_t t);
 
 /**
  * Total number of hours that have passed
  * @param t The current time
  * @return The total number of hours that have passed
  */
-inline constexpr long hours(apl_time_t t) noexcept
+inline constexpr apl_itime_t hours(apl_itime_t t) noexcept
 {
     return (t / MS_PER_HOUR);
 }
@@ -76,7 +78,7 @@ inline constexpr long hours(apl_time_t t) noexcept
  * @param t The current time.
  * @return The hour
  */
-inline constexpr int hourOfDay(apl_time_t t) noexcept
+inline constexpr int hourOfDay(apl_itime_t t) noexcept
 {
     return hours(t) % HOURS_PER_DAY;
 }
@@ -86,7 +88,7 @@ inline constexpr int hourOfDay(apl_time_t t) noexcept
  * @param t The current time
  * @return The total number of minutes that have passed
  */
-inline constexpr long minutes(apl_time_t t) noexcept
+inline constexpr apl_itime_t minutes(apl_itime_t t) noexcept
 {
     return (t / MS_PER_MINUTE);
 }
@@ -96,7 +98,7 @@ inline constexpr long minutes(apl_time_t t) noexcept
  * @param t The current time
  * @return The minute
  */
-inline constexpr int minutesOfHour(apl_time_t t) noexcept
+inline constexpr int minutesOfHour(apl_itime_t t) noexcept
 {
     return minutes(t) % MINUTES_PER_HOUR;
 }
@@ -106,7 +108,7 @@ inline constexpr int minutesOfHour(apl_time_t t) noexcept
  * @param t The current time
  * @return The total number of seconds that have passed.
  */
-inline constexpr long seconds(apl_time_t t) noexcept
+inline constexpr apl_itime_t seconds(apl_itime_t t) noexcept
 {
     return t / MS_PER_SECOND;
 }
@@ -116,7 +118,7 @@ inline constexpr long seconds(apl_time_t t) noexcept
  * @param t The current time.
  * @return The second
  */
-inline constexpr int secondsOfMinute(apl_time_t t) noexcept
+inline constexpr int secondsOfMinute(apl_itime_t t) noexcept
 {
     return seconds(t) % SECONDS_PER_MINUTE;
 }
@@ -126,7 +128,7 @@ inline constexpr int secondsOfMinute(apl_time_t t) noexcept
  * @param t The current time
  * @return The millisecond
  */
-constexpr int millisecondsOfSecond(apl_time_t t) noexcept
+constexpr int millisecondsOfSecond(apl_itime_t t) noexcept
 {
     return t  % MS_PER_SECOND;
 }
@@ -153,21 +155,21 @@ constexpr int dayFromYear(int year) noexcept;
  * @param year The year (>= 1970).
  * @return The millisecond
  */
-constexpr apl_time_t timeFromYear(int year) noexcept;
+constexpr apl_itime_t timeFromYear(int year) noexcept;
 
 /**
  * Calculate if this time value occurs within a leap year.
  * @param t The time
  * @return True if it falls within a leap year.
  */
-bool inLeapYear(apl_time_t t);
+bool inLeapYear(apl_itime_t t);
 
 /**
  * Calculate the day of the year that this time value falls upong.
  * @param t The time
  * @return The day of the year (between 0 and 365).
  */
-int dayWithinYear(apl_time_t t);
+int dayWithinYear(apl_itime_t t);
 
 } // namespace time
 } // namespace apl

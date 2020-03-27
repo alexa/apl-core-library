@@ -67,7 +67,6 @@ public:
         const auto value = getValue(kCommandPropertyValue);
         if (kCommandControlMediaSetTrack == command.getInteger()) {
             auto targetVideo = std::static_pointer_cast<VideoComponent>(target());
-            const auto& mediaState = targetVideo->getMediaState();
             const auto& mediaSource = targetVideo->getCalculated(kPropertySource);
             int maxIndex = mediaSource.isArray() ? mediaSource.size() - 1 : 0;
 

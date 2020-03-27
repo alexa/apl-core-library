@@ -119,6 +119,16 @@ public:
         return mHasDocument ? mDocument : mValue;
     }
 
+    /**
+     * @return JSON serialized to a string.
+     */
+    std::string toString() const;
+
+    /**
+     * @return Readable string representation of data for debug.
+     */
+    std::string toDebugString() const;
+
 private:
     bool mHasDocument;
     rapidjson::Document mDocument;

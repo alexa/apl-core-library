@@ -259,11 +259,10 @@ TEST_F(DependantTest, FreeContext)
     ASSERT_EQ(10, second->opt("target").asNumber());
 
     // Manually construct a dependency between source and target
-    auto node = parseDataBinding(context, "${source * 2}");
-    ASSERT_TRUE(node.isNode());
-    ContextDependant::create(first, "source",
-                             second, "target", second,
-                             node, sBindingFunctions.at(BindingType::kBindingTypeNumber));
+    auto node = parseDataBinding(first, "${source * 2}");
+    ASSERT_TRUE(node.isEvaluable());
+    auto bf = sBindingFunctions.at(BindingType::kBindingTypeNumber);
+    ContextDependant::create(second, "target", node, second, bf);
 
     // Test that changing the source now changes the target
     ASSERT_TRUE(first->userUpdateAndRecalculate("source", 10, false));
@@ -453,8 +452,9 @@ TEST_F(DependantTest, Mutable)
     ASSERT_TRUE(IsEqual("Hello Goodbye 200", component->getCalculated(kPropertyText).asString()));
 
     // Both "a" and "b" can be modified, because all bound properties can respond to SetValue
-    ASSERT_EQ(2, component->countUpstream());
-    ASSERT_EQ(2, component->countUpstream(kPropertyText));
+    // They generate a single upstream driver
+    ASSERT_EQ(1, component->countUpstream());
+    ASSERT_EQ(1, component->countUpstream(kPropertyText));
 
     // Downstream from component context:   a->Text, b->Text
     ASSERT_EQ(2, component->getContext()->countDownstream());
@@ -484,8 +484,9 @@ TEST_F(DependantTest, Mutable)
 
     // Check all of the upstream and downstream dependencies
     // Both "a" and "b" can be modified, because all bound properties can respond to SetValue
-    ASSERT_EQ(2, component->countUpstream());
-    ASSERT_EQ(2, component->countUpstream(kPropertyText));
+    // They generate a single upstream driver
+    ASSERT_EQ(1, component->countUpstream());
+    ASSERT_EQ(1, component->countUpstream(kPropertyText));
 
     // Downstream from component context:   a->Text, b->Text
     ASSERT_EQ(2, component->getContext()->countDownstream());
@@ -577,4 +578,170 @@ TEST_F(DependantTest, Nested)
                                 {"value",       "Fred"}}, true);
     loop->advanceToEnd();
     ASSERT_TRUE(IsEqual("Sam the not so great of Mesopotamia", text->getCalculated(kPropertyText).asString()));
+}
+
+static const char *LAYOUT_TEST =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.1\","
+        "  \"layouts\": {"
+        "    \"square\": {"
+        "      \"parameters\": ["
+        "        \"cnt\""
+        "      ],"
+        "      \"item\": {"
+        "        \"type\": \"Text\","
+        "        \"text\": \"Count: ${cnt}\""
+        "      }"
+        "    }"
+        "  },"
+        "  \"mainTemplate\": {"
+        "    \"items\": {"
+        "      \"type\": \"TouchWrapper\","
+        "      \"bind\": ["
+        "        {"
+        "          \"name\": \"myCount\","
+        "          \"value\": 1,"
+        "          \"type\": \"number\""
+        "        }"
+        "      ],"
+        "      \"onPress\": {"
+        "        \"type\": \"SetValue\","
+        "        \"property\": \"myCount\","
+        "        \"value\": \"${myCount + 1}\""
+        "      },"
+        "      \"item\": {"
+        "        \"type\": \"square\","
+        "        \"cnt\": \"${myCount}\""
+        "      }"
+        "    }"
+        "  }"
+        "}";
+
+TEST_F(DependantTest, Layout)
+{
+    loadDocument(LAYOUT_TEST);
+    ASSERT_TRUE(component);
+    auto text = component->getChildAt(0);
+
+    ASSERT_TRUE(IsEqual("Count: 1", text->getCalculated(kPropertyText).asString()));
+
+    // Fire the press event
+    component->update(kUpdatePressed, 0);
+    ASSERT_TRUE(IsEqual("Count: 2", text->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, text));
+
+    // Repeat
+    component->update(kUpdatePressed, 0);
+    ASSERT_TRUE(IsEqual("Count: 3", text->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, text));
+}
+
+static const char *LAYOUT_MISSING_PROPERTY_TEST =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.1\","
+        "  \"layouts\": {"
+        "    \"square\": {"
+        "      \"parameters\": ["
+        "        \"cnt\""
+        "      ],"
+        "      \"item\": {"
+        "        \"type\": \"Text\","
+        "        \"text\": \"Count: ${cnt}\""
+        "      }"
+        "    }"
+        "  },"
+        "  \"mainTemplate\": {"
+        "    \"items\": {"
+        "      \"type\": \"TouchWrapper\","
+        "      \"bind\": ["
+        "        {"
+        "          \"name\": \"myCount\","
+        "          \"value\": 1,"
+        "          \"type\": \"number\""
+        "        }"
+        "      ],"
+        "      \"item\": {"
+        "        \"type\": \"square\""
+        "      }"
+        "    }"
+        "  }"
+        "}";
+
+TEST_F(DependantTest, LayoutMissingProperty)
+{
+    loadDocument(LAYOUT_MISSING_PROPERTY_TEST);
+    ASSERT_TRUE(component);
+    auto text = component->getCoreChildAt(0);
+
+    ASSERT_TRUE(IsEqual("Count: ", text->getCalculated(kPropertyText).asString()));
+
+    // Property should still be live and writtable.
+    text->setProperty("cnt", 1);
+    ASSERT_TRUE(IsEqual("Count: 1", text->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, text));
+
+    // Repeat
+    text->setProperty("cnt", 3);
+    ASSERT_TRUE(IsEqual("Count: 3", text->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, text));
+}
+
+static const char *LAYOUT_BAD_PROPERTY_TEST =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.1\","
+        "  \"layouts\": {"
+        "    \"square\": {"
+        "      \"parameters\": ["
+        "        \"cnt\""
+        "      ],"
+        "      \"item\": {"
+        "        \"type\": \"Text\","
+        "        \"text\": \"Count: ${cnt}\""
+        "      }"
+        "    }"
+        "  },"
+        "  \"mainTemplate\": {"
+        "    \"items\": {"
+        "      \"type\": \"TouchWrapper\","
+        "      \"bind\": ["
+        "        {"
+        "          \"name\": \"myCount\","
+        "          \"value\": 1,"
+        "          \"type\": \"number\""
+        "        }"
+        "      ],"
+        "      \"item\": {"
+        "        \"type\": \"square\","
+        "        \"cnt\": \"${myCount7}\""
+        "      }"
+        "    }"
+        "  }"
+        "}";
+
+TEST_F(DependantTest, LayoutBadProperty)
+{
+    loadDocument(LAYOUT_BAD_PROPERTY_TEST);
+    ASSERT_TRUE(component);
+    auto text = component->getCoreChildAt(0);
+
+    ASSERT_TRUE(IsEqual("Count: ", text->getCalculated(kPropertyText).asString()));
+
+    // Property should still be live and writtable.
+    text->setProperty("cnt", 1);
+    ASSERT_TRUE(IsEqual("Count: 1", text->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, text));
+
+    // Repeat
+    text->setProperty("cnt", 3);
+    ASSERT_TRUE(IsEqual("Count: 3", text->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, text));
 }

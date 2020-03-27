@@ -1040,7 +1040,7 @@ TEST_F(AnimateItemTest, ScrollTest)
     float lastOpacity = 1;
 
     // Execute the onScroll command.  This runs in fast mode, so we should jump to the final opacity
-    for (int i = 10 ; i <= 1000 ; i++) {
+    for (int i = 10 ; i <= 200 ; i++) {
         component->update(kUpdateScrollPosition, i);
         ASSERT_EQ(1, loop->size());
         float expectedOpacity = i / metrics.getHeight() * 5;

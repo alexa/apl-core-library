@@ -24,42 +24,37 @@ namespace apl {
 const static bool DEBUG_GRAPHIC_DEP = false;
 
 void
-GraphicDependant::create(const ContextPtr& upstreamContext,
-                         const std::string& upstreamName,
-                         const GraphicElementPtr& downstreamGraphicElement,
+GraphicDependant::create(const GraphicElementPtr& downstreamGraphicElement,
                          GraphicPropertyKey downstreamKey,
-                         const Object& node,
-                         BindingFunction func)
+                         const Object& equation,
+                         const ContextPtr& bindingContext,
+                         BindingFunction bindingFunction)
 {
-    LOG_IF(DEBUG_GRAPHIC_DEP) << "From " << upstreamName << "(" << upstreamContext.get() << ")"
-                              << " to " << sGraphicPropertyBimap.at(downstreamKey)
+    LOG_IF(DEBUG_GRAPHIC_DEP) << " to " << sGraphicPropertyBimap.at(downstreamKey)
                               << "(" << downstreamGraphicElement.get() << ")";
 
-    auto dependant = std::make_shared<GraphicDependant>(upstreamContext,
-                                                        downstreamGraphicElement,
-                                                        downstreamKey,
-                                                        node,
-                                                        func);
-    upstreamContext->addDownstream(upstreamName, dependant);
-    downstreamGraphicElement->addUpstream(downstreamKey, dependant);
-}
+    SymbolReferenceMap symbols;
+    equation.symbols(symbols);
+    if (symbols.empty())
+        return;
 
-void
-GraphicDependant::removeFromSource()
-{
-    auto context = mUpstreamContext.lock();
-    if (context)
-        context->removeDownstream(shared_from_this());
+    auto dependant = std::make_shared<GraphicDependant>(downstreamGraphicElement, downstreamKey, equation,
+                                                        bindingContext, bindingFunction);
+
+    for (const auto& symbol : symbols.get())
+        symbol.second->addDownstream(symbol.first, dependant);
+
+    downstreamGraphicElement->addUpstream(downstreamKey, dependant);
 }
 
 void
 GraphicDependant::recalculate(bool useDirtyFlag) const
 {
-    auto context = mUpstreamContext.lock();
-    auto element = mDownstreamGraphicElement.lock();
-    if (context && element) {
-        auto value = mEval(*context, evaluate(*context, mNode));
-        element->setValue(mDownstreamKey, value, useDirtyFlag);
+    auto downstream = mDownstreamGraphicElement.lock();
+    auto bindingContext = mBindingContext.lock();
+    if (downstream && bindingContext) {
+        auto value = mBindingFunction(*bindingContext, mEquation.eval());
+        downstream->setValue(mDownstreamKey, value, useDirtyFlag);
     }
 }
 

@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -13,15 +13,23 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/action/delayaction.h"
-#include "apl/action/sequentialaction.h"
-#include "apl/command/command.h"
-#include "apl/command/commandfactory.h"
-#include "apl/engine/arrayify.h"
-#include "apl/utils/bimap.h"
-#include "apl/engine/event.h"
-#include "apl/engine/propdef.h"
+#ifndef _APL_LIVE_OBJECT_H
+#define _APL_LIVE_OBJECT_H
+
+#include "apl/common.h"
+#include "apl/primitives/object.h"
 
 namespace apl {
 
+/**
+ * Base class for LiveArray and LiveMap
+ */
+class LiveObject {
+public:
+    virtual Object::ObjectType getType() const = 0;
+    virtual ~LiveObject() = default;
+};
+
 } // namespace apl
+
+#endif // _APL_LIVE_OBJECT_H

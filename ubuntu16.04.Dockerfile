@@ -16,12 +16,12 @@ FROM ubuntu:16.04
 
 # Update, install apt utils, curl, & unzip
 RUN apt-get update \
-&& apt-get install apt-utils build-essential curl unzip gcc g++ -y
+&& apt-get install apt-utils build-essential curl unzip gcc g++ clang -y
 
 # Install cmake
 RUN apt-get install cmake -y
 
-# Make APL Core
+# Make APL Core with gcc
 ADD . /apl-core
 RUN cd apl-core \
 	&& rm -rf build \
@@ -30,7 +30,19 @@ RUN cd apl-core \
 	&& cmake -DBUILD_TESTS=ON -DCOVERAGE=OFF .. \
 	&& make -j4
 
-# RUN APL Core Tests
+# RUN APL Core Tests with gcc
 RUN cd apl-core/build \
 	&& unit/unittest
 
+# Make APL Core with clang
+ADD . /apl-core
+RUN cd apl-core \
+	&& rm -rf build-clang \
+	&& mkdir build-clang \
+	&& cd build-clang \
+	&& cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DBUILD_TESTS=ON -DCOVERAGE=OFF .. \
+	&& make -j4
+
+# RUN APL Core Tests with clang
+RUN cd apl-core/build-clang \
+	&& unit/unittest

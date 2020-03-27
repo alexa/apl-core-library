@@ -22,6 +22,7 @@
 #include "apl/engine/keyboardmanager.h"
 #include "apl/engine/rootcontextdata.h"
 #include "apl/engine/styles.h"
+#include "apl/livedata/livedatamanager.h"
 
 namespace apl {
 
@@ -71,7 +72,8 @@ RootContextData::RootContextData(const Metrics& metrics,
                                  const RootConfig& config,
                                  const std::string& theme,
                                  const std::string& requestedAPLVersion,
-                                 const SessionPtr& session)
+                                 const SessionPtr& session,
+                                 const std::vector<std::pair<std::string, std::string>>& extensions)
     : pixelWidth(metrics.getPixelWidth()),
       pixelHeight(metrics.getPixelHeight()),
       width(metrics.getWidth()),
@@ -84,6 +86,8 @@ RootContextData::RootContextData(const Metrics& metrics,
       mFocusManager(new FocusManager()),
       mHoverManager(new HoverManager(*this)),
       mKeyboardManager(new KeyboardManager()),
+      mDataManager(new LiveDataManager()),
+      mExtensionManager(new ExtensionManager(extensions, config)),
       mYGConfigRef(YGConfigNew()),
       mTextMeasurement(config.getMeasure()),
       mConfig(config),

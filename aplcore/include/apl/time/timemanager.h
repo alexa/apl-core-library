@@ -45,7 +45,7 @@ public:
     virtual apl_time_t nextTimeout() = 0;
 
     /**
-     * @return The current APL time
+     * @return The current APL time. This is the "elapsed" time since the APL document was opened.
      */
     virtual apl_time_t currentTime() const = 0;
 

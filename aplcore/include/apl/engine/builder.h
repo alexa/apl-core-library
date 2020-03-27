@@ -27,6 +27,8 @@ class Path;
  * RootContext or when calling Component::inflate().  Do not call them directly.
  */
 class Builder {
+    friend LayoutRebuilder;
+
 public:
     /**
      * Inflate the mainTemplate out of an APL document

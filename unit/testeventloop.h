@@ -26,23 +26,10 @@
 
 #include "gtest/gtest.h"
 
-#include "apl/action/action.h"
-#include "apl/component/component.h"
-#include "apl/command/command.h"
+#include "apl/apl.h"
 #include "apl/command/commandfactory.h"
 #include "apl/command/corecommand.h"
-#include "apl/content/content.h"
-#include "apl/engine/context.h"
-#include "apl/engine/rootcontext.h"
-#include "apl/graphic/graphic.h"
-#include "apl/graphic/graphicelement.h"
 #include "apl/time/coretimemanager.h"
-#include "apl/content/metrics.h"
-#include "apl/engine/builder.h"
-#include "apl/content/rootconfig.h"
-#include "apl/graphic/graphic.h"
-#include "apl/utils/streamer.h"
-
 
 namespace apl {
 
@@ -88,7 +75,7 @@ public:
         mLast = std::string(value);
         mCount++;
 
-        printf("SESSION %s\n", value);
+        fprintf(stderr, "SESSION %s\n", value);
     }
 };
 
@@ -99,7 +86,7 @@ public:
         mLastLevel = level;
         mCount++;
 
-        printf("%s %s\n", LEVEL_MAPPING.at(level).c_str(), log.c_str());
+        fprintf(stderr, "%s %s\n", LEVEL_MAPPING.at(level).c_str(), log.c_str());
     }
 
     LogLevel getLastLevel() const { return mLastLevel; }
@@ -128,6 +115,7 @@ public:
           mDependants(Dependant::itemsDelta()),
           mGraphics(Graphic::itemsDelta()),
           mGraphicElements(GraphicElement::itemsDelta()),
+          mDataSourceConnections(DataSourceConnection::itemsDelta()),
 #endif
           session(std::make_shared<TestSession>()),
           logBridge(std::make_shared<TestLogBridge>())
@@ -163,6 +151,9 @@ public:
 
         auto graphicElementTest = MemoryMatch<GraphicElement>(mGraphicElements, GraphicElement::itemsDelta());
         ASSERT_TRUE(graphicElementTest);
+
+        auto dataSourceTest = MemoryMatch<DataSourceConnection>(mDataSourceConnections, DataSourceConnection::itemsDelta());
+        ASSERT_TRUE(dataSourceTest);
 #endif
 
         ASSERT_FALSE(session->getCount()) << "Extra console message left behind: " << session->getLast();
@@ -187,10 +178,6 @@ public:
         return logBridge->checkAndClear();
     }
 
-public:
-    std::shared_ptr<TestSession> session;
-    std::shared_ptr<TestLogBridge> logBridge;
-
 private:
 #ifdef DEBUG_MEMORY_USE
     Counter<Action>::Pair mActions;
@@ -199,7 +186,12 @@ private:
     Counter<Dependant>::Pair mDependants;
     Counter<Graphic>::Pair mGraphics;
     Counter<GraphicElement>::Pair mGraphicElements;
+    Counter<DataSourceConnection>::Pair mDataSourceConnections;
 #endif
+
+public:
+    std::shared_ptr<TestSession> session;
+    std::shared_ptr<TestLogBridge> logBridge;
 };
 
 
@@ -280,6 +272,53 @@ public:
         ASSERT_FALSE(root);
     }
 
+    void loadDocumentBadContent(const char *docName, const char *dataName = nullptr) {
+        createContent(docName, dataName);
+        ASSERT_TRUE(content->isError());
+    }
+
+    void loadDocumentWithPackage(const char *doc, const char *pkg) {
+        content = Content::create(doc, session);
+        ASSERT_TRUE(content->isWaiting());
+        auto pkgs = content->getRequestedPackages();
+        ASSERT_EQ(1, pkgs.size());
+        auto it = pkgs.begin();
+        content->addPackage(*it, pkg);
+        ASSERT_TRUE(content->isReady());
+
+        postCreateContent();
+
+        inflate();
+        ASSERT_TRUE(root);
+    }
+
+    template<class... Args>
+    void loadDocumentWithMultiPackage(const char *doc, Args... args) {
+        std::vector<std::string> pp = {args...};
+        content = Content::create(doc, session);
+        ASSERT_TRUE(content->isWaiting());
+        auto pkgs = content->getRequestedPackages();
+
+        auto it = pkgs.begin();
+        for (int i=0; i < pp.size() && it != pkgs.end(); i++) {
+            content->addPackage(*it, pp[i]);
+            ASSERT_FALSE(content->isError());
+            // request more packages if all outstanding request
+            // have been satisfied on a waiting doc
+            if (++it == pkgs.end() && content->isWaiting()) {
+                pkgs = content->getRequestedPackages();
+                it = pkgs.begin();
+            }
+        }
+
+        ASSERT_TRUE(content->isReady());
+
+        postCreateContent();
+
+        inflate();
+        ASSERT_TRUE(root);
+    }
+
     /*
      * Release the component, context, and command.
      * This allows the ActionWrapper to verify that these objects will be correctly
@@ -342,9 +381,32 @@ protected:
     void createContent(const char *document, const char *data) {
         content = Content::create(document, session);
 
-        if (data != nullptr)
-            content->addData(content->getParameterAt(0), data);
+        postCreateContent();
+
+        if (!data)
+            return;
+
+        std::map<std::string, JsonData> params;
+        JsonData sourcesData(data);
+        if (sourcesData.get().IsObject()) {
+            for (auto objIt = sourcesData.get().MemberBegin(); objIt != sourcesData.get().MemberEnd(); objIt++) {
+                params.emplace(objIt->name.GetString(), objIt->value);
+            }
+        }
+
+        for (size_t idx = 0; idx < content->getParameterCount(); idx++) {
+            auto parameterName = content->getParameterAt(idx);
+            if (parameterName == "payload") {
+                content->addData(parameterName, data);
+            } else if(params.find(parameterName) != params.end()) {
+                content->addData(parameterName, params.at(parameterName).toString());
+            }
+        }
+
     }
+
+    // Override this in a subclass to insert processing after the content is created
+    virtual void postCreateContent() {}
 
     void inflate() {
         ASSERT_TRUE(content);
@@ -566,7 +628,7 @@ template<class... Args>
     static const std::size_t value = sizeof...(Args);
 
     std::size_t actual = component->getDirty().size();
-    PropertyKey v[value] = {args...};
+    std::vector<PropertyKey> v = {args...};
 
     if (actual != value)
         return ::testing::AssertionFailure() << "expected number of dirty component properties=" << value
@@ -588,15 +650,15 @@ template<class... Args>
 {
     static const std::size_t value = sizeof...(Args);
 
-    ComponentPtr v[value] = {args...};
+    std::vector<ComponentPtr> v = {args...};
     for (auto key : v) {
         if (root->getDirty().count(key) != 1)
             return ::testing::AssertionFailure() << "missing component " << key << ":" << key->toDebugString();
     }
 
     for (auto key : root->getDirty()) {
-        auto it = std::find(v, v + value, key);
-        if (it == v+value)
+        auto it = std::find(v.begin(), v.end(), key);
+        if (it == v.end())
             return ::testing::AssertionFailure() << "extra component " << key << ":" << key->toDebugString();
     }
 
@@ -612,9 +674,7 @@ template<class... Args>
 template<class... Args>
 ::testing::AssertionResult CheckDirtyAtLeast(const RootContextPtr& root, Args... args)
 {
-    static const std::size_t value = sizeof...(Args);
-
-    ComponentPtr v[value] = {args...};
+    std::vector<ComponentPtr> v = {args...};
     for (auto key : v) {
         if (root->getDirty().count(key) != 1)
             return ::testing::AssertionFailure() << "missing component " << key << ":" << key->toDebugString();
@@ -633,7 +693,7 @@ template<class... Args>
     if (actual != value)
         return ::testing::AssertionFailure() << "wrong number of dirty graphic elements.  Expected " << value << " but got " << actual;
 
-    GraphicElementPtr v[value] = {args...};
+    std::vector<GraphicElementPtr> v = {args...};
     for (auto key : v) {
         if (graphic->getDirty().count(key) != 1)
             return ::testing::AssertionFailure() << "missing graphic element " << key;
@@ -648,7 +708,7 @@ template<class... Args>
     static const std::size_t value = sizeof...(Args);
 
     std::size_t actual = element->getDirtyProperties().size();
-    GraphicPropertyKey v[value] = {args...};
+    std::vector<GraphicPropertyKey> v = {args...};
     if (actual != value)
         return ::testing::AssertionFailure() << "expected number of dirty graphic properties=" << value
                 << " actual=" << actual
@@ -665,11 +725,9 @@ template<class... Args>
 template<class... Args>
 ::testing::AssertionResult CheckState(const ComponentPtr& component, Args... args)
 {
-    static const std::size_t value = sizeof...(Args);
-
     // Construct an array of values for the expected state from the passed arguments
     std::vector<bool> values(kStatePropertyCount, false);
-    StateProperty v[value] = {args...};
+    std::vector<StateProperty> v = {args...};
     for (auto key : v)
         values[key] = true;
 
@@ -728,6 +786,58 @@ inline
     return ::testing::AssertionFailure() << event.getType() << " doesn't match " << eventType;
 }
 
+inline void
+CheckMediaState(const MediaState &state, const CalculatedPropertyMap &propertyMap) {
+    ASSERT_EQ(state.getTrackIndex(), propertyMap.get(kPropertyTrackIndex).asInt());
+    ASSERT_EQ(state.getTrackCount(), propertyMap.get(kPropertyTrackCount).asInt());
+    ASSERT_EQ(state.getDuration(), propertyMap.get(kPropertyTrackDuration).asInt());
+    ASSERT_EQ(state.getCurrentTime(), propertyMap.get(kPropertyTrackCurrentTime).asInt());
+    ASSERT_EQ(state.isPaused(), propertyMap.get(kPropertyTrackPaused).asBoolean());
+    ASSERT_EQ(state.isEnded(), propertyMap.get(kPropertyTrackEnded).asBoolean());
+}
+
+inline
+::testing::AssertionResult
+CheckChildLaidOut(const ComponentPtr& component, int childIndex, bool laidOut) {
+    bool actualLaidOut = component->getChildAt(childIndex)->getCalculated(kPropertyLaidOut).asBoolean();
+    if (laidOut != actualLaidOut) {
+        return ::testing::AssertionFailure()
+                << "component " << childIndex << " layout state is wrong. Expected: " << laidOut << ","
+                << "actual: " << actualLaidOut;
+    }
+    return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
+CheckChildrenLaidOut(const ComponentPtr& component, Range childRange, bool laidOut) {
+    for (int i = childRange.lowerBound(); i <= childRange.upperBound(); i++) {
+        auto result = CheckChildLaidOut(component, i, laidOut);
+        if (!result) {
+            return result;
+        }
+    }
+    return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
+CheckChildLaidOutDirtyFlags(const ComponentPtr& component, int idx) {
+    return CheckDirty(component->getChildAt(idx), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut);
+}
+
+inline
+::testing::AssertionResult
+CheckChildrenLaidOutDirtyFlags(const ComponentPtr& component, Range range) {
+    for (int idx = range.lowerBound(); idx <= range.upperBound(); idx++) {
+        ::testing::AssertionResult result = CheckChildLaidOutDirtyFlags(component, idx);
+        if (!result) {
+            return result;
+        }
+    }
+    return ::testing::AssertionSuccess();
+}
+
 static std::map<std::string, std::function<std::string(const Component&)>> sPseudoProperties =
     {
         // Return the global bounding rectangle for this component.
@@ -755,7 +865,7 @@ static std::map<std::string, std::function<std::string(const Component&)>> sPseu
         }},
 
         // Return the component scroll offset
-        {"__scroll", [](const Component& c) {
+        {"__scroll",  [](const Component& c) {
             return static_cast<const CoreComponent *>(&c)->scrollPosition().toString();
         }},
 
@@ -766,13 +876,18 @@ static std::map<std::string, std::function<std::string(const Component&)>> sPseu
                 c.getCalculated(kPropertyDisplay).getInteger() != kDisplayNormal)
                 return "false";
 
-            for (auto parent = c.getParent() ; parent ; parent = parent->getParent()) {
+            for (auto parent = c.getParent(); parent; parent = parent->getParent()) {
                 if (parent->getCalculated(kPropertyOpacity).getDouble() <= 0.0 ||
                     parent->getCalculated(kPropertyDisplay).getInteger() != kDisplayNormal)
                     return "false";
             }
 
             return "true";
+        }},
+
+        // Return the provenance
+        {"__path",    [](const Component& c) {
+            return c.provenance();
         }},
     };
 
@@ -829,6 +944,30 @@ dumpHierarchy(const ComponentPtr& component, std::initializer_list<std::string> 
 {
     HierarchyVisitor hv(args);
     component->accept(hv);
+}
+
+/**
+ * Convenience method for visualizing the visual hierarchy
+ * @param context
+ */
+inline void
+dumpContext(const ContextPtr& context, int indent = 0)
+{
+    for (auto it = context->begin() ; it != context->end() ; it++) {
+        int upstream = context->countUpstream(it->first);
+        int downstream = context->countDownstream(it->first);
+        auto result = it->first + " := " + it->second.toDebugString();
+        if (upstream)
+            result += "["+std::to_string(upstream)+" upstream]";
+        if (downstream)
+            result += "["+std::to_string(downstream)+" downstream]";
+        LOG(LogLevel::DEBUG) << std::string(indent, ' ') << result;
+    }
+
+    auto parent = context->parent();
+    if (parent)
+        dumpContext(parent, indent + 4);
+
 }
 
 extern std::ostream& operator<<(std::ostream& os, const Point& point);

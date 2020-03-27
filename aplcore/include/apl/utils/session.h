@@ -35,6 +35,8 @@ namespace apl {
  */
 class Session {
 public:
+    virtual ~Session() = default;
+
     /**
      * Write a string in the session log, including the filename and function where
      * the log was generated.
@@ -105,8 +107,6 @@ private:
     const bool mUncaught;
     streamer mStringStream;
 };
-
-#define __FILENAME__ (__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1 : __FILE__)
 
 /// Report content errors using a session object
 #define CONSOLE_S(SESSION)   SessionMessage(SESSION,__FILENAME__,__func__)

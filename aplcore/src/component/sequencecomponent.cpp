@@ -33,9 +33,7 @@ SequenceComponent::create(const ContextPtr& context,
 SequenceComponent::SequenceComponent(const ContextPtr& context,
                                      Properties&& properties,
                                      const std::string& path)
-    : ScrollableComponent(context, std::move(properties), path),
-      mHighestIndexSeen(-1),
-      mFirstUnensuredChild(0)
+    : ScrollableComponent(context, std::move(properties), path)
 {
 }
 
@@ -44,6 +42,8 @@ SequenceComponent::update(UpdateType type, float value)
 {
     ScrollableComponent::update(type, value);
     if (type == kUpdateScrollPosition) {
+        // Force figuring out what is on screen.
+        processLayoutChanges(true);
         updateSeen();
     }
 }
@@ -54,12 +54,28 @@ SequenceComponent::findChildAtPosition(const Point& position) const
     // Not all children may be ensured.  We start at the end of the list of ensured children
     // TODO: Given the serial nature of layout in a Sequence, a binary search would be faster
 
-    if (mChildren.empty())
+    if (mChildren.empty() || mEnsuredChildren.empty())
         return nullptr;
 
-    for (int i = mFirstUnensuredChild - 1 ; i >= 0 ; i-- ) {
-        auto child = mChildren.at(i)->findComponentAtPosition(position);
-        if (child != nullptr)
+    for (int i = mEnsuredChildren.upperBound() ; i >= mEnsuredChildren.lowerBound() ; i--) {
+        auto child = std::dynamic_pointer_cast<CoreComponent>(mChildren.at(i)->findComponentAtPosition(position));
+        if (child != nullptr && child->isAttached() && !child->getCalculated(kPropertyBounds).getRect().isEmpty())
+            return child;
+    }
+
+    return nullptr;
+}
+
+ComponentPtr
+SequenceComponent::findDirectChildAtPosition(const Point& position) const
+{
+    if (mEnsuredChildren.empty())
+        return nullptr;
+
+    for (int i = mEnsuredChildren.upperBound(); i >= mEnsuredChildren.lowerBound(); i--) {
+        auto child = mChildren.at(i);
+        auto bounds = child->getCalculated(kPropertyBounds).getRect();
+        if (bounds.contains(position))
             return child;
     }
 
@@ -101,7 +117,8 @@ SequenceComponent::getValue() const {
     double scrollSize = getCalculated(kPropertyScrollDirection) == kScrollDirectionVertical
                         ? YGNodeLayoutGetHeight(mYGNodeRef)
                         : YGNodeLayoutGetWidth(mYGNodeRef);
-    return scrollSize != 0 ? mCurrentPosition / scrollSize : 0;
+    auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
+    return scrollSize != 0 ? currentPosition / scrollSize : 0;
 }
 
 ScrollType
@@ -113,18 +130,36 @@ SequenceComponent::scrollType() const
 Point
 SequenceComponent::scrollPosition() const
 {
+    auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
     return getCalculated(kPropertyScrollDirection) == kScrollDirectionVertical ?
-           Point(0, mCurrentPosition) :
-           Point(mCurrentPosition, 0);
+           Point(0, currentPosition) :
+           Point(currentPosition, 0);
 }
 
 Point
 SequenceComponent::trimScroll(const Point& point) const
 {
+    // Break out early. If there are no children - no scrolling possible
+    if (mChildren.empty())
+        return Point();
+
     auto innerBounds = mCalculated.get(kPropertyInnerBounds).getRect();
+    // We treat this component as 0 point of sequence. All calculation happens in relation to it.
+    auto zeroAnchor = mChildren.at(mEnsuredChildren.empty() ? 0 : mEnsuredChildren.lowerBound());
+    if (!zeroAnchor->isAttached()) zeroAnchor->ensureLayout(false);
+    auto zeroAnchorPos = zeroAnchor->getCalculated(kPropertyBounds).getRect().getTopLeft() - innerBounds.getTopLeft();
 
     if (scrollType() == kScrollTypeVertical) {
         auto y = point.getY();
+        // Cover in back direction. Current code ensures from index 0 to requested component and any updates
+        // asynchronous so no way it will happen twice.
+        while (y < zeroAnchorPos.getY() && !mEnsuredChildren.empty() && mEnsuredChildren.lowerBound() > 0) {
+            mChildren.at(mEnsuredChildren.lowerBound() - 1)->ensureLayout(false);
+            zeroAnchorPos = zeroAnchor->getCalculated(kPropertyBounds).getRect().getTopLeft() - innerBounds.getTopLeft();
+        }
+
+        y += zeroAnchorPos.getY();
+
         if (y <= 0)
             return Point();
 
@@ -132,7 +167,7 @@ SequenceComponent::trimScroll(const Point& point) const
         float maxY = 0;
 
         // Ensure children until they cover the sequence.
-        int startingChild = std::max(mFirstUnensuredChild - 1, 0);
+        int startingChild = std::max(mEnsuredChildren.upperBound(), 0);
         for (int i = startingChild ; i<mChildren.size() ; i++) {
             const auto& child = mChildren.at(i);
             child->ensureLayout(false);
@@ -145,6 +180,13 @@ SequenceComponent::trimScroll(const Point& point) const
     }
     else {  // Horizontal
         auto x = point.getX();
+        while (x < zeroAnchorPos.getX() && !mEnsuredChildren.empty() && mEnsuredChildren.lowerBound() > 0) {
+            mChildren.at(mEnsuredChildren.lowerBound() - 1)->ensureLayout(false);
+            zeroAnchorPos = zeroAnchor->getCalculated(kPropertyBounds).getRect().getTopLeft() - innerBounds.getTopLeft();
+        }
+
+        x += zeroAnchorPos.getX();
+
         if (x <= 0)
             return Point();
 
@@ -152,7 +194,7 @@ SequenceComponent::trimScroll(const Point& point) const
         float maxX = 0;
 
         // Ensure children until they cover the sequence.
-        int startingChild = std::max(mFirstUnensuredChild - 1, 0);
+        int startingChild = std::max(mEnsuredChildren.upperBound(), 0);
         for (int i = startingChild ; i<mChildren.size(); i++) {
             const auto& child = mChildren.at(i);
             child->ensureLayout(false);
@@ -183,25 +225,29 @@ SequenceComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::Alloca
         rapidjson::Value list(rapidjson::kObjectType);
         list.AddMember("itemCount", static_cast<int>(mChildren.size()), allocator);
 
-        updateSeen();
-        auto lowestOrdinalSeen = INT_MAX;
-        auto highestOrdinalSeen = 0;
+        if (!mIndexesSeen.empty()) {
+            auto lowestOrdinalSeen = INT_MAX;
+            auto highestOrdinalSeen = -1;
 
-        for(int i = 0; i<= mHighestIndexSeen; i++) {
-            auto ordinal = mChildren.at(i)->getContext()->opt("ordinal");
-            if(ordinal.isNull())
-                continue;
+            for(int i = mIndexesSeen.lowerBound(); i<= mIndexesSeen.upperBound(); i++) {
+                auto ordinal = mChildren.at(i)->getContext()->opt("ordinal");
+                if(ordinal.isNull())
+                    continue;
 
-            highestOrdinalSeen = std::max(ordinal.asInt(), highestOrdinalSeen);
-            lowestOrdinalSeen = std::min(ordinal.asInt(), lowestOrdinalSeen);
-        }
+                highestOrdinalSeen = std::max(ordinal.asInt(), highestOrdinalSeen);
+                lowestOrdinalSeen = std::min(ordinal.asInt(), lowestOrdinalSeen);
+            }
 
-        list.AddMember("lowestIndexSeen", 0, allocator);
-        list.AddMember("highestIndexSeen", mHighestIndexSeen >= 0 ? mHighestIndexSeen : 0, allocator);
+            list.AddMember("lowestIndexSeen", mIndexesSeen.lowerBound(), allocator);
+            list.AddMember("highestIndexSeen", mIndexesSeen.upperBound(), allocator);
 
-        if (getCalculated(kPropertyNumbered).truthy() && lowestOrdinalSeen <= highestOrdinalSeen) {
-            list.AddMember("lowestOrdinalSeen", lowestOrdinalSeen, allocator);
-            list.AddMember("highestOrdinalSeen", highestOrdinalSeen, allocator);
+            if (getCalculated(kPropertyNumbered).truthy() && lowestOrdinalSeen <= highestOrdinalSeen) {
+                list.AddMember("lowestOrdinalSeen", lowestOrdinalSeen, allocator);
+                list.AddMember("highestOrdinalSeen", highestOrdinalSeen, allocator);
+            }
+        } else {
+            list.AddMember("lowestIndexSeen", 0, allocator);
+            list.AddMember("highestIndexSeen", 0, allocator);
         }
 
         outMap.AddMember("list", list, allocator);
@@ -211,11 +257,11 @@ SequenceComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::Alloca
 
 bool
 SequenceComponent::allowForward() const {
-    if(getChildCount() == 0)
+    if(getChildCount() == 0 || mEnsuredChildren.empty())
         return false;
     // If the last element has not had ensureLayout called on it,
     // then the viewhost still has room to scroll.
-    if(mFirstUnensuredChild < getChildCount())
+    if(mEnsuredChildren.upperBound() + 1 < getChildCount())
         return true;
 
     // otherwise get the last child and calculate the bounds of
@@ -223,13 +269,14 @@ SequenceComponent::allowForward() const {
     auto lastChild = getChildAt(getChildCount() - 1);
     auto lastChildBounds = lastChild->getCalculated(kPropertyBounds).getRect();
     auto innerBounds = mCalculated.get(kPropertyInnerBounds).getRect();
+    auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
     double scrollSize = scrollType() == kScrollTypeVertical
                         ? innerBounds.getBottom()
                         : innerBounds.getRight();
     double innerScrollSize = scrollType() == kScrollTypeVertical
                              ? lastChildBounds.getBottom()
                              : lastChildBounds.getRight();
-    return mCurrentPosition + scrollSize < innerScrollSize;
+    return currentPosition + scrollSize < innerScrollSize;
 }
 
 
@@ -238,7 +285,11 @@ SequenceComponent::getChildrenVisibility(float realOpacity, const Rect &visibleR
     std::map<int, float> visibleIndexes;
     bool visibleMet = false;
 
-    for (int index = 0; index < mFirstUnensuredChild; index++) {
+    if (mEnsuredChildren.empty()) {
+        return visibleIndexes;
+    }
+
+    for (int index = mEnsuredChildren.lowerBound(); index <= mEnsuredChildren.upperBound(); index++) {
         const auto& child = getCoreChildAt(index);
         float childVisibility = child->calculateVisibility(realOpacity, visibleRect);
         if(childVisibility > 0.0) {
@@ -259,16 +310,144 @@ SequenceComponent::updateSeen() {
     // We don't always go from parent to child here (update case) so calculate opacity and visible rect recursively.
     auto visibleIndexes = getChildrenVisibility(calculateRealOpacity(), calculateVisibleRect());
     if(!visibleIndexes.empty()) {
-        mHighestIndexSeen = std::max(visibleIndexes.rbegin()->first, mHighestIndexSeen);
+        mIndexesSeen.expandTo(visibleIndexes.begin()->first);
+        mIndexesSeen.expandTo(visibleIndexes.rbegin()->first);
     }
 }
 
 void
-SequenceComponent::ensureChildAttached(const ComponentPtr& child)
+SequenceComponent::layoutChildIfRequired(
+        const Rect& parentBounds, const CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag) {
+    if (!child->isAttached() || child->getCalculated(kPropertyBounds).empty()) {
+        ensureChildAttached(child, childIdx);
+        YGNodeCalculateLayout(
+                mYGNodeRef,
+                parentBounds.getWidth(),
+                parentBounds.getHeight(),
+                YGDirection::YGDirectionLTR);
+        CoreComponent::processLayoutChanges(useDirtyFlag);
+    }
+}
+
+void
+SequenceComponent::processLayoutChanges(bool useDirtyFlag)
 {
-    CoreComponent::ensureChildAttached(child);
-    auto it = std::find(mChildren.begin(), mChildren.end(), child);
-    mFirstUnensuredChild = std::distance(mChildren.begin(), it) + 1;
+    // We need to account for padding as find function don't do that automatically.
+    bool horizontal = scrollType() == kScrollTypeHorizontal;
+    auto paddedScrollPosition = scrollPosition() + getCalculated(kPropertyInnerBounds).getRect().getTopLeft();
+    auto anchor = std::static_pointer_cast<CoreComponent>(findDirectChildAtPosition(paddedScrollPosition));
+
+    Rect oldAnchorBounds;
+    if (anchor) {
+        oldAnchorBounds = anchor->getCalculated(kPropertyBounds).getRect();
+    }
+
+    CoreComponent::processLayoutChanges(useDirtyFlag);
+
+    if (mChildren.empty()) {
+        // Starting with empty sequence
+        return;
+    }
+
+    // We have not laid-out anything before. Refer to first available attached child. Possible only on initial layout.
+    if (!anchor) {
+        anchor = mChildren.at(mEnsuredChildren.lowerBound());
+        oldAnchorBounds = anchor->getCalculated(kPropertyBounds).getRect();
+    }
+
+    auto sequenceBounds = mCalculated.get(kPropertyBounds).getRect();
+    float childCache = mContext->getRootConfig().getSequenceChildCache();
+    float pageSize = horizontal ? sequenceBounds.getWidth() : sequenceBounds.getHeight();
+    float anchorPosition = horizontal ? oldAnchorBounds.getX() : oldAnchorBounds.getY();
+
+    // Lay out children in positive direction until we hit cache limit.
+    float distanceToCover = (childCache + 1) * pageSize + anchorPosition;
+    int lastLoaded = mEnsuredChildren.lowerBound();
+    for (; lastLoaded < mChildren.size(); lastLoaded++) {
+        auto child = mChildren.at(lastLoaded);
+        layoutChildIfRequired(sequenceBounds, child, lastLoaded, useDirtyFlag);
+        auto childBounds = child->getCalculated(kPropertyBounds).getRect();
+        float distance = horizontal ? childBounds.getRight() : childBounds.getBottom();
+        if (distance >= distanceToCover) {
+            break;
+        }
+    }
+
+    reportLoaded(std::min(lastLoaded, mEnsuredChildren.upperBound()));
+
+    Rect anchorBounds;
+    // Lay out children in negative direction until we hit cache limit.
+    distanceToCover = childCache * pageSize;
+    int firstLoaded = mEnsuredChildren.upperBound();
+    for (; firstLoaded >= 0; firstLoaded--) {
+        auto child = mChildren.at(firstLoaded);
+        layoutChildIfRequired(sequenceBounds, child, firstLoaded, useDirtyFlag);
+        auto childBounds = child->getCalculated(kPropertyBounds).getRect();
+        anchorBounds = anchor->getCalculated(kPropertyBounds).getRect();
+        float distance = (horizontal ? anchorBounds.getLeft() : anchorBounds.getTop())
+                       - (horizontal ? childBounds.getLeft() : childBounds.getTop());
+        if (distance >= distanceToCover) {
+            break;
+        }
+    }
+
+    reportLoaded(std::max(firstLoaded, mEnsuredChildren.lowerBound()));
+
+    if (anchor) {
+        // Adjust scroll position if changed at the beginning of sequence
+        if (anchorBounds != oldAnchorBounds) {
+            auto currentPosition = getCalculated(kPropertyScrollPosition).asNumber();
+            currentPosition += scrollType() == kScrollTypeHorizontal ? anchorBounds.getLeft() - oldAnchorBounds.getLeft()
+                                                                     : anchorBounds.getTop() - oldAnchorBounds.getTop();
+            mCalculated.set(kPropertyScrollPosition, Dimension(DimensionType::Absolute, currentPosition));
+            setDirty(kPropertyScrollPosition);
+        }
+    }
+
+    updateSeen();
+}
+
+bool
+SequenceComponent::insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag)
+{
+    bool result = CoreComponent::insertChild(child, index, useDirtyFlag);
+    if (result && !mIndexesSeen.empty() && (int)index <= mIndexesSeen.lowerBound()) {
+        mIndexesSeen.shift(1);
+    }
+    return result;
+}
+
+void
+SequenceComponent::removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag)
+{
+    CoreComponent::removeChild(child, index, useDirtyFlag);
+    if (!mIndexesSeen.empty()) {
+        if ((int)index < mIndexesSeen.lowerBound()) {
+            mIndexesSeen.shift(-1);
+        } else if (mIndexesSeen.contains(index)) {
+            mIndexesSeen.remove(index);
+        }
+    }
+}
+
+bool
+SequenceComponent::shouldAttachChildYogaNode(int index) const {
+    // We can't predict the order in which new indexes attached. So just attach first one initially to have anchor
+    // in place.
+    return (mEnsuredChildren.empty() && index == 0);
+}
+
+float
+SequenceComponent::maxScroll() const {
+    if (mChildren.empty()) {
+        return 0;
+    }
+    bool horizontal = scrollType() == kScrollTypeHorizontal;
+    auto sequenceBounds = mCalculated.get(kPropertyInnerBounds).getRect();
+    float end = horizontal ? sequenceBounds.getRight() : sequenceBounds.getBottom();
+    auto lastChildBounds = mChildren.at(mEnsuredChildren.upperBound())->getCalculated(kPropertyBounds).getRect();
+    float childEnd = horizontal ? lastChildBounds.getRight() : lastChildBounds.getBottom();
+    return nonNegative(childEnd - end);
 }
 
 } // namespace apl

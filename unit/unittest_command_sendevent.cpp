@@ -156,8 +156,8 @@ static const char * SEND_EVENT_NEW_ARGUMENTS =
 
 const static std::vector<Object> EXPECTED_NEW = {
     Object::NULL_OBJECT(),  // null
-    Object::FALSE(), // false
-    Object::TRUE(),
+    Object::FALSE_OBJECT(), // false
+    Object::TRUE_OBJECT(),
     Object("string"),
     Object(10),
     Object(2.5),

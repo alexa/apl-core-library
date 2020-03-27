@@ -318,7 +318,9 @@ TEST_F(CommandMediaTest, ControlSeries)
     ASSERT_EQ(video, event.getComponent());
 
     // Update the video state
-    video->updateMediaState(MediaState(0, 3, 0, 1000, false, false), true);
+    MediaState state(0, 3, 0, 1000, false, false);
+    video->updateMediaState(state, true);
+    CheckMediaState(state, video->getCalculated());
     event.getActionRef().resolve();
 
     // The next command should run
@@ -334,7 +336,9 @@ TEST_F(CommandMediaTest, ControlSeries)
     ASSERT_EQ(video, event.getComponent());
 
     // Update the video state.  It's paused because the control media commands pause it
-    video->updateMediaState(MediaState(1, 3, 0, 1000, true, false), true);
+    state = MediaState(1, 3, 0, 1000, true, false);
+    video->updateMediaState(state, true);
+    CheckMediaState(state, video->getCalculated());
     event.getActionRef().resolve();
 
     // The third command should run
@@ -350,7 +354,9 @@ TEST_F(CommandMediaTest, ControlSeries)
     ASSERT_EQ(video, event.getComponent());
 
     // Update the video state.  It's paused because the control media commands pause it
-    video->updateMediaState(MediaState(0, 3, 0, 1000, true, false), true);
+    state = MediaState(0, 3, 0, 1000, true, false);
+    video->updateMediaState(state, true);
+    CheckMediaState(state, video->getCalculated());
     event.getActionRef().resolve();
 
     ASSERT_FALSE(root->hasEvent());

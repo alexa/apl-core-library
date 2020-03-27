@@ -1,168 +1,240 @@
+diff --git b/.DS_Store b/.DS_Store
+new file mode 100644
+index 0000000..3ecbe97
+Binary files /dev/null and b/.DS_Store differ
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 5a89aced..3abba013 100644
+index 595faef..102ce08 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -13,3 +13,4 @@ file(GLOB yogacore_SRC yoga/*.cpp)
- add_library(yogacore STATIC ${yogacore_SRC})
- 
+@@ -15,3 +15,4 @@ add_library(yogacore STATIC ${yogacore_SRC})
+ target_include_directories(yogacore PUBLIC .)
  target_link_libraries(yogacore android log)
+ set_target_properties(yogacore PROPERTIES CXX_STANDARD 11)
 +install(TARGETS yogacore ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX})
-diff --git a/lib/fb/src/main/cpp/include/fb/ProgramLocation.h b/lib/fb/src/main/cpp/include/fb/ProgramLocation.h
-index cc23ee71..f6ccd93c 100644
---- a/lib/fb/src/main/cpp/include/fb/ProgramLocation.h
-+++ b/lib/fb/src/main/cpp/include/fb/ProgramLocation.h
-@@ -8,7 +8,6 @@
- #pragma once
- #include <cstring>
- #include <string>
--#include <sstream>
- 
- namespace facebook {
- 
-@@ -29,9 +28,7 @@ public:
-   int lineNumber() const { return m_lineNumber; }
- 
-   std::string asFormattedString() const {
--    std::stringstream str;
--    str << "Function " << m_functionName << " in file " << m_fileName << ":" << m_lineNumber;
--    return str.str();
-+    return "";
-   }
- 
-   bool operator==(const ProgramLocation& other) const {
-diff --git a/lib/fb/src/main/cpp/include/fb/lyra.h b/lib/fb/src/main/cpp/include/fb/lyra.h
-index c60ff27b..2c8a61fc 100644
---- a/lib/fb/src/main/cpp/include/fb/lyra.h
-+++ b/lib/fb/src/main/cpp/include/fb/lyra.h
-@@ -3,7 +3,6 @@
- #pragma once
- 
- #include <iomanip>
--#include <iostream>
- #include <string>
- #include <vector>
- 
-@@ -154,15 +153,15 @@ FBEXPORT inline std::vector<StackTraceElement> getStackTraceSymbols(
+diff --git a/lib/fb/src/main/cpp/include/lyra/lyra.h b/lib/fb/src/main/cpp/include/lyra/lyra.h
+index 02e6078..2d53a87 100644
+--- a/lib/fb/src/main/cpp/include/lyra/lyra.h
++++ b/lib/fb/src/main/cpp/include/lyra/lyra.h
+@@ -172,16 +172,16 @@ inline std::vector<StackTraceElement> getStackTraceSymbols(
    return getStackTraceSymbols(getStackTrace(skip + 1, limit));
  }
  
 -/**
 - * Formatting a stack trace element
 - */
--FBEXPORT std::ostream& operator<<(std::ostream& out, const StackTraceElement& elm);
-+// /**
-+//  * Formatting a stack trace element
-+//  */
-+// FBEXPORT std::ostream& operator<<(std::ostream& out, const StackTraceElement& elm);
- 
+-std::ostream& operator<<(std::ostream& out, const StackTraceElement& elm);
+-
 -/**
 - * Formatting a stack trace
 - */
--FBEXPORT std::ostream& operator<<(std::ostream& out,
--                                  const std::vector<StackTraceElement>& trace);
-+// /**
-+//  * Formatting a stack trace
-+//  */
-+// FBEXPORT std::ostream& operator<<(std::ostream& out,
-+//                                   const std::vector<StackTraceElement>& trace);
- }
- }
+-std::ostream& operator<<(std::ostream& out,
+-                         const std::vector<StackTraceElement>& trace);
++///**
++// * Formatting a stack trace element
++// */
++//std::ostream& operator<<(std::ostream& out, const StackTraceElement& elm);
++//
++///**
++// * Formatting a stack trace
++// */
++//std::ostream& operator<<(std::ostream& out,
++//                         const std::vector<StackTraceElement>& trace);
+ 
+ /**
+  * Log stack trace
 diff --git a/lib/fb/src/main/cpp/lyra/lyra.cpp b/lib/fb/src/main/cpp/lyra/lyra.cpp
-index f915ecef..3c82ea0d 100644
+index 599a360..c4c514c 100644
 --- a/lib/fb/src/main/cpp/lyra/lyra.cpp
 +++ b/lib/fb/src/main/cpp/lyra/lyra.cpp
-@@ -86,35 +86,35 @@ void getStackTraceSymbols(vector<StackTraceElement>& symbols,
+@@ -8,7 +8,6 @@
+ 
+ #include <atomic>
+ #include <ios>
+-#include <ostream>
+ #include <iomanip>
+ #include <memory>
+ #include <vector>
+@@ -116,35 +115,35 @@ void getStackTraceSymbols(vector<StackTraceElement>& symbols,
    }
  }
  
 -ostream& operator<<(ostream& out, const StackTraceElement& elm) {
 -  IosFlagsSaver flags{out};
-+// ostream& operator<<(ostream& out, const StackTraceElement& elm) {
-+//   IosFlagsSaver flags{out};
- 
--  // TODO(t10748683): Add build id to the output
+-
 -  out << "{dso=" << elm.libraryName() << " offset=" << hex
 -      << showbase << elm.libraryOffset();
-+//   // TODO(t10748683): Add build id to the output
-+//   out << "{dso=" << elm.libraryName() << " offset=" << hex
-+//       << showbase << elm.libraryOffset();
- 
+-
 -  if (!elm.functionName().empty()) {
 -    out << " func=" << elm.functionName() << "()+" << elm.functionOffset();
 -  }
-+//   if (!elm.functionName().empty()) {
-+//     out << " func=" << elm.functionName() << "()+" << elm.functionOffset();
-+//   }
- 
--  out << " build-id=" << hex << setw(8) << 0
+-
+-  out << " build-id=" << hex << setw(8) << elm.buildId()
 -      << "}";
-+//   out << " build-id=" << hex << setw(8) << 0
-+//       << "}";
- 
+-
 -  return out;
 -}
-+//   return out;
-+// }
- 
+-
 -// TODO(t10737667): The implement a tool that parse the stack trace and
 -// symbolicate it
 -ostream& operator<<(ostream& out, const vector<StackTraceElement>& trace) {
 -  IosFlagsSaver flags{out};
-+// // TODO(t10737667): The implement a tool that parse the stack trace and
-+// // symbolicate it
-+// ostream& operator<<(ostream& out, const vector<StackTraceElement>& trace) {
-+//   IosFlagsSaver flags{out};
- 
+-
 -  auto i = 0;
 -  out << "Backtrace:\n";
 -  for (auto& elm : trace) {
 -    out << "    #" << dec << setfill('0') << setw(2) << i++ << " " << elm << '\n';
 -  }
-+//   auto i = 0;
-+//   out << "Backtrace:\n";
-+//   for (auto& elm : trace) {
-+//     out << "    #" << dec << setfill('0') << setw(2) << i++ << " " << elm << '\n';
-+//   }
- 
+-
 -  return out;
 -}
-+//   return out;
-+// }
- }
- }
-diff --git a/yoga/YGFloatOptional.cpp b/yoga/YGFloatOptional.cpp
-index c7ade6a2..43b10011 100644
---- a/yoga/YGFloatOptional.cpp
-+++ b/yoga/YGFloatOptional.cpp
-@@ -7,9 +7,9 @@
-  */
- #include "YGFloatOptional.h"
++//ostream& operator<<(ostream& out, const StackTraceElement& elm) {
++//  IosFlagsSaver flags{out};
++//
++//  out << "{dso=" << elm.libraryName() << " offset=" << hex
++//      << showbase << elm.libraryOffset();
++//
++//  if (!elm.functionName().empty()) {
++//    out << " func=" << elm.functionName() << "()+" << elm.functionOffset();
++//  }
++//
++//  out << " build-id=" << hex << setw(8) << elm.buildId()
++//      << "}";
++//
++//  return out;
++//}
++
++//// TODO(t10737667): The implement a tool that parse the stack trace and
++//// symbolicate it
++//ostream& operator<<(ostream& out, const vector<StackTraceElement>& trace) {
++//  IosFlagsSaver flags{out};
++//
++//  auto i = 0;
++//  out << "Backtrace:\n";
++//  for (auto& elm : trace) {
++//    out << "    #" << dec << setfill('0') << setw(2) << i++ << " " << elm << '\n';
++//  }
++//
++//  return out;
++//}
+ 
+ void logStackTrace(const vector<StackTraceElement>& trace) {
+   auto i = 0;
+diff --git a/lib/fb/src/main/cpp/lyra/lyra_exceptions.cpp b/lib/fb/src/main/cpp/lyra/lyra_exceptions.cpp
+index c07e6fd..0fbcb0f 100644
+--- a/lib/fb/src/main/cpp/lyra/lyra_exceptions.cpp
++++ b/lib/fb/src/main/cpp/lyra/lyra_exceptions.cpp
+@@ -8,7 +8,6 @@
+ 
  #include <cstdlib>
--#include <iostream>
- #include "Yoga.h"
- #include "Yoga-internal.h"
-+#include <cstdio>
+ #include <exception>
+-#include <sstream>
+ #include <typeinfo>
  
- using namespace facebook;
- 
-@@ -26,7 +26,7 @@ YGFloatOptional::YGFloatOptional(float value) {
- float YGFloatOptional::getValue() const {
-   if (isUndefined_) {
-     // Abort, accessing a value of an undefined float optional
--    std::cerr << "Tried to get value of an undefined YGFloatOptional\n";
-+    printf("Tried to get value of an undefined YGFloatOptional\n");
-     std::exit(EXIT_FAILURE);
+ #include <fbjni/detail/Log.h>
+@@ -76,9 +75,7 @@ std::string toString(std::exception_ptr ptr) {
+   try {
+     std::rethrow_exception(ptr);
+   } catch (std::exception& e) {
+-    std::stringstream ss;
+-    ss << typeid(e).name() << ": " << e.what();
+-    return ss.str();
++    return std::string(typeid(e).name()) + ": " + std::stream(e.what());
+   } catch (...) {
+     return "Unknown exception";
    }
-   return value_;
+diff --git a/tests/YGNodeCallbackTest.cpp b/tests/YGNodeCallbackTest.cpp
+index be019d1..c57836b 100644
+--- a/tests/YGNodeCallbackTest.cpp
++++ b/tests/YGNodeCallbackTest.cpp
+@@ -6,7 +6,6 @@
+  */
+ #include <gtest/gtest.h>
+ #include <yoga/YGNode.h>
+-#include <ostream>
+ 
+ inline bool operator==(const YGSize& lhs, const YGSize& rhs) {
+   return lhs.width == rhs.width && lhs.height == rhs.height;
+diff --git a/tests/YGStyleTest.cpp b/tests/YGStyleTest.cpp
+index 530d8de..0ef14e9 100644
+--- a/tests/YGStyleTest.cpp
++++ b/tests/YGStyleTest.cpp
+@@ -6,7 +6,6 @@
+  */
+ #include <gtest/gtest.h>
+ #include <yoga/YGNode.h>
+-#include <iostream>
+ 
+ TEST(YogaTest, copy_style_same) {
+   const YGNodeRef node0 = YGNodeNew();
 diff --git a/yoga/YGNode.cpp b/yoga/YGNode.cpp
-index 987474de..330bd5d8 100644
+index bb240df..85fc976 100644
 --- a/yoga/YGNode.cpp
 +++ b/yoga/YGNode.cpp
 @@ -6,7 +6,6 @@
-  *
   */
  #include "YGNode.h"
+ #include <algorithm>
 -#include <iostream>
+ #include "CompactValue.h"
  #include "Utils.h"
  
- using namespace facebook;
+diff --git a/yoga/YGNodePrint.cpp b/yoga/YGNodePrint.cpp
+index f91d037..b00c6fe 100644
+--- a/yoga/YGNodePrint.cpp
++++ b/yoga/YGNodePrint.cpp
+@@ -4,7 +4,7 @@
+  * This source code is licensed under the MIT license found in the LICENSE
+  * file in the root directory of this source tree.
+  */
+-#ifdef DEBUG
++#ifndef NDEBUG
+ #include "YGNodePrint.h"
+ #include <stdarg.h>
+ #include "YGEnums.h"
+diff --git a/yoga/YGNodePrint.h b/yoga/YGNodePrint.h
+index 8df30e2..cafe23f 100644
+--- a/yoga/YGNodePrint.h
++++ b/yoga/YGNodePrint.h
+@@ -4,7 +4,7 @@
+  * This source code is licensed under the MIT license found in the LICENSE
+  * file in the root directory of this source tree.
+  */
+-#ifdef DEBUG
++#ifndef NDEBUG
+ #pragma once
+ #include <string>
+ 
+diff --git a/yoga/Yoga.cpp b/yoga/Yoga.cpp
+index 1a374ab..6d4a0e4 100644
+--- a/yoga/Yoga.cpp
++++ b/yoga/Yoga.cpp
+@@ -945,7 +945,7 @@ bool YGLayoutNodeInternal(
+     const uint32_t depth,
+     const uint32_t generationCount);
+ 
+-#ifdef DEBUG
++#ifndef NDEBUG
+ static void YGNodePrintInternal(
+     const YGNodeRef node,
+     const YGPrintOptions options) {
+@@ -4140,7 +4140,7 @@ void YGNodeCalculateLayoutWithContext(
+         node->getLayout().direction(), ownerWidth, ownerHeight, ownerWidth);
+     YGRoundToPixelGrid(node, node->getConfig()->pointScaleFactor, 0.0f, 0.0f);
+ 
+-#ifdef DEBUG
++#ifndef NDEBUG
+     if (node->getConfig()->printTree) {
+       YGNodePrint(
+           node,
+@@ -4202,7 +4202,7 @@ void YGNodeCalculateLayoutWithContext(
+           !nodeWithoutLegacyFlag->isLayoutTreeEqualToNode(*node);
+       node->setLayoutDoesLegacyFlagAffectsLayout(neededLegacyStretchBehaviour);
+ 
+-#ifdef DEBUG
++#ifndef NDEBUG
+       if (nodeWithoutLegacyFlag->getConfig()->printTree) {
+         YGNodePrint(
+             nodeWithoutLegacyFlag,
+diff --git b/yoga/yoga.patch b/yoga/yoga.patch
+new file mode 100644
+index 0000000..e69de29

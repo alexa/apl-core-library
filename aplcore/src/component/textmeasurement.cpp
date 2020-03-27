@@ -24,7 +24,7 @@ public:
                     YGMeasureMode widthMode,
                     float height,
                     YGMeasureMode heightMode ) override {
-        return { .width=10, .height=10 };
+        return { 10, 10 };
     }
 
     virtual float baseline( TextComponent *component,

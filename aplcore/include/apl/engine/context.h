@@ -45,6 +45,8 @@ class FocusManager;
 class HoverManager;
 
 class KeyboardManager;
+class LiveDataManager;
+class ExtensionManager;
 
 /*
  * The data-binding context holds information about the local environment, metrics, and resources.
@@ -126,17 +128,60 @@ public:
     ~Context();
 
     /**
+     * Return a reference to an object in some context.  This is typically
+     * used to find and retrieve objects when searching upwards through the context hierarchy.
+     *
+     * Note that we store raw pointers in this object.  This object should only be used as a
+     * temporary when there is no chance of a ContextPtr going out of scope.
+     */
+    class ContextRef {
+    public:
+        ContextRef() = default;
+        ContextRef(const Context& context, const ContextObject& object) : mContext(&context), mObject(&object) {}
+
+        bool empty() const {
+            return mContext == nullptr || mObject == nullptr;
+        }
+
+        const ContextObject& object() const {
+            assert(mObject);
+            return *mObject;
+        }
+
+        ContextPtr context() const {
+            return mContext ? std::const_pointer_cast<Context>(mContext->shared_from_this()) : nullptr;
+        }
+
+    private:
+        const Context *mContext = nullptr;
+        const ContextObject *mObject = nullptr;
+    };
+
+    /**
+     * Find a reference to an object in a context.  The returned object may be empty.
+     * @param key The name to search for
+     * @return The context reference object
+     */
+    ContextRef find(const std::string& key) const {
+        auto it = mMap.find(key);
+        if (it != mMap.end())
+            return { *this, it->second };
+
+        if (mParent)
+            return mParent->find(key);
+
+        return {};
+    }
+
+    /**
      * Look up a value in the context.  If the value doesn't exist, return null.
      * @param key The string name to look up.
      * @return The value or null.
      */
     Object opt(const std::string& key) const {
-        auto it = mMap.find(key);
-        if (it != mMap.end())
-            return it->second.value();
-
-        if (mParent)
-            return mParent->opt(key);
+        auto cr = find(key);
+        if (!cr.empty())
+            return cr.object().value();
 
         return Object::NULL_OBJECT();
     }
@@ -147,14 +192,8 @@ public:
      * @return True if the value is defined somewhere in this context or an ancestor context.
      */
     bool has(const std::string& key) const {
-        auto it = mMap.find(key);
-        if (it != mMap.end())
-            return true;
-
-        if (mParent)
-            return mParent->has(key);
-
-        return false;
+        auto cr = find(key);
+        return !cr.empty();
     }
 
     /**
@@ -163,13 +202,9 @@ public:
      * @return True if the value is defined in the context chain and is immutable
      */
     bool hasImmutable(const std::string& key) const {
-        auto it = mMap.find(key);
-        if (it != mMap.end())
-            return !it->second.isMutable();
-
-        if (mParent)
-            return mParent->hasImmutable(key);
-
+        auto cr = find(key);
+        if (!cr.empty())
+            return !cr.object().isMutable();
         return false;
     }
 
@@ -178,15 +213,9 @@ public:
      * @param key The key to search for.
      * @return The first context or nullptr if one can't be found.
      */
-    ContextPtr findContextContaining(const std::string& key) {
-        auto it = mMap.find(key);
-        if (it != mMap.end())
-            return shared_from_this();
-
-        if (mParent)
-            return mParent->findContextContaining(key);
-
-        return nullptr;
+    ContextPtr findContextContaining(const std::string& key) const {
+        auto cr = find(key);
+        return cr.context();
     }
 
     /**
@@ -439,6 +468,8 @@ public:
     HoverManager& hoverManager() const;
 
     KeyboardManager& keyboardManager() const;
+    LiveDataManager& dataManager() const;
+    ExtensionManager& extensionManager() const;
 
     const SessionPtr& session() const;
 

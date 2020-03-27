@@ -36,7 +36,7 @@ const bool DEBUG_NODE = false;
  * Node class is used for expression evaluation
  */
 
-using OperatorFunc = Object (*)(const Context& context, const std::vector<Object>& args);
+using OperatorFunc = Object (*)(const std::vector<Object>& args);
 
 class Node : public Object::Data
 {
@@ -44,14 +44,14 @@ public:
     Node(OperatorFunc op, std::vector<Object>&& args, const std::string& name)
         : mOp(op), mArgs(std::move(args)), mName(name) {}
 
-    Object eval(const Context& context) const override
+    Object eval() const override
     {
-        auto result = mOp(context, mArgs);
+        auto result = mOp(mArgs);
         LOG_IF(DEBUG_NODE) << *this << " ---> " << result;
         return result;
     }
 
-    void symbols(std::set<std::string>& symbols) const override;
+    std::string getSuffix() const;
 
     void push(const Object& ptr)
     {
@@ -61,12 +61,13 @@ public:
     void accept(Visitor<Object>& visitor) const override
     {
         visitor.push();
-        for (auto& m : mArgs)
-            m.accept(visitor);
+        for (auto it = mArgs.begin() ; !visitor.isAborted() && it != mArgs.end() ; it++)
+            it->accept(visitor);
         visitor.pop();
     }
 
-    std::string getName() const { return mName; }
+    const std::vector<Object>& args() const { return mArgs; }
+    std::string name() const { return mName; }
 
     std::string toDebugString() const override;
 

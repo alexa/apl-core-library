@@ -24,6 +24,8 @@
 #include "apl/engine/rootcontext.h"
 #include "apl/engine/context.h"
 
+#include "apl/primitives/functions.h"
+
 #include "testeventloop.h"
 
 using namespace apl;
@@ -33,7 +35,6 @@ static Object o(bool b){ return Object(b); }
 static Object o(int i){ return Object(i); }
 static Object o(double d){ return Object(d); }
 static Object oad(double d){ return Object(Dimension(d)); }
-static Object ord(double d){ return Object(Dimension(DimensionType::Relative, d)); }
 
 
 ::testing::AssertionResult MatchString(const char *target, const char *source, const ContextPtr& context)
@@ -70,12 +71,12 @@ public:
     eval(const char *expression, int width, int height, int dpi)
     {
         auto m = Metrics().size(width, height).dpi(dpi);
-        auto c = Context::create(m, makeDefaultSession());
+        auto ctx = Context::create(m, makeDefaultSession());
         rapidjson::Document person;
         person.SetObject();
         person.AddMember("surname", rapidjson::Value("Pat").Move(), person.GetAllocator());
-        c->putConstant("person", person);
-        return evaluate(*c, expression);
+        ctx->putConstant("person", person);
+        return evaluate(*ctx, expression);
     }
 
     Object
@@ -100,12 +101,12 @@ TEST_F(GrammarTest, Strings)
     EXPECT_EQ(o("   "), eval("   "));
     EXPECT_EQ(o("\n"), eval("\n"));
     EXPECT_EQ(o("ख़ुशी"), eval("ख़ुशी"));
-    EXPECT_EQ(o(u8"ख़ुशी"), eval(u8"\u0916\u093C\u0941\u0936\u0940"));
+    EXPECT_EQ(o(u8"\u0916\u093C\u0941\u0936\u0940"), eval(u8"\u0916\u093C\u0941\u0936\u0940"));
 
     // Sanity check that rapidjson is converting into UTF-8
     rapidjson::Document doc;
     doc.Parse("\"\\u0916\\u093C\\u0941\\u0936\\u0940\"");  // String version
-    EXPECT_STREQ(u8"ख़ुशी", doc.GetString());
+    EXPECT_STREQ(u8"\u0916\u093C\u0941\u0936\u0940", doc.GetString());
 }
 
 TEST_F(GrammarTest, Symbols)
@@ -115,8 +116,8 @@ TEST_F(GrammarTest, Symbols)
     EXPECT_EQ(o("   "), eval("   "));
     EXPECT_EQ(o(""), eval("${}"));
     EXPECT_EQ(o(""), eval("${''}"));
-    EXPECT_EQ(Object::TRUE(), eval("${true}"));
-    EXPECT_EQ(Object::FALSE(), eval("${false}"));
+    EXPECT_EQ(Object::TRUE_OBJECT(), eval("${true}"));
+    EXPECT_EQ(Object::FALSE_OBJECT(), eval("${false}"));
     EXPECT_EQ(Object::NULL_OBJECT(), eval("${null}"));
     EXPECT_EQ(o(6), eval("${6}"));
     EXPECT_EQ(o("${    "), eval("${    "));
@@ -647,9 +648,12 @@ TEST_F(GrammarTest, CustomFunctionsAndAttributes)
     auto c = Context::create(m, makeDefaultSession());
 
     auto map = std::make_shared<ObjectMap>();
-    map->emplace("alwaysOne", [](const std::vector<Object>& args){ return Object(1); });
-    map->emplace("firstArg", [](const std::vector<Object>& args){ return args.at(0); });
-    map->emplace("argCount", [](const std::vector<Object>& args){ return Object(args.size()); });
+    map->emplace("alwaysOne",
+        Function::create("AlwaysOne", [](const std::vector<Object>& args){ return Object(1); }, true));
+    map->emplace("firstArg",
+        Function::create("FirstArgument", [](const std::vector<Object>& args){ return args.at(0); }, true));
+    map->emplace("argCount",
+        Function::create("Foo", [](const std::vector<Object>& args){ return Object(args.size()); }, true));
     map->emplace("foo", std::vector<Object>{"a", "b", "c", "d"});
     c->putConstant("Test", map);
     c->putConstant("myArray", std::vector<Object>({10,20,30,40}));

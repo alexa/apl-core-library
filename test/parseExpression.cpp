@@ -21,6 +21,8 @@
 #include "apl/datagrammar/databindingrules.h"
 #include "apl/utils/dump_object.h"
 
+namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
+
 static const char *USAGE_STRING = "parseExpression [OPTIONS] EXPRESSION*";
 
 int
@@ -46,15 +48,15 @@ main(int argc, char *argv[])
     auto c = settings.createContext();
 
     for (const auto& m : args) {
-        pegtl::data_parser parser(m, "applyDataBinding");
         apl::datagrammar::Stacks stacks(*c);
-        parser.parse< apl::datagrammar::grammar, apl::datagrammar::action >(stacks);
+        pegtl::string_input<> in(m, "");
+        pegtl::parse< apl::datagrammar::grammar, apl::datagrammar::action >(in, stacks);
         auto tree = stacks.finish();
 
         if (verbose)
             apl::DumpVisitor::dump(tree);
 
-        auto result = tree.eval(*c);
+        auto result = tree.eval();
         s << result;
         std::cout << s.str() << std::endl;
     }

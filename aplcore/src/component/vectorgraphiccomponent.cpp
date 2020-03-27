@@ -85,13 +85,13 @@ VectorGraphicComponent::initialize()
 
     // Fix up the width if it was set to auto
     if (mCalculated.get(kPropertyWidth).isAutoDimension()) {
-        YGNodeStyleSetWidth(mYGNodeRef, width);
+        YGNodeStyleSetWidth(mYGNodeRef, static_cast<float>(width));
         mCalculated.set(kPropertyWidth, Dimension(width));
     }
 
     // Fix up the height if it was set to auto
     if (mCalculated.get(kPropertyHeight).isAutoDimension()) {
-        YGNodeStyleSetHeight(mYGNodeRef, height);
+        YGNodeStyleSetHeight(mYGNodeRef, static_cast<float>(height));
         mCalculated.set(kPropertyHeight, Dimension(height));
     }
 }
@@ -158,10 +158,10 @@ VectorGraphicComponent::processLayoutChanges(bool useDirtyFlag)
         double height = g->getIntrinsicHeight();
         double x = 0;
         double y = 0;
-        auto scale = static_cast<VectorGraphicScale>(mCalculated.get(kPropertyScale).getInteger());
-        auto align = static_cast<VectorGraphicAlign>(mCalculated.get(kPropertyAlign).getInteger());
+        auto scaleProp = static_cast<VectorGraphicScale>(mCalculated.get(kPropertyScale).getInteger());
+        auto alignProp = static_cast<VectorGraphicAlign>(mCalculated.get(kPropertyAlign).getInteger());
 
-        switch (scale) {
+        switch (scaleProp) {
             case kVectorGraphicScaleNone:
                 // No change
                 break;
@@ -190,7 +190,7 @@ VectorGraphicComponent::processLayoutChanges(bool useDirtyFlag)
                 break;
         }
 
-        switch (align) {
+        switch (alignProp) {
             case kVectorGraphicAlignBottom:
                 x = (innerBounds.getWidth() - width) / 2;
                 y = innerBounds.getHeight() - height;

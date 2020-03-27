@@ -121,8 +121,8 @@ public:
     ComponentPropDef(PropertyKey key, int defvalue, Bimap<int, std::string>& map, int flags, LayoutFunc layoutFunc,
                      Trigger trigger = nullptr)
         : PropDef(key, defvalue, map, flags),
-          layoutFunc(layoutFunc),
           trigger(trigger),
+          layoutFunc(layoutFunc),
           defaultFunc(nullptr) {}
 
     ComponentPropDef& operator=(ComponentPropDef& rhs) = default;

@@ -152,10 +152,16 @@ input focus events.
 - Supported Compilers:
   - GNU GCC and G++ version 5.3.1 or higher
   - LLVM and clang version 6.0.0 or higher
+  - MSVC version 16 2019 or higher
 - CMake, version 3.5 or higher
+- For Windows, Ninja build system, 1.9.0 or higher, see:
+  https://github.com/ninja-build/ninja
+- For Windows, the patch executable should be accessible on the system's PATH.
+  The Windows build has been tested using the patch executable that ships with Git.
+  The GnuWin32 patch executable is NOT recommended.
 
-# Building APL Core + Running Tests
-To compile `libaplcore.a` and test in your favorite C++ environment, do the
+# Building APL Core + Tests (Linux and Mac OS)
+To build `libaplcore.a` and tests in your favorite C++ environment, do the
 following:
 
 ```
@@ -164,6 +170,21 @@ following:
  $ apl-test-core
 ```
 
+# Building APL Core + Tests (Windows)
+To build `apl.lib` and tests in in a Windows or UWP environment, do the
+following:
+
+```
+ Start a VS Command Prompt (tested with "x64 Native Tools Command Prompt for VS 2019")
+ C:\APLCoreEngine> mkdir build
+ C:\APLCoreEngine> cd build
+ C:\APLCoreEngine\build> cmake -G"Ninja" -DBUILD_TESTS=ON -DCOVERAGE=OFF -DCMAKE_BUILD_TYPE=Release ..
+ C:\APLCoreEngine\build> ninja -j1
+```
+(If using the GnuWin32 patch.exe instead Git's patch.exe, the command prompt may need to run in
+ Administrator Mode)
+
+# Running Tests
 After the build succeeds, there are a number of test programs included in the `build/test`
 directory.  For example, to validate the color parser, try:
 
@@ -212,4 +233,11 @@ In order to build the tools use:
 ```
 $ cmake -DTOOLS=ON
 ```
+
+## Paranoid build
+In order to build library with -Werror use:
+```
+$ cmake -DWERROR=ON
+```
+
 ≠≠≠

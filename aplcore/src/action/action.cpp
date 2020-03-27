@@ -31,7 +31,7 @@ Action::Action(const TimersPtr& timers, TerminateFunc terminate)
       mThen(nullptr),
       mTimeoutId(0),
       mTimers(timers),
-      mArgument({.arg = 0})
+      mArgument({0})
 {
     if (terminate)
         mTerminate.push_back(terminate);

@@ -64,18 +64,14 @@ public:
      * @param rhs The other rectangle.
      * @return True if they are equal.  Two invalid rectangles are always equal.
      */
-    bool operator==(const Rect& rhs) const {
-        return mX == rhs.mX && mY == rhs.mY && mWidth == rhs.mWidth && mHeight == rhs.mHeight;
-    }
+    bool operator==(const Rect& rhs) const;
 
     /**
      * Compare two rectangles for inequality
      * @param rhs The other rectangle.
      * @return True if they are not equal
      */
-    bool operator!=(const Rect& rhs) const {
-        return mX != rhs.mX || mY != rhs.mY || mWidth != rhs.mWidth || mHeight != rhs.mHeight;
-    }
+    bool operator!=(const Rect& rhs) const;
 
     /**
      * Record to string stream.
@@ -84,9 +80,9 @@ public:
     friend streamer& operator<<(streamer&, const Rect&);
 
     /**
-     * @return True if this rectangle has zero width and height.
+     * @return True if this rectangle has zero or undefined width and height.
      */
-    bool isEmpty() const { return mWidth == 0 && mHeight == 0; }
+    bool isEmpty() const;
 
     /**
      * @return The x-value of the top-left corner
@@ -156,12 +152,7 @@ public:
      * @param point The point to check
      * @return True if the point is within the rectangle.
      */
-    bool contains(const Point& point) const {
-        auto x = point.getX();
-        auto y = point.getY();
-
-        return x >= mX && x <= mX + mWidth && y >= mY && y <= mY + mHeight;
-    }
+    bool contains(const Point& point) const;
 
     /**
      * Get rect area value.
@@ -184,14 +175,7 @@ public:
      * @param allocator
      * @return The serialized rectangle
      */
-    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const {
-        rapidjson::Value v(rapidjson::kArrayType);
-        v.PushBack(mX, allocator);
-        v.PushBack(mY, allocator);
-        v.PushBack(mWidth, allocator);
-        v.PushBack(mHeight, allocator);
-        return v;
-    }
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
 private:
     float mX;

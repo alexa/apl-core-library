@@ -424,3 +424,105 @@ TEST_F(LayoutTest, EmbeddedContent)
     ASSERT_TRUE(IsEqual("child", child->getCalculated(kPropertyText).asString()));
 }
 
+const char *DIMENSION_PARAMETER_DEFAULT =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.1\","
+        "  \"layouts\": {"
+        "    \"MyText\": {"
+        "      \"parameters\": ["
+        "        {"
+        "          \"name\": \"size\","
+        "          \"description\": \"Size (height and width) of the text. Defaults to 300dp.\","
+        "          \"type\": \"dimension\","
+        "          \"default\": \"300dp\""
+        "        }"
+        "      ],"
+        "      \"item\": {"
+        "        \"type\": \"Text\","
+        "        \"text\": \"${size/2}\","
+        "        \"width\": \"${size}\","
+        "        \"height\": \"${size}\""
+        "      }"
+        "    }"
+        "  },"
+        "  \"mainTemplate\": {"
+        "    \"items\": ["
+        "      {"
+        "        \"type\": \"Container\","
+        "        \"width\": \"100vw\","
+        "        \"height\": \"100vh\","
+        "        \"items\": ["
+        "          {"
+        "            \"type\": \"MyText\""
+        "          }"
+        "        ]"
+        "      }"
+        "    ]"
+        "  }"
+        "}";
+
+TEST_F(LayoutTest, TypedLayoutParameterDefault)
+{
+    loadDocument(DIMENSION_PARAMETER_DEFAULT);
+    ASSERT_EQ(kComponentTypeContainer, component->getType());
+
+    auto text = component->getCoreChildAt(0);
+    ASSERT_TRUE(text);
+    ASSERT_EQ(kComponentTypeText, text->getType());
+
+    ASSERT_EQ("150dp", text->getCalculated(kPropertyText).asString());
+    ASSERT_EQ(Rect(0, 0, 300, 300), text->getCalculated(kPropertyBounds).getRect());
+}
+
+const char *DIMENSION_PARAMETER =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.1\","
+        "  \"layouts\": {"
+        "    \"MyText\": {"
+        "      \"parameters\": ["
+        "        {"
+        "          \"name\": \"size\","
+        "          \"description\": \"Size (height and width) of the text. Defaults to 300dp.\","
+        "          \"type\": \"dimension\","
+        "          \"default\": \"300dp\""
+        "        }"
+        "      ],"
+        "      \"item\": {"
+        "        \"type\": \"Text\","
+        "        \"text\": \"${size/2}\","
+        "        \"width\": \"${size}\","
+        "        \"height\": \"${size}\""
+        "      }"
+        "    }"
+        "  },"
+        "  \"mainTemplate\": {"
+        "    \"items\": ["
+        "      {"
+        "        \"type\": \"Container\","
+        "        \"width\": \"100vw\","
+        "        \"height\": \"100vh\","
+        "        \"items\": ["
+        "          {"
+        "            \"type\": \"MyText\","
+        "            \"size\": \"200dp\""
+        "          }"
+        "        ]"
+        "      }"
+        "    ]"
+        "  }"
+        "}";
+
+TEST_F(LayoutTest, TypedLayoutParameter)
+{
+    loadDocument(DIMENSION_PARAMETER);
+    ASSERT_EQ(kComponentTypeContainer, component->getType());
+
+    auto text = component->getCoreChildAt(0);
+    ASSERT_TRUE(text);
+    ASSERT_EQ(kComponentTypeText, text->getType());
+
+    ASSERT_EQ("100dp", text->getCalculated(kPropertyText).asString());
+    ASSERT_EQ(Rect(0, 0, 200, 200), text->getCalculated(kPropertyBounds).getRect());
+}

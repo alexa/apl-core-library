@@ -156,7 +156,7 @@ public:
      * @param child The component to append.
      * @return True if the component was added.
      */
-    virtual bool appendChild(const ComponentPtr& child) { return false; }
+    virtual bool appendChild(const ComponentPtr& child) = 0;
 
     /**
      * Insert a component in the child list. The component is placed at the specified index; all
@@ -166,12 +166,22 @@ public:
      * @param index The index where the child should be inserted.
      * @return True if the component was added.
      */
-    virtual bool insertChild(const ComponentPtr& child, size_t index) { return false; }
+    virtual bool insertChild(const ComponentPtr& child, size_t index) = 0;
 
     /**
      * Remove this component from its parent
      */
     virtual bool remove() = 0;
+
+    /**
+     * @return True if this component supports dynamically adding a child
+     */
+    virtual bool canInsertChild() const = 0;
+
+    /**
+     * @return True if this component supports dynamically removing a child
+     */
+    virtual bool canRemoveChild() const = 0;
 
     /**
      * @return The set of properties that have changed in this component
@@ -182,7 +192,7 @@ public:
     /**
      * Clear the set of properties that have been changed.
      */
-    virtual void clearDirty() { mDirty.clear(); }
+    virtual void clearDirty();
 
     /**
      * @return The current map of property name to value set on this component.
@@ -251,6 +261,7 @@ public:
     /**
      * Call this to ensure that the component has a layout.  This method must be used by
      * children of a sequence to before retrieving the layout bounds.
+     * @deprecated This method still works but not required to be used.
      */
     virtual void ensureLayout(bool useDirtyFlag = false) = 0;
 
@@ -383,7 +394,7 @@ protected:
 
     static id_type             sUniqueIdGenerator;
 
-    ContextPtr                 mContext;
+    ContextPtr   mContext;
     std::string                mUniqueId;
     std::string                mId;
     CalculatedPropertyMap      mCalculated;  // Current calculated object properties

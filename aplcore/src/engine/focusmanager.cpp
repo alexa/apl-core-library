@@ -39,28 +39,22 @@ FocusManager::setFocus(const CoreComponentPtr& component, bool notifyViewhost)
     if (focused == component)
         return;
 
-    // If we try to focus a disabled component, ignore this command
-    if (component && component->getState().get(kStateDisabled))
+    // Ignore an attempt focus a component that is disabled, non-actionable, or has inheritParentState=true
+    if (!component->isFocusable() || component->getState().get(kStateDisabled) || component->getInheritParentState())
         return;
 
     // Clear the old focus
     if (focused) {
         focused->setState(kStateFocused, false);
         focused->executeOnBlur();
-        if (component == nullptr && notifyViewhost)  // Just in case we're setting it to nothing, send null focus
-            focused->getContext()->pushEvent(Event(kEventTypeFocus, nullptr));
     }
-
-    mFocused = component;
 
     // Set the new focus
-    if (component) {
-        component->setState(kStateFocused, true);
-        component->executeOnFocus();
-        if (notifyViewhost) {
-            component->getContext()->pushEvent(Event(kEventTypeFocus, component));
-        }
-    }
+    mFocused = component;
+    component->setState(kStateFocused, true);
+    component->executeOnFocus();
+    if (notifyViewhost)
+        component->getContext()->pushEvent(Event(kEventTypeFocus, component));
 }
 
 void

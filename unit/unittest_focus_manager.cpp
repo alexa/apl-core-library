@@ -345,3 +345,262 @@ TEST_F(FocusManagerTest, FocusEvent)
     ASSERT_TRUE(CheckDirty(text, kPropertyText));
     ASSERT_TRUE(CheckDirty(root,text));
 }
+
+static const char *FOCUS_COMPONENT_TYPES =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.3\","
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"Container\","
+    "      \"items\": ["
+    "        {"
+    "          \"type\": \"Container\","
+    "          \"id\": \"ContainerID\""
+    "        },"
+    "        {"
+    "          \"type\": \"Image\","
+    "          \"id\": \"ImageID\""
+    "        },"
+    "        {"
+    "          \"type\": \"Text\","
+    "          \"id\": \"TextID\""
+    "        },"
+    "        {"
+    "          \"type\": \"Sequence\","
+    "          \"id\": \"SequenceID\""
+    "        },"
+    "        {"
+    "          \"type\": \"Frame\","
+    "          \"id\": \"FrameID\""
+    "        },"
+    "        {"
+    "          \"type\": \"Pager\","
+    "          \"id\": \"PagerID\""
+    "        },"
+    "        {"
+    "          \"type\": \"ScrollView\","
+    "          \"id\": \"ScrollViewID\""
+    "        },"
+    "        {"
+    "          \"type\": \"TouchWrapper\","
+    "          \"id\": \"TouchWrapperID\""
+    "        },"
+    "        {"
+    "          \"type\": \"VectorGraphic\","
+    "          \"id\": \"VectorGraphicID\""
+    "        },"
+    "        {"
+    "          \"type\": \"Video\","
+    "          \"id\": \"VideoID\""
+    "        }"
+    "      ]"
+    "    }"
+    "  }"
+    "}";
+
+static std::map<std::string, bool> sCanFocus = {
+    {"ContainerID",     false},
+    {"ImageID",         false},
+    {"TextID",          false},
+    {"SequenceID",      true},
+    {"FrameID",         false},
+    {"PagerID",         true},
+    {"ScrollViewID",    true},
+    {"TouchWrapperID",  true},
+    {"VectorGraphicID", false},
+    {"VideoID",         false}
+};
+
+/**
+ * Check each type of component and verify that only actionable, enabled components can be focused.
+ */
+TEST_F(FocusManagerTest, FocusOnComponentType)
+{
+    loadDocument(FOCUS_COMPONENT_TYPES);
+
+    auto& fm = root->context().focusManager();
+
+    // Set focus using the "update" method
+    for (const auto& m : sCanFocus) {
+        auto component = std::static_pointer_cast<CoreComponent>(root->context().findComponentById(m.first));
+        ASSERT_TRUE(component) << m.first;
+        fm.clearFocus(false);
+
+        component->update(kUpdateTakeFocus, 1);
+        if (m.second) {
+            ASSERT_EQ(component, fm.getFocus()) << m.first;
+            ASSERT_TRUE(component->getState().get(kStateFocused));
+        } else {
+            ASSERT_FALSE(fm.getFocus()) << m.first;
+            ASSERT_FALSE(component->getState().get(kStateFocused));
+        }
+    }
+
+    // Set focus using a command
+    for (const auto& m : sCanFocus) {
+        auto component = std::static_pointer_cast<CoreComponent>(root->context().findComponentById(m.first));
+        ASSERT_TRUE(component) << m.first;
+        fm.clearFocus(false);
+
+        executeCommand("SetFocus", {{"componentId", m.first}}, true);
+
+        if (m.second) {
+            ASSERT_EQ(component, fm.getFocus()) << m.first;
+            ASSERT_TRUE(component->getState().get(kStateFocused));
+
+            // Commands fire a focus event
+            ASSERT_TRUE(root->hasEvent());
+            auto event = root->popEvent();
+            ASSERT_EQ(kEventTypeFocus, event.getType()) << m.first;
+            ASSERT_EQ(component, event.getComponent()) << m.first;
+        } else {
+            ASSERT_FALSE(fm.getFocus()) << m.first;
+            ASSERT_FALSE(component->getState().get(kStateFocused));
+        }
+    }
+
+    // Now disable all of the components and verify they do not take focus
+    for (const auto& m : sCanFocus) {
+        auto component = std::static_pointer_cast<CoreComponent>(root->context().findComponentById(m.first));
+        ASSERT_TRUE(component) << m.first;
+        fm.clearFocus(false);
+
+        component->setProperty(kPropertyDisabled, true);
+        component->update(kUpdateTakeFocus, 1);
+        ASSERT_FALSE(fm.getFocus()) << m.first;
+        ASSERT_FALSE(component->getState().get(kStateFocused));
+    }
+}
+
+static const char * INHERIT_PARENT_STATE =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.3\","
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"TouchWrapper\","
+    "      \"items\": {"
+    "        \"type\": \"Container\","
+    "        \"inheritParentState\": true,"
+    "        \"items\": ["
+    "          {"
+    "            \"type\": \"Text\","
+    "            \"id\": \"MyText\","
+    "            \"text\": \"Nothing\""
+    "          },"
+    "          {"
+    "            \"type\": \"TouchWrapper\","
+    "            \"id\": \"TouchWrapperA\","
+    "            \"inheritParentState\": true,"
+    "            \"onFocus\": {"
+    "              \"type\": \"SetValue\","
+    "              \"componentId\": \"MyText\","
+    "              \"property\": \"text\","
+    "              \"value\": \"A in focus\""
+    "            },"
+    "            \"onBlur\": {"
+    "              \"type\": \"SetValue\","
+    "              \"componentId\": \"MyText\","
+    "              \"property\": \"text\","
+    "              \"value\": \"A not in focus\""
+    "            }"
+    "          },"
+    "          {"
+    "            \"type\": \"TouchWrapper\","
+    "            \"id\": \"TouchWrapperB\","
+    "            \"inheritParentState\": false,"
+    "            \"onFocus\": {"
+    "              \"type\": \"SetValue\","
+    "              \"componentId\": \"MyText\","
+    "              \"property\": \"text\","
+    "              \"value\": \"B in focus\""
+    "            },"
+    "            \"onBlur\": {"
+    "              \"type\": \"SetValue\","
+    "              \"componentId\": \"MyText\","
+    "              \"property\": \"text\","
+    "              \"value\": \"B not in focus\""
+    "            }"
+    "          }"
+    "        ]"
+    "      }"
+    "    }"
+    "  }"
+    "}";
+
+/**
+ * Verify that a component with "inheritParentState=true" does not respond to a SetFocus command
+ * and will not take focus or run the onFocus/onBlur command handlers.
+ */
+TEST_F(FocusManagerTest, FocusWithInheritParentState)
+{
+    loadDocument(INHERIT_PARENT_STATE);
+
+    auto text = root->context().findComponentById("MyText");
+    auto a = std::static_pointer_cast<CoreComponent>(root->context().findComponentById("TouchWrapperA"));
+    auto b = std::static_pointer_cast<CoreComponent>(root->context().findComponentById("TouchWrapperB"));
+
+    ASSERT_TRUE(text);
+    ASSERT_TRUE(a);
+    ASSERT_TRUE(b);
+
+    component->update(kUpdateTakeFocus, 1);
+    ASSERT_TRUE(component->getState().get(kStateFocused));
+    ASSERT_TRUE(a->getState().get(kStateFocused));
+    ASSERT_FALSE(b->getState().get(kStateFocused));
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(IsEqual("Nothing", text->getCalculated(kPropertyText).asString()));
+
+    component->update(kUpdateTakeFocus, 0);
+    ASSERT_FALSE(component->getState().get(kStateFocused));
+    ASSERT_FALSE(a->getState().get(kStateFocused));
+    ASSERT_FALSE(b->getState().get(kStateFocused));
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(IsEqual("Nothing", text->getCalculated(kPropertyText).asString()));
+
+    // This should be ignored
+    executeCommand("SetFocus", {{"componentId", "TouchWrapperA"}}, false);
+    ASSERT_FALSE(component->getState().get(kStateFocused));
+    ASSERT_FALSE(a->getState().get(kStateFocused));
+    ASSERT_FALSE(b->getState().get(kStateFocused));
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(IsEqual("Nothing", text->getCalculated(kPropertyText).asString()));
+
+    // This should succeed
+    executeCommand("SetFocus", {{"componentId", "TouchWrapperB"}}, false);
+    ASSERT_FALSE(component->getState().get(kStateFocused));
+    ASSERT_FALSE(a->getState().get(kStateFocused));
+    ASSERT_TRUE(b->getState().get(kStateFocused));
+    ASSERT_TRUE(IsEqual("B in focus", text->getCalculated(kPropertyText).asString()));
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(b, event.getComponent());
+    root->clearPending();
+    ASSERT_FALSE(root->hasEvent());
+
+    // This should be ignored
+    executeCommand("SetFocus", {{"componentId", "TouchWrapperA"}}, false);
+    ASSERT_FALSE(component->getState().get(kStateFocused));
+    ASSERT_FALSE(a->getState().get(kStateFocused));
+    ASSERT_TRUE(b->getState().get(kStateFocused));
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(IsEqual("B in focus", text->getCalculated(kPropertyText).asString()));
+
+    // This clears the focus
+    executeCommand("ClearFocus", {}, false);
+    ASSERT_FALSE(component->getState().get(kStateFocused));
+    ASSERT_FALSE(a->getState().get(kStateFocused));
+    ASSERT_FALSE(b->getState().get(kStateFocused));
+    ASSERT_TRUE(IsEqual("B not in focus", text->getCalculated(kPropertyText).asString()));
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(nullptr, event.getComponent());
+    root->clearPending();
+    ASSERT_FALSE(root->hasEvent());
+
+}

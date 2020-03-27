@@ -28,7 +28,7 @@ namespace apl {
 class Context;
 
 /**
- * For now we assume only these five keys are allowed.  In the future we should
+ * For now we assume only these keys are allowed.  In the future we should
  * allow custom states.
  */
 

@@ -58,20 +58,20 @@ using namespace apl;
  * ```
  */
 
-class Range {
+class SizeRange {
 public:
-    Range() : wmin(0), wmax(0), hmin(0), hmax(0) {}
-    Range(double width, double height) : wmin(width), wmax(width), hmin(height), hmax(height) {}
-    Range(double wmin, double wmax, double hmin, double hmax)
+    SizeRange() : wmin(0), wmax(0), hmin(0), hmax(0) {}
+    SizeRange(double width, double height) : wmin(width), wmax(width), hmin(height), hmax(height) {}
+    SizeRange(double wmin, double wmax, double hmin, double hmax)
             : wmin(wmin), wmax(wmax), hmin(hmin), hmax(hmax) {}
 
-    Range& width(double w) {
+    SizeRange& width(double w) {
         wmin = w;
         wmax = w;
         return *this;
     }
 
-    Range& height(double h) {
+    SizeRange& height(double h) {
         hmin = h;
         hmax = h;
         return *this;
@@ -91,24 +91,24 @@ public:
     int Vh;
     double r;
 
-    void testRanges(const std::vector<Range>& ranges, int expectedWidth,
+    void testRanges(const std::vector<SizeRange>& ranges, int expectedWidth,
                       int expectedHeight, double expectedScale) {
         testRanges(ranges, expectedWidth, expectedHeight, expectedScale, kViewportModeHub, false,
                           RECTANGLE);
     }
 
-    void testRanges(const std::vector<Range>& ranges, int expectedWidth,
+    void testRanges(const std::vector<SizeRange>& ranges, int expectedWidth,
                       int expectedHeight, double expectedScale, bool isRound) {
         testRanges(ranges, expectedWidth, expectedHeight, expectedScale, kViewportModeHub, isRound,
                           RECTANGLE);
     }
 
-    void testRanges(const std::vector<Range>& ranges, int expectedWidth,
+    void testRanges(const std::vector<SizeRange>& ranges, int expectedWidth,
                       int expectedHeight, double expectedScale, bool isRound, ScreenShape shape) {
         testRanges(ranges, expectedWidth, expectedHeight, expectedScale, kViewportModeHub, isRound, shape);
     }
 
-    void testRanges(const std::vector<Range>& ranges, int expectedWidth,
+    void testRanges(const std::vector<SizeRange>& ranges, int expectedWidth,
                       int expectedHeight, double expectedScale, ViewportMode mode, bool isRound, ScreenShape shape) {
         // density shouldm't effect which viewport is chosen, so test a number of denisties here.
         std::vector<int> dpis = {80, 160, 320, 400, 500, 600, 1000};

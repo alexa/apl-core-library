@@ -26,23 +26,6 @@ namespace scaling {
 // Don't expose ScalingCalculator internals
 namespace {
 
-/** Constant PI */
-constexpr double PI = 3.14159265358979323846;
-
-/** How far to check each angle for square viewport in round screen */
-const double ANGLE_DELTA = PI * 1.0f / 180;
-
-/** Maximum allowable viewport aspect ration for square viewport in round screen */
-const double MAX_VIEWPORT_RATIO = 3.0f;
-
-/**
- * Sets the pixrl width and height of the metrics object
- * @param width in dp
- * @param height in dp
- * @param metrics the metrics object
- */
-void setMetricsSize(Metrics& metrics, double width, double height);
-
 class ScalingCalculator {
 public:
     ScalingCalculator(double Vw, double Vh, double k)
@@ -79,6 +62,14 @@ public:
     double scaleFactor(double w, double h) {
         return std::min(mViewportWidth / w, mViewportHeight / h);
     }
+
+    /**
+     * Sets the pixel width and height of the metrics object
+     * @param width in dp
+     * @param height in dp
+     * @param metrics the metrics object
+     */
+    static void setMetricsSize(Metrics& metrics, double width, double height);
 
     /** Device's actual viewport width  */
     double mViewportWidth;

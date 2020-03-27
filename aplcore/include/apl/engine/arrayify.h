@@ -47,7 +47,7 @@ public:
     using value_type = rapidjson::GenericValue<rapidjson::UTF8<> >;
 
     ConstJSONArray() : mValue(nullptr) {}
-    ConstJSONArray(const rapidjson::Value *value) : mValue(value) {}
+    explicit ConstJSONArray(const rapidjson::Value *value) : mValue(value) {}
 
     const value_type * begin() const {
         if (!mValue)
@@ -79,6 +79,10 @@ public:
         return 1;
     }
 
+    bool empty() const {
+        return size() == 0;
+    }
+
     const value_type & operator[](size_t index) const {
         if (mValue->IsArray())
             return (*mValue)[index];
@@ -97,7 +101,11 @@ private:
  * @param value The value to arrayify.
  * @return An array-ified object.
  */
-extern ConstJSONArray arrayify(const rapidjson::Value& value);
+inline ConstJSONArray
+arrayify(const rapidjson::Value& value)
+{
+    return ConstJSONArray(&value);
+}
 
 /**
  * Termination method for the templated version of this function.  Always returns
@@ -105,7 +113,11 @@ extern ConstJSONArray arrayify(const rapidjson::Value& value);
  * @param value The object.
  * @return An empty array.
  */
-extern ConstJSONArray arrayifyProperty(const rapidjson::Value& value);
+inline ConstJSONArray
+arrayifyProperty(const rapidjson::Value& value)
+{
+    return ConstJSONArray();
+}
 
 /**
  * Extract a named property from the rapidjson object and return it as an array.
@@ -131,7 +143,7 @@ template <typename T, typename... Types> ConstJSONArray
 arrayifyProperty(const rapidjson::Value& value, T name, Types... other)
 {
     if (!value.IsObject())
-        return ConstJSONArray();
+        return {};
 
     auto it = value.FindMember(name);
     if (it != value.MemberEnd())
@@ -183,7 +195,11 @@ extern std::vector<Object> arrayify(const Context& context, const Object& value)
 /**
  * Termination function for the templated version of this function.
  */
-extern std::vector<Object> arrayifyProperty(const Context& context, const Object& value);
+inline std::vector<Object>
+arrayifyProperty(const Context& context, const Object& value)
+{
+    return std::vector<Object>();
+}
 
 /**
  * Extract a named property from an object and return it as an array.
@@ -216,6 +232,29 @@ arrayifyProperty(const Context& context, const Object& value, T name, Types... o
     return arrayifyProperty(context, value, other...);
 }
 
+/**
+ * These routines do arrayification, but they return the result as a single Object that contains an array.
+ * @param context
+ * @param value
+ * @return
+ */
+
+extern Object arrayifyAsObject(const Context& context, const Object& value);
+
+inline Object
+arrayifyPropertyAsObject(const Context& context, const Object& value)
+{
+    return Object(std::vector<Object>{});
+}
+
+template <typename T, typename... Types> Object
+arrayifyPropertyAsObject(const Context& context, const Object& value, T name, Types... other)
+{
+    if (value.isMap() && value.has(name))
+        return arrayifyAsObject(context, value.get(name));
+
+    return arrayifyPropertyAsObject(context, value, other...);
+}
 
 }  // namespace apl
 

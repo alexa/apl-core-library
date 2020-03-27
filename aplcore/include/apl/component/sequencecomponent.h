@@ -17,6 +17,7 @@
 #define _APL_SEQUENCE_COMPONENT_H
 
 #include "scrollablecomponent.h"
+#include "apl/utils/range.h"
 
 namespace apl {
 
@@ -34,25 +35,33 @@ public:
     Point scrollPosition() const override;
     Point trimScroll(const Point& point) const override;
 
+    void processLayoutChanges(bool useDirtyFlag) override;
+
 protected:
     const ComponentPropDefSet& propDefSet() const override;
 
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
 
-    bool alwaysAttachChildYogaNode() const override { return false; }
-
-    void ensureChildAttached(const ComponentPtr& child) override;
+    bool shouldAttachChildYogaNode(int index) const override;
 
     void update(UpdateType type, float value) override;
+
     ComponentPtr findChildAtPosition(const Point& position) const override;
+
+    bool insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag) override;
+
+    void removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
+
+    float maxScroll() const override;
 
 private:
     bool multiChild() const override { return true; }
     std::map<int, float> getChildrenVisibility(float realOpacity, const Rect &visibleRect) override;
     void updateSeen();
+    ComponentPtr findDirectChildAtPosition(const Point& position) const;
+    void layoutChildIfRequired(const Rect& parentBounds, const CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag);
 
-    int mHighestIndexSeen;
-    int mFirstUnensuredChild;
+    Range mIndexesSeen;
 };
 
 } // namespace apl

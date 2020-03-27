@@ -16,6 +16,9 @@
 #include <algorithm>
 #include <climits>
 #include <cmath>
+#ifdef APL_CORE_UWP
+#include <random>
+#endif
 #include <stdlib.h>
 
 #include "apl/primitives/functions.h"
@@ -71,6 +74,11 @@ mathClamp(const std::vector<Object>& args)
     return std::max(x, std::min(y,z));
 }
 
+#ifdef APL_CORE_UWP
+static std::random_device random_device;
+static std::mt19937 generator(random_device());
+static unsigned long random() { return generator(); }
+#endif
 
 static Object
 mathRandom(const std::vector<Object>& args)
@@ -159,8 +167,8 @@ timeExtractDate(const std::vector<Object>& args)
     if (args.size() != 1)
         return Object::NULL_OBJECT();
 
-    long t = static_cast<long>(args[0].asNumber());
-    return Object(static_cast<double>(time::dateFromTime(t)));
+    apl_time_t t = static_cast<apl_time_t>(args[0].asNumber());
+    return Object(static_cast<apl_time_t>(time::dateFromTime(t)));
 }
 
 Object
@@ -169,8 +177,8 @@ timeExtractWeekDay(const std::vector<Object>& args)
     if (args.size() != 1)
         return Object::NULL_OBJECT();
 
-    long t = static_cast<long>(args[0].asNumber());
-    return Object(static_cast<double>((t / time::MS_PER_DAY + 4) % 7));
+    auto daysSinceEpoch = static_cast<int>( args[0].asNumber() / time::MS_PER_DAY );
+    return Object( static_cast<apl_time_t>((daysSinceEpoch + 4) % 7) );
 }
 
 template<long divisor, long modulus> Object
@@ -179,8 +187,7 @@ timeExtract(const std::vector<Object>&args )
     if (args.size() != 1)
         return Object::NULL_OBJECT();
 
-    long t = static_cast<long>(args[0].asNumber());
-    return Object(static_cast<double>((t / divisor) % modulus));
+    return Object(std::fmod(std::floor(args[0].asNumber() / divisor), modulus));
 }
 
 Object
@@ -192,46 +199,68 @@ timeFormat(const std::vector<Object>& args)
     return Object(timegrammar::timeToString(args.at(0).asString(), args.at(1).asNumber()));
 }
 
-void
-createStandardFunctions(Context& context) {
+static std::shared_ptr<ObjectMap> createMathMap()
+{
     auto map = std::make_shared<ObjectMap>();
-    auto smap = std::make_shared<ObjectMap>();
-    auto tmap = std::make_shared<ObjectMap>();
 
-    map->emplace("min", mathMin);
-    map->emplace("max", mathMax);
-    map->emplace("clamp", mathClamp);
-    map->emplace("abs", mathSingle<std::abs>);
-    map->emplace("ceil", mathSingle<std::ceil>);
-    map->emplace("floor", mathSingle<std::floor>);
-    map->emplace("round", mathSingle<std::round>);
-    map->emplace("acos", mathSingle<std::acos>);
-    map->emplace("asin", mathSingle<std::asin>);
-    map->emplace("atan", mathSingle<std::atan>);
-    map->emplace("cos", mathSingle<std::cos>);
-    map->emplace("sin", mathSingle<std::sin>);
-    map->emplace("tan", mathSingle<std::tan>);
-    map->emplace("sqrt", mathSingle<std::sqrt>);
+    map->emplace("min", Function::create("min", mathMin));
+    map->emplace("max", Function::create("max", mathMax));
+    map->emplace("clamp", Function::create("clamp", mathClamp));
+    map->emplace("abs", Function::create("abs", mathSingle<std::abs>));
+    map->emplace("ceil", Function::create("ceil", mathSingle<std::ceil>));
+    map->emplace("floor", Function::create("floor", mathSingle<std::floor>));
+    map->emplace("round", Function::create("round", mathSingle<std::round>));
+    map->emplace("acos", Function::create("acos", mathSingle<std::acos>));
+    map->emplace("asin", Function::create("asin", mathSingle<std::asin>));
+    map->emplace("atan", Function::create("atan", mathSingle<std::atan>));
+    map->emplace("cos", Function::create("cos", mathSingle<std::cos>));
+    map->emplace("sin", Function::create("sin", mathSingle<std::sin>));
+    map->emplace("tan", Function::create("tan", mathSingle<std::tan>));
+    map->emplace("sqrt", Function::create("sqrt", mathSingle<std::sqrt>));
     map->emplace("PI", M_PI);
-    map->emplace("random", mathRandom);
+    map->emplace("random", Function::create("random", mathRandom, false));
 
-    smap->emplace("toLowerCase", stringTransform<::tolower>);
-    smap->emplace("toUpperCase", stringTransform<::toupper>);
-    smap->emplace("slice", stringSlice);
+    return map;
+}
 
-    tmap->emplace("year", timeExtractYear);
-    tmap->emplace("month", timeExtractMonth);
-    tmap->emplace("date", timeExtractDate);
-    tmap->emplace("weekDay", timeExtractWeekDay);
-    tmap->emplace("hours", timeExtract<time::MS_PER_HOUR, time::HOURS_PER_DAY>);
-    tmap->emplace("minutes", timeExtract<time::MS_PER_MINUTE, time::MINUTES_PER_HOUR>);
-    tmap->emplace("seconds", timeExtract<time::MS_PER_SECOND, time::SECONDS_PER_MINUTE>);
-    tmap->emplace("milliseconds", timeExtract<1, time::MS_PER_SECOND>);
-    tmap->emplace("format", timeFormat);
+static std::shared_ptr<ObjectMap> createStringMap()
+{
+    auto map = std::make_shared<ObjectMap>();
 
-    context.putConstant("Math", map);
-    context.putConstant("String", smap);
-    context.putConstant("Time", tmap);
+    map->emplace("toLowerCase", Function::create("toLower", stringTransform<::tolower>));
+    map->emplace("toUpperCase", Function::create("toUpper", stringTransform<::toupper>));
+    map->emplace("slice", Function::create("slice", stringSlice));
+
+    return map;
+}
+
+static std::shared_ptr<ObjectMap> createTimeMap()
+{
+    auto map = std::make_shared<ObjectMap>();
+
+    map->emplace("year", Function::create("year", timeExtractYear));
+    map->emplace("month", Function::create("year", timeExtractMonth));
+    map->emplace("date", Function::create("year", timeExtractDate));
+    map->emplace("weekDay", Function::create("year", timeExtractWeekDay));
+    map->emplace("hours", Function::create("year", timeExtract<time::MS_PER_HOUR, time::HOURS_PER_DAY>));
+    map->emplace("minutes", Function::create("year", timeExtract<time::MS_PER_MINUTE, time::MINUTES_PER_HOUR>));
+    map->emplace("seconds", Function::create("year", timeExtract<time::MS_PER_SECOND, time::SECONDS_PER_MINUTE>));
+    map->emplace("milliseconds", Function::create("year", timeExtract<1, time::MS_PER_SECOND>));
+    map->emplace("format", Function::create("year", timeFormat));
+
+    return map;
+}
+
+void
+createStandardFunctions(Context& context)
+{
+    static auto sMathFunctions = createMathMap();
+    static auto sStringFunctions = createStringMap();
+    static auto sTimeFunctions = createTimeMap();
+
+    context.putConstant("Math", sMathFunctions);
+    context.putConstant("String", sStringFunctions);
+    context.putConstant("Time", sTimeFunctions);
 }
 
 }  // namespace apl

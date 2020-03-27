@@ -17,6 +17,7 @@
 #include "rapidjson/document.h"
 
 #include "apl/primitives/rect.h"
+#include <cmath>
 
 using namespace apl;
 
@@ -111,5 +112,68 @@ TEST_F(RectTest, Print) {
 
     ASSERT_EQ("100x200+7+8", rect1.toString());
     ASSERT_EQ("200x100-7-8", rect2.toString());
+}
 
+TEST_F(RectTest, Equality) {
+    Rect rect1(7, 8, 100, 200);
+    Rect rect2(-7, -8, 200, 100);
+    Rect rect3(-7, -8, 200, 100);
+
+    ASSERT_TRUE(rect1 != rect2);
+    ASSERT_TRUE(rect2 == rect3);
+    ASSERT_FALSE(rect1 == rect2);
+    ASSERT_FALSE(rect2 != rect3);
+}
+
+TEST_F(RectTest, EqualityNaN) {
+    Rect rect1(7, 8, 100, 200);
+    Rect rect2(NAN, NAN, NAN, NAN);
+    Rect rect3(NAN, NAN, NAN, NAN);
+
+    ASSERT_TRUE(rect1 != rect2);
+    ASSERT_TRUE(rect2 == rect3);
+    ASSERT_FALSE(rect1 == rect2);
+    ASSERT_FALSE(rect2 != rect3);
+}
+
+TEST_F(RectTest, Empty) {
+    Rect rect(0, 0, 0, 0);
+    ASSERT_TRUE(rect.isEmpty());
+    rect = Rect(0, 0, NAN, 100);
+    ASSERT_TRUE(rect.isEmpty());
+    rect = Rect(0, 0, 100, NAN);
+    ASSERT_TRUE(rect.isEmpty());
+}
+
+TEST_F(RectTest, Contains) {
+    // Empty can't contain point.
+    ASSERT_FALSE(Rect(0, 0, 0, 0).contains(Point(0, 0)));
+
+    ASSERT_TRUE(Rect(0, 0, 100, 100).contains(Point(0, 0)));
+    ASSERT_TRUE(Rect(10, 10, 100, 100).contains(Point(50, 50)));
+    ASSERT_FALSE(Rect(10, 10, 100, 100).contains(Point(5, 5)));
+}
+
+TEST_F(RectTest, Serialize) {
+    Rect rect(10, 20, 30, 40);
+    ASSERT_FALSE(rect.isEmpty());
+
+    rapidjson::Document doc;
+
+    // Simple case serialized properly
+    auto serialized = rect.serialize(doc.GetAllocator());
+    ASSERT_TRUE(serialized.IsArray());
+    ASSERT_EQ(10, serialized[0]);
+    ASSERT_EQ(20, serialized[1]);
+    ASSERT_EQ(30, serialized[2]);
+    ASSERT_EQ(40, serialized[3]);
+
+    // NaN replaced with 0 as NaN is not in JSON concepts.
+    rect = Rect(NAN, NAN, NAN, NAN);
+    serialized = rect.serialize(doc.GetAllocator());
+    ASSERT_TRUE(serialized.IsArray());
+    ASSERT_EQ(0, serialized[0]);
+    ASSERT_EQ(0, serialized[1]);
+    ASSERT_EQ(0, serialized[2]);
+    ASSERT_EQ(0, serialized[3]);
 }

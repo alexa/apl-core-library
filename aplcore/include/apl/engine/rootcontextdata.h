@@ -24,19 +24,16 @@
 #include "apl/time/sequencer.h"
 #include "apl/content/rootconfig.h"
 #include "apl/content/settings.h"
+#include "apl/content/content.h"
 #include "apl/engine/styles.h"
 #include "focusmanager.h"
 #include "hovermanager.h"
 #include "keyboardmanager.h"
 #include "jsonresource.h"
+#include "apl/livedata/livedatamanager.h"
+#include "apl/engine/extensionmanager.h"
 
 namespace apl {
-
-class RootConfig;
-class Sequencer;
-class FocusManager;
-class HoverManager;
-class KeyboardManager;
 
 class RootContextData {
     friend class RootContext;
@@ -49,12 +46,14 @@ public:
      * @param theme Display theme
      * @param requestedAPLVersion Version of APL requested by the document
      * @param session Logging session
+     * @param extensions Mapping of requested extension NAME -> URI
      */
     RootContextData(const Metrics& metrics,
                     const RootConfig& config,
                     const std::string& theme,
                     const std::string& requestedAPLVersion,
-                    const SessionPtr& session);
+                    const SessionPtr& session,
+                    const std::vector<std::pair<std::string, std::string>>& extensions);
 
     /**
      * Discontinue use of this data.  Inform all children that they are no longer alive.
@@ -71,6 +70,9 @@ public:
     FocusManager& focusManager() const { return *mFocusManager; }
     HoverManager& hoverManager() const { return *mHoverManager; }
     KeyboardManager& keyboardManager() const { return *mKeyboardManager; }
+    LiveDataManager& dataManager() const { return *mDataManager; }
+    ExtensionManager& extensionManager() const { return *mExtensionManager; }
+
     const YGConfigRef& ygconfig() const { return mYGConfigRef; }
     ComponentPtr top() const { return mTop; }
     const std::map<std::string, JsonResource>& layouts() const { return mLayouts; }
@@ -121,6 +123,8 @@ private:
     std::unique_ptr<FocusManager> mFocusManager;
     std::unique_ptr<HoverManager> mHoverManager;
     std::unique_ptr<KeyboardManager> mKeyboardManager;
+    std::unique_ptr<LiveDataManager> mDataManager;
+    std::unique_ptr<ExtensionManager> mExtensionManager;
     YGConfigRef mYGConfigRef;
     TextMeasurementPtr mTextMeasurement;
     CoreComponentPtr mTop;         // The top component

@@ -14,6 +14,10 @@
  */
 
 #include "apl/primitives/rect.h"
+#include <cmath>
+#ifdef APL_CORE_UWP
+    #include <algorithm>
+#endif
 
 namespace apl {
 
@@ -35,6 +39,22 @@ floatAsLongString(float value)
     return std::to_string(v);
 }
 
+bool
+Rect::operator==(const Rect& rhs) const {
+    return ((std::isnan(mX) && std::isnan(rhs.mX)) || (mX == rhs.mX))
+        && ((std::isnan(mY) && std::isnan(rhs.mY)) || (mY == rhs.mY))
+        && ((std::isnan(mWidth) && std::isnan(rhs.mWidth)) || (mWidth == rhs.mWidth))
+        && ((std::isnan(mWidth) && std::isnan(rhs.mWidth)) || (mHeight == rhs.mHeight));
+}
+
+bool
+Rect::operator!=(const Rect& rhs) const {
+    return (!(std::isnan(mX) && std::isnan(rhs.mX)) && (mX != rhs.mX))
+        || (!(std::isnan(mY) && std::isnan(rhs.mY)) && (mY != rhs.mY))
+        || (!(std::isnan(mWidth) && std::isnan(rhs.mWidth)) && (mWidth != rhs.mWidth))
+        || (!(std::isnan(mHeight) && std::isnan(rhs.mHeight)) && (mHeight != rhs.mHeight));
+    }
+
 const std::string
 Rect::toString() const {
     return floatAsLongString(mWidth) + "x" + floatAsLongString(mHeight)
@@ -42,7 +62,13 @@ Rect::toString() const {
             + (mY >= 0 ? "+" : "") + floatAsLongString(mY);
 }
 
-Rect Rect::intersect(const Rect &other) const {
+bool
+Rect::isEmpty() const {
+    return (mWidth == 0 && mHeight == 0) || std::isnan(mWidth) || std::isnan(mHeight);
+}
+
+Rect
+Rect::intersect(const Rect &other) const {
     if (getLeft() >= other.getRight() || other.getLeft() >= getRight() ||
         getTop() >= other.getBottom() || other.getTop() >= getBottom())
         return {};
@@ -53,6 +79,24 @@ Rect Rect::intersect(const Rect &other) const {
             y,
             std::min(other.getRight(), getRight()) - x,
             std::min(other.getBottom(), getBottom()) - y};
+}
+
+bool
+Rect::contains(const Point& point) const {
+    auto x = point.getX();
+    auto y = point.getY();
+
+    return !isEmpty() && x >= mX && x <= mX + mWidth && y >= mY && y <= mY + mHeight;
+}
+
+rapidjson::Value
+Rect::serialize(rapidjson::Document::AllocatorType& allocator) const {
+    rapidjson::Value v(rapidjson::kArrayType);
+    v.PushBack(std::isnan(mX) ? 0 : mX, allocator);
+    v.PushBack(std::isnan(mY) ? 0 : mY, allocator);
+    v.PushBack(std::isnan(mWidth) ? 0 : mWidth, allocator);
+    v.PushBack(std::isnan(mHeight) ? 0 : mHeight, allocator);
+    return v;
 }
 
 }  // namespace apl

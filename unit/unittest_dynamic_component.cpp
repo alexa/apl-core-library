@@ -95,7 +95,7 @@ TEST_F(DynamicComponentTestSimple, AddOnly)
     ASSERT_TRUE(IsEqual(Rect(0,400,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
     ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds));
     ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
     ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
@@ -121,7 +121,7 @@ TEST_F(DynamicComponentTestSimple, InsertInMiddle)
     ASSERT_TRUE(IsEqual(Rect(0,400,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
     ASSERT_TRUE(CheckDirty(frame[0]));
     ASSERT_TRUE(CheckDirty(frame[1]));
     ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
@@ -147,7 +147,7 @@ TEST_F(DynamicComponentTestSimple, InsertAtEnd)
     ASSERT_TRUE(IsEqual(Rect(0,200,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
     ASSERT_TRUE(CheckDirty(frame[0]));
     ASSERT_TRUE(CheckDirty(frame[1]));
     ASSERT_TRUE(CheckDirty(frame[2]));
@@ -226,7 +226,7 @@ TEST_F(DynamicComponentTestSimple, AddAndRemove)
     ASSERT_TRUE(IsEqual(Rect(0,400,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
     ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds));
     ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
     ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
@@ -269,7 +269,7 @@ TEST_F(DynamicComponentTestSimple, AddAndMove)
     ASSERT_TRUE(IsEqual(Rect(0,400,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
     ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds));
     ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
     ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
@@ -326,7 +326,7 @@ TEST_F(DynamicComponentTestSimple, LayoutProperties)
     ASSERT_TRUE(IsEqual(Rect(0,height - 100,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
     ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
     ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
     ASSERT_TRUE(CheckDirty(root, component, child, frame[1], frame[2]));  // frame[0] didn't move
@@ -379,8 +379,8 @@ TEST_F(DynamicComponentTestSimple, AddHierarchy)
 
     // Running layout updates the bounds of the attached children
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(child->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(child->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
     ASSERT_TRUE(CheckDirty(root, component, child, child->getChildAt(0), frame[1], frame[2]));
 
     // Move the hierarchy to a new spot
@@ -573,8 +573,8 @@ TEST_F(DynamicComponentTestSimple, AddHierarchyInherit)
     // Running layout updates the bounds of the attached children
     // This also propagates checked.
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyChecked));
-    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyChecked));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyChecked, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyChecked, kPropertyLaidOut));
     ASSERT_TRUE(CheckDirty(root, component, child, text, frame[1], frame[2]));
 
     // Disconnect the hierarchy and attach elsewhere
@@ -664,7 +664,6 @@ TEST_F(DynamicComponentTest, Sequence)
         frame.emplace_back(component->getChildAt(i));
 
     // Make sure that the first four are attached (these are the visible ones)
-    frame[3]->ensureLayout(false);
     root->clearDirty();
 
     JsonData data(SEQUENCE_COMPONENT);
@@ -674,12 +673,9 @@ TEST_F(DynamicComponentTest, Sequence)
     component->insertChild(child, 1);
     root->clearPending();
 
-    // Remember, you can't draw without ensuring first
-    child->ensureLayout(true);
-
     ASSERT_TRUE(IsEqual(Rect(0,340,200,200), child->getCalculated(kPropertyBounds)));
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
     ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
     ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
     ASSERT_TRUE(CheckDirtyAtLeast(root, component, child, frame[1], frame[2], frame[3]));  // frame[0] was skipped over
@@ -705,7 +701,6 @@ TEST_F(DynamicComponentTest, SequenceFarOut)
         frame.emplace_back(component->getChildAt(i));
 
     // Make sure that the first four are attached (these are the visible ones)
-    frame[3]->ensureLayout(false);
     root->clearDirty();
 
     JsonData data(SEQUENCE_COMPONENT);
@@ -786,7 +781,6 @@ TEST_F(DynamicComponentTest, MoveBetween)
 {
     loadDocument(TWO_CONTAINERS);
     ASSERT_TRUE(component);
-    auto width = metrics.getWidth();
     auto height = metrics.getHeight();
 
     auto container = component->findComponentById("myContainer");
@@ -805,7 +799,7 @@ TEST_F(DynamicComponentTest, MoveBetween)
     ASSERT_TRUE(IsEqual(Rect(140,height/2-200,200,200), child->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(container, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
     ASSERT_TRUE(CheckDirty(container->getChildAt(2), kPropertyBounds));
     ASSERT_TRUE(CheckDirty(container->getChildAt(3), kPropertyBounds));
     ASSERT_TRUE(CheckDirty(root, container, child, container->getChildAt(2), container->getChildAt(3)));
@@ -814,7 +808,6 @@ TEST_F(DynamicComponentTest, MoveBetween)
     child->remove();
     sequence->insertChild(child, 1);
     root->clearPending();
-    child->ensureLayout(false);
 
     ASSERT_TRUE(IsEqual(Rect(140,0,200,200), child->getCalculated(kPropertyBounds)));
 }
@@ -863,7 +856,7 @@ TEST_F(DynamicComponentTest, Pager)
     root->clearPending();
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
     ASSERT_TRUE(CheckDirty(root, component, child));
 
     // Now move it to the first item
@@ -872,7 +865,8 @@ TEST_F(DynamicComponentTest, Pager)
     root->clearPending();
 
     ASSERT_EQ(child, component->getChildAt(0));
-    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyCurrentPage));
+    ASSERT_EQ(1, component->pagePosition());
     ASSERT_TRUE(CheckDirty(child));  // Child doesn't change size
     ASSERT_TRUE(CheckDirty(root, component));
 }
@@ -933,4 +927,44 @@ TEST_F(DynamicComponentTest, Frame)
     // Now we can't re-add the old text
     ASSERT_FALSE(component->appendChild(text));
     text->release();
+}
+
+static const char *REBUILDER =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.2\","
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"Container\","
+    "      \"data\": \"${TestArray}\","
+    "      \"items\": {"
+    "        \"type\": \"Text\","
+    "        \"text\": \"${data}\""
+    "      }"
+    "    }"
+    "  }"
+    "}";
+
+// A component using a LayoutRebuilder blocks normal add/remove commands
+TEST_F(DynamicComponentTest, AddRemoveBlocking)
+{
+    auto myArray = LiveArray::create(ObjectArray{"A", "B", "C"});
+    config.liveData("TestArray", myArray);
+
+    loadDocument(REBUILDER);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(3, component->getChildCount());
+    ASSERT_TRUE(IsEqual("A", component->getChildAt(0)->getCalculated(kPropertyText).asString()));
+
+    JsonData data(TEST_FRAME_ELEMENT);
+    auto child = context->inflate(data.get());
+
+    ASSERT_FALSE(component->canInsertChild());
+    ASSERT_FALSE(component->insertChild(child, 0));
+    ASSERT_FALSE(component->appendChild(child));
+
+    ASSERT_FALSE(component->canRemoveChild());
+    ASSERT_FALSE(component->getChildAt(0)->remove());
+
+    ASSERT_EQ(3, component->getChildCount());
 }

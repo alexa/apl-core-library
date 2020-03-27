@@ -21,11 +21,16 @@
 
 #include "apl/common.h"
 #include "apl/content/aplversion.h"
+#include "apl/content/extensioncommanddefinition.h"
+#include "apl/content/extensioneventhandler.h"
+#include "apl/livedata/liveobject.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
 #include "apl/component/componentproperties.h"
 
 namespace apl {
+
+class LiveDataObject;
 
 class TimeManager;
 
@@ -143,7 +148,7 @@ public:
      * @param version The version string to report.
      * @return This object for chaining.
      */
-    RootConfig& reportedAPLVersion(const std::string &version) {
+    RootConfig& reportedAPLVersion(const std::string& version) {
         mReportedAPLVersion = version;
         return *this;
     }
@@ -209,7 +214,7 @@ public:
      * @param height The new default height.
      * @return This object for chaining.
      */
-    RootConfig& defaultComponentSize( ComponentType type, Dimension width, Dimension height) {
+    RootConfig& defaultComponentSize(ComponentType type, Dimension width, Dimension height) {
         defaultComponentSize(type, true, width, height);
         return *this;
     }
@@ -222,8 +227,42 @@ public:
      * @param height The new default height.
      * @return This object for chaining.
      */
-    RootConfig& defaultComponentSize( ComponentType type, bool isVertical, Dimension width, Dimension height) {
-        mDefaultComponentSize[std::pair<ComponentType, bool>{type, isVertical}] = std::pair<Dimension, Dimension>{width, height};
+    RootConfig& defaultComponentSize(ComponentType type, bool isVertical, Dimension width, Dimension height) {
+        mDefaultComponentSize[std::pair<ComponentType, bool>{type, isVertical}] = std::pair<Dimension, Dimension>{width,
+                                                                                                                  height};
+        return *this;
+    }
+
+    /**
+     * Set pager layout cache in both directions. 1 is default and results in 1 page ensured before and one after
+     * current one.
+     * @param cache Number of pages to ensure before and after current one.
+     * @return This object for chaining.
+     */
+    RootConfig& pagerChildCache(int cache) {
+        mPagerChildCache = cache;
+        return *this;
+    }
+
+    /**
+     * Set sequence layout cache in both directions. 1 is default and results in 1 page of children ensured before and
+     * one after current one.
+     * @param cache Number of pages to ensure before and after current one.
+     * @return This object for chaining.
+     */
+    RootConfig& sequenceChildCache(int cache) {
+        mSequenceChildCache = cache;
+        return *this;
+    }
+
+    /**
+     * Add DataSource provider implementation.
+     * @param type Type name of DataSource.
+     * @param dataSourceProvider provider implementation.
+     * @return This object for chaining.
+     */
+    RootConfig& dataSourceProvider(const std::string& type, const DataSourceProviderPtr& dataSourceProvider) {
+        mDataSources.emplace(type, dataSourceProvider);
         return *this;
     }
 
@@ -232,18 +271,18 @@ public:
      * @param session The session
      * @return This object for chaining.
      */
-    RootConfig& session( const SessionPtr& session ) {
+    RootConfig& session(const SessionPtr& session) {
         mSession = session;
         return *this;
     }
 
     /*
-     * Set the current local time in milliseconds since the epoch.
+     * Set the current UTC time in milliseconds since the epoch.
      * @param time Milliseconds.
      * @return This object for chaining.
      */
-    RootConfig& localTime(apl_time_t time) {
-        mLocalTime = time;
+    RootConfig& utcTime(apl_time_t time) {
+        mUTCTime = time;
         return *this;
     }
 
@@ -255,6 +294,75 @@ public:
      */
     RootConfig& localTimeAdjustment(apl_duration_t adjustment) {
         mLocalTimeAdjustment = adjustment;
+        return *this;
+    }
+
+    /**
+     * Assign a LiveObject to the top-level context
+     * @param name The name of the LiveObject
+     * @param object The object itself
+     * @return This object for chaining
+     */
+    RootConfig& liveData(const std::string& name, const LiveObjectPtr& object) {
+        mLiveObjectMap.emplace(name, object);
+        return *this;
+    }
+
+    /**
+     * Register an extension event handler.  The name should be something like 'onDomainAction'.
+     * This method will also register the extension as a supported extension.
+     * @param uri The extension URI this handler is registered to
+     * @param name The name of the handler to support.
+     * @return This object for chaining.
+     */
+    RootConfig& registerExtensionEventHandler(ExtensionEventHandler handler) {
+        auto uri = handler.getURI();
+        if (mSupportedExtensions.find(uri) == mSupportedExtensions.end()) {
+            registerExtension(uri);
+        }
+        mExtensionHandlers.emplace_back(std::move(handler));
+        return *this;
+    }
+
+    /**
+     * Register an extension command that can be executed in the document.  The name should be something like 'DomainEvent'.
+     * This method will also register the extension as a supported extension.
+     * @param commandDef The definition of the custom command (includes the name, URI, etc).
+     * @return This object for chaining
+     */
+    RootConfig& registerExtensionCommand(ExtensionCommandDefinition commandDef) {
+        auto uri = commandDef.getURI();
+        if (mSupportedExtensions.find(uri) == mSupportedExtensions.end()) {
+            registerExtension(uri);
+        }
+        mExtensionCommands.emplace_back(std::move(commandDef));
+        return *this;
+    }
+
+
+    /**
+     * Register an environment for an extension.  The document may access the extension environment by
+     * the extension name in the “environment.extension” environment property.
+     * Any previously registered environment is overwritten.
+     * This method will also register the extension as a supported extension.
+     *
+     * @param uri The URI of the extension
+     * @param environment values
+     * @return This object for chaining
+     */
+    RootConfig& registerExtensionEnvironment(const std::string& uri, const Object& environment) {
+        registerExtension(uri, environment);
+        return *this;
+    }
+
+    /**
+     * Report a supported extension. Any previously registered configuration is overwritten.
+     * @param uri The URI of the extension
+     * @param optional configuration value(s) supported by this extension.
+     * @return This object for chaining
+     */
+    RootConfig& registerExtension(const std::string& uri, const Object& config = Object::TRUE_OBJECT()) {
+        mSupportedExtensions[uri] = config;
         return *this;
     }
 
@@ -281,16 +389,19 @@ public:
     /**
      * @return The expected animation quality
      */
-    const AnimationQuality getAnimationQuality() const { return mAnimationQuality; }
+    AnimationQuality getAnimationQuality() const { return mAnimationQuality; }
 
     /**
      * @return The string name of the current animation quality
      */
     const char* getAnimationQualityString() const {
         switch (mAnimationQuality) {
-            case kAnimationQualityNone: return "none";
-            case kAnimationQualityNormal: return "normal";
-            case kAnimationQualitySlow: return "slow";
+            case kAnimationQualityNone:
+                return "none";
+            case kAnimationQualityNormal:
+                return "normal";
+            case kAnimationQualitySlow:
+                return "slow";
         }
     }
 
@@ -307,7 +418,7 @@ public:
     /**
      * @return Time in ms for default IdleTimeut value.
      */
-     int getDefaultIdleTimeout() const { return mDefaultIdleTimeout; };
+    int getDefaultIdleTimeout() const { return mDefaultIdleTimeout; };
 
     /**
      * @return The version or versions of the specification that should be enforced.
@@ -350,7 +461,7 @@ public:
      * @param isVertical If true, this applies to a vertical scrolling component. If false, it applies to a horizontal.
      * @return The default width.
      */
-    Dimension getDefaultComponentWidth(ComponentType type, bool isVertical=true) const {
+    Dimension getDefaultComponentWidth(ComponentType type, bool isVertical = true) const {
         auto it = mDefaultComponentSize.find({type, isVertical});
         if (it != mDefaultComponentSize.end())
             return it->second.first;
@@ -364,12 +475,28 @@ public:
      * @param isVertical If true, this applies to a vertical scrolling component. If false, it applies to a horizontal.
      * @return The default height.
      */
-    Dimension getDefaultComponentHeight(ComponentType type, bool isVertical=true) const {
+    Dimension getDefaultComponentHeight(ComponentType type, bool isVertical = true) const {
         auto it = mDefaultComponentSize.find({type, isVertical});
         if (it != mDefaultComponentSize.end())
             return it->second.second;
 
         return {};   // Return an auto dimension
+    }
+
+    /**
+     * Return number of pages to ensure around current page.
+     * @return number of pages.
+     */
+    int getPagerChildCache() const {
+        return mPagerChildCache;
+    }
+
+    /**
+     * Return number of pages to ensure around current one.
+     * @return number of pages.
+     */
+    int getSequenceChildCache() const {
+        return mSequenceChildCache;
     }
 
     /**
@@ -380,10 +507,10 @@ public:
     }
 
     /*
-     * @return The starting local time in milliseconds past the epoch.
+     * @return The starting UTC time in milliseconds past the epoch.
      */
-    apl_time_t getLocalTime() const {
-        return mLocalTime;
+    apl_time_t getUTCTime() const {
+        return mUTCTime;
     }
 
     /**
@@ -395,13 +522,75 @@ public:
         return mLocalTimeAdjustment;
     }
 
+    /**
+     * @return A reference to the map of live data sources
+     */
+    const std::map<std::string, LiveObjectPtr>& getLiveObjectMap() const {
+        return mLiveObjectMap;
+    }
+
+    /**
+     * Get data source provider for provided type.
+     * @param type DataSource type.
+     * @return DataSourceProvider if registered, nullptr otherwise.
+     */
+    DataSourceProviderPtr getDataSourceProvider(const std::string& type) const {
+        auto provider = mDataSources.find(type);
+        if (provider != mDataSources.end()) {
+            return provider->second;
+        }
+        return nullptr;
+    }
+
+    /**
+     * @param type DataSource type.
+     * @return true if registered, false otherwise.
+     */
+    bool isDataSource(const std::string& type) const {
+        return (mDataSources.find(type) != mDataSources.end());
+    }
+
+    /**
+     * @return The registered extension commands
+     */
+    const std::vector<ExtensionCommandDefinition>& getExtensionCommands() const {
+        return mExtensionCommands;
+    }
+
+    /**
+     * @return The map of URI, custom
+     */
+    const std::vector<ExtensionEventHandler>& getExtensionEventHandlers() const {
+        return mExtensionHandlers;
+    }
+
+    /**
+     * @return The collection of supported extensions and their config values. These are the extensions that have
+     *         been marked in the root config as "supported".
+     */
+    const ObjectMap& getSupportedExtensions() const {
+        return mSupportedExtensions;
+    }
+
+    /**
+     * @param uri The for the extension.
+     * @return The environment Object for a supported extensions, Object::NULL_OBJECT if no environment exists.
+     */
+    Object getExtensionEnvironment(const std::string& uri) const {
+        auto it = mSupportedExtensions.find(uri);
+        if (it != mSupportedExtensions.end())
+            return it->second;
+        return Object::NULL_OBJECT();
+    }
+
 private:
-    TextMeasurementPtr mTextMeasurement;
-    std::shared_ptr<TimeManager> mTimeManager;
-    apl_time_t mLocalTime;
-    apl_duration_t mLocalTimeAdjustment;
     std::string mAgentName;
     std::string mAgentVersion;
+    TextMeasurementPtr mTextMeasurement;
+    std::shared_ptr<TimeManager> mTimeManager;
+    apl_time_t mUTCTime;
+    apl_duration_t mLocalTimeAdjustment;
+    std::map<std::string, DataSourceProviderPtr> mDataSources;
     AnimationQuality mAnimationQuality;
     bool mAllowOpenUrl;
     bool mDisallowVideo;
@@ -414,7 +603,13 @@ private:
     std::string mDefaultFontFamily;
     bool mTrackProvenance;
     std::map<std::pair<ComponentType, bool>, std::pair<Dimension, Dimension>> mDefaultComponentSize;
+    int mPagerChildCache;
+    int mSequenceChildCache;
     SessionPtr mSession;
+    std::map<std::string, LiveObjectPtr> mLiveObjectMap;
+    ObjectMap mSupportedExtensions; // URI -> config
+    std::vector<ExtensionEventHandler> mExtensionHandlers;
+    std::vector<ExtensionCommandDefinition> mExtensionCommands;
 };
 
 }

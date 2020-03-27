@@ -29,7 +29,6 @@ public:
 
     ComponentType getType() const override { return kComponentTypeVideo; };
     void updateMediaState(const MediaState& state, bool fromEvent) override;
-    const MediaState& getMediaState() const { return mMediaState; };
 
     std::shared_ptr<ObjectMap> getEventTargetProperties() const override;
 
@@ -41,7 +40,7 @@ protected:
     std::string getVisualContextType() override;
 
 private:
-    MediaState mMediaState;
+    void saveMediaState(const MediaState& state);
 };
 
 

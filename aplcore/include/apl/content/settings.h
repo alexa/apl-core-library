@@ -22,6 +22,7 @@
 
 #include "apl/primitives/object.h"
 #include "apl/content/rootconfig.h"
+#include "apl/content/package.h"
 
 namespace apl {
 
@@ -31,6 +32,7 @@ namespace apl {
  */
 class Settings {
     friend class RootContext;
+    friend class Content;
 
 public:
     Settings(const RootConfig& config) :
@@ -38,6 +40,10 @@ public:
         mJson(nullptr)
     {}
 
+    Settings(const rapidjson::Value& json) :
+            mIdleTimeout(0),
+            mJson(&json)
+    {}
     /**
      * @return  Recommended time in milliseconds that the document should be kept on the screen
      * before closing due to inactivity.
@@ -57,6 +63,27 @@ public:
         }
 
         return Object::NULL_OBJECT();
+    }
+
+    /**
+     * Finds the settings section of a Package.
+     * @param package The APL Content package.
+     * @return json value for Settings, Value.IsNull() is true when not found.
+     */
+    static const rapidjson::Value& findSettings(Package& package) {
+        // Read settings
+        const auto& json = package.json();
+        auto settingsIter = json.FindMember("settings");
+
+        // NOTE: Backward compatibility for some APL 1.0 users where a runtime allowed "features" instead of "settings"
+        if (settingsIter == json.MemberEnd())
+            settingsIter = json.FindMember("features");
+
+        if (settingsIter != json.MemberEnd() && settingsIter->value.IsObject()) {
+            return settingsIter->value;
+        }
+        static const auto val = rapidjson::Value();
+        return val;
     }
 
 private:

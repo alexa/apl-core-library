@@ -136,9 +136,9 @@ TEST_F(BuilderTest, SimpleImage)
 
     // Standard properties
     ASSERT_EQ(Object(""), component->getCalculated(kPropertyAccessibilityLabel));
-    ASSERT_EQ(Object::FALSE(), component->getCalculated(kPropertyChecked));
+    ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyChecked));
     ASSERT_EQ(Object(""), component->getCalculated(kPropertyDescription));
-    ASSERT_EQ(Object::FALSE(), component->getCalculated(kPropertyDisabled));
+    ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(kDisplayNormal, component->getCalculated(kPropertyDisplay).getInteger());
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
@@ -157,6 +157,7 @@ TEST_F(BuilderTest, SimpleImage)
     ASSERT_EQ(Object::IDENTITY_2D(), component->getCalculated(kPropertyTransform));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyTransformAssigned));
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyWidth));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
     // Image-specific properties
     ASSERT_EQ(kImageAlignCenter, component->getCalculated(kPropertyAlign).getInteger());
@@ -227,9 +228,9 @@ TEST_F(BuilderTest, FullImage)
 
     // Standard properties
     ASSERT_EQ("Foo bar!", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::TRUE(), component->getCalculated(kPropertyChecked));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyChecked));
     ASSERT_EQ(Object("My Image"), component->getCalculated(kPropertyDescription));
-    ASSERT_EQ(Object::TRUE(), component->getCalculated(kPropertyDisabled));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(kDisplayInvisible, component->getCalculated(kPropertyDisplay).getInteger());
     ASSERT_EQ(Object(Dimension(200)), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object(Dimension(800)), component->getCalculated(kPropertyMaxHeight));
@@ -246,6 +247,7 @@ TEST_F(BuilderTest, FullImage)
     ASSERT_EQ(Object(Dimension(5)), component->getCalculated(kPropertyShadowRadius));
     ASSERT_EQ(Object(Dimension(20)), component->getCalculated(kPropertyShadowVerticalOffset));
     ASSERT_EQ(Object(Dimension(512)), component->getCalculated(kPropertyWidth));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
     // Transforms are tricky
     auto transform = component->getCalculated(kPropertyTransformAssigned);
@@ -335,7 +337,7 @@ TEST_F(BuilderTest, SimpleText)
 
     // Standard properties
     ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::FALSE(), component->getCalculated(kPropertyDisabled));
+    ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxWidth));
@@ -349,6 +351,7 @@ TEST_F(BuilderTest, SimpleText)
     ASSERT_EQ(Object::IDENTITY_2D(), component->getCalculated(kPropertyTransform));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyTransformAssigned));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
     // Text-specific properties
     ASSERT_EQ(0xfafafaff, component->getCalculated(kPropertyColor).getColor());
@@ -411,7 +414,7 @@ TEST_F(BuilderTest, FullText)
 
     // Standard properties
     ASSERT_EQ("Happy Text", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::FALSE(), component->getCalculated(kPropertyDisabled));
+    ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension(400)), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object(Dimension(800)), component->getCalculated(kPropertyMaxHeight));
     ASSERT_EQ(Object(Dimension(1024)), component->getCalculated(kPropertyMaxWidth));
@@ -424,6 +427,7 @@ TEST_F(BuilderTest, FullText)
     ASSERT_EQ(Object(Dimension(10)), component->getCalculated(kPropertyPaddingTop));
     ASSERT_EQ(Object(Dimension(DimensionType::Relative, 50)), component->getCalculated(kPropertyWidth));
     ASSERT_EQ(Object(Transform2D::translateY(10)), component->getCalculated(kPropertyTransform));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
     // Text-specific properties
     ASSERT_EQ(0x0000ffff, component->getCalculated(kPropertyColor).getColor());
@@ -466,7 +470,7 @@ TEST_F(BuilderTest, SimpleContainer)
 
     // Standard properties
     ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::FALSE(), component->getCalculated(kPropertyDisabled));
+    ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxWidth));
@@ -478,6 +482,7 @@ TEST_F(BuilderTest, SimpleContainer)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
     // Container-specific properties
     ASSERT_EQ(kFlexboxAlignStretch, component->getCalculated(kPropertyAlignItems).getInteger());
@@ -571,7 +576,7 @@ TEST_F(BuilderTest, FullContainer)
 
     // Standard properties
     ASSERT_EQ("Happy Text", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::FALSE(), component->getCalculated(kPropertyDisabled));
+    ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension(400)), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object(Dimension(800)), component->getCalculated(kPropertyMaxHeight));
     ASSERT_EQ(Object(Dimension(1024)), component->getCalculated(kPropertyMaxWidth));
@@ -583,6 +588,7 @@ TEST_F(BuilderTest, FullContainer)
     ASSERT_EQ(Object(Dimension(6)), component->getCalculated(kPropertyPaddingRight));
     ASSERT_EQ(Object(Dimension(10)), component->getCalculated(kPropertyPaddingTop));
     ASSERT_EQ(Object(Dimension(DimensionType::Relative, 50)), component->getCalculated(kPropertyWidth));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
     // Container-specific properties
     ASSERT_EQ(kFlexboxAlignEnd, component->getCalculated(kPropertyAlignItems).getInteger());
@@ -866,7 +872,7 @@ TEST_F(BuilderTest, SimpleScrollView)
 
     // Standard properties
     ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::FALSE(), component->getCalculated(kPropertyDisabled));
+    ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxWidth));
@@ -878,6 +884,7 @@ TEST_F(BuilderTest, SimpleScrollView)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
     // Children
     ASSERT_EQ(1, component->getChildCount());
@@ -917,7 +924,7 @@ TEST_F(BuilderTest, SimpleFrame)
 
     // Standard properties
     ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::FALSE(), component->getCalculated(kPropertyDisabled));
+    ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxWidth));
@@ -929,6 +936,7 @@ TEST_F(BuilderTest, SimpleFrame)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
     // Frame properties
     ASSERT_EQ(0x00000000, component->getCalculated(kPropertyBackgroundColor).getColor());
@@ -943,112 +951,6 @@ TEST_F(BuilderTest, SimpleFrame)
 
     component->release();
 }
-
-
-
-const char *SIMPLE_SEQUENCE = "{"
-"  \"type\": \"APL\","
-"  \"version\": \"1.0\","
-"  \"mainTemplate\": {"
-"    \"parameters\": ["
-"      \"payload\""
-"    ],"
-"    \"item\": {"
-"      \"type\": \"Sequence\","
-"      \"height\": 100,"
-"      \"items\": ["
-"        {"
-"          \"type\": \"Text\""
-"        },"
-"        {"
-"          \"type\": \"Text\""
-"        }"
-"      ]"
-"    }"
-"  }"
-"}";
-
-TEST_F(BuilderTest, SimpleSequence)
-{
-    loadDocument(SIMPLE_SEQUENCE, DATA);
-
-    auto map = component->getCalculated();
-    ASSERT_EQ(kComponentTypeSequence, component->getType());
-
-    // Standard properties
-    ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::FALSE(), component->getCalculated(kPropertyDisabled));
-    ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyHeight));
-    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
-    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxWidth));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinHeight));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinWidth));
-    ASSERT_EQ(1.0, component->getCalculated(kPropertyOpacity).getDouble());
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingBottom));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingLeft));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
-    ASSERT_EQ(Object(kSnapNone), component->getCalculated(kPropertySnap));
-    ASSERT_EQ(Object(1.0), component->getCalculated(kPropertyFastScrollScale));
-    ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
-
-    // Sequence properties
-    ASSERT_EQ(kScrollDirectionVertical, component->getCalculated(kPropertyScrollDirection).getInteger());
-    ASSERT_EQ(false, component->getCalculated(kPropertyNumbered).getBoolean());
-
-    // Children
-    ASSERT_EQ(2, component->getChildCount());
-    auto text = component->getChildAt(0)->getCalculated();
-
-    component->release();
-}
-
-const char *EMPTY_SEQUENCE = "{"
-                              "  \"type\": \"APL\","
-                              "  \"version\": \"1.0\","
-                              "  \"mainTemplate\": {"
-                              "    \"parameters\": ["
-                              "      \"payload\""
-                              "    ],"
-                              "    \"item\": {"
-                              "      \"type\": \"Sequence\","
-                              "      \"height\": 100"
-                              "    }"
-                              "  }"
-                              "}";
-
-TEST_F(BuilderTest, EmptySequence)
-{
-    loadDocument(EMPTY_SEQUENCE, DATA);
-
-    auto map = component->getCalculated();
-    ASSERT_EQ(kComponentTypeSequence, component->getType());
-
-    // Standard properties
-    ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::FALSE(), component->getCalculated(kPropertyDisabled));
-    ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyHeight));
-    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
-    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxWidth));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinHeight));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinWidth));
-    ASSERT_EQ(1.0, component->getCalculated(kPropertyOpacity).getDouble());
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingBottom));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingLeft));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
-    ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
-
-    // Sequence properties
-    ASSERT_EQ(kScrollDirectionVertical, component->getCalculated(kPropertyScrollDirection).getInteger());
-    ASSERT_EQ(false, component->getCalculated(kPropertyNumbered).getBoolean());
-
-    // Children
-    ASSERT_EQ(0, component->getChildCount());
-
-    component->release();
-}
-
 
 const char *SIMPLE_TOUCH_WRAPPER = "{"
 "  \"type\": \"APL\","
@@ -1093,7 +995,7 @@ TEST_F(BuilderTest, SimpleTouchWrapper)
 
     // Standard properties
     ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::FALSE(), component->getCalculated(kPropertyDisabled));
+    ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxWidth));
@@ -1105,6 +1007,7 @@ TEST_F(BuilderTest, SimpleTouchWrapper)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
     // TouchWrapper properties
     auto commands = component->getCalculated(kPropertyOnPress);
@@ -1249,86 +1152,6 @@ TEST_F(BuilderTest, NumberingDataItems)
     component->release();
 }
 
-const char *SEQUENCE_TEST = "{"
-                            "  \"type\": \"APL\","
-                            "  \"version\": \"1.0\","
-                            "  \"mainTemplate\": {"
-                            "    \"parameters\": ["
-                            "      \"payload\""
-                            "    ],"
-                            "    \"item\": {"
-                            "      \"type\": \"Sequence\","
-                            "      \"scrollDirection\": \"horizontal\","
-                            "      \"snap\": \"center\","
-                            "      \"fastScrollScale\": 0.5,"
-                            "      \"numbered\": true,"
-                            "      \"data\": ["
-                            "        \"One\","
-                            "        \"Two\","
-                            "        \"Three\","
-                            "        \"Four\","
-                            "        \"Five\""
-                            "      ],"
-                            "      \"items\": ["
-                            "        {"
-                            "          \"when\": \"${data == 'Two'}\","
-                            "          \"type\": \"Text\","
-                            "          \"text\": \"A ${index}-${ordinal}-${length}\","
-                            "          \"numbering\": \"reset\""
-                            "        },"
-                            "        {"
-                            "          \"when\": \"${data == 'Four'}\","
-                            "          \"type\": \"Text\","
-                            "          \"text\": \"B ${index}-${ordinal}-${length}\","
-                            "          \"numbering\": \"skip\","
-                            "          \"spacing\": 20"
-                            "        },"
-                            "        {"
-                            "          \"type\": \"Text\","
-                            "          \"text\": \"C ${index}-${ordinal}-${length}\""
-                            "        }"
-                            "      ]"
-                            "    }"
-                            "  }"
-                            "}";
-
-TEST_F(BuilderTest, SequenceTest)
-{
-    loadDocument(SEQUENCE_TEST, DATA);
-    auto map = component->getCalculated();
-
-    ASSERT_EQ(kComponentTypeSequence, component->getType());
-    ASSERT_EQ(kScrollDirectionHorizontal, component->getCalculated(kPropertyScrollDirection).getInteger());
-    ASSERT_EQ(kSnapCenter, component->getCalculated(kPropertySnap).getInteger());
-    ASSERT_EQ(0.5, component->getCalculated(kPropertyFastScrollScale).getDouble());
-    ASSERT_TRUE(IsEqual(Dimension(100), component->getCalculated(kPropertyWidth)));
-    ASSERT_TRUE(IsEqual(Dimension(), component->getCalculated(kPropertyHeight)));
-
-    ASSERT_EQ(5, component->getChildCount());
-
-    auto child = component->getChildAt(0)->getCalculated();
-    ASSERT_EQ(Object("C 0-1-5"), child.get(kPropertyText).asString());
-    ASSERT_EQ(Object(Dimension(0)), child.get(kPropertySpacing));
-
-    child = component->getChildAt(1)->getCalculated();
-    ASSERT_EQ(Object("A 1-2-5"), child.get(kPropertyText).asString());
-    ASSERT_EQ(Object(Dimension(0)), child.get(kPropertySpacing));
-
-    child = component->getChildAt(2)->getCalculated();
-    ASSERT_EQ(Object("C 2-1-5"), child.get(kPropertyText).asString());
-    ASSERT_EQ(Object(Dimension(0)), child.get(kPropertySpacing));
-
-    child = component->getChildAt(3)->getCalculated();
-    ASSERT_EQ(Object("B 3-2-5"), child.get(kPropertyText).asString());
-    ASSERT_EQ(Object(Dimension(20)), child.get(kPropertySpacing));
-
-    child = component->getChildAt(4)->getCalculated();
-    ASSERT_EQ(Object("C 4-2-5"), child.get(kPropertyText).asString());
-    ASSERT_EQ(Object(Dimension(0)), child.get(kPropertySpacing));
-
-    component->release();
-}
-
 static const char *SIMPLE_VIDEO = "{"
                                   "  \"type\": \"APL\","
                                   "  \"version\": \"1.0\","
@@ -1359,7 +1182,7 @@ TEST_F(BuilderTest, SimpleVideo)
 
     // Standard properties
     ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::FALSE(), component->getCalculated(kPropertyDisabled));
+    ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxWidth));
@@ -1371,6 +1194,7 @@ TEST_F(BuilderTest, SimpleVideo)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyWidth));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
     // Video-specific properties
     ASSERT_EQ(kVideoScaleBestFit, component->getCalculated(kPropertyScale).getInteger());
@@ -1402,7 +1226,7 @@ static const char *OLD_AUTO_PLAY_VIDEO =
 TEST_F(BuilderTest, OldAutoPlayVideo)
 {
     loadDocument(OLD_AUTO_PLAY_VIDEO);
-    ASSERT_EQ(Object::FALSE(), component->getCalculated(kPropertyAutoplay));
+    ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyAutoplay));
 }
 
 static const char *NEW_AUTO_PLAY_VIDEO =
@@ -1424,7 +1248,7 @@ static const char *NEW_AUTO_PLAY_VIDEO =
 TEST_F(BuilderTest, NewAutoPlayVideo)
 {
     loadDocument(NEW_AUTO_PLAY_VIDEO);
-    ASSERT_EQ(Object::TRUE(), component->getCalculated(kPropertyAutoplay));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyAutoplay));
 }
 
 static const char *FULL_VIDEO = "{"
@@ -1510,7 +1334,7 @@ TEST_F(BuilderTest, FullVideo)
 
     // Standard properties
     ASSERT_EQ("", map.get(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::FALSE(), map.get(kPropertyDisabled));
+    ASSERT_EQ(Object::FALSE_OBJECT(), map.get(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension(100)), map.get(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), map.get(kPropertyMaxHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), map.get(kPropertyMaxWidth));
@@ -1522,6 +1346,7 @@ TEST_F(BuilderTest, FullVideo)
     ASSERT_EQ(Object(Dimension(0)), map.get(kPropertyPaddingRight));
     ASSERT_EQ(Object(Dimension(0)), map.get(kPropertyPaddingTop));
     ASSERT_EQ(Object(Dimension(100)), map.get(kPropertyWidth));
+    ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
     ASSERT_EQ(kVideoScaleBestFill, map.get(kPropertyScale).getInteger());
     ASSERT_EQ(kAudioTrackBackground, map.get(kPropertyAudioTrack).getInteger());
@@ -1980,6 +1805,87 @@ TEST_F(BuilderTest, KaraokeStyle)
     ASSERT_TRUE(CheckDirty(component, kPropertyColor, kPropertyColorKaraokeTarget,
                            kPropertyColorNonKaraoke, kPropertyDisabled));
     ASSERT_TRUE(CheckDirty(root, component));
+}
+
+static const char * BIND_SIMPLE =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.2\","
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"Text\","
+    "      \"bind\": {"
+    "        \"name\": \"foo\","
+    "        \"value\": 10"
+    "      },"
+    "      \"text\": \"${foo}\""
+    "    }"
+    "  }"
+    "}";
+
+TEST_F(BuilderTest, BindSimple)
+{
+    loadDocument(BIND_SIMPLE);
+
+    ASSERT_EQ("10", component->getCalculated(kPropertyText).asString());
+}
+
+static const char *BIND_TWO =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.2\","
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"Text\","
+    "      \"bind\": ["
+    "        {"
+    "          \"name\": \"foo\","
+    "          \"value\": 10"
+    "        },"
+    "        {"
+    "          \"name\": \"bar\","
+    "          \"value\": 20"
+    "        }"
+    "      ],"
+    "      \"text\": \"${foo + bar}\""
+    "    }"
+    "  }"
+    "}";
+
+TEST_F(BuilderTest, BindTwo)
+{
+    loadDocument(BIND_TWO);
+
+    ASSERT_EQ("30", component->getCalculated(kPropertyText).asString());
+}
+
+static const char *BIND_UNUSED =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.2\","
+    "  \"mainTemplate\": {"
+    "    \"items\": {"
+    "      \"type\": \"Text\","
+    "      \"bind\": ["
+    "        {"
+    "          \"name\": \"foo\","
+    "          \"value\": 10"
+    "        },"
+    "        {"
+    "          \"name\": \"bar\","
+    "          \"value\": \"${foo + 20}\""
+    "        }"
+    "      ],"
+    "      \"text\": \"Hello 10\""
+    "    }"
+    "  }"
+    "}";
+
+TEST_F(BuilderTest, BindUnused)
+{
+    loadDocument(BIND_UNUSED);
+
+    ASSERT_EQ("Hello 10", component->getCalculated(kPropertyText).asString());
 }
 
 static const char * BIND_NUMBER =
@@ -2577,4 +2483,42 @@ TEST_F(BuilderTest, ConfigTextFuzzyTheme)
     config.defaultFontColor("fuzzy", 0x44332211);
     loadDocument(CONFIG_TEXT_FUZZY_THEME);
     ASSERT_TRUE(IsEqual(Color(0x44332211), component->getCalculated(kPropertyColor)));
+}
+
+static const char *TEST_NULL_PAYLOAD =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.1\","
+    "  \"mainTemplate\": {"
+    "    \"parameters\": ["
+    "      \"payload\""
+    "    ],"
+    "    \"items\": ["
+    "      {"
+    "        \"when\": \"${payload.data.quantity == null}\","
+    "        \"type\": \"Text\","
+    "        \"text\": \"Null worked\""
+    "      },"
+    "      {"
+    "        \"type\": \"Text\","
+    "        \"text\": \"Null did not work\""
+    "      }"
+    "    ]"
+    "  }"
+    "}";
+
+static const char *NULL_PAYLOAD =
+    "{"
+    "  \"data\": {"
+    "    \"quantity\": null,"
+    "    \"price\": 14.99"
+    "  }"
+    "}";
+
+TEST_F(BuilderTest, NullPayload)
+{
+    loadDocument(TEST_NULL_PAYLOAD, NULL_PAYLOAD);
+    ASSERT_TRUE(component);
+
+    ASSERT_TRUE(IsEqual("Null worked", component->getCalculated(kPropertyText).asString()));
 }

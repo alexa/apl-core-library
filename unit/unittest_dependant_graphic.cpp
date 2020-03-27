@@ -128,7 +128,7 @@ TEST_F(DependantGraphicTest, Binding)
     ASSERT_TRUE(component);
     ASSERT_TRUE(CheckDirty(component));
 
-    // Verify that the graphic was created and that the color is blue
+    // Verify that the graphic was created
     auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
     ASSERT_TRUE(graphic);
     ASSERT_TRUE(CheckDirty(graphic));

@@ -57,7 +57,7 @@ extern Object asOldArray(const Context &context, const Object &object);
  * to be evaluated as false (by the specification it should be true).
  * @param context The context to evaluate within.
  * @param object The object that will be checked for truthiness.
- * @return The Object::TRUE() or Object::FALSE()
+ * @return The Object::TRUE_OBJECT() or Object::FALSE_OBJECT()
  */
 extern Object asOldBoolean(const Context& context, const Object& object);
 
@@ -156,11 +156,11 @@ inline Object asStyledText(const Context& context, const Object& object) {
     return StyledText::create(object);
 }
 
-inline Object asTransform(const Context& context, const Object& object) {
+inline Object asTransformOrArray(const Context& context, const Object& object) {
     if (object.isTransform())
         return object;
 
-    return Transformation::create(context, arrayify(context, object));
+    return arrayify(context, object);
 }
 
 inline Object asEasing(const Context& context, const Object& object) {
@@ -170,10 +170,6 @@ inline Object asEasing(const Context& context, const Object& object) {
     return Easing::parse(context.session(), object.asString());
 }
 
-inline Object asAnimation(const Context& context, const Object& object) {
-    return Animation::create(context, arrayify(context, object));
-}
-
 inline Object asDeepArray(const Context &context, const Object &object) {
     return Object(evaluateRecursive(context, arrayify(context, object)));
 }
@@ -181,7 +177,7 @@ inline Object asDeepArray(const Context &context, const Object &object) {
 /**
  * Flags that specify how the property definition will be used.
  */
-enum PropertyDefFlags {
+enum PropertyDefFlags : uint32_t {
     /// This property has no flags set
     kPropNone = 0x0,
     /// This property is required. Not specifying it will prevent a component or command from inflating.
@@ -207,7 +203,11 @@ enum PropertyDefFlags {
     /// This property is a mixed property and state (such as "checked" or "disabled")
     kPropMixedState = 0x100,
     /// This property should be reset on ::remove()
-    kPropResetOnRemove = 0x200
+    kPropResetOnRemove = 0x200,
+    /// This property is used by the view host layer to retrieve the component state.
+    kPropRuntimeState = 0x400,
+    /// This property should be evaluated recursively as it can contain data bindings.
+    kPropEvaluated = 0x800,
 };
 
 /**
@@ -266,11 +266,27 @@ public:
         return map ? asMapped(context, value, map, defvalue) : func(context, value);
     }
 
+    /**
+     * TODO: Move the binding function directly into the prop definition itself to avoid creating it each time.
+     * @return A binding function that can be applied.  This strongly depends on the PropDef remaining fixed.
+     */
+    BindingFunction getBindingFunction() const
+    {
+        if (map)
+            return [&](const Context& context, Object value) {
+                return asMapped(context, value, map, defvalue);
+            };
+
+        return [&](const Context& context, Object value) {
+            return func(context, value);
+        };
+    }
+
     K key;
     std::string name;
     Object defvalue;
-    int flags;
     BindingFunction func;
+    int flags;
     Bimap<int, std::string> *map;
 };
 

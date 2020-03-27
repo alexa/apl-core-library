@@ -16,7 +16,7 @@
  * Loading and displaying results of parsing of a directive.
  */
 
-#include <pegtl.hh>
+#include <tao/pegtl.hpp>
 #include <clocale>
 
 #include "apl/content/directive.h"
@@ -25,6 +25,7 @@
 #include "utils.h"
 
 using namespace apl;
+namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 
 const char *USAGE_STRING = R"(
 parseDirective [OPTIONS] DIRECTIVE
@@ -118,6 +119,12 @@ void fixComponentTree(rapidjson::Value& tree, rapidjson::Document::AllocatorType
             fixComponentTree(*it, alloc);
 }
 
+#ifndef PATH_MAX
+// if not already defined, define it.
+// value is borrowed from the clang toolchain's definition
+#define PATH_MAX 260
+#endif
+
 class WorkingDirectory {
 public:
     WorkingDirectory(std::initializer_list<std::string> list) {
@@ -130,12 +137,11 @@ public:
         mWorkingDirectory = temp;
 
         for (const auto& item : list) {
-            int status = mkdir(item.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
+            int status = createDirectory(item);
             if (status != 0 && errno != EEXIST) {
                 std::cerr << "Unable to create directory " << item << ": " << errno << std::endl;
                 exit(1);
             }
-
             status = chdir(item.c_str());
             if (status != 0) {
                 std::cerr << "Unable to chdir " << item << " : " << errno << std::endl;
