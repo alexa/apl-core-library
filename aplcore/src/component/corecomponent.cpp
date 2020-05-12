@@ -1041,7 +1041,7 @@ CoreComponent::fixTransform(bool useDirtyFlag)
     auto transform = mCalculated.get(kPropertyTransformAssigned);
 
     if (transform.isArray()) {
-        transform = Transformation::create(getContext(), transform.getArray());
+        transform = Transformation::create(*getContext(), transform.getArray());
         mCalculated.set(kPropertyTransformAssigned, transform);
     }
 
@@ -1397,6 +1397,20 @@ inline Object
 defaultHeight(Component& component, const RootConfig& rootConfig)
 {
     return rootConfig.getDefaultComponentHeight(component.getType());
+}
+
+void
+CoreComponent::fixSpacing(bool reset) {
+    auto spacing = getCalculated(kPropertySpacing).asDimension(*mContext);
+    if (reset) spacing = 0;
+    if (spacing.isAbsolute()) {
+        YGNodeRef parent = YGNodeGetParent(mYGNodeRef);
+        if (!parent)
+            return;
+
+        YGEdge edge = YGNodeStyleGetFlexDirection(parent) == YGFlexDirectionColumn ? YGEdgeTop : YGEdgeLeft;
+        YGNodeStyleSetMargin(mYGNodeRef, edge, spacing.getValue());
+    }
 }
 
 const ComponentPropDefSet&

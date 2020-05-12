@@ -75,7 +75,7 @@ Builder::populateSingleChildLayout(const ContextPtr& context,
 
     Properties props;
     auto child = expandSingleComponentFromArray(context,
-                                                arrayifyProperty(context, item, "item", "items"),
+                                                arrayifyProperty(*context, item, "item", "items"),
                                                 props,
                                                 layout,
                                                 path.addProperty(item, "item", "items"));
@@ -93,7 +93,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
     Properties firstProps;
 
     auto child = expandSingleComponentFromArray(context,
-                                                arrayifyProperty(context, item, "firstItem"),
+                                                arrayifyProperty(*context, item, "firstItem"),
                                                 firstProps,
                                                 layout,
                                                 path.addProperty(item, "firstItem"));
@@ -109,10 +109,10 @@ Builder::populateLayoutComponent(const ContextPtr& context,
 
     std::shared_ptr<LayoutRebuilder> layoutBuilder = nullptr;  // Reserve space for now.  In the future, move all logic in
 
-    const auto items = arrayifyProperty(context, item, "item", "items");
+    const auto items = arrayifyProperty(*context, item, "item", "items");
     if (!items.empty()) {
         auto childPath = path.addProperty(item, "item", "items");
-        auto data = arrayifyPropertyAsObject(context, item, "data");
+        auto data = arrayifyPropertyAsObject(*context, item, "data");
 
         auto liveData = data.getLiveDataObject();
         if (liveData && liveData->asArray()) {
@@ -120,7 +120,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
             layoutBuilder->build();
         }
         else {
-            auto dataItems = evaluateRecursive(context, data);
+            auto dataItems = evaluateRecursive(*context, data);
             if (!dataItems.empty()) {
                 LOG_IF(DEBUG_BUILDER) << "data size=" << dataItems.size();
                 auto length = dataItems.size();
@@ -165,7 +165,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                     // TODO: Numbered, spacing, ordinal changes
                     Properties childProps;
                     child = expandSingleComponentFromArray(childContext,
-                                                           arrayify(context, element),
+                                                           arrayify(*context, element),
                                                            childProps,
                                                            layout,
                                                            childPath.addIndex(i));
@@ -186,7 +186,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
 
     Properties lastProps;
     child = expandSingleComponentFromArray(context,
-                                           arrayifyProperty(context, item, "lastItem"),
+                                           arrayifyProperty(*context, item, "lastItem"),
                                            lastProps,
                                            layout,
                                            path.addProperty(item, "lastItem"));
@@ -237,7 +237,7 @@ Builder::expandSingleComponent(const ContextPtr& context,
 
         // Create a new context and fill out the binding
         ContextPtr expanded = Context::create(context);
-        auto bindings = arrayifyProperty(context, item, "bind");
+        auto bindings = arrayifyProperty(*context, item, "bind");
         for (const auto& binding : bindings) {
             auto name = propertyAsString(*expanded, binding, "name");
             if (name.empty() || !binding.has("value"))
@@ -352,7 +352,7 @@ Builder::expandLayout(const ContextPtr& context,
         }
     }
     return expandSingleComponentFromArray(cptr,
-                                          arrayifyProperty(cptr, layout, "item", "items"),
+                                          arrayifyProperty(*cptr, layout, "item", "items"),
                                           properties,
                                           parent,
                                           path.addProperty(layout, "item", "items"));

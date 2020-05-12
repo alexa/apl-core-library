@@ -51,7 +51,7 @@ ComponentDependant::recalculate(bool useDirtyFlag) const
         if (mEquation.isEvaluable()) {
             value = mEquation.eval();
         } else {
-            value = evaluateRecursive(bindingContext, mEquation);
+            value = evaluateRecursive(*bindingContext, mEquation);
         }
         value = mBindingFunction(*bindingContext, value);
         downstream->updateProperty(mDownstreamKey, value);

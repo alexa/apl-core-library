@@ -26,10 +26,12 @@ namespace apl {
 
 class EasingCurve;
 class streamer;
+using EasingCurvePtr = const std::shared_ptr<EasingCurve>;
 
 class Easing {
+
 public:
-    Easing(EasingCurve* curve) : mCurve(curve), mLastTime(0), mLastValue(0) { assert(curve); }
+    Easing(EasingCurvePtr curve) : mCurve(curve), mLastTime(0), mLastValue(0) { assert(curve); }
     Easing(const Easing& other) : mCurve(other.mCurve), mLastTime(0), mLastValue(0) {}
     Easing& operator=(const Easing& other) {
         mCurve = other.mCurve;
@@ -70,9 +72,7 @@ public:
     friend streamer& operator<<(streamer& , const Easing&);
 
 private:
-    // Note: We use a raw pointer because the Easing::parse method caches the curves.  We only throw out
-    //       curves when the cache gets too large.
-    const EasingCurve *mCurve;
+    std::shared_ptr<EasingCurve> mCurve;
     float mLastTime, mLastValue;
 };
 

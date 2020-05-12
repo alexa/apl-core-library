@@ -49,7 +49,7 @@ public:
         ASSERT_TRUE(root->hasEvent());
         auto event = root->popEvent();
 
-        auto position = event.getValue(kEventPropertyPosition).asDimension(context);
+        auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
         event.getComponent()->update(kUpdateScrollPosition, position.getValue());
         event.getActionRef().resolve();
     }
@@ -60,7 +60,7 @@ public:
         ASSERT_TRUE(root->hasEvent());
         auto event = root->popEvent();
 
-        auto position = event.getValue(kEventPropertyPosition).asDimension(context);
+        auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
         event.getComponent()->update(kUpdateScrollPosition, position.getValue());
         event.getActionRef().resolve();
         root->clearPending();
@@ -83,7 +83,7 @@ public:
         ASSERT_TRUE(root->hasEvent());
         auto event = root->popEvent();
 
-        auto position = event.getValue(kEventPropertyPosition).asDimension(context);
+        auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
         event.getComponent()->update(kUpdateScrollPosition, position.getValue());
         event.getActionRef().resolve();
         root->clearPending();
@@ -105,7 +105,7 @@ public:
         ASSERT_TRUE(root->hasEvent());
         auto event = root->popEvent();
 
-        auto position = event.getValue(kEventPropertyPosition).asDimension(context);
+        auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
         event.getComponent()->update(kUpdateScrollPosition, position.getValue());
         event.getActionRef().resolve();
         root->clearPending();
@@ -195,7 +195,7 @@ TEST_F(ScrollTest, ScrollForwardMultiple)
         // Handle the "ScrollTo" event
         auto event = root->popEvent();
         ASSERT_EQ(kEventTypeScrollTo, event.getType()) << "case: " << i;
-        auto position = event.getValue(kEventPropertyPosition).asDimension(context);
+        auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
         int target = 100 * (i+1);
         if (target > 800) target = 800;
         ASSERT_EQ(target, position.getValue()) << "case: " << i;
@@ -256,7 +256,7 @@ TEST_F(ScrollTest, ScrollTextWithAlignment)
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    auto position = event.getValue(kEventPropertyPosition).asDimension(context);
+    auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
     ASSERT_EQ(Dimension(125), position);
 }
 
@@ -1445,7 +1445,7 @@ TEST_F(ScrollTest, SequenceToVerticalComponent)
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
 
-    auto position = event.getValue(kEventPropertyPosition).asDimension(context);
+    auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
     ASSERT_EQ(150, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
@@ -1458,7 +1458,7 @@ TEST_F(ScrollTest, SequenceToVerticalComponent)
     ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
 
-    position = event.getValue(kEventPropertyPosition).asDimension(context);
+    position = event.getValue(kEventPropertyPosition).asDimension(*context);
     ASSERT_EQ(1500, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
@@ -1471,7 +1471,7 @@ TEST_F(ScrollTest, SequenceToVerticalComponent)
     ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
 
-    position = event.getValue(kEventPropertyPosition).asDimension(context);
+    position = event.getValue(kEventPropertyPosition).asDimension(*context);
     ASSERT_EQ(1800, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
@@ -1489,7 +1489,7 @@ TEST_F(ScrollTest, SequenceToVerticalSubComponent)
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
 
-    auto position = event.getValue(kEventPropertyPosition).asDimension(context);
+    auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
     ASSERT_EQ(150, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
@@ -1502,7 +1502,7 @@ TEST_F(ScrollTest, SequenceToVerticalSubComponent)
     ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
 
-    position = event.getValue(kEventPropertyPosition).asDimension(context);
+    position = event.getValue(kEventPropertyPosition).asDimension(*context);
     ASSERT_EQ(1500, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
@@ -1549,7 +1549,7 @@ TEST_F(ScrollTest, SequenceToHorizontalComponent)
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
 
-    auto position = event.getValue(kEventPropertyPosition).asDimension(context);
+    auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
     ASSERT_EQ(150, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
@@ -1562,7 +1562,7 @@ TEST_F(ScrollTest, SequenceToHorizontalComponent)
     ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
 
-    position = event.getValue(kEventPropertyPosition).asDimension(context);
+    position = event.getValue(kEventPropertyPosition).asDimension(*context);
     ASSERT_EQ(1500, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
@@ -1575,7 +1575,7 @@ TEST_F(ScrollTest, SequenceToHorizontalComponent)
     ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
 
-    position = event.getValue(kEventPropertyPosition).asDimension(context);
+    position = event.getValue(kEventPropertyPosition).asDimension(*context);
     ASSERT_EQ(1800, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
@@ -1593,7 +1593,7 @@ TEST_F(ScrollTest, SequenceToHorizontalSubComponent)
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
 
-    auto position = event.getValue(kEventPropertyPosition).asDimension(context);
+    auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
     ASSERT_EQ(150, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
@@ -1606,7 +1606,7 @@ TEST_F(ScrollTest, SequenceToHorizontalSubComponent)
     ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
 
-    position = event.getValue(kEventPropertyPosition).asDimension(context);
+    position = event.getValue(kEventPropertyPosition).asDimension(*context);
     ASSERT_EQ(1500, position.getValue());
     event.getComponent()->update(kUpdateScrollPosition, position.getValue());
     event.getActionRef().resolve();
@@ -1656,6 +1656,6 @@ TEST_F(ScrollTest, Pager)
 
     ASSERT_EQ(kEventTypeSetPage, event.getType());
     ASSERT_EQ(component, event.getComponent());
-    ASSERT_EQ(Dimension(1), event.getValue(kEventPropertyPosition).asDimension(context));
+    ASSERT_EQ(Dimension(1), event.getValue(kEventPropertyPosition).asDimension(*context));
     ASSERT_EQ(kEventDirectionForward, event.getValue(kEventPropertyDirection).getInteger());
 }

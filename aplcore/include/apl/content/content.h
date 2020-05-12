@@ -21,6 +21,7 @@
 
 #include "apl/common.h"
 #include "apl/content/package.h"
+#include "apl/content/settings.h"
 #include "apl/engine/properties.h"
 #include "apl/utils/session.h"
 
@@ -152,6 +153,11 @@ public:
      *         the transparent color if no background is defined.
      */
     Object getBackground(const Metrics& metrics, const RootConfig& config) const;
+
+    /**
+     * @return document-wide properties.
+     */
+    const SettingsPtr getDocumentSettings() const;
 
     /**
      * @return The set of requested extensions (a list of URI values)

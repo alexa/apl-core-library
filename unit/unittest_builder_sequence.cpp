@@ -74,8 +74,6 @@ TEST_F(BuilderTestSequence, Simple)
     auto scrollPosition = component->getCalculated(kPropertyScrollPosition);
     ASSERT_TRUE(scrollPosition.isDimension());
     ASSERT_EQ(0, scrollPosition.asNumber());
-
-    component->release();
 }
 
 const char *EMPTY_SEQUENCE = "{"
@@ -118,8 +116,6 @@ TEST_F(BuilderTestSequence, Empty)
 
     // Children
     ASSERT_EQ(0, component->getChildCount());
-
-    component->release();
 }
 
 const char *CHILDREN_TEST = "{"
@@ -197,8 +193,6 @@ TEST_F(BuilderTestSequence, Children)
     child = component->getChildAt(4)->getCalculated();
     ASSERT_EQ(Object("C 4-2-5"), child.get(kPropertyText).asString());
     ASSERT_EQ(Object(Dimension(0)), child.get(kPropertySpacing));
-
-    component->release();
 }
 
 const char *LAYOUT_CACHE_TEST = "{"
@@ -238,6 +232,4 @@ TEST_F(BuilderTestSequence, LayoutCache)
 
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 3), true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(4, 4), false));
-
-    component->release();
 }

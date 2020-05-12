@@ -505,8 +505,6 @@ TEST_F(BuilderTest, SimpleContainer)
     ASSERT_EQ(0, text["shrink"].getDouble());
     ASSERT_EQ(Object(Dimension(0)), text["spacing"]);
     ASSERT_EQ(Object::NULL_OBJECT(), text["top"]);
-
-    component->release();  // Must manually release because nested components reference each other
 }
 
 static const char *FULL_CONTAINER = "{"
@@ -630,8 +628,6 @@ TEST_F(BuilderTest, FullContainer)
 
     // Fourth item
     ASSERT_EQ("Last", component->getChildAt(3)->getCalculated(kPropertyText).asString());
-
-    component->release();
 }
 
 static const char *RELATIVE_POSITION =
@@ -762,8 +758,6 @@ TEST_F(BuilderTest, DataContainer)
         ss << "Item " << (char) ('a'+i) << " index=" << i;
         ASSERT_EQ(ss.str(), child->getCalculated(kPropertyText).asString());
     }
-
-    component->release();
 }
 
 const char *DATA_CONTAINER_2 = "{"
@@ -813,8 +807,6 @@ TEST_F(BuilderTest, DataContainer2)
         ss << "Item " << (char) ('A'+i) << " index=" << i;
         ASSERT_EQ(ss.str(), child->getCalculated(kPropertyText).asString());
     }
-
-    component->release();
 }
 
 static const char *DATA_CONTAINER_DEEP_EVALUATION =
@@ -888,9 +880,6 @@ TEST_F(BuilderTest, SimpleScrollView)
 
     // Children
     ASSERT_EQ(1, component->getChildCount());
-    auto text = component->getChildAt(0)->getCalculated();
-
-    component->release();
 }
 
 
@@ -947,9 +936,6 @@ TEST_F(BuilderTest, SimpleFrame)
 
     // Children
     ASSERT_EQ(1, component->getChildCount());
-    auto text = component->getChildAt(0)->getCalculated();
-
-    component->release();
 }
 
 const char *SIMPLE_TOUCH_WRAPPER = "{"
@@ -1016,8 +1002,6 @@ TEST_F(BuilderTest, SimpleTouchWrapper)
 
     // Children
     ASSERT_EQ(1, component->getChildCount());
-    auto text = component->getChildAt(0)->getCalculated();
-    component->release();
 }
 
 
@@ -1094,8 +1078,6 @@ TEST_F(BuilderTest, NumberingItems)
     ASSERT_EQ(Object("F 4-4-7"), component->getChildAt(5)->getCalculated(kPropertyText).asString());
     ASSERT_EQ(Object("G 5-1-7"), component->getChildAt(6)->getCalculated(kPropertyText).asString());
     ASSERT_EQ(Object("Last"), component->getChildAt(7)->getCalculated(kPropertyText).asString());
-
-    component->release();
 }
 
 const char *NUMBER_TEST_2 = "{"
@@ -1148,8 +1130,6 @@ TEST_F(BuilderTest, NumberingDataItems)
     ASSERT_EQ(Object("C 2-1-5"), component->getChildAt(2)->getCalculated(kPropertyText).asString());
     ASSERT_EQ(Object("B 3-2-5"), component->getChildAt(3)->getCalculated(kPropertyText).asString());
     ASSERT_EQ(Object("C 4-2-5"), component->getChildAt(4)->getCalculated(kPropertyText).asString());
-
-    component->release();
 }
 
 static const char *SIMPLE_VIDEO = "{"

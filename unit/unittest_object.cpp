@@ -395,7 +395,7 @@ TEST(ObjectTest, Transform)
 
     auto context = Context::create(Metrics().size(1024,800), makeDefaultSession());
 
-    auto transform = Transformation::create(*context, arrayify(context, Object(doc)));
+    auto transform = Transformation::create(*context, arrayify(*context, Object(doc)));
 
     Object a = Object(transform);
     ASSERT_TRUE(a.isTransform());

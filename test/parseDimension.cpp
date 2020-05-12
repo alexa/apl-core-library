@@ -44,7 +44,7 @@ main(int argc, char *argv[])
 
     for (const auto& m : args) {
         s.reset();
-        auto dimen = apl::Dimension(c, m);
+        auto dimen = apl::Dimension(*c, m);
         s << dimen;
         std::cout << s.str() << std::endl;
     }

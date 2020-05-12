@@ -50,8 +50,8 @@ static const char* BASIC =
 TEST_F(RequestedExtensionTest, Basic) {
     loadDocument(BASIC);
 
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.foo}")));
-    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(context, "${environment.extension.XXX}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.foo}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension.XXX}")));
 }
 
 static const char* FANCY =
@@ -85,14 +85,14 @@ static const char* FANCY =
 TEST_F(RequestedExtensionTest, Fancy) {
     loadDocument(FANCY);
 
-    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(context, "${environment.extension.URI1}")));
-    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(context, "${environment.extension.URI2}")));
-    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(context, "${environment.extension.URI3}")));
-    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(context, "${environment.extension._URI4}")));
-    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(context, "${environment.extension.XXX}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension.URI1}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension.URI2}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension.URI3}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension._URI4}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension.XXX}")));
     // verify the extension environment by name
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.foo}")));
-    ASSERT_TRUE(IsEqual(Object::FALSE_OBJECT(), evaluate(context, "${environment.extension.foo2}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.foo}")));
+    ASSERT_TRUE(IsEqual(Object::FALSE_OBJECT(), evaluate(*context, "${environment.extension.foo2}")));
 
     ASSERT_TRUE(ConsoleMessage());
 }
@@ -134,11 +134,11 @@ static const char* SIMPLE_PACKAGE =
 TEST_F(RequestedExtensionTest, Import) {
     loadDocumentWithPackage(DOC_WITH_IMPORT, SIMPLE_PACKAGE);
 
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.foo}")));
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.foo2}")));
-    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(context, "${environment.extension.URI3}")));
-    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(context, "${environment.extension.foo3}")));
-    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(context, "${environment.extension.XXX}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.foo}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.foo2}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension.URI3}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension.foo3}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension.XXX}")));
 }
 
 static const char* DUPLICATE_NAME =
@@ -203,9 +203,9 @@ TEST_F(RequestedExtensionTest, RepeatedAlias) {
     config.registerExtension("_URI1");
     loadDocument(REPEATED_NAME);
 
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.myname}")));
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.myname2}")));
-    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(context, "${environment.extension.XXX}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.myname}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.myname2}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension.XXX}")));
 }
 
 static const char* MISSING_URI =
@@ -230,9 +230,9 @@ static const char* MISSING_URI =
 TEST_F(RequestedExtensionTest, MissingURI) {
     loadDocument(MISSING_URI);
 
-    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(context, "${environment.extension.URI1}")));
-    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(context, "${environment.extension.myname}")));
-    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(context, "${environment.extension.XXX}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension.URI1}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension.myname}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension.XXX}")));
 
     ASSERT_TRUE(ConsoleMessage());
 }
@@ -249,7 +249,7 @@ TEST_F(RequestedExtensionTest, ExtensionWithDefaultConfig) {
     ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), c));
 
     // verify the environment evaluates to true for the extension name
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.foo}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.foo}")));
 }
 
 /**
@@ -380,25 +380,25 @@ TEST_F(RequestedExtensionTest, ExtensionWithSimpleConfig) {
     auto b = config.getExtensionEnvironment("_URIXbool");
     ASSERT_TRUE(b.isBoolean());
     ASSERT_TRUE(b.getBoolean());
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.Xbool}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.Xbool}")));
 
     // verify config and environment for string
     auto d = config.getExtensionEnvironment("_URIXstring");
     ASSERT_TRUE(d.isString());
     ASSERT_EQ("dog", d.getString());
-    ASSERT_TRUE(IsEqual("dog", evaluate(context, "${environment.extension.Xstring}")));
+    ASSERT_TRUE(IsEqual("dog", evaluate(*context, "${environment.extension.Xstring}")));
 
     // verify config and environment for number
     auto n = config.getExtensionEnvironment("_URIXnumber");
     ASSERT_TRUE(n.isNumber());
     ASSERT_EQ(64, n.getInteger());
-    ASSERT_TRUE(IsEqual(64, evaluate(context, "${environment.extension.Xnumber}")));
+    ASSERT_TRUE(IsEqual(64, evaluate(*context, "${environment.extension.Xnumber}")));
 
     // verify config and environment for boolean
     auto c = config.getExtensionEnvironment("_URIXcolor");
     ASSERT_TRUE(c.isColor());
     ASSERT_EQ(Color::BLUE, c.getColor());
-    ASSERT_TRUE(IsEqual(Color(Color::BLUE), evaluate(context, "${environment.extension.Xcolor}")));
+    ASSERT_TRUE(IsEqual(Color(Color::BLUE), evaluate(*context, "${environment.extension.Xcolor}")));
 }
 
 /**
@@ -423,9 +423,9 @@ TEST_F(RequestedExtensionTest, ExtensionWithConfigMap) {
     ASSERT_TRUE(IsEqual(true, map.at("cfg3")));
 
     // verify the environment has configuration values for the extension name
-    ASSERT_TRUE(IsEqual("dog", evaluate(context, "${environment.extension.Xmap.cfg1}")));
-    ASSERT_TRUE(IsEqual(64, evaluate(context, "${environment.extension.Xmap.cfg2}")));
-    ASSERT_TRUE(IsEqual(true, evaluate(context, "${environment.extension.Xmap.cfg3}")));
+    ASSERT_TRUE(IsEqual("dog", evaluate(*context, "${environment.extension.Xmap.cfg1}")));
+    ASSERT_TRUE(IsEqual(64, evaluate(*context, "${environment.extension.Xmap.cfg2}")));
+    ASSERT_TRUE(IsEqual(true, evaluate(*context, "${environment.extension.Xmap.cfg3}")));
 }
 
 
@@ -445,8 +445,8 @@ TEST_F(RequestedExtensionTest, ExtensionWithSimpleConfigMultiName) {
     auto str = c.getString();
     ASSERT_EQ("dog", str);
 
-    ASSERT_TRUE(IsEqual("dog", evaluate(context, "${environment.extension.myname}")));
-    ASSERT_TRUE(IsEqual("dog", evaluate(context, "${environment.extension.myname2}")));
+    ASSERT_TRUE(IsEqual("dog", evaluate(*context, "${environment.extension.myname}")));
+    ASSERT_TRUE(IsEqual("dog", evaluate(*context, "${environment.extension.myname2}")));
 }
 
 /**
@@ -471,16 +471,16 @@ TEST_F(RequestedExtensionTest, ExtensionWithConfigMapMultiName) {
     ASSERT_TRUE(IsEqual(true, map.at("cfg3")));
 
     // verify the environment has configuration values for the extension name
-    ASSERT_TRUE(evaluate(context, "${environment.extension.myname}").isMap());
-    ASSERT_TRUE(IsEqual("dog", evaluate(context, "${environment.extension.myname.cfg1}")));
-    ASSERT_TRUE(IsEqual(64, evaluate(context, "${environment.extension.myname.cfg2}")));
-    ASSERT_TRUE(IsEqual(true, evaluate(context, "${environment.extension.myname.cfg3}")));
+    ASSERT_TRUE(evaluate(*context, "${environment.extension.myname}").isMap());
+    ASSERT_TRUE(IsEqual("dog", evaluate(*context, "${environment.extension.myname.cfg1}")));
+    ASSERT_TRUE(IsEqual(64, evaluate(*context, "${environment.extension.myname.cfg2}")));
+    ASSERT_TRUE(IsEqual(true, evaluate(*context, "${environment.extension.myname.cfg3}")));
 
     // verify the environment has configuration values for the extension second name
-    ASSERT_TRUE(evaluate(context, "${environment.extension.myname2}").isMap());
-    ASSERT_TRUE(IsEqual("dog", evaluate(context, "${environment.extension.myname2.cfg1}")));
-    ASSERT_TRUE(IsEqual(64, evaluate(context, "${environment.extension.myname2.cfg2}")));
-    ASSERT_TRUE(IsEqual(true, evaluate(context, "${environment.extension.myname2.cfg3}")));
+    ASSERT_TRUE(evaluate(*context, "${environment.extension.myname2}").isMap());
+    ASSERT_TRUE(IsEqual("dog", evaluate(*context, "${environment.extension.myname2.cfg1}")));
+    ASSERT_TRUE(IsEqual(64, evaluate(*context, "${environment.extension.myname2.cfg2}")));
+    ASSERT_TRUE(IsEqual(true, evaluate(*context, "${environment.extension.myname2.cfg3}")));
 }
 
 
@@ -513,7 +513,7 @@ TEST_F(RequestedExtensionTest, DocWithoutSettings) {
     loadDocument(BASIC);
 
     // verify extensions available
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.foo}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.foo}")));
 
     // verify no settings on the extensions
     ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), content->getExtensionSettings("URI1")));
@@ -527,7 +527,7 @@ TEST_F(RequestedExtensionTest, DocWithSettings) {
     loadDocument(SETTINGS);
 
     // verify extensions available
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.foo}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.foo}")));
 
     // verify settings on the named extension
     auto es = content->getExtensionSettings("URI1");
@@ -577,8 +577,8 @@ TEST_F(RequestedExtensionTest, DocWithMultiSettings) {
     loadDocument(SETTINGS_REPEAT_URI);
 
     // verify extensions available
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.foo}")));
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.bar}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.foo}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.bar}")));
 
     // verify settings on the first named extension
     auto es = content->getExtensionSettings("URI1");
@@ -633,8 +633,8 @@ TEST_F(RequestedExtensionTest, DocWithSettingsOverride) {
     loadDocument(SETTINGS_REPEAT_URI_OVERRIDE);
 
     // verify extensions available
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.foo}")));
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.bar}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.foo}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.bar}")));
 
     // verify settings on the first named extension
     auto es = content->getExtensionSettings("URI1");
@@ -729,7 +729,7 @@ TEST_F(RequestedExtensionTest, SettingsWithMultiPackage) {
     loadDocumentWithMultiPackage(SETTINGS_WITH_PACKAGE, SETTINGS_PKG1, SETTINGS_PKG2);
 
     // verify extensions available
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(context, "${environment.extension.foo}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.foo}")));
 
     // verify settings on the named extension
     auto es = content->getExtensionSettings("URI1");

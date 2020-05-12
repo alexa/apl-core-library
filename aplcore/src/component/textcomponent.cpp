@@ -161,7 +161,7 @@ TextComponent::checkKaraokeTargetColor()
         if (stylePtr) {
             auto value = stylePtr->find("color");
             if (value != stylePtr->end())
-                targetColor = value->second.asColor(mContext);
+                targetColor = value->second.asColor(*mContext);
         }
 
         // Check the non-karaoke color
@@ -171,7 +171,7 @@ TextComponent::checkKaraokeTargetColor()
         if (stylePtr) {
             auto value = stylePtr->find("color");
             if (value != stylePtr->end())
-                nonColor = value->second.asColor(mContext);
+                nonColor = value->second.asColor(*mContext);
         }
     }
 

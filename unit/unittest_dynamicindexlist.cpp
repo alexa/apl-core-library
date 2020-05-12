@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -148,7 +148,7 @@ public:
     static std::string
     createLazyLoad(int listVersion, int correlationToken, int index, const std::string& items ) {
         std::string listVersionString = listVersion < 0 ? "" : ("\"listVersion\": " + std::to_string(listVersion) + ",");
-        std::string ctString = correlationToken < 0 ? "" : ("\"correlationToken\": " + std::to_string(correlationToken) + ",");
+        std::string ctString = correlationToken < 0 ? "" : ("\"correlationToken\": \"" + std::to_string(correlationToken) + "\",");
         return "{"
                "  \"presentationToken\": \"presentationToken\","
                "  \"listId\": \"vQdpOESlok\","
@@ -245,7 +245,13 @@ public:
     }
 
     DynamicIndexListTest() : DocumentWrapper() {
-        DynamicIndexListConfiguration cnf = {SOURCE_TYPE, TEST_CHUNK_SIZE, 5, 2, 100};
+        auto cnf = DynamicIndexListConfiguration()
+            .setType(SOURCE_TYPE)
+            .setCacheChunkSize(TEST_CHUNK_SIZE)
+            .setListUpdateBufferSize(5)
+            .setFetchRetries(2)
+            .setFetchTimeout(100)
+            .setCacheExpiryTimeout(500);
         ds = std::make_shared<DynamicIndexListDataSourceProvider>(cnf);
         config.dataSourceProvider(SOURCE_TYPE, ds);
     }
@@ -275,10 +281,17 @@ TEST_F(DynamicIndexListTest, Configuration) {
     ASSERT_EQ(42, actualConfiguration.cacheChunkSize);
     ASSERT_EQ(5, actualConfiguration.listUpdateBufferSize);
     ASSERT_EQ(2, actualConfiguration.fetchRetries);
-    ASSERT_EQ(1000, actualConfiguration.fetchTimeout);
+    ASSERT_EQ(5000, actualConfiguration.fetchTimeout);
+    ASSERT_EQ(5000, actualConfiguration.cacheExpiryTimeout);
 
     // Full config
-    DynamicIndexListConfiguration expectedConfiguration = {"magic", 42, 7, 3, 2000};
+    auto expectedConfiguration = DynamicIndexListConfiguration()
+            .setType("magic")
+            .setCacheChunkSize(42)
+            .setListUpdateBufferSize(7)
+            .setFetchRetries(3)
+            .setFetchTimeout(2000)
+            .setCacheExpiryTimeout(10000);
     source = std::make_shared<DynamicIndexListDataSourceProvider>(expectedConfiguration);
     actualConfiguration = source->getConfiguration();
     ASSERT_EQ(expectedConfiguration.type, actualConfiguration.type);
@@ -286,6 +299,7 @@ TEST_F(DynamicIndexListTest, Configuration) {
     ASSERT_EQ(expectedConfiguration.listUpdateBufferSize, actualConfiguration.listUpdateBufferSize);
     ASSERT_EQ(expectedConfiguration.fetchRetries, actualConfiguration.fetchRetries);
     ASSERT_EQ(expectedConfiguration.fetchTimeout, actualConfiguration.fetchTimeout);
+    ASSERT_EQ(expectedConfiguration.cacheExpiryTimeout, actualConfiguration.cacheExpiryTimeout);
 
     // Default
     source = std::make_shared<DynamicIndexListDataSourceProvider>();
@@ -294,69 +308,66 @@ TEST_F(DynamicIndexListTest, Configuration) {
     ASSERT_EQ(10, actualConfiguration.cacheChunkSize);
     ASSERT_EQ(5, actualConfiguration.listUpdateBufferSize);
     ASSERT_EQ(2, actualConfiguration.fetchRetries);
-    ASSERT_EQ(1000, actualConfiguration.fetchTimeout);
+    ASSERT_EQ(5000, actualConfiguration.fetchTimeout);
+    ASSERT_EQ(5000, actualConfiguration.cacheExpiryTimeout);
 }
 
-static const char *DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 10,"
-        "        \"minimumInclusiveIndex\": 0,"
-        "        \"maximumExclusiveIndex\": 20,"
-        "        \"items\": [ 10, 11, 12, 13, 14 ]"
-        "    }"
-        "}";
+static const char *DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 20,
+    "items": [ 10, 11, 12, 13, 14 ]
+  }
+})";
 
-static const char *SMALLER_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 10,"
-        "        \"minimumInclusiveIndex\": 10,"
-        "        \"maximumExclusiveIndex\": 20,"
-        "        \"items\": [ 10, 11, 12, 13, 14 ]"
-        "    }"
-        "}";
+static const char *SMALLER_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 10,
+    "maximumExclusiveIndex": 20,
+    "items": [ 10, 11, 12, 13, 14 ]
+  }
+})";
 
-static const char *RESTRICTED_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 10,"
-        "        \"minimumInclusiveIndex\": 10,"
-        "        \"maximumExclusiveIndex\": 15,"
-        "        \"items\": [ 10, 11, 12, 13, 14 ]"
-        "    }"
-        "}";
+static const char *RESTRICTED_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 10,
+    "maximumExclusiveIndex": 15,
+    "items": [ 10, 11, 12, 13, 14 ]
+  }
+})";
 
-static const char *BASIC =
-        "{"
-        "    \"type\": \"APL\","
-        "    \"version\": \"1.3\","
-        "    \"theme\": \"dark\","
-        "    \"mainTemplate\": {"
-        "        \"parameters\": ["
-        "            \"dynamicSource\""
-        "        ],"
-        "        \"item\": {"
-        "            \"type\": \"Sequence\","
-        "            \"id\": \"sequence\","
-        "            \"height\": 300,"
-        "            \"data\": \"${dynamicSource}\","
-        "            \"items\": {"
-        "                \"type\": \"Text\","
-        "                \"id\": \"id${data}\","
-        "                \"width\": 100,"
-        "                \"height\": 100,"
-        "                \"text\": \"${data}\""
-        "            }"
-        "        }"
-        "    }"
-        "}";
+static const char *BASIC = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "height": 300,
+      "data": "${dynamicSource}",
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "width": 100,
+        "height": 100,
+        "text": "${data}"
+      }
+    }
+  }
+})";
 
 TEST_F(DynamicIndexListTest, Basic)
 {
@@ -403,56 +414,102 @@ TEST_F(DynamicIndexListTest, Basic)
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char *FIRST_AND_LAST =
-        "{"
-        "    \"type\": \"APL\","
-        "    \"version\": \"1.3\","
-        "    \"theme\": \"dark\","
-        "    \"mainTemplate\": {"
-        "        \"parameters\": ["
-        "            \"dynamicSource\""
-        "        ],"
-        "        \"item\": {"
-        "            \"type\": \"Sequence\","
-        "            \"id\": \"sequence\","
-        "            \"height\": 300,"
-        "            \"data\": \"${dynamicSource}\","
-        "            \"firstItem\": {"
-        "                \"type\": \"Text\","
-        "                \"id\": \"fi\","
-        "                \"width\": 100,"
-        "                \"height\": 100,"
-        "                \"text\": \"FI\""
-        "            },"
-        "            \"items\": {"
-        "                \"type\": \"Text\","
-        "                \"id\": \"id${data}\","
-        "                \"width\": 100,"
-        "                \"height\": 100,"
-        "                \"text\": \"${data}\""
-        "            },"
-        "            \"lastItem\": {"
-        "                \"type\": \"Text\","
-        "                \"id\": \"li\","
-        "                \"width\": 100,"
-        "                \"height\": 100,"
-        "                \"text\": \"LI\""
-        "            }"
-        "        }"
-        "    }"
-        "}";
+static const char *EMPTY = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "minimumInclusiveIndex": -5,
+    "maximumExclusiveIndex": 5,
+    "startIndex": 0
+  }
+})";
+
+TEST_F(DynamicIndexListTest, Empty)
+{
+    loadDocument(BASIC, EMPTY);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(0, component->getChildCount());
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 0, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, 0, "0, 1, 2, 3, 4")));
+    root->clearPending();
+
+    ASSERT_EQ(5, component->getChildCount());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 4), true));
+
+    ASSERT_EQ("id0", component->getChildAt(0)->getId());
+    ASSERT_EQ("id4", component->getChildAt(4)->getId());
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", -5, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 102, -5, "-5, -4, -3, -2, -1")));
+
+    root->clearPending();
+
+    ASSERT_EQ(10, component->getChildCount());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 1), false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(2, 9), true));
+
+    ASSERT_EQ("id-5", component->getChildAt(0)->getId());
+    ASSERT_EQ("id4", component->getChildAt(9)->getId());
+
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char *FIRST_AND_LAST = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "height": 300,
+      "data": "${dynamicSource}",
+      "firstItem": {
+        "type": "Text",
+        "id": "fi",
+        "width": 100,
+        "height": 100,
+        "text": "FI"
+      },
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "width": 100,
+        "height": 100,
+        "text": "${data}"
+      },
+      "lastItem": {
+        "type": "Text",
+        "id": "li",
+        "width": 100,
+        "height": 100,
+        "text": "LI"
+      }
+    }
+  }
+})";
 
 static const char *FIRST_AND_LAST_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 10,"
-        "        \"minimumInclusiveIndex\": 0,"
-        "        \"maximumExclusiveIndex\": 20,"
-        "        \"items\": [ 10 ]"
-        "    }"
-        "}";
+R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 20,
+    "items": [ 10 ]
+  }
+})";
 
 TEST_F(DynamicIndexListTest, WithFirstAndLast)
 {
@@ -509,37 +566,36 @@ TEST_F(DynamicIndexListTest, WithFirstAndLast)
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char *FIRST =
-        "{"
-        "    \"type\": \"APL\","
-        "    \"version\": \"1.3\","
-        "    \"theme\": \"dark\","
-        "    \"mainTemplate\": {"
-        "        \"parameters\": ["
-        "            \"dynamicSource\""
-        "        ],"
-        "        \"item\": {"
-        "            \"type\": \"Sequence\","
-        "            \"id\": \"sequence\","
-        "            \"height\": 300,"
-        "            \"data\": \"${dynamicSource}\","
-        "            \"firstItem\": {"
-        "                \"type\": \"Text\","
-        "                \"id\": \"fi\","
-        "                \"width\": 100,"
-        "                \"height\": 100,"
-        "                \"text\": \"FI\""
-        "            },"
-        "            \"items\": {"
-        "                \"type\": \"Text\","
-        "                \"id\": \"id${data}\","
-        "                \"width\": 100,"
-        "                \"height\": 100,"
-        "                \"text\": \"${data}\""
-        "            }"
-        "        }"
-        "    }"
-        "}";
+static const char *FIRST = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "height": 300,
+      "data": "${dynamicSource}",
+      "firstItem": {
+        "type": "Text",
+        "id": "fi",
+        "width": 100,
+        "height": 100,
+        "text": "FI"
+      },
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "width": 100,
+        "height": 100,
+        "text": "${data}"
+      }
+    }
+  }
+})";
 
 TEST_F(DynamicIndexListTest, WithFirst)
 {
@@ -591,37 +647,36 @@ TEST_F(DynamicIndexListTest, WithFirst)
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char *LAST =
-        "{"
-        "    \"type\": \"APL\","
-        "    \"version\": \"1.3\","
-        "    \"theme\": \"dark\","
-        "    \"mainTemplate\": {"
-        "        \"parameters\": ["
-        "            \"dynamicSource\""
-        "        ],"
-        "        \"item\": {"
-        "            \"type\": \"Sequence\","
-        "            \"id\": \"sequence\","
-        "            \"height\": 300,"
-        "            \"data\": \"${dynamicSource}\","
-        "            \"items\": {"
-        "                \"type\": \"Text\","
-        "                \"id\": \"id${data}\","
-        "                \"width\": 100,"
-        "                \"height\": 100,"
-        "                \"text\": \"${data}\""
-        "            },"
-        "            \"lastItem\": {"
-        "                \"type\": \"Text\","
-        "                \"id\": \"li\","
-        "                \"width\": 100,"
-        "                \"height\": 100,"
-        "                \"text\": \"LI\""
-        "            }"
-        "        }"
-        "    }"
-        "}";
+static const char *LAST = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "height": 300,
+      "data": "${dynamicSource}",
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "width": 100,
+        "height": 100,
+        "text": "${data}"
+      },
+      "lastItem": {
+        "type": "Text",
+        "id": "li",
+        "width": 100,
+        "height": 100,
+        "text": "LI"
+      }
+    }
+  }
+})";
 
 TEST_F(DynamicIndexListTest, WithLast)
 {
@@ -674,17 +729,16 @@ TEST_F(DynamicIndexListTest, WithLast)
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char *LAST_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 0,"
-        "        \"minimumInclusiveIndex\": 0,"
-        "        \"maximumExclusiveIndex\": 20,"
-        "        \"items\": [ 0 ]"
-        "    }"
-        "}";
+static const char *LAST_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 0,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 20,
+    "items": [ 0 ]
+  }
+})";
 
 TEST_F(DynamicIndexListTest, WithLastOneWay)
 {
@@ -747,17 +801,16 @@ TEST_F(DynamicIndexListTest, WithLastOneWay)
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char *SHRINKABLE_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 10,"
-        "        \"minimumInclusiveIndex\": 10,"
-        "        \"maximumExclusiveIndex\": 15,"
-        "        \"items\": [ 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ]"
-        "    }"
-        "}";
+static const char *SHRINKABLE_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 10,
+    "maximumExclusiveIndex": 15,
+    "items": [ 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ]
+  }
+})";
 
 TEST_F(DynamicIndexListTest, ShrinkData)
 {
@@ -768,17 +821,16 @@ TEST_F(DynamicIndexListTest, ShrinkData)
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 4}, true));
 }
 
-static const char *EMPTY_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 10,"
-        "        \"minimumInclusiveIndex\": 0,"
-        "        \"maximumExclusiveIndex\": 20,"
-        "        \"items\": []"
-        "    }"
-        "}";
+static const char *EMPTY_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 20,
+    "items": []
+  }
+})";
 
 TEST_F(DynamicIndexListTest, EmptySequence)
 {
@@ -802,69 +854,67 @@ TEST_F(DynamicIndexListTest, EmptySequence)
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 5, 5));
 }
 
-static const char *MULTI =
-        "{"
-        "    \"type\": \"APL\","
-        "    \"version\": \"1.3\","
-        "    \"theme\": \"dark\","
-        "    \"mainTemplate\": {"
-        "        \"parameters\": ["
-        "            \"dynamicSource1\", \"dynamicSource2\""
-        "        ],"
-        "        \"item\": {"
-        "            \"type\": \"Container\","
-        "            \"id\": \"container\","
-        "            \"items\": ["
-        "            {"
-        "                \"type\": \"Sequence\","
-        "                \"id\": \"sequence\","
-        "                \"height\": 300,"
-        "                \"data\": \"${dynamicSource1}\","
-        "                \"items\": {"
-        "                    \"type\": \"Text\","
-        "                    \"id\": \"id${data}\","
-        "                    \"width\": 100,"
-        "                    \"height\": 100,"
-        "                    \"text\": \"${data}\""
-        "                }"
-        "            },"
-        "            {"
-        "                \"type\": \"Sequence\","
-        "                \"id\": \"sequence\","
-        "                \"height\": 300,"
-        "                \"data\": \"${dynamicSource2}\","
-        "                \"items\": {"
-        "                    \"type\": \"Text\","
-        "                    \"id\": \"id${data}\","
-        "                    \"width\": 100,"
-        "                    \"height\": 100,"
-        "                    \"text\": \"${data}\""
-        "                }"
-        "            }"
-        "            ]"
-        "        }"
-        "    }"
-        "}";
+static const char *MULTI = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource1", "dynamicSource2"
+    ],
+    "item": {
+      "type": "Container",
+      "id": "container",
+      "items": [
+        {
+          "type": "Sequence",
+          "id": "sequence",
+          "height": 300,
+          "data": "${dynamicSource1}",
+          "items": {
+            "type": "Text",
+            "id": "id${data}",
+            "width": 100,
+            "height": 100,
+            "text": "${data}"
+          }
+        },
+        {
+          "type": "Sequence",
+          "id": "sequence",
+          "height": 300,
+          "data": "${dynamicSource2}",
+          "items": {
+            "type": "Text",
+            "id": "id${data}",
+            "width": 100,
+            "height": 100,
+            "text": "${data}"
+          }
+        }
+      ]
+    }
+  }
+})";
 
-static const char *MULTI_DATA =
-        "{"
-        "    \"dynamicSource1\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok1\","
-        "        \"startIndex\": 10,"
-        "        \"minimumInclusiveIndex\": 10,"
-        "        \"maximumExclusiveIndex\": 20,"
-        "        \"items\": [ 10, 11, 12, 13, 14 ]"
-        "    },"
-        "    \"dynamicSource2\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok2\","
-        "        \"startIndex\": 10,"
-        "        \"minimumInclusiveIndex\": 5,"
-        "        \"maximumExclusiveIndex\": 15,"
-        "        \"items\": [ 10, 11, 12, 13, 14 ]"
-        "    }"
-        "}";
+static const char *MULTI_DATA = R"({
+  "dynamicSource1": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok1",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 10,
+    "maximumExclusiveIndex": 20,
+    "items": [ 10, 11, 12, 13, 14 ]
+  },
+  "dynamicSource2": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok2",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 5,
+    "maximumExclusiveIndex": 15,
+    "items": [ 10, 11, 12, 13, 14 ]
+  }
+})";
 
 TEST_F(DynamicIndexListTest, Multi) {
     loadDocument(MULTI, MULTI_DATA);
@@ -873,67 +923,62 @@ TEST_F(DynamicIndexListTest, Multi) {
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok2", "102", 5, 5));
 }
 
-static const char *WRONG_NIN_INDEX_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 10,"
-        "        \"minimumInclusiveIndex\": 15,"
-        "        \"maximumExclusiveIndex\": 20,"
-        "        \"items\": [ 10, 11, 12, 13, 14 ]"
-        "    }"
-        "}";
+static const char *WRONG_NIN_INDEX_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 15,
+    "maximumExclusiveIndex": 20,
+    "items": [ 10, 11, 12, 13, 14 ]
+  }
+})";
 
-static const char *WRONG_MISSING_FIELDS_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"minimumInclusiveIndex\": 15,"
-        "        \"maximumExclusiveIndex\": 20,"
-        "        \"items\": [ 10, 11, 12, 13, 14 ]"
-        "    }"
-        "}";
+static const char *WRONG_MISSING_FIELDS_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "minimumInclusiveIndex": 15,
+    "maximumExclusiveIndex": 20,
+    "items": [ 10, 11, 12, 13, 14 ]
+  }
+})";
 
-static const char *WRONG_MAX_INDEX_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 0,"
-        "        \"minimumInclusiveIndex\": 15,"
-        "        \"maximumExclusiveIndex\": 15,"
-        "        \"items\": [ 10, 11, 12, 13, 14 ]"
-        "    }"
-        "}";
+static const char *WRONG_MAX_INDEX_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 0,
+    "minimumInclusiveIndex": 15,
+    "maximumExclusiveIndex": 15,
+    "items": [ 10, 11, 12, 13, 14 ]
+  }
+})";
 
-static const char *MULTI_CLONED_DATA =
-        "{"
-        "    \"dynamicSource1\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 10,"
-        "        \"minimumInclusiveIndex\": 0,"
-        "        \"maximumExclusiveIndex\": 20,"
-        "        \"items\": [ 10, 11, 12, 13, 14 ]"
-        "    },"
-        "    \"dynamicSource2\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 10,"
-        "        \"minimumInclusiveIndex\": 0,"
-        "        \"maximumExclusiveIndex\": 20,"
-        "        \"items\": [ 10, 11, 12, 13, 14 ]"
-        "    }"
-        "}";
+static const char *MULTI_CLONED_DATA = R"({
+  "dynamicSource1": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 20,
+    "items": [ 10, 11, 12, 13, 14 ]
+  },
+  "dynamicSource2": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 20,
+    "items": [ 10, 11, 12, 13, 14 ]
+  }
+})";
 
 TEST_F(DynamicIndexListTest, WrongDefinition) {
     loadDocument(BASIC, WRONG_MISSING_FIELDS_DATA);
     ASSERT_TRUE(session->checkAndClear());
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
     ASSERT_EQ(component->getChildCount(), 1);
-    component->release();
     component = nullptr;
     context = nullptr;
     root = nullptr;
@@ -942,7 +987,6 @@ TEST_F(DynamicIndexListTest, WrongDefinition) {
     ASSERT_TRUE(session->checkAndClear());
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
     ASSERT_EQ(component->getChildCount(), 1);
-    component->release();
     component = nullptr;
     context = nullptr;
     root = nullptr;
@@ -951,7 +995,6 @@ TEST_F(DynamicIndexListTest, WrongDefinition) {
     ASSERT_TRUE(session->checkAndClear());
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
     ASSERT_EQ(component->getChildCount(), 1);
-    component->release();
     component = nullptr;
     context = nullptr;
     root = nullptr;
@@ -962,29 +1005,28 @@ TEST_F(DynamicIndexListTest, WrongDefinition) {
     ASSERT_EQ(component->getChildCount(), 2);
 }
 
-static const char *BASIC_CONTAINER =
-        "{"
-        "    \"type\": \"APL\","
-        "    \"version\": \"1.3\","
-        "    \"theme\": \"dark\","
-        "    \"mainTemplate\": {"
-        "        \"parameters\": ["
-        "            \"dynamicSource\""
-        "        ],"
-        "        \"item\": {"
-        "            \"type\": \"Container\","
-        "            \"id\": \"container\","
-        "            \"data\": \"${dynamicSource}\","
-        "            \"items\": {"
-        "                \"type\": \"Text\","
-        "                \"id\": \"id${data}\","
-        "                \"width\": 100,"
-        "                \"height\": 100,"
-        "                \"text\": \"${data}\""
-        "            }"
-        "        }"
-        "    }"
-        "}";
+static const char *BASIC_CONTAINER = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "item": {
+      "type": "Container",
+      "id": "container",
+      "data": "${dynamicSource}",
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "width": 100,
+        "height": 100,
+        "text": "${data}"
+      }
+    }
+  }
+})";
 
 TEST_F(DynamicIndexListTest, Container)
 {
@@ -1011,55 +1053,49 @@ TEST_F(DynamicIndexListTest, Container)
     ASSERT_EQ("id14", component->getChildAt(9)->getId());
 }
 
-static const char *WRONG_CORRELATION_TOKEN =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"correlationToken\": \"76\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": 5,"
-        "    \"items\": [ 5, 6, 7, 8, 9 ]"
-        "}";
+static const char *WRONG_CORRELATION_TOKEN = R"({
+  "token": "presentationToken",
+  "correlationToken": "76",
+  "listId": "vQdpOESlok",
+  "startIndex": 5,
+  "items": [ 5, 6, 7, 8, 9 ]
+})";
 
-static const char *TEN_TO_FOURTEEN_RANGE =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": 5,"
-        "    \"minimumInclusiveIndex\": 10,"
-        "    \"maximumExclusiveIndex\": 15"
-        "}";
+static const char *TEN_TO_FOURTEEN_RANGE = R"({
+  "token": "presentationToken",
+  "listId": "vQdpOESlok",
+  "startIndex": 5,
+  "minimumInclusiveIndex": 10,
+  "maximumExclusiveIndex": 15
+})";
 
-static const char *INCOMPLETE_FOLLOWUP =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"startIndex\": 5,"
-        "    \"items\": [ 5, 6, 7, 8, 9 ]"
-        "}";
+static const char *INCOMPLETE_FOLLOWUP = R"({
+  "token": "presentationToken",
+  "startIndex": 5,
+  "items": [ 5, 6, 7, 8, 9 ]
+})";
 
-static const char *UNCORRELATED_FOLLOWUP =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"correlationToken\": \"42\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": 5,"
-        "    \"items\": [ 5, 6, 7, 8, 9 ]"
-        "}";
+static const char *UNCORRELATED_FOLLOWUP = R"({
+  "token": "presentationToken",
+  "correlationToken": "42",
+  "listId": "vQdpOESlok",
+  "startIndex": 5,
+  "items": [ 5, 6, 7, 8, 9 ]
+})";
 
-static const char *WRONG_LIST_FOLLOWUP =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"listId\": \"DEADBEEF\","
-        "    \"startIndex\": 5,"
-        "    \"items\": [ 5, 6, 7, 8, 9 ]"
-        "}";
+static const char *WRONG_LIST_FOLLOWUP = R"({
+  "token": "presentationToken",
+  "listId": "DEADBEEF",
+  "startIndex": 5,
+  "items": [ 5, 6, 7, 8, 9 ]
+})";
 
-static const char *NOT_ARRAY_ITEMS_FOLLOWUP =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": 5,"
-        "    \"items\": { \"abr\": 1 }"
-        "}";
+static const char *NOT_ARRAY_ITEMS_FOLLOWUP = R"({
+  "token": "presentationToken",
+  "listId": "vQdpOESlok",
+  "startIndex": 5,
+  "items": { "abr": 1 }
+})";
 
 TEST_F(DynamicIndexListTest, WrongUpdates)
 {
@@ -1100,26 +1136,24 @@ TEST_F(DynamicIndexListTest, WrongUpdates)
 }
 
 
-static const char *UNKNOWN_BOUNDS_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": -10,"
-        "        \"items\": [ -10, -9, -8, -7, -6 ]"
-        "    }"
-        "}";
+static const char *UNKNOWN_BOUNDS_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": -10,
+    "items": [ -10, -9, -8, -7, -6 ]
+  }
+})";
 
-static const char *RESPONSE_AND_BOUND_UNKNOWN_DOWN =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"correlationToken\": \"103\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": -20,"
-        "    \"minimumInclusiveIndex\": -20,"
-        "    \"maximumExclusiveIndex\": 5,"
-        "    \"items\": [ -20, -19, -18, -17, -16 ]"
-        "}";
+static const char *RESPONSE_AND_BOUND_UNKNOWN_DOWN = R"({
+  "token": "presentationToken",
+  "correlationToken": "103",
+  "listId": "vQdpOESlok",
+  "startIndex": -20,
+  "minimumInclusiveIndex": -20,
+  "maximumExclusiveIndex": 5,
+  "items": [ -20, -19, -18, -17, -16 ]
+})";
 
 TEST_F(DynamicIndexListTest, UnknownBounds)
 {
@@ -1165,13 +1199,12 @@ TEST_F(DynamicIndexListTest, UnknownBounds)
     ASSERT_EQ("id4", component->getChildAt(24)->getId());
 }
 
-static const char *SIMPLE_UPDATE =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": -15,"
-        "    \"items\": [ \"-15U\", \"-14U\", \"-13U\", \"-12U\", \"-11U\" ]"
-        "}";
+static const char *SIMPLE_UPDATE = R"({
+  "token": "presentationToken",
+  "listId": "vQdpOESlok",
+  "startIndex": -15,
+  "items": [ "-15U", "-14U", "-13U", "-12U", "-11U" ]
+})";
 
 TEST_F(DynamicIndexListTest, SimpleUpdate)
 {
@@ -1207,28 +1240,26 @@ TEST_F(DynamicIndexListTest, SimpleUpdate)
     ASSERT_EQ("-11U", component->getChildAt(4)->getCalculated(kPropertyText).asString());
 }
 
-static const char *POSITIVE_BOUNDS_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 10,"
-        "        \"minimumInclusiveIndex\": 7,"
-        "        \"maximumExclusiveIndex\": 20,"
-        "        \"items\": [ 10, 11, 12, 13, 14 ]"
-        "    }"
-        "}";
+static const char *POSITIVE_BOUNDS_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 7,
+    "maximumExclusiveIndex": 20,
+    "items": [ 10, 11, 12, 13, 14 ]
+  }
+})";
 
-static const char *RESPONSE_AND_BOUND_EXTEND =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"correlationToken\": \"101\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": 7,"
-        "    \"minimumInclusiveIndex\": 7,"
-        "    \"maximumExclusiveIndex\": 15,"
-        "    \"items\": [ 7, 8, 9 ]"
-        "}";
+static const char *RESPONSE_AND_BOUND_EXTEND = R"({
+  "token": "presentationToken",
+  "correlationToken": "101",
+  "listId": "vQdpOESlok",
+  "startIndex": 7,
+  "minimumInclusiveIndex": 7,
+  "maximumExclusiveIndex": 15,
+  "items": [ 7, 8, 9 ]
+})";
 
 TEST_F(DynamicIndexListTest, PositiveBounds)
 {
@@ -1259,28 +1290,27 @@ TEST_F(DynamicIndexListTest, PositiveBounds)
     ASSERT_EQ("id14", component->getChildAt(7)->getId());
 }
 
-static const char *BASIC_CRUD_SERIES =
-        "{"
-        "  \"presentationToken\": \"presentationToken\","
-        "  \"listId\": \"vQdpOESlok\","
-        "  \"listVersion\": 1,"
-        "  \"operations\": ["
-        "    {"
-        "      \"type\": \"InsertListItem\","
-        "      \"index\": 11,"
-        "      \"item\": 111"
-        "    },"
-        "    {"
-        "      \"type\": \"ReplaceListItem\","
-        "      \"index\": 13,"
-        "      \"item\": 113"
-        "    },"
-        "    {"
-        "      \"type\": \"DeleteListItem\","
-        "      \"index\": 12"
-        "    }"
-        "  ]"
-        "}";
+static const char *BASIC_CRUD_SERIES = R"({
+  "presentationToken": "presentationToken",
+  "listId": "vQdpOESlok",
+  "listVersion": 1,
+  "operations": [
+    {
+      "type": "InsertListItem",
+      "index": 11,
+      "item": 111
+    },
+    {
+      "type": "ReplaceListItem",
+      "index": 13,
+      "item": 113
+    },
+    {
+      "type": "DeleteListItem",
+      "index": 12
+    }
+  ]
+})";
 
 TEST_F(DynamicIndexListTest, CrudBasicSeries)
 {
@@ -1299,38 +1329,37 @@ TEST_F(DynamicIndexListTest, CrudBasicSeries)
     ASSERT_TRUE(CheckChildren({10, 111, 113, 13, 14}));
 }
 
-static const char *BROKEN_CRUD_SERIES =
-        "{"
-        "  \"presentationToken\": \"presentationToken\","
-        "  \"listId\": \"vQdpOESlok\","
-        "  \"listVersion\": 1,"
-        "  \"operations\": ["
-        "    {"
-        "      \"type\": \"InsertListItem\","
-        "      \"index\": 11,"
-        "      \"item\": 111"
-        "    },"
-        "    {"
-        "      \"type\": \"InsertListItem\","
-        "      \"index\": 27,"
-        "      \"item\": 27"
-        "    },"
-        "    {"
-        "      \"type\": \"ReplaceListItem\","
-        "      \"index\": 13,"
-        "      \"item\": 113"
-        "    },"
-        "    {"
-        "      \"type\": \"DeleteListItem\","
-        "      \"index\": 27,"
-        "      \"item\": 27"
-        "    },"
-        "    {"
-        "      \"type\": \"DeleteListItem\","
-        "      \"index\": 12"
-        "    }"
-        "  ]"
-        "}";
+static const char *BROKEN_CRUD_SERIES = R"({
+ "presentationToken": "presentationToken",
+ "listId": "vQdpOESlok",
+ "listVersion": 1,
+ "operations": [
+   {
+     "type": "InsertListItem",
+     "index": 11,
+     "item": 111
+   },
+   {
+     "type": "InsertListItem",
+     "index": 27,
+     "item": 27
+   },
+   {
+     "type": "ReplaceListItem",
+     "index": 13,
+     "item": 113
+   },
+   {
+     "type": "DeleteListItem",
+     "index": 27,
+     "item": 27
+   },
+   {
+     "type": "DeleteListItem",
+     "index": 12
+   }
+ ]
+})";
 
 TEST_F(DynamicIndexListTest, CrudInvalidInbetweenSeries)
 {
@@ -1350,17 +1379,16 @@ TEST_F(DynamicIndexListTest, CrudInvalidInbetweenSeries)
     ASSERT_TRUE(CheckChildren({10, 111, 11, 12, 13, 14}));
 }
 
-static const char *STARTING_BOUNDS_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": -5,"
-        "        \"minimumInclusiveIndex\": -5,"
-        "        \"maximumExclusiveIndex\": 5,"
-        "        \"items\": [ -5, -4, -3, -2, -1, 0, 1, 2, 3, 4 ]"
-        "    }"
-        "}";
+static const char *STARTING_BOUNDS_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": -5,
+    "minimumInclusiveIndex": -5,
+    "maximumExclusiveIndex": 5,
+    "items": [ -5, -4, -3, -2, -1, 0, 1, 2, 3, 4 ]
+  }
+})";
 
 TEST_F(DynamicIndexListTest, CrudBoundsVerification)
 {
@@ -1492,19 +1520,18 @@ TEST_F(DynamicIndexListTest, CrudPayloadReplaceOOB)
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
 }
 
-static const char *WRONG_TYPE_CRUD =
-        "{"
-        "  \"presentationToken\": \"presentationToken\","
-        "  \"listId\": \"vQdpOESlok\","
-        "  \"listVersion\": 1,"
-        "  \"operations\": ["
-        "    {"
-        "      \"type\": \"7\","
-        "      \"index\": 10,"
-        "      \"item\": 101"
-        "    }"
-        "  ]"
-        "}";
+static const char *WRONG_TYPE_CRUD = R"({
+  "presentationToken": "presentationToken",
+  "listId": "vQdpOESlok",
+  "listVersion": 1,
+  "operations": [
+    {
+      "type": "7",
+      "index": 10,
+      "item": 101
+    }
+  ]
+})";
 
 TEST_F(DynamicIndexListTest, CrudPayloadInvalidOperation)
 {
@@ -1525,18 +1552,17 @@ TEST_F(DynamicIndexListTest, CrudPayloadInvalidOperation)
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
 }
 
-static const char *MALFORMED_OPERATION_CRUD =
-        "{"
-        "  \"presentationToken\": \"presentationToken\","
-        "  \"listId\": \"vQdpOESlok\","
-        "  \"listVersion\": 1,"
-        "  \"operations\": ["
-        "    {"
-        "      \"type\": \"InsertItem\","
-        "      \"item\": 101"
-        "    }"
-        "  ]"
-        "}";
+static const char *MALFORMED_OPERATION_CRUD = R"({
+  "presentationToken": "presentationToken",
+  "listId": "vQdpOESlok",
+  "listVersion": 1,
+  "operations": [
+    {
+      "type": "InsertItem",
+      "item": 101
+    }
+  ]
+})";
 
 TEST_F(DynamicIndexListTest, CrudPayloadMalformedOperation)
 {
@@ -1557,12 +1583,11 @@ TEST_F(DynamicIndexListTest, CrudPayloadMalformedOperation)
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
 }
 
-static const char *MISSING_OPERATIONS_CRUD =
-        "{"
-        "  \"presentationToken\": \"presentationToken\","
-        "  \"listId\": \"vQdpOESlok\","
-        "  \"listVersion\": 1"
-        "}";
+static const char *MISSING_OPERATIONS_CRUD = R"({
+  "presentationToken": "presentationToken",
+  "listId": "vQdpOESlok",
+  "listVersion": 1
+})";
 
 TEST_F(DynamicIndexListTest, CrudPayloadNoOperation)
 {
@@ -1579,18 +1604,17 @@ TEST_F(DynamicIndexListTest, CrudPayloadNoOperation)
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
 }
 
-static const char *MISSING_LIST_VERSION_CRUD =
-        "{"
-        "  \"presentationToken\": \"presentationToken\","
-        "  \"listId\": \"vQdpOESlok\","
-        "  \"operations\": ["
-        "    {"
-        "      \"type\": \"InsertItem\","
-        "      \"index\": 10,"
-        "      \"item\": 101"
-        "    }"
-        "  ]"
-        "}";
+static const char *MISSING_LIST_VERSION_CRUD = R"({
+  "presentationToken": "presentationToken",
+  "listId": "vQdpOESlok",
+  "operations": [
+    {
+      "type": "InsertItem",
+      "index": 10,
+      "item": 101
+    }
+  ]
+})";
 
 TEST_F(DynamicIndexListTest, CrudPayloadNoListVersion)
 {
@@ -1667,19 +1691,18 @@ TEST_F(DynamicIndexListTest, CrudMultiInsertBelow) {
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
 }
 
-static const char *NON_ARRAY_MULTI_INSERT =
-        "{"
-        "  \"presentationToken\": \"presentationToken\","
-        "  \"listId\": \"vQdpOESlok\","
-        "  \"listVersion\": 1,"
-        "  \"operations\": ["
-        "    {"
-        "      \"type\": \"InsertMultipleItems\","
-        "      \"index\": 11,"
-        "      \"items\": 111"
-        "    }"
-        "  ]"
-        "}";
+static const char *NON_ARRAY_MULTI_INSERT = R"({
+  "presentationToken": "presentationToken",
+  "listId": "vQdpOESlok",
+  "listVersion": 1,
+  "operations": [
+    {
+      "type": "InsertMultipleItems",
+      "index": 11,
+      "items": 111
+    }
+  ]
+})";
 
 TEST_F(DynamicIndexListTest, CrudMultiInsertNonArray) {
     loadDocument(BASIC, STARTING_BOUNDS_DATA);
@@ -1773,17 +1796,16 @@ TEST_F(DynamicIndexListTest, CrudMultiDeleteAll) {
 }
 
 
-static const char *SINGULAR_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 0,"
-        "        \"minimumInclusiveIndex\": -5,"
-        "        \"maximumExclusiveIndex\": 5,"
-        "        \"items\": [ 0 ]"
-        "    }"
-        "}";
+static const char *SINGULAR_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 0,
+    "minimumInclusiveIndex": -5,
+    "maximumExclusiveIndex": 5,
+    "items": [ 0 ]
+  }
+})";
 
 TEST_F(DynamicIndexListTest, CrudMultiDeleteMore) {
     loadDocument(BASIC, SINGULAR_DATA);
@@ -1849,17 +1871,16 @@ TEST_F(DynamicIndexListTest, CrudInsertAdjascent) {
     ASSERT_EQ(3, component->getChildCount());
 }
 
-static const char *LAZY_CRUD_DATA =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": -2,"
-        "        \"minimumInclusiveIndex\": -5,"
-        "        \"maximumExclusiveIndex\": 5,"
-        "        \"items\": [ -2, -1, 0, 1, 2 ]"
-        "    }"
-        "}";
+static const char *LAZY_CRUD_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": -2,
+    "minimumInclusiveIndex": -5,
+    "maximumExclusiveIndex": 5,
+    "items": [ -2, -1, 0, 1, 2 ]
+  }
+})";
 
 TEST_F(DynamicIndexListTest, CrudLazyCombination)
 {
@@ -1894,14 +1915,13 @@ TEST_F(DynamicIndexListTest, CrudLazyCombination)
 
 }
 
-static const char *LAZY_WITHOUT_VERSION =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"correlationToken\": \"102\","
-        "    \"startIndex\": -5,"
-        "    \"items\": [ -5, -4, -3 ]"
-        "}";
+static const char *LAZY_WITHOUT_VERSION = R"({
+  "token": "presentationToken",
+  "listId": "vQdpOESlok",
+  "correlationToken": "102",
+  "startIndex": -5,
+  "items": [ -5, -4, -3 ]
+})";
 
 TEST_F(DynamicIndexListTest, CrudAfterNoVersionLazy)
 {
@@ -2022,6 +2042,11 @@ TEST_F(DynamicIndexListTest, CrudBadOutOfOrder)
     ASSERT_TRUE(CheckBounds(-5, 5));
 
     ASSERT_FALSE(ds->processUpdate(createInsert(6, 0, 7)));
+    loop->advanceToTime(500);
+
+    // Update 6 will expire
+    ASSERT_TRUE(CheckErrors({ "MISSING_LIST_VERSION" }));
+
     ASSERT_FALSE(ds->processUpdate(createInsert(5, 0, 6)));
     ASSERT_FALSE(ds->processUpdate(createInsert(4, 0, 5)));
     ASSERT_FALSE(ds->processUpdate(createInsert(2, 0, 3)));
@@ -2032,117 +2057,117 @@ TEST_F(DynamicIndexListTest, CrudBadOutOfOrder)
     ASSERT_TRUE(CheckErrors({ "MISSING_LIST_VERSION" }));
 
     ASSERT_TRUE(ds->processUpdate(createInsert(1, 0, 2)));
+    loop->advanceToEnd();
+    ASSERT_TRUE(CheckErrors({}));
+
     root->clearPending();
     ASSERT_EQ(16, component->getChildCount());
     ASSERT_TRUE(CheckChildren({-5, -4, -3, -2, -1, 7, 6, 5, 4, 3, 2, 0, 1, 2, 3, 4}));
 }
 
-static const char *BASIC_PAGER =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.2\","
-        "  \"theme\": \"light\","
-        "  \"layouts\": {"
-        "    \"square\": {"
-        "      \"parameters\": [\"color\", \"text\"],"
-        "      \"item\": {"
-        "        \"type\": \"Frame\","
-        "        \"width\": 200,"
-        "        \"height\": 200,"
-        "        \"id\": \"frame-${text}\","
-        "        \"backgroundColor\": \"${color}\","
-        "        \"item\": {"
-        "          \"type\": \"Text\","
-        "          \"text\": \"${text}\","
-        "          \"color\": \"black\","
-        "          \"width\": 200,"
-        "          \"height\": 200"
-        "        }"
-        "      }"
-        "    }"
-        "  },"
-        "  \"mainTemplate\": {"
-        "    \"parameters\": ["
-        "      \"dynamicSource\""
-        "    ],"
-        "    \"item\": {"
-        "      \"type\": \"Pager\","
-        "      \"id\": \"pager\","
-        "      \"data\": \"${dynamicSource}\","
-        "      \"width\": \"100%\","
-        "      \"height\": \"100%\","
-        "      \"navigation\": \"normal\","
-        "      \"items\": {"
-        "        \"type\": \"square\","
-        "        \"index\": \"${index}\","
-        "        \"color\": \"${data.color}\","
-        "        \"text\": \"${data.text}\""
-        "      }"
-        "    }"
-        "  }"
-        "}";
+static const char *BASIC_PAGER = R"({
+  "type": "APL",
+  "version": "1.2",
+  "theme": "light",
+  "layouts": {
+    "square": {
+      "parameters": ["color", "text"],
+      "item": {
+        "type": "Frame",
+        "width": 200,
+        "height": 200,
+        "id": "frame-${text}",
+        "backgroundColor": "${color}",
+        "item": {
+          "type": "Text",
+          "text": "${text}",
+          "color": "black",
+          "width": 200,
+          "height": 200
+        }
+      }
+    }
+  },
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "item": {
+      "type": "Pager",
+      "id": "pager",
+      "data": "${dynamicSource}",
+      "width": "100%",
+      "height": "100%",
+      "navigation": "normal",
+      "items": {
+        "type": "square",
+        "index": "${index}",
+        "color": "${data.color}",
+        "text": "${data.text}"
+      }
+    }
+  }
+})";
 
-static const char *BASIC_PAGER_DATA =
-        "{"
-        "  \"dynamicSource\": {"
-        "    \"type\": \"dynamicIndexList\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": 10,"
-        "    \"minimumInclusiveIndex\": 0,"
-        "    \"maximumExclusiveIndex\": 20,"
-        "    \"items\": ["
-        "      { \"color\": \"blue\", \"text\": \"10\" },"
-        "      { \"color\": \"red\", \"text\": \"11\" },"
-        "      { \"color\": \"green\", \"text\": \"12\" },"
-        "      { \"color\": \"yellow\", \"text\": \"13\" },"
-        "      { \"color\": \"white\", \"text\": \"14\" }"
-        "    ]"
-        "  }"
-        "}";
+static const char *BASIC_PAGER_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 20,
+    "items": [
+      { "color": "blue", "text": "10" },
+      { "color": "red", "text": "11" },
+      { "color": "green", "text": "12" },
+      { "color": "yellow", "text": "13" },
+      { "color": "white", "text": "14" }
+    ]
+  }
+})";
 
 static const char *FIVE_TO_NINE_FOLLOWUP_PAGER =
-        "{"
-        "  \"token\": \"presentationToken\","
-        "  \"listId\": \"vQdpOESlok\","
-        "  \"startIndex\": 5,"
-        "  \"items\": ["
-        "    { \"color\": \"blue\", \"text\": \"5\" },"
-        "    { \"color\": \"red\", \"text\": \"6\" },"
-        "    { \"color\": \"green\", \"text\": \"7\" },"
-        "    { \"color\": \"yellow\", \"text\": \"8\" },"
-        "    { \"color\": \"white\", \"text\": \"9\" }"
-        "  ]"
-        "}";
+R"({
+"token": "presentationToken",
+"listId": "vQdpOESlok",
+"startIndex": 5,
+"items": [
+  { "color": "blue", "text": "5" },
+  { "color": "red", "text": "6" },
+  { "color": "green", "text": "7" },
+  { "color": "yellow", "text": "8" },
+  { "color": "white", "text": "9" }
+]
+})";
 
 static const char *ZERO_TO_FOUR_RESPONSE_PAGER =
-        "{"
-        "  \"token\": \"presentationToken\","
-        "  \"correlationToken\": \"102\","
-        "  \"listId\": \"vQdpOESlok\","
-        "  \"startIndex\": 0,"
-        "  \"items\": ["
-        "    { \"color\": \"blue\", \"text\": \"0\" },"
-        "    { \"color\": \"red\", \"text\": \"1\" },"
-        "    { \"color\": \"green\", \"text\": \"2\" },"
-        "    { \"color\": \"yellow\", \"text\": \"3\" },"
-        "    { \"color\": \"white\", \"text\": \"4\" }"
-        "  ]"
-        "}";
+R"({
+"token": "presentationToken",
+"correlationToken": "102",
+"listId": "vQdpOESlok",
+"startIndex": 0,
+"items": [
+  { "color": "blue", "text": "0" },
+  { "color": "red", "text": "1" },
+  { "color": "green", "text": "2" },
+  { "color": "yellow", "text": "3" },
+  { "color": "white", "text": "4" }
+]
+})";
 
-static const char *FIFTEEN_TO_NINETEEN_RESPONSE_PAGER =
-        "{"
-        "  \"token\": \"presentationToken\","
-        "  \"correlationToken\": \"103\","
-        "  \"listId\": \"vQdpOESlok\","
-        "  \"startIndex\": 15,"
-        "  \"items\": ["
-        "    { \"color\": \"blue\", \"text\": \"15\" },"
-        "    { \"color\": \"red\", \"text\": \"16\" },"
-        "    { \"color\": \"green\", \"text\": \"17\" },"
-        "    { \"color\": \"yellow\", \"text\": \"18\" },"
-        "    { \"color\": \"white\", \"text\": \"19\" }"
-        "  ]"
-        "}";
+static const char *FIFTEEN_TO_NINETEEN_RESPONSE_PAGER = R"({
+  "token": "presentationToken",
+  "correlationToken": "103",
+  "listId": "vQdpOESlok",
+  "startIndex": 15,
+  "items": [
+    { "color": "blue", "text": "15" },
+    { "color": "red", "text": "16" },
+    { "color": "green", "text": "17" },
+    { "color": "yellow", "text": "18" },
+    { "color": "white", "text": "19" }
+  ]
+})";
 
 TEST_F(DynamicIndexListTest, BasicPager)
 {
@@ -2196,32 +2221,30 @@ TEST_F(DynamicIndexListTest, BasicPager)
     ASSERT_EQ("frame-19", component->getChildAt(19)->getId());
 }
 
-static const char *EMPTY_PAGER_DATA =
-        "{"
-        "  \"dynamicSource\": {"
-        "    \"type\": \"dynamicIndexList\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": 10,"
-        "    \"minimumInclusiveIndex\": 0,"
-        "    \"maximumExclusiveIndex\": 20,"
-        "    \"items\": []"
-        "  }"
-        "}";
+static const char *EMPTY_PAGER_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 20,
+    "items": []
+  }
+})";
 
-static const char *TEN_TO_FIFTEEN_RESPONSE_PAGER =
-        "{"
-        "  \"token\": \"presentationToken\","
-        "  \"correlationToken\": \"101\","
-        "  \"listId\": \"vQdpOESlok\","
-        "  \"startIndex\": 10,"
-        "  \"items\": ["
-        "    { \"color\": \"blue\", \"text\": \"10\" },"
-        "    { \"color\": \"red\", \"text\": \"11\" },"
-        "    { \"color\": \"green\", \"text\": \"12\" },"
-        "    { \"color\": \"yellow\", \"text\": \"13\" },"
-        "    { \"color\": \"white\", \"text\": \"14\" }"
-        "  ]"
-        "}";
+static const char *TEN_TO_FIFTEEN_RESPONSE_PAGER = R"({
+  "token": "presentationToken",
+  "correlationToken": "101",
+  "listId": "vQdpOESlok",
+  "startIndex": 10,
+  "items": [
+    { "color": "blue", "text": "10" },
+    { "color": "red", "text": "11" },
+    { "color": "green", "text": "12" },
+    { "color": "yellow", "text": "13" },
+    { "color": "white", "text": "14" }
+  ]
+})";
 
 TEST_F(DynamicIndexListTest, EmptyPager)
 {
@@ -2245,17 +2268,16 @@ TEST_F(DynamicIndexListTest, EmptyPager)
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 5, 5));
 }
 
-static const char *SMALLER_DATA_BACK =
-        "{"
-        "    \"dynamicSource\": {"
-        "        \"type\": \"dynamicIndexList\","
-        "        \"listId\": \"vQdpOESlok\","
-        "        \"startIndex\": 10,"
-        "        \"minimumInclusiveIndex\": 5,"
-        "        \"maximumExclusiveIndex\": 15,"
-        "        \"items\": [ 10, 11, 12, 13, 14 ]"
-        "    }"
-        "}";
+static const char *SMALLER_DATA_BACK = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 10,
+    "minimumInclusiveIndex": 5,
+    "maximumExclusiveIndex": 15,
+    "items": [ 10, 11, 12, 13, 14 ]
+  }
+})";
 
 TEST_F(DynamicIndexListTest, GarbageCollection) {
     loadDocument(BASIC, SMALLER_DATA);
@@ -2272,7 +2294,6 @@ TEST_F(DynamicIndexListTest, GarbageCollection) {
     ASSERT_FALSE(root->hasEvent());
 
     // Kill RootContext and re-inflate.
-    component->release();
     component = nullptr;
     context = nullptr;
     root = nullptr;
@@ -2291,23 +2312,21 @@ TEST_F(DynamicIndexListTest, GarbageCollection) {
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char *FIFTEEN_TO_NINETEEN_WRONG_LIST_AND_TOKEN_RESPONSE =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"correlationToken\": \"76\","
-        "    \"listId\": \"vQdpOESlok1\","
-        "    \"startIndex\": 15,"
-        "    \"items\": [ 15, 16, 17, 18, 19 ]"
-        "}";
+static const char *FIFTEEN_TO_NINETEEN_WRONG_LIST_AND_TOKEN_RESPONSE = R"({
+  "token": "presentationToken",
+  "correlationToken": "76",
+  "listId": "vQdpOESlok1",
+  "startIndex": 15,
+  "items": [ 15, 16, 17, 18, 19 ]
+})";
 
-static const char *FIFTEEN_TO_NINETEEN_WRONG_LIST_RESPONSE =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"correlationToken\": \"101\","
-        "    \"listId\": \"vQdpOESlok1\","
-        "    \"startIndex\": 15,"
-        "    \"items\": [ 15, 16, 17, 18, 19 ]"
-        "}";
+static const char *FIFTEEN_TO_NINETEEN_WRONG_LIST_RESPONSE = R"({
+  "token": "presentationToken",
+  "correlationToken": "101",
+  "listId": "vQdpOESlok1",
+  "startIndex": 15,
+  "items": [ 15, 16, 17, 18, 19 ]
+})";
 
 TEST_F(DynamicIndexListTest, CorrelationTokenSubstitute) {
     loadDocument(BASIC, SMALLER_DATA);
@@ -2328,14 +2347,13 @@ TEST_F(DynamicIndexListTest, CorrelationTokenSubstitute) {
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char *FIFTEEN_TO_TWENTY_FOUR_RESPONSE =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"correlationToken\": \"101\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": 15,"
-        "    \"items\": [ 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 ]"
-        "}";
+static const char *FIFTEEN_TO_TWENTY_FOUR_RESPONSE = R"({
+  "token": "presentationToken",
+  "correlationToken": "101",
+  "listId": "vQdpOESlok",
+  "startIndex": 15,
+  "items": [ 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 ]
+})";
 
 TEST_F(DynamicIndexListTest, BigLazyLoad) {
     loadDocument(BASIC, SMALLER_DATA);
@@ -2352,15 +2370,14 @@ TEST_F(DynamicIndexListTest, BigLazyLoad) {
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char *FIFTEEN_TO_NINETEEN_SHRINK_RESPONSE =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"correlationToken\": \"101\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": 15,"
-        "    \"minimumInclusiveIndex\": 12,"
-        "    \"items\": [ 15, 16, 17, 18, 19 ]"
-        "}";
+static const char *FIFTEEN_TO_NINETEEN_SHRINK_RESPONSE = R"({
+  "token": "presentationToken",
+  "correlationToken": "101",
+  "listId": "vQdpOESlok",
+  "startIndex": 15,
+  "minimumInclusiveIndex": 12,
+  "items": [ 15, 16, 17, 18, 19 ]
+})";
 
 TEST_F(DynamicIndexListTest, BoundsShrinkBottom) {
     loadDocument(BASIC, SMALLER_DATA);
@@ -2379,15 +2396,14 @@ TEST_F(DynamicIndexListTest, BoundsShrinkBottom) {
     ASSERT_TRUE(CheckBounds(12, 20));
 }
 
-static const char *FIVE_TO_NINE_SHRINK_RESPONSE =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"correlationToken\": \"101\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": 5,"
-        "    \"maximumExclusiveIndex\": 13,"
-        "    \"items\": [ 5, 6, 7, 8, 9 ]"
-        "}";
+static const char *FIVE_TO_NINE_SHRINK_RESPONSE = R"({
+  "token": "presentationToken",
+  "correlationToken": "101",
+  "listId": "vQdpOESlok",
+  "startIndex": 5,
+  "maximumExclusiveIndex": 13,
+  "items": [ 5, 6, 7, 8, 9 ]
+})";
 
 TEST_F(DynamicIndexListTest, BoundsShrinkTop) {
     loadDocument(BASIC, SMALLER_DATA_BACK);
@@ -2406,16 +2422,15 @@ TEST_F(DynamicIndexListTest, BoundsShrinkTop) {
     ASSERT_TRUE(CheckBounds(5, 13));
 }
 
-static const char *SHRINK_FULL_RESPONSE =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"correlationToken\": \"101\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": 5,"
-        "    \"minimumInclusiveIndex\": 0,"
-        "    \"maximumExclusiveIndex\": 0,"
-        "    \"items\": [ 5, 6, 7, 8, 9 ]"
-        "}";
+static const char *SHRINK_FULL_RESPONSE = R"({
+  "token": "presentationToken",
+  "correlationToken": "101",
+  "listId": "vQdpOESlok",
+  "startIndex": 5,
+  "minimumInclusiveIndex": 0,
+  "maximumExclusiveIndex": 0,
+  "items": [ 5, 6, 7, 8, 9 ]
+})";
 
 TEST_F(DynamicIndexListTest, BoundsShrinkFull) {
     loadDocument(BASIC, SMALLER_DATA_BACK);
@@ -2434,14 +2449,92 @@ TEST_F(DynamicIndexListTest, BoundsShrinkFull) {
     ASSERT_TRUE(CheckBounds(0, 0));
 }
 
-static const char *FIFTEEN_EMPTY_RESPONSE =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"correlationToken\": \"101\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": 15,"
-        "    \"items\": []"
-        "}";
+static const char *EXPAND_BOTTOM_RESPONSE = R"({
+  "token": "presentationToken",
+  "correlationToken": "101",
+  "listId": "vQdpOESlok",
+  "startIndex": 15,
+  "minimumInclusiveIndex": 5,
+  "items": [ 15, 16, 17, 18, 19 ]
+})";
+
+TEST_F(DynamicIndexListTest, BoundsExpandBottom) {
+    loadDocument(BASIC, SMALLER_DATA);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(5, component->getChildCount());
+    ASSERT_TRUE(CheckBounds(10, 20));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
+    ASSERT_TRUE(ds->processUpdate(EXPAND_BOTTOM_RESPONSE));
+    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
+    root->clearPending();
+
+    ASSERT_EQ(10, component->getChildCount());
+    ASSERT_TRUE(CheckBounds(5, 20));
+}
+
+static const char *EXPAND_TOP_RESPONSE = R"({
+  "token": "presentationToken",
+  "correlationToken": "101",
+  "listId": "vQdpOESlok",
+  "startIndex": 5,
+  "maximumExclusiveIndex": 20,
+  "items": [ 5, 6, 7, 8, 9 ]
+})";
+
+TEST_F(DynamicIndexListTest, BoundsExpandTop) {
+    loadDocument(BASIC, SMALLER_DATA_BACK);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+    ASSERT_EQ(5, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 4}, true));
+    ASSERT_TRUE(CheckBounds(5, 15));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 5, 5));
+    ASSERT_TRUE(ds->processUpdate(EXPAND_TOP_RESPONSE));
+    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
+    root->clearPending();
+
+    ASSERT_EQ(10, component->getChildCount());
+    ASSERT_TRUE(CheckBounds(5, 20));
+}
+
+static const char *EXPAND_FULL_RESPONSE = R"({
+  "token": "presentationToken",
+  "correlationToken": "101",
+  "listId": "vQdpOESlok",
+  "startIndex": 5,
+  "minimumInclusiveIndex": -5,
+  "maximumExclusiveIndex": 20,
+  "items": [ 5, 6, 7, 8, 9 ]
+})";
+
+TEST_F(DynamicIndexListTest, BoundsExpandFull) {
+    loadDocument(BASIC, SMALLER_DATA_BACK);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+    ASSERT_EQ(5, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 4}, true));
+    ASSERT_TRUE(CheckBounds(5, 15));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 5, 5));
+    ASSERT_TRUE(ds->processUpdate(EXPAND_FULL_RESPONSE));
+    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
+    root->clearPending();
+
+    ASSERT_EQ(10, component->getChildCount());
+    ASSERT_TRUE(CheckBounds(-5, 20));
+}
+
+static const char *FIFTEEN_EMPTY_RESPONSE = R"({
+  "token": "presentationToken",
+  "correlationToken": "101",
+  "listId": "vQdpOESlok",
+  "startIndex": 15,
+  "items": []
+})";
 
 TEST_F(DynamicIndexListTest, EmptyLazyResponseRetryFail) {
     loadDocument(BASIC, SMALLER_DATA);
@@ -2452,13 +2545,13 @@ TEST_F(DynamicIndexListTest, EmptyLazyResponseRetryFail) {
     ASSERT_TRUE(CheckBounds(10, 20));
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
-    ASSERT_FALSE(ds->processUpdate(FIFTEEN_EMPTY_RESPONSE));
-    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
-    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
-    ASSERT_FALSE(ds->processUpdate(FIFTEEN_EMPTY_RESPONSE));
-    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
-    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
-    ASSERT_FALSE(ds->processUpdate(FIFTEEN_EMPTY_RESPONSE));
+    ASSERT_FALSE(ds->processUpdate(createLazyLoad(0, 101, 15, "")));
+    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR", "INTERNAL_ERROR" }));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 15, 5));
+    ASSERT_FALSE(ds->processUpdate(createLazyLoad(0, 102, 15, "")));
+    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR", "INTERNAL_ERROR" }));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 15, 5));
+    ASSERT_FALSE(ds->processUpdate(createLazyLoad(0, 103, 15, "")));
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
     ASSERT_FALSE(root->hasEvent());
 }
@@ -2473,8 +2566,8 @@ TEST_F(DynamicIndexListTest, EmptyLazyResponseRetryResolved) {
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
     ASSERT_FALSE(ds->processUpdate(FIFTEEN_EMPTY_RESPONSE));
-    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
-    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
+    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR", "INTERNAL_ERROR" }));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 15, 5));
     ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, 15, "15, 16, 17, 18, 19")));
     root->clearPending();
     ASSERT_EQ(10, component->getChildCount());
@@ -2485,16 +2578,15 @@ TEST_F(DynamicIndexListTest, EmptyLazyResponseRetryResolved) {
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char *FIFTEEN_SHRINK_RESPONSE =
-        "{"
-        "    \"token\": \"presentationToken\","
-        "    \"correlationToken\": \"101\","
-        "    \"listId\": \"vQdpOESlok\","
-        "    \"startIndex\": 15,"
-        "    \"minimumInclusiveIndex\": 10,"
-        "    \"maximumExclusiveIndex\": 15,"
-        "    \"items\": []"
-        "}";
+static const char *FIFTEEN_SHRINK_RESPONSE = R"({
+  "token": "presentationToken",
+  "correlationToken": "102",
+  "listId": "vQdpOESlok",
+  "startIndex": 15,
+  "minimumInclusiveIndex": 10,
+  "maximumExclusiveIndex": 15,
+  "items": []
+})";
 
 TEST_F(DynamicIndexListTest, EmptyLazyResponseRetryBoundsUpdated) {
     loadDocument(BASIC, SMALLER_DATA);
@@ -2506,8 +2598,8 @@ TEST_F(DynamicIndexListTest, EmptyLazyResponseRetryBoundsUpdated) {
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
     ASSERT_FALSE(ds->processUpdate(FIFTEEN_EMPTY_RESPONSE));
-    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
-    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
+    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR", "INTERNAL_ERROR" }));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 15, 5));
     ASSERT_FALSE(ds->processUpdate(FIFTEEN_SHRINK_RESPONSE));
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR", "INTERNAL_ERROR" }));
     ASSERT_TRUE(CheckBounds(10, 15));
@@ -2523,10 +2615,79 @@ TEST_F(DynamicIndexListTest, LazyResponseTimeout) {
     ASSERT_TRUE(CheckBounds(10, 20));
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
-    loop->advanceToEnd();
+    // Not yet
+    loop->advanceToTime(60);
+    ASSERT_TRUE(CheckErrors({}));
+
+    // Should go from here
+    loop->advanceToTime(100);
+    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 15, 5));
+    loop->advanceToTime(200);
+    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 15, 5));
+    loop->advanceToTime(300);
+    ASSERT_FALSE(root->hasEvent());
+}
+
+TEST_F(DynamicIndexListTest, LazyResponseTimeoutResolvedAfterLost) {
+    loadDocument(BASIC, SMALLER_DATA);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+    ASSERT_EQ(5, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 4}, true));
+    ASSERT_TRUE(CheckBounds(10, 20));
+
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
+    // Not yet
+    loop->advanceToTime(60);
+    ASSERT_TRUE(CheckErrors({}));
+
+    // Should go from here
+    loop->advanceToTime(100);
+    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 15, 5));
+
+    // Retry response arrives
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 102, 15, "15, 16, 17, 18, 19")));
+    root->clearPending();
+    ASSERT_EQ(10, component->getChildCount());
+    ASSERT_FALSE(root->hasEvent());
+
+    // Check that timeout is not there
     loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+TEST_F(DynamicIndexListTest, LazyResponseTimeoutResolvedAfterDelayed) {
+    loadDocument(BASIC, SMALLER_DATA);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+    ASSERT_EQ(5, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 4}, true));
+    ASSERT_TRUE(CheckBounds(10, 20));
+
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
+    // Not yet
+    loop->advanceToTime(60);
+    ASSERT_TRUE(CheckErrors({}));
+
+    // Should go from here
+    loop->advanceToTime(100);
+    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 15, 5));
+
+    // Original response arrives
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, 15, "15, 16, 17, 18, 19")));
+    root->clearPending();
+    ASSERT_EQ(10, component->getChildCount());
+    ASSERT_FALSE(root->hasEvent());
+
+    // Retry arrives
+    ASSERT_FALSE(ds->processUpdate(createLazyLoad(-1, 102, 15, "15, 16, 17, 18, 19")));
+    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
+
+    // Check that timeout is not there
     loop->advanceToEnd();
     ASSERT_FALSE(root->hasEvent());
 }

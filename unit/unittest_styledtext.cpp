@@ -49,21 +49,21 @@ TEST_F(StyledTextTest, Casting)
     ASSERT_TRUE(IsEqual(Color(Color::RED), StyledText::create("#ff0000").asColor()));
 
     auto context = Context::create(Metrics(), makeDefaultSession());
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 10), StyledText::create("10dp").asDimension(context)));
-    ASSERT_TRUE(IsEqual(Dimension(), StyledText::create("auto").asDimension(context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 10), StyledText::create("10%").asDimension(context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 10), StyledText::create("10dp").asDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(), StyledText::create("auto").asDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 10), StyledText::create("10%").asDimension(*context)));
 
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 5), StyledText::create("5dp").asAbsoluteDimension(context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 0), StyledText::create("auto").asAbsoluteDimension(context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 0), StyledText::create("10%").asAbsoluteDimension(context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 5), StyledText::create("5dp").asAbsoluteDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 0), StyledText::create("auto").asAbsoluteDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 0), StyledText::create("10%").asAbsoluteDimension(*context)));
 
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 5), StyledText::create("5dp").asNonAutoDimension(context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 0), StyledText::create("auto").asNonAutoDimension(context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 10), StyledText::create("10%").asNonAutoDimension(context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 5), StyledText::create("5dp").asNonAutoDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 0), StyledText::create("auto").asNonAutoDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 10), StyledText::create("10%").asNonAutoDimension(*context)));
 
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 5), StyledText::create("5dp").asNonAutoRelativeDimension(context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 0), StyledText::create("auto").asNonAutoRelativeDimension(context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 10), StyledText::create("10%").asNonAutoRelativeDimension(context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 5), StyledText::create("5dp").asNonAutoRelativeDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 0), StyledText::create("auto").asNonAutoRelativeDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 10), StyledText::create("10%").asNonAutoRelativeDimension(*context)));
 
     ASSERT_TRUE(StyledText::create("").empty());
     ASSERT_FALSE(StyledText::create("<h2></h2>").empty());

@@ -238,7 +238,7 @@ public:
         ASSERT_TRUE(root->hasEvent());
         auto event = root->popEvent();
 
-        auto position = event.getValue(kEventPropertyPosition).asDimension(context);
+        auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
         event.getComponent()->update(kUpdateScrollPosition, position.getValue());
         event.getActionRef().resolve();
         root->clearPending();
@@ -803,7 +803,7 @@ TEST_F(HoverTest, Pager) {
 
     ASSERT_EQ(kEventTypeSetPage, event.getType());
     ASSERT_EQ(component, event.getComponent());
-    ASSERT_EQ(Dimension(1), event.getValue(kEventPropertyPosition).asDimension(context));
+    ASSERT_EQ(Dimension(1), event.getValue(kEventPropertyPosition).asDimension(*context));
     ASSERT_EQ(kEventDirectionForward, event.getValue(kEventPropertyDirection).getInteger());
     event.getComponent()->update(kUpdatePagerPosition, 1.0);
     event.getActionRef().resolve();
@@ -865,7 +865,7 @@ TEST_F(HoverTest, PagerFrame) {
 
     ASSERT_EQ(kEventTypeSetPage, event.getType());
     ASSERT_EQ(component, event.getComponent());
-    ASSERT_EQ(Dimension(1), event.getValue(kEventPropertyPosition).asDimension(context));
+    ASSERT_EQ(Dimension(1), event.getValue(kEventPropertyPosition).asDimension(*context));
     ASSERT_EQ(kEventDirectionForward, event.getValue(kEventPropertyDirection).getInteger());
     event.getComponent()->update(kUpdatePagerPosition, 1.0);
     event.getActionRef().resolve();

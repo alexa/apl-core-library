@@ -416,8 +416,6 @@ TEST_F(BoundsTest, NestedChild)
     ASSERT_EQ(kComponentTypeText, text2->getType());
     ASSERT_EQ(Rect(0, 0, 50, 50), text2->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(Rect(0, 100, 50, 50), text2->getGlobalBounds());
-
-    component->release();
 }
 
 
@@ -488,6 +486,4 @@ TEST_F(BoundsTest, AbsolutePositioning)
     ASSERT_EQ(kComponentTypeText, text2->getType());
     ASSERT_EQ(Rect(10, 40, 50, 50), text2->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(Rect(810, 340, 50, 50), text2->getGlobalBounds());
-
-    component->release();
 }

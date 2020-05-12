@@ -259,7 +259,7 @@ TEST_F(DependantTest, FreeContext)
     ASSERT_EQ(10, second->opt("target").asNumber());
 
     // Manually construct a dependency between source and target
-    auto node = parseDataBinding(first, "${source * 2}");
+    auto node = parseDataBinding(*first, "${source * 2}");
     ASSERT_TRUE(node.isEvaluable());
     auto bf = sBindingFunctions.at(BindingType::kBindingTypeNumber);
     ContextDependant::create(second, "target", node, second, bf);

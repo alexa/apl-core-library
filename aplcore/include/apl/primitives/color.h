@@ -122,8 +122,8 @@ public:
         uint32_t b = (mColor >> 8) & 0xff;
         uint32_t g = (mColor >> 16) & 0xff;
         uint32_t r = (mColor >> 24) & 0xff;
-        char* hex = new char[10]();
-        sprintf(hex, "#%02x%02x%02x%02x", r, g, b, a);
+        char hex[10];
+        snprintf(hex, sizeof(hex), "#%02x%02x%02x%02x", r, g, b, a);
         return std::string(hex);
     }
 

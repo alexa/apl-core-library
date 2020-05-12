@@ -47,7 +47,7 @@ public:
         context = Context::create(metrics, makeDefaultSession());
         json = std::unique_ptr<JsonData>(new JsonData(data));
 
-        array = Transformation::create(*context, arrayify(context, json->get()));
+        array = Transformation::create(*context, arrayify(*context, json->get()));
     }
 
     void interpolate(const std::string& data)
@@ -57,8 +57,8 @@ public:
         json = std::unique_ptr<JsonData>(new JsonData(data));
 
         array = InterpolatedTransformation::create(*context,
-                                                   arrayify(context, json->get()["from"]),
-                                                   arrayify(context, json->get()["to"]));
+                                                   arrayify(*context, json->get()["from"]),
+                                                   arrayify(*context, json->get()["to"]));
     }
 
     void loadWithContext(const std::string& data, const ObjectMap& values)
@@ -68,7 +68,7 @@ public:
         for (auto it : values)
             context->putConstant(it.first, it.second);
         json = std::unique_ptr<JsonData>(new JsonData(data));
-        array = Transformation::create(*context, arrayify(context, json->get()));
+        array = Transformation::create(*context, arrayify(*context, json->get()));
     }
 
 public:

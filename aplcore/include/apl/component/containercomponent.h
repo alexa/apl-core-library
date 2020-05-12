@@ -29,6 +29,8 @@ public:
 
     const ComponentPropDefSet* layoutPropDefSet() const override;
 
+    void processLayoutChanges(bool useDirtyFlag) override;
+
 protected:
     const ComponentPropDefSet& propDefSet() const override;
 

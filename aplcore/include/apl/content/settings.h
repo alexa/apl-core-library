@@ -27,7 +27,7 @@
 namespace apl {
 
 /**
- * Definition of document settings. As per specification APL document can define some settings that could
+ * Definition of document settings. As per specification APL document can define settings that could
  * override device values.
  */
 class Settings {
@@ -35,28 +35,48 @@ class Settings {
     friend class Content;
 
 public:
-    Settings(const RootConfig& config) :
-        mIdleTimeout(config.getDefaultIdleTimeout()),
-        mJson(nullptr)
-    {}
 
-    Settings(const rapidjson::Value& json) :
-            mIdleTimeout(0),
-            mJson(&json)
-    {}
+    Settings() :
+            mJson(nullptr) {}
+
+    explicit Settings(const rapidjson::Value& json) :
+            mJson(&json) {}
+
+
+    int idleTimeout(const RootConfig & config) const {
+        Object value = getValue("idleTimeout");
+        if (value.isNumber()) {
+            auto idle =  value.getInteger();
+            if (idle >= 0 ) {
+                return idle;
+            }
+        }
+        return config.getDefaultIdleTimeout();
+    }
+
     /**
+     * @deprecated removed in APL 1.4
      * @return  Recommended time in milliseconds that the document should be kept on the screen
      * before closing due to inactivity.
      */
-    int idleTimeout() const { return mIdleTimeout; }
+    int idleTimeout() const {
+        Object value = getValue("idleTimeout");
+        if (value.isNumber()) {
+            auto idle =  value.getInteger();
+            if (idle >= 0 ) {
+                return idle;
+            }
+        }
+        return mDefaultIdleTimeout;
+    }
 
     /**
      * Retrieve a value from the settings.
      * @param key the key to retrieve.
      * @return The value or null if it doesn't exist.
      */
-    const Object getValue(const std::string &key) const {
-        if (mJson) {
+    Object getValue(const std::string &key) const {
+        if (mJson && !mJson->IsNull()) {
             auto valueIter = mJson->FindMember(key.c_str());
             if (valueIter != mJson->MemberEnd())
                 return Object(valueIter->value);
@@ -88,16 +108,17 @@ public:
 
 private:
 
-    void read(const rapidjson::Value& json) {
-        mJson = &json;
-        Object value = getValue("idleTimeout");
-        if (value.isNumber()) {
-            mIdleTimeout = value.getInteger();
-        }
+    /**
+     * @deprecated use Content->getDocumentSettings()
+     */
+    void read(RootConfig config) {
+        mDefaultIdleTimeout = config.getDefaultIdleTimeout();
     }
 
 private:
-    int mIdleTimeout;
+    /** @deprecated, removed in APL1.4 **/
+    int mDefaultIdleTimeout = 30000;
+
     const rapidjson::Value *mJson;
 };
 

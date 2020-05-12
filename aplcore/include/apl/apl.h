@@ -43,6 +43,7 @@
 #include "apl/livedata/livemap.h"
 #include "apl/graphic/graphic.h"
 #include "apl/primitives/dimension.h"
+#include "apl/primitives/gradient.h"
 #include "apl/primitives/mediastate.h"
 #include "apl/primitives/mediasource.h"
 #include "apl/primitives/object.h"

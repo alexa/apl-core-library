@@ -187,7 +187,7 @@ TEST_F(ScreenLockTest, OnMount) {
     auto event = root->popEvent();
 
     ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(Dimension(900), event.getValue(kEventPropertyPosition).asDimension(context));
+    ASSERT_EQ(Dimension(900), event.getValue(kEventPropertyPosition).asDimension(*context));
     ASSERT_TRUE(root->screenLock());
 
     root->updateTime(500);
@@ -252,7 +252,7 @@ TEST_F(ScreenLockTest, OnMountInterrupt) {
     auto event = root->popEvent();
 
     ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(Dimension(900), event.getValue(kEventPropertyPosition).asDimension(context));
+    ASSERT_EQ(Dimension(900), event.getValue(kEventPropertyPosition).asDimension(*context));
     ASSERT_TRUE(root->screenLock());
 
     root->updateTime(500);
@@ -359,7 +359,7 @@ TEST_F(ScreenLockTest, Overlapping) {
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(Dimension(900), event.getValue(kEventPropertyPosition).asDimension(context));  // Should max out at the end
+    ASSERT_EQ(Dimension(900), event.getValue(kEventPropertyPosition).asDimension(*context));  // Should max out at the end
 
     ASSERT_FALSE(root->hasEvent());
 
@@ -422,7 +422,7 @@ TEST_F(ScreenLockTest, OverlappingWithInterrupt) {
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(Dimension(900), event.getValue(kEventPropertyPosition).asDimension(context));  // Should max out at the end
+    ASSERT_EQ(Dimension(900), event.getValue(kEventPropertyPosition).asDimension(*context));  // Should max out at the end
 
     ASSERT_FALSE(root->hasEvent());
 

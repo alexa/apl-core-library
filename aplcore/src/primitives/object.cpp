@@ -1615,10 +1615,10 @@ Object::symbols(SymbolReferenceMap& symbols) const {
 }
 
 Object
-Object::call(ObjectArray&& args) const {
+Object::call(const ObjectArray& args) const {
     assert(mType == kFunctionType);
     LOG_IF(OBJECT_DEBUG) << "Calling user function";
-    return mData->call(std::move(args));
+    return mData->call(args);
 }
 
 // Visitor pattern

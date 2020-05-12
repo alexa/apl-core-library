@@ -55,7 +55,8 @@ Context::create(const Metrics& metrics, const RootConfig& config, const std::str
 {
     auto session = config.getSession() ? config.getSession() : makeDefaultSession();
     auto rootContextData = std::make_shared<RootContextData>(metrics, config,
-                                                             theme, "1.2", session,
+                                                             theme, "1.2",
+                                                             std::make_shared<Settings>(), session,
                                                              std::vector<std::pair<std::string, std::string>>());
     return Context::create(metrics, rootContextData);
 }

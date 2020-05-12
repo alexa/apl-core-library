@@ -320,6 +320,10 @@ SequenceComponent::layoutChildIfRequired(
         const Rect& parentBounds, const CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag) {
     if (!child->isAttached() || child->getCalculated(kPropertyBounds).empty()) {
         ensureChildAttached(child, childIdx);
+        // Override standard behavior if child is not "really" first.
+        if (childIdx > 0) {
+            child->fixSpacing();
+        }
         YGNodeCalculateLayout(
                 mYGNodeRef,
                 parentBounds.getWidth(),
@@ -340,6 +344,17 @@ SequenceComponent::processLayoutChanges(bool useDirtyFlag)
     Rect oldAnchorBounds;
     if (anchor) {
         oldAnchorBounds = anchor->getCalculated(kPropertyBounds).getRect();
+    }
+
+    if (!mChildren.empty()) {
+        // Reset very first child to not have spacing
+        mChildren.at(0)->fixSpacing(true);
+
+        // First ensured should not ignore spacing if it's not very first one overall
+        if (mEnsuredChildren.lowerBound() > 0) {
+            auto child = mChildren.at(mEnsuredChildren.lowerBound());
+            child->fixSpacing();
+        }
     }
 
     CoreComponent::processLayoutChanges(useDirtyFlag);

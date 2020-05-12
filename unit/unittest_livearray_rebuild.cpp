@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -125,7 +125,7 @@ public:
         ASSERT_TRUE(root->hasEvent());
         auto event = root->popEvent();
 
-        auto position = event.getValue(kEventPropertyPosition).asDimension(context);
+        auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
         event.getComponent()->update(kUpdateScrollPosition, position.getValue());
         event.getActionRef().resolve();
         root->clearPending();
@@ -146,21 +146,20 @@ private:
 };
 
 
-static const char *BASIC_DOC =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"data\": \"${TestArray}\","
-    "      \"item\": {"
-    "        \"type\": \"Text\","
-    "        \"text\": \"${data} ${index} ${dataIndex} ${length}\""
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *BASIC_DOC = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "data": "${TestArray}",
+      "item": {
+        "type": "Text",
+        "text": "${data} ${index} ${dataIndex} ${length}"
+      }
+    }
+  }
+})";
 
 TEST_F(LiveArrayRebuildTest, ComponentClear) {
     auto myArray = LiveArray::create(ObjectArray{1, 2});
@@ -339,22 +338,21 @@ TEST_F(LiveArrayRebuildTest, ComponentInsertPushBack)
 /**
  * Check that removing and adding around conditionally inflated items works
  */
-static const char * CONDITIONAL =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"data\": \"${TestArray}\","
-    "      \"item\": {"
-    "        \"type\": \"Text\","
-    "        \"when\": \"${data % 2 == 0}\","
-    "        \"text\": \"${data} ${index} ${dataIndex} ${length}\""
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char * CONDITIONAL = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "data": "${TestArray}",
+      "item": {
+        "type": "Text",
+        "when": "${data % 2 == 0}",
+        "text": "${data} ${index} ${dataIndex} ${length}"
+      }
+    }
+  }
+})";
 
 TEST_F(LiveArrayRebuildTest, Conditional)
 {
@@ -395,29 +393,28 @@ TEST_F(LiveArrayRebuildTest, Conditional)
 /**
  * Verify that changing around the children doesn't re-inflate existing components
  */
-static const char *DOUBLE_CONDITIONAL =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"data\": \"${TestArray}\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"when\": \"${data % 2 == 0}\","
-    "          \"text\": \"${data} ${index} ${dataIndex} ${length}\""
-    "        },"
-    "        {"
-    "          \"type\": \"Image\","
-    "          \"when\": \"${data % 3 == 0}\","
-    "          \"source\": \"${data} ${index} ${dataIndex} ${length}\""
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *DOUBLE_CONDITIONAL = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "data": "${TestArray}",
+      "items": [
+        {
+          "type": "Text",
+          "when": "${data % 2 == 0}",
+          "text": "${data} ${index} ${dataIndex} ${length}"
+        },
+        {
+          "type": "Image",
+          "when": "${data % 3 == 0}",
+          "source": "${data} ${index} ${dataIndex} ${length}"
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(LiveArrayRebuildTest, DoubleConditional)
 {
@@ -444,30 +441,29 @@ TEST_F(LiveArrayRebuildTest, DoubleConditional)
     ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 4));
 }
 
-static const char *FIRST_AND_LAST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"data\": \"${TestArray}\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"when\": \"${data % 2 == 0}\","
-    "        \"text\": \"${data} ${index} ${dataIndex} ${length}\""
-    "      },"
-    "      \"firstItem\": {"
-    "        \"type\": \"Text\","
-    "        \"text\": \"first\""
-    "      },"
-    "      \"lastItem\": {"
-    "        \"type\": \"Text\","
-    "        \"text\": \"last\""
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *FIRST_AND_LAST = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "data": "${TestArray}",
+      "items": {
+        "type": "Text",
+        "when": "${data % 2 == 0}",
+        "text": "${data} ${index} ${dataIndex} ${length}"
+      },
+      "firstItem": {
+        "type": "Text",
+        "text": "first"
+      },
+      "lastItem": {
+        "type": "Text",
+        "text": "last"
+      }
+    }
+  }
+})";
 
 TEST_F(LiveArrayRebuildTest, FirstAndLast)
 {
@@ -498,26 +494,25 @@ TEST_F(LiveArrayRebuildTest, FirstAndLast)
     ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 2));
 }
 
-static const char *FIRST_ONLY =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"data\": \"${TestArray}\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"when\": \"${data % 2 == 0}\","
-    "        \"text\": \"${data} ${index} ${dataIndex} ${length}\""
-    "      },"
-    "      \"firstItem\": {"
-    "        \"type\": \"Text\","
-    "        \"text\": \"first\""
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *FIRST_ONLY = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "data": "${TestArray}",
+      "items": {
+        "type": "Text",
+        "when": "${data % 2 == 0}",
+        "text": "${data} ${index} ${dataIndex} ${length}"
+      },
+      "firstItem": {
+        "type": "Text",
+        "text": "first"
+      }
+    }
+  }
+})";
 
 TEST_F(LiveArrayRebuildTest, FirstOnly)
 {
@@ -548,26 +543,25 @@ TEST_F(LiveArrayRebuildTest, FirstOnly)
     ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 2));
 }
 
-static const char *LAST_ONLY =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"data\": \"${TestArray}\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"when\": \"${data % 2 == 0}\","
-    "        \"text\": \"${data} ${index} ${dataIndex} ${length}\""
-    "      },"
-    "      \"lastItem\": {"
-    "        \"type\": \"Text\","
-    "        \"text\": \"last\""
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *LAST_ONLY = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "data": "${TestArray}",
+      "items": {
+        "type": "Text",
+        "when": "${data % 2 == 0}",
+        "text": "${data} ${index} ${dataIndex} ${length}"
+      },
+      "lastItem": {
+        "type": "Text",
+        "text": "last"
+      }
+    }
+  }
+})";
 
 TEST_F(LiveArrayRebuildTest, LastOnly)
 {
@@ -612,24 +606,23 @@ AlternateColor(const CoreComponentPtr& component, const ObjectArray& colors)
     return ::testing::AssertionSuccess();
 }
 
-static const char *NUMBERING =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.2\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"data\": \"${TestArray}\","
-    "      \"numbered\": true,"
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"color\": \"${index % 2 ? 'black' : 'gray'}\","
-    "        \"numbering\": \"${index == 3 ? 'reset' : 'normal'}\","
-    "        \"text\": \"${ordinal}-${data}\""
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *NUMBERING = R"({
+  "type": "APL",
+  "version": "1.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "data": "${TestArray}",
+      "numbered": true,
+      "items": {
+        "type": "Text",
+        "color": "${index % 2 ? 'black' : 'gray'}",
+        "numbering": "${index == 3 ? 'reset' : 'normal'}",
+        "text": "${ordinal}-${data}"
+      }
+    }
+  }
+})";
 
 TEST_F(LiveArrayRebuildTest, Numbering)
 {
@@ -667,22 +660,21 @@ CheckComponentChildOrder(const CoreComponentPtr& component, const std::vector<st
     return ::testing::AssertionSuccess();
 }
 
-static const char *MULTIPLE_CONTEXT =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.2\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"data\": \"${TestArray}\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"color\": \"${index % 2 ? 'black' : 'gray'}\","
-    "        \"text\": \"${data}\""
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *MULTIPLE_CONTEXT = R"({
+  "type": "APL",
+  "version": "1.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "data": "${TestArray}",
+      "items": {
+        "type": "Text",
+        "color": "${index % 2 ? 'black' : 'gray'}",
+        "text": "${data}"
+      }
+    }
+  }
+})";
 
 // Demonstrate that you can connect the same LiveArray to multiple RootContext objects and
 // have them update separately
@@ -717,9 +709,6 @@ TEST_F(LiveArrayRebuildTest, MultipleContexts)
     ASSERT_TRUE(CheckComponentChildOrder(component1, {"z", "a", "e", "f"}));
     ASSERT_TRUE(CheckComponentChildOrder(component2, {"z", "a", "e", "f"}));
 
-    component1->release();
-    component2->release();
-
     root1->clearDirty();
     root2->clearDirty();
 }
@@ -738,27 +727,26 @@ public:
     }
 };
 
-static const char *LIVE_SEQUENCE =
-        "{"
-        "    \"type\": \"APL\","
-        "    \"version\": \"1.3\","
-        "    \"theme\": \"dark\","
-        "    \"mainTemplate\": {"
-        "        \"item\": {"
-        "            \"type\": \"Sequence\","
-        "            \"id\": \"sequence\","
-        "            \"data\": \"${TestArray}\","
-        "            \"height\": 300,"
-        "            \"items\": {"
-        "                \"type\": \"Text\","
-        "                \"text\": \"${data}\","
-        "                \"color\": \"black\","
-        "                \"width\": 100,"
-        "                \"height\": \"auto\""
-        "            }"
-        "        }"
-        "    }"
-        "}";
+static const char *LIVE_SEQUENCE = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "data": "${TestArray}",
+      "height": 300,
+      "items": {
+        "type": "Text",
+        "text": "${data}",
+        "color": "black",
+        "width": 100,
+        "height": "auto"
+      }
+    }
+  }
+})";
 
 TEST_F(LiveArrayRebuildTest, SequencePositionContext)
 {
@@ -1076,30 +1064,30 @@ TEST_F(LiveArrayRebuildTest, SequenceUpdateContext)
     ASSERT_EQ(200, scrollPosition);
 }
 
-static const char *LIVE_SEQUENCE_DEEP =
-        "{"
-        "    \"type\": \"APL\","
-        "    \"version\": \"1.3\","
-        "    \"theme\": \"dark\","
-        "    \"mainTemplate\": {"
-        "        \"item\": {"
-        "            \"type\": \"Sequence\","
-        "            \"id\": \"sequence\","
-        "            \"data\": \"${TestArray}\","
-        "            \"height\": 300,"
-        "            \"items\": {"
-        "                \"type\": \"Frame\","
-        "                \"item\": {"
-        "                    \"type\": \"Text\","
-        "                    \"text\": \"${data}\","
-        "                    \"color\": \"black\","
-        "                    \"width\": 100,"
-        "                    \"height\": \"auto\""
-        "                }"
-        "            }"
-        "        }"
-        "    }"
-        "}";
+static const char *LIVE_SEQUENCE_DEEP = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "data": "${TestArray}",
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "item": {
+          "type": "Text",
+          "text": "${data}",
+          "color": "black",
+          "width": 100,
+          "height": "auto"
+        }
+      }
+    }
+  }
+})";
+
 TEST_F(LiveArrayRebuildTest, SequenceScrollingDeep) {
     config.measure(std::make_shared<InflateTextMeasure>());
     auto myArray = LiveArray::create(ObjectArray{"10", "11", "12", "13", "14"});
@@ -1151,31 +1139,31 @@ TEST_F(LiveArrayRebuildTest, SequenceScrollingDeep) {
     ASSERT_EQ(900, scrollPosition);
 }
 
-static const char *LIVE_SEQUENCE_VARIABLE =
-        "{"
-        "    \"type\": \"APL\","
-        "    \"version\": \"1.3\","
-        "    \"theme\": \"dark\","
-        "    \"mainTemplate\": {"
-        "        \"item\": {"
-        "            \"type\": \"Sequence\","
-        "            \"id\": \"sequence\","
-        "            \"scrollDirection\": \"vertical\","
-        "            \"data\": \"${TestArray}\","
-        "            \"height\": 200,"
-        "            \"items\": {"
-        "                \"type\": \"Frame\","
-        "                \"height\": \"${data}\","
-        "                \"item\": {"
-        "                    \"type\": \"Text\","
-        "                    \"text\": \"${data}\","
-        "                    \"color\": \"black\","
-        "                    \"width\": 100"
-        "                }"
-        "            }"
-        "        }"
-        "    }"
-        "}";
+static const char *LIVE_SEQUENCE_VARIABLE = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "scrollDirection": "vertical",
+      "data": "${TestArray}",
+      "height": 200,
+      "items": {
+        "type": "Frame",
+        "height": "${data}",
+        "item": {
+          "type": "Text",
+          "text": "${data}",
+          "color": "black",
+          "width": 100
+        }
+      }
+    }
+  }
+})";
+
 TEST_F(LiveArrayRebuildTest, SequenceVariableSize)
 {
     config.measure(std::make_shared<InflateTextMeasure>());
@@ -1190,26 +1178,25 @@ TEST_F(LiveArrayRebuildTest, SequenceVariableSize)
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 7}, true));
 }
 
-static const char *LIVE_PAGER =
-        "{"
-        "    \"type\": \"APL\","
-        "    \"version\": \"1.3\","
-        "    \"theme\": \"dark\","
-        "    \"mainTemplate\": {"
-        "        \"item\": {"
-        "            \"type\": \"Pager\","
-        "            \"id\": \"pager\","
-        "            \"data\": \"${TestArray}\","
-        "            \"items\": {"
-        "                \"type\": \"Text\","
-        "                \"text\": \"data\","
-        "                \"color\": \"black\","
-        "                \"width\": 100,"
-        "                \"height\": 100"
-        "            }"
-        "        }"
-        "    }"
-        "}";
+static const char *LIVE_PAGER = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "item": {
+      "type": "Pager",
+      "id": "pager",
+      "data": "${TestArray}",
+      "items": {
+        "type": "Text",
+        "text": "data",
+        "color": "black",
+        "width": 100,
+        "height": 100
+      }
+    }
+  }
+})";
 
 TEST_F(LiveArrayRebuildTest, PagerContext)
 {
@@ -1328,47 +1315,46 @@ TEST_F(LiveArrayRebuildTest, PagerContextInsertRemove)
     ASSERT_EQ(true, list["allowBackwards"].GetBool());
 }
 
-static const char *LAYOUT_DEPENDENCY =
-        "{"
-        "    \"type\": \"APL\","
-        "    \"version\": \"1.3\","
-        "    \"theme\": \"dark\","
-        "    \"layouts\": {"
-        "      \"square\": {"
-        "        \"parameters\": ["
-        "          \"color\","
-        "          \"text\""
-        "        ],"
-        "      \"item\": {"
-        "        \"type\": \"Frame\","
-        "        \"width\": 100,"
-        "        \"height\": 100,"
-        "        \"id\": \"frame-${text}\","
-        "        \"backgroundColor\": \"${color}\","
-        "        \"item\": {"
-        "          \"type\": \"Text\","
-        "          \"text\": \"${text}\","
-        "          \"color\": \"lime\","
-        "          \"width\": 100,"
-        "          \"height\": 100"
-        "        }"
-        "      }"
-        "    }"
-        "  },"
-        "    \"mainTemplate\": {"
-        "        \"item\": {"
-        "            \"type\": \"Container\","
-        "            \"height\": 300,"
-        "            \"data\": \"${TestArray}\","
-        "            \"items\": {"
-        "               \"type\": \"square\","
-        "               \"index\": \"${index}\","
-        "               \"color\": \"${data.color}\","
-        "               \"text\": \"${data.text}\""
-        "            }"
-        "        }"
-        "    }"
-        "}";
+static const char *LAYOUT_DEPENDENCY = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "layouts": {
+    "square": {
+      "parameters": [
+        "color",
+        "text"
+      ],
+      "item": {
+        "type": "Frame",
+        "width": 100,
+        "height": 100,
+        "id": "frame-${text}",
+        "backgroundColor": "${color}",
+        "item": {
+          "type": "Text",
+          "text": "${text}",
+          "color": "lime",
+          "width": 100,
+          "height": 100
+        }
+      }
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "height": 300,
+      "data": "${TestArray}",
+      "items": {
+        "type": "square",
+        "index": "${index}",
+        "color": "${data.color}",
+        "text": "${data.text}"
+      }
+    }
+  }
+})";
 
 TEST_F(LiveArrayRebuildTest, DeepComponentUpdate)
 {
@@ -1395,6 +1381,175 @@ TEST_F(LiveArrayRebuildTest, DeepComponentUpdate)
 
     ASSERT_EQ("update", component->getChildAt(0)->getChildAt(0)->getCalculated(kPropertyText).asString());
     ASSERT_EQ(Color(0x0000FFFF), component->getChildAt(0)->getCalculated(kPropertyBackgroundColor).getColor());
+}
+
+static const char *SPACED_SEQUENCE = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "scrollDirection": "vertical",
+      "data": "${TestArray}",
+      "height": 200,
+      "item": {
+        "type": "Text",
+        "text": "${data}",
+        "color": "black",
+        "spacing": 10,
+        "width": 100,
+        "height": 100
+      }
+    }
+  }
+})";
+
+static ::testing::AssertionResult
+CheckSpacing(const CoreComponentPtr& comp, float spacing) {
+    float ypos = 0;
+    for (int i = 0; i < comp->getChildCount(); i++) {
+        auto rect = comp->getCoreChildAt(i)->getCalculated(kPropertyBounds).getRect();
+        if (ypos != rect.getTop()) {
+            return ::testing::AssertionFailure() << "Position wrong on: " << i
+                                                 << " expected='" << ypos
+                                                 << "' actual='" << rect.getTop() << "'";
+        }
+        ypos += (rect.getHeight() + spacing);
+    }
+    // Last one should end without spacing
+    auto lastChildRect = comp->getCoreChildAt(comp->getChildCount() - 1)->getCalculated(kPropertyBounds).getRect();
+    ypos -= spacing;
+    if (ypos != lastChildRect.getBottom()) {
+        return ::testing::AssertionFailure() << "Last child too big";
+    }
+
+    return ::testing::AssertionSuccess();
+}
+
+TEST_F(LiveArrayRebuildTest, SpacedSequence) {
+    auto myArray = LiveArray::create(ObjectArray{0, 1});
+    config.liveData("TestArray", myArray);
+    config.sequenceChildCache(2);
+
+    loadDocument(SPACED_SEQUENCE);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+    ASSERT_EQ(2, component->getChildCount());
+
+    ASSERT_TRUE(CheckSpacing(component, 10));
+    ASSERT_EQ(0, component->getCalculated(kPropertyScrollPosition).getAbsoluteDimension());
+
+    myArray->insert(2, 2);
+    myArray->insert(3, 3);
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(4, component->getChildCount());
+
+    ASSERT_TRUE(CheckSpacing(component, 10));
+    ASSERT_EQ(0, component->getCalculated(kPropertyScrollPosition).getAbsoluteDimension());
+
+    ObjectArray blockInsert = {12,11};
+    myArray->insert(0, blockInsert.begin(), blockInsert.end());
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_EQ(6, component->getChildCount());
+
+    ASSERT_TRUE(CheckSpacing(component, 10));
+    ASSERT_EQ(220, component->getCalculated(kPropertyScrollPosition).getAbsoluteDimension());
+
+    myArray->insert(0, 13);
+    myArray->insert(0, 14);
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_EQ(8, component->getChildCount());
+
+    ASSERT_TRUE(CheckSpacing(component, 10));
+    ASSERT_EQ(440, component->getCalculated(kPropertyScrollPosition).getAbsoluteDimension());
+
+    myArray->insert(1, 111);
+    myArray->insert(3, 113);
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_EQ(10, component->getChildCount());
+
+    ASSERT_TRUE(CheckSpacing(component, 10));
+    ASSERT_EQ(660, component->getCalculated(kPropertyScrollPosition).getAbsoluteDimension());
+
+    myArray->remove(0, 4);
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_EQ(6, component->getChildCount());
+
+    ASSERT_TRUE(CheckSpacing(component, 10));
+    ASSERT_EQ(220, component->getCalculated(kPropertyScrollPosition).getAbsoluteDimension());
+}
+
+static const char *SPACED_CONTAINER = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "id": "container",
+      "data": "${TestArray}",
+      "item": {
+        "type": "Text",
+        "text": "${data}",
+        "color": "black",
+        "spacing": 10,
+        "width": 100,
+        "height": 100
+      }
+    }
+  }
+})";
+
+TEST_F(LiveArrayRebuildTest, SpacedContainer) {
+    auto myArray = LiveArray::create(ObjectArray{0, 1});
+    config.liveData("TestArray", myArray);
+    config.sequenceChildCache(2);
+
+    loadDocument(SPACED_CONTAINER);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeContainer, component->getType());
+    ASSERT_EQ(2, component->getChildCount());
+
+    ASSERT_TRUE(CheckSpacing(component, 10));
+
+    myArray->insert(2, 2);
+    myArray->insert(3, 3);
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(4, component->getChildCount());
+
+    ASSERT_TRUE(CheckSpacing(component, 10));
+
+    ObjectArray blockInsert = {12,11};
+    myArray->insert(0, blockInsert.begin(), blockInsert.end());
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(6, component->getChildCount());
+
+    ASSERT_TRUE(CheckSpacing(component, 10));
+
+    myArray->insert(0, 13);
+    myArray->insert(0, 14);
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(8, component->getChildCount());
+
+    ASSERT_TRUE(CheckSpacing(component, 10));
+
+    myArray->insert(1, 111);
+    myArray->insert(3, 113);
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(10, component->getChildCount());
+
+    ASSERT_TRUE(CheckSpacing(component, 10));
 }
 
 } // namespace apl

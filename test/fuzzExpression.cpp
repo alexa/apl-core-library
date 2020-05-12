@@ -135,14 +135,14 @@ main(int argc, char *argv[]) {
         std::cout << " iterations=" << repeatCount << std::endl;
 
     auto context = Context::create(Metrics(), makeDefaultSession());
-    auto original = evaluate(context, expression);
+    auto original = evaluate(*context, expression);
     auto startTime = std::time(nullptr);
     auto stopTime = startTime + duration;
 
     unsigned long i = 0;
     while (duration > 0 || i < repeatCount) {
         std::string variant = fuzz(expression);
-        auto result = evaluate(context, variant);
+        auto result = evaluate(*context, variant);
 
         if (verbose > 1 || (verbose > 0 && result != original)) {
             apl::streamer s;

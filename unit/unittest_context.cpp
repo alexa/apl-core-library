@@ -172,7 +172,6 @@ TEST_F(ContextTest, Time)
 
     ASSERT_EQ(std::chrono::milliseconds{static_cast<long long>(rootConfig.getUTCTime())}, now);
 
-    component->release();
     component = nullptr;
     root = nullptr;
 }

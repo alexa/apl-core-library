@@ -50,6 +50,7 @@ public:
 
     void TearDown() override {
         graphic = nullptr;
+        MemoryWrapper::TearDown();
     }
 
     Metrics metrics;

@@ -64,12 +64,12 @@ ActionableComponent::executeKeyHandlers(KeyHandlerType type, const ObjectMapPtr&
     for (const auto& handler: handlers.getArray()) {
         if (handler.isMap() && propertyAsBoolean(*eventContext, handler, "when", true)) {
             // We've identified commands to execute
-            auto commands = Object(arrayifyProperty(eventContext, handler, "commands"));
+            auto commands = Object(arrayifyProperty(*eventContext, handler, "commands"));
             if (!commands.empty())
                 mContext->sequencer().executeCommands(commands, eventContext, shared_from_this(), false);
 
             // Return TRUE if the next key handler in the hierarchy should be run
-            return !propertyAsBoolean(eventContext, handler, "propagate", false);
+            return !propertyAsBoolean(*eventContext, handler, "propagate", false);
         }
     }
 

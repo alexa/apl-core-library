@@ -31,7 +31,7 @@ AnimatedProperty::create(const ContextPtr& context,
         return nullptr;
     }
 
-    auto property = propertyAsString(context, object, "property");
+    auto property = propertyAsString(*context, object, "property");
     int key = sComponentPropertyBimap.get(property, -1);
     if (key == -1) {
         CONSOLE_CTP(context) << "Unrecognized animation property '" << property << "'";
@@ -49,13 +49,13 @@ AnimatedProperty::create(const ContextPtr& context,
             if (object.has("from"))
                 return std::unique_ptr<AnimatedDouble>(
                     new AnimatedDouble(static_cast<PropertyKey>(key),
-                                       propertyAsDouble(context, object, "from", 1),
-                                       propertyAsDouble(context, object, "to", 1)));
+                                       propertyAsDouble(*context, object, "from", 1),
+                                       propertyAsDouble(*context, object, "to", 1)));
             else
                 return std::unique_ptr<AnimatedDouble>(
                         new AnimatedDouble(static_cast<PropertyKey>(key),
                                            component,
-                                           propertyAsDouble(context, object, "to", 1))
+                                           propertyAsDouble(*context, object, "to", 1))
                     );
             break;
 
@@ -67,9 +67,9 @@ AnimatedProperty::create(const ContextPtr& context,
 
             return std::unique_ptr<AnimatedTransform>(
                 new AnimatedTransform(
-                    InterpolatedTransformation::create(context,
-                                                       arrayifyProperty(context, object, "from"),
-                                                       arrayifyProperty(context, object, "to"))));
+                    InterpolatedTransformation::create(*context,
+                                                       arrayifyProperty(*context, object, "from"),
+                                                       arrayifyProperty(*context, object, "to"))));
 
             break;
     }

@@ -85,7 +85,9 @@ RootContext::RootContext(const Metrics& metrics, const ContentPtr& content, cons
         session = content->getSession();
 
     mCore = std::make_shared<RootContextData>(metrics, config, theme,
-                                              content->getDocument()->version(), session,
+                                              content->getDocument()->version(),
+                                              content->getDocumentSettings(),
+                                              session,
                                               content->mExtensionRequests);
     mContext = Context::create(metrics, mCore);
 
@@ -314,9 +316,17 @@ RootContext::screenLock()
     return mCore->screenLock();
 }
 
+/**
+ * @deprecated Use Content->getDocumentSettings()
+ */
 const Settings&
 RootContext::settings() {
-    return mCore->mSettings;
+    return *(mCore->mSettings);
+}
+
+const RootConfig&
+RootContext::rootConfig() {
+    return mCore->rootConfig();
 }
 
 bool
@@ -339,10 +349,9 @@ RootContext::setup()
     bool trackProvenance = mCore->rootConfig().getTrackProvenance();
 
     // Read settings
+    // Deprecated, get settings from Content->getDocumentSettings()
     {
-        const rapidjson::Value& settingsValue = Settings::findSettings(*mContent->getDocument());
-        if (!settingsValue.IsNull())
-            mCore->mSettings.read(settingsValue);
+        mCore->mSettings->read(mCore->rootConfig());
     }
 
     // Resource processing:
@@ -417,7 +426,7 @@ RootContext::setup()
                 auto oldHandler = em.findHandler(handler.second);
                 if (!oldHandler.isNull())
                     CONSOLE_CTP(mContext) << "Overwriting existing command handler " << handler.first;
-                em.addEventHandler(handler.second, asCommand(mContext, evaluate(mContext, h->value)));
+                em.addEventHandler(handler.second, asCommand(*mContext, evaluate(*mContext, h->value)));
             }
         }
     }

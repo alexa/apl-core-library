@@ -72,6 +72,7 @@ RootContextData::RootContextData(const Metrics& metrics,
                                  const RootConfig& config,
                                  const std::string& theme,
                                  const std::string& requestedAPLVersion,
+                                 const SettingsPtr& settings,
                                  const SessionPtr& session,
                                  const std::vector<std::pair<std::string, std::string>>& extensions)
     : pixelWidth(metrics.getPixelWidth()),
@@ -92,7 +93,7 @@ RootContextData::RootContextData(const Metrics& metrics,
       mTextMeasurement(config.getMeasure()),
       mConfig(config),
       mScreenLockCount(0),
-      mSettings(config),
+      mSettings(settings),
       mSession(session)
 {
     YGConfigSetPrintTreeFlag(mYGConfigRef, DEBUG_YG_PRINT_TREE);
@@ -100,5 +101,14 @@ RootContextData::RootContextData(const Metrics& metrics,
     YGConfigSetPointScaleFactor(mYGConfigRef, metrics.getDpi() / 160.0);
 }
 
+void
+RootContextData::terminate()     {
+    assert(mSequencer);
+    mSequencer->terminate();
+    if (mTop) {
+        mTop->release();
+        mTop = nullptr;
+    }
+}
 
 } // namespace apl

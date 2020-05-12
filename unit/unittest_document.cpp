@@ -56,6 +56,7 @@ TEST(DocumentTest, Load)
     auto doc = RootContext::create(m, content, config);
 
     ASSERT_TRUE(doc);
+    ASSERT_EQ(15000, content->getDocumentSettings()->idleTimeout(config));
     ASSERT_EQ(15000, doc->settings().idleTimeout());
 }
 
@@ -130,6 +131,7 @@ TEST(DocumentTest, Settings)
     auto doc = RootContext::create(m, content);
 
     ASSERT_TRUE(doc);
+    ASSERT_EQ(10000, content->getDocumentSettings()->idleTimeout(doc->rootConfig()));
     ASSERT_EQ(10000, doc->settings().idleTimeout());
 }
 
@@ -159,6 +161,7 @@ TEST(DocumentTest, Features)
 
     ASSERT_TRUE(doc);
     ASSERT_EQ(10002, doc->settings().idleTimeout());
+    ASSERT_EQ(10002, content->getDocumentSettings()->idleTimeout(doc->rootConfig()));
 }
 
 
@@ -191,6 +194,7 @@ TEST(DocumentTest, SettingsAndFeatures)
 
     ASSERT_TRUE(doc);
     ASSERT_EQ(80000, doc->settings().idleTimeout());
+    ASSERT_EQ(80000, content->getDocumentSettings()->idleTimeout(doc->rootConfig()));
 }
 
 const char *BASIC_DOC_WITH_USER_DEFINED_SETTINGS =
@@ -230,15 +234,18 @@ TEST(DocumentTest, UserDefinedSettings)
     auto doc = RootContext::create(m, content);
     auto context = doc->contextPtr();
 
-    ASSERT_TRUE(doc);
-    ASSERT_EQ(Object::NULL_OBJECT(), doc->settings().getValue("settingAbsent"));
-    ASSERT_EQ(20000, doc->settings().idleTimeout());
-    ASSERT_STREQ("MyValue", doc->settings().getValue("userSettingString").getString().c_str());
-    ASSERT_EQ(500, doc->settings().getValue("userSettingNumber").getInteger());
-    ASSERT_TRUE(doc->settings().getValue("userSettingBool").getBoolean());
-    ASSERT_EQ(Object(Dimension(100)), doc->settings().getValue("userSettingDimension").asDimension(context));
-    ASSERT_EQ(Object::kArrayType, doc->settings().getValue("userSettingArray").getType());
-    ASSERT_EQ(Object::kMapType, doc->settings().getValue("userSettingMap").getType());
+    auto settings = content->getDocumentSettings();
+
+    ASSERT_TRUE(settings);
+    ASSERT_EQ(Object::NULL_OBJECT(), settings->getValue("settingAbsent"));
+    ASSERT_EQ(20000, settings->idleTimeout());
+    ASSERT_STREQ("MyValue",settings->getValue("userSettingString").getString().c_str());
+    ASSERT_EQ(500, settings->getValue("userSettingNumber").getInteger());
+    ASSERT_TRUE(settings->getValue("userSettingBool").getBoolean());
+    ASSERT_EQ(Object(Dimension(100)), settings->getValue("userSettingDimension").asDimension(*context));
+    ASSERT_EQ(Object::kArrayType, settings->getValue("userSettingArray").getType());
+    ASSERT_EQ(Object::kMapType, settings->getValue("userSettingMap").getType());
+
 }
 
 const char *BASIC_DOC_WITHOUT_SETTINGS =
@@ -263,6 +270,7 @@ TEST(DocumentTest, WithoutSettings)
 
     ASSERT_TRUE(doc);
     ASSERT_EQ(30000, doc->settings().idleTimeout());
+    ASSERT_EQ(30000, content->getDocumentSettings()->idleTimeout(doc->rootConfig()));
     ASSERT_EQ(Object::NULL_OBJECT(), doc->settings().getValue("userSetting"));
 }
 

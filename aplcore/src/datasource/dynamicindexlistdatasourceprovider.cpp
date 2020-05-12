@@ -23,18 +23,8 @@
 using namespace apl;
 using namespace DynamicIndexListConstants;
 
-/// Number of data items to cache on Lazy Loading fetch requests.
-static const size_t DEFAULT_CACHE_CHUNK_SIZE = 10;
-
-/// Maximum number of directives to buffer in case of unbound receival. Arbitrary number but considers highly unlikely
-/// occurrence and capability to recover.
-static const int DEFAULT_MAX_LIST_UPDATE_BUFFER = 5;
-
-/// Number of retries to attempt on fetch requests.
-static const int DEFAULT_FETCH_RETRIES = 2;
-
-/// Fetch request timeout.
-static const int DEFAULT_FETCH_TIMEOUT_MS = 1000;
+/// Semi-magic number to seed correlation tokens
+static const int STARTING_REQUEST_TOKEN = 100;
 
 const std::map<std::string, DynamicIndexListUpdateType> sDatasourceUpdateType = {
     {"InsertListItem", kTypeInsert},
@@ -70,7 +60,7 @@ DynamicIndexListDataSourceConnection::DynamicIndexListDataSourceConnection(
         {}
 
 void
-DynamicIndexListDataSourceConnection::enqueueFetchRequestEvent(const ContextPtr& context, const Object& request) {
+DynamicIndexListDataSourceConnection::enqueueFetchRequestEvent(const ContextPtr& context, const ObjectMapPtr& request) {
     EventBag bag;
     bag.emplace(kEventPropertyName, mConfiguration.type);
     bag.emplace(kEventPropertyValue, request);
@@ -80,12 +70,12 @@ DynamicIndexListDataSourceConnection::enqueueFetchRequestEvent(const ContextPtr&
 void
 DynamicIndexListDataSourceConnection::sendFetchRequest(const ContextPtr& context, int index, int count) {
     for (const auto& request : mPendingFetchRequests) {
-        auto requestObject = request.second.request;
-        if (requestObject.get(LIST_ID) != mListId)
+        auto requestMap = request.second->request;
+        if (requestMap->at(LIST_ID) != mListId)
             continue;
 
         // If request such as that already in the go - ignore.
-        if (requestObject.get(START_INDEX) == index && requestObject.get(COUNT) == count) {
+        if (requestMap->at(START_INDEX) == index && requestMap->at(COUNT) == count) {
             return;
         }
     }
@@ -107,17 +97,18 @@ DynamicIndexListDataSourceConnection::sendFetchRequest(const ContextPtr& context
     request.emplace(START_INDEX, index);
     request.emplace(COUNT, count);
 
-    auto requestObject = Object(std::make_shared<ObjectMap>(request));
+    auto requestMap = std::make_shared<ObjectMap>(request);
     auto timeoutId = scheduleTimeout(context, correlationToken);
 
-    PendingFetchRequest pendingFetchRequest = {requestObject, provider->getConfiguration().fetchRetries, timeoutId};
-    mPendingFetchRequests.emplace(correlationToken, pendingFetchRequest);
+    enqueueFetchRequestEvent(context, requestMap);
 
-    enqueueFetchRequestEvent(context, requestObject);
+    PendingFetchRequest pendingFetchRequest = {requestMap, provider->getConfiguration().fetchRetries, timeoutId,
+                                              {correlationToken}};
+    mPendingFetchRequests.emplace(correlationToken, std::make_shared<PendingFetchRequest>(pendingFetchRequest));
 }
 
 timeout_id
-DynamicIndexListDataSourceConnection::scheduleTimeout(const ContextPtr& context, const Object& correlationToken) {
+DynamicIndexListDataSourceConnection::scheduleTimeout(const ContextPtr& context, const std::string& correlationToken) {
     auto timeManager = context->getRootConfig().getTimeManager();
     std::weak_ptr<DynamicIndexListDataSourceConnection> weak_ptr(shared_from_this());
     std::weak_ptr<Context> weak_ctx(context);
@@ -131,26 +122,41 @@ DynamicIndexListDataSourceConnection::scheduleTimeout(const ContextPtr& context,
 }
 
 void
-DynamicIndexListDataSourceConnection::retryFetchRequest(const ContextPtr& context, const Object& correlationToken) {
-    if (correlationToken.isString()) {
-        auto it = mPendingFetchRequests.find(correlationToken.asString());
+DynamicIndexListDataSourceConnection::retryFetchRequest(const ContextPtr& context, const std::string& correlationToken) {
+    if (!correlationToken.empty()) {
+        std::string newToken = correlationToken;
+        auto it = mPendingFetchRequests.find(correlationToken);
         if (it != mPendingFetchRequests.end()) {
-            it->second.retries--;
+            auto pendingRequest = it->second;
+            pendingRequest->retries--;
+            context->getRootConfig().getTimeManager()->clearTimeout(pendingRequest->timeoutId);
 
             auto liveArray = mLiveArray.lock();
             if (liveArray && liveArray->size() != mMaxItems) {
-                enqueueFetchRequestEvent(context, it->second.request);
-            } else {
-                // Bounds being shrunk so we don't need to retry.
-                it->second.retries = 0;
-            }
+                auto provider = mProvider.lock();
+                if (provider) {
+                    provider->constructAndReportError(ERROR_REASON_INTERNAL_ERROR, shared_from_this(),
+                                                      Object::NULL_OBJECT(),
+                                                      "Retrying request: " + it->first);
+                }
 
-            context->getRootConfig().getTimeManager()->clearTimeout(it->second.timeoutId);
-            if (it->second.retries <= 0) {
-                mPendingFetchRequests.erase(correlationToken.asString());
-            } else {
-                // Reset timeout
-                it->second.timeoutId = scheduleTimeout(context, correlationToken);
+                // Replace token with new one as it should be unique.
+                newToken = std::to_string(provider->getAndIncrementCorrelationToken());
+                (*pendingRequest->request)[CORRELATION_TOKEN] = newToken;
+                pendingRequest->relatedTokens.emplace_back(newToken);
+
+                enqueueFetchRequestEvent(context, pendingRequest->request);
+
+                if (pendingRequest->retries > 0) {
+                    // Reset timeout
+                    pendingRequest->timeoutId = scheduleTimeout(context, newToken);
+                    mPendingFetchRequests.emplace(newToken, pendingRequest);
+                } else {
+                    // Clean up all related
+                    for (auto& token : pendingRequest->relatedTokens) {
+                        mPendingFetchRequests.erase(token);
+                    }
+                }
             }
         }
     }
@@ -179,7 +185,7 @@ DynamicIndexListDataSourceConnection::processLazyLoad(int index, const Object& d
     if (!context) {
         return false;
     }
-    auto items = evaluateRecursive(context, data);
+    auto items = evaluateRecursive(*context, data);
 
     bool result = false;
 
@@ -188,16 +194,18 @@ DynamicIndexListDataSourceConnection::processLazyLoad(int index, const Object& d
     } else {
         provider->constructAndReportError(ERROR_REASON_INTERNAL_ERROR, shared_from_this(), index,
                 "No items provided to load.");
-        retryFetchRequest(context, correlationToken);
+        retryFetchRequest(context, correlationToken.asString());
         return result;
     }
 
     // Clear timeouts and remove request from pending list
-    if (result && correlationToken.isString()) {
+    if (result && !correlationToken.isNull()) {
         auto it = mPendingFetchRequests.find(correlationToken.asString());
         if (it != mPendingFetchRequests.end()) {
-            context->getRootConfig().getTimeManager()->clearTimeout(it->second.timeoutId);
-            mPendingFetchRequests.erase(correlationToken.asString());
+            context->getRootConfig().getTimeManager()->clearTimeout(it->second->timeoutId);
+            for (auto& token : it->second->relatedTokens) {
+                mPendingFetchRequests.erase(token);
+            }
         }
     }
 
@@ -224,7 +232,7 @@ DynamicIndexListDataSourceConnection::processUpdate(DynamicIndexListUpdateType t
     if (!context) {
         return false;
     }
-    auto items = evaluateRecursive(context, data);
+    auto items = evaluateRecursive(*context, data);
 
     bool result = false;
 
@@ -283,7 +291,15 @@ DynamicIndexListDataSourceConnection::processUpdate(DynamicIndexListUpdateType t
 }
 
 bool
-DynamicIndexListDataSourceConnection::updateBounds(int minimumInclusiveIndex, int maximumExclusiveIndex) {
+DynamicIndexListDataSourceConnection::updateBounds(
+        const Object& minimumInclusiveIndexObj,
+        const Object& maximumExclusiveIndexObj) {
+
+    double minimumInclusiveIndex = minimumInclusiveIndexObj.isNumber()
+            ? minimumInclusiveIndexObj.getInteger() : mMinimumInclusiveIndex;
+    double maximumExclusiveIndex = maximumExclusiveIndexObj.isNumber()
+            ? maximumExclusiveIndexObj.getInteger() : mMaximumExclusiveIndex;
+
     bool wasChanged = false;
     double oldOffset = mOffset;
     auto liveArray = mLiveArray.lock();
@@ -298,9 +314,13 @@ DynamicIndexListDataSourceConnection::updateBounds(int minimumInclusiveIndex, in
             liveArray->remove(0, mOffset - oldOffset);
             mOffset = 0;
         }
+    } else if (minimumInclusiveIndex < mMinimumInclusiveIndex) {
+        mOffset += (mMinimumInclusiveIndex - minimumInclusiveIndex);
+        mMinimumInclusiveIndex = minimumInclusiveIndex;
+        wasChanged = true;
     }
 
-    if (maximumExclusiveIndex < mMaximumExclusiveIndex) {
+    if (maximumExclusiveIndex != mMaximumExclusiveIndex) {
         mMaximumExclusiveIndex = maximumExclusiveIndex;
         wasChanged = true;
     }
@@ -322,6 +342,41 @@ DynamicIndexListDataSourceConnection::updateBounds(int minimumInclusiveIndex, in
     return wasChanged;
 }
 
+timeout_id
+DynamicIndexListDataSourceConnection::scheduleUpdateExpiry(int version) {
+    auto context = mContext.lock();
+    if (context) {
+        // Schedule "expiry" of list version cache
+        auto timeManager = context->getRootConfig().getTimeManager();
+        std::weak_ptr<DynamicIndexListDataSourceConnection> weak_ptr(shared_from_this());
+
+        return timeManager->setTimeout([weak_ptr, version]() {
+            auto self = weak_ptr.lock();
+            if (!self)
+                return;
+
+            self->reportUpdateExpired(version);
+        }, mConfiguration.cacheExpiryTimeout);
+    }
+    return 0;
+}
+
+void
+DynamicIndexListDataSourceConnection::reportUpdateExpired(int version) {
+    auto context = mContext.lock();
+    auto provider = mProvider.lock();
+
+    if (!context || !provider)
+        return;
+
+    auto it = mUpdatesCache.find(version);
+    if (it != mUpdatesCache.end()) {
+        context->getRootConfig().getTimeManager()->clearTimeout(it->second.expiryTimeout);
+        provider->constructAndReportError(ERROR_REASON_MISSING_LIST_VERSION, shared_from_this(), Object::NULL_OBJECT(),
+                "Update to version " + std::to_string(version + 1) + " buffered longer than expected.");
+    }
+}
+
 void
 DynamicIndexListDataSourceConnection::putCacheUpdate(int version, const Object& payload) {
     auto provider = mProvider.lock();
@@ -338,14 +393,16 @@ DynamicIndexListDataSourceConnection::putCacheUpdate(int version, const Object& 
                 Object::NULL_OBJECT(), "Too many updates buffered. Discarding highest version.");
         auto it = mUpdatesCache.rbegin();
         if (it->first > version) {
-            mUpdatesCache.erase(it->first);
+            retrieveCachedUpdate(it->first);
         } else {
             return;
         }
     }
 
     if (!mUpdatesCache.count(version)) {
-        mUpdatesCache.emplace(version, payload);
+        auto timeoutId = scheduleUpdateExpiry(version);
+        Update update = {payload, timeoutId};
+        mUpdatesCache.emplace(version, update);
     } else {
         provider->constructAndReportError(ERROR_REASON_DUPLICATE_LIST_VERSION, shared_from_this(),
                 Object::NULL_OBJECT(), "Trying to cache existing list version.");
@@ -354,29 +411,29 @@ DynamicIndexListDataSourceConnection::putCacheUpdate(int version, const Object& 
 
 Object
 DynamicIndexListDataSourceConnection::retrieveCachedUpdate(int version) {
-    auto update = mUpdatesCache.find(version);
-    if (update != mUpdatesCache.end()) {
-        Object payload = update->second;
+    auto it = mUpdatesCache.find(version);
+    if (it != mUpdatesCache.end()) {
+        auto context = mContext.lock();
+        if (context) {
+            context->getRootConfig().getTimeManager()->clearTimeout(it->second.expiryTimeout);
+        }
+
+        Object payload = it->second.update;
         mUpdatesCache.erase(version);
+
         return payload;
     }
     return Object::NULL_OBJECT();
 }
 
 DynamicIndexListDataSourceProvider::DynamicIndexListDataSourceProvider(const DynamicIndexListConfiguration& config)
-        : mConfiguration(std::move(config)), mRequestToken(100) {}
+        : mConfiguration(config), mRequestToken(STARTING_REQUEST_TOKEN) {}
 
 DynamicIndexListDataSourceProvider::DynamicIndexListDataSourceProvider(const std::string& type, size_t cacheChunkSize)
-        : DynamicIndexListDataSourceProvider(
-        {type, cacheChunkSize, DEFAULT_MAX_LIST_UPDATE_BUFFER, DEFAULT_FETCH_RETRIES, DEFAULT_FETCH_TIMEOUT_MS}
-) {}
+        : DynamicIndexListDataSourceProvider(DynamicIndexListConfiguration(type, cacheChunkSize)) {}
 
 DynamicIndexListDataSourceProvider::DynamicIndexListDataSourceProvider()
-        : DynamicIndexListDataSourceProvider(
-                {
-                    DEFAULT_TYPE_NAME, DEFAULT_CACHE_CHUNK_SIZE, DEFAULT_MAX_LIST_UPDATE_BUFFER,
-                    DEFAULT_FETCH_RETRIES, DEFAULT_FETCH_TIMEOUT_MS}
-                ) {}
+        : DynamicIndexListDataSourceProvider(DynamicIndexListConfiguration()) {}
 
 std::shared_ptr<DataSourceConnection>
 DynamicIndexListDataSourceProvider::create(const Object& sourceDefinition, std::weak_ptr<Context> context,
@@ -434,7 +491,13 @@ DynamicIndexListDataSourceProvider::processLazyLoadInternal(
     int startIndex = responseMap.get(START_INDEX).getInteger();
     auto correlationToken = responseMap.get(CORRELATION_TOKEN);
 
-    if (correlationToken.isString() && !connection->canProcess(correlationToken.getString())) {
+    if (!correlationToken.isNull() && !connection->canProcess(correlationToken.asString())) {
+        int tokenNumber = correlationToken.asInt();
+        if (tokenNumber < mRequestToken && tokenNumber > STARTING_REQUEST_TOKEN) {
+            // Most likely duplicate response because of timeout. Skill can't really track it so just exit.
+            return false;
+        }
+
         // Responding to processed or non-existing event
         constructAndReportError(ERROR_REASON_INTERNAL_ERROR, connection, startIndex, "Wrong correlation token.");
         return false;
@@ -443,9 +506,7 @@ DynamicIndexListDataSourceProvider::processLazyLoadInternal(
     auto minimumInclusiveIndex = responseMap.get(MINIMUM_INCLUSIVE_INDEX);
     auto maximumExclusiveIndex = responseMap.get(MAXIMUM_EXCLUSIVE_INDEX);
 
-    if(connection->updateBounds(
-            minimumInclusiveIndex.isNumber() ? minimumInclusiveIndex.getInteger() : INT_MIN,
-            maximumExclusiveIndex.isNumber() ? maximumExclusiveIndex.getInteger() : INT_MAX)) {
+    if(connection->updateBounds(minimumInclusiveIndex, maximumExclusiveIndex)) {
         constructAndReportError(ERROR_REASON_INTERNAL_ERROR, connection, startIndex,
                 "Bounds were changed in runtime.");
     }
@@ -536,7 +597,7 @@ DynamicIndexListDataSourceProvider::processUpdate(const Object& payload) {
 
         // Non-existing. Give it a chance to figure out by correlationToken.
         auto correlationToken = responseMap.get(CORRELATION_TOKEN);
-        if (correlationToken.isString()) {
+        if (!correlationToken.isNull()) {
             connectionIter = mConnections.begin();
             while (connectionIter != mConnections.end()) {
                 auto connection = connectionIter->second.lock();

@@ -71,8 +71,6 @@ TEST_F(VisualContextTest, Basic)
     ASSERT_STREQ("text", child["id"].GetString());
     ASSERT_STREQ("text", child["type"].GetString());
     ASSERT_FALSE(child.HasMember("tags"));
-
-    component->release();
 }
 
 static const char *TRANSFORM = "{"
@@ -116,8 +114,6 @@ TEST_F(VisualContextTest, Transform)
     ASSERT_NEAR(0.7, transform[3].GetFloat(), 0.1);
     ASSERT_NEAR(432.8, transform[4].GetFloat(), 0.1);
     ASSERT_NEAR(-244.8, transform[5].GetFloat(), 0.1);
-
-    component->release();
 }
 
 static const char *EMPTY_SEQUENCE = "{"
@@ -149,8 +145,6 @@ TEST_F(VisualContextTest, EmptySequence)
     ASSERT_TRUE(context.HasMember("tags"));
     auto& tags = context["tags"];
     ASSERT_FALSE(tags.HasMember("list"));
-
-    component->release();
 }
 
 static const char *SEQUENCE = "{"
@@ -343,8 +337,6 @@ TEST_F(VisualContextTest, Sequence)
     ASSERT_EQ(4, c3t["ordinal"]);
     ASSERT_TRUE(c2t.HasMember("listItem"));
     ASSERT_EQ(4, c3t["listItem"]["index"]);
-
-    component->release();
 }
 
 static const char *HORIZONTAL_SEQUENCE = "{"
@@ -537,8 +529,6 @@ TEST_F(VisualContextTest, HorizontalSequence)
     ASSERT_EQ(4, c3t["ordinal"]);
     ASSERT_TRUE(c2t.HasMember("listItem"));
     ASSERT_EQ(4, c3t["listItem"]["index"]);
-
-    component->release();
 }
 
 TEST_F(VisualContextTest, RevertedSequence)
@@ -674,8 +664,6 @@ TEST_F(VisualContextTest, RevertedSequence)
     ASSERT_EQ(2, c3t["ordinal"]);
     ASSERT_TRUE(c2t.HasMember("listItem"));
     ASSERT_EQ(2, c3t["listItem"]["index"]);
-
-    component->release();
 }
 
 static const char *SHIFTED_SEQUENCE = "{"
@@ -870,8 +858,6 @@ TEST_F(VisualContextTest, ShiftedSequence)
     ASSERT_EQ(4, c3t["ordinal"]);
     ASSERT_TRUE(c2t.HasMember("listItem"));
     ASSERT_EQ(4, c3t["listItem"]["index"]);
-
-    component->release();
 }
 
 static const char *ORDINAL_SEQUENCE = "{"
@@ -963,8 +949,6 @@ TEST_F(VisualContextTest, MissingOrdinalSequence)
     ASSERT_EQ(5, list["highestIndexSeen"].GetInt());
     ASSERT_EQ(1, list["lowestOrdinalSeen"].GetInt());
     ASSERT_EQ(3, list["highestOrdinalSeen"].GetInt());
-
-    component->release();
 }
 
 static const char *NO_ORDINAL_SEQUENCE = "{"
@@ -1053,8 +1037,6 @@ TEST_F(VisualContextTest, NoOrdinalSequence)
     ASSERT_EQ(5, list["highestIndexSeen"].GetInt());
     ASSERT_FALSE(list.HasMember("lowestOrdinalSeen"));
     ASSERT_FALSE(list.HasMember("highestOrdinalSeen"));
-
-    component->release();
 }
 
 static const char *PADDED_SEQUENCE = "{\n"
@@ -1173,8 +1155,6 @@ TEST_F(VisualContextTest, PaddedScrollableTests)
         scrollable = tags["scrollable"];
         ASSERT_EQ(false, scrollable["allowForward"]);
         ASSERT_EQ(true, scrollable["allowBackwards"]);
-
-        component->release();
     }
 }
 
@@ -1262,8 +1242,6 @@ TEST_F(VisualContextTest, Pager)
     ASSERT_STREQ("text", reportedChild2["type"].GetString());
     ASSERT_TRUE(reportedChild2.HasMember("entities"));
     ASSERT_FALSE(reportedChild2.HasMember("tags"));
-
-    component->release();
 }
 
 static const char *MEDIA = "{"
@@ -1345,8 +1323,6 @@ TEST_F(VisualContextTest, Media)
     ASSERT_EQ(1000, media["positionInMilliseconds"].GetInt());
     ASSERT_STREQ("paused", media["state"].GetString());
     ASSERT_STREQ("https://s3.amazonaws.com/elon-video-urls/minion1.mp4", media["url"].GetString());
-
-    component->release();
 }
 
 static const char *EMPTY_MEDIA = "{"
@@ -1376,8 +1352,6 @@ TEST_F(VisualContextTest, EmptyMedia)
     auto& tags = context["tags"];
     ASSERT_TRUE(tags.HasMember("viewport"));
     ASSERT_FALSE(tags.HasMember("media"));
-
-    component->release();
 }
 
 static const char *DEEP = "{"
@@ -1447,8 +1421,6 @@ TEST_F(VisualContextTest, Deep)
     ASSERT_STREQ("text", text["type"].GetString());
     ASSERT_FALSE(text.HasMember("tags"));
     ASSERT_STREQ("1024x10+0+0:0", text["position"].GetString());
-
-    component->release();
 }
 
 static const char *EMPTY = "{"
@@ -1491,8 +1463,6 @@ TEST_F(VisualContextTest, Empty)
 
     // Check children
     ASSERT_FALSE(context.HasMember("children"));
-
-    component->release();
 }
 
 static const char *INHERIT_STATE = "{"
@@ -1547,9 +1517,6 @@ TEST_F(VisualContextTest, InheritState)
     ASSERT_TRUE(textContext.HasMember("tags"));
     ASSERT_TRUE(textContext["tags"]["disabled"].GetBool());
     ASSERT_FALSE(textContext["tags"].HasMember("checked"));
-
-
-    component->release();
 }
 
 static const char *STATES = "{"
@@ -1641,8 +1608,6 @@ TEST_F(VisualContextTest, States)
     ASSERT_STREQ("item_1", childContext["id"].GetString());
     ASSERT_TRUE(childContext.HasMember("entities"));
     ASSERT_FALSE(childContext["tags"].HasMember("disabled"));
-
-    component->release();
 }
 
 static const char *TYPE = "{"
@@ -1746,8 +1711,6 @@ TEST_F(VisualContextTest, Type)
     auto& c5 = context["children"][4];
     ASSERT_STREQ("empty", c5["id"].GetString());
     ASSERT_STREQ("empty", c5["type"].GetString());
-
-    component->release();
 }
 
 static const char *TYPE_PROPAGATE = "{"
@@ -1796,8 +1759,6 @@ TEST_F(VisualContextTest, TypePropagate)
     auto& c1 = context["children"][0];
     ASSERT_STREQ("empty", c1["id"].GetString());
     ASSERT_STREQ("empty", c1["type"].GetString());
-
-    component->release();
 }
 
 static const char *OPACITY = "{"
@@ -1856,8 +1817,6 @@ TEST_F(VisualContextTest, Opacity)
     auto& opaqueChild = context["children"][0];
 
     ASSERT_EQ(0.25, opaqueChild["visibility"]);
-
-    component->release();
 }
 
 static const char *LAYERING_DEEP = "{"
@@ -1934,8 +1893,6 @@ TEST_F(VisualContextTest, LayeringDeep)
     ASSERT_STREQ("100x100+20+20:1", child2["position"].GetString());
     auto& child3 = context["children"][2];
     ASSERT_STREQ("100x100+30+30:2", child3["position"].GetString());
-
-    component->release();
 }
 
 static const char *LAYERING_ONE = "{"
@@ -2012,8 +1969,6 @@ TEST_F(VisualContextTest, LayeringOne)
     ASSERT_STREQ("100x100+50+50:1", child2["position"].GetString());
     auto& child3 = context["children"][2];
     ASSERT_STREQ("100x100+200+200:0", child3["position"].GetString());
-
-    component->release();
 }
 
 static const char *LAYERING_SINGLE = "{"
@@ -2064,8 +2019,6 @@ TEST_F(VisualContextTest, LayeringSingle)
     ASSERT_EQ(1, context["children"].GetArray().Size());
     auto& child = context["children"][0];
     ASSERT_STREQ("100x100+100+100:0", child["position"].GetString());
-
-    component->release();
 }
 
 static const char *LAYERING_TWO = "{"
@@ -2142,8 +2095,6 @@ TEST_F(VisualContextTest, LayeringTwo)
     ASSERT_STREQ("100x100+50+50:1", child2["position"].GetString());
     auto& child3 = context["children"][2];
     ASSERT_STREQ("100x100+150+150:1", child3["position"].GetString());
-
-    component->release();
 }
 
 static const char *LAYERING_INC = "{"
@@ -2216,8 +2167,6 @@ TEST_F(VisualContextTest, LayeringIncapsulated)
     ASSERT_STREQ("100x100+100+100:0", child1["position"].GetString());
     auto& child2 = context["children"][1];
     ASSERT_STREQ("100x100+50+50:1", child2["position"].GetString());
-
-    component->release();
 }
 
 static const char *OPACITY_CHANGE = "{"
@@ -2283,8 +2232,6 @@ TEST_F(VisualContextTest, OpacityChange)
 
     // Check children
     ASSERT_FALSE(context.HasMember("children"));
-
-    component->release();
 }
 
 static const char *DISPLAY_CHANGE = "{"
@@ -2352,8 +2299,6 @@ TEST_F(VisualContextTest, DisplayChange)
     ASSERT_FALSE(context.HasMember("children"));
 
     root->clearPending();
-
-    component->release();
 }
 
 static const char *LAYOUT_CHANGE = "{"
@@ -2440,6 +2385,4 @@ TEST_F(VisualContextTest, LayoutChange)
     ASSERT_STREQ("item_0", child["id"].GetString());
     ASSERT_TRUE(child.HasMember("entities"));
     ASSERT_EQ("50x30+0+0:0", child["position"]);
-
-    component->release();
 }

@@ -40,7 +40,7 @@ protected:
 private:
     bool processResponseInternal(size_t index, size_t count);
 
-    int mRequestToken;
+    int mRequestToken = 0;
     std::vector<Object> mData;
     std::map<unsigned int, std::pair<size_t, size_t>> mRequests;
 };

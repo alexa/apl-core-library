@@ -111,7 +111,7 @@ CommandFactory::expandMacro(const ContextPtr& context,
     }
 
     return ArrayCommand::create(cptr,
-                                arrayifyProperty(cptr, definition, "command", "commands"),
+                                arrayifyProperty(*cptr, definition, "command", "commands"),
                                 base,
                                 properties
     );

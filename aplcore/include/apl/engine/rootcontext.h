@@ -251,6 +251,12 @@ public:
     bool screenLock();
 
     /**
+     * @return the RootConfig used to initialize this context.
+     */
+     const RootConfig&  rootConfig();
+
+    /**
+     * @deprecated Use Content->getDocumentSettings()
      * @return document-wide properties.
      */
     const Settings& settings();

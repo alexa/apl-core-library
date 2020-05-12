@@ -501,6 +501,12 @@ public:
      */
     bool isAttached() const;
 
+    /**
+     * Update the spacing to specified value if any.
+     * @param reset Reset spacing to 0.
+     */
+    void fixSpacing(bool reset = false);
+
 protected:
     // internal, do not call directly
     virtual bool insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag);

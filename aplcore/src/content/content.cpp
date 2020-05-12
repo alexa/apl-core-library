@@ -300,7 +300,7 @@ Content::updateStatus() {
 }
 
 /**
- * Loads Settings from imported Packages.  This process uses the ordered dependency list.
+ * Loads Extension settings from imported Packages.  This process uses the ordered dependency list.
  * Should multiple packages provide settings for the same named Extension, or packages reference
  * the same Extension by multiple names, existing settings are overwritten and new settings augmented.
  */
@@ -385,15 +385,22 @@ Content::getBackground(const Metrics& metrics, const RootConfig& config) const {
     // Create a working context and evaluate any data-binding expression
     // This is a restricted context because we don't load any resources or styles
     auto context = Context::create(metrics, config, theme);
-    auto object = evaluate(context, backgroundIter->value);
+    auto object = evaluate(*context, backgroundIter->value);
 
     // Try to create a gradient
-    auto gradient = Gradient::create(context, object);
+    auto gradient = Gradient::create(*context, object);
     if (gradient.isGradient())
         return gradient;
 
     // Return this as a color
     return object.asColor(mSession);
+}
+
+const SettingsPtr
+Content::getDocumentSettings() const {
+    const rapidjson::Value& settingsValue = Settings::findSettings(*mMainPackage);
+    auto settings = std::make_shared<Settings>(Settings(settingsValue));
+    return settings;
 }
 
 std::set<std::string>

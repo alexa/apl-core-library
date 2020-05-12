@@ -52,18 +52,18 @@ public:
                     const RootConfig& config,
                     const std::string& theme,
                     const std::string& requestedAPLVersion,
+                    const SettingsPtr& settings,
                     const SessionPtr& session,
                     const std::vector<std::pair<std::string, std::string>>& extensions);
+
+    ~RootContextData() {
+        YGConfigFree(mYGConfigRef);
+    }
 
     /**
      * Discontinue use of this data.  Inform all children that they are no longer alive.
      */
-    void terminate()
-    {
-        assert(mSequencer);
-        mSequencer->terminate();
-        mTop = nullptr;
-    }
+    void terminate();
 
     Styles& styles() const { return *mStyles; }
     Sequencer& sequencer() const { return *mSequencer; }
@@ -130,7 +130,7 @@ private:
     CoreComponentPtr mTop;         // The top component
     const RootConfig mConfig;
     int mScreenLockCount;
-    Settings mSettings;
+    SettingsPtr mSettings;
     SessionPtr mSession;
 };
 

@@ -24,14 +24,14 @@ namespace apl {
 namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 const int MAX_EASING_CACHE_SIZE = 1000;
 
-static Easing sDefaultEasingCurve(new LinearEasing());
+static Easing sDefaultEasingCurve(std::make_shared<LinearEasing>());
 
-std::map<std::string, EasingCurve *> sEasingCurves = {
-    { "linear", new LinearEasing() },
-    { "ease", new CubicBezierEasing(0.25, 0.10, 0.25, 1) },
-    { "ease-in", new CubicBezierEasing(0.42, 0, 1, 1) },
-    { "ease-out", new CubicBezierEasing(0, 0, 0.58, 1) },
-    { "ease-in-out", new CubicBezierEasing(0.42, 0, 0.58, 1) }
+std::map<std::string, EasingCurvePtr> sEasingCurves = {
+    { "linear", std::make_shared<LinearEasing>() },
+    { "ease", std::make_shared<CubicBezierEasing>(0.25, 0.10, 0.25, 1) },
+    { "ease-in", std::make_shared<CubicBezierEasing>(0.42, 0, 1, 1) },
+    { "ease-out", std::make_shared<CubicBezierEasing>(0, 0, 0.58, 1) },
+    { "ease-in-out", std::make_shared< CubicBezierEasing>(0.42, 0, 0.58, 1) }
 };
 
 static bool checkPathOrder(const std::vector<float>& vector)
@@ -77,7 +77,7 @@ Easing::parse(const SessionPtr& session, const std::string& easing) {
                         CONSOLE_S(session) << "Path easing function needs ordered array of arguments";
                     }
                     else {
-                        auto easingCurve = new PathEasing(std::move(state.args));
+                        EasingCurvePtr easingCurve = std::make_shared<PathEasing>(std::move(state.args));
                         if (sEasingCurves.size() < MAX_EASING_CACHE_SIZE)
                             sEasingCurves.emplace(s, easingCurve);
                         return easingCurve;
@@ -88,7 +88,7 @@ Easing::parse(const SessionPtr& session, const std::string& easing) {
                 if (state.args.size() != 4) {
                     CONSOLE_S(session) << "Cubic bezier easing function needs four arguments";
                 } else {
-                    auto easingCurve = new CubicBezierEasing(state.args.at(0), state.args.at(1), state.args.at(2), state.args.at(3));
+                    EasingCurvePtr easingCurve = std::make_shared<CubicBezierEasing>(state.args.at(0), state.args.at(1), state.args.at(2), state.args.at(3));
                     if (sEasingCurves.size() < MAX_EASING_CACHE_SIZE)
                         sEasingCurves.emplace(s, easingCurve);
                     return easingCurve;

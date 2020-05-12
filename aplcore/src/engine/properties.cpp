@@ -111,7 +111,7 @@ Properties::addToContext(const ContextPtr &context, const Parameter &parameter, 
         mProperties.erase(it);   // Remove the property from the list
 
         // Extract as an optional node tree for dependant
-        tmp = tmp.isString() ? parseDataBinding(context, tmp.getString()) : tmp;
+        tmp = tmp.isString() ? parseDataBinding(*context, tmp.getString()) : tmp;
 
         auto value = evaluate(*context, tmp);
         if (!value.isNull()) {

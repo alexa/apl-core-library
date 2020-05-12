@@ -270,7 +270,7 @@ TEST_F(SpeakItemTest, TestStages)
     event = root->popEvent();
     ASSERT_EQ(kEventTypeScrollTo, event.getType());
     ASSERT_EQ(component, event.getComponent());  // This is the container that should scroll
-    ASSERT_EQ(Dimension(200), event.getValue(kEventPropertyPosition).asDimension(context));
+    ASSERT_EQ(Dimension(200), event.getValue(kEventPropertyPosition).asDimension(*context));
 
     // At this point the system is waiting for the scrolling to occur
     ASSERT_TRUE(CheckDirty(root));   // No dirty properties
@@ -341,7 +341,7 @@ TEST_F(SpeakItemTest, TestStagesFastSpeech)
     event = root->popEvent();
     ASSERT_EQ(kEventTypeScrollTo, event.getType());
     ASSERT_EQ(component, event.getComponent());  // This is the container that should scroll
-    ASSERT_EQ(Dimension(250), event.getValue(kEventPropertyPosition).asDimension(context));
+    ASSERT_EQ(Dimension(250), event.getValue(kEventPropertyPosition).asDimension(*context));
 
     // At this point the system is waiting for the scrolling to occur
     ASSERT_TRUE(CheckDirty(root));   // No dirty properties
@@ -424,7 +424,7 @@ TEST_F(SpeakItemTest, TestStagesNoScrollingRequired)
     event = root->popEvent();
     ASSERT_EQ(kEventTypeScrollTo, event.getType());
     ASSERT_EQ(component, event.getComponent());  // This is the container that should scroll
-    ASSERT_EQ(Dimension(0), event.getValue(kEventPropertyPosition).asDimension(context));
+    ASSERT_EQ(Dimension(0), event.getValue(kEventPropertyPosition).asDimension(*context));
 
     // At this point the system is waiting for the scrolling to occur
     ASSERT_TRUE(CheckDirty(root));   // No dirty properties
@@ -491,7 +491,7 @@ TEST_F(SpeakItemTest, TestTerminationDuringScroll)
     event = root->popEvent();
     ASSERT_EQ(kEventTypeScrollTo, event.getType());
     ASSERT_EQ(component, event.getComponent());  // This is the container that should scroll
-    ASSERT_EQ(Dimension(300), event.getValue(kEventPropertyPosition).asDimension(context));
+    ASSERT_EQ(Dimension(300), event.getValue(kEventPropertyPosition).asDimension(*context));
 
     // At this point the system is waiting for the scrolling to occur
     ASSERT_TRUE(CheckDirty(root));   // No dirty properties
@@ -543,7 +543,7 @@ TEST_F(SpeakItemTest, TestTerminationDuringSpeech)
     event = root->popEvent();
     ASSERT_EQ(kEventTypeScrollTo, event.getType());
     ASSERT_EQ(component, event.getComponent());  // This is the container that should scroll
-    ASSERT_EQ(Dimension(300), event.getValue(kEventPropertyPosition).asDimension(context));
+    ASSERT_EQ(Dimension(300), event.getValue(kEventPropertyPosition).asDimension(*context));
 
     // At this point the system is waiting for the scrolling to occur
     ASSERT_TRUE(CheckDirty(root));   // No dirty properties
@@ -695,7 +695,7 @@ TEST_F(SpeakItemTest, MissingSpeech)
     auto event = root->popEvent();
 
     ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(Dimension(200), event.getValue(kEventPropertyPosition).asDimension(context));
+    ASSERT_EQ(Dimension(200), event.getValue(kEventPropertyPosition).asDimension(*context));
     ASSERT_EQ(component, event.getComponent());
     ASSERT_TRUE(CheckDirty(root));
 
@@ -732,7 +732,7 @@ TEST_F(SpeakItemTest, MissingSpeechNoDwell)
     auto event = root->popEvent();
 
     ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(Dimension(200), event.getValue(kEventPropertyPosition).asDimension(context));
+    ASSERT_EQ(Dimension(200), event.getValue(kEventPropertyPosition).asDimension(*context));
     ASSERT_EQ(component, event.getComponent());
     ASSERT_TRUE(CheckDirty(root));
 

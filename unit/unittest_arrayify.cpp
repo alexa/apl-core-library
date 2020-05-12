@@ -119,21 +119,21 @@ TEST_F(Arrayify, EvaluateContext)
     context->putConstant("payload", doc);
 
     // This version results in ["a", "b", "c"]
-    auto result = arrayify(context, "${payload}");
+    auto result = arrayify(*context, "${payload}");
     ASSERT_EQ(3, result.size());
     ASSERT_TRUE(result.begin()->isString());
     ASSERT_STREQ("a", result.begin()->getString().c_str());
     ASSERT_STREQ("c", result[2].getString().c_str());
 
     // This version results in ["fuzzy"]
-    result = arrayify(context, "${'fuzzy'}");
+    result = arrayify(*context, "${'fuzzy'}");
     ASSERT_EQ(1, result.size());
     ASSERT_TRUE(result.begin()->isString());
     ASSERT_STREQ("fuzzy", result.begin()->getString().c_str());
 
     // This version should give ["x", "a", "b", "c", "z"]
     Object v(std::vector<Object>({"x", "${payload}", "z"}));
-    result = arrayify(context, v);
+    result = arrayify(*context, v);
     ASSERT_EQ(5, result.size());
     ASSERT_TRUE(result.begin()->isString());
     ASSERT_STREQ("x", result[0].getString().c_str());
@@ -163,7 +163,7 @@ TEST_F(Arrayify, ContextArrayifyProperty)
         rapidjson::ParseResult okay = d.Parse(p.first.c_str());
         ASSERT_TRUE(okay);
 
-        auto result = arrayifyProperty(context, d, "extend", "extends");
+        auto result = arrayifyProperty(*context, d, "extend", "extends");
         ASSERT_EQ(p.second, result.size());
     }
 }
@@ -199,7 +199,7 @@ TEST_F(Arrayify, ExtendCommands)
     rapidjson::Document array;
     ASSERT_TRUE(static_cast<rapidjson::ParseResult>(array.Parse(COMMAND_ARRAY)));
 
-    auto result = arrayifyProperty(context, array, "command", "commands");
+    auto result = arrayifyProperty(*context, array, "command", "commands");
 
     ASSERT_EQ(3, result.size());
 

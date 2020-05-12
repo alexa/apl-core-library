@@ -1,4 +1,24 @@
 # Changelog
+
+## [1.3.1]
+
+This release is a bug fix release of apl-core-library.
+
+### Added
+
+- dynamicIndexList: Allow data source bounds to be grown. Previously, they could only be shrunk.
+- dynamicIndexList: Trigger a RuntimeError when a response to a LoadIndexListData request times out
+- dynamicIndexList: Trigger a RuntimeError when a directive is buffered longer than a specified duration
+
+### Changed
+
+- dynamicIndexList: improved handling of delayed responses
+- Expose settings to the runtime before a document is fully inflated
+- Better handling of spacing when components change dynamically
+- Better handling of empty item inflation
+- Fixed memory leak
+- Minor bug fixes
+
 ## [1.3.0]
 
 Welcome to the March 2020 release of apl-core-library. This release supports version

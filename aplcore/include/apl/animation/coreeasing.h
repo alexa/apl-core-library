@@ -32,7 +32,7 @@ public:
     virtual ~EasingCurve() {}
 
     virtual float calc(float t) const = 0;
-    virtual bool equal(const EasingCurve* rhs) const = 0;
+    virtual bool equal(EasingCurvePtr rhs) const = 0;
     virtual std::string toDebugString() const = 0;
 };
 /**
@@ -46,8 +46,8 @@ public:
         return t;
     }
 
-    bool equal(const EasingCurve* rhs) const override {
-        auto other = dynamic_cast<const LinearEasing*>(rhs);
+    bool equal(EasingCurvePtr rhs) const override {
+        auto other = std::dynamic_pointer_cast<LinearEasing>(rhs);
         return other != nullptr;
     }
 
@@ -91,8 +91,8 @@ public:
         return v1 + (v2 - v1) * (t - t1) / (t2 - t1);
     }
 
-    bool equal(const EasingCurve* rhs) const override {
-        auto other = dynamic_cast<const PathEasing*>(rhs);
+    bool equal(EasingCurvePtr rhs) const override {
+        auto other = std::dynamic_pointer_cast<PathEasing>(rhs);
         return other != nullptr && mPoints == other->mPoints;
     }
 
@@ -141,8 +141,8 @@ public:
         return f(mB, mD, left);
     }
 
-    bool equal(const EasingCurve* rhs) const override {
-        auto other = dynamic_cast<const CubicBezierEasing*>(rhs);
+    bool equal(EasingCurvePtr rhs) const override {
+        auto other = std::dynamic_pointer_cast<CubicBezierEasing>(rhs);
         return other != nullptr && mA == other->mA && mB == other->mB && mC == other->mC && mD == other->mD;
     }
 

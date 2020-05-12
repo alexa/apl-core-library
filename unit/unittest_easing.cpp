@@ -109,7 +109,7 @@ TEST_F(EasingTest, ExistingCurves)
     ASSERT_TRUE(Easing::has("ease-in-out"));
 
     ASSERT_TRUE( IsEqual(Easing::linear(), Easing::parse(session, "linear")));
-    ASSERT_TRUE( IsEqual(Easing(new CubicBezierEasing(0.25, 0.10, 0.25, 1)), Easing::parse(session, "ease")));
+    ASSERT_TRUE( IsEqual(Easing(std::make_shared<CubicBezierEasing>(0.25, 0.10, 0.25, 1)), Easing::parse(session, "ease")));
 }
 
 TEST_F(EasingTest, EasingCurveCustom)

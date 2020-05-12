@@ -74,6 +74,7 @@ add_executable( unittest
         unittest_livearray_rebuild.cpp
         unittest_livemap_change.cpp
         unittest_log.cpp
+        unittest_memory.cpp
         unittest_object.cpp
         unittest_parse.cpp
         unittest_path.cpp

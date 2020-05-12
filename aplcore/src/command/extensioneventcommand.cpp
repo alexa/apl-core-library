@@ -41,8 +41,8 @@ ExtensionEventCommand::execute(const TimersPtr& timers, bool fastMode)
             }
             map->emplace(m.first, m.second.defvalue);
         } else {
-            auto raw = m.second.arrayified ? arrayify(mContext, it->second) : it->second;
-            map->emplace(m.first, evaluateRecursive(mContext, raw));
+            auto raw = m.second.arrayified ? arrayify(*mContext, it->second) : it->second;
+            map->emplace(m.first, evaluateRecursive(*mContext, raw));
         }
     }
 

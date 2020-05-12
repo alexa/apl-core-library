@@ -112,7 +112,7 @@ Graphic::initialize(const ContextPtr& sourceContext,
         else if (styledPtr) {  // Look for a styled value
             auto itStyle = styledPtr->find(param.name);
             if (itStyle != styledPtr->end())
-                value = conversionFunc(sourceContext, itStyle->second);
+                value = conversionFunc(*sourceContext, itStyle->second);
         }
 
         // Store the calculated value in the data-binding context
@@ -238,7 +238,7 @@ Graphic::updateStyle(const StyleInstancePtr& styledPtr)
             auto newValue = m.defvalue;
             auto itStyle = styledPtr->find(m.name);
             if (itStyle != styledPtr->end())
-                newValue = sBindingFunctions.at(m.type)(mInternalContext, itStyle->second);
+                newValue = sBindingFunctions.at(m.type)(*mInternalContext, itStyle->second);
 
             if (mInternalContext->opt(m.name) != newValue) {  // Ah - there's a change
                 mInternalContext->userUpdateAndRecalculate(m.name, newValue, true);

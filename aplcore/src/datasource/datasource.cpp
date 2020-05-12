@@ -47,7 +47,7 @@ DataSource::create(const ContextPtr& context, const Object& object, const std::s
     if (!object.isMap())
         return Object::NULL_OBJECT();
 
-    std::string type = propertyAsString(context, object, "type");
+    std::string type = propertyAsString(*context, object, "type");
     if (type.empty()) {
         CONSOLE_CTP(context) << "Unrecognized type field in DataSource";
         return Object::NULL_OBJECT();
@@ -59,7 +59,10 @@ DataSource::create(const ContextPtr& context, const Object& object, const std::s
         return Object::NULL_OBJECT();
     }
 
-    auto liveDataSourceArray = LiveArray::create(arrayify(context, propertyAsRecursive(context, object, "items")));
+    // If no items specified (even empty ones) - propertyAsRecursive + arrayify() will give us [NULL] which is an item.
+    // Check for this condition and go with empty LiveArray instead to avoid creating empty one.
+    auto items = propertyAsRecursive(*context, object, "items");
+    auto liveDataSourceArray = items.isNull() ? LiveArray::create() : LiveArray::create(arrayify(*context, items));
     auto dataSourceConnection = dataSourceProvider->create(object, context, liveDataSourceArray);
     if (!dataSourceConnection) {
         CONSOLE_CTP(context) << "DataSourceConnection failed to initialize.";

@@ -24,6 +24,17 @@ namespace apl {
 namespace DynamicIndexListConstants {
 /// Default source type name
 static const std::string DEFAULT_TYPE_NAME = "dynamicIndexList";
+/// Number of data items to cache on Lazy Loading fetch requests.
+static const size_t DEFAULT_CACHE_CHUNK_SIZE = 10;
+/// Maximum number of directives to buffer in case of unbound receival. Arbitrary number but considers highly unlikely
+/// occurrence and capability to recover.
+static const int DEFAULT_MAX_LIST_UPDATE_BUFFER = 5;
+/// Number of retries to attempt on fetch requests.
+static const int DEFAULT_FETCH_RETRIES = 2;
+/// Fetch request timeout.
+static const int DEFAULT_FETCH_TIMEOUT_MS = 5000;
+/// Cache expiry timeout.
+static const int DEFAULT_CACHE_EXPIRY_TIMEOUT_MS = 5000;
 
 // Directive content keys
 static const std::string LIST_ID = "listId";
@@ -80,16 +91,32 @@ using DILProviderWPtr = std::weak_ptr<DynamicIndexListDataSourceProvider>;
  */
 class DynamicIndexListConfiguration {
 public:
+    DynamicIndexListConfiguration() = default;
+
+    // Backward compatibility constructor
+    DynamicIndexListConfiguration(const std::string& type, size_t cacheChunkSize) :
+        type(type), cacheChunkSize(cacheChunkSize) {}
+
+    // Link setters
+    DynamicIndexListConfiguration& setType(const std::string& v) { type = v; return *this; }
+    DynamicIndexListConfiguration& setCacheChunkSize(size_t v) { cacheChunkSize = v; return *this; }
+    DynamicIndexListConfiguration& setListUpdateBufferSize(int v) { listUpdateBufferSize = v; return *this; }
+    DynamicIndexListConfiguration& setFetchRetries(int v) { fetchRetries = v; return *this; }
+    DynamicIndexListConfiguration& setFetchTimeout(apl_duration_t v) { fetchTimeout = v; return *this; }
+    DynamicIndexListConfiguration& setCacheExpiryTimeout(apl_duration_t v) { cacheExpiryTimeout = v; return *this; }
+
     /// Source type name.
-    std::string type;
+    std::string type = DynamicIndexListConstants::DEFAULT_TYPE_NAME;
     /// Fetch cache chunk size.
-    size_t cacheChunkSize;
+    size_t cacheChunkSize = DynamicIndexListConstants::DEFAULT_CACHE_CHUNK_SIZE;
     /// Size of the list for buffered update operations.
-    int listUpdateBufferSize;
+    int listUpdateBufferSize = DynamicIndexListConstants::DEFAULT_MAX_LIST_UPDATE_BUFFER;
     /// Number of retries for fetch requests.
-    int fetchRetries;
+    int fetchRetries = DynamicIndexListConstants::DEFAULT_FETCH_RETRIES;
     /// Fetch request timeout in milliseconds.
-    apl_duration_t fetchTimeout;
+    apl_duration_t fetchTimeout = DynamicIndexListConstants::DEFAULT_FETCH_TIMEOUT_MS;
+    /// Cached updates expiry timeout in milliseconds.
+    apl_duration_t cacheExpiryTimeout = DynamicIndexListConstants::DEFAULT_CACHE_EXPIRY_TIMEOUT_MS;
 };
 
 /**
@@ -147,7 +174,7 @@ public:
      * Update data range bounds as per source specification. Internal variables will also be updated.
      * @return true if bounds were changed, false otherwise.
      */
-    bool updateBounds(int minimumInclusiveIndex, int maximumExclusiveIndex);
+    bool updateBounds(const Object& minimumInclusiveIndexObj, const Object& maximumExclusiveIndexObj);
 
     /**
      * @return get current list version.
@@ -226,15 +253,18 @@ private:
      * Internal utility to keep fetch request related information.
      */
     struct PendingFetchRequest {
-        Object request;
+        ObjectMapPtr request;
         int retries;
         timeout_id timeoutId;
+        std::vector<std::string> relatedTokens;
     };
 
     void sendFetchRequest(const ContextPtr& context, int index, int count);
-    void enqueueFetchRequestEvent(const ContextPtr& context, const Object& request);
-    void retryFetchRequest(const ContextPtr& context, const Object& correlationToken);
-    timeout_id scheduleTimeout(const ContextPtr& context, const Object& correlationToken);
+    void enqueueFetchRequestEvent(const ContextPtr& context, const ObjectMapPtr& request);
+    void retryFetchRequest(const ContextPtr& context, const std::string& correlationToken);
+    timeout_id scheduleTimeout(const ContextPtr& context, const std::string& correlationToken);
+    timeout_id scheduleUpdateExpiry(int version);
+    void reportUpdateExpired(int version);
 
     std::string mListId;
     DILProviderWPtr mProvider;
@@ -242,9 +272,19 @@ private:
     std::weak_ptr<Context> mContext;
     double mMinimumInclusiveIndex;
     double mMaximumExclusiveIndex;
-    std::map<std::string, PendingFetchRequest> mPendingFetchRequests; // Pending fetch requests per correlation token.
+    // Pending fetch requests per correlation token.
+    std::map<std::string, std::shared_ptr<PendingFetchRequest>> mPendingFetchRequests;
     int mListVersion;
-    std::map<int, Object> mUpdatesCache; // Cached updates per list version if any.
+
+    /**
+     * Internal utility to keep cached updates.
+     */
+     struct Update {
+         Object update;
+         timeout_id expiryTimeout;
+     };
+
+    std::map<int, Update> mUpdatesCache; // Cached updates per list version if any.
     bool mInFailState;
     bool mLazyLoadingOnly;
 };

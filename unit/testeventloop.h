@@ -76,6 +76,7 @@ public:
         mCount++;
 
         fprintf(stderr, "SESSION %s\n", value);
+        fflush(stderr);
     }
 };
 
@@ -87,6 +88,7 @@ public:
         mCount++;
 
         fprintf(stderr, "%s %s\n", LEVEL_MAPPING.at(level).c_str(), log.c_str());
+        fflush(stderr);
     }
 
     LogLevel getLastLevel() const { return mLastLevel; }
@@ -326,7 +328,6 @@ public:
      */
     void TearDown() override {
         if (component) {
-            component->release();
             component = nullptr;
         }
 

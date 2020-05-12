@@ -61,7 +61,7 @@ GraphicElement::GraphicElement(const GraphicPtr& graphic)
 void
 GraphicElement::addChildren(const GraphicPtr& graphic, const ContextPtr& context, const Object& json)
 {
-    for (auto& item : arrayifyProperty(context, json, "item", "items")) {
+    for (auto& item : arrayifyProperty(*context, json, "item", "items")) {
         auto child = createChild(graphic, context, item);
         if (child)
             mChildren.push_back(child);
@@ -82,7 +82,7 @@ GraphicElement::initialize(const ContextPtr& context, const Object& json)
             if (p != mProperties.end()) {
                 // If the user assigned a string, we need to check for data-binding
                 if (p->second.isString()) {
-                    auto tmp = parseDataBinding(context, p->second.getString());
+                    auto tmp = parseDataBinding(*context, p->second.getString());
                     if (tmp.isEvaluable()) {
                         auto self = std::static_pointer_cast<GraphicElement>(shared_from_this());
                         GraphicDependant::create(self, pd.key, tmp, context, pd.func);

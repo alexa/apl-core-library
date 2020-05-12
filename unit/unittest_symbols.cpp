@@ -90,7 +90,7 @@ std::map<std::string, std::vector<std::pair<std::string, std::string>>> BASIC_TE
 TEST_F(SymbolTest, Basic)
 {
     for (const auto& m : BASIC_TESTS) {
-        auto node = parseDataBinding(base, m.first);
+        auto node = parseDataBinding(*base, m.first);
         ASSERT_TRUE(node.isEvaluable());
 
         SymbolReferenceMap map;

@@ -374,7 +374,7 @@ public:
     void symbols(SymbolReferenceMap& symbols) const;
 
     // FUNCTION objects
-    Object call(ObjectArray&& args) const;
+    Object call(const ObjectArray& args) const;
 
     // Visitor pattern
     void accept(Visitor<Object>& visitor) const;

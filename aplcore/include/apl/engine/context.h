@@ -112,7 +112,7 @@ public:
      * Construct a child context. Do not call this method directly; use the ::create() method instead.
      * @param parent The parent of this context.
      */
-    Context(const ContextPtr& parent)
+    explicit Context(const ContextPtr& parent)
         : mParent(parent), mTop(parent->top() ? parent->top() : parent), mCore(parent->mCore) {}
 
     /**
