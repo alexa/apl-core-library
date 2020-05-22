@@ -347,12 +347,12 @@ SequenceComponent::processLayoutChanges(bool useDirtyFlag)
     }
 
     if (!mChildren.empty()) {
-        // Reset very first child to not have spacing
-        mChildren.at(0)->fixSpacing(true);
-
         // First ensured should not ignore spacing if it's not very first one overall
-        if (mEnsuredChildren.lowerBound() > 0) {
-            auto child = mChildren.at(mEnsuredChildren.lowerBound());
+        auto child = mChildren.at(mEnsuredChildren.lowerBound());
+        if (mEnsuredChildren.lowerBound() == 0) {
+            // Reset very first child to not have spacing
+            child->fixSpacing(true);
+        } else {
             child->fixSpacing();
         }
     }

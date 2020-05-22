@@ -1409,7 +1409,10 @@ CoreComponent::fixSpacing(bool reset) {
             return;
 
         YGEdge edge = YGNodeStyleGetFlexDirection(parent) == YGFlexDirectionColumn ? YGEdgeTop : YGEdgeLeft;
-        YGNodeStyleSetMargin(mYGNodeRef, edge, spacing.getValue());
+        float currentValue = YGNodeStyleGetMargin(mYGNodeRef, edge).value;
+        if (std::isnan(currentValue) || std::abs(currentValue - spacing.getValue()) > 0.1) {
+            YGNodeStyleSetMargin(mYGNodeRef, edge, spacing.getValue());
+        }
     }
 }
 

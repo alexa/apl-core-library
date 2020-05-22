@@ -40,10 +40,9 @@ void
 ContainerComponent::processLayoutChanges(bool useDirtyFlag) {
     // Quite brute-forcy to do that, though it will handle any strange changes to layout direction in the future.
     if (!mChildren.empty()) {
-        for (auto& child : mChildren) {
-            child->fixSpacing();
+        for (int i = 0; i < mChildren.size(); i++) {
+            getCoreChildAt(i)->fixSpacing(i == 0);
         }
-        getCoreChildAt(0)->fixSpacing(true);
     }
 
     CoreComponent::processLayoutChanges(useDirtyFlag);

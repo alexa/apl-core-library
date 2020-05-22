@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.2]
+
+This release fixes a performance regression found in release 1.3.1.
+
+### Changed
+
+- Optimized layout during scrolling
+
 ## [1.3.1]
 
 This release is a bug fix release of apl-core-library.
