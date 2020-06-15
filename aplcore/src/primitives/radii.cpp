@@ -13,6 +13,8 @@
  * permissions and limitations under the License.
  */
 
+#include <string>
+
 #include "apl/primitives/radii.h"
 #include "apl/utils/streamer.h"
 

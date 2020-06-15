@@ -165,9 +165,19 @@ To build `libaplcore.a` and tests in your favorite C++ environment, do the
 following:
 
 ```
- $ source apl-dev-env.sh
- $ apl-build-core
- $ apl-test-core
+ source apl-dev-env.sh
+
+ # Build the library
+ apl-build-core
+
+ # Run unit tests
+ apl-test-core
+
+ # Generate code coverage
+ apl-coverage-core
+
+ # Run memcheck
+ apl-check-core
 ```
 
 # Building APL Core + Tests (Windows)

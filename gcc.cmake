@@ -25,18 +25,18 @@ if(COVERAGE)
 
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage -fprofile-arcs -ftest-coverage")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage -fprofile-arcs -ftest-coverage")
-    set(COVERAGE_CLEANED "${coverage_info}.cleaned")
 
     function(target_add_code_coverage EXEC_NAME TARGET_NAME)
         set(COVERAGE_INFO "${CMAKE_BINARY_DIR}/${TARGET_NAME}.info")
+        set(COVERAGE_CLEANED "${COVERAGE_INFO}.cleaned")
 
         add_custom_target(coverage-${TARGET_NAME}
                 ${LCOV_PATH} --directory . --zerocounters
                 COMMAND $<TARGET_FILE:${EXEC_NAME}>
-                COMMAND ${LCOV_PATH} --directory ${CMAKE_SOURCE_DIR} --capture --output-file ${COVERAGE_INFO}
-                COMMAND ${LCOV_PATH} --remove ${COVERAGE_INFO} '**/unit/*' '/usr/*' '**/build/*' '**/thirdparty/*' --output-file ${COVERAGE_CLEANED}
+                COMMAND ${LCOV_PATH} --directory ${CMAKE_BINARY_DIR} --capture --output-file ${COVERAGE_INFO}
+                COMMAND ${LCOV_PATH} --remove ${COVERAGE_INFO} '**/unit/*' '/usr/*' '**/*build/*' '**/thirdparty/*' --output-file ${COVERAGE_CLEANED}
                 COMMAND ${GENHTML_PATH} -o ${CMAKE_BINARY_DIR}/coverage ${COVERAGE_CLEANED}
-                COMMAND ${CMAKE_COMMAND} -E remove ${COVERAGE_INFO} ${COVERAGE_CLEANED}
+                COMMAND ${CMAKE_COMMAND} -E remove ${COVERAGE_INFO}
                 DEPENDS ${TARGET_NAME} ${EXEC_NAME}
                 )
         add_custom_command(TARGET coverage-${TARGET_NAME} POST_BUILD

@@ -80,11 +80,16 @@ endif(BUILD_DOC)
 
 # Test cases are built conditionally. Only affect core do not build them for everything else.
 if (BUILD_TESTS)
-    enable_testing()
+    include(CTest)
     include_directories(${GTEST_INCLUDE})
     add_subdirectory(unit)
     add_subdirectory(test)
     if (TELEMETRY)
         add_subdirectory(performance)
     endif(TELEMETRY)
+    set(MEMCHECK_OPTIONS "--tool=memcheck --leak-check=full --show-reachable=no --error-exitcode=1 --errors-for-leak-kinds=definite,possible")
+    add_custom_target(unittest_memcheck
+            COMMAND ${CMAKE_CTEST_COMMAND} -VV
+            --overwrite MemoryCheckCommandOptions=${MEMCHECK_OPTIONS}
+            -T memcheck)
 endif (BUILD_TESTS)

@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.3]
+
+This release is a bug fix release of apl-core-library
+
+### Added
+
+- Added support for memory checks with valgrind during unit testing
+
+### Changed
+
+- Fixed windows build
+- Fixed a bug in Math.random implementation that caused random numbers not to use the full range of possible values
+
+
 ## [1.3.2]
 
 This release fixes a performance regression found in release 1.3.1.

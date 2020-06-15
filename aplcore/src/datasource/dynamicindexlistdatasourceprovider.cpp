@@ -226,6 +226,13 @@ DynamicIndexListDataSourceConnection::processUpdate(DynamicIndexListUpdateType t
             << " is dead while trying to process update.";
         return false;
     }
+
+    if (index < mMinimumInclusiveIndex) {
+        provider->constructAndReportError(ERROR_REASON_LIST_INDEX_OUT_OF_RANGE,
+                                            shared_from_this(), index,
+                                            "Requested index out of bounds.");
+        return false;
+    }
     size_t idx = index - mMinimumInclusiveIndex;
 
     auto context = mContext.lock();

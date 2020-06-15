@@ -107,9 +107,19 @@ add_executable( unittest
 add_subdirectory(${CMAKE_BINARY_DIR}/googletest-src
         ${CMAKE_BINARY_DIR}/googletest-build
         EXCLUDE_FROM_ALL)
-
-target_link_libraries(unittest apl gtest gtest_main)
-
 if(COVERAGE)
     target_add_code_coverage(unittest apl)
 endif()
+target_link_libraries(unittest apl gtest gtest_main)
+if(CTEST_INDIVIDUALLY)
+    # NOTE: discovered ctest targets below are much slower than their direct counterparts.  Ctest loads
+    #       tests individually instead of just running all in a class.  This makes it take much
+    #       longer for execution.  This is somewhat useful if you want to execute tests using ctest scripts, but is
+    #       completely unusable on dev machine: each test takes 800ms vs 20ms, and valgrind takes 4-5s per test.
+    include(GoogleTest)
+    gtest_discover_tests(unittest)
+else()
+    # Adds the entire unittest executable as a single ctest.  Great for speed.
+    add_test(all-tests unittest)
+endif()
+

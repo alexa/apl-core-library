@@ -14,17 +14,17 @@
  */
 
 #include <algorithm>
-#include <climits>
 #include <cmath>
 #ifdef APL_CORE_UWP
 #include <random>
 #endif
+#include <stdint.h>
 #include <stdlib.h>
 
+#include "apl/engine/context.h"
 #include "apl/primitives/functions.h"
 #include "apl/primitives/object.h"
 #include "apl/primitives/timefunctions.h"
-#include "apl/engine/context.h"
 #include "apl/primitives/timegrammar.h"
 
 namespace apl {
@@ -77,16 +77,20 @@ mathClamp(const std::vector<Object>& args)
 #ifdef APL_CORE_UWP
 static std::random_device random_device;
 static std::mt19937 generator(random_device());
-static unsigned long random() { return generator(); }
 #endif
 
 static Object
 mathRandom(const std::vector<Object>& args)
 {
 #ifdef HAVE_DECL_ARC4RANDOM
-    return arc4random() / ((double) ULONG_MAX);
+    // By contract, arc4random can return any valid uint32_t value
+    return arc4random() / ((double) UINT32_MAX);
+#elif APL_CORE_UWP
+    // By contract, std::mt19937 returns values between 0 and mt19937::max()
+    return generator() / ((double) std::mt19937::max());
 #else
-    return ((unsigned long)random()) / ((double) ULONG_MAX);
+    // By contract, random() returns values between 0 and RAND_MAX
+    return random() / ((double) RAND_MAX);
 #endif
 }
 

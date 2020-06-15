@@ -126,6 +126,15 @@ function apl-test-core {  # Run unit tests in the core build
     )
 }
 
+function apl-memcheck-core {  # Run unit tests in the core build
+    (
+        apl-switch-to-build-directory build $@ && \
+        $CMAKE -DBUILD_TESTS=ON  -DCOVERAGE=OFF .. && \
+        make -j$APL_BUILD_PROCS && \
+        valgrind --tool=memcheck --gen-suppressions=all --track-origins=yes --leak-check=full --num-callers=50 ./unit/unittest
+    )
+}
+
 function apl-coverage-core {  # Generate and print coverage report
     (
         apl-switch-to-build-directory build $@ && \
