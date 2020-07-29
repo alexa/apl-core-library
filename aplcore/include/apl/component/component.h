@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -47,6 +47,7 @@ enum UpdateType {
      * This component (generally a touch wrapper) has been "pressed" and should execute the
      * onPress commands.
      */
+     ///@deprecated
     kUpdatePressed,
 
     /**
@@ -59,6 +60,7 @@ enum UpdateType {
      * Pass an non-zero argument (1) to indicate that there is a touch-down event in the component.
      * Pass a zero argument (0) to indicate that there is a touch-up or touch-exit event in the component.
      */
+     ///@deprecated
     kUpdatePressState,
 
     /**
@@ -76,6 +78,16 @@ enum UpdateType {
      * A pager has been moved in response to a SetPage event.  The argument is the new page number (0-based index).
      */
     kUpdatePagerByEvent,
+
+    /**
+     * The user has pressed the submit button associated with a EditText component.
+     */
+    kUpdateSubmit,
+
+    /**
+     * The user has changed the text in the edit text component.
+     */
+     kUpdateTextChange
 };
 
 /**
@@ -113,7 +125,7 @@ enum PageDirection {
  * changed. The dirty flags must be explicitly cleared.  Note that the dirty flag is
  * only set for an *output* property change.
  */
-class Component : private Counter<Component>, public UserData {
+class Component : private Counter<Component>, public UserData<Component>, public std::enable_shared_from_this<Component> {
 #ifdef DEBUG_MEMORY_USE
 public:
     using Counter<Component>::itemsDelta;
@@ -127,12 +139,6 @@ public:
      * its parents child list.
      */
     virtual void release() = 0;
-
-    /**
-     * Visitor pattern for walking the component hierarchy.
-     * @param visitor
-     */
-    virtual void accept(Visitor<Component>& visitor) const = 0;
 
     /**
      * @return The common name of the component
@@ -233,6 +239,11 @@ public:
     ContextPtr getContext() { return mContext; }
 
     /**
+     * @return This component's context
+     */
+    std::shared_ptr<const Context> getContext() const { return mContext; }
+
+    /**
      * @return True if this component was properly created with all required
      *         properties specified.
      */
@@ -245,6 +256,14 @@ public:
      * @param value The update message parameter.
      */
     virtual void update(UpdateType type, float value=0) = 0;
+
+    /**
+     * An update message from the viewhost.  This method is used for all updates that take
+     * a single string.
+     * @param type The type of update message.
+     * @param value The update message parameter.
+     */
+    virtual void update(UpdateType type, const std::string & value) = 0;
 
     /**
      * Update component media state. Not applicable for every component.
@@ -385,6 +404,8 @@ public:
      * Equality operator override
      */
     bool operator==(const ComponentPtr& other) const { return mUniqueId == other->getUniqueId(); }
+
+    virtual bool isCharacterValid(const wchar_t wc) const;
 
 protected:
     Component(const ContextPtr& context, const std::string& id);

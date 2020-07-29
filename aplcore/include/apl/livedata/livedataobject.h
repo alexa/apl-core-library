@@ -18,7 +18,7 @@
 
 #include <memory>
 
-#include "apl/primitives/object.h"
+#include "apl/primitives/objectdata.h"
 #include "apl/engine/context.h"
 #include "apl/livedata/liveobject.h"
 
@@ -34,7 +34,7 @@ class LiveMapObject;
  *
  * This is an abstract base class.  Do not create instances of this object.
  */
-class LiveDataObject : public Object::Data, public std::enable_shared_from_this<LiveDataObject> {
+class LiveDataObject : public ObjectData, public std::enable_shared_from_this<LiveDataObject> {
 public:
     /**
      * Construct a suitable LiveDataObject subtype and register it with the LiveDataManager.

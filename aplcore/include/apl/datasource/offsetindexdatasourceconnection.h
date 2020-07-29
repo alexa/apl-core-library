@@ -95,6 +95,14 @@ public:
      */
     bool remove(size_t index, size_t count);
 
+    /**
+     * Check if provided range overlaps with currently filled area.
+     * @param index range start index
+     * @param count range size
+     * @return true if overlaps, false otherwise.
+     */
+    bool overlaps(size_t index, size_t count);
+
 protected:
     /**
      * Callback to request more data.

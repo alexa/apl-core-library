@@ -101,7 +101,12 @@ T propertyAsMapped(const Context& context,
 
     if (!item.has(name))
         return defValue;
-    return bimap.get(evaluate(context, item.get(name)).asString(), static_cast<T>(-1));
+
+    auto s = evaluate(context, item.get(name)).asString();
+    if (s.empty())
+        return defValue;
+
+    return bimap.get(s, static_cast<T>(-1));
 }
 
 }  // Namespace apl

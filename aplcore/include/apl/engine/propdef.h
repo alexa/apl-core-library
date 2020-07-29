@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -16,14 +16,19 @@
 #ifndef _APL_PROPERTY_DEF_H
 #define _APL_PROPERTY_DEF_H
 
+#include "apl/engine/arrayify.h"
+#include "apl/engine/properties.h"
+
+#include "apl/animation/easing.h"
 #include "apl/primitives/object.h"
-#include "apl/primitives/mediasource.h"
-#include "arrayify.h"
-#include "apl/utils/bimap.h"
-#include "apl/primitives/dimension.h"
-#include "properties.h"
-#include "apl/primitives/transform.h"
 #include "apl/primitives/filter.h"
+#include "apl/primitives/gradient.h"
+#include "apl/primitives/transform.h"
+#include "apl/primitives/mediasource.h"
+#include "apl/primitives/styledtext.h"
+#include "apl/graphic/graphicpattern.h"
+
+#include "apl/utils/bimap.h"
 
 namespace apl {
 
@@ -77,6 +82,11 @@ inline Object asNonNegativeNumber(const Context& context, const Object& object) 
 inline Object asNonNegativeInteger(const Context& context, const Object& object) {
     int value = object.asInt();
     return value < 0 ? 0 : value;
+}
+
+inline Object asPositiveInteger(const Context& context, const Object& object) {
+    int value = object.asInt();
+    return value < 1? 1 : value;
 }
 
 inline Object asDimension(const Context& context, const Object& object) {
@@ -142,6 +152,11 @@ inline Object asGradient(const Context& context, const Object& object) {
     return Gradient::create(context, object);
 }
 
+inline Object asFill(const Context& context, const Object& object) {
+    auto gradient = asGradient(context, object);
+    return gradient.isGradient() ? gradient : asColor(context, object);
+}
+
 inline Object asMediaSourceArray(const Context& context, const Object& object) {
     std::vector<Object> data;
     for (auto& m : arrayify(context, object)) {
@@ -152,8 +167,22 @@ inline Object asMediaSourceArray(const Context& context, const Object& object) {
     return Object(std::move(data));
 }
 
+inline Object asDashArray(const Context& context, const Object& object) {
+    std::vector<Object> data = arrayify(context, object);
+    auto size = data.size();
+    if (size % 2 == 1) {
+        data.resize(size * 2);
+        std::copy_n(data.begin(), size, data.begin() + size);
+    }
+    return Object(std::move(data));
+}
+
 inline Object asStyledText(const Context& context, const Object& object) {
     return StyledText::create(object);
+}
+
+inline Object asFilteredText(const Context& context, const Object& object) {
+    return StyledText::create(object).getStyledText().getText();
 }
 
 inline Object asTransformOrArray(const Context& context, const Object& object) {
@@ -172,6 +201,14 @@ inline Object asEasing(const Context& context, const Object& object) {
 
 inline Object asDeepArray(const Context &context, const Object &object) {
     return Object(evaluateRecursive(context, arrayify(context, object)));
+}
+
+inline Object asGraphicPattern(const Context& context, const Object& object) {
+    return GraphicPattern::create(context, object);
+}
+
+inline Object asAvgGradient(const Context& context, const Object& object) {
+    return Gradient::createAVG(context, object);
 }
 
 /**
@@ -229,7 +266,7 @@ public:
      */
     PropDef(K key, const Object& defvalue, BindingFunction func, int flags=0)
         : key(key),
-          name(bimap.at(key)),
+          names(bimap.all(key)),
           defvalue(defvalue),
           func(func),
           flags(flags),
@@ -246,7 +283,7 @@ public:
      */
     PropDef(K key, int defvalue, Bimap<int, std::string>& map, int flags=0)
         : key(key),
-          name(bimap.at(key)),
+          names(bimap.all(key)),
           defvalue(defvalue),
           func(nullptr),
           flags(flags),
@@ -283,7 +320,7 @@ public:
     }
 
     K key;
-    std::string name;
+    std::vector<std::string> names;
     Object defvalue;
     BindingFunction func;
     int flags;

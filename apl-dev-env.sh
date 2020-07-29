@@ -120,7 +120,7 @@ function apl-check-core {  # Run make for the core build with -Werror
 function apl-test-core {  # Run unit tests in the core build
     (
         apl-switch-to-build-directory build $@ && \
-        $CMAKE -DBUILD_TESTS=ON -DCOVERAGE=OFF .. && \
+        $CMAKE -DBUILD_TESTS=ON  -DCOVERAGE=OFF .. && \
         make -j$APL_BUILD_PROCS && \
         unit/unittest
     )

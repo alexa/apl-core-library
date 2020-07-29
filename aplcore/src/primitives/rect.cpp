@@ -55,7 +55,7 @@ Rect::operator!=(const Rect& rhs) const {
         || (!(std::isnan(mHeight) && std::isnan(rhs.mHeight)) && (mHeight != rhs.mHeight));
     }
 
-const std::string
+std::string
 Rect::toString() const {
     return floatAsLongString(mWidth) + "x" + floatAsLongString(mHeight)
             + (mX >= 0 ? "+" : "") + floatAsLongString(mX)
@@ -97,6 +97,11 @@ Rect::serialize(rapidjson::Document::AllocatorType& allocator) const {
     v.PushBack(std::isnan(mWidth) ? 0 : mWidth, allocator);
     v.PushBack(std::isnan(mHeight) ? 0 : mHeight, allocator);
     return v;
+}
+
+std::string
+Rect::toDebugString() const{
+    return "Rect<" + toString() + ">";
 }
 
 }  // namespace apl

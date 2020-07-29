@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ union ActionResolveArg {
 /**
  * Common base class of action contracts.
  */
-class Action : public std::enable_shared_from_this<Action>, private Counter<Action>, public UserData {
+class Action : public std::enable_shared_from_this<Action>, private Counter<Action>, public UserData<Action> {
 
 public:
     /**
@@ -100,7 +100,7 @@ public:
 
 public:
     Action(const TimersPtr& timers, TerminateFunc terminate = nullptr);
-    ~Action();
+    virtual ~Action();
 
     Action& operator=(const Action&) = delete;
     Action(const Action&) = delete;
@@ -145,9 +145,7 @@ public:
      */
     void addTerminateCallback(TerminateFunc terminateFunc);
 
-    /*
-     * Convenience methods to introspect current state
-     */
+     // Convenience methods to introspect current state
 
     /**
      * @return True if this action is still pending and has not resolved or terminated.
@@ -176,6 +174,9 @@ public:
     Rect getRectArgument() const { return mArgument.rect; }
 
     friend streamer& operator<<(streamer&, Action&);
+
+protected:
+    virtual void onFinish() {}
 
 private:
     void doResolve();

@@ -16,8 +16,6 @@
 #ifndef _APL_EVENT_SOURCE_H
 #define _APL_EVENT_SOURCE_H
 
-//#include <memory>
-
 #include "apl/component/component.h"
 
 namespace apl {
@@ -35,7 +33,7 @@ public:
 
     const Object& getValue() const { return mValue; }
 
-    const Object toObject() const {
+    Object toObject() const {
         auto ret = std::make_shared<std::map<std::string, Object>>();
 
         ret->emplace("type", Object(getType()));

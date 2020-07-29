@@ -31,7 +31,6 @@ class Context;
  * For now we assume only these keys are allowed.  In the future we should
  * allow custom states.
  */
-
 enum StateProperty {
     kStatePressed = 0,
     kStateDisabled = 1,

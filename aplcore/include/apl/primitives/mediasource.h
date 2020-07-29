@@ -65,11 +65,14 @@ public:
      */
     int getOffset() const { return mOffset; }
 
-    const std::string asString() const {
-        return "mediasource<>";
-    }
+    /* Standard Object methods */
+    bool operator==(const MediaSource& other) const;
 
+    std::string toDebugString() const;
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
+
+    bool empty() const { return false; }
+    bool truthy() const { return true; }
 
 private:
     MediaSource(std::string url, std::string description, int duration, int repeatCount,

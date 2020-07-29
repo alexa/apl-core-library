@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -92,6 +92,12 @@ ScrollViewComponent::allowForward() const {
     auto scrollSize = mCalculated.get(kPropertyInnerBounds).getRect().getHeight();
     auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
     return currentPosition + scrollSize < innerScrollSize;
+}
+
+bool
+ScrollViewComponent::allowBackwards() const {
+    auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
+    return (currentPosition > 0);
 }
 
 } // namespace apl

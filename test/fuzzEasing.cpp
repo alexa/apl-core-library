@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 #include <ctime>
 
 #include "apl/apl.h"
+#include "apl/animation/easing.h"
 #include "apl/engine/evaluate.h"
 
 using namespace apl;
@@ -146,7 +147,7 @@ main(int argc, char *argv[]) {
 
         if (verbose > 1 || (verbose > 0 && result != original)) {
             apl::streamer s;
-            s << result;
+            s << result->toDebugString();
             std::cout << i << " '" << variant << "' " << s.str() << std::endl;
         }
 

@@ -80,9 +80,20 @@ public:
     friend streamer& operator<<(streamer&, const Rect&);
 
     /**
+     * @deprecated Remove this in favor of "empty()"
      * @return True if this rectangle has zero or undefined width and height.
      */
     bool isEmpty() const;
+
+    /**
+     * @return True if this rectangle has zero or undefined width and height.
+     */
+    bool empty() const { return isEmpty(); }
+
+    /**
+     * @return True if this rectangle is not empty
+     */
+    bool truthy() const { return !isEmpty(); }
 
     /**
      * @return The x-value of the top-left corner
@@ -135,6 +146,16 @@ public:
     Point getBottomRight() const { return Point(mX + mWidth, mY + mHeight); }
 
     /**
+     * @return The center of the rectangle in the X direction
+     */
+    float getCenterX() const { return mX + mWidth / 2; }
+
+    /**
+     * @return The center of the rectangle in the Y direction
+     */
+    float getCenterY() const { return mY + mHeight / 2; }
+
+    /**
      * Offset this rectangle by a distance specified by a point.
      * @param p The distance to offset by.
      */
@@ -168,7 +189,7 @@ public:
      *
      * @return The serialized rectangle
      */
-    const std::string toString() const;
+    std::string toString() const;
 
     /**
      * Serialize into JSON format
@@ -176,6 +197,8 @@ public:
      * @return The serialized rectangle
      */
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
+
+    std::string toDebugString() const;
 
 private:
     float mX;

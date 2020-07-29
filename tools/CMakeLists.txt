@@ -19,16 +19,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(APL_PATCH_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../patches")
 set(APL_PROJECT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
-add_executable(enumgen
-        src/enumgen.cpp
-)
 
 include(../thirdparty/thirdparty.cmake)
 
-target_include_directories(enumgen PRIVATE include)
 include_directories(include)
-include_directories(${TCLAP_INCLUDE})
+
+add_executable(enumgen src/enumgen.cpp)
+add_dependencies(enumgen pegtl-build)
 include_directories(${PEGTL_INCLUDE})
 
-add_dependencies(enumgen pegtl-build tclap-build)
 install(TARGETS enumgen RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})

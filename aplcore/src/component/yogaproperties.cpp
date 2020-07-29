@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -169,10 +169,20 @@ void
 setFlexDirection(YGNodeRef nodeRef, const Object& value, const Context&) {
     LOG_IF(DEBUG_FLEXBOX) << sScrollDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
     auto flexDirection = static_cast<ContainerDirection>(value.asInt());
-    if (flexDirection == kContainerDirectionColumn)
-        YGNodeStyleSetFlexDirection(nodeRef, YGFlexDirectionColumn);
-    else if (flexDirection == kContainerDirectionRow)
-        YGNodeStyleSetFlexDirection(nodeRef, YGFlexDirectionRow);
+    switch (flexDirection) {
+        case kContainerDirectionColumn:
+            YGNodeStyleSetFlexDirection(nodeRef, YGFlexDirectionColumn);
+            break;
+        case kContainerDirectionRow:
+            YGNodeStyleSetFlexDirection(nodeRef, YGFlexDirectionRow);
+            break;
+        case kContainerDirectionColumnReverse:
+            YGNodeStyleSetFlexDirection(nodeRef, YGFlexDirectionColumnReverse);
+            break;
+        case kContainerDirectionRowReverse:
+            YGNodeStyleSetFlexDirection(nodeRef, YGFlexDirectionRowReverse);
+            break;
+    }
 }
 
 // Note: In the future if we allow Container to change layout direction, we'll need to reset all the margins carefully.
@@ -190,7 +200,7 @@ setSpacing(YGNodeRef nodeRef, const Object& value, const Context& context) {
     }
 }
 
-// This must be kept in synch with component.h FlexboxJustifyContent
+// This must be kept in synch with componentproperties.h FlexboxJustifyContent
 static const YGJustify JUSTIFY_LOOKUP[] = {
     YGJustifyFlexStart,
     YGJustifyFlexEnd,
@@ -207,7 +217,22 @@ setJustifyContent(YGNodeRef nodeRef, const Object& value, const Context&) {
         YGNodeStyleSetJustifyContent(nodeRef, JUSTIFY_LOOKUP[justify]);
 }
 
-// This must be kept in sync with components.h: FlexboxAlign
+// This must be kept in synch with componentproperties.h FlexboxWrap
+static const YGWrap WRAP_LOOKUP[] = {
+    YGWrapNoWrap,
+    YGWrapWrap,
+    YGWrapWrapReverse,
+};
+
+void
+setWrap(YGNodeRef nodeRef, const Object& value, const Context&) {
+    LOG_IF(DEBUG_FLEXBOX) << sFlexboxWrapMap.at(value.asInt()) << " [" << nodeRef << "]";
+    auto wrap = static_cast<FlexboxWrap>(value.asInt());
+    if (wrap >= kFlexboxWrapNoWrap && wrap <= kFlexboxWrapWrapReverse)
+        YGNodeStyleSetFlexWrap(nodeRef, WRAP_LOOKUP[wrap]);
+}
+
+// This must be kept in sync with componentproperties.h: FlexboxAlign
 static const YGAlign ALIGN_LOOKUP[] = {
     YGAlignStretch,
     YGAlignCenter,
@@ -242,6 +267,8 @@ scrollDirectionLookup(ScrollDirection direction) {
         case kScrollDirectionVertical:
             return YGFlexDirectionColumn;
     }
+    // Should not happen.
+    return YGFlexDirectionRow;
 }
 
 void
@@ -249,6 +276,26 @@ setScrollDirection(YGNodeRef nodeRef, const Object& value, const Context&) {
     LOG_IF(DEBUG_FLEXBOX) << sScrollDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
     auto scrollDirection = static_cast<ScrollDirection>(value.asInt());
     YGNodeStyleSetFlexDirection(nodeRef, scrollDirectionLookup(scrollDirection));
+}
+
+inline YGFlexDirection
+gridScrollDirectionLookup(ScrollDirection direction) {
+    switch (direction) {
+        case kScrollDirectionHorizontal:
+            return YGFlexDirectionColumn;
+
+        case kScrollDirectionVertical:
+            return YGFlexDirectionRow;
+    }
+    // Should not happen.
+    return YGFlexDirectionRow;
+}
+
+void
+setGridScrollDirection(YGNodeRef nodeRef, const Object& value, const Context&) {
+    LOG_IF(DEBUG_FLEXBOX) << sScrollDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
+    auto scrollDirection = static_cast<ScrollDirection>(value.asInt());
+    YGNodeStyleSetFlexDirection(nodeRef, gridScrollDirectionLookup(scrollDirection));
 }
 
 void

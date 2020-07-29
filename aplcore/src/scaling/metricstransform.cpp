@@ -19,6 +19,26 @@
 
 namespace apl {
 
+float
+MetricsTransform::toViewhost(float value) const {
+    return value * getScaleToViewhost() * getDpi() / CORE_DPI;
+}
+
+float
+MetricsTransform::toCore(float value) const {
+    return value * getScaleToCore() * CORE_DPI / getDpi();
+}
+
+float
+MetricsTransform::getViewhostWidth() const {
+    return toViewhost(getWidth());
+}
+
+float
+MetricsTransform::getViewhostHeight() const {
+    return toViewhost(getHeight());
+}
+
 void
 MetricsTransform::init() {
     auto result = scaling::calculate(mMetrics, mOptions);
@@ -31,6 +51,7 @@ MetricsTransform::init() {
     mHeight = mMetrics.getHeight();
     mMode = mMetrics.getViewportMode();
 }
+
 std::string ViewportSpecification::toDebugString() const {
     return  "ViewportSpecification<"
             "mode=" + sViewportModeBimap.at(mode) + ", "

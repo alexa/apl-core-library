@@ -56,7 +56,7 @@ public:
     /**
      * Overrides from Object::Data
      */
-    const Object get(const std::string& key) const override;
+    Object get(const std::string& key) const override;
     bool has(const std::string& key) const override;
     const ObjectMap& getMap() const override;
     void accept(Visitor<Object>& visitor) const override;

@@ -13,8 +13,6 @@
  * permissions and limitations under the License.
  */
 
-#include <apl/utils/log.h>
-
 #include "apl/component/textmeasurement.h"
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
@@ -23,6 +21,7 @@
 #include "apl/engine/rootcontextdata.h"
 #include "apl/engine/styles.h"
 #include "apl/livedata/livedatamanager.h"
+#include "apl/utils/log.h"
 
 namespace apl {
 
@@ -39,6 +38,7 @@ ygLevelToDebugLevel(YGLogLevel level)
         case YGLogLevelVerbose: return LogLevel::TRACE;
         case YGLogLevelFatal: return LogLevel::CRITICAL;
     }
+    return LogLevel::DEBUG;
 }
 
 static int
@@ -83,9 +83,10 @@ RootContextData::RootContextData(const Metrics& metrics,
       theme(theme),
       requestedAPLVersion(requestedAPLVersion),
       mStyles(new Styles()),
-      mSequencer(new Sequencer(config.getTimeManager())),
+      mSequencer(new Sequencer(config.getTimeManager(), requestedAPLVersion)),
       mFocusManager(new FocusManager()),
       mHoverManager(new HoverManager(*this)),
+      mPointerManager(new PointerManager(*this)),
       mKeyboardManager(new KeyboardManager()),
       mDataManager(new LiveDataManager()),
       mExtensionManager(new ExtensionManager(extensions, config)),

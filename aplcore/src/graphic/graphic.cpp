@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -13,7 +13,8 @@
  * permissions and limitations under the License.
  */
 
-#include <apl/engine/contextdependant.h>
+#include "apl/engine/contextdependant.h"
+#include "apl/engine/resources.h"
 #include "apl/engine/arrayify.h"
 #include "apl/graphic/graphic.h"
 #include "apl/utils/log.h"
@@ -24,27 +25,51 @@ namespace apl {
 
 const bool DEBUG_GRAPHIC = false;
 
+static ResourceOperators sGraphicResourceOperators = {
+    {"number",    asNumber},
+    {"numbers",   asNumber},
+    {"string",    asString},
+    {"strings",   asString},
+    {"boolean",   asBoolean},
+    {"booleans",  asBoolean},
+    {"color",     asColor},
+    {"colors",    asColor},
+    {"gradient",  asAvgGradient},
+    {"gradients", asAvgGradient},
+    {"pattern",   asGraphicPattern},
+    {"patterns",  asGraphicPattern},
+    {"easing",    asEasing},
+    {"easings",   asEasing},
+};
+
 /**************************************************************************/
 
 GraphicPtr
 Graphic::create(const ContextPtr& context,
-                const GraphicContentPtr& json,
+                const JsonResource& jsonResource,
                 Properties&& properties,
-                const StyleInstancePtr& styledPtr)
+                const std::shared_ptr<CoreComponent>& component)
 {
-    return create(context, json->get(), std::move(properties), styledPtr);
+    return create(context,
+            jsonResource.json(),
+            std::move(properties),
+            component,
+            jsonResource.path(),
+            component ? component->getStyle() : nullptr);
 }
 
 GraphicPtr
 Graphic::create(const ContextPtr& context,
                 const rapidjson::Value& json,
                 Properties&& properties,
+                const std::shared_ptr<CoreComponent>& component,
+                const Path& path,
                 const StyleInstancePtr& styledPtr)
 {
     LOG_IF(DEBUG_GRAPHIC) << "Creating graphic data=" << context->opt("data").toDebugString();
 
     auto graphic = std::make_shared<Graphic>(context, json);
-    graphic->initialize(context, json, std::move(properties), styledPtr);
+    graphic->initialize(context, json, std::move(properties), component, path, styledPtr);
     return graphic;
 }
 
@@ -72,13 +97,22 @@ Graphic::Graphic(const ContextPtr& context, const rapidjson::Value& json)
  *    The assignment may be a constant value or it may be a data-binding expression that depends on some
  *    upstream data-binding contexts.
  *
+ *    Evaluate the parameter in the sourceContext (where it was defined).  If it is a data-binding
+ *    expression, add a dependency from the sourceContext to the internalContext.
+ *
  * 2. Otherwise, if the parameter appears in the STYLE assigned to the VectorGraphic, then the parameter
  *    value is copied from the style.  As the style changes the parameter changes.
  *
+ *    Lookup the value of the parameter in the style from the VectorGraphic and store it in the
+ *    internalContext.
+ *
  * 3. If all else fails the parameter picks up the default parameter value.
  *
+ *    Evaluate the default parameter value in the *internalContext* (not the sourceContext) and
+ *    store it in the internalContext.  Do not set up any dependencies.
+ *
  * When the parameter is assigned a data-binding value, a ContextDependant object makes the connection
- * between the context where the dependancy is defined, the context where the expression will be evaluated
+ * between the context where the dependency is defined, the context where the expression will be evaluated
  * (that is, in the VectorGraphic context), and the context where the newly calculated value will be stored
  * (the internal context).
  */
@@ -86,13 +120,25 @@ void
 Graphic::initialize(const ContextPtr& sourceContext,
                     const rapidjson::Value& json,
                     Properties&& properties,
+                    const std::shared_ptr<CoreComponent>& component,
+                    const Path& path,
                     const StyleInstancePtr& styledPtr)
 {
+    setComponent(component);
+    addNamedResourcesBlock(*mInternalContext, json, path, "resources", sGraphicResourceOperators);
+
+    mStyles = std::make_shared<Styles>(sourceContext->styles());
+
+    // Internal style processing
+    auto styleIter = json.FindMember("styles");
+    if (styleIter != json.MemberEnd() && styleIter->value.IsObject())
+        mStyles->addStyleDefinitions(sourceContext->session(), &styleIter->value, path.addObject("styles"));
+
     // Populate the data-binding context with parameters
     for (const auto& param : mParameterArray) {
         LOG_IF(DEBUG_GRAPHIC) << "Parse parameter: " << param.name;
         const auto& conversionFunc = sBindingFunctions.at(param.type);
-        auto value = conversionFunc(*sourceContext, evaluate(*sourceContext, param.defvalue));
+        auto value = conversionFunc(*sourceContext, evaluate(*mInternalContext, param.defvalue));
         Object parsed;
 
         // Check if there is an assigned property
@@ -125,7 +171,7 @@ Graphic::initialize(const ContextPtr& sourceContext,
     }
 
     auto self = std::static_pointer_cast<Graphic>(shared_from_this());
-    mRootElement = GraphicElement::build(self, mInternalContext, json);
+    mRootElement = GraphicElement::build(self, json);
 }
 
 bool
@@ -229,23 +275,28 @@ Graphic::layout(double width, double height, bool useDirtyFlag) {
 bool
 Graphic::updateStyle(const StyleInstancePtr& styledPtr)
 {
-    // Walk the list of parameters.  If the parameter is NOT in mAssigned, then
-    // it can change based on style.
     bool changed = false;
 
-    for (const auto& m : mParameterArray) {
-        if (!mAssigned.count(m.name)) { // Not in the assigned set - try styling
-            auto newValue = m.defvalue;
-            auto itStyle = styledPtr->find(m.name);
-            if (itStyle != styledPtr->end())
-                newValue = sBindingFunctions.at(m.type)(*mInternalContext, itStyle->second);
+    if (styledPtr) {
+        // Walk the list of parameters.  If the parameter is NOT in mAssigned, then
+        // it can change based on style.
+        for (const auto& m : mParameterArray) {
+            if (!mAssigned.count(m.name)) { // Not in the assigned set - try styling
+                auto newValue = m.defvalue;
+                auto itStyle = styledPtr->find(m.name);
+                if (itStyle != styledPtr->end())
+                    newValue = sBindingFunctions.at(m.type)(*mInternalContext, itStyle->second);
 
-            if (mInternalContext->opt(m.name) != newValue) {  // Ah - there's a change
-                mInternalContext->userUpdateAndRecalculate(m.name, newValue, true);
-                changed = true;
+                if (mInternalContext->opt(m.name) != newValue) {  // Ah - there's a change
+                    mInternalContext->userUpdateAndRecalculate(m.name, newValue, true);
+                    changed = true;
+                }
             }
         }
     }
+
+    // Ask children to recalculate. They will handle dirty props themselves.
+    mRootElement->updateStyle(shared_from_this());
 
     return changed;
 }

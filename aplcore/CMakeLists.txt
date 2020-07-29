@@ -1,3 +1,16 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License").
+# You may not use this file except in compliance with the License.
+# A copy of the License is located at
+#
+#     http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is distributed
+# on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+# express or implied. See the License for the specific language governing
+# permissions and limitations under the License.
+
 set(CMAKE_CXX_STANDARD 11)
 
 # Set template depth to support pegtl on older versions of clang.
@@ -5,124 +18,57 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-depth=1024")
 endif()
 
-add_library(apl STATIC
-        src/action/action.cpp
-        src/action/animateitemaction.cpp
-        src/action/autopageaction.cpp
-        src/action/arrayaction.cpp
-        src/action/extensioneventaction.cpp
-        src/action/documentaction.cpp
-        src/action/openurlaction.cpp
-        src/action/scrolltoaction.cpp
-        src/action/sequentialaction.cpp
-        src/action/setpageaction.cpp
-        src/action/speakitemaction.cpp
-        src/action/speaklistaction.cpp
-        src/animation/animatedproperty.cpp
-        src/animation/easing.cpp
-        src/command/arraycommand.cpp
-        src/command/commandfactory.cpp
-        src/command/commandproperties.cpp
-        src/command/corecommand.cpp
-        src/command/extensioneventcommand.cpp
-        src/command/documentcommand.cpp
-        src/component/actionablecomponent.cpp
-        src/component/component.cpp
-        src/component/componentproperties.cpp
-        src/component/containercomponent.cpp
-        src/component/corecomponent.cpp
-        src/component/framecomponent.cpp
-        src/component/imagecomponent.cpp
-        src/component/pagercomponent.cpp
-        src/component/scrollablecomponent.cpp
-        src/component/scrollviewcomponent.cpp
-        src/component/sequencecomponent.cpp
-        src/component/textcomponent.cpp
-        src/component/textmeasurement.cpp
-        src/component/touchwrappercomponent.cpp
-        src/component/vectorgraphiccomponent.cpp
-        src/component/videocomponent.cpp
-        src/component/yogaproperties.cpp
-        src/content/aplversion.cpp
-        src/content/content.cpp
-        src/content/directive.cpp
-        src/content/importrequest.cpp
-        src/content/jsondata.cpp
-        src/content/metrics.cpp
-        src/content/package.cpp
-        src/content/rootconfig.cpp
-        src/content/viewport.cpp
-        src/datagrammar/boundsymbol.cpp
-        src/datagrammar/functions.cpp
-        src/datagrammar/node.cpp
-        src/datasource/datasource.cpp
-        src/datasource/dynamicindexlistdatasourceprovider.cpp
-        src/datasource/offsetindexdatasourceconnection.cpp
-        src/engine/arrayify.cpp
-        src/engine/binding.cpp
-        src/engine/builder.cpp
-        src/engine/context.cpp
-        src/engine/componentdependant.cpp
-        src/engine/contextdependant.cpp
-        src/engine/contextobject.cpp
-        src/engine/dependant.cpp
-        src/engine/evaluate.cpp
-        src/engine/event.cpp
-        src/engine/extensionmanager.cpp
-        src/engine/focusmanager.cpp
-        src/engine/hovermanager.cpp
-        src/engine/info.cpp
-        src/engine/keyboardmanager.cpp
-        src/engine/parameterarray.cpp
-        src/engine/propdef.cpp
-        src/engine/properties.cpp
-        src/engine/resources.cpp
-        src/engine/rootcontext.cpp
-        src/engine/rootcontextdata.cpp
-        src/engine/state.cpp
-        src/engine/styleinstance.cpp
-        src/engine/styledefinition.cpp
-        src/engine/styles.cpp
-        src/livedata/livearrayobject.cpp
-        src/livedata/livedataobject.cpp
-        src/livedata/livedatamanager.cpp
-        src/livedata/layoutrebuilder.cpp
-        src/livedata/livearray.cpp
-        src/livedata/livemap.cpp
-        src/livedata/livemapobject.cpp
-        src/graphic/graphic.cpp
-        src/graphic/graphiccontent.cpp
-        src/graphic/graphicdependant.cpp
-        src/graphic/graphicelement.cpp
-        src/graphic/graphicproperties.cpp
-        src/primitives/color.cpp
-        src/primitives/dimension.cpp
-        src/primitives/filter.cpp
-        src/primitives/functions.cpp
-        src/primitives/gradient.cpp
-        src/primitives/keyboard.cpp
-        src/primitives/mediasource.cpp
-        src/primitives/radii.cpp
-        src/primitives/rect.cpp
-        src/primitives/symbolreferencemap.cpp
-        src/primitives/styledtext.cpp
-        src/primitives/timefunctions.cpp
-        src/primitives/timegrammar.cpp
-        src/primitives/transform.cpp
-        src/primitives/transform2d.cpp
-        src/primitives/object.cpp
-        src/scaling/metricstransform.cpp
-        src/scaling/scalingcalculator.cpp
-        src/time/sequencer.cpp
-        src/utils/log.cpp
-        src/utils/path.cpp
-        src/utils/session.cpp
-        src/utils/telemetry.cpp)
+include(target_sources_local.cmake)
+
+# Check for the presence of GIT
+# Code from: https://gist.github.com/rkitover
+find_package(Git)
+if (GIT_FOUND)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" describe --tags --dirty
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            RESULT_VARIABLE res
+            OUTPUT_VARIABLE CORE_REPOSITORY_VERSION
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET)
+    if (res)
+        message(VERBOSE "Git repository not found in directory ${CMAKE_CURRENT_SOURCE_DIR}, not setting version info")
+        set(CORE_REPOSITORY_VERSION "unknown")
+    endif()
+else()
+    message(VERBOSE "Git program not found (${GIT_FOUND}), not setting version info")
+    SET(CORE_REPOSITORY_VERSION "unknown")
+endif()
+
+message(STATUS "Core Repository Version ${CORE_REPOSITORY_VERSION}")
+configure_file(buildTimeConstants.cpp.in buildTimeConstants.cpp @ONLY)
+
+add_library(apl STATIC ${CMAKE_CURRENT_BINARY_DIR}/buildTimeConstants.cpp)
+
+add_subdirectory(src/action)
+add_subdirectory(src/animation)
+add_subdirectory(src/command)
+add_subdirectory(src/component)
+add_subdirectory(src/content)
+add_subdirectory(src/datagrammar)
+add_subdirectory(src/datasource)
+add_subdirectory(src/engine)
+add_subdirectory(src/extension)
+add_subdirectory(src/graphic)
+add_subdirectory(src/livedata)
+add_subdirectory(src/primitives)
+add_subdirectory(src/scaling)
+add_subdirectory(src/time)
+add_subdirectory(src/touch)
+add_subdirectory(src/utils)
+
+set(PUBLIC_HEADER_LIST
+        include/apl/apl.h
+        include/apl/dynamicdata.h)
 
 set_target_properties(apl PROPERTIES
                       VERSION "${PROJECT_VERSION}"
                       SOVERSION 1
-                      PUBLIC_HEADER include/apl/apl.h)
+                      PUBLIC_HEADER "${PUBLIC_HEADER_LIST}")
 
 configure_file(apl.pc.in apl.pc @ONLY)
 target_include_directories(apl PRIVATE include)

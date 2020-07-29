@@ -21,6 +21,7 @@
 #include "streamer.h"
 
 #include "apl/primitives/object.h"
+#include "apl/utils/log.h"
 
 namespace apl {
 

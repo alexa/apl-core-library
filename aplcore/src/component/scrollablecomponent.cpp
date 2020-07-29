@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -38,11 +38,11 @@ ScrollableComponent::update(UpdateType type, float value)
         float trimmedValue = value <= maxPos ? value : maxPos;
         if (trimmedValue != currentPosition) {
             mCalculated.set(kPropertyScrollPosition, Dimension(DimensionType::Absolute, trimmedValue));
-            ContextPtr eventContext = createEventContext("Scroll", getValue());
+            ContextPtr eventContext = createEventContext("Scroll");
             mContext->sequencer().executeCommands(
                 getCalculated(kPropertyOnScroll),
                 eventContext,
-                shared_from_this(),
+                shared_from_corecomponent(),
                 true);
         }
     }
@@ -50,12 +50,16 @@ ScrollableComponent::update(UpdateType type, float value)
         CoreComponent::update(type, value);
 }
 
-std::shared_ptr<ObjectMap>
-ScrollableComponent::getEventTargetProperties() const
+const EventPropertyMap&
+ScrollableComponent::eventPropertyMap() const
 {
-    auto target = CoreComponent::getEventTargetProperties();
-    target->emplace("position", getValue());
-    return target;
+    static EventPropertyMap sScrollableEventProperties = eventPropertyMerge(
+            CoreComponent::eventPropertyMap(),
+            {
+                    {"position", [](const CoreComponent *c) { return c->getValue(); }},
+            });
+
+    return sScrollableEventProperties;
 }
 
 bool
@@ -63,15 +67,14 @@ ScrollableComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::Allo
     bool actionable = CoreComponent::getTags(outMap, allocator);
 
     std::string direction = scrollType() == kScrollTypeHorizontal ? "horizontal" : "vertical";
-    bool allowFwd = allowForward();
-    auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
-    bool allowBackwards = (currentPosition > 0);
+    bool shouldAllowForward = allowForward();
+    bool shouldAllowBackwards = allowBackwards();
 
-    if(!mChildren.empty() && (allowBackwards || allowFwd)) {
+    if(!mChildren.empty() && (shouldAllowBackwards || shouldAllowForward)) {
         rapidjson::Value scrollable(rapidjson::kObjectType);
         scrollable.AddMember("direction", rapidjson::Value(direction.c_str(), allocator).Move(), allocator);
-        scrollable.AddMember("allowForward", allowFwd, allocator);
-        scrollable.AddMember("allowBackwards", allowBackwards, allocator);
+        scrollable.AddMember("allowForward", shouldAllowForward, allocator);
+        scrollable.AddMember("allowBackwards", shouldAllowBackwards, allocator);
         outMap.AddMember("scrollable", scrollable, allocator);
 
         actionable = true;

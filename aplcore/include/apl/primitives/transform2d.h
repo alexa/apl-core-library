@@ -23,6 +23,8 @@
 #include <array>
 #include <cmath>
 
+#include "apl/common.h"
+
 #include "apl/primitives/point.h"
 #include "rapidjson/document.h"
 
@@ -140,8 +142,8 @@ public:
     static Transform2D rotate(float angle) {
         LOG_IF(DEBUG_TRANSFORM) << "rotate " << angle;
         double radians = angle * M_PI / 180;
-        float c = cos(radians);
-        float s = sin(radians);
+        auto c = static_cast<float>(cos(radians));
+        auto s = static_cast<float>(sin(radians));
         return Transform2D({c,s,-s,c,0,0});
     }
 
@@ -168,6 +170,13 @@ public:
     }
 
     /**
+     * Parse a string representing a transform
+     * @param string The string to parse
+     * @return A 2D transform.  This will be the identify transform if the string fails to parse.
+     */
+    static Transform2D parse(const SessionPtr& session, const std::string& string);
+
+    /**
      * Default constructor creates the identity matrix.
      */
     Transform2D() : mData{1,0,0,1,0,0} {}
@@ -176,8 +185,8 @@ public:
      * Constructor from arbitrary elements
      * @param values Array of values (length 6)
      */
-    Transform2D(std::array<float,6>&& values)
-        : mData(std::move(values)) {}
+    explicit Transform2D(std::array<float,6>&& values)
+        : mData(values) {}
 
     Transform2D(const Transform2D&) = default;
     Transform2D& operator=(const Transform2D&) = default;
@@ -217,36 +226,50 @@ public:
      * @return The resultant point.
      */
     friend Point operator*(const Transform2D& lhs, const Point& rhs) {
-        return Point(
-            lhs.mData[0]*rhs.getX() + lhs.mData[2]*rhs.getY() + lhs.mData[4],
-            lhs.mData[1]*rhs.getX() + lhs.mData[3]*rhs.getY() + lhs.mData[5]);
+        return {lhs.mData[0] * rhs.getX() + lhs.mData[2] * rhs.getY() + lhs.mData[4],
+                lhs.mData[1] * rhs.getX() + lhs.mData[3] * rhs.getY() + lhs.mData[5]};
     }
 
     /**
-     * Compare two transforms for perfect equality.  This is limited to numerical precision.
-     * @param lhs
-     * @param rhs
-     * @return
+     * @return True if this transformation is singular
+     */
+    bool singular() const {
+        return mData[0] * mData[3] == mData[1] * mData[2];
+    }
+
+    /**
+     * Calculate the inverse transform.  Note: this will produce a matrix of NaN if the transform
+     * is singular.
+     * @return The inverse transform.
+     */
+     Transform2D inverse() const {
+        if (empty())
+            return Transform2D();
+
+        float d = mData[0] * mData[3] - mData[1] * mData[2];
+        return Transform2D({mData[3] / d, -mData[1] / d, -mData[2] / d, mData[0] / d,
+                            (mData[2] * mData[5] - mData[3] * mData[4]) / d,
+                            (mData[1] * mData[4] - mData[0] * mData[5]) / d});
+    }
+
+    /**
+     * Compare two transforms for equality
+     * @param lhs The first transform
+     * @param rhs The second transform
+     * @return True if the transforms are exactly equal
      */
     friend bool operator==(const Transform2D& lhs, const Transform2D& rhs) {
         return lhs.mData == rhs.mData;
     }
 
     /**
-     * Compare two transforms for inequality. This is limited by numerical precision.
-     * @param lhs
-     * @param rhs
-     * @return
+     * Compare two transforms for inequality.
+     * @param lhs The first transform
+     * @param rhs The second transform
+     * @return True if the transforms differ
      */
     friend bool operator!=(const Transform2D& lhs, const Transform2D& rhs) {
         return lhs.mData != rhs.mData;
-    }
-
-    /**
-     * @return True if this transformation is the identity transformation
-     */
-    bool isIdentity() const {
-        return *this == Transform2D();  // TODO: Optimize this
     }
 
     /**
@@ -267,6 +290,30 @@ public:
             v.PushBack(p, allocator);
         return v;
     }
+
+    /**
+     * @return True if the transform is the identity.
+     */
+    bool isIdentity() const {
+        return empty();
+    }
+
+    /**
+     * @return True if this transform is empty - that is, if the transform is the identity.
+     */
+    bool empty() const {
+        return mData[0] == 1 && mData[1] == 0 && mData[2] == 0 &&
+               mData[3] == 1 && mData[4] == 0 && mData[5] == 0;
+    }
+
+    /**
+     * @return Always return true.
+     */
+    bool truthy() const {
+        return true;
+    }
+
+    std::string toDebugString() const;
 
 private:
     std::array<float, 6> mData;

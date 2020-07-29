@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
  */
 
 #include "apl/graphic/graphiccontent.h"
+#include "apl/graphic/graphicproperties.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -31,6 +32,11 @@ GraphicContent::create(const SessionPtr& session, JsonData&& data)
 
     // A bunch of sanity checks to make sure this is a well-formed graphic.
     // These checks don't guarantee that it could be drawn.
+
+    if (!data) {
+        CONSOLE_S(session) << "Graphic Json could not be parsed: " << data.error();
+        return nullptr;
+    }
 
     if (!json.IsObject()) {
         CONSOLE_S(session) << "Unknown object type for graphic";
@@ -55,8 +61,8 @@ GraphicContent::create(const SessionPtr& session, JsonData&& data)
         return nullptr;
     }
 
-    const char *v = version->value.GetString();
-    if (::strcmp(v, "1.0")) {
+    std::string v = version->value.GetString();
+    if (!sGraphicVersionBimap.has(v)) {
         CONSOLE_S(session) << "Invalid AVG version '" << v << "'";
         return nullptr;
     }

@@ -1,5 +1,5 @@
 /**
- * Copyright 2018, 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@
 
 #include "apl/primitives/object.h"
 
+#include "apl/utils/counter.h"
+
 #include "state.h"
 #include "styledefinition.h"
 
@@ -36,8 +38,17 @@ class StyleProcessSet;
 /**
  * Store all of the styles defined in an APL document and the loaded packages.
  */
-class Styles {
+class Styles : private Counter<Styles> {
+
+#ifdef DEBUG_MEMORY_USE
 public:
+    using Counter<Styles>::itemsDelta;
+#endif
+
+public:
+    Styles() : Styles(nullptr) {}
+    Styles(const std::shared_ptr<Styles>& parent) : mParentStyle(parent) {}
+
     /**
      * Return a style by name.
      * @param context The top-level data-binding context.  This context will be used to evaluate the style if
@@ -53,12 +64,7 @@ public:
      * @param name The name of the style definition.
      * @return The style definition or nullptr if it does not exist
      */
-    StyleDefinitionPtr getStyleDefinition(const std::string& name) {
-        auto it = mStyleDefinitions.find(name);
-        if (it != mStyleDefinitions.end())
-            return it->second;
-        return nullptr;
-    }
+    StyleDefinitionPtr getStyleDefinition(const std::string& name);
 
     /**
      * Add a collection of style definitions to the master table of styles.  Each property in the JSON object
@@ -97,6 +103,7 @@ private:
 
 private:
     std::map<std::string, StyleDefinitionPtr> mStyleDefinitions;
+    std::shared_ptr<Styles>                   mParentStyle;
 };
 
 }  // namespace apl

@@ -99,7 +99,7 @@ Event::getType() const
     return mData->eventType;
 }
 
-const Object
+Object
 Event::getValue(EventProperty key) const
 {
     auto it = mData->bag.find(key);

@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -16,23 +16,21 @@
 #ifndef _APL_COMMAND_ARRAY_COMMAND_H
 #define _APL_COMMAND_ARRAY_COMMAND_H
 
-#include "apl/command/command.h"
-#include "apl/primitives/object.h"
-#include "apl/engine/context.h"
+#include "apl/command/corecommand.h"
 #include "apl/engine/properties.h"
-#include "apl/component/corecomponent.h"
 
 namespace apl {
 
 /**
- * Not a single command - instead, an array of commands
+ * Commodity class to keep internal representation of commands array.
  */
-class ArrayCommand : public Command {
+class ArrayCommand : public CoreCommand {
 public:
     static CommandPtr create(const ContextPtr& context,
                              const Object& commands,
                              const CoreComponentPtr& base,
                              const Properties& properties,
+                             const std::string& parentSequencer = "",
                              bool finishAllOnTerminate = false);
 
 
@@ -46,28 +44,20 @@ public:
     ArrayCommand(const ContextPtr& context,
                  const Object& commands,
                  const CoreComponentPtr& base,
-                 const Properties& properties,
-                 bool finishAllOnTerminate)
-        : mContext(context),
-          mCommands(commands),
-          mBase(base),
-          mProperties(properties),
-          mFinishAllOnTerminate(finishAllOnTerminate){}
+                 Properties&& properties,
+                 const std::string& parentSequencer,
+                 bool finishAllOnTerminate);
 
-    virtual unsigned long delay() const override { return 0; }
-    virtual std::string name() const override { return "ArrayCommand"; }
-    virtual ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
+    CommandType type() const override { return kCommandTypeArray; }
+    unsigned long delay() const override { return 0; }
+    std::string name() const override { return "ArrayCommand"; }
+    ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
 
     const std::vector<Object>& commands() const { return mCommands.getArray(); }
-    ContextPtr context() const { return mContext; }
-    CoreComponentPtr base() const { return mBase; }
     bool finishAllOnTerminate() const { return mFinishAllOnTerminate; }
 
 private:
-    const ContextPtr mContext;
     const Object mCommands;
-    const CoreComponentPtr mBase;
-    Properties mProperties;
     bool mFinishAllOnTerminate;
 };
 

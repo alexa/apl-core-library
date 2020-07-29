@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -13,12 +13,11 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/apl.h"
 #include "apl/engine/arrayify.h"
 #include "apl/command/arraycommand.h"
 #include "apl/command/commandfactory.h"
 #include "apl/command/extensioneventcommand.h"
-#include "apl/engine/extensionmanager.h"
+#include "apl/extension/extensionmanager.h"
 
 namespace apl {
 
@@ -94,7 +93,8 @@ CommandPtr
 CommandFactory::expandMacro(const ContextPtr& context,
                             Properties& properties,
                             const rapidjson::Value& definition,
-                            const CoreComponentPtr& base) {
+                            const CoreComponentPtr& base,
+                            const std::string& parentSequencer) {
     assert(definition.IsObject());
 
     LOG_IF(DEBUG_COMMAND_FACTORY) << "Expanding macro";
@@ -113,7 +113,8 @@ CommandFactory::expandMacro(const ContextPtr& context,
     return ArrayCommand::create(cptr,
                                 arrayifyProperty(*cptr, definition, "command", "commands"),
                                 base,
-                                properties
+                                properties,
+                                parentSequencer
     );
 }
 
@@ -129,14 +130,15 @@ CommandPtr
 CommandFactory::inflate(const ContextPtr& context,
                         const Object& command,
                         const Properties& properties,
-                        const CoreComponentPtr& base)
+                        const CoreComponentPtr& base,
+                        const std::string& parentSequencer)
 {
     if (!command.isMap())
         return nullptr;
 
     auto type = propertyAsString(*context, command, "type");
     if (type.empty()) {
-        CONSOLE_CTP(context) << "Invalid type in command";
+        CONSOLE_CTP(context) << "No type defined for command";
         return nullptr;
     }
 
@@ -148,20 +150,20 @@ CommandFactory::inflate(const ContextPtr& context,
     Properties props = properties;
     props.emplace(command);
 
-    // If this is a primitive type, use that logic to expand.
+    // If this is a standard command type, use that logic to expand.
     auto method = mCommandMap.find(type);
     if (method != mCommandMap.end())
-        return method->second(context, std::move(props), base);
+        return method->second(context, std::move(props), base, parentSequencer);
 
     // Check to see if it is an extension command
     auto extensionCommand = context->extensionManager().findCommandDefinition(type);
     if (extensionCommand != nullptr)
-        return ExtensionEventCommand::create(*extensionCommand, context, std::move(props), base);
+        return ExtensionEventCommand::create(*extensionCommand, context, std::move(props), base, parentSequencer);
 
     // Look up a command macro.
     const auto& resource = context->getCommand(type);
     if (!resource.empty())
-        return expandMacro(context, props, resource.json(), base);
+        return expandMacro(context, props, resource.json(), base, parentSequencer);
 
     CONSOLE_CTP(context) << "Unable to find command '" << type << "'";
     return nullptr;
@@ -182,6 +184,13 @@ CommandFactory::inflate(const ContextPtr& context,
 {
     Properties properties;
     return inflate(context, command, properties, base);
+}
+
+CommandPtr
+CommandFactory::inflate(const Object& command, const std::shared_ptr<const CoreCommand>& parent)
+{
+    Properties properties;
+    return inflate(parent->context(), command, properties, parent->base(), parent->sequencer());
 }
 
 } // namespace apl

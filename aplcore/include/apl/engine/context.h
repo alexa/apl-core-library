@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -89,6 +89,13 @@ public:
      * @return The context
      */
     static ContextPtr create(const Metrics& metrics, const RootConfig& config, const std::string& theme);
+
+    /**
+     * Create a top-level context for extension definition.
+     * @param config Root configuration
+     * @return The context
+     */
+    static ContextPtr create(const RootConfig& config);
 
     /**
      * Create a top-level context.  Only used by RootContext
@@ -470,6 +477,7 @@ public:
     KeyboardManager& keyboardManager() const;
     LiveDataManager& dataManager() const;
     ExtensionManager& extensionManager() const;
+    std::shared_ptr<Styles> styles() const;
 
     const SessionPtr& session() const;
 

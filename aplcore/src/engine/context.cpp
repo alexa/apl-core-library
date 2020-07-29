@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -19,17 +19,18 @@
 #include <apl/utils/log.h>
 #include <apl/engine/builder.h>
 
-#include "apl/engine/context.h"
-#include "apl/engine/rootcontextdata.h"
-#include "apl/content/metrics.h"
-#include "apl/primitives/functions.h"
-#include "apl/engine/styles.h"
-#include "apl/engine/resources.h"
-#include "apl/primitives/object.h"
-#include "apl/engine/event.h"
+#include "apl/buildTimeConstants.h"
 #include "apl/component/textmeasurement.h"
+#include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
 #include "apl/content/viewport.h"
+#include "apl/engine/context.h"
+#include "apl/engine/event.h"
+#include "apl/engine/resources.h"
+#include "apl/engine/rootcontextdata.h"
+#include "apl/engine/styles.h"
+#include "apl/primitives/functions.h"
+#include "apl/primitives/object.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -47,6 +48,13 @@ ContextPtr
 Context::create(const Metrics& metrics, const RootConfig& config)
 {
     return create(metrics, config, metrics.getTheme());
+}
+
+// Use this to create a free-standing context.  Only used extension definition.
+ContextPtr
+Context::create(const RootConfig& config)
+{
+    return create(Metrics(), config);
 }
 
 // Use this to create a free-standing context.  Only used for background extraction
@@ -87,6 +95,9 @@ Context::Context( const Metrics& metrics, const std::shared_ptr<RootContextData>
     env->emplace("animation", config.getAnimationQualityString());
     env->emplace("aplVersion", config.getReportedAPLVersion());
     env->emplace("extension", core->extensionManager().getEnvironment());
+    env->emplace("_coreRepositoryVersion", sCoreRepositoryVersion);
+    for (const auto& m : config.getEnvironmentValues())
+        env->emplace(m.first, m.second);
     putConstant("environment", env);
     putConstant("viewport", makeViewport(metrics, core->theme));
     createStandardFunctions(*this);
@@ -142,7 +153,7 @@ StyleInstancePtr
 Context::getStyle(const std::string& name, const State& state)
 {
     assert(mCore);
-    return mCore->styles().get(shared_from_this(), name, state);
+    return mCore->styles()->get(shared_from_this(), name, state);
 }
 
 const JsonResource
@@ -191,6 +202,12 @@ Context::getRequestedAPLVersion() const
 {
     assert(mCore);
     return mCore->requestedAPLVersion;
+}
+
+std::shared_ptr<Styles>
+Context::styles() const {
+    assert(mCore);
+    return mCore->styles();
 }
 
 ComponentPtr

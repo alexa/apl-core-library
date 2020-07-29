@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ namespace apl {
  */
 class CoreTimeManager : public TimeManager {
 public:
-    CoreTimeManager(apl_time_t time) : mTime(time), mNextId(100), mAnimatorCount(0) {}
+    explicit CoreTimeManager(apl_time_t time) : mTime(time), mNextId(100), mAnimatorCount(0) {}
     ~CoreTimeManager() override = default;
 
     /****** Methods from Timers *******/
@@ -86,7 +86,7 @@ public:
         }
     }
 
-    virtual apl_time_t nextTimeout() override {
+    apl_time_t nextTimeout() override {
         if (mAnimatorCount > 0)
             return mTime + 1;
 
@@ -96,11 +96,15 @@ public:
         return std::numeric_limits<apl_time_t>::max();
     }
 
-    virtual apl_time_t currentTime() const override { return mTime; }
+    apl_time_t currentTime() const override { return mTime; }
 
-    virtual void runPending() override {
+    void runPending() override {
         while (mTimerHeap.size() && mTimerHeap.begin()->endTime <= mTime)
             advanceToNext();
+    }
+
+    void terminate() override {
+        mTimerHeap.clear();
     }
 
 protected:

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -16,26 +16,22 @@
 #ifndef _APL_ANIMATE_ITEM_ACTION_H
 #define _APL_ANIMATE_ITEM_ACTION_H
 
-#include "apl/action/action.h"
-#include "apl/animation/animatedproperty.h"
+#include "apl/action/resourceholdingaction.h"
+#include "apl/animation/easing.h"
 
 namespace apl {
 
+class AnimatedProperty;
 class CoreCommand;
 
 /**
  * Handle running an AnimateItem command
  */
-class AnimateItemAction : public Action {
+class AnimateItemAction : public ResourceHoldingAction {
 public:
     static std::shared_ptr<AnimateItemAction> make(const TimersPtr& timers,
                                                const std::shared_ptr<CoreCommand>& command,
-                                               bool fastMode)
-    {
-        auto ptr = std::make_shared<AnimateItemAction>(timers, command, fastMode);
-        ptr->start();
-        return ptr;
-    }
+                                               bool fastMode);
 
     AnimateItemAction(const TimersPtr& timers,
                       const std::shared_ptr<CoreCommand>& command,
@@ -56,7 +52,7 @@ private:
     const int mRepeatCount;
     const int mRepeatMode;
     const bool mFastMode;
-    Easing mEasing;
+    std::shared_ptr<Easing> mEasing;
 };
 
 

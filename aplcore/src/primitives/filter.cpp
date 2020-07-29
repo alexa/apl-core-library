@@ -52,6 +52,26 @@ getFilterMap() {
     return sFilterDefinitions;
 }
 
+static std::pair<bool, Object>
+calculate(const FilterPropDef& def,
+          const Context& context,
+          const Properties& properties) {
+    auto p = properties.find(def.names);
+
+    if (p != properties.end()) {
+        Object tmp = evaluate(context, p->second);
+        if (def.map) {
+            int value = def.map->get(tmp.asString(), -1);
+            if (value == -1)
+                return {false, def.defvalue};
+            return {true, value};
+        } else {
+            return {true, def.func(context, tmp)};
+        }
+    }
+
+    return {true, def.defvalue};
+}
 
 Object
 Filter::create(const Context& context, const Object& object)
@@ -69,21 +89,22 @@ Filter::create(const Context& context, const Object& object)
     }
 
     FilterBag bag;
-    for (const auto& property : getFilterMap().at(type)) {
-        auto value = property.defvalue;
-        if (object.has(property.name))
-            value = property.calculate(context, evaluate(context, object.get(property.name)));
-        if (value == Object::NULL_OBJECT()) {
-            CONSOLE_CTX(context) << "Invalid value for filter property " << property.name;
+    Properties properties(object);
+
+    for (const auto& def : getFilterMap().at(type)) {
+        auto result = calculate(def, context, properties);
+        if (!result.first) {
+            CONSOLE_CTX(context) << "Invalid value for filter property " << def.names[0];
             return Object::NULL_OBJECT();
         }
-        bag.emplace(property.key, value);
+
+        bag.emplace(def.key, result.second);
     }
 
     return Object(Filter(type, std::move(bag)));
 }
 
-const Object
+Object
 Filter::getValue(FilterProperty key) const
 {
     auto it = mData.find(key);
@@ -118,6 +139,16 @@ Filter::serialize(rapidjson::Document::AllocatorType& allocator) const {
             allocator);
     }
     return v;
+}
+
+std::string
+Filter::toDebugString() const
+{
+    std::string result = "Filter<" + sFilterTypeBimap.at(mType);
+    for (const auto& m : mData)
+        result += " " + sFilterPropertyBimap.at(m.first) + ":" + m.second.toDebugString();
+    result += ">";
+    return result;
 }
 
 

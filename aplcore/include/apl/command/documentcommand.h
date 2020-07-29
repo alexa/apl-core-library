@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -44,9 +44,9 @@ public:
     {
     }
 
-    virtual unsigned long delay() const override { return 0; }
-    virtual std::string name() const override { return "DocumentCommand"; }
-    virtual ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
+    unsigned long delay() const override { return 0; }
+    std::string name() const override { return "DocumentCommand"; }
+    ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
 
     CommandPtr getDocumentCommand();
     ActionPtr getComponentActions(const TimersPtr& timers, bool fastMode);

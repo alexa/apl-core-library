@@ -37,20 +37,19 @@ void
 ActionableComponent::executeOnBlur() {
     auto command = getCalculated(kPropertyOnBlur);
     auto eventContext = createDefaultEventContext("Blur");
-    mContext->sequencer().executeCommands(command, eventContext, shared_from_this(), true);
+    mContext->sequencer().executeCommands(command, eventContext, shared_from_corecomponent(), true);
 }
 
 void
 ActionableComponent::executeOnFocus() {
     auto command = getCalculated(kPropertyOnFocus);
     auto eventContext = createDefaultEventContext("Focus");
-    mContext->sequencer().executeCommands(command, eventContext, shared_from_this(), true);
+    mContext->sequencer().executeCommands(command, eventContext, shared_from_corecomponent(), true);
 }
 
 
 bool
 ActionableComponent::executeKeyHandlers(KeyHandlerType type, const ObjectMapPtr& keyboard) {
-
     auto propertyKey = KeyboardManager::getHandlerPropertyKey(type);
     auto handlerId = KeyboardManager::getHandlerId(type);
 
@@ -66,7 +65,7 @@ ActionableComponent::executeKeyHandlers(KeyHandlerType type, const ObjectMapPtr&
             // We've identified commands to execute
             auto commands = Object(arrayifyProperty(*eventContext, handler, "commands"));
             if (!commands.empty())
-                mContext->sequencer().executeCommands(commands, eventContext, shared_from_this(), false);
+                mContext->sequencer().executeCommands(commands, eventContext, shared_from_corecomponent(), false);
 
             // Return TRUE if the next key handler in the hierarchy should be run
             return !propertyAsBoolean(*eventContext, handler, "propagate", false);

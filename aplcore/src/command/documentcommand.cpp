@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ DocumentCommand::collectChildCommands(const ComponentPtr& base,
     if (commands.isArray() && commands.size() > 0) {
         auto core = std::static_pointer_cast<CoreComponent>(base);
         auto ctx = core->createDefaultEventContext(mHandler);
-        collection.emplace_back(ArrayCommand::create(ctx, commands, core, Properties()));
+        collection.emplace_back(ArrayCommand::create(ctx, commands, core, Properties(), ""));
     }
 
     for (auto i = 0 ; i < base->getChildCount() ; i++)
@@ -55,7 +55,7 @@ DocumentCommand::getDocumentCommand()
 
     auto context = root->createDocumentContext(mHandler);
     auto commands = asCommand(*context, evaluate(*context, it->value));
-    auto cmd = ArrayCommand::create(context, commands, nullptr, Properties(), true);
+    auto cmd = ArrayCommand::create(context, commands, nullptr, Properties(), "", true);
     return cmd;
 }
 

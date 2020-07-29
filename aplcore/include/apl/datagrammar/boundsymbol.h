@@ -16,7 +16,7 @@
 #ifndef _APL_BOUND_SYMBOL_H
 #define _APL_BOUND_SYMBOL_H
 
-#include "apl/primitives/object.h"
+#include "apl/primitives/objectdata.h"
 #include "apl/primitives/symbolreferencemap.h"
 
 namespace apl {
@@ -27,7 +27,7 @@ namespace datagrammar {
  * to retrieve the current value of a symbol.  They hold a weak pointer to the bound
  * context to avoid referential loops.
  */
-class BoundSymbol : public Object::Data
+class BoundSymbol : public ObjectData
 {
 public:
     BoundSymbol(const ContextPtr& context, const std::string&& name)

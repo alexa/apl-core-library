@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -20,45 +20,27 @@
 
 namespace apl {
 
-const static bool DEBUG_SET_VALUE = false;
-
 class SetValueCommand : public CoreCommand {
 
 public:
     static CommandPtr create(const ContextPtr& context,
                              Properties&& properties,
-                             const CoreComponentPtr& base) {
-        auto ptr = std::make_shared<SetValueCommand>(context, std::move(properties), base);
+                             const CoreComponentPtr& base,
+                             const std::string& parentSequencer) {
+        auto ptr = std::make_shared<SetValueCommand>(context, std::move(properties), base, parentSequencer);
         return ptr->validate() ? ptr : nullptr;
     }
 
-    SetValueCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base)
-            : CoreCommand(context, std::move(properties), base)
+    SetValueCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
+                    const std::string& parentSequencer)
+            : CoreCommand(context, std::move(properties), base, parentSequencer)
     {}
 
-    const CommandPropDefSet& propDefSet() const override {
-        static CommandPropDefSet sSetValueCommandProperties(CoreCommand::propDefSet(), {
-                {kCommandPropertyComponentId, "",                    asString, kPropRequiredId },
-                {kCommandPropertyProperty,    "",                    asString, kPropRequired },
-                {kCommandPropertyValue,       Object::NULL_OBJECT(), asAny,    kPropRequired }
-        });
-
-        return sSetValueCommandProperties;
-    };
+    const CommandPropDefSet& propDefSet() const override;
 
     CommandType type() const override { return kCommandTypeSetValue; }
 
-    ActionPtr execute(const TimersPtr& timers, bool fastMode) override {
-        if (!calculateProperties())
-            return nullptr;
-
-        std::string property = mValues.at(kCommandPropertyProperty).asString();
-        Object value = mValues.at(kCommandPropertyValue);
-        LOG_IF(DEBUG_SET_VALUE) << "SetValue - property: "<< property << " value: "<< value;
-        mTarget->setProperty(property, value);
-
-        return nullptr;
-    }
+    ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
 };
 
 } // namespace apl

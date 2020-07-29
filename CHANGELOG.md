@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.4.0]
+
+This release adds support for version 1.4 of the APL specification.
+
+### Added
+
+- New components: EditText and GridSequence
+- New AVG features (e.g. text support) and improvements
+- Tick handlers
+- onDown, onMove, and onUp event handlers to touchable components (e.g VectorGraphic and TouchWrapper)
+- Gesture support
+- Named sequencers for commands in order to control which commands can execute in parallel
+- Transcendental math functions
+- Misc updates to component properties
+
+### Changed
+
+- Updated reported APL version to 1.4
+- Bug fixes
+- Build improvements
+
 ## [1.3.3]
 
 This release is a bug fix release of apl-core-library

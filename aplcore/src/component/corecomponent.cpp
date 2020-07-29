@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -15,19 +15,26 @@
 
 #include <yoga/YGNode.h>
 
+#include "apl/common.h"
 #include "apl/component/corecomponent.h"
 #include "apl/component/componentpropdef.h"
+#include "apl/component/componenteventsourcewrapper.h"
+#include "apl/component/componenteventtargetwrapper.h"
 #include "apl/component/yogaproperties.h"
+#include "apl/content/rootconfig.h"
+#include "apl/engine/contextwrapper.h"
 #include "apl/engine/focusmanager.h"
 #include "apl/engine/hovermanager.h"
 #include "apl/engine/keyboardmanager.h"
 #include "apl/engine/builder.h"
 #include "apl/engine/componentdependant.h"
-#include "apl/content/rootconfig.h"
-#include "apl/time/sequencer.h"
-#include "apl/primitives/keyboard.h"
-#include "apl/utils/session.h"
 #include "apl/livedata/layoutrebuilder.h"
+#include "apl/primitives/keyboard.h"
+#include "apl/time/sequencer.h"
+#include "apl/time/timemanager.h"
+#include "apl/touch/pointerevent.h"
+#include "apl/utils/session.h"
+#include "apl/utils/searchvisitor.h"
 
 namespace apl {
 
@@ -42,7 +49,6 @@ const std::string VISUAL_CONTEXT_TYPE_EMPTY = "empty";
 const static bool DEBUG_BOUNDS = false;
 const static bool DEBUG_ENSURE = false;
 
-
 CoreComponent::CoreComponent(const ContextPtr& context,
                              Properties&& properties,
                              const std::string& path)
@@ -56,12 +62,46 @@ CoreComponent::CoreComponent(const ContextPtr& context,
 {
 }
 
-void CoreComponent::initialize()
+void
+CoreComponent::scheduleTickHandler(const Object& handler, double delay) {
+    auto weak_ptr = std::weak_ptr<CoreComponent>(std::static_pointer_cast<CoreComponent>(shared_from_this()));
+    // Lambda capture takes care of handler here as it's a copy.
+    mContext->getRootConfig().getTimeManager()->setTimeout([weak_ptr, handler, delay]() {
+        auto self = weak_ptr.lock();
+        if (!self)
+            return;
+
+        auto ctx = self->createEventContext("Tick");
+        if (propertyAsBoolean(*ctx, handler, "when", true)) {
+            auto commands = Object(arrayifyProperty(*ctx, handler, "commands"));
+            if (!commands.empty())
+                ctx->sequencer().executeCommands(commands, ctx, self, true);
+        }
+
+        self->scheduleTickHandler(handler, delay);
+    }, delay);
+}
+
+void
+CoreComponent::processTickHandlers() {
+    auto& tickHandlers = getCalculated(kPropertyHandleTick);
+    if (tickHandlers.empty() || !tickHandlers.isArray())
+        return;
+
+    for (const auto& handler : tickHandlers.getArray()) {
+        auto delay = std::max(propertyAsDouble(*mContext, handler, "minimumDelay", 1000),
+                mContext->getRootConfig().getTickHandlerUpdateLimit());
+        scheduleTickHandler(handler, delay);
+    }
+}
+
+void
+CoreComponent::initialize()
 {
     // TODO: Would be nice to work this in with the regular properties more cleanly.
     mState.set(kStateChecked, mProperties.asBoolean(*mContext, "checked", false));
     mState.set(kStateDisabled, mProperties.asBoolean(*mContext, "disabled", false));
-    if (multiChild()) mCalculated.set(kPropertyNotifyChildrenChanged, Object::EMPTY_MUTABLE_ARRAY());
+    mCalculated.set(kPropertyNotifyChildrenChanged, Object::EMPTY_MUTABLE_ARRAY());
 
     // Fix up the state variables that can be assigned as a property
     if (mInheritParentState && mParent)
@@ -81,6 +121,13 @@ void CoreComponent::initialize()
             user->emplace(p.first.substr(6), p.second);
     }
     mCalculated.set(kPropertyUser, user);
+
+    // Set notion of focusability. Here as we actually may need to know all other properties.
+    mCalculated.set(kPropertyFocusable, isFocusable());
+
+    // Process tick handlers here. Not same as onMount as it's a bad idea to go through every component on every tick
+    // to collect handlers and run them on mass.
+    processTickHandlers();
 }
 
 void
@@ -98,12 +145,29 @@ CoreComponent::release()
  * @param visitor
  */
 void
-CoreComponent::accept(Visitor<Component>& visitor) const
+CoreComponent::accept(Visitor<CoreComponent>& visitor) const
 {
     visitor.visit(*this);
     visitor.push();
-    for (auto&& m : mChildren)
-        m->accept(visitor);
+    for (auto it = mChildren.begin(); !visitor.isAborted() && it != mChildren.end(); it++)
+        (*it)->accept(visitor);
+    visitor.pop();
+}
+
+/**
+ * Visitor pattern for walking the component hierarchy in reverse order.  We are interested in the components
+ * that the user can see/interact with.  Child classes that have knowledge about which children are off screen or otherwise
+ * invalid/unattached should use that knowledge to reduce the number of nodes walked or avoid walking otherwise invalid
+ * components they may have stashed in their children.
+ * @param visitor
+ */
+void
+CoreComponent::raccept(Visitor<CoreComponent>& visitor) const
+{
+    visitor.visit(*this);
+    visitor.push();
+    for (auto it = mChildren.rbegin(); !visitor.isAborted() && it != mChildren.rend(); it++)
+        (*it)->raccept(visitor);
     visitor.pop();
 }
 
@@ -114,7 +178,7 @@ CoreComponent::findComponentById(const std::string& id) const
         return nullptr;
 
     if (mId == id || mUniqueId == id)
-        return std::const_pointer_cast<CoreComponent>(shared_from_this());
+        return std::const_pointer_cast<CoreComponent>(shared_from_corecomponent());
 
     for (auto& m : mChildren) {
         auto result = m->findComponentById(id);
@@ -128,33 +192,9 @@ CoreComponent::findComponentById(const std::string& id) const
 ComponentPtr
 CoreComponent::findComponentAtPosition(const Point& position) const
 {
-    if (getCalculated(kPropertyDisplay).asInt() != kDisplayNormal ||
-            getCalculated(kPropertyOpacity).asNumber() <= 0.0 )
-        return nullptr;
-
-    auto bounds = getCalculated(kPropertyBounds).getRect();
-    if (!bounds.contains(position))
-        return nullptr;
-
-    // Convert to the components internal coordinate system
-    auto point = position - bounds.getTopLeft() + scrollPosition();
-    auto child = findChildAtPosition(point);
-    if (child != nullptr)
-        return child;
-
-    return std::const_pointer_cast<CoreComponent>(shared_from_this());
-}
-
-ComponentPtr
-CoreComponent::findChildAtPosition(const Point& position) const {
-    // Walk the child list in reverse order because later children overlap earlier
-    for (auto it = mChildren.rbegin() ; it != mChildren.rend() ; it++) {
-        auto child = (*it)->findComponentAtPosition(position);
-        if (child != nullptr)
-            return child;
-    }
-
-    return nullptr;
+    auto visitor = TopAtPosition(position);
+    raccept(visitor);
+    return visitor.getResult();
 }
 
 // Call this when a child has been attached to the parent
@@ -185,9 +225,9 @@ CoreComponent::update(UpdateType type, float value)
         case kUpdateTakeFocus: {
             auto& fm = getContext()->focusManager();
             if (value)
-                fm.setFocus(shared_from_this(), false);
+                fm.setFocus(shared_from_corecomponent(), false);
             else
-                fm.releaseFocus(shared_from_this(), false);
+                fm.releaseFocus(shared_from_corecomponent(), false);
         }
             break;
         case kUpdatePressState:
@@ -199,6 +239,11 @@ CoreComponent::update(UpdateType type, float value)
     }
 }
 
+
+void
+CoreComponent::update(UpdateType type, const std::string& value) {
+    //no-op
+}
 
 /**
  * Add a child component.  The child already has a reference to the parent.
@@ -213,14 +258,12 @@ CoreComponent::appendChild(const ComponentPtr& child, bool useDirtyFlag)
 void
 CoreComponent::notifyChildChanged(size_t index, const std::string& uid, const std::string& action)
 {
-    if (multiChild()) {
-        auto &changes = mCalculated.get(kPropertyNotifyChildrenChanged).getMutableArray();
-        auto change = std::make_shared<ObjectMap>();
-        change->emplace("index", index);
-        change->emplace("uid", uid);
-        change->emplace("action", action);
-        changes.emplace_back(change);
-    }
+    auto &changes = mCalculated.get(kPropertyNotifyChildrenChanged).getMutableArray();
+    auto change = std::make_shared<ObjectMap>();
+    change->emplace("index", index);
+    change->emplace("uid", uid);
+    change->emplace("action", action);
+    changes.emplace_back(change);
 
     setDirty(kPropertyNotifyChildrenChanged);
 }
@@ -232,7 +275,7 @@ CoreComponent::attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int i
     // For sequences we don't attach until ensureLayout is called if outside of existing ensured range.
     if (shouldAttachChildYogaNode(index)
         || (mEnsuredChildren.contains(index) && index > mEnsuredChildren.lowerBound())) {
-        if (DEBUG_ENSURE) LOG(LogLevel::DEBUG) << "attaching yoga node index=" << index << " this=" << *this;
+        LOG_IF(DEBUG_ENSURE) << "attaching yoga node index=" << index << " this=" << *this;
         auto offset = mEnsuredChildren.insert(index);
         YGNodeInsertChild(mYGNodeRef, coreChild->getNode(), offset);
     } else if (!mEnsuredChildren.empty() && index <= mEnsuredChildren.lowerBound()) {
@@ -244,10 +287,6 @@ bool
 CoreComponent::insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag)
 {
     if (!child || child->getParent())
-        return false;
-
-    bool canInsert = (singleChild() && mChildren.empty()) || multiChild();
-    if (!canInsert)
         return false;
 
     auto coreChild = std::static_pointer_cast<CoreComponent>(child);
@@ -265,7 +304,7 @@ CoreComponent::insertChild(const ComponentPtr& child, size_t index, bool useDirt
         coreChild->markAdded();
     }
 
-    coreChild->attachedToParent(shared_from_this());
+    coreChild->attachedToParent(shared_from_corecomponent());
     return true;
 }
 
@@ -288,7 +327,7 @@ CoreComponent::remove()
         }
     }
 
-    mParent->removeChild(shared_from_this(), true);
+    mParent->removeChild(shared_from_corecomponent(), true);
     mParent = nullptr;
     return true;
 }
@@ -339,7 +378,7 @@ CoreComponent::removeChildAt(size_t index, bool useDirtyFlag)
 void
 CoreComponent::markRemoved()
 {
-    auto self = shared_from_this();
+    auto self = shared_from_corecomponent();
 
     mContext->clearDirty(self);
     mContext->focusManager().releaseFocus(self, true);
@@ -367,7 +406,7 @@ void
 CoreComponent::ensureLayout(bool useDirtyFlag)
 {
     // Walk up the component hierarchy and ensure each component is attached to its parent
-    auto component = shared_from_this();
+    auto component = shared_from_corecomponent();
     bool needsLayoutCalculation = false;
 
     while(component->getParent()) {
@@ -488,7 +527,7 @@ CoreComponent::assignProperties(const ComponentPropDefSet& propDefSet)
 
         if ((pd.flags & kPropIn) != 0) {
             // Check for user-defined property
-            auto p = mProperties.find(pd.name);
+            auto p = mProperties.find(pd.names);
             if (p != mProperties.end()) {
                 // If the user assigned a string, we need to check for data binding
                 if (p->second.isString()) {
@@ -520,7 +559,7 @@ CoreComponent::assignProperties(const ComponentPropDefSet& propDefSet)
 
                 // Check for a styled property
                 if ((pd.flags & kPropStyled) != 0 && stylePtr) {
-                    auto s = stylePtr->find(pd.name);
+                    auto s = stylePtr->find(pd.names);
                     if (s != stylePtr->end())
                         value = pd.calculate(*mContext, s->second);
                 }
@@ -756,7 +795,7 @@ CoreComponent::updateStyleInternal(const StyleInstancePtr& stylePtr, const Compo
 
         // Check to see if the value has changed.
         auto value = (pd.defaultFunc ? pd.defaultFunc(*this, mContext->getRootConfig()) : pd.defvalue);
-        auto s = stylePtr->find(pd.name);
+        auto s = stylePtr->find(pd.names);
         if (s != stylePtr->end())
             value = pd.calculate(*mContext, s->second);
 
@@ -809,7 +848,7 @@ CoreComponent::setState( StateProperty stateProperty, bool value )
             if (value) {
                 mState.set(kStatePressed, false);
                 mState.set(kStateHover, false);
-                mContext->focusManager().releaseFocus(shared_from_this(), true);
+                mContext->focusManager().releaseFocus(shared_from_corecomponent(), true);
             }
         }
 
@@ -818,7 +857,7 @@ CoreComponent::setState( StateProperty stateProperty, bool value )
 
         if (stateProperty == kStateDisabled) {
             // notify the hover manager that the disable state has changed
-            mContext->hoverManager().componentToggledDisabled(shared_from_this());
+            mContext->hoverManager().componentToggledDisabled(shared_from_corecomponent());
         }
 
         updateStyle();
@@ -846,7 +885,7 @@ CoreComponent::updateInheritedState()
 bool
 CoreComponent::inheritsStateFrom(const CoreComponentPtr& component) {
 
-    auto stateOwner = shared_from_this();
+    auto stateOwner = shared_from_corecomponent();
 
     // the component is this component
     if (component == stateOwner) {
@@ -866,7 +905,7 @@ CoreComponent::inheritsStateFrom(const CoreComponentPtr& component) {
 
 CoreComponentPtr
 CoreComponent::findStateOwner() {
-    auto ptr = shared_from_this();
+    auto ptr = shared_from_corecomponent();
     while (ptr && ptr->getInheritParentState()) {
         ptr = std::static_pointer_cast<CoreComponent>(ptr->getParent());
     }
@@ -962,61 +1001,87 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag)
 
 
 std::shared_ptr<ObjectMap>
-CoreComponent::createEventProperties(const std::string& handler, const Object& value) const {
-
-    auto source = std::make_shared<ObjectMap>();
-    const auto& type = sComponentTypeBimap.at(getType());
-    source->emplace("source", type);  // Legacy value to support old implementation
-    source->emplace("type", type);    // As per the APL specification
-    source->emplace("handler", handler);
-    source->emplace("id", getId());
-    source->emplace("uid", getUniqueId());
-    source->emplace("value", value);
-    source->emplace("focused", mState.get(kStateFocused));
-
+CoreComponent::createEventProperties(const std::string& handler, const Object& value) const
+{
     auto event = std::make_shared<ObjectMap>();
-    event->emplace("source", source);
-    addEventSourceProperties(*event);
-
+    event->emplace("source", Object(ComponentEventSourceWrapper::create(shared_from_corecomponent(), handler, value)));
+    addEventProperties(*event);
     return event;
 }
 
+
 ContextPtr
-CoreComponent::createEventContext(const std::string& handler, const Object& value) const
+CoreComponent::createEventContext(const std::string& handler, const ObjectMapPtr& optional, const Object& value) const
 {
     ContextPtr ctx = Context::create(mContext);
-    auto event = createEventProperties(handler, value);
+    auto compValue = getValue();
+    if (!value.isNull()) {
+        compValue = value;
+    }
+
+    auto event = createEventProperties(handler, compValue);
+    if (optional)
+        event->insert(optional->begin(), optional->end());
     ctx->putConstant("event", event);
     return ctx;
 }
-
 
 ContextPtr
 CoreComponent::createKeyboardEventContext(const std::string& handler, const ObjectMapPtr& keyboard) const
 {
     ContextPtr ctx = Context::create(mContext);
-    auto event = createEventProperties(handler, Object::NULL_OBJECT());
+    auto event = createEventProperties(handler, getValue());
     event->emplace("keyboard", keyboard);
     ctx->putConstant("event", event);
     return ctx;
 }
 
-std::shared_ptr<ObjectMap>
-CoreComponent::getEventTargetProperties() const
-{
-    auto target = std::make_shared<ObjectMap>();
-    target->emplace("disabled", mState.get(kStateDisabled));
-    target->emplace("focused", mState.get(kStateFocused));
-    target->emplace("width", YGNodeLayoutGetWidth(mYGNodeRef));
-    target->emplace("height", YGNodeLayoutGetHeight(mYGNodeRef));
-    target->emplace("id", getId());
-    target->emplace("uid", getUniqueId());
-    target->emplace("opacity", mCalculated.get(kPropertyOpacity));
-    return target;
+const EventPropertyMap &
+CoreComponent::eventPropertyMap() const {
+    static EventPropertyMap sCoreEventProperties(
+            {
+                    {"bind",     [](const CoreComponent *c) { return ContextWrapper::create(c->getContext()); }},
+                    {"checked",  [](const CoreComponent *c) { return c->getState().get(kStateChecked); }},
+                    {"disabled", [](const CoreComponent *c) { return c->getState().get(kStateDisabled); }},
+                    {"focused",  [](const CoreComponent *c) { return c->getState().get(kStateFocused); }},
+                    {"id",       [](const CoreComponent *c) { return c->getId(); }},
+                    {"uid",      [](const CoreComponent *c) { return c->getUniqueId(); }},
+                    {"width",    [](const CoreComponent *c) { return YGNodeLayoutGetWidth(c->mYGNodeRef); }},
+                    {"height",   [](const CoreComponent *c) { return YGNodeLayoutGetHeight(c->mYGNodeRef); }},
+                    {"opacity",  [](const CoreComponent *c) { return c->getCalculated(kPropertyOpacity); }},
+                    {"pressed",  [](const CoreComponent *c) { return c->getState().get(kStatePressed); }},
+                    {"type",     [](const CoreComponent *c) { return sComponentTypeBimap.at(c->getType()); }}
+            });
+
+    return sCoreEventProperties;
 }
 
+std::pair<bool, Object>
+CoreComponent::getEventProperty(const std::string &key) const
+{
+    const auto& map = eventPropertyMap();
+    auto it = map.find(key);
+    if (it != map.end())
+        return {true, it->second(this)};
 
-static const char sHierarchySig[] = "CFIPSQTWGV";  // Must match ComponentType
+    return {false, Object::NULL_OBJECT()};
+}
+
+size_t
+CoreComponent::getEventPropertySize() const
+{
+    return eventPropertyMap().size();
+}
+
+void
+CoreComponent::serializeEvent(rapidjson::Value& out, rapidjson::Document::AllocatorType& allocator) const
+{
+    const auto& map = eventPropertyMap();
+    for (const auto& m : map)
+        out.AddMember(rapidjson::Value(m.first.c_str(), allocator), m.second(this).serialize(allocator).Move(), allocator);
+}
+
+static const char sHierarchySig[] = "CEFMIPSQTWGV";  // Must match ComponentType
 
 std::string
 CoreComponent::getHierarchySignature() const
@@ -1061,6 +1126,22 @@ CoreComponent::fixTransform(bool useDirtyFlag)
     }
 }
 
+void CoreComponent::setHeight(const Dimension& height) {
+    if (mYGNodeRef)
+        yn::setHeight(mYGNodeRef, height, *mContext);
+    else
+        LOG(LogLevel::ERROR) << "setHeight:  Missing yoga node for component id '" << getId() << "'";
+    mCalculated.set(kPropertyHeight, height);
+}
+
+void CoreComponent::setWidth(const Dimension& width) {
+    if (mYGNodeRef)
+        yn::setWidth(mYGNodeRef, width, *mContext);
+    else
+        LOG(LogLevel::ERROR) << "setWidth:  Missing yoga node for component id '" << getId() << "'";
+    mCalculated.set(kPropertyWidth, width);
+}
+
 std::map<int,int>
 CoreComponent::calculateChildrenVisualLayer(const std::map<int, float>& visibleIndexes,
                                             const Rect& visibleRect, int visualLayer) {
@@ -1084,7 +1165,7 @@ CoreComponent::serialize(rapidjson::Document::AllocatorType& allocator) const
     for (const auto& pds : propDefSet()) {
         if ((pds.second.flags & kPropOut) != 0 || (pds.second.flags & kPropRuntimeState) != 0)
             component.AddMember(
-                rapidjson::StringRef(pds.second.name.c_str()),   // We assume long-lived strings here
+                rapidjson::StringRef(pds.second.names[0].c_str()),   // We assume long-lived strings here
                 mCalculated.get(pds.first).serialize(allocator),
                 allocator);
     }
@@ -1115,12 +1196,12 @@ CoreComponent::serializeAll(rapidjson::Document::AllocatorType& allocator) const
     for (const auto& pds : propDefSet()) {
         if (pds.second.map) {
             component.AddMember(
-                rapidjson::StringRef(pds.second.name.c_str()),   // We assume long-lived strings here
+                rapidjson::StringRef(pds.second.names[0].c_str()),   // We assume long-lived strings here
                 rapidjson::StringRef(pds.second.map->at(mCalculated.get(pds.first).asInt()).c_str()),
                 allocator);
         } else {
             component.AddMember(
-                rapidjson::StringRef(pds.second.name.c_str()),   // We assume long-lived strings here
+                rapidjson::StringRef(pds.second.names[0].c_str()),   // We assume long-lived strings here
                 mCalculated.get(pds.first).serialize(allocator),
                 allocator);
         }
@@ -1259,19 +1340,18 @@ CoreComponent::getVisualContextType() {
 }
 
 std::map<int, float>
-CoreComponent::getChildrenVisibility(float realOpacity, const Rect &visibleRect) {
-    // Multi children components have specific implementation. Just return single one if it's there.
-    assert(mChildren.size() <= 1);
-    std::map<int, float> result;
-    if(!mChildren.empty()) {
-        auto child = mChildren.at(0);
-        auto childVisibility = child->calculateVisibility(realOpacity, visibleRect);
-        if(childVisibility > 0.0) {
-            result.emplace(0, childVisibility);
+CoreComponent::getChildrenVisibility(float realOpacity, const Rect &visibleRect) const {
+    std::map<int, float> visibleIndexes;
+
+    for(int index = 0; index < mChildren.size(); index++) {
+        const auto& child = getCoreChildAt(index);
+        float visibility = child->calculateVisibility(realOpacity, visibleRect);
+        if(visibility > 0.0) {
+            visibleIndexes.emplace(index, visibility);
         }
     }
 
-    return result;
+    return visibleIndexes;
 }
 
 float
@@ -1308,7 +1388,7 @@ CoreComponent::getTags(rapidjson::Value &outMap, rapidjson::Document::AllocatorT
         outMap.AddMember("focused", focused, allocator);
     }
 
-    if(mParent && mParent->getType() == kComponentTypeSequence) {
+    if(mParent && mParent->scrollable() && mParent->multiChild()) {
         rapidjson::Value listItem(rapidjson::kObjectType);
         listItem.AddMember("index", mContext->opt("index").asInt(), allocator);
         outMap.AddMember("listItem", listItem, allocator);
@@ -1368,14 +1448,14 @@ void
 CoreComponent::executeOnCursorEnter() {
     auto eventContext = createDefaultEventContext("CursorEnter");
     auto command = getCalculated(kPropertyOnCursorEnter);
-    mContext->sequencer().executeCommands(command, eventContext, shared_from_this(), true);
+    mContext->sequencer().executeCommands(command, eventContext, shared_from_corecomponent(), true);
 }
 
 void
 CoreComponent::executeOnCursorExit() {
     auto eventContext = createDefaultEventContext("CursorExit");
     auto command = getCalculated(kPropertyOnCursorExit);
-    mContext->sequencer().executeCommands(command, eventContext, shared_from_this(), true);
+    mContext->sequencer().executeCommands(command, eventContext, shared_from_corecomponent(), true);
 }
 
 /*****************************************************************/
@@ -1416,6 +1496,51 @@ CoreComponent::fixSpacing(bool reset) {
     }
 }
 
+
+/**
+ * Used by components with a displayed border.
+ */
+void CoreComponent::resolveDrawnBorder(Component& component) {
+    auto& comp = static_cast<CoreComponent&>(component);
+    comp.calculateDrawnBorder(true);
+}
+
+/**
+ * Used by components with a displayed border.
+ * Derive the width of the drawn border.  If borderStrokeWith is set, the drawn border is the min of borderWidth
+ * and borderStrokeWidth.  If borderStrokeWidth is unset, the drawn border defaults to borderWidth.
+ * @param useDirtyFlag true if the drawn border changed as a result of other property changes
+ */
+void
+CoreComponent::calculateDrawnBorder(bool useDirtyFlag )
+{
+    auto strokeWidthProp = getCalculated(kPropertyBorderStrokeWidth);
+    float borderWidth = getCalculated(kPropertyBorderWidth).asAbsoluteDimension(*mContext).getValue();
+    float drawnWidth = borderWidth; // default the drawn width to the border width
+
+    if (strokeWidthProp == Object::NULL_OBJECT()) {
+        // no stroke width - default draw border width to border width
+        // initialize stroke width to border width
+        mCalculated.set(kPropertyBorderStrokeWidth, Object(Dimension(borderWidth)));
+    } else {
+        // stroke width - clamp the drawn border to the border width
+        float strokeWidth = strokeWidthProp.getAbsoluteDimension();
+        if (strokeWidth < borderWidth)
+            drawnWidth = strokeWidth;
+    }
+
+    Dimension dimension(drawnWidth);
+
+    auto drawnWidthProp = getCalculated(kPropertyDrawnBorderWidth);
+    if (drawnWidthProp == Object::NULL_OBJECT() ||
+        dimension != mCalculated.get(kPropertyDrawnBorderWidth).asAbsoluteDimension(*mContext)) {
+        mCalculated.set(kPropertyDrawnBorderWidth, Object(std::move(dimension)));
+        if (useDirtyFlag)
+            setDirty(kPropertyBorderStrokeWidth);
+    }
+}
+
+
 const ComponentPropDefSet&
 CoreComponent::propDefSet() const {
     static ComponentPropDefSet sCommonComponentProperties = ComponentPropDefSet().add({
@@ -1432,6 +1557,8 @@ CoreComponent::propDefSet() const {
                                                                                     kPropDynamic |
                                                                                     kPropMixedState},
           {kPropertyEntities,           Object::EMPTY_ARRAY(), asDeepArray,         kPropIn},
+          {kPropertyFocusable,          false,                 nullptr,             kPropOut},
+          {kPropertyHandleTick,         Object::EMPTY_ARRAY(), asArray,             kPropIn},
           {kPropertyHeight,             Dimension(),           asDimension,         kPropIn,      yn::setHeight, defaultHeight},
           {kPropertyInnerBounds,        Object::EMPTY_RECT(),  nullptr,             kPropOut},
           {kPropertyMaxHeight,          Object::NULL_OBJECT(), asNonAutoDimension,  kPropIn,      yn::setMaxHeight},
@@ -1465,5 +1592,15 @@ CoreComponent::propDefSet() const {
     return sCommonComponentProperties;
 }
 
+bool
+CoreComponent::containsGlobalPosition(const Point &position) const {
+    Rect bounds = getGlobalBounds();
+    return bounds.contains(position);
+}
+
+
+/*
+ * END SearchVisitor IMPL
+ */
 
 }  // namespace apl

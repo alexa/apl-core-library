@@ -44,3 +44,9 @@ target_link_libraries(fuzzExpression apl)
 
 add_executable(fuzzEasing fuzzEasing.cpp)
 target_link_libraries(fuzzEasing apl)
+
+add_executable(parseTransform parseTransform.cpp)
+target_link_libraries(parseTransform apl)
+
+add_executable(parseEasing parseEasing.cpp)
+target_link_libraries(parseEasing apl)

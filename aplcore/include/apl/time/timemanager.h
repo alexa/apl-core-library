@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 #define _APL_TIME_MANAGER_H
 
 #include "apl/common.h"
-#include "timers.h"
+#include "apl/time/timers.h"
 
 namespace apl {
 
@@ -53,6 +53,11 @@ public:
      * Run any pending timers.
      */
     virtual void runPending() = 0;
+
+    /**
+     * Clear any pending actions and release any held references.
+     */
+    virtual void terminate() = 0;
 };
 
 } // namespace apl

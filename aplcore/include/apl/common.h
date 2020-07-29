@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -47,6 +47,7 @@ using apl_duration_t = double;
 // here so they can be conveniently used from any source file.
 
 class Action;
+class CharacterRanges;
 class Command;
 class Component;
 class Content;
@@ -57,10 +58,12 @@ class DataSourceProvider;
 class GraphicContent;
 class GraphicElement;
 class Graphic;
+class GraphicPattern;
 class LiveArray;
 class LiveMap;
 class LiveObject;
 class Package;
+class RootConfig;
 class RootContext;
 class Session;
 class Settings;
@@ -68,6 +71,7 @@ class StyleDefinition;
 class StyleInstance;
 class TextMeasurement;
 class Timers;
+class TouchableComponent;
 
 using ActionPtr = std::shared_ptr<Action>;
 using CommandPtr = std::shared_ptr<Command>;
@@ -80,10 +84,12 @@ using DataSourceProviderPtr = std::shared_ptr<DataSourceProvider>;
 using GraphicContentPtr = std::shared_ptr<GraphicContent>;
 using GraphicElementPtr = std::shared_ptr<GraphicElement>;
 using GraphicPtr = std::shared_ptr<Graphic>;
+using GraphicPatternPtr = std::shared_ptr<GraphicPattern>;
 using LiveArrayPtr = std::shared_ptr<LiveArray>;
 using LiveMapPtr = std::shared_ptr<LiveMap>;
 using LiveObjectPtr = std::shared_ptr<LiveObject>;
 using PackagePtr = std::shared_ptr<Package>;
+using RootConfigPtr = std::shared_ptr<RootConfig>;
 using RootContextPtr = std::shared_ptr<RootContext>;
 using SessionPtr = std::shared_ptr<Session>;
 using SettingsPtr = std::shared_ptr<Settings>;
@@ -91,6 +97,7 @@ using StyleDefinitionPtr = std::shared_ptr<StyleDefinition>;
 using StyleInstancePtr = std::shared_ptr<StyleInstance>;
 using TextMeasurementPtr = std::shared_ptr<TextMeasurement>;
 using TimersPtr = std::shared_ptr<Timers>;
+using CharacterRangesPtr = std::shared_ptr<CharacterRanges>;
 
 // Convenience templates for creating sets of weak and strong pointers
 template<class T> using WeakPtrSet = std::set<std::weak_ptr<T>, std::owner_less<std::weak_ptr<T>>>;

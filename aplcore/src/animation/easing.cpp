@@ -13,94 +13,75 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/animation/easing.h"
-#include "apl/animation/easinggrammar.h"
 #include "apl/animation/coreeasing.h"
+#include "apl/animation/easinggrammar.h"
 #include "apl/utils/session.h"
-#include "apl/utils/streamer.h"
+#include "apl/utils/weakcache.h"
 
 namespace apl {
 
 namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
-const int MAX_EASING_CACHE_SIZE = 1000;
 
-static Easing sDefaultEasingCurve(std::make_shared<LinearEasing>());
+// These easing curves are predefined and available at all times
+static auto sLinear = CoreEasing::linear();
+static auto sEase = CoreEasing::bezier(0.25, 0.10, 0.25, 1);
+static auto sEaseIn = CoreEasing::bezier(0.42, 0, 1, 1);
+static auto sEaseOut = CoreEasing::bezier(0, 0, 0.58, 1);
+static auto sEaseInOut = CoreEasing::bezier(0.42, 0, 0.58, 1);
 
-std::map<std::string, EasingCurvePtr> sEasingCurves = {
-    { "linear", std::make_shared<LinearEasing>() },
-    { "ease", std::make_shared<CubicBezierEasing>(0.25, 0.10, 0.25, 1) },
-    { "ease-in", std::make_shared<CubicBezierEasing>(0.42, 0, 1, 1) },
-    { "ease-out", std::make_shared<CubicBezierEasing>(0, 0, 0.58, 1) },
-    { "ease-in-out", std::make_shared< CubicBezierEasing>(0.42, 0, 0.58, 1) }
+static WeakCache<Easing> sEasingCache = {
+    {"linear",      sLinear},
+    {"ease",        sEase},
+    {"ease-in",     sEaseIn},
+    {"ease-out",    sEaseOut},
+    {"ease-in-out", sEaseInOut}
 };
 
-static bool checkPathOrder(const std::vector<float>& vector)
-{
-    float t = vector.at(0);
-    for (int i = 2 ; i < vector.size() ; i+=2) {
-        if (vector.at(i) <= t)
-            return false;
-        t = vector.at(i);
-    }
-    return true;
-}
+static bool sEasingCacheDirty = false;  // Mark the cache as dirty when an easing curve is deleted
 
-Easing
-Easing::parse(const SessionPtr& session, const std::string& easing) {
+std::shared_ptr<Easing>
+Easing::parse(const SessionPtr& session, const std::string& easing)
+{
     // First, remove all of the spaces from the string.  This helps with caching and simplifies the grammar
     std::string s(easing);
     auto end = std::remove(s.begin(), s.end(), ' ');
     s.erase(end, s.end());
 
-    auto it = sEasingCurves.find(s);
-    if (it != sEasingCurves.end())
-        return it->second;
+    // Check the cache
+    auto ptr = sEasingCache.find(s);
+    if (ptr)
+        return ptr;
 
     try {
         easinggrammar::easing_state state;
         pegtl::string_input<> in(s, "");
         pegtl::parse<easinggrammar::grammar, easinggrammar::action>(in, state);
 
-        switch (state.type) {
-            case easinggrammar::easing_state::PATH:
-                if (state.args.size() == 0)
-                    return sDefaultEasingCurve;
+        auto easingCurve = CoreEasing::create(std::move(state.segments),
+                                              std::move(state.args),
+                                              s);
+        if (!easingCurve) {
+            CONSOLE_S(session) << "Unable to create easing curve " << easing;
+        } else {
+            if (sEasingCacheDirty) {
+                sEasingCache.clean();
+                sEasingCacheDirty = false;
+            }
 
-                if (state.args.size() % 2 != 0) {
-                    CONSOLE_S(session) << "Path easing function needs an even number of arguments";
-                } else {
-                    state.args.insert(state.args.begin(), 2, 0);
-                    state.args.push_back(1);
-                    state.args.push_back(1);
-
-                    if (!checkPathOrder(state.args)) {
-                        CONSOLE_S(session) << "Path easing function needs ordered array of arguments";
-                    }
-                    else {
-                        EasingCurvePtr easingCurve = std::make_shared<PathEasing>(std::move(state.args));
-                        if (sEasingCurves.size() < MAX_EASING_CACHE_SIZE)
-                            sEasingCurves.emplace(s, easingCurve);
-                        return easingCurve;
-                    }
-                }
-                break;
-            case easinggrammar::easing_state::CUBIC_BEZIER:
-                if (state.args.size() != 4) {
-                    CONSOLE_S(session) << "Cubic bezier easing function needs four arguments";
-                } else {
-                    EasingCurvePtr easingCurve = std::make_shared<CubicBezierEasing>(state.args.at(0), state.args.at(1), state.args.at(2), state.args.at(3));
-                    if (sEasingCurves.size() < MAX_EASING_CACHE_SIZE)
-                        sEasingCurves.emplace(s, easingCurve);
-                    return easingCurve;
-                }
-                break;
+            sEasingCache.insert(s, easingCurve);
+            return easingCurve;
         }
     }
-    catch (pegtl::parse_error e) {
+    catch (pegtl::parse_error& e) {
         CONSOLE_S(session) << "Parse error in " << easing << " - " << e.what();
     }
 
-    return sDefaultEasingCurve;
+    return Easing::linear();
+}
+
+std::shared_ptr<Easing>
+Easing::linear() {
+    return sLinear;
 }
 
 bool
@@ -110,40 +91,26 @@ Easing::has(const char *easing)
     auto end = std::remove(s.begin(), s.end(), ' ');
     s.erase(end, s.end());
 
-    auto it = sEasingCurves.find(s);
-    return it != sEasingCurves.end();
+    return sEasingCache.find(s) != nullptr;
 }
 
-Easing
-Easing::linear() {
-    return sDefaultEasingCurve;
+Easing::~Easing() noexcept {
+    sEasingCacheDirty = true;
+
 }
 
-float
-Easing::operator()(float time) {
-    if (time <= 0) return 0;
-    if (time >= 1) return 1;
-    if (time == mLastTime) return mLastValue;
-    mLastTime = time;
-    mLastValue = mCurve->calc(time);
-    return mLastValue;
+Object
+Easing::call(const ObjectArray& args) const
+{
+    if (args.size() != 1)
+        return 0;
+
+    return const_cast<Easing&>(*this).calc(static_cast<float>(args.at(0).asNumber()));
 }
 
 bool
-Easing::operator==(const Easing& rhs)
-{
-    return mCurve->equal(rhs.mCurve);
-}
-
-bool
-Easing::operator!=(const Easing& rhs)
-{
-    return !mCurve->equal(rhs.mCurve);
-}
-
-streamer& operator<<(streamer& s, const Easing& easing) {
-    s << easing.mCurve->toDebugString();
-    return s;
+Easing::operator==(const ObjectData& other) const {
+    return *this == dynamic_cast<const Easing&>(other);
 }
 
 } // namespace apl

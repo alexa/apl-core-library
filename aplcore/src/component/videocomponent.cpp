@@ -63,6 +63,15 @@ VideoComponent::propDefSet() const
 }
 
 void
+VideoComponent::assignProperties(const ComponentPropDefSet &propDefSet)
+{
+    CoreComponent::assignProperties(propDefSet);
+    auto mediaSourceArray = getCalculated(kPropertySource);
+    if (mediaSourceArray.isArray())
+        mCalculated.set(kPropertyTrackCount, mediaSourceArray.size());
+}
+
+void
 VideoComponent::saveMediaState(const MediaState& state)
 {
     mCalculated.set(kPropertyTrackCount, state.getTrackCount());
@@ -88,8 +97,8 @@ VideoComponent::updateMediaState(const MediaState& state, bool fromEvent)
             if (!commands.empty())
                 mContext->sequencer().executeCommands(
                     commands,
-                    createEventContext("Play", Object::NULL_OBJECT()),
-                    shared_from_this(),
+                    createEventContext("Play"),
+                    shared_from_corecomponent(),
                     fromEvent);
         }
         else {
@@ -97,8 +106,8 @@ VideoComponent::updateMediaState(const MediaState& state, bool fromEvent)
             if (!commands.empty()) {
                 mContext->sequencer().executeCommands(
                     commands,
-                    createEventContext("Pause", Object::NULL_OBJECT()),
-                    shared_from_this(),
+                    createEventContext("Pause"),
+                    shared_from_corecomponent(),
                     fromEvent);
             }
         }
@@ -109,8 +118,8 @@ VideoComponent::updateMediaState(const MediaState& state, bool fromEvent)
         if (!commands.empty()) {
             mContext->sequencer().executeCommands(
                 commands,
-                createEventContext("End", Object::NULL_OBJECT()),
-                shared_from_this(),
+                createEventContext("End"),
+                shared_from_corecomponent(),
                 fromEvent);
         }
     }
@@ -120,8 +129,8 @@ VideoComponent::updateMediaState(const MediaState& state, bool fromEvent)
         if (!commands.empty()) {
             mContext->sequencer().executeCommands(
                 commands,
-                createEventContext("TrackUpdate", state.getTrackIndex()),
-                shared_from_this(),
+                createEventContext("TrackUpdate", nullptr, state.getTrackIndex()),
+                shared_from_corecomponent(),
                 fromEvent);
         }
     }
@@ -131,15 +140,15 @@ VideoComponent::updateMediaState(const MediaState& state, bool fromEvent)
         if (!commands.empty()) {
             mContext->sequencer().executeCommands(
                 commands,
-                createEventContext("TimeUpdate", state.getCurrentTime()),
-                shared_from_this(),
+                createEventContext("TimeUpdate", nullptr, state.getCurrentTime()),
+                shared_from_corecomponent(),
                 true);
         }
     }
 }
 
 void
-VideoComponent::addEventSourceProperties(apl::ObjectMap& event) const
+VideoComponent::addEventProperties(apl::ObjectMap &event) const
 {
     event.emplace("trackIndex", getCalculated(kPropertyTrackIndex).asInt());
     event.emplace("trackCount", getCalculated(kPropertyTrackCount).asInt());
@@ -149,17 +158,44 @@ VideoComponent::addEventSourceProperties(apl::ObjectMap& event) const
     event.emplace("ended", getCalculated(kPropertyTrackEnded).asBoolean());
 }
 
-std::shared_ptr<ObjectMap>
-VideoComponent::getEventTargetProperties() const
-{
-    auto target = CoreComponent::getEventTargetProperties();
-    target->emplace("trackIndex", getCalculated(kPropertyTrackIndex).asInt());
-    target->emplace("trackCount", getCalculated(kPropertyTrackCount).asInt());
-    target->emplace("currentTime", getCalculated(kPropertyTrackCurrentTime).asInt());
-    target->emplace("duration", getCalculated(kPropertyTrackDuration).asInt());
-    target->emplace("paused", getCalculated(kPropertyTrackPaused).asBoolean());
-    target->emplace("ended", getCalculated(kPropertyTrackEnded).asBoolean());
-    return target;
+static inline Object
+getCurrentURL(const CoreComponent *c) {
+    auto source = c->getCalculated(kPropertySource);
+    auto trackIndex = c->getCalculated(kPropertyTrackIndex).asInt();
+    if (trackIndex < 0 || trackIndex >= source.size())
+        return "";
+    auto currentSource = source.at(trackIndex).getMediaSource();
+    return currentSource.getUrl();
+}
+
+const EventPropertyMap&
+VideoComponent::eventPropertyMap() const {
+    static EventPropertyMap sVideoEventProperties = eventPropertyMerge(
+            CoreComponent::eventPropertyMap(),
+            {
+                    {"trackCount",  [](const CoreComponent *c) {
+                        return c->getCalculated(kPropertyTrackCount);
+                    }},
+                    {"trackIndex",  [](const CoreComponent *c) {
+                        return c->getCalculated(kPropertyTrackIndex);
+                    }},
+                    {"currentTime", [](const CoreComponent *c) {
+                        return c->getCalculated(kPropertyTrackCurrentTime);
+                    }},
+                    {"duration",    [](const CoreComponent *c) {
+                        return c->getCalculated(kPropertyTrackDuration);
+                    }},
+                    {"paused",      [](const CoreComponent *c) {
+                        return c->getCalculated(kPropertyTrackPaused);
+                    }},
+                    {"ended",       [](const CoreComponent *c) {
+                        return c->getCalculated(kPropertyTrackEnded);
+                    }},
+                    {"source",      &getCurrentURL},
+                    {"url",         &getCurrentURL},
+            });
+
+    return sVideoEventProperties;
 }
 
 bool

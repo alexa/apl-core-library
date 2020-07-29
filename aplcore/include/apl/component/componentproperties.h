@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -94,7 +94,9 @@ enum FlexboxAlign {
  */
 enum ContainerDirection {
     kContainerDirectionColumn = 0,
-    kContainerDirectionRow = 1
+    kContainerDirectionRow = 1,
+    kContainerDirectionColumnReverse = 2,
+    kContainerDirectionRowReverse = 3
 };
 
 /**
@@ -107,6 +109,15 @@ enum FlexboxJustifyContent {
     kFlexboxJustifyContentCenter = 2,
     kFlexboxJustifyContentSpaceBetween = 3,
     kFlexboxJustifyContentSpaceAround = 4
+};
+
+/**
+ * Wrap setting of the flexbox container
+ */
+enum FlexboxWrap {
+    kFlexboxWrapNoWrap = 0,
+    kFlexboxWrapWrap = 1,
+    kFlexboxWrapWrapReverse = 2,
 };
 
 /**
@@ -205,6 +216,26 @@ enum Snap {
     kSnapEnd = 3
 };
 
+/**
+ * The type of keyboard to display for the EditText Component.
+ */
+enum KeyboardType {
+    kKeyboardTypeDecimalPad = 0,
+    kKeyboardTypeEmailAddress = 1,
+    kKeyboardTypeNormal = 2,
+    kKeyboardTypeNumberPad = 3,
+    kKeyboardTypePhonePad = 4,
+    kKeyboardTypeUrl = 5
+};
+
+enum SubmitKeyType {
+    kSubmitKeyTypeDone = 0,
+    kSubmitKeyTypeGo = 1,
+    kSubmitKeyTypeNext = 2,
+    kSubmitKeyTypeSearch = 3,
+    kSubmitKeyTypeSend = 4
+};
+
 enum PropertyKey {
     // NOTE: ScrollDirection is placed early in the list so that it loads BEFORE height and width (see SequenceComponent.cpp)
     /// SequenceComponent scrolling direction (see #ScrollDirection)
@@ -227,25 +258,31 @@ enum PropertyKey {
     kPropertyBorderBottomLeftRadius,
     /// FrameComponent border bottom-right radius (input only)
     kPropertyBorderBottomRightRadius,
-    /// FrameComponent border color
+    /// FrameComponent | EditTextComponent border color
     kPropertyBorderColor,
     /// ImageComponent border radius; also used by FrameComponent to set overall border radius (input only)
     kPropertyBorderRadius,
     /// FrameComponent border radii (output only)
     kPropertyBorderRadii,
+    /// FrameComponent | EditTextComponent width of the border stroke (input only)
+    kPropertyBorderStrokeWidth,
     /// FrameComponent border top-left radius (input only)
     kPropertyBorderTopLeftRadius,
     /// FrameComponent border top-right radius (input only)
     kPropertyBorderTopRightRadius,
-    /// FrameComponent border width
+    /// FrameComponent | EditTextComponent border width
     kPropertyBorderWidth,
     /// ContainerComponent child absolute bottom position
     kPropertyBottom,
     /// Component bounding rectangle (output only)
     kPropertyBounds,
+    /// GridSequenceComponent child height(s)
+    kPropertyChildHeight,
+    /// GridSequenceComponent child width(s)
+    kPropertyChildWidth,
     /// Component checked state
     kPropertyChecked,
-    /// TextComponent color
+    /// TextComponent | EditTextComponent color
     kPropertyColor,
     /// TextComponent color for karaoke target
     kPropertyColorKaraokeTarget,
@@ -261,20 +298,38 @@ enum PropertyKey {
     kPropertyDisabled,
     /// Component general display (see #Display)
     kPropertyDisplay,
+    /// FrameComponent | EditTextComponent drawn border width (output only)
+    kPropertyDrawnBorderWidth,
     /// Component array of opaque entity data
     kPropertyEntities,
     /// SequenceComponent fast scroll scaling setting
     kPropertyFastScrollScale,
     /// ImageComponent array of filters
     kPropertyFilters,
-    /// TextComponent valid font families
+    /// Property that identifies that component is focusable and as a result of it navigable
+    kPropertyFocusable,
+    /// TextComponent | EditTextComponent valid font families
     kPropertyFontFamily,
     /// TextComponent font size
     kPropertyFontSize,
     /// TextComponent font style (see #FontStyle)
     kPropertyFontStyle,
-    /// TextComponent font weight
+    /// TextComponent | EditTextComponent font weight
     kPropertyFontWeight,
+    /// Component handler for tick
+    kPropertyHandleTick,
+    /// EditTextComponent highlight color behind selected text.
+    kPropertyHighlightColor,
+    /// EditTextComponent hint text,displayed when no text has been entered
+    kPropertyHint,
+    /// EditTextComponent color for hint text
+    kPropertyHintColor,
+    /// EditTextComponent style of the hint font
+    kPropertyHintStyle,
+    /// EditTextComponent weight of the hint font
+    kPropertyHintWeight,
+    /// Gesture handlers
+    kPropertyGestures,
     /// VectorGraphicComponent calculated graphic data (output only)
     kPropertyGraphic,
     /// ContainerComponent child flexbox grow
@@ -291,8 +346,12 @@ enum PropertyKey {
     kPropertyInitialPage,
     /// Component calculated inner bounds rectangle [applies padding and border] (output only)
     kPropertyInnerBounds,
+    /// GridSequenceComponent number of Columns if vertical, number of Rows if horizontal
+    kPropertyItemsPerCourse,
     /// ContainerComponent flexbox content justification (see #FlexboxJustifyContent)
     kPropertyJustifyContent,
+    /// EditTextComponent keyboard type
+    kPropertyKeyboardType,
     /// ContainerComponent child absolute left position
     kPropertyLeft,
     /// TextComponent letter spacing
@@ -301,6 +360,8 @@ enum PropertyKey {
     kPropertyLineHeight,
     /// Component maximum height
     kPropertyMaxHeight,
+    /// EditTextComponent maximum number of characters that can be displayed
+    kPropertyMaxLength,
     /// TextComponent maximum number of lines
     kPropertyMaxLines,
     /// Component maximum width
@@ -321,22 +382,34 @@ enum PropertyKey {
     kPropertyNumbering,
     /// ActionableComponent handler when focus is lost
     kPropertyOnBlur,
+    /// TouchableComponent handler for cancel
+    kPropertyOnCancel,
+    /// TouchableComponent handler for down
+    kPropertyOnDown,
     /// VideoComponent handler for video end
     kPropertyOnEnd,
     /// ActionableComponent handler when focus is gained
     kPropertyOnFocus,
     /// Component or Document handler for first display of the component or document
     kPropertyOnMount,
+    /// TouchableComponent handler for move
+    kPropertyOnMove,
     /// PagerComponent handler for when the page changes
     kPropertyOnPageChanged,
     /// VideoComponent handler for video pause
     kPropertyOnPause,
     /// VideoComponent handler for video play
     kPropertyOnPlay,
-    /// TouchWrapperComponent handler for press
+    /// TouchableComponent handler for press
     kPropertyOnPress,
     /// ScrollViewComponent or SequenceComponent handler for scroll events.
     kPropertyOnScroll,
+    /// EditTextComponent commands to execute when the submit button is pressed.
+    kPropertyOnSubmit,
+    /// EditTextComponent Commands to execute when the text changes from a user event.
+    kPropertyOnTextChange,
+    /// TouchableComponent handler for up
+    kPropertyOnUp,
     /// VideoComponent handler for video time updates
     kPropertyOnTimeUpdate,
     /// VideoComponent handler for video track updates
@@ -363,6 +436,10 @@ enum PropertyKey {
     kPropertyScale,
     /// Scroll position of the Scrollable component.
     kPropertyScrollPosition,
+    /// EditTextComponent hide characters as typed if true
+    kPropertySecureInput,
+    /// EditTextComponent the text is selected on focus when true
+    kPropertySelectOnFocus,
     /// Component shadow color
     kPropertyShadowColor,
     /// Component shadow horizontal offset
@@ -373,6 +450,8 @@ enum PropertyKey {
     kPropertyShadowVerticalOffset,
     /// ContainerComponent child flexbox shrink property
     kPropertyShrink,
+    /// EditTextComponent specifies approximately howmany characters canbe displayed
+    kPropertySize,
     /// SequenceComponent snap location (see #Snap)
     kPropertySnap,
     /// ImageComponent, VideoComponent, and VectorGraphic source URL(s)
@@ -381,7 +460,9 @@ enum PropertyKey {
     kPropertySpacing,
     /// Component opaque speech data
     kPropertySpeech,
-    /// TextComponent assigned rich text
+    // EditTextComponent label of the return key
+    kPropertySubmitKeyType,
+    /// TextComponent | EditTextComponent assigned rich text
     kPropertyText,
     /// TextComponent horizontal alignment (see #TextAlign)
     kPropertyTextAlign,
@@ -419,13 +500,19 @@ enum PropertyKey {
     /// Component handler for cursor exit
     kPropertyOnCursorExit,
     /// Component attached to Yoga tree and has flexbox properties calculated.
-    kPropertyLaidOut
+    kPropertyLaidOut,
+    /// EditTextComponent restrict the characters that can be entered
+    kPropertyValidCharacters,
+    /// Flexbox wrap
+    kPropertyWrap,
 };
 
 // Be careful adding new items to this list or changing the order of the list.
 enum ComponentType {
     kComponentTypeContainer,
+    kComponentTypeEditText,
     kComponentTypeFrame,
+    kComponentTypeGridSequence,
     kComponentTypeImage,
     kComponentTypePager,
     kComponentTypeScrollView,
@@ -436,15 +523,27 @@ enum ComponentType {
     kComponentTypeVideo
 };
 
+/**
+ * Modes to measure layout size in TextMeasurement class
+ */
+enum MeasureMode {
+    Undefined,
+    Exactly,
+    AtMost
+};
+
 extern Bimap<int, std::string> sAlignMap;
 extern Bimap<int, std::string> sScaleMap;
 extern Bimap<int, std::string> sFontStyleMap;
 extern Bimap<int, std::string> sFontWeightMap;
 extern Bimap<int, std::string> sTextAlignMap;
 extern Bimap<int, std::string> sTextAlignVerticalMap;
+extern Bimap<int, std::string> sKeyboardTypeMap;
+extern Bimap<int, std::string> sSubmitKeyTypeMap;
 extern Bimap<int, std::string> sFlexboxAlignMap;
 extern Bimap<int, std::string> sContainerDirectionMap;
 extern Bimap<int, std::string> sFlexboxJustifyContentMap;
+extern Bimap<int, std::string> sFlexboxWrapMap;
 extern Bimap<int, std::string> sNumberingMap;
 extern Bimap<int, std::string> sPositionMap;
 extern Bimap<int, std::string> sScrollDirectionMap;

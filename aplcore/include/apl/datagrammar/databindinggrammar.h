@@ -68,12 +68,12 @@ struct attr_bracket : seq<one<'['>, ws, ternary, ws, one<']'> > {};
 struct arglist : list<ternary, sym_comma, space> {};
 struct func_start : one<'('> {};
 struct func_call : sor<if_must<func_start, ws, opt<arglist, ws>, one<')'> > > {};
-struct attribute : seq<symbol,
+struct resource : seq<one<'@'>, disable<identifier> > {};
+struct attribute : seq<
+    sor<resource, symbol>,
     star<sor<attr_dot, attr_bracket> >,
     opt<func_call> > {
 };
-
-struct resource : seq<one<'@'>, disable<identifier> > {};
 
 struct dp : string<'d', 'p'> {};
 struct px : string<'p', 'x'> {};
@@ -86,7 +86,6 @@ struct factor : sor<grouping,
     true_,
     false_,
     null_,
-    resource,
     dimension,
     attribute,
     floatnum,

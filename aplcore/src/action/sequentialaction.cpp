@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -100,10 +100,15 @@ SequentialAction::advance() {
 bool
 SequentialAction::doCommand(const Object& command)
 {
-    mCurrentCommand = CommandFactory::instance().inflate(mCommand->context(),
-                                                         command,
-                                                         mCommand->base());
-    if (mCurrentCommand) {
+    auto commandPtr = CommandFactory::instance().inflate(command, mCommand);
+    if (commandPtr) {
+        auto childSeq = commandPtr->sequencer();
+        if (childSeq != mCommand->sequencer()) {
+            mCommand->context()->sequencer().executeOnSequencer(commandPtr, childSeq);
+            return false;
+        }
+
+        mCurrentCommand = commandPtr;
         mCurrentAction = DelayAction::make(timers(), mCurrentCommand, mFastMode);
 
         auto sptr = std::static_pointer_cast<SequentialAction>(shared_from_this());

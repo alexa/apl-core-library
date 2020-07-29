@@ -25,6 +25,22 @@ namespace apl {
 class Object;
 class Context;
 
+enum GradientProperty {
+    kGradientPropertyType,
+    kGradientPropertyColorRange,
+    kGradientPropertyInputRange,
+    kGradientPropertyAngle,
+    kGradientPropertySpreadMethod,
+    kGradientPropertyX1,
+    kGradientPropertyY1,
+    kGradientPropertyX2,
+    kGradientPropertyY2,
+    kGradientPropertyCenterX,
+    kGradientPropertyCenterY,
+    kGradientPropertyRadius,
+    kGradientPropertyUnits
+};
+
 /**
  * Represent a linear or radial gradient. Normally used in the Image for the
  * overlayGradient. Because gradients may be defined in a resource, we treat
@@ -39,6 +55,19 @@ public:
         RADIAL
     };
 
+    /** Possible linear gradient spread methods. */
+    enum GradientSpreadMethod {
+        PAD,
+        REFLECT,
+        REPEAT
+    };
+
+    /** Gradient units */
+    enum GradientUnits {
+        kGradientUnitsBoundingBox,
+        kGradientUnitsUserSpace
+    };
+
     /**
      * Build a gradient from an Object. The source object may be a gradient (in
      * which case it is copied) or may be a JSON representation of a gradient.
@@ -46,52 +75,79 @@ public:
      * @param object The source of the gradient.
      * @return An object containing a gradient or null.
      */
-    static Object create(const Context& context, const Object& object);
+    static Object create(const Context& context, const Object& object) { return create(context, object, false); }
+
+    /**
+     * Build a AVG gradient from an Object. The source object may be a gradient (in
+     * which case it is copied) or may be a JSON representation of a gradient.
+     * @param context The data-binding context.
+     * @param object The source of the gradient.
+     * @return An object containing a gradient or null.
+     */
+    static Object createAVG(const Context& context, const Object& object) { return create(context, object, true); }
 
     /**
      * @return The type of the gradient.
      */
-    GradientType getType() const { return mType; }
+    GradientType getType() const { return static_cast<GradientType>(mProperties.at(kGradientPropertyType).getInteger()); }
 
     /**
+     * @deprecated use getProperty(kGradientPropertyAngle) instead.
      * @return The angle of the gradient, expressed in degrees.  Only applies
      *         to linear gradients.  0 is up, 90 is to the right, 180 is down
      *         and 270 is to the left.
      */
-    double getAngle() const { return mAngle; }
+    double getAngle() const {
+        if (getType() != LINEAR) {
+            return 0;
+        }
+        return mProperties.at(kGradientPropertyAngle).getDouble();
+    }
 
     /**
+     * @deprecated use getProperty(kGradientPropertyColorRange) instead.
      * @return The vector of color stops.
      */
     const std::vector<Color> getColorRange() const { return mColorRange; }
 
     /**
+     * @deprecated use getProperty(kGradientPropertyInputRange) instead.
      * @return The vector of input stops.  These are the values of the color
      *         stops. They are guaranteed to be in ascending numerical order in
      *         the range [0,1].
      */
     const std::vector<double> getInputRange() const { return mInputRange; }
 
-    std::string asString() const {
-        return "gradient<>";
+    /**
+     * @param key property key
+     * @return gradient property.
+     */
+    Object getProperty(GradientProperty key) const {
+        const auto& prop = mProperties.find(key);
+        if (prop != mProperties.end()) {
+            return prop->second;
+        }
+        return Object::NULL_OBJECT();
     }
 
+    /* Standard Object methods */
+    bool operator==(const Gradient& other) const;
+
+    std::string toDebugString() const;
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
-private:
-    Gradient(GradientType type, double angle,
-                std::vector<Color>&& colorRange, std::vector<double>&& inputRange) :
-        mType(std::move(type)),
-        mAngle(std::move(angle)),
-        mColorRange(std::move(colorRange)),
-        mInputRange(std::move(inputRange))
-    {}
+    bool empty() const { return false; }
+    bool truthy() const { return true; }
 
 private:
-    GradientType mType;
-    double mAngle;
+    Gradient(std::map<GradientProperty, Object>&& properties);
+
+    static Object create(const Context& context, const Object& object, bool avg);
+
+private:
     std::vector<Color> mColorRange;
     std::vector<double> mInputRange;
+    std::map<GradientProperty, Object> mProperties;
 };
 
 } // namespace apl

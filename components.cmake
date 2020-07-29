@@ -24,7 +24,7 @@ endif (POLICY CMP0048)
 
 if (WERROR)
     message("Paranoid build (-Werror) enabled.")
-    add_compile_options(-Wall -Werror -Wendif-labels -Wno-sign-compare -Wshadow)
+    add_compile_options(-Wall -Werror -Wendif-labels -Wno-sign-compare -Wno-shadow -Wno-missing-braces )
 endif(WERROR)
 
 # Set compilation flags for memory debugging
@@ -78,12 +78,17 @@ if(BUILD_DOC)
     include(doxygen.cmake)
 endif(BUILD_DOC)
 
-# Test cases are built conditionally. Only affect core do not build them for everything else.
 if (BUILD_TESTS)
+    set(BUILD_UNIT_TESTS ON)
+    set(BUILD_TEST_PROGRAMS ON)
+endif (BUILD_TESTS)
+
+# Test cases are built conditionally. Only affect core do not build them for everything else.
+if (BUILD_UNIT_TESTS)
     include(CTest)
     include_directories(${GTEST_INCLUDE})
     add_subdirectory(unit)
-    add_subdirectory(test)
+
     if (TELEMETRY)
         add_subdirectory(performance)
     endif(TELEMETRY)
@@ -92,4 +97,16 @@ if (BUILD_TESTS)
             COMMAND ${CMAKE_CTEST_COMMAND} -VV
             --overwrite MemoryCheckCommandOptions=${MEMCHECK_OPTIONS}
             -T memcheck)
-endif (BUILD_TESTS)
+endif (BUILD_UNIT_TESTS)
+
+if (BUILD_TEST_PROGRAMS)
+    add_subdirectory(test)
+endif (BUILD_TEST_PROGRAMS)
+
+if (VALIDATE_HEADERS)
+    add_custom_command(OUTPUT include_validation
+            COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/bin/apl-header-inclusion-validation.sh
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/)
+    add_custom_target(validation ALL
+            DEPENDS include_validation)
+endif (VALIDATE_HEADERS)

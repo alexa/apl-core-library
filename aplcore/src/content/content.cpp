@@ -43,7 +43,7 @@ Content::create(JsonData&& document) {
 ContentPtr
 Content::create(JsonData&& document, const SessionPtr& session) {
     if (!document) {
-        CONSOLE_S(session).log("Document parse error offset=%u: %s", document.offset(), document.error());
+        CONSOLE_S(session).log("Document parse error offset=%u: %s.", document.offset(), document.error());
         return nullptr;
     }
 
@@ -386,14 +386,7 @@ Content::getBackground(const Metrics& metrics, const RootConfig& config) const {
     // This is a restricted context because we don't load any resources or styles
     auto context = Context::create(metrics, config, theme);
     auto object = evaluate(*context, backgroundIter->value);
-
-    // Try to create a gradient
-    auto gradient = Gradient::create(*context, object);
-    if (gradient.isGradient())
-        return gradient;
-
-    // Return this as a color
-    return object.asColor(mSession);
+    return asFill(*context, object);
 }
 
 const SettingsPtr

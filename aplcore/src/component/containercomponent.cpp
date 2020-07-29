@@ -55,7 +55,8 @@ ContainerComponent::propDefSet() const
         {kPropertyAlignItems,       kFlexboxAlignStretch,        sFlexboxAlignMap,          kPropIn, yn::setAlignItems },
         {kPropertyDirection,        kContainerDirectionColumn,   sContainerDirectionMap,    kPropIn, yn::setFlexDirection },
         {kPropertyJustifyContent,   kFlexboxJustifyContentStart, sFlexboxJustifyContentMap, kPropIn, yn::setJustifyContent },
-        {kPropertyNumbered,         false,                       asBoolean,                 kPropIn }
+        {kPropertyNumbered,         false,                       asBoolean,                 kPropIn },
+        {kPropertyWrap,             kFlexboxWrapNoWrap,          sFlexboxWrapMap,           kPropIn, yn::setWrap },
     });
 
     return sContainerComponentProperties;
@@ -110,22 +111,5 @@ ContainerComponent::calculateChildrenVisualLayer(const std::map<int, float>& vis
 
     return result;
 }
-
-std::map<int, float>
-ContainerComponent::getChildrenVisibility(float realOpacity, const Rect &visibleRect) {
-    std::map<int, float> visibleIndexes;
-
-    for(int index = 0; index < mChildren.size(); index++) {
-        const auto& child = getCoreChildAt(index);
-        float visibility = child->calculateVisibility(realOpacity, visibleRect);
-        if(visibility > 0.0) {
-            visibleIndexes.emplace(index, visibility);
-        }
-    }
-
-    return visibleIndexes;
-}
-
-
 
 } // namespace apl

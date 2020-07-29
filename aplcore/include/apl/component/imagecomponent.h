@@ -27,9 +27,9 @@ public:
     ImageComponent(const ContextPtr& context, Properties&& properties, const std::string& path);
 
     ComponentType getType() const override { return kComponentTypeImage; };
-    std::shared_ptr<ObjectMap> getEventTargetProperties() const override;
 
 protected:
+    const EventPropertyMap& eventPropertyMap() const override;
     const ComponentPropDefSet& propDefSet() const override;
     std::string getVisualContextType() override;
 };

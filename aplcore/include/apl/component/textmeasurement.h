@@ -17,10 +17,17 @@
 #define _APL_TEXT_MEASUREMENT_H
 
 #include <memory>
-#include <yoga/Yoga.h>
-#include "apl/component/textcomponent.h"
+#include "apl/component/component.h"
 
 namespace apl {
+
+/**
+ * struct LayoutSize is defined to pass width and height mode.
+ */
+struct LayoutSize {
+    float width;
+    float height;
+};
 
 /**
  * Abstract class for measuring text.  Override this in your platform-specific
@@ -43,13 +50,13 @@ public:
 
     virtual ~TextMeasurement() {}
 
-    virtual YGSize measure( TextComponent *component,
+    virtual LayoutSize measure( Component *component,
                             float width,
-                            YGMeasureMode widthMode,
+                            MeasureMode widthMode,
                             float height,
-                            YGMeasureMode heightMode ) = 0;
+                            MeasureMode heightMode ) = 0;
 
-    virtual float baseline( TextComponent *component,
+    virtual float baseline( Component *component,
                             float width,
                             float height ) = 0;
 };

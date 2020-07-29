@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 #ifndef _APL_SCROLL_TO_ACTION_H
 #define _APL_SCROLL_TO_ACTION_H
 
-#include "apl/action/action.h"
-#include "apl/command/corecommand.h"
+#include "apl/action/resourceholdingaction.h"
+#include "apl/command/commandproperties.h"
 
 namespace apl {
 
@@ -33,7 +33,7 @@ class Component;
  *    kCommandPropertyDirection        Set to forward/back (only for PageTo)
  *    kCommandPropertyPosition         The scroll position or the page number.
  */
-class ScrollToAction : public Action {
+class ScrollToAction : public ResourceHoldingAction {
 public:
     /**
      * Called from SpeakItem during block highlight mode.
@@ -74,32 +74,22 @@ public:
                                                 const ContextPtr& context,
                                                 const ComponentPtr& target = nullptr);
 
-
     ScrollToAction(const TimersPtr& timers,
                    const CommandScrollAlign& align,
                    const Rect& subBounds,
                    const ContextPtr& context,
-                   const ComponentPtr& target)
-        : Action(timers),
-          mAlign(align),
-          mSubBounds(subBounds),
-          mContext(context),
-          mScrollToSubBounds(true),
-          mTarget(target)
-    {}
-
-    ScrollToAction(const TimersPtr& timers,
-                   const CommandScrollAlign& align,
-                   const ContextPtr& context,
-                   const ComponentPtr& target)
-            : Action(timers),
-              mAlign(align),
-              mContext(context),
-              mScrollToSubBounds(false),
-              mTarget(target)
-    {}
+                   bool scrollToSubBounds,
+                   const ComponentPtr& target,
+                   const ComponentPtr& scrollableParent);
 
 private:
+    static std::shared_ptr<ScrollToAction> make(const TimersPtr& timers,
+                                                const CommandScrollAlign& align,
+                                                const Rect& subBounds,
+                                                const ContextPtr& context,
+                                                bool scrollToSubBounds,
+                                                const ComponentPtr& target = nullptr);
+
     void start();
     void pageTo(const ComponentPtr& pager);
     void scrollTo(const ComponentPtr& scrollable);
@@ -107,9 +97,9 @@ private:
 private:
     CommandScrollAlign mAlign;
     Rect mSubBounds;
-    ContextPtr mContext;
     bool mScrollToSubBounds;
     ComponentPtr mTarget;
+    ComponentPtr mScrollableParent;
 };
 
 

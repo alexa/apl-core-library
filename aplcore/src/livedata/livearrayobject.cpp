@@ -35,7 +35,7 @@ LiveArrayObject::~LiveArrayObject() {
     mLiveArray->removeChangeCallback(mToken);
 }
 
-const Object
+Object
 LiveArrayObject::at(size_t index) const
 {
     return mLiveArray->at(index);

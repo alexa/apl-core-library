@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -15,11 +15,26 @@
 
 #include "apl/action/scrolltoaction.h"
 #include "apl/command/corecommand.h"
+#include "apl/time/sequencer.h"
 
 namespace apl {
 
 static const bool DEBUG_SCROLL_TO = false;
 
+ScrollToAction::ScrollToAction(const TimersPtr& timers,
+                               const CommandScrollAlign& align,
+                               const Rect& subBounds,
+                               const ContextPtr& context,
+                               bool scrollToSubBounds,
+                               const ComponentPtr& target,
+                               const ComponentPtr& scrollableParent)
+        : ResourceHoldingAction(timers, context),
+          mAlign(align),
+          mSubBounds(subBounds),
+          mScrollToSubBounds(scrollToSubBounds),
+          mTarget(target),
+          mScrollableParent(scrollableParent)
+{}
 
 std::shared_ptr<ScrollToAction>
 ScrollToAction::make(const TimersPtr& timers,
@@ -31,9 +46,7 @@ ScrollToAction::make(const TimersPtr& timers,
     if (!t)
         return nullptr;
     auto align = static_cast<CommandScrollAlign>(command->getValue(kCommandPropertyAlign).getInteger());
-    auto ptr = std::make_shared<ScrollToAction>(timers, align, subBounds, command->context(), t);
-    ptr->start();
-    return ptr;
+    return make(timers, align, subBounds, command->context(), true, t);
 }
 
 std::shared_ptr<ScrollToAction>
@@ -45,9 +58,7 @@ ScrollToAction::make(const TimersPtr& timers,
     if (!t)
         return nullptr;
     auto align = static_cast<CommandScrollAlign>(command->getValue(kCommandPropertyAlign).getInteger());
-    auto ptr = std::make_shared<ScrollToAction>(timers, align, command->context(), t);
-    ptr->start();
-    return ptr;
+    return make(timers, align, Rect(), command->context(), false, t);
 }
 
 std::shared_ptr<ScrollToAction>
@@ -56,9 +67,31 @@ ScrollToAction::make(const TimersPtr& timers,
                      const Rect& subBounds,
                      const ContextPtr& context,
                      const ComponentPtr& target) {
+    return make(timers, align, subBounds, context, true, target);
+}
+
+std::shared_ptr<ScrollToAction>
+ScrollToAction::make(const TimersPtr& timers,
+                     const CommandScrollAlign& align,
+                     const Rect& subBounds,
+                     const ContextPtr& context,
+                     bool scrollToSubBounds,
+                     const ComponentPtr& target) {
     if (!target)
         return nullptr;
-    auto ptr = std::make_shared<ScrollToAction>(timers, align, subBounds, context, target);
+
+    // Find a scrollable or page-able parent
+    auto container = target->getParent();
+    while (container && container->scrollType() == kScrollTypeNone)
+        container = container->getParent();
+
+    if (!container)
+        return nullptr;
+
+    auto ptr = std::make_shared<ScrollToAction>(timers, align, subBounds, context, scrollToSubBounds, target, container);
+
+    context->sequencer().claimResource({kCommandResourcePosition, container}, ptr);
+
     ptr->start();
     return ptr;
 }
@@ -66,29 +99,20 @@ ScrollToAction::make(const TimersPtr& timers,
 void
 ScrollToAction::start() {
     // Find a scrollable or page-able parent
-    auto container = mTarget->getParent();
-    while (container && container->scrollType() == kScrollTypeNone)
-        container = container->getParent();
-
-    if (!container) {
-        resolve();
-        return;
-    }
-
     mTarget->ensureLayout(true);
 
-    switch (container->scrollType()) {
+    switch (mScrollableParent->scrollType()) {
         case kScrollTypeNone:
             resolve();
             break;
 
         case kScrollTypeVertical:
         case kScrollTypeHorizontal:
-            scrollTo(container);
+            scrollTo(mScrollableParent);
             break;
 
         case kScrollTypeHorizontalPager:
-            pageTo(container);
+            pageTo(mScrollableParent);
             break;
     }
 }

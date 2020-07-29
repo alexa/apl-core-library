@@ -16,7 +16,7 @@
 #ifndef _APL_EXTENSION_COMMAND_DEFINITION_H
 #define _APL_EXTENSION_COMMAND_DEFINITION_H
 
-#include "apl/primitives/object.h"
+#include "apl/content/extensionproperty.h"
 
 namespace apl {
 
@@ -59,12 +59,6 @@ namespace apl {
  */
 class ExtensionCommandDefinition {
 public:
-    struct ExtensionProperty {
-        Object defvalue;
-        bool required;
-        bool arrayified;
-    };
-
     /**
      * Standard constructor
      * @param uri The URI of the extension
@@ -101,11 +95,35 @@ public:
      * @param required If true and the property is not provided, the command will not execute.
      * @return This object for chaining.
      */
-    ExtensionCommandDefinition& property(std::string property, Object defvalue, bool required) {
-        if (property == "when" || property == "type")
-            LOG(LogLevel::WARN) << "Unable to register property '" << property << "' in custom command " << mName;
+    ExtensionCommandDefinition& property(const std::string& name, const Object& defvalue, bool required) {
+        property(name, kBindingTypeAny, defvalue, required);
+        return *this;
+    }
+
+    /**
+     * Add a named property. The property names "when" and "type" are reserved.
+     * @param name Property name.
+     * @param btype Binding type.
+     * @param defvalue The default value to use for this property when it is not provided.
+     * @param required If true and the property is not provided, the command will not execute.
+     * @return This object for chaining.
+     */
+    ExtensionCommandDefinition& property(const std::string& name, BindingType btype, const Object& defvalue, bool required) {
+        property(name, ExtensionProperty{btype, defvalue, required});
+        return *this;
+    }
+
+    /**
+     * Add a named property. The property names "when" and "type" are reserved.
+     * @param name Property name.
+     * @param prop Extension property definition.
+     * @return This object for chaining.
+     */
+    ExtensionCommandDefinition& property(const std::string& name, ExtensionProperty&& prop) {
+        if (name == "when" || name == "type")
+            LOG(LogLevel::WARN) << "Unable to register property '" << name << "' in custom command " << mName;
         else
-            mPropertyMap.emplace(property, ExtensionProperty{defvalue, required, false});
+            mPropertyMap.emplace(name, std::move(prop));
         return *this;
     }
 
@@ -121,7 +139,7 @@ public:
         if (property == "when" || property == "type")
             LOG(LogLevel::WARN) << "Unable to register array-ified property '" << property << "' in custom command " << mName;
         else
-            mPropertyMap.emplace(property, ExtensionProperty{Object::EMPTY_ARRAY(), required, true});
+            mPropertyMap.emplace(property, ExtensionProperty{kBindingTypeArray, Object::EMPTY_ARRAY(), required});
         return *this;
     }
 

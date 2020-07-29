@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -24,13 +24,15 @@ class IdleCommand : public CoreCommand {
 public:
     static CommandPtr create(const ContextPtr& context,
                              Properties&& properties,
-                             const CoreComponentPtr& base) {
-        auto ptr = std::make_shared<IdleCommand>(context, std::move(properties), base);
+                             const CoreComponentPtr& base,
+                             const std::string& parentSequencer) {
+        auto ptr = std::make_shared<IdleCommand>(context, std::move(properties), base, parentSequencer);
         return ptr->validate() ? ptr : nullptr;
     }
 
-    IdleCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base)
-            : CoreCommand(context, std::move(properties), base)
+    IdleCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
+            const std::string& parentSequencer)
+            : CoreCommand(context, std::move(properties), base, parentSequencer)
     {}
 
     CommandType type() const override { return kCommandTypeIdle; }

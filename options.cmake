@@ -16,9 +16,12 @@ option(DEBUG_MEMORY_USE "Track memory use." OFF)
 option(TELEMETRY "Telemetry support. Required for performance tests." OFF)
 option(COVERAGE "Coverage instrumentation" OFF)
 option(WERROR "Build with -Werror enabled." OFF)
+option(VALIDATE_HEADERS "Validate that only external headers are (transitively) included from apl.h" ON)
 
 # Test options
-option(BUILD_TESTS "Build test programs." OFF)
+option(BUILD_TESTS "Build unit tests and test programs." OFF)
+option(BUILD_TEST_PROGRAMS "Build test programs. Included if BUILD_TESTS=ON" OFF)
+option(BUILD_UNIT_TESTS "Build unit tests. Included if BUILD_TESTS=ON" OFF)
 option(BUILD_GMOCK "Build googlemock instead of googletest." OFF)
 option(INSTALL_GTEST "Install googletest as library." OFF)
 

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 
 #include "apl/action/setpageaction.h"
 #include "apl/command/corecommand.h"
+#include "apl/time/sequencer.h"
 
 namespace apl {
 
@@ -31,6 +32,14 @@ inline int modulus(int a, int b)
     return result >= 0 ? result : result + b;
 }
 
+SetPageAction::SetPageAction(const TimersPtr& timers,
+                             const std::shared_ptr<CoreCommand>& command,
+                             const ComponentPtr& target)
+        : ResourceHoldingAction(timers, command->context()),
+          mCommand(command),
+          mTarget(target)
+{}
+
 std::shared_ptr<SetPageAction>
 SetPageAction::make(const TimersPtr& timers,
                     const std::shared_ptr<CoreCommand>& command)
@@ -41,6 +50,7 @@ SetPageAction::make(const TimersPtr& timers,
         return nullptr;
 
     auto ptr = std::make_shared<SetPageAction>(timers, command, target);
+    command->context()->sequencer().claimResource({kCommandResourcePosition, target}, ptr);
     ptr->start();
     return ptr;
 }

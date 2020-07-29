@@ -43,13 +43,14 @@ public:
                                     const rapidjson::Value& mainDocument);
 
     /**
-     * Inflate a component or component hierarchy from a JSON object.
+     * Inflate a component or component hierarchy from an Object.
      * @param context The top-level data-binding context to use in inflation.
-     * @param component The raw JSON object containing a component or the component hierarchy.
+     * @param component The Object containing a component or the component hierarchy. If array - first that fulfils
+     *        "while" requirements is selected.
      * @return The inflated component hierarchy, or nullptr if component is malformed.
      */
     static CoreComponentPtr inflate(const ContextPtr& context,
-                                    const rapidjson::Value& component);
+                                    const Object& component);
 
 private:
     static void populateSingleChildLayout(const ContextPtr& context,

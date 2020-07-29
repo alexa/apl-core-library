@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -18,14 +18,22 @@
 
 namespace apl {
 
+ArrayCommand::ArrayCommand(const ContextPtr& context, const Object& commands, const CoreComponentPtr& base,
+        Properties&& properties, const std::string& parentSequencer, bool finishAllOnTerminate)
+        : CoreCommand(context, std::move(properties), base, parentSequencer),
+          mCommands(commands),
+          mFinishAllOnTerminate(finishAllOnTerminate)
+{}
+
 CommandPtr
 ArrayCommand::create(const ContextPtr& context,
                      const Object& commands,
                      const CoreComponentPtr& base,
                      const Properties& properties,
+                     const std::string& parentSequencer,
                      bool finishAllOnTerminate)
 {
-    return std::make_shared<ArrayCommand>(context, commands, base, properties, finishAllOnTerminate);
+    return std::make_shared<ArrayCommand>(context, commands, base, Properties(properties), parentSequencer, finishAllOnTerminate);
 }
 
 ActionPtr

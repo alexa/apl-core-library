@@ -56,7 +56,7 @@ FrameComponent::propDefSet() const
         {kPropertyBorderColor,             Color(),               asColor,             kPropInOut |
                                                                                        kPropStyled |
                                                                                        kPropDynamic},
-        {kPropertyBorderWidth,             Dimension(0),          asAbsoluteDimension, kPropInOut |
+        {kPropertyBorderWidth,             Dimension(0),          asNonNegativeAbsoluteDimension, kPropInOut |
                                                                                        kPropStyled, yn::setBorder<YGEdgeAll>},
 
         // These are input-only properties that trigger the calculation of the output properties
@@ -65,14 +65,42 @@ FrameComponent::propDefSet() const
         {kPropertyBorderRadius,            Dimension(0),          asAbsoluteDimension, kPropIn | kPropStyled, checkBorderRadii },
         {kPropertyBorderTopLeftRadius,     Object::NULL_OBJECT(), asAbsoluteDimension, kPropIn | kPropStyled, checkBorderRadii },
         {kPropertyBorderTopRightRadius,    Object::NULL_OBJECT(), asAbsoluteDimension, kPropIn | kPropStyled, checkBorderRadii },
+
+        // The width of the drawn border.  If borderStrokeWith is set, the drawn border is the min of borderWidth
+        // and borderStrokeWidth.  If borderStrokeWidth is unset, the drawn border defaults to borderWidth
+        {kPropertyBorderStrokeWidth, Object::NULL_OBJECT(), asNonNegativeAbsoluteDimension, kPropIn | kPropStyled | kPropDynamic, resolveDrawnBorder},
+        {kPropertyDrawnBorderWidth,  Object::NULL_OBJECT(), asNonNegativeAbsoluteDimension, kPropOut},
     });
 
     return sFrameComponentProperties;
 }
 
 void
+FrameComponent::setHeight(const Dimension& height) {
+    CoreComponent::setHeight(height);
+    if (height.isAbsolute() || height.getValue() == 0) {
+        fixBorder(false);
+    }
+}
+
+void
+FrameComponent::setWidth(const Dimension& width) {
+    CoreComponent::setWidth(width);
+    if (width.isAbsolute() || width.getValue() == 0) {
+        fixBorder(false);
+    }
+}
+
+void
 FrameComponent::fixBorder(bool useDirtyFlag)
 {
+    auto w = mCalculated.get(kPropertyWidth);
+    auto h = mCalculated.get(kPropertyHeight);
+    if ((w.isAbsoluteDimension() && w.getAbsoluteDimension() == 0) ||
+        (h.isAbsoluteDimension() && h.getAbsoluteDimension() == 0)) {
+        yn::setBorder<YGEdgeAll>(getNode(), Dimension(0), *mContext);
+    }
+
     static std::vector<std::pair<PropertyKey, Radii::Corner >> BORDER_PAIRS = {
         {kPropertyBorderBottomLeftRadius,  Radii::kBottomLeft},
         {kPropertyBorderBottomRightRadius, Radii::kBottomRight},
@@ -110,6 +138,7 @@ FrameComponent::assignProperties(const ComponentPropDefSet& propDefSet)
 {
     CoreComponent::assignProperties(propDefSet);
     fixBorder(false);
+    calculateDrawnBorder(false);
 }
 
 } // namespace apl

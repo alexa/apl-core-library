@@ -16,8 +16,8 @@
 #include "apl/component/componentpropdef.h"
 #include "apl/component/touchwrappercomponent.h"
 #include "apl/component/yogaproperties.h"
-#include "apl/time/sequencer.h"
 #include "apl/primitives/keyboard.h"
+#include "apl/time/sequencer.h"
 
 namespace apl {
 
@@ -33,44 +33,34 @@ TouchWrapperComponent::create(const ContextPtr& context,
 TouchWrapperComponent::TouchWrapperComponent(const ContextPtr& context,
                                              Properties&& properties,
                                              const std::string& path)
-        : ActionableComponent(context, std::move(properties), path) {
+        : TouchableComponent(context, std::move(properties), path) {
 }
 
 const ComponentPropDefSet&
 TouchWrapperComponent::propDefSet() const {
-    static ComponentPropDefSet sTouchWrapperComponentProperties(ActionableComponent::propDefSet(), {
-            {kPropertyOnPress, Object::EMPTY_ARRAY(), asCommand, kPropIn}
-    });
-
+    static ComponentPropDefSet sTouchWrapperComponentProperties(TouchableComponent::propDefSet());
     return sTouchWrapperComponentProperties;
 }
 
 void
-TouchWrapperComponent::update(UpdateType type, float value)
-{
-    if (type == kUpdatePressed) {
-        if (!mState.get(kStateDisabled)) {
-            // Force the sequencer to stop.  This is needed because the onPress may not fire anything
-            mContext->sequencer().reset();
+TouchWrapperComponent::injectReplaceComponent(const CoreComponentPtr& child, bool above) {
+    auto bounds = getCalculated(kPropertyInnerBounds).getRect();
 
-            ContextPtr eventContext = createEventContext("Press", mState.get(kStateChecked));
-            auto cal = getCalculated(kPropertyOnPress);
-            mContext->sequencer().executeCommands(
-                    cal,
-                    eventContext,
-                    shared_from_this(),
-                    false);
-        }
-    } else
-        CoreComponent::update(type, value);
+    insertChild(child, above ? 1 : 0, true);
+
+    yn::setPositionType(child->getNode(), static_cast<int>(kPositionAbsolute), *mContext);
+    yn::setPosition<YGEdgeLeft>(child->getNode(), bounds.getLeft(), *mContext);
+    yn::setPosition<YGEdgeTop>(child->getNode(), bounds.getTop(), *mContext);
+    yn::setWidth(child->getNode(), bounds.getWidth(), *mContext);
+    yn::setHeight(child->getNode(), bounds.getHeight(), *mContext);
 }
 
-bool
-TouchWrapperComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) {
-    CoreComponent::getTags(outMap, allocator);
-    outMap.AddMember("clickable", true, allocator);
-    return true;
-}
 
+void
+TouchWrapperComponent::resetChildPositionType() {
+    if (!mChildren.empty()) {
+        yn::setPositionType(getCoreChildAt(0)->getNode(), static_cast<int>(kPositionRelative), *mContext);
+    }
+}
 
 }  // namespace apl

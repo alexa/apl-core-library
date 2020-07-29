@@ -30,14 +30,14 @@ public:
     ComponentType getType() const override { return kComponentTypeVideo; };
     void updateMediaState(const MediaState& state, bool fromEvent) override;
 
-    std::shared_ptr<ObjectMap> getEventTargetProperties() const override;
-
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
 
 protected:
+    const EventPropertyMap & eventPropertyMap() const override;
     const ComponentPropDefSet& propDefSet() const override;
-    void addEventSourceProperties(ObjectMap& event) const override;
+    void addEventProperties(ObjectMap &event) const override;
     std::string getVisualContextType() override;
+    void assignProperties(const ComponentPropDefSet &propDefSet) override;
 
 private:
     void saveMediaState(const MediaState& state);

@@ -52,12 +52,17 @@ ImageComponent::propDefSet() const
     return sImageComponentProperties;
 }
 
-std::shared_ptr<ObjectMap>
-ImageComponent::getEventTargetProperties() const
+const EventPropertyMap&
+ImageComponent::eventPropertyMap() const
 {
-    auto target = CoreComponent::getEventTargetProperties();
-    target->emplace("source", mCalculated.get(kPropertySource));
-    return target;
+    static EventPropertyMap sImageEventProperties = eventPropertyMerge(
+            CoreComponent::eventPropertyMap(),
+            {
+                    {"source", [](const CoreComponent *c) { return c->getCalculated(kPropertySource); }},
+                    {"url", [](const CoreComponent *c) { return c->getCalculated(kPropertySource); }},
+            });
+
+    return sImageEventProperties;
 }
 
 std::string

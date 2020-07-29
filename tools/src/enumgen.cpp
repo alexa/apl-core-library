@@ -12,21 +12,16 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-#include "tclap/CmdLine.h"
-#include <algorithm>
-#include <iostream>
-#include <string>
 
 #include <tao/pegtl.hpp>
 #include <tao/pegtl/contrib/abnf.hpp>
 
 #include <fstream>
+#include <iostream>
+#include <sstream>
 #include <map>
 #include <regex>
-#include <string>
-#include <vector>
 
-using namespace TCLAP;
 namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 using namespace pegtl;
 
@@ -270,67 +265,119 @@ generateJava(const State& state, const std::string& writeDir, const std::string&
     }
 }
 
+static void usage(std::string msg="")
+{
+    if (!msg.empty())
+        std::cout << msg << std::endl;
+
+    std::cout <<
+        R"(
+Usage: enumgen [options] [--] FILE+
+
+  Generate enums for a target language.  Files should be in C/C++
+
+  Options:
+     -o,--output PATH           Path to generated output directory. Defaults to current directory.
+                                The directory must already exist (enumgen will not create a new directory)
+     -f,--filter STRING         Regex filter.  Accepted multiple times.
+     -p,--package PACKAGE       Java package.
+     -l,--language LANGUAGE     Language to generate.  May be 'typescript' or 'java'.  Required.
+     -v, --verbose              Verbose mode
+     --version                  Displays version information and exist
+     --, --ignore_rest          All arguments following this one are treated as files
+     -h,--help                  Print this help
+)";
+    exit(msg.empty() ? 0 : 1);
+}
+
 int
 main(int argc, char** argv) {
-    try {
+    std::string out(".");
+    std::vector<std::string> filter;
+    std::string package;
+    std::string language;
+    bool verbose = false;
 
-        CmdLine cmd("Generates enums for target language", ' ', "1.0");
-
-        UnlabeledMultiArg<std::string> inputArg("input", "C/C++ file or files", true, "input",
-                                                "string");
-        cmd.add(inputArg);
-
-        std::vector<std::string> allowedLanguages;
-        allowedLanguages.emplace_back("typescript");
-        allowedLanguages.emplace_back("java");
-        ValuesConstraint<std::string> vallowedLanguages(allowedLanguages);
-        ValueArg<std::string> languageArg("l", "language", "Language to generate", true,
-                                          "typescript", &vallowedLanguages);
-        cmd.add(languageArg);
-
-        ValueArg<std::string> packageArg("p", "package", "Java package", false, "", "string");
-        cmd.add(packageArg);
-
-        MultiArg<std::string> enumFilterArg("f", "filter", "Regex Filter", false, "string");
-        cmd.add(enumFilterArg);
-
-        ValueArg<std::string> outArg("o", "output", "Path to generated output directory", false,
-                                     ".", "string");
-        cmd.add(outArg);
-
-        cmd.parse(argc, argv);
-
-        auto files = inputArg.getValue();
-        std::string language = languageArg.getValue();
-        std::string out = outArg.getValue();
-        auto filter = enumFilterArg.getValue();
-
-        State state;
-
-        for (const auto& filePath : files) {
-            std::ifstream ifs(filePath);
-            std::stringstream ss;
-            ss << ifs.rdbuf();
-            std::string contents = ss.str();
-            state.currentFileName = filePath;
-            pegtl::string_input<> in(contents, "");
-            pegtl::parse<cpp, enumaction>(in, state);
-        }
-        if (language == "typescript") {
-            generateTypescript(state, out, filter);
-        }
-        else if (language == "java") {
-            std::string package = packageArg.getValue();
-            if (package.empty()) {
-                std::cerr << "You must supply the java package with the -p option" << std::endl;
-                return 1;
+    std::vector<std::string> args(argv + 1, argv + argc);
+    for (auto iter = args.begin(); iter != args.end() && !iter->empty() && iter->front() == '-' ; ) {
+        auto takeOne = [&](std::string name) {
+            iter = args.erase(iter);
+            if (iter == args.end()) {
+                std::cerr << name << " expects a value" << std::endl;
+                exit(1);
             }
-            generateJava(state, out, package, filter);
+            auto result = *iter;
+            iter = args.erase(iter);
+            return result;
+        };
+
+        if (*iter == "-h" || *iter == "--help") {
+            usage();
+        } else if (*iter == "--version") {
+            std::cout << argv[0] << "  version: 1.0" << std::endl;
+            return 0;
+        } else if (*iter == "-o" || *iter == "--output") {
+            out = takeOne("output");
+        } else if (*iter == "-f" || *iter == "--filter") {
+            filter.emplace_back(takeOne("filter"));
+        } else if (*iter == "-p" || *iter == "--package") {
+            package = takeOne("package");
+        } else if (*iter == "-l" || *iter == "--language") {
+            language = takeOne("language");
+        } else if (*iter == "-v" || *iter == "--verbose") {
+            iter = args.erase(iter);
+            verbose = true;
+        } else if (*iter == "--" || *iter == "--ignore_rest") {
+            args.erase(iter);
+            break;
+        } else {
+            std::cerr << "Unrecognized option " << *iter << std::endl;
+            return 1;
         }
-        return 0;
     }
-    catch (ArgException& e) {
-        std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
+
+    if (language != "typescript" && language != "java") {
+        std::cerr << "Language must be 'typescript' or 'java'" << std::endl;
         return 1;
     }
+
+    if (language == "java" && package.empty()) {
+        std::cerr << "You must supply the java package with the -p option" << std::endl;
+        return 1;
+    }
+
+    if (verbose) {
+        std::cerr << "out='" << out << "'" << std::endl
+                  << "package='" << package << "'" << std::endl
+                  << "language='" << language << "'" << std::endl
+                  << "filter=";
+        for (const auto& m : filter)
+            std::cerr << m << " ";
+        std::cerr << std::endl << "files=";
+        for (const auto& m : args)
+            std::cerr << m << " ";
+        std::cerr << std::endl;
+    }
+
+    // All of the remaining arguments in the "args" array are input files
+    State state;
+    for (const auto& filePath : args) {
+        std::ifstream ifs(filePath);
+        std::stringstream ss;
+        ss << ifs.rdbuf();
+        std::string contents = ss.str();
+        state.currentFileName = filePath;
+        pegtl::string_input<> in(contents, "");
+        pegtl::parse<cpp, enumaction>(in, state);
+    }
+
+    if (language == "typescript") {
+        generateTypescript(state, out, filter);
+    }
+    else if (language == "java") {
+        generateJava(state, out, package, filter);
+    }
+
+    return 0;
 }
+

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 #include "apl/graphic/graphiccontent.h"
 #include "apl/graphic/graphicelement.h"
+#include "apl/engine/styles.h"
 #include "apl/utils/userdata.h"
 
 namespace apl {
@@ -30,7 +31,7 @@ class VectorGraphicComponent;
  */
 class Graphic : public std::enable_shared_from_this<Graphic>,
                 private Counter<Graphic>,
-                public UserData {
+                public UserData<Graphic> {
     friend class GraphicElement;
     friend class GraphicDependant;
     friend class VectorGraphicComponent;
@@ -44,15 +45,15 @@ public:
     /**
      * Construct a Graphic.
      * @param context The data-binding context.  Typically this only contains resources.
-     * @param json The json content defining this graphic.
+     * @param jsonResource The json resource defining this graphic.
      * @param properties Assigned properties to this graphic.
-     * @param styledPtr Assigned style.
+     * @param component The component this Graphic is assigned to.
      * @return A shared pointer to the graphic or nullptr if it was invalid.
      */
     static GraphicPtr create(const ContextPtr& context,
-                                           const GraphicContentPtr& json,
-                                           Properties&& properties,
-                                           const StyleInstancePtr& styledPtr = nullptr);
+                             const JsonResource& jsonResource,
+                             Properties&& properties,
+                             const std::shared_ptr<CoreComponent>& component);
 
     /**
      * Construct a graphic from raw JSON data
@@ -63,9 +64,11 @@ public:
      * @return A shared pointer to the graphic or nullptr if it was invalid.
      */
     static GraphicPtr create(const ContextPtr& context,
-                                           const rapidjson::Value& json,
-                                           Properties&& properties,
-                                           const StyleInstancePtr& styledPtr = nullptr);
+                             const rapidjson::Value& json,
+                             Properties&& properties,
+                             const std::shared_ptr<CoreComponent>& component,
+                             const Path& path,
+                             const StyleInstancePtr& styledPtr = nullptr);
     /**
      * Internal constructor.  Use Graphic:create instead
      */
@@ -143,6 +146,11 @@ public:
      */
     const ContextPtr& getContext() const { return mInternalContext; }
 
+    /**
+     * @return Styles access interface.
+     */
+    std::shared_ptr<Styles> styles() const { return mStyles; }
+
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
 private:
@@ -150,7 +158,7 @@ private:
      * Assign this graphic to a VectorGraphicComponent
      * @param component The component
      */
-    void setComponent(const std::shared_ptr<VectorGraphicComponent>& component) {
+    void setComponent(const std::shared_ptr<CoreComponent>& component) {
         mComponent = component;
     }
 
@@ -162,7 +170,12 @@ private:
     }
 
 private:
-    void initialize(const ContextPtr& sourceContext, const rapidjson::Value& json, Properties&& properties, const StyleInstancePtr& styledPtr);
+    void initialize(const ContextPtr &sourceContext,
+                    const rapidjson::Value &json,
+                    Properties &&properties,
+                    const std::shared_ptr<CoreComponent> &component,
+                    const Path& path,
+                    const StyleInstancePtr &styledPtr);
     void addDirtyChild(const GraphicElementPtr& child);
 
     ContextPtr                   mInternalContext;
@@ -171,7 +184,8 @@ private:
     std::set<std::string>        mAssigned;        // Track which parameters have been assigned.  The remainder are styled.
     ParameterArray               mParameterArray;
 
-    std::weak_ptr<VectorGraphicComponent> mComponent;
+    std::weak_ptr<CoreComponent> mComponent;
+    std::shared_ptr<Styles>      mStyles;
 };
 
 } // namespace apl

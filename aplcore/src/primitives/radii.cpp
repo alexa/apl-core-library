@@ -38,6 +38,17 @@ operator<<(streamer& os, const Radii& radii)
     return os;
 }
 
+std::string
+Radii::toDebugString() const
+{
+    std::string result = "Radii<";
+    for (int i = 0 ; i < mData.size() ; i++) {
+        if (i != 0) result += ", ";
+        result += std::to_string(mData[i]);
+    }
+    return result + ">";
+}
+
 rapidjson::Value
 Radii::serialize(rapidjson::Document::AllocatorType& allocator) const {
     rapidjson::Value v(rapidjson::kArrayType);

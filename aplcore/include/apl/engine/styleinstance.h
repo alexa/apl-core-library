@@ -47,6 +47,15 @@ public:
      * @return A constant iterator to the named style property or end()
      */
     std::map<std::string, Object>::const_iterator find(const std::string& key) const { return mValue.find(key); }
+    
+    std::map<std::string, Object>::const_iterator find(const std::vector<std::string>& keys) const {
+        for (const auto& key : keys) {
+            auto it = mValue.find(key);
+            if (it != mValue.end())
+                return it;
+        }
+        return mValue.end();
+    }
 
     /**
      * @return An iterator to the begining of the style.

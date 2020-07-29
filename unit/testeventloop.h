@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -118,6 +118,7 @@ public:
           mGraphics(Graphic::itemsDelta()),
           mGraphicElements(GraphicElement::itemsDelta()),
           mDataSourceConnections(DataSourceConnection::itemsDelta()),
+          mStyles(Styles::itemsDelta()),
 #endif
           session(std::make_shared<TestSession>()),
           logBridge(std::make_shared<TestLogBridge>())
@@ -156,6 +157,9 @@ public:
 
         auto dataSourceTest = MemoryMatch<DataSourceConnection>(mDataSourceConnections, DataSourceConnection::itemsDelta());
         ASSERT_TRUE(dataSourceTest);
+
+        auto stylesTest = MemoryMatch<Styles>(mStyles, Styles::itemsDelta());
+        ASSERT_TRUE(stylesTest);
 #endif
 
         ASSERT_FALSE(session->getCount()) << "Extra console message left behind: " << session->getLast();
@@ -189,6 +193,7 @@ private:
     Counter<Graphic>::Pair mGraphics;
     Counter<GraphicElement>::Pair mGraphicElements;
     Counter<DataSourceConnection>::Pair mDataSourceConnections;
+    Counter<Styles>::Pair mStyles;
 #endif
 
 public:
@@ -378,6 +383,16 @@ public:
         return rapidjson::Pointer(path.substr(offset).c_str()).Get(pkg->json());
     }
 
+    void performClick(int x, int y) {
+        root->handlePointerEvent(PointerEvent(kPointerDown, Point(x, y), 0, kMousePointer));
+        root->handlePointerEvent(PointerEvent(kPointerUp, Point(x, y), 0, kMousePointer));
+    }
+
+    void performTap(int x, int y) {
+        root->handlePointerEvent(PointerEvent(kPointerDown, Point(x, y), 0, kTouchPointer));
+        root->handlePointerEvent(PointerEvent(kPointerUp, Point(x, y), 0, kTouchPointer));
+    }
+
 protected:
     void createContent(const char *document, const char *data) {
         content = Content::create(document, session);
@@ -456,13 +471,14 @@ public:
         assert(mWrapped);
     }
 
-    virtual unsigned long delay() const override { return mWrapped->delay(); }
-    virtual std::string name() const override { return mWrapped->name(); }
+    unsigned long delay() const override { return mWrapped->delay(); }
+    std::string name() const override { return mWrapped->name(); }
 
-    virtual ActionPtr execute(const TimersPtr& eventLoop, bool fastMode) override {
+    ActionPtr execute(const TimersPtr& eventLoop, bool fastMode) override {
         mCounter++;
         return mWrapped->execute(eventLoop, fastMode);
     }
+    std::string sequencer() const override { return mWrapped->sequencer(); }
 
 private:
     T mWrapped;
@@ -497,13 +513,15 @@ public:
 
     static CommandPtr create(const ContextPtr& context,
                              Properties&& properties,
-                             const CoreComponentPtr& base) {
-        auto ptr = std::make_shared<TestEventCommand>(context, std::move(properties), base);
+                             const CoreComponentPtr& base,
+                             const std::string& parentSequencer) {
+        auto ptr = std::make_shared<TestEventCommand>(context, std::move(properties), base, parentSequencer);
         return ptr->validate() ? ptr : nullptr;
     }
 
-    TestEventCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base)
-        : CoreCommand(context, std::move(properties), base)
+    TestEventCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
+                     const std::string& parentSequencer)
+        : CoreCommand(context, std::move(properties), base, parentSequencer)
     {}
 
     const CommandPropDefSet& propDefSet() const override {
@@ -570,8 +588,9 @@ public:
         CommandFactory::instance().set(name,
                                        [&, index](const ContextPtr& context,
                                                   Properties&& props,
-                                                  const CoreComponentPtr& base) {
-                                           auto ptr = sCommandCreatorMap.at(index)(context, std::move(props), base);
+                                                  const CoreComponentPtr& base,
+                                                  const std::string& parentSequencer) {
+                                           auto ptr = sCommandCreatorMap.at(index)(context, std::move(props), base, parentSequencer);
                                            if (!ptr)
                                                return ptr;
 
@@ -643,7 +662,7 @@ template<class... Args>
 
     component->clearDirty();
     return ::testing::AssertionSuccess();
-};
+}
 
 // Check that EXACTLY these components are dirty
 template<class... Args>
@@ -669,7 +688,7 @@ template<class... Args>
 
     root->clearDirty();
     return ::testing::AssertionSuccess();
-};
+}
 
 // Check that AT LEAST all of this components are dirty.  More may be dirty; that's fine.
 template<class... Args>
@@ -683,7 +702,7 @@ template<class... Args>
 
     root->clearDirty();
     return ::testing::AssertionSuccess();
-};
+}
 
 template<class... Args>
 ::testing::AssertionResult CheckDirty(const GraphicPtr& graphic, Args... args)
@@ -701,7 +720,7 @@ template<class... Args>
     }
 
     return ::testing::AssertionSuccess();
-};
+}
 
 template<class... Args>
 ::testing::AssertionResult CheckDirty(const GraphicElementPtr& element, Args... args)
@@ -721,7 +740,7 @@ template<class... Args>
     }
 
     return ::testing::AssertionSuccess();
-};
+}
 
 template<class... Args>
 ::testing::AssertionResult CheckState(const ComponentPtr& component, Args... args)
@@ -751,17 +770,6 @@ inline
             s << "[" << lhs << "] != [" << rhs << "]";
             return ::testing::AssertionFailure() << s.str();
         }
-
-    return ::testing::AssertionSuccess();
-}
-
-inline
-::testing::AssertionResult IsEqual(Easing lhs, Easing rhs)
-{
-    for (int i = 0 ; i <= 10 ; i++) {
-        if (lhs(i * 0.1) != rhs(i * 0.1))
-            return ::testing::AssertionFailure();
-    }
 
     return ::testing::AssertionSuccess();
 }
@@ -833,142 +841,44 @@ CheckChildrenLaidOutDirtyFlags(const ComponentPtr& component, Range range) {
     for (int idx = range.lowerBound(); idx <= range.upperBound(); idx++) {
         ::testing::AssertionResult result = CheckChildLaidOutDirtyFlags(component, idx);
         if (!result) {
-            return result;
+            return result << ", for component: " << idx;
         }
     }
     return ::testing::AssertionSuccess();
 }
 
-static std::map<std::string, std::function<std::string(const Component&)>> sPseudoProperties =
-    {
-        // Return the global bounding rectangle for this component.
-        {"__global",  [](const Component& c) {
-            return c.getGlobalBounds().toString();
-        }},
+template<class... Args>
+::testing::AssertionResult
+CheckSendEvent(const RootContextPtr& root, Args... args) {
+    if (!root->hasEvent())
+        return ::testing::AssertionFailure() << "Has no events.";
 
-        // Return the actual bounding rectangle for this component.  It has been clipped by all parents
-        {"__actual",  [](const Component& c) {
-            Rect r = c.getGlobalBounds();
-            auto parent = c.getParent();
-            while (parent) {
-                r = r.intersect(
-                    parent->getGlobalBounds());
-                parent = parent->getParent();
-            }
-            return r.toString();
-        }},
+    auto event = root->popEvent();
+    if (event.getType() != kEventTypeSendEvent)
+        return ::testing::AssertionFailure() << "Event has wrong type:"
+                                             << " Expected: SendEvent"
+                                             << ", actual: " << sEventTypeBimap.at(event.getType());
 
-        // Return whether or not this component inherits state from the parent component
-        {"__inherit", [](const Component& c) {
-            return static_cast<const CoreComponent *>(&c)->getInheritParentState()
-                   ? "true"
-                   : "false";
-        }},
+    auto arguments = event.getValue(kEventPropertyArguments);
+    std::vector<Object> values = {args...};
 
-        // Return the component scroll offset
-        {"__scroll",  [](const Component& c) {
-            return static_cast<const CoreComponent *>(&c)->scrollPosition().toString();
-        }},
+    if (arguments.size() != values.size())
+        return ::testing::AssertionFailure()
+               << "Mismatch in argument list size actual=" << arguments.size()
+               << " expected=" << values.size();
 
-        // Return "true" if the component has non-zero opacity and should be drawn.  It may
-        // not actually be on the screen.
-        {"__visible", [](const Component& c) {
-            if (c.getCalculated(kPropertyOpacity).getDouble() <= 0.0 ||
-                c.getCalculated(kPropertyDisplay).getInteger() != kDisplayNormal)
-                return "false";
-
-            for (auto parent = c.getParent(); parent; parent = parent->getParent()) {
-                if (parent->getCalculated(kPropertyOpacity).getDouble() <= 0.0 ||
-                    parent->getCalculated(kPropertyDisplay).getInteger() != kDisplayNormal)
-                    return "false";
-            }
-
-            return "true";
-        }},
-
-        // Return the provenance
-        {"__path",    [](const Component& c) {
-            return c.provenance();
-        }},
-    };
-
-class HierarchyVisitor : public Visitor<Component> {
-public:
-    HierarchyVisitor(std::vector<std::string>&& args) : mIndent(0), mArgs(std::move(args)) {}
-
-    void visit(const Component& component) override {
-        std::string result = component.name() + component.getUniqueId();
-        if (!component.getId().empty())
-            result += "(" + component.getId() + ")";
-
-        for (auto& m : mArgs) {
-            if (sComponentPropertyBimap.has(m)) {
-                PropertyKey key = static_cast<PropertyKey>(sComponentPropertyBimap.at(m));
-                auto value = component.getCalculated(key);
-                if (!value.empty())
-                    result += std::string(" ") + m + ":" + component.getCalculated(key).toDebugString();
-            } else {
-                auto it = sPseudoProperties.find(m);
-                if (it != sPseudoProperties.end())
-                    result += std::string(" ") + m + ":" + it->second(component);
-            }
+    for (int i = 0; i < values.size(); i++) {
+        auto expected = values.at(i);
+        auto actual = arguments.at(i);
+        if ((expected.isNumber() && (std::abs(actual.asNumber() - expected.asNumber()) > 0.001)) ||
+            (!expected.isNumber() && expected != actual)) {
+            return ::testing::AssertionFailure() << "Event has wrong argument[" << i << "]:"
+                                                 << " Expected: " << expected.toDebugString()
+                                                 << ", actual: " << actual.toDebugString();
         }
-        LOG(LogLevel::DEBUG) << std::string(mIndent, ' ') << result;
     }
 
-    void push() override { mIndent += 2; }
-
-    void pop() override { mIndent -= 2; }
-
-private:
-    int mIndent;
-    std::vector<std::string> mArgs;
-};
-
-/**
- * Convenience method for dumping the visual hierarchy.  Each component in the hierarchy will
- * always report type, unique id, and any user-assigned ID.  Pass additional string arguments
- * to specify properties you'd like to display.  In addition to the standard component properties,
- * you may also pass "pseudo" properties such as "__inherit".  Refer to the pseudo-property
- * list above for valid pseudo properties.
- *
- * For example, to check the actual drawing bounds of components clipped to their parents, try:
- *
- *    dumpHierarchy( component, "__actual", "_bounds", "__inherit" );
- *
- * @tparam Args
- * @param component
- * @param args
- */
-inline void
-dumpHierarchy(const ComponentPtr& component, std::initializer_list<std::string> args)
-{
-    HierarchyVisitor hv(args);
-    component->accept(hv);
-}
-
-/**
- * Convenience method for visualizing the visual hierarchy
- * @param context
- */
-inline void
-dumpContext(const ContextPtr& context, int indent = 0)
-{
-    for (auto it = context->begin() ; it != context->end() ; it++) {
-        int upstream = context->countUpstream(it->first);
-        int downstream = context->countDownstream(it->first);
-        auto result = it->first + " := " + it->second.toDebugString();
-        if (upstream)
-            result += "["+std::to_string(upstream)+" upstream]";
-        if (downstream)
-            result += "["+std::to_string(downstream)+" downstream]";
-        LOG(LogLevel::DEBUG) << std::string(indent, ' ') << result;
-    }
-
-    auto parent = context->parent();
-    if (parent)
-        dumpContext(parent, indent + 4);
-
+    return ::testing::AssertionSuccess();
 }
 
 extern std::ostream& operator<<(std::ostream& os, const Point& point);

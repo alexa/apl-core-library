@@ -93,6 +93,17 @@ public:
         return sm;
     }
 
+    template<class T> friend SessionMessage& operator<<(SessionMessage& sm, const std::vector<T>& values)
+    {
+        auto len = values.size();
+        for (auto i = 0 ; i < len ; i++) {
+            sm.mStringStream << values.at(i);
+            if (i < len - 1)
+                sm.mStringStream << "/";
+        }
+        return sm;
+    }
+
     /**
      * @param format Log message format. Same format as for printf.
      * @param ... Variable arguments.

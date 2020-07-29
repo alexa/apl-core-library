@@ -20,18 +20,19 @@
 #include <string>
 #include <queue>
 
-#include "apl/engine/event.h"
-#include "apl/time/sequencer.h"
 #include "apl/content/rootconfig.h"
 #include "apl/content/settings.h"
 #include "apl/content/content.h"
+#include "apl/engine/event.h"
+#include "apl/extension/extensionmanager.h"
+#include "apl/engine/focusmanager.h"
+#include "apl/engine/hovermanager.h"
+#include "apl/engine/jsonresource.h"
+#include "apl/engine/keyboardmanager.h"
 #include "apl/engine/styles.h"
-#include "focusmanager.h"
-#include "hovermanager.h"
-#include "keyboardmanager.h"
-#include "jsonresource.h"
 #include "apl/livedata/livedatamanager.h"
-#include "apl/engine/extensionmanager.h"
+#include "apl/time/sequencer.h"
+#include "apl/touch/pointermanager.h"
 
 namespace apl {
 
@@ -65,10 +66,11 @@ public:
      */
     void terminate();
 
-    Styles& styles() const { return *mStyles; }
+    std::shared_ptr<Styles> styles() const { return mStyles; }
     Sequencer& sequencer() const { return *mSequencer; }
     FocusManager& focusManager() const { return *mFocusManager; }
     HoverManager& hoverManager() const { return *mHoverManager; }
+    PointerManager& pointerManager() const { return *mPointerManager; }
     KeyboardManager& keyboardManager() const { return *mKeyboardManager; }
     LiveDataManager& dataManager() const { return *mDataManager; }
     ExtensionManager& extensionManager() const { return *mExtensionManager; }
@@ -118,10 +120,11 @@ private:
     std::map<std::string, JsonResource> mLayouts;
     std::map<std::string, JsonResource> mCommands;
     std::map<std::string, JsonResource> mGraphics;
-    const std::unique_ptr<Styles> mStyles;
+    std::shared_ptr<Styles> mStyles;
     std::unique_ptr<Sequencer> mSequencer;
     std::unique_ptr<FocusManager> mFocusManager;
     std::unique_ptr<HoverManager> mHoverManager;
+    std::unique_ptr<PointerManager> mPointerManager;
     std::unique_ptr<KeyboardManager> mKeyboardManager;
     std::unique_ptr<LiveDataManager> mDataManager;
     std::unique_ptr<ExtensionManager> mExtensionManager;

@@ -16,22 +16,44 @@
 #ifndef _APL_USERDATA_H
 #define _APL_USERDATA_H
 
+#include <functional>
+
 namespace apl{
 
 /**
  * Extend this class to allow a client to attach a chunk of data to it.
+ * If you assign a release callback, it will be called from the object destructor.
  */
+template<class Base>
 class UserData {
 public:
-    UserData(): mUserData(nullptr) {}
+    using ReleaseCallback = std::function<void(void*)>;
+
+    virtual ~UserData() {
+        if (sReleaseCallback)
+            sReleaseCallback(mUserData);
+    }
+
+    /**
+     * Assign a class-specific callback to be executed in the destructor of an object of this class.
+     * The user data pointer is passed in the release callback.
+     * @param callback The release function to be executed at object destruction.
+     */
+    static void setUserDataReleaseCallback(ReleaseCallback callback ) {
+        sReleaseCallback = std::move(callback);
+    }
 
     /**
      * Store user data with this object. It is the responsibility
      * of the entity assigning UserData to ensure it is deleted or
-     * cleaned up in an appropriate fashion.
+     * cleaned up in an appropriate fashion. The release callback may
+     * be used to ensure that the user data is property deallocated when
+     * the object destructor runs.
      * @param userData The data to store.
      */
-    void setUserData(void* userData) { mUserData = userData; }
+    void setUserData(void* userData ) {
+        mUserData = userData;
+    }
 
     /**
      * @return User raw void data stored with this object.
@@ -44,8 +66,14 @@ public:
      */
     template<class T>
     T* getUserData() const { return static_cast<T*>(mUserData); }
+
 private:
-    void* mUserData;
+    void* mUserData = nullptr;
+    static ReleaseCallback sReleaseCallback;
 };
+
+template<class Base>
+typename UserData<Base>::ReleaseCallback UserData<Base>::sReleaseCallback = nullptr;
+
 }
 #endif //APL_USERDATA_H

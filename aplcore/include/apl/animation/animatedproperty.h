@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -33,6 +33,8 @@ public:
                                                     const Object& object);
 
     virtual void update(const CoreComponentPtr& component, float alpha) = 0;
+
+    virtual PropertyKey key() const = 0;
 };
 
 class AnimatedDouble : public AnimatedProperty {
@@ -41,6 +43,8 @@ public:
     AnimatedDouble(PropertyKey key, const CoreComponentPtr& component, double to);
 
     void update(const CoreComponentPtr& component, float alpha) override;
+
+    PropertyKey key() const override { return mKey; }
 
 private:
     PropertyKey mKey;  // The component property we're animating
@@ -53,6 +57,7 @@ public:
     AnimatedTransform(const std::shared_ptr<InterpolatedTransformation>& transformation);
     void update(const CoreComponentPtr& component, float alpha) override;
 
+    PropertyKey key() const override { return kPropertyTransform; }
 private:
     std::shared_ptr<InterpolatedTransformation> mTransformation;
 };

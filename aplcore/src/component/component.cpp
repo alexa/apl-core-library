@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -39,12 +39,12 @@ Component::name() const
 void
 Component::updateMediaState(const MediaState& state, bool fromEvent)
 {
-    LOG(LogLevel::ERROR) << "updateMediaState called for component that don't support it.";
+    LOG(LogLevel::ERROR) << "updateMediaState called for component that does not support it.";
 }
 
 bool
 Component::updateGraphic(const GraphicContentPtr& json) {
-    LOG(LogLevel::ERROR) << "updateGraphic called for component that don't support it.";
+    LOG(LogLevel::ERROR) << "updateGraphic called for component that does not support it.";
     return false;
 }
 
@@ -98,6 +98,11 @@ Component::toDebugSimpleString() const
     return result;
 }
 
+bool
+Component::isCharacterValid(const wchar_t wc) const {
+    LOG(LogLevel::ERROR) << "isCharacterValid called for component that does not support it.";
+    return false;
+}
 
 streamer&
 operator<<(streamer& os, const Component& component)

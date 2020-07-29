@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -17,13 +17,26 @@
 #define _APL_RESOURCES_H
 
 #include "rapidjson/document.h"
+#include <map>
+#include <functional>
+#include <string>
 
 namespace apl {
 
 class Context;
 class Path;
+class Object;
 
-void addOrderedResources(Context& context, const rapidjson::Value& array, const Path& path);
+using ConversionFunc = std::function<const Object(const Context&, const Object&)>;
+using ResourceOperators = std::map<std::string, ConversionFunc>;
+
+extern ResourceOperators sDefaultResourceOperators;
+
+void addOrderedResources(Context& context, const rapidjson::Value& array, const Path& path,
+        const ResourceOperators& resourceOperators);
+
+void addNamedResourcesBlock(Context &context, const rapidjson::Value &json, const Path &path,
+        const std::string &resourceBlockName, const ResourceOperators& resourceOperators = sDefaultResourceOperators);
 
 } // namespace apl
 

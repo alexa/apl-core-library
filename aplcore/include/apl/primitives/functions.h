@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 #ifndef _APL_FUNCTIONS_H
 #define _APL_FUNCTIONS_H
 
-#include "apl/primitives/object.h"
+#include "apl/primitives/objectdata.h"
 
 namespace apl {
 
@@ -27,7 +27,7 @@ extern void createStandardFunctions(Context& context);
 /**
  * Hold information about a callable function
  */
-class Function : public Object::Data {
+class Function : public ObjectData {
 public:
     static std::shared_ptr<Function> create(const std::string& name, UserFunction function, bool isPure = true) {
         return std::make_shared<Function>(name, function, isPure);
@@ -49,7 +49,7 @@ public:
      */
     bool isPure() const { return mIsPure; }
 
-    Object call(const std::vector<Object>& args) const override {
+    Object call(const ObjectArray& args) const override {
         return mFunction(args);
     }
 

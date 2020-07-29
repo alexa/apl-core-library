@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -20,22 +20,26 @@
 #include "apl/engine/context.h"
 #include "apl/component/corecomponent.h"
 #include "apl/command/command.h"
+#include "apl/command/executionresource.h"
 
 namespace apl {
 
 class TimeManager;
 
+static const std::string MAIN_SEQUENCER_NAME = "MAIN";
+
 class Sequencer {
+
 public:
-    Sequencer(const std::shared_ptr<TimeManager>& timeManager) : mTerminated(false), mTimeManager(timeManager) {}
+    Sequencer(const std::shared_ptr<TimeManager>& timeManager, const std::string& documentVersion);
 
     /**
-     * Execute a single command as the master action.  If a master action is in progress, it will
+     * Execute a single command as the master action.  If an action is in progress on main sequencer, it will
      * be terminated and replace with this command sequence.
      *
      * @param commandPtr The command to execute
      * @param fastMode True if in fast mode
-     * @return An action pointer that will resolve when the command finishes.  A nullptr
+     * @return An action pointer that will resolve when the command finishes. A nullptr
      *         will be return in fast mode.
      */
     ActionPtr execute(const CommandPtr& commandPtr, bool fastMode);
@@ -43,9 +47,6 @@ public:
     /**
      * Convenience routine that takes an array object of commands and a data-binding context,
      * inflates an ArrayCommand, and then executes it.
-     *
-     * The caller *must* hold onto the ActionPtr when running in fastMode or only the first
-     * command in the sequence will execute.
      *
      * @param commands An array of commands to execute.
      * @param context The data-binding context.
@@ -60,6 +61,16 @@ public:
                               bool fastMode);
 
     /**
+     * Execute command on specific sequencer. If other action is in progress on requested sequencer,
+     * it will be terminated.
+     *
+     * @param commandPtr The command to execute
+     * @param sequencerName Name of the sequencer to use.
+     * @return An action pointer that will resolve when the command finishes.
+     */
+    ActionPtr executeOnSequencer(const CommandPtr& commandPtr, const std::string& sequencerName);
+
+    /**
      * Terminate and clear out the sequencer.  After calling this, no more commands will be accepted.
      */
     void terminate();
@@ -69,12 +80,31 @@ public:
      */
     void reset();
 
+    /**
+     * Check to see if a specific sequencer is empty.
+     * @param sequencerName The sequencer to check.
+     * @return true when the sequencer is empty or does not exist.
+     */
+    int isEmpty(const std::string& sequencerName) const;
+
+    /**
+     * Concurrent resource usage handling.
+     */
+    void claimResource(const ExecutionResource& resource, const ActionPtr& action);
+    void releaseResource(const ExecutionResource& resource);
+    void releaseRelatedResources(const ActionPtr& action);
+
 private:
-    ActionPtr mMasterActionPtr;
+    void executeFast(const CommandPtr& commandPtr);
+
     bool mTerminated;
     const std::shared_ptr<TimeManager> mTimeManager;
     std::set<ActionPtr> mOneShotSet;
-    bool mResetInExecute;
+    std::set<std::string> mResetInExecute;
+    std::map<std::string, ActionPtr> mSequencers;
+    std::map<ExecutionResource, ActionPtr> mResources;
+    bool mFeatureSupportResources = true;
+    bool mFeatureSupportMultiSequencer = true;
 };
 
 } // namespace apl

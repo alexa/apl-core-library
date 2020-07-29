@@ -92,7 +92,7 @@ public:
      * Empty styled text object. Useful as default value.
      * @return empty StyledText.
      */
-    static Object EMPTY();
+    static Object EMPTY() { return Object(StyledText()); }
 
     /**
      * @return Raw text filtered of not-allowed characters and styles.
@@ -115,15 +115,19 @@ public:
 
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
+    std::string toDebugString() const {
+        return "StyledText<'" + mRawText + "' span_count=" + std::to_string(mSpans.size()) + ">";
+    }
+
+    bool empty() const { return mRawText.size() == 0; }
+
+    bool truthy() const { return mText.size() != 0 || !mSpans.empty(); }
+
     bool operator==(const StyledText& rhs) const { return mRawText == rhs.mRawText; }
 
-private:
-    StyledText(std::string&& rawText, std::string text, std::vector<Span>&& spans) :
-            mRawText(std::move(rawText)),
-            mText(std::move(text)),
-            mSpans(std::move(spans))
-    {}
+    StyledText(const std::string& raw);
 
+private:
     StyledText() {}
 
     std::string mRawText;

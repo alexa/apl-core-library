@@ -15,6 +15,7 @@
 
 #include "apl/engine/dependant.h"
 #include "apl/engine/context.h"
+#include "apl/primitives/symbolreferencemap.h"
 
 namespace apl {
 

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -17,8 +17,12 @@
 #define _APL_CORE_COMPONENT_H
 
 #include <climits>
+#include <stack>
+
+#include <yoga/YGNode.h>
 
 #include "apl/component/component.h"
+#include "apl/component/textmeasurement.h"
 #include "apl/engine/properties.h"
 #include "apl/engine/context.h"
 #include "apl/engine/recalculatetarget.h"
@@ -30,6 +34,8 @@ namespace apl {
 class ComponentPropDef;
 class ComponentPropDefSet;
 class LayoutRebuilder;
+class Pointer;
+struct PointerEvent;
 
 extern const std::string VISUAL_CONTEXT_TYPE_MIXED;
 extern const std::string VISUAL_CONTEXT_TYPE_GRAPHIC;
@@ -38,6 +44,14 @@ extern const std::string VISUAL_CONTEXT_TYPE_VIDEO;
 extern const std::string VISUAL_CONTEXT_TYPE_EMPTY;
 
 inline float nonNegative(float value) { return value < 0 ? 0 : value; }
+
+using EventPropertyGetter = std::function<Object(const CoreComponent*)>;
+using EventPropertyMap = std::map<std::string, EventPropertyGetter>;
+
+inline EventPropertyMap eventPropertyMerge(const EventPropertyMap& first, EventPropertyMap&& second) {
+    second.insert(first.begin(), first.end());
+    return std::move(second);
+}
 
 /**
  * The native interface to a primitive APL Component.
@@ -55,8 +69,7 @@ inline float nonNegative(float value) { return value < 0 ? 0 : value; }
  * only set for an *output* property change.
  */
 class CoreComponent : public Component,
-                      public RecalculateTarget<PropertyKey>,
-                      public std::enable_shared_from_this<CoreComponent> {
+                      public RecalculateTarget<PropertyKey> {
 
 public:
     CoreComponent(const ContextPtr& context,
@@ -74,10 +87,22 @@ public:
     void release() override;
 
     /**
-     * Visitor pattern for walking the component hierarchy.
+     * Visitor pattern for walking the component hierarchy. We are interested in the components
+     * that the user can see/interact with.  Overrides that have knowledge about which children are off screen or otherwise
+     * invalid/unattached should use that knowledge to reduce the number of nodes walked or avoid walking otherwise invalid
+     * components they may have stashed in their children.
      * @param visitor
      */
-    void accept(Visitor<Component>& visitor) const override;
+    virtual void accept(Visitor<CoreComponent>& visitor) const;
+
+    /**
+     * Visitor pattern for walking the component hierarchy in reverse order.  We are interested in the components
+     * that the user can see/interact with.  Overrides that have knowledge about which children are off screen or otherwise
+     * invalid/unattached should use that knowledge to reduce the number of nodes walked or avoid walking otherwise invalid
+     * components they may have stashed in their children.
+     * @param visitor
+     */
+    virtual void raccept(Visitor<CoreComponent>& visitor) const;
 
     /**
      * Find a component at or below this point in the hierarchy with the given id or uniqueId.
@@ -140,6 +165,9 @@ public:
 
     // Documentation will be inherited
     void update(UpdateType type, float value) override;
+
+    // Documentation will be inherited
+    void update(UpdateType type, const std::string& value) override;
 
     /**
      * Set the value of a component property by key. This method is commonly invoked
@@ -241,11 +269,16 @@ public:
     virtual Object getValue() const { return Object::NULL_OBJECT(); }
 
     /**
-     * Get Component target properties with values.
-     * @return Component dynamic properties with values.
-     * @deprecated Hide this method
+     * Retrieve an event property by key value (e.g., "event.target.uid").
+     * @return A pair where the first value is true if the property was found and the second value is the
+     *         value of the property.
      */
-    virtual std::shared_ptr<ObjectMap> getEventTargetProperties() const;
+    std::pair<bool, Object> getEventProperty(const std::string& key) const;
+
+    /**
+     * @return The number of event properties (e.g., "event.target.XXX" has some number of XXX values).
+     */
+    size_t getEventPropertySize() const;
 
     /**
      * The component hierarchy signature is a unique text string that represents the type
@@ -282,7 +315,7 @@ public:
      * @return The event data-binding context.
      */
     ContextPtr createDefaultEventContext(const std::string& handler) const {
-        return createEventContext(handler, getValue());
+        return createEventContext(handler);
     }
 
     /**
@@ -315,6 +348,21 @@ public:
     rapidjson::Value serializeVisualContext(rapidjson::Document::AllocatorType& allocator) override;
 
     /**
+     * Serialize the event portion of this component
+     */
+    virtual void serializeEvent(rapidjson::Value& out, rapidjson::Document::AllocatorType& allocator) const;
+
+    /**
+     * Set the height dimension for this component.
+     */
+    virtual void setHeight(const Dimension& height);
+
+    /**
+     * Set the width dimension for this component.
+     */
+    virtual void setWidth(const Dimension& width);
+
+    /**
      * @return True if this component supports a single child
      */
     virtual bool singleChild() const { return false; }
@@ -323,6 +371,11 @@ public:
      * @return True if this component supports more than one child
      */
     virtual bool multiChild() const { return false; }
+
+    /**
+     * @return True if this component is scrollable
+     */
+    virtual bool scrollable() const { return false; }
 
     /**
      * Execute any "onBlur" commands associated with this component.  These commands
@@ -349,19 +402,31 @@ public:
     virtual void executeOnCursorExit();
 
     /**
-     * Execute the component "handleKeyDown" key handlers if present.
-     * @param type The key handler.
+     * Execute the component key handlers if present.
+     * @param type The key handler type (up/down).
      * @param keyboard The keyboard update.
      * @return True, if consumed.
      */
-    virtual bool executeKeyHandlers(KeyHandlerType type, const ObjectMapPtr& keyboard) {return false;};
+    virtual bool executeKeyHandlers(KeyHandlerType type, const ObjectMapPtr& keyboard) { return false; };
 
     /**
-     * Create an event data-binding context, passing in the "value" to be used for this component.
+     * Execute the intrinsic actions for given keys if appropriate.  These key updates are not forwarded to the document.
+     * @param type The key handler type (up/down).
+     * @param keyboard The keyboard update.
+     * @return True, if consumed.
+ */
+    virtual bool executeIntrinsicKeyHandlers(KeyHandlerType type, const ObjectMapPtr& keyboard) { return false; };
+
+    /**
+     * Create an event data-binding context. Standard value of component will be used unless explicitly specified.
      * @param handler Handler name.
+     * @param optional Optional key->value map to include on event context.
+     * @param value override for standard component value.
      * @result The event data-binding context.
      */
-    ContextPtr createEventContext(const std::string& handler, const Object& value) const;
+    ContextPtr createEventContext(const std::string& handler,
+                                  const ObjectMapPtr& optional = nullptr,
+                                  const Object& value = Object::NULL_OBJECT()) const;
 
     /**
      * Create the keyboard event data-binding context for this component.
@@ -392,11 +457,12 @@ public:
     virtual void processLayoutChanges(bool useDirtyFlag);
 
     /**
-     * Update the event object map with source properties suitable for the event.source.XX
-     * context. Subclasses should call the parent class to fill out the object map.
+     * Update the event object map with additional properties.  These fill out "event.XXX" values other
+     * than the "event.source" and "event.target" properties. Subclasses should call the parent class
+     * to fill out the object map.
      * @param event The object map to populate.
      */
-    virtual void addEventSourceProperties(ObjectMap& event) const {}
+    virtual void addEventProperties(ObjectMap& event) const {}
 
     /**
      * @return The current calculated style.  This may be null.
@@ -423,12 +489,18 @@ public:
     virtual bool isFocusable() const { return false; }
 
     /**
+     * @return true if component can react to pointer events.
+     */
+    virtual bool isTouchable() const { return false; }
+
+
+    /**
      * Get visible children of component and respective visibility values.
      * @param realOpacity cumulative opacity.
      * @param visibleRect component's visible rect.
      * @return Map of visible children indexes to respective visibility values.
      */
-    virtual std::map<int, float> getChildrenVisibility(float realOpacity, const Rect& visibleRect);
+    virtual std::map<int, float> getChildrenVisibility(float realOpacity, const Rect& visibleRect) const;
 
     /**
      * @return Type of visual context.
@@ -473,13 +545,6 @@ public:
     virtual bool shouldAttachChildYogaNode(int index) const { return true; }
 
     /**
-     * Find and return a child component at the local coordinates.
-     * @param position The position in local coordinates.
-     * @return The child containing that position or nullptr;
-     */
-    virtual ComponentPtr findChildAtPosition(const Point& position) const;
-
-    /**
      * Checks to see if this Component inherits state from another Component. State
      * is inherited if compare Component is an ancestor, and inheritParentState = true for this Component
      * and any ancestor up to the compare Component.
@@ -501,11 +566,103 @@ public:
      */
     bool isAttached() const;
 
+    static void resolveDrawnBorder(Component& component);
+
+    void calculateDrawnBorder(bool useDirtyFlag);
+
+    /**
+     * @param position Point in global coordinates.
+     * @return Whether that point is within the bounds of this component.
+     */
+    bool containsGlobalPosition(const Point& position) const;
+
     /**
      * Update the spacing to specified value if any.
      * @param reset Reset spacing to 0.
      */
     void fixSpacing(bool reset = false);
+
+    /**
+     * @return Yoga node reference for the component.
+     */
+    YGNodeRef getNode() const { return mYGNodeRef; }
+
+    /**
+     * Call this method to get shared ptr of CoreComponent
+     * @return shared ptr of type CoreComponent.
+     */
+    std::shared_ptr<CoreComponent> shared_from_corecomponent()
+    {
+        return std::static_pointer_cast<CoreComponent>(shared_from_this());
+    }
+
+    /**
+     * Call this method to get shared ptr of const CoreComponent
+     * @return shared ptr of type const CoreComponent.
+     */
+    std::shared_ptr<const CoreComponent> shared_from_corecomponent() const
+    {
+        return std::static_pointer_cast<const CoreComponent>(shared_from_this());
+    }
+
+    /**
+     * This inline function casts YGMeasureMode enum to MeasureMode enum.
+     * @param YGMeasureMode
+     * @return MeasureMode
+     */
+    static inline MeasureMode toMeasureMode(YGMeasureMode ygMeasureMode)
+    {
+        switch(ygMeasureMode){
+            case YGMeasureModeExactly:
+                return Exactly;
+            case YGMeasureModeAtMost:
+                return AtMost;
+                //default case will execute when mode is YGMeasureModeUndefined as well as other than specified cases in case of Yoga lib update.
+            default:
+                return Undefined;
+        }
+    }
+
+    /**
+     * This inline function used in TextComponent and EditTextComponent class for TextMeasurement.
+     * @param YGNodeRef node
+     * @param float width
+     * @param YGMeasureMode widthMode
+     * @param float height
+     * @param YGMeasureMode heightMode
+     * @return YGSize
+     */
+    template <class T>
+    static inline YGSize
+    textMeasureFunc( YGNodeRef node,
+                     float width,
+                     YGMeasureMode widthMode,
+                     float height,
+                     YGMeasureMode heightMode )
+    {
+        T *component = static_cast<T*>(node->getContext());
+        assert(component);
+
+        LayoutSize layoutSize = component->getContext()->measure()->measure(component, width, toMeasureMode(widthMode), height, toMeasureMode(heightMode));
+        return YGSize({layoutSize.width, layoutSize.height});
+    }
+
+    /**
+     * This inline function used in TextComponent and EditTextComponent class for TextMeasurement.
+     * @param YGNodeRef node
+     * @param float width
+     * @param float height
+     * @return float
+     */
+    template <class T>
+    static inline float
+    textBaselineFunc( YGNodeRef node, float width, float height )
+    {
+        T *component = static_cast<T*>(node->getContext());
+        assert(component);
+
+        return component->getContext()->measure()->baseline(component, width, height);
+    }
 
 protected:
     // internal, do not call directly
@@ -514,6 +671,8 @@ protected:
     virtual void reportLoaded(size_t index);
 
     void ensureChildAttached(const CoreComponentPtr& child, int targetIdx);
+
+    virtual const EventPropertyMap& eventPropertyMap() const;
 
 private:
     friend streamer& operator<<(streamer&, const Component&);
@@ -564,8 +723,6 @@ private:
 
     void attachRebuilder(const std::shared_ptr<LayoutRebuilder>& rebuilder) { mRebuilder = rebuilder; }
 
-    YGNodeRef getNode() const { return mYGNodeRef; }
-
     std::shared_ptr<ObjectMap> createEventProperties(const std::string& handler, const Object& value) const;
 
     void notifyChildChanged(size_t index, const std::string& uid, const std::string& action);
@@ -574,6 +731,8 @@ private:
 
     void attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index);
 
+    void scheduleTickHandler(const Object& handler, double delay);
+    void processTickHandlers();
 
 protected:
     bool                             mInheritParentState;

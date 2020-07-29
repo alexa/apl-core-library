@@ -19,15 +19,15 @@ namespace apl {
 
 class DummyTextMeasurement : public TextMeasurement {
 public:
-    YGSize measure( TextComponent *component,
+    LayoutSize measure( Component *component,
                     float width,
-                    YGMeasureMode widthMode,
+                    MeasureMode widthMode,
                     float height,
-                    YGMeasureMode heightMode ) override {
+                    MeasureMode heightMode ) override {
         return { 10, 10 };
     }
 
-    virtual float baseline( TextComponent *component,
+    virtual float baseline( Component *component,
                             float width,
                             float height ) override {
         return height * 0.5;

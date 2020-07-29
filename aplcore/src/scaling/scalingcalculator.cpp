@@ -37,9 +37,9 @@ ScalingCalculator::setMetricsSize(Metrics& metrics, double width, double height)
     metrics.size(pixelWidth, pixelHeight);
 }
 
-double
-ScalingCalculator::cost(const ScalingCalculator::Size& size) {
-    return cost(size.w, size.h);
+void
+ScalingCalculator::setMetricsMode(Metrics& metrics, ViewportMode mode) {
+    metrics.mode(mode);
 }
 
 double
@@ -139,6 +139,7 @@ calculate(const Metrics& metrics, const ScalingOptions& options) {
     std::vector<ViewportSpecification> validSpecs;
     bool shapeOverridesCost = options.getShapeOverridesCost();
     double biasConstant = options.getBiasConstant();
+    auto allowedModes = options.getAllowedModes();
 
     // Only consider specs that match original viewport mode
     for (auto& spec : specs) {
@@ -146,6 +147,23 @@ calculate(const Metrics& metrics, const ScalingOptions& options) {
             validSpecs.emplace_back(spec);
         }
     }
+
+    if (options.getIgnoresMode()) {
+        // All acceptable, add all to allowed
+        for (auto& mode : sViewportModeBimap) {
+            allowedModes.emplace(static_cast<ViewportMode>(mode.first));
+        }
+    }
+
+    if (validSpecs.empty() && !allowedModes.empty()) {
+        // All acceptable, but prioritize same mode so add what we don't have yet if empty
+        for (auto& spec : specs) {
+            if (spec.mode != metrics.getViewportMode() && allowedModes.count(spec.mode)){
+                validSpecs.emplace_back(spec);
+            }
+        }
+    }
+
     // If there are no specifications that match viewport mode, there is nothing to be done
     if (validSpecs.empty()) {
         return std::make_tuple(1.0, newMetrics, ViewportSpecification());
@@ -221,11 +239,12 @@ calculate(const Metrics& metrics, const ScalingOptions& options) {
             // first check if cost function global minimum is within the range. If it is, then
             // set the scaling to 1.
             if (Vh >= hmin && Vh <= hmax && Vw >= wmin && Vw <= wmax) {
-                // set the metrics to whatever the viewport size is. For rectangular screens
+                // set the metrics to whatever the viewport size and mode is. For rectangular screens
                 // this will be just the rectangular size, for rectangular content in round
                 // screens it will be whatever the optimal dimensions are within the screen
-                // circle. Metrics taks epixels, so convert dp to px here.
+                // circle. Metrics takes pixels, so convert dp to px here.
                 ScalingCalculator::setMetricsSize(newMetrics, Vw, Vh);
+                ScalingCalculator::setMetricsMode(newMetrics, specification.mode);
                 return std::make_tuple(1.0, newMetrics, size.spec);
             }
 
@@ -246,9 +265,10 @@ calculate(const Metrics& metrics, const ScalingOptions& options) {
         }
     }
 
-    // Update the metrics with the optimal size. This is the size that core
-    // will use for all internal calculations
+    // Update the metrics with the optimal size and mode. This is the size that core
+    // will use for all internal calculations.
     ScalingCalculator::setMetricsSize(newMetrics, bestSize.w, bestSize.h);
+    ScalingCalculator::setMetricsMode(newMetrics, bestSize.spec.mode);
 
     // Return the scale factor, which the viewhost will use to scale dimensional values
     // coming from core.

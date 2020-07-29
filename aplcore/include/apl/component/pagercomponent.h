@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -35,8 +35,6 @@ public:
 
     Object getValue() const override { return getCalculated(kPropertyCurrentPage); }
 
-    std::shared_ptr<ObjectMap> getEventTargetProperties() const override;
-
     ScrollType scrollType() const override { return kScrollTypeHorizontalPager; }
     PageDirection pageDirection() const override;
     int pagePosition() const override { return getCalculated(kPropertyCurrentPage).asInt(); }
@@ -47,20 +45,17 @@ public:
 
 protected:
     const ComponentPropDefSet& propDefSet() const override;
-
-    ComponentPtr findChildAtPosition(const Point& position) const override;
-
+    const EventPropertyMap & eventPropertyMap() const override;
+    void accept(Visitor<CoreComponent>& visitor) const override;
+    void raccept(Visitor<CoreComponent>& visitor) const override;
     bool insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag) override;
-
     void removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
-
     bool shouldAttachChildYogaNode(int index) const override;
-
     void finalizePopulate() override;
 
 private:
     bool multiChild() const override { return true; }
-    std::map<int, float> getChildrenVisibility(float realOpacity, const Rect &visibleRect) override;
+    std::map<int, float> getChildrenVisibility(float realOpacity, const Rect &visibleRect) const override;
     bool attachCurrentAndReportLoaded();
 };
 

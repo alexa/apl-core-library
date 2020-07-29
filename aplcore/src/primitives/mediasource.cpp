@@ -60,6 +60,15 @@ MediaSource::create(const Context& context, const Object& object)
     return Object(MediaSource(url, description, duration, repeatCount, entities, offset));
 }
 
+std::string
+MediaSource::toDebugString() const {
+    return "MediaSource<url=" + getUrl() +
+           " duration=" + std::to_string(getDuration()) +
+           " repeatCount=" + std::to_string(getRepeatCount()) +
+           " offset=" + std::to_string(getOffset()) +
+           ">";
+}
+
 rapidjson::Value
 MediaSource::serialize(rapidjson::Document::AllocatorType& allocator) const {
     using rapidjson::Value;
@@ -70,6 +79,15 @@ MediaSource::serialize(rapidjson::Document::AllocatorType& allocator) const {
     v.AddMember("repeatCount", getRepeatCount(), allocator);
     v.AddMember("offset", getOffset(), allocator);
     return v;
+}
+
+bool
+MediaSource::operator==(const apl::MediaSource &other) const {
+    return mUrl == other.mUrl &&
+           mDuration == other.mDuration &&
+           mRepeatCount == other.mRepeatCount &&
+           mEntities == other.mEntities &&
+           mOffset == other.mOffset;
 }
 
 } // namespace apl

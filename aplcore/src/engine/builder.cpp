@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -26,7 +26,9 @@
 #include "apl/engine/arrayify.h"
 #include "apl/engine/evaluate.h"
 #include "apl/component/containercomponent.h"
+#include "apl/component/edittextcomponent.h"
 #include "apl/component/framecomponent.h"
+#include "apl/component/gridsequencecomponent.h"
 #include "apl/component/imagecomponent.h"
 #include "apl/component/pagercomponent.h"
 #include "apl/component/scrollviewcomponent.h"
@@ -57,8 +59,10 @@ static const std::map<std::string, MakeComponentFunc> sComponentMap = {
     {"Text",          TextComponent::create},
     {"Image",         ImageComponent::create},
     {"ScrollView",    ScrollViewComponent::create},
+    {"EditText",      EditTextComponent::create},
     {"Frame",         FrameComponent::create},
     {"Sequence",      SequenceComponent::create},
+    {"GridSequence",  GridSequenceComponent::create},
     {"TouchWrapper",  TouchWrapperComponent::create},
     {"Pager",         PagerComponent::create},
     {"VectorGraphic", VectorGraphicComponent::create},
@@ -371,13 +375,19 @@ Builder::inflate(const ContextPtr& context,
 
 CoreComponentPtr
 Builder::inflate(const ContextPtr& context,
-                 const rapidjson::Value& component)
+                 const Object& component)
 {
-    assert(component.IsObject());
+    assert(component.isMap() || component.isArray());
 
     Properties p;
-    return expandSingleComponent(context, Object(component), p, nullptr,
-        Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""));
+    if (component.isMap())
+        return expandSingleComponent(context, component, p, nullptr,
+            Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""));
+    else if (component.isArray())
+        return expandSingleComponentFromArray(context, component.getArray(), p, nullptr,
+            Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""));
+    else
+        return nullptr;
 }
 
 } // namespace apl

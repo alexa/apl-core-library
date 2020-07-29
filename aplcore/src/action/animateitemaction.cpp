@@ -14,15 +14,27 @@
  */
 
 #include "apl/action/animateitemaction.h"
+#include "apl/animation/animatedproperty.h"
 #include "apl/command/corecommand.h"
 #include "apl/content/rootconfig.h"
+#include "apl/time/sequencer.h"
 
 namespace apl {
+
+std::shared_ptr<AnimateItemAction>
+AnimateItemAction::make(const TimersPtr& timers,
+                        const std::shared_ptr<CoreCommand>& command,
+                        bool fastMode)
+{
+    auto ptr = std::make_shared<AnimateItemAction>(timers, command, fastMode);
+    ptr->start();
+    return ptr;
+}
 
 AnimateItemAction::AnimateItemAction(const TimersPtr& timers,
                                      const std::shared_ptr<CoreCommand>& command,
                                      bool fastMode)
-    : Action(timers),
+    : ResourceHoldingAction(timers, command->context()),
       mCommand(command),
       mRepeatCounter(0),
       mReversed(false),
@@ -31,8 +43,7 @@ AnimateItemAction::AnimateItemAction(const TimersPtr& timers,
       mRepeatMode(command->getValue(kCommandPropertyRepeatMode).asInt()),
       mFastMode(fastMode),
       mEasing(command->getValue(kCommandPropertyEasing).getEasing())
-{
-}
+{}
 
 void
 AnimateItemAction::start()
@@ -40,8 +51,12 @@ AnimateItemAction::start()
     // Walk the array of values and create animated properties
     for (const auto& m : mCommand->getValue(kCommandPropertyValue).getArray()) {
         auto ptr = AnimatedProperty::create(mCommand->context(), mCommand->target(), m);
-        if (ptr)
+        if (ptr) {
+            // Claim all requested resources.
+            mContext->sequencer().claimResource({kCommandResourceProperty, mCommand->target(), ptr->key()},
+                    shared_from_this());
             mAnimators.push_back(std::move(ptr));
+        }
     }
 
     auto mode = mCommand->context()->getRootConfig().getAnimationQuality();
@@ -93,7 +108,7 @@ AnimateItemAction::advance() {
                                                    float alpha = offset / self->mDuration;
                                                    if (self->mReversed)
                                                        alpha = 1 - alpha;
-                                                   alpha = self->mEasing(alpha);
+                                                   alpha = self->mEasing->calc(alpha);
                                                    for (auto& m : self->mAnimators)
                                                        m->update(self->mCommand->target(), alpha);
                                                }

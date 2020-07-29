@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -26,7 +26,9 @@
 
 namespace apl {
 
-using CommandFunc = std::function<CommandPtr(const ContextPtr&, Properties&&, const CoreComponentPtr&)>;
+using CommandFunc = std::function<CommandPtr(const ContextPtr&, Properties&&, const CoreComponentPtr&, const std::string&)>;
+
+class CoreCommand;
 
 /**
  * The CommandFactory provides a singleton instance that is used to execute a series of commands within a context.
@@ -49,10 +51,12 @@ public:
     CommandFunc get(const char *name) const;
 
     CommandPtr inflate(const ContextPtr& context, const Object& command, const Properties& properties,
-                      const CoreComponentPtr& base);
+                      const CoreComponentPtr& base, const std::string& parentSequencer = "");
 
     CommandPtr inflate(const ContextPtr& context, const Object& command,
                        const CoreComponentPtr& base);
+
+    CommandPtr inflate(const Object& command, const std::shared_ptr<const CoreCommand>& parent);
 protected:
     CommandFactory() {};
 
@@ -63,7 +67,8 @@ private:
     CommandPtr expandMacro(const ContextPtr& context,
                           Properties& properties,
                           const rapidjson::Value& definition,
-                          const CoreComponentPtr& base);
+                          const CoreComponentPtr& base,
+                          const std::string& parentSequencer);
 
 
 

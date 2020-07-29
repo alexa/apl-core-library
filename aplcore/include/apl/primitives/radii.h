@@ -95,15 +95,6 @@ public:
     float radius(Corner corner) { return mData[corner]; }
 
     /**
-     * Compare two sets of radii for equality
-     * @param rhs The other radii
-     * @return True if they are equal
-     */
-    bool operator==(const Radii& rhs) const {
-        return mData == rhs.mData;
-    }
-
-    /**
      * Compare two sets of radii for inequality
      * @param rhs The other radii
      * @return True if they are not equal
@@ -113,11 +104,10 @@ public:
     }
 
     /**
+     * @deprecated Use "empty()" instead
      * @return True if all of the corners have been set to zero
      */
-    bool isEmpty() const {
-        return mData[0] == 0 && mData[1] == 0 && mData[2] == 0 && mData[3] == 0;
-    }
+    bool isEmpty() const { return empty(); }
 
     /**
      * @return The array of radii.  These are guaranteed to be in the order
@@ -132,12 +122,14 @@ public:
 
     friend streamer& operator<<(streamer& os, const Radii& radii);
 
-    /**
-      * Serialize the radii into a 4 element array.
-      * @param allocator
-      * @return
-      */
+    /* Standard Object methods */
+    bool operator==(const Radii& rhs) const { return mData == rhs.mData; }
+
+    std::string toDebugString() const;
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
+
+    bool empty() const { return mData[0] == 0 && mData[1] == 0 && mData[2] == 0 && mData[3] == 0; }
+    bool truthy() const { return !empty(); }
 
 private:
     std::array<float, 4> mData;

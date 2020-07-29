@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -15,9 +15,25 @@
 
 #include "apl/command/commandproperties.h"
 #include "apl/action/speakitemaction.h"
+#include "apl/action/scrolltoaction.h"
 #include "apl/command/corecommand.h"
+#include "apl/time/sequencer.h"
 
 namespace apl {
+
+SpeakItemAction::SpeakItemAction(const TimersPtr& timers, const std::shared_ptr<CoreCommand>& command,
+        const CoreComponentPtr& target)
+        : ResourceHoldingAction(timers, command->context()),
+          mCommand(command),
+          mTarget(target)
+{
+    addTerminateCallback([this](const TimersPtr&) {
+        if (mCurrentAction) {
+            mCurrentAction->terminate();
+            mCurrentAction = nullptr;
+        }
+    });
+}
 
 std::shared_ptr<SpeakItemAction>
 SpeakItemAction::make(const TimersPtr& timers,
@@ -37,6 +53,7 @@ void
 SpeakItemAction::start()
 {
     auto context = mCommand->context();
+    context->sequencer().claimResource(kCommandResourceForegroundAudio, shared_from_this());
 
     // Start by sending a pre-roll event
     mSource = mTarget->getCalculated(kPropertySpeech).asString();
@@ -85,6 +102,15 @@ SpeakItemAction::scroll(const std::shared_ptr<ScrollToAction>& action) {
                 return;
 
             self->advance();
+        });
+
+        // If scroll was killed by conflicting operation - kill whole SpeakItem.
+        mCurrentAction->addTerminateCallback([weak_ptr](const TimersPtr&) {
+            auto self = weak_ptr.lock();
+            if (!self)
+                return;
+
+            self->terminate();
         });
     }
     else {

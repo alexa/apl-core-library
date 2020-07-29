@@ -1,5 +1,5 @@
 APL Core Library
-Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 The APL Core Library is licensed under the Apache
 License, Version 2.0 (the "License").
@@ -28,8 +28,6 @@ a Tencent company, and Milo Yip.
 Copyright (c) 2007-2019 Dr. Colin Hirsch and Daniel Frey.
 
 - Yoga - Copyright (c) Facebook, Inc. and its affiliates.
-
-- Templatized C++ Command Line Parser Library - Copyright (c), Michael E. Smoot.
 
 - C++ test framework from Google Test - Copyright 2008, Google Inc.
 

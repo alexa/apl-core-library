@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -17,9 +17,13 @@
 #define _APL_METRICSTRANSFORM_H
 
 #include "apl/content/metrics.h"
+#include <set>
 
 namespace apl {
 
+/**
+ * Cloud defined viewport specification.
+ */
 class ViewportSpecification {
 public:
     ViewportSpecification()
@@ -50,28 +54,104 @@ public:
     std::string toDebugString() const;
 };
 
+/**
+ * Set of options to control scaling algorithm.
+ */
 class ScalingOptions {
 public:
-    friend class ScalingCalculator;
-    ScalingOptions() : specifications({}), biasConstant(1.0f), shapeOverridesCost(true) {}
+    /**
+     * @deprecated Use default constructor with chained setters.
+     */
     ScalingOptions(const std::vector<ViewportSpecification>& specifications, double biasConstant,
-                   bool shapeOverridesCost = true)
-        : specifications(specifications),
-          biasConstant(biasConstant),
-          shapeOverridesCost(shapeOverridesCost) {}
-    const std::vector<ViewportSpecification>& getSpecifications() const { return specifications; }
-    double getBiasConstant() const { return biasConstant; }
-    bool getShapeOverridesCost() const { return shapeOverridesCost; }
+                   bool shapeOverridesCost, bool ignoresMode)
+            : mSpecifications(specifications),
+              mBiasConstant(biasConstant),
+              mShapeOverridesCost(shapeOverridesCost),
+              mIgnoresMode(ignoresMode) {}
+
+    /**
+     * @deprecated Use default constructor with chained setters.
+     */
+    ScalingOptions(const std::vector<ViewportSpecification>& specifications, double biasConstant)
+        : ScalingOptions(specifications, biasConstant, true, false) {}
+
+    /**
+     * @deprecated Use default constructor with chained setters.
+     */
+    ScalingOptions(const std::vector<ViewportSpecification>& specifications, double biasConstant,
+                   bool shapeOverridesCost)
+        : ScalingOptions(specifications, biasConstant, shapeOverridesCost, false) {}
+
+    ScalingOptions() : ScalingOptions({}, 1.0f, true, false) {}
+
+    /**
+     * Set configured specifications.
+     * @param specifications ViewportSpecifications.
+     * @return This object for chaining
+     */
+    ScalingOptions& specifications(const std::vector<ViewportSpecification>& specifications) {
+        mSpecifications = specifications;
+        return *this;
+    }
+
+    /**
+     * Set bias constant. Default is 1.0f
+     * @param biasConstant bias constant value.
+     * @return This object for chaining
+     */
+    ScalingOptions& biasConstant(double biasConstant) {
+        mBiasConstant = biasConstant;
+        return *this;
+    }
+
+    /**
+     * Set shape to override cost. Same shape viewports will have a preference. Default is true.
+     * @param shapeOverridesCost true to override, false otherwise.
+     * @return This object for chaining
+     */
+    ScalingOptions& shapeOverridesCost(bool shapeOverridesCost) {
+        mShapeOverridesCost = shapeOverridesCost;
+        return *this;
+    }
+
+    /**
+     * Ignore same mode requirement. If true all specifications will take a part in selection. Default is false.
+     * @param ignoresMode true to ignore, false otherwise.
+     * @return This object for chaining
+     */
+    ScalingOptions& ignoresMode(bool ignoresMode) {
+        mIgnoresMode = ignoresMode;
+        return *this;
+    }
+
+    /**
+     * Set range of allowed modes. Only specified + device own mode specifications will be considered in selection.
+     * Empty by default.
+     * @param allowedModes set of allowed viewport modes.
+     * @return This object for chaining
+     */
+    ScalingOptions& allowedModes(const std::set<ViewportMode>& allowedModes) {
+        mAllowedModes = allowedModes;
+        return *this;
+    }
+
+    const std::vector<ViewportSpecification>& getSpecifications() const { return mSpecifications; }
+    const std::set<ViewportMode>& getAllowedModes() const { return mAllowedModes; }
+    double getBiasConstant() const { return mBiasConstant; }
+    bool getShapeOverridesCost() const { return mShapeOverridesCost; }
+    bool getIgnoresMode() const { return mIgnoresMode; }
+
 private:
-    std::vector<ViewportSpecification> specifications;
-    double biasConstant;
-    bool shapeOverridesCost;
+    std::vector<ViewportSpecification> mSpecifications;
+    std::set<ViewportMode> mAllowedModes;
+    double mBiasConstant;
+    bool mShapeOverridesCost;
+    bool mIgnoresMode;
 };
 
 /**
- * Viewhost extends this class to provide transforms between core and viewhost layer. Since core
- * makes no assumptions about viewhost display units, it is up to the viewhost binding layer to
- * provide that logic.
+ * Viewhost may extend this class to provide transforms between core and viewhost layer. Since core
+ * makes no assumptions about viewhost display units, it is up to the viewhost to provide that logic.
  */
 class MetricsTransform {
 public:
@@ -83,29 +163,33 @@ public:
 
     /**
      * Converts core units into viewhost units
+     * Base implementation scales value to viewhost units considering dpi ratio.
      * @param value Core unit
      * @return Viewhost unit
      */
-    virtual float toViewhost(float value) const = 0;
+    virtual float toViewhost(float value) const;
 
     /**
      * Converts viewhost units into core units
+     * Base implementation scales value to core units considering dpi ratio.
      * @param value Viewhost unit
      * @return Core unit
      */
-    virtual float toCore(float value) const = 0;
+    virtual float toCore(float value) const;
 
     /**
+     * Base implementation scales width to viewhost units considering dpi ratio.
      * Return the viewport width in viewhost units
      * @return Viewhost units
      */
-    virtual float getViewhostWidth() const = 0;
+    virtual float getViewhostWidth() const;
 
     /**
+     * Base implementation scales height to viewhost units considering dpi ratio.
      * Return the viewport height in viewhost units
      * @return Viewhost units
      */
-    virtual float getViewhostHeight() const = 0;
+    virtual float getViewhostHeight() const;
 
     /**
      * @return The viewhost provided display pixels per inch
@@ -147,6 +231,12 @@ public:
      * @return The specification chosen by the scaling algorithm
      */
     ViewportSpecification getChosenSpec() const { return mChosenSpec; }
+
+    /**
+     * Core's virtual pixel density per inch. 
+     * Equates a viewhost dpi of 160.0f as a 1:1 dpi scaling ratio.
+     */
+    static constexpr float CORE_DPI = 160.0f;
 
 private:
     void init();

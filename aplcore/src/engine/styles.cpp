@@ -1,5 +1,5 @@
 /**
- * Copyright 2018, 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -110,9 +110,9 @@ Styles::get(const ContextPtr& context, const std::string& name, const State& sta
 {
     LOG_IF(DEBUG_STYLES) << "Styles::get " << name << " " << state;
 
-    auto it = mStyleDefinitions.find(name);
-    if (it != mStyleDefinitions.end())
-        return it->second->get(context, state);
+    auto definition = getStyleDefinition(name);
+    if (definition)
+        return definition->get(context, state);
 
     LOG_IF(DEBUG_STYLES) << "Didn't find anything";
     return nullptr;
@@ -123,6 +123,18 @@ Styles::addStyleDefinitions(const SessionPtr& session, const rapidjson::Value *j
 {
     StyleProcessSet sps(session, *this, json, provenance);
     sps.process();
+}
+
+StyleDefinitionPtr
+Styles::getStyleDefinition(const std::string& name) {
+    auto it = mStyleDefinitions.find(name);
+    if (it != mStyleDefinitions.end())
+        return it->second;
+
+    if (mParentStyle) {
+        return mParentStyle->getStyleDefinition(name);
+    }
+    return nullptr;
 }
 
 

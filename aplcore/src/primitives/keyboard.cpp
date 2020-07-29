@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -19,11 +19,6 @@ namespace apl {
 
 static std::set<std::string> sReservedKeys {
     Keyboard::BACK_KEY().getKey(),
-    Keyboard::ENTER_KEY().getKey(),
-    Keyboard::ARROW_UP_KEY().getKey(),
-    Keyboard::ARROW_DOWN_KEY().getKey(),
-    Keyboard::ARROW_LEFT_KEY().getKey(),
-    Keyboard::ARROW_RIGHT_KEY().getKey(),
     Keyboard::PAGE_UP_KEY().getKey(),
     Keyboard::PAGE_DOWN_KEY().getKey(),
     Keyboard::HOME_KEY().getKey(),
@@ -32,10 +27,19 @@ static std::set<std::string> sReservedKeys {
     Keyboard::SHIFT_TAB_KEY().getKey(),
 };
 
+static std::set<std::string> sIntrinsicKeys {
+    Keyboard::ENTER_KEY().getKey()
+};
+
 bool
 Keyboard::isReservedKey() const {
     return sReservedKeys.find(mKey) != sReservedKeys.end();
 };
+
+bool
+Keyboard::isIntrinsicKey() const {
+    return sIntrinsicKeys.find(mKey) != sIntrinsicKeys.end();
+}
 
 rapidjson::Value
 Keyboard::serialize(rapidjson::Document::AllocatorType& allocator) const {

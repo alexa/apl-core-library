@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -58,12 +58,18 @@ ArrayAction::advance() {
 
     while (mNextIndex < commands.size()) {
         Object command = commands.at(mNextIndex++);
-        mCurrentCommand = CommandFactory::instance().inflate(mCommand->context(),
-                                                             command,
-                                                             mCommand->base());
-        if (!mCurrentCommand)
+        auto commandPtr = CommandFactory::instance().inflate(command,
+                                                             mCommand);
+        if (!commandPtr)
             continue;
 
+        auto childSeq = commandPtr->sequencer();
+        if (childSeq != mCommand->sequencer()) {
+            mCommand->context()->sequencer().executeOnSequencer(commandPtr, childSeq);
+            continue;
+        }
+
+        mCurrentCommand = commandPtr;
         mCurrentAction = DelayAction::make(timers(), mCurrentCommand, mFastMode);
 
         auto sptr = std::static_pointer_cast<ArrayAction>(shared_from_this());

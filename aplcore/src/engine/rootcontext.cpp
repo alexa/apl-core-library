@@ -1,5 +1,5 @@
 /**
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -16,23 +16,27 @@
 #include <algorithm>
 
 #include <rapidjson/stringbuffer.h>
-#include <apl/command/documentcommand.h>
 
 
 #include "apl/engine/builder.h"
+#include "apl/engine/evaluate.h"
 #include "apl/engine/styles.h"
+#include "apl/engine/propdef.h"
 #include "apl/action/scrolltoaction.h"
+#include "apl/command/documentcommand.h"
 #include "apl/content/content.h"
-#include "apl/utils/log.h"
 #include "apl/content/metrics.h"
-#include "apl/engine/extensionmanager.h"
+#include "apl/content/rootconfig.h"
+#include "apl/engine/builder.h"
+#include "apl/engine/styles.h"
+#include "apl/extension/extensionmanager.h"
 #include "apl/engine/rootcontext.h"
 #include "apl/engine/resources.h"
-#include "apl/content/rootconfig.h"
 #include "apl/engine/rootcontextdata.h"
-#include "apl/time/timemanager.h"
 #include "apl/graphic/graphic.h"
 #include "apl/livedata/livedataobject.h"
+#include "apl/time/timemanager.h"
+#include "apl/utils/log.h"
 
 namespace apl {
 
@@ -107,6 +111,7 @@ RootContext::~RootContext()
 {
     assert(mCore);
     clearDirty();
+    mTimeManager->terminate();
     mCore->terminate();
 }
 
@@ -276,6 +281,8 @@ RootContext::updateTime(apl_time_t elapsedTime)
     mUTCTime += mTimeManager->currentTime() - lastTime;
     mContext->systemUpdateAndRecalculate(UTC_TIME, mUTCTime, true);
     mContext->systemUpdateAndRecalculate(LOCAL_TIME, mUTCTime + mLocalTimeAdjustment, true);
+
+    mCore->pointerManager().handleTimeUpdate(elapsedTime);
 }
 
 void
@@ -287,6 +294,8 @@ RootContext::updateTime(apl_time_t elapsedTime, apl_time_t utcTime)
     mUTCTime = utcTime;
     mContext->systemUpdateAndRecalculate(UTC_TIME, mUTCTime, true);
     mContext->systemUpdateAndRecalculate(LOCAL_TIME, mUTCTime + mLocalTimeAdjustment, true);
+
+    mCore->pointerManager().handleTimeUpdate(elapsedTime);
 }
 
 void
@@ -358,10 +367,7 @@ RootContext::setup()
     for (const auto& child : ordered) {
         const auto& json = child->json();
         const auto path = Path(trackProvenance ? child->name() : std::string());
-
-        auto resIter = json.FindMember("resources");
-        if (resIter != json.MemberEnd() && resIter->value.IsArray())
-            addOrderedResources(*mContext, resIter->value, path.addArray("resources"));
+        addNamedResourcesBlock(*mContext, json, path, "resources");
     }
 
     // Style processing
@@ -371,7 +377,7 @@ RootContext::setup()
 
         auto styleIter = json.FindMember("styles");
         if (styleIter != json.MemberEnd() && styleIter->value.IsObject())
-            mCore->styles().addStyleDefinitions(mCore->session(), &styleIter->value, path.addObject("styles"));
+            mCore->styles()->addStyleDefinitions(mCore->session(), &styleIter->value, path.addObject("styles"));
     }
 
     // Layout processing
@@ -452,9 +458,52 @@ RootContext::setup()
     // Those commands may have set the dirty flags.  Clear them.
     clearDirty();
 
+    // Process and schedule tick handlers.
+    processTickHandlers();
+
     return true;
 }
 
+void
+RootContext::scheduleTickHandler(const Object& handler, double delay) {
+    auto weak_ptr = std::weak_ptr<RootContext>(shared_from_this());
+
+    // Lambda capture takes care of handler here as it's a copy.
+    mTimeManager->setTimeout([weak_ptr, handler, delay]() {
+        auto self = weak_ptr.lock();
+        if (!self)
+            return;
+
+        auto ctx = self->createDocumentContext("Tick");
+        if (propertyAsBoolean(*ctx, handler, "when", true)) {
+            auto commands = Object(arrayifyProperty(*ctx, handler, "commands"));
+            if (!commands.empty())
+                self->context().sequencer().executeCommands(commands, ctx, nullptr, true);
+        }
+
+        self->scheduleTickHandler(handler, delay);
+
+    }, delay);
+}
+
+void
+RootContext::processTickHandlers() {
+    auto& json = content()->getDocument()->json();
+    auto it = json.FindMember("handleTick");
+    if (it == json.MemberEnd())
+        return;
+
+    auto tickHandlers = asArray(*mContext, evaluate(*mContext, it->value));
+
+    if (tickHandlers.empty() || !tickHandlers.isArray())
+        return;
+
+    for (const auto& handler : tickHandlers.getArray()) {
+        auto delay = std::max(propertyAsDouble(*mContext, handler, "minimumDelay", 1000),
+                mCore->rootConfig().getTickHandlerUpdateLimit());
+        scheduleTickHandler(handler, delay);
+    }
+}
 
 bool
 RootContext::verifyAPLVersionCompatibility(const std::vector<PackagePtr>& ordered,
@@ -496,12 +545,10 @@ operator<<(streamer& os, const RootContext& root)
 }
 
 
+/* Remove when migrated to handlePointerEvent */
 void
 RootContext::updateCursorPosition(Point cursorPosition) {
-
-    assert(mCore);
-    mCore->hoverManager().setCursorPosition(cursorPosition);
-
+    handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, cursorPosition));
 }
 
 bool
@@ -517,6 +564,12 @@ const SessionPtr&
 RootContext::getSession() const
 {
     return mCore->session();
+}
+
+bool
+RootContext::handlePointerEvent(const PointerEvent& pointerEvent) {
+    assert(mCore);
+    return mCore->pointerManager().handlePointerEvent(pointerEvent, mTimeManager->currentTime());
 }
 
 } // namespace apl

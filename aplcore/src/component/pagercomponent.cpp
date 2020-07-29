@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@
 #include "apl/component/pagercomponent.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
-#include "apl/time/sequencer.h"
 #include "apl/primitives/keyboard.h"
+#include "apl/time/sequencer.h"
 
 namespace apl {
 
@@ -84,11 +84,11 @@ PagerComponent::update(UpdateType type, float value) {
                 auto height = YGNodeLayoutGetHeight(mYGNodeRef);
                 layout(width, height, true);
             }
-            ContextPtr eventContext = createEventContext("Page", requestedPage);
+            ContextPtr eventContext = createEventContext("Page");
             mContext->sequencer().executeCommands(
                     getCalculated(kPropertyOnPageChanged),
                     eventContext,
-                    shared_from_this(),
+                    shared_from_corecomponent(),
                     type == kUpdatePagerByEvent);  // If the user set the pager, run in fast mode.
         }
 
@@ -111,12 +111,16 @@ PagerComponent::layoutPropDefSet() const {
     return &sPagerChildProperties;
 }
 
+const EventPropertyMap &
+PagerComponent::eventPropertyMap() const
+{
+    static EventPropertyMap sPagerEventProperties = eventPropertyMerge(
+            CoreComponent::eventPropertyMap(),
+            {
+                    {"page", [](const CoreComponent *c) { return c->pagePosition(); }},
+            });
 
-std::shared_ptr<ObjectMap>
-PagerComponent::getEventTargetProperties() const {
-    auto target = CoreComponent::getEventTargetProperties();
-    target->emplace("page", pagePosition());
-    return target;
+    return sPagerEventProperties;
 }
 
 PageDirection
@@ -148,10 +152,11 @@ PagerComponent::pageDirection() const {
 
             return kPageDirectionForward;
     }
+    return kPageDirectionNone;
 }
 
 std::map<int, float>
-PagerComponent::getChildrenVisibility(float realOpacity, const Rect& visibleRect) {
+PagerComponent::getChildrenVisibility(float realOpacity, const Rect& visibleRect) const {
     std::map<int, float> result;
 
     if (!mChildren.empty()) {
@@ -202,17 +207,30 @@ PagerComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::Allocator
     return actionable;
 }
 
-ComponentPtr
-PagerComponent::findChildAtPosition(const Point& position) const {
-    // The current page may contain the target position
+void
+PagerComponent::accept(Visitor<CoreComponent>& visitor) const {
+    visitor.visit(*this);
+    visitor.push();
     int currentPage = pagePosition();
     if (currentPage >= 0 && currentPage < getChildCount()) {
-        auto child = mChildren.at(currentPage)->findComponentAtPosition(position);
+        auto child = mChildren.at(currentPage);
         if (child != nullptr)
-            return child;
+            child->accept(visitor);
     }
+    visitor.pop();
+}
 
-    return nullptr;
+void
+PagerComponent::raccept(Visitor<CoreComponent>& visitor) const {
+    visitor.visit(*this);
+    visitor.push();
+    int currentPage = pagePosition();
+    if (currentPage >= 0 && currentPage < getChildCount()) {
+        auto child = mChildren.at(currentPage);
+        if (child != nullptr)
+            child->raccept(visitor);
+    }
+    visitor.pop();
 }
 
 bool
@@ -267,7 +285,7 @@ PagerComponent::finalizePopulate() {
     initialPage = std::max(initialPage, 0);
 
     if (!mChildren.empty()) {
-        initialPage = std::min(initialPage, (int)mChildren.size() - 1);
+        initialPage = std::min(initialPage, static_cast<int>(mChildren.size()) - 1);
     } else {
         initialPage = 0;
     }
@@ -278,7 +296,7 @@ PagerComponent::finalizePopulate() {
     auto navigation = static_cast<Navigation>(mCalculated.get(kPropertyNavigation).asInt());
 
     // Override wrap to normal if dynamic data.
-    if (mRebuilder && navigation == kNavigationWrap ) {
+    if (mRebuilder && navigation == kNavigationWrap) {
         mCalculated.set(kPropertyNavigation, kNavigationNormal);
     }
 }

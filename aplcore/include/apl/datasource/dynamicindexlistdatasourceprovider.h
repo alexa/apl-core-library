@@ -59,10 +59,16 @@ static const std::string ERROR_REASON_INVALID_PRESENTATION_TOKEN = "INVALID_PRES
 static const std::string ERROR_REASON_INVALID_LIST_ID = "INVALID_LIST_ID";
 static const std::string ERROR_REASON_INVALID_DATASOURCE = "INVALID_DATASOURCE";
 static const std::string ERROR_REASON_INVALID_OPERATION = "INVALID_OPERATION";
-static const std::string ERROR_REASON_MISSING_LIST_VERSION = "MISSING_LIST_VERSION";
 static const std::string ERROR_REASON_DUPLICATE_LIST_VERSION = "DUPLICATE_LIST_VERSION";
-static const std::string ERROR_REASON_LIST_INDEX_OUT_OF_RANGE = "LIST_INDEX_OUT_OF_RANGE";
+static const std::string ERROR_REASON_MISSING_LIST_VERSION = "MISSING_LIST_VERSION";
 static const std::string ERROR_REASON_MISSING_LIST_VERSION_IN_SEND_DATA = "MISSING_LIST_VERSION_IN_SEND_DATA";
+static const std::string ERROR_REASON_LIST_INDEX_OUT_OF_RANGE = "LIST_INDEX_OUT_OF_RANGE";
+static const std::string ERROR_REASON_LOAD_TIMEOUT = "LOAD_TIMEOUT";
+static const std::string ERROR_REASON_INCONSISTENT_LIST_ID = "INCONSISTENT_LIST_ID";
+static const std::string ERROR_REASON_OCCUPIED_LIST_INDEX = "OCCUPIED_LIST_INDEX";
+static const std::string ERROR_REASON_LOAD_INDEX_OUT_OF_RANGE = "LOAD_INDEX_OUT_OF_RANGE";
+static const std::string ERROR_REASON_INCONSISTENT_RANGE = "INCONSISTENT_RANGE";
+static const std::string ERROR_REASON_MISSING_LIST_ITEMS = "MISSING_LIST_ITEMS";
 static const std::string ERROR_REASON_INTERNAL_ERROR = "INTERNAL_ERROR";
 static const std::string ERROR_OPERATION_INDEX = "operationIndex";
 static const std::string ERROR_MESSAGE = "message";
@@ -84,6 +90,7 @@ class DynamicIndexListDataSourceConnection;
 
 // Aliases to shorten some writing
 using DILConnectionPtr = std::shared_ptr<DynamicIndexListDataSourceConnection>;
+using DILProviderPtr = std::shared_ptr<DynamicIndexListDataSourceProvider>;
 using DILProviderWPtr = std::weak_ptr<DynamicIndexListDataSourceProvider>;
 
 /**
@@ -261,7 +268,7 @@ private:
 
     void sendFetchRequest(const ContextPtr& context, int index, int count);
     void enqueueFetchRequestEvent(const ContextPtr& context, const ObjectMapPtr& request);
-    void retryFetchRequest(const ContextPtr& context, const std::string& correlationToken);
+    void retryFetchRequest(const ContextPtr& context, const std::string& correlationToken, const DILProviderPtr& provider);
     timeout_id scheduleTimeout(const ContextPtr& context, const std::string& correlationToken);
     timeout_id scheduleUpdateExpiry(int version);
     void reportUpdateExpired(int version);

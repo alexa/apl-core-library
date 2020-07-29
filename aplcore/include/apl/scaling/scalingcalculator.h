@@ -40,13 +40,6 @@ public:
         ViewportSpecification spec;
     };
 
-    /**
-     * Calculates the cost at a given size.
-     * @param size The specification size
-     * @return The cost
-     */
-    double cost(const Size& size);
-
     double cost(double w, double h);
 
     void minimumFixedHeight(double height, double wmin, double wmax, Size& size, double& minCost);
@@ -70,6 +63,13 @@ public:
      * @param metrics the metrics object
      */
     static void setMetricsSize(Metrics& metrics, double width, double height);
+
+    /**
+     * Sets the mode of the metrics object
+     * @param mode the viewport mode
+     * @param metrics the metrics object
+     */
+    static void setMetricsMode(Metrics& metrics, ViewportMode mode);
 
     /** Device's actual viewport width  */
     double mViewportWidth;

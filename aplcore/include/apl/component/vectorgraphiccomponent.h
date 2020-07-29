@@ -16,11 +16,11 @@
 #ifndef _APL_VECTOR_GRAPHIC_COMPONENT_H
 #define _APL_VECTOR_GRAPHIC_COMPONENT_H
 
-#include "corecomponent.h"
+#include "apl/component/touchablecomponent.h"
 
 namespace apl {
 
-class VectorGraphicComponent : public CoreComponent {
+class VectorGraphicComponent : public TouchableComponent {
 public:
     static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const std::string& path);
     VectorGraphicComponent(const ContextPtr& context, Properties&& properties, const std::string& path);
@@ -28,16 +28,17 @@ public:
     ~VectorGraphicComponent() override;
 
     ComponentType getType() const override { return kComponentTypeVectorGraphic; };
-
     void initialize() override;
     void updateStyle() override;
-    std::shared_ptr<ObjectMap> getEventTargetProperties() const override;
-
     bool updateGraphic(const GraphicContentPtr& json) override;
-
     void clearDirty() override;
+    std::shared_ptr<ObjectMap> createTouchEventProperties(const Point &point) const override;
+
+    bool isFocusable() const override;
+    bool isTouchable() const override;
 
 protected:
+    const EventPropertyMap& eventPropertyMap() const override;
     const ComponentPropDefSet& propDefSet() const override;
     void processLayoutChanges(bool useDirtyFlag) override;
     std::string getVisualContextType() override;

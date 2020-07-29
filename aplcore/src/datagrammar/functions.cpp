@@ -849,7 +849,7 @@ EvalFunctionCall(const std::vector<Object>& args)
     if (a.isEvaluable())
         a = a.eval();
 
-    if (!a.isFunction())
+    if (!a.isCallable())
         return Object::NULL_OBJECT();
 
     auto b = args[1];
@@ -861,7 +861,7 @@ EvalFunctionCall(const std::vector<Object>& args)
     for (int i = 0; i < len; i++)
         argArray.emplace_back(b.at(i).eval());
 
-    return a.call(std::move(argArray));
+    return a.call(argArray);
 }
 
 Object
@@ -873,13 +873,15 @@ FunctionCall(std::vector<Object>&& args)
     if (a.isEvaluable())
         return std::make_shared<Node>(EvalFunctionCall, std::move(args), "function");
 
-    if (!a.isFunction())
+    if (!a.isCallable())
         return Object::NULL_OBJECT();
 
     // Non-pure functions always need to be evaluated.
-    auto f = a.getFunction();
-    if (f && !f->isPure())
-        return std::make_shared<Node>(EvalFunctionCall, std::move(args), "function");
+    if (a.isFunction()) {
+        auto f = a.getFunction();
+        if (f && !f->isPure())
+            return std::make_shared<Node>(EvalFunctionCall, std::move(args), "function");
+    }
 
     auto b = args.at(1);
     assert(b.isArray());

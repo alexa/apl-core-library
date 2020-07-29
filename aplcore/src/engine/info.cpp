@@ -31,8 +31,9 @@ Info::count(InfoType infoType) const
         case kInfoTypeLayout:
             return mCore->layouts().size();
         case kInfoTypeStyle:
-            return mCore->styles().size();
+            return mCore->styles()->size();
     }
+    return 0;
 }
 
 std::pair<std::string, std::string>
@@ -61,8 +62,8 @@ Info::at(InfoType infoType, size_t index) const
             break;
 
         case kInfoTypeStyle:
-            if (index < mCore->styles().size()) {
-                auto it = std::next(mCore->styles().styleDefinitions().begin(), index);
+            if (index < mCore->styles()->size()) {
+                auto it = std::next(mCore->styles()->styleDefinitions().begin(), index);
                 return { it->first, it->second->provenance().toString() };
             }
             break;

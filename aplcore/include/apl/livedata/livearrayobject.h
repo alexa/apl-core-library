@@ -61,7 +61,7 @@ public:
     /**
      * Overrides from Object::Data
      */
-    const Object at(size_t index) const override;
+    Object at(size_t index) const override;
     virtual void ensure(size_t index) {}
     size_t size() const override;
     bool empty() const override;

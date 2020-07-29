@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -24,34 +24,23 @@ class SetFocusCommand : public CoreCommand {
 public:
     static CommandPtr create(const ContextPtr& context,
                              Properties&& properties,
-                             const CoreComponentPtr& base) {
-        auto ptr = std::make_shared<SetFocusCommand>(context, std::move(properties), base);
+                             const CoreComponentPtr& base,
+                             const std::string& parentSequencer) {
+        auto ptr = std::make_shared<SetFocusCommand>(context, std::move(properties), base, parentSequencer);
         return ptr->validate() ? ptr : nullptr;
     }
 
-    SetFocusCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base)
-            : CoreCommand(context, std::move(properties), base)
+    SetFocusCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
+                    const std::string& parentSequencer)
+            : CoreCommand(context, std::move(properties), base, parentSequencer)
     {
     }
 
-    const CommandPropDefSet& propDefSet() const override {
-        static CommandPropDefSet sSetFocusCommandProperties(CoreCommand::propDefSet(), {
-                {kCommandPropertyComponentId, "", asString, kPropRequiredId},
-        });
-
-        return sSetFocusCommandProperties;
-    };
+    const CommandPropDefSet& propDefSet() const override;
 
     CommandType type() const override { return kCommandTypeSetFocus; }
 
-    ActionPtr execute(const TimersPtr& timers, bool fastMode) override {
-        if (!calculateProperties())
-            return nullptr;
-
-        auto& fm = mTarget->getContext()->focusManager();
-        fm.setFocus(mTarget, true);
-        return nullptr;
-    }
+    ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
 };
 
 } // namespace apl

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -16,20 +16,20 @@
 #ifndef _APL_SPEAK_ITEM_ACTION_H
 #define _APL_SPEAK_ITEM_ACTION_H
 
-#include "apl/action/action.h"
-#include "apl/action/scrolltoaction.h"
+#include "apl/action/resourceholdingaction.h"
 
 namespace apl {
 
 class CoreCommand;
 class CoreComponent;
+class ScrollToAction;
 
 /**
  * Lightweight action that handles speaking.  This action will send out an EventType::kEventTypePreroll,
  * followed by a EventType::kEventtypeScrollTo to bring the item into view and a EventType::kEventTypeSpeak
  * to speak the item.
  */
-class SpeakItemAction : public Action {
+class SpeakItemAction : public ResourceHoldingAction {
 public:
     static std::shared_ptr<SpeakItemAction> make(const TimersPtr& timers,
                                                  const std::shared_ptr<CoreCommand>& command,
@@ -37,18 +37,7 @@ public:
 
     SpeakItemAction(const TimersPtr& timers,
                     const std::shared_ptr<CoreCommand>& command,
-                    const CoreComponentPtr& target)
-        : Action(timers),
-          mCommand(command),
-          mTarget(target)
-    {
-        addTerminateCallback([this](const TimersPtr&) {
-            if (mCurrentAction) {
-                mCurrentAction->terminate();
-                mCurrentAction = nullptr;
-            }
-        });
-    }
+                    const CoreComponentPtr& target);
 
 private:
     void start();

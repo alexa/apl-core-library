@@ -32,10 +32,15 @@ ExtensionEventAction::make(const TimersPtr& timers,
 void
 ExtensionEventAction::start(bool requireResolution)
 {
+    // Freeze the "event.source" property as a JSON object
+    rapidjson::Document source;
+    auto serializedSource = mCommand->context()->opt("event").get("source").serialize(source.GetAllocator());
+    source.CopyFrom(serializedSource, source.GetAllocator());
+
     EventBag bag;
     bag.emplace(kEventPropertyName, mCommand->getCommandName());
     bag.emplace(kEventPropertyExtensionURI, mCommand->getCommandURI());
-    bag.emplace(kEventPropertySource, mCommand->context()->opt("event").get("source"));
+    bag.emplace(kEventPropertySource, Object(std::move(source)));
     bag.emplace(kEventPropertyExtension, mCommand->getValue(kCommandPropertyExtension));
 
     auto self = requireResolution ? shared_from_this() : nullptr;

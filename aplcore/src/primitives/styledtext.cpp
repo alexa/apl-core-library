@@ -377,20 +377,24 @@ template<> struct action< stringentity >
     }
 };
 
-template<> struct action< decnum >
+template<> struct action< decentity >
 {
     template< typename Input >
     static void apply(const Input& in, StyledTextState& state) {
-        unsigned long wc = std::stoul(in.string());
+        // strip leading &# and trailing ;
+        std::string numstr = in.string().substr(2, in.string().length() - 3);
+        unsigned long wc = std::stoul(numstr);
         state.append(wchar_converter.to_bytes(wc));
     }
 };
 
-template<> struct action< hexnum >
+template<> struct action< hexentity >
 {
     template< typename Input >
     static void apply(const Input& in, StyledTextState& state) {
-        unsigned long wc = std::stoul(in.string(), 0, 16);
+        // strip leading &#x and trailing ;
+        std::string numstr = in.string().substr(3, in.string().length() - 4);
+        unsigned long wc = std::stoul(numstr, 0, 16);
         state.append(wchar_converter.to_bytes(wc));
     }
 };
@@ -400,19 +404,19 @@ StyledText::create(const Object& object) {
     if (object.isStyledText())
         return object;
 
-    auto str = object.asString();
-    auto filtered = rtrim(stripControl(str));
+    return Object(StyledText(object.asString()));
+}
+
+StyledText::StyledText(const std::string& raw) {
+    mRawText = raw;
+    auto filtered = rtrim(stripControl(raw));
 
     StyledTextState state;
     pegtl::string_input<> in(filtered, "");
     pegtl::parse<styledtext, action>(in, state);
 
-    return Object(StyledText(std::move(str), state.getText(), state.finalize()));
-}
-
-Object StyledText::EMPTY() {
-    static Object* obj = new Object(StyledText());
-    return *obj;
+    mText = state.getText();
+    mSpans = state.finalize();
 }
 
 rapidjson::Value

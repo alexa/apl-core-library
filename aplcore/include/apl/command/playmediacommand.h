@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -24,53 +24,22 @@ class PlayMediaCommand : public CoreCommand {
 public:
     static CommandPtr create(const ContextPtr& context,
                              Properties&& properties,
-                             const CoreComponentPtr& base) {
-        auto ptr = std::make_shared<PlayMediaCommand>(context, std::move(properties), base);
+                             const CoreComponentPtr& base,
+                             const std::string& parentSequencer) {
+        auto ptr = std::make_shared<PlayMediaCommand>(context, std::move(properties), base, parentSequencer);
         return ptr->validate() ? ptr : nullptr;
     }
 
-    PlayMediaCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base)
-            : CoreCommand(context, std::move(properties), base)
+    PlayMediaCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
+            const std::string& parentSequencer)
+            : CoreCommand(context, std::move(properties), base, parentSequencer)
     {}
 
-    const CommandPropDefSet& propDefSet() const override {
-        static CommandPropDefSet sPlayMediaCommandProperties(CoreCommand::propDefSet(), {
-                {kCommandPropertyAudioTrack,  kCommandAudioTrackForeground, sCommandAudioTrackMap },
-                {kCommandPropertyComponentId, "",                           asString,               kPropRequiredId},
-                {kCommandPropertySource,      Object::EMPTY_ARRAY(),        asMediaSourceArray,     kPropRequired}
-        });
-
-        return sPlayMediaCommandProperties;
-    };
+    const CommandPropDefSet& propDefSet() const override;
 
     CommandType type() const override { return kCommandTypePlayMedia; }
 
-    ActionPtr execute(const TimersPtr& timers, bool fastMode) override {
-        if (fastMode) {
-            CONSOLE_CTP(mContext) << "Ignoring PlayMedia command in fast mode";
-            return nullptr;
-        }
-
-        if (!calculateProperties())
-            return nullptr;
-
-        return Action::make(timers, [this](ActionRef ref) {
-            auto audioTrack = getValue(kCommandPropertyAudioTrack);
-
-            EventBag bag;
-            bag.emplace(kEventPropertyAudioTrack, audioTrack);
-            bag.emplace(kEventPropertySource, getValue(kCommandPropertySource));
-
-            // An ActionRef is always required.  The viewhost should resolve it immediately if it is background
-            // audio and should resolve it after playing if it is foreground audio.
-            Event event(kEventTypePlayMedia,
-                        std::move(bag),
-                        mTarget,
-                        ref);
-
-            mContext->pushEvent(std::move(event));
-        });
-    }
+    ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
 };
 
 } // namespace apl

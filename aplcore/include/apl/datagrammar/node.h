@@ -24,7 +24,7 @@
 #include <initializer_list>
 #include <vector>
 
-#include "apl/primitives/object.h"
+#include "apl/primitives/objectdata.h"
 #include "apl/utils/log.h"
 
 namespace apl {
@@ -38,7 +38,7 @@ const bool DEBUG_NODE = false;
 
 using OperatorFunc = Object (*)(const std::vector<Object>& args);
 
-class Node : public Object::Data
+class Node : public ObjectData
 {
 public:
     Node(OperatorFunc op, std::vector<Object>&& args, const std::string& name)

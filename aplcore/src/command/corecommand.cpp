@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -16,7 +16,10 @@
 #include <utility>
 
 #include "apl/command/corecommand.h"
+#include "apl/component/componenteventtargetwrapper.h"
+
 #include "apl/utils/dump_object.h"
+#include "apl/utils/session.h"
 
 #include "apl/command/animateitemcommand.h"
 #include "apl/command/autopagecommand.h"
@@ -58,7 +61,7 @@ calculate(const CommandPropDef& def,
           const ContextPtr& context,
           const Properties& properties)
 {
-    auto p = properties.find(def.name);
+    auto p = properties.find(def.names);
 
     if (p != properties.end()) {
         Object tmp = evaluate(*context, p->second);
@@ -77,17 +80,21 @@ calculate(const CommandPropDef& def,
 
 /*************************************************************/
 
-CoreCommand::CoreCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base)
+CoreCommand::CoreCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
+        const std::string& parentSequencer)
     : mContext(context),
       mProperties(std::move(properties)),
       mBase(base),
       mTarget(base),
-      mScreenLock(mProperties.asBoolean(*context, "screenLock", false))
+      mScreenLock(mProperties.asBoolean(*context, "screenLock", false)),
+      mSequencer(mProperties.asString(*context, "sequencer", parentSequencer.c_str()))
 {
     int delay = mProperties.asNumber(*context, "delay", 0);
     mDelay = (delay > 0 ? delay : 0);
-    mValues.emplace(kCommandPropertyDelay, mDelay);  // Store this for debuggers
-    mValues.emplace(kCommandPropertyScreenLock, mScreenLock); // Store this for debuggers
+    // Store following for debuggers
+    mValues.emplace(kCommandPropertyDelay, mDelay);
+    mValues.emplace(kCommandPropertyScreenLock, mScreenLock);
+    mValues.emplace(kCommandPropertySequencer, mSequencer);
 }
 
 const CommandPropDefSet&
@@ -95,7 +102,8 @@ CoreCommand::propDefSet() const
 {
     static CommandPropDefSet sCommonProperties = CommandPropDefSet()
         .add({
-                 {kCommandPropertyScreenLock, false, asBoolean}
+                 {kCommandPropertyScreenLock, false, asBoolean},
+                 {kCommandPropertySequencer,  "",    asString },
              });
 
     return sCommonProperties;
@@ -137,9 +145,9 @@ CoreCommand::validate()
             if ((cpd.second.flags & kPropId) != 0 && mBase != nullptr)
                 continue;
 
-            auto p = mProperties.find(cpd.second.name);
+            auto p = mProperties.find(cpd.second.names);
             if (p == mProperties.end()) {
-                CONSOLE_CTP(mContext) << "Missing required property '" << cpd.second.name << "' for " << name();
+                CONSOLE_CTP(mContext) << "Missing required property '" << cpd.second.names << "' for " << name();
                 return false;
             }
         }
@@ -160,7 +168,7 @@ CoreCommand::calculateProperties()
     // Check for a valid target component. Not all commands need one.
     auto cpd = propDefSet().find(kCommandPropertyComponentId);
     if (cpd != propDefSet().end()) {
-        auto p = mProperties.find(cpd->second.name);
+        auto p = mProperties.find(cpd->second.names);
         if (p != mProperties.end()) {
             std::string id = evaluate(*mContext, p->second).asString();
             mTarget = std::dynamic_pointer_cast<CoreComponent>(mContext->findComponentById(id));
@@ -174,35 +182,34 @@ CoreCommand::calculateProperties()
         mValues.emplace(kCommandPropertyComponentId, mTarget->getUniqueId());
     }
 
-    // Update the context to include the target component properties
-    // This is cheating a bit - we access the OLD context and update the items
-    // We can get away with this because the old event information will be thrown away
-    ObjectMap *eventMap = nullptr;
+    // When we have a target component, we need to update the context "event" property to include
+    // an "event.target" element.  To avoid modifying the original context, we copy the properties from the
+    // old "event" property into a new ObjectMap, add a "target" property to that object map, and then
+    // set the new object map as "event" property of the new context.
+    ContextPtr context = mContext;
     if (mTarget) {
+        context = Context::create(mContext);
         auto event = mContext->opt("event");
         assert(event.isMap());
-        eventMap = &const_cast<ObjectMap&>(event.getMap());
-        eventMap->emplace("target", mTarget->getEventTargetProperties());
+        auto map = std::make_shared<ObjectMap>(event.getMap());  // Copy out the existing event
+        map->emplace("target", Object(ComponentEventTargetWrapper::create(mTarget)));
+        context->putConstant("event", Object(std::move(map)));
     }
 
     // Evaluate all of the properties, including componentId (we store it for the debugger)
     for (const auto& it : propDefSet()) {
         if (it.second.key != kCommandPropertyComponentId) {
-            auto result = calculate(it.second, mContext, mProperties);
+            auto result = calculate(it.second, context, mProperties);
 
             // Enumerated properties must be valid
             if (!result.first) {
-                CONSOLE_CTP(mContext) << "Invalid enumerated property for '" << it.second.name << "'";
+                CONSOLE_CTP(context) << "Invalid enumerated property for '" << it.second.names << "'";
                 return false;
             }
 
             mValues.emplace(it.second.key, result.second);
         }
     }
-
-    // Remove the target if we set one.
-    if (eventMap)
-        eventMap->erase("target");
 
     if (DEBUG_COMMAND_VALUES) {
         for (const auto& m : mValues) {

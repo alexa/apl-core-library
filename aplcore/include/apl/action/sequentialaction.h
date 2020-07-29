@@ -13,8 +13,8 @@
  * permissions and limitations under the License.
  */
 
-#ifndef _APL_COMMAND_SEQUENTIAL_H
-#define _APL_COMMAND_SEQUENTIAL_H
+#ifndef _APL_SEQUENTIAL_ACTION_H
+#define _APL_SEQUENTIAL_ACTION_H
 
 #include "apl/action/action.h"
 #include "apl/command/corecommand.h"
@@ -51,4 +51,4 @@ private:
 
 } // namespace apl
 
-#endif //_APL_COMMAND_SEQUENTIAL_H
+#endif //_APL_SEQUENTIAL_ACTION_H

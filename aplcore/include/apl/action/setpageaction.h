@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 #ifndef _APL_SET_PAGE_ACTION_H
 #define _APL_SET_PAGE_ACTION_H
 
-#include "apl/action/action.h"
+#include "apl/action/resourceholdingaction.h"
 
 namespace apl {
 
@@ -30,18 +30,14 @@ class Component;
  *   kEventPropertyPosition    Target page
  *   kEventPropertyDirection   Direction to page (forward/back)
  */
-class SetPageAction : public Action {
+class SetPageAction : public ResourceHoldingAction {
 public:
     static std::shared_ptr<SetPageAction> make(const TimersPtr& timers,
                                                const std::shared_ptr<CoreCommand>& command);
 
     SetPageAction(const TimersPtr& timers,
                   const std::shared_ptr<CoreCommand>& command,
-                  const ComponentPtr& target)
-        : Action(timers),
-          mCommand(command),
-          mTarget(target)
-    {}
+                  const ComponentPtr& target);
 
 private:
     void start();

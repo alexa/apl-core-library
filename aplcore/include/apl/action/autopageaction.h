@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 #ifndef _APL_AUTO_PAGE_ACTION_H
 #define _APL_AUTO_PAGE_ACTION_H
 
-#include "apl/action/action.h"
+#include "apl/action/resourceholdingaction.h"
 #include "apl/common.h"
 
 namespace apl {
@@ -33,7 +33,7 @@ class Component;
  *    kCommandPropertyDirection        Set to forward/back (only for PageTo)
  *    kCommandPropertyPosition         The scroll position or the page number.
  */
-class AutoPageAction : public Action {
+class AutoPageAction : public ResourceHoldingAction {
 public:
     static std::shared_ptr<AutoPageAction> make(const TimersPtr& timers,
                                                 const std::shared_ptr<CoreCommand>& command);
@@ -43,21 +43,7 @@ public:
                    const ComponentPtr& container,
                    int start,
                    int end,
-                   apl_time_t duration)
-        : Action(timers),
-          mCommand(command),
-          mContainer(container),
-          mNextIndex(start),
-          mEndIndex(end),
-          mDuration(duration)
-    {
-        addTerminateCallback([this](const TimersPtr&) {
-            if (mCurrentAction) {
-                mCurrentAction->terminate();
-                mCurrentAction = nullptr;
-            }
-        });
-    }
+                   apl_time_t duration);
 
 private:
     void advance();

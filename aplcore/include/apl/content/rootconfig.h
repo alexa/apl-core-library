@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@
 namespace apl {
 
 class LiveDataObject;
-
+class CoreEasing;
 class TimeManager;
 
 /**
@@ -367,6 +367,86 @@ public:
     }
 
     /**
+     * Register a value to be reported in the data-binding "environment" context.
+     * @param name The name of the value
+     * @param value The value to report.  This will be read-only.
+     * @return This object for chaining
+     */
+    RootConfig& setEnvironmentValue(const std::string& name, const Object& value) {
+        mEnvironmentValues[name] = value;
+        return *this;
+    }
+
+    /**
+     * Set double press timeout.
+     * @param timeout new double press timeout. Default is 500ms.
+     * @return This object for chaining
+     */
+    RootConfig& doublePressTimeout(apl_duration_t timeout) {
+        mDoublePressTimeout = timeout;
+        return *this;
+    }
+
+    /**
+     * Set long press timeout.
+     * @param timeout new long press timeout. Default is 1000ms.
+     * @return This object for chaining
+     */
+    RootConfig& longPressTimeout(apl_duration_t timeout) {
+        mLongPressTimeout = timeout;
+        return *this;
+    }
+
+    /**
+     * Set SwipeAway gesture trigger distance threshold in pixels. Initial movement below this threshold does not trigger the
+     * gesture.
+     * @param distance threshold distance.
+     * @return This object for chaining
+     */
+    RootConfig& swipeAwayTriggerDistanceThreshold(float distance) {
+        mSwipeAwayTriggerDistanceThreshold = distance;
+        return *this;
+    }
+
+    /**
+     * Set SwipeAway gesture fulfill distance threshold in percents. Gesture requires swipe to be performed above this
+     * threshold for it to be considered complete.
+     * @param distance threshold distance.
+     * @return This object for chaining
+     */
+    RootConfig& swipeAwayFulfillDistancePercentageThreshold(float distance) {
+        mSwipeAwayFulfillDistancePercentageThreshold = distance;
+        return *this;
+    }
+
+    /**
+     * Set SwipeAway gesture animation easing.
+     * @param easing Easing string to use for gesture animation. Should be according to current APL spec.
+     * @return This object for chaining
+     */
+    RootConfig& swipeAwayAnimationEasing(const std::string& easing);
+
+    /**
+     * Set SwipeAway (and any related gesture) gesture swipe speed threshold.
+     * @param velocity swipe velocity threshold in pixels per second.
+     * @return This object for chaining
+     */
+    RootConfig& swipeVelocityThreshold(float velocity) {
+        mSwipeVelocityThreshold = velocity;
+        return *this;
+    }
+
+    /**
+     * Set a tick handler update limit in ms. Default is 16ms (60 FPS).
+     * @param updateLimit update limit in ms. Should be > 0.
+     * @return  This object for chaining
+     */
+    RootConfig& tickHandlerUpdateLimit(apl_duration_t updateLimit) {
+        mTickHandlerUpdateLimit = std::max(updateLimit, 1.0);
+        return *this;
+    }
+
+    /**
      * @return The configured text measurement object.
      */
     TextMeasurementPtr getMeasure() const { return mTextMeasurement; }
@@ -403,6 +483,7 @@ public:
             case kAnimationQualitySlow:
                 return "slow";
         }
+        return "none";
     }
 
     /**
@@ -443,6 +524,16 @@ public:
         if (it != mDefaultThemeFontColor.end())
             return it->second;
         return mDefaultFontColor;
+    }
+
+    /**
+     * @return The default text highlight color
+     */
+    Color getDefaultHighlightColor(const std::string& theme) const {
+        auto it = mDefaultThemeHighlightColor.find(theme);
+        if (it != mDefaultThemeHighlightColor.end())
+            return it->second;
+        return mDefaultHighlightColor;
     }
 
     /**
@@ -583,6 +674,62 @@ public:
         return Object::NULL_OBJECT();
     }
 
+    /**
+     * @return A map of values to be reported in the data-binding environment context
+     */
+    const ObjectMap& getEnvironmentValues() const {
+        return mEnvironmentValues;
+    }
+
+    /**
+     * @return Double press timeout in millisecons.
+     */
+    apl_duration_t getDoublePressTimeout() const {
+        return mDoublePressTimeout;
+    }
+
+    /**
+     * @return Long press timeout in millisecons.
+     */
+    apl_duration_t getLongPressTimeout() const {
+        return mLongPressTimeout;
+    }
+
+    /**
+     * @return SwipeAway trigger distance threshold.
+     */
+    float getSwipeAwayTriggerDistanceThreshold() const {
+        return mSwipeAwayTriggerDistanceThreshold;
+    }
+
+    /**
+     * @return SwipeAway fulfill distance threshold in percents.
+     */
+    float getSwipeAwayFulfillDistancePercentageThreshold() const {
+        return mSwipeAwayFulfillDistancePercentageThreshold;
+    }
+
+    /**
+     * @return Animation easing for SwipeAway gesture.
+     */
+    std::shared_ptr<Easing> getSwipeAwayAnimationEasing() const {
+        return mSwipeAwayAnimationEasing;
+    }
+
+    /**
+     * @return Swipe velocity threshold.
+     */
+    float getSwipeVelocityThreshold() const {
+        return mSwipeVelocityThreshold;
+    }
+
+    /**
+     * @return Tick handler update limit.
+     */
+    apl_duration_t getTickHandlerUpdateLimit() const {
+        return mTickHandlerUpdateLimit;
+    }
+
 private:
     std::string mAgentName;
     std::string mAgentVersion;
@@ -599,8 +746,10 @@ private:
     std::string mReportedAPLVersion;
     bool mEnforceTypeField;
     Color mDefaultFontColor;
-    std::map<std::string, Color> mDefaultThemeFontColor;
     std::string mDefaultFontFamily;
+    Color mDefaultHighlightColor;
+    std::map<std::string, Color> mDefaultThemeFontColor;
+    std::map<std::string, Color> mDefaultThemeHighlightColor;
     bool mTrackProvenance;
     std::map<std::pair<ComponentType, bool>, std::pair<Dimension, Dimension>> mDefaultComponentSize;
     int mPagerChildCache;
@@ -610,6 +759,14 @@ private:
     ObjectMap mSupportedExtensions; // URI -> config
     std::vector<ExtensionEventHandler> mExtensionHandlers;
     std::vector<ExtensionCommandDefinition> mExtensionCommands;
+    ObjectMap mEnvironmentValues;
+    apl_duration_t mDoublePressTimeout;
+    apl_duration_t mLongPressTimeout;
+    float mSwipeAwayTriggerDistanceThreshold;
+    float mSwipeAwayFulfillDistancePercentageThreshold;
+    std::shared_ptr<Easing> mSwipeAwayAnimationEasing;
+    float mSwipeVelocityThreshold;
+    apl_duration_t mTickHandlerUpdateLimit;
 };
 
 }

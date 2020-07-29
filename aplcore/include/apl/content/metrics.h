@@ -56,7 +56,7 @@ extern Bimap<int, std::string> sViewportModeBimap;
 /**
  * Store information about the viewport
  */
-class Metrics : public UserData {
+class Metrics : public UserData<Metrics> {
 public:
 
     /**

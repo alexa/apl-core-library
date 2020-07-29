@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -15,8 +15,30 @@
 
 #include "apl/action/autopageaction.h"
 #include "apl/command/corecommand.h"
+#include "apl/time/sequencer.h"
 
 namespace apl {
+
+AutoPageAction::AutoPageAction(const TimersPtr& timers,
+                               const std::shared_ptr<CoreCommand>& command,
+                               const ComponentPtr& container,
+                               int start,
+                               int end,
+                               apl_time_t duration)
+        : ResourceHoldingAction(timers, command->context()),
+          mCommand(command),
+          mContainer(container),
+          mNextIndex(start),
+          mEndIndex(end),
+          mDuration(duration)
+{
+    addTerminateCallback([this](const TimersPtr&) {
+        if (mCurrentAction) {
+            mCurrentAction->terminate();
+            mCurrentAction = nullptr;
+        }
+    });
+}
 
 std::shared_ptr<AutoPageAction>
 AutoPageAction::make(const TimersPtr& timers,
@@ -39,6 +61,7 @@ AutoPageAction::make(const TimersPtr& timers,
         count = len - start;
 
     auto ptr = std::make_shared<AutoPageAction>(timers, command, target, start, start + count, duration);
+    command->context()->sequencer().claimResource({kCommandResourcePosition, target}, ptr);
     ptr->advance();
     return ptr;
 }
@@ -63,7 +86,7 @@ AutoPageAction::advance() {
             EventBag bag;
             bag.emplace(kEventPropertyPosition, mNextIndex++);
             bag.emplace(kEventPropertyDirection, kEventDirectionForward);
-            mCommand->context()->pushEvent(Event(kEventTypeSetPage, std::move(bag), mContainer, ref));
+            mContext->pushEvent(Event(kEventTypeSetPage, std::move(bag), mContainer, ref));
         });
     }
 

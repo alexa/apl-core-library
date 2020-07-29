@@ -29,11 +29,13 @@
 
 #include "apl/apl.h"
 #include "apl/utils/streamer.h"
+#include "apl/component/corecomponent.h"
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <numeric>
+#include <chrono>
 
 #ifdef APL_CORE_UWP
 #include <direct.h>   // _getcwd, _mkdir
@@ -46,20 +48,25 @@ class Argument {
 public:
     enum ArgCount {
         NONE = ' ',
-        ONE = '1'
+        ONE = '1',
+        TWO = '2',
     };
 
+    using ArgFunc = std::function<void(const std::vector<std::string>&)>;
+
+
     explicit Argument(const char *name,
-             const char *altName,
-             ArgCount argCount,
-             const char *description,
-             const char *token,
-             const std::function<void(const std::string&)>& func)
-        : mArgCount(argCount),
-          mNames({name, altName}),
-          mFunction(func),
-          mDescription(description),
-          mToken(token) {
+                      const char *altName,
+                      ArgCount argCount,
+                      const char *description,
+                      const char *token,
+                      ArgFunc&& func)
+          : mArgCount(argCount),
+            mNames({name, altName}),
+            mFunction(std::move(func)),
+            mDescription(description),
+            mToken(token)
+    {
     }
 
     bool consume(std::vector<std::string>& args) const {
@@ -71,14 +78,21 @@ public:
 
         switch (mArgCount) {
             case NONE:
-                mFunction("");
+                mFunction({""});
                 return true;
 
             case ONE:
                 if (it == args.end())
                     throw std::runtime_error("Expected argument after " + mNames.at(0));
-                mFunction(*it);
+                mFunction({*it});
                 args.erase(it);
+                return true;
+
+            case TWO:
+                if (it == args.end() || (it + 1) == args.end())
+                    throw std::runtime_error("Expected two arguments after " + mNames.at(0));
+                mFunction({*it, *(it+1)});
+                args.erase(it, it+2);
                 return true;
         }
 
@@ -96,7 +110,7 @@ public:
 private:
     ArgCount mArgCount;
     std::vector<std::string> mNames;
-    std::function<void(const std::string&)> mFunction;
+    ArgFunc mFunction;
     std::string mDescription;
     std::string mToken;
 };
@@ -110,7 +124,7 @@ public:
             Argument::NONE,
             "Show this help",
             "",
-            [&](const std::string&) -> void {
+            [&](const std::vector<std::string>&) -> void {
                 usage();
                 exit(0);
             }
@@ -195,14 +209,14 @@ public:
                 Argument::ONE,
                 "Set the size of the viewport.  Should be in the form WIDTHxHEIGHT in pixels.",
                 "WIDTHxHEIGHT",
-                [this](const std::string& value) -> void {
-                    auto offset = value.find("x");
+                [this](const std::vector<std::string>& value) -> void {
+                    auto offset = value[0].find("x");
                     if (offset == std::string::npos || offset == 0 ||
                         offset == value.size() - 1)
                         throw std::runtime_error("size expects a width/height pair of the form WIDTHxHEIGHT pixels");
 
-                    mWidth = std::stoi(value.substr(0, offset));
-                    mHeight = std::stoi(value.substr(offset + 1));
+                    mWidth = std::stoi(value[0].substr(0, offset));
+                    mHeight = std::stoi(value[0].substr(offset + 1));
                 }
             ),
             Argument(
@@ -211,7 +225,7 @@ public:
                 Argument::ONE,
                 "Set the DPI of the viewport.  Should be an integer",
                 "DPI",
-                [this](const std::string& value) -> void { mDpi = std::stoi(value); }
+                [this](const std::vector<std::string>& value) -> void { mDpi = std::stoi(value[0]); }
             ),
             Argument(
                 "-r",
@@ -219,7 +233,7 @@ public:
                 Argument::NONE,
                 "Change the viewport type from Rectangle to Round",
                 "",
-                [this](const std::string& value) -> void { mIsRound = true; }
+                [this](const std::vector<std::string>& value) -> void { mIsRound = true; }
             ),
             Argument(
                 "-t",
@@ -227,8 +241,28 @@ public:
                 Argument::ONE,
                 "Set the default theme of the device",
                 "THEME",
-                [this](const std::string& value) -> void { mTheme = value; }
-            )
+                [this](const std::vector<std::string>& value) -> void { mTheme = value[0]; }
+            ),
+            Argument(
+                "",
+                "--def",
+                Argument::TWO,
+                "Add a mutable variable to the context. The value should be in JSON format",
+                "NAME VALUE",
+                [this](const std::vector<std::string>& value) -> void {
+                  rapidjson::Document doc;
+                  rapidjson::ParseResult result = doc.Parse(value[1].c_str());
+                  if (!result) {
+                      std::cerr << "Unable to parse '" << value[1] << "'" << std::endl;
+                      exit(-1);
+                  }
+                  auto v = doc.IsString() ? apl::Object(doc.GetString()) :
+                           doc.IsNumber() ? apl::Object(doc.GetDouble()) :
+                           doc.IsNull() ? apl::Object::NULL_OBJECT() :
+                           doc.IsBool() ? apl::Object(doc.GetBool()) :
+                           apl::Object(std::move(doc));
+                  mVariables.emplace(value[0], v);
+                })
         });
     }
 
@@ -243,7 +277,14 @@ public:
     apl::ContextPtr
     createContext() const
     {
-        return apl::Context::create(metrics(), apl::RootConfig().agent("APL", "1.1"));
+        auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch());
+
+        auto rootConfig = apl::RootConfig().agent("APL", "1.3").utcTime(now.count());
+        auto context = apl::Context::create(metrics(), rootConfig);
+        for (const auto& m : mVariables)
+            context->putUserWriteable(m.first, m.second);
+        return context;
     }
 
     friend apl::streamer& operator<<(apl::streamer&, const ViewportSettings&);
@@ -254,11 +295,12 @@ private:
     int mDpi;
     bool mIsRound;
     std::string mTheme;
+    apl::ObjectMap mVariables;
 };
 
-class MyVisitor : public apl::Visitor<apl::Component> {
+class MyVisitor : public apl::Visitor<apl::CoreComponent> {
 public:
-    static void dump(const apl::Component& component) {
+    static void dump(const apl::CoreComponent& component) {
         MyVisitor dv;
         apl::streamer s;
         s << "top: " << component;
@@ -270,7 +312,7 @@ public:
 
     MyVisitor() : mIndent(0) {}
 
-    void visit(const apl::Component& component) {
+    void visit(const apl::CoreComponent& component) {
         std::cout << std::string(mIndent, ' ') << component.name() << std::endl;
         for (const auto& m : component.getCalculated()) {
             apl::streamer s;

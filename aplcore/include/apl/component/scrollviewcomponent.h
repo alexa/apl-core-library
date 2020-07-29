@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -31,12 +31,14 @@ public:
     ScrollType scrollType() const override { return kScrollTypeVertical; }
     Point scrollPosition() const override;
     Point trimScroll(const Point& point) const override;
-    bool allowForward() const override;
 
 protected:
     const ComponentPropDefSet& propDefSet() const override;
 
     float maxScroll() const override;
+
+    bool allowForward() const override;
+    bool allowBackwards() const override;
 
 private:
     bool singleChild() const override { return true; }

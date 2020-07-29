@@ -66,19 +66,6 @@ ExternalProject_Add(rapidjson
 ExternalProject_Get_Property(rapidjson install_dir)
 set(RAPIDJSON_INCLUDE ${install_dir}/src/rapidjson/include)
 
-ExternalProject_Add(tclap
-        URL ${APL_PROJECT_DIR}/thirdparty/tclap-1-2-1-release-final.tar.gz
-        URL_MD5 706c7dcd752cf0b5c8482439e74e76b4
-        STEP_TARGETS build
-        EXCLUDE_FROM_ALL TRUE
-        CONFIGURE_COMMAND ""
-        BUILD_COMMAND ""
-        CMAKE_ARGS ${CMAKE_ARGS}
-        )
-ExternalProject_Get_Property(tclap install_dir)
-set(TCLAP_INCLUDE ${install_dir}/src/tclap/include)
-
-
 # Unpack googletest at configure time.  This is copied from the googletest README.md file
 configure_file(${APL_PROJECT_DIR}/thirdparty/googletest-CMakeLists.txt.in
                ${CMAKE_BINARY_DIR}/googletest-download/CMakeLists.txt )

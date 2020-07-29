@@ -37,7 +37,7 @@ LiveMapObject::~LiveMapObject()
     mLiveMap->removeChangeCallback(mToken);
 }
 
-const Object
+Object
 LiveMapObject::get(const std::string& key) const
 {
     return mLiveMap->get(key);

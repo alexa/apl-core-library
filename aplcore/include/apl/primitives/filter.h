@@ -79,16 +79,16 @@ public:
      * @param key The property to retrieve
      * @return The value or null if it doesn't exist
      */
-    const Object getValue(FilterProperty key) const;
+    Object getValue(FilterProperty key) const;
 
-    /**
-     * Serialize this into JSON format
-     * @param allocator
-     * @return
-     */
+    /* Standard Object methods */
+    bool operator==(const Filter& rhs) const;
+
+    std::string toDebugString() const;
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
-    bool operator==(const Filter& rhs) const;
+    bool empty() const { return false; }
+    bool truthy() const { return true; }
 
 private:
     Filter(FilterType type, FilterBag&& bag) : mType(type), mData(std::move(bag)) {}

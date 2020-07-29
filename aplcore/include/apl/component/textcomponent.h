@@ -32,11 +32,10 @@ public:
 
     Object getValue() const override;
 
-    std::shared_ptr<ObjectMap> getEventTargetProperties() const override;
-
     rapidjson::Value serializeMeasure(rapidjson::Document::AllocatorType& allocator) const;
 
 protected:
+    const EventPropertyMap & eventPropertyMap() const override;
     const ComponentPropDefSet& propDefSet() const override;
     void assignProperties(const ComponentPropDefSet& propDefSet) override;
     std::string getVisualContextType() override;

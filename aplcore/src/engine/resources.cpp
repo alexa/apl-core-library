@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -26,9 +26,7 @@ namespace apl {
 
 const bool DEBUG_RESOURCES = false;
 
-static std::map< std::string,
-                 std::function<const Object(const Context&, const Object&)> >
-        sResourceOperators = {
+ResourceOperators sDefaultResourceOperators = {
     { "number", asNumber },
     { "numbers", asNumber },
     { "dimension", asDimension },
@@ -40,12 +38,18 @@ static std::map< std::string,
     { "color", asColor },
     { "colors", asColor },
     { "gradient", asGradient },
-    { "gradients", asGradient }
+    { "gradients", asGradient },
+    { "easing", asEasing },
+    { "easings", asEasing },
 };
 
 
 static void
-addResourceBlock(Context& context, const rapidjson::Value& block, const Path& path)
+addResourceBlock(
+        Context& context,
+        const rapidjson::Value& block,
+        const Path& path,
+        const ResourceOperators& resourceOperators)
 {
     if (DEBUG_RESOURCES) {
         LOG(LogLevel::DEBUG) << path;
@@ -66,8 +70,8 @@ addResourceBlock(Context& context, const rapidjson::Value& block, const Path& pa
             continue;
 
         auto name = propIter->name.GetString();
-        auto opIter = sResourceOperators.find(name);
-        if (opIter == sResourceOperators.end())
+        auto opIter = resourceOperators.find(name);
+        if (opIter == resourceOperators.end())
             continue;
 
         auto conversionFunc = opIter->second;
@@ -85,19 +89,44 @@ addResourceBlock(Context& context, const rapidjson::Value& block, const Path& pa
 }
 
 void
-addOrderedResources(Context& context, const rapidjson::Value& array, const Path& path)
+addOrderedResources(
+        Context& context,
+        const rapidjson::Value& value,
+        const Path& path,
+        const ResourceOperators& resourceOperators)
 {
-    LOG_IF(DEBUG_RESOURCES) << "addOrderedResources: " << array.GetArray().Size();
+    if (value.IsArray()) {
+        LOG_IF(DEBUG_RESOURCES) << "addOrderedResources: " << value.GetArray().Size();
 
-    auto arraySize = array.Size();
-    for (rapidjson::SizeType i = 0 ; i < arraySize ; i++) {
-        const auto& item = array[i];
-        if (!item.IsObject()) {
-            LOG_IF(DEBUG_RESOURCES) << "addOrderedResources - item is not an object: " << path << i;
-            continue;
+        auto arraySize = value.Size();
+        for (rapidjson::SizeType i = 0; i < arraySize; i++) {
+            const auto &item = value[i];
+            if (!item.IsObject()) {
+                LOG_IF(DEBUG_RESOURCES) << "addOrderedResources - item is not an object: " << path << i;
+                continue;
+            }
+
+            addResourceBlock(context, item, path.addIndex(i), resourceOperators);
         }
+    } else {
+        addResourceBlock(context, value, path, resourceOperators);
+    }
+}
 
-        addResourceBlock(context, item, path.addIndex(i));
+void
+addNamedResourcesBlock(
+        Context &context,
+        const rapidjson::Value &json,
+        const Path &path,
+        const std::string &resourceBlockName,
+        const ResourceOperators& resourceOperators)
+{
+    auto resIter = json.FindMember(resourceBlockName.c_str());
+    if (resIter != json.MemberEnd()) {
+        if (resIter->value.IsArray())
+            addOrderedResources(context, resIter->value, path.addArray(resourceBlockName), resourceOperators);
+        else if (resIter->value.IsObject())
+            addOrderedResources(context, resIter->value, path.addObject(resourceBlockName), resourceOperators);
     }
 }
 

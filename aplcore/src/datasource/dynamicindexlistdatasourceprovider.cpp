@@ -19,6 +19,7 @@
 #include "apl/time/timemanager.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
+#include <climits>
 
 using namespace apl;
 using namespace DynamicIndexListConstants;
@@ -117,12 +118,23 @@ DynamicIndexListDataSourceConnection::scheduleTimeout(const ContextPtr& context,
         auto context = weak_ctx.lock();
         if (!self || !context)
             return;
-        self->retryFetchRequest(context, correlationToken);
+        auto provider = self->mProvider.lock();
+        if (!provider) {
+            // Provider dead. Should not happen.
+            LOG(LogLevel::ERROR) << "DataSource provider is dead.";
+            return;
+        }
+
+        provider->constructAndReportError(ERROR_REASON_LOAD_TIMEOUT, self,
+                                          Object::NULL_OBJECT(),
+                                          "Retrying timed out request: " + correlationToken);
+        self->retryFetchRequest(context, correlationToken, provider);
     }, mConfiguration.fetchTimeout);
 }
 
 void
-DynamicIndexListDataSourceConnection::retryFetchRequest(const ContextPtr& context, const std::string& correlationToken) {
+DynamicIndexListDataSourceConnection::retryFetchRequest(const ContextPtr& context, const std::string& correlationToken,
+        const DILProviderPtr& provider) {
     if (!correlationToken.empty()) {
         std::string newToken = correlationToken;
         auto it = mPendingFetchRequests.find(correlationToken);
@@ -133,13 +145,6 @@ DynamicIndexListDataSourceConnection::retryFetchRequest(const ContextPtr& contex
 
             auto liveArray = mLiveArray.lock();
             if (liveArray && liveArray->size() != mMaxItems) {
-                auto provider = mProvider.lock();
-                if (provider) {
-                    provider->constructAndReportError(ERROR_REASON_INTERNAL_ERROR, shared_from_this(),
-                                                      Object::NULL_OBJECT(),
-                                                      "Retrying request: " + it->first);
-                }
-
                 // Replace token with new one as it should be unique.
                 newToken = std::to_string(provider->getAndIncrementCorrelationToken());
                 (*pendingRequest->request)[CORRELATION_TOKEN] = newToken;
@@ -179,7 +184,6 @@ DynamicIndexListDataSourceConnection::processLazyLoad(int index, const Object& d
             << " is dead while trying to process lazy loading.";
         return false;
     }
-    size_t idx = index - mMinimumInclusiveIndex;
 
     auto context = mContext.lock();
     if (!context) {
@@ -188,13 +192,36 @@ DynamicIndexListDataSourceConnection::processLazyLoad(int index, const Object& d
     auto items = evaluateRecursive(*context, data);
 
     bool result = false;
+    bool outOfRange = false;
 
     if (items.isArray() && !items.empty()) {
-        result = update(idx, items.getArray(), true);
+        std::vector<Object> dataArray(items.getArray());
+
+        // Shrink the update to fit the bounds. If any change done - report an LOAD_INDEX_OUT_OF_RANGE error
+        int startAdjust = mMinimumInclusiveIndex > index ? mMinimumInclusiveIndex - index : 0;
+        if (startAdjust > 0) {
+            dataArray.erase(dataArray.begin(), dataArray.begin() + startAdjust);
+            index += startAdjust;
+            outOfRange = true;
+        }
+
+        int endAdjust = mMaximumExclusiveIndex < (index + (int) dataArray.size()) ?
+                (index + dataArray.size()) - mMaximumExclusiveIndex : 0;
+        if (endAdjust > 0) {
+            dataArray.erase(dataArray.end() - endAdjust, dataArray.end());
+            outOfRange = true;
+        }
+
+        size_t idx = index - mMinimumInclusiveIndex;
+        if (overlaps(idx, dataArray.size())) {
+            provider->constructAndReportError(ERROR_REASON_OCCUPIED_LIST_INDEX, shared_from_this(), index,
+                    "Load range overlaps existing items. New items for existing range discarded.");
+        }
+        result = update(idx, dataArray, false);
     } else {
-        provider->constructAndReportError(ERROR_REASON_INTERNAL_ERROR, shared_from_this(), index,
+        provider->constructAndReportError(ERROR_REASON_MISSING_LIST_ITEMS, shared_from_this(), index,
                 "No items provided to load.");
-        retryFetchRequest(context, correlationToken.asString());
+        retryFetchRequest(context, correlationToken.asString(), provider);
         return result;
     }
 
@@ -209,8 +236,8 @@ DynamicIndexListDataSourceConnection::processLazyLoad(int index, const Object& d
         }
     }
 
-    if (!result) {
-        provider->constructAndReportError(ERROR_REASON_LIST_INDEX_OUT_OF_RANGE, shared_from_this(), index,
+    if (!result || outOfRange) {
+        provider->constructAndReportError(ERROR_REASON_LOAD_INDEX_OUT_OF_RANGE, shared_from_this(), index,
                 "Requested index out of bounds.");
     }
     return result;
@@ -514,7 +541,7 @@ DynamicIndexListDataSourceProvider::processLazyLoadInternal(
     auto maximumExclusiveIndex = responseMap.get(MAXIMUM_EXCLUSIVE_INDEX);
 
     if(connection->updateBounds(minimumInclusiveIndex, maximumExclusiveIndex)) {
-        constructAndReportError(ERROR_REASON_INTERNAL_ERROR, connection, startIndex,
+        constructAndReportError(ERROR_REASON_INCONSISTENT_RANGE, connection, startIndex,
                 "Bounds were changed in runtime.");
     }
 
@@ -617,7 +644,7 @@ DynamicIndexListDataSourceProvider::processUpdate(const Object& payload) {
     }
 
     if (!hasValidListId && connectionIter != mConnections.end()) {
-        constructAndReportError(ERROR_REASON_INVALID_LIST_ID, listId, "Non-existing listId.");
+        constructAndReportError(ERROR_REASON_INCONSISTENT_LIST_ID, listId, "Non-existing listId.");
     } else if (connectionIter == mConnections.end()) {
         constructAndReportError(ERROR_REASON_INVALID_LIST_ID, listId, "Unexpected response.");
         return false;

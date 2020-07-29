@@ -136,6 +136,9 @@ evaluateRecursive(const Context& context, const Object& object)
             v->push_back(evaluateRecursive(context, object.at(index)));
         return Object(v);
     }
+    else if (object.isEvaluable()) {
+        return object.eval();
+    }
 
     return object;
 }

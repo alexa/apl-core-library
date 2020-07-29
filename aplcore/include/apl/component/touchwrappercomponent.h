@@ -18,25 +18,37 @@
 
 #include <utility>
 
-#include "actionablecomponent.h"
+#include "apl/component/touchablecomponent.h"
 
 namespace apl {
 
-class TouchWrapperComponent : public ActionableComponent {
+class TouchWrapperComponent : public TouchableComponent {
 public:
     static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const std::string& path);
     TouchWrapperComponent(const ContextPtr& context, Properties&& properties, const std::string& path);
 
     ComponentType getType() const override { return kComponentTypeTouchWrapper; };
-    void update(UpdateType type, float value) override;
 
     Object getValue() const override { return mState.get(kStateChecked); }
 
+    /**
+     * Inject component that will replace current child of touch wrapper. While likely short lived - it will exist for
+     * customer interaction time + any animations left.
+     * Component will inherit TouchWrapper's internal dimensions.
+     * @param child Component to inject.
+     * @param above true if should be above existing child, false otherwise.
+     */
+    void injectReplaceComponent(const CoreComponentPtr& child, bool above);
+
+    /**
+     * Reset child's position to default (in case of TW it's always relative and always 1 child).
+     * Makes sense only in conjunction with injectReplaceComponent (as yoga does not play nicely with single absolute
+     * positioned child here).
+     */
+    void resetChildPositionType();
+
 protected:
-
     const ComponentPropDefSet& propDefSet() const override;
-
-    bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
 
 private:
     bool singleChild() const override { return true; }

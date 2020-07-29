@@ -13,11 +13,8 @@
  * permissions and limitations under the License.
  */
 
-#include <yoga/YGNode.h>
-
 #include "apl/component/componentpropdef.h"
 #include "apl/component/textcomponent.h"
-#include "apl/component/textmeasurement.h"
 #include "apl/content/rootconfig.h"
 
 namespace apl {
@@ -33,35 +30,13 @@ TextComponent::create(const ContextPtr& context,
     return ptr;
 }
 
-static inline YGSize
-textMeasureFunc( YGNodeRef node,
-                 float width,
-                 YGMeasureMode widthMode,
-                 float height,
-                 YGMeasureMode heightMode )
-{
-    TextComponent *component = static_cast<TextComponent*>(node->getContext());
-    assert(component);
-
-    return component->getContext()->measure()->measure(component, width, widthMode, height, heightMode);
-}
-
-static inline float
-textBaselineFunc( YGNodeRef node, float width, float height )
-{
-    TextComponent *component = static_cast<TextComponent*>(node->getContext());
-    assert(component);
-
-    return component->getContext()->measure()->baseline(component, width, height);
-}
-
 TextComponent::TextComponent(const ContextPtr& context,
                              Properties&& properties,
                              const std::string& path)
     : CoreComponent(context, std::move(properties), path)
 {
-    YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc);
-    YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc);
+    YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc<TextComponent>);
+    YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc<TextComponent>);
     YGNodeSetNodeType(mYGNodeRef, YGNodeTypeText);
     YGNodeSetContext(mYGNodeRef, this);   // Stash a pointer to this component
 }
@@ -104,6 +79,19 @@ TextComponent::propDefSet() const
     });
 
     return sTextComponentProperties;
+}
+
+const EventPropertyMap&
+TextComponent::eventPropertyMap() const
+{
+    static EventPropertyMap sTextEventProperties = eventPropertyMerge(
+            CoreComponent::eventPropertyMap(),
+            {
+                    {"text",  [](const CoreComponent *c) { return c->getCalculated(kPropertyText).getStyledText().getText(); }},
+                    {"color", [](const CoreComponent *c) { return c->getCalculated(kPropertyColor); }},
+            });
+
+    return sTextEventProperties;
 }
 
 Object
@@ -202,15 +190,6 @@ TextComponent::assignProperties(const ComponentPropDefSet& propDefSet)
     mCalculated.set(kPropertyColorNonKaraoke, mCalculated.get(kPropertyColor));
 }
 
-std::shared_ptr<ObjectMap>
-TextComponent::getEventTargetProperties() const
-{
-    auto target = CoreComponent::getEventTargetProperties();
-    target->emplace("text", mCalculated.get(kPropertyText));
-    target->emplace("color", mCalculated.get(kPropertyColor));
-    return target;
-}
-
 rapidjson::Value
 TextComponent::serializeMeasure(rapidjson::Document::AllocatorType& allocator) const
 {
@@ -221,7 +200,7 @@ TextComponent::serializeMeasure(rapidjson::Document::AllocatorType& allocator) c
     for (const auto& pds : propDefSet()) {
         if ((pds.second.flags & kPropLayout) != 0)
             component.AddMember(
-                rapidjson::StringRef(pds.second.name.c_str()),   // We assume long-lived strings here
+                rapidjson::StringRef(pds.second.names[0].c_str()),   // We assume long-lived strings here
                 mCalculated.get(pds.first).serialize(allocator),
                 allocator);
     }

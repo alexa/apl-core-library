@@ -41,7 +41,7 @@ OffsetIndexDataSourceConnection::update(size_t index, const std::vector<Object>&
     auto upperBound = mOffset + liveArray->size();
 
     // We don't allow gaps and repeat fetching is out of scope of basic implementation
-    if (index > upperBound || index + incomingSize < lowerBound) {
+    if (index > upperBound || index + incomingSize < lowerBound || data.empty()) {
         return false;
     }
 
@@ -192,4 +192,21 @@ OffsetIndexDataSourceConnection::ensure(size_t index) {
             fetch(dsOffset, toCache);
         }
     }
+}
+
+bool
+OffsetIndexDataSourceConnection::overlaps(size_t index, size_t count) {
+    LiveArrayPtr liveArray = mLiveArray.lock();
+    if (!liveArray) return false;
+
+    auto lowerBound = mOffset;
+    auto upperBound = mOffset + liveArray->size();
+
+    if (index > upperBound || index + count < lowerBound) {
+        return false;
+    }
+
+    auto insertLeftCount = lowerBound > index ? lowerBound - index : 0;
+    auto insertRightCount = index + count > upperBound ? index + count - upperBound : 0;
+    return count - insertLeftCount - insertRightCount > 0;
 }

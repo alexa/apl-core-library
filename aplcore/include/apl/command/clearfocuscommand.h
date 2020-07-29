@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 #define _APL_CLEAR_FOCUS_COMMAND_H
 
 #include "apl/command/corecommand.h"
-#include "apl/engine/focusmanager.h"
 
 namespace apl {
 
@@ -25,32 +24,23 @@ class ClearFocusCommand : public CoreCommand {
 public:
     static CommandPtr create(const ContextPtr& context,
                              Properties&& properties,
-                             const CoreComponentPtr& base) {
-        auto ptr = std::make_shared<ClearFocusCommand>(context, std::move(properties), base);
+                             const CoreComponentPtr& base,
+                             const std::string& parentSequencer) {
+        auto ptr = std::make_shared<ClearFocusCommand>(context, std::move(properties), base, parentSequencer);
         return ptr->validate() ? ptr : nullptr;
     }
 
-    ClearFocusCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base)
-            : CoreCommand(context, std::move(properties), base)
+    ClearFocusCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
+            const std::string& parentSequencer)
+            : CoreCommand(context, std::move(properties), base, parentSequencer)
     {
     }
 
-    const CommandPropDefSet& propDefSet() const override {
-        static CommandPropDefSet sClearFocusCommandProperties(CoreCommand::propDefSet(), {});
-
-        return sClearFocusCommandProperties;
-    };
+    const CommandPropDefSet& propDefSet() const override;
 
     CommandType type() const override { return kCommandTypeClearFocus; }
 
-    ActionPtr execute(const TimersPtr& timers, bool fastMode) override {
-        if (!calculateProperties())
-            return nullptr;
-
-        auto& fm = mContext->focusManager();
-        fm.clearFocus(true);
-        return nullptr;
-    }
+    ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
 };
 
 } // namespace apl

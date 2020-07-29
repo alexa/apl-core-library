@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -18,10 +18,8 @@
 
 #include "utils.h"
 
-#include "apl/datagrammar/databindingrules.h"
+#include "apl/engine/evaluate.h"
 #include "apl/utils/dump_object.h"
-
-namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 
 static const char *USAGE_STRING = "parseExpression [OPTIONS] EXPRESSION*";
 
@@ -33,7 +31,8 @@ main(int argc, char *argv[])
 
     bool verbose = false;
     argumentSet.add({
-        Argument("", "--tree", Argument::NONE, "Display the parsed node tree", "", [&](const std::string&){
+        Argument("-v", "--verbose", Argument::NONE, "Display the parsed node tree", "",
+                 [&](const std::vector<std::string>&){
           verbose = true;
         })
     });
@@ -41,23 +40,15 @@ main(int argc, char *argv[])
     std::vector<std::string> args(argv + 1, argv + argc);
     argumentSet.parse(args);
 
-    apl::streamer s;
-    s << settings;
-    std::cout << s.str() << std::endl;
-    s.reset();
     auto c = settings.createContext();
 
     for (const auto& m : args) {
-        apl::datagrammar::Stacks stacks(*c);
-        pegtl::string_input<> in(m, "");
-        pegtl::parse< apl::datagrammar::grammar, apl::datagrammar::action >(in, stacks);
-        auto tree = stacks.finish();
+        auto parsed = parseDataBinding(*c, m);
 
         if (verbose)
-            apl::DumpVisitor::dump(tree);
+            apl::DumpVisitor::dump(parsed);
 
-        auto result = tree.eval();
-        s << result;
-        std::cout << s.str() << std::endl;
+        auto result = parsed.eval();
+        std::cout << result.toDebugString() << std::endl;
     }
 }

@@ -37,7 +37,8 @@ namespace apl {
 
 class Properties {
 public:
-    Properties() {}
+    Properties() {};
+    explicit Properties(const Object& item) { emplace(item); }
 
     // These methods apply data-binding and extract the value or a default value
     std::string asLabel(const Context& context, const char *name);
@@ -53,6 +54,15 @@ public:
 
     ObjectMap::const_iterator find(const char *name) const { return mProperties.find(name); }
     ObjectMap::const_iterator find(const std::string& name) const { return mProperties.find(name); }
+    ObjectMap::const_iterator find(const std::vector<std::string>& names) const {
+        for (const auto& name : names) {
+            auto it = mProperties.find(name);
+            if (it != mProperties.end())
+                return it;
+        }
+        return mProperties.end();
+    }
+
     ObjectMap::const_iterator begin() const { return mProperties.begin(); }
     ObjectMap::const_iterator end() const { return mProperties.end(); }
 

@@ -63,20 +63,20 @@ KeyboardManager::handleKeyboard(KeyHandlerType type, const CoreComponentPtr& com
     bool consumed = false;
     auto target = component;
     auto kb = keyboard.serialize();
+    const bool isIntrinsic = keyboard.isIntrinsicKey();
 
     while (!consumed && target) {
 
-        if (target->executeKeyHandlers(type, kb)) {
+        consumed = isIntrinsic ? target->executeIntrinsicKeyHandlers(type, kb) : target->executeKeyHandlers(type, kb);
+        if (consumed) {
             LOG_IF(DEBUG_KEYBOARD_MANAGER) << target->getUniqueId() << " " << type << " consumed.";
-            // consumed by key handlers
-            consumed = true;
         } else {
             // propagate
             target = std::static_pointer_cast<CoreComponent>(target->getParent());
         }
     }
 
-    if (!consumed) {
+    if (!consumed && !isIntrinsic) {
         consumed = executeDocumentKeyHandlers(rootContext, type, kb);
     }
 

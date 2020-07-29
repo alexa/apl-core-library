@@ -203,6 +203,11 @@ public:
     bool isReservedKey() const;
 
     /**
+     * @return True if the key is used internally by APL but will not be passed to a key event handler
+     */
+    bool isIntrinsicKey() const;
+
+    /**
     * Serialize into JSON format
     * @param allocator
     * @return The serialized rectangle

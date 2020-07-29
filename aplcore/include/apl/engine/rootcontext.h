@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ class Metrics;
 class RootConfig;
 class RootContextData;
 class TimeManager;
+struct PointerEvent;
 
 extern const char *ELAPSED_TIME;
 extern const char *LOCAL_TIME;
@@ -76,7 +77,7 @@ extern const char *UTC_TIME;
  *
  * To cancel any currently running commands, use cancelExecution().
  */
-class RootContext : public std::enable_shared_from_this<RootContext>, public UserData {
+class RootContext : public std::enable_shared_from_this<RootContext>, public UserData<RootContext> {
 public:
     /**
      * Construct a top-level root context.
@@ -283,22 +284,24 @@ public:
      */
     ContextPtr createKeyboardDocumentContext(const std::string& handler, const ObjectMapPtr& keyboard);
 
-
     /**
      * @return Information about the elements defined within the content
      */
     Info info() const { return Info(mContext, mCore); }
 
     /**
-     * @return The cursor position.
-     */
-    Point cursorPosition() const;
-
-    /**
      * Update cursor position.
      * @param cursor Cursor positon.
+     * @deprecated use handlePointerEvent instead
      */
     void updateCursorPosition(Point cursorPosition);
+
+    /**
+     * Handle a given PointerEvent with coordinates relative to the viewport.
+     * @param pointerEvent The pointer event to handle.
+     * @return Whether or not it was handled.
+     */
+    bool handlePointerEvent(const PointerEvent& pointerEvent);
 
     /**
      * An update message from the viewhost called when a key is pressed.  The
@@ -321,13 +324,12 @@ public:
 
 private:
     bool setup();
-    bool addToDependencyList(std::vector<std::shared_ptr<Package>>& ordered,
-                             std::set<std::shared_ptr<Package>>& inProgress,
-                             const PackagePtr& package);
     bool verifyAPLVersionCompatibility(const std::vector<std::shared_ptr<Package>>& ordered,
                                        const APLVersion& compatibilityVersion);
     bool verifyTypeField(const std::vector<std::shared_ptr<Package>>& ordered, bool enforce);
     ObjectMapPtr createDocumentEventProperties(const std::string& handler) const;
+    void scheduleTickHandler(const Object& handler, double delay);
+    void processTickHandlers();
 
 private:
     ContentPtr mContent;

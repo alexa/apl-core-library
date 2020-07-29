@@ -27,6 +27,9 @@ public:
 
     ComponentType getType() const override { return kComponentTypeFrame; };
 
+    void setHeight(const Dimension& height) override;
+    void setWidth(const Dimension& width) override;
+
     void fixBorder(bool useDirtyFlag=true);
 
 protected:

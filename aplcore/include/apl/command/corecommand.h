@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ namespace apl {
 
 extern Bimap<int, std::string> sCommandNameBimap;
 
-using CommandCreateFunc = std::function<CommandPtr(const ContextPtr&, Properties&&, const CoreComponentPtr&)>;
+using CommandCreateFunc = std::function<CommandPtr(const ContextPtr&, Properties&&, const CoreComponentPtr&, const std::string&)>;
 extern std::map<int, CommandCreateFunc> sCommandCreatorMap;
 
 class CoreCommand;
@@ -70,8 +70,12 @@ public:
  * signature from the CommandFactory to simply std::move(properties)
  */
 class CoreCommand : public Command {
+
 public:
-    CoreCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base);
+    CoreCommand(const ContextPtr& context,
+                Properties&& properties,
+                const CoreComponentPtr& base,
+                const std::string& parentSequencer);
 
     virtual CommandType type() const = 0;
 
@@ -79,9 +83,10 @@ public:
     std::string name() const override;
     void prepare() override;
     void complete() override;
+    std::string sequencer() const override { return mSequencer; }
 
-    const Object getValue(CommandPropertyKey key) const { return mValues.at(key); }
-    ContextPtr       context() const { return mContext; }
+    Object getValue(CommandPropertyKey key) const { return mValues.at(key); }
+    ContextPtr context() const { return mContext; }
     CoreComponentPtr base() const { return mBase; }
     CoreComponentPtr target() const { return mTarget; }
     const Properties& properties() const { return mProperties; }
@@ -100,6 +105,7 @@ protected:
     unsigned long     mDelay;
     CoreComponentPtr  mTarget;
     const bool        mScreenLock;
+    std::string       mSequencer;
  };
 
 } // namespace apl

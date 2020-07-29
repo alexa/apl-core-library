@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -32,15 +32,17 @@ public:
     static CommandPtr create(const ExtensionCommandDefinition& def,
                              const ContextPtr& context,
                              Properties&& properties,
-                             const CoreComponentPtr& base) {
-        return std::make_shared<ExtensionEventCommand>(def, context, std::move(properties), base);
+                             const CoreComponentPtr& base,
+                             const std::string& parentSequencer) {
+        return std::make_shared<ExtensionEventCommand>(def, context, std::move(properties), base, parentSequencer);
     }
 
     ExtensionEventCommand(const ExtensionCommandDefinition& def,
                           const ContextPtr& context,
                           Properties&& properties,
-                          const CoreComponentPtr& base)
-        : CoreCommand(context, std::move(properties), base),
+                          const CoreComponentPtr& base,
+                          const std::string& parentSequencer)
+        : CoreCommand(context, std::move(properties), base, parentSequencer),
           mDefinition(def) {}
 
     CommandType type() const override { return kCommandTypeCustomEvent; }

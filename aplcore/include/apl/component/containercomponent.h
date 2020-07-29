@@ -38,7 +38,6 @@ private:
     bool multiChild() const override { return true; }
     std::map<int,int> calculateChildrenVisualLayer(const std::map<int, float>& visibleIndexes,
                                                    const Rect& visibleRect, int visualLayer) override;
-    std::map<int, float> getChildrenVisibility(float realOpacity, const Rect &visibleRect) override;
 };
 
 } // namespace apl

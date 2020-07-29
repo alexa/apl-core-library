@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -87,8 +87,12 @@ Bimap<int, std::string> sFlexboxAlignMap = {
 };
 
 Bimap<int, std::string> sContainerDirectionMap = {
-    {kContainerDirectionColumn, "column"},
-    {kContainerDirectionRow,    "row"}
+    {kContainerDirectionColumn,        "column"},
+    {kContainerDirectionRow,           "row"},
+    {kContainerDirectionColumnReverse, "columnReverse"},
+    {kContainerDirectionColumnReverse, "column-reverse"},
+    {kContainerDirectionRowReverse,    "rowReverse"},
+    {kContainerDirectionRowReverse,    "row-reverse"},
 };
 
 Bimap<int, std::string> sFlexboxJustifyContentMap = {
@@ -99,6 +103,15 @@ Bimap<int, std::string> sFlexboxJustifyContentMap = {
     {kFlexboxJustifyContentSpaceBetween, "space-between"},
     {kFlexboxJustifyContentSpaceAround,  "spaceAround"},
     {kFlexboxJustifyContentSpaceAround,  "space-around"}
+};
+
+Bimap<int, std::string> sFlexboxWrapMap = {
+    {kFlexboxWrapNoWrap,      "nowrap"},
+    {kFlexboxWrapNoWrap,      "no-wrap"},
+    {kFlexboxWrapNoWrap,      "noWrap"},
+    {kFlexboxWrapWrap,        "wrap"},
+    {kFlexboxWrapWrapReverse, "wrapReverse"},
+    {kFlexboxWrapWrapReverse, "wrap-reverse"},
 };
 
 Bimap<int, std::string> sNumberingMap = {
@@ -176,6 +189,26 @@ Bimap<int, std::string> sSnapMap = {
 };
 
 /**
+ * EditTextComponent: Specifies the type of keyboard to display for the component
+ */
+Bimap<int, std::string> sKeyboardTypeMap = {
+        {kKeyboardTypeDecimalPad,   "decimalPad"},
+        {kKeyboardTypeEmailAddress, "emailAddress"},
+        {kKeyboardTypeNormal,       "normal"},
+        {kKeyboardTypeNumberPad,    "numberPad"},
+        {kKeyboardTypePhonePad,     "phonePad"},
+        {kKeyboardTypeUrl,          "url"}
+};
+
+Bimap<int, std::string> sSubmitKeyTypeMap = {
+        {kSubmitKeyTypeDone,        "done"},
+        {kSubmitKeyTypeGo,          "go"},
+        {kSubmitKeyTypeNext,        "next"},
+        {kSubmitKeyTypeSearch,      "search"},
+        {kSubmitKeyTypeSend,        "send"}
+};
+
+/**
  * Map between property names and property constants.
  *
  * The naming convention is camel-case, starting with a lower-case
@@ -200,12 +233,17 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyBorderColor,             "borderColor"},
     {kPropertyBorderRadius,            "borderRadius"},
     {kPropertyBorderRadii,             "_borderRadii"},
+    {kPropertyBorderStrokeWidth,       "borderStrokeWidth"},
     {kPropertyBorderTopLeftRadius,     "borderTopLeftRadius"},
     {kPropertyBorderTopRightRadius,    "borderTopRightRadius"},
     {kPropertyBorderWidth,             "borderWidth"},
     {kPropertyBottom,                  "bottom"},
     {kPropertyBounds,                  "_bounds"},
     {kPropertyChecked,                 "checked"},
+    {kPropertyChildHeight,             "childHeight"},
+    {kPropertyChildHeight,             "childHeights"},
+    {kPropertyChildWidth,              "childWidth"},
+    {kPropertyChildWidth,              "childWidths"},
     {kPropertyColor,                   "color"},
     {kPropertyColorKaraokeTarget,      "_colorKaraokeTarget"},
     {kPropertyColorNonKaraoke,         "_colorNonKaraoke"},
@@ -214,12 +252,22 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyDirection,               "direction"},
     {kPropertyDisabled,                "disabled"},
     {kPropertyDisplay,                 "display"},
+    {kPropertyDrawnBorderWidth,        "_drawnBorderWidth"},
     {kPropertyEntities,                "entities"},
     {kPropertyFastScrollScale,         "-fastScrollScale"},
     {kPropertyFilters,                 "filters"},
     {kPropertyFontFamily,              "fontFamily"},
+    {kPropertyFocusable,               "_focusable"},
     {kPropertyFontSize,                "fontSize"},
     {kPropertyFontStyle,               "fontStyle"},
+    {kPropertyGestures,                "gestures"},
+    {kPropertyGestures,                "gesture"},
+    {kPropertyHandleTick,              "handleTick"},
+    {kPropertyHighlightColor,          "highlightColor"},
+    {kPropertyHint,                    "hint"},
+    {kPropertyHintColor,               "hintColor"},
+    {kPropertyHintStyle,               "hintStyle"},
+    {kPropertyHintWeight,              "hintWeight"},
     {kPropertyFontWeight,              "fontWeight"},
     {kPropertyGraphic,                 "graphic"},
     {kPropertyGrow,                    "grow"},
@@ -229,11 +277,14 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyId,                      "id"},
     {kPropertyInitialPage,             "initialPage"},
     {kPropertyInnerBounds,             "_innerBounds"},
+    {kPropertyItemsPerCourse,          "_itemsPerCourse"},
     {kPropertyJustifyContent,          "justifyContent"},
+    {kPropertyKeyboardType,            "keyboardType"},
     {kPropertyLeft,                    "left"},
     {kPropertyLetterSpacing,           "letterSpacing"},
     {kPropertyLineHeight,              "lineHeight"},
     {kPropertyMaxHeight,               "maxHeight"},
+    {kPropertyMaxLength,               "maxLength"},
     {kPropertyMaxLines,                "maxLines"},
     {kPropertyMaxWidth,                "maxWidth"},
     {kPropertyMediaBounds,             "mediaBounds"},
@@ -244,16 +295,22 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyNumbered,                "numbered"},
     {kPropertyNumbering,               "numbering"},
     {kPropertyOnBlur,                  "onBlur"},
+    {kPropertyOnCancel,                "onCancel"},
+    {kPropertyOnDown,                  "onDown"},
     {kPropertyOnEnd,                   "onEnd"},
     {kPropertyOnFocus,                 "onFocus"},
     {kPropertyOnMount,                 "onMount"},
+    {kPropertyOnMove,                  "onMove"},
     {kPropertyOnScroll,                "onScroll"},
     {kPropertyOnPageChanged,           "onPageChanged"},
     {kPropertyOnPause,                 "onPause"},
     {kPropertyOnPlay,                  "onPlay"},
     {kPropertyOnPress,                 "onPress"},
+    {kPropertyOnSubmit,                "onSubmit"},
+    {kPropertyOnTextChange,            "onTextChange"},
     {kPropertyOnTimeUpdate,            "onTimeUpdate"},
     {kPropertyOnTrackUpdate,           "onTrackUpdate"},
+    {kPropertyOnUp,                    "onUp"},
     {kPropertyOpacity,                 "opacity"},
     {kPropertyOverlayColor,            "overlayColor"},
     {kPropertyOverlayGradient,         "overlayGradient"},
@@ -265,16 +322,20 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyRight,                   "right"},
     {kPropertyScale,                   "scale"},
     {kPropertyScrollDirection,         "scrollDirection"},
-    {kPropertyScrollPosition,         "_scrollPosition"},
+    {kPropertyScrollPosition,          "_scrollPosition"},
+    {kPropertySecureInput,             "secureInput"},
+    {kPropertySelectOnFocus,           "selectOnFocus"},
     {kPropertyShadowColor,             "shadowColor"},
     {kPropertyShadowHorizontalOffset,  "shadowHorizontalOffset"},
     {kPropertyShadowRadius,            "shadowRadius"},
     {kPropertyShadowVerticalOffset,    "shadowVerticalOffset"},
     {kPropertyShrink,                  "shrink"},
+    {kPropertySize,                    "size"},
     {kPropertySnap,                    "snap"},
     {kPropertySource,                  "source"},
     {kPropertySpacing,                 "spacing"},
     {kPropertySpeech,                  "speech"},
+    {kPropertySubmitKeyType,           "submitKeyType"},
     {kPropertyText,                    "text"},
     {kPropertyTextAlign,               "textAlign"},
     {kPropertyTextAlignVertical,       "textAlignVertical"},
@@ -291,12 +352,16 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyWidth,                   "width"},
     {kPropertyOnCursorEnter,           "onCursorEnter"},
     {kPropertyOnCursorExit,            "onCursorExit"},
-    {kPropertyLaidOut,                 "_laidOut"}
+    {kPropertyLaidOut,                 "_laidOut"},
+    {kPropertyValidCharacters,         "validCharacters"},
+    {kPropertyWrap,                    "wrap"},
 };
 
 Bimap<int, std::string> sComponentTypeBimap = {
     {kComponentTypeContainer,     "Container"},
+    {kComponentTypeEditText,      "EditText"},
     {kComponentTypeFrame,         "Frame"},
+    {kComponentTypeGridSequence,  "GridSequence"},
     {kComponentTypeImage,         "Image"},
     {kComponentTypePager,         "Pager"},
     {kComponentTypeScrollView,    "ScrollView"},

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -42,10 +42,12 @@ extern void setPosition(YGNodeRef nodeRef, YGEdge edge, const Object& value, con
 extern void setFlexDirection(YGNodeRef nodeRef, const Object& value, const Context&);
 extern void setSpacing(YGNodeRef nodeRef, const Object& value, const Context& context);
 extern void setJustifyContent(YGNodeRef nodeRef, const Object& value, const Context&);
+extern void setWrap(YGNodeRef nodeRef, const Object& value, const Context&);
 extern void setAlignSelf(YGNodeRef nodeRef, const Object& value, const Context&);
 extern void setAlignItems(YGNodeRef nodeRef, const Object& value, const Context&);
 extern YGFlexDirection scrollDirectionLookup(ScrollDirection direction);
 extern void setScrollDirection(YGNodeRef nodeRef, const Object& value, const Context&);
+extern void setGridScrollDirection(YGNodeRef nodeRef, const Object& value, const Context&);
 extern void setDisplay(YGNodeRef nodeRef, const Object& value, const Context&);
 
 template<YGEdge edge>

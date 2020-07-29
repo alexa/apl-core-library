@@ -218,7 +218,7 @@ using EventBag = ObjectBag<sEventPropertyBimap>;
 /**
  * This class represents a single event sent from APL core to the native rendering layer.
  */
-class Event : public UserData {
+class Event : public UserData<Event> {
 public:
     /**
      * Construct an asynchronous event
@@ -269,7 +269,7 @@ public:
      * @param key The key to retrieve.
      * @return The value or null if it doesn't exist.
      */
-    const Object getValue(EventProperty key) const;
+    Object getValue(EventProperty key) const;
 
     /**
      * The component associated with this event.  For the ScrollToIndex command this

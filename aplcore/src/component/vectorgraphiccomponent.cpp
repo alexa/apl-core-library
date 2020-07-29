@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/engine/resources.h"
+#include "apl/utils/url.h"
 #include "apl/component/componentpropdef.h"
 #include "apl/component/vectorgraphiccomponent.h"
 #include "apl/component/yogaproperties.h"
@@ -34,7 +36,7 @@ VectorGraphicComponent::create(const ContextPtr& context,
 VectorGraphicComponent::VectorGraphicComponent(const ContextPtr& context,
                                                Properties&& properties,
                                                const std::string& path)
-    : CoreComponent(context, std::move(properties), path)
+    : TouchableComponent(context, std::move(properties), path)
 {
 }
 
@@ -48,7 +50,7 @@ VectorGraphicComponent::~VectorGraphicComponent()
 const ComponentPropDefSet&
 VectorGraphicComponent::propDefSet() const
 {
-    static ComponentPropDefSet sVectorGraphicComponentProperties(CoreComponent::propDefSet(), {
+    static ComponentPropDefSet sVectorGraphicComponentProperties(TouchableComponent::propDefSet(), {
         {kPropertyAlign,       kVectorGraphicAlignCenter, sVectorGraphicAlignMap, kPropInOut | kPropStyled},
         {kPropertyGraphic,     Object::NULL_OBJECT(),     nullptr,                kPropOut},
         {kPropertyMediaBounds, Object::NULL_OBJECT(),     nullptr,                kPropOut},
@@ -62,7 +64,7 @@ VectorGraphicComponent::propDefSet() const
 void
 VectorGraphicComponent::initialize()
 {
-    CoreComponent::initialize();
+    TouchableComponent::initialize();
 
     // Default height and width
     double width = 100;
@@ -71,14 +73,16 @@ VectorGraphicComponent::initialize()
     // If the source was specified and it is a local graphic resource, we set kPropertyGraphic
     auto source = mCalculated.get(kPropertySource);
     if (source.isString()) {
-        auto graphic = mContext->getGraphic(source.getString());
-        if (!graphic.empty()) {
-            auto g = Graphic::create(mContext, graphic.json(), Properties(mProperties), getStyle());
-            if (g) {
-                g->setComponent(std::static_pointer_cast<VectorGraphicComponent>(shared_from_this()));
-                mCalculated.set(kPropertyGraphic, g);
-                height = g->getIntrinsicHeight();
-                width = g->getIntrinsicWidth();
+        auto graphicResource = mContext->getGraphic(source.getString());
+        if (!graphicResource.empty()) {
+            auto graphic = Graphic::create(mContext,
+                                           graphicResource,
+                                           Properties(mProperties),
+                                           std::static_pointer_cast<CoreComponent>(shared_from_this()));
+            if (graphic) {
+                mCalculated.set(kPropertyGraphic, graphic);
+                height = graphic->getIntrinsicHeight();
+                width = graphic->getIntrinsicWidth();
             }
         }
     }
@@ -104,24 +108,32 @@ VectorGraphicComponent::updateStyle()
     // Changing the style is likely to change the graphic
     auto graphic = mCalculated.get(kPropertyGraphic);
     auto stylePtr = getStyle();
-    if (stylePtr && graphic.isGraphic() && graphic.getGraphic()->updateStyle(stylePtr))
+    if (graphic.isGraphic() && graphic.getGraphic()->updateStyle(stylePtr))
         setDirty(kPropertyGraphic);
 
     // Changing the style may result in a size change or a position change
     processLayoutChanges(true);
 }
 
-std::shared_ptr<ObjectMap>
-VectorGraphicComponent::getEventTargetProperties() const
+const EventPropertyMap&
+VectorGraphicComponent::eventPropertyMap() const
 {
-    auto target = CoreComponent::getEventTargetProperties();
-    target->emplace("source", getCalculated(kPropertySource));
-    return target;
+    static EventPropertyMap sVectorGraphicEventProperties = eventPropertyMerge(
+            CoreComponent::eventPropertyMap(),
+            {
+                    {"source", [](const CoreComponent *c) { return c->getCalculated(kPropertySource); }},
+                    {"url", [](const CoreComponent *c) { return c->getCalculated(kPropertySource); }},
+            });
+
+    return sVectorGraphicEventProperties;
 }
 
 bool
 VectorGraphicComponent::updateGraphic(const GraphicContentPtr& json)
 {
+    if (!json) {
+        return false;
+    }
     // Remove any existing graphic
     auto graphic = mCalculated.get(kPropertyGraphic);
     if (graphic.isGraphic()) {
@@ -129,12 +141,17 @@ VectorGraphicComponent::updateGraphic(const GraphicContentPtr& json)
         setDirty(kPropertyGraphic);
     }
 
-    // TODO: Check properties here.
-    auto g = Graphic::create(mContext, json, Properties(mProperties), getStyle());
+    auto url = encodeUrl(getCalculated(kPropertySource).asString());
+    auto path = Path("_url").addObject(url);
+    auto g = Graphic::create(mContext,
+                             json->get(),
+                             Properties(mProperties),
+                             std::static_pointer_cast<CoreComponent>(shared_from_this()),
+                             path,
+                             getStyle());
     if (!g)
         return false;
 
-    g->setComponent(std::static_pointer_cast<VectorGraphicComponent>(shared_from_this()));
     mCalculated.set(kPropertyGraphic, g);
     setDirty(kPropertyGraphic);
 
@@ -156,8 +173,6 @@ VectorGraphicComponent::processLayoutChanges(bool useDirtyFlag)
         auto innerBounds = mCalculated.get(kPropertyInnerBounds).getRect();
         double width = g->getIntrinsicWidth();
         double height = g->getIntrinsicHeight();
-        double x = 0;
-        double y = 0;
         auto scaleProp = static_cast<VectorGraphicScale>(mCalculated.get(kPropertyScale).getInteger());
         auto alignProp = static_cast<VectorGraphicAlign>(mCalculated.get(kPropertyAlign).getInteger());
 
@@ -190,42 +205,45 @@ VectorGraphicComponent::processLayoutChanges(bool useDirtyFlag)
                 break;
         }
 
+        double x = 0;
+        double y = 0;
+
         switch (alignProp) {
             case kVectorGraphicAlignBottom:
-                x = (innerBounds.getWidth() - width) / 2;
-                y = innerBounds.getHeight() - height;
+                x = innerBounds.getCenterX() - width / 2;
+                y = innerBounds.getBottom() - height;
                 break;
             case kVectorGraphicAlignBottomLeft:
-                // x = 0;
-                y = innerBounds.getHeight() - height;
+                x = innerBounds.getLeft();
+                y = innerBounds.getBottom() - height;
                 break;
             case kVectorGraphicAlignBottomRight:
-                x = innerBounds.getWidth() - width;
-                y = innerBounds.getHeight() - height;
+                x = innerBounds.getRight() - width;
+                y = innerBounds.getBottom() - height;
                 break;
             case kVectorGraphicAlignCenter:
-                x = (innerBounds.getWidth() - width) / 2;
-                y = (innerBounds.getHeight() - height) / 2;
+                x = innerBounds.getCenterX() - width / 2;
+                y = innerBounds.getCenterY() - height / 2;
                 break;
             case kVectorGraphicAlignLeft:
-                // x = 0
-                y = (innerBounds.getHeight() - height) / 2;
+                x = innerBounds.getLeft();
+                y = innerBounds.getCenterY() - height / 2;
                 break;
             case kVectorGraphicAlignRight:
-                x = innerBounds.getWidth() - width;
-                y = (innerBounds.getHeight() - height) / 2;
+                x = innerBounds.getRight() - width;
+                y = innerBounds.getCenterY() - height / 2;
                 break;
             case kVectorGraphicAlignTop:
-                x = (innerBounds.getWidth() - width) / 2;
-                // y = 0;
+                x = innerBounds.getCenterX() - width / 2;
+                y = innerBounds.getTop();
                 break;
             case kVectorGraphicAlignTopLeft:
-                // x = 0;
-                // y = 0;
+                x = innerBounds.getLeft();
+                y = innerBounds.getTop();
                 break;
             case kVectorGraphicAlignTopRight:
-                x = innerBounds.getWidth() - width;
-                // y = 0;
+                x = innerBounds.getRight() - width;
+                y = innerBounds.getTop();
                 break;
         }
 
@@ -270,6 +288,53 @@ void VectorGraphicComponent::clearDirty() {
         auto g = graphic.getGraphic();
         g->clearDirty();
     }
+}
+
+std::shared_ptr<ObjectMap>
+VectorGraphicComponent::createTouchEventProperties(const Point &point) const
+{
+    std::shared_ptr<ObjectMap> eventProperties = TouchableComponent::createTouchEventProperties(point);
+    auto graphic = mCalculated.get(kPropertyGraphic).getGraphic();
+    auto componentPoint = point - getGlobalBounds().getTopLeft();
+
+    const auto mediaBounds = mCalculated.get(kPropertyMediaBounds).getRect();
+    auto viewportWidth = graphic->getViewportWidth();
+    auto viewportHeight = graphic->getViewportHeight();
+
+    auto x = mediaBounds.getWidth() <= 0 ? 0 :
+             (componentPoint.getX() - mediaBounds.getLeft()) * (viewportWidth / mediaBounds.getWidth());
+    auto y = mediaBounds.getHeight() <= 0 ? 0 :
+             (componentPoint.getY() - mediaBounds.getTop()) * (viewportHeight / mediaBounds.getHeight());
+
+    auto viewportPropertyMap = std::make_shared<ObjectMap>();
+    viewportPropertyMap->emplace("x", x);
+    viewportPropertyMap->emplace("y", y);
+    viewportPropertyMap->emplace("width", viewportWidth);
+    viewportPropertyMap->emplace("height", viewportHeight);
+    // Note: "event.viewport.inBounds" is an undocumented feature for the viewport object.  It has
+    // been added here because the "event.inBounds" property tracks if the touch occurs inside the
+    // component, not the drawing bounds of the _graphic_.
+    viewportPropertyMap->emplace("inBounds", x >= 0 && y >= 0 && x <= viewportWidth && y <= viewportHeight);
+
+    eventProperties->emplace("viewport", viewportPropertyMap);
+    return eventProperties;
+}
+
+bool
+VectorGraphicComponent::isFocusable() const {
+    // According to the APL specification, a Vector Graphic component should only receive keyboard
+    // focus if at least one of the following handlers are defined:  onFocus, onBlur, handleKeyDown, handleKeyUp,
+    // onDown, and onPress.
+    return !getCalculated(kPropertyOnFocus).empty()       || !getCalculated(kPropertyOnBlur).empty() ||
+           !getCalculated(kPropertyHandleKeyDown).empty() || !getCalculated(kPropertyHandleKeyUp).empty() ||
+           !getCalculated(kPropertyOnDown).empty()        || !getCalculated(kPropertyOnPress).empty() ||
+           !getCalculated(kPropertyGestures).empty();
+}
+
+bool
+VectorGraphicComponent::isTouchable() const {
+    // Same rules as for focus
+    return isFocusable();
 }
 
 } // namespace apl

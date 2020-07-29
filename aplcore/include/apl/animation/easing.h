@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -17,42 +17,27 @@
 #ifndef _APL_EASING_H
 #define _APL_EASING_H
 
-#include <assert.h>
-#include <string>
-
-#include "apl/common.h"
+#include "apl/primitives/objectdata.h"
 
 namespace apl {
 
-class EasingCurve;
-class streamer;
-using EasingCurvePtr = const std::shared_ptr<EasingCurve>;
+class CoreEasing;
 
-class Easing {
-
+class Easing : public ObjectData {
 public:
-    Easing(EasingCurvePtr curve) : mCurve(curve), mLastTime(0), mLastValue(0) { assert(curve); }
-    Easing(const Easing& other) : mCurve(other.mCurve), mLastTime(0), mLastValue(0) {}
-    Easing& operator=(const Easing& other) {
-        mCurve = other.mCurve;
-        mLastValue = other.mLastValue;
-        mLastTime = other.mLastTime;
-        return *this;
-    }
-
-    /**
-     * Evaluate the easing curve at a given time between 0 and 1.
-     * @param time
-     * @return The value
-     */
-    float operator()(float time);
+    struct Bounds { float start; float end; float minimum; float maximum; };
 
     /**
      * Generate an easing curve from a string.  If the string is invalid, we return a linear easing curve
      * @param easing The character string.
      * @return A reference to the easing curve.
      */
-    static Easing parse(const SessionPtr& session, const std::string& easing);
+    static std::shared_ptr<Easing> parse(const SessionPtr& session, const std::string& easing);
+
+    /**
+     * @return The default linear easing curve
+     */
+    static std::shared_ptr<Easing> linear();
 
     /**
      * Check to see if an easing curve has been defined.
@@ -62,18 +47,26 @@ public:
     static bool has(const char *easing);
 
     /**
-     * @return The default linear easing curve
+     * Evaluate the easing curve at a given time between 0 and 1.
+     * @param time
+     * @return The value
      */
-    static Easing linear();
+    virtual float calc(float time) = 0;
 
-    bool operator==(const Easing& rhs);
-    bool operator!=(const Easing& rhs);
+    /**
+     * @return A bounding box of the easing curve.
+     */
+    virtual Bounds bounds() = 0;
 
-    friend streamer& operator<<(streamer& , const Easing&);
+    // Standard ObjectData methods
+    bool operator==(const ObjectData& other) const override;
+    bool empty() const override { return false; }
+    bool truthy() const override { return true; }
+    Object call(const ObjectArray& args) const override;
 
-private:
-    std::shared_ptr<EasingCurve> mCurve;
-    float mLastTime, mLastValue;
+    virtual bool operator==(const Easing& other) const = 0;
+    virtual bool operator==(const CoreEasing& other) const = 0;
+    virtual ~Easing() noexcept;
 };
 
 } // namespace apl

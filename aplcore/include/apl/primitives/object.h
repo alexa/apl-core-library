@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -37,27 +37,18 @@
 #ifndef _APL_OBJECT_H
 #define _APL_OBJECT_H
 
-#include <memory>
-#include <string>
-#include <exception>
-#include <memory>
 #include <map>
-#include <vector>
-#include <cassert>
 #include <cmath>
-#include <set>
 
-#include "rapidjson/document.h"
+#include <rapidjson/document.h>
 
 #include "apl/common.h"
-#include "apl/primitives/gradient.h"
 #include "apl/utils/visitor.h"
-#include "apl/primitives/styledtext.h"
+#include "apl/primitives/color.h"
+#include "apl/primitives/dimension.h"
 #include "apl/primitives/radii.h"
 #include "apl/primitives/rect.h"
-#include "apl/primitives/symbolreferencemap.h"
 #include "apl/primitives/transform2d.h"
-#include "apl/animation/easing.h"
 
 #ifdef APL_CORE_UWP
     #undef TRUE
@@ -72,13 +63,21 @@ namespace datagrammar {
 }
 
 class Object;
-class Color;
-class Dimension;
+class ComponentEventWrapper;
+class ContextWrapper;
+class Easing;
 class Filter;
 class Function;
+class Gradient;
+class GraphicPattern;
 class Transformation;
 class MediaSource;
 class LiveDataObject;
+class StyledText;
+class SymbolReferenceMap;
+class ObjectData;
+
+class streamer;
 
 using ObjectMap = std::map<std::string, Object>;
 using ObjectMapPtr = std::shared_ptr<ObjectMap>;
@@ -144,6 +143,7 @@ public:
         kColorType,
         kFilterType,
         kGradientType,
+        kGraphicPatternType,
         kMediaSourceType,
         kRectType,
         kRadiiType,
@@ -152,7 +152,9 @@ public:
         kTransformType,
         kTransform2DType,
         kEasingType,
-        kBoundSymbolType
+        kBoundSymbolType,
+        kComponentType,
+        kContextType,
     };
 
     class Data;  // Forward declaration
@@ -186,11 +188,14 @@ public:
     Object(Radii&& radii);
     Object(StyledText&& styledText);
     Object(const GraphicPtr& graphic);
+    Object(const GraphicPatternPtr& graphicPattern);
     Object(const std::shared_ptr<Transformation>& transform);
     Object(Transform2D&& transform2d);
-    Object(Easing&& easingCurve);
+    Object(const std::shared_ptr<Easing>& easing);
     Object(const std::shared_ptr<datagrammar::BoundSymbol>& b);
     Object(const std::shared_ptr<LiveDataObject>& d);
+    Object(const std::shared_ptr<ComponentEventWrapper>& component);
+    Object(const std::shared_ptr<ContextWrapper>& context);
 
     // Statically initialized objects.
     static const Object& TRUE_OBJECT();
@@ -227,10 +232,11 @@ public:
     bool isNumber() const { return mType == kNumberType; }
     bool isNaN() const { return mType == kNumberType && std::isnan(mValue); }
     bool isArray() const { return mType == kArrayType; }
-    bool isMap() const { return mType == kMapType; }
+    bool isMap() const { return mType == kMapType || mType == kComponentType || mType == kContextType; }
     bool isNode() const { return mType == kNodeType; }
     bool isBoundSymbol() const { return mType == kBoundSymbolType; }
     bool isEvaluable() const { return mType == kNodeType || mType == kBoundSymbolType; }
+    bool isCallable() const { return mType == kFunctionType || mType == kEasingType; }
     bool isFunction() const { return mType == kFunctionType; }
     bool isAbsoluteDimension() const { return mType == kAbsoluteDimensionType; }
     bool isRelativeDimension() const { return mType == kRelativeDimensionType; }
@@ -248,9 +254,12 @@ public:
     bool isRadii() const { return mType == kRadiiType; }
     bool isStyledText() const { return mType == kStyledTextType; }
     bool isGraphic() const { return mType == kGraphicType; }
+    bool isGraphicPattern() const { return mType == kGraphicPatternType; }
     bool isTransform() const { return mType == kTransformType; }
     bool isTransform2D() const { return mType == kTransform2DType; }
     bool isEasing() const { return mType == kEasingType; }
+    bool isComponentEventData() const { return mType == kComponentType; }
+    bool isContext() const { return mType == kContextType; }
     bool isJson() const;
 
     // These methods force a conversion to the appropriate type.  We try to return
@@ -283,77 +292,34 @@ public:
     std::shared_ptr<LiveDataObject> getLiveDataObject() const;
     std::shared_ptr<datagrammar::Node> getNode() const;
 
-    const ObjectMap& getMap() const {
-        assert(mType == kMapType); return mData->getMap();
-    }
-
-    ObjectMap& getMutableMap() {
-        assert(mType == kMapType); return mData->getMutableMap();
-    }
-
-    const ObjectArray& getArray() const {
-        assert(mType == kArrayType); return mData->getArray();
-    }
-
-    ObjectArray& getMutableArray() {
-        assert(mType == kArrayType); return mData->getMutableArray();
-    }
-
-    const Filter& getFilter() const {
-        assert(mType == kFilterType); return mData->getFilter();
-    }
-
-    const Gradient& getGradient() const {
-        assert(mType == kGradientType); return mData->getGradient();
-    }
-    const MediaSource& getMediaSource() const {
-        assert(mType == kMediaSourceType); return mData->getMediaSource();
-    }
-
-    GraphicPtr getGraphic() const {
-        assert(mType == kGraphicType); return mData->getGraphic();
-    }
-
-    Rect getRect() const {
-        assert(mType == kRectType); return mData->getRect();
-    }
-
-    Radii getRadii() const {
-        assert(mType == kRadiiType); return mData->getRadii();
-    }
-
-    const StyledText& getStyledText() const {
-        assert(mType == kStyledTextType); return mData->getStyledText();
-    }
-
-    std::shared_ptr<Transformation> getTransformation() const {
-        assert(mType == kTransformType); return mData->getTransform();
-    }
-
-    Transform2D getTransform2D() const {
-        assert(mType == kTransform2DType); return mData->getTransform2D();
-    }
-
-    Easing getEasing() const {
-        assert(mType == kEasingType); return mData->getEasing();
-    }
-
-    const rapidjson::Value& getJson() const {
-        assert(isJson());
-        return *(mData->getJson());
-    }
+    const ObjectMap& getMap() const;
+    ObjectMap& getMutableMap();
+    const ObjectArray& getArray() const;
+    ObjectArray& getMutableArray();
+    const Filter& getFilter() const;
+    const Gradient& getGradient() const;
+    const MediaSource& getMediaSource() const;
+    GraphicPtr getGraphic() const;
+    GraphicPatternPtr getGraphicPattern() const;
+    Rect getRect() const;
+    Radii getRadii() const;
+    const StyledText& getStyledText() const;
+    std::shared_ptr<Transformation> getTransformation() const;
+    Transform2D getTransform2D() const;
+    std::shared_ptr<Easing> getEasing() const;
+    const rapidjson::Value& getJson() const;
 
     bool truthy() const;
 
     // MAP objects
-    const Object get(const std::string& key) const;
+    Object get(const std::string& key) const;
     bool has(const std::string& key) const;
-    const Object opt(const std::string& key, const Object& def) const;
+    Object opt(const std::string& key, const Object& def) const;
 
     // ARRAY objects
-    const Object at(size_t index) const;
+    Object at(size_t index) const;
 
-    const ObjectType getType() const;
+    ObjectType getType() const;
 
     // MAP, ARRAY, and STRING objects
     size_t size() const;
@@ -373,7 +339,7 @@ public:
     // NODE & BoundSymbol: Add any symbols defined by this node to the "symbols" set
     void symbols(SymbolReferenceMap& symbols) const;
 
-    // FUNCTION objects
+    // FUNCTION & Easing objects
     Object call(const ObjectArray& args) const;
 
     // Visitor pattern
@@ -390,91 +356,7 @@ public:
     // Serialize just the dirty bits to JSON format
     rapidjson::Value serializeDirty(rapidjson::Document::AllocatorType& allocator) const;
 
-    // Internal class for holding a shared pointer
-    class Data {
-    public:
-        virtual ~Data() = default;
-
-        virtual const Object get(const std::string& key) const { return Object::NULL_OBJECT(); }
-        virtual bool has(const std::string& key) const { return false; }
-        virtual const Object opt(const std::string& key, const Object& def) const { return def; }
-
-        virtual const Object at(size_t index) const { return Object::NULL_OBJECT(); }
-        virtual size_t size() const { return 0; }
-        virtual bool empty() const { return false; }
-
-        virtual bool isMutable() const { return false; }
-
-        virtual Object eval() const { return Object::NULL_OBJECT(); }
-
-        virtual Object call(const ObjectArray& args) const { return Object::NULL_OBJECT(); }
-
-        virtual void accept(Visitor<Object>& visitor) const {}
-
-        virtual const ObjectArray& getArray() const {
-            throw std::runtime_error("Illegal array");
-        }
-
-        virtual ObjectArray& getMutableArray() {
-            throw std::runtime_error("Illegal mutable array");
-        }
-
-        virtual const ObjectMap& getMap() const {
-            throw std::runtime_error("Illegal map");
-        }
-
-        virtual ObjectMap& getMutableMap() {
-            throw std::runtime_error("Illegal mutable map");
-        }
-
-        virtual const Filter& getFilter() const {
-            throw std::runtime_error("Illegal filter");
-        }
-
-        virtual const Gradient& getGradient() const {
-            throw std::runtime_error("Illegal gradient");
-        }
-
-        virtual const MediaSource& getMediaSource() const {
-            throw std::runtime_error("Illegal media source");
-        }
-
-        virtual Rect getRect() const {
-            throw std::runtime_error("Illegal rectangle");
-        }
-
-        virtual Radii getRadii() const {
-            throw std::runtime_error("Illegal radii");
-        }
-
-        virtual const StyledText& getStyledText() const {
-            throw std::runtime_error("Illegal styled text");
-        }
-
-        virtual GraphicPtr getGraphic() const {
-            throw std::runtime_error("Illegal graphic");
-        }
-
-        virtual std::shared_ptr<Transformation> getTransform() const {
-            throw std::runtime_error("Illegal transform");
-        }
-
-        virtual Transform2D getTransform2D() const {
-            throw std::runtime_error("Illegal transform 2D");
-        }
-
-        virtual Easing getEasing() const {
-            throw std::runtime_error("Illegal easing curve");
-        }
-
-        virtual const rapidjson::Value* getJson() const {
-            return nullptr;
-        }
-
-        virtual std::string toDebugString() const {
-            return "Unknown type";
-        }
-    };
+    template<typename T> const T& as() const;
 
 private:
     // In the future we should use a union, but that precludes common std library use
@@ -484,12 +366,7 @@ private:
     ObjectType mType;
     double mValue = 0;
     std::string mString;
-    std::shared_ptr<Data> mData;
-
-    // TODO:  Many of our children are just shared pointers.  Rather than stash them
-    // TODO:  inside of mData, let's make a common base class that anything stored in
-    // TODO:  an object can inherit from: std::shared_ptr<CommonBase> mData.
-    // TODO:  Then getGraphic becomes return std::dynamic_pointer_cast<Graphic>(mData);
+    std::shared_ptr<ObjectData> mData;
 };
 
 

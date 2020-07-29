@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 #define _APL_SEQUENTIAL_COMMAND_H
 
 #include "apl/command/corecommand.h"
-#include "apl/action/sequentialaction.h"
 
 namespace apl {
 
@@ -26,35 +25,22 @@ class SequentialCommand : public CoreCommand {
 public:
     static CommandPtr create(const ContextPtr& context,
                              Properties&& properties,
-                             const CoreComponentPtr& base) {
-        auto ptr = std::make_shared<SequentialCommand>(context, std::move(properties), base);
+                             const CoreComponentPtr& base,
+                             const std::string& parentSequencer) {
+        auto ptr = std::make_shared<SequentialCommand>(context, std::move(properties), base, parentSequencer);
         return ptr->validate() ? ptr : nullptr;
     }
 
-    SequentialCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base)
-            : CoreCommand(context, std::move(properties), base)
+    SequentialCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
+                      const std::string& parentSequencer)
+            : CoreCommand(context, std::move(properties), base, parentSequencer)
     {}
 
-    const CommandPropDefSet& propDefSet() const override {
-        static CommandPropDefSet sSequentialCommandProperties(CoreCommand::propDefSet(), {
-                {kCommandPropertyCommands,    Object::EMPTY_ARRAY(), asArray },
-                {kCommandPropertyRepeatCount, 0,                     asNonNegativeInteger },
-                {kCommandPropertyCatch,       Object::EMPTY_ARRAY(), asArray },
-                {kCommandPropertyFinally,     Object::EMPTY_ARRAY(), asArray }
-        });
-
-        return sSequentialCommandProperties;
-    };
+    const CommandPropDefSet& propDefSet() const override;
 
     CommandType type() const override { return kCommandTypeSequential; }
 
-    ActionPtr execute(const TimersPtr& timers, bool fastMode) override {
-        if (!calculateProperties())
-            return nullptr;
-
-        auto shared = std::static_pointer_cast<const CoreCommand>(shared_from_this());
-        return SequentialAction::make(timers, shared, fastMode);
-    }
+    ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
 };
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -16,16 +16,20 @@
  * Loading and displaying results of parsing of a directive.
  */
 
-#include <tao/pegtl.hpp>
 #include <clocale>
+#ifdef APL_CORE_UWP
+    #include <direct.h>
+    #define getcwd _getcwd
+    #define chdir _chdir
+#else
+    #include <unistd.h>
+#endif
 
 #include "apl/content/directive.h"
-#include "apl/apl.h"
 
 #include "utils.h"
 
 using namespace apl;
-namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 
 const char *USAGE_STRING = R"(
 parseDirective [OPTIONS] DIRECTIVE
@@ -172,21 +176,21 @@ main(int argc, char *argv[]) {
                             Argument::NONE,
                             "Fix various fields to be more clear",
                             "",
-                            [&](const std::string&) { gOptions.fixFields = true; }),
+                            [&](const std::vector<std::string>&) { gOptions.fixFields = true; }),
                         Argument(
                             "-p",
                             "--packages",
                             Argument::NONE,
                             "Download all referenced packages in the content",
                             "",
-                            [&](const std::string&) { gOptions.downloadPackages = true; }),
+                            [&](const std::vector<std::string>&) { gOptions.downloadPackages = true; }),
                         Argument(
                             "",
                             "--wget",
                             Argument::NONE,
                             "Use 'wget' instead of 'curl' to download packages",
                             "",
-                            [&](const std::string&) { gOptions.useWget = true; }
+                            [&](const std::vector<std::string>&) { gOptions.useWget = true; }
                         ),
                         Argument(
                             "-v",
@@ -194,7 +198,7 @@ main(int argc, char *argv[]) {
                             Argument::NONE,
                             "Verbose mode",
                             "",
-                            [&](const std::string&) { gOptions.verbose = true; }
+                            [&](const std::vector<std::string>&) { gOptions.verbose = true; }
                         ),
                         Argument(
                             "",
@@ -202,7 +206,7 @@ main(int argc, char *argv[]) {
                             Argument::ONE,
                             "Set the directory packages will be stored in",
                             "DIR",
-                            [&](const std::string& s) { gOptions.packageDirectory = s; }
+                            [&](const std::vector<std::string>& s) { gOptions.packageDirectory = s[0]; }
                         )
                     });
 
@@ -269,12 +273,8 @@ main(int argc, char *argv[]) {
             tree.Accept(writer);
         }
     }
-    catch (pegtl::parse_error e) {
-        std::cerr << "Parse error 2 " << e.what() << std::endl;
-        exit(1);
-    }
     catch (std::exception e) {
-        std::cerr << "Parse error!" << std::endl;
+        std::cerr << "Parse error!" << e.what() << std::endl;
         exit(1);
     }
 }

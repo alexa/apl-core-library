@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -64,6 +64,7 @@ Action::terminate()
 {
     if (mState == ActionState::PENDING) {
         mState = ActionState::TERMINATED;
+        onFinish();
         if (mTimeoutId) {
             mTimers->clearTimeout(mTimeoutId);
             mTimeoutId = 0;
@@ -126,6 +127,7 @@ Action::doResolve()
         mTimeoutId = mTimers->setTimeout([this]() {
             mTimeoutId = 0;
             if (mState == ActionState::RESOLVED && mThen) {
+                onFinish();
                 mThen(shared_from_this());
             }
         });

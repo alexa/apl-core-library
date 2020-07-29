@@ -17,6 +17,7 @@
 #include "apl/engine/context.h"
 #include "apl/engine/evaluate.h"
 #include "apl/component/corecomponent.h"
+#include "apl/primitives/symbolreferencemap.h"
 
 namespace apl {
 

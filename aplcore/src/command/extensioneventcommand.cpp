@@ -41,8 +41,9 @@ ExtensionEventCommand::execute(const TimersPtr& timers, bool fastMode)
             }
             map->emplace(m.first, m.second.defvalue);
         } else {
-            auto raw = m.second.arrayified ? arrayify(*mContext, it->second) : it->second;
-            map->emplace(m.first, evaluateRecursive(*mContext, raw));
+            const auto& bfunc = sBindingFunctions.at(m.second.btype);
+            auto raw = m.second.btype == kBindingTypeArray ? arrayify(*mContext, it->second) : it->second;
+            map->emplace(m.first, bfunc(*mContext, evaluateRecursive(*mContext, raw)));
         }
     }
 

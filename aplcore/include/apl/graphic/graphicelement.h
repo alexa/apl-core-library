@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ using GraphicPropertyMap = PropertyMap<GraphicPropertyKey, sGraphicPropertyBimap
  */
 class GraphicElement : public std::enable_shared_from_this<GraphicElement>,
                        public RecalculateTarget<GraphicPropertyKey>,
-                       public UserData,
+                       public UserData<GraphicElement>,
                        private Counter<GraphicElement> {
     friend class Graphic;
     friend class GraphicDependant;
@@ -61,13 +61,18 @@ public:
     /**
      * Shared-pointer constructor
      * @param graphic The container Graphic
-     * @param context The working context
-     * @param json The raw JSON data
+     * @param json The raw JSON wrapped in object
      * @return The top of the GraphicElement tree of graphic content.
      */
-    static GraphicElementPtr build(const GraphicPtr& graphic,
-                                                 const ContextPtr& context,
-                                                 const rapidjson::Value& json);
+    static GraphicElementPtr build(const GraphicPtr& graphic, const Object& json);
+
+    /**
+     * Construct without parent graphic.
+     * @param context The working context
+     * @param json The raw JSON wrapped in object
+     * @return GraphicElement.
+     */
+    static GraphicElementPtr build(const Context& context, const Object& json);
 
     /**
      * Default constructor.  Use build() instead.
@@ -117,14 +122,30 @@ public:
      */
     virtual GraphicElementType getType() const = 0;
 
+    /**
+     * Update any assigned style state.
+     */
+    void updateStyle(const GraphicPtr& graphic);
+
+    virtual std::string toDebugString() const = 0;
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
 protected:
-    virtual bool initialize(const ContextPtr& context, const Object& json);
+    virtual bool initialize(const GraphicPtr& graphic, const ContextPtr& context, const Object& json);
     void addChildren(const GraphicPtr& graphic, const ContextPtr& context, const Object& json);
 
     virtual const GraphicPropDefSet& propDefSet() const = 0;
     bool setValue(GraphicPropertyKey key, const Object& value, bool useDirtyFlag);
+
+    const StyleInstancePtr getStyle(const GraphicPtr& graphic) const;
+    void updateStyleInternal(const GraphicPtr& graphic, const StyleInstancePtr& stylePtr, const GraphicPropDefSet& gds);
+
+    void markAsDirty();
+
+    void updateTransform(const Context& context, GraphicPropertyKey inKey, GraphicPropertyKey outKey, bool useDirtyFlag);
+
+    static void fixFillTransform(GraphicElement& element);
+    static void fixStrokeTransform(GraphicElement& element);
 
 protected:
     id_type                mId;               // Unique ID assigned to this vector graphic element
@@ -133,6 +154,8 @@ protected:
     GraphicDirtyProperties mDirtyProperties;  // Set of dirty properties
     Properties             mProperties;
     std::weak_ptr<Graphic> mGraphic;          // The top-level graphic we belong to
+    std::string            mStyle;            // Current style name.
+    std::set<GraphicPropertyKey> mAssigned;
 };
 
 } // namespace apl

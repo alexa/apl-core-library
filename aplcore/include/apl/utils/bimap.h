@@ -64,6 +64,24 @@ public:
     bool has(B x) const { return mBtoA.count(x); }
     bool has(A x) const { return mAtoB.count(x); }
 
+    std::vector<A> all(B x) const {
+        std::vector<A> result;
+        for (const auto& m : mAtoB) {
+            if (m.second == x)
+                result.push_back(m.first);
+        }
+        return result;
+    }
+
+    std::vector<B> all(A x) const {
+        std::vector<B> result;
+        for (const auto& m : mBtoA) {
+            if (m.second == x)
+                result.push_back(m.first);
+        }
+        return result;
+    }
+
     std::size_t size() const { return mAtoB.size(); }
 
     A get(B x, A defvalue) const {

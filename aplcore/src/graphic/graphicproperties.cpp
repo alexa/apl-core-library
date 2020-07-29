@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -27,12 +27,23 @@ Bimap<int, std::string> sGraphicScaleBimap = {
 };
 
 Bimap<int, std::string> sGraphicPropertyBimap = {
+    {kGraphicPropertyClipPath,               "clipPath"},
+    {kGraphicPropertyCoordinateX,            "x"},
+    {kGraphicPropertyCoordinateY,            "y"},
     {kGraphicPropertyFill,                   "fill"},
     {kGraphicPropertyFillOpacity,            "fillOpacity"},
+    {kGraphicPropertyFillTransform,          "_fillTransform"},
+    {kGraphicPropertyFillTransformAssigned,  "fillTransform"},
+    {kGraphicPropertyFontFamily,             "fontFamily" },
+    {kGraphicPropertyFontSize,               "fontSize" },
+    {kGraphicPropertyFontStyle,              "fontStyle" },
+    {kGraphicPropertyFontWeight,             "fontWeight"},
     {kGraphicPropertyHeightOriginal,         "height"},
     {kGraphicPropertyHeightActual,           "height_actual"},
+    {kGraphicPropertyLetterSpacing,          "letterSpacing"},
     {kGraphicPropertyOpacity,                "opacity"},
     {kGraphicPropertyPathData,               "pathData"},
+    {kGraphicPropertyPathLength,             "pathLength"},
     {kGraphicPropertyPivotX,                 "pivotX"},
     {kGraphicPropertyPivotY,                 "pivotY"},
     {kGraphicPropertyRotation,               "rotation"},
@@ -43,8 +54,19 @@ Bimap<int, std::string> sGraphicPropertyBimap = {
     {kGraphicPropertyScaleTypeHeight,        "scaleTypeHeight"},
     {kGraphicPropertyScaleTypeWidth,         "scaleTypeWidth"},
     {kGraphicPropertyStroke,                 "stroke"},
+    {kGraphicPropertyStrokeDashArray,        "strokeDashArray"},
+    {kGraphicPropertyStrokeDashOffset,       "strokeDashOffset"},
+    {kGraphicPropertyStrokeLineCap,          "strokeLineCap"},
+    {kGraphicPropertyStrokeLineJoin,         "strokeLineJoin"},
+    {kGraphicPropertyStrokeMiterLimit,       "strokeMiterLimit"},
     {kGraphicPropertyStrokeOpacity,          "strokeOpacity"},
+    {kGraphicPropertyStrokeTransform,        "_strokeTransform"},
+    {kGraphicPropertyStrokeTransformAssigned,"strokeTransform"},
     {kGraphicPropertyStrokeWidth,            "strokeWidth"},
+    {kGraphicPropertyText,                   "text"},
+    {kGraphicPropertyTextAnchor,             "textAnchor"},
+    {kGraphicPropertyTransform,              "_transform"},
+    {kGraphicPropertyTransformAssigned,      "transform"},
     {kGraphicPropertyTranslateX,             "translateX"},
     {kGraphicPropertyTranslateY,             "translateY"},
     {kGraphicPropertyVersion,                "version"},
@@ -54,5 +76,27 @@ Bimap<int, std::string> sGraphicPropertyBimap = {
     {kGraphicPropertyWidthOriginal,          "width"}
 };
 
+Bimap<int, std::string> sGraphicLineCapBimap = {
+    {kGraphicLineCapButt,   "butt"},
+    {kGraphicLineCapRound,  "round"},
+    {kGraphicLineCapSquare, "square"}
+};
+
+Bimap<int, std::string> sGraphicLineJoinBimap = {
+    {kGraphicLineJoinBevel, "bevel"},
+    {kGraphicLineJoinMiter, "miter"},
+    {kGraphicLineJoinRound, "round"}
+};
+
+Bimap<int, std::string> sGraphicTextAnchorBimap = {
+    {kGraphicTextAnchorEnd,    "end"},
+    {kGraphicTextAnchorMiddle, "middle"},
+    {kGraphicTextAnchorStart,  "start"}
+};
+
+Bimap<int, std::string> sGraphicVersionBimap = {
+    {kGraphicVersion10, "1.0"},
+    {kGraphicVersion11, "1.1"}
+};
 
 } // namespace apl
