@@ -18,6 +18,7 @@
 
 #include "apl/graphic/graphiccontent.h"
 #include "apl/graphic/graphicelement.h"
+#include "apl/engine/jsonresource.h"
 #include "apl/engine/styles.h"
 #include "apl/utils/userdata.h"
 

@@ -640,6 +640,9 @@ TEST_F(LiveArrayRebuildTest, Numbering)
     root->clearPending();
     ASSERT_TRUE(CheckChildOrder({"1-b", "2-c", "3-d", "1-e", "2-f"})); // NOTE: Numbering is NOT dynamic
     ASSERT_TRUE(AlternateColor(component, {Color(Color::GRAY), Color(Color::BLACK)}));
+
+    ASSERT_EQ("Property numbering is not dynamic and can't be updated.", session->getLast());
+    session->clear();
 }
 
 ::testing::AssertionResult

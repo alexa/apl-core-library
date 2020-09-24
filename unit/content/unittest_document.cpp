@@ -19,6 +19,7 @@
 #include "apl/content/content.h"
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
+#include "apl/engine/context.h"
 #include "apl/engine/rootcontext.h"
 #include "apl/content/importrequest.h"
 

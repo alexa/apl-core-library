@@ -577,6 +577,36 @@ public:
     bool containsGlobalPosition(const Point& position) const;
 
     /**
+     * @param position Point in local coordinates.
+     * @return Whether that point is within the bounds of this component.
+     */
+    bool containsLocalPosition(const Point& position) const;
+
+    /**
+     * @return true if this component's bounds intersect with it's parent viewport.
+     */
+    bool inParentViewport() const;
+
+    /**
+     * The @c Transform2D that maps the ancestor's coordinate space to this component's
+     * coordinate space.
+     * @param ancestor An ancestor of this component or nullptr for the root
+     * @param out Store the resulting transform here.
+     * @return True if a transform could be computed for the given ancestor, false otherwise.
+     */
+    bool getCoordinateTransformFromParent(const ComponentPtr& ancestor, Transform2D& out) const;
+
+    /**
+     * The @c Transform2D that maps the global coordinate space to this component's
+     * coordinate space.
+     * @param out Store the resulting transform here.
+     * @return True if a transform could be computed, false otherwise.
+     */
+    bool getCoordinateTransformFromGlobal(Transform2D& out) const {
+        return getCoordinateTransformFromParent(nullptr, out);
+    }
+
+    /**
      * Update the spacing to specified value if any.
      * @param reset Reset spacing to 0.
      */

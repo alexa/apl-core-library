@@ -13,10 +13,28 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/utils/log.h"
+#include "apl/engine/context.h"
 #include "apl/utils/session.h"
 
 namespace apl {
+
+SessionMessage::SessionMessage(const SessionPtr& session, const char *filename, const char *function)
+    : mSession(session),
+      mFilename(filename),
+      mFunction(function),
+      mUncaught(std::uncaught_exception()) {}
+
+SessionMessage::SessionMessage(const ContextPtr& contextPtr, const char *filename, const char *function)
+    : mSession(contextPtr->session()),
+      mFilename(filename),
+      mFunction(function),
+      mUncaught(std::uncaught_exception()) {}
+
+SessionMessage::SessionMessage(const Context& context, const char *filename, const char *function)
+    : mSession(context.session()),
+      mFilename(filename),
+      mFunction(function),
+      mUncaught(std::uncaught_exception()) {}
 
 SessionMessage::~SessionMessage()
 {

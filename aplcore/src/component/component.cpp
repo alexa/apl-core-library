@@ -14,6 +14,7 @@
  */
 
 #include "apl/component/component.h"
+#include "apl/engine/context.h"
 #include "apl/utils/log.h"
 
 namespace apl {
@@ -109,6 +110,16 @@ operator<<(streamer& os, const Component& component)
 {
     os << component.toDebugString();
     return os;
+}
+
+ComponentPtr
+Component::inflateChildAt(const rapidjson::Value& component, size_t index)
+{
+    auto childPtr =  mContext->inflate(component);
+    if(childPtr) {
+        return insertChild(childPtr, index) ? childPtr : nullptr;
+    }
+    return nullptr;
 }
 
 

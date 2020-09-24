@@ -21,40 +21,47 @@
 namespace apl {
 
 static const bool DEBUG_SEARCH = false;
+
 /*
  * SearchVisitor base class IMPL
  */
 
 void
 SearchVisitor::visit(const CoreComponent& component) {
-    auto transform = component.getCalculated(kPropertyTransform).getTransform2D();
-    if (transform.singular()) {
+    Transform2D transform;
+    if (!component.getCoordinateTransformFromParent(component.getParent(), transform)) {
         mPruneBranch = true;
         return;
     }
 
-    // TODO: For performance reasons it might be helpful to cache the inverse transform
-    auto point = transform.inverse() * mPointInCurrent;
+    auto transformToCurrent = transform * mCurrentTransform;
+    auto pointInCurrent = transformToCurrent * mGlobalPoint;
 
     LOG_IF(DEBUG_SEARCH) << "Checking " << component.toDebugSimpleString()
-                         << " bounds=" << component.getCalculated(kPropertyBounds).toDebugString()
-                         << " point=" << point.toString();
+                                   << " bounds=" << component.getCalculated(kPropertyBounds).toDebugString()
+                                   << " point=" << pointInCurrent.toString()
+                                   << " scrollPosition=" << component.scrollPosition();
 
-    auto currentBounds = component.getCalculated(kPropertyBounds).getRect();
-    if (!universalCondition(component, point)) {
+    if (!universalCondition(component, pointInCurrent)) {
         mPruneBranch = true;
+        return;
     }
-    else {
-        if (spotCondition(component, point)) {
-            if (component.getChildCount() == 0) {
-                mResultFound = true;
-            }
-            // if the component satisfies the spot condition, cache it as a potential result so we can avoid a stack
-            mPotentialResult =
-                std::const_pointer_cast<CoreComponent>(component.shared_from_corecomponent());
-        }
-        mPointInCurrent = point - currentBounds.getTopLeft() + component.scrollPosition();
+
+    if (spotCondition(component, pointInCurrent)) {
+        // if the component satisfies the spot condition, cache it as a potential result so we can avoid a stack
+        mPotentialResult =
+            std::const_pointer_cast<CoreComponent>(component.shared_from_corecomponent());
+        LOG_IF(DEBUG_SEARCH) << "Found potential result " << component.toDebugSimpleString();
     }
+
+    // If we reached the a leaf node, then keep the best result encountered so far. We specifically
+    // avoid backtracking and exploring a different subtree because components can overlap and mask
+    // each other.
+    if (component.getChildCount() == 0) {
+        mResultFound = true;
+    }
+
+    mCurrentTransform = transformToCurrent;
 }
 
 void
@@ -63,7 +70,7 @@ SearchVisitor::push() {}
 void
 SearchVisitor::pop() {
     if (!isAborted()) {
-        mResultFound = mPotentialResult != nullptr;
+        mResultFound = (mPotentialResult != nullptr);
     }
     mPruneBranch = false;
 }
@@ -83,8 +90,9 @@ SearchVisitor::getResult() const {
  */
 
 bool
-TouchableAtPosition::universalCondition(const CoreComponent& component, const Point& point) {
-    return component.getCalculated(kPropertyBounds).getRect().contains(point)
+TouchableAtPosition::universalCondition(const CoreComponent& component,
+                                        const Point& pointInCurrent) {
+    return component.containsLocalPosition(pointInCurrent)
            && component.getCalculated(kPropertyDisplay).asInt() == kDisplayNormal
            && component.getCalculated(kPropertyOpacity).asNumber() > 0.0;
 }
@@ -99,8 +107,8 @@ TouchableAtPosition::spotCondition(const CoreComponent& component, const Point& 
  */
 
 bool
-TopAtPosition::universalCondition(const CoreComponent& component, const Point& point) {
-    return component.getCalculated(kPropertyBounds).getRect().contains(point)
+TopAtPosition::universalCondition(const CoreComponent& component, const Point& pointInCurrent) {
+    return component.containsLocalPosition(pointInCurrent)
            && component.getCalculated(kPropertyDisplay).asInt() == kDisplayNormal
            && component.getCalculated(kPropertyOpacity).asNumber() > 0.0;
 }

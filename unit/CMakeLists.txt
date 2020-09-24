@@ -55,6 +55,7 @@ add_executable( unittest
         component/unittest_signature.cpp
         component/unittest_state.cpp
         component/unittest_tick.cpp
+        component/unittest_transform.cpp
         component/unittest_visual_context.cpp
         content/unittest_apl.cpp
         content/unittest_directive.cpp

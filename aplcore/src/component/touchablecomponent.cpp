@@ -127,11 +127,12 @@ TouchableComponent::executePreEventActions(PropertyKey handlerKey) {
 }
 
 void
-TouchableComponent::executePostEventActions(PropertyKey handlerKey, const Point &point) {
+TouchableComponent::executePostEventActions(PropertyKey handlerKey, const Point &localPoint) {
     switch (handlerKey) {
         case kPropertyOnUp:
-            if (containsGlobalPosition(point))
-                executePointerEventHandler(kPropertyOnPress, point);
+            if (containsLocalPosition(localPoint)) {
+                executePointerEventHandler(kPropertyOnPress, localPoint);
+            }
             break;
         case kPropertyOnCancel:
         case kPropertyOnDown:
@@ -144,12 +145,12 @@ TouchableComponent::executePostEventActions(PropertyKey handlerKey, const Point 
 
 void
 TouchableComponent::addHandlerEventProperties(PropertyKey handlerKey,
-                                              const Point& point,
+                                              const Point& localPoint,
                                               const ObjectMapPtr& eventProperties) const {
     switch (handlerKey) {
         case kPropertyOnMove:
         case kPropertyOnUp:
-            eventProperties->emplace("inBounds", containsGlobalPosition(point));
+            eventProperties->emplace("inBounds", containsLocalPosition(localPoint));
             break;
         case kPropertyOnCancel:
         case kPropertyOnDown:
@@ -160,7 +161,8 @@ TouchableComponent::addHandlerEventProperties(PropertyKey handlerKey,
 }
 
 bool
-TouchableComponent::executePointerEventHandler(PropertyKey handlerKey, const Point& point) {
+TouchableComponent::executePointerEventHandler(PropertyKey handlerKey,
+                                               const Point& localPoint) {
     if (mState.get(kStateDisabled)) return false;
 
     executePreEventActions(handlerKey);
@@ -169,14 +171,22 @@ TouchableComponent::executePointerEventHandler(PropertyKey handlerKey, const Poi
         auto fastMode = sPropertyExecutesFast.at(handlerKey);
         ObjectMapPtr props = nullptr;
         if (handlerKey != kPropertyOnPress) {
-            props = createTouchEventProperties(point);
+            props = createTouchEventProperties(localPoint);
         }
-        addHandlerEventProperties(handlerKey, point, props);
+        addHandlerEventProperties(handlerKey, localPoint, props);
         executeEventHandler(sPropertyHandlers.at(handlerKey), commands, fastMode, props);
     }
-    executePostEventActions(handlerKey, point);
+    executePostEventActions(handlerKey, localPoint);
 
     return true;
+}
+
+bool
+TouchableComponent::executePointerEventHandler(PropertyKey handlerKey, const PointerEvent& event) {
+    // TODO: temporary entry point for gestures to avoid regressions. Will be removed when
+    // gestures are updated to handle transformations.
+    auto localPoint = event.pointerEventPosition - getGlobalBounds().getTopLeft();
+    return executePointerEventHandler(handlerKey, localPoint);
 }
 
 void
@@ -236,13 +246,11 @@ TouchableComponent::getValue() const {
 }
 
 ObjectMapPtr
-TouchableComponent::createTouchEventProperties(const Point &point) const
-{
+TouchableComponent::createTouchEventProperties(const Point &localPoint) const {
     auto eventProps = std::make_shared<ObjectMap>();
     auto componentPropertyMap = std::make_shared<ObjectMap>();
-    auto componentPoint = point - getGlobalBounds().getTopLeft();
-    componentPropertyMap->emplace("x", componentPoint.getX());
-    componentPropertyMap->emplace("y", componentPoint.getY());
+    componentPropertyMap->emplace("x", localPoint.getX());
+    componentPropertyMap->emplace("y", localPoint.getY());
     componentPropertyMap->emplace("width", YGNodeLayoutGetWidth(mYGNodeRef));
     componentPropertyMap->emplace("height", YGNodeLayoutGetHeight(mYGNodeRef));
     eventProps->emplace("component", componentPropertyMap);
@@ -250,15 +258,23 @@ TouchableComponent::createTouchEventProperties(const Point &point) const
     return eventProps;
 }
 
+ObjectMapPtr
+TouchableComponent::createTouchEventProperties(const PointerEvent& event) const {
+    // TODO: temporary entry point for gestures to avoid regressions. Will be removed when
+    // gestures are updated to handle transformations.
+    auto localPoint = event.pointerEventPosition - getGlobalBounds().getTopLeft();
+    return createTouchEventProperties(localPoint);
+}
+
 void
 TouchableComponent::initialize() {
     CoreComponent::initialize();
     setGestureHandlers();
 }
+
 // TODO: remove once we support handing intrinsic/reserved keys
 void
-TouchableComponent::update(UpdateType type, float value)
-{
+TouchableComponent::update(UpdateType type, float value) {
     if (type == kUpdatePressed) {
         // don't bother with setting pressed state and unsetting it here, although this should only
         // be triggered from the enter key/dpad center, we've lost the timings of key up/down.  Will

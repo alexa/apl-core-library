@@ -51,8 +51,8 @@ LongPressGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
 void
 LongPressGesture::onMove(const PointerEvent& event, apl_time_t timestamp) {
     if (!mTriggered && timestamp >= mStartTime + mLongPressTimeout) {
-        mTouchable->executePointerEventHandler(kPropertyOnCancel, event.pointerEventPosition);
-        auto params = mTouchable->createTouchEventProperties(event.pointerEventPosition);
+        mTouchable->executePointerEventHandler(kPropertyOnCancel, event);
+        auto params = mTouchable->createTouchEventProperties(event);
         params->emplace("inBounds", mTouchable->containsGlobalPosition(event.pointerEventPosition));
         mTouchable->executeEventHandler("LongPressStart", mOnLongPressStart, true, params);
         mTriggered = true;
@@ -62,7 +62,7 @@ LongPressGesture::onMove(const PointerEvent& event, apl_time_t timestamp) {
 void
 LongPressGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
     if (mTriggered) {
-        auto params = mTouchable->createTouchEventProperties(event.pointerEventPosition);
+        auto params = mTouchable->createTouchEventProperties(event);
         params->emplace("inBounds", mTouchable->containsGlobalPosition(event.pointerEventPosition));
         mTouchable->executeEventHandler("LongPressEnd", mOnLongPressEnd, false, params);
     }

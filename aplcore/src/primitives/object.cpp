@@ -15,8 +15,8 @@
 
 #include <clocale>
 
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
 
 #include "apl/animation/easing.h"
 #include "apl/datagrammar/boundsymbol.h"

@@ -407,6 +407,11 @@ public:
 
     virtual bool isCharacterValid(const wchar_t wc) const;
 
+    /**
+     * This function will be called for dynamic component inflation
+     */
+    ComponentPtr inflateChildAt(const rapidjson::Value& component, size_t index);
+
 protected:
     Component(const ContextPtr& context, const std::string& id);
 

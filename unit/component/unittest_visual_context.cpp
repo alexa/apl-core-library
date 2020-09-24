@@ -2501,3 +2501,101 @@ TEST_F(VisualContextTest, EditTextLayoutChange)
     ASSERT_TRUE(child.HasMember("entities"));
     ASSERT_EQ("50x10+0+0:0", child["position"]);
 }
+
+static const char *GRID_SEQUENCE_WITH_HOLE = R"apl(
+    {
+      "type": "APL",
+      "version": "1.5",
+      "mainTemplate": {
+        "item": {
+          "type": "GridSequence",
+          "width": 400,
+          "height": 400,
+          "childHeights": 100,
+          "childWidths": 200,
+          "item": {
+            "type": "TouchWrapper",
+            "id": "Item{index}",
+            "width": "100%",
+            "height": "100%",
+            "opacity": "${index == 3 ? 0 : 1}"
+          },
+          "data": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        }
+      }
+    }
+)apl";
+
+TEST_F(VisualContextTest, GridHole) {
+    loadDocument(GRID_SEQUENCE_WITH_HOLE);
+    ASSERT_TRUE(component);
+
+    rapidjson::Document document(rapidjson::kObjectType);
+    auto context = component->serializeVisualContext(document.GetAllocator());
+
+    ASSERT_TRUE(context.HasMember("tags"));
+    ASSERT_TRUE(context["tags"].HasMember("list"));
+
+    const auto& list = context["tags"]["list"];
+    ASSERT_TRUE(list.HasMember("itemCount"));
+    ASSERT_EQ(6, list["itemCount"].GetInt());
+    ASSERT_TRUE(list.HasMember("lowestIndexSeen"));
+    ASSERT_EQ(0, list["lowestIndexSeen"].GetInt());
+    ASSERT_TRUE(list.HasMember("highestIndexSeen"));
+    ASSERT_EQ(5, list["highestIndexSeen"].GetInt());
+}
+
+static const char *SEQUENCE_WITH_HOLE = R"apl(
+    {
+      "type": "APL",
+      "version": "1.5",
+      "mainTemplate": {
+        "item": {
+          "type": "Sequence",
+          "width": 400,
+          "height": 600,
+          "item": {
+            "type": "TouchWrapper",
+            "id": "Item{index}",
+            "width": "100%",
+            "height": 100,
+            "opacity": "${index == 3 ? 0 : 1}"
+          },
+          "data": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        }
+      }
+    }
+)apl";
+
+TEST_F(VisualContextTest, SequenceHole) {
+    loadDocument(SEQUENCE_WITH_HOLE);
+    ASSERT_TRUE(component);
+
+    rapidjson::Document document(rapidjson::kObjectType);
+    auto context = component->serializeVisualContext(document.GetAllocator());
+
+    ASSERT_TRUE(context.HasMember("tags"));
+    ASSERT_TRUE(context["tags"].HasMember("list"));
+
+    const auto& list = context["tags"]["list"];
+    ASSERT_TRUE(list.HasMember("itemCount"));
+    ASSERT_EQ(6, list["itemCount"].GetInt());
+    ASSERT_TRUE(list.HasMember("lowestIndexSeen"));
+    ASSERT_EQ(0, list["lowestIndexSeen"].GetInt());
+    ASSERT_TRUE(list.HasMember("highestIndexSeen"));
+    ASSERT_EQ(5, list["highestIndexSeen"].GetInt());
+}

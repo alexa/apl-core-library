@@ -15,7 +15,7 @@
 
 #include <algorithm>
 
-#include <rapidjson/stringbuffer.h>
+#include "rapidjson/stringbuffer.h"
 
 
 #include "apl/engine/builder.h"
@@ -570,6 +570,35 @@ bool
 RootContext::handlePointerEvent(const PointerEvent& pointerEvent) {
     assert(mCore);
     return mCore->pointerManager().handlePointerEvent(pointerEvent, mTimeManager->currentTime());
+}
+
+const RootConfig&
+RootContext::getRootConfig() const
+{
+    assert(mCore);
+    return mCore->rootConfig();
+}
+
+std::string
+RootContext::getTheme() const
+{
+    assert(mCore);
+    return mCore->theme;
+}
+
+const TextMeasurementPtr&
+RootContext::measure() const
+{
+    return mCore->measure();
+}
+
+ComponentPtr
+RootContext::findComponentById(const std::string& id) const
+{
+    assert(mCore);
+
+    auto top = mCore->top();
+    return top ? top->findComponentById(id) : nullptr;
 }
 
 } // namespace apl

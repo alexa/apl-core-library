@@ -110,6 +110,22 @@ evaluate(const Context& context, const char *expression)
 }
 
 Object
+reevaluate(const Context& context, const Object& equation)
+{
+    // An evaluable equation is re-calculated.  Otherwise, we try a recursive evaluation.
+    auto result = equation.isEvaluable() ? equation.eval() : evaluateRecursive(context, equation);
+
+    // Strings get a resource check
+    if (result.isString()) {
+        std::string s = result.getString();
+        if (!s.empty() && s[0] == '@' && context.has(s))
+            return context.opt(s);    // This isn't efficient because we do a has() and a get().
+    }
+
+    return result;
+}
+
+Object
 evaluateRecursive(const Context& context, const Object& object)
 {
     if (object.isString()) {

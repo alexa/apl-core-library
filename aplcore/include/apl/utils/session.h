@@ -17,7 +17,7 @@
 #define _APL_SESSION_H
 
 #include "apl/common.h"
-#include "apl/engine/context.h"
+#include "apl/utils/log.h"
 
 namespace apl {
 
@@ -73,11 +73,11 @@ extern SessionPtr makeDefaultSession();
  */
 class SessionMessage {
 public:
-    SessionMessage(const SessionPtr& session, const char *filename, const char *function)
-        : mSession(session),
-          mFilename(filename),
-          mFunction(function),
-          mUncaught(std::uncaught_exception()) {}
+    SessionMessage(const SessionPtr& session, const char *filename, const char *function);
+
+    SessionMessage(const ContextPtr& contextPtr, const char *filename, const char *function);
+
+    SessionMessage(const Context& context, const char *filename, const char *function);
 
     ~SessionMessage();
 
@@ -123,10 +123,10 @@ private:
 #define CONSOLE_S(SESSION)   SessionMessage(SESSION,__FILENAME__,__func__)
 
 /// Report content errors using a context object pointer (which contains a session)
-#define CONSOLE_CTP(CONTEXT) SessionMessage(CONTEXT->session(),__FILENAME__,__func__)
+#define CONSOLE_CTP(CONTEXT_PTR) SessionMessage(CONTEXT_PTR,__FILENAME__,__func__)
 
 /// Report content errors using a context object (which contains a session)
-#define CONSOLE_CTX(CONTEXT) SessionMessage(CONTEXT.session(),__FILENAME__,__func__)
+#define CONSOLE_CTX(CONTEXT) SessionMessage(CONTEXT,__FILENAME__,__func__)
 
 
 } // namespace apl

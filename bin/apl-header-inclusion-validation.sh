@@ -44,8 +44,6 @@ whitelisted_apl_headers=(
     "apl/datasource/offsetindexdatasourceconnection.h"
     "apl/dynamicdata.h"
     "apl/engine/binding.h"
-    "apl/engine/context.h"
-    "apl/engine/contextobject.h"
     "apl/engine/dependant.h"
     "apl/engine/event.h"
     "apl/engine/info.h"
@@ -53,7 +51,6 @@ whitelisted_apl_headers=(
     "apl/engine/parameterarray.h"
     "apl/engine/properties.h"
     "apl/engine/propertymap.h"
-    "apl/engine/recalculatesource.h"
     "apl/engine/recalculatetarget.h"
     "apl/engine/rootcontext.h"
     "apl/engine/state.h"
@@ -100,11 +97,19 @@ whitelisted_apl_headers=(
 whitelisted_external_headers=(
     "rapidjson/document.h"
     "rapidjson/error/en.h"
+    "rapidjson/stringbuffer.h"
     "rapidjson/writer.h"
 )
 
 blacklisted_headers=(
-
+    "yoga/Yoga.h"
+    "yoga/YGConfig.h"
+    "yoga/YGEnums.h"
+    "yoga/YGLayout.h"
+    "yoga/YGNode.h"
+    "yoga/YGNodePrint.h"
+    "yoga/YGStyle.h"
+    "yoga/YGValue.h"
 )
 
 worklist=(

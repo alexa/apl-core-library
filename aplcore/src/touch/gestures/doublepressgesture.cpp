@@ -58,24 +58,24 @@ DoublePressGesture::onFirstUpInternal(const PointerEvent& event, apl_time_t time
     mStartTime = timestamp;
     mTriggered = true;
     // Pass through
-    mTouchable->executePointerEventHandler(sEventHandlers.at(event.pointerEventType), event.pointerEventPosition);
+    mTouchable->executePointerEventHandler(sEventHandlers.at(event.pointerEventType), event);
 
 }
 void
 DoublePressGesture::onSecondDownInternal(const PointerEvent& event, apl_time_t timestamp) {
     mBetweenPresses = false;
     // Pass through
-    mTouchable->executePointerEventHandler(sEventHandlers.at(event.pointerEventType), event.pointerEventPosition);
+    mTouchable->executePointerEventHandler(sEventHandlers.at(event.pointerEventType), event);
 }
 
 void
 DoublePressGesture::onSecondUpInternal(const PointerEvent& event, apl_time_t timestamp) {
     // Send cancel as we found double press at this point
-    mTouchable->executePointerEventHandler(kPropertyOnCancel, event.pointerEventPosition);
+    mTouchable->executePointerEventHandler(kPropertyOnCancel, event);
 
     // Execute on DoublePress and reset
     mTouchable->executeEventHandler("DoublePress", mOnDoublePress, false,
-                                    mTouchable->createTouchEventProperties(event.pointerEventPosition));
+                                    mTouchable->createTouchEventProperties(event));
     reset();
 }
 
@@ -92,7 +92,7 @@ DoublePressGesture::onMove(const apl::PointerEvent &event, apl_time_t timestamp)
     // Will only do something when in between presses
     if (timestamp >= mStartTime + mDoublePressTimeout && mBetweenPresses) {
         mTouchable->executeEventHandler("SinglePress", mOnSinglePress, false,
-                                        mTouchable->createTouchEventProperties(event.pointerEventPosition));
+                                        mTouchable->createTouchEventProperties(event));
         reset();
     }
 }

@@ -53,6 +53,15 @@ Object evaluate(const Context& context, const Object& object);
 Object evaluate(const Context& context, const char *expression);
 
 /**
+ * Re-evaluate an equation that is already marked as evaluable.  This method is used
+ * when propagating dependency changes.
+ * @param context The binding context of the equation
+ * @param equation The equation to re-evaluate
+ * @return The resultant value
+ */
+Object reevaluate(const Context& context, const Object& equation);
+
+/**
  * Evaluate an object recursively.  Arrays and maps within the object will also
  * be evaluated for data-binding.
  * @param context The data-binding context.

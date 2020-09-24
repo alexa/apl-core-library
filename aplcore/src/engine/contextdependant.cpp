@@ -53,7 +53,7 @@ ContextDependant::recalculate(bool useDirtyFlag) const
     auto downstream = mDownstreamContext.lock();
     auto bindingContext = mBindingContext.lock();
     if (downstream && bindingContext) {
-        auto value = mBindingFunction(*bindingContext, mEquation.eval());
+        auto value = mBindingFunction(*bindingContext, reevaluate(*bindingContext, mEquation));
         downstream->propagate(mDownstreamName, value, useDirtyFlag);
     }
 }

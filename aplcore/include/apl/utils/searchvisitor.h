@@ -67,7 +67,7 @@ public:
      * @param point The point at which to search
      */
     explicit SearchVisitor(const Point& point)
-        : mPointInCurrent(point) {};
+        : mGlobalPoint(point) {}
 
     void visit(const CoreComponent& component) override;
 
@@ -87,7 +87,7 @@ public:
      * ensuring all ancestors meet the condition.  Implementations should only test the component passed in as argument.
      *
      * @param component The trial component.
-     * @param point The point in the same coordinates as the bounds of the component.
+     * @param point The point in the coordinate space of the component.
      * @return Whether or not the condition passes for this specific node.
      */
     virtual bool universalCondition(const CoreComponent& component, const Point& point) = 0;
@@ -97,7 +97,7 @@ public:
      * as argument.
      *
      * @param component The trial component.
-     * @param point The point in the same coordinates as the bounds of the component.
+     * @param point The point in the coordinate space of the component.
      * @return Whether or not the condition passes for this specific node.
      */
     virtual bool spotCondition(const CoreComponent& component, const Point& point) = 0;
@@ -106,7 +106,8 @@ private:
     bool             mPruneBranch = false;
     bool             mResultFound = false;
     CoreComponentPtr mPotentialResult = nullptr;
-    Point            mPointInCurrent;
+    Point            mGlobalPoint;
+    Transform2D      mCurrentTransform;
 };
 
 /**

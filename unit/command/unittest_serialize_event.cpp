@@ -758,6 +758,271 @@ TEST_F(SerializeEventTest, ScrollViewDocument) {
     )"));
 }
 
+static const char* GRIDSEQ_SCROLLING_EVENT_DOC = R"({
+  "type":"APL",
+  "version":"1.4",
+  "extensions":{
+    "name":"E",
+    "uri":"aplext:Event"
+  },
+  "mainTemplate":{
+    "parameters":[
+
+    ],
+    "item":{
+      "type":"GridSequence",
+      "scrollDirection":"vertical",
+      "onScroll":{
+        "type":"E:Validate",
+        "event":"${event}",
+        "name":"gridScroll"
+      },
+      "width":60,
+      "height":80,
+      "childWidth":"100%",
+      "childHeight":"20dp",
+      "items":{
+        "type":"Text",
+        "text": "${data}"
+      },
+      "data":[ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 ]
+    }
+  }
+})";
+
+TEST_F(SerializeEventTest, GridSequenceScrollEvent) {
+    loadDocument(GRIDSEQ_SCROLLING_EVENT_DOC);
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ(kComponentTypeGridSequence, component->getType());
+    ASSERT_EQ(kScrollDirectionVertical, component->getCalculated(kPropertyScrollDirection).asInt());
+
+    // scroll to 30
+    component->update(kUpdateScrollPosition, 30);
+    ASSERT_TRUE(CheckValidate("gridScroll", R"(
+        {
+          "source":{
+            "bind":{},
+            "checked":false,
+            "disabled":false,
+            "focused":false,
+            "height":80.0,
+            "id":"",
+            "opacity":1.0,
+            "pressed":false,
+            "type":"GridSequence",
+            "width":60.0,
+            "source":"GridSequence",
+            "value":0.375,
+            "handler":"Scroll",
+            "uid":"[EXISTS]",
+            "position":0.375,
+            "itemsPerCourse":1,
+            "firstVisibleChild": 1,
+            "firstFullyVisibleChild": 2,
+            "lastFullyVisibleChild": 4,
+            "lastVisibleChild": 5
+          }
+        }
+    )"));
+
+    // scroll to 120
+    component->update(kUpdateScrollPosition, 120);
+    ASSERT_TRUE(CheckValidate("gridScroll", R"(
+        {
+          "source":{
+            "bind":{},
+            "checked":false,
+            "disabled":false,
+            "focused":false,
+            "height":80.0,
+            "id":"",
+            "opacity":1,
+            "pressed":false,
+            "type":"GridSequence",
+            "width":60.0,
+            "source":"GridSequence",
+            "value":1.5,
+            "handler":"Scroll",
+            "uid":"[EXISTS]",
+            "position":1.5,
+            "itemsPerCourse":1,
+            "firstVisibleChild": 6,
+            "firstFullyVisibleChild": 6,
+            "lastFullyVisibleChild": 9,
+            "lastVisibleChild": 9
+          }
+        }
+    )"));
+
+    // scroll to 230 will make lastChildBottom(240) - ViewHeight(80)
+    component->update(kUpdateScrollPosition, 230);
+    ASSERT_EQ(160, component->getCalculated(kPropertyScrollPosition).asInt());
+    ASSERT_TRUE(CheckValidate("gridScroll", R"(
+        {
+          "source":{
+            "bind":{},
+            "checked":false,
+            "disabled":false,
+            "focused":false,
+            "height":80.0,
+            "id":"",
+            "opacity":1.0,
+            "pressed":false,
+            "type":"GridSequence",
+            "width":60.0,
+            "source":"GridSequence",
+            "value":2,
+            "handler":"Scroll",
+            "uid":"[EXISTS]",
+            "position":2,
+            "itemsPerCourse":1,
+            "firstVisibleChild": 8,
+            "firstFullyVisibleChild": 8,
+            "lastFullyVisibleChild": 11,
+            "lastVisibleChild": 11
+          }
+        }
+    )"));
+}
+
+static const char* GRIDSEQ_ZERO_OPACITY_DOC = R"({
+  "type":"APL",
+  "version":"1.4",
+  "extensions":{
+    "name":"E",
+    "uri":"aplext:Event"
+  },
+  "mainTemplate":{
+    "parameters":[
+
+    ],
+    "item":{
+      "type":"GridSequence",
+      "scrollDirection":"vertical",
+      "onScroll":{
+        "type":"E:Validate",
+        "event":"${event}",
+        "name":"gridScroll"
+      },
+      "width":60,
+      "height":80,
+      "opacity": 0,
+      "childWidth":"100%",
+      "childHeight":"20dp",
+      "items":{
+        "type":"Text",
+        "text": "${data}"
+      },
+      "data":[ 1, 2, 3, 4, 5, 6, 7, 8 ]
+    }
+  }
+})";
+
+TEST_F(SerializeEventTest, GridSequenceZeroOpacityScrollEvent) {
+    loadDocument(GRIDSEQ_ZERO_OPACITY_DOC);
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ(kComponentTypeGridSequence, component->getType());
+    ASSERT_EQ(kScrollDirectionVertical, component->getCalculated(kPropertyScrollDirection).asInt());
+
+    // scroll to 30
+    component->update(kUpdateScrollPosition, 30);
+    ASSERT_TRUE(CheckValidate("gridScroll", R"(
+        {
+          "source":{
+            "bind":{},
+            "checked":false,
+            "disabled":false,
+            "focused":false,
+            "height":80.0,
+            "id":"",
+            "opacity":0.0,
+            "pressed":false,
+            "type":"GridSequence",
+            "width":60.0,
+            "source":"GridSequence",
+            "value":0.375,
+            "handler":"Scroll",
+            "uid":"[EXISTS]",
+            "position":0.375,
+            "itemsPerCourse":1,
+            "firstVisibleChild": -1,
+            "firstFullyVisibleChild": -1,
+            "lastFullyVisibleChild": -1,
+            "lastVisibleChild": -1
+          }
+        }
+    )"));
+}
+
+static const char* GRIDSEQ_MULTI_CHILD_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "extensions":{
+    "name":"E",
+    "uri":"aplext:Event"
+  },
+  "mainTemplate": {
+    "parameters": [],
+    "item": {
+      "type": "GridSequence",
+      "scrollDirection": "vertical",
+      "onScroll":{
+        "type":"E:Validate",
+        "event":"${event}",
+        "name":"gridScroll"
+      },
+      "width": 60,
+      "height": 40,
+      "childWidth": "15dp",
+      "childHeight": "20dp",
+      "items": {
+        "type": "Frame",
+        "backgroundColor": "${data}"
+      },
+      "data": [ "red", "blue", "green", "yellow", "gray", "orange", "white", "purple", "magenta", "cyan"  ]
+    }
+  }
+})";
+
+TEST_F(SerializeEventTest, GridSequenceMultiChildEvent) {
+    loadDocument(GRIDSEQ_MULTI_CHILD_DOC);
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ(kComponentTypeGridSequence, component->getType());
+    ASSERT_EQ(kScrollDirectionVertical, component->getCalculated(kPropertyScrollDirection).asInt());
+
+    // scroll to 10
+    component->update(kUpdateScrollPosition, 10);
+    ASSERT_TRUE(CheckValidate("gridScroll", R"(
+        {
+          "source":{
+            "bind":{},
+            "checked":false,
+            "disabled":false,
+            "focused":false,
+            "height":40.0,
+            "id":"",
+            "opacity":1.0,
+            "pressed":false,
+            "type":"GridSequence",
+            "width":60.0,
+            "source":"GridSequence",
+            "value":0.25,
+            "handler":"Scroll",
+            "uid":"[EXISTS]",
+            "position":0.25,
+            "itemsPerCourse":4,
+            "firstVisibleChild": 0,
+            "firstFullyVisibleChild": 4,
+            "lastFullyVisibleChild": 7,
+            "lastVisibleChild": 9
+          }
+        }
+    )"));
+}
+
 static const char *SEQUENCE_DOCUMENT = R"(
     {
       "type": "APL",
@@ -792,6 +1057,7 @@ TEST_F(SerializeEventTest, SequenceDocument) {
     ASSERT_TRUE(component);
 
     component->update(kUpdateScrollPosition, 500);
+    // viewPort is 1024x800
     ASSERT_TRUE(CheckValidate("scrolled", R"(
         {
           "source": {
@@ -809,12 +1075,15 @@ TEST_F(SerializeEventTest, SequenceDocument) {
             "value": 0.5,
             "handler": "Scroll",
             "uid": "[EXISTS]",
-            "position": 0.5
+            "position": 0.5,
+            "firstVisibleChild": 1,
+            "firstFullyVisibleChild": 1,
+            "lastFullyVisibleChild": 1,
+            "lastVisibleChild": 2
           }
         }
     )"));
 }
-
 
 static const char *VIDEO_DOCUMENT = R"(
     {
@@ -1636,7 +1905,11 @@ TEST_F(SerializeEventTest, TargetSequence) {
             "pressed": false,
             "type": "Sequence",
             "uid": "[EXISTS]",
-            "width": 100.0
+            "width": 100.0,
+            "firstVisibleChild": 2,
+            "firstFullyVisibleChild": -1,
+            "lastFullyVisibleChild": -1,
+            "lastVisibleChild": 3
           }
         }
     )"));

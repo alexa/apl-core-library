@@ -772,7 +772,7 @@ CoreComponent::updateProperty(PropertyKey key, const Object& value)
     }
 
     // We should not reach this point.  Only an assigned equation calls updateProperty
-    LOG(LogLevel::ERROR) << "Reached end of updateProperty with key " << sComponentPropertyBimap.at(key);
+    CONSOLE_CTP(mContext) << "Property " << sComponentPropertyBimap.at(key) << " is not dynamic and can't be updated." ;
 }
 
 /**
@@ -1596,6 +1596,69 @@ bool
 CoreComponent::containsGlobalPosition(const Point &position) const {
     Rect bounds = getGlobalBounds();
     return bounds.contains(position);
+}
+
+bool
+CoreComponent::containsLocalPosition(const Point &position) const {
+    auto bounds = getCalculated(kPropertyBounds).getRect();
+    Rect localBounds(0, 0, bounds.getWidth(), bounds.getHeight());
+    return localBounds.contains(position);
+}
+
+bool
+CoreComponent::inParentViewport() const {
+    if (!mParent) {
+        return false;
+    }
+
+    Rect bounds = getCalculated(kPropertyBounds).getRect();
+    auto parentBounds = mParent->getCalculated(kPropertyBounds).getRect();
+    // Reset to "viewport"
+    parentBounds = Rect(0, 0, parentBounds.getWidth(), parentBounds.getHeight());
+    // Shift by scroll position if any
+    parentBounds.offset(mParent->scrollPosition());
+
+    return !parentBounds.intersect(bounds).isEmpty();
+}
+
+bool
+CoreComponent::getCoordinateTransformFromParent(const ComponentPtr& ancestor, Transform2D& out) const {
+    Transform2D result;
+
+    auto component = shared_from_this();
+    while (component && component != ancestor) {
+        auto componentTransform = component->getCalculated(kPropertyTransform).getTransform2D();
+        if (componentTransform.singular()) {
+            // Singular transform encountered, a transformation cannot be computed
+            return false;
+        }
+
+        // To transform from the coordinate space of the parent component to the
+        // coordinate space of the child component, first offset by the position of
+        // the child in the parent, then undo the child transformation:
+        auto boundsInParent = component->getCalculated(kPropertyBounds).getRect();
+        auto offsetInParent = boundsInParent.getTopLeft();
+        result = result
+            * componentTransform.inverse()
+            * Transform2D::translate(-offsetInParent.getX(), -offsetInParent.getY());
+
+        // Account for the parent's scroll position. The scroll position only affects the coordinate space
+        // of children, so we account for it in the child component transformation.
+        auto parent = component->getParent();
+        if (parent) {
+            auto scrollPosition = parent->scrollPosition();
+            result = Transform2D::translate(scrollPosition.getX(), scrollPosition.getY()) * result;
+        }
+
+        component = parent;
+    }
+
+    if (component == ancestor) {
+        out = result;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 

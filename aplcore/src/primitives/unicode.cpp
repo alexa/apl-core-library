@@ -15,6 +15,8 @@
 
 #include "apl/primitives/unicode.h"
 
+#include <algorithm>
+
 namespace apl {
 
 /*

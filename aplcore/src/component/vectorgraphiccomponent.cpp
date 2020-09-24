@@ -291,20 +291,19 @@ void VectorGraphicComponent::clearDirty() {
 }
 
 std::shared_ptr<ObjectMap>
-VectorGraphicComponent::createTouchEventProperties(const Point &point) const
+VectorGraphicComponent::createTouchEventProperties(const Point &localPoint) const
 {
-    std::shared_ptr<ObjectMap> eventProperties = TouchableComponent::createTouchEventProperties(point);
+    std::shared_ptr<ObjectMap> eventProperties = TouchableComponent::createTouchEventProperties(localPoint);
     auto graphic = mCalculated.get(kPropertyGraphic).getGraphic();
-    auto componentPoint = point - getGlobalBounds().getTopLeft();
 
     const auto mediaBounds = mCalculated.get(kPropertyMediaBounds).getRect();
     auto viewportWidth = graphic->getViewportWidth();
     auto viewportHeight = graphic->getViewportHeight();
 
     auto x = mediaBounds.getWidth() <= 0 ? 0 :
-             (componentPoint.getX() - mediaBounds.getLeft()) * (viewportWidth / mediaBounds.getWidth());
+             (localPoint.getX() - mediaBounds.getLeft()) * (viewportWidth / mediaBounds.getWidth());
     auto y = mediaBounds.getHeight() <= 0 ? 0 :
-             (componentPoint.getY() - mediaBounds.getTop()) * (viewportHeight / mediaBounds.getHeight());
+             (localPoint.getY() - mediaBounds.getTop()) * (viewportHeight / mediaBounds.getHeight());
 
     auto viewportPropertyMap = std::make_shared<ObjectMap>();
     viewportPropertyMap->emplace("x", x);

@@ -84,17 +84,35 @@ MultiChildScrollableComponent::update(UpdateType type, float value) {
     if (type == kUpdateScrollPosition) {
         // Force figuring out what is on screen.
         processLayoutChanges(true);
-        updateSeen();
+        updateChildrenVisibility();
     }
 }
 
 void
-MultiChildScrollableComponent::updateSeen() {
+MultiChildScrollableComponent::updateChildrenVisibility() {
     // We don't always go from parent to child here (update case) so calculate opacity and visible rect recursively.
     auto visibleIndexes = getChildrenVisibility(calculateRealOpacity(), calculateVisibleRect());
     if(!visibleIndexes.empty()) {
-        mIndexesSeen.expandTo(visibleIndexes.begin()->first);
-        mIndexesSeen.expandTo(visibleIndexes.rbegin()->first);
+        mFirstChildInView = visibleIndexes.begin()->first;
+        mLastChildInView = visibleIndexes.rbegin()->first;
+
+        mIndexesSeen.expandTo(mFirstChildInView);
+        mIndexesSeen.expandTo(mLastChildInView);
+
+        auto firstFullyVisibleItr = std::find_if(visibleIndexes.begin(),  visibleIndexes.end(),
+                                         [](const std::pair<int, float>& item) { return item.second == 1.0; });
+        mFirstChildFullyInView = firstFullyVisibleItr != visibleIndexes.end() ? firstFullyVisibleItr->first : -1;
+
+        auto lastFullyVisibleItr = std::find_if(visibleIndexes.rbegin(),  visibleIndexes.rend(),
+                                         [](const std::pair<int, float>& item) { return item.second == 1.0; });
+        mLastChildFullyInView = lastFullyVisibleItr != visibleIndexes.rend() ? lastFullyVisibleItr->first : -1;
+    }
+    else {
+        // reset all properties
+        mFirstChildInView = -1;
+        mFirstChildFullyInView = -1;
+        mLastChildFullyInView = -1;
+        mLastChildInView = -1;
     }
 }
 
@@ -140,7 +158,6 @@ MultiChildScrollableComponent::findDirectChildAtPosition(const Point& position) 
     return nullptr;
 }
 
-
 std::map<int, float>
 MultiChildScrollableComponent::getChildrenVisibility(float realOpacity, const Rect &visibleRect) const {
     std::map<int, float> visibleIndexes;
@@ -151,18 +168,43 @@ MultiChildScrollableComponent::getChildrenVisibility(float realOpacity, const Re
 
     for (int index = mEnsuredChildren.lowerBound(); index <= mEnsuredChildren.upperBound(); index++) {
         const auto& child = getCoreChildAt(index);
+        if (!child->inParentViewport()) {
+            // Check if we have element outside of sequence viewport. If so - break out the loop.
+            if (visibleMet) {
+                break;
+            } else {
+                continue;
+            }
+        }
+
+        visibleMet = true;
+
         float childVisibility = child->calculateVisibility(realOpacity, visibleRect);
         if(childVisibility > 0.0) {
-            visibleMet = true;
             visibleIndexes.emplace(index, childVisibility);
-        }
-        else if(visibleMet) {
-            // Check if we have element outside of sequence viewport. If so - break out the loop.
-            break;
         }
     }
 
     return visibleIndexes;
+}
+
+const EventPropertyMap&
+MultiChildScrollableComponent::eventPropertyMap() const
+{
+    static EventPropertyMap sMultiScrollEventProperties = eventPropertyMerge(
+        ScrollableComponent::eventPropertyMap(),
+        {
+            /*
+             * These properties are available as an alpha feature. See README.md for more details
+             * on alpha features.
+             */
+            {"firstVisibleChild", [](const CoreComponent* c) {return static_cast<const MultiChildScrollableComponent *>(c)->mFirstChildInView; }},
+            {"firstFullyVisibleChild", [](const CoreComponent* c) {return static_cast<const MultiChildScrollableComponent *>(c)->mFirstChildFullyInView; }},
+            {"lastFullyVisibleChild", [](const CoreComponent* c) {return static_cast<const MultiChildScrollableComponent *>(c)->mLastChildFullyInView; }},
+            {"lastVisibleChild", [](const CoreComponent* c) {return static_cast<const MultiChildScrollableComponent *>(c)->mLastChildInView; }},
+        });
+
+    return sMultiScrollEventProperties;
 }
 
 Object
@@ -440,8 +482,7 @@ MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag)
         }
     }
 
-    updateSeen();
+    updateChildrenVisibility();
 }
-
 
 } // namespace apl

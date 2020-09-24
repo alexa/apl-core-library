@@ -70,10 +70,16 @@ protected:
     bool isHorizontal() const { return getCalculated(kPropertyScrollDirection) == kScrollDirectionHorizontal; }
     bool isVertical() const { return getCalculated(kPropertyScrollDirection) == kScrollDirectionVertical; }
 
+    const EventPropertyMap & eventPropertyMap() const override;
+
 private:
-    void updateSeen();
+    void updateChildrenVisibility();
 
     Range mIndexesSeen;
+    int mFirstChildInView = -1;
+    int mFirstChildFullyInView = -1;
+    int mLastChildFullyInView = -1;
+    int mLastChildInView = -1;
 };
 } // namespace apl
 

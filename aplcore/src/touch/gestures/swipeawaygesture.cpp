@@ -270,8 +270,8 @@ SwipeAwayGesture::onMove(const PointerEvent& event, apl_time_t timestamp) {
                 mSwipeTransformation->interpolate(travelPercentage);
                 mSwipeComponent->setProperty(kPropertyTransformAssigned, Object(mSwipeTransformation));
             }
-            mTouchable->executePointerEventHandler(kPropertyOnMove, event.pointerEventPosition);
-            mTouchable->executePointerEventHandler(kPropertyOnCancel, event.pointerEventPosition);
+            mTouchable->executePointerEventHandler(kPropertyOnMove, event);
+            mTouchable->executePointerEventHandler(kPropertyOnCancel, event);
         } else {
             return;
         }

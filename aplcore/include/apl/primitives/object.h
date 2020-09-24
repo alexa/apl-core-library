@@ -40,7 +40,7 @@
 #include <map>
 #include <cmath>
 
-#include <rapidjson/document.h>
+#include "rapidjson/document.h"
 
 #include "apl/common.h"
 #include "apl/utils/visitor.h"

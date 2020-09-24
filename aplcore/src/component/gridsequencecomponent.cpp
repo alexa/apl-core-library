@@ -114,7 +114,7 @@ const EventPropertyMap&
 GridSequenceComponent::eventPropertyMap() const
 {
     static EventPropertyMap sGridEventProperties = eventPropertyMerge(
-        ScrollableComponent::eventPropertyMap(),
+        MultiChildScrollableComponent::eventPropertyMap(),
             {
                 {"itemsPerCourse", [](const CoreComponent *c) { return c->getCalculated(kPropertyItemsPerCourse); }},
             });

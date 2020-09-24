@@ -212,7 +212,7 @@ PagerComponent::accept(Visitor<CoreComponent>& visitor) const {
     visitor.visit(*this);
     visitor.push();
     int currentPage = pagePosition();
-    if (currentPage >= 0 && currentPage < getChildCount()) {
+    if (!visitor.isAborted() && currentPage >= 0 && currentPage < getChildCount()) {
         auto child = mChildren.at(currentPage);
         if (child != nullptr)
             child->accept(visitor);
@@ -225,7 +225,7 @@ PagerComponent::raccept(Visitor<CoreComponent>& visitor) const {
     visitor.visit(*this);
     visitor.push();
     int currentPage = pagePosition();
-    if (currentPage >= 0 && currentPage < getChildCount()) {
+    if (!visitor.isAborted() && currentPage >= 0 && currentPage < getChildCount()) {
         auto child = mChildren.at(currentPage);
         if (child != nullptr)
             child->raccept(visitor);

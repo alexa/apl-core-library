@@ -18,8 +18,8 @@
 
 #include <stdexcept>
 
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
 
 #include "apl/primitives/object.h"
 #include "apl/primitives/styledtext.h"

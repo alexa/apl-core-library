@@ -32,17 +32,33 @@ public:
     /**
      * Executes a given handler by name with a specific position.
      * @param handlerKey The handler to execute.
-     * @param point The Point at which the event that triggered this was created.
+     * @param point The Point at which the event that triggered this was created, in component
+     *              coordinates.
      * @return Whether or not the event was handled.
      */
     bool executePointerEventHandler(PropertyKey handlerKey, const Point& point);
 
     /**
+     * Executes a given handler by name with a specific position.
+     * @param handlerKey The handler to execute.
+     * @param event The pointer event.
+     * @return Whether or not the event was handled.
+     */
+    bool executePointerEventHandler(PropertyKey handlerKey, const PointerEvent& event);
+
+    /**
      * Get the touch event specific properties
-     * @param point Properties of the component segment of the event.
+     * @param point Properties of the component segment of the event, in component coordinates.
      * @return The event data-binding context.
      */
     virtual ObjectMapPtr createTouchEventProperties(const Point& point) const;
+
+    /**
+     * Get the touch event specific properties
+     * @param event The pointer event.
+     * @return The event data-binding context.
+     */
+    virtual ObjectMapPtr createTouchEventProperties(const PointerEvent& event) const;
 
     /**
      * Execute a given handler in specified mode with any additional parameters required.

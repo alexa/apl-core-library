@@ -320,6 +320,28 @@ public:
      */
     const SessionPtr& getSession() const;
 
+    /**
+     * @return The root configuration provided by the viewhost
+     */
+    const RootConfig& getRootConfig() const;
+
+    /**
+     * @return The current theme
+     */
+    std::string getTheme() const;
+
+    /**
+     * @return Text measurement pointer reference
+     */
+    const TextMeasurementPtr& measure() const;
+
+    /**
+     * Find a component somewhere in the DOM with the given id or uniqueId.
+     * @param id The id or uniqueID to search for.
+     * @return The component or nullptr if it is not found.
+     */
+    ComponentPtr findComponentById(const std::string& id) const;
+
     friend streamer& operator<<(streamer& os, const RootContext& root);
 
 private:

@@ -60,7 +60,15 @@ PointerManager::handlePointerEvent(const PointerEvent &pointerEvent, apl_time_t 
     if (target->processGesture(pointerEvent, timestamp))
         return true;
 
-    return target->executePointerEventHandler(handler, pointerEvent.pointerEventPosition);
+    Transform2D transform;
+    if (!target->getCoordinateTransformFromGlobal(transform)) {
+        LOG(LogLevel::WARN) << "Could not compute component coordinate transform, ignoring target";
+        return false;
+    }
+
+    auto originalPoint = pointerEvent.pointerEventPosition;
+    auto pointInCurrent = transform * originalPoint;
+    return target->executePointerEventHandler(handler, pointInCurrent);
 }
 
 void

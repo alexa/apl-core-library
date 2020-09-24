@@ -28,6 +28,7 @@
 #include "rapidjson/ostreamwrapper.h"
 
 #include "apl/apl.h"
+#include "apl/engine/context.h"
 #include "apl/utils/streamer.h"
 #include "apl/component/corecomponent.h"
 

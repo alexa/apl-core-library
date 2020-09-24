@@ -745,3 +745,68 @@ TEST_F(DependantTest, LayoutBadProperty)
     ASSERT_TRUE(CheckDirty(text, kPropertyText));
     ASSERT_TRUE(CheckDirty(root, text));
 }
+
+
+static const char *RESOURCE_LOOKUP = R"apl(
+    {
+      "type": "APL",
+      "version": "1.4",
+      "resources": [
+        {
+          "string": {
+            "SUN": "Sunday",
+            "MON": "Monday",
+            "TUE": "Tuesday",
+            "WED": "Wednesday",
+            "THU": "Thursday",
+            "FRI": "Friday",
+            "SAT": "Saturday"
+          }
+        }
+      ],
+      "mainTemplate": {
+        "items": {
+          "type": "TouchWrapper",
+          "bind": [
+            {
+              "name": "DayOfWeek",
+              "value": 0
+            },
+            {
+              "name": "DayNames",
+              "value": [
+                "@SUN",
+                "@MON",
+                "@TUE",
+                "@WED",
+                "@THU",
+                "@FRI",
+                "@SAT"
+              ]
+            }
+          ],
+          "items": {
+            "type": "Text",
+            "text": "${DayNames[DayOfWeek]}"
+          },
+          "onPress": {
+            "type": "SetValue",
+            "property": "DayOfWeek",
+            "value": "${(DayOfWeek + 1) % 7}"
+          }
+        }
+      }
+    }
+)apl";
+
+TEST_F(DependantTest, ResourceLookup)
+{
+    loadDocument(RESOURCE_LOOKUP);
+    ASSERT_TRUE(component);
+    auto text = component->getChildAt(0);
+    ASSERT_TRUE(IsEqual("Sunday", text->getCalculated(kPropertyText).asString()));
+
+    component->update(kUpdatePressed, 1);
+    ASSERT_TRUE(IsEqual("Monday", text->getCalculated(kPropertyText).asString()));
+
+}

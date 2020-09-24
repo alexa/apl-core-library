@@ -20,12 +20,12 @@
 #include <set>
 
 #include "apl/common.h"
-#include "apl/engine/context.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/userdata.h"
 #include "apl/primitives/object.h"
 #include "apl/engine/properties.h"
 #include "apl/engine/propertymap.h"
+#include "apl/engine/recalculatetarget.h"
 
 #include "apl/graphic/graphicproperties.h"
 

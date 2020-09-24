@@ -47,14 +47,7 @@ ComponentDependant::recalculate(bool useDirtyFlag) const
     auto downstream = mDownstreamComponent.lock();
     auto bindingContext = mBindingContext.lock();
     if (downstream && bindingContext) {
-        Object value;
-        // If actual equation - evaluate, if object - try to go recursive.
-        if (mEquation.isEvaluable()) {
-            value = mEquation.eval();
-        } else {
-            value = evaluateRecursive(*bindingContext, mEquation);
-        }
-        value = mBindingFunction(*bindingContext, value);
+        auto value = mBindingFunction(*bindingContext, reevaluate(*bindingContext, mEquation));
         downstream->updateProperty(mDownstreamKey, value);
     }
 }

@@ -19,6 +19,7 @@
 #include <ctime>
 
 #include "apl/apl.h"
+#include "apl/engine/context.h"
 #include "apl/engine/evaluate.h"
 
 using namespace apl;

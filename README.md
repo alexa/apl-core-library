@@ -250,4 +250,9 @@ In order to build library with -Werror use:
 $ cmake -DWERROR=ON
 ```
 
-≠≠≠
+# Alpha features
+
+An Alpha feature may become part of the APL specification in a future release. These features are made available
+before the specification has finalized to allow for early experimentation with the features. Early adopters should
+expect that for alpha features that are released, APIs and data structures are likely to change when the
+specification is finalized.

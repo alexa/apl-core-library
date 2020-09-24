@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.4.1]
+
+This is a bug fix release of apl-core-library.
+
+### Added
+
+- (Alpha) Report visible children from Sequence and GridSequence components. See README.md for more details on alpha
+          features.
+
+### Changed
+
+- Fixed visual context reporting for multi-child components
+- Fixed visitor handling in pager component
+- onPress is now correctly handled when a touchable component is transformed
+- Improved reporting when attempting to update non-dynamic properties
+- Fixed resource lookups during dependency propagation of data-binding context
+- Fixed windows build
+- Stop exposing context.h externally
+
+
+
 ## [1.4.0]
 
 This release adds support for version 1.4 of the APL specification.

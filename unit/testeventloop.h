@@ -881,6 +881,30 @@ CheckSendEvent(const RootContextPtr& root, Args... args) {
     return ::testing::AssertionSuccess();
 }
 
+inline
+::testing::AssertionResult
+MouseDown(const RootContextPtr& root, double x, double y) {
+    auto point = Point(x,y);
+    auto down = root->handlePointerEvent(PointerEvent(kPointerDown, point));
+
+    if (!down)
+        return ::testing::AssertionFailure() << "Down failed to hit target at " << x << "," << y;
+
+    return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
+MouseUp(const RootContextPtr& root, double x, double y) {
+    auto point = Point(x,y);
+    auto up = root->handlePointerEvent(PointerEvent(kPointerUp, point));
+
+    if (!up)
+        return ::testing::AssertionFailure() << "Up failed to hit target at " << x << "," << y;
+
+    return ::testing::AssertionSuccess();
+}
+
 extern std::ostream& operator<<(std::ostream& os, const Point& point);
 extern std::ostream& operator<<(std::ostream& os, const Transform2D& t);
 extern std::ostream& operator<<(std::ostream& os, const Radii& r);
