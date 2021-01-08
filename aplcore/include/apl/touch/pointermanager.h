@@ -46,7 +46,7 @@ public:
      * Constructs a PointerManager with no pointers.
      * @param core Reference to RootContextData, used to delegate touch events to hover manager when applicable
      */
-    explicit PointerManager(const RootContextData& core) : mCore(core) {}
+    explicit PointerManager(const RootContextData& core);
 
     /**
      * Handles a PointerEvent.  If the pointer has never been seen, it will create a new pointer for the id in the associated
@@ -74,7 +74,7 @@ public:
      *
      * @param pointerEvent The PointerEvent to handle.
      * @param event timestamp.
-     * @return Whether or not it was handled.
+     * @return true if was consumed and should not be passed through any platform handling.
      */
     bool handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t timestamp);
 
@@ -101,10 +101,10 @@ private:
      * @param pointer The pointer for this event.
      * @param pointerEvent The pointer event that is passed in.
      * @return The targeted component for this pointer event or null if no suitable target is found.  This could be because
-     *         there was not a TouchableComponent under the pointer or that there was already a pointer actioning on the
-     *         TouchableComponent that was found.
+     *         there was not a ActionableComponent under the pointer or that there was already a pointer actioning on the
+     *         ActionableComponent that was found.
      */
-    TouchableComponentPtr handlePointerStart(const std::shared_ptr<Pointer>& pointer, const PointerEvent& pointerEvent);
+    ActionableComponentPtr handlePointerStart(const std::shared_ptr<Pointer>& pointer, const PointerEvent& pointerEvent);
 
     /**
      * Handles update type pointer events.  At the moment this entirely consists of move events.  For moves that have no
@@ -113,7 +113,7 @@ private:
      * @param pointerEvent The pointer event that is passed in.
      * @return The targeted component associated with this pointer.
      */
-    TouchableComponentPtr handlePointerUpdate(const std::shared_ptr<Pointer>& pointer, const PointerEvent& pointerEvent);
+    ActionableComponentPtr handlePointerUpdate(const std::shared_ptr<Pointer>& pointer, const PointerEvent& pointerEvent);
 
     /**
      * Handles events that indicates the completion of an active pointer: cancellation or release.  This maintains state
@@ -124,7 +124,19 @@ private:
      * @return The targeted component associated with this pointer, notably, this will be the target that had been assigned
      *         prior to state cleanup.
      */
-    TouchableComponentPtr handlePointerEnd(const std::shared_ptr<Pointer>& pointer, const PointerEvent& pointerEvent);
+    ActionableComponentPtr handlePointerEnd(const std::shared_ptr<Pointer>& pointer, const PointerEvent& pointerEvent);
+
+    /**
+     * Called when a new active target is selected. Causes the previous target state to be
+     * reset if needed, e.g. by aborting unfinished gestures.
+     *
+     * @param pointer The pointer that was last active, i.e. that contains the previous target. Can be @c nullptr.
+     * @param newTarget The new target, can be @c nullptr;
+     * @param timestamp The event timestamp
+     */
+    void handleNewTarget(const std::shared_ptr<Pointer>& pointer,
+                         const CoreComponentPtr& newTarget,
+                         apl_time_t timestamp);
 
 private:
     const RootContextData& mCore;

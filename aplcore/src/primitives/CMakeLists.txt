@@ -13,6 +13,7 @@
 
 target_sources_local(apl
     PRIVATE
+    accessibilityaction.cpp
     characterrange.cpp
     color.cpp
     dimension.cpp

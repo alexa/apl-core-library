@@ -47,7 +47,9 @@ union ActionResolveArg {
 /**
  * Common base class of action contracts.
  */
-class Action : public std::enable_shared_from_this<Action>, private Counter<Action>, public UserData<Action> {
+class Action : public std::enable_shared_from_this<Action>,
+               public Counter<Action>,
+               public UserData<Action> {
 
 public:
     /**
@@ -189,12 +191,6 @@ private:
     timeout_id mTimeoutId;
     const TimersPtr mTimers;
     ActionResolveArg mArgument;
-
-#ifdef DEBUG_MEMORY_USE
-public:
-    using Counter<Action>::itemsDelta;
-#endif
-
 };
 
 /**

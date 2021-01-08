@@ -120,6 +120,7 @@ public:
         return get(key);
     }
 
+    typename std::map<T,Object>::const_iterator find(const T& key) const { return mValues.find(key); }
     typename std::map<T,Object>::const_iterator begin() const { return mValues.begin(); }
     typename std::map<T,Object>::const_iterator end() const { return mValues.end(); }
 

@@ -32,6 +32,9 @@ public:
     Point scrollPosition() const override;
     Point trimScroll(const Point& point) const override;
 
+    bool isHorizontal() const override { return false; }
+    bool isVertical() const override { return true; }
+
 protected:
     const ComponentPropDefSet& propDefSet() const override;
 
@@ -39,6 +42,7 @@ protected:
 
     bool allowForward() const override;
     bool allowBackwards() const override;
+    void onScrollPositionUpdated() override;
 
 private:
     bool singleChild() const override { return true; }

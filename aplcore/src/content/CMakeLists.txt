@@ -14,6 +14,7 @@
 target_sources_local(apl
     PRIVATE
     aplversion.cpp
+    configurationchange.cpp
     content.cpp
     directive.cpp
     importrequest.cpp

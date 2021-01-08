@@ -17,8 +17,7 @@
 
 namespace apl {
 
-std::ostream& operator<<(std::ostream& os, const Point& point)
-{
+std::ostream& operator<<(std::ostream& os, const Point& point) {
     streamer s;
     s << point;
     os << s.str();
@@ -43,7 +42,30 @@ std::ostream& operator<<(std::ostream& os, const Object& object) {
     return os << s.str();
 }
 
-const char * TestEventCommand::COMMAND = "Custom";
-const char * TestEventCommand::EVENT = "CustomEvent";
+const char *TestEventCommand::COMMAND = "Custom";
+const char *TestEventCommand::EVENT = "CustomEvent";
+
+#ifdef DEBUG_MEMORY_USE
+const std::map<std::string, std::function<CounterPair()>>&
+getMemoryCounterMap() {
+    static std::map<std::string, std::function<CounterPair()>> sMemoryCounters = {
+        {"Action",               Counter<Action>::itemsDelta},
+        {"Command",              Counter<Command>::itemsDelta},
+        {"Component",            Counter<Component>::itemsDelta},
+        {"Content",              Counter<Content>::itemsDelta},
+        {"Context",              Counter<Context>::itemsDelta},
+        {"DataSourceConnection", Counter<DataSourceConnection>::itemsDelta},
+        {"Dependant",            Counter<Dependant>::itemsDelta},
+        {"ExtensionClient",      Counter<ExtensionClient>::itemsDelta},
+        {"Graphic",              Counter<Graphic>::itemsDelta},
+        {"GraphicElement",       Counter<GraphicElement>::itemsDelta},
+        {"Package",              Counter<Package>::itemsDelta},
+        {"RootContextData",      Counter<RootContextData>::itemsDelta},
+        {"Sequencer",            Counter<Sequencer>::itemsDelta},
+        {"Styles",               Counter<Styles>::itemsDelta},
+    };
+    return sMemoryCounters;
+}
+#endif
 
 } // namespace apl

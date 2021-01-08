@@ -55,7 +55,8 @@ ContainerComponent::propDefSet() const
         {kPropertyAlignItems,       kFlexboxAlignStretch,        sFlexboxAlignMap,          kPropIn, yn::setAlignItems },
         {kPropertyDirection,        kContainerDirectionColumn,   sContainerDirectionMap,    kPropIn, yn::setFlexDirection },
         {kPropertyJustifyContent,   kFlexboxJustifyContentStart, sFlexboxJustifyContentMap, kPropIn, yn::setJustifyContent },
-        {kPropertyNumbered,         false,                       asBoolean,                 kPropIn },
+        {kPropertyNumbered,         false,                       asBoolean,                 kPropIn |
+                                                                                            kPropVisualContext},
         {kPropertyWrap,             kFlexboxWrapNoWrap,          sFlexboxWrapMap,           kPropIn, yn::setWrap },
     });
 

@@ -100,4 +100,14 @@ ScrollViewComponent::allowBackwards() const {
     return (currentPosition > 0);
 }
 
+void
+ScrollViewComponent::onScrollPositionUpdated() {
+    ScrollableComponent::onScrollPositionUpdated();
+
+    if (getChildCount() > 0) {
+        auto child = getCoreChildAt(0);
+        child->markGlobalToLocalTransformStale();
+    }
+}
+
 } // namespace apl

@@ -20,6 +20,10 @@ project(APLCoreEngine
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if (NOT APL_CORE_DIR)
+    set(APL_CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+
 include(options.cmake)
 
 set(APL_PATCH_DIR "${CMAKE_CURRENT_SOURCE_DIR}/patches")

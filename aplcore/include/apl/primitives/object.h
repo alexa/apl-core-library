@@ -63,16 +63,19 @@ namespace datagrammar {
 }
 
 class Object;
+class AccessibilityAction;
 class ComponentEventWrapper;
 class ContextWrapper;
-class Easing;
 class Filter;
 class Function;
 class Gradient;
+class GraphicFilter;
 class GraphicPattern;
 class Transformation;
 class MediaSource;
 class LiveDataObject;
+class RangeGenerator;
+class SliceGenerator;
 class StyledText;
 class SymbolReferenceMap;
 class ObjectData;
@@ -142,6 +145,7 @@ public:
         kAutoDimensionType,
         kColorType,
         kFilterType,
+        kGraphicFilterType,
         kGradientType,
         kGraphicPatternType,
         kMediaSourceType,
@@ -155,6 +159,7 @@ public:
         kBoundSymbolType,
         kComponentType,
         kContextType,
+        kAccessibilityActionType,
     };
 
     class Data;  // Forward declaration
@@ -182,6 +187,7 @@ public:
     Object(const Color& color);
     Object(const Dimension& dimension);
     Object(Filter&& filter);
+    Object(GraphicFilter&& graphicFilter);
     Object(Gradient&& gradient);
     Object(MediaSource&& mediaSource);
     Object(Rect&& rect);
@@ -191,11 +197,14 @@ public:
     Object(const GraphicPatternPtr& graphicPattern);
     Object(const std::shared_ptr<Transformation>& transform);
     Object(Transform2D&& transform2d);
-    Object(const std::shared_ptr<Easing>& easing);
+    Object(const EasingPtr& easing);
     Object(const std::shared_ptr<datagrammar::BoundSymbol>& b);
     Object(const std::shared_ptr<LiveDataObject>& d);
     Object(const std::shared_ptr<ComponentEventWrapper>& component);
     Object(const std::shared_ptr<ContextWrapper>& context);
+    Object(const std::shared_ptr<AccessibilityAction>& accessibilityAction);
+    Object(const std::shared_ptr<RangeGenerator>& range);
+    Object(const std::shared_ptr<SliceGenerator>& slice);
 
     // Statically initialized objects.
     static const Object& TRUE_OBJECT();
@@ -230,9 +239,10 @@ public:
     bool isBoolean() const { return mType == kBoolType; }
     bool isString() const { return mType == kStringType; }
     bool isNumber() const { return mType == kNumberType; }
-    bool isNaN() const { return mType == kNumberType && std::isnan(mValue); }
+    bool isNaN() const { return mType == kNumberType && std::isnan(mU.value); }
     bool isArray() const { return mType == kArrayType; }
     bool isMap() const { return mType == kMapType || mType == kComponentType || mType == kContextType; }
+    bool isTrueMap() const { return mType == kMapType; }
     bool isNode() const { return mType == kNodeType; }
     bool isBoundSymbol() const { return mType == kBoundSymbolType; }
     bool isEvaluable() const { return mType == kNodeType || mType == kBoundSymbolType; }
@@ -248,6 +258,7 @@ public:
                                       mType == kAbsoluteDimensionType; }
     bool isColor() const { return mType == kColorType; }
     bool isFilter() const { return mType == kFilterType; }
+    bool isGraphicFilter() const { return mType == kGraphicFilterType; }
     bool isGradient() const { return mType == kGradientType; }
     bool isMediaSource() const { return mType == kMediaSourceType; }
     bool isRect() const { return mType == kRectType; }
@@ -261,6 +272,7 @@ public:
     bool isComponentEventData() const { return mType == kComponentType; }
     bool isContext() const { return mType == kContextType; }
     bool isJson() const;
+    bool isAccessibilityAction() const { return mType == kAccessibilityActionType; }
 
     // These methods force a conversion to the appropriate type.  We try to return
     // plausible defaults whenever possible.
@@ -278,25 +290,27 @@ public:
     Color asColor(const Context&) const;
 
     // These methods return the actual contents of the Object
-    const std::string& getString() const { assert(mType == kStringType); return mString; }
-    bool getBoolean() const { assert(mType == kBoolType); return mValue != 0; }
-    double getDouble() const { assert(mType == kNumberType); return mValue; }
-    int getInteger() const { assert(mType == kNumberType); return static_cast<int>(std::rint(mValue)); }
-    unsigned getUnsigned() const { assert(mType == kNumberType); return static_cast<unsigned>(mValue);}
-    double getAbsoluteDimension() const { assert(mType == kAbsoluteDimensionType); return mValue; }
-    double getRelativeDimension() const { assert(mType == kRelativeDimensionType); return mValue; }
-    uint32_t getColor() const { assert(mType == kColorType); return static_cast<uint32_t>(mValue); }
+    const std::string& getString() const { assert(mType == kStringType); return mU.string; }
+    bool getBoolean() const { assert(mType == kBoolType); return mU.value != 0; }
+    double getDouble() const { assert(mType == kNumberType); return mU.value; }
+    int getInteger() const { assert(mType == kNumberType); return static_cast<int>(std::rint(mU.value)); }
+    unsigned getUnsigned() const { assert(mType == kNumberType); return static_cast<unsigned>(mU.value);}
+    double getAbsoluteDimension() const { assert(mType == kAbsoluteDimensionType); return mU.value; }
+    double getRelativeDimension() const { assert(mType == kRelativeDimensionType); return mU.value; }
+    uint32_t getColor() const { assert(mType == kColorType); return static_cast<uint32_t>(mU.value); }
 
     std::shared_ptr<Function> getFunction() const;
     std::shared_ptr<datagrammar::BoundSymbol> getBoundSymbol() const;
     std::shared_ptr<LiveDataObject> getLiveDataObject() const;
     std::shared_ptr<datagrammar::Node> getNode() const;
+    std::shared_ptr<AccessibilityAction> getAccessibilityAction() const;
 
     const ObjectMap& getMap() const;
     ObjectMap& getMutableMap();
     const ObjectArray& getArray() const;
     ObjectArray& getMutableArray();
     const Filter& getFilter() const;
+    const GraphicFilter& getGraphicFilter() const;
     const Gradient& getGradient() const;
     const MediaSource& getMediaSource() const;
     GraphicPtr getGraphic() const;
@@ -306,7 +320,7 @@ public:
     const StyledText& getStyledText() const;
     std::shared_ptr<Transformation> getTransformation() const;
     Transform2D getTransform2D() const;
-    std::shared_ptr<Easing> getEasing() const;
+    EasingPtr getEasing() const;
     const rapidjson::Value& getJson() const;
 
     bool truthy() const;
@@ -359,14 +373,18 @@ public:
     template<typename T> const T& as() const;
 
 private:
-    // In the future we should use a union, but that precludes common std library use
-    // If we can bump to C++17, we can get std::variant
-    // For now, we'll run fast and dirty
-
     ObjectType mType;
-    double mValue = 0;
-    std::string mString;
-    std::shared_ptr<ObjectData> mData;
+    union U {
+        double value;
+        std::string string;
+        std::shared_ptr<ObjectData> data;
+
+        U() : value(0.0) {}
+        U(double v) : value(v) {}
+        U(const std::string& s) : string(s) {}
+        U(const std::shared_ptr<ObjectData>& d) : data(d) {}
+        ~U() {}
+    } mU;
 };
 
 

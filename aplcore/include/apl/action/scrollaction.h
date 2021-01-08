@@ -16,11 +16,12 @@
 #ifndef _APL_SCROLL_ACTION_H
 #define _APL_SCROLL_ACTION_H
 
-#include "apl/action/resourceholdingaction.h"
+#include "apl/action/animatedscrollaction.h"
 
 namespace apl {
 
 class CoreCommand;
+class AnimatedProperty;
 
 /**
  * Scroll to position in scrollable component.
@@ -30,22 +31,20 @@ class CoreCommand;
  *
  *    kEventPropertyPosition  The scroll position.
  */
-class ScrollAction : public ResourceHoldingAction {
+class ScrollAction : public AnimatedScrollAction {
 public:
     static std::shared_ptr<ScrollAction> make(const TimersPtr& timers,
-                                                const std::shared_ptr<CoreCommand>& command,
-                                                const ComponentPtr& target = nullptr);
+                                              const std::shared_ptr<CoreCommand>& command,
+                                              const CoreComponentPtr& target = nullptr);
 
     ScrollAction(const TimersPtr& timers,
                  const std::shared_ptr<CoreCommand>& command,
-                 const ComponentPtr& target);
+                 const CoreComponentPtr& target);
 
 private:
     void start();
 
-private:
     std::shared_ptr<CoreCommand> mCommand;
-    ComponentPtr mTarget;
 };
 
 

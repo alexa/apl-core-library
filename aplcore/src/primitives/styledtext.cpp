@@ -43,6 +43,7 @@ const std::map<std::string, StyledText::SpanType> sTextSpanTypeMap = {
         {"code", StyledText::kSpanTypeMonospace},
         {"sup", StyledText::kSpanTypeSuperscript},
         {"sub", StyledText::kSpanTypeSubscript},
+        {"wbr", StyledText::kSpanTypeWordBreak},
 };
 
 const std::map<std::string, std::string> sTextSpecialEntity = {
@@ -143,19 +144,30 @@ public:
     }
 
     /**
-     * Start style span on current text position.
      * @param tag style tag.
      */
-    void start(const std::string& tag) {
-        auto typeIt = sTextSpanTypeMap.find(tolower(tag));
+    void tag(const std::string& tag) {
+        mCurrentTag = tolower(tag);
+    }
+
+    /**
+     * Start style span on current text position.
+     */
+    void start() {
+        auto typeIt = sTextSpanTypeMap.find(mCurrentTag);
         if(typeIt == sTextSpanTypeMap.end()) {
             return;
         }
 
         auto type = typeIt->second;
-        if(StyledText::kSpanTypeLineBreak == type) {
+        if (StyledText::kSpanTypeLineBreak == type) {
             // Handle as single tag.
             single(type);
+            return;
+        }
+
+        if (StyledText::kSpanTypeWordBreak == type) {
+            singleCollapsible(type);
             return;
         }
 
@@ -179,8 +191,8 @@ public:
      * "parent". This implementation effectively replicates html behavior.
      * @param tag style tag.
      */
-    void end(const std::string& tag) {
-        auto typeIt = sTextSpanTypeMap.find(tolower(tag));
+    void end() {
+        auto typeIt = sTextSpanTypeMap.find(mCurrentTag);
         if(typeIt == sTextSpanTypeMap.end()) {
             return;
         }
@@ -210,7 +222,7 @@ public:
         // If not equal then likely tag is unclosed so close it (above) and try again. This will split
         // intersecting/wrongly closed tags to separate spans in order to simplify view-host processing.
         if(span.type != type) {
-            end(tag);
+            end();
             mBuildStack.push(StyledText::Span(mPosition, span.type));
         } else {
             mOpenedSpans.erase(type);
@@ -223,6 +235,36 @@ public:
      */
     void single(StyledText::SpanType type) {
         mSpans.emplace_back(StyledText::Span(mPosition, type));
+    }
+
+    /**
+     * Record non-parameterized tag, for example word line break that should be collapsed.
+     * @param type style type.
+     */
+    void singleCollapsible(StyledText::SpanType type) {
+        auto targetSpan = StyledText::Span(mPosition, type);
+        if (mSpans.empty() || mSpans.back() != targetSpan) {
+            mSpans.push_back(std::move(targetSpan));
+        }
+    }
+
+    /**
+     * Record non-parameterized tag, for example line break.
+     * @param type style type.
+     */
+    void single() {
+        auto typeIt = sTextSpanTypeMap.find(mCurrentTag);
+        if(typeIt == sTextSpanTypeMap.end()) {
+            return;
+        }
+
+        auto type = typeIt->second;
+        if (StyledText::kSpanTypeLineBreak == type) {
+            // Handle as single tag.
+            single(type);
+        } else if (StyledText::kSpanTypeWordBreak == type) {
+            singleCollapsible(type);
+        }
     }
 
     /**
@@ -257,6 +299,7 @@ private:
     std::vector<StyledText::Span> mSpans;
     std::string mText;
     size_t mPosition = 0;
+    std::string mCurrentTag;
 
     struct {
         bool operator()(const StyledText::Span& a, const StyledText::Span& b) const {
@@ -296,13 +339,11 @@ struct symbol : not_one<'<','>','&',' '>{}; // Exclude markdown and whitespace c
 struct word : plus<symbol>{};
 struct ws : plus<space>{};
 struct tagname : plus<alnum>{};
-struct stagname : tagname{};
-struct stag : seq<one<'<'>,opt<star<space>>,stagname,opt<attributes>,opt<star<space>>, one<'>'>>{};
-struct etagname : tagname{};
-struct etag : seq<one<'<'>,one<'/'>,opt<star<space>>,etagname,opt<star<space>>,one<'>'>>{};
+struct stag : seq<one<'<'>,star<space>,tagname,opt<attributes>,star<space>, one<'>'>>{};
+struct etag : seq<one<'<'>,one<'/'>,star<space>,tagname,star<space>,one<'>'>>{};
 // Start tag and single tag is too similar to do exact match so define line break itself.
-struct br : seq<star<space>,one<'<'>,opt<star<space>>,seq<one<'b','B'>,one<'r','R'>>,opt<attributes>,opt<star<space>>,opt<one<'/'>>,one<'>'>,star<space>>{};
-struct utag : seq<one<'<'>,opt<star<space>>,tagname,opt<attributes>,opt<star<space>>,one<'/'>,one<'>'>>{};
+struct br : seq<star<space>,one<'<'>,star<space>,seq<one<'b','B'>,one<'r','R'>>,opt<attributes>,star<space>,opt<one<'/'>>,one<'>'>,star<space>>{};
+struct utag : seq<one<'<'>,star<space>,tagname,opt<attributes>,star<space>,one<'/'>,one<'>'>>{};
 struct element : sor<br, utag, stag, etag, specialentity, markdownchar, word, ws>{};
 // Trim starting spaces here as it's easy.
 struct styledtext : seq<star<space>,star<element>,eof>{};
@@ -312,19 +353,35 @@ struct action : nothing< Rule >
 {
 };
 
-template<> struct action< stagname >
+template<> struct action< tagname >
 {
     template< typename Input >
     static void apply(const Input& in, StyledTextState& state) {
-        state.start(in.string());
+        state.tag(in.string());
     }
 };
 
-template<> struct action< etagname >
+template<> struct action< stag >
 {
     template< typename Input >
     static void apply(const Input& in, StyledTextState& state) {
-        state.end(in.string());
+        state.start();
+    }
+};
+
+template<> struct action< etag >
+{
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
+        state.end();
+    }
+};
+
+template<> struct action< utag >
+{
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
+        state.single();
     }
 };
 
@@ -357,7 +414,7 @@ template<> struct action< markdownchar >
     template< typename Input >
     static void apply(const Input& in, StyledTextState& state) {
         // TODO: "Best effort" suggests that we allow that, though spec says: Markup characters in text must be replaced
-        // with character entity references. Do we want to log it or restrict it in any way?
+        //  with character entity references. Do we want to log it or restrict it in any way?
         state.append(in.string());
     }
 };

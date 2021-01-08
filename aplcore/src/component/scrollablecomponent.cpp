@@ -17,13 +17,15 @@
 #include "apl/component/scrollablecomponent.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/time/sequencer.h"
+#include "apl/content/rootconfig.h"
+#include "apl/touch/gestures/scrollgesture.h"
 
 namespace apl {
 
 const ComponentPropDefSet&
 ScrollableComponent::propDefSet() const {
     static ComponentPropDefSet sScrollableComponentProperties(ActionableComponent::propDefSet(), {
-            {kPropertyScrollPosition, Dimension(0), asAbsoluteDimension, kPropRuntimeState}
+            {kPropertyScrollPosition, Dimension(0), asAbsoluteDimension, kPropRuntimeState | kPropVisualContext}
     });
     return sScrollableComponentProperties;
 }
@@ -38,6 +40,7 @@ ScrollableComponent::update(UpdateType type, float value)
         float trimmedValue = value <= maxPos ? value : maxPos;
         if (trimmedValue != currentPosition) {
             mCalculated.set(kPropertyScrollPosition, Dimension(DimensionType::Absolute, trimmedValue));
+            onScrollPositionUpdated();
             ContextPtr eventContext = createEventContext("Scroll");
             mContext->sequencer().executeCommands(
                 getCalculated(kPropertyOnScroll),
@@ -83,5 +86,20 @@ ScrollableComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::Allo
     return actionable;
 }
 
+void
+ScrollableComponent::initialize() {
+    ActionableComponent::initialize();
+    // If native gestures enabled - register them.
+    if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore)) {
+        mGestureHandlers.emplace_back(ScrollGesture::create(std::static_pointer_cast<ActionableComponent>(shared_from_this())));
+    }
+}
+
+void
+ScrollableComponent::onScrollPositionUpdated() {
+    setVisualContextDirty();
+    if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore))
+        setDirty(kPropertyScrollPosition);
+}
 
 } // namespace apl

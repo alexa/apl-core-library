@@ -40,6 +40,44 @@ public:
     Point trimScroll(const Point& point) const override;
     void update(UpdateType type, float value) override;
 
+    /// Scrollable overrides
+    bool isHorizontal() const override { return getCalculated(kPropertyScrollDirection) == kScrollDirectionHorizontal; }
+    bool isVertical() const override { return getCalculated(kPropertyScrollDirection) == kScrollDirectionVertical; }
+    Point getSnapOffset() const override;
+    bool shouldForceSnap() const override;
+
+    /**
+     * @return first visible child index
+     */
+    int getFirstChildInView() const {
+        const_cast<MultiChildScrollableComponent*>(this)->ensureChildrenVisibilityUpdated();
+        return mFirstChildInView;
+    }
+
+    /**
+     * @return first fully visible child index
+     */
+    int getFirstChildFullyInView() const {
+        const_cast<MultiChildScrollableComponent*>(this)->ensureChildrenVisibilityUpdated();
+        return mFirstChildFullyInView;
+    }
+
+    /**
+     * @return last fully visible child index
+     */
+    int getLastChildFullyInView() const {
+        const_cast<MultiChildScrollableComponent*>(this)->ensureChildrenVisibilityUpdated();
+        return mLastChildFullyInView;
+    }
+
+    /**
+     * @return last visible child index
+     */
+    int getLastChildInView() const {
+        const_cast<MultiChildScrollableComponent*>(this)->ensureChildrenVisibilityUpdated();
+        return mLastChildInView;
+    }
+
 protected:
     /**
      * Finds the immediate child, if any, at the given position.
@@ -63,23 +101,37 @@ protected:
     bool insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag) override;
     void removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
-    virtual void layoutChildIfRequired(const Rect& parentBounds, CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag);
+    virtual void layoutChildIfRequired(CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag);
     float maxScroll() const override;
     bool shouldAttachChildYogaNode(int index) const override;
 
-    bool isHorizontal() const { return getCalculated(kPropertyScrollDirection) == kScrollDirectionHorizontal; }
-    bool isVertical() const { return getCalculated(kPropertyScrollDirection) == kScrollDirectionVertical; }
-
     const EventPropertyMap & eventPropertyMap() const override;
+    void handlePropertyChange(const ComponentPropDef& def, const Object& value) override;
+
+    void onScrollPositionUpdated() override;
+
+    virtual size_t getItemsPerCourse() const { return 1; }
 
 private:
-    void updateChildrenVisibility();
-
     Range mIndexesSeen;
+    bool mChildrenVisibilityStale = false;
+
+    // These cache variables are being used for event property calculation (lazy calculation)
+    // and being calculated on layout or property changes.
     int mFirstChildInView = -1;
     int mFirstChildFullyInView = -1;
     int mLastChildFullyInView = -1;
     int mLastChildInView = -1;
+
+    /**
+     * Ensure that current state of visibility parameters properly calculated.
+     * It provides mechanism of lazy calculation to visibility related parameters.
+     */
+    void ensureChildrenVisibilityUpdated();
+
+    float getSnapOffsetForChild(const ComponentPtr& child, Snap snap, float parentStart, float parentEnd) const;
+    float childFractionOnScreenWithProposedScrollOffset(const ComponentPtr& child,
+                                                        float scrollOffset) const;
 };
 } // namespace apl
 

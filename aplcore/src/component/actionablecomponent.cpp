@@ -18,7 +18,8 @@
 #include "apl/time/sequencer.h"
 #include "apl/primitives/keyboard.h"
 #include "apl/engine/keyboardmanager.h"
-
+#include "apl/touch/gesture.h"
+#include "apl/content/rootconfig.h"
 
 namespace apl {
 
@@ -73,6 +74,95 @@ ActionableComponent::executeKeyHandlers(KeyHandlerType type, const ObjectMapPtr&
     }
 
     return false;
+}
+
+bool
+ActionableComponent::isTouchable() const {
+    // Actionable is inherently touchable with native navigation support.
+    return mContext->getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore);
+}
+
+void
+ActionableComponent::release()
+{
+    // Avoiding reference loop.
+    if (mActiveGesture) {
+        mActiveGesture->reset();
+        mActiveGesture = nullptr;
+    }
+    mGestureHandlers.clear();
+    CoreComponent::release();
+}
+
+bool
+ActionableComponent::processGestures(const PointerEvent& event, apl_time_t timestamp, bool topComponent) {
+    if (mGesturesDisabled) return false;
+
+    if (mActiveGesture) {
+        if(mActiveGesture->isTriggered()) {
+            mActiveGesture->consume(event, timestamp);
+            if (!mActiveGesture->isTriggered())
+                mActiveGesture = nullptr; // Consumed but reset afterwards.
+            return true;
+        }
+
+        mActiveGesture = nullptr;
+        return false;
+    }
+
+    for (auto& gesture : mGestureHandlers) {
+        auto locked = gesture->consume(event, timestamp);
+        if (gesture->isTriggered()) {
+            // Triggered by event, so active now
+            mActiveGesture = gesture;
+            for (auto& g : mGestureHandlers) {
+                if (g != mActiveGesture)
+                    g->reset();
+            }
+        }
+        if (locked) return true;
+    }
+
+    return false;
+}
+
+void
+ActionableComponent::invokeStandardAccessibilityAction(const std::string& name)
+{
+    // Check attached gestures to see if one of them is a standard handler for this named accessibility action
+    for (const auto& m : mGestureHandlers)
+        if (m->invokeAccessibilityAction(name))
+            return;
+
+    CoreComponent::invokeStandardAccessibilityAction(name);
+}
+
+ObjectMapPtr
+ActionableComponent::createTouchEventProperties(const Point &localPoint) const
+{
+    auto eventProps = std::make_shared<ObjectMap>();
+    auto componentPropertyMap = std::make_shared<ObjectMap>();
+    componentPropertyMap->emplace("x", localPoint.getX());
+    componentPropertyMap->emplace("y", localPoint.getY());
+    componentPropertyMap->emplace("width", YGNodeLayoutGetWidth(mYGNodeRef));
+    componentPropertyMap->emplace("height", YGNodeLayoutGetHeight(mYGNodeRef));
+    eventProps->emplace("component", componentPropertyMap);
+
+    return eventProps;
+}
+
+void
+ActionableComponent::enableGestures()
+{
+    if (!mGesturesDisabled) {
+        return;
+    }
+    mGesturesDisabled = false;
+
+    mActiveGesture = nullptr;
+    for (auto& gesture : mGestureHandlers) {
+        gesture->reset();
+    }
 }
 
 } // namespace apl

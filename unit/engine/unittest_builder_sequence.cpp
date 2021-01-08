@@ -1,5 +1,5 @@
 /**
- * Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -19,24 +19,24 @@ using namespace apl;
 
 class BuilderTestSequence : public DocumentWrapper {};
 
-const char *SIMPLE_SEQUENCE = "{"
-                              "  \"type\": \"APL\","
-                              "  \"version\": \"1.0\","
-                              "  \"mainTemplate\": {"
-                              "    \"item\": {"
-                              "      \"type\": \"Sequence\","
-                              "      \"height\": 100,"
-                              "      \"items\": ["
-                              "        {"
-                              "          \"type\": \"Text\""
-                              "        },"
-                              "        {"
-                              "          \"type\": \"Text\""
-                              "        }"
-                              "      ]"
-                              "    }"
-                              "  }"
-                              "}";
+const char *SIMPLE_SEQUENCE = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "height": 100,
+      "items": [
+        {
+          "type": "Text"
+        },
+        {
+          "type": "Text"
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(BuilderTestSequence, Simple)
 {
@@ -47,6 +47,7 @@ TEST_F(BuilderTestSequence, Simple)
 
     // Standard properties
     ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
+    ASSERT_EQ(Object::EMPTY_ARRAY(), component->getCalculated(kPropertyAccessibilityActions));
     ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
@@ -76,16 +77,16 @@ TEST_F(BuilderTestSequence, Simple)
     ASSERT_EQ(0, scrollPosition.asNumber());
 }
 
-const char *EMPTY_SEQUENCE = "{"
-                             "  \"type\": \"APL\","
-                             "  \"version\": \"1.0\","
-                             "  \"mainTemplate\": {"
-                             "    \"item\": {"
-                             "      \"type\": \"Sequence\","
-                             "      \"height\": 100"
-                             "    }"
-                             "  }"
-                             "}";
+const char *EMPTY_SEQUENCE = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "height": 100
+    }
+  }
+})";
 
 TEST_F(BuilderTestSequence, Empty)
 {
@@ -96,6 +97,7 @@ TEST_F(BuilderTestSequence, Empty)
 
     // Standard properties
     ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
+    ASSERT_EQ(Object::EMPTY_ARRAY(), component->getCalculated(kPropertyAccessibilityActions));
     ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
@@ -118,45 +120,45 @@ TEST_F(BuilderTestSequence, Empty)
     ASSERT_EQ(0, component->getChildCount());
 }
 
-const char *CHILDREN_TEST = "{"
-                            "  \"type\": \"APL\","
-                            "  \"version\": \"1.0\","
-                            "  \"mainTemplate\": {"
-                            "    \"item\": {"
-                            "      \"type\": \"Sequence\","
-                            "      \"scrollDirection\": \"horizontal\","
-                            "      \"snap\": \"center\","
-                            "      \"-fastScrollScale\": 0.5,"
-                            "      \"numbered\": true,"
-                            "      \"data\": ["
-                            "        \"One\","
-                            "        \"Two\","
-                            "        \"Three\","
-                            "        \"Four\","
-                            "        \"Five\""
-                            "      ],"
-                            "      \"items\": ["
-                            "        {"
-                            "          \"when\": \"${data == 'Two'}\","
-                            "          \"type\": \"Text\","
-                            "          \"text\": \"A ${index}-${ordinal}-${length}\","
-                            "          \"numbering\": \"reset\""
-                            "        },"
-                            "        {"
-                            "          \"when\": \"${data == 'Four'}\","
-                            "          \"type\": \"Text\","
-                            "          \"text\": \"B ${index}-${ordinal}-${length}\","
-                            "          \"numbering\": \"skip\","
-                            "          \"spacing\": 20"
-                            "        },"
-                            "        {"
-                            "          \"type\": \"Text\","
-                            "          \"text\": \"C ${index}-${ordinal}-${length}\""
-                            "        }"
-                            "      ]"
-                            "    }"
-                            "  }"
-                            "}";
+const char *CHILDREN_TEST = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "scrollDirection": "horizontal",
+      "snap": "center",
+      "-fastScrollScale": 0.5,
+      "numbered": true,
+      "data": [
+        "One",
+        "Two",
+        "Three",
+        "Four",
+        "Five"
+      ],
+      "items": [
+        {
+          "when": "${data == 'Two'}",
+          "type": "Text",
+          "text": "A ${index}-${ordinal}-${length}",
+          "numbering": "reset"
+        },
+        {
+          "when": "${data == 'Four'}",
+          "type": "Text",
+          "text": "B ${index}-${ordinal}-${length}",
+          "numbering": "skip",
+          "spacing": 20
+        },
+        {
+          "type": "Text",
+          "text": "C ${index}-${ordinal}-${length}"
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(BuilderTestSequence, Children)
 {
@@ -195,32 +197,32 @@ TEST_F(BuilderTestSequence, Children)
     ASSERT_EQ(Object(Dimension(0)), child.get(kPropertySpacing));
 }
 
-const char *LAYOUT_CACHE_TEST = "{"
-                                "  \"type\": \"APL\","
-                                "  \"version\": \"1.0\","
-                                "  \"mainTemplate\": {"
-                                "    \"item\": {"
-                                "      \"type\": \"Sequence\","
-                                "      \"height\": 100,"
-                                "      \"width\": \"auto\","
-                                "      \"data\": ["
-                                "        \"One\","
-                                "        \"Two\","
-                                "        \"Three\","
-                                "        \"Four\","
-                                "        \"Five\","
-                                "        \"Six\""
-                                "      ],"
-                                "      \"items\": ["
-                                "        {"
-                                "          \"type\": \"Text\","
-                                "          \"height\": 50,"
-                                "          \"text\": \"${data}\""
-                                "        }"
-                                "      ]"
-                                "    }"
-                                "  }"
-                                "}";
+const char *LAYOUT_CACHE_TEST = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "height": 100,
+      "width": "auto",
+      "data": [
+        "One",
+        "Two",
+        "Three",
+        "Four",
+        "Five",
+        "Six"
+      ],
+      "items": [
+        {
+          "type": "Text",
+          "height": 50,
+          "text": "${data}"
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(BuilderTestSequence, LayoutCache)
 {
@@ -233,4 +235,59 @@ TEST_F(BuilderTestSequence, LayoutCache)
 
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 4), true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(5, 5), false));
+}
+
+static const char* MULTISEQUENCE = R"apl({
+  "type": "APL",
+  "version": "1.5",
+  "layouts": {
+    "ScrollyRow": {
+      "parameters": [
+        "parent"
+      ],
+      "item": {
+        "type": "Sequence",
+        "scrollDirection": "horizontal",
+        "id": "${parent}",
+        "width": 200,
+        "height": 100,
+        "data": [0, 1],
+        "item": {
+          "type": "TouchWrapper",
+          "id": "${parent}.${data}",
+          "width": 100,
+          "height": 100,
+          "entities": ["entity"],
+            "item": {
+              "type": "Text",
+              "width": 100,
+              "height": 100,
+              "text": "${parent}.${data}",
+              "color": "white"
+            }
+        }
+      }
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "id": "root",
+      "width": 200,
+      "height": 100,
+      "item": {
+        "type": "ScrollyRow",
+        "parent": "${data}"
+      },
+      "data": [0, 1]
+    }
+  }
+})apl";
+
+TEST_F(BuilderTestSequence, Multisequence) {
+    loadDocument(MULTISEQUENCE);
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    // Should stay at 0.
+    ASSERT_EQ(Point(0, 0), component->scrollPosition());
 }

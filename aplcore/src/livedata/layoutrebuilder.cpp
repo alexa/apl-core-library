@@ -138,16 +138,12 @@ LayoutRebuilder::LayoutRebuilder(const ContextPtr& context,
       mNumbered(numbered),
       mRebuilderToken(sRebuilderToken++)
 {
-    mWatcherToken = array->addFlushCallback([this]() {
-        rebuild();
-    });
+    registerObjectWatcher(array);
 }
 
 LayoutRebuilder::~LayoutRebuilder()
 {
-    auto array = mArray.lock();
-    if (array)
-        array->removeFlushCallback(mWatcherToken);
+    unregisterObjectWatcher();
 }
 
 /**
@@ -183,10 +179,11 @@ LayoutRebuilder::build()
             childContext->putSystemWriteable("ordinal", ordinal);
 
         Properties childProps;
-        auto child = Builder::expandSingleComponentFromArray(childContext,
-                                                             mItems,
-                                                             childProps,
-                                                             layout, mChildPath);
+        auto child = Builder().expandSingleComponentFromArray(childContext,
+                                                              mItems,
+                                                              childProps,
+                                                              layout,
+                                                              mChildPath);
         if (child && child->isValid()) {
             layout->appendChild(child, false);
             index++;
@@ -240,10 +237,11 @@ LayoutRebuilder::rebuild()
                 childContext->putConstant("ordinal", ordinal);
 
             Properties childProps;
-            auto child = Builder::expandSingleComponentFromArray(childContext,
-                                                                 mItems,
-                                                                 childProps,
-                                                                 layout, mChildPath);
+            auto child = Builder().expandSingleComponentFromArray(childContext,
+                                                                  mItems,
+                                                                  childProps,
+                                                                  layout,
+                                                                  mChildPath);
             if (child && child->isValid()) {
                 layout->insertChild(child, index + (mHasFirstItem ? 1 : 0), true);
                 index++;

@@ -17,8 +17,13 @@
 #define _APL_PAGER_COMPONENT_H
 
 #include "actionablecomponent.h"
+#include "apl/engine/event.h"
 
 namespace apl {
+
+class InterpolatedTransformation;
+class ActionRef;
+class PageMoveHandler;
 
 class PagerComponent : public ActionableComponent {
 public:
@@ -27,21 +32,61 @@ public:
 
     ComponentType getType() const override { return kComponentTypePager; };
 
+    /// Component overrides.
     void initialize() override;
-
     void update(UpdateType type, float value) override;
-
     const ComponentPropDefSet* layoutPropDefSet() const override;
-
     Object getValue() const override { return getCalculated(kPropertyCurrentPage); }
-
-    ScrollType scrollType() const override { return kScrollTypeHorizontalPager; }
+    ScrollType scrollType() const override;
     PageDirection pageDirection() const override;
     int pagePosition() const override { return getCalculated(kPropertyCurrentPage).asInt(); }
-
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
-
     void processLayoutChanges(bool useDirtyFlag) override;
+
+    /// Actionable overrides
+    bool isHorizontal() const override { return scrollType() == kScrollTypeHorizontalPager; }
+    bool isVertical() const override { return scrollType() == kScrollTypeVerticalPager; }
+
+    /**
+     * Command page switch helper function.
+     * @param context Execution context.
+     * @param target Target component (needs to be pager).
+     * @param index page to switch to. Should be in valid [0; mChildren.size()) range.
+     * @param direction Paging direction.
+     * @param ref Action reference to resolve after switch completed.
+     * @param skipDefaultAnimation if set to true no page switch animation will be performed in
+     * case if no custom processing was assigned with handlePageMove.
+     */
+    static void setPageUtil(const ContextPtr& context, const ComponentPtr& target, int index,
+        PageDirection direction, const ActionRef& ref, bool skipDefaultAnimation = false);
+
+    /**
+     * Reset page state. Resets transformations, opacity, z-order and interactivity.
+     * @param page page index.
+     */
+    void resetPage(int page);
+
+    /**
+     * Start page move process. Set initial states. Should be followed by executePageMove and endPageMove.
+     * @param direction page move direction.
+     * @param currentPage page to switch from.
+     * @param targetPage page to switch to.
+     */
+    void startPageMove(PageDirection direction, int currentPage, int targetPage);
+
+    /**
+     * Execute step of page move.
+     * @param amount move amount from 0-1.
+     */
+    void executePageMove(float amount);
+
+    /**
+     * End page move. Set new page states, reset transformations and intectionability.
+     * @param fulfilled true if switch should happen, false if pager should stay on current page.
+     * @param ref action to resolve when required handlers resolved.
+     * @param fast true if executed from command, false for user interaction.
+     */
+    void endPageMove(bool fulfilled, const ActionRef& ref = ActionRef(nullptr), bool fast = true);
 
 protected:
     const ComponentPropDefSet& propDefSet() const override;
@@ -57,6 +102,12 @@ private:
     bool multiChild() const override { return true; }
     std::map<int, float> getChildrenVisibility(float realOpacity, const Rect &visibleRect) const override;
     bool attachCurrentAndReportLoaded();
+    ActionPtr executePageChangeEvent(bool fast);
+    void setPage(int page);
+    void handleSetPage(int index, PageDirection direction, const ActionRef& ref, bool skipDefaultAnimation);
+
+    ActionPtr mCurrentAnimation;
+    std::unique_ptr<PageMoveHandler> mPageMoveHandler;
 };
 
 } // namespace apl

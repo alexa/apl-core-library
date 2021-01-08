@@ -57,7 +57,7 @@ parseDataBindingRecursive(const Context& context, const Object& object)
     if (object.isString()) {
         return parseDataBinding(context, object.getString());
     }
-    else if (object.isMap()) {
+    else if (object.isTrueMap()) {
         auto result = std::make_shared<std::map<std::string, Object>>();
         for (const auto& m : object.getMap())
             result->emplace(m.first, parseDataBindingRecursive(context, m.second));
@@ -125,35 +125,51 @@ reevaluate(const Context& context, const Object& equation)
     return result;
 }
 
+/**
+ * Resource lookup on object if it is of string type. Otherwise original object will be returned.
+ */
+Object
+resourceLookup(const Context& context, const Object& result)
+{
+    if (result.isString()) {
+        std::string s = result.getString();
+        if (!s.empty() && s[0] == '@' && context.has(s))
+            return context.opt(s);    // This isn't efficient because we do a has() and a get().
+    }
+
+    return result;
+}
+
 Object
 evaluateRecursive(const Context& context, const Object& object)
 {
     if (object.isString()) {
         auto result = applyDataBinding(context, object.getString());
-
-        // Check for resources
-        if (result.isString()) {
-            std::string s = result.getString();
-            if (!s.empty() && s[0] == '@' && context.has(s))
-                return context.opt(s);    // This isn't efficient because we do a has() and a get().
-        }
-
-        return result;
+        return resourceLookup(context, result);
     }
-    else if (object.isMap()) {
+    else if (object.isTrueMap()) {
         auto result = std::make_shared<std::map<std::string, Object>>();
         for (const auto& m : object.getMap())
             result->emplace(m.first, evaluateRecursive(context, m.second));
         return Object(result);
     }
-    else if (object.isArray()) {
-        auto v = std::make_shared<std::vector<Object>>();
-        for (auto index = 0 ; index < object.size() ; index++)
-            v->push_back(evaluateRecursive(context, object.at(index)));
-        return Object(v);
+    else if (object.isArray()) {  // Embedded data-bound strings are inserted in-line: E.g., [ 1, "${b}" ]
+        std::vector<Object> v;
+        for (auto index = 0 ; index < object.size() ; index++) {
+            auto item = object.at(index);
+            auto itemEvaluated = evaluateRecursive(context, item);
+            if (item.isString() && itemEvaluated.isArray()) {  // Insert the results into the array
+                for (const auto& n : itemEvaluated.getArray())
+                    v.push_back(n);
+            } else {
+                v.push_back(itemEvaluated);
+            }
+        }
+        return Object(std::move(v));
     }
     else if (object.isEvaluable()) {
-        return object.eval();
+        auto result = object.eval();
+        return resourceLookup(context, result);
     }
 
     return object;

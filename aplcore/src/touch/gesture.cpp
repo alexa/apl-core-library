@@ -25,6 +25,14 @@
 
 namespace apl {
 
+static Transform2D aboutOrigin(const Transform2D &transform) {
+    auto data = transform.get();
+    // Remove translation
+    data[4] = 0;
+    data[5] = 0;
+    return Transform2D(std::move(data));
+}
+
 Bimap<GestureType, std::string> sGestureTypeBimap = {
         {kGestureTypeDoublePress, "DoublePress"},
         {kGestureTypeLongPress,   "LongPress"},
@@ -39,21 +47,21 @@ static std::map<GestureType, GestureFunc> sGestureFunctions =
     };
 
 std::shared_ptr<Gesture>
-Gesture::create(const std::shared_ptr<TouchableComponent>& touchable, const Object& object) {
+Gesture::create(const ActionablePtr& actionable, const Object& object) {
     if (!object.isMap())
         return nullptr;
 
-    auto context = *touchable->getContext();
+    auto contextPtr = actionable->getContext();
 
-    auto type = propertyAsMapped<GestureType>(context, object, "type", kGestureTypeDoublePress, sGestureTypeBimap);
+    auto type = propertyAsMapped<GestureType>(*contextPtr, object, "type", kGestureTypeDoublePress, sGestureTypeBimap);
     if (type == static_cast<GestureType>(-1)) {
-        CONSOLE_CTX(context) << "Unrecognized type field in gesture handler";
+        CONSOLE_CTX(*contextPtr) << "Unrecognized type field in gesture handler";
         return nullptr;
     }
 
     auto method = sGestureFunctions.find(type);
     if (method != sGestureFunctions.end()) {
-        return method->second(touchable, context, object);
+        return method->second(actionable, *contextPtr, object);
     }
 
     return nullptr;
@@ -75,15 +83,34 @@ Gesture::consume(const PointerEvent& event, apl_time_t timestamp) {
         case PointerEventType::kPointerMove:
             if (mStarted) onMove(event, timestamp);
             break;
+        case PointerEventType::kPointerTimeUpdate:
+            if (mStarted) onTimeUpdate(event, timestamp);
+            break;
         case PointerEventType::kPointerUp:
             if (mStarted) onUp(event, timestamp);
             break;
+        case PointerEventType::kPointerTargetChanged:
+            if (mTriggered) reset();
+            break;
         case PointerEventType::kPointerCancel:
-            reset();
+            if (mTriggered) onCancel(event, timestamp);
             break;
     }
 
     return mTriggered;
+}
+
+void
+Gesture::passPointerEventThrough(const PointerEvent& event) {
+    Point localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
+    mActionable->executePointerEventHandler(sEventHandlers.at(event.pointerEventType), localPoint);
+}
+
+Point
+Gesture::toLocalVector(const Point& vector) {
+    // Convert the vector to local space. Because the vector starts at (0,0) in local space, remove
+    // the translation to avoid over-compensating for the position.
+    return aboutOrigin(mActionable->getGlobalToLocalTransform()) * vector;
 }
 
 } // namespace apl

@@ -46,38 +46,18 @@ using GraphicPropertyMap = PropertyMap<GraphicPropertyKey, sGraphicPropertyBimap
 class GraphicElement : public std::enable_shared_from_this<GraphicElement>,
                        public RecalculateTarget<GraphicPropertyKey>,
                        public UserData<GraphicElement>,
-                       private Counter<GraphicElement> {
+                       public Counter<GraphicElement> {
     friend class Graphic;
     friend class GraphicDependant;
+    friend class GraphicBuilder;
 
     static id_type sUniqueGraphicIdGenerator;
 
-#ifdef DEBUG_MEMORY_USE
 public:
-    using Counter<GraphicElement>::itemsDelta;
-#endif
-
-public:
-    /**
-     * Shared-pointer constructor
-     * @param graphic The container Graphic
-     * @param json The raw JSON wrapped in object
-     * @return The top of the GraphicElement tree of graphic content.
-     */
-    static GraphicElementPtr build(const GraphicPtr& graphic, const Object& json);
-
-    /**
-     * Construct without parent graphic.
-     * @param context The working context
-     * @param json The raw JSON wrapped in object
-     * @return GraphicElement.
-     */
-    static GraphicElementPtr build(const Context& context, const Object& json);
-
     /**
      * Default constructor.  Use build() instead.
      */
-    explicit GraphicElement(const GraphicPtr& graphic);
+    GraphicElement(const GraphicPtr& graphic, const ContextPtr& context);
 
     ~GraphicElement() override = default;
 
@@ -127,18 +107,28 @@ public:
      */
     void updateStyle(const GraphicPtr& graphic);
 
+    /**
+     * @return True if this component supports children
+     */
+    virtual bool hasChildren() const { return false; }
+
+    /**
+     * Do any VectorGraphic or context dependent clean-up.
+     */
+    void release();
+
     virtual std::string toDebugString() const = 0;
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
-protected:
-    virtual bool initialize(const GraphicPtr& graphic, const ContextPtr& context, const Object& json);
-    void addChildren(const GraphicPtr& graphic, const ContextPtr& context, const Object& json);
+    static Object asAvgFill(const Context& context, const Object& object);
 
+protected:
+    virtual bool initialize(const GraphicPtr& graphic, const Object& json);
     virtual const GraphicPropDefSet& propDefSet() const = 0;
     bool setValue(GraphicPropertyKey key, const Object& value, bool useDirtyFlag);
 
-    const StyleInstancePtr getStyle(const GraphicPtr& graphic) const;
-    void updateStyleInternal(const GraphicPtr& graphic, const StyleInstancePtr& stylePtr, const GraphicPropDefSet& gds);
+    StyleInstancePtr getStyle(const GraphicPtr& graphic) const;
+    void updateStyleInternal(const StyleInstancePtr& stylePtr, const GraphicPropDefSet& gds);
 
     void markAsDirty();
 
@@ -156,6 +146,7 @@ protected:
     std::weak_ptr<Graphic> mGraphic;          // The top-level graphic we belong to
     std::string            mStyle;            // Current style name.
     std::set<GraphicPropertyKey> mAssigned;
+    ContextPtr             mContext;
 };
 
 } // namespace apl

@@ -40,11 +40,14 @@ VectorGraphicComponent::VectorGraphicComponent(const ContextPtr& context,
 {
 }
 
-VectorGraphicComponent::~VectorGraphicComponent()
+void
+VectorGraphicComponent::release()
 {
     auto graphic = mCalculated.get(kPropertyGraphic);
     if (graphic.isGraphic())
-        graphic.getGraphic()->clearComponent();
+        graphic.getGraphic()->release();
+
+    ActionableComponent::release();
 }
 
 const ComponentPropDefSet&
@@ -137,7 +140,7 @@ VectorGraphicComponent::updateGraphic(const GraphicContentPtr& json)
     // Remove any existing graphic
     auto graphic = mCalculated.get(kPropertyGraphic);
     if (graphic.isGraphic()) {
-        graphic.getGraphic()->clearComponent();
+        graphic.getGraphic()->release();
         setDirty(kPropertyGraphic);
     }
 

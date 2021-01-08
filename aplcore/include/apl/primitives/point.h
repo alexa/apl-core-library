@@ -18,6 +18,9 @@
 
 #include "apl/utils/streamer.h"
 
+#include <algorithm>
+#include <cmath>
+
 namespace apl {
 
 /**
@@ -68,6 +71,8 @@ public:
     friend tPoint operator+(const tPoint& lhs, const tPoint& rhs) { return tPoint(lhs.mX + rhs.mX, lhs.mY + rhs.mY); }
     friend tPoint operator-(const tPoint& lhs, const tPoint& rhs) { return tPoint(lhs.mX - rhs.mX, lhs.mY - rhs.mY); }
 
+    tPoint operator-() const { return tPoint(-mX, -mY); }
+
     friend streamer& operator<<(streamer& os, const tPoint& p) {
         os << p.mX << "," << p.mY;
         return os;
@@ -75,6 +80,28 @@ public:
 
     std::string toString() const {
         return std::to_string(mX) + "," + std::to_string(mY);
+    }
+
+    bool isFinite() { return std::isfinite(mX) && std::isfinite(mY); }
+
+    /**
+     * Get bottom right bounding position for two provided points.
+     * @param p1 first point.
+     * @param p2 second point.
+     * @return Point which bounds both positions to the bottom and right.
+     */
+    static tPoint bottomRightBound(const tPoint& p1, const tPoint& p2) {
+        return {std::max(p1.getX(), p2.getX()), std::max(p1.getY(), p2.getY())};
+    }
+
+    /**
+     * Get top left bounding position for two provided points.
+     * @param p1 first point.
+     * @param p2 second point.
+     * @return Point which bounds both points to the top and left.
+     */
+    static tPoint topLeftBound(const tPoint& p1, const tPoint& p2) {
+        return {std::min(p1.getX(), p2.getX()), std::min(p1.getY(), p2.getY())};
     }
 
 private:

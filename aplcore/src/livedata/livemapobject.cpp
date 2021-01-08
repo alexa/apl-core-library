@@ -71,17 +71,35 @@ LiveMapObject::accept(Visitor<Object>& visitor) const
     visitor.pop();
 }
 
-const std::set<std::string>&
-LiveMapObject::getChanged()
-{
+void
+LiveMapObject::flush() {
+    LiveDataObject::flush();
+    mChanges.clear();
+    mChanged.clear();
+}
+
+const std::vector<LiveMapChange>&
+LiveMapObject::getChanges() {
     // If we've been replaced, EVERYTHING has been changed or updated in some way
     if (mReplaced) {
         const auto& map = mLiveMap->getMap();
         for (const auto& m : map)
-            mChanges.emplace(m.first);
+            mChanges.push_back(LiveMapChange::set(m.first));
         mReplaced = false;
     }
     return mChanges;
+}
+
+const std::set<std::string>&
+LiveMapObject::getChanged() {
+    if (mChanged.empty() && (!mChanges.empty() || mReplaced)) {
+        for (auto& change : getChanges()) {
+            // TODO: Current tests don't consider REMOVE as "changed". Makes sense to figure out why.
+            if (change.command() != LiveMapChange::REMOVE)
+                mChanged.emplace(change.key());
+        }
+    }
+    return mChanged;
 }
 
 void
@@ -91,17 +109,12 @@ LiveMapObject::handleMapMessage(const LiveMapChange& change)
     if (mReplaced)
         return;
 
-    switch (change.command()) {
-        case LiveMapChange::REMOVE:
-            mChanges.erase(change.key());
-            break;
-        case LiveMapChange::SET:
-            mChanges.emplace(change.key());
-            break;
-        case LiveMapChange::REPLACE:
-            mReplaced = true;
-            mChanges.clear();
-            break;
+    if (change.command() == LiveMapChange::REPLACE) {
+        mReplaced = true;
+        mChanges.clear();
+    }
+    else {
+        mChanges.push_back(change);
     }
 
     markDirty();

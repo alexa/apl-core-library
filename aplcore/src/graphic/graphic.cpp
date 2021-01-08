@@ -17,7 +17,9 @@
 #include "apl/engine/resources.h"
 #include "apl/engine/arrayify.h"
 #include "apl/graphic/graphic.h"
+#include "apl/graphic/graphicbuilder.h"
 #include "apl/utils/log.h"
+#include "apl/utils/session.h"
 #include "apl/engine/propdef.h"
 #include "apl/component/vectorgraphiccomponent.h"
 
@@ -51,11 +53,11 @@ Graphic::create(const ContextPtr& context,
                 const std::shared_ptr<CoreComponent>& component)
 {
     return create(context,
-            jsonResource.json(),
-            std::move(properties),
-            component,
-            jsonResource.path(),
-            component ? component->getStyle() : nullptr);
+                  jsonResource.json(),
+                  std::move(properties),
+                  component,
+                  jsonResource.path(),
+                  component ? component->getStyle() : nullptr);
 }
 
 GraphicPtr
@@ -68,14 +70,23 @@ Graphic::create(const ContextPtr& context,
 {
     LOG_IF(DEBUG_GRAPHIC) << "Creating graphic data=" << context->opt("data").toDebugString();
 
-    auto graphic = std::make_shared<Graphic>(context, json);
+    // Check and extract the version
+    auto version = propertyAsMapped(*context, json, "version", -1, sGraphicVersionBimap);
+    if (version == -1) {
+        CONSOLE_CTP(context) << "Illegal graphics version";
+        return nullptr;
+    }
+    LOG_IF(DEBUG_GRAPHIC) << "Found version" << version;
+
+    auto graphic = std::make_shared<Graphic>(context, json, static_cast<GraphicVersions>(version));
     graphic->initialize(context, json, std::move(properties), component, path, styledPtr);
     return graphic;
 }
 
-Graphic::Graphic(const ContextPtr& context, const rapidjson::Value& json)
+Graphic::Graphic(const ContextPtr& context, const rapidjson::Value& json, GraphicVersions version)
     : mInternalContext(Context::createClean(context)),
-      mParameterArray(json)
+      mParameterArray(json),
+      mVersion(version)
 {
     // Put in some dummy values.  This will allow internal GraphicElements to set up dependant relationships
     mInternalContext->putSystemWriteable("width", 100);
@@ -171,7 +182,7 @@ Graphic::initialize(const ContextPtr& sourceContext,
     }
 
     auto self = std::static_pointer_cast<Graphic>(shared_from_this());
-    mRootElement = GraphicElement::build(self, json);
+    mRootElement = GraphicBuilder::build(self, json);
 }
 
 bool

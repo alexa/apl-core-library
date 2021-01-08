@@ -45,18 +45,18 @@ VideoComponent::propDefSet() const
         { kPropertyAudioTrack,      kAudioTrackForeground,  sAudioTrackMap,     kPropInOut },
         { kPropertyAutoplay,        false,                  asOldBoolean,       kPropInOut },
         { kPropertyScale,           kVideoScaleBestFit,     sVideoScaleMap,     kPropInOut },
-        { kPropertySource,          Object::EMPTY_ARRAY(),  asMediaSourceArray, kPropDynamic | kPropInOut },
+        { kPropertySource,          Object::EMPTY_ARRAY(),  asMediaSourceArray, kPropDynamic | kPropInOut | kPropVisualContext },
         { kPropertyOnEnd,           Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
         { kPropertyOnPause,         Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
         { kPropertyOnPlay,          Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
         { kPropertyOnTimeUpdate,    Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
         { kPropertyOnTrackUpdate,   Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
-        { kPropertyTrackCount,      0,                      asInteger,          kPropRuntimeState },
-        { kPropertyTrackCurrentTime,0,                      asInteger,          kPropRuntimeState },
-        { kPropertyTrackDuration,   0,                      asInteger,          kPropRuntimeState },
-        { kPropertyTrackIndex,      0,                      asInteger,          kPropRuntimeState },
-        { kPropertyTrackPaused,     true,                   asBoolean,          kPropRuntimeState },
-        { kPropertyTrackEnded,      false,                  asBoolean,          kPropRuntimeState }
+        { kPropertyTrackCount,      0,                      asInteger,          kPropRuntimeState | kPropVisualContext },
+        { kPropertyTrackCurrentTime,0,                      asInteger,          kPropRuntimeState | kPropVisualContext },
+        { kPropertyTrackDuration,   0,                      asInteger,          kPropRuntimeState | kPropVisualContext },
+        { kPropertyTrackIndex,      0,                      asInteger,          kPropRuntimeState | kPropVisualContext },
+        { kPropertyTrackPaused,     true,                   asBoolean,          kPropRuntimeState | kPropVisualContext },
+        { kPropertyTrackEnded,      false,                  asBoolean,          kPropRuntimeState | kPropVisualContext }
     });
 
     return sVideoComponentProperties;
@@ -74,6 +74,7 @@ VideoComponent::assignProperties(const ComponentPropDefSet &propDefSet)
 void
 VideoComponent::saveMediaState(const MediaState& state)
 {
+    setVisualContextDirty();
     mCalculated.set(kPropertyTrackCount, state.getTrackCount());
     mCalculated.set(kPropertyTrackCurrentTime, state.getCurrentTime());
     mCalculated.set(kPropertyTrackDuration, state.getDuration());

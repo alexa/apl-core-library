@@ -15,6 +15,8 @@
 
 #include <yoga/YGNode.h>
 
+#include <cmath>
+
 #include "apl/common.h"
 #include "apl/component/corecomponent.h"
 #include "apl/component/componentpropdef.h"
@@ -29,6 +31,7 @@
 #include "apl/engine/builder.h"
 #include "apl/engine/componentdependant.h"
 #include "apl/livedata/layoutrebuilder.h"
+#include "apl/primitives/accessibilityaction.h"
 #include "apl/primitives/keyboard.h"
 #include "apl/time/sequencer.h"
 #include "apl/time/timemanager.h"
@@ -58,7 +61,8 @@ CoreComponent::CoreComponent(const ContextPtr& context,
       mProperties(std::move(properties)),
       mParent(nullptr),
       mYGNodeRef(YGNodeNewWithConfig(context->ygconfig())),
-      mPath(path)
+      mPath(path),
+      mGlobalToLocalIsStale(true)
 {
 }
 
@@ -125,6 +129,16 @@ CoreComponent::initialize()
     // Set notion of focusability. Here as we actually may need to know all other properties.
     mCalculated.set(kPropertyFocusable, isFocusable());
 
+    // The component property definition set returns an array of raw accessibility action objects.  This code
+    // processes the raw array, sets up dependancy relationships, and stores the processed array under the same key.
+    ObjectArray actions;
+    for (const auto& m : mCalculated.get(kPropertyAccessibilityActions).getArray() ) {
+        auto aa = AccessibilityAction::create(shared_from_corecomponent(), m);
+        if (aa)
+            actions.emplace_back(std::move(aa));
+    }
+    mCalculated.set(kPropertyAccessibilityActions, Object(std::move(actions)));
+
     // Process tick handlers here. Not same as onMount as it's a bad idea to go through every component on every tick
     // to collect handlers and run them on mass.
     processTickHandlers();
@@ -134,6 +148,7 @@ void
 CoreComponent::release()
 {
     // TODO: Must remove this component from any dirty lists
+    RecalculateTarget::removeUpstreamDependencies();
     mParent = nullptr;
     for (auto& child : mChildren)
         child->release();
@@ -242,7 +257,26 @@ CoreComponent::update(UpdateType type, float value)
 
 void
 CoreComponent::update(UpdateType type, const std::string& value) {
-    //no-op
+    if (type == kUpdateAccessibilityAction) {
+        auto accessibilityActions = getCalculated(kPropertyAccessibilityActions);
+
+        // Find the first accessibility action in the array that matches the requested name.
+        const auto& array = accessibilityActions.getArray();
+        auto it = std::find_if(array.begin(), array.end(), [&](const Object& object) {
+            return object.getAccessibilityAction()->getName() == value;
+        });
+
+        if (it != array.end()) {
+            const auto& aa = it->getAccessibilityAction();
+            if (aa->enabled()) {
+                const auto& cmds = aa->getCommands();
+                if (cmds.isArray() && !cmds.empty())
+                    executeEventHandler(value, cmds, false);
+                else
+                    invokeStandardAccessibilityAction(value);
+            }
+        }
+    }
 }
 
 /**
@@ -305,6 +339,9 @@ CoreComponent::insertChild(const ComponentPtr& child, size_t index, bool useDirt
     }
 
     coreChild->attachedToParent(shared_from_corecomponent());
+    coreChild->markGlobalToLocalTransformStale();
+    setVisualContextDirty();
+
     return true;
 }
 
@@ -350,6 +387,8 @@ CoreComponent::removeChild(const CoreComponentPtr& child, size_t index, bool use
     } else if (!mEnsuredChildren.empty() && (int)index < mEnsuredChildren.lowerBound()) {
         mEnsuredChildren.shift(-1);
     }
+
+    setVisualContextDirty();
 }
 
 void
@@ -368,6 +407,7 @@ CoreComponent::removeChildAt(size_t index, bool useDirtyFlag)
         return;
     auto child = mChildren.at(index);
     removeChild(child, index, useDirtyFlag);
+    child->release();
 }
 
 /**
@@ -584,6 +624,10 @@ CoreComponent::handlePropertyChange(const ComponentPropDef& def, const Object& v
     if (value != getCalculated(def.key)) {
         mCalculated.set(def.key, value);
 
+        // Properties with the kPropVisualContext flag the visual context as dirty
+        if ((def.flags & kPropVisualContext) != 0)
+            setVisualContextDirty();
+
         // Properties with the kPropOut flag mark the property as dirty
         if ((def.flags & kPropOut) != 0)
             setDirty(def.key);
@@ -775,6 +819,15 @@ CoreComponent::updateProperty(PropertyKey key, const Object& value)
     CONSOLE_CTP(mContext) << "Property " << sComponentPropertyBimap.at(key) << " is not dynamic and can't be updated." ;
 }
 
+void
+CoreComponent::setZOrder(int value)
+{
+    if (value != getCalculated(kPropertyZOrder).getInteger()) {
+        mCalculated.set(kPropertyZOrder, value);
+        setDirty(kPropertyZOrder);
+    }
+}
+
 /**
  * The style of the component may (or may not) have changed.  If it has changed,
  * update each styled property in turn.  Then update any children that share their
@@ -844,6 +897,12 @@ CoreComponent::setState( StateProperty stateProperty, bool value )
     }
 
     if (mState.set(stateProperty, value)) {
+
+        if (stateProperty == kStateChecked || stateProperty == kStateFocused
+            || stateProperty == kStateDisabled) {
+            setVisualContextDirty();
+        }
+
         if (stateProperty == kStateDisabled) {
             if (value) {
                 mState.set(kStatePressed, false);
@@ -867,8 +926,18 @@ CoreComponent::setState( StateProperty stateProperty, bool value )
 void
 CoreComponent::setDirty( PropertyKey key )
 {
-    if (mDirty.emplace(key).second)
+    if (mDirty.emplace(key).second) {
         mContext->setDirty(shared_from_this());
+        // set the visual context dirty if this property causes change
+        // called here because we handlePropertyChange may be bypassed in some circumstances
+        // (for example scrolling)
+        if (!isVisualContextDirty()) {
+            auto def = propDefSet().find(key);
+            if (def != propDefSet().end() && (def->second.flags & kPropVisualContext)) {
+                setVisualContextDirty();
+            }
+        }
+    }
 }
 
 void
@@ -960,6 +1029,8 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag)
 
     if (changed) {
         mCalculated.set(kPropertyBounds, std::move(rect));
+        markGlobalToLocalTransformStale();
+        setVisualContextDirty();
         if (useDirtyFlag)
             setDirty(kPropertyBounds);
     }
@@ -1119,6 +1190,8 @@ CoreComponent::fixTransform(bool useDirtyFlag)
     auto value = getCalculated(kPropertyTransform).getTransform2D();
     if (updated != value) {
         mCalculated.set(kPropertyTransform, Object(std::move(updated)));
+        markGlobalToLocalTransformStale();
+        setVisualContextDirty();
         if (useDirtyFlag)
             setDirty(kPropertyTransform);
 
@@ -1233,7 +1306,7 @@ CoreComponent::serializeDirty(rapidjson::Document::AllocatorType& allocator) {
 }
 
 rapidjson::Value
-CoreComponent::serializeVisualContext(rapidjson::Document::AllocatorType& allocator) {
+CoreComponent:: serializeVisualContext(rapidjson::Document::AllocatorType& allocator) {
     float viewportWidth = mContext->width();
     float viewportHeight = mContext->height();
     Rect viewportRect(0, 0, viewportWidth, viewportHeight);
@@ -1244,6 +1317,7 @@ CoreComponent::serializeVisualContext(rapidjson::Document::AllocatorType& alloca
     rapidjson::Value children(rapidjson::kArrayType);
     serializeVisualContextInternal(children, allocator, topComponentOpacity, topComponentVisibility,
             topComponentVisibleRect, 0);
+
     // We always have viewport component
     return children[0].GetObject();
 }
@@ -1252,6 +1326,7 @@ void
 CoreComponent::serializeVisualContextInternal(rapidjson::Value &outArray, rapidjson::Document::AllocatorType& allocator,
         float realOpacity, float visibility, const Rect& visibleRect, int visualLayer)
 {
+
     if(visibility == 0.0 && mParent) {
         // Not visible and not viewport component.
         return;
@@ -1337,6 +1412,17 @@ CoreComponent::getVisualContextType() {
     }
 
     return !type.empty() ? type : VISUAL_CONTEXT_TYPE_EMPTY;
+}
+
+void
+CoreComponent::setVisualContextDirty() {
+    // set this component as dirty visual context
+    mContext->setDirtyVisualContext(shared_from_this());
+}
+
+bool
+CoreComponent::isVisualContextDirty() {
+    return mContext->isVisualContextDirty(shared_from_this());
 }
 
 std::map<int, float>
@@ -1463,7 +1549,7 @@ CoreComponent::executeOnCursorExit() {
 inline void
 inlineFixTransform(Component& component)
 {
-    auto& core = static_cast<CoreComponent&>(component);
+    auto& core = dynamic_cast<CoreComponent&>(component);
     core.fixTransform(true);
 }
 
@@ -1495,7 +1581,6 @@ CoreComponent::fixSpacing(bool reset) {
         }
     }
 }
-
 
 /**
  * Used by components with a displayed border.
@@ -1540,54 +1625,88 @@ CoreComponent::calculateDrawnBorder(bool useDirtyFlag )
     }
 }
 
+void
+CoreComponent::executeEventHandler(const std::string& event, const Object& commands, bool fastMode,
+                                   const ObjectMapPtr& optional) {
+    if (!mState.get(kStateDisabled)) {
+        if (!fastMode)
+            mContext->sequencer().reset();
+
+        ContextPtr eventContext = createEventContext(event, optional);
+        mContext->sequencer().executeCommands(
+            commands,
+            eventContext,
+            shared_from_corecomponent(),
+            fastMode);
+    }
+}
+
 
 const ComponentPropDefSet&
 CoreComponent::propDefSet() const {
     static ComponentPropDefSet sCommonComponentProperties = ComponentPropDefSet().add({
-          {kPropertyAccessibilityLabel, "",                    asString,            kPropInOut},
-          {kPropertyBounds,             Object::EMPTY_RECT(),  nullptr,             kPropOut},
-          {kPropertyChecked,            false,                 asBoolean,           kPropInOut |
-                                                                                    kPropDynamic |
-                                                                                    kPropMixedState},
-          {kPropertyDescription,        "",                    asString,            kPropIn},
-          {kPropertyDisplay,            kDisplayNormal,        sDisplayMap,         kPropInOut |
-                                                                                    kPropStyled |
-                                                                                    kPropDynamic, yn::setDisplay},
-          {kPropertyDisabled,           false,                 asBoolean,           kPropInOut |
-                                                                                    kPropDynamic |
-                                                                                    kPropMixedState},
-          {kPropertyEntities,           Object::EMPTY_ARRAY(), asDeepArray,         kPropIn},
-          {kPropertyFocusable,          false,                 nullptr,             kPropOut},
-          {kPropertyHandleTick,         Object::EMPTY_ARRAY(), asArray,             kPropIn},
-          {kPropertyHeight,             Dimension(),           asDimension,         kPropIn,      yn::setHeight, defaultHeight},
-          {kPropertyInnerBounds,        Object::EMPTY_RECT(),  nullptr,             kPropOut},
-          {kPropertyMaxHeight,          Object::NULL_OBJECT(), asNonAutoDimension,  kPropIn,      yn::setMaxHeight},
-          {kPropertyMaxWidth,           Object::NULL_OBJECT(), asNonAutoDimension,  kPropIn,      yn::setMaxWidth},
-          {kPropertyMinHeight,          Dimension(0),          asNonAutoDimension,  kPropIn,      yn::setMinHeight},
-          {kPropertyMinWidth,           Dimension(0),          asNonAutoDimension,  kPropIn,      yn::setMinWidth},
-          {kPropertyOnMount,            Object::EMPTY_ARRAY(), asCommand,           kPropIn},
-          {kPropertyOpacity,            1.0,                   asOpacity,           kPropInOut |
-                                                                                    kPropStyled |
-                                                                                    kPropDynamic},
-          {kPropertyPaddingBottom,      Dimension(0),          asAbsoluteDimension, kPropIn, yn::setPadding<YGEdgeBottom>},
-          {kPropertyPaddingLeft,        Dimension(0),          asAbsoluteDimension, kPropIn, yn::setPadding<YGEdgeLeft>},
-          {kPropertyPaddingRight,       Dimension(0),          asAbsoluteDimension, kPropIn, yn::setPadding<YGEdgeRight>},
-          {kPropertyPaddingTop,         Dimension(0),          asAbsoluteDimension, kPropIn, yn::setPadding<YGEdgeTop>},
-          {kPropertyShadowColor,        Color(),               asColor,             kPropInOut | kPropStyled },
-          {kPropertyShadowHorizontalOffset, Dimension(0),      asAbsoluteDimension, kPropInOut | kPropStyled },
-          {kPropertyShadowRadius,       Dimension(0),          asAbsoluteDimension, kPropInOut | kPropStyled },
-          {kPropertyShadowVerticalOffset, Dimension(0),        asAbsoluteDimension, kPropInOut | kPropStyled },
-          {kPropertySpeech,             "",                    asString,            kPropIn},
-          {kPropertyTransformAssigned,  Object::NULL_OBJECT(), asTransformOrArray,  kPropIn |
-                                                                                    kPropDynamic |
-                                                                                    kPropEvaluated, inlineFixTransform},
-          {kPropertyTransform,          Object::IDENTITY_2D(), nullptr,             kPropOut},
-          {kPropertyUser,               Object::NULL_OBJECT(), nullptr,             kPropOut},
-          {kPropertyWidth,              Dimension(),           asDimension,         kPropIn,      yn::setWidth, defaultWidth},
-          {kPropertyOnCursorEnter,      Object::EMPTY_ARRAY(), asCommand,           kPropIn},
-          {kPropertyOnCursorExit,       Object::EMPTY_ARRAY(), asCommand,           kPropIn},
-          {kPropertyLaidOut,            false,                 asBoolean,           kPropOut},
-      });
+      {kPropertyAccessibilityLabel,     "",                    asString,                   kPropInOut |
+                                                                                           kPropDynamic},
+      {kPropertyAccessibilityActions,   Object::EMPTY_ARRAY(), asArray,                    kPropInOut},
+      {kPropertyBounds,                 Object::EMPTY_RECT(),  nullptr,                    kPropOut |
+                                                                                           kPropVisualContext},
+      {kPropertyChecked,                false,                 asBoolean,                  kPropInOut |
+                                                                                           kPropDynamic |
+                                                                                           kPropMixedState |
+                                                                                           kPropVisualContext},
+      {kPropertyDescription,            "",                    asString,                   kPropIn},
+      {kPropertyDisplay,                kDisplayNormal,        sDisplayMap,                kPropInOut |
+                                                                                           kPropStyled |
+                                                                                           kPropDynamic |
+                                                                                           kPropVisualContext,   yn::setDisplay},
+      {kPropertyDisabled,               false,                 asBoolean,                  kPropInOut |
+                                                                                           kPropDynamic |
+                                                                                           kPropMixedState |
+                                                                                           kPropVisualContext},
+      {kPropertyEntities,               Object::EMPTY_ARRAY(), asDeepArray,                kPropIn |
+                                                                                           kPropVisualContext},
+      {kPropertyFocusable,              false,                 nullptr,                    kPropOut},
+      {kPropertyHandleTick,             Object::EMPTY_ARRAY(), asArray,                    kPropIn},
+      {kPropertyHeight,                 Dimension(),           asDimension,                kPropIn,        yn::setHeight, defaultHeight},
+      {kPropertyInnerBounds,            Object::EMPTY_RECT(),  nullptr,                    kPropOut | kPropVisualContext},
+      {kPropertyMaxHeight,              Object::NULL_OBJECT(), asNonAutoDimension,         kPropIn,        yn::setMaxHeight},
+      {kPropertyMaxWidth,               Object::NULL_OBJECT(), asNonAutoDimension,         kPropIn,        yn::setMaxWidth},
+      {kPropertyMinHeight,              Dimension(0),          asNonAutoDimension,         kPropIn,        yn::setMinHeight},
+      {kPropertyMinWidth,               Dimension(0),          asNonAutoDimension,         kPropIn,        yn::setMinWidth},
+      {kPropertyOnMount,                Object::EMPTY_ARRAY(), asCommand,                  kPropIn},
+      {kPropertyOpacity,                1.0,                   asOpacity,                  kPropInOut |
+                                                                                           kPropStyled |
+                                                                                           kPropDynamic |
+                                                                                           kPropVisualContext},
+      {kPropertyPaddingBottom,          Dimension(0),          asAbsoluteDimension,        kPropIn,        yn::setPadding<YGEdgeBottom>},
+      {kPropertyPaddingLeft,            Dimension(0),          asAbsoluteDimension,        kPropIn,        yn::setPadding<YGEdgeLeft>},
+      {kPropertyPaddingRight,           Dimension(0),          asAbsoluteDimension,        kPropIn,        yn::setPadding<YGEdgeRight>},
+      {kPropertyPaddingTop,             Dimension(0),          asAbsoluteDimension,        kPropIn,        yn::setPadding<YGEdgeTop>},
+      {kPropertyRole,                   kRoleNone,             sRoleMap,                   kPropInOut |
+                                                                                           kPropStyled},
+      {kPropertyShadowColor,            Color(),               asColor,                    kPropInOut |
+                                                                                           kPropStyled},
+      {kPropertyShadowHorizontalOffset, Dimension(0),          asAbsoluteDimension,        kPropInOut |
+                                                                                           kPropStyled},
+      {kPropertyShadowRadius,           Dimension(0),          asAbsoluteDimension,        kPropInOut |
+                                                                                           kPropStyled},
+      {kPropertyShadowVerticalOffset,   Dimension(0),          asAbsoluteDimension,        kPropInOut |
+                                                                                           kPropStyled},
+      {kPropertySpeech,                 "",                    asString,                   kPropIn | kPropVisualContext},
+      {kPropertyTransformAssigned,      Object::NULL_OBJECT(), asTransformOrArray,         kPropIn |
+                                                                                           kPropDynamic |
+                                                                                           kPropEvaluated |
+                                                                                           kPropVisualContext, inlineFixTransform},
+      {kPropertyTransform,              Object::IDENTITY_2D(), nullptr,                    kPropOut |
+                                                                                           kPropVisualContext},
+      {kPropertyUser,                   Object::NULL_OBJECT(), nullptr,                    kPropOut},
+      {kPropertyWidth,                  Dimension(),           asDimension,                kPropIn,        yn::setWidth,  defaultWidth},
+      {kPropertyOnCursorEnter,          Object::EMPTY_ARRAY(), asCommand,                  kPropIn},
+      {kPropertyOnCursorExit,           Object::EMPTY_ARRAY(), asCommand,                  kPropIn},
+      {kPropertyLaidOut,                false,                 asBoolean,                  kPropOut |
+                                                                                           kPropVisualContext},
+      {kPropertyZOrder,                 0,                     asInteger,                  kPropOut},
+    });
 
     return sCommonComponentProperties;
 }
@@ -1603,6 +1722,18 @@ CoreComponent::containsLocalPosition(const Point &position) const {
     auto bounds = getCalculated(kPropertyBounds).getRect();
     Rect localBounds(0, 0, bounds.getWidth(), bounds.getHeight());
     return localBounds.contains(position);
+}
+
+Point
+CoreComponent::toLocalPoint(const Point& globalPoint) const
+{
+    auto toLocal = getGlobalToLocalTransform();
+    if (toLocal.singular()) {
+        static float NaN = std::numeric_limits<float>::quiet_NaN();
+        return {NaN, NaN};
+    } else {
+        return toLocal * globalPoint;
+    }
 }
 
 bool
@@ -1621,49 +1752,84 @@ CoreComponent::inParentViewport() const {
     return !parentBounds.intersect(bounds).isEmpty();
 }
 
-bool
-CoreComponent::getCoordinateTransformFromParent(const ComponentPtr& ancestor, Transform2D& out) const {
-    Transform2D result;
+CoreComponentPtr
+CoreComponent::processPointerEvent(const PointerEvent& event, apl_time_t timestamp, bool topComponent) {
+    // In particular circumstance Actionable component could become a target for a pointer to process
+    //  "intrinsic gestures." Intrinsic gestures in that particular case could be scrolling flick/usual scrolling/pager
+    //  "flick".
 
-    auto component = shared_from_this();
-    while (component && component != ancestor) {
-        auto componentTransform = component->getCalculated(kPropertyTransform).getTransform2D();
-        if (componentTransform.singular()) {
-            // Singular transform encountered, a transformation cannot be computed
-            return false;
-        }
+    if (processGestures(event, timestamp, topComponent))
+        return shared_from_corecomponent();
 
-        // To transform from the coordinate space of the parent component to the
-        // coordinate space of the child component, first offset by the position of
-        // the child in the parent, then undo the child transformation:
-        auto boundsInParent = component->getCalculated(kPropertyBounds).getRect();
-        auto offsetInParent = boundsInParent.getTopLeft();
-        result = result
-            * componentTransform.inverse()
-            * Transform2D::translate(-offsetInParent.getX(), -offsetInParent.getY());
+    // Break out if feature not enabled
+    if (mContext->getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore)
+        && shouldPropagatePointerEvent(event, timestamp) && mParent)
+        return mParent->processPointerEvent(event, timestamp, false);
 
-        // Account for the parent's scroll position. The scroll position only affects the coordinate space
-        // of children, so we account for it in the child component transformation.
-        auto parent = component->getParent();
-        if (parent) {
-            auto scrollPosition = parent->scrollPosition();
-            result = Transform2D::translate(scrollPosition.getX(), scrollPosition.getY()) * result;
-        }
-
-        component = parent;
-    }
-
-    if (component == ancestor) {
-        out = result;
-        return true;
-    } else {
-        return false;
-    }
+    return nullptr;
 }
 
+bool
+CoreComponent::shouldPropagatePointerEvent(const PointerEvent& event, apl_time_t timestamp) {
+    return event.pointerEventType != kPointerTargetChanged;
+}
 
-/*
- * END SearchVisitor IMPL
- */
+const RootConfig&
+CoreComponent::getRootConfig() const {
+    return mContext->getRootConfig();
+}
 
-}  // namespace apl
+void
+CoreComponent::ensureGlobalToLocalTransform() {
+    // Check for a stale parent, since marking a cache transform as stale does not
+    // mark children (see markGlobalToLocalTransformStale()). If any parent is stale,
+    // the mark will bubble up to this component during this phase.
+    if (mParent) {
+        mParent->ensureGlobalToLocalTransform();
+    }
+
+    if (!mGlobalToLocalIsStale) {
+        return;
+    }
+
+    Transform2D newLocalTransform;
+
+    auto componentTransform = getCalculated(kPropertyTransform).getTransform2D();
+    // To transform from the coordinate space of the parent component to the
+    // coordinate space of the child component, first offset by the position of
+    // the child in the parent, then undo the child transformation:
+    auto boundsInParent = getCalculated(kPropertyBounds).getRect();
+    auto offsetInParent = boundsInParent.getTopLeft();
+    newLocalTransform = componentTransform.inverse() * Transform2D::translate(-offsetInParent);
+
+    if (mParent) {
+        // Account for the parent's scroll position. The scroll position only affects the
+        // coordinate space of children, so we account for it in the child component
+        // transformation.
+        auto scrollPosition = mParent->scrollPosition();
+        newLocalTransform = newLocalTransform
+                * Transform2D::translate(scrollPosition)
+                * mParent->getGlobalToLocalTransform();
+    }
+
+    if (newLocalTransform != mGlobalToLocal) {
+        mGlobalToLocal = newLocalTransform;
+
+        for (auto i = 0; i < getChildCount(); i++) {
+            auto child = getCoreChildAt(i);
+            if (child->isAttached()) {
+                child->markGlobalToLocalTransformStale();
+            }
+        }
+    }
+
+    mGlobalToLocalIsStale = false;
+}
+
+const Transform2D& CoreComponent::getGlobalToLocalTransform() const {
+    auto &mutableThis = const_cast<CoreComponent&>(*this);
+    mutableThis.ensureGlobalToLocalTransform();
+    return mGlobalToLocal;
+}
+
+} // namespace apl

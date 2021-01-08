@@ -39,14 +39,15 @@ public:
 protected:
     const ComponentPropDefSet& propDefSet() const override;
     const ComponentPropDefSet* layoutPropDefSet() const override;
-    void layoutChildIfRequired(const Rect& parentBounds,
-                               CoreComponentPtr& child,
+    void layoutChildIfRequired(CoreComponentPtr& child,
                                size_t childIdx,
                                bool useDirtyFlag) override;
     const EventPropertyMap & eventPropertyMap() const override;
 
     bool childrenUseSpacingProperty() const override { return false; }
     void processLayoutChanges(bool useDirtyFlag) override;
+
+    size_t getItemsPerCourse() const override { return mItemsPerCourse; }
 
 private:
     std::pair<float, std::vector<float>> adjustChildDimensions(

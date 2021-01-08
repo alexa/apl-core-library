@@ -26,7 +26,7 @@ namespace apl {
 /**
  * Dynamic DataSource connection. Aimed to provide fetch and update interface to particular data set.
  */
-class DataSourceConnection : private Counter<DataSourceConnection> {
+class DataSourceConnection : public Counter<DataSourceConnection> {
 public:
     virtual ~DataSourceConnection() = default;
 
@@ -38,11 +38,6 @@ public:
      * @param index index to fetch items around.
      */
     virtual void ensure(size_t index) = 0;
-
-#ifdef DEBUG_MEMORY_USE
-public:
-    using Counter<DataSourceConnection>::itemsDelta;
-#endif
 };
 
 } // namespace apl

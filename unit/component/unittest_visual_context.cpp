@@ -23,57 +23,76 @@
 
 using namespace apl;
 
-class VisualContextTest : public DocumentWrapper {};
+class VisualContextTest : public DocumentWrapper {
+public:
+    VisualContextTest() : DocumentWrapper(),
+    vcDoc(rapidjson::kObjectType) {}
 
-static const char *DATA = "{}";
+    void postInflate() override {
+        ASSERT_TRUE(component);
+        ASSERT_FALSE(root->isVisualContextDirty());
+        serializeVisualContext();
+    }
 
-static const char *BASIC = "{"
-                             "  \"type\": \"APL\","
-                             "  \"version\": \"1.1\","
-                             "  \"mainTemplate\": {"
-                             "    \"item\": {"
-                             "      \"type\": \"TouchWrapper\","
-                             "      \"width\": \"100%\","
-                             "      \"height\": \"100%\","
-                             "      \"item\":"
-                             "      {"
-                             "        \"type\": \"Text\","
-                             "        \"id\": \"text\","
-                             "        \"text\": \"Text.\","
-                             "        \"entities\": [\"entity\"]"
-                             "      }"
-                             "    }"
-                             "  }"
-                             "}";
+    void serializeVisualContext() {
+        visualContext = root->serializeVisualContext(vcDoc.GetAllocator());
+    }
 
-TEST_F(VisualContextTest, Basic)
-{
+
+    void TearDown() override {
+        DocumentWrapper::TearDown();
+    }
+
+protected:
+    rapidjson::Document vcDoc;
+    rapidjson::Value visualContext;
+};
+
+static const char* DATA = "{}";
+
+static const char* BASIC = "{"
+                           "  \"type\": \"APL\","
+                           "  \"version\": \"1.1\","
+                           "  \"mainTemplate\": {"
+                           "    \"item\": {"
+                           "      \"type\": \"TouchWrapper\","
+                           "      \"width\": \"100%\","
+                           "      \"height\": \"100%\","
+                           "      \"item\":"
+                           "      {"
+                           "        \"type\": \"Text\","
+                           "        \"id\": \"text\","
+                           "        \"text\": \"Text.\","
+                           "        \"entities\": [\"entity\"]"
+                           "      }"
+                           "    }"
+                           "  }"
+                           "}";
+
+TEST_F(VisualContextTest, Basic) {
     loadDocument(BASIC);
 
     ASSERT_EQ(kComponentTypeTouchWrapper, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_FALSE(context.HasMember("transform"));
-    ASSERT_FALSE(context.HasMember("id"));
-    ASSERT_TRUE(context.HasMember("uid"));
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_TRUE(context["tags"].HasMember("clickable"));
-    ASSERT_FALSE(context.HasMember("visibility"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_FALSE(visualContext.HasMember("transform"));
+    ASSERT_FALSE(visualContext.HasMember("id"));
+    ASSERT_TRUE(visualContext.HasMember("uid"));
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_TRUE(visualContext["tags"].HasMember("clickable"));
+    ASSERT_FALSE(visualContext.HasMember("visibility"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(1, context["children"].GetArray().Size());
-    auto& child = context["children"][0];
+    ASSERT_EQ(1, visualContext["children"].GetArray().Size());
+    auto& child = visualContext["children"][0];
     ASSERT_STREQ("text", child["id"].GetString());
     ASSERT_STREQ("text", child["type"].GetString());
     ASSERT_FALSE(child.HasMember("tags"));
 }
 
-static const char *BASIC_AVG = R"(
+static const char* BASIC_AVG = R"(
 {
   "type": "APL",
   "version": "1.0",
@@ -98,60 +117,51 @@ static const char *BASIC_AVG = R"(
   }
 })";
 
-
-TEST_F(VisualContextTest, BasicAVG)
-{
+TEST_F(VisualContextTest, BasicAVG) {
     loadDocument(BASIC_AVG);
 
     ASSERT_EQ(kComponentTypeVectorGraphic, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_FALSE(context.HasMember("transform"));
-    ASSERT_FALSE(context.HasMember("id"));
-    ASSERT_TRUE(context.HasMember("uid"));
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_TRUE(context["tags"].HasMember("clickable"));
-    ASSERT_FALSE(context.HasMember("visibility"));
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_FALSE(visualContext.HasMember("transform"));
+    ASSERT_FALSE(visualContext.HasMember("id"));
+    ASSERT_TRUE(visualContext.HasMember("uid"));
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_TRUE(visualContext["tags"].HasMember("clickable"));
+    ASSERT_FALSE(visualContext.HasMember("visibility"));
 }
 
-static const char *TRANSFORM = "{"
-                           "  \"type\": \"APL\","
-                           "  \"version\": \"1.1\","
-                           "  \"mainTemplate\": {"
-                           "    \"item\": {"
-                           "      \"type\": \"Text\","
-                           "      \"id\": \"text\","
-                           "      \"text\": \"Text.\","
-                           "      \"entities\": [\"entity\"],"
-                           "      \"transform\": [{ \"rotate\": 45}]"
-                           "    }"
-                           "  }"
-                           "}";
+static const char* TRANSFORM = "{"
+                               "  \"type\": \"APL\","
+                               "  \"version\": \"1.1\","
+                               "  \"mainTemplate\": {"
+                               "    \"item\": {"
+                               "      \"type\": \"Text\","
+                               "      \"id\": \"text\","
+                               "      \"text\": \"Text.\","
+                               "      \"entities\": [\"entity\"],"
+                               "      \"transform\": [{ \"rotate\": 45}]"
+                               "    }"
+                               "  }"
+                               "}";
 
-TEST_F(VisualContextTest, Transform)
-{
+TEST_F(VisualContextTest, Transform) {
     loadDocument(TRANSFORM);
 
     ASSERT_EQ(kComponentTypeText, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_STREQ("text", context["id"].GetString());
-    ASSERT_STREQ("text", context["type"].GetString());
-    ASSERT_TRUE(context.HasMember("uid"));
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_FALSE(context.HasMember("visibility"));
+    ASSERT_STREQ("text", visualContext["id"].GetString());
+    ASSERT_STREQ("text", visualContext["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("uid"));
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_FALSE(visualContext.HasMember("visibility"));
 
-    ASSERT_FALSE(context.HasMember("children"));
+    ASSERT_FALSE(visualContext.HasMember("children"));
 
-    ASSERT_TRUE(context.HasMember("transform"));
-    auto& transform = context["transform"];
+    ASSERT_TRUE(visualContext.HasMember("transform"));
+    auto& transform = visualContext["transform"];
     ASSERT_EQ(6, transform.Size());
     ASSERT_NEAR(0.7, transform[0].GetFloat(), 0.1);
     ASSERT_NEAR(0.7, transform[1].GetFloat(), 0.1);
@@ -161,38 +171,34 @@ TEST_F(VisualContextTest, Transform)
     ASSERT_NEAR(-244.8, transform[5].GetFloat(), 0.1);
 }
 
-static const char *EMPTY_SEQUENCE = "{"
-                               "  \"type\": \"APL\","
-                               "  \"version\": \"1.1\","
-                               "  \"mainTemplate\": {"
-                               "    \"item\": {"
-                               "      \"type\": \"Sequence\""
-                               "    }"
-                               "  }"
-                               "}";
+static const char* EMPTY_SEQUENCE = "{"
+                                    "  \"type\": \"APL\","
+                                    "  \"version\": \"1.1\","
+                                    "  \"mainTemplate\": {"
+                                    "    \"item\": {"
+                                    "      \"type\": \"Sequence\""
+                                    "    }"
+                                    "  }"
+                                    "}";
 
-TEST_F(VisualContextTest, EmptySequence)
-{
+TEST_F(VisualContextTest, EmptySequence) {
     loadDocument(EMPTY_SEQUENCE);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_STREQ("empty", context["type"].GetString());
-    ASSERT_TRUE(context.HasMember("uid"));
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_FALSE(context.HasMember("visibility"));
-    ASSERT_FALSE(context.HasMember("children"));
+    ASSERT_STREQ("empty", visualContext["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("uid"));
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_FALSE(visualContext.HasMember("visibility"));
+    ASSERT_FALSE(visualContext.HasMember("children"));
 
-    ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    auto& tags = visualContext["tags"];
     ASSERT_FALSE(tags.HasMember("list"));
 }
 
-static const char *SEQUENCE = "{"
+static const char* SEQUENCE = "{"
                               "  \"type\": \"APL\","
                               "  \"version\": \"1.1\","
                               "  \"mainTemplate\": {"
@@ -253,20 +259,16 @@ static const char *SEQUENCE = "{"
                               "  }"
                               "}";
 
-TEST_F(VisualContextTest, Sequence)
-{
+TEST_F(VisualContextTest, Sequence) {
     loadDocument(SEQUENCE, DATA);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
-    ASSERT_STREQ("seq", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    auto& tags = visualContext["tags"];
+    ASSERT_STREQ("seq", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     ASSERT_TRUE(tags.HasMember("focused"));
     ASSERT_TRUE(tags.HasMember("scrollable"));
@@ -284,9 +286,9 @@ TEST_F(VisualContextTest, Sequence)
     ASSERT_EQ(2, list["highestOrdinalSeen"]);
 
     // Check children
-    ASSERT_EQ(3, context["children"].GetArray().Size());
+    ASSERT_EQ(3, visualContext["children"].GetArray().Size());
 
-    auto& reportedChild1 = context["children"][0];
+    auto& reportedChild1 = visualContext["children"][0];
     ASSERT_STREQ("item_0", reportedChild1["id"].GetString());
     ASSERT_TRUE(reportedChild1.HasMember("entities"));
     ASSERT_FALSE(reportedChild1.HasMember("visibility"));
@@ -299,7 +301,7 @@ TEST_F(VisualContextTest, Sequence)
     ASSERT_TRUE(c1t.HasMember("listItem"));
     ASSERT_EQ(0, c1t["listItem"]["index"]);
 
-    auto& reportedChild2 = context["children"][1];
+    auto& reportedChild2 = visualContext["children"][1];
     ASSERT_STREQ("item_1", reportedChild2["id"].GetString());
     ASSERT_FALSE(reportedChild2.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild2["type"].GetString());
@@ -311,7 +313,7 @@ TEST_F(VisualContextTest, Sequence)
     ASSERT_TRUE(c2t.HasMember("listItem"));
     ASSERT_EQ(1, c2t["listItem"]["index"]);
 
-    auto& reportedChild3 = context["children"][2];
+    auto& reportedChild3 = visualContext["children"][2];
     ASSERT_STREQ("item_2", reportedChild3["id"].GetString());
     ASSERT_FLOAT_EQ(0.5f, reportedChild3["visibility"].GetFloat());
     ASSERT_STREQ("text", reportedChild3["type"].GetString());
@@ -326,11 +328,14 @@ TEST_F(VisualContextTest, Sequence)
 
     component->update(kUpdateScrollPosition, 100);
     root->clearPending();
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    serializeVisualContext();
 
     // Check parent
-    tags = context["tags"];
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    tags = visualContext["tags"];
+
     scrollable = tags["scrollable"];
     ASSERT_EQ("vertical", scrollable["direction"]);
     ASSERT_EQ(true, scrollable["allowForward"]);
@@ -343,9 +348,9 @@ TEST_F(VisualContextTest, Sequence)
     ASSERT_EQ(4, list["highestOrdinalSeen"]);
 
     // Check children
-    ASSERT_EQ(3, context["children"].GetArray().Size());
+    ASSERT_EQ(3, visualContext["children"].GetArray().Size());
 
-    reportedChild1 = context["children"][0];
+    reportedChild1 = visualContext["children"][0];
     ASSERT_STREQ("item_2", reportedChild1["id"].GetString());
     ASSERT_TRUE(reportedChild1.HasMember("entities"));
     ASSERT_FLOAT_EQ(0.5f, reportedChild1["visibility"].GetFloat());
@@ -358,7 +363,7 @@ TEST_F(VisualContextTest, Sequence)
     ASSERT_TRUE(c1t.HasMember("listItem"));
     ASSERT_EQ(2, c1t["listItem"]["index"]);
 
-    reportedChild2 = context["children"][1];
+    reportedChild2 = visualContext["children"][1];
     ASSERT_STREQ("item_3", reportedChild2["id"].GetString());
     ASSERT_FALSE(reportedChild2.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild2["type"].GetString());
@@ -370,7 +375,7 @@ TEST_F(VisualContextTest, Sequence)
     ASSERT_TRUE(c2t.HasMember("listItem"));
     ASSERT_EQ(3, c2t["listItem"]["index"]);
 
-    reportedChild3 = context["children"][2];
+    reportedChild3 = visualContext["children"][2];
     ASSERT_STREQ("item_4", reportedChild3["id"].GetString());
     ASSERT_FALSE(reportedChild3.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild3["type"].GetString());
@@ -384,81 +389,77 @@ TEST_F(VisualContextTest, Sequence)
     ASSERT_EQ(4, c3t["listItem"]["index"]);
 }
 
-static const char *HORIZONTAL_SEQUENCE = "{"
-                              "  \"type\": \"APL\","
-                              "  \"version\": \"1.1\","
-                              "  \"mainTemplate\": {"
-                              "    \"parameters\": ["
-                              "      \"payload\""
-                              "    ],"
-                              "    \"item\": {"
-                              "      \"type\": \"Sequence\","
-                              "      \"id\": \"seq\","
-                              "      \"scrollDirection\": \"horizontal\","
-                              "      \"numbered\": true,"
-                              "      \"items\": ["
-                              "        {"
-                              "          \"type\": \"Text\","
-                              "          \"id\": \"item_${index}\","
-                              "          \"width\": \"40dp\","
-                              "          \"text\": \"A ${index}-${ordinal}-${length}\","
-                              "          \"entities\": [\"${index}\", \"${ordinal}\"]"
-                              "        },"
-                              "        {"
-                              "          \"type\": \"Text\","
-                              "          \"id\": \"item_${index}\","
-                              "          \"width\": \"40dp\","
-                              "          \"text\": \"B ${index}-${ordinal}-${length}\","
-                              "          \"numbering\": \"skip\","
-                              "          \"speech\": \"ssml\""
-                              "        },"
-                              "        {"
-                              "          \"type\": \"Text\","
-                              "          \"id\": \"item_${index}\","
-                              "          \"width\": \"40dp\","
-                              "          \"text\": \"C ${index}-${ordinal}-${length}\","
-                              "          \"entities\": [\"${index}\", \"${ordinal}\"]"
-                              "        },"
-                              "        {"
-                              "          \"type\": \"Text\","
-                              "          \"id\": \"item_${index}\","
-                              "          \"width\": \"40dp\","
-                              "          \"text\": \"A ${index}-${ordinal}-${length}\","
-                              "          \"entities\": [\"${index}\", \"${ordinal}\"]"
-                              "        },"
-                              "        {"
-                              "          \"type\": \"Text\","
-                              "          \"id\": \"item_${index}\","
-                              "          \"width\": \"40dp\","
-                              "          \"text\": \"B ${index}-${ordinal}-${length}\","
-                              "          \"numbering\": \"skip\","
-                              "          \"speech\": \"ssml\""
-                              "        },"
-                              "        {"
-                              "          \"type\": \"Text\","
-                              "          \"id\": \"item_${index}\","
-                              "          \"width\": \"40dp\","
-                              "          \"text\": \"C ${index}-${ordinal}-${length}\""
-                              "        }"
-                              "      ]"
-                              "    }"
-                              "  }"
-                              "}";
+static const char* HORIZONTAL_SEQUENCE = "{"
+                                         "  \"type\": \"APL\","
+                                         "  \"version\": \"1.1\","
+                                         "  \"mainTemplate\": {"
+                                         "    \"parameters\": ["
+                                         "      \"payload\""
+                                         "    ],"
+                                         "    \"item\": {"
+                                         "      \"type\": \"Sequence\","
+                                         "      \"id\": \"seq\","
+                                         "      \"scrollDirection\": \"horizontal\","
+                                         "      \"numbered\": true,"
+                                         "      \"items\": ["
+                                         "        {"
+                                         "          \"type\": \"Text\","
+                                         "          \"id\": \"item_${index}\","
+                                         "          \"width\": \"40dp\","
+                                         "          \"text\": \"A ${index}-${ordinal}-${length}\","
+                                         "          \"entities\": [\"${index}\", \"${ordinal}\"]"
+                                         "        },"
+                                         "        {"
+                                         "          \"type\": \"Text\","
+                                         "          \"id\": \"item_${index}\","
+                                         "          \"width\": \"40dp\","
+                                         "          \"text\": \"B ${index}-${ordinal}-${length}\","
+                                         "          \"numbering\": \"skip\","
+                                         "          \"speech\": \"ssml\""
+                                         "        },"
+                                         "        {"
+                                         "          \"type\": \"Text\","
+                                         "          \"id\": \"item_${index}\","
+                                         "          \"width\": \"40dp\","
+                                         "          \"text\": \"C ${index}-${ordinal}-${length}\","
+                                         "          \"entities\": [\"${index}\", \"${ordinal}\"]"
+                                         "        },"
+                                         "        {"
+                                         "          \"type\": \"Text\","
+                                         "          \"id\": \"item_${index}\","
+                                         "          \"width\": \"40dp\","
+                                         "          \"text\": \"A ${index}-${ordinal}-${length}\","
+                                         "          \"entities\": [\"${index}\", \"${ordinal}\"]"
+                                         "        },"
+                                         "        {"
+                                         "          \"type\": \"Text\","
+                                         "          \"id\": \"item_${index}\","
+                                         "          \"width\": \"40dp\","
+                                         "          \"text\": \"B ${index}-${ordinal}-${length}\","
+                                         "          \"numbering\": \"skip\","
+                                         "          \"speech\": \"ssml\""
+                                         "        },"
+                                         "        {"
+                                         "          \"type\": \"Text\","
+                                         "          \"id\": \"item_${index}\","
+                                         "          \"width\": \"40dp\","
+                                         "          \"text\": \"C ${index}-${ordinal}-${length}\""
+                                         "        }"
+                                         "      ]"
+                                         "    }"
+                                         "  }"
+                                         "}";
 
-TEST_F(VisualContextTest, HorizontalSequence)
-{
+TEST_F(VisualContextTest, HorizontalSequence) {
     loadDocument(HORIZONTAL_SEQUENCE, DATA);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
-    ASSERT_STREQ("seq", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    auto& tags = visualContext["tags"];
+    ASSERT_STREQ("seq", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     ASSERT_TRUE(tags.HasMember("focused"));
     ASSERT_TRUE(tags.HasMember("scrollable"));
@@ -476,9 +477,9 @@ TEST_F(VisualContextTest, HorizontalSequence)
     ASSERT_EQ(2, list["highestOrdinalSeen"]);
 
     // Check children
-    ASSERT_EQ(3, context["children"].GetArray().Size());
+    ASSERT_EQ(3, visualContext["children"].GetArray().Size());
 
-    auto& reportedChild1 = context["children"][0];
+    auto& reportedChild1 = visualContext["children"][0];
     ASSERT_STREQ("item_0", reportedChild1["id"].GetString());
     ASSERT_TRUE(reportedChild1.HasMember("entities"));
     ASSERT_FALSE(reportedChild1.HasMember("visibility"));
@@ -491,7 +492,7 @@ TEST_F(VisualContextTest, HorizontalSequence)
     ASSERT_TRUE(c1t.HasMember("listItem"));
     ASSERT_EQ(0, c1t["listItem"]["index"]);
 
-    auto& reportedChild2 = context["children"][1];
+    auto& reportedChild2 = visualContext["children"][1];
     ASSERT_STREQ("item_1", reportedChild2["id"].GetString());
     ASSERT_FALSE(reportedChild2.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild2["type"].GetString());
@@ -503,7 +504,7 @@ TEST_F(VisualContextTest, HorizontalSequence)
     ASSERT_TRUE(c2t.HasMember("listItem"));
     ASSERT_EQ(1, c2t["listItem"]["index"]);
 
-    auto& reportedChild3 = context["children"][2];
+    auto& reportedChild3 = visualContext["children"][2];
     ASSERT_STREQ("item_2", reportedChild3["id"].GetString());
     ASSERT_FLOAT_EQ(0.5f, reportedChild3["visibility"].GetFloat());
     ASSERT_STREQ("text", reportedChild3["type"].GetString());
@@ -519,10 +520,11 @@ TEST_F(VisualContextTest, HorizontalSequence)
     component->update(kUpdateScrollPosition, 100);
     root->clearPending();
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    serializeVisualContext();
 
     // Check parent
-    tags = context["tags"];
+    tags = visualContext["tags"];
     scrollable = tags["scrollable"];
     ASSERT_EQ("horizontal", scrollable["direction"]);
     ASSERT_EQ(true, scrollable["allowForward"]);
@@ -535,9 +537,9 @@ TEST_F(VisualContextTest, HorizontalSequence)
     ASSERT_EQ(4, list["highestOrdinalSeen"]);
 
     // Check children
-    ASSERT_EQ(3, context["children"].GetArray().Size());
+    ASSERT_EQ(3, visualContext["children"].GetArray().Size());
 
-    reportedChild1 = context["children"][0];
+    reportedChild1 = visualContext["children"][0];
     ASSERT_STREQ("item_2", reportedChild1["id"].GetString());
     ASSERT_TRUE(reportedChild1.HasMember("entities"));
     ASSERT_FLOAT_EQ(0.5f, reportedChild1["visibility"].GetFloat());
@@ -550,7 +552,7 @@ TEST_F(VisualContextTest, HorizontalSequence)
     ASSERT_TRUE(c1t.HasMember("listItem"));
     ASSERT_EQ(2, c1t["listItem"]["index"]);
 
-    reportedChild2 = context["children"][1];
+    reportedChild2 = visualContext["children"][1];
     ASSERT_STREQ("item_3", reportedChild2["id"].GetString());
     ASSERT_FALSE(reportedChild2.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild2["type"].GetString());
@@ -562,7 +564,7 @@ TEST_F(VisualContextTest, HorizontalSequence)
     ASSERT_TRUE(c2t.HasMember("listItem"));
     ASSERT_EQ(3, c2t["listItem"]["index"]);
 
-    reportedChild3 = context["children"][2];
+    reportedChild3 = visualContext["children"][2];
     ASSERT_STREQ("item_4", reportedChild3["id"].GetString());
     ASSERT_FALSE(reportedChild3.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild3["type"].GetString());
@@ -576,20 +578,16 @@ TEST_F(VisualContextTest, HorizontalSequence)
     ASSERT_EQ(4, c3t["listItem"]["index"]);
 }
 
-TEST_F(VisualContextTest, RevertedSequence)
-{
+TEST_F(VisualContextTest, RevertedSequence) {
     loadDocument(SEQUENCE, DATA);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
-    ASSERT_STREQ("seq", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    auto& tags = visualContext["tags"];
+    ASSERT_STREQ("seq", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     ASSERT_TRUE(tags.HasMember("focused"));
     ASSERT_TRUE(tags.HasMember("scrollable"));
@@ -607,9 +605,9 @@ TEST_F(VisualContextTest, RevertedSequence)
     ASSERT_EQ(2, list["highestOrdinalSeen"]);
 
     // Check children
-    ASSERT_EQ(3, context["children"].GetArray().Size());
+    ASSERT_EQ(3, visualContext["children"].GetArray().Size());
 
-    auto& reportedChild1 = context["children"][0];
+    auto& reportedChild1 = visualContext["children"][0];
     ASSERT_STREQ("item_0", reportedChild1["id"].GetString());
     ASSERT_TRUE(reportedChild1.HasMember("entities"));
     ASSERT_FALSE(reportedChild1.HasMember("visibility"));
@@ -622,7 +620,7 @@ TEST_F(VisualContextTest, RevertedSequence)
     ASSERT_TRUE(c1t.HasMember("listItem"));
     ASSERT_EQ(0, c1t["listItem"]["index"]);
 
-    auto& reportedChild2 = context["children"][1];
+    auto& reportedChild2 = visualContext["children"][1];
     ASSERT_STREQ("item_1", reportedChild2["id"].GetString());
     ASSERT_FALSE(reportedChild2.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild2["type"].GetString());
@@ -634,7 +632,7 @@ TEST_F(VisualContextTest, RevertedSequence)
     ASSERT_TRUE(c2t.HasMember("listItem"));
     ASSERT_EQ(1, c2t["listItem"]["index"]);
 
-    auto& reportedChild3 = context["children"][2];
+    auto& reportedChild3 = visualContext["children"][2];
     ASSERT_STREQ("item_2", reportedChild3["id"].GetString());
     ASSERT_FLOAT_EQ(0.5f, reportedChild3["visibility"].GetFloat());
     ASSERT_STREQ("text", reportedChild3["type"].GetString());
@@ -654,10 +652,11 @@ TEST_F(VisualContextTest, RevertedSequence)
     component->update(kUpdateScrollPosition, 0);
     root->clearPending();
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    serializeVisualContext();
 
     // Check parent. We've seen more than initially.
-    tags = context["tags"];
+    tags = visualContext["tags"];
     scrollable = tags["scrollable"];
     ASSERT_EQ("vertical", scrollable["direction"]);
     ASSERT_EQ(true, scrollable["allowForward"]);
@@ -670,9 +669,9 @@ TEST_F(VisualContextTest, RevertedSequence)
     ASSERT_EQ(4, list["highestOrdinalSeen"]);
 
     // Check children, that should be the same
-    ASSERT_EQ(3, context["children"].GetArray().Size());
+    ASSERT_EQ(3, visualContext["children"].GetArray().Size());
 
-    reportedChild1 = context["children"][0];
+    reportedChild1 = visualContext["children"][0];
     ASSERT_STREQ("item_0", reportedChild1["id"].GetString());
     ASSERT_TRUE(reportedChild1.HasMember("entities"));
     ASSERT_FALSE(reportedChild1.HasMember("visibility"));
@@ -685,7 +684,7 @@ TEST_F(VisualContextTest, RevertedSequence)
     ASSERT_TRUE(c1t.HasMember("listItem"));
     ASSERT_EQ(0, c1t["listItem"]["index"]);
 
-    reportedChild2 = context["children"][1];
+    reportedChild2 = visualContext["children"][1];
     ASSERT_STREQ("item_1", reportedChild2["id"].GetString());
     ASSERT_FALSE(reportedChild2.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild2["type"].GetString());
@@ -697,7 +696,7 @@ TEST_F(VisualContextTest, RevertedSequence)
     ASSERT_TRUE(c2t.HasMember("listItem"));
     ASSERT_EQ(1, c2t["listItem"]["index"]);
 
-    reportedChild3 = context["children"][2];
+    reportedChild3 = visualContext["children"][2];
     ASSERT_STREQ("item_2", reportedChild3["id"].GetString());
     ASSERT_FLOAT_EQ(0.5f, reportedChild3["visibility"].GetFloat());
     ASSERT_STREQ("text", reportedChild3["type"].GetString());
@@ -711,7 +710,7 @@ TEST_F(VisualContextTest, RevertedSequence)
     ASSERT_EQ(2, c3t["listItem"]["index"]);
 }
 
-static const char *SHIFTED_SEQUENCE = "{"
+static const char* SHIFTED_SEQUENCE = "{"
                                       "  \"type\": \"APL\","
                                       "  \"version\": \"1.1\","
                                       "  \"mainTemplate\": {"
@@ -778,26 +777,22 @@ static const char *SHIFTED_SEQUENCE = "{"
                                       "  }"
                                       "}";
 
-TEST_F(VisualContextTest, ShiftedSequence)
-{
+TEST_F(VisualContextTest, ShiftedSequence) {
     loadDocument(SHIFTED_SEQUENCE, DATA);
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
     auto seq = component->getCoreChildAt(0);
     ASSERT_EQ(kComponentTypeSequence, seq->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
-    //ASSERT_STREQ("seq", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    auto& tags = visualContext["tags"];
+    // ASSERT_STREQ("seq", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
-    context = context["children"][0];
-    tags = context["tags"];
+    visualContext = visualContext["children"][0];
+    tags = visualContext["tags"];
 
     ASSERT_TRUE(tags.HasMember("focused"));
     ASSERT_TRUE(tags.HasMember("list"));
@@ -809,14 +804,16 @@ TEST_F(VisualContextTest, ShiftedSequence)
     ASSERT_EQ(2, list["highestOrdinalSeen"]);
 
     // Check children
-    ASSERT_EQ(3, context["children"].GetArray().Size());
+    ASSERT_EQ(3, visualContext["children"].GetArray().Size());
 
-    auto& reportedChild1 = context["children"][0];
+    auto& reportedChild1 = visualContext["children"][0];
     ASSERT_STREQ("item_0", reportedChild1["id"].GetString());
     ASSERT_TRUE(reportedChild1.HasMember("entities"));
     ASSERT_FALSE(reportedChild1.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild1["type"].GetString());
-    ASSERT_STREQ("10x40+100+100:0", reportedChild1["position"].GetString());  // Only 10 wide due to default text measure
+    ASSERT_STREQ(
+        "10x40+100+100:0",
+        reportedChild1["position"].GetString()); // Only 10 wide due to default text measure
     ASSERT_TRUE(reportedChild1.HasMember("tags"));
     auto& c1t = reportedChild1["tags"];
     ASSERT_FALSE(c1t.HasMember("focused"));
@@ -824,7 +821,7 @@ TEST_F(VisualContextTest, ShiftedSequence)
     ASSERT_TRUE(c1t.HasMember("listItem"));
     ASSERT_EQ(0, c1t["listItem"]["index"]);
 
-    auto& reportedChild2 = context["children"][1];
+    auto& reportedChild2 = visualContext["children"][1];
     ASSERT_STREQ("item_1", reportedChild2["id"].GetString());
     ASSERT_FALSE(reportedChild2.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild2["type"].GetString());
@@ -836,7 +833,7 @@ TEST_F(VisualContextTest, ShiftedSequence)
     ASSERT_TRUE(c2t.HasMember("listItem"));
     ASSERT_EQ(1, c2t["listItem"]["index"]);
 
-    auto& reportedChild3 = context["children"][2];
+    auto& reportedChild3 = visualContext["children"][2];
     ASSERT_STREQ("item_2", reportedChild3["id"].GetString());
     ASSERT_FLOAT_EQ(0.5f, reportedChild3["visibility"].GetFloat());
     ASSERT_STREQ("text", reportedChild3["type"].GetString());
@@ -852,10 +849,12 @@ TEST_F(VisualContextTest, ShiftedSequence)
     seq->update(kUpdateScrollPosition, 100);
     root->clearPending();
 
-    context = component->serializeVisualContext(document.GetAllocator())["children"][0];
+    ASSERT_TRUE(CheckDirtyVisualContext(root, seq));
+    serializeVisualContext();
+    visualContext = visualContext["children"][0];
 
     // Check parent
-    tags = context["tags"];
+    tags = visualContext["tags"];
     list = tags["list"];
     ASSERT_EQ(6, list["itemCount"]);
     ASSERT_EQ(0, list["lowestIndexSeen"]);
@@ -864,9 +863,9 @@ TEST_F(VisualContextTest, ShiftedSequence)
     ASSERT_EQ(4, list["highestOrdinalSeen"]);
 
     // Check children
-    ASSERT_EQ(3, context["children"].GetArray().Size());
+    ASSERT_EQ(3, visualContext["children"].GetArray().Size());
 
-    reportedChild1 = context["children"][0];
+    reportedChild1 = visualContext["children"][0];
     ASSERT_STREQ("item_2", reportedChild1["id"].GetString());
     ASSERT_TRUE(reportedChild1.HasMember("entities"));
     ASSERT_FLOAT_EQ(0.5f, reportedChild1["visibility"].GetFloat());
@@ -879,7 +878,7 @@ TEST_F(VisualContextTest, ShiftedSequence)
     ASSERT_TRUE(c1t.HasMember("listItem"));
     ASSERT_EQ(2, c1t["listItem"]["index"]);
 
-    reportedChild2 = context["children"][1];
+    reportedChild2 = visualContext["children"][1];
     ASSERT_STREQ("item_3", reportedChild2["id"].GetString());
     ASSERT_FALSE(reportedChild2.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild2["type"].GetString());
@@ -891,7 +890,7 @@ TEST_F(VisualContextTest, ShiftedSequence)
     ASSERT_TRUE(c2t.HasMember("listItem"));
     ASSERT_EQ(3, c2t["listItem"]["index"]);
 
-    reportedChild3 = context["children"][2];
+    reportedChild3 = visualContext["children"][2];
     ASSERT_STREQ("item_4", reportedChild3["id"].GetString());
     ASSERT_FALSE(reportedChild3.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild3["type"].GetString());
@@ -905,7 +904,7 @@ TEST_F(VisualContextTest, ShiftedSequence)
     ASSERT_EQ(4, c3t["listItem"]["index"]);
 }
 
-static const char *ORDINAL_SEQUENCE = "{"
+static const char* ORDINAL_SEQUENCE = "{"
                                       "  \"type\": \"APL\","
                                       "  \"version\": \"1.1\","
                                       "  \"mainTemplate\": {"
@@ -969,20 +968,16 @@ static const char *ORDINAL_SEQUENCE = "{"
                                       "  }"
                                       "}";
 
-TEST_F(VisualContextTest, MissingOrdinalSequence)
-{
+TEST_F(VisualContextTest, MissingOrdinalSequence) {
     loadDocument(ORDINAL_SEQUENCE, DATA);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
-    ASSERT_STREQ("seq", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    auto& tags = visualContext["tags"];
+    ASSERT_STREQ("seq", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     ASSERT_TRUE(tags.HasMember("focused"));
     ASSERT_FALSE(tags.HasMember("scrollable"));
@@ -996,81 +991,77 @@ TEST_F(VisualContextTest, MissingOrdinalSequence)
     ASSERT_EQ(3, list["highestOrdinalSeen"].GetInt());
 }
 
-static const char *NO_ORDINAL_SEQUENCE = "{"
-                                      "  \"type\": \"APL\","
-                                      "  \"version\": \"1.1\","
-                                      "  \"mainTemplate\": {"
-                                      "    \"parameters\": ["
-                                      "      \"payload\""
-                                      "    ],"
-                                      "    \"item\": {"
-                                      "      \"type\": \"Sequence\","
-                                      "      \"id\": \"seq\","
-                                      "      \"scrollDirection\": \"vertical\","
-                                      "      \"position\": \"absolute\","
-                                      "      \"left\": \"100dp\","
-                                      "      \"top\": \"100dp\","
-                                      "      \"items\": ["
-                                      "        {"
-                                      "          \"type\": \"Text\","
-                                      "          \"id\": \"item_${index}\","
-                                      "          \"height\": \"10dp\","
-                                      "          \"text\": \"A ${index}-${ordinal}-${length}\","
-                                      "          \"entities\": [\"${index}\", \"${ordinal}\"]"
-                                      "        },"
-                                      "        {"
-                                      "          \"type\": \"Text\","
-                                      "          \"id\": \"item_${index}\","
-                                      "          \"height\": \"10dp\","
-                                      "          \"text\": \"B ${index}-${ordinal}-${length}\","
-                                      "          \"speech\": \"ssml\""
-                                      "        },"
-                                      "        {"
-                                      "          \"type\": \"Text\","
-                                      "          \"id\": \"item_${index}\","
-                                      "          \"height\": \"10dp\","
-                                      "          \"text\": \"C ${index}-${ordinal}-${length}\","
-                                      "          \"entities\": [\"${index}\", \"${ordinal}\"]"
-                                      "        },"
-                                      "        {"
-                                      "          \"type\": \"Text\","
-                                      "          \"id\": \"item_${index}\","
-                                      "          \"height\": \"10dp\","
-                                      "          \"text\": \"A ${index}-${ordinal}-${length}\","
-                                      "          \"entities\": [\"${index}\", \"${ordinal}\"]"
-                                      "        },"
-                                      "        {"
-                                      "          \"type\": \"Text\","
-                                      "          \"id\": \"item_${index}\","
-                                      "          \"height\": \"10dp\","
-                                      "          \"text\": \"B ${index}-${ordinal}-${length}\","
-                                      "          \"speech\": \"ssml\""
-                                      "        },"
-                                      "        {"
-                                      "          \"type\": \"Text\","
-                                      "          \"id\": \"item_${index}\","
-                                      "          \"height\": \"10dp\","
-                                      "          \"text\": \"C ${index}-${ordinal}-${length}\""
-                                      "        }"
-                                      "      ]"
-                                      "    }"
-                                      "  }"
-                                      "}";
+static const char* NO_ORDINAL_SEQUENCE = "{"
+                                         "  \"type\": \"APL\","
+                                         "  \"version\": \"1.1\","
+                                         "  \"mainTemplate\": {"
+                                         "    \"parameters\": ["
+                                         "      \"payload\""
+                                         "    ],"
+                                         "    \"item\": {"
+                                         "      \"type\": \"Sequence\","
+                                         "      \"id\": \"seq\","
+                                         "      \"scrollDirection\": \"vertical\","
+                                         "      \"position\": \"absolute\","
+                                         "      \"left\": \"100dp\","
+                                         "      \"top\": \"100dp\","
+                                         "      \"items\": ["
+                                         "        {"
+                                         "          \"type\": \"Text\","
+                                         "          \"id\": \"item_${index}\","
+                                         "          \"height\": \"10dp\","
+                                         "          \"text\": \"A ${index}-${ordinal}-${length}\","
+                                         "          \"entities\": [\"${index}\", \"${ordinal}\"]"
+                                         "        },"
+                                         "        {"
+                                         "          \"type\": \"Text\","
+                                         "          \"id\": \"item_${index}\","
+                                         "          \"height\": \"10dp\","
+                                         "          \"text\": \"B ${index}-${ordinal}-${length}\","
+                                         "          \"speech\": \"ssml\""
+                                         "        },"
+                                         "        {"
+                                         "          \"type\": \"Text\","
+                                         "          \"id\": \"item_${index}\","
+                                         "          \"height\": \"10dp\","
+                                         "          \"text\": \"C ${index}-${ordinal}-${length}\","
+                                         "          \"entities\": [\"${index}\", \"${ordinal}\"]"
+                                         "        },"
+                                         "        {"
+                                         "          \"type\": \"Text\","
+                                         "          \"id\": \"item_${index}\","
+                                         "          \"height\": \"10dp\","
+                                         "          \"text\": \"A ${index}-${ordinal}-${length}\","
+                                         "          \"entities\": [\"${index}\", \"${ordinal}\"]"
+                                         "        },"
+                                         "        {"
+                                         "          \"type\": \"Text\","
+                                         "          \"id\": \"item_${index}\","
+                                         "          \"height\": \"10dp\","
+                                         "          \"text\": \"B ${index}-${ordinal}-${length}\","
+                                         "          \"speech\": \"ssml\""
+                                         "        },"
+                                         "        {"
+                                         "          \"type\": \"Text\","
+                                         "          \"id\": \"item_${index}\","
+                                         "          \"height\": \"10dp\","
+                                         "          \"text\": \"C ${index}-${ordinal}-${length}\""
+                                         "        }"
+                                         "      ]"
+                                         "    }"
+                                         "  }"
+                                         "}";
 
-TEST_F(VisualContextTest, NoOrdinalSequence)
-{
+TEST_F(VisualContextTest, NoOrdinalSequence) {
     loadDocument(NO_ORDINAL_SEQUENCE, DATA);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
-    ASSERT_STREQ("seq", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    auto& tags = visualContext["tags"];
+    ASSERT_STREQ("seq", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     ASSERT_TRUE(tags.HasMember("focused"));
     ASSERT_FALSE(tags.HasMember("scrollable"));
@@ -1084,60 +1075,63 @@ TEST_F(VisualContextTest, NoOrdinalSequence)
     ASSERT_FALSE(list.HasMember("highestOrdinalSeen"));
 }
 
-static const char *PADDED_SEQUENCE = "{\n"
-                                     "    \"type\": \"APL\",\n"
-                                     "    \"version\": \"1.0\",\n"
-                                     "    \"mainTemplate\": {\n"
-                                     "        \"item\": {\n"
-                                     "            \"type\": \"Sequence\",\n"
-                                     "            \"id\": \"seq\","
-                                     "            \"scrollDirection\": \"%s\","
-                                     "            \"data\": [\"red\", \"blue\", \"green\", \"yellow\", \"purple\", \"red\", \"blue\", \"green\", \"yellow\", \"purple\", \"red\", \"blue\", \"green\", \"yellow\", \"purple\"],\n"
-                                     "            \"width\": 200,\n"
-                                     "            \"height\": 200,\n"
-                                     "            \"left\": 0,\n"
-                                     "            \"right\": 0,\n"
-                                     "            \"paddingTop\": 50,\n"
-                                     "            \"paddingBottom\": 25,\n"
-                                     "            \"item\": {\n"
-                                     "                \"type\": \"Frame\",\n"
-                                     "                \"width\": 100,\n"
-                                     "                \"height\": 100,\n"
-                                     "                \"backgroundColor\": \"${data}\"\n"
-                                     "            }\n"
-                                     "        }\n"
-                                     "    }\n"
-                                     "}";
+static const char* PADDED_SEQUENCE =
+    "{\n"
+    "    \"type\": \"APL\",\n"
+    "    \"version\": \"1.0\",\n"
+    "    \"mainTemplate\": {\n"
+    "        \"item\": {\n"
+    "            \"type\": \"Sequence\",\n"
+    "            \"id\": \"seq\","
+    "            \"scrollDirection\": \"%s\","
+    "            \"data\": [\"red\", \"blue\", \"green\", \"yellow\", \"purple\", \"red\", \"blue\", \"green\", \"yellow\", \"purple\", \"red\", \"blue\", \"green\", \"yellow\", \"purple\"],\n"
+    "            \"width\": 200,\n"
+    "            \"height\": 200,\n"
+    "            \"left\": 0,\n"
+    "            \"right\": 0,\n"
+    "            \"paddingTop\": 50,\n"
+    "            \"paddingBottom\": 25,\n"
+    "            \"item\": {\n"
+    "                \"type\": \"Frame\",\n"
+    "                \"width\": 100,\n"
+    "                \"height\": 100,\n"
+    "                \"backgroundColor\": \"${data}\"\n"
+    "            }\n"
+    "        }\n"
+    "    }\n"
+    "}";
 
-static const char *PADDED_SCROLLVIEW = "{\n"
-                                       "    \"type\": \"APL\",\n"
-                                       "    \"version\": \"1.1\",\n"
-                                       "    \"mainTemplate\": {\n"
-                                       "        \"item\": {\n"
-                                       "            \"type\": \"ScrollView\",\n"
-                                       "            \"id\": \"seq\","
-                                       "            \"width\": \"100%\",\n"
-                                       "            \"height\": \"100%\",\n"
-                                       "            \"paddingTop\": 25,\n"
-                                       "            \"paddingLeft\": 25,\n"
-                                       "            \"paddingBottom\": 50, \n"
-                                       "            \"paddingRight\": 50,\n"
-                                       "            \"item\": {\n"
-                                       "                \"type\": \"Container\",\n"
-                                       "                \"item\": {\n"
-                                       "                    \"type\": \"Frame\",\n"
-                                       "                    \"width\": 100,\n"
-                                       "                    \"height\": 100,\n"
-                                       "                    \"backgroundColor\": \"${data}\"\n"
-                                       "                },\n"
-                                       "                \"data\": [\"red\", \"blue\", \"green\", \"yellow\", \"purple\", \"red\", \"blue\", \"green\", \"yellow\", \"purple\", \"red\", \"blue\", \"green\", \"yellow\", \"purple\"]\n"
-                                       "            }\n"
-                                       "        }\n"
-                                       "    }\n"
-                                       "}";
+static const char* PADDED_SCROLLVIEW =
+    "{\n"
+    "    \"type\": \"APL\",\n"
+    "    \"version\": \"1.1\",\n"
+    "    \"mainTemplate\": {\n"
+    "        \"item\": {\n"
+    "            \"type\": \"ScrollView\",\n"
+    "            \"id\": \"seq\","
+    "            \"width\": \"100%\",\n"
+    "            \"height\": \"100%\",\n"
+    "            \"paddingTop\": 25,\n"
+    "            \"paddingLeft\": 25,\n"
+    "            \"paddingBottom\": 50, \n"
+    "            \"paddingRight\": 50,\n"
+    "            \"item\": {\n"
+    "                \"type\": \"Container\",\n"
+    "                \"item\": {\n"
+    "                    \"type\": \"Frame\",\n"
+    "                    \"width\": 100,\n"
+    "                    \"height\": 100,\n"
+    "                    \"backgroundColor\": \"${data}\"\n"
+    "                },\n"
+    "                \"data\": [\"red\", \"blue\", \"green\", \"yellow\", \"purple\", \"red\", \"blue\", \"green\", \"yellow\", \"purple\", \"red\", \"blue\", \"green\", \"yellow\", \"purple\"]\n"
+    "            }\n"
+    "        }\n"
+    "    }\n"
+    "}";
 
 struct PaddedScrollableTest {
-    PaddedScrollableTest(ComponentType type, const char* doc, std::string direction, int scrollPosition)
+    PaddedScrollableTest(ComponentType type, const char* doc, std::string direction,
+                         int scrollPosition)
         : type(type), doc(doc), direction(direction), scrollPosition(scrollPosition) {}
     ComponentType type;
     const char* doc;
@@ -1145,8 +1139,7 @@ struct PaddedScrollableTest {
     int scrollPosition;
 };
 
-TEST_F(VisualContextTest, PaddedScrollableTests)
-{
+TEST_F(VisualContextTest, PaddedScrollableTests) {
     const int len = strlen(PADDED_SEQUENCE) * 2;
     std::unique_ptr<char[]> horizontalSeq(new char[len]);
     std::unique_ptr<char[]> verticalSeq(new char[len]);
@@ -1158,52 +1151,53 @@ TEST_F(VisualContextTest, PaddedScrollableTests)
         {kComponentTypeSequence, verticalSeq.get(), "vertical", 1375},
         {kComponentTypeScrollView, PADDED_SCROLLVIEW, "vertical", 775},
     };
-    for(auto& test : tests) {
+    for (auto& test : tests) {
         loadDocument(test.doc);
         ASSERT_EQ(test.type, component->getType());
         rapidjson::Document document(rapidjson::kObjectType);
 
         // test before any scrolling
-        auto context = component->serializeVisualContext(document.GetAllocator());
-        auto& tags = context["tags"];
-
-        context = component->serializeVisualContext(document.GetAllocator());
-        tags = context["tags"];
+        auto& tags = visualContext["tags"];
         auto& scrollable = tags["scrollable"];
         ASSERT_EQ(true, scrollable["allowForward"]);
         ASSERT_EQ(false, scrollable["allowBackwards"]);
 
         // now scroll halfway
         // We can't scroll to position we don't laid out so scroll in steps.
-        while (component->getCalculated(kPropertyScrollPosition).asNumber() != (test.scrollPosition/2)) {
-            component->update(kUpdateScrollPosition, test.scrollPosition/2);
+        while (component->getCalculated(kPropertyScrollPosition).asNumber() !=
+               (test.scrollPosition / 2)) {
+            component->update(kUpdateScrollPosition, test.scrollPosition / 2);
             root->clearPending();
             root->clearDirty();
         }
 
-        context = component->serializeVisualContext(document.GetAllocator());
-        tags = context["tags"];
+        ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+        serializeVisualContext();
+
+        tags = visualContext["tags"];
         scrollable = tags["scrollable"];
         ASSERT_EQ(true, scrollable["allowForward"]);
         ASSERT_EQ(true, scrollable["allowBackwards"]);
 
         // now scroll all the way to the bottom
         // We can't scroll to position we don't laid out so scroll in steps.
-        while (component->getCalculated(kPropertyScrollPosition).asNumber() != test.scrollPosition) {
+        while (component->getCalculated(kPropertyScrollPosition).asNumber() !=
+               test.scrollPosition) {
             component->update(kUpdateScrollPosition, test.scrollPosition);
             root->clearPending();
             root->clearDirty();
         }
 
-        context = component->serializeVisualContext(document.GetAllocator());
-        tags = context["tags"];
+        ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+        serializeVisualContext();
+        tags = visualContext["tags"];
         scrollable = tags["scrollable"];
         ASSERT_EQ(false, scrollable["allowForward"]);
         ASSERT_EQ(true, scrollable["allowBackwards"]);
     }
 }
 
-static const char *PAGER = "{"
+static const char* PAGER = "{"
                            "  \"type\": \"APL\","
                            "  \"version\": \"1.1\","
                            "  \"mainTemplate\": {"
@@ -1238,21 +1232,17 @@ static const char *PAGER = "{"
                            "  }"
                            "}";
 
-TEST_F(VisualContextTest, Pager)
-{
+TEST_F(VisualContextTest, Pager) {
     loadDocument(PAGER, DATA);
 
     ASSERT_EQ(kComponentTypePager, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
-    ASSERT_STREQ("page", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    auto& tags = visualContext["tags"];
+    ASSERT_STREQ("page", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     ASSERT_TRUE(tags.HasMember("focused"));
     ASSERT_TRUE(tags.HasMember("pager"));
@@ -1263,9 +1253,9 @@ TEST_F(VisualContextTest, Pager)
     ASSERT_EQ(false, pager["allowBackwards"]);
 
     // Check children
-    ASSERT_EQ(1, context["children"].GetArray().Size());
+    ASSERT_EQ(1, visualContext["children"].GetArray().Size());
 
-    auto& reportedChild1 = context["children"][0];
+    auto& reportedChild1 = visualContext["children"][0];
     ASSERT_STREQ("item_0", reportedChild1["id"].GetString());
     ASSERT_FALSE(reportedChild1.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild1["type"].GetString());
@@ -1274,14 +1264,15 @@ TEST_F(VisualContextTest, Pager)
     ASSERT_TRUE(c1t.HasMember("spoken"));
 
     component->update(kUpdatePagerPosition, 1);
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    serializeVisualContext();
 
-    auto context2 = component->serializeVisualContext(document.GetAllocator());
-    auto& tags2 = context2["tags"];
+    auto& tags2 = visualContext["tags"];
     ASSERT_TRUE(tags2.HasMember("pager"));
     auto& pager2 = tags2["pager"];
     ASSERT_EQ(1, pager2["index"]);
 
-    auto& reportedChild2 = context2["children"][0];
+    auto& reportedChild2 = visualContext["children"][0];
     ASSERT_STREQ("item_1", reportedChild2["id"].GetString());
     ASSERT_FALSE(reportedChild2.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild2["type"].GetString());
@@ -1289,67 +1280,67 @@ TEST_F(VisualContextTest, Pager)
     ASSERT_FALSE(reportedChild2.HasMember("tags"));
 }
 
-static const char *MEDIA = "{"
-                           "  \"type\": \"APL\","
-                           "  \"version\": \"1.1\","
-                           "  \"theme\": \"auto\","
-                           "  \"mainTemplate\": {"
-                           "    \"parameters\": ["
-                           "      \"payload\""
-                           "    ],"
-                           "    \"item\": {"
-                           "      \"type\": \"Pager\","
-                           "      \"id\": \"page\","
-                           "      \"height\": \"100%\","
-                           "      \"width\": \"100%\","
-                           "      \"items\": ["
-                           "        {\n"
-                           "          \"type\": \"Video\","
-                           "          \"id\": \"video\","
-                           "          \"height\": \"100%\","
-                           "          \"width\": \"100%\","
-                           "          \"autoplay\": true,"
-                           "          \"audioTrack\": \"background\","
-                           "          \"source\": ["
-                           "            \"SOURCE0\","
-                           "            {"
-                           "              \"url\": \"https://s3.amazonaws.com/elon-video-urls/minion1.mp4\","
-                           "              \"entities\": [\"source\"]"
-                           "            }"
-                           "          ],"
-                           "          \"entities\": [\"video\"]"
-                           "        }"
-                           "      ]"
-                           "    }"
-                           "  }"
-                           "}";
+static const char* MEDIA =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.1\","
+    "  \"theme\": \"auto\","
+    "  \"mainTemplate\": {"
+    "    \"parameters\": ["
+    "      \"payload\""
+    "    ],"
+    "    \"item\": {"
+    "      \"type\": \"Pager\","
+    "      \"id\": \"page\","
+    "      \"height\": \"100%\","
+    "      \"width\": \"100%\","
+    "      \"items\": ["
+    "        {\n"
+    "          \"type\": \"Video\","
+    "          \"id\": \"video\","
+    "          \"height\": \"100%\","
+    "          \"width\": \"100%\","
+    "          \"autoplay\": true,"
+    "          \"audioTrack\": \"background\","
+    "          \"source\": ["
+    "            \"SOURCE0\","
+    "            {"
+    "              \"url\": \"https://s3.amazonaws.com/elon-video-urls/minion1.mp4\","
+    "              \"entities\": [\"source\"]"
+    "            }"
+    "          ],"
+    "          \"entities\": [\"video\"]"
+    "        }"
+    "      ]"
+    "    }"
+    "  }"
+    "}";
 
-TEST_F(VisualContextTest, Media)
-{
+TEST_F(VisualContextTest, Media) {
     loadDocument(MEDIA, DATA);
     ASSERT_EQ(kComponentTypePager, component->getType());
     auto video = component->getChildAt(0);
     ASSERT_EQ(kComponentTypeVideo, video->getType());
 
-    video->updateMediaState(MediaState(1, 2, 1000, 38000, true,  false));
-
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
+    video->updateMediaState(MediaState(1, 2, 1000, 38000, true, false));
+    ASSERT_TRUE(CheckDirtyVisualContext(root, video));
+    serializeVisualContext();
+    ASSERT_FALSE(CheckDirtyVisualContext(root, video));
 
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    auto& tags = visualContext["tags"];
     ASSERT_TRUE(tags.HasMember("focused"));
-    ASSERT_STREQ("page", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("video", context["type"].GetString());
+    ASSERT_STREQ("page", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("video", visualContext["type"].GetString());
 
     ASSERT_FALSE(tags.HasMember("pager"));
 
     // Check children
-    ASSERT_EQ(1, context["children"].Size());
+    ASSERT_EQ(1, visualContext["children"].Size());
 
-    auto& reportedChild = context["children"][0];
+    auto& reportedChild = visualContext["children"][0];
     ASSERT_STREQ("video", reportedChild["id"].GetString());
     ASSERT_FALSE(reportedChild.HasMember("visibility"));
     ASSERT_STREQ("video", reportedChild["type"].GetString());
@@ -1370,36 +1361,32 @@ TEST_F(VisualContextTest, Media)
     ASSERT_STREQ("https://s3.amazonaws.com/elon-video-urls/minion1.mp4", media["url"].GetString());
 }
 
-static const char *EMPTY_MEDIA = "{"
-                           "  \"type\": \"APL\","
-                           "  \"version\": \"1.1\","
-                           "  \"theme\": \"auto\","
-                           "  \"mainTemplate\": {"
-                           "    \"parameters\": ["
-                           "      \"payload\""
-                           "    ],"
-                           "    \"item\": {"
-                           "      \"type\": \"Video\""
-                           "    }"
-                           "  }"
-                           "}";
+static const char* EMPTY_MEDIA = "{"
+                                 "  \"type\": \"APL\","
+                                 "  \"version\": \"1.1\","
+                                 "  \"theme\": \"auto\","
+                                 "  \"mainTemplate\": {"
+                                 "    \"parameters\": ["
+                                 "      \"payload\""
+                                 "    ],"
+                                 "    \"item\": {"
+                                 "      \"type\": \"Video\""
+                                 "    }"
+                                 "  }"
+                                 "}";
 
-TEST_F(VisualContextTest, EmptyMedia)
-{
+TEST_F(VisualContextTest, EmptyMedia) {
     loadDocument(EMPTY_MEDIA, DATA);
     ASSERT_EQ(kComponentTypeVideo, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    auto& tags = visualContext["tags"];
     ASSERT_TRUE(tags.HasMember("viewport"));
     ASSERT_FALSE(tags.HasMember("media"));
 }
 
-static const char *DEEP = "{"
+static const char* DEEP = "{"
                           "  \"type\": \"APL\","
                           "  \"version\": \"1.1\","
                           "  \"mainTemplate\": {"
@@ -1430,26 +1417,22 @@ static const char *DEEP = "{"
                           "  }"
                           "}";
 
-TEST_F(VisualContextTest, Deep)
-{
+TEST_F(VisualContextTest, Deep) {
     loadDocument(DEEP, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    auto& tags = visualContext["tags"];
     ASSERT_FALSE(tags.HasMember("focused"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(1, context["children"].GetArray().Size());
-    auto& touchWrapper = context["children"][0];
+    ASSERT_EQ(1, visualContext["children"].GetArray().Size());
+    auto& touchWrapper = visualContext["children"][0];
     ASSERT_STREQ("touchWrapper", touchWrapper["id"].GetString());
     ASSERT_FALSE(touchWrapper.HasMember("visibility"));
     ASSERT_STREQ("text", touchWrapper["type"].GetString());
@@ -1468,7 +1451,7 @@ TEST_F(VisualContextTest, Deep)
     ASSERT_STREQ("1024x10+0+0:0", text["position"].GetString());
 }
 
-static const char *EMPTY = "{"
+static const char* EMPTY = "{"
                            "  \"type\": \"APL\","
                            "  \"version\": \"1.1\","
                            "  \"mainTemplate\": {"
@@ -1491,50 +1474,45 @@ static const char *EMPTY = "{"
                            "  }"
                            "}";
 
-TEST_F(VisualContextTest, Empty)
-{
+TEST_F(VisualContextTest, Empty) {
     loadDocument(EMPTY, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_FALSE(context.HasMember("children"));
+    ASSERT_FALSE(visualContext.HasMember("children"));
 }
 
-static const char *INHERIT_STATE = "{"
-                            "  \"type\": \"APL\","
-                            "  \"version\": \"1.1\","
-                            "  \"mainTemplate\": {"
-                            "    \"parameters\": ["
-                            "      \"payload\""
-                            "    ],"
-                            "    \"item\": {"
-                            "      \"type\": \"TouchWrapper\","
-                            "      \"width\": \"100%\","
-                            "      \"height\": \"100%\","
-                            "      \"items\":"
-                            "      {"
-                            "        \"type\": \"Text\","
-                            "        \"id\": \"item-0\","
-                            "        \"text\": \"Inherit.\","
-                            "        \"entities\": [\"entity\"],"
-                            "        \"inheritParentState\": true"
-                            "      }"
-                            "    }"
-                            "  }"
-                            "}";
+static const char* INHERIT_STATE = "{"
+                                   "  \"type\": \"APL\","
+                                   "  \"version\": \"1.1\","
+                                   "  \"mainTemplate\": {"
+                                   "    \"parameters\": ["
+                                   "      \"payload\""
+                                   "    ],"
+                                   "    \"item\": {"
+                                   "      \"type\": \"TouchWrapper\","
+                                   "      \"width\": \"100%\","
+                                   "      \"height\": \"100%\","
+                                   "      \"items\":"
+                                   "      {"
+                                   "        \"type\": \"Text\","
+                                   "        \"id\": \"item-0\","
+                                   "        \"text\": \"Inherit.\","
+                                   "        \"entities\": [\"entity\"],"
+                                   "        \"inheritParentState\": true"
+                                   "      }"
+                                   "    }"
+                                   "  }"
+                                   "}";
 
-TEST_F(VisualContextTest, InheritState)
-{
+TEST_F(VisualContextTest, InheritState) {
     loadDocument(INHERIT_STATE, DATA);
 
     ASSERT_EQ(kComponentTypeTouchWrapper, component->getType());
@@ -1543,28 +1521,29 @@ TEST_F(VisualContextTest, InheritState)
     ASSERT_EQ(kComponentTypeText, text->getType());
 
     component->setState(kStateChecked, true);
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    serializeVisualContext();
     component->setState(kStateDisabled, true);
-
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    serializeVisualContext();
 
     // Check parent
-    ASSERT_STREQ("text", context["type"].GetString());
-    ASSERT_TRUE(context.HasMember("tags"));
-    auto& tags = context["tags"];
+    ASSERT_STREQ("text", visualContext["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    auto& tags = visualContext["tags"];
     ASSERT_TRUE(tags["checked"].GetBool());
     ASSERT_TRUE(tags["disabled"].GetBool());
     ASSERT_TRUE(tags["clickable"].GetBool());
 
     // Check children
-    ASSERT_EQ(1, context["children"].GetArray().Size());
-    auto& textContext = context["children"][0];
+    ASSERT_EQ(1, visualContext["children"].GetArray().Size());
+    auto& textContext = visualContext["children"][0];
     ASSERT_TRUE(textContext.HasMember("tags"));
     ASSERT_TRUE(textContext["tags"]["disabled"].GetBool());
     ASSERT_FALSE(textContext["tags"].HasMember("checked"));
 }
 
-static const char *STATES = "{"
+static const char* STATES = "{"
                             "  \"type\": \"APL\","
                             "  \"version\": \"1.1\","
                             "  \"mainTemplate\": {"
@@ -1599,166 +1578,175 @@ static const char *STATES = "{"
                             "  }"
                             "}";
 
-TEST_F(VisualContextTest, States)
-{
+TEST_F(VisualContextTest, States) {
     loadDocument(STATES, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
+    // change state and assert the visual context set/reset dirty
     component->getCoreChildAt(0)->setState(kStateChecked, true);
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component->getCoreChildAt(0)));
+    serializeVisualContext();
     component->getCoreChildAt(1)->setState(kStateFocused, true);
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component->getCoreChildAt(1)));
+    serializeVisualContext();
     component->getCoreChildAt(0)->setState(kStateDisabled, true);
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component->getCoreChildAt(0)));
+    serializeVisualContext();
     component->getCoreChildAt(1)->setState(kStateDisabled, true);
-
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component->getCoreChildAt(1)));
+    serializeVisualContext();
 
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(2, context["children"].GetArray().Size());
-    auto& childContext = context["children"][0];
+    ASSERT_EQ(2, visualContext["children"].GetArray().Size());
+    auto& childContext = visualContext["children"][0];
     ASSERT_STREQ("item_0", childContext["id"].GetString());
     ASSERT_TRUE(childContext["tags"].HasMember("disabled"));
     ASSERT_TRUE(childContext["tags"].HasMember("clickable"));
     ASSERT_TRUE(childContext["tags"].HasMember("checked"));
 
-    childContext = context["children"][1];
+    childContext = visualContext["children"][1];
     ASSERT_STREQ("item_1", childContext["id"].GetString());
     ASSERT_TRUE(childContext.HasMember("entities"));
     ASSERT_TRUE(childContext["tags"].HasMember("disabled"));
     ASSERT_TRUE(childContext["tags"].HasMember("focused"));
 
-    // Change state
+    // change state and assert the visual context set/reset dirty
     component->getCoreChildAt(0)->setState(kStateChecked, false);
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component->getCoreChildAt(0)));
+    serializeVisualContext();
     component->getCoreChildAt(0)->setState(kStateFocused, true);
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component->getCoreChildAt(0)));
+    serializeVisualContext();
     component->getCoreChildAt(0)->setState(kStateDisabled, false);
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component->getCoreChildAt(0)));
+    serializeVisualContext();
     component->getCoreChildAt(1)->setState(kStateDisabled, false);
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component->getCoreChildAt(1)));
+    serializeVisualContext();
 
-    context = component->serializeVisualContext(document.GetAllocator());
     // Check children
-    ASSERT_EQ(2, context["children"].GetArray().Size());
-    childContext = context["children"][0];
+    ASSERT_EQ(2, visualContext["children"].GetArray().Size());
+    childContext = visualContext["children"][0];
     ASSERT_STREQ("item_0", childContext["id"].GetString());
     ASSERT_FALSE(childContext["tags"].HasMember("disabled"));
     ASSERT_TRUE(childContext["tags"].HasMember("clickable"));
     ASSERT_FALSE(childContext["tags"].HasMember("checked"));
     ASSERT_TRUE(childContext["tags"].HasMember("focused"));
 
-    childContext = context["children"][1];
+    childContext = visualContext["children"][1];
     ASSERT_STREQ("item_1", childContext["id"].GetString());
     ASSERT_TRUE(childContext.HasMember("entities"));
     ASSERT_FALSE(childContext["tags"].HasMember("disabled"));
 }
 
-static const char *TYPE = "{"
-                          "  \"type\": \"APL\","
-                          "  \"version\": \"1.1\","
-                          "  \"mainTemplate\": {"
-                          "    \"parameters\": ["
-                          "      \"payload\""
-                          "    ],"
-                          "    \"item\":"
-                          "    {"
-                          "      \"type\": \"Container\","
-                          "      \"id\": \"ctr\","
-                          "      \"width\": \"100%\","
-                          "      \"height\": \"100%\","
-                          "      \"items\": ["
-                          "        {"
-                          "          \"type\": \"Text\","
-                          "          \"id\": \"text\","
-                          "          \"text\": \"Text.\","
-                          "          \"entities\": [\"entity\"]"
-                          "        },"
-                          "        {"
-                          "          \"type\": \"Video\","
-                          "          \"id\": \"video\","
-                          "          \"height\": 300,"
-                          "          \"width\": 716.8,"
-                          "          \"top\": 10,"
-                          "          \"left\": 100,"
-                          "          \"autoplay\": true,"
-                          "          \"audioTrack\": \"background\","
-                          "          \"source\": ["
-                          "            {"
-                          "              \"url\": \"https://s3.amazonaws.com/elon-video-urls/minion1.mp4\""
-                          "            }"
-                          "          ],"
-                          "          \"entities\": [\"video\"]"
-                          "        },"
-                          "        {"
-                          "          \"type\": \"TouchWrapper\","
-                          "          \"id\": \"tw\","
-                          "          \"item\": {"
-                          "            \"type\": \"Text\","
-                          "            \"id\": \"item_20\","
-                          "            \"text\": \"Clickable.\""
-                          "          }"
-                          "        },"
-                          "        {"
-                          "          \"type\": \"Image\","
-                          "          \"id\": \"image\","
-                          "          \"source\": \"http://images.amazon.com/image/foo.png\","
-                          "          \"scale\": \"fill\","
-                          "          \"width\": 300,"
-                          "          \"height\": 300,"
-                          "          \"entities\": [\"entity\"]"
-                          "        },"
-                          "        {"
-                          "          \"type\": \"Text\","
-                          "          \"id\": \"empty\","
-                          "          \"text\": \"\","
-                          "          \"entities\": [\"entity\"]"
-                          "        }"
-                          "      ]"
-                          "    }"
-                          "  }"
-                          "}";
+static const char* TYPE =
+    "{"
+    "  \"type\": \"APL\","
+    "  \"version\": \"1.1\","
+    "  \"mainTemplate\": {"
+    "    \"parameters\": ["
+    "      \"payload\""
+    "    ],"
+    "    \"item\":"
+    "    {"
+    "      \"type\": \"Container\","
+    "      \"id\": \"ctr\","
+    "      \"width\": \"100%\","
+    "      \"height\": \"100%\","
+    "      \"items\": ["
+    "        {"
+    "          \"type\": \"Text\","
+    "          \"id\": \"text\","
+    "          \"text\": \"Text.\","
+    "          \"entities\": [\"entity\"]"
+    "        },"
+    "        {"
+    "          \"type\": \"Video\","
+    "          \"id\": \"video\","
+    "          \"height\": 300,"
+    "          \"width\": 716.8,"
+    "          \"top\": 10,"
+    "          \"left\": 100,"
+    "          \"autoplay\": true,"
+    "          \"audioTrack\": \"background\","
+    "          \"source\": ["
+    "            {"
+    "              \"url\": \"https://s3.amazonaws.com/elon-video-urls/minion1.mp4\""
+    "            }"
+    "          ],"
+    "          \"entities\": [\"video\"]"
+    "        },"
+    "        {"
+    "          \"type\": \"TouchWrapper\","
+    "          \"id\": \"tw\","
+    "          \"item\": {"
+    "            \"type\": \"Text\","
+    "            \"id\": \"item_20\","
+    "            \"text\": \"Clickable.\""
+    "          }"
+    "        },"
+    "        {"
+    "          \"type\": \"Image\","
+    "          \"id\": \"image\","
+    "          \"source\": \"http://images.amazon.com/image/foo.png\","
+    "          \"scale\": \"fill\","
+    "          \"width\": 300,"
+    "          \"height\": 300,"
+    "          \"entities\": [\"entity\"]"
+    "        },"
+    "        {"
+    "          \"type\": \"Text\","
+    "          \"id\": \"empty\","
+    "          \"text\": \"\","
+    "          \"entities\": [\"entity\"]"
+    "        }"
+    "      ]"
+    "    }"
+    "  }"
+    "}";
 
-TEST_F(VisualContextTest, Type)
-{
+TEST_F(VisualContextTest, Type) {
     loadDocument(TYPE, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("mixed", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("mixed", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(5, context["children"].Size());
-    auto& c1 = context["children"][0];
+    ASSERT_EQ(5, visualContext["children"].Size());
+    auto& c1 = visualContext["children"][0];
     ASSERT_STREQ("text", c1["id"].GetString());
     ASSERT_STREQ("text", c1["type"].GetString());
 
-    auto& c2 = context["children"][1];
+    auto& c2 = visualContext["children"][1];
     ASSERT_STREQ("video", c2["id"].GetString());
     ASSERT_STREQ("video", c2["type"].GetString());
 
-    auto& c3 = context["children"][2];
+    auto& c3 = visualContext["children"][2];
     ASSERT_STREQ("tw", c3["id"].GetString());
     ASSERT_STREQ("text", c3["type"].GetString());
 
-    auto& c4 = context["children"][3];
+    auto& c4 = visualContext["children"][3];
     ASSERT_STREQ("image", c4["id"].GetString());
     ASSERT_STREQ("graphic", c4["type"].GetString());
 
-    auto& c5 = context["children"][4];
+    auto& c5 = visualContext["children"][4];
     ASSERT_STREQ("empty", c5["id"].GetString());
     ASSERT_STREQ("empty", c5["type"].GetString());
 }
 
-static const char *TYPE_PROPAGATE = "{"
+static const char* TYPE_PROPAGATE = "{"
                                     "  \"type\": \"APL\","
                                     "  \"version\": \"1.1\","
                                     "  \"mainTemplate\": {"
@@ -1783,30 +1771,26 @@ static const char *TYPE_PROPAGATE = "{"
                                     "  }"
                                     "}";
 
-TEST_F(VisualContextTest, TypePropagate)
-{
+TEST_F(VisualContextTest, TypePropagate) {
     loadDocument(TYPE_PROPAGATE, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("empty", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("empty", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(1, context["children"].Size());
+    ASSERT_EQ(1, visualContext["children"].Size());
 
-    auto& c1 = context["children"][0];
+    auto& c1 = visualContext["children"][0];
     ASSERT_STREQ("empty", c1["id"].GetString());
     ASSERT_STREQ("empty", c1["type"].GetString());
 }
 
-static const char *OPACITY = "{"
+static const char* OPACITY = "{"
                              "  \"type\": \"APL\","
                              "  \"version\": \"1.1\","
                              "  \"mainTemplate\": {"
@@ -1841,30 +1825,26 @@ static const char *OPACITY = "{"
                              "  }"
                              "}";
 
-TEST_F(VisualContextTest, Opacity)
-{
+TEST_F(VisualContextTest, Opacity) {
     loadDocument(OPACITY, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_EQ(0.5, context["visibility"]);
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_EQ(0.5, visualContext["visibility"]);
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(1, context["children"].GetArray().Size());
-    auto& opaqueChild = context["children"][0];
+    ASSERT_EQ(1, visualContext["children"].GetArray().Size());
+    auto& opaqueChild = visualContext["children"][0];
 
     ASSERT_EQ(0.25, opaqueChild["visibility"]);
 }
 
-static const char *LAYERING_DEEP = "{"
+static const char* LAYERING_DEEP = "{"
                                    "  \"type\": \"APL\","
                                    "  \"version\": \"1.1\","
                                    "  \"mainTemplate\": {"
@@ -1915,32 +1895,28 @@ static const char *LAYERING_DEEP = "{"
                                    "  }"
                                    "}";
 
-TEST_F(VisualContextTest, LayeringDeep)
-{
+TEST_F(VisualContextTest, LayeringDeep) {
     loadDocument(LAYERING_DEEP, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(3, context["children"].GetArray().Size());
-    auto& child1 = context["children"][0];
+    ASSERT_EQ(3, visualContext["children"].GetArray().Size());
+    auto& child1 = visualContext["children"][0];
     ASSERT_STREQ("100x100+10+10:0", child1["position"].GetString());
-    auto& child2 = context["children"][1];
+    auto& child2 = visualContext["children"][1];
     ASSERT_STREQ("100x100+20+20:1", child2["position"].GetString());
-    auto& child3 = context["children"][2];
+    auto& child3 = visualContext["children"][2];
     ASSERT_STREQ("100x100+30+30:2", child3["position"].GetString());
 }
 
-static const char *LAYERING_ONE = "{"
+static const char* LAYERING_ONE = "{"
                                   "  \"type\": \"APL\","
                                   "  \"version\": \"1.1\","
                                   "  \"mainTemplate\": {"
@@ -1991,82 +1967,74 @@ static const char *LAYERING_ONE = "{"
                                   "  }"
                                   "}";
 
-TEST_F(VisualContextTest, LayeringOne)
-{
+TEST_F(VisualContextTest, LayeringOne) {
     loadDocument(LAYERING_ONE, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(3, context["children"].GetArray().Size());
-    auto& child1 = context["children"][0];
+    ASSERT_EQ(3, visualContext["children"].GetArray().Size());
+    auto& child1 = visualContext["children"][0];
     ASSERT_STREQ("100x100+100+100:0", child1["position"].GetString());
-    auto& child2 = context["children"][1];
+    auto& child2 = visualContext["children"][1];
     ASSERT_STREQ("100x100+50+50:1", child2["position"].GetString());
-    auto& child3 = context["children"][2];
+    auto& child3 = visualContext["children"][2];
     ASSERT_STREQ("100x100+200+200:0", child3["position"].GetString());
 }
 
-static const char *LAYERING_SINGLE = "{"
-                                  "  \"type\": \"APL\","
-                                  "  \"version\": \"1.1\","
-                                  "  \"mainTemplate\": {"
-                                  "    \"parameters\": ["
-                                  "      \"payload\""
-                                  "    ],"
-                                  "    \"item\": {"
-                                  "      \"type\": \"Container\","
-                                  "      \"id\": \"ctr\","
-                                  "      \"width\": \"100%\","
-                                  "      \"height\": \"100%\","
-                                  "      \"items\": ["
-                                  "        {"
-                                  "          \"type\": \"Text\","
-                                  "          \"id\": \"text1\","
-                                  "          \"height\": \"100dp\","
-                                  "          \"width\": \"100dp\","
-                                  "          \"position\": \"absolute\","
-                                  "          \"left\": \"100dp\","
-                                  "          \"top\": \"100dp\","
-                                  "          \"text\": \"Background.\","
-                                  "          \"entities\": [\"blah\"]"
-                                  "        }"
-                                  "      ]"
-                                  "    }"
-                                  "  }"
-                                  "}";
+static const char* LAYERING_SINGLE = "{"
+                                     "  \"type\": \"APL\","
+                                     "  \"version\": \"1.1\","
+                                     "  \"mainTemplate\": {"
+                                     "    \"parameters\": ["
+                                     "      \"payload\""
+                                     "    ],"
+                                     "    \"item\": {"
+                                     "      \"type\": \"Container\","
+                                     "      \"id\": \"ctr\","
+                                     "      \"width\": \"100%\","
+                                     "      \"height\": \"100%\","
+                                     "      \"items\": ["
+                                     "        {"
+                                     "          \"type\": \"Text\","
+                                     "          \"id\": \"text1\","
+                                     "          \"height\": \"100dp\","
+                                     "          \"width\": \"100dp\","
+                                     "          \"position\": \"absolute\","
+                                     "          \"left\": \"100dp\","
+                                     "          \"top\": \"100dp\","
+                                     "          \"text\": \"Background.\","
+                                     "          \"entities\": [\"blah\"]"
+                                     "        }"
+                                     "      ]"
+                                     "    }"
+                                     "  }"
+                                     "}";
 
-TEST_F(VisualContextTest, LayeringSingle)
-{
+TEST_F(VisualContextTest, LayeringSingle) {
     loadDocument(LAYERING_SINGLE, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(1, context["children"].GetArray().Size());
-    auto& child = context["children"][0];
+    ASSERT_EQ(1, visualContext["children"].GetArray().Size());
+    auto& child = visualContext["children"][0];
     ASSERT_STREQ("100x100+100+100:0", child["position"].GetString());
 }
 
-static const char *LAYERING_TWO = "{"
+static const char* LAYERING_TWO = "{"
                                   "  \"type\": \"APL\","
                                   "  \"version\": \"1.1\","
                                   "  \"mainTemplate\": {"
@@ -2117,32 +2085,28 @@ static const char *LAYERING_TWO = "{"
                                   "  }"
                                   "}";
 
-TEST_F(VisualContextTest, LayeringTwo)
-{
+TEST_F(VisualContextTest, LayeringTwo) {
     loadDocument(LAYERING_TWO, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(3, context["children"].GetArray().Size());
-    auto& child1 = context["children"][0];
+    ASSERT_EQ(3, visualContext["children"].GetArray().Size());
+    auto& child1 = visualContext["children"][0];
     ASSERT_STREQ("100x100+100+100:0", child1["position"].GetString());
-    auto& child2 = context["children"][1];
+    auto& child2 = visualContext["children"][1];
     ASSERT_STREQ("100x100+50+50:1", child2["position"].GetString());
-    auto& child3 = context["children"][2];
+    auto& child3 = visualContext["children"][2];
     ASSERT_STREQ("100x100+150+150:1", child3["position"].GetString());
 }
 
-static const char *LAYERING_INC = "{"
+static const char* LAYERING_INC = "{"
                                   "  \"type\": \"APL\","
                                   "  \"version\": \"1.1\","
                                   "  \"mainTemplate\": {"
@@ -2191,30 +2155,26 @@ static const char *LAYERING_INC = "{"
                                   "  }"
                                   "}";
 
-TEST_F(VisualContextTest, LayeringIncapsulated)
-{
+TEST_F(VisualContextTest, LayeringIncapsulated) {
     loadDocument(LAYERING_INC, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(2, context["children"].GetArray().Size());
-    auto& child1 = context["children"][0];
+    ASSERT_EQ(2, visualContext["children"].GetArray().Size());
+    auto& child1 = visualContext["children"][0];
     ASSERT_STREQ("100x100+100+100:0", child1["position"].GetString());
-    auto& child2 = context["children"][1];
+    auto& child2 = visualContext["children"][1];
     ASSERT_STREQ("100x100+50+50:1", child2["position"].GetString());
 }
 
-static const char *OPACITY_CHANGE = "{"
+static const char* OPACITY_CHANGE = "{"
                                     "  \"type\": \"APL\","
                                     "  \"version\": \"1.1\","
                                     "  \"mainTemplate\": {"
@@ -2239,33 +2199,30 @@ static const char *OPACITY_CHANGE = "{"
                                     "  }"
                                     "}";
 
-TEST_F(VisualContextTest, OpacityChange)
-{
+TEST_F(VisualContextTest, OpacityChange) {
     loadDocument(OPACITY_CHANGE, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_FALSE(context.HasMember("children"));
+    ASSERT_FALSE(visualContext.HasMember("children"));
 
     // Change opacity
     component->getCoreChildAt(0)->setProperty(kPropertyOpacity, 1.0);
     root->clearPending();
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root,  component->getCoreChildAt(0)));
+    serializeVisualContext();
 
     // Check children
-    ASSERT_EQ(1, context["children"].GetArray().Size());
-    auto& child = context["children"][0];
+    ASSERT_EQ(1, visualContext["children"].GetArray().Size());
+    auto& child = visualContext["children"][0];
     ASSERT_STREQ("item_0", child["id"].GetString());
     ASSERT_TRUE(child.HasMember("entities"));
 
@@ -2273,13 +2230,14 @@ TEST_F(VisualContextTest, OpacityChange)
     component->setProperty(kPropertyOpacity, 0.0);
     root->clearPending();
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    serializeVisualContext();
 
     // Check children
-    ASSERT_FALSE(context.HasMember("children"));
+    ASSERT_FALSE(visualContext.HasMember("children"));
 }
 
-static const char *DISPLAY_CHANGE = "{"
+static const char* DISPLAY_CHANGE = "{"
                                     "  \"type\": \"APL\","
                                     "  \"version\": \"1.1\","
                                     "  \"mainTemplate\": {"
@@ -2303,50 +2261,43 @@ static const char *DISPLAY_CHANGE = "{"
                                     "  }"
                                     "}";
 
-TEST_F(VisualContextTest, DisplayChange)
-{
+TEST_F(VisualContextTest, DisplayChange) {
     loadDocument(DISPLAY_CHANGE, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(1, context["children"].GetArray().Size());
-    auto& child = context["children"][0];
+    ASSERT_EQ(1, visualContext["children"].GetArray().Size());
+    auto& child = visualContext["children"][0];
     ASSERT_STREQ("item_0", child["id"].GetString());
     ASSERT_TRUE(child.HasMember("entities"));
 
     // Change display
     component->getCoreChildAt(0)->setProperty(kPropertyDisplay, "invisible");
     root->clearPending();
-
-    context = component->serializeVisualContext(document.GetAllocator());
+    serializeVisualContext();
 
     // Check children
-    ASSERT_FALSE(context.HasMember("children"));
+    ASSERT_FALSE(visualContext.HasMember("children"));
 
     // Change parent display
     component->getCoreChildAt(0)->setProperty(kPropertyDisplay, "normal");
     component->setProperty(kPropertyDisplay, "invisible");
     root->clearPending();
 
-    context = component->serializeVisualContext(document.GetAllocator());
-
     // Check children
-    ASSERT_FALSE(context.HasMember("children"));
+    ASSERT_FALSE(visualContext.HasMember("children"));
 
     root->clearPending();
 }
 
-static const char *LAYOUT_CHANGE = "{"
+static const char* LAYOUT_CHANGE = "{"
                                    "  \"type\": \"APL\","
                                    "  \"version\": \"1.1\","
                                    "  \"mainTemplate\": {"
@@ -2374,42 +2325,36 @@ static const char *LAYOUT_CHANGE = "{"
 
 class VCTextMeasure : public TextMeasurement {
 public:
-    LayoutSize measure(Component *component, float width, MeasureMode widthMode, float height,
-                   MeasureMode heightMode) override {
+    LayoutSize measure(Component* component, float width, MeasureMode widthMode, float height,
+                       MeasureMode heightMode) override {
         int symbols = component->getCalculated(kPropertyText).asString().size();
-        int line = std::min(static_cast<int>(width), symbols*10);
-        int count = symbols*10/line;
+        int line = std::min(static_cast<int>(width), symbols * 10);
+        int count = symbols * 10 / line;
 
         float resultingWidth = line;
-        float resultingHeight = count*10;
+        float resultingHeight = count * 10;
 
         return LayoutSize({resultingWidth, resultingHeight});
     }
 
-    float baseline(Component *component, float width, float height) override {
-        return height;
-    }
+    float baseline(Component* component, float width, float height) override { return height; }
 };
 
-TEST_F(VisualContextTest, LayoutChange)
-{
+TEST_F(VisualContextTest, LayoutChange) {
     config.measure(std::make_shared<VCTextMeasure>());
     loadDocument(LAYOUT_CHANGE, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
-    ASSERT_STREQ("text", context["type"].GetString());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(1, context["children"].GetArray().Size());
-    auto& child = context["children"][0];
+    ASSERT_EQ(1, visualContext["children"].GetArray().Size());
+    auto& child = visualContext["children"][0];
     ASSERT_STREQ("item_0", child["id"].GetString());
     ASSERT_TRUE(child.HasMember("entities"));
     ASSERT_EQ("50x10+0+0:0", child["position"]);
@@ -2421,18 +2366,18 @@ TEST_F(VisualContextTest, LayoutChange)
     ASSERT_TRUE(root->isDirty());
 
     root->clearDirty();
-
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component->getCoreChildAt(0)));
+    serializeVisualContext();
 
     // Check children
-    ASSERT_EQ(1, context["children"].GetArray().Size());
-    child = context["children"][0];
+    ASSERT_EQ(1, visualContext["children"].GetArray().Size());
+    child = visualContext["children"][0];
     ASSERT_STREQ("item_0", child["id"].GetString());
     ASSERT_TRUE(child.HasMember("entities"));
     ASSERT_EQ("50x30+0+0:0", child["position"]);
 }
 
-static const char *EDIT_TEXT_LAYOUT_CHANGE = R"(
+static const char* EDIT_TEXT_LAYOUT_CHANGE = R"(
 {
     "type":"APL",
     "version":"1.4",
@@ -2462,24 +2407,20 @@ static const char *EDIT_TEXT_LAYOUT_CHANGE = R"(
 }
 )";
 
-TEST_F(VisualContextTest, EditTextLayoutChange)
-{
+TEST_F(VisualContextTest, EditTextLayoutChange) {
     config.measure(std::make_shared<VCTextMeasure>());
     loadDocument(EDIT_TEXT_LAYOUT_CHANGE, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
-
     // Check parent
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_STREQ("ctr", context["id"].GetString());
-    ASSERT_TRUE(context["tags"].HasMember("viewport"));
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("ctr", visualContext["id"].GetString());
+    ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
 
     // Check children
-    ASSERT_EQ(1, context["children"].GetArray().Size());
-    auto& child = context["children"][0];
+    ASSERT_EQ(1, visualContext["children"].GetArray().Size());
+    auto& child = visualContext["children"][0];
     ASSERT_STREQ("item_0", child["id"].GetString());
     ASSERT_TRUE(child.HasMember("entities"));
     ASSERT_EQ("50x10+0+0:0", child["position"]);
@@ -2491,18 +2432,18 @@ TEST_F(VisualContextTest, EditTextLayoutChange)
     ASSERT_TRUE(root->isDirty());
 
     root->clearDirty();
-
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component->getCoreChildAt(0)));
+    serializeVisualContext();
 
     // Check children
-    ASSERT_EQ(1, context["children"].GetArray().Size());
-    child = context["children"][0];
+    ASSERT_EQ(1, visualContext["children"].GetArray().Size());
+    child = visualContext["children"][0];
     ASSERT_STREQ("item_0", child["id"].GetString());
     ASSERT_TRUE(child.HasMember("entities"));
     ASSERT_EQ("50x10+0+0:0", child["position"]);
 }
 
-static const char *GRID_SEQUENCE_WITH_HOLE = R"apl(
+static const char* GRID_SEQUENCE_WITH_HOLE = R"apl(
     {
       "type": "APL",
       "version": "1.5",
@@ -2537,13 +2478,10 @@ TEST_F(VisualContextTest, GridHole) {
     loadDocument(GRID_SEQUENCE_WITH_HOLE);
     ASSERT_TRUE(component);
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_TRUE(visualContext["tags"].HasMember("list"));
 
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_TRUE(context["tags"].HasMember("list"));
-
-    const auto& list = context["tags"]["list"];
+    const auto& list = visualContext["tags"]["list"];
     ASSERT_TRUE(list.HasMember("itemCount"));
     ASSERT_EQ(6, list["itemCount"].GetInt());
     ASSERT_TRUE(list.HasMember("lowestIndexSeen"));
@@ -2552,7 +2490,7 @@ TEST_F(VisualContextTest, GridHole) {
     ASSERT_EQ(5, list["highestIndexSeen"].GetInt());
 }
 
-static const char *SEQUENCE_WITH_HOLE = R"apl(
+static const char* SEQUENCE_WITH_HOLE = R"apl(
     {
       "type": "APL",
       "version": "1.5",
@@ -2585,13 +2523,10 @@ TEST_F(VisualContextTest, SequenceHole) {
     loadDocument(SEQUENCE_WITH_HOLE);
     ASSERT_TRUE(component);
 
-    rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_TRUE(visualContext["tags"].HasMember("list"));
 
-    ASSERT_TRUE(context.HasMember("tags"));
-    ASSERT_TRUE(context["tags"].HasMember("list"));
-
-    const auto& list = context["tags"]["list"];
+    const auto& list = visualContext["tags"]["list"];
     ASSERT_TRUE(list.HasMember("itemCount"));
     ASSERT_EQ(6, list["itemCount"].GetInt());
     ASSERT_TRUE(list.HasMember("lowestIndexSeen"));
@@ -2599,3 +2534,67 @@ TEST_F(VisualContextTest, SequenceHole) {
     ASSERT_TRUE(list.HasMember("highestIndexSeen"));
     ASSERT_EQ(5, list["highestIndexSeen"].GetInt());
 }
+
+
+/**
+ * The visual context dirty state propagates from child to parent.
+ */
+TEST_F(VisualContextTest, IsDirtyBasic) {
+    loadDocument(BASIC);
+    ASSERT_EQ(kComponentTypeTouchWrapper, component->getType());
+
+
+    auto txt = component->getCoreChildAt(0);
+    ASSERT_TRUE(txt);
+
+    // change the child, verify child and parent tree
+    txt->setProperty(kPropertyText, "spud");
+    ASSERT_TRUE(CheckDirtyVisualContext(root, txt));
+
+    // serialize vc verify all are clean
+    serializeVisualContext();
+    ASSERT_FALSE(CheckDirtyVisualContext(root, txt));
+}
+
+
+/**
+ * A dirty parent makes child dirty.
+ */
+TEST_F(VisualContextTest, IsDirtySubTree) {
+    loadDocument(SEQUENCE, DATA);
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    auto txt0 = component->getCoreChildAt(0);
+    ASSERT_TRUE(txt0);
+    auto txt1 = component->getCoreChildAt(1);
+    ASSERT_TRUE(txt1);
+
+    // change first child verify whole tree is dirty
+    txt0->setProperty(kPropertyText, "spud");
+    ASSERT_TRUE(CheckDirtyVisualContext(root, txt0));
+
+}
+
+
+/**
+ * Serialize top component visual context clears the whole tree dirty state.
+ */
+TEST_F(VisualContextTest, SerializeClearsTree) {
+    loadDocument(SEQUENCE, DATA);
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    auto txt0 = component->getCoreChildAt(0);
+    ASSERT_TRUE(txt0);
+    auto txt1 = component->getCoreChildAt(1);
+    ASSERT_TRUE(txt1);
+
+    // change first child verify whole tree is dirty
+    txt0->setProperty(kPropertyText, "spud");
+    ASSERT_TRUE(CheckDirtyVisualContext(root, txt0));
+
+    serializeVisualContext();
+    ASSERT_FALSE(CheckDirtyVisualContext(root, txt0, txt1));
+}
+
+
+

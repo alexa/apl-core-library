@@ -20,6 +20,7 @@
 #include <queue>
 #include <vector>
 #include <iostream>
+#include <regex>
 
 #include "rapidjson/error/en.h"
 #include "rapidjson/pointer.h"
@@ -31,19 +32,19 @@
 #include "apl/command/corecommand.h"
 #include "apl/time/coretimemanager.h"
 
+#include "apl/utils/searchvisitor.h"
+
 namespace apl {
 
-template<typename T>
-::testing::AssertionResult MemoryMatch(const typename Counter<T>::Pair& atStart,
-                                       const typename Counter<T>::Pair& atEnd)
+inline ::testing::AssertionResult
+MemoryMatch(const CounterPair& atStart, const CounterPair& atEnd)
 {
-    typename Counter<T>::Pair delta = atEnd - atStart;
+    auto delta = atEnd - atStart;
     if (delta.created == delta.destroyed)
         return ::testing::AssertionSuccess();
 
     return ::testing::AssertionFailure() << " created(" << delta.created
-        << ") is not equal to destroyed(" << delta.destroyed << ")"
-        << " for " << typeid(T).name();
+        << ") is not equal to destroyed(" << delta.destroyed << ")";
 }
 
 /************************************************************************
@@ -106,23 +107,21 @@ private:
     LogLevel mLastLevel;
 };
 
+#ifdef DEBUG_MEMORY_USE
+const std::map<std::string, std::function<CounterPair()>>& getMemoryCounterMap();
+#endif
+
 class MemoryWrapper : public ::testing::Test {
 public:
     MemoryWrapper()
         : Test(),
-#ifdef DEBUG_MEMORY_USE
-          mActions(Action::itemsDelta()),
-          mComponents(Component::itemsDelta()),
-          mCommands(Command::itemsDelta()),
-          mDependants(Dependant::itemsDelta()),
-          mGraphics(Graphic::itemsDelta()),
-          mGraphicElements(GraphicElement::itemsDelta()),
-          mDataSourceConnections(DataSourceConnection::itemsDelta()),
-          mStyles(Styles::itemsDelta()),
-#endif
           session(std::make_shared<TestSession>()),
           logBridge(std::make_shared<TestLogBridge>())
     {
+#ifdef DEBUG_MEMORY_USE
+        for (const auto& m : getMemoryCounterMap())
+            mMemoryCounters.emplace(m.first, m.second());
+#endif
         LoggerFactory::instance().initialize(logBridge);
     }
 
@@ -137,29 +136,8 @@ public:
         Test::TearDown();
 
 #ifdef DEBUG_MEMORY_USE
-        auto actionTest = MemoryMatch<Action>(mActions, Action::itemsDelta());
-        ASSERT_TRUE(actionTest);
-
-        auto componentTest = MemoryMatch<Component>(mComponents, Component::itemsDelta());
-        ASSERT_TRUE(componentTest);
-
-        auto commandTest = MemoryMatch<Command>(mCommands, Command::itemsDelta());
-        ASSERT_TRUE(commandTest);
-
-        auto dependantTest = MemoryMatch<Dependant>(mDependants, Dependant::itemsDelta());
-        ASSERT_TRUE(dependantTest);
-
-        auto graphicTest = MemoryMatch<Graphic>(mGraphics, Graphic::itemsDelta());
-        ASSERT_TRUE(graphicTest);
-
-        auto graphicElementTest = MemoryMatch<GraphicElement>(mGraphicElements, GraphicElement::itemsDelta());
-        ASSERT_TRUE(graphicElementTest);
-
-        auto dataSourceTest = MemoryMatch<DataSourceConnection>(mDataSourceConnections, DataSourceConnection::itemsDelta());
-        ASSERT_TRUE(dataSourceTest);
-
-        auto stylesTest = MemoryMatch<Styles>(mStyles, Styles::itemsDelta());
-        ASSERT_TRUE(stylesTest);
+        for (const auto& m : getMemoryCounterMap())
+            EXPECT_TRUE(MemoryMatch(mMemoryCounters.at(m.first), m.second())) << "for class " << m.first;
 #endif
 
         ASSERT_FALSE(session->getCount()) << "Extra console message left behind: " << session->getLast();
@@ -168,7 +146,7 @@ public:
     bool CheckNoActions()
     {
 #ifdef DEBUG_MEMORY_USE
-        return mActions.created == mActions.destroyed;
+        return Counter<AccessibilityAction>::itemsDelta() == mMemoryCounters.at("Action");
 #else
         return true;
 #endif
@@ -186,14 +164,7 @@ public:
 
 private:
 #ifdef DEBUG_MEMORY_USE
-    Counter<Action>::Pair mActions;
-    Counter<Component>::Pair mComponents;
-    Counter<Command>::Pair mCommands;
-    Counter<Dependant>::Pair mDependants;
-    Counter<Graphic>::Pair mGraphics;
-    Counter<GraphicElement>::Pair mGraphicElements;
-    Counter<DataSourceConnection>::Pair mDataSourceConnections;
-    Counter<Styles>::Pair mStyles;
+    std::map<std::string, CounterPair> mMemoryCounters;
 #endif
 
 public:
@@ -332,9 +303,7 @@ public:
      * destructed.
      */
     void TearDown() override {
-        if (component) {
-            component = nullptr;
-        }
+        component = nullptr;
 
         clearDirty();
 
@@ -345,6 +314,7 @@ public:
 
         context = nullptr;
         root = nullptr;
+        content = nullptr;
 
         // Call this last - it checks if all of the components, commands, and actions are released
         ActionWrapper::TearDown();
@@ -424,6 +394,9 @@ protected:
     // Override this in a subclass to insert processing after the content is created
     virtual void postCreateContent() {}
 
+    // Override this in a subclass to insert processing after the content is created
+    virtual void postInflate() {}
+
     void inflate() {
         ASSERT_TRUE(content);
         ASSERT_TRUE(content->isReady());
@@ -436,6 +409,20 @@ protected:
 
             component = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
         }
+
+        postInflate();
+    }
+
+    void reinflate(const ConfigurationChange& change) {
+        ASSERT_TRUE(content);
+        ASSERT_TRUE(content->isReady());
+        ASSERT_TRUE(root);
+
+        root->reinflate(change);
+        context = root->contextPtr();
+        ASSERT_TRUE(context);
+
+        component = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
     }
 
 public:
@@ -761,6 +748,38 @@ template<class... Args>
     return ::testing::AssertionSuccess();
 }
 
+
+template<class... Args>
+::testing::AssertionResult TransformComponent(const RootContextPtr& root, const std::string& id, Args... args) {
+    auto component = root->topComponent()->findComponentById(id);
+    if (!component)
+        return ::testing::AssertionFailure() << "Unable to find component " << id;
+
+    std::vector<Object> values = {args...};
+    if (values.size() % 2 != 0)
+        return ::testing::AssertionFailure() << "Must provide an even number of transformations";
+
+    ObjectArray transforms;
+    for (auto it = values.begin() ; it != values.end() ; ) {
+        auto key = *it++;
+        auto value = *it++;
+        auto map = std::make_shared<ObjectMap>();
+        map->emplace(key.asString(), value);
+        transforms.emplace_back(std::move(map));
+    }
+
+    auto event = std::make_shared<ObjectMap>();
+    event->emplace("type", "SetValue");
+    event->emplace("componentId", id);
+    event->emplace("property", "transform");
+    event->emplace("value", std::move(transforms));
+
+    root->executeCommands(ObjectArray{event}, true);
+    root->clearPending();
+
+    return ::testing::AssertionSuccess();
+}
+
 inline
 ::testing::AssertionResult IsEqual(const Transform2D& lhs, const Transform2D& rhs)
 {
@@ -847,6 +866,27 @@ CheckChildrenLaidOutDirtyFlags(const ComponentPtr& component, Range range) {
     return ::testing::AssertionSuccess();
 }
 
+
+template<class... Args>
+::testing::AssertionResult CheckDirtyVisualContext(const RootContextPtr& root, Args... args)
+{
+    // Check the root
+    if (!root->isVisualContextDirty()) {
+        return ::testing::AssertionFailure() << "invalid root visual context isDirty" ;
+    }
+
+    // check components
+    std::vector<ComponentPtr> v = {args...};
+    for (auto key : v) {
+        auto target = std::dynamic_pointer_cast<CoreComponent>(key);
+        if (!target->isVisualContextDirty()) {
+            return ::testing::AssertionFailure() << "invalid visual context isDirty" ;
+        }
+    }
+
+    return ::testing::AssertionSuccess();
+}
+
 template<class... Args>
 ::testing::AssertionResult
 CheckSendEvent(const RootContextPtr& root, Args... args) {
@@ -867,15 +907,45 @@ CheckSendEvent(const RootContextPtr& root, Args... args) {
                << "Mismatch in argument list size actual=" << arguments.size()
                << " expected=" << values.size();
 
+    // Allow generic matches for stuff like "NUMBER[]", "STRING[4]", "MAP[]"
+    const std::regex PATTERN("([A-Z]+)\\[([0-9]*)\\]");
+
     for (int i = 0; i < values.size(); i++) {
         auto expected = values.at(i);
         auto actual = arguments.at(i);
-        if ((expected.isNumber() && (std::abs(actual.asNumber() - expected.asNumber()) > 0.001)) ||
-            (!expected.isNumber() && expected != actual)) {
-            return ::testing::AssertionFailure() << "Event has wrong argument[" << i << "]:"
-                                                 << " Expected: " << expected.toDebugString()
-                                                 << ", actual: " << actual.toDebugString();
+        if (expected == actual)
+            continue;
+
+        std::smatch pieces;
+        if (expected.isString()) {
+            auto s = expected.asString();  // GCC forbids temporary strings in regex_match
+            if (std::regex_match(s, pieces, PATTERN)) {
+                if (pieces[1] == "NUMBER" && actual.isNumber())
+                    continue;
+
+                if ((pieces[1] == "STRING" && actual.isString()) ||
+                    (pieces[1] == "MAP" && actual.isMap()) ||
+                    (pieces[1] == "ARRAY" && actual.isArray())) {
+
+                    // If there is a number specified, it must match the object size
+                    if (pieces.str(2).empty() || std::stoi(pieces.str(2)) == actual.size())
+                        continue;
+                }
+            }
         }
+
+        if (expected.isNumber()) {
+            auto x1 = expected.asNumber();
+            auto x2 = actual.asNumber();
+            if (std::isnan(x2) && std::isnan(x1))
+                continue;
+            else if (!std::isnan(x2) && std::abs(x1 - x2) < 0.001)
+                continue;
+        }
+
+        return ::testing::AssertionFailure() << "Event has wrong argument[" << i << "]:"
+                                             << " Expected: " << expected.toDebugString()
+                                             << ", actual: " << actual.toDebugString();
     }
 
     return ::testing::AssertionSuccess();
@@ -885,9 +955,13 @@ inline
 ::testing::AssertionResult
 MouseDown(const RootContextPtr& root, double x, double y) {
     auto point = Point(x,y);
-    auto down = root->handlePointerEvent(PointerEvent(kPointerDown, point));
+    root->handlePointerEvent(PointerEvent(kPointerDown, point));
 
-    if (!down)
+    auto visitor = TouchableAtPosition(point);
+    std::dynamic_pointer_cast<CoreComponent>(root->topComponent())->raccept(visitor);
+    auto target = std::dynamic_pointer_cast<CoreComponent>(visitor.getResult());
+
+    if (!target)
         return ::testing::AssertionFailure() << "Down failed to hit target at " << x << "," << y;
 
     return ::testing::AssertionSuccess();
@@ -897,12 +971,83 @@ inline
 ::testing::AssertionResult
 MouseUp(const RootContextPtr& root, double x, double y) {
     auto point = Point(x,y);
-    auto up = root->handlePointerEvent(PointerEvent(kPointerUp, point));
+    root->handlePointerEvent(PointerEvent(kPointerUp, point));
 
-    if (!up)
+    auto visitor = TouchableAtPosition(point);
+    std::dynamic_pointer_cast<CoreComponent>(root->topComponent())->raccept(visitor);
+    auto target = std::dynamic_pointer_cast<CoreComponent>(visitor.getResult());
+
+    if (!target)
         return ::testing::AssertionFailure() << "Up failed to hit target at " << x << "," << y;
 
     return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
+MouseMove(const RootContextPtr& root, double x, double y) {
+    auto point = Point(x,y);
+    root->handlePointerEvent(PointerEvent(kPointerMove, point));
+
+    auto visitor = TouchableAtPosition(point);
+    std::dynamic_pointer_cast<CoreComponent>(root->topComponent())->raccept(visitor);
+    auto target = std::dynamic_pointer_cast<CoreComponent>(visitor.getResult());
+
+    if (!target)
+        return ::testing::AssertionFailure() << "Up failed to hit target at " << x << "," << y;
+
+    return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
+MouseClick(const RootContextPtr& root, double x, double y) {
+    auto downResult = MouseDown(root, x, y);
+    auto upResult = MouseUp(root, x, y);
+
+    if (downResult != ::testing::AssertionSuccess())
+        return downResult;
+    if (upResult != ::testing::AssertionSuccess())
+        return upResult;
+
+    return ::testing::AssertionSuccess();
+}
+
+template<class... Args>
+::testing::AssertionResult
+HandlePointerEvent(const RootContextPtr& root, PointerEventType type, const Point& point, bool consumed, Args... args) {
+    if (root->handlePointerEvent(PointerEvent(type, point)) != consumed)
+        return ::testing::AssertionFailure() << "Event consumption mismatch.";
+
+    if (sizeof...(Args) > 0) {
+        return CheckSendEvent(root, args...);
+    }
+
+    return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
+compareTransformApprox(const Transform2D& left, const Transform2D& right, float delta = 0.001F) {
+    auto leftComponents = left.get();
+    auto rightComponents = right.get();
+
+    for (int i = 0; i < 6; i++) {
+        auto diff = std::abs(leftComponents.at(i) - rightComponents.at(i));
+        if (diff > delta) {
+            return ::testing::AssertionFailure()
+                    << "transorms is not equal: "
+                    << " Expected: " << left.toDebugString()
+                    << ", actual: " << right.toDebugString();
+        }
+    }
+    return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
+CheckTransform(const Transform2D& expected, const ComponentPtr& component) {
+    return compareTransformApprox(expected, component->getCalculated(kPropertyTransform).getTransform2D());
 }
 
 extern std::ostream& operator<<(std::ostream& os, const Point& point);

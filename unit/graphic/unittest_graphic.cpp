@@ -121,6 +121,9 @@ TEST_F(GraphicTest, Basic)
     auto child = container->getChildAt(0);
 
     ASSERT_EQ(kGraphicElementTypeGroup, child->getType());
+    auto filterArray = child->getValue(kGraphicPropertyFilters);
+    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_EQ(Object::EMPTY_ARRAY(), filterArray);
     ASSERT_EQ(Object(1), child->getValue(kGraphicPropertyOpacity));
     ASSERT_EQ(Object(15), child->getValue(kGraphicPropertyRotation));
     ASSERT_EQ(Object(85.5), child->getValue(kGraphicPropertyPivotX));
@@ -134,12 +137,18 @@ TEST_F(GraphicTest, Basic)
 
     auto path = child->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
+    filterArray = path->getValue(kGraphicPropertyFilters);
+    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_EQ(Object::EMPTY_ARRAY(), filterArray);
     ASSERT_TRUE(path->getValue(kGraphicPropertyPathData).size() > 30);
     ASSERT_EQ(Object(0.3), path->getValue(kGraphicPropertyFillOpacity));
     ASSERT_EQ(Object(Color(Color::GREEN)), path->getValue(kGraphicPropertyFill));
 
     path = child->getChildAt(1);
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
+    filterArray = path->getValue(kGraphicPropertyFilters);
+    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_EQ(Object::EMPTY_ARRAY(), filterArray);
     ASSERT_TRUE(path->getValue(kGraphicPropertyPathData).size() > 30);
     ASSERT_EQ(Object(1.0), path->getValue(kGraphicPropertyFillOpacity));
     ASSERT_EQ(Object(Color(Color::GREEN)), path->getValue(kGraphicPropertyFill));
@@ -202,7 +211,7 @@ TEST_F(GraphicTest, Minimal11)
 
 static const char *MINIMAL_BAD_VERSION = R"({
       "type": "AVG",
-      "version": "1.2",
+      "version": "0.9",
       "height": 100,
       "width": 200
     })";
@@ -3098,4 +3107,242 @@ TEST_F(GraphicTest, FilteredText) {
     auto text = textElement->getValue(kGraphicPropertyText).asString();
 
     ASSERT_EQ("Ignored bold. & - < - > - © - ©", text);
+}
+
+static const char *DEFAULT_FILTERS = R"apl(
+{
+  "type":"AVG",
+  "version":"1.1",
+  "height":157,
+  "width":171,
+  "viewportHeight":157,
+  "viewportWidth":171,
+  "parameters":[
+    {
+      "default":"green",
+      "type":"color",
+      "name":"fillColor"
+    },
+    {
+      "default":15.0,
+      "type":"number",
+      "name":"rotation"
+    }
+  ],
+  "items":[
+    {
+      "pivotX":85.5,
+      "pivotY":78.5,
+      "type":"group",
+      "filter": {
+        "type":"DropShadow"
+      },
+      "rotation":"${rotation}",
+      "items":[
+        {
+          "type":"path",
+          "pathData":"M85.7106781,155.714249 L85.3571247,156.067803 L86.0642315,156.067803 L85.7106781,155.714249 Z M155.714249,85.7106781 L156.067803,86.0642315 L156.421356,85.7106781 L156.067803,85.3571247 L155.714249,85.7106781 Z",
+          "fillOpacity":0.3,
+          "fill":"${fillColor}"
+        },
+        {
+          "type":"text",
+          "text":"Hello",
+          "filters":[
+            {
+              "type":"DropShadow"
+            }
+          ],
+          "fill":"${fillColor}"
+        }
+      ]
+    }
+  ]
+}
+)apl";
+
+TEST_F(GraphicTest, DefaultGraphicFilter)
+{
+    loadGraphic(DEFAULT_FILTERS);
+
+    auto container = graphic->getRoot();
+    ASSERT_TRUE(container);
+
+    ASSERT_EQ(1, container->getChildCount());
+    auto child = container->getChildAt(0);
+    ASSERT_EQ(2, child->getChildCount());
+
+    ASSERT_EQ(kGraphicElementTypeGroup, child->getType());
+    auto filterArray = child->getValue(kGraphicPropertyFilters);
+    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_EQ(1, filterArray.size());
+    auto graphicFilter = filterArray.at(0).getGraphicFilter();
+    ASSERT_EQ(kGraphicFilterTypeDropShadow, graphicFilter.getType());
+    ASSERT_TRUE(IsEqual(Color::BLACK, graphicFilter.getValue(kGraphicPropertyFilterColor)));
+    ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterHorizontalOffset)));
+    ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterRadius)));
+    ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterVerticalOffset)));
+
+    auto path = child->getChildAt(0);
+    ASSERT_EQ(kGraphicElementTypePath, path->getType());
+    filterArray = path->getValue(kGraphicPropertyFilters);
+    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_EQ(Object::EMPTY_ARRAY(), filterArray);
+
+    auto text = child->getChildAt(1);
+    ASSERT_EQ(kGraphicElementTypeText, text->getType());
+    filterArray = text->getValue(kGraphicPropertyFilters);
+    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    graphicFilter = filterArray.at(0).getGraphicFilter();
+    ASSERT_EQ(kGraphicFilterTypeDropShadow, graphicFilter.getType());
+    ASSERT_TRUE(IsEqual(Color::BLACK, graphicFilter.getValue(kGraphicPropertyFilterColor)));
+    ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterHorizontalOffset)));
+    ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterRadius)));
+    ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterVerticalOffset)));
+}
+
+static const char *GRAPHIC_FILTER_ARRAY = R"apl(
+{
+  "type":"AVG",
+  "version":"1.1",
+  "height":157,
+  "width":171,
+  "viewportHeight":157,
+  "viewportWidth":171,
+  "parameters":[
+    {
+      "default":"green",
+      "type":"color",
+      "name":"fillColor"
+    },
+    {
+      "default":15.0,
+      "type":"number",
+      "name":"rotation"
+    }
+  ],
+  "items":[
+    {
+      "pivotX":85.5,
+      "pivotY":78.5,
+      "type":"group",
+      "filters":[
+        {
+          "type":"DropShadow",
+          "color":"${fillColor}",
+          "horizontalOffset":1,
+          "radius":2,
+          "verticalOffset":3
+        }
+      ],
+      "rotation":"${rotation}",
+      "items":[
+        {
+          "type":"path",
+          "pathData":"M85.7106781,155.714249 L85.3571247,156.067803 L86.0642315,156.067803 L85.7106781,155.714249 Z M155.714249,85.7106781 L156.067803,86.0642315 L156.421356,85.7106781 L156.067803,85.3571247 L155.714249,85.7106781 Z",
+          "fillOpacity":0.3,
+          "fill":"${fillColor}",
+          "filters":[
+            {
+              "type":"DropShadow"
+            },
+            {
+
+            },
+            {
+              "type":"DropShadow",
+              "color":"blue",
+              "horizontalOffset":-1,
+              "radius":-2,
+              "verticalOffset":-3
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+)apl";
+
+TEST_F(GraphicTest, GraphicFilterArray)
+{
+    loadGraphic(GRAPHIC_FILTER_ARRAY);
+
+    auto container = graphic->getRoot();
+    ASSERT_TRUE(container);
+
+    ASSERT_EQ(1, container->getChildCount());
+    auto child = container->getChildAt(0);
+    ASSERT_EQ(1, child->getChildCount());
+
+    ASSERT_EQ(kGraphicElementTypeGroup, child->getType());
+    auto filterArray = child->getValue(kGraphicPropertyFilters);
+    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_EQ(1, filterArray.size());
+    auto graphicFilter = filterArray.at(0).getGraphicFilter();
+    ASSERT_EQ(kGraphicFilterTypeDropShadow, graphicFilter.getType());
+    ASSERT_TRUE(IsEqual(Color(Color::GREEN), graphicFilter.getValue(kGraphicPropertyFilterColor)));
+    ASSERT_TRUE(IsEqual(1, graphicFilter.getValue(kGraphicPropertyFilterHorizontalOffset)));
+    ASSERT_TRUE(IsEqual(2, graphicFilter.getValue(kGraphicPropertyFilterRadius)));
+    ASSERT_TRUE(IsEqual(3, graphicFilter.getValue(kGraphicPropertyFilterVerticalOffset)));
+
+    auto path = child->getChildAt(0);
+    ASSERT_EQ(kGraphicElementTypePath, path->getType());
+    filterArray = path->getValue(kGraphicPropertyFilters);
+    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_EQ(2, filterArray.size());
+
+    // check value of first filter
+    graphicFilter = filterArray.at(0).getGraphicFilter();
+    ASSERT_EQ(kGraphicFilterTypeDropShadow, graphicFilter.getType());
+    ASSERT_TRUE(IsEqual(Color::BLACK, graphicFilter.getValue(kGraphicPropertyFilterColor)));
+    ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterHorizontalOffset)));
+    ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterRadius)));
+    ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterVerticalOffset)));
+
+    // check value of second filter
+    graphicFilter = filterArray.at(1).getGraphicFilter();
+    ASSERT_EQ(kGraphicFilterTypeDropShadow, graphicFilter.getType());
+    ASSERT_TRUE(IsEqual(Color(Color::BLUE), graphicFilter.getValue(kGraphicPropertyFilterColor)));
+    ASSERT_TRUE(IsEqual(-1, graphicFilter.getValue(kGraphicPropertyFilterHorizontalOffset)));
+    ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterRadius)));
+    ASSERT_TRUE(IsEqual(-3, graphicFilter.getValue(kGraphicPropertyFilterVerticalOffset)));
+
+    // empty filter will throw a console log of missing 'type' property
+    ASSERT_EQ("No 'type' property defined for graphic filter", session->getLast());
+    session->clear();
+}
+
+// Verify that filters serialize correctly
+TEST_F(GraphicTest, Serialize)
+{
+    loadGraphic(GRAPHIC_FILTER_ARRAY);
+
+    auto container = graphic->getRoot();
+    ASSERT_TRUE(container);
+    ASSERT_EQ(1, container->getChildCount());
+    auto child = container->getChildAt(0);
+    ASSERT_EQ(1, child->getChildCount());
+
+    ASSERT_EQ(kGraphicElementTypeGroup, child->getType());
+    auto filters = child->getValue(kGraphicPropertyFilters);
+    ASSERT_TRUE(filters.isArray());
+    ASSERT_EQ(1, filters.size());
+
+    rapidjson::Document doc;
+    auto json = filters.serialize(doc.GetAllocator());
+
+    ASSERT_TRUE(json.IsArray());
+    ASSERT_EQ(1, json.GetArray().Size());
+
+    // Check the first filter
+    ASSERT_EQ(5, json[0].MemberCount());  // Five members: type, color, horizontalOffset, radius, verticalOffset
+    ASSERT_EQ(kGraphicFilterTypeDropShadow, json[0]["type"].GetDouble());
+    ASSERT_STREQ("#008000ff", json[0]["color"].GetString());
+    ASSERT_EQ(1, json[0]["horizontalOffset"].GetDouble());
+    ASSERT_EQ(2, json[0]["radius"].GetDouble());
+    ASSERT_EQ(3, json[0]["verticalOffset"].GetDouble());
+
+    ASSERT_EQ("No 'type' property defined for graphic filter", session->getLast());
+    session->clear();
 }

@@ -63,6 +63,7 @@ add_subdirectory(src/utils)
 
 set(PUBLIC_HEADER_LIST
         include/apl/apl.h
+        ${PROJECT_BINARY_DIR}/aplcore/include/apl/apl_config.h
         include/apl/dynamicdata.h)
 
 set_target_properties(apl PROPERTIES
@@ -114,3 +115,14 @@ target_link_libraries(
         ${log-lib})
 
 endif(ANDROID)
+
+install(TARGETS apl
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        PUBLIC_HEADER DESTINATION include/apl)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/aplcore/include/apl
+        DESTINATION include
+        FILES_MATCHING PATTERN "*.h")
+install(FILES ${YOGA_LIB}
+        DESTINATION lib)
+

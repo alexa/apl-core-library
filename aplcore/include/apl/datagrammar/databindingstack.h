@@ -135,6 +135,13 @@ public:
         mOps.pop_back();
     }
 
+    double popNumber() {
+        assert(!mObjects.empty());
+        auto result = mObjects.back().getDouble();
+        mObjects.pop_back();
+        return result;
+    }
+
     // Reduce left-to-right a series of binary operations
     void reduceLR(int order)
     {
@@ -303,6 +310,8 @@ public:
     void push(const Object& object) { mStack.back().push(object); }
     void push(const Operator& op) { mStack.back().push(op); }
     void pop(const Operator& op) { mStack.back().pop(op); }
+
+    double popNumber() { return mStack.back().popNumber(); }
 
     /**
      * Reduce any number of operators with the same order, following a left-to-right

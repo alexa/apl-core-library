@@ -46,7 +46,7 @@ ImageComponent::propDefSet() const
         {kPropertyOverlayColor,    Color(),                  asColor,             kPropInOut | kPropStyled | kPropDynamic},
         {kPropertyOverlayGradient, Object::NULL_OBJECT(),    asGradient,          kPropInOut | kPropStyled},
         {kPropertyScale,           kImageScaleBestFit,       sScaleMap,           kPropInOut | kPropStyled},
-        {kPropertySource,          "",                       asString,            kPropInOut | kPropDynamic}
+        {kPropertySource,          "",                       asStringOrArray,     kPropInOut | kPropDynamic}
     });
 
     return sImageComponentProperties;

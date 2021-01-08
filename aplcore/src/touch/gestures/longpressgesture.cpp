@@ -25,23 +25,29 @@
 namespace apl {
 
 std::shared_ptr<LongPressGesture>
-LongPressGesture::create(const TouchablePtr& touchable, const Context& context, const Object& object) {
+LongPressGesture::create(const ActionablePtr& actionable, const Context& context, const Object& object) {
     Object onLongPressStart = arrayifyPropertyAsObject(context, object, "onLongPressStart");
     Object onLongPressEnd = arrayifyPropertyAsObject(context, object, "onLongPressEnd");
 
-    return std::make_shared<LongPressGesture>(touchable, std::move(onLongPressStart), std::move(onLongPressEnd));
+    return std::make_shared<LongPressGesture>(actionable, std::move(onLongPressStart), std::move(onLongPressEnd));
 }
 
-void
-LongPressGesture::reset() {
-    Gesture::reset();
-}
-
-LongPressGesture::LongPressGesture(const TouchablePtr& touchable, Object&& onLongPressStart, Object&& onLongPressEnd) :
-        Gesture(touchable),
+LongPressGesture::LongPressGesture(const ActionablePtr& actionable, Object&& onLongPressStart, Object&& onLongPressEnd) :
+        Gesture(actionable),
         mOnLongPressStart(std::move(onLongPressStart)),
         mOnLongPressEnd(std::move(onLongPressEnd)),
-        mLongPressTimeout(touchable->getContext()->getRootConfig().getLongPressTimeout()) {}
+        mLongPressTimeout(actionable->getRootConfig().getLongPressTimeout()) {}
+
+bool
+LongPressGesture::invokeAccessibilityAction(const std::string& name)
+{
+    if (name == "longpress") {
+        mActionable->executeEventHandler("LongPressEnd", mOnLongPressEnd, false,
+                                         mActionable->createTouchEventProperties(Point()));
+        return true;
+    }
+    return false;
+}
 
 void
 LongPressGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
@@ -49,12 +55,13 @@ LongPressGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
 }
 
 void
-LongPressGesture::onMove(const PointerEvent& event, apl_time_t timestamp) {
+LongPressGesture::onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) {
     if (!mTriggered && timestamp >= mStartTime + mLongPressTimeout) {
-        mTouchable->executePointerEventHandler(kPropertyOnCancel, event);
-        auto params = mTouchable->createTouchEventProperties(event);
-        params->emplace("inBounds", mTouchable->containsGlobalPosition(event.pointerEventPosition));
-        mTouchable->executeEventHandler("LongPressStart", mOnLongPressStart, true, params);
+        Point localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
+        mActionable->executePointerEventHandler(kPropertyOnCancel, localPoint);
+        auto params = mActionable->createTouchEventProperties(localPoint);
+        params->emplace("inBounds", mActionable->containsLocalPosition(localPoint));
+        mActionable->executeEventHandler("LongPressStart", mOnLongPressStart, true, params);
         mTriggered = true;
     }
 }
@@ -62,9 +69,10 @@ LongPressGesture::onMove(const PointerEvent& event, apl_time_t timestamp) {
 void
 LongPressGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
     if (mTriggered) {
-        auto params = mTouchable->createTouchEventProperties(event);
-        params->emplace("inBounds", mTouchable->containsGlobalPosition(event.pointerEventPosition));
-        mTouchable->executeEventHandler("LongPressEnd", mOnLongPressEnd, false, params);
+        Point localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
+        auto params = mActionable->createTouchEventProperties(localPoint);
+        params->emplace("inBounds", mActionable->containsLocalPosition(localPoint));
+        mActionable->executeEventHandler("LongPressEnd", mOnLongPressEnd, false, params);
     }
     reset();
 }

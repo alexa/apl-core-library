@@ -16,7 +16,7 @@
 #ifndef _APL_SCROLL_TO_ACTION_H
 #define _APL_SCROLL_TO_ACTION_H
 
-#include "apl/action/resourceholdingaction.h"
+#include "apl/action/animatedscrollaction.h"
 #include "apl/command/commandproperties.h"
 
 namespace apl {
@@ -33,7 +33,7 @@ class Component;
  *    kCommandPropertyDirection        Set to forward/back (only for PageTo)
  *    kCommandPropertyPosition         The scroll position or the page number.
  */
-class ScrollToAction : public ResourceHoldingAction {
+class ScrollToAction : public AnimatedScrollAction {
 public:
     /**
      * Called from SpeakItem during block highlight mode.
@@ -80,7 +80,7 @@ public:
                    const ContextPtr& context,
                    bool scrollToSubBounds,
                    const ComponentPtr& target,
-                   const ComponentPtr& scrollableParent);
+                   const CoreComponentPtr& scrollableParent);
 
 private:
     static std::shared_ptr<ScrollToAction> make(const TimersPtr& timers,
@@ -91,15 +91,14 @@ private:
                                                 const ComponentPtr& target = nullptr);
 
     void start();
-    void pageTo(const ComponentPtr& pager);
-    void scrollTo(const ComponentPtr& scrollable);
+    void pageTo();
+    void scrollTo();
 
 private:
     CommandScrollAlign mAlign;
     Rect mSubBounds;
     bool mScrollToSubBounds;
     ComponentPtr mTarget;
-    ComponentPtr mScrollableParent;
 };
 
 

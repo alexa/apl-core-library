@@ -94,7 +94,7 @@ EditTextComponent::propDefSet() const {
             {kPropertySelectOnFocus,    false,              asBoolean,           kPropInOut | kPropStyled},
             {kPropertySize,             8,                  asPositiveInteger,   kPropInOut | kPropStyled | kPropLayout},
             {kPropertySubmitKeyType,    kSubmitKeyTypeDone, sSubmitKeyTypeMap,   kPropInOut | kPropStyled},
-            {kPropertyText,             "",                 asString,            kPropInOut | kPropDynamic},
+            {kPropertyText,             "",                 asString,            kPropInOut | kPropDynamic | kPropVisualContext},
             {kPropertyValidCharacters,  "",                 asString,            kPropIn | kPropStyled},
 
             // The width of the drawn border.  If borderStrokeWith is set, the drawn border is the min of borderWidth

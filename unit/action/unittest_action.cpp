@@ -353,6 +353,21 @@ TEST_F(ActionTest, UserDataDelayed)
     ASSERT_TRUE(stashed);
 }
 
+#ifdef USER_DATA_RELEASE_CALLBACKS
+TEST_F(ActionTest, UserDataRelease)
+{
+    int releaseCount = 0;
+    Action::setUserDataReleaseCallback([&releaseCount](void *) {
+        releaseCount += 1;
+    });
+    auto p = Action::make(loop);
+    ASSERT_EQ(0, releaseCount);
+    p = nullptr;
+    ASSERT_EQ(1, releaseCount);
+    Action::setUserDataReleaseCallback(nullptr);  // Unset to ensure it doesn't leak into other tests
+}
+#endif
+
 TEST_F(ActionTest, Animation)
 {
     int count = 0;

@@ -25,7 +25,7 @@ SetValueCommand::propDefSet() const {
     static CommandPropDefSet sSetValueCommandProperties(CoreCommand::propDefSet(), {
             {kCommandPropertyComponentId, "",                    asString, kPropRequiredId },
             {kCommandPropertyProperty,    "",                    asString, kPropRequired },
-            {kCommandPropertyValue,       Object::NULL_OBJECT(), asAny,    kPropRequired }
+            {kCommandPropertyValue,       Object::NULL_OBJECT(), asAny,    kPropRequired | kPropEvaluated }
     });
 
     return sSetValueCommandProperties;

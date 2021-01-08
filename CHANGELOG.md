@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.5.0]
+
+This release adds support for version 1.5 of the APL specification.
+
+### Added
+
+- New Math functions: Math.isNaN, Math.isInf and Math.isFinite
+- New Array functions: Array.indexOf, Array.range, Array.slice
+- New String function: String.length
+- Report visible children from Sequence and GridSequence components
+- DropShadow filter for AVG
+- Accessibility: add fontScale, screenMode, screenReader, and timing properties to environment.
+- Accessibility: Added actions and role to base component.
+- Extensions: extensions can provide custom image filters
+- Support bind in AVG
+- Report when the visual context is dirty
+- Alpha feature: handle scrolling and paging in the APL Core library
+- Alpha feature: scroll snapping
+- Alpha feature: custom transitions for Pager
+
+### Changed
+
+- Updated reported APL version to 1.5
+- Accessibility: Update accessibilityLabel property to be dynamic
+- Update AVG inflation to support the multi-child inflation rules
+- Update gesture processing to consider applied transforms
+- Bug fixes
+- Build improvements
+
+See README.md for more details on alpha features.
+
+
+
 ## [1.4.1]
 
 This is a bug fix release of apl-core-library.

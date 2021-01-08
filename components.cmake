@@ -15,7 +15,7 @@ project (apl VERSION 1.0.0 LANGUAGES C CXX)
 
 if (TELEMETRY)
     message("Telemetry enabled.")
-    add_compile_definitions(WITH_TELEMETRY)
+    add_definitions(-DWITH_TELEMETRY)
 endif(TELEMETRY)
 
 if (POLICY CMP0048)

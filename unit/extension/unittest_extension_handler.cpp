@@ -92,7 +92,7 @@ static const char *WITH_ARGUMENTS = R"({
     "type": "SetValue",
     "componentId": "MyText",
     "property": "text",
-    "value": "Hello ${a} ${b}"
+    "value": "Hello ${a} ${b} ${event.a} ${event.b}"
   }
 })";
 
@@ -111,7 +111,7 @@ TEST_F(ExtensionHandlerTest, WithArguments)
                                                                         {"b", "Hello"}}, false);
     loop->runPending();
 
-    ASSERT_TRUE(IsEqual("Hello 2 Hello", component->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(IsEqual("Hello 2 Hello 2 Hello", component->getCalculated(kPropertyText).asString()));
 }
 
 static const char *IMPORT_TEST = R"({

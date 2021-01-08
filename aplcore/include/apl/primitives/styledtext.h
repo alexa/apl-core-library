@@ -46,7 +46,8 @@ public:
         kSpanTypeUnderline = 4,
         kSpanTypeMonospace = 5,
         kSpanTypeSuperscript = 6,
-        kSpanTypeSubscript = 7
+        kSpanTypeSubscript = 7,
+        kSpanTypeWordBreak = 8,
     };
 
     /**
@@ -79,6 +80,24 @@ public:
          * Span end index.
          */
         size_t end;
+
+        /**
+         * Compare two spans for equality.
+         * @param rhs The other span.
+         * @return True if they are equal.
+         */
+        bool operator==(const Span& rhs) const {
+            return type == rhs.type && start == rhs.start && end == rhs.end;
+        }
+
+        /**
+         * Compare two spans for inequality
+         * @param rhs The other span.
+         * @return True if they are not equal
+         */
+        bool operator!=(const Span& rhs) const {
+            return type != rhs.type || start != rhs.start || end != rhs.end;
+        }
     };
 
     /**

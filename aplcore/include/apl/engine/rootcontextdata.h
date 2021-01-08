@@ -20,9 +20,11 @@
 #include <string>
 #include <queue>
 
+#include "apl/utils/counter.h"
 #include "apl/content/rootconfig.h"
 #include "apl/content/settings.h"
 #include "apl/content/content.h"
+#include "apl/content/metrics.h"
 #include "apl/engine/event.h"
 #include "apl/extension/extensionmanager.h"
 #include "apl/engine/focusmanager.h"
@@ -36,7 +38,7 @@
 
 namespace apl {
 
-class RootContextData {
+class RootContextData : public Counter<RootContextData> {
     friend class RootContext;
 
 public:
@@ -62,9 +64,17 @@ public:
     }
 
     /**
-     * Discontinue use of this data.  Inform all children that they are no longer alive.
+     * Halt the RootContextData and release the component hierarchy..
      */
     void terminate();
+
+    /**
+     * This root context data is being replaced by a new one.  Terminate all processing
+     * and return the top component.  To release memory, you must call release on the top
+     * component after you are done with it.  Once halted the RootContextData cannot be
+     * restarted.
+     */
+    CoreComponentPtr halt();
 
     std::shared_ptr<Styles> styles() const { return mStyles; }
     Sequencer& sequencer() const { return *mSequencer; }
@@ -105,21 +115,26 @@ public:
     void releaseScreenLock() { mScreenLockCount--; }
 
 public:
-    const int pixelWidth;
-    const int pixelHeight;
-    const double width;
-    const double height;
-    const double pxToDp;
-    const std::string theme;
-    const std::string requestedAPLVersion;
+    int getPixelWidth() const { return mMetrics.getPixelHeight(); }
+    int getPixelHeight() const { return mMetrics.getPixelHeight(); }
+    double getWidth() const { return mMetrics.getWidth(); }
+    double getHeight() const { return mMetrics.getHeight(); }
+    double getPxToDp() const { return 160.0 / mMetrics.getDpi(); }
+
+    std::string getTheme() const { return mTheme; }
+    std::string getRequestedAPLVersion() const { return mRequestedAPLVersion; }
 
     std::queue<Event> events;
     std::set<ComponentPtr> dirty;
+    std::set<ComponentPtr> dirtyVisualContext;
 
 private:
     std::map<std::string, JsonResource> mLayouts;
     std::map<std::string, JsonResource> mCommands;
     std::map<std::string, JsonResource> mGraphics;
+    Metrics mMetrics;
+    std::string mTheme;
+    std::string mRequestedAPLVersion;
     std::shared_ptr<Styles> mStyles;
     std::unique_ptr<Sequencer> mSequencer;
     std::unique_ptr<FocusManager> mFocusManager;

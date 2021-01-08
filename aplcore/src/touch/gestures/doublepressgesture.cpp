@@ -25,24 +25,35 @@
 namespace apl {
 
 std::shared_ptr<DoublePressGesture>
-DoublePressGesture::create(const TouchablePtr& touchable, const Context& context, const Object& object) {
+DoublePressGesture::create(const ActionablePtr& actionable, const Context& context, const Object& object) {
     Object onDoublePress = arrayifyPropertyAsObject(context, object, "onDoublePress");
     Object onSinglePress = arrayifyPropertyAsObject(context, object, "onSinglePress");
 
-    return std::make_shared<DoublePressGesture>(touchable, std::move(onDoublePress), std::move(onSinglePress));
+    return std::make_shared<DoublePressGesture>(actionable, std::move(onDoublePress), std::move(onSinglePress));
 }
 
-DoublePressGesture::DoublePressGesture(const TouchablePtr& touchable, Object&& onDoublePress, Object&& onSinglePress) :
-        Gesture(touchable),
+DoublePressGesture::DoublePressGesture(const ActionablePtr& actionable, Object&& onDoublePress, Object&& onSinglePress) :
+        Gesture(actionable),
         mOnDoublePress(std::move(onDoublePress)),
         mOnSinglePress(std::move(onSinglePress)),
         mBetweenPresses(false),
-        mDoublePressTimeout(touchable->getContext()->getRootConfig().getDoublePressTimeout()) {}
+        mDoublePressTimeout(actionable->getRootConfig().getDoublePressTimeout()) {}
 
 void
 DoublePressGesture::reset() {
     Gesture::reset();
     mBetweenPresses = false;
+}
+
+bool
+DoublePressGesture::invokeAccessibilityAction(const std::string& name)
+{
+    if (name == "doubletap") {
+        mActionable->executeEventHandler("DoublePress", mOnDoublePress, false,
+                                         mActionable->createTouchEventProperties(Point()));
+        return true;
+    }
+    return false;
 }
 
 void
@@ -58,24 +69,27 @@ DoublePressGesture::onFirstUpInternal(const PointerEvent& event, apl_time_t time
     mStartTime = timestamp;
     mTriggered = true;
     // Pass through
-    mTouchable->executePointerEventHandler(sEventHandlers.at(event.pointerEventType), event);
+    passPointerEventThrough(event);
 
 }
 void
 DoublePressGesture::onSecondDownInternal(const PointerEvent& event, apl_time_t timestamp) {
     mBetweenPresses = false;
     // Pass through
-    mTouchable->executePointerEventHandler(sEventHandlers.at(event.pointerEventType), event);
+    passPointerEventThrough(event);
 }
 
 void
 DoublePressGesture::onSecondUpInternal(const PointerEvent& event, apl_time_t timestamp) {
+    Point localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
+
     // Send cancel as we found double press at this point
-    mTouchable->executePointerEventHandler(kPropertyOnCancel, event);
+    mActionable->executePointerEventHandler(kPropertyOnCancel, localPoint);
 
     // Execute on DoublePress and reset
-    mTouchable->executeEventHandler("DoublePress", mOnDoublePress, false,
-                                    mTouchable->createTouchEventProperties(event));
+    mActionable->executeEventHandler("DoublePress", mOnDoublePress, false,
+                                     mActionable->createTouchEventProperties(localPoint));
+
     reset();
 }
 
@@ -88,11 +102,12 @@ DoublePressGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
 }
 
 void
-DoublePressGesture::onMove(const apl::PointerEvent &event, apl_time_t timestamp) {
+DoublePressGesture::onTimeUpdate(const apl::PointerEvent& event, apl::apl_time_t timestamp) {
     // Will only do something when in between presses
     if (timestamp >= mStartTime + mDoublePressTimeout && mBetweenPresses) {
-        mTouchable->executeEventHandler("SinglePress", mOnSinglePress, false,
-                                        mTouchable->createTouchEventProperties(event));
+        Point localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
+        mActionable->executeEventHandler("SinglePress", mOnSinglePress, false,
+                                         mActionable->createTouchEventProperties(localPoint));
         reset();
     }
 }

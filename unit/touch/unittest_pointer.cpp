@@ -17,50 +17,6 @@
 
 using namespace apl;
 
-::testing::AssertionResult PokeTarget(const RootContextPtr& root, double x, double y) {
-    auto point = Point(x,y);
-    auto down = root->handlePointerEvent(PointerEvent(kPointerDown, point));
-    auto up = root->handlePointerEvent(PointerEvent(kPointerUp, point));
-
-    if (!down)
-        return ::testing::AssertionFailure() << "Down failed to hit target at " << x << "," << y;
-    if (!up)
-        return ::testing::AssertionFailure() << "Up failed to hit target at " << x << "," << y;
-
-    return ::testing::AssertionSuccess();
-}
-
-template<class... Args>
-::testing::AssertionResult TransformComponent(const RootContextPtr& root, const std::string& id, Args... args) {
-    auto component = root->topComponent()->findComponentById(id);
-    if (!component)
-        return ::testing::AssertionFailure() << "Unable to find component " << id;
-
-    std::vector<Object> values = {args...};
-    if (values.size() % 2 != 0)
-        return ::testing::AssertionFailure() << "Must provide an even number of transformations";
-
-    ObjectArray transforms;
-    for (auto it = values.begin() ; it != values.end() ; ) {
-        auto key = *it++;
-        auto value = *it++;
-        auto map = std::make_shared<ObjectMap>();
-        map->emplace(key.asString(), value);
-        transforms.emplace_back(std::move(map));
-    }
-
-    auto event = std::make_shared<ObjectMap>();
-    event->emplace("type", "SetValue");
-    event->emplace("componentId", id);
-    event->emplace("property", "transform");
-    event->emplace("value", std::move(transforms));
-
-    root->executeCommands(ObjectArray{event}, true);
-    root->clearPending();
-
-    return ::testing::AssertionSuccess();
-}
-
 /**
  * A set of tests to verify that we find the correct component in the hierarchy when there is
  * a touch or mouse event.  These tests check to see that transformed, scrolled, and otherwise
@@ -95,32 +51,32 @@ static const char * MOVING =
 TEST_F(PointerTest, Moving) {
     loadDocument(MOVING);
 
-    ASSERT_TRUE(PokeTarget(root, 50, 10));  // The center
-    ASSERT_FALSE(PokeTarget(root, 50, 40)); // Far Down
-    ASSERT_TRUE(PokeTarget(root, 10, 10));  // Left
-    ASSERT_TRUE(PokeTarget(root, 80, 10));  // Right
-    ASSERT_FALSE(PokeTarget(root, 120, 10));  // Far right
+    ASSERT_TRUE(MouseClick(root, 50, 10));  // The center
+    ASSERT_FALSE(MouseClick(root, 50, 40)); // Far Down
+    ASSERT_TRUE(MouseClick(root, 10, 10));  // Left
+    ASSERT_TRUE(MouseClick(root, 80, 10));  // Right
+    ASSERT_FALSE(MouseClick(root, 120, 10));  // Far right
 
     ASSERT_TRUE(TransformComponent(root, "MyTouch", "translateX", 200));
-    ASSERT_FALSE(PokeTarget(root, 50, 10));  // The center
-    ASSERT_FALSE(PokeTarget(root, 50, 40));  // Far Down
-    ASSERT_FALSE(PokeTarget(root, 10, 10));  // Left
-    ASSERT_FALSE(PokeTarget(root, 80, 10));  // Right
-    ASSERT_FALSE(PokeTarget(root, 120, 10));  // Far right
-    ASSERT_TRUE(PokeTarget(root, 220, 10));  // Really far right
+    ASSERT_FALSE(MouseClick(root, 50, 10));  // The center
+    ASSERT_FALSE(MouseClick(root, 50, 40));  // Far Down
+    ASSERT_FALSE(MouseClick(root, 10, 10));  // Left
+    ASSERT_FALSE(MouseClick(root, 80, 10));  // Right
+    ASSERT_FALSE(MouseClick(root, 120, 10));  // Far right
+    ASSERT_TRUE(MouseClick(root, 220, 10));  // Really far right
 
     ASSERT_TRUE(TransformComponent(root, "MyTouch", "rotate", 90));  // Rotates about the center
-    ASSERT_FALSE(PokeTarget(root, 10, 10));
-    ASSERT_TRUE(PokeTarget(root, 50, 10));
-    ASSERT_TRUE(PokeTarget(root, 50, 50));
-    ASSERT_FALSE(PokeTarget(root, 50, -40));  // Outside of the parent bounds
+    ASSERT_FALSE(MouseClick(root, 10, 10));
+    ASSERT_TRUE(MouseClick(root, 50, 10));
+    ASSERT_TRUE(MouseClick(root, 50, 50));
+    ASSERT_FALSE(MouseClick(root, 50, -40));  // Outside of the parent bounds
 
     ASSERT_TRUE(TransformComponent(root, "MyTouch", "scale", 0.5));  // Shrink it about the center
-    ASSERT_TRUE(PokeTarget(root, 50, 10));  // The center
-    ASSERT_FALSE(PokeTarget(root, 80, 10));
-    ASSERT_FALSE(PokeTarget(root, 20, 10));
-    ASSERT_FALSE(PokeTarget(root, 50, 16));
-    ASSERT_FALSE(PokeTarget(root, 50, 4));
+    ASSERT_TRUE(MouseClick(root, 50, 10));  // The center
+    ASSERT_FALSE(MouseClick(root, 80, 10));
+    ASSERT_FALSE(MouseClick(root, 20, 10));
+    ASSERT_FALSE(MouseClick(root, 50, 16));
+    ASSERT_FALSE(MouseClick(root, 50, 4));
 }
 
 
@@ -131,18 +87,18 @@ TEST_F(PointerTest, Singularity)
 {
     loadDocument(MOVING);
 
-    ASSERT_TRUE(PokeTarget(root, 50, 10));  // The center
-    ASSERT_TRUE(PokeTarget(root, 60, 10));
+    ASSERT_TRUE(MouseClick(root, 50, 10));  // The center
+    ASSERT_TRUE(MouseClick(root, 60, 10));
 
     // Shrink to 10% (occurs about the center)
     ASSERT_TRUE(TransformComponent(root, "MyTouch", "scale", 0.1));
-    ASSERT_TRUE(PokeTarget(root, 50, 10));
-    ASSERT_FALSE(PokeTarget(root, 60, 10));
+    ASSERT_TRUE(MouseClick(root, 50, 10));
+    ASSERT_FALSE(MouseClick(root, 60, 10));
 
     // Shrink it to 0% (occurs about the center)
     ASSERT_TRUE(TransformComponent(root, "MyTouch", "scale", 0));
-    ASSERT_FALSE(PokeTarget(root, 50, 10));
-    ASSERT_FALSE(PokeTarget(root, 60, 10));
+    ASSERT_FALSE(MouseClick(root, 50, 10));
+    ASSERT_FALSE(MouseClick(root, 60, 10));
 }
 
 static const char * PADDING =
@@ -177,17 +133,17 @@ TEST_F(PointerTest, Padding)
 {
     loadDocument(PADDING);
 
-    ASSERT_TRUE(PokeTarget(root, 200, 200));  // The center
-    ASSERT_TRUE(PokeTarget(root, 100, 100));  // Top left
-    ASSERT_TRUE(PokeTarget(root, 300, 300)); // Bottom right
+    ASSERT_TRUE(MouseClick(root, 200, 200));  // The center
+    ASSERT_TRUE(MouseClick(root, 100, 100));  // Top left
+    ASSERT_TRUE(MouseClick(root, 300, 300)); // Bottom right
 
     // Shrink to 150% (occurs about the center)
     ASSERT_TRUE(TransformComponent(root, "MyTouch", "scale", 1.5));
-    ASSERT_TRUE(PokeTarget(root, 200, 200));
-    ASSERT_TRUE(PokeTarget(root, 51, 51)); // Top-left corner, after transformation
-    ASSERT_FALSE(PokeTarget(root, 25, 25));
-    ASSERT_TRUE(PokeTarget(root, 350, 350)); // Bottom-right corner, after transformation
-    ASSERT_FALSE(PokeTarget(root, 375, 375));
+    ASSERT_TRUE(MouseClick(root, 200, 200));
+    ASSERT_TRUE(MouseClick(root, 51, 51)); // Top-left corner, after transformation
+    ASSERT_FALSE(MouseClick(root, 25, 25));
+    ASSERT_TRUE(MouseClick(root, 350, 350)); // Bottom-right corner, after transformation
+    ASSERT_FALSE(MouseClick(root, 375, 375));
 }
 
 
@@ -247,7 +203,7 @@ TEST_F(PointerTest, Overlapping) {
     loadDocument(OVERLAP);
 
     // Poking the container doesn't result in a pointer event
-    ASSERT_FALSE(PokeTarget(root, 150, 150));
+    ASSERT_FALSE(MouseClick(root, 150, 150));
     ASSERT_FALSE(root->hasEvent());
 
     // Now shift the TopFrame out of the way
@@ -258,7 +214,7 @@ TEST_F(PointerTest, Overlapping) {
     ASSERT_EQ(Point(200,0), transform * Point(0,0));
 
     // Poking the same point should hit the TouchWrapper
-    ASSERT_TRUE(PokeTarget(root, 150, 150));
+    ASSERT_TRUE(MouseClick(root, 150, 150));
     ASSERT_TRUE(CheckSendEvent(root, "Right"));
 }
 
@@ -301,18 +257,18 @@ TEST_F(PointerTest, ScrollView)
     loadDocument(SCROLLING_CONTAINER);
 
     // Verify you can hit the target at the starting location
-    ASSERT_TRUE(PokeTarget(root, 25, 25));
-    ASSERT_FALSE(PokeTarget(root, 15, 15));  // The padding adds up to 20,20
-    ASSERT_TRUE(PokeTarget(root, 115, 25));  // Right side of the component
-    ASSERT_FALSE(PokeTarget(root, 25, 45));  // Too far down
+    ASSERT_TRUE(MouseClick(root, 25, 25));
+    ASSERT_FALSE(MouseClick(root, 15, 15));  // The padding adds up to 20,20
+    ASSERT_TRUE(MouseClick(root, 115, 25));  // Right side of the component
+    ASSERT_FALSE(MouseClick(root, 25, 45));  // Too far down
 
     // Scroll down
     component->update(kUpdateScrollPosition, 100);
-    ASSERT_FALSE(PokeTarget(root, 25, 25));
+    ASSERT_FALSE(MouseClick(root, 25, 25));
 
     // Move the touchwrapper down to compensate
     ASSERT_TRUE(TransformComponent(root, "MyTouch", "translateY", 100));  // Move it down by the scroll amount
-    ASSERT_TRUE(PokeTarget(root, 25, 25));
+    ASSERT_TRUE(MouseClick(root, 25, 25));
 }
 
 static const char* SEQUENCE_AND_PAGER = R"({
@@ -400,7 +356,7 @@ TEST_F(PointerTest, SequenceAndPager)
 {
     loadDocument(SEQUENCE_AND_PAGER);
 
-    ASSERT_TRUE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(0,100))));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(0,100), false));
     ASSERT_TRUE(CheckSendEvent(root, "onDown:red_sequence0"));
 }
 
@@ -450,19 +406,19 @@ TEST_F(PointerTest, OnPress)
     loadDocument(ON_PRESS);
 
     // center
-    ASSERT_TRUE(PokeTarget(root, 250, 250));
+    ASSERT_TRUE(MouseClick(root, 250, 250));
     ASSERT_TRUE(CheckSendEvent(root, "Pressed"));
 
     // top left
-    ASSERT_TRUE(PokeTarget(root, 201, 201));
+    ASSERT_TRUE(MouseClick(root, 201, 201));
     ASSERT_TRUE(CheckSendEvent(root, "Pressed"));
 
     // bottom right
-    ASSERT_TRUE(PokeTarget(root, 299, 299));
+    ASSERT_TRUE(MouseClick(root, 299, 299));
     ASSERT_TRUE(CheckSendEvent(root, "Pressed"));
 
     // out of bounds
-    ASSERT_FALSE(PokeTarget(root, 301, 301));
+    ASSERT_FALSE(MouseClick(root, 301, 301));
     ASSERT_FALSE(root->hasEvent());
 
     // --- Release mouse inside component --
@@ -474,7 +430,7 @@ TEST_F(PointerTest, OnPress)
     // --- Release mouse outside component --
 
     ASSERT_TRUE(MouseDown(root, 250, 250));
-    ASSERT_TRUE(MouseUp(root, 199, 199)); // within bounds
+    ASSERT_FALSE(MouseUp(root, 199, 199)); // outside bounds
     ASSERT_FALSE(root->hasEvent());
 }
 
@@ -490,19 +446,19 @@ TEST_F(PointerTest, TransformedOnPress)
     ASSERT_TRUE(TransformComponent(root, "TouchWrapper", "scale", 1.5));
 
     // center
-    ASSERT_TRUE(PokeTarget(root, 250, 250));
+    ASSERT_TRUE(MouseClick(root, 250, 250));
     ASSERT_TRUE(CheckSendEvent(root, "Pressed"));
 
     // top left
-    ASSERT_TRUE(PokeTarget(root, 176, 176));
+    ASSERT_TRUE(MouseClick(root, 176, 176));
     ASSERT_TRUE(CheckSendEvent(root, "Pressed"));
 
     // top left
-    ASSERT_TRUE(PokeTarget(root, 324, 324));
+    ASSERT_TRUE(MouseClick(root, 324, 324));
     ASSERT_TRUE(CheckSendEvent(root, "Pressed"));
 
     // out of bounds
-    ASSERT_FALSE(PokeTarget(root, 326, 326));
+    ASSERT_FALSE(MouseClick(root, 326, 326));
     ASSERT_FALSE(root->hasEvent());
 
     // --- Release mouse inside component --
@@ -514,7 +470,7 @@ TEST_F(PointerTest, TransformedOnPress)
     // --- Release mouse outside component --
 
     ASSERT_TRUE(MouseDown(root, 250, 250));
-    ASSERT_TRUE(MouseUp(root, 326, 326)); // out of bounds
+    ASSERT_FALSE(MouseUp(root, 326, 326)); // out of bounds
     ASSERT_FALSE(root->hasEvent());
 }
 
@@ -530,7 +486,7 @@ TEST_F(PointerTest, SingularTransformDuringPress)
     ASSERT_TRUE(MouseDown(root, 250, 250));
     ASSERT_TRUE(TransformComponent(root, "TouchWrapper", "scale", 0));
     ASSERT_FALSE(MouseUp(root, 250, 250));
-    ASSERT_FALSE(root->hasEvent());
+    ASSERT_FALSE(root->hasEvent()); // no 'onPress' event generated
 }
 
 /**
@@ -550,7 +506,7 @@ TEST_F(PointerTest, TransformedDuringPress)
     // Move component away during mouse press
     ASSERT_TRUE(MouseDown(root, 201, 201));
     ASSERT_TRUE(TransformComponent(root, "TouchWrapper", "translateX", 100));
-    ASSERT_TRUE(MouseUp(root, 249, 249)); // no longer a hit due to translation
+    ASSERT_FALSE(MouseUp(root, 249, 249)); // no longer a hit due to translation
     ASSERT_FALSE(root->hasEvent());
 }
 
@@ -602,7 +558,7 @@ TEST_F(PointerTest, PruneTraversal) {
     // Poke the frame to the right of the touch wrapper. This should trigger no event.
     // If the search is incorrectly pruned, the same local coordinates might trigger an event in
     // the touch wrapper since they have the same local coordinates.
-    ASSERT_FALSE(PokeTarget(root, 150, 50));
+    ASSERT_FALSE(MouseClick(root, 150, 50));
     ASSERT_FALSE(root->hasEvent());
 }
 
@@ -635,6 +591,18 @@ static const char *TOUCH_WRAPPER_MOUSE_EVENT =
                   "${event.component.height}",
                   "${event.inBounds}"
                 ]
+              },
+              "onMove": {
+                "type": "SendEvent",
+                "sequencer": "MAIN",
+                "arguments": [
+                  "MouseMove",
+                  "${event.component.x}",
+                  "${event.component.y}",
+                  "${event.component.width}",
+                  "${event.component.height}",
+                  "${event.inBounds}"
+                ]
               }
             }
           ]
@@ -643,15 +611,47 @@ static const char *TOUCH_WRAPPER_MOUSE_EVENT =
     }
 )apl";
 
-TEST_F(PointerTest, TouchWrapperEventProperties) {
+TEST_F(PointerTest, TouchWrapperUpEventProperties) {
     loadDocument(TOUCH_WRAPPER_MOUSE_EVENT);
 
-    ASSERT_TRUE(PokeTarget(root, 60, 40)); // center
+    ASSERT_TRUE(MouseClick(root, 60, 40)); // center
     ASSERT_TRUE(CheckSendEvent(root, "MouseUp", 50, 30, 100, 60, true));
 
     ASSERT_TRUE(MouseDown(root, 60, 40)); // center
-    ASSERT_TRUE(MouseUp(root, 120, 80)); // outside of bounds
+    ASSERT_FALSE(MouseUp(root, 120, 80)); // outside of bounds
     ASSERT_TRUE(CheckSendEvent(root, "MouseUp", 110, 70, 100, 60, false));
+}
+
+TEST_F(PointerTest, TouchWrapperUpEventPropertiesSingularity) {
+    loadDocument(TOUCH_WRAPPER_MOUSE_EVENT);
+
+    ASSERT_TRUE(MouseDown(root, 60, 40)); // center
+    ASSERT_TRUE(TransformComponent(root, "TouchWrapper", "scale", 0));
+    ASSERT_FALSE(MouseUp(root, 60, 40)); // center
+    ASSERT_TRUE(CheckSendEvent(root, "MouseUp", NAN, NAN, 100, 60, false));
+}
+
+TEST_F(PointerTest, TouchWrapperMoveEventProperties) {
+    loadDocument(TOUCH_WRAPPER_MOUSE_EVENT);
+
+    ASSERT_TRUE(MouseDown(root, 60, 40)); // center
+    ASSERT_TRUE(MouseMove(root, 50, 40));
+    ASSERT_TRUE(CheckSendEvent(root, "MouseMove", 40, 30, 100, 60, true));
+    ASSERT_FALSE(root->hasEvent());
+
+    ASSERT_FALSE(MouseMove(root, 410, 410));
+    ASSERT_TRUE(CheckSendEvent(root, "MouseMove", 400, 400, 100, 60, false));
+    ASSERT_FALSE(root->hasEvent());
+}
+
+TEST_F(PointerTest, TouchWrapperMoveEventPropertiesSingularity) {
+    loadDocument(TOUCH_WRAPPER_MOUSE_EVENT);
+
+    ASSERT_TRUE(MouseDown(root, 60, 40)); // center
+    ASSERT_TRUE(TransformComponent(root, "TouchWrapper", "scale", 0));
+    ASSERT_FALSE(MouseMove(root, 50, 40));
+    ASSERT_TRUE(CheckSendEvent(root, "MouseMove", NAN, NAN, 100, 60, false));
+    ASSERT_FALSE(root->hasEvent());
 }
 
 /**
@@ -662,12 +662,15 @@ TEST_F(PointerTest, TransformedTouchWrapperEventProperties) {
     loadDocument(TOUCH_WRAPPER_MOUSE_EVENT);
     ASSERT_TRUE(TransformComponent(root, "TouchWrapper", "scale", 0.5));
 
-    ASSERT_TRUE(PokeTarget(root, 60, 40)); // center
+    ASSERT_TRUE(MouseClick(root, 60, 40)); // center
     ASSERT_TRUE(CheckSendEvent(root, "MouseUp", 50, 30, 100, 60, true));
 
     ASSERT_TRUE(MouseDown(root, 60, 40)); // center
-    ASSERT_TRUE(MouseUp(root, 90, 60)); // outside of bounds after shrinking
+    ASSERT_TRUE(MouseMove(root, 50, 40));
+    ASSERT_TRUE(CheckSendEvent(root, "MouseMove", 30, 30, 100, 60, true));
+    ASSERT_FALSE(MouseUp(root, 90, 60)); // outside of bounds after shrinking
     ASSERT_TRUE(CheckSendEvent(root, "MouseUp", 110, 70, 100, 60, false));
+    ASSERT_FALSE(root->hasEvent());
 }
 
 static const char * VECTOR_GRAPHIC_MOUSE_EVENT =
@@ -727,6 +730,23 @@ static const char * VECTOR_GRAPHIC_MOUSE_EVENT =
               "${event.component.height}",
               "${event.inBounds}"
             ]
+          },
+          "onMove": {
+            "type": "SendEvent",
+            "sequencer": "MAIN",
+            "arguments": [
+              "Move",
+              "${event.viewport.x}",
+              "${event.viewport.y}",
+              "${event.viewport.width}",
+              "${event.viewport.height}",
+              "${event.viewport.inBounds}",
+              "${event.component.x}",
+              "${event.component.y}",
+              "${event.component.width}",
+              "${event.component.height}",
+              "${event.inBounds}"
+            ]
           }
         }
       }
@@ -735,30 +755,43 @@ static const char * VECTOR_GRAPHIC_MOUSE_EVENT =
 TEST_F(PointerTest, VectorGraphicEventProperties) {
     loadDocument(VECTOR_GRAPHIC_MOUSE_EVENT);
 
-    ASSERT_TRUE(PokeTarget(root, 20, 30));
+    ASSERT_TRUE(MouseDown(root, 20, 30));
     ASSERT_TRUE(CheckSendEvent(root, "Down",
                                10, 20, 100, 100, true,
                                20, 30, 220, 80));
+    ASSERT_TRUE(MouseMove(root, 10, 20));
+    ASSERT_TRUE(CheckSendEvent(root, "Move",
+                               0, 10, 100, 100, true,
+                               10, 20, 220, 80, true));
+    ASSERT_TRUE(MouseUp(root, 10, 20));
     ASSERT_TRUE(CheckSendEvent(root, "Up",
-                               10, 20, 100, 100, true,
-                               20, 30, 220, 80, true));
+                               0, 10, 100, 100, true,
+                               10, 20, 220, 80, true));
 
-    // Release outside viewport but within vector graphics
+    // Outside viewport but within vector graphics
     ASSERT_TRUE(MouseDown(root, 20, 30));
+    ASSERT_TRUE(MouseMove(root, 200, 50));
     ASSERT_TRUE(MouseUp(root, 200, 50));
     ASSERT_TRUE(CheckSendEvent(root, "Down",
                                10, 20, 100, 100, true,
                                20, 30, 220, 80));
+    ASSERT_TRUE(CheckSendEvent(root, "Move",
+                               190, 40, 100, 100, false,
+                               200, 50, 220, 80, true));
     ASSERT_TRUE(CheckSendEvent(root, "Up",
                                190, 40, 100, 100, false,
                                200, 50, 220, 80, true));
 
-    // Release outside vector graphics
+    // Outside vector graphics
     ASSERT_TRUE(MouseDown(root, 20, 30));
-    ASSERT_TRUE(MouseUp(root, 230, 90));
+    ASSERT_FALSE(MouseMove(root, 230, 90));
+    ASSERT_FALSE(MouseUp(root, 230, 90));
     ASSERT_TRUE(CheckSendEvent(root, "Down",
                                10, 20, 100, 100, true,
                                20, 30, 220, 80));
+    ASSERT_TRUE(CheckSendEvent(root, "Move",
+                               220, 80, 100, 100, false,
+                               230, 90, 220, 80, false));
     ASSERT_TRUE(CheckSendEvent(root, "Up",
                                220, 80, 100, 100, false,
                                230, 90, 220, 80, false));
@@ -772,7 +805,7 @@ TEST_F(PointerTest, TransformedVectorGraphicEventProperties) {
     loadDocument(VECTOR_GRAPHIC_MOUSE_EVENT);
     ASSERT_TRUE(TransformComponent(root, "vg", "scale", 0.5));
 
-    ASSERT_TRUE(PokeTarget(root, 110, 40)); // center
+    ASSERT_TRUE(MouseClick(root, 110, 40)); // center
     ASSERT_TRUE(CheckSendEvent(root, "Down",
                                100, 30, 100, 100, true,
                                110, 40, 220, 80));
@@ -804,7 +837,7 @@ TEST_F(PointerTest, TransformedVectorGraphicEventProperties) {
 
     // Release outside vector graphics
     ASSERT_TRUE(MouseDown(root, 110, 40));
-    ASSERT_TRUE(MouseUp(root, 170, 70));
+    ASSERT_FALSE(MouseUp(root, 170, 70));
     EXPECT_TRUE(CheckSendEvent(root, "Down",
                                100, 30, 100, 100, true,
                                110, 40, 220, 80));
@@ -822,4 +855,233 @@ TEST_F(PointerTest, TransformedVectorGraphicEventProperties) {
                                 * |0 0    1|
                                 */
                                230, 100, 220, 80, false));
+}
+
+TEST_F(PointerTest, VectorGraphicSingularity) {
+    loadDocument(VECTOR_GRAPHIC_MOUSE_EVENT);
+
+    ASSERT_TRUE(MouseDown(root, 20, 30));
+    ASSERT_TRUE(CheckSendEvent(root, "Down",
+                               10, 20, 100, 100, true,
+                               20, 30, 220, 80));
+    TransformComponent(root, "vg", "scale", 0);
+    ASSERT_FALSE(MouseMove(root, 10, 20));
+    ASSERT_TRUE(CheckSendEvent(root, "Move",
+                               NAN, NAN, 100, 100, false,
+                               NAN, NAN, 220, 80, false));
+    ASSERT_FALSE(MouseUp(root, 10, 20));
+    ASSERT_TRUE(CheckSendEvent(root, "Up",
+                               NAN, NAN, 100, 100, false,
+                               NAN, NAN, 220, 80, false));
+}
+
+static const char *DYNAMIC_SEQUENCE = R"({
+  "type": "APL",
+  "version": "1.4",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Sequence",
+        "width": "100%",
+        "height": 500,
+        "alignItems": "center",
+        "justifyContent": "spaceAround",
+        "data": "${TestArray}",
+        "items": [
+          {
+            "type": "TouchWrapper",
+            "width": 200,
+            "item": {
+              "type": "Frame",
+              "backgroundColor": "blue",
+              "height": 100,
+              "items": {
+                "type": "Text",
+                "text": "${data}",
+                "fontSize": 60
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+TEST_F(PointerTest, TouchEmptySequence)
+{
+    auto myArray = LiveArray::create(ObjectArray{});
+    config.liveData("TestArray", myArray);
+
+    loadDocument(DYNAMIC_SEQUENCE);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(0, component->getChildCount());
+
+    ASSERT_FALSE(MouseDown(root, 200, 1));
+    ASSERT_FALSE(MouseUp(root, 200, 1));
+}
+
+TEST_F(PointerTest, TouchEmptiedSequence)
+{
+    auto myArray = LiveArray::create(ObjectArray{1, 2, 3, 4, 5});
+    config.liveData("TestArray", myArray);
+
+    loadDocument(DYNAMIC_SEQUENCE);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(5, component->getChildCount());
+
+    ASSERT_TRUE(MouseDown(root, 200, 1));
+    ASSERT_TRUE(MouseUp(root, 200, 1));
+
+    myArray->clear();
+
+    root->clearPending();
+
+    ASSERT_EQ(0, component->getChildCount());
+
+    ASSERT_FALSE(MouseDown(root, 200, 1));
+    ASSERT_FALSE(MouseUp(root, 200, 1));
+}
+
+static const char *DYNAMIC_PAGER = R"({
+  "type": "APL",
+  "version": "1.4",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Pager",
+        "width": "100%",
+        "height": 500,
+        "alignItems": "center",
+        "justifyContent": "spaceAround",
+        "data": "${TestArray}",
+        "items": [
+          {
+            "type": "TouchWrapper",
+            "item": {
+              "type": "Frame",
+              "backgroundColor": "blue",
+              "items": {
+                "type": "Text",
+                "text": "${data}",
+                "fontSize": 60
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+TEST_F(PointerTest, TouchEmptyPager)
+{
+    auto myArray = LiveArray::create(ObjectArray{});
+    config.liveData("TestArray", myArray);
+
+    loadDocument(DYNAMIC_PAGER);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(0, component->getChildCount());
+
+    ASSERT_FALSE(MouseDown(root, 200, 1));
+    ASSERT_FALSE(MouseUp(root, 200, 1));
+}
+
+TEST_F(PointerTest, TouchEmptiedPager)
+{
+    auto myArray = LiveArray::create(ObjectArray{1, 2, 3, 4, 5});
+    config.liveData("TestArray", myArray);
+
+    loadDocument(DYNAMIC_PAGER);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(5, component->getChildCount());
+
+    ASSERT_TRUE(MouseDown(root, 200, 1));
+    ASSERT_TRUE(MouseUp(root, 200, 1));
+
+    myArray->clear();
+
+    root->clearPending();
+
+    ASSERT_EQ(0, component->getChildCount());
+
+    ASSERT_FALSE(MouseDown(root, 200, 1));
+    ASSERT_FALSE(MouseUp(root, 200, 1));
+}
+
+static const char *DYNAMIC_CCONTAINER = R"({
+  "type": "APL",
+  "version": "1.4",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Container",
+        "width": "100%",
+        "height": 500,
+        "alignItems": "center",
+        "justifyContent": "spaceAround",
+        "data": "${TestArray}",
+        "items": [
+          {
+            "type": "TouchWrapper",
+            "width": "100%",
+            "height": 500,
+            "item": {
+              "type": "Frame",
+              "backgroundColor": "blue",
+              "items": {
+                "type": "Text",
+                "text": "${data}",
+                "fontSize": 60
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+TEST_F(PointerTest, TouchEmptyContainer)
+{
+    auto myArray = LiveArray::create(ObjectArray{});
+    config.liveData("TestArray", myArray);
+
+    loadDocument(DYNAMIC_CCONTAINER);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(0, component->getChildCount());
+
+    ASSERT_FALSE(MouseDown(root, 200, 1));
+    ASSERT_FALSE(MouseUp(root, 200, 1));
+}
+
+TEST_F(PointerTest, TouchEmptiedContainer)
+{
+    auto myArray = LiveArray::create(ObjectArray{1, 2, 3, 4, 5});
+    config.liveData("TestArray", myArray);
+
+    loadDocument(DYNAMIC_CCONTAINER);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(5, component->getChildCount());
+
+    ASSERT_TRUE(MouseDown(root, 200, 1));
+    ASSERT_TRUE(MouseUp(root, 200, 1));
+
+    myArray->clear();
+
+    root->clearPending();
+
+    ASSERT_EQ(0, component->getChildCount());
+
+    ASSERT_FALSE(MouseDown(root, 200, 1));
+    ASSERT_FALSE(MouseUp(root, 200, 1));
 }

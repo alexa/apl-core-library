@@ -21,6 +21,7 @@
 #include "apl/engine/event.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/session.h"
+#include "apl/livedata/livedataobjectwatcher.h"
 
 namespace apl {
 
@@ -93,7 +94,9 @@ public:
 /**
  * Extension processing client. Refer to unittest_extension.client.cpp for suggested lifecycle.
  */
-class ExtensionClient : private Counter<ExtensionClient> {
+class ExtensionClient : public Counter<ExtensionClient>,
+                        public LiveDataObjectWatcher,
+                        public std::enable_shared_from_this<ExtensionClient> {
 public:
     /**
      * @param rootConfig rootConfig pointer.
@@ -108,12 +111,37 @@ public:
     ExtensionClient(const RootConfigPtr& rootConfig, const std::string& connectionToken);
 
     /**
+     * Destructor
+     */
+    ~ExtensionClient();
+
+    /**
      * Form a registration request for current extension.
      * @param allocator JSON allocator.
      * @param content APL content that has appropriate extension settings.
      * @return JSON representing registration request.
      */
     rapidjson::Value createRegistrationRequest(rapidjson::Document::AllocatorType& allocator, Content& content);
+
+    /**
+     * Form a registration request for an extension. Static utility method that could be used outside of connection context.
+     * @param allocator JSON allocator.
+     * @param uri extension URI.
+     * @param settings Settings object to use.
+     * @return JSON representing registration request.
+     */
+    static rapidjson::Value createRegistrationRequest(rapidjson::Document::AllocatorType& allocator,
+            const std::string& uri, const Object& settings);
+
+    /**
+     * @return True if RegisterSuccess or RegisterFailure was processed. False otherwise.
+     */
+    bool registrationMessageProcessed();
+
+    /**
+     * @return True if extension was sucessfully registered. False otherwise.
+     */
+    bool registered();
 
     /**
      * Process service message directed to this extension.
@@ -131,6 +159,10 @@ public:
      */
     rapidjson::Value processCommand(rapidjson::Document::AllocatorType& allocator, const Event& event);
 
+protected:
+    /// LiveDataObjectWatcher methods
+    void liveDataObjectFlushed(const std::string& key, LiveDataObject& liveDataObject) override;
+
 private:
     // Parse an extension from json
     bool readExtension(const Context& context, const Object& extension);
@@ -140,18 +172,24 @@ private:
     bool readExtensionLiveData(const Context& context, const Object& liveData);
 
     bool processRegistrationResponse(const Context& context, const Object& connectionResponse);
-    bool processEvent(const RootContextPtr& rootContext, const Object& event);
-    bool processCommandResponse(const RootContextPtr& rootContext, const Object& response);
-    bool processLiveDataUpdate(const RootContextPtr& rootContext, const Object& update);
+    bool processEvent(const Context& context, const Object& event);
+    bool processCommandResponse(const Context& context, const Object& response);
+    bool processLiveDataUpdate(const Context& context, const Object& update);
 
-    std::string updateLiveMap(ExtensionLiveDataUpdateType type, LiveDataRef dataRef, const Object& operation);
-    std::string updateLiveArray(ExtensionLiveDataUpdateType type, LiveDataRef dataRef, const Object& operation);
+    bool updateLiveMap(ExtensionLiveDataUpdateType type, LiveDataRef dataRef, const Object& operation);
+    bool updateLiveArray(ExtensionLiveDataUpdateType type, LiveDataRef dataRef, const Object& operation);
+    void reportLiveMapChanges(const RootContextPtr& rootContext, const LiveDataRef& ref, LiveDataObject& liveDataObject);
+    void reportLiveArrayChanges(const RootContextPtr& rootContext, const LiveDataRef& ref, LiveDataObject& liveDataObject);
+
+    void sendLiveDataEvent(const RootContextPtr& rootContext, const std::string& event,
+            const Object& current, const Object& changed);
 
     std::map<std::string, bool> readPropertyTriggers(const Context& context, const TypePropertiesPtr& type, const Object& triggers);
 
     static id_type sCommandIdGenerator;
 
-    bool mInitialized;
+    bool mRegistrationProcessed;
+    bool mRegistered;
     std::string mUri;
     RootConfigPtr mRootConfig;
     SessionPtr mSession;
@@ -160,11 +198,7 @@ private:
     std::map<id_type, ActionRef> mActionRefs;
     std::map<std::string, TypePropertiesPtr> mTypes;
     std::map<std::string, bool> mEventModes;
-
-#ifdef DEBUG_MEMORY_USE
-    public:
-        using Counter<ExtensionClient>::itemsDelta;
-#endif
+    std::weak_ptr<RootContext> mCachedContext;
 };
 
 } // namespace apl

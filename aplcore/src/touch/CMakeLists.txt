@@ -17,5 +17,11 @@ target_sources_local(apl
     gesture.cpp
     gestures/doublepressgesture.cpp
     gestures/longpressgesture.cpp
+    gestures/pagerflinggesture.cpp
+    gestures/scrollgesture.cpp
     gestures/swipeawaygesture.cpp
+    utils/autoscroller.cpp
+    utils/pagemovehandler.cpp
+    utils/unidirectionaleasingscroller.cpp
+    utils/velocitytracker.cpp
 )

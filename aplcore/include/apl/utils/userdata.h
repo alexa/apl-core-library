@@ -17,6 +17,7 @@
 #define _APL_USERDATA_H
 
 #include <functional>
+#include "apl/apl_config.h"
 
 namespace apl{
 
@@ -27,21 +28,27 @@ namespace apl{
 template<class Base>
 class UserData {
 public:
+#ifdef USER_DATA_RELEASE_CALLBACKS
     using ReleaseCallback = std::function<void(void*)>;
+#endif
 
     virtual ~UserData() {
+#ifdef USER_DATA_RELEASE_CALLBACKS
         if (sReleaseCallback)
             sReleaseCallback(mUserData);
+#endif
     }
 
+#ifdef USER_DATA_RELEASE_CALLBACKS
     /**
      * Assign a class-specific callback to be executed in the destructor of an object of this class.
      * The user data pointer is passed in the release callback.
      * @param callback The release function to be executed at object destruction.
      */
-    static void setUserDataReleaseCallback(ReleaseCallback callback ) {
+    static void setUserDataReleaseCallback(ReleaseCallback callback) {
         sReleaseCallback = std::move(callback);
     }
+#endif
 
     /**
      * Store user data with this object. It is the responsibility
@@ -69,11 +76,17 @@ public:
 
 private:
     void* mUserData = nullptr;
+
+#ifdef USER_DATA_RELEASE_CALLBACKS
     static ReleaseCallback sReleaseCallback;
+#endif
+
 };
 
-template<class Base>
-typename UserData<Base>::ReleaseCallback UserData<Base>::sReleaseCallback = nullptr;
+#ifdef USER_DATA_RELEASE_CALLBACKS
+    template<class Base>
+    typename UserData<Base>::ReleaseCallback UserData<Base>::sReleaseCallback = nullptr;
+#endif
 
 }
 #endif //APL_USERDATA_H

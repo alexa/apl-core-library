@@ -31,16 +31,11 @@ class VectorGraphicComponent;
  * internally.
  */
 class Graphic : public std::enable_shared_from_this<Graphic>,
-                private Counter<Graphic>,
+                public Counter<Graphic>,
                 public UserData<Graphic> {
     friend class GraphicElement;
     friend class GraphicDependant;
     friend class VectorGraphicComponent;
-
-#ifdef DEBUG_MEMORY_USE
-public:
-    using Counter<Graphic>::itemsDelta;
-#endif
 
 public:
     /**
@@ -73,7 +68,7 @@ public:
     /**
      * Internal constructor.  Use Graphic:create instead
      */
-    Graphic(const ContextPtr& context, const rapidjson::Value& json);
+    Graphic(const ContextPtr& context, const rapidjson::Value& json, GraphicVersions version);
 
     /**
      * @return True if this graphic was successfully inflated and has content.
@@ -106,6 +101,11 @@ public:
      * @return The height of the viewport drawing area
      */
     double getViewportHeight() const;
+
+    /**
+     * @return The version of the current graphic as an enumerated value
+     */
+    GraphicVersions getVersion() const { return mVersion; }
 
     /**
      * Inform the graphic of the actual assigned width and height (in DP).  This may cause internal
@@ -164,9 +164,13 @@ private:
     }
 
     /**
-     * Clear the component assignment
+     * Release any held resources.
      */
-    void clearComponent() {
+    void release() {
+        // Aggressively clearing it out to avoid problems when runtime holds to GraphicElement
+        // longer than required.
+        clearDirty();
+        mRootElement->release();
         mComponent.reset();
     }
 
@@ -180,10 +184,12 @@ private:
     void addDirtyChild(const GraphicElementPtr& child);
 
     ContextPtr                   mInternalContext;
+    ParameterArray               mParameterArray;
+    GraphicVersions              mVersion;
+
     GraphicElementPtr            mRootElement;
     GraphicDirtyChildren         mDirty;
     std::set<std::string>        mAssigned;        // Track which parameters have been assigned.  The remainder are styled.
-    ParameterArray               mParameterArray;
 
     std::weak_ptr<CoreComponent> mComponent;
     std::shared_ptr<Styles>      mStyles;

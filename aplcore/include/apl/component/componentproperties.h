@@ -138,7 +138,7 @@ enum Position {
 };
 
 /**
- * Scrolling direction for a SequenceComponent
+ * Scrolling direction for a SequenceComponent or PagerComponent
  */
 enum ScrollDirection {
     kScrollDirectionVertical = 0,
@@ -207,13 +207,16 @@ enum Display {
 };
 
 /**
- * Snapping location for children of a Sequence
+ * Snapping mode for children of a Sequence
  */
 enum Snap {
     kSnapNone = 0,
     kSnapStart = 1,
     kSnapCenter = 2,
-    kSnapEnd = 3
+    kSnapEnd = 3,
+    kSnapForceStart = 4,
+    kSnapForceCenter = 5,
+    kSnapForceEnd = 6
 };
 
 /**
@@ -236,10 +239,54 @@ enum SubmitKeyType {
     kSubmitKeyTypeSend = 4
 };
 
+enum Role {
+    kRoleNone,
+    kRoleAdjustable,
+    kRoleAlert,
+    kRoleButton,
+    kRoleCheckBox,
+    kRoleComboBox,
+    kRoleHeader,
+    kRoleImage,
+    kRoleImageButton,
+    kRoleKeyboardKey,
+    kRoleLink,
+    kRoleList,
+    kRoleListItem,
+    kRoleMenu,
+    kRoleMenuBar,
+    kRoleMenuItem,
+    kRoleProgressBar,
+    kRoleRadio,
+    kRoleRadioGroup,
+    kRoleScrollBar,
+    kRoleSearch,
+    kRoleSpinButton,
+    kRoleSummary,
+    kRoleSwitch,
+    kRoleTab,
+    kRoleTabList,
+    kRoleText,
+    kRoleTimer,
+    kRoleToolBar
+};
+
+/**
+ * Indicates the direction of the swipe motion.
+ */
+enum SwipeDirection {
+    kSwipeDirectionUp,
+    kSwipeDirectionLeft,
+    kSwipeDirectionDown,
+    kSwipeDirectionRight
+};
+
 enum PropertyKey {
     // NOTE: ScrollDirection is placed early in the list so that it loads BEFORE height and width (see SequenceComponent.cpp)
     /// SequenceComponent scrolling direction (see #ScrollDirection)
     kPropertyScrollDirection,
+    /// An array of accessibility actions associated with this component
+    kPropertyAccessibilityActions,
     /// Component accessibility label
     kPropertyAccessibilityLabel,
     /// ImageComponent and VectorGraphicComponent alignment (see #ImageAlign, #VectorGraphicAlign)
@@ -336,7 +383,7 @@ enum PropertyKey {
     kPropertyGrow,
     /// Handlers to check on key down events.
     kPropertyHandleKeyDown,
-    // Handlers to check on key up events.
+    /// Handlers to check on key up events.
     kPropertyHandleKeyUp,
     /// Component height
     kPropertyHeight,
@@ -394,6 +441,8 @@ enum PropertyKey {
     kPropertyOnMount,
     /// TouchableComponent handler for move
     kPropertyOnMove,
+    /// PagerComponent handler for the page change animation
+    kPropertyHandlePageMove,
     /// PagerComponent handler for when the page changes
     kPropertyOnPageChanged,
     /// VideoComponent handler for video pause
@@ -428,10 +477,14 @@ enum PropertyKey {
     kPropertyPaddingRight,
     /// Component top padding
     kPropertyPaddingTop,
+    /// Pager page direction
+    kPropertyPageDirection,
     /// ContainerComponent child absolute or relative position (see #Position)
     kPropertyPosition,
     /// ContainerComponent child absolute right position
     kPropertyRight,
+    /// Component accessibility role
+    kPropertyRole,
     /// ImageComponent, VideoComponent, and VectorGraphicComponent scale property (see #ImageScale, #VectorGraphicScale, #VideoScale)
     kPropertyScale,
     /// Scroll position of the Scrollable component.
@@ -505,6 +558,8 @@ enum PropertyKey {
     kPropertyValidCharacters,
     /// Flexbox wrap
     kPropertyWrap,
+    /// Z-order of a component relative to its parent
+    kPropertyZOrder,
 };
 
 // Be careful adding new items to this list or changing the order of the list.
@@ -556,6 +611,8 @@ extern Bimap<int, std::string> sComponentPropertyBimap;
 extern Bimap<int, std::string> sComponentTypeBimap;
 extern Bimap<int, std::string> sDisplayMap;
 extern Bimap<int, std::string> sSnapMap;
+extern Bimap<int, std::string> sRoleMap;
+extern Bimap<int, std::string> sSwipeDirectionMap;
 
 }  // namespace apl
 

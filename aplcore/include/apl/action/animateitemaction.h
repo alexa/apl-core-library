@@ -52,7 +52,7 @@ private:
     const int mRepeatCount;
     const int mRepeatMode;
     const bool mFastMode;
-    std::shared_ptr<Easing> mEasing;
+    EasingPtr mEasing;
 };
 
 

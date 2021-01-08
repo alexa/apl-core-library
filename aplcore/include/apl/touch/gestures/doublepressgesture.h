@@ -29,18 +29,17 @@ namespace apl {
  */
 class DoublePressGesture : public std::enable_shared_from_this<DoublePressGesture>, public Gesture {
 public:
-    static std::shared_ptr<DoublePressGesture> create(const TouchablePtr& touchable, const Context& context, const Object& object);
+    static std::shared_ptr<DoublePressGesture> create(const ActionablePtr& actionable, const Context& context, const Object& object);
 
-    DoublePressGesture(const TouchablePtr& touchable, Object&& onDoublePress, Object&& onSinglePress);
+    DoublePressGesture(const ActionablePtr& actionable, Object&& onDoublePress, Object&& onSinglePress);
 
     virtual ~DoublePressGesture() = default;
 
     void reset() override;
-
-    GestureType getType() const override { return kGestureTypeDoublePress; };
+    bool invokeAccessibilityAction(const std::string& name) override;
 
 protected:
-    void onMove(const PointerEvent& event, apl_time_t timestamp) override;
+    void onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) override;
     void onDown(const PointerEvent& event, apl_time_t timestamp) override;
     void onUp(const PointerEvent& event, apl_time_t timestamp) override;
 

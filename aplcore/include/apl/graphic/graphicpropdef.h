@@ -16,6 +16,8 @@
 #ifndef _APL_GRAPHIC_PROP_DEF_H
 #define _APL_GRAPHIC_PROP_DEF_H
 
+#include "apl/engine/propdef.h"
+
 namespace apl {
 
 using Trigger = void (*)(GraphicElement &);

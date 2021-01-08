@@ -86,7 +86,7 @@ binarySearchCubic(const float a[], float x) {
     return 0;
 }
 
-std::shared_ptr<Easing>
+EasingPtr
 CoreEasing::bezier(float a, float b, float c, float d) noexcept
 {
     return create(
@@ -96,7 +96,7 @@ CoreEasing::bezier(float a, float b, float c, float d) noexcept
             "," + std::to_string(d) + ")");
 }
 
-std::shared_ptr<Easing>
+EasingPtr
 CoreEasing::linear() noexcept
 {
     return create(
@@ -104,7 +104,7 @@ CoreEasing::linear() noexcept
         std::vector<float>{0, 0, 1, 1}, "path()");
 }
 
-std::shared_ptr<Easing>
+EasingPtr
 CoreEasing::create(std::vector<EasingSegment>&& segments, std::vector<float>&& points,
                    std::string debugString)
 {

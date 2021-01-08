@@ -16,6 +16,7 @@
 #include "apl/action/scrolltoaction.h"
 #include "apl/command/corecommand.h"
 #include "apl/time/sequencer.h"
+#include "apl/component/pagercomponent.h"
 
 namespace apl {
 
@@ -27,13 +28,12 @@ ScrollToAction::ScrollToAction(const TimersPtr& timers,
                                const ContextPtr& context,
                                bool scrollToSubBounds,
                                const ComponentPtr& target,
-                               const ComponentPtr& scrollableParent)
-        : ResourceHoldingAction(timers, context),
+                               const CoreComponentPtr& scrollableParent)
+        : AnimatedScrollAction(timers, context, scrollableParent),
           mAlign(align),
           mSubBounds(subBounds),
           mScrollToSubBounds(scrollToSubBounds),
-          mTarget(target),
-          mScrollableParent(scrollableParent)
+          mTarget(target)
 {}
 
 std::shared_ptr<ScrollToAction>
@@ -88,7 +88,8 @@ ScrollToAction::make(const TimersPtr& timers,
     if (!container)
         return nullptr;
 
-    auto ptr = std::make_shared<ScrollToAction>(timers, align, subBounds, context, scrollToSubBounds, target, container);
+    auto ptr = std::make_shared<ScrollToAction>(timers, align, subBounds, context, scrollToSubBounds, target,
+            std::dynamic_pointer_cast<CoreComponent>(container));
 
     context->sequencer().claimResource({kCommandResourcePosition, container}, ptr);
 
@@ -101,30 +102,31 @@ ScrollToAction::start() {
     // Find a scrollable or page-able parent
     mTarget->ensureLayout(true);
 
-    switch (mScrollableParent->scrollType()) {
+    switch (mContainer->scrollType()) {
         case kScrollTypeNone:
             resolve();
             break;
 
         case kScrollTypeVertical:
         case kScrollTypeHorizontal:
-            scrollTo(mScrollableParent);
+            scrollTo();
             break;
 
+        case kScrollTypeVerticalPager:
         case kScrollTypeHorizontalPager:
-            pageTo(mScrollableParent);
+            pageTo();
             break;
     }
 }
 
 void
-ScrollToAction::scrollTo(const std::shared_ptr<apl::Component>& scrollable)
+ScrollToAction::scrollTo()
 {
     LOG_IF(DEBUG_SCROLL_TO) << "Constructing scroll to action";
 
     // Calculate how far we need to scroll
     Rect childBoundsInParent;
-    if (!mTarget->getBoundsInParent(scrollable, childBoundsInParent)) {
+    if (!mTarget->getBoundsInParent(mContainer, childBoundsInParent)) {
         resolve();
         return;
     }
@@ -139,8 +141,8 @@ ScrollToAction::scrollTo(const std::shared_ptr<apl::Component>& scrollable)
                 mSubBounds.getHeight());
     }
 
-    Rect parentInnerBounds = scrollable->getCalculated(kPropertyInnerBounds).getRect();
-    bool vertical = (scrollable->scrollType() == kScrollTypeVertical);
+    Rect parentInnerBounds = mContainer->getCalculated(kPropertyInnerBounds).getRect();
+    bool vertical = (mContainer->scrollType() == kScrollTypeVertical);
 
     float parentStart, parentEnd;
     float childStart, childEnd;
@@ -151,13 +153,13 @@ ScrollToAction::scrollTo(const std::shared_ptr<apl::Component>& scrollable)
         parentEnd = parentInnerBounds.getBottom();
         childStart = childBoundsInParent.getTop();
         childEnd = childBoundsInParent.getBottom();
-        scrollTo = scrollable->scrollPosition().getY();
+        scrollTo = mContainer->scrollPosition().getY();
     } else {
         parentStart = parentInnerBounds.getLeft();
         parentEnd = parentInnerBounds.getRight();
         childStart = childBoundsInParent.getLeft();
         childEnd = childBoundsInParent.getRight();
-        scrollTo = scrollable->scrollPosition().getX();
+        scrollTo = mContainer->scrollPosition().getX();
     }
 
     LOG_IF(DEBUG_SCROLL_TO) << "parent start=" << parentStart << " end=" << parentEnd;
@@ -186,33 +188,28 @@ ScrollToAction::scrollTo(const std::shared_ptr<apl::Component>& scrollable)
     }
 
     // Calculate the new position by trimming the old position plus the distance
-    auto p = scrollable->trimScroll(Point(scrollTo, scrollTo));
+    auto p = mContainer->trimScroll(Point(scrollTo, scrollTo));
 
     LOG_IF(DEBUG_SCROLL_TO) << "...distance=" << scrollTo << " position=" << p;
 
-    // Copy properties into the command bag
-    EventBag bag;
-    bag.emplace(kEventPropertyPosition, Dimension(vertical ? p.getY() : p.getX()));
-
-    auto self = shared_from_this();
-    mContext->pushEvent(Event(kEventTypeScrollTo, std::move(bag), scrollable, self));
+    scroll(vertical, p);
 }
 
 void
-ScrollToAction::pageTo(const std::shared_ptr<apl::Component>& pager)
+ScrollToAction::pageTo()
 {
-    LOG_IF(DEBUG_SCROLL_TO) << pager;
+    LOG_IF(DEBUG_SCROLL_TO) << mContainer;
 
     // We have a target component to show and a pager component that (eventually) holds the target.
     // First, we need to figure out which page the target component is on.  This requires finding
     // the component WITHIN the pager that is either the target or the ancestor of the target.
     auto component = mTarget;
-    while (component->getParent() != pager)
+    while (component->getParent() != mContainer)
         component = component->getParent();
 
     int targetPage = -1;
-    for (int i = 0 ; i < pager->getChildCount() ; i++) {
-        if (pager->getChildAt(i) == component) {
+    for (int i = 0 ; i < mContainer->getChildCount() ; i++) {
+        if (mContainer->getChildAt(i) == component) {
             targetPage = i;
             break;
         }
@@ -225,7 +222,7 @@ ScrollToAction::pageTo(const std::shared_ptr<apl::Component>& pager)
     }
 
     // Check if we're already on the correct page
-    int currentPage = pager->pagePosition();
+    int currentPage = mContainer->pagePosition();
     if (targetPage == currentPage) {
         resolve();
         return;
@@ -233,13 +230,8 @@ ScrollToAction::pageTo(const std::shared_ptr<apl::Component>& pager)
 
     // We assume we were invoked from a ScrollToComponent/Index command.  We use absolute
     // positioning.
-    EventBag bag;
-    bag.emplace(kEventPropertyPosition, targetPage);
-    bag.emplace(kEventPropertyDirection,
-        targetPage < currentPage ? kEventDirectionBackward : kEventDirectionForward);
-
-    auto self = shared_from_this();
-    mContext->pushEvent(Event(kEventTypeSetPage, std::move(bag), pager, self));
+    PagerComponent::setPageUtil(mContext, mContainer, targetPage,
+            targetPage < currentPage ? kPageDirectionBack : kPageDirectionForward, shared_from_this());
 }
 
 } // namespace apl

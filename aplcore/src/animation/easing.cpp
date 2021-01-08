@@ -39,7 +39,7 @@ static WeakCache<Easing> sEasingCache = {
 
 static bool sEasingCacheDirty = false;  // Mark the cache as dirty when an easing curve is deleted
 
-std::shared_ptr<Easing>
+EasingPtr
 Easing::parse(const SessionPtr& session, const std::string& easing)
 {
     // First, remove all of the spaces from the string.  This helps with caching and simplifies the grammar
@@ -79,7 +79,7 @@ Easing::parse(const SessionPtr& session, const std::string& easing)
     return Easing::linear();
 }
 
-std::shared_ptr<Easing>
+EasingPtr
 Easing::linear() {
     return sLinear;
 }

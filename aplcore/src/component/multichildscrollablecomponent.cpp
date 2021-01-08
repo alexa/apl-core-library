@@ -41,7 +41,7 @@ MultiChildScrollableComponent::propDefSet() const
             {kPropertyHeight,           Dimension(),              asDimension,          kPropIn,    yn::setHeight, defaultSequenceHeight},
             {kPropertyWidth,            Dimension(),              asDimension,          kPropIn,    yn::setWidth,  defaultSequenceWidth},
             {kPropertySnap,             kSnapNone,                sSnapMap,             kPropInOut | kPropStyled },
-            {kPropertyNumbered,         false,                    asBoolean,            kPropIn},
+            {kPropertyNumbered,         false,                    asBoolean,            kPropIn | kPropVisualContext},
             {kPropertyOnScroll,         Object::EMPTY_ARRAY(),    asCommand,            kPropIn}
     });
 
@@ -81,38 +81,54 @@ MultiChildScrollableComponent::allowBackwards() const {
 void
 MultiChildScrollableComponent::update(UpdateType type, float value) {
     ScrollableComponent::update(type, value);
+
     if (type == kUpdateScrollPosition) {
         // Force figuring out what is on screen.
         processLayoutChanges(true);
-        updateChildrenVisibility();
     }
 }
 
 void
-MultiChildScrollableComponent::updateChildrenVisibility() {
+MultiChildScrollableComponent::ensureChildrenVisibilityUpdated()
+{
+    if(!mChildrenVisibilityStale)
+        return;
+
     // We don't always go from parent to child here (update case) so calculate opacity and visible rect recursively.
     auto visibleIndexes = getChildrenVisibility(calculateRealOpacity(), calculateVisibleRect());
-    if(!visibleIndexes.empty()) {
+    if (!visibleIndexes.empty()) {
         mFirstChildInView = visibleIndexes.begin()->first;
         mLastChildInView = visibleIndexes.rbegin()->first;
 
         mIndexesSeen.expandTo(mFirstChildInView);
         mIndexesSeen.expandTo(mLastChildInView);
 
-        auto firstFullyVisibleItr = std::find_if(visibleIndexes.begin(),  visibleIndexes.end(),
-                                         [](const std::pair<int, float>& item) { return item.second == 1.0; });
+        auto firstFullyVisibleItr = std::find_if(visibleIndexes.begin(), visibleIndexes.end(),
+                                                 [](const std::pair<int, float> &item) { return item.second == 1.0; });
         mFirstChildFullyInView = firstFullyVisibleItr != visibleIndexes.end() ? firstFullyVisibleItr->first : -1;
 
-        auto lastFullyVisibleItr = std::find_if(visibleIndexes.rbegin(),  visibleIndexes.rend(),
-                                         [](const std::pair<int, float>& item) { return item.second == 1.0; });
+        auto lastFullyVisibleItr = std::find_if(visibleIndexes.rbegin(), visibleIndexes.rend(),
+                                                [](const std::pair<int, float> &item) { return item.second == 1.0; });
         mLastChildFullyInView = lastFullyVisibleItr != visibleIndexes.rend() ? lastFullyVisibleItr->first : -1;
-    }
-    else {
+    } else {
         // reset all properties
         mFirstChildInView = -1;
         mFirstChildFullyInView = -1;
         mLastChildFullyInView = -1;
         mLastChildInView = -1;
+    }
+
+    // reset property changed flag to prevent recalculation
+    mChildrenVisibilityStale = false;
+}
+
+void
+MultiChildScrollableComponent::handlePropertyChange(const ComponentPropDef& def, const Object& value)
+{
+    CoreComponent::handlePropertyChange(def, value);
+
+    if (def.key == kPropertyOpacity || def.key == kPropertyDisplay) {
+        mChildrenVisibilityStale = true;
     }
 }
 
@@ -121,10 +137,14 @@ MultiChildScrollableComponent::accept(Visitor<CoreComponent>& visitor) const
 {
     visitor.visit(*this);
     visitor.push();
-    for (int i = mEnsuredChildren.lowerBound(); i <= mEnsuredChildren.upperBound() && !visitor.isAborted(); i++) {
-        auto child = std::dynamic_pointer_cast<CoreComponent>(mChildren.at(i));
-        if (child != nullptr && child->isAttached() && !child->getCalculated(kPropertyBounds).getRect().isEmpty())
-            child->accept(visitor);
+    if (!mEnsuredChildren.empty()) {
+        for (int i = mEnsuredChildren.lowerBound();
+             i <= mEnsuredChildren.upperBound() && !visitor.isAborted(); i++) {
+            auto child = std::dynamic_pointer_cast<CoreComponent>(mChildren.at(i));
+            if (child != nullptr && child->isAttached() &&
+                !child->getCalculated(kPropertyBounds).getRect().isEmpty())
+                child->accept(visitor);
+        }
     }
     visitor.pop();
 }
@@ -134,10 +154,14 @@ MultiChildScrollableComponent::raccept(Visitor<CoreComponent>& visitor) const
 {
     visitor.visit(*this);
     visitor.push();
-    for (int i = mEnsuredChildren.upperBound(); i >= mEnsuredChildren.lowerBound() && !visitor.isAborted(); i--) {
-        auto child = std::dynamic_pointer_cast<CoreComponent>(mChildren.at(i));
-        if (child != nullptr && child->isAttached() && !child->getCalculated(kPropertyBounds).getRect().isEmpty())
-            child->raccept(visitor);
+    if (!mEnsuredChildren.empty()) {
+        for (int i = mEnsuredChildren.upperBound();
+             i >= mEnsuredChildren.lowerBound() && !visitor.isAborted(); i--) {
+            auto child = std::dynamic_pointer_cast<CoreComponent>(mChildren.at(i));
+            if (child != nullptr && child->isAttached() &&
+                !child->getCalculated(kPropertyBounds).getRect().isEmpty())
+                child->raccept(visitor);
+        }
     }
     visitor.pop();
 }
@@ -194,14 +218,10 @@ MultiChildScrollableComponent::eventPropertyMap() const
     static EventPropertyMap sMultiScrollEventProperties = eventPropertyMerge(
         ScrollableComponent::eventPropertyMap(),
         {
-            /*
-             * These properties are available as an alpha feature. See README.md for more details
-             * on alpha features.
-             */
-            {"firstVisibleChild", [](const CoreComponent* c) {return static_cast<const MultiChildScrollableComponent *>(c)->mFirstChildInView; }},
-            {"firstFullyVisibleChild", [](const CoreComponent* c) {return static_cast<const MultiChildScrollableComponent *>(c)->mFirstChildFullyInView; }},
-            {"lastFullyVisibleChild", [](const CoreComponent* c) {return static_cast<const MultiChildScrollableComponent *>(c)->mLastChildFullyInView; }},
-            {"lastVisibleChild", [](const CoreComponent* c) {return static_cast<const MultiChildScrollableComponent *>(c)->mLastChildInView; }},
+            {"firstVisibleChild", [](const CoreComponent* c) { return static_cast<const MultiChildScrollableComponent*>(c)->getFirstChildInView(); }},
+            {"firstFullyVisibleChild", [](const CoreComponent* c) { return static_cast<const MultiChildScrollableComponent*>(c)->getFirstChildFullyInView(); }},
+            {"lastFullyVisibleChild", [](const CoreComponent* c) { return static_cast<const MultiChildScrollableComponent*>(c)->getLastChildFullyInView(); }},
+            {"lastVisibleChild", [](const CoreComponent* c) { return static_cast<const MultiChildScrollableComponent*>(c)->getLastChildInView(); }},
         });
 
     return sMultiScrollEventProperties;
@@ -302,6 +322,8 @@ MultiChildScrollableComponent::getTags(rapidjson::Value& outMap, rapidjson::Docu
         rapidjson::Value list(rapidjson::kObjectType);
         list.AddMember("itemCount", static_cast<int>(mChildren.size()), allocator);
 
+        ensureChildrenVisibilityUpdated();
+
         if (!mIndexesSeen.empty()) {
             auto lowestOrdinalSeen = INT_MAX;
             auto highestOrdinalSeen = -1;
@@ -334,17 +356,33 @@ MultiChildScrollableComponent::getTags(rapidjson::Value& outMap, rapidjson::Docu
 
 void
 MultiChildScrollableComponent::layoutChildIfRequired(
-        const Rect& parentBounds, CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag) {
+        CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag) {
     if (!child->isAttached() || child->getCalculated(kPropertyBounds).empty()) {
         ensureChildAttached(child, childIdx);
         if (childIdx > 0 && childrenUseSpacingProperty()) {
             child->fixSpacing();
         }
+
+        // First calculate the layout for this component (if dirty)
+        auto bounds = mCalculated.get(kPropertyBounds).getRect();
         YGNodeCalculateLayout(
                 mYGNodeRef,
-                parentBounds.getWidth(),
-                parentBounds.getHeight(),
+                bounds.getWidth(),
+                bounds.getHeight(),
                 YGDirection::YGDirectionLTR);
+
+        // Then re-layout from the root if necessary. We don't expect any of components higher in
+        // hierarchy to change when we attach to multichild scrollable. We need to call to root
+        // here to avoid any problems with propagation of positions for "lazy" components in the
+        // chain. Assumed to be optimal from yoga side. It could happen only after initial layout
+        // so we have parent bounds.
+        auto root = getRootComponent();
+        if (root && root != shared_from_corecomponent()) {
+            auto rootBounds = root->getCalculated(kPropertyBounds).getRect();
+            YGNodeCalculateLayout(root->getNode(), rootBounds.getWidth(), rootBounds.getHeight(),
+                                  YGDirection::YGDirectionLTR);
+        }
+
         CoreComponent::processLayoutChanges(useDirtyFlag);
     }
 }
@@ -377,6 +415,9 @@ MultiChildScrollableComponent::insertChild(const ComponentPtr& child, size_t ind
     if (result && !mIndexesSeen.empty() && (int)index <= mIndexesSeen.lowerBound()) {
         mIndexesSeen.shift(1);
     }
+    // updating flag to trigger recalculate visibility update
+    mChildrenVisibilityStale = true;
+
     return result;
 }
 
@@ -384,6 +425,7 @@ void
 MultiChildScrollableComponent::removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag)
 {
     CoreComponent::removeChild(child, index, useDirtyFlag);
+
     if (!mIndexesSeen.empty()) {
         if ((int)index < mIndexesSeen.lowerBound()) {
             mIndexesSeen.shift(-1);
@@ -391,11 +433,12 @@ MultiChildScrollableComponent::removeChild(const CoreComponentPtr& child, size_t
             mIndexesSeen.remove(index);
         }
     }
+    // updating flag to trigger recalculate visibility update
+    mChildrenVisibilityStale = true;
 }
 
 void
-MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag)
-{
+MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag) {
     // We need to account for padding as find function don't do that automatically.
     bool horizontal = isHorizontal();
     auto paddedScrollPosition = scrollPosition() + getCalculated(kPropertyInnerBounds).getRect().getTopLeft();
@@ -443,7 +486,7 @@ MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag)
     int lastLoaded = mEnsuredChildren.lowerBound();
     for (; lastLoaded < mChildren.size(); lastLoaded++) {
         auto child = mChildren.at(lastLoaded);
-        layoutChildIfRequired(sequenceBounds, child, lastLoaded, useDirtyFlag);
+        layoutChildIfRequired(child, lastLoaded, useDirtyFlag);
         auto childBounds = child->getCalculated(kPropertyBounds).getRect();
         float distance = horizontal ? childBounds.getRight() : childBounds.getBottom();
         if (distance > distanceToCover) {
@@ -459,7 +502,7 @@ MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag)
     int firstLoaded = mEnsuredChildren.upperBound();
     for (; firstLoaded >= 0; firstLoaded--) {
         auto child = mChildren.at(firstLoaded);
-        layoutChildIfRequired(sequenceBounds, child, firstLoaded, useDirtyFlag);
+        layoutChildIfRequired(child, firstLoaded, useDirtyFlag);
         auto childBounds = child->getCalculated(kPropertyBounds).getRect();
         anchorBounds = anchor->getCalculated(kPropertyBounds).getRect();
         float distance = (horizontal ? anchorBounds.getLeft() : anchorBounds.getTop())
@@ -482,7 +525,195 @@ MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag)
         }
     }
 
-    updateChildrenVisibility();
+    ensureChildrenVisibilityUpdated();
+}
+
+void
+MultiChildScrollableComponent::onScrollPositionUpdated() {
+    ScrollableComponent::onScrollPositionUpdated();
+
+    for (int i = mEnsuredChildren.lowerBound(); i <= mEnsuredChildren.upperBound(); i++) {
+        auto child = std::dynamic_pointer_cast<CoreComponent>(mChildren.at(i));
+        if (child != nullptr && child->isAttached()) {
+            child->markGlobalToLocalTransformStale();
+        }
+    }
+
+    mChildrenVisibilityStale = true;
+}
+
+float
+MultiChildScrollableComponent::getSnapOffsetForChild(
+    const ComponentPtr& child,
+    Snap snap,
+    float parentStart,
+    float parentEnd) const
+{
+    float scrollTo = 0;
+    float childStart, childEnd, currentPosition;
+    auto childBoundsInParent = child->getCalculated(kPropertyBounds).getRect();
+
+    if (isVertical()) {
+        childStart = childBoundsInParent.getTop();
+        childEnd = childBoundsInParent.getBottom();
+        currentPosition = scrollPosition().getY();
+    } else {
+        childStart = childBoundsInParent.getLeft();
+        childEnd = childBoundsInParent.getRight();
+        currentPosition = scrollPosition().getX();
+    }
+
+    switch (snap) {
+        case kSnapStart:
+        case kSnapForceStart:
+            scrollTo = childStart;
+            break;
+
+        case kSnapCenter:
+        case kSnapForceCenter:
+            scrollTo = ((childStart + childEnd) - (parentStart + parentEnd)) / 2;
+            break;
+
+        case kSnapEnd:
+        case kSnapForceEnd:
+            scrollTo = childEnd - parentEnd;
+            break;
+
+        default:
+            break;
+    }
+
+    return scrollTo - currentPosition;
+}
+
+float
+MultiChildScrollableComponent::childFractionOnScreenWithProposedScrollOffset(const ComponentPtr& child, float scrollOffset) const
+{
+    const auto vertical = isVertical();
+    auto childBounds = child->getCalculated(kPropertyBounds).getRect();
+    auto parentBounds = getCalculated(kPropertyInnerBounds).getRect();
+    parentBounds.offset(vertical ? Point(0, scrollOffset) : Point(scrollOffset, 0));
+
+    auto intersectionRect = parentBounds.intersect(childBounds);
+    if (vertical) {
+        return intersectionRect.getHeight() / std::min(parentBounds.getHeight(), childBounds.getHeight());
+    } else {
+        return intersectionRect.getWidth() / std::min(parentBounds.getWidth(), childBounds.getWidth());
+    }
+}
+
+bool
+MultiChildScrollableComponent::shouldForceSnap() const {
+    auto snap = static_cast<Snap>(getCalculated(kPropertySnap).getInteger());
+    return snap == kSnapForceStart || snap == kSnapForceCenter || snap == kSnapForceEnd;
+}
+
+Point
+MultiChildScrollableComponent::getSnapOffset() const
+{
+    auto snap = static_cast<Snap>(getCalculated(kPropertySnap).getInteger());
+    if (snap == kSnapNone) return {};
+
+    // It's unidirectional on purpose, snap on multidirectional scrolling is quite unclear
+    const auto vertical = isVertical();
+    Rect parentInnerBounds = getCalculated(kPropertyInnerBounds).getRect();
+    auto lastChildBottom =
+        mChildren.at(mEnsuredChildren.upperBound())->getCalculated(kPropertyBounds).getRect().getBottomRight();
+
+    // Figure to which position we should snap
+    float parentStart, parentEnd, parentSize, forwardScrollLimit, scrollOffset;
+    if (vertical) {
+        parentStart = parentInnerBounds.getTop();
+        parentEnd = parentInnerBounds.getBottom();
+        parentSize = parentEnd - parentStart;
+        forwardScrollLimit = lastChildBottom.getY() - parentSize;
+        scrollOffset = scrollPosition().getY();
+    } else {
+        parentStart = parentInnerBounds.getLeft();
+        parentEnd = parentInnerBounds.getRight();
+        parentSize = parentEnd - parentStart;
+        forwardScrollLimit = lastChildBottom.getX() - parentSize;
+        scrollOffset =  scrollPosition().getX();
+    }
+
+    // If we currently at a limit - do not snap, we already snapped to limit. Unless forced to.
+    if (!shouldForceSnap() && (scrollOffset <= 0 || scrollOffset >= forwardScrollLimit)) return {};
+
+    float parentSnapOffset = 0;
+    switch (snap) {
+        case kSnapCenter:
+        case kSnapForceCenter:
+            parentSnapOffset = parentSize / 2;
+            break;
+        case kSnapEnd:
+        case kSnapForceEnd:
+            parentSnapOffset = parentSize;
+            break;
+        default:
+            break;
+    }
+
+    Point referencePoint;
+    if (vertical) {
+        referencePoint = Point(parentInnerBounds.getX(), scrollOffset + parentSnapOffset);
+    } else {
+        referencePoint = Point(scrollOffset + parentSnapOffset, parentInnerBounds.getY());
+    }
+
+    auto targetChild = findDirectChildAtPosition(referencePoint);
+    if (!targetChild) return {};
+
+    auto it = std::find(mChildren.begin(), mChildren.end(), targetChild);
+    size_t targetIndex = std::distance(mChildren.begin(), it);
+
+    auto itemsPerCourse = getItemsPerCourse();
+
+    switch (snap) {
+        case kSnapStart:
+        case kSnapForceStart:
+            // If < 50% visible -> snap to next.
+            if (childFractionOnScreenWithProposedScrollOffset(targetChild, scrollOffset) < 0.5) {
+                if (targetIndex + itemsPerCourse < mChildren.size()) {
+                    targetIndex += itemsPerCourse;
+                    targetChild = getChildAt(targetIndex);
+                }
+            }
+            break;
+        case kSnapEnd:
+        case kSnapForceEnd:
+            // If < 50% visible -> snap to previous.
+            if (childFractionOnScreenWithProposedScrollOffset(targetChild, scrollOffset) < 0.5) {
+                if (targetIndex - itemsPerCourse >= 0) {
+                    targetIndex -= itemsPerCourse;
+                    targetChild = getChildAt(targetIndex);
+                }
+            }
+            break;
+        case kSnapCenter:
+        case kSnapForceCenter:
+            // Just snap to component we hit.
+            break;
+        default:
+            break;
+    }
+
+    if (!targetChild) {
+        LOG(LogLevel::WARN) << "Can't snap on scroll offset " << scrollOffset;
+        return {};
+    }
+
+    auto offset = getSnapOffsetForChild(targetChild, snap, parentStart, parentEnd);
+
+    // Check if adjustment will overshoot us over scrolling limits. If so - clip to scroll limit.
+    if (scrollOffset + offset <= 0) {
+        offset = -scrollOffset;
+    }
+
+    if (scrollOffset + offset >= forwardScrollLimit) {
+        offset = forwardScrollLimit - scrollOffset;
+    }
+
+    return (vertical ? Point(0, offset) : Point(offset, 0));
 }
 
 } // namespace apl

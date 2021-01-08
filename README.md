@@ -12,7 +12,8 @@ create Alexa experiences with visual renderings on their device or platform in
 the programming language of their choice.
 
 # Architecture
-<pre>                              APL Core Library
+```
+                              APL Core Library
 
          +----------------------------------------------------------+
          | +---------------+  +----------------+ +----------------+ |
@@ -44,7 +45,8 @@ the programming language of their choice.
  |     OS1 Native|  | Cross Platform|    | Cross Platform|  |    OS4 Native |
  |     View Host |  | View Host     |    | View Host     |  |    View Host  |
  |               |  |               |    |               |  |               |
- +---------------+  +---------------+    +---------------+  +---------------+</pre>
+ +---------------+  +---------------+    +---------------+  +---------------+
+ ```
 
 Above is shown the high-level architecture of the APL Core Library, showing 
 its interaction with a few possible view host implementations.

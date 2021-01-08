@@ -76,6 +76,7 @@ TEST_F(BuilderTestPager, SimplePager)
 
     // Standard properties
     ASSERT_TRUE(IsEqual("", component->getCalculated(kPropertyAccessibilityLabel)));
+    ASSERT_EQ(Object::EMPTY_ARRAY(), component->getCalculated(kPropertyAccessibilityActions));
     ASSERT_TRUE(IsEqual(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled)));
     ASSERT_TRUE(IsEqual(Dimension(200), component->getCalculated(kPropertyHeight)));
     ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight)));

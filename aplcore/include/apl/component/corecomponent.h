@@ -190,6 +190,12 @@ public:
     void setProperty(const std::string& key, const Object& value);
 
     /**
+     * Set z-order of a component.
+     * @param value The value to set.
+     */
+    void setZOrder(int value);
+
+    /**
      * Return true if this property has been assigned for this component.  Normally
      * used to see if a command handler needs to be attached.  For example, if
      * hasProperty(kCommandPropertyOnPress) returns true, then the rendering layer
@@ -319,6 +325,13 @@ public:
     }
 
     /**
+     *  Marks the visual context for this component, and the parent hierarchy, dirty. This method
+     *  is called for a subset of property/state/hierarchy changes that impact the reported visual
+     *  context.
+     */
+    void setVisualContextDirty();
+
+    /**
      * Convert this component into a JSON object
      * @param allocator
      * @return The object.
@@ -344,8 +357,18 @@ public:
 
     /**
      * Retrieve component's visual context as a JSON object.
+     * @deprecated use RootContext->serializeVisualContext()
      */
     rapidjson::Value serializeVisualContext(rapidjson::Document::AllocatorType& allocator) override;
+
+
+    /**
+     * Internal method.  Identifies when this components internal state, a property, or an update
+     * caused a change that makes the RootContext visual context of the tree dirty.
+     * @return true if the visual context has changed since the last call to
+     * RootContext::serializeVisualContext, false otherwise.
+     */
+     bool isVisualContextDirty();
 
     /**
      * Serialize the event portion of this component
@@ -493,6 +516,11 @@ public:
      */
     virtual bool isTouchable() const { return false; }
 
+    /**
+     * @return true if component can receive interactions.
+     */
+    virtual bool isActionable() const { return false; }
+
 
     /**
      * Get visible children of component and respective visibility values.
@@ -583,28 +611,19 @@ public:
     bool containsLocalPosition(const Point& position) const;
 
     /**
+     * Converts a point in global coordinates to this component's coordinate space. If the
+     * conversion is not possible (e.g. due to a singular transform), returns a point with
+     * Not-A-Number (NaN) coordinates.
+     *
+     * @param globalPoint A point in global coordinates.
+     * @return  The computed point in local coordinate space, or @c Point(NaN, NaN) otherwise.
+     */
+    Point toLocalPoint(const Point& globalPoint) const;
+
+    /**
      * @return true if this component's bounds intersect with it's parent viewport.
      */
     bool inParentViewport() const;
-
-    /**
-     * The @c Transform2D that maps the ancestor's coordinate space to this component's
-     * coordinate space.
-     * @param ancestor An ancestor of this component or nullptr for the root
-     * @param out Store the resulting transform here.
-     * @return True if a transform could be computed for the given ancestor, false otherwise.
-     */
-    bool getCoordinateTransformFromParent(const ComponentPtr& ancestor, Transform2D& out) const;
-
-    /**
-     * The @c Transform2D that maps the global coordinate space to this component's
-     * coordinate space.
-     * @param out Store the resulting transform here.
-     * @return True if a transform could be computed, false otherwise.
-     */
-    bool getCoordinateTransformFromGlobal(Transform2D& out) const {
-        return getCoordinateTransformFromParent(nullptr, out);
-    }
 
     /**
      * Update the spacing to specified value if any.
@@ -634,6 +653,16 @@ public:
     {
         return std::static_pointer_cast<const CoreComponent>(shared_from_this());
     }
+
+    /**
+     * Execute a given handler in the specified mode with any additional parameters required.
+     * @param event Event handler name.
+     * @param commands Array of commands to execute.
+     * @param fastMode true for fast mode, false for normal.
+     * @param optional Optional key->value map to include on event context.
+     */
+    void executeEventHandler(const std::string& event, const Object& commands, bool fastMode = true,
+                             const ObjectMapPtr& optional = nullptr);
 
     /**
      * This inline function casts YGMeasureMode enum to MeasureMode enum.
@@ -694,6 +723,44 @@ public:
         return component->getContext()->measure()->baseline(component, width, height);
     }
 
+    /**
+     * Executes a given handler by name with a specific position.
+     * @param handlerKey The handler to execute.
+     * @param point The Point at which the event that triggered this was created.
+     */
+    virtual void executePointerEventHandler(PropertyKey handlerKey, const Point& point) {}
+
+    /**
+     * Defer pointer processing to component.
+     * @param event pointer event.
+     * @param timestamp event timestamp.
+     * @param topComponent true if it's top component in processing chain, false otherwise.
+     * @return pointer to component that processed event. False otherwise.
+     */
+    CoreComponentPtr processPointerEvent(const PointerEvent& event, apl_time_t timestamp, bool topComponent = true);
+
+    /**
+     * @return The root configuration provided by the viewhost
+     */
+    const RootConfig& getRootConfig() const;
+
+    /**
+     * @return a @c Transform2D that maps global coordinates to this component's local coordinate space.
+     */
+    const Transform2D &getGlobalToLocalTransform() const;
+
+
+    /**
+     * Marks the local transform stored for this component as stale, and thus needing to be recalculated
+     * at the next opportunity.
+     *
+     * This only marks the current component as stale and not any of its children. This is to avoid visiting a
+     * potentially very large number of children at critical times. Instead, all components look for a stale
+     * parent when they need to determine whether their own cached transform is stale. This has the advantage
+     * of scaling with the depth of a component in the tree, and not the total size of the tree.
+     */
+    void markGlobalToLocalTransformStale() { mGlobalToLocalIsStale = true; }
+
 protected:
     // internal, do not call directly
     virtual bool insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag);
@@ -703,6 +770,19 @@ protected:
     void ensureChildAttached(const CoreComponentPtr& child, int targetIdx);
 
     virtual const EventPropertyMap& eventPropertyMap() const;
+    virtual void invokeStandardAccessibilityAction(const std::string& name) {}
+
+    virtual bool processGestures(const PointerEvent& event, apl_time_t timestamp, bool topComponent) { return false; }
+    virtual bool shouldPropagatePointerEvent(const PointerEvent& event, apl_time_t timestamp);
+
+    virtual void handlePropertyChange(const ComponentPropDef& def, const Object& value);
+
+    CoreComponentPtr getRootComponent() {
+        auto c = shared_from_corecomponent();
+        while (c->mParent)
+            c = c->mParent;
+        return c;
+    }
 
 private:
     friend streamer& operator<<(streamer&, const Component&);
@@ -736,8 +816,6 @@ private:
 
     bool markPropertyInternal(const ComponentPropDefSet& propDefSet, PropertyKey key);
 
-    void handlePropertyChange(const ComponentPropDef& def, const Object& value);
-
     void updateMixedStateProperty(PropertyKey key, bool value);
 
     const ComponentPropDefSet* getLayoutPropDefSet() const;
@@ -764,6 +842,12 @@ private:
     void scheduleTickHandler(const Object& handler, double delay);
     void processTickHandlers();
 
+    /**
+     * Recomputes the transformation to this component's coordinate space (from the global coordinate space), if stale.
+     * If the local transform has not been marked stale, this has no effect (see @c markLocalTransformStale).
+     */
+    void ensureGlobalToLocalTransform();
+
 protected:
     bool                             mInheritParentState;
     State                            mState;       // Operating state (pressed, checked, etc)
@@ -776,6 +860,12 @@ protected:
     std::string                      mPath;
     std::shared_ptr<LayoutRebuilder> mRebuilder;
     Range                            mEnsuredChildren;
+
+private:
+    // The members below are used to store cached values for performance reasons, and not part of
+    // the state of this component.
+    Transform2D                      mGlobalToLocal;
+    bool                             mGlobalToLocalIsStale;
 };
 
 }  // namespace apl

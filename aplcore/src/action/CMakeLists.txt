@@ -15,6 +15,7 @@ target_sources_local(apl
     PRIVATE
     action.cpp
     animateitemaction.cpp
+    animatedscrollaction.cpp
     autopageaction.cpp
     arrayaction.cpp
     controlmediaaction.cpp

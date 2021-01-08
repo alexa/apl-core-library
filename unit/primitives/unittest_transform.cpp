@@ -17,6 +17,8 @@
 
 #include "../testeventloop.h"
 
+#include <cmath>
+
 using namespace apl;
 
 const double EPSILON = 0.00001;
@@ -97,6 +99,14 @@ TEST_F(TransformTest, Translate)
     auto p = Point(12,-13);
     ASSERT_EQ( Point(42,-13), t1*t2*p);
 
+    ASSERT_EQ(Point(10,0), Transform2D::translate(Point(10,0)) * Point());
+    ASSERT_EQ(Point(20,10), Transform2D::translate(Point(10,0)) * Point(10,10));
+    ASSERT_EQ(Point(0,12), Transform2D::translate(Point(0,12)) * Point());
+    ASSERT_EQ(Point(37.5,-23), Transform2D::translate(Point(37.5,-23))* Point());
+
+    ASSERT_EQ(Point(10,0), Transform2D::translateX(10) * Point());
+    ASSERT_EQ(Point(0,10), Transform2D::translateY(10) * Point());
+
     ASSERT_EQ(Point(10,0), Transform2D::translateX(10) * Point());
     ASSERT_EQ(Point(0,10), Transform2D::translateY(10) * Point());
 }
@@ -160,6 +170,21 @@ TEST_F(TransformTest, Singular)
     ASSERT_TRUE(Transform2D::scaleX(0).singular());
     ASSERT_TRUE(Transform2D::scaleY(0).singular());
     ASSERT_FALSE(Transform2D::rotate(30).singular());
+    ASSERT_TRUE(Transform2D::scale(0).inverse().singular());
+
+    ASSERT_TRUE(Transform2D::translateX(INFINITY).singular());
+    ASSERT_TRUE(Transform2D::translateY(INFINITY).singular());
+    ASSERT_TRUE(Transform2D::rotate(INFINITY).singular());
+    ASSERT_TRUE(Transform2D::scale(INFINITY).singular());
+    ASSERT_TRUE(Transform2D::skewX(INFINITY).singular());
+    ASSERT_TRUE(Transform2D::skewY(INFINITY).singular());
+    
+    ASSERT_TRUE(Transform2D::translateX(NAN).singular());
+    ASSERT_TRUE(Transform2D::translateY(NAN).singular());
+    ASSERT_TRUE(Transform2D::rotate(NAN).singular());
+    ASSERT_TRUE(Transform2D::scale(NAN).singular());
+    ASSERT_TRUE(Transform2D::skewX(NAN).singular());
+    ASSERT_TRUE(Transform2D::skewY(NAN).singular());
 }
 
 TEST_F(TransformTest, Inverse) {
@@ -388,7 +413,10 @@ TEST_F(TransformTest, ParseTestCases)
     }
 }
 
-static std::map<std::string, Transform2D> const NUMBER_PARSE = {
+TEST_F(TransformTest, NumberParsing)
+{
+    // Move these tests inside the function because they call Transform2D::scale when initialized
+    std::map<std::string, Transform2D> const NUMBER_PARSE = {
         {"scale(2)",          Transform2D::scale(2)},
         {"scale(2.5)",        Transform2D::scale(2.5)},
         {"scale(00002)",      Transform2D::scale(2)},
@@ -403,10 +431,8 @@ static std::map<std::string, Transform2D> const NUMBER_PARSE = {
         {"scale(5e0)",        Transform2D::scale(5)},
         {"scale(1+2)",        Transform2D::scale(1,2)},   // Note that "1+2" is valid
         {"scale(1-2)",        Transform2D::scale(1,-2)},
-};
+    };
 
-TEST_F(TransformTest, NumberParsing)
-{
     for (const auto& test : NUMBER_PARSE) {
         auto transform = Transform2D::parse(session, test.first);
         EXPECT_EQ(test.second, transform) << "Test case: " << test.first;

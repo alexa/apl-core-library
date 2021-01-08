@@ -72,10 +72,12 @@ public:
     /**
      * This is called from the LiveDataManager to flush all stored array changes and update the context
      */
-    void flush() override {
-        LiveDataObject::flush();
-        mChanges.clear();
-    }
+    void flush() override;
+
+    /**
+     * @return list of processed changes for this array.
+     */
+    const std::vector<LiveArrayChange>& getChanges() { return mChanges; }
 
     /**
      * Given a current index into the array, map it back into the old index that before the stored changes occurred.

@@ -38,9 +38,6 @@ struct ss_string;
 
 struct ws : star<space> {};
 
-template<typename R, typename P = ws>
-struct padr : internal::seq<R, internal::star<P> > {};
-
 struct sym_dbstart : string<'$', '{'> {};
 struct sym_dbend : one<'}'> {};
 struct sym_question : one<'?'> {};
@@ -54,42 +51,62 @@ struct sym_or : string<'|', '|'> {};
 struct sym_nullc : string<'?', '?'> {};
 struct sym_unary : one<'+', '-', '!'> {};
 struct sym_comma : one<','> {};
+struct sym_decimal : one<'.'> {};
+struct sym_attribute : one<'.'> {};
+struct sym_array_access_start : one<'['> {};
+struct sym_array_access_end : one<']'> {};
+struct sym_group_start : one<'('> {};
+struct sym_group_end : one<')'> {};
 
-struct intnum : plus<digit> {};
-struct floatnum : sor<seq<plus<digit>, disable<one<'.'> >, star<digit> >,
-    seq<disable<one<'.'> >, plus<digit> > > {};
-struct true_ : string<'t', 'r', 'u', 'e'> {};
-struct false_ : string<'f', 'a', 'l', 's', 'e'> {};
-struct null_ : string<'n', 'u', 'l', 'l'> {};
+struct str_false : string<'f', 'a', 'l', 's', 'e'> {};
+struct str_null : string<'n', 'u', 'l', 'l'> {};
+struct str_true : string<'t', 'r', 'u', 'e'> {};
+struct str_dp : string<'d', 'p'> {};
+struct str_px : string<'p', 'x'> {};
+struct str_vh : string<'v', 'h'> {};
+struct str_vw : string<'v', 'w'> {};
+
+template<typename Key>
+struct key : seq<Key, not_at< identifier_other >> {};
+
+struct key_false : key<str_false> {};
+struct key_null : key<str_null> {};
+struct key_true : key<str_true> {};
+struct key_dp : key<str_dp> {};
+struct key_px : key<str_px> {};
+struct key_vh : key<str_vh> {};
+struct key_vw : key<str_vw> {};
+
+struct zero : if_must<one<'0'>, not_at<digit>> {};
+struct number_int : sor<zero, seq< range<'1', '9'>, star<digit>>> {};
+struct number     : sor<seq<number_int, sym_decimal, star<digit>>,    // INTEGER . DIGITS*
+                        seq<sym_decimal, plus<digit>>,                // . DIGITS+
+                        number_int> {};                               // INTEGER
+
 struct symbol : seq<alpha, star<identifier_other> > {};
+struct resource : seq<one<'@'>, identifier> {};
 
-struct attr_dot : seq<one<'.'>, identifier> {};
-struct attr_bracket : seq<one<'['>, ws, ternary, ws, one<']'> > {};
-struct arglist : list<ternary, sym_comma, space> {};
-struct func_start : one<'('> {};
-struct func_call : sor<if_must<func_start, ws, opt<arglist, ws>, one<')'> > > {};
-struct resource : seq<one<'@'>, disable<identifier> > {};
-struct attribute : seq<
-    sor<resource, symbol>,
-    star<sor<attr_dot, attr_bracket> >,
-    opt<func_call> > {
-};
+struct postfix_identifier: identifier {};
+struct postfix_attribute : seq<sym_attribute, postfix_identifier> {};
+struct postfix_array_access : seq<sym_array_access_start, ws, ternary, ws, sym_array_access_end> {};
+struct postfix_left_paren : one<'('> {};
+struct postfix_right_paren : one<')'> {};
+struct argument_list : list_must<ternary, sym_comma, space> {};
+struct postfix_function : if_must<postfix_left_paren, pad_opt<argument_list, space>, postfix_right_paren> {};
+struct postfix : sor<postfix_attribute, postfix_array_access, postfix_function> {};
+struct postfix_expression : seq<sor<resource, symbol>, star<postfix>> {};
 
-struct dp : string<'d', 'p'> {};
-struct px : string<'p', 'x'> {};
-struct vh : string<'v', 'w'> {};
-struct wh : string<'v', 'h'> {};
-struct dimension : seq<disable<sor<floatnum, intnum> >, ws, sor<dp, px, vh, wh> > {};
-struct grouping : if_must<one<'('>, ws, ternary, ws, one<')'> > {};
+struct dimension_unit : sor<key_dp, key_px, key_vh, key_vw> {};
+struct dimension_or_number : seq<number, opt<ws, dimension_unit>> {};
+struct grouping : if_must<sym_group_start, ws, ternary, ws, sym_group_end> {};
 
-struct factor : sor<grouping,
-    true_,
-    false_,
-    null_,
-    dimension,
-    attribute,
-    floatnum,
-    intnum,
+struct factor : sor<
+    grouping,
+    dimension_or_number,
+    key_true,
+    key_false,
+    key_null,
+    postfix_expression,
     ss_string,
     ds_string> {
 };

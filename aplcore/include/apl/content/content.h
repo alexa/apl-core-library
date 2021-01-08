@@ -20,6 +20,7 @@
 #include <map>
 
 #include "apl/common.h"
+#include "apl/utils/counter.h"
 #include "apl/content/package.h"
 #include "apl/content/settings.h"
 #include "apl/engine/properties.h"
@@ -61,7 +62,7 @@ class Metrics;
  * with actual data sets.  Use the addData() method to wire up parameter names
  * with JSON data.
  */
-class Content {
+class Content : public Counter<Content> {
 public:
     /**
      * Construct the working Content object from a document.

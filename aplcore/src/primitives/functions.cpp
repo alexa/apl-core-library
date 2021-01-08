@@ -25,6 +25,8 @@
 #include "apl/engine/context.h"
 #include "apl/primitives/functions.h"
 #include "apl/primitives/object.h"
+#include "apl/primitives/rangegenerator.h"
+#include "apl/primitives/slicegenerator.h"
 #include "apl/primitives/timefunctions.h"
 #include "apl/primitives/timegrammar.h"
 #include "apl/primitives/unicode.h"
@@ -136,6 +138,72 @@ mathSign(const std::vector<Object>& args)
         return 0;
     return v < 0 ? -1 : 1;
 }
+
+
+template<bool (*f)(double)>
+Object
+mathPredicate(const std::vector<Object>& args)
+{
+    if (args.size() != 1)
+        return false;
+    return f(args[0].asNumber());
+}
+
+
+static Object
+arrayIndexOf(const ObjectArray& args)
+{
+    if (args.size() < 2)
+        return -1;
+
+    const auto& array = args.at(0);
+    if (!array.isArray())
+        return -1;
+
+    const auto len = array.size();
+    const auto& value = args.at(1);
+    for (size_t index = 0; index < len; index++)
+        if (array.at(index) == value)
+            return index;
+
+    return -1;
+}
+
+static Object
+arrayRange(const ObjectArray& args)
+{
+    if (args.size() < 1)
+        return RangeGenerator::create(0,0,0);
+
+    auto a = args.at(0).asNumber();
+    if (args.size() == 1)
+        return RangeGenerator::create(0, a, 1);
+
+    auto b = args.at(1).asNumber();
+    if (args.size() == 2)
+        return RangeGenerator::create(a,b,1);
+
+    return RangeGenerator::create(a,b,args.at(2).asNumber());
+}
+
+static Object
+arraySlice(const ObjectArray& args)
+{
+    if (args.size() < 1)
+        return Object::EMPTY_ARRAY();
+
+    const auto& array = args.at(0);
+    if (!array.isArray())
+        return Object::EMPTY_ARRAY();
+
+    if (args.size() == 1)
+        return array;
+
+    auto start = args.at(1).asInt();
+    auto end = args.size() > 2 ? args.at(2).asInt() : array.size();
+    return SliceGenerator::create(array, start, end);
+}
+
 
 // Convenience template for string transformation
 // TODO: These are not unicode safe...
@@ -271,6 +339,10 @@ createMathMap()
 
     map->emplace("hypot", Function::create("hypot", mathHypot));
 
+    map->emplace("isFinite", Function::create("isFinite", mathPredicate<std::isfinite>));
+    map->emplace("isInf", Function::create("isInf", mathPredicate<std::isinf>));
+    map->emplace("isNaN", Function::create("isNan", mathPredicate<std::isnan>));
+
     map->emplace("log", Function::create("log", mathSingle<std::log>));  // ln(x)
     map->emplace("log1p", Function::create("log1p", mathSingle<std::log1p>));  // ln(1+x)
     map->emplace("log10", Function::create("log10", mathSingle<std::log10>));  // log_10(x)
@@ -279,7 +351,7 @@ createMathMap()
     map->emplace("max", Function::create("max", mathMax));
     map->emplace("min", Function::create("min", mathMin));
 
-    map->emplace("pow", Function::create("clamp", mathDouble<std::pow>));
+    map->emplace("pow", Function::create("pow", mathDouble<std::pow>));
 
     map->emplace("random", Function::create("random", mathRandom, false));
     map->emplace("round", Function::create("round", mathSingle<std::round>));
@@ -336,13 +408,27 @@ createTimeMap()
     return map;
 }
 
+static ObjectMapPtr
+createArrayMap()
+{
+    auto map = std::make_shared<ObjectMap>();
+
+    map->emplace("indexOf", Function::create("indexOf", arrayIndexOf));
+    map->emplace("range", Function::create("range", arrayRange));
+    map->emplace("slice", Function::create("slice", arraySlice));
+
+    return map;
+}
+
 void
 createStandardFunctions(Context& context)
 {
+    static auto sArrayFunctions = createArrayMap();
     static auto sMathFunctions = createMathMap();
     static auto sStringFunctions = createStringMap();
     static auto sTimeFunctions = createTimeMap();
 
+    context.putConstant("Array", sArrayFunctions);
     context.putConstant("Math", sMathFunctions);
     context.putConstant("String", sStringFunctions);
     context.putConstant("Time", sTimeFunctions);

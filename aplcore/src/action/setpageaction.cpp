@@ -16,6 +16,7 @@
 #include "apl/action/setpageaction.h"
 #include "apl/command/corecommand.h"
 #include "apl/time/sequencer.h"
+#include "apl/component/pagercomponent.h"
 
 namespace apl {
 
@@ -46,7 +47,9 @@ SetPageAction::make(const TimersPtr& timers,
 {
     // Ensure there is a paging target with multiple children
     auto target = command->target();
-    if (!target || target->scrollType() != kScrollTypeHorizontalPager || target->getChildCount() < 2)
+    if (!target
+        || (target->scrollType() != kScrollTypeHorizontalPager &&  target->scrollType() != kScrollTypeVerticalPager)
+        || target->getChildCount() < 2)
         return nullptr;
 
     auto ptr = std::make_shared<SetPageAction>(timers, command, target);
@@ -65,13 +68,13 @@ SetPageAction::start()
     int len = mTarget->getChildCount();
     int current = mTarget->pagePosition();
     int index = current;
-    EventDirection direction;
+    PageDirection direction;
 
     switch (position) {
         case kCommandPositionAbsolute:
             // Clamp to the valid range.  Note that a negative position is a measurement from the end
             index = clamp((value < 0 ? value + len : value), 0, len - 1);
-            direction = (index < current ? kEventDirectionBackward : kEventDirectionForward);
+            direction = (index < current ? kPageDirectionBack : kPageDirectionForward);
             break;
 
         case kCommandPositionRelative:
@@ -86,7 +89,10 @@ SetPageAction::start()
 
             // Use modulus to ensure we're in the correct range
             index = modulus(index, len);
-            direction = (value < 0 ? kEventDirectionBackward : kEventDirectionForward);
+            direction = (value < 0 ? kPageDirectionBack : kPageDirectionForward);
+            break;
+        default:
+            direction = kPageDirectionForward;
             break;
     }
 
@@ -96,10 +102,8 @@ SetPageAction::start()
     }
     else {
         mTarget->getChildAt(index)->ensureLayout(true);
-        EventBag bag;
-        bag.emplace(kEventPropertyPosition, index);
-        bag.emplace(kEventPropertyDirection, direction);
-        mCommand->context()->pushEvent(Event(kEventTypeSetPage, std::move(bag), mTarget, shared_from_this()));
+        PagerComponent::setPageUtil(mContext, mTarget, index, direction, shared_from_this(),
+            position == kCommandPositionAbsolute);
     }
 }
 

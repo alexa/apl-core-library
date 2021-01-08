@@ -161,10 +161,10 @@ const static std::vector<Object> EXPECTED_NEW = {
     Object("string"),
     Object(10),
     Object(2.5),
-    Object(Color(0x00caffff)),   // Alpha will be apppended
-    Object(Dimension(150)),
-    Object(Dimension(DimensionType::Relative, 50)),
-    Object(Dimension(DimensionType::Auto, 0)),
+    Object("#00caffff"),   // Alpha will be apppended
+    Object(150),
+    Object("50%"),
+    Object("auto"),
     std::vector<Object>{1,2,3},   // Array
     std::make_shared<std::map<std::string, Object>>(
         std::map<std::string, Object>{{ "b", 2 }, { "a", 1 }
@@ -213,4 +213,96 @@ TEST_F(CommandSendEventTest, CaSeInsEnsitIVE)
 
     performClick(1, 1);
     ASSERT_TRUE(CheckSendEvent(root, 1, "1", Object::NULL_OBJECT()));
+}
+
+
+static const char *INTERESTING_ARGUMENTS = R"apl(
+    {
+      "type": "APL",
+      "version": "1.4",
+      "mainTemplate": {
+        "item": {
+          "type": "EditText",
+          "onSubmit": [
+            {
+              "type": "SendEvent",
+              "arguments": [
+                "submit",
+                "${Math}",
+                "${event}",
+                "${event.source.value}"
+              ]
+            }
+          ]
+        }
+      }
+    }
+)apl";
+
+TEST_F(CommandSendEventTest, InterestingArguments)
+{
+    loadDocument(INTERESTING_ARGUMENTS);
+
+    ASSERT_TRUE(component);
+
+    component->update(kUpdateTextChange, "woof");
+    component->update(kUpdateSubmit, 0);
+
+    loop->advanceToEnd();
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "submit",
+                               "MAP[]",
+                               "MAP[2]",
+                               "woof"));
+}
+
+
+static const char *PAYLOAD_DOC = R"apl(
+    {
+      "type": "APL",
+      "version": "1.4",
+      "mainTemplate": {
+        "parameters": [ "payload" ],
+        "item": {
+          "type": "EditText",
+          "text": "${payload.name} the ${payload.species}",
+          "onSubmit": [
+            {
+              "type": "SendEvent",
+              "arguments": [
+                "submit",
+                "${payload}"
+              ]
+            }
+          ]
+        }
+      }
+    }
+)apl";
+
+static const char *PAYLOAD_CONTENT = R"apl(
+    {
+      "name": "Pepper",
+      "species": "Dog",
+      "disposition": "Happy"
+    }
+)apl";
+
+TEST_F(CommandSendEventTest, Payload)
+{
+    loadDocument(PAYLOAD_DOC, PAYLOAD_CONTENT);
+    ASSERT_TRUE(component);
+    ASSERT_TRUE(IsEqual("Pepper the Dog", component->getCalculated(kPropertyText).asString()));
+
+    component->update(kUpdateSubmit, 0);
+    loop->advanceToEnd();
+
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "submit",
+                               "MAP[3]"));
+
+    auto ptr = executeCommand("SendEvent", {{"arguments", ObjectArray{"${payload}"}}}, false);
+    ASSERT_TRUE(CheckSendEvent(root, Object(std::make_shared<ObjectMap>(ObjectMap{{"disposition", "Happy"},
+                                                                                  {"name",        "Pepper"},
+                                                                                  {"species",     "Dog"}}))));
 }

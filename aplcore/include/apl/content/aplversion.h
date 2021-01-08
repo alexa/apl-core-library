@@ -13,8 +13,8 @@
  * permissions and limitations under the License.
  */
 
-#ifndef _APL_VERISON_H
-#define _APL_VERISON_H
+#ifndef _APL_VERSION_H
+#define _APL_VERSION_H
 
 #include <cstdint>
 
@@ -29,12 +29,14 @@ public:
         kAPLVersion12 = 0x1U << 2, /// Support version 1.2
         kAPLVersion13 = 0x1U << 3, /// Support version 1.3
         kAPLVersion14 = 0x1U << 4, /// Support version 1.4
+        kAPLVersion15 = 0x1U << 5, /// Support version 1.5
         kAPLVersion10to11 = kAPLVersion10 | kAPLVersion11, /// Convenience ranges from 1.0 to latest,
         kAPLVersion10to12 = kAPLVersion10to11 | kAPLVersion12,
         kAPLVersion10to13 = kAPLVersion10to12 | kAPLVersion13,
         kAPLVersion10to14 = kAPLVersion10to13 | kAPLVersion14,
-        kAPLVersionLatest = kAPLVersion10to14, /// Support the most recent engine version
-        kAPLVersionDefault = kAPLVersion10to14, /// Default value
+        kAPLVersion10to15 = kAPLVersion10to14 | kAPLVersion15,
+        kAPLVersionLatest = kAPLVersion10to15, /// Support the most recent engine version
+        kAPLVersionDefault = kAPLVersion10to15, /// Default value
         kAPLVersionAny = 0xffffffff, /// Support any versions in the list
     };
 
@@ -53,4 +55,4 @@ private:
 
 } // namespace apl
 
-#endif // _APL_VERISON_H
+#endif // _APL_VERSION_H

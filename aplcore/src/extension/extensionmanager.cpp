@@ -39,6 +39,17 @@ ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std:
         }
     }
 
+    // Extensions that define custom filters
+    for (const auto& m : rootConfig.getExtensionFilters()) {
+        // There may be multiple namespaces for the same extension, so register each of them
+        auto range = uriToNamespace.equal_range(m.getURI());
+        for (auto it = range.first ; it != range.second ; it++) {
+            auto qualifiedName = it->second + ":" + m.getName();
+            mExtensionFilters.emplace(qualifiedName, m);
+            LOG_IF(DEBUG_EXTENSION_MANAGER) << "extension filters: " << qualifiedName << "->" + m.toDebugString();
+        }
+    }
+
     // Create a mapping of all possible handlers to a suitable URI/Name
     for (const auto& m : rootConfig.getExtensionEventHandlers()) {
         auto range = uriToNamespace.equal_range(m.getURI());
@@ -80,15 +91,22 @@ ExtensionManager::findCommandDefinition(const std::string& qualifiedName) {
     return nullptr;
 }
 
+ExtensionFilterDefinition*
+ExtensionManager::findFilterDefinition(const std::string& qualifiedName) {
+    auto it = mExtensionFilters.find(qualifiedName);
+    if (it != mExtensionFilters.end())
+        return &it->second;
+
+    return nullptr;
+}
+
 Object
 ExtensionManager::findHandler(const ExtensionEventHandler& handler) {
-    // If the custom handler doesn't exist
     auto it = mExtensionEventHandlers.find(handler);
     if (it != mExtensionEventHandlers.end())
         return it->second;
 
     return Object::NULL_OBJECT();
 }
-
 
 } // namespace apl

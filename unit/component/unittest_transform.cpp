@@ -16,6 +16,8 @@
 #include "rapidjson/document.h"
 #include "gtest/gtest.h"
 
+#include <cmath>
+
 #include "apl/engine/evaluate.h"
 #include "apl/engine/builder.h"
 
@@ -70,31 +72,9 @@ TEST_F(ComponentTransformTest, ChildInParent) {
     ASSERT_TRUE(touchWrapper);
     ASSERT_TRUE(frame);
 
-    Transform2D transform;
-    ASSERT_TRUE(component->getCoordinateTransformFromGlobal(transform));
-    ASSERT_EQ(Transform2D(), transform);
-
-    ASSERT_TRUE(touchWrapper->getCoordinateTransformFromGlobal(transform));
-    ASSERT_EQ(Transform2D::translate(-40, -50), transform);
-
-    ASSERT_TRUE(frame->getCoordinateTransformFromGlobal(transform));
-    ASSERT_EQ(Transform2D::translate(-40, -50), transform);
-    ASSERT_TRUE(frame->getCoordinateTransformFromParent(touchWrapper, transform));
-    ASSERT_EQ(Transform2D(), transform);
-}
-
-TEST_F(ComponentTransformTest, InvalidAncestor) {
-    loadDocument(CHILD_IN_PARENT);
-
-    auto touchWrapper = as<CoreComponent>(component->findComponentById("TouchWrapper"));
-    auto frame = as<CoreComponent>(component->findComponentById("Frame"));
-
-    auto transform = Transform2D::translate(1, 1);
-
-    // frame is not an ancestor of touch wrapper
-    ASSERT_FALSE(touchWrapper->getCoordinateTransformFromParent(frame, transform));
-    // check that the output is not modified when false is returned
-    ASSERT_EQ(Transform2D::translate(1, 1), transform);
+    ASSERT_EQ(Transform2D(), component->getGlobalToLocalTransform());
+    ASSERT_EQ(Transform2D::translate(-40, -50), touchWrapper->getGlobalToLocalTransform());
+    ASSERT_EQ(Transform2D::translate(-40, -50), frame->getGlobalToLocalTransform());
 }
 
 static const char *TRANSFORMATIONS =
@@ -143,14 +123,31 @@ TEST_F(ComponentTransformTest, Transformations) {
     ASSERT_TRUE(touchWrapper);
     ASSERT_TRUE(frame);
 
-    Transform2D transform;
-    ASSERT_TRUE(touchWrapper->getCoordinateTransformFromGlobal(transform));
-    ASSERT_EQ(Transform2D({2,0, 0, 2, -130, -150}), transform);
+    ASSERT_EQ(Transform2D({2,0, 0, 2, -130, -150}), touchWrapper->getGlobalToLocalTransform());
+    ASSERT_EQ(Transform2D({2,0, 0, 2, -155, -150}), frame->getGlobalToLocalTransform());
+}
 
-    ASSERT_TRUE(frame->getCoordinateTransformFromGlobal(transform));
-    ASSERT_EQ(Transform2D({2,0, 0, 2, -155, -150}), transform);
-    ASSERT_TRUE(frame->getCoordinateTransformFromParent(touchWrapper, transform));
-    ASSERT_EQ(Transform2D::translateX(-25), transform);
+TEST_F(ComponentTransformTest, ToLocalPoint) {
+    loadDocument(TRANSFORMATIONS);
+
+    auto touchWrapper = as<CoreComponent>(component->findComponentById("TouchWrapper"));
+    auto frame = as<CoreComponent>(component->findComponentById("Frame"));
+
+    ASSERT_TRUE(touchWrapper);
+    ASSERT_TRUE(frame);
+
+    ASSERT_EQ(Transform2D({2,0, 0, 2, -130, -150}), touchWrapper->getGlobalToLocalTransform());
+    ASSERT_EQ(Transform2D({2,0, 0, 2, -155, -150}), frame->getGlobalToLocalTransform());
+
+    ASSERT_EQ(Point(-130, -150), touchWrapper->toLocalPoint({0,0}));
+    ASSERT_EQ(Point(-110, -130), touchWrapper->toLocalPoint({10,10}));
+    ASSERT_EQ(Point(-155, -150), frame->toLocalPoint({0,0}));
+    ASSERT_EQ(Point(-135, -130), frame->toLocalPoint({10,10}));
+
+    ASSERT_TRUE(TransformComponent(root, "Frame", "scale", 0));
+    auto singularPoint = frame->toLocalPoint({0, 0});
+    ASSERT_TRUE(std::isnan(singularPoint.getX()));
+    ASSERT_TRUE(std::isnan(singularPoint.getY()));
 }
 
 static const char *SCROLL_VIEW =
@@ -194,39 +191,22 @@ TEST_F(ComponentTransformTest, ScrollView)
 
     auto container = as<CoreComponent>(component->getChildAt(0));
 
-    Transform2D transform;
-
-    ASSERT_TRUE(component->getCoordinateTransformFromGlobal(transform));
-    ASSERT_EQ(Transform2D(), transform);
-
-    ASSERT_TRUE(container->getCoordinateTransformFromGlobal(transform));
-    ASSERT_EQ(Transform2D(), transform);
+    ASSERT_EQ(Transform2D(), component->getGlobalToLocalTransform());
+    ASSERT_EQ(Transform2D(), container->getGlobalToLocalTransform());
 
     for (auto i = 0 ; i < container->getChildCount() ; i++) {
         auto child = as<CoreComponent>(container->getChildAt(i));
-        ASSERT_TRUE(child->getCoordinateTransformFromGlobal(transform));
-        ASSERT_EQ(Transform2D::translateY(-200 * i), transform);
-        ASSERT_TRUE(child->getCoordinateTransformFromParent(container, transform));
-        ASSERT_EQ(Transform2D::translateY(-200 * i), transform);
+        ASSERT_EQ(Transform2D::translateY(-200 * i), child->getGlobalToLocalTransform());
     }
 
     component->update(kUpdateScrollPosition, 300);
 
-    ASSERT_TRUE(component->getCoordinateTransformFromGlobal(transform));
-    ASSERT_EQ(Transform2D(), transform);
-
-    ASSERT_TRUE(container->getCoordinateTransformFromGlobal(transform));
-    ASSERT_EQ(Transform2D::translateY(300), transform);
-
-    ASSERT_TRUE(container->getCoordinateTransformFromParent(component, transform));
-    ASSERT_EQ(Transform2D::translateY(300), transform);
+    ASSERT_EQ(Transform2D(), component->getGlobalToLocalTransform());
+    ASSERT_EQ(Transform2D::translateY(300), container->getGlobalToLocalTransform());
 
     for (auto i = 0 ; i < container->getChildCount() ; i++) {
         auto child = as<CoreComponent>(container->getChildAt(i));
-        ASSERT_TRUE(child->getCoordinateTransformFromGlobal(transform));
-        ASSERT_EQ(Transform2D::translateY(-200 * i + 300), transform);
-        ASSERT_TRUE(child->getCoordinateTransformFromParent(container, transform));
-        ASSERT_EQ(Transform2D::translateY(-200 * i), transform);
+        ASSERT_EQ(Transform2D::translateY(-200 * i + 300), child->getGlobalToLocalTransform());
     }
 }
 
@@ -262,32 +242,20 @@ TEST_F(ComponentTransformTest, VerticalSequence)
 {
     loadDocument(VERTICAL_SEQUENCE);
 
-    Transform2D transform;
-
-    ASSERT_TRUE(component->getCoordinateTransformFromGlobal(transform));
-    ASSERT_EQ(Transform2D(), transform);
+    ASSERT_EQ(Transform2D(), component->getGlobalToLocalTransform());
 
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = as<CoreComponent>(component->getChildAt(i));
-        ASSERT_TRUE(child->getCoordinateTransformFromGlobal(transform));
-        ASSERT_EQ(Transform2D::translateY(-200 * i), transform);
-
-        ASSERT_TRUE(child->getCoordinateTransformFromParent(component, transform));
-        ASSERT_EQ(Transform2D::translateY(-200 * i), transform);
+        ASSERT_EQ(Transform2D::translateY(-200 * i), child->getGlobalToLocalTransform());
     }
 
     component->update(kUpdateScrollPosition, 300);
 
-    ASSERT_TRUE(component->getCoordinateTransformFromGlobal(transform));
-    ASSERT_EQ(Transform2D(), transform);
+    ASSERT_EQ(Transform2D(), component->getGlobalToLocalTransform());
 
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = as<CoreComponent>(component->getChildAt(i));
-        ASSERT_TRUE(child->getCoordinateTransformFromGlobal(transform));
-        ASSERT_EQ(Transform2D::translateY(-200 * i + 300), transform);
-
-        ASSERT_TRUE(child->getCoordinateTransformFromParent(component, transform));
-        ASSERT_EQ(Transform2D::translateY(-200 * i + 300), transform);
+        ASSERT_EQ(Transform2D::translateY(-200 * i + 300), child->getGlobalToLocalTransform());
     }
 }
 
@@ -323,31 +291,127 @@ TEST_F(ComponentTransformTest, HorizontalSequence)
 {
     loadDocument(HORIZONTAL_SEQUENCE);
 
-    Transform2D transform;
-
-    ASSERT_TRUE(component->getCoordinateTransformFromGlobal(transform));
-    ASSERT_EQ(Transform2D(), transform);
+    ASSERT_EQ(Transform2D(), component->getGlobalToLocalTransform());
 
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = as<CoreComponent>(component->getChildAt(i));
-        ASSERT_TRUE(child->getCoordinateTransformFromGlobal(transform));
-        ASSERT_EQ(Transform2D::translateX(-200 * i), transform);
-
-        ASSERT_TRUE(child->getCoordinateTransformFromParent(component, transform));
-        ASSERT_EQ(Transform2D::translateX(-200 * i), transform);
+        ASSERT_EQ(Transform2D::translateX(-200 * i), child->getGlobalToLocalTransform());
     }
 
     component->update(kUpdateScrollPosition, 300);
 
-    ASSERT_TRUE(component->getCoordinateTransformFromGlobal(transform));
-    ASSERT_EQ(Transform2D(), transform);
+    ASSERT_EQ(Transform2D(), component->getGlobalToLocalTransform());
 
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = as<CoreComponent>(component->getChildAt(i));
-        ASSERT_TRUE(child->getCoordinateTransformFromGlobal(transform));
-        ASSERT_EQ(Transform2D::translateX(-200 * i + 300), transform);
+        ASSERT_EQ(Transform2D::translateX(-200 * i + 300), child->getGlobalToLocalTransform());
+    }
+}
 
-        ASSERT_TRUE(child->getCoordinateTransformFromParent(component, transform));
-        ASSERT_EQ(Transform2D::translateX(-200 * i + 300), transform);
+static const char *STALENESS_PROPAGATION =
+    R"apl({
+      "type": "APL",
+      "version": "1.4",
+      "layouts": {
+        "Subcontainer": {
+          "parameters": [
+            "containerIndex"
+          ],
+          "item": {
+            "type": "Container",
+            "width": 200,
+            "height": 300,
+            "items": {
+              "type": "Text",
+              "text": "${data}",
+              "height": "50"
+            },
+            "data": [
+              "item ${containerIndex}.1",
+              "item ${containerIndex}.2",
+              "item ${containerIndex}.3",
+              "item ${containerIndex}.4",
+              "item ${containerIndex}.5"
+            ]
+          }
+        }
+      },
+      "mainTemplate": {
+        "parameters": [],
+        "item": {
+          "type": "Sequence",
+          "id": "top",
+          "scrollDirection": "vertical",
+          "width": 200,
+          "height": 500,
+          "items": [
+            {
+              "type": "Subcontainer",
+              "containerIndex": "1"
+            },
+            {
+              "type": "Subcontainer",
+              "containerIndex": "2"
+            },
+            {
+              "type": "Subcontainer",
+              "containerIndex": "3"
+            }
+          ]
+        }
+      }
+    }
+)apl";
+
+TEST_F(ComponentTransformTest, StalenessPropagation)
+{
+    loadDocument(STALENESS_PROPAGATION);
+
+    ASSERT_EQ(Transform2D(), component->getGlobalToLocalTransform());
+
+    ASSERT_EQ(3, component->getChildCount());
+    for (auto i = 0 ; i < component->getChildCount(); i++) {
+        auto subcontainer = component->getCoreChildAt(i);
+        ASSERT_EQ(Transform2D::translateY(-300 * i), subcontainer->getGlobalToLocalTransform());
+
+        ASSERT_EQ(5, subcontainer->getChildCount());
+        for (auto j = 0; j < subcontainer->getChildCount(); j++) {
+            auto text = subcontainer->getCoreChildAt(j);
+            ASSERT_EQ(Transform2D::translateY(-300 * i - 50 * j), text->getGlobalToLocalTransform());
+        }
+    }
+
+    component->update(kUpdateScrollPosition, 400);
+
+    ASSERT_EQ(Transform2D(), component->getGlobalToLocalTransform());
+
+    ASSERT_EQ(3, component->getChildCount());
+    for (auto i = 0 ; i < component->getChildCount(); i++) {
+        auto subcontainer = component->getCoreChildAt(i);
+        ASSERT_EQ(Transform2D::translateY(-300 * i + 400), subcontainer->getGlobalToLocalTransform());
+
+        ASSERT_EQ(5, subcontainer->getChildCount());
+        for (auto j = 0; j < subcontainer->getChildCount(); j++) {
+            auto text = subcontainer->getCoreChildAt(j);
+            ASSERT_EQ(Transform2D::translateY(-300 * i + 400 - 50 * j), text->getGlobalToLocalTransform());
+        }
+    }
+
+    ASSERT_TRUE(TransformComponent(root, "top", "translateX", 100));
+
+    ASSERT_EQ(Transform2D::translateX(-100), component->getGlobalToLocalTransform());
+
+    ASSERT_EQ(3, component->getChildCount());
+    for (auto i = 0 ; i < component->getChildCount(); i++) {
+        auto subcontainer = component->getCoreChildAt(i);
+        ASSERT_EQ(Transform2D::translate(-100, -300 * i + 400),
+            subcontainer->getGlobalToLocalTransform());
+
+        ASSERT_EQ(5, subcontainer->getChildCount());
+        for (auto j = 0; j < subcontainer->getChildCount(); j++) {
+            auto text = subcontainer->getCoreChildAt(j);
+            ASSERT_EQ(Transform2D::translate(-100, -300 * i + 400 - 50 * j),
+                text->getGlobalToLocalTransform());
+        }
     }
 }

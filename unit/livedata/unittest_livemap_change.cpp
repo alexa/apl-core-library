@@ -205,14 +205,6 @@ TEST_F(LiveMapChangeTest, Replaced)
                              {}));
     root->clearPending();
 
-    // Insert one back and erase immediately
-    myMap->set("noun", "cat");
-    myMap->remove("noun");
-
-    ASSERT_TRUE(LiveMapTrack("TestMap", context,
-                             {}));
-    root->clearPending();
-
     // Add them all back
     myMap->set("noun", "dog");
     myMap->set("adjective", "happy");

@@ -64,7 +64,10 @@ calculate(const CommandPropDef& def,
     auto p = properties.find(def.names);
 
     if (p != properties.end()) {
-        Object tmp = evaluate(*context, p->second);
+        Object tmp = (def.flags & kPropEvaluated) != 0 ?
+            evaluateRecursive(*context, p->second) :
+            evaluate(*context, p->second);
+
         if (def.map) {
             int value = def.map->get(tmp.asString(), -1);
             if (value == -1)

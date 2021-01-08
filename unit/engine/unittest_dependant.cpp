@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -809,4 +809,227 @@ TEST_F(DependantTest, ResourceLookup)
     component->update(kUpdatePressed, 1);
     ASSERT_TRUE(IsEqual("Monday", text->getCalculated(kPropertyText).asString()));
 
+}
+
+static const char *AVG_DEPENDENCY = R"apl({
+  "type": "APL",
+  "version": "1.4",
+  "graphics": {
+    "equalizer": {
+      "type": "AVG",
+      "version": "1.1",
+      "parameters": [
+        {
+          "name": "Tick",
+          "type": "number",
+          "default": 0
+        },
+        {
+          "name": "ColorOn",
+          "default": "white",
+          "type": "color"
+        },
+        {
+          "name": "ColorOff",
+          "default": "transparent",
+          "type": "color"
+        },
+        {
+          "name": "Values",
+          "default": [
+            [1,2,2],
+            [2,2,2],
+            [3,2,2],
+            [4,2,2],
+            [5,2,3],
+            [6,2,3],
+            [6,2,4],
+            [5,3,4],
+            [5,3,5],
+            [4,3,5],
+            [4,4,6],
+            [3,4,6],
+            [3,4,6],
+            [2,4,5],
+            [2,4,5],
+            [1,5,4],
+            [2,5,4],
+            [3,5,3],
+            [4,5,3],
+            [5,4,3],
+            [6,4,2],
+            [6,4,2],
+            [5,4,2],
+            [5,4,3],
+            [4,3,4],
+            [4,3,5],
+            [3,3,4],
+            [3,3,4],
+            [2,2,4],
+            [2,2,3]
+          ]
+        }
+      ],
+      "width": 48,
+      "height": 48,
+      "items": [
+        {
+          "type": "path",
+          "pathData": "M4,4 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][0] >= 7 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M4,10 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][0] >= 6 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M4,16 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][0] >= 5 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M4,22 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][0] >= 4 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M4,28 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][0] >= 3 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M4,34 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][0] >= 2 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M4,40 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][0] >= 1 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M18,4 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][1] >= 7 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M18,10 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][1] >= 6 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M18,16 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][1] >= 5 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M18,22 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][1] >= 4 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M18,28 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][1] >= 3 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M18,34 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][1] >= 2 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M18,40 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][1] >= 1 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M32,40 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][1] >= 1 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M32,4 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][2] >= 7 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M32,10 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][2] >= 6 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M32,16 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][2] >= 5 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M32,22 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][2] >= 4 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M32,28 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][2] >= 3 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M32,34 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][2] >= 2 ? ColorOn : ColorOff}"
+        },
+        {
+          "type": "path",
+          "pathData": "M32,40 l12,0 l0,4 l-12,0 Z",
+          "fill": "${Values[Tick % Values.length][2] >= 1 ? ColorOn : ColorOff}"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "items":{
+        "type": "VectorGraphic",
+        "source": "equalizer",
+        "scale": "best-fit",
+        "width": "100%",
+        "align": "center",
+        "ColorOn": "white",
+        "Tick": "${Math.floor(utcTime / 34)}"
+      }
+    }
+  }
+})apl";
+
+TEST_F(DependantTest, AVGDependency)
+{
+    auto document = std::string(AVG_DEPENDENCY);
+    loadDocument(document.c_str());
+    ASSERT_TRUE(component);
+
+    auto graphic = component->getCoreChildAt(0)->getCalculated(kPropertyGraphic).getGraphic();
+    ASSERT_TRUE(graphic);
+
+    ASSERT_FALSE(root->hasEvent());
+    root->clearDirty();
+    ASSERT_FALSE(root->isDirty());
+
+    root->updateTime(34);
+    root->updateTime(100);
+
+    ASSERT_FALSE(root->hasEvent());
+    root->clearDirty();
+    ASSERT_FALSE(root->isDirty());
+
+    component = nullptr;
+    context = nullptr;
+    root = nullptr;
+    content = nullptr;
+    document = "";
+
+    // Release graphic element last.
+    graphic = nullptr;
 }

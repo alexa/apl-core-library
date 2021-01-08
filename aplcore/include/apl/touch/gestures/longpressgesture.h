@@ -24,17 +24,15 @@ namespace apl {
 
 class LongPressGesture : public std::enable_shared_from_this<LongPressGesture>, public Gesture {
 public:
-    static std::shared_ptr<LongPressGesture> create(const TouchablePtr& touchable, const Context& context, const Object& object);
+    static std::shared_ptr<LongPressGesture> create(const ActionablePtr& actionable, const Context& context, const Object& object);
 
-    LongPressGesture(const TouchablePtr& touchable, Object&& onLongPressStart, Object&& onLongPressEnd);
+    LongPressGesture(const ActionablePtr& actionable, Object&& onLongPressStart, Object&& onLongPressEnd);
     virtual ~LongPressGesture() = default;
 
-    void reset() override;
-
-    GestureType getType() const override { return kGestureTypeLongPress; };
+    bool invokeAccessibilityAction(const std::string& name) override;
 
 protected:
-    void onMove(const PointerEvent& event, apl_time_t timestamp) override;
+    void onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) override;
     void onDown(const PointerEvent& event, apl_time_t timestamp) override;
     void onUp(const PointerEvent& event, apl_time_t timestamp) override;
 

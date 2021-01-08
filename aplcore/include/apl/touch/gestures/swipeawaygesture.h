@@ -23,6 +23,7 @@
 namespace apl {
 
 class InterpolatedTransformation;
+class VelocityTracker;
 
 /**
  * Enumeration of swipe actions
@@ -33,27 +34,16 @@ enum SwipeAwayActionType {
     kSwipeAwayActionCover,
 };
 
-/**
- * Enumeration of swipe directions
- */
-enum SwipeAwayDirection {
-    kSwipeAwayDirectionLeft,
-    kSwipeAwayDirectionRight,
-    kSwipeAwayDirectionUp,
-    kSwipeAwayDirectionDown
-};
-
 class SwipeAwayGesture : public Gesture, public std::enable_shared_from_this<SwipeAwayGesture> {
 public:
-    static std::shared_ptr<SwipeAwayGesture> create(const TouchablePtr& touchable, const Context& context, const Object& object);
+    static std::shared_ptr<SwipeAwayGesture> create(const ActionablePtr& actionable, const Context& context, const Object& object);
 
-    SwipeAwayGesture(const TouchablePtr& touchable, SwipeAwayActionType action, SwipeAwayDirection direction,
+    SwipeAwayGesture(const ActionablePtr& actionable, SwipeAwayActionType action, SwipeDirection direction,
                      Object&& onSwipeMove, Object&& onSwipeDone, Object&& items);
     virtual ~SwipeAwayGesture() = default;
 
     void reset() override;
-
-    GestureType getType() const override { return kGestureTypeSwipeAway; };
+    bool invokeAccessibilityAction(const std::string& name) override;
 
 protected:
     void onMove(const PointerEvent& event, apl_time_t timestamp) override;
@@ -61,29 +51,32 @@ protected:
     void onUp(const PointerEvent& event, apl_time_t timestamp) override;
 
 private:
-    float getMove(SwipeAwayDirection direction, Point pos);
+    float getMove(SwipeDirection direction, Point localPos);
+    int getFulfillMoveDirection();
     std::shared_ptr<InterpolatedTransformation> getTransformation(bool above);
     void processTransformChange(float alpha);
     void animateRemainder(bool fulfilled, float velocity);
-    void updateVelocity(float distanceDiff, apl_time_t timestamp);
+    void sendSwipeMove(float travelPercentage);
+    float toLocalThreshold(float threshold);
+    bool isSlopeWithinTolerance(Point localPosition);
 
     SwipeAwayActionType mAction;
-    SwipeAwayDirection mDirection;
+    SwipeDirection mDirection;
     Object mOnSwipeMove;
     Object mOnSwipeDone;
     Object mItems;
-    float mDistance;
-    Point mPosition;
+    Point mInitialPosition;
+    float mLocalDistance;
+    Point mLocalPosition;
     float mTraveledDistance;
     CoreComponentPtr mReplacedComponent;
     CoreComponentPtr mSwipeComponent;
     std::shared_ptr<InterpolatedTransformation> mReplaceTransformation;
     std::shared_ptr<InterpolatedTransformation> mSwipeTransformation;
     ActionPtr mAnimateAction;
-    std::shared_ptr<Easing> mAnimationEasing;
-    apl_time_t mTimestamp;
+    EasingPtr mAnimationEasing;
     float mInitialMove;
-    float mVelocity;
+    std::unique_ptr<VelocityTracker> mVelocityTracker;
     float mTriggerDistanceThreshold;
     float mFulfillDistanceThreshold;
     float mVelocityThreshold;

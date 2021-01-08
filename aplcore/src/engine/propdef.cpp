@@ -23,26 +23,28 @@
 namespace apl {
 
 Object asOldArray(const Context &context, const Object &object) {
-    auto array = arrayify(context, object);
-    if (context.getRequestedAPLVersion() == "1.0") {
-        for (auto& m : array) {
-            // Arrays and maps are serialized in JSON
-            if (m.isArray() || m.isMap()) {
-                rapidjson::Document doc;
-                auto json = m.serialize(doc.GetAllocator());
+    auto result = evaluateRecursive(context, arrayify(context, object));
+    if (context.getRequestedAPLVersion() != "1.0")
+        return result;
 
-                rapidjson::StringBuffer buffer;
-                rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-                json.Accept(writer);
+    ObjectArray array = result.getArray();
+    for (auto& m : array) {
+        // Arrays and maps are serialized in JSON
+        if (m.isArray() || m.isMap()) {
+            rapidjson::Document doc;
+            auto json = m.serialize(doc.GetAllocator());
 
-                std::string s(buffer.GetString(), buffer.GetSize());
-                m = s;
-            }
-            else {  // Everything else uses the "asString" method
-                m = m.asString();
-            }
+            rapidjson::StringBuffer buffer;
+            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+            json.Accept(writer);
+
+            std::string s(buffer.GetString(), buffer.GetSize());
+            m = s;
+        } else {  // Everything else uses the "asString" method
+            m = m.asString();
         }
     }
+
     return Object(std::move(array));
 };
 

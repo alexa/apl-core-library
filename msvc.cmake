@@ -11,4 +11,4 @@
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /permissive- /GS /TP /W3 /Zc:wchar_t /DAPL_CORE_UWP  /Zc:inline /fp:precise /DWIN32_LEAN_AND_MEAN /DNOGDI /DWIN32 /D_WINDOWS /D_USE_MATH_DEFINES")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /permissive- /GS /TP /W3 /Zc:wchar_t /DAPL_CORE_UWP  /Zc:inline /fp:precise /DWIN32_LEAN_AND_MEAN /DNOGDI /DWIN32 /D_WINDOWS /D_USE_MATH_DEFINES /utf-8")

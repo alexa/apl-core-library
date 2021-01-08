@@ -94,8 +94,10 @@ GridSequenceComponent::propDefSet() const {
     static ComponentPropDefSet sSequenceComponentProperties(MultiChildScrollableComponent::propDefSet(), {
             {kPropertyChildHeight,     Object::EMPTY_ARRAY(),    asArray,             kPropIn|kPropRequired},
             {kPropertyChildWidth,      Object::EMPTY_ARRAY(),    asArray,             kPropIn|kPropRequired},
-            {kPropertyScrollDirection, kScrollDirectionVertical, sScrollDirectionMap, kPropInOut, yn::setGridScrollDirection},
-            {kPropertyWrap,            kFlexboxWrapWrap,         asInteger,           kPropOut, yn::setWrap},
+            {kPropertyScrollDirection, kScrollDirectionVertical, sScrollDirectionMap, kPropInOut|kPropVisualContext,
+                                                                                      yn::setGridScrollDirection},
+            {kPropertyWrap,            kFlexboxWrapWrap,         asInteger,           kPropOut,
+                                                                                      yn::setWrap},
             {kPropertyItemsPerCourse,  0,                        asInteger,           kPropRuntimeState},
     });
 
@@ -123,13 +125,12 @@ GridSequenceComponent::eventPropertyMap() const
 }
 
 void GridSequenceComponent::layoutChildIfRequired(
-        const Rect& parentBounds,
         CoreComponentPtr& child,
         size_t childIdx,
         bool useDirtyFlag) {
     // We need to apply forced size before layout.
     applyChildSize(child, childIdx);
-    MultiChildScrollableComponent::layoutChildIfRequired(parentBounds, child, childIdx, useDirtyFlag);
+    MultiChildScrollableComponent::layoutChildIfRequired(child, childIdx, useDirtyFlag);
 }
 
 void GridSequenceComponent::calculateAbsoluteChildSizes(float gridWidth, float gridHeight) {

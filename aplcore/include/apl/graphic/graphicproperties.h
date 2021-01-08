@@ -53,6 +53,7 @@ enum GraphicPropertyKey {
     kGraphicPropertyFillOpacity,
     kGraphicPropertyFillTransform,
     kGraphicPropertyFillTransformAssigned,
+    kGraphicPropertyFilters,
     kGraphicPropertyFontFamily,
     kGraphicPropertyFontSize,
     kGraphicPropertyFontStyle,
@@ -104,7 +105,8 @@ enum GraphicElementType {
 
 enum GraphicVersions {
     kGraphicVersion10,
-    kGraphicVersion11
+    kGraphicVersion11,
+    kGraphicVersion12
 };
 
 extern Bimap<int, std::string> sGraphicScaleBimap;

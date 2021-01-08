@@ -24,9 +24,9 @@
 namespace apl {
 
 class Object;
-class TouchableComponent;
+class ActionableComponent;
 
-using TouchablePtr = std::shared_ptr<TouchableComponent>;
+using ActionablePtr = std::shared_ptr<ActionableComponent>;
 
 /**
  * Enumeration of gesture types
@@ -46,12 +46,7 @@ extern Bimap<GestureType, std::string> sGestureTypeBimap;
  */
 class Gesture {
 public:
-    static std::shared_ptr<Gesture> create(const TouchablePtr& touchable, const Object& object);
-
-    /**
-     * @return The type of the gesture
-     */
-    virtual GestureType getType() const = 0;
+    static std::shared_ptr<Gesture> create(const ActionablePtr& actionable, const Object& object);
 
     /**
      * Process pointer event through gesture.
@@ -69,23 +64,50 @@ public:
     /**
      * @return true if triggered, false otherwise.
      */
-    bool isTriggered() { return mTriggered; }
+    bool isTriggered() const { return mTriggered; }
+
+    /**
+     * An accessibility action has been invoked on this gesture's component, but no user-defined commands
+     * were found. If the name of the accessibility action is the predefined name associated with this gesture,
+     * then execute the appropriate commands from this gesture.
+     * @param name The name of the accessibility action
+     * @return True if this gesture matched and executed
+     */
+    virtual bool invokeAccessibilityAction(const std::string& name) { return false; }
 
 protected:
-    Gesture(const TouchablePtr& touchable) : mTouchable(touchable), mStarted(false), mTriggered(false) {}
+    Gesture(const ActionablePtr& actionable) : mActionable(actionable), mStarted(false), mTriggered(false) {}
 
     /// Following should be overriden by specific gesture in order to respond to incoming events.
     /// See existing gestures for an example.
     virtual void onMove(const PointerEvent& event, apl_time_t timestamp) {}
+    virtual void onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) {}
     virtual void onDown(const PointerEvent& event, apl_time_t timestamp) {}
     virtual void onUp(const PointerEvent& event, apl_time_t timestamp) {}
+    virtual void onCancel(const PointerEvent& event, apl_time_t timestamp) { if(mTriggered) reset(); }
 
-    TouchablePtr mTouchable;
+    /**
+     * Converts a vector in global coordinate space to the current target's local coordinate space.
+     * The vector's starting point is considered to be the origin (i.e. (0,0)) in the current target's coordinate space.
+     *
+     * @param vector The vector from the current target's origin
+     * @return The vector converted to local coordinate space.
+     */
+    Point toLocalVector(const Point& vector);
+
+    /**
+     * Simple helper to execute pointer event handling regardless of gesture being triggered.
+     *
+     * @param event pointer event.
+     */
+    void passPointerEventThrough(const PointerEvent& event);
+
+    ActionablePtr mActionable;
     bool mStarted;
     bool mTriggered;
 };
 
-using GestureFunc = std::function<std::shared_ptr<Gesture>(const TouchablePtr&, const Context&, const Object& object)>;
+using GestureFunc = std::function<std::shared_ptr<Gesture>(const ActionablePtr&, const Context&, const Object& object)>;
 
 } // namespace apl
 

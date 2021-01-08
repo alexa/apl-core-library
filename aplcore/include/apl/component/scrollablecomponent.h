@@ -24,11 +24,25 @@ namespace apl {
  * Abstract class representing actionable content that can scroll.
  */
 class ScrollableComponent : public ActionableComponent {
+public:
+    /**
+     * Get offset from current scroll position that will bring scrollable into snap position according to configured rules.
+     * @return Offset from scroll position to snap position.
+     */
+    virtual Point getSnapOffset() const { return {}; }
+
+    /**
+     * @return true if snap should happen regardless of external factors like gesture velocity or interaction rules.
+     */
+    virtual bool shouldForceSnap() const { return false; }
+
+    void update(UpdateType type, float value) override;
+
 protected:
     ScrollableComponent(const ContextPtr& context, Properties&& properties, const std::string& path) :
         ActionableComponent(context, std::move(properties), path) {};
 
-    void update(UpdateType type, float value) override;
+    void initialize() override;
 
     const EventPropertyMap& eventPropertyMap() const override;
 
@@ -58,6 +72,11 @@ protected:
      * @return maximum available scroll position.
      */
     virtual float maxScroll() const = 0;
+
+    /**
+     * Called when the scroll position changes so that subclasses can respond with the appropriate state changes.
+     */
+    virtual void onScrollPositionUpdated();
 };
 
 } // namespace apl

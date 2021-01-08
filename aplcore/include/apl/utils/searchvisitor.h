@@ -107,7 +107,6 @@ private:
     bool             mResultFound = false;
     CoreComponentPtr mPotentialResult = nullptr;
     Point            mGlobalPoint;
-    Transform2D      mCurrentTransform;
 };
 
 /**

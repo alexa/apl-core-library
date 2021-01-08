@@ -35,9 +35,7 @@ public:
      * Virtual destructor makes sure that all upstream dependant objects are removed.
      */
     virtual ~RecalculateTarget() {
-        for (auto& m : mUpstream) {
-            m.second->removeFromSource();
-        }
+        removeUpstreamDependencies();
     }
 
     /**
@@ -77,6 +75,15 @@ public:
      */
     size_t countUpstream() {
         return mUpstream.size();
+    }
+
+    /**
+     * Explicitly clear upstream dependencies that drive this object.
+     */
+    void removeUpstreamDependencies() {
+        for (auto& m : mUpstream) {
+            m.second->removeFromSource();
+        }
     }
 
 private:

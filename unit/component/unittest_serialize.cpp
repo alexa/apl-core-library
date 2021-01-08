@@ -99,7 +99,16 @@ static const char *SERIALIZE_COMPONENTS = R"({
           "borderBottomLeftRadius": "1dp",
           "borderBottomRightRadius": "2dp",
           "borderTopLeftRadius": "3dp",
-          "borderTopRightRadius": "4dp"
+          "borderTopRightRadius": "4dp",
+          "actions": {
+            "name": "green",
+            "label": "Change the border to green",
+            "commands": {
+              "type": "SetValue",
+              "property": "borderColor",
+              "value": "green"
+            }
+          }
         },
         {
           "type": "Sequence",
@@ -250,6 +259,11 @@ TEST_F(SerializeTest, Components)
     ASSERT_EQ(radii.get().at(3), frameJson["_borderRadii"][3].GetFloat());
     ASSERT_EQ(frame->getCalculated(kPropertyBorderColor).getColor(), Color(session, frameJson["borderColor"].GetString()));
     ASSERT_EQ(frame->getCalculated(kPropertyBorderWidth).getAbsoluteDimension(), frameJson["borderWidth"].GetDouble());
+    auto action = frame->getCalculated(kPropertyAccessibilityActions).at(0).getAccessibilityAction();
+    ASSERT_EQ(action->getName(), frameJson["action"][0]["name"].GetString());
+    ASSERT_EQ(action->getLabel(), frameJson["action"][0]["label"].GetString());
+    ASSERT_EQ(action->enabled(), frameJson["action"][0]["enabled"].GetBool());
+    ASSERT_FALSE(frameJson["action"][0].HasMember("commands"));  // Commands don't get serialized
 
     auto sequence = context->findComponentById("sequence");
     ASSERT_TRUE(sequence);
@@ -389,6 +403,7 @@ const static char *SERIALIZE_ALL_RESULT = R"({
   "__style": "",
   "__path": "_main/layouts/MyLayout/items",
   "accessibilityLabel": "",
+  "action": [],
   "_bounds": [
     0,
     0,
@@ -429,6 +444,7 @@ const static char *SERIALIZE_ALL_RESULT = R"({
   "paddingLeft": 0,
   "paddingRight": 0,
   "paddingTop": 0,
+  "role": "none",
   "shadowColor": "#00000000",
   "shadowHorizontalOffset": 0,
   "shadowRadius": 0,
@@ -453,7 +469,8 @@ const static char *SERIALIZE_ALL_RESULT = R"({
   "width": "100%",
   "onCursorEnter": [],
   "onCursorExit": [],
-  "_laidOut": true
+  "_laidOut": true,
+  "_zOrder": 0
 })";
 
 TEST_F(SerializeTest, SerializeAll)
@@ -820,4 +837,108 @@ TEST_F(SerializeTest, AVG)
     ASSERT_EQ(textJson["props"]["strokeWidth"].GetDouble(), text->getValue(kGraphicPropertyStrokeWidth).getDouble());
     ASSERT_EQ(textJson["props"]["text"].GetString(), text->getValue(kGraphicPropertyText).getString());
     ASSERT_EQ(textJson["props"]["textAnchor"].GetDouble(), text->getValue(kGraphicPropertyTextAnchor).getInteger());
+}
+
+static const char *MUSIC_DOC = R"({
+    "type": "APL",
+    "version": "1.5",
+    "mainTemplate": {
+        "items": [
+            {
+                "type": "Container",
+                "height": "100%",
+                "width": "100%",
+                "id": "document",
+                "items": [
+                    {
+                        "type": "Container",
+                        "position": "relative",
+                        "id": "view",
+                        "height": "16vh",
+                        "display": "none",
+                        "grow": 1,
+                        "items": [
+                            {
+                                "type": "Sequence",
+                                "height": "16vh",
+                                "alignSelf": "center",
+                                "position": "absolute",
+                                "id": "sequence",
+                                "numbered": true,
+                                "data": [
+                                    "first",
+                                    "second"
+                                ],
+                                "grow": 1,
+                                "item": {
+                                    "type": "VectorGraphic",
+                                    "source": "diamond",
+                                    "scale": "best-fit",
+                                    "width": "100%",
+                                    "align": "center",
+                                    "Tick": "${elapsedTime}"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    "graphics": {
+        "diamond": {
+            "type": "AVG",
+            "version": "1.1",
+            "parameters": [
+                {
+                    "name": "Tick",
+                    "type": "number",
+                    "default": 0
+                },
+                {
+                    "name": "Colors",
+                    "type": "array",
+                    "default": ["yellow", "orange", "red"]
+                }
+            ],
+            "width": 48,
+            "height": 48,
+            "items": {
+                "type": "path",
+                "fill": "${Colors[Tick % Colors.length]}",
+                "stroke": "${Colors[(Tick+1) % Colors.length]}",
+                "strokeWidth": 3,
+                "pathData": "M 24 0 L 48 24 L 24 48 L 0 24 z"
+            }
+        }
+    }
+})";
+
+TEST_F(SerializeTest, AVGInSequence) {
+    loadDocument(MUSIC_DOC);
+    ASSERT_TRUE(component);
+
+    root->updateTime(5);
+
+    ASSERT_TRUE(root->isDirty());
+    ASSERT_EQ(2, root->getDirty().size());
+    for (auto& c : root->getDirty()) {
+        rapidjson::Document doc;
+        auto json = c->serializeDirty(doc.GetAllocator());
+
+        ASSERT_TRUE(json.HasMember("graphic"));
+        ASSERT_TRUE(json["graphic"]["isValid"].GetBool());
+        ASSERT_EQ(json["graphic"]["intrinsicWidth"].GetDouble(), 48.0);
+        ASSERT_EQ(json["graphic"]["intrinsicHeight"].GetDouble(), 48.0);
+        ASSERT_EQ(json["graphic"]["viewportWidth"].GetDouble(), 48.0);
+        ASSERT_EQ(json["graphic"]["viewportHeight"].GetDouble(), 48.0);
+        ASSERT_EQ(json["graphic"]["root"]["props"]["width_actual"].GetDouble(), 0.0);
+        ASSERT_EQ(json["graphic"]["root"]["props"]["height_actual"].GetDouble(), 0.0);
+        ASSERT_EQ(json["graphic"]["root"]["props"]["viewportWidth_actual"].GetDouble(), 48.0);
+        ASSERT_EQ(json["graphic"]["root"]["props"]["viewportHeight_actual"].GetDouble(), 48.0);
+
+        ASSERT_STREQ(json["graphic"]["root"]["children"][0]["props"]["fill"].GetString(), "#ff0000ff");
+        ASSERT_STREQ(json["graphic"]["root"]["children"][0]["props"]["stroke"].GetString(), "#ffff00ff");
+        ASSERT_EQ(json["graphic"]["root"]["children"][0]["props"]["strokeWidth"].GetDouble(), 3.0);
+    }
 }

@@ -38,13 +38,7 @@ class StyleProcessSet;
 /**
  * Store all of the styles defined in an APL document and the loaded packages.
  */
-class Styles : private Counter<Styles> {
-
-#ifdef DEBUG_MEMORY_USE
-public:
-    using Counter<Styles>::itemsDelta;
-#endif
-
+class Styles : public Counter<Styles> {
 public:
     Styles() : Styles(nullptr) {}
     Styles(const std::shared_ptr<Styles>& parent) : mParentStyle(parent) {}

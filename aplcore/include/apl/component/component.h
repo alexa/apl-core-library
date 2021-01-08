@@ -87,7 +87,12 @@ enum UpdateType {
     /**
      * The user has changed the text in the edit text component.
      */
-     kUpdateTextChange
+     kUpdateTextChange,
+
+     /**
+      * Invoke an accessibility action by name.  The argument is the string name of the action to invoke.
+      */
+     kUpdateAccessibilityAction,
 };
 
 /**
@@ -96,6 +101,7 @@ enum UpdateType {
 enum ScrollType {
     kScrollTypeNone,
     kScrollTypeVertical,
+    kScrollTypeVerticalPager,
     kScrollTypeHorizontal,
     kScrollTypeHorizontalPager,
 };
@@ -125,11 +131,9 @@ enum PageDirection {
  * changed. The dirty flags must be explicitly cleared.  Note that the dirty flag is
  * only set for an *output* property change.
  */
-class Component : private Counter<Component>, public UserData<Component>, public std::enable_shared_from_this<Component> {
-#ifdef DEBUG_MEMORY_USE
-public:
-    using Counter<Component>::itemsDelta;
-#endif
+class Component : public Counter<Component>,
+                  public UserData<Component>,
+                  public std::enable_shared_from_this<Component> {
 
 public:
     virtual ~Component() {}
@@ -371,8 +375,9 @@ public:
 
     /**
      * Serialize a component and its children visual context into a rapidjson object.
-     * @param allocator
-     * @return
+     * @deprecated use RootContext->serializeVisualContext()
+     * @param allocator Allocator for allocating memory for the DOM
+     * @return a json representation of the visual context.
      */
     virtual rapidjson::Value serializeVisualContext(rapidjson::Document::AllocatorType& allocator) = 0;
 

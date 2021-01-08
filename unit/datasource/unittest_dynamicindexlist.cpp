@@ -2733,3 +2733,170 @@ TEST_F(DynamicIndexListTest, LazyResponseTimeoutResolvedAfterDelayed) {
     loop->advanceToEnd();
     ASSERT_FALSE(root->hasEvent());
 }
+
+static const char *SWIPE_TO_DELETE = R"({
+  "type": "APL",
+  "version": "1.4",
+  "theme": "dark",
+  "layouts": {
+    "swipeAway" : {
+      "parameters": ["text1", "text2"],
+      "item": {
+        "type": "TouchWrapper",
+        "width": 200,
+        "item": {
+          "type": "Frame",
+          "backgroundColor": "blue",
+          "height": 100,
+          "items": {
+            "type": "Text",
+            "text": "${text1}",
+            "fontSize": 60
+          }
+        },
+        "gestures": [
+          {
+            "type": "SwipeAway",
+            "direction": "left",
+            "action":"reveal",
+            "items": {
+              "type": "Frame",
+              "backgroundColor": "purple",
+              "width": "100%",
+              "items": {
+                "type": "Text",
+                "text": "${text2}",
+                "fontSize": 60,
+                "color": "white"
+              }
+            },
+            "onSwipeDone": {
+              "type": "SendEvent",
+              "arguments": ["${event.source.uid}", "${index}"]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "items": [
+      {
+        "type": "Sequence",
+        "width": "100%",
+        "height": 500,
+        "alignItems": "center",
+        "justifyContent": "spaceAround",
+        "data": "${dynamicSource}",
+        "items": [
+          {
+            "type": "swipeAway",
+            "text1": "${data}",
+            "text2": "${data}"
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+static const char *SWIPE_TO_DELETE_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 0,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 5,
+    "items": [ 1, 2, 3, 4, 5 ]
+  }
+})";
+
+TEST_F(DynamicIndexListTest, SwipeToDelete)
+{
+    config.swipeAwayAnimationEasing("linear");
+    config.swipeAwayTriggerDistanceThreshold(5);
+    config.pointerInactivityTimeout(1000);
+
+    loadDocument(SWIPE_TO_DELETE, SWIPE_TO_DELETE_DATA);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(5, component->getChildCount());
+
+    auto idToDelete = component->getChildAt(0)->getUniqueId();
+
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(200,1), false));
+    root->updateTime(100);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(190,1), true));
+    root->updateTime(200);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(140,1), true));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(140,1), true));
+
+    root->updateTime(1000);
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    auto deletedId = event.getValue(kEventPropertyArguments).getArray().at(0).asString();
+    int indexToDelete = event.getValue(kEventPropertyArguments).getArray().at(1).asNumber();
+    ASSERT_EQ(idToDelete, deletedId);
+    ASSERT_EQ(0, indexToDelete);
+
+    ASSERT_TRUE(ds->processUpdate(createDelete(1, indexToDelete)));
+    root->clearPending();
+    ASSERT_EQ(4, component->getChildCount());
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds));
+    root->clearDirty();
+
+
+    // Repeat for very first
+    idToDelete = component->getChildAt(0)->getUniqueId();
+
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(200,1), false));
+    root->updateTime(1100);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(190,1), true));
+    root->updateTime(1200);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(140,1), true));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(140,1), true));
+
+    root->updateTime(2000);
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    deletedId = event.getValue(kEventPropertyArguments).getArray().at(0).asString();
+    indexToDelete = event.getValue(kEventPropertyArguments).getArray().at(1).asNumber();
+    ASSERT_EQ(idToDelete, deletedId);
+    ASSERT_EQ(0, indexToDelete);
+    root->clearDirty();
+
+    ASSERT_TRUE(ds->processUpdate(createDelete(2, indexToDelete)));
+    root->clearPending();
+    ASSERT_EQ(3, component->getChildCount());
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds));
+    root->clearDirty();
+
+
+    // Remove one at the end
+    idToDelete = component->getChildAt(2)->getUniqueId();
+
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(200,201), false));
+    root->updateTime(2100);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(190,201), true));
+    root->updateTime(2200);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(140,201), true));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(140,201), true));
+
+    root->updateTime(3000);
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    deletedId = event.getValue(kEventPropertyArguments).getArray().at(0).asString();
+    indexToDelete = event.getValue(kEventPropertyArguments).getArray().at(1).asNumber();
+    ASSERT_EQ(idToDelete, deletedId);
+    ASSERT_EQ(2, indexToDelete);
+    root->clearDirty();
+
+    ASSERT_TRUE(ds->processUpdate(createDelete(3, indexToDelete)));
+    root->clearPending();
+    root->clearDirty();
+
+    ASSERT_EQ(2, component->getChildCount());
+}

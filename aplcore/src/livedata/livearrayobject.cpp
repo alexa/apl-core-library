@@ -87,6 +87,12 @@ LiveArrayObject::handleArrayMessage(const LiveArrayChange& change)
     markDirty();
 }
 
+void
+LiveArrayObject::flush() {
+    LiveDataObject::flush();
+    mChanges.clear();
+}
+
 /**
  * Return the index of the old item and a flag if that item has changed value.
  * The index is -1 if the item is completely new.

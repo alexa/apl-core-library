@@ -42,21 +42,34 @@ protected:
 
 TEST_F(ContextTest, Basic)
 {
-    EXPECT_EQ("UnitTests", c->opt("environment").get("agentName").asString());
-    EXPECT_EQ("1.0", c->opt("environment").get("agentVersion").asString());
-    EXPECT_EQ("normal", c->opt("environment").get("animation").asString());
-    EXPECT_FALSE(c->opt("environment").get("allowOpenURL").asBoolean());
-    EXPECT_EQ("1.4", c->opt("environment").get("aplVersion").asString());
-    EXPECT_FALSE(c->opt("environment").get("disallowVideo").asBoolean());
-    EXPECT_EQ("23.2", c->opt("environment").get("testEnvironment").asString());
-    EXPECT_EQ(2048, c->opt("viewport").get("pixelWidth").asNumber());
-    EXPECT_EQ(1024, c->opt("viewport").get("width").asNumber());
-    EXPECT_EQ(2048, c->opt("viewport").get("pixelHeight").asNumber());
-    EXPECT_EQ(1024, c->opt("viewport").get("height").asNumber());
-    EXPECT_EQ(320, c->opt("viewport").get("dpi").asNumber());
-    EXPECT_EQ("round", c->opt("viewport").get("shape").asString());
-    EXPECT_EQ("green", c->opt("viewport").get("theme").asString());
-    EXPECT_EQ(Object("tv"), c->opt("viewport").get("mode"));
+    auto env = c->opt("environment");
+    EXPECT_EQ("UnitTests", env.get("agentName").asString());
+    EXPECT_EQ("1.0", env.get("agentVersion").asString());
+    EXPECT_EQ("normal", env.get("animation").asString());
+    EXPECT_FALSE(env.get("allowOpenURL").asBoolean());
+    EXPECT_EQ("1.5", env.get("aplVersion").asString());
+    EXPECT_FALSE(env.get("disallowVideo").asBoolean());
+    EXPECT_EQ("23.2", env.get("testEnvironment").asString());
+    EXPECT_EQ(1.0, env.get("fontScale").asNumber());
+    EXPECT_EQ("normal", env.get("screenMode").asString());
+    EXPECT_EQ(false, env.get("screenReader").asBoolean());
+
+    auto timing = env.get("timing");
+    EXPECT_EQ(500, timing.get("doublePressTimeout").asNumber());
+    EXPECT_EQ(1000, timing.get("longPressTimeout").asNumber());
+    EXPECT_EQ(50, timing.get("minimumFlingVelocity").asNumber());
+    EXPECT_EQ(64, timing.get("pressedDuration").asNumber());
+    EXPECT_EQ(100, timing.get("tapOrScrollTimeout").asNumber());
+
+    auto viewport = c->opt("viewport");
+    EXPECT_EQ(2048, viewport.get("pixelWidth").asNumber());
+    EXPECT_EQ(1024, viewport.get("width").asNumber());
+    EXPECT_EQ(2048, viewport.get("pixelHeight").asNumber());
+    EXPECT_EQ(1024, viewport.get("height").asNumber());
+    EXPECT_EQ(320, viewport.get("dpi").asNumber());
+    EXPECT_EQ("round", viewport.get("shape").asString());
+    EXPECT_EQ("green", viewport.get("theme").asString());
+    EXPECT_EQ(Object("tv"), viewport.get("mode"));
 
     EXPECT_TRUE(c->opt("Math").get("asin").isFunction());
 
@@ -66,7 +79,7 @@ TEST_F(ContextTest, Basic)
 
     EXPECT_EQ(APLVersion(APLVersion::kAPLVersionIgnore), c->getRootConfig().getEnforcedAPLVersion());
 
-    auto buildVersion = c->opt("environment").get("_coreRepositoryVersion").asString();
+    auto buildVersion = env.get("_coreRepositoryVersion").asString();
     ASSERT_FALSE(buildVersion.empty());
     ASSERT_NE("unknown", buildVersion.c_str());
 }
@@ -78,19 +91,38 @@ TEST_F(ContextTest, AlternativeConfig)
         .reportedAPLVersion("1.2")
         .allowOpenUrl(true)
         .animationQuality(RootConfig::kAnimationQualitySlow)
-        .setEnvironmentValue("testEnvironment", 122);
+        .setEnvironmentValue("testEnvironment", 122)
+        .fontScale(2.0)
+        .screenMode(RootConfig::kScreenModeHighContrast)
+        .screenReader(true)
+        .doublePressTimeout(2000)
+        .longPressTimeout(2100)
+        .minimumFlingVelocity(565)
+        .pressedDuration(999)
+        .tapOrScrollTimeout(777);
 
     c = Context::create(Metrics().size(400,400), root);
 
-    EXPECT_EQ("MyTest", c->opt("environment").get("agentName").asString());
-    EXPECT_EQ("0.2", c->opt("environment").get("agentVersion").asString());
-    EXPECT_EQ("slow", c->opt("environment").get("animation").asString());
-    EXPECT_TRUE(c->opt("environment").get("allowOpenURL").asBoolean());
-    EXPECT_EQ("1.2", c->opt("environment").get("aplVersion").asString());
-    EXPECT_TRUE(c->opt("environment").get("disallowVideo").asBoolean());
-    EXPECT_EQ(122, c->opt("environment").get("testEnvironment").asNumber());
+    auto env = c->opt("environment");
+    EXPECT_EQ("MyTest", env.get("agentName").asString());
+    EXPECT_EQ("0.2", env.get("agentVersion").asString());
+    EXPECT_EQ("slow", env.get("animation").asString());
+    EXPECT_TRUE(env.get("allowOpenURL").asBoolean());
+    EXPECT_EQ("1.2", env.get("aplVersion").asString());
+    EXPECT_TRUE(env.get("disallowVideo").asBoolean());
+    EXPECT_EQ(122, env.get("testEnvironment").asNumber());
+    EXPECT_EQ(2.0, env.get("fontScale").asNumber());
+    EXPECT_EQ("high-contrast", env.get("screenMode").asString());
+    EXPECT_EQ(true, env.get("screenReader").asBoolean());
 
-    auto buildVersion = c->opt("environment").get("_coreRepositoryVersion").asString();
+    auto timing = env.get("timing");
+    EXPECT_EQ(2000, timing.get("doublePressTimeout").asNumber());
+    EXPECT_EQ(2100, timing.get("longPressTimeout").asNumber());
+    EXPECT_EQ(565, timing.get("minimumFlingVelocity").asNumber());
+    EXPECT_EQ(999, timing.get("pressedDuration").asNumber());
+    EXPECT_EQ(777, timing.get("tapOrScrollTimeout").asNumber());
+
+    auto buildVersion = env.get("_coreRepositoryVersion").asString();
     ASSERT_FALSE(buildVersion.empty());
 }
 

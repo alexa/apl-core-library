@@ -36,6 +36,8 @@ class LiveMapObject;
  */
 class LiveDataObject : public ObjectData, public std::enable_shared_from_this<LiveDataObject> {
 public:
+    using FlushCallback = std::function<void(const std::string, LiveDataObject&)>;
+
     /**
      * Construct a suitable LiveDataObject subtype and register it with the LiveDataManager.
      *
@@ -77,7 +79,7 @@ public:
             context->recalculateDownstream(mKey, true);
 
         for (const auto& m : mFlushCallbacks)
-            m.second();
+            m.second(mKey, *this);
 
         mReplaced = false;
     }
@@ -97,7 +99,7 @@ public:
      * @param callback The callback to be executed.
      * @return An opaque token for the removeFlushCallback(int) routine.
      */
-    int addFlushCallback(std::function<void()>&& callback) {
+    int addFlushCallback(FlushCallback&& callback) {
         int token = mWatcherToken++;
         mFlushCallbacks.emplace(token, std::move(callback));
         return token;
@@ -118,7 +120,7 @@ protected:
 protected:
     std::weak_ptr<Context> mContext;
     std::string mKey;
-    std::map<int, std::function<void()>> mFlushCallbacks;
+    std::map<int, FlushCallback> mFlushCallbacks;
     int mWatcherToken = 100;
     bool mReplaced = false;
     int mToken = -1;

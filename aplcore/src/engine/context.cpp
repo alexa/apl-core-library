@@ -91,15 +91,27 @@ Context::Context( const Metrics& metrics, const std::shared_ptr<RootContextData>
     env->emplace("agentName", config.getAgentName());
     env->emplace("agentVersion", config.getAgentVersion());
     env->emplace("allowOpenURL", config.getAllowOpenUrl());
-    env->emplace("disallowVideo", config.getDisallowVideo());
     env->emplace("animation", config.getAnimationQualityString());
     env->emplace("aplVersion", config.getReportedAPLVersion());
+    env->emplace("disallowVideo", config.getDisallowVideo());
     env->emplace("extension", core->extensionManager().getEnvironment());
+    env->emplace("fontScale", config.getFontScale());
+    env->emplace("screenMode", config.getScreenMode());
+    env->emplace("screenReader", config.getScreenReaderEnabled());
+
+    auto timing = std::make_shared<ObjectMap>();
+    timing->emplace("doublePressTimeout", config.getDoublePressTimeout());
+    timing->emplace("longPressTimeout", config.getLongPressTimeout());
+    timing->emplace("minimumFlingVelocity", config.getMinimumFlingVelocity());
+    timing->emplace("pressedDuration", config.getPressedDuration());
+    timing->emplace("tapOrScrollTimeout", config.getTapOrScrollTimeout());
+    env->emplace("timing", timing);
+
     env->emplace("_coreRepositoryVersion", sCoreRepositoryVersion);
     for (const auto& m : config.getEnvironmentValues())
         env->emplace(m.first, m.second);
     putConstant("environment", env);
-    putConstant("viewport", makeViewport(metrics, core->theme));
+    putConstant("viewport", makeViewport(metrics, core->getTheme()));
     createStandardFunctions(*this);
 }
 
@@ -111,35 +123,35 @@ double
 Context::vwToDp(double vw) const
 {
     assert(mCore);
-    return mCore->width * vw / 100;
+    return mCore->getWidth() * vw / 100;
 }
 
 double
 Context::vhToDp(double vh) const
 {
     assert(mCore);
-    return mCore->height * vh / 100;
+    return mCore->getHeight() * vh / 100;
 }
 
 double
 Context::pxToDp(double px) const
 {
     assert(mCore);
-    return mCore->pxToDp * px;
+    return mCore->getPxToDp() * px;
 }
 
 double
 Context::width() const
 {
     assert(mCore);
-    return mCore->width;
+    return mCore->getWidth();
 }
 
 double
 Context::height() const
 {
     assert(mCore);
-    return mCore->height;
+    return mCore->getHeight();
 }
 
 const RootConfig&
@@ -194,14 +206,14 @@ std::string
 Context::getTheme() const
 {
     assert(mCore);
-    return mCore->theme;
+    return mCore->getTheme();
 }
 
 std::string
 Context::getRequestedAPLVersion() const
 {
     assert(mCore);
-    return mCore->requestedAPLVersion;
+    return mCore->getRequestedAPLVersion();
 }
 
 std::shared_ptr<Styles>
@@ -236,6 +248,18 @@ Context::clearDirty(const ComponentPtr& ptr)
 {
     assert(mCore);
     mCore->dirty.erase(ptr);
+}
+
+void
+Context::setDirtyVisualContext(const ComponentPtr& ptr) {
+    assert(mCore);
+    mCore->dirtyVisualContext.emplace(ptr);
+}
+
+bool
+Context::isVisualContextDirty(const ComponentPtr& ptr) {
+    auto found = mCore->dirtyVisualContext.find(ptr);
+    return found != mCore->dirtyVisualContext.end();
 }
 
 Sequencer&
@@ -303,7 +327,7 @@ Context::inflate(const rapidjson::Value& component)
     if (!component.IsObject())
         return nullptr;
 
-    return Builder::inflate(shared_from_this(), component);
+    return Builder().inflate(shared_from_this(), component);
 }
 
 streamer&

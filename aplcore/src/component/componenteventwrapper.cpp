@@ -66,5 +66,12 @@ ComponentEventWrapper::size() const
     return 0;
 }
 
+// This routine returns an empty map to avoid crashing the system in complicated ways
+const ObjectMap&
+ComponentEventWrapper::getMap() const
+{
+    static auto empty = ObjectMap();
+    return empty;
+}
 
 }  // apl

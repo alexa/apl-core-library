@@ -16,6 +16,7 @@
 #ifndef _APL_SEQUENCER_H
 #define _APL_SEQUENCER_H
 
+#include "apl/utils/counter.h"
 #include "apl/action/action.h"
 #include "apl/engine/context.h"
 #include "apl/component/corecomponent.h"
@@ -28,8 +29,7 @@ class TimeManager;
 
 static const std::string MAIN_SEQUENCER_NAME = "MAIN";
 
-class Sequencer {
-
+class Sequencer : public Counter<Sequencer> {
 public:
     Sequencer(const std::shared_ptr<TimeManager>& timeManager, const std::string& documentVersion);
 

@@ -249,7 +249,7 @@ Builder::expandSingleComponent(const ContextPtr& context,
 
             // Extract the binding as an optional node tree.
             auto tmp = propertyAsNode(*expanded, binding, "value");
-            auto value = evaluate(*expanded, tmp);
+            auto value = evaluateRecursive(*expanded, tmp);
             auto bindingType = propertyAsMapped<BindingType>(*expanded, binding, "type", kBindingTypeAny, sBindingMap);
             auto bindingFunc = sBindingFunctions.at(bindingType);
 

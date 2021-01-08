@@ -23,20 +23,46 @@
 
 namespace apl {
 
+static inline bool
+sendEventToTarget(PointerEventType type,
+                  const std::shared_ptr<Pointer>& pointer,
+                  apl_time_t timestamp) {
+    if (!pointer) {
+        return false;
+    }
+
+    auto target = pointer->getTarget();
+    if (!target) {
+        return false;
+    }
+
+    PointerEvent event(type, pointer->getPosition(), pointer->getId(), pointer->getPointerType());
+
+    // We ignore the return value here as this path should never trigger gestures
+    auto gestureTarget = target->processPointerEvent(event, timestamp);
+    if (gestureTarget != nullptr && target != gestureTarget) {
+        LOG(LogLevel::WARN) << "Ignoring non-null gesture target";
+    }
+    return true;
+}
+
 /*
  * Maps input pointer events to the output events that are generated.
  */
-Bimap<PointerEventType, PropertyKey> sEventHandlers = {
-    {kPointerCancel, kPropertyOnCancel},
-    {kPointerDown,   kPropertyOnDown},
-    {kPointerMove,   kPropertyOnMove},
-    {kPointerUp,     kPropertyOnUp}
-};
+Bimap<PointerEventType, PropertyKey> sEventHandlers = {{kPointerCancel, kPropertyOnCancel},
+                                                       {kPointerDown, kPropertyOnDown},
+                                                       {kPointerMove, kPropertyOnMove},
+                                                       {kPointerUp, kPropertyOnUp}};
+
+PointerManager::PointerManager(const RootContextData& core) : mCore(core) {}
 
 bool
-PointerManager::handlePointerEvent(const PointerEvent &pointerEvent, apl_time_t timestamp) {
+PointerManager::handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t timestamp) {
     auto pointer = getOrCreatePointer(pointerEvent);
-    TouchableComponentPtr target = nullptr;
+    ActionableComponentPtr target = nullptr;
+    // save the last active pointer before it gets updated
+    auto previousPointer = mLastActivePointer;
+
     switch (pointerEvent.pointerEventType) {
         case kPointerDown:
             mCore.sequencer().reset();
@@ -49,54 +75,66 @@ PointerManager::handlePointerEvent(const PointerEvent &pointerEvent, apl_time_t 
         case kPointerUp:
             target = handlePointerEnd(pointer, pointerEvent);
             break;
+        case kPointerTargetChanged:
         default:
-            LOG(LogLevel::WARN) << "Unknown pointer event type ignored" << pointerEvent.pointerEventType;
+            LOG(LogLevel::WARN) << "Unknown pointer event type ignored"
+                                << pointerEvent.pointerEventType;
             return false;
     }
-    if (!target) return false;
-    auto handler = sEventHandlers.at(pointerEvent.pointerEventType);
 
-    // If locked in the gesture - do not send "usual" event. It's up to gesture to decide now on what to send out.
-    if (target->processGesture(pointerEvent, timestamp))
-        return true;
-
-    Transform2D transform;
-    if (!target->getCoordinateTransformFromGlobal(transform)) {
-        LOG(LogLevel::WARN) << "Could not compute component coordinate transform, ignoring target";
+    if (!target) {
+        // Target was lost, notify the previous target, if it's active
+        if (mActivePointer) {
+            handleNewTarget(previousPointer, nullptr, timestamp);
+        }
         return false;
     }
 
-    auto originalPoint = pointerEvent.pointerEventPosition;
-    auto pointInCurrent = transform * originalPoint;
-    return target->executePointerEventHandler(handler, pointInCurrent);
+    // If locked in component defined the gesture - do not send "usual" event. It's up to gesture to decide now on
+    //  what to send out.
+    auto gestureTarget = target->processPointerEvent(pointerEvent, timestamp);
+    if (gestureTarget) {
+        if (gestureTarget != target) {
+            pointer->setTarget(std::dynamic_pointer_cast<ActionableComponent>(gestureTarget));
+        }
+        handleNewTarget(previousPointer, gestureTarget, timestamp);
+        return true;
+    } else {
+        handleNewTarget(previousPointer, target, timestamp);
+    }
+
+
+    auto pointInCurrent = target->toLocalPoint(pointerEvent.pointerEventPosition);
+    auto handler = sEventHandlers.at(pointerEvent.pointerEventType);
+    target->executePointerEventHandler(handler, pointInCurrent);
+    return false;
 }
 
 void
 PointerManager::handleTimeUpdate(apl_time_t timestamp) {
-    if (mLastActivePointer) {
-        auto target = mLastActivePointer->getTarget();
-        if (target) {
-            target->processGesture(
-                    {
-                        kPointerMove,
-                        mLastActivePointer->getPosition(),
-                        mLastActivePointer->getId(),
-                        mLastActivePointer->getPointerType()
-                    }, timestamp);
-        }
+    sendEventToTarget(kPointerTimeUpdate, mLastActivePointer, timestamp);
+}
+
+void
+PointerManager::handleNewTarget(const std::shared_ptr<apl::Pointer>& pointer,
+                                const CoreComponentPtr &newTarget,
+                                apl::apl_time_t timestamp) {
+    if (pointer && pointer->getTarget() != newTarget) {
+        sendEventToTarget(kPointerTargetChanged, pointer, timestamp);
     }
 }
 
 std::shared_ptr<Pointer>
-PointerManager::getOrCreatePointer(const PointerEvent &pointerEvent) {
+PointerManager::getOrCreatePointer(const PointerEvent& pointerEvent) {
     if (!mActivePointer || pointerEvent.pointerId != mActivePointer->getId()) {
         return std::make_shared<Pointer>(Pointer(pointerEvent.pointerType, pointerEvent.pointerId));
     }
     return mActivePointer;
 }
 
-TouchableComponentPtr
-PointerManager::handlePointerStart(const std::shared_ptr<Pointer>& pointer, const PointerEvent& pointerEvent) {
+ActionableComponentPtr
+PointerManager::handlePointerStart(const std::shared_ptr<Pointer>& pointer,
+                                   const PointerEvent& pointerEvent) {
     if (mActivePointer != nullptr)
         return nullptr;
 
@@ -106,7 +144,7 @@ PointerManager::handlePointerStart(const std::shared_ptr<Pointer>& pointer, cons
 
     auto visitor = TouchableAtPosition(pointerEvent.pointerEventPosition);
     top->raccept(visitor);
-    auto target = std::dynamic_pointer_cast<TouchableComponent>(visitor.getResult());
+    auto target = std::dynamic_pointer_cast<ActionableComponent>(visitor.getResult());
 
     pointer->setTarget(target);
     pointer->setPosition(pointerEvent.pointerEventPosition);
@@ -115,7 +153,7 @@ PointerManager::handlePointerStart(const std::shared_ptr<Pointer>& pointer, cons
     return target;
 }
 
-TouchableComponentPtr
+ActionableComponentPtr
 PointerManager::handlePointerUpdate(const std::shared_ptr<Pointer>& pointer,
                                     const PointerEvent& pointerEvent) {
     auto target = pointer->getTarget();
@@ -126,7 +164,7 @@ PointerManager::handlePointerUpdate(const std::shared_ptr<Pointer>& pointer,
     return target;
 }
 
-TouchableComponentPtr
+ActionableComponentPtr
 PointerManager::handlePointerEnd(const std::shared_ptr<Pointer>& pointer,
                                  const PointerEvent& pointerEvent) {
     if (mActivePointer && pointer->getId() == mActivePointer->getId()) {

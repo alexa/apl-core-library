@@ -48,16 +48,7 @@ struct action : nothing< Rule >
 
 // ************** Primitive Types *******************
 
-template<> struct action< intnum >
-{
-    template< typename Input >
-    static void apply(const Input& in, Stacks& stacks) {
-        int value = std::stoi(in.string());
-        stacks.push(Object((double) value));
-    }
-};
-
-template<> struct action< floatnum >
+template<> struct action< number >
 {
     template< typename Input >
     static void apply(const Input& in, Stacks& stacks) {
@@ -66,7 +57,7 @@ template<> struct action< floatnum >
     }
 };
 
-template<> struct action< null_ >
+template<> struct action< key_null >
 {
     template< typename Input >
     static void apply( const Input& in, Stacks& stacks) {
@@ -74,7 +65,7 @@ template<> struct action< null_ >
     }
 };
 
-template<> struct action< true_ >
+template<> struct action< key_true >
 {
     template< typename Input >
     static void apply( const Input& in, Stacks& stacks) {
@@ -82,19 +73,11 @@ template<> struct action< true_ >
     }
 };
 
-template<> struct action< false_ >
+template<> struct action< key_false >
 {
     template< typename Input >
     static void apply( const Input& in, Stacks& stacks) {
         stacks.push(Object::FALSE_OBJECT());
-    }
-};
-
-template<> struct action< identifier >
-{
-    template< typename Input >
-    static void apply( const Input& in, Stacks& stacks) {
-        stacks.push(Object(in.string()));
     }
 };
 
@@ -263,7 +246,7 @@ template<> struct action< ternary_tail >
 };
 
 // ************* Starting parenthesis *************
-template<> struct action< one<'('> >
+template<> struct action< sym_group_start >
 {
     template< typename Input >
     static void apply( const Input& in, Stacks& stacks ) {
@@ -301,7 +284,15 @@ template<> struct action< symbol >
 };
 
 // ************* Field access *************
-template<> struct action< one<'.'> >
+template<> struct action< postfix_identifier >
+{
+    template< typename Input >
+    static void apply( const Input& in, Stacks& stacks) {
+        stacks.push(Object(in.string()));
+    }
+};
+
+template<> struct action< sym_attribute >
 {
     template< typename Input >
     static void apply( const Input& in, Stacks& stacks ) {
@@ -309,7 +300,7 @@ template<> struct action< one<'.'> >
     }
 };
 
-template<> struct action< attr_dot >
+template<> struct action< postfix_attribute >
 {
     template< typename Input >
     static void apply( const Input& in, Stacks& stacks ) {
@@ -319,7 +310,7 @@ template<> struct action< attr_dot >
 
 
 // ************* Array access *************
-template<> struct action< one<'['> >
+template<> struct action< sym_array_access_start >
 {
     template< typename Input >
     static void apply( const Input& in, Stacks& stacks ) {
@@ -328,7 +319,7 @@ template<> struct action< one<'['> >
     }
 };
 
-template<> struct action< attr_bracket >
+template<> struct action< postfix_array_access >
 {
     template< typename Input >
     static void apply( const Input& in, Stacks& stacks ) {
@@ -338,7 +329,7 @@ template<> struct action< attr_bracket >
 };
 
 // ************* Functions ************
-template<> struct action<func_start >
+template<> struct action< postfix_left_paren >
 {
     template< typename Input >
     static void apply( const Input& in, Stacks& stacks ) {
@@ -347,7 +338,7 @@ template<> struct action<func_start >
     }
 };
 
-template<> struct action< func_call >
+template<> struct action< postfix_function >
 {
     template< typename Input >
     static void apply( const Input& in, Stacks& stacks ) {
@@ -410,14 +401,35 @@ template<> struct action< ss_string >
     }
 };
 
-template<> struct action< dimension >
+template<> struct action< key_dp >
 {
     template< typename Input >
     static void apply( const Input& in, Stacks& stacks) {
-        auto s = in.string();
-        if (s.length() > 0) {
-            stacks.push(Object(Dimension(stacks.context(), s)));
-        }
+        stacks.push(Dimension(stacks.popNumber()));
+    }
+};
+
+template<> struct action< key_px >
+{
+    template< typename Input >
+    static void apply( const Input& in, Stacks& stacks) {
+        stacks.push(Dimension(stacks.context().pxToDp(stacks.popNumber())));
+    }
+};
+
+template<> struct action< key_vh >
+{
+    template< typename Input >
+    static void apply( const Input& in, Stacks& stacks) {
+        stacks.push(Dimension(stacks.context().vhToDp(stacks.popNumber())));
+    }
+};
+
+template<> struct action< key_vw >
+{
+    template< typename Input >
+    static void apply( const Input& in, Stacks& stacks) {
+        stacks.push(Dimension(stacks.context().vwToDp(stacks.popNumber())));
     }
 };
 

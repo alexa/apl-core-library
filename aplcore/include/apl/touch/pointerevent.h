@@ -56,7 +56,20 @@ enum PointerEventType {
      * pointer type devices like mice kPointerMove events occur whenever the pointer moves, whether or not a button
      * has been pressed.
      */
-    kPointerMove
+    kPointerMove,
+
+    /**
+     * This indicates time update propagated to pointer target. Should not be used directly. In case if there is current
+     * pointer interaction it will be directed to current pointer target, if no interaction going on it will be
+     * propagated to the last known target.
+     */
+    kPointerTimeUpdate,
+
+    /**
+     * This indicates that the pointer target has changed. Should not be used directly, this is issued to the
+     * last known target internally.
+     */
+     kPointerTargetChanged
 };
 
 /**

@@ -29,53 +29,54 @@ namespace apl {
  *    class MyClass {
  *    #ifdef DEBUG_MEMORY_USE
  *        public:
- *            static Counter<MyClass>::Pair itemsDelta() { return mCounter.itemsDelta(); }
-  *        private:
+ *            CounterPair itemsDelta() { return mCounter.itemsDelta(); }
+ *        private:
  *            Counter<MyClass> mCounter;
  *    #endif
  *    };
  *
  * 2. Inherit from the class - but if you do this, you don't get separate counters for subclasses
  *
- *    class MyClass : private Counter<MyClass> {
- *    #ifdef DEBUG_MEMORY_USE
- *        public:
- *            using Counter<MyClass>::itemsDelta;
- *    #endif
- *    };
+ *    class MyClass : public Counter<MyClass> {};
  *
- * @tparam T The class you are instantiated this for.
- * @tparam size_type The counter type.
  */
-template<typename T, typename size_type=unsigned int>
+
+struct CounterPair {
+    using size_type = unsigned int;
+
+    size_type created;
+    size_type destroyed;
+
+    CounterPair(size_type created, size_type destroyed) : created(created), destroyed(destroyed) {}
+    bool operator==(const CounterPair& rhs) {
+        return created - destroyed == rhs.created - rhs.destroyed;
+    }
+
+    CounterPair operator-=(const CounterPair& rhs) {
+        return {created - rhs.created, destroyed - rhs.destroyed};
+    }
+
+    friend bool operator==(const CounterPair& lhs, const CounterPair& rhs) {
+        return lhs.created - lhs.destroyed == rhs.created - rhs.destroyed;
+    }
+
+    friend CounterPair operator-(const CounterPair& lhs, const CounterPair& rhs) {
+        return {lhs.created - rhs.created, lhs.destroyed - rhs.destroyed};
+    }
+};
+
+template<typename T>
 class Counter {
-public:
-    struct Pair {
-        size_type created;
-        size_type destroyed;
-
-        Pair(size_type created, size_type destroyed) : created(created), destroyed(destroyed) {}
-        bool operator==(const Pair& rhs) { return created - destroyed == rhs.created - rhs.destroyed; }
-        Pair operator-=(const Pair& rhs) { return Pair(created - rhs.created, destroyed - rhs.destroyed); }
-
-        friend bool operator==(const Pair& lhs, const Pair& rhs) {
-            return lhs.created - lhs.destroyed == rhs.created - rhs.destroyed;
-        }
-
-        friend Pair operator-(const Pair& lhs, const Pair& rhs) {
-            return Pair(lhs.created - rhs.created, lhs.destroyed - rhs.destroyed);
-        }
-    };
 #ifdef DEBUG_MEMORY_USE
+    using size_type = CounterPair::size_type;
+
 public:
     Counter() { sItemsCreated++; }
     Counter(const Counter&) { sItemsCreated++; }
     ~Counter() { sItemsDestroyed++; }
 
-    static size_type itemsCreated() { return sItemsCreated; }
-    static size_type itemsDestroyed() { return sItemsDestroyed; }
-    static Pair itemsDelta() { return Pair(sItemsCreated, sItemsDestroyed); }
-    static void reset() {sItemsDestroyed = 0; sItemsCreated = 0;}
+    static CounterPair itemsDelta() { return {sItemsCreated, sItemsDestroyed}; }
+
 private:
     static size_type sItemsCreated;
     static size_type sItemsDestroyed;
@@ -83,11 +84,11 @@ private:
 };
 
 #ifdef DEBUG_MEMORY_USE
-template<typename T, typename size_type>
-size_type Counter<T, size_type>::sItemsDestroyed = 0;
+template<typename T>
+CounterPair::size_type Counter<T>::sItemsDestroyed = 0;
 
-template<typename T, typename size_type>
-size_type Counter<T, size_type>::sItemsCreated = 0;
+template<typename T>
+CounterPair::size_type Counter<T>::sItemsCreated = 0;
 #endif
 
 } // namespace apl

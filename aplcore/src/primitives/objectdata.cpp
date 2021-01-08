@@ -14,6 +14,7 @@
  */
 
 #include "apl/animation/easing.h"
+#include "apl/graphic/graphicfilter.h"
 #include "apl/primitives/filter.h"
 #include "apl/primitives/gradient.h"
 #include "apl/primitives/mediasource.h"
@@ -29,6 +30,7 @@ namespace apl {
 /****************************************************************************/
 
 template<> const Object::ObjectType DirectObjectData<Filter>::sType = Object::kFilterType;
+template<> const Object::ObjectType DirectObjectData<GraphicFilter>::sType = Object::kGraphicFilterType;
 template<> const Object::ObjectType DirectObjectData<Gradient>::sType = Object::kGradientType;
 template<> const Object::ObjectType DirectObjectData<MediaSource>::sType = Object::kMediaSourceType;
 template<> const Object::ObjectType DirectObjectData<Rect>::sType = Object::kRectType;

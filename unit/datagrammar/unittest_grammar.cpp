@@ -291,6 +291,27 @@ TEST_F(GrammarTest, Functions)
     ASSERT_NEAR(5, eval("${Math.hypot(3,-4)}").asNumber(), 0.0000001);
     ASSERT_NEAR(4, eval("${Math.hypot(2,2,2,2)}").asNumber(), 0.0000001);
 
+    ASSERT_EQ(o(true), eval("${Math.isFinite(0)}"));
+    ASSERT_EQ(o(true), eval("${Math.isFinite(1.0)}"));
+    ASSERT_EQ(o(false), eval("${Math.isFinite(1/0)}"));
+    ASSERT_EQ(o(false), eval("${Math.isFinite(0/0)}"));
+    ASSERT_EQ(o(false), eval("${Math.isFinite(0,1,2)}")); // too many args
+    ASSERT_EQ(o(false), eval("${Math.isFinite()}")); // not enough args
+    ASSERT_EQ(o(false), eval("${Math.isInf(0)}"));
+    ASSERT_EQ(o(false), eval("${Math.isInf(1.0)}"));
+    ASSERT_EQ(o(true), eval("${Math.isInf(1/0)}"));
+    ASSERT_EQ(o(true), eval("${Math.isInf(-1/0)}"));
+    ASSERT_EQ(o(false), eval("${Math.isInf(0/0)}"));
+    ASSERT_EQ(o(false), eval("${Math.isInf(0,1,2)}")); // too many args
+    ASSERT_EQ(o(false), eval("${Math.isInf()}")); // not enough args
+    ASSERT_EQ(o(false), eval("${Math.isNaN(0)}"));
+    ASSERT_EQ(o(false), eval("${Math.isNaN(1.0)}"));
+    ASSERT_EQ(o(false), eval("${Math.isNaN(1/0)}"));
+    ASSERT_EQ(o(false), eval("${Math.isNaN(-1/0)}"));
+    ASSERT_EQ(o(true), eval("${Math.isNaN(0/0)}"));
+    ASSERT_EQ(o(false), eval("${Math.isNaN(0,1,2)}")); // too many args
+    ASSERT_EQ(o(false), eval("${Math.isNaN()}")); // not enough args
+
     ASSERT_NEAR(std::log(10), eval("${Math.log(10)}").asNumber(), 0.0000001);
     ASSERT_NEAR(std::log1p(10), eval("${Math.log1p(10)}").asNumber(), 0.0000001);
     ASSERT_NEAR(std::log10(10), eval("${Math.log10(10)}").asNumber(), 0.0000001);
@@ -760,4 +781,165 @@ TEST_F(GrammarTest, PropertyAsMapped)
     ASSERT_EQ(kTestMappingDefault, propertyAsMapped<TestMapping>(*c, obj, "empty", kTestMappingDefault, sTestMappingBimap));
     ASSERT_EQ(-1, propertyAsMapped<TestMapping>(*c, obj, "wrong", kTestMappingDefault, sTestMappingBimap));
     ASSERT_EQ(kTestMappingDefault, propertyAsMapped<TestMapping>(*c, obj, "none", kTestMappingDefault, sTestMappingBimap));
+}
+
+
+static auto RANGE_TESTS = std::vector<std::pair<std::string, ObjectArray>>{
+    {"Array.range()",            {}},
+    {"Array.range(5)",           {0,    1,      2,      3,      4}},
+    {"Array.range(-5)",          {}},
+    {"Array.range(0)",           {}},
+    {"Array.range(0,1)",         {0}},
+    {"Array.range(0,5)",         {0,    1,      2,      3,      4}},
+    {"Array.range(2,4)",         {2,    3}},
+    {"Array.range(-3, -1)",      {-3,   -2}},
+    {"Array.range(-2.5, 2.5)",   {-2.5, -1.5,   -0.5,   0.5,    1.5}},
+    {"Array.range(-3,3)",        {-3,   -2,     -1,     0,      1, 2}},
+    {"Array.range(0,-1)",        {}},
+    {"Array.range(1, 6, 2)",     {1,    3,      5}},
+    {"Array.range(37,40,6)",     {37}},
+    {"Array.range(0.25, 3)",     {0.25, 1.25,   2.25}},
+    {"Array.range(0, 10, 2)",    {0,    2,      4,      6,      8}},
+    {"Array.range(0, 10, 3)",    {0,    3,      6,      9}},
+    {"Array.range(0, 10, -1)",   {}},
+    {"Array.range(0, -10, -3)",  {0,    -3,     -6,     -9}},
+    {"Array.range(5,1,-1)",      {5,    4,      3,      2}},
+    {"Array.range(0, -10, 0.1)", {}},
+    {"Array.range(0, 10, 0)",    {}},
+    {"Array.range(10,10,2)",     {}},
+    {"Array.range(0,10,2,5)",    {0,    2,      4,      6,      8}},
+    {"Array.range(0,1,0.25)",    {0,    0.25,   0.5,    0.75}},
+    {"Array.range(0,-1,-0.25)",  {0,    -0.25,  -0.5,   -0.75}},
+    {"Array.range(0,1,0.251)",   {0,    0.251,  0.502,  0.753}},
+    {"Array.range(0,-1,-0.251)", {0,    -0.251, -0.502, -0.753}},
+    {"Array.range(0,1,0.249)",   {0,    0.249,  0.498,  0.747,  0.996}},
+    {"Array.range(0,-1,-0.249)", {0,    -0.249, -0.498, -0.747, -0.996}},
+    {"Array.range(0,5,1,23,44)", {0,    1,      2,      3,      4}},
+};
+
+TEST_F(GrammarTest, RangeFunction)
+{
+    auto c = Context::create(Metrics(), makeDefaultSession());
+
+    for (const auto& m : RANGE_TESTS) {
+        auto range = evaluate(*c, "${" + m.first + "}");
+        ASSERT_EQ(m.second.empty(), range.empty()) << m.first << " EMPTY " << range.toDebugString();
+
+        auto result = evaluate(*c, "${" + m.first + ".length}");
+        ASSERT_TRUE(IsEqual(m.second.size(), result)) << m.first << " LENGTH " << result.toDebugString();
+
+        for (int i = 0; i < m.second.size(); i++) {
+            auto result2 = evaluate(*c, "${" + m.first + "[" + std::to_string(i) + "]}");
+            ASSERT_TRUE(IsEqual(m.second.at(i), result2)) << m.first << " INDEX=" << i << result.toDebugString();
+        }
+    }
+}
+
+// Test that the Object::getArray() method works for RangeGenerators
+TEST_F(GrammarTest, RangeAsArray)
+{
+    auto c = Context::create(Metrics(), makeDefaultSession());
+
+    // Use getArray on a RangeGenerator
+    auto range = evaluate(*c, "${Array.range(10)}");
+    ASSERT_EQ(Object::kArrayType, range.getType());
+    ASSERT_EQ(10, range.size());
+    ASSERT_EQ(10, range.getArray().size());
+    const auto expected = ObjectArray{0,1,2,3,4,5,6,7,8,9};
+    ASSERT_EQ(expected, range.getArray());
+
+    // Try a zero-size array
+    range = evaluate(*c, "${Array.range(-2)}");
+    ASSERT_EQ(Object::kArrayType, range.getType());
+    ASSERT_EQ(0, range.size());
+    ASSERT_EQ(0, range.getArray().size());
+    ASSERT_EQ(ObjectArray{}, range.getArray());
+}
+
+
+static auto SLICE_TESTS = std::vector<std::pair<std::string, ObjectArray>>{
+    {"Array.slice()",                      {}},
+    {"Array.slice(22)",                    {}},   // Not an array => slice is an empty array
+    {"Array.slice(a1)",                    {101, 102, 103, 104, 105, 106}},
+    {"Array.slice(a1,3)",                  {104, 105, 106}},
+    {"Array.slice(a1,6)",                  {}},
+    {"Array.slice(a1,-2)",                 {105, 106}},
+    {"Array.slice(a1,-10)",                {101, 102, 103, 104, 105, 106}},
+    {"Array.slice(a1,0,3)",                {101, 102, 103}},
+    {"Array.slice(a1,3,13)",               {104, 105, 106}},
+    {"Array.slice(a1,3,2)",                {}},
+    {"Array.slice(a1,0,-2)",               {101, 102, 103, 104}},
+    {"Array.slice(a1,-4,-2)",              {103, 104}},
+    {"Array.slice(a1,-10,-10)",            {}},
+    {"Array.slice(a1,0,-10)",              {}},
+    {"Array.slice(a2)",                    {}},
+    {"Array.slice(a2,1)",                  {}},
+    {"Array.slice(a2,0,-1)",               {}},
+    {"Array.slice(Array.range(1000), -2)", {998, 999}},
+};
+
+TEST_F(GrammarTest, SliceFunction)
+{
+    auto c = Context::create(Metrics(), makeDefaultSession());
+
+    c->putConstant("a1", ObjectArray{101,102,103,104,105,106});
+    c->putConstant("a2", ObjectArray{});
+
+    for (const auto& m : SLICE_TESTS) {
+        auto slice = evaluate(*c, "${" + m.first + "}");
+        ASSERT_EQ(m.second.empty(), slice.empty()) << " EMPTY " << slice.toDebugString();
+
+        auto result = evaluate(*c, "${" + m.first + ".length}");
+        ASSERT_TRUE(IsEqual(m.second.size(), result)) << m.first << " LENGTH";
+
+        for (int i = 0; i < m.second.size(); i++) {
+            auto result2 = evaluate(*c, "${" + m.first + "[" + std::to_string(i) + "]}");
+            ASSERT_TRUE(IsEqual(m.second.at(i), result2)) << m.first << " INDEX=" << i;
+        }
+    }
+}
+
+// Test that the Object::getArray() method works for SliceGenerators
+TEST_F(GrammarTest, SliceAsArray)
+{
+    auto c = Context::create(Metrics(), makeDefaultSession());
+    c->putConstant("a1", ObjectArray{101,102,103,104,105,106});
+
+    // Use getArray on a SliceGenerator
+    auto range = evaluate(*c, "${Array.slice(a1, 4)}");
+    ASSERT_EQ(Object::kArrayType, range.getType());
+    ASSERT_EQ(2, range.size());
+    ASSERT_EQ(2, range.getArray().size());
+    const auto expected = ObjectArray{105,106};
+    ASSERT_EQ(expected, range.getArray());
+
+    // Try a zero-size array
+    range = evaluate(*c, "${Array.slice(a1,10)}");
+    ASSERT_EQ(Object::kArrayType, range.getType());
+    ASSERT_EQ(0, range.size());
+    ASSERT_EQ(0, range.getArray().size());
+    ASSERT_EQ(ObjectArray{}, range.getArray());
+}
+
+
+static auto INDEX_OF_TESTS = std::vector<std::pair<std::string, int>>{
+    {"Array.indexOf(a1, 'foo')", -1},
+    {"Array.indexOf(a1, 103)", 2},
+    {"Array.indexOf(a1, 'bar')", 6},
+    {"Array.indexOf(a1)", -1},
+    {"Array.indexOf()", -1},
+    {"Array.indexOf(Array.range(1000), 900)", 900},
+    {"Array.indexOf(Array.slice(Array.range(1000), 500), 900)", 400},
+};
+
+TEST_F(GrammarTest, IndexOfFunction)
+{
+    auto c = Context::create(Metrics(), makeDefaultSession());
+
+    c->putConstant("a1", ObjectArray{101,102,103,104,105,106, "bar"});
+
+    for (const auto& m : INDEX_OF_TESTS) {
+        auto result = evaluate(*c, "${" + m.first + "}");
+        ASSERT_TRUE(IsEqual(m.second, result)) << m.first << ":" << m.second;
+    }
 }

@@ -28,14 +28,11 @@ static const bool DEBUG_SEARCH = false;
 
 void
 SearchVisitor::visit(const CoreComponent& component) {
-    Transform2D transform;
-    if (!component.getCoordinateTransformFromParent(component.getParent(), transform)) {
+    Point pointInCurrent = component.toLocalPoint(mGlobalPoint);
+    if (!pointInCurrent.isFinite()) {
         mPruneBranch = true;
         return;
     }
-
-    auto transformToCurrent = transform * mCurrentTransform;
-    auto pointInCurrent = transformToCurrent * mGlobalPoint;
 
     LOG_IF(DEBUG_SEARCH) << "Checking " << component.toDebugSimpleString()
                                    << " bounds=" << component.getCalculated(kPropertyBounds).toDebugString()
@@ -60,8 +57,6 @@ SearchVisitor::visit(const CoreComponent& component) {
     if (component.getChildCount() == 0) {
         mResultFound = true;
     }
-
-    mCurrentTransform = transformToCurrent;
 }
 
 void

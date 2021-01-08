@@ -32,12 +32,12 @@ public:
      * @param easing The character string.
      * @return A reference to the easing curve.
      */
-    static std::shared_ptr<Easing> parse(const SessionPtr& session, const std::string& easing);
+    static EasingPtr parse(const SessionPtr& session, const std::string& easing);
 
     /**
      * @return The default linear easing curve
      */
-    static std::shared_ptr<Easing> linear();
+    static EasingPtr linear();
 
     /**
      * Check to see if an easing curve has been defined.

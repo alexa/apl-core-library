@@ -16,6 +16,9 @@
 #include "apl/action/autopageaction.h"
 #include "apl/command/corecommand.h"
 #include "apl/time/sequencer.h"
+#include "apl/content/rootconfig.h"
+#include "apl/component/corecomponent.h"
+#include "apl/component/pagercomponent.h"
 
 namespace apl {
 
@@ -46,7 +49,9 @@ AutoPageAction::make(const TimersPtr& timers,
 {
     // Ensure there is a paging target with multiple children
     auto target = command->target();
-    if (!target || target->scrollType() != kScrollTypeHorizontalPager || target->getChildCount() < 2)
+    if (!target
+        || (target->scrollType() != kScrollTypeHorizontalPager &&  target->scrollType() != kScrollTypeVerticalPager)
+        || target->getChildCount() < 2)
         return nullptr;
 
     auto start = target->pagePosition() + 1;
@@ -83,10 +88,7 @@ AutoPageAction::advance() {
         bool firstTime = (mCurrentAction == nullptr);
 
         mCurrentAction = Action::makeDelayed(timers(), (firstTime ? 0 : mDuration), [this](ActionRef ref) {
-            EventBag bag;
-            bag.emplace(kEventPropertyPosition, mNextIndex++);
-            bag.emplace(kEventPropertyDirection, kEventDirectionForward);
-            mContext->pushEvent(Event(kEventTypeSetPage, std::move(bag), mContainer, ref));
+            PagerComponent::setPageUtil(mContext, mContainer, mNextIndex++, kPageDirectionForward, ref);
         });
     }
 

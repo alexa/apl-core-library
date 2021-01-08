@@ -23,9 +23,11 @@ class TestClassB : public UserData<TestClassB> {};
 class UserDataTest : public ::testing::Test {
 public:
     void TearDown() {
+#ifdef USER_DATA_RELEASE_CALLBACKS
         // Clear out any release callbacks that have been set
         TestClassA::setUserDataReleaseCallback(nullptr);
         TestClassB::setUserDataReleaseCallback(nullptr);
+#endif
     }
 };
 
@@ -39,6 +41,8 @@ TEST_F(UserDataTest, Base) {
     ASSERT_EQ((void *)100, a.getUserData());
     ASSERT_EQ((void *)200, b.getUserData());
 }
+
+#ifdef USER_DATA_RELEASE_CALLBACKS
 
 // Verify that the release callback executes.
 TEST_F(UserDataTest, ReleaseCallback) {
@@ -104,3 +108,5 @@ TEST_F(UserDataTest, DeleteFunctionTwoClasses) {
     ASSERT_EQ(expectedA, aList);
     ASSERT_EQ(expectedB, bList);
 }
+
+#endif

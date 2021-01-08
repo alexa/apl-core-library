@@ -886,6 +886,124 @@ TEST_F(SerializeEventTest, GridSequenceScrollEvent) {
     )"));
 }
 
+static const char* GRIDSEQ_OPACITY_UPDATE_EVENT_DOC = R"(
+{
+  "type":"APL",
+  "version":"1.5",
+  "extensions":{
+    "name":"E",
+    "uri":"aplext:Event"
+  },
+  "mainTemplate":{
+    "parameters":[ ],
+    "items":[
+      {
+        "type":"GridSequence",
+        "id":"MyGrid",
+        "scrollDirection":"vertical",
+        "width":60,
+        "height":80,
+        "opacity":0,
+        "childWidth":"100%",
+        "childHeight":"20dp",
+        "items":{
+          "type":"Frame",
+          "backgroundColor":"${data}"
+        },
+        "onMount":[
+          {
+            "type":"AnimateItem",
+            "duration":1000,
+            "value":[
+              {
+                "property":"opacity",
+                "from":0,
+                "to":1
+              }
+            ]
+          }
+        ],
+        "onFocus":{
+          "type":"E:Validate",
+          "event":"${event}",
+          "name":"GridFocus"
+        },
+        "data":[ "red", "blue", "green", "yellow", "gray", "orange", "white", "purple",
+          "magenta", "cyan" ]
+      }
+    ]
+  }
+}
+)";
+
+TEST_F(SerializeEventTest, GridSequenceOpacityUpEvent) {
+    loadDocument(GRIDSEQ_OPACITY_UPDATE_EVENT_DOC);
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ(kComponentTypeGridSequence, component->getType());
+    ASSERT_EQ(kScrollDirectionVertical, component->getCalculated(kPropertyScrollDirection).asInt());
+
+    // Give the GridSequence focus
+    component->update(kUpdateTakeFocus, 1);
+    ASSERT_TRUE(CheckValidate("GridFocus", R"(
+        {
+          "source":{
+            "bind":{},
+            "checked":false,
+            "disabled":false,
+            "focused":true,
+            "height":80.0,
+            "id":"MyGrid",
+            "opacity":0.0,
+            "pressed":false,
+            "type":"GridSequence",
+            "width":60.0,
+            "source":"GridSequence",
+            "value":0.0,
+            "handler":"Focus",
+            "uid":"[EXISTS]",
+            "position":0.0,
+            "itemsPerCourse":1,
+            "firstVisibleChild": -1,
+            "firstFullyVisibleChild": -1,
+            "lastFullyVisibleChild": -1,
+            "lastVisibleChild": -1
+          }
+        }
+    )"));
+
+    // Update time and give the GridSequence focus
+    component->update(kUpdateTakeFocus, 0);
+    root->updateTime(1000);
+    component->update(kUpdateTakeFocus, 1);
+    ASSERT_TRUE(CheckValidate("GridFocus", R"(
+        {
+          "source":{
+            "bind":{},
+            "checked":false,
+            "disabled":false,
+            "focused":true,
+            "height":80.0,
+            "id":"MyGrid",
+            "opacity":1.0,
+            "pressed":false,
+            "type":"GridSequence",
+            "width":60.0,
+            "source":"GridSequence",
+            "value":0.0,
+            "handler":"Focus",
+            "uid":"[EXISTS]",
+            "position":0.0,
+            "itemsPerCourse":1,
+            "firstVisibleChild": 0,
+            "firstFullyVisibleChild": 0,
+            "lastFullyVisibleChild": 3,
+            "lastVisibleChild": 3
+          }
+        }
+    )"));
+}
+
 static const char* GRIDSEQ_ZERO_OPACITY_DOC = R"({
   "type":"APL",
   "version":"1.4",

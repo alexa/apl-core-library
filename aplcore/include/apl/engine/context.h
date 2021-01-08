@@ -30,6 +30,7 @@
 #include "apl/engine/recalculatetarget.h"
 #include "apl/engine/styleinstance.h"
 #include "apl/utils/path.h"
+#include "apl/utils/counter.h"
 #include "apl/engine/contextobject.h"
 
 namespace apl {
@@ -54,7 +55,9 @@ class ExtensionManager;
  */
 class Context : public RecalculateTarget<std::string>,
                 public RecalculateSource<std::string>,
-                public std::enable_shared_from_this<Context> {
+                public std::enable_shared_from_this<Context>,
+                public Counter<Context> {
+
 public:
     /**
      * Create a context that is the child of another context.
@@ -467,6 +470,12 @@ public:
      */
     void setDirty(const ComponentPtr& ptr);
     void clearDirty(const ComponentPtr& ptr);
+
+    /**
+     * Internal routine used by components to mark/unmark/test when the visual context may have changed.
+     */
+    void setDirtyVisualContext(const ComponentPtr& ptr);
+    bool isVisualContextDirty(const ComponentPtr& ptr);
 
     void pushEvent(Event&& event);
 

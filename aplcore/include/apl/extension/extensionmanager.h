@@ -20,6 +20,7 @@
 #include <set>
 
 #include "apl/content/extensioncommanddefinition.h"
+#include "apl/content/extensionfilterdefinition.h"
 #include "apl/content/extensioneventhandler.h"
 #include "apl/primitives/object.h"
 
@@ -36,7 +37,7 @@ public:
     /**
      * @return A map of qualified name to the extension event handler definition.
      */
-    const std::map<std::string, ExtensionEventHandler> qualifiedHandlerMap() const { return mQualifiedEventHandlerMap; }
+    const std::map<std::string, ExtensionEventHandler>& qualifiedHandlerMap() const { return mQualifiedEventHandlerMap; }
 
     /**
      * Add a document or package-level event handler by name.  These are added as
@@ -54,6 +55,13 @@ public:
     ExtensionCommandDefinition* findCommandDefinition(const std::string& qualifiedName);
 
     /**
+     * Search the custom filters for one with the given name.
+     * @param qualifiedName The name of the custom filter in the form EXT_NAME:FILTER_NAME
+     * @return The filter definition or nullptr if it is not found
+     */
+    ExtensionFilterDefinition* findFilterDefinition(const std::string& qualifiedName);
+
+    /**
      * Finds an appropriate custom handler to invoke.  Returns NULL if no such handler exists
      * @param handler The extension event handler to invoke
      * @return The Object attached to this handler or NULL.
@@ -69,6 +77,7 @@ public:
 private:
     std::map<std::string, ExtensionEventHandler> mQualifiedEventHandlerMap;  // Qualified name to extension event handler
     std::map<std::string, ExtensionCommandDefinition> mExtensionCommands;  // Qualified name to extension command definition
+    std::map<std::string, ExtensionFilterDefinition> mExtensionFilters;  // Qualified name to extension filter definition
 
     std::map<ExtensionEventHandler, Object> mExtensionEventHandlers;
     ObjectMapPtr mEnvironment;

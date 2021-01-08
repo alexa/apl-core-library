@@ -40,6 +40,8 @@ public:
     bool has(const std::string& key) const override;
     size_t size() const override;
 
+    const ObjectMap& getMap() const override;
+
     std::shared_ptr<const CoreComponent> getComponent() const { return mComponent.lock(); }
 
     virtual bool operator==(const ComponentEventWrapper& rhs) const = 0;

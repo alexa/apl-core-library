@@ -14,9 +14,15 @@
 target_sources_local(apl
     PRIVATE
     graphic.cpp
+    graphicbuilder.cpp
     graphiccontent.cpp
     graphicdependant.cpp
     graphicelement.cpp
+    graphicelementcontainer.cpp
+    graphicelementgroup.cpp
+    graphicelementpath.cpp
+    graphicelementtext.cpp
+    graphicfilter.cpp
     graphicpattern.cpp
     graphicproperties.cpp
 )

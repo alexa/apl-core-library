@@ -38,12 +38,7 @@ namespace apl {
  * required.
  */
 class Command : public std::enable_shared_from_this<Command>,
-                private Counter<Command> {
-
-#ifdef DEBUG_MEMORY_USE
-public:
-    using Counter<Command>::itemsDelta;
-#endif
+                public Counter<Command> {
 
 public:
     virtual ~Command() {}

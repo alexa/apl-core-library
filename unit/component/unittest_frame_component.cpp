@@ -278,6 +278,7 @@ TEST_F(FrameComponentTest, SimpleFrame)
 
     // Standard properties
     ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
+    ASSERT_EQ(Object::EMPTY_ARRAY(), component->getCalculated(kPropertyAccessibilityActions));
     ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));

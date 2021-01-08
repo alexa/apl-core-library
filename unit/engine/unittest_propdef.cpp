@@ -78,8 +78,10 @@ TEST_F(PropDefTest, Bimap)
     ASSERT_EQ(kPropTwo, sTestPropertyBimap.at("Zwei"));
 
     ASSERT_EQ(4, sTestPropertyBimap.all(kPropOne).size()); // Four STRINGS map to the number 1
+    ASSERT_EQ(std::vector<std::string>({"One", "Uno", "Один", "Ein"}), sTestPropertyBimap.all(kPropOne));
+
     ASSERT_EQ(1, sTestPropertyBimap.all("One").size());    // Exactly one NUMBER maps to the string "One"
-    ASSERT_EQ(0, sTestPropertyBimap.all("Ein").size());    // No NUMBERS map to the string "Ein"
+    ASSERT_EQ(1, sTestPropertyBimap.all("Ein").size());    // Exactly one NUMBER maps to the string "Ein"
 }
 
 static const char *BASIC_SOURCE = R"(

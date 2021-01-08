@@ -20,6 +20,7 @@ target_sources_local(apl
     componentdependant.cpp
     contextdependant.cpp
     contextobject.cpp
+    contextwrapper.cpp
     dependant.cpp
     evaluate.cpp
     event.cpp

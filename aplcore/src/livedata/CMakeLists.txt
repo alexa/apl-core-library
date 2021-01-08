@@ -15,6 +15,7 @@ target_sources_local(apl
     PRIVATE
     livearrayobject.cpp
     livedataobject.cpp
+    livedataobjectwatcher.cpp
     livedatamanager.cpp
     layoutrebuilder.cpp
     livearray.cpp

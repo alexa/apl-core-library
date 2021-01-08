@@ -267,8 +267,10 @@ static const std::vector<std::pair<Object, std::vector<Object>>> DEEP_TEST_CASES
     { std::vector<Object>{"${b}", "${b}"}, { "a", "b", "a", "b" }},
     // { name: "${a}" }   -> { name: "fuzzy duck" }
     { std::make_shared<map_so>(il_so{{"name", "${a}"}}), { std::make_shared<map_so>(il_so{{"name", "fuzzy duck"}})}},
-    // [1, [2, "${b}"]]   -> [ 1, [2, ["a", "b"]] ]
-    { std::vector<Object>{1, std::vector<Object>{2, "${b}"}}, { 1, std::vector<Object>{2, std::vector<Object>{"a", "b"} }}},
+    // [1, [2, "${b}"]]   -> [ 1, [2, "a", "b"] ]
+    { std::vector<Object>{1, std::vector<Object>{2, "${b}"}}, { 1, std::vector<Object>{2, "a", "b"} }},
+    // [1, [2, ["${b}"]]]   -> [ 1, [2, ["a", "b"]] ]
+    { std::vector<Object>{1, std::vector<Object>{2, std::vector<Object>{"${b}"}}}, { 1, std::vector<Object>{2, std::vector<Object>{"a", "b"} }}},
 };
 
 TEST_F(Arrayify, DeepArrayify)

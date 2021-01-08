@@ -24,21 +24,43 @@ namespace apl {
  * Enumeration of filter types
  */
 enum FilterType {
-    /// Gaussian Blur
+    kFilterTypeBlend,
     kFilterTypeBlur,
-    /// Generated Noise
+    kFilterTypeColor,
+    kFilterTypeExtension,
+    kFilterTypeGradient,
+    kFilterTypeGrayscale,
     kFilterTypeNoise,
+    kFilterTypeSaturate,
 };
 
 enum FilterProperty {
-    /// Noise color flag (boolean)
-    kFilterPropertyUseColor,
+    /// Amount (used in Grayscale, Saturate)
+    kFilterPropertyAmount,
+    /// Solid color
+    kFilterPropertyColor,
+    /// Destination image index
+    kFilterPropertyDestination,
+    /// Extension properties
+    kFilterPropertyExtension,
+    /// URI of the extension filter
+    kFilterPropertyExtensionURI,
+    /// Gradient
+    kFilterPropertyGradient,
     /// Noise type enumerated value
     kFilterPropertyKind,
+    /// Blend mode
+    kFilterPropertyMode,
+    /// Name of the extension filter
+    kFilterPropertyName,
     /// Blur radius (dimension)
     kFilterPropertyRadius,
     /// Noise standard deviation (number)
-    kFilterPropertySigma
+    kFilterPropertySigma,
+    /// Source image index
+    kFilterPropertySource,
+    /// Noise use color flag (boolean)
+    kFilterPropertyUseColor,
 };
 
 enum NoiseFilterKind {
@@ -46,17 +68,35 @@ enum NoiseFilterKind {
     kFilterNoiseKindGaussian
 };
 
+enum BlendMode {
+    kBlendModeNormal,
+    kBlendModeMultiply,
+    kBlendModeScreen,
+    kBlendModeOverlay,
+    kBlendModeDarken,
+    kBlendModeLighten,
+    kBlendModeColorDodge,
+    kBlendModeColorBurn,
+    kBlendModeHardLight,
+    kBlendModeSoftLight,
+    kBlendModeDifference,
+    kBlendModeExclusion,
+    kBlendModeHue,
+    kBlendModeSaturation,
+    kBlendModeColor,
+    kBlendModeLuminosity
+};
+
 extern Bimap<FilterType, std::string> sFilterTypeBimap;
 extern Bimap<int, std::string> sFilterPropertyBimap;
 extern Bimap<int, std::string> sFilterNoiseKindBimap;
-
-using FilterBag = ObjectBag<sFilterPropertyBimap>;
+extern Bimap<int, std::string> sBlendModeBimap;
 
 /**
  * An generic image-processing filter applied against a bitmap.  Each filter
- * must have a valid type and an optional collection of properties.  Currently
- * we only support the "Blur" filter, which is a Gaussian blur with a specified
- * radius as a dimension.
+ * must have a valid type and an optional collection of properties.
+ *
+ * See notes in <extensionfilterdefinition.h> for how custom filters are defined.
  */
 class Filter {
 public:
@@ -75,6 +115,11 @@ public:
     FilterType getType() const { return mType; }
 
     /**
+     * @return True if this filter is defined from an extension
+     */
+    bool isExtensionFilter() const { return mType == kFilterTypeExtension; }
+
+    /**
      * Retrieve a property from a filter.
      * @param key The property to retrieve
      * @return The value or null if it doesn't exist
@@ -85,16 +130,19 @@ public:
     bool operator==(const Filter& rhs) const;
 
     std::string toDebugString() const;
+
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
     bool empty() const { return false; }
+
     bool truthy() const { return true; }
 
 private:
-    Filter(FilterType type, FilterBag&& bag) : mType(type), mData(std::move(bag)) {}
+    Filter(FilterType type, std::map<int, Object>&& data) : mType(type), mData(std::move(data)) {}
 
+private:
     FilterType mType;
-    FilterBag mData;
+    std::map<int, Object> mData;
 };
 
 } // namespace apl

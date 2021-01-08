@@ -73,7 +73,7 @@ TextComponent::propDefSet() const
         {kPropertyLetterSpacing,      Dimension(0),           asAbsoluteDimension,   kPropInOut | kPropLayout | kPropStyled},
         {kPropertyLineHeight,         1.25,                   asNonNegativeNumber,   kPropInOut | kPropLayout | kPropStyled},
         {kPropertyMaxLines,           0,                      asInteger,             kPropInOut | kPropLayout | kPropStyled},
-        {kPropertyText,               StyledText::EMPTY(),    asStyledText,          kPropInOut | kPropLayout | kPropDynamic},
+        {kPropertyText,               StyledText::EMPTY(),    asStyledText,          kPropInOut | kPropLayout | kPropDynamic | kPropVisualContext } ,
         {kPropertyTextAlign,          kTextAlignAuto,         sTextAlignMap,         kPropInOut | kPropLayout | kPropStyled},
         {kPropertyTextAlignVertical,  kTextAlignVerticalAuto, sTextAlignVerticalMap, kPropInOut | kPropLayout | kPropStyled}
     });

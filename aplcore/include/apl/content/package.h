@@ -22,6 +22,7 @@
 #include "rapidjson/document.h"
 
 #include "apl/common.h"
+#include "apl/utils/counter.h"
 #include "apl/content/importref.h"
 #include "apl/content/jsondata.h"
 #include "apl/utils/streamer.h"
@@ -31,8 +32,7 @@ namespace apl {
 /**
  * Store the JSON information and dependency graph for a single downloaded package.
  */
-class Package {
-
+class Package : public Counter<Package> {
 public:
     /**
      * Build a named package with JSON data.

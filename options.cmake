@@ -17,6 +17,7 @@ option(TELEMETRY "Telemetry support. Required for performance tests." OFF)
 option(COVERAGE "Coverage instrumentation" OFF)
 option(WERROR "Build with -Werror enabled." OFF)
 option(VALIDATE_HEADERS "Validate that only external headers are (transitively) included from apl.h" ON)
+option(USER_DATA_RELEASE_CALLBACKS "Enable release callbacks in UserData" ON)
 
 # Test options
 option(BUILD_TESTS "Build unit tests and test programs." OFF)
@@ -27,3 +28,7 @@ option(INSTALL_GTEST "Install googletest as library." OFF)
 
 # Doxygen build
 option(BUILD_DOC "Build documentation." ON)
+
+# Capture the compile-time options to apl_config.h so that headers can be distributed
+configure_file(${APL_CORE_DIR}/aplcore/include/apl/apl_config.h.in aplcore/include/apl/apl_config.h @ONLY)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/aplcore/include)

@@ -95,6 +95,15 @@ public:
     }
 
     /**
+     * Translation transformation.
+     * @param point The point from which to extract x & y distances
+     * @return The transform
+     */
+    static Transform2D translate(const Point &point) {
+        return translate(point.getX(), point.getY());
+    }
+
+    /**
      * Scale in the x-direction.
      * @param sx Scaling factor.  Should satisfy sx > 0
      * @return The transform
@@ -192,6 +201,16 @@ public:
     Transform2D& operator=(const Transform2D&) = default;
 
     /**
+     * @return the scaling factor in the X direction due to this transform.
+     */
+    float getXScaling() const { return std::sqrt(mData[0]*mData[0] + mData[1]*mData[1]); }
+
+    /**
+     * @return the scaling factor in the Y direction due to this transform.
+     */
+    float getYScaling() const { return std::sqrt(mData[2]*mData[2] + mData[3]*mData[3]); }
+
+    /**
      * Product of two transforms
      * @param lhs left transform
      * @param rhs right transform
@@ -234,7 +253,10 @@ public:
      * @return True if this transformation is singular
      */
     bool singular() const {
-        return mData[0] * mData[3] == mData[1] * mData[2];
+        float d1 = mData[0] * mData[3];
+        float d2 = mData[1] * mData[2];
+        return !std::isfinite(d1) || !std::isfinite(d2) || !std::isfinite(mData[4]) || !std::isfinite(mData[5])
+                || d1 == d2;
     }
 
     /**

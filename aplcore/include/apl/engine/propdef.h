@@ -26,6 +26,7 @@
 #include "apl/primitives/transform.h"
 #include "apl/primitives/mediasource.h"
 #include "apl/primitives/styledtext.h"
+#include "apl/graphic/graphicfilter.h"
 #include "apl/graphic/graphicpattern.h"
 
 #include "apl/utils/bimap.h"
@@ -138,6 +139,30 @@ inline Object asFilterArray(const Context& context, const Object& object) {
     return Object(std::move(data));
 }
 
+inline Object asGraphicFilterArray(const Context& context, const Object& object) {
+    std::vector<Object> data;
+    for (auto& m : arrayify(context, object)) {
+        auto f = GraphicFilter::create(context, m);
+        if (f.isGraphicFilter())
+            data.push_back(std::move(f));
+    }
+    return Object(std::move(data));
+}
+
+inline Object asStringOrArray(const Context& context, const Object& object) {
+    std::vector<Object> data;
+    for (auto& m : arrayify(context, object))
+        data.emplace_back(m.asString());
+
+    if (data.empty())
+        return "";
+
+    if (data.size() == 1)
+        return data.front();
+
+    return Object(std::move(data));
+}
+
 inline Object asMapped(const Context& context, const Object& object,
                        const Bimap<int, std::string>* map, const Object& defvalue )
 {
@@ -189,7 +214,7 @@ inline Object asTransformOrArray(const Context& context, const Object& object) {
     if (object.isTransform())
         return object;
 
-    return arrayify(context, object);
+    return evaluateRecursive(context, arrayify(context, object));
 }
 
 inline Object asEasing(const Context& context, const Object& object) {
@@ -200,7 +225,7 @@ inline Object asEasing(const Context& context, const Object& object) {
 }
 
 inline Object asDeepArray(const Context &context, const Object &object) {
-    return Object(evaluateRecursive(context, arrayify(context, object)));
+    return evaluateRecursive(context, arrayify(context, object));
 }
 
 inline Object asGraphicPattern(const Context& context, const Object& object) {
@@ -245,6 +270,8 @@ enum PropertyDefFlags : uint32_t {
     kPropRuntimeState = 0x400,
     /// This property should be evaluated recursively as it can contain data bindings.
     kPropEvaluated = 0x800,
+    /// This property may influence the visual context dirty state.
+    kPropVisualContext = 0x1000,
 };
 
 /**

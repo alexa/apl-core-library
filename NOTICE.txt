@@ -18,24 +18,4 @@ limitations under the License.
 THIRD PARTY COMPONENTS
 **********************
 
-This software includes third party software subject to the following
-copyrights:
-
-- JSON parsing for C++ from RapidJSON - Copyright (C) 2015 THL A29 Limited,
-a Tencent company, and Milo Yip.
-
-- Parsing Expression Grammar Template Library -
-Copyright (c) 2007-2019 Dr. Colin Hirsch and Daniel Frey.
-
-- Yoga - Copyright (c) Facebook, Inc. and its affiliates.
-
-- C++ test framework from Google Test - Copyright 2008, Google Inc.
-
-- Extension for writing and using C++ mock classes from Google Mock -
-Copyright 2008, Google Inc.
-
-NOTE: Other license terms may apply to certain, identified software files
-contained within or distributed with the accompanying software if such terms
-are included in the directory containing the accompanying software. Such
-other license terms will then apply in lieu of the terms of the software
-license above.
+This software includes third party software. See THIRD-PARTY-NOTICES.txt for details.

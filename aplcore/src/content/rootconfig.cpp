@@ -13,32 +13,23 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/animation/coreeasing.h"
 #include "apl/content/rootconfig.h"
+
+#include <cmath>
+
+#include "apl/animation/coreeasing.h"
 #include "apl/component/textmeasurement.h"
 #include "apl/time/coretimemanager.h"
 
 namespace apl {
 
+static float angleToSlope(float degrees) {
+    return std::tan(degrees * M_PI / 180);
+}
+
 RootConfig::RootConfig()
-    : mAgentName("Default agent"),
-      mAgentVersion("1.0"),
-      mTextMeasurement( TextMeasurement::instance() ),
+    : mTextMeasurement( TextMeasurement::instance() ),
       mTimeManager(std::static_pointer_cast<TimeManager>(std::make_shared<CoreTimeManager>(0))),
-      mUTCTime(0),
-      mLocalTimeAdjustment(0),
-      mAnimationQuality(kAnimationQualityNormal),
-      mAllowOpenUrl(false),
-      mDisallowVideo(false),
-      mDefaultIdleTimeout(30000),
-      mEnforcedAPLVersion(APLVersion::kAPLVersionIgnore),
-      mReportedAPLVersion("1.4"),
-      mEnforceTypeField(false),
-      mDefaultFontColor(0xfafafaff),
-      mDefaultFontFamily("sans-serif"),
-      mDefaultThemeFontColor({{"light", 0x1e2222ff}, {"dark", 0xfafafaff}}),
-      mDefaultThemeHighlightColor({{"light", 0x0070ba4d}, {"dark",  0x00caff4d}}),
-      mTrackProvenance(true),
       mDefaultComponentSize({
           // Set default sizes for components that aren't "auto" width and "auto" height.
         {{kComponentTypeImage, true}, {Dimension(100), Dimension(100)}},
@@ -50,21 +41,19 @@ RootConfig::RootConfig()
         {{kComponentTypeGridSequence, false}, {Dimension(100), Dimension()}}, // Horizontal scrolling, height=auto width=100dp
         {{kComponentTypeVideo, true}, {Dimension(100), Dimension(100)}},
       }),
-      mPagerChildCache(1),
-      mSequenceChildCache(1),
-      mDoublePressTimeout(500),
-      mLongPressTimeout(1000),
-      mSwipeAwayTriggerDistanceThreshold(10),
-      mSwipeAwayFulfillDistancePercentageThreshold(0.5),
-      mSwipeAwayAnimationEasing(CoreEasing::bezier(0,0,0.58,0.1)), // Standard ease-out
-      mSwipeVelocityThreshold(200),
-      mTickHandlerUpdateLimit(16)
+      mSwipeAwayAnimationEasing(CoreEasing::bezier(0,0,0.58,1)), // Standard ease-out
+      mSwipeAngleSlope(angleToSlope(40)) // tolerate up to 40 degree angles when swiping by default
 {
 }
 
 RootConfig&
 RootConfig::swipeAwayAnimationEasing(const std::string& easing) {
     mSwipeAwayAnimationEasing = Easing::parse(mSession, easing);
+    return *this;
+}
+
+RootConfig& RootConfig::swipeAngleTolerance(float degrees) {
+    mSwipeAngleSlope = angleToSlope(degrees);
     return *this;
 }
 

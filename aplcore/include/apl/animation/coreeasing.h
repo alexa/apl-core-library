@@ -46,12 +46,12 @@ class EasingApproximation;
 
 class CoreEasing : public Easing {
 public:
-    static std::shared_ptr<Easing> bezier(float a, float b, float c, float d) noexcept;
-    static std::shared_ptr<Easing> linear() noexcept;
+    static EasingPtr bezier(float a, float b, float c, float d) noexcept;
+    static EasingPtr linear() noexcept;
 
-    static std::shared_ptr<Easing> create(std::vector<EasingSegment>&& segments,
-                                          std::vector<float>&& points,
-                                          std::string debugString);
+    static EasingPtr create(std::vector<EasingSegment>&& segments,
+                            std::vector<float>&& points,
+                            std::string debugString);
 
     // Standard constructor.  Do not call this; use CoreEasing::create()
     CoreEasing(std::vector<EasingSegment>&& segments,

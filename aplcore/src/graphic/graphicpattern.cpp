@@ -19,6 +19,7 @@
 #include "apl/primitives/object.h"
 #include "apl/graphic/graphicpattern.h"
 #include "apl/graphic/graphicelement.h"
+#include "apl/graphic/graphicbuilder.h"
 
 namespace apl {
 
@@ -58,7 +59,7 @@ GraphicPattern::create(const Context& context, const Object& object)
 
     auto graphicElements = arrayifyProperty(context, object, "items", "item");
     for (auto& graphicElement : graphicElements) {
-        auto item = GraphicElement::build(context, graphicElement);
+        auto item = GraphicBuilder::build(context, graphicElement);
         if (item)
             items.emplace_back(item);
     }

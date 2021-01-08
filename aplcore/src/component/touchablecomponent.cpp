@@ -15,12 +15,12 @@
 
 #include "apl/component/componentpropdef.h"
 #include "apl/component/touchablecomponent.h"
+#include "apl/content/rootconfig.h"
 #include "apl/engine/context.h"
 #include "apl/engine/keyboardmanager.h"
 #include "apl/engine/propdef.h"
 #include "apl/time/sequencer.h"
 #include "apl/touch/gesture.h"
-
 
 namespace apl {
 
@@ -41,18 +41,6 @@ static std::map<PropertyKey, bool> sPropertyExecutesFast = {
 };
 
 void
-TouchableComponent::release()
-{
-    // Avoiding reference loop.
-    if (mActiveGesture) {
-        mActiveGesture->reset();
-        mActiveGesture = nullptr;
-    }
-    mGestureHandlers.clear();
-    CoreComponent::release();
-}
-
-void
 TouchableComponent::setGestureHandlers()
 {
     auto handlers = getCalculated(kPropertyGestures).getArray();
@@ -65,33 +53,35 @@ TouchableComponent::setGestureHandlers()
 }
 
 bool
-TouchableComponent::processGesture(const PointerEvent& event, apl_time_t timestamp) {
-    if (mGesturesDisabled) return false;
+TouchableComponent::processGestures(const PointerEvent& event, apl_time_t timestamp, bool topComponent) {
+    // Touchable components is only process pointer events if initially designated as targets as per spec.
+    // Could change in future.
+    if (!topComponent) return false;
+    return ActionableComponent::processGestures(event, timestamp, topComponent);
+}
 
-    if (mActiveGesture){
-        if(mActiveGesture->isTriggered()) {
-            if (!mActiveGesture->consume(event, timestamp))
-                mActiveGesture = nullptr; // Consumed but reset afterwards.
-            return true;
-        }
-
-        mActiveGesture = nullptr;
+bool
+TouchableComponent::shouldPropagatePointerEvent(const PointerEvent& event, apl_time_t timestamp) {
+    if (!ActionableComponent::shouldPropagatePointerEvent(event, timestamp)) {
         return false;
     }
 
-    for (auto& gesture : mGestureHandlers) {
-        if (gesture->consume(event, timestamp)) {
-            // Triggered by event, so active now
-            mActiveGesture = gesture;
-            for (auto& g : mGestureHandlers) {
-                if (g != mActiveGesture)
-                    g->reset();
-            }
-            return true;
-        }
+    // TODO: Will not handle multitouch properly.
+    if (event.pointerEventType == kPointerDown) {
+        mPointerInteractionStartTime = timestamp;
     }
 
-    return false;
+    return timestamp < mPointerInteractionStartTime + mContext->getRootConfig().getTapOrScrollTimeout();
+}
+
+void
+TouchableComponent::invokeStandardAccessibilityAction(const std::string& name)
+{
+    if (name == "activate")
+        executeEventHandler(sPropertyHandlers.at(kPropertyOnPress),
+                            getCalculated(kPropertyOnPress), false, createTouchEventProperties(Point()));
+    else
+        ActionableComponent::invokeStandardAccessibilityAction(name);
 }
 
 const ComponentPropDefSet &
@@ -160,10 +150,10 @@ TouchableComponent::addHandlerEventProperties(PropertyKey handlerKey,
     }
 }
 
-bool
-TouchableComponent::executePointerEventHandler(PropertyKey handlerKey,
-                                               const Point& localPoint) {
-    if (mState.get(kStateDisabled)) return false;
+void
+TouchableComponent::executePointerEventHandler(PropertyKey handlerKey, const Point& localPoint)
+{
+    if (mState.get(kStateDisabled)) return;
 
     executePreEventActions(handlerKey);
     auto& commands = getCalculated(handlerKey);
@@ -177,32 +167,6 @@ TouchableComponent::executePointerEventHandler(PropertyKey handlerKey,
         executeEventHandler(sPropertyHandlers.at(handlerKey), commands, fastMode, props);
     }
     executePostEventActions(handlerKey, localPoint);
-
-    return true;
-}
-
-bool
-TouchableComponent::executePointerEventHandler(PropertyKey handlerKey, const PointerEvent& event) {
-    // TODO: temporary entry point for gestures to avoid regressions. Will be removed when
-    // gestures are updated to handle transformations.
-    auto localPoint = event.pointerEventPosition - getGlobalBounds().getTopLeft();
-    return executePointerEventHandler(handlerKey, localPoint);
-}
-
-void
-TouchableComponent::executeEventHandler(const std::string& event, const Object& commands, bool fastMode,
-                                               const ObjectMapPtr& optional) {
-    if (!mState.get(kStateDisabled)) {
-        if (!fastMode)
-            mContext->sequencer().reset();
-
-        ContextPtr eventContext = createEventContext(event, optional);
-        mContext->sequencer().executeCommands(
-                commands,
-                eventContext,
-                shared_from_corecomponent(),
-                fastMode);
-    }
 }
 
 bool
@@ -243,27 +207,6 @@ TouchableComponent::getTags(rapidjson::Value &outMap, rapidjson::Document::Alloc
 Object
 TouchableComponent::getValue() const {
     return mState.get(kStateChecked);
-}
-
-ObjectMapPtr
-TouchableComponent::createTouchEventProperties(const Point &localPoint) const {
-    auto eventProps = std::make_shared<ObjectMap>();
-    auto componentPropertyMap = std::make_shared<ObjectMap>();
-    componentPropertyMap->emplace("x", localPoint.getX());
-    componentPropertyMap->emplace("y", localPoint.getY());
-    componentPropertyMap->emplace("width", YGNodeLayoutGetWidth(mYGNodeRef));
-    componentPropertyMap->emplace("height", YGNodeLayoutGetHeight(mYGNodeRef));
-    eventProps->emplace("component", componentPropertyMap);
-
-    return eventProps;
-}
-
-ObjectMapPtr
-TouchableComponent::createTouchEventProperties(const PointerEvent& event) const {
-    // TODO: temporary entry point for gestures to avoid regressions. Will be removed when
-    // gestures are updated to handle transformations.
-    auto localPoint = event.pointerEventPosition - getGlobalBounds().getTopLeft();
-    return createTouchEventProperties(localPoint);
 }
 
 void

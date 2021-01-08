@@ -17,8 +17,6 @@
 
 #include "rapidjson/stringbuffer.h"
 
-
-#include "apl/engine/builder.h"
 #include "apl/engine/evaluate.h"
 #include "apl/engine/styles.h"
 #include "apl/engine/propdef.h"
@@ -27,6 +25,7 @@
 #include "apl/content/content.h"
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
+#include "apl/content/configurationchange.h"
 #include "apl/engine/builder.h"
 #include "apl/engine/styles.h"
 #include "apl/extension/extensionmanager.h"
@@ -35,6 +34,7 @@
 #include "apl/engine/rootcontextdata.h"
 #include "apl/graphic/graphic.h"
 #include "apl/livedata/livedataobject.h"
+#include "apl/livedata/livedataobjectwatcher.h"
 #include "apl/time/timemanager.h"
 #include "apl/utils/log.h"
 
@@ -68,7 +68,7 @@ RootContext::create(const Metrics& metrics, const ContentPtr& content,
     auto root = std::make_shared<RootContext>(metrics, content, config);
     if (callback)
         callback(root);
-    if (!root->setup())
+    if (!root->setup(nullptr))
         return nullptr;
 
     return root;
@@ -78,21 +78,61 @@ RootContext::RootContext(const Metrics& metrics, const ContentPtr& content, cons
     : mContent(content),
       mTimeManager(config.getTimeManager())
 {
+    init(metrics, config);
+}
+
+RootContext::~RootContext()
+{
+    assert(mCore);
+    clearDirty();
+    mCore->dirtyVisualContext.clear();
+    mTimeManager->terminate();
+    mCore->terminate();
+}
+
+void
+RootContext::reinflate(const ConfigurationChange& change)
+{
+    // The basic algorithm is to simply re-build core and re-inflate the component hierarchy.
+    // TODO: Re-use parts of the hierarchy and to maintain state during reinflation.
+
+    auto metrics = change.mergeMetrics(mCore->mMetrics);
+    auto config = change.mergeRootConfig(mCore->mConfig);
+
+    // Update the configuration with the current UTC time and time adjustment
+    config.utcTime(mUTCTime);
+    config.localTimeAdjustment(mLocalTimeAdjustment);
+
+    // Stop any execution on the old core
+    auto oldTop = mCore->halt();
+
+    // The initialization routine replaces mCore with a new core
+    init(metrics, config);
+    setup(oldTop);  // Pass the old top component
+
+    // If there was a previous top component, release it and its children to free memory
+    if (oldTop)
+        oldTop->release();
+}
+
+void
+RootContext::init(const Metrics& metrics, const RootConfig& config)
+{
     std::string theme = metrics.getTheme();
-    const auto& json = content->getDocument()->json();
+    const auto& json = mContent->getDocument()->json();
     auto themeIter = json.FindMember("theme");
     if (themeIter != json.MemberEnd() && themeIter->value.IsString())
         theme = themeIter->value.GetString();
 
     auto session = config.getSession();
     if (!session)
-        session = content->getSession();
+        session = mContent->getSession();
 
     mCore = std::make_shared<RootContextData>(metrics, config, theme,
-                                              content->getDocument()->version(),
-                                              content->getDocumentSettings(),
+                                              mContent->getDocument()->version(),
+                                              mContent->getDocumentSettings(),
                                               session,
-                                              content->mExtensionRequests);
+                                              mContent->mExtensionRequests);
     mContext = Context::create(metrics, mCore);
 
     mContext->putSystemWriteable(ELAPSED_TIME, mTimeManager->currentTime());
@@ -103,16 +143,14 @@ RootContext::RootContext(const Metrics& metrics, const ContentPtr& content, cons
     mContext->putSystemWriteable(LOCAL_TIME, mUTCTime + mLocalTimeAdjustment);
 
     // Insert one LiveArrayObject or LiveMapObject into the top-level context for each defined LiveObject
-    for (const auto& m : config.getLiveObjectMap())
-        LiveDataObject::create(m.second, mContext, m.first);
-}
-
-RootContext::~RootContext()
-{
-    assert(mCore);
-    clearDirty();
-    mTimeManager->terminate();
-    mCore->terminate();
+    for (const auto& m : config.getLiveObjectMap()) {
+        auto ldo = LiveDataObject::create(m.second, mContext, m.first);
+        auto watchers = config.getLiveDataWatchers(m.first);
+        for (auto& watcher : watchers) {
+            if (watcher)
+                watcher->registerObjectWatcher(ldo);
+        }
+    }
 }
 
 void
@@ -129,7 +167,7 @@ RootContext::clearPending() const
     // TODO: Reaching directly in to mTop is ugly.  See if there is a better approach
     // If we need a layout pass, do it now - it will update the dirty events
     if (mCore->mTop != nullptr && mCore->mTop->needsLayout())
-        mCore->mTop->layout(mCore->width, mCore->height, true);
+        mCore->mTop->layout(mCore->getWidth(), mCore->getHeight(), true);
 }
 
 bool
@@ -165,6 +203,7 @@ RootContext::isDirty() const
     return mCore->dirty.size() > 0;
 }
 
+
 const std::set<ComponentPtr>&
 RootContext::getDirty()
 {
@@ -184,6 +223,20 @@ RootContext::clearDirty()
 }
 
 
+bool
+RootContext::isVisualContextDirty() const
+{
+    assert(mCore);
+    return mCore->dirtyVisualContext.size() > 0;
+}
+
+
+rapidjson::Value
+RootContext::serializeVisualContext(rapidjson::Document::AllocatorType& allocator) {
+    mCore->dirtyVisualContext.clear();
+    return topComponent()->serializeVisualContext(allocator);
+}
+
 std::shared_ptr<ObjectMap>
 RootContext::createDocumentEventProperties(const std::string& handler) const {
     auto source = std::make_shared<ObjectMap>();
@@ -199,10 +252,12 @@ RootContext::createDocumentEventProperties(const std::string& handler) const {
 }
 
 ContextPtr
-RootContext::createDocumentContext(const std::string& handler)
+RootContext::createDocumentContext(const std::string& handler, const ObjectMap& optional)
 {
     ContextPtr ctx = Context::create(payloadContext());
     auto event = createDocumentEventProperties(handler);
+    for (const auto& m : optional)
+        event->emplace(m.first, m.second);
     ctx->putConstant("event", event);
     return ctx;
 }
@@ -234,7 +289,7 @@ RootContext::invokeExtensionEventHandler(const std::string& uri, const std::stri
         return nullptr;
 
     // Create a document-level context and copy the provided data in
-    ContextPtr ctx = createDocumentContext(name);
+    ContextPtr ctx = createDocumentContext(name, data);
     for (const auto& m : data)
         ctx->putConstant(m.first, m.second);
 
@@ -339,9 +394,8 @@ RootContext::rootConfig() {
 }
 
 bool
-RootContext::setup()
+RootContext::setup(const CoreComponentPtr& top)
 {
-
     std::vector<PackagePtr> ordered = mContent->ordered();
 
     // check type field of each package
@@ -441,12 +495,13 @@ RootContext::setup()
     Properties properties;
 
     mContent->getMainProperties(properties);
-    mCore->mTop = Builder::inflate(mContext, properties, mContent->getMainTemplate());
+    mCore->mTop = Builder(top).inflate(mContext, properties, mContent->getMainTemplate());
 
     if (!mCore->mTop)
         return false;
 
-    mCore->mTop->layout(mCore->width, mCore->height, false);
+    mCore->mTop->markGlobalToLocalTransformStale();
+    mCore->mTop->layout(mCore->getWidth(), mCore->getHeight(), false);
 
     // Execute the "onMount" document command
     auto cmd = DocumentCommand::create(kPropertyOnMount, "Mount", shared_from_this());
@@ -457,6 +512,9 @@ RootContext::setup()
 
     // Those commands may have set the dirty flags.  Clear them.
     clearDirty();
+
+    // Commands or layout may have marked visual context dirty.  Clear visual context.
+    mCore->dirtyVisualContext.clear();
 
     // Process and schedule tick handlers.
     processTickHandlers();
@@ -583,7 +641,7 @@ std::string
 RootContext::getTheme() const
 {
     assert(mCore);
-    return mCore->theme;
+    return mCore->getTheme();
 }
 
 const TextMeasurementPtr&

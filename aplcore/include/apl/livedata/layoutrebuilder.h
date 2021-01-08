@@ -18,6 +18,7 @@
 
 #include "apl/common.h"
 #include "apl/utils/path.h"
+#include "apl/livedata/livedataobjectwatcher.h"
 
 namespace apl {
 
@@ -29,7 +30,7 @@ class LiveArrayObject;
  * new Components as the array is extended, removing Components that no longer apply, and updating
  * Components that have a changed data set.
  */
-class LayoutRebuilder : public std::enable_shared_from_this<LayoutRebuilder> {
+class LayoutRebuilder : public std::enable_shared_from_this<LayoutRebuilder>, public LiveDataObjectWatcher {
 public:
     /**
      * Construct a LayoutRebuilder and register it with the parent layout and LiveArray
@@ -103,6 +104,12 @@ public:
         return mHasLastItem;
     }
 
+protected:
+    /// LiveDataObjectWatcher methods
+    void liveDataObjectFlushed(const std::string& key, LiveDataObject& liveDataObject) override {
+        rebuild();
+    }
+
 private:
     ContextPtr mContext;
     std::weak_ptr<CoreComponent> mLayout;
@@ -115,7 +122,6 @@ private:
     bool mHasLastItem = false;
 
     int mRebuilderToken;  // Unique token generated for each LayoutRebuilder.  Helps find where a rebuilder is active.
-    int mWatcherToken = -1;  // Registration token with the LiveArrayObject we are tracking
 
     static int sRebuilderToken;
 };

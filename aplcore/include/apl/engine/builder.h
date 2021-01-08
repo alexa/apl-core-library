@@ -31,6 +31,12 @@ class Builder {
 
 public:
     /**
+     * Construct a builder object.
+     * @param old If defined, this references the old component hierarchy that is being re-inflated.
+     */
+    Builder(CoreComponentPtr old = nullptr) : mOld(std::move(old)) {}
+
+    /**
      * Inflate the mainTemplate out of an APL document
      * @param context Top-level data-binding context.
      * @param mainProperties Raw properties that should be passed to the inflation routine.  These come from any
@@ -38,9 +44,9 @@ public:
      * @param mainDocument The master APL document
      * @return The inflated component hierarchy, or nullptr if the document is malformed.
      */
-    static CoreComponentPtr inflate(const ContextPtr& context,
-                                    Properties& mainProperties,
-                                    const rapidjson::Value& mainDocument);
+    CoreComponentPtr inflate(const ContextPtr& context,
+                             Properties& mainProperties,
+                             const rapidjson::Value& mainDocument);
 
     /**
      * Inflate a component or component hierarchy from an Object.
@@ -49,38 +55,40 @@ public:
      *        "while" requirements is selected.
      * @return The inflated component hierarchy, or nullptr if component is malformed.
      */
-    static CoreComponentPtr inflate(const ContextPtr& context,
-                                    const Object& component);
+    CoreComponentPtr inflate(const ContextPtr& context,
+                             const Object& component);
 
 private:
-    static void populateSingleChildLayout(const ContextPtr& context,
-                                          const Object& item,
-                                          const CoreComponentPtr& layout,
-                                          const Path& path);
+    void populateSingleChildLayout(const ContextPtr& context,
+                                   const Object& item,
+                                   const CoreComponentPtr& layout,
+                                   const Path& path);
 
-    static void populateLayoutComponent(const ContextPtr& context,
-                                        const Object& item,
-                                        const CoreComponentPtr& layout,
-                                        const Path& path);
+    void populateLayoutComponent(const ContextPtr& context,
+                                 const Object& item,
+                                 const CoreComponentPtr& layout,
+                                 const Path& path);
 
-    static CoreComponentPtr expandLayout(const ContextPtr& context,
-                                         Properties& properties,
-                                         const rapidjson::Value& layout,
-                                         const CoreComponentPtr& parent,
-                                         const Path& path);
+    CoreComponentPtr expandLayout(const ContextPtr& context,
+                                  Properties& properties,
+                                  const rapidjson::Value& layout,
+                                  const CoreComponentPtr& parent,
+                                  const Path& path);
 
-    static CoreComponentPtr expandSingleComponentFromArray(const ContextPtr& context,
-                                                           const std::vector<Object>& items,
-                                                           Properties& properties,
-                                                           const CoreComponentPtr& parent,
-                                                           const Path& path);
+    CoreComponentPtr expandSingleComponentFromArray(const ContextPtr& context,
+                                                    const std::vector<Object>& items,
+                                                    Properties& properties,
+                                                    const CoreComponentPtr& parent,
+                                                    const Path& path);
 
-    static CoreComponentPtr expandSingleComponent(const ContextPtr& context,
-                                                  const Object& item,
-                                                  Properties& properties,
-                                                  const CoreComponentPtr& parent,
-                                                  const Path& path);
+    CoreComponentPtr expandSingleComponent(const ContextPtr& context,
+                                           const Object& item,
+                                           Properties& properties,
+                                           const CoreComponentPtr& parent,
+                                           const Path& path);
 
+private:
+    CoreComponentPtr mOld;
 };
 
 } // namespace apl

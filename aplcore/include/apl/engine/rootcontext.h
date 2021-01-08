@@ -32,6 +32,7 @@ namespace apl {
 class Metrics;
 class RootConfig;
 class RootContextData;
+class ConfigurationChange;
 class TimeManager;
 struct PointerEvent;
 
@@ -114,6 +115,14 @@ public:
                                  std::function<void(const RootContextPtr&)> callback);
 
     /**
+     * Reinflate this context given a change in configuration.  This will terminate any existing
+     * animations, remove any events on the queue, clear the dirty components, and create a new
+     * component hierarchy.
+     * @param change Configuration change information
+     */
+    void reinflate(const ConfigurationChange& change);
+
+    /**
      * Clear any pending timers that need to be processed and execute any layout passes that are required.
      * This method is called internally by hasEvent(), popEvent(), and isDirty() so you normally don't need
      * to call this directly.
@@ -177,6 +186,17 @@ public:
      * flags from child components.
      */
     void clearDirty();
+
+    /**
+     * Identifies when the visual context may have changed.  A call to serializeVisualContext resets this value to false.
+     * @return true if the visual context has changed since the last call to serializeVisualContext, false otherwise.
+     */
+    bool isVisualContextDirty() const;
+
+    /**
+     * Retrieve component's visual context as a JSON object.
+     */
+    rapidjson::Value serializeVisualContext(rapidjson::Document::AllocatorType& allocator);
 
     /**
      * Execute an externally-driven command
@@ -271,9 +291,10 @@ public:
      * Create a suitable document-level data-binding context for evaluating a document-level
      * event.
      * @param handler The name of the handler.
+     * @param optional optional data to add to the event.
      * @return The document-level data-binding context.
      */
-    ContextPtr createDocumentContext(const std::string& handler);
+    ContextPtr createDocumentContext(const std::string& handler, const ObjectMap& optional = {});
 
     /**
      * Create a suitable document-level data-binding context for evaluating a document-level
@@ -299,7 +320,7 @@ public:
     /**
      * Handle a given PointerEvent with coordinates relative to the viewport.
      * @param pointerEvent The pointer event to handle.
-     * @return Whether or not it was handled.
+     * @return true if was consumed and should not be passed through any platform handling.
      */
     bool handlePointerEvent(const PointerEvent& pointerEvent);
 
@@ -345,7 +366,8 @@ public:
     friend streamer& operator<<(streamer& os, const RootContext& root);
 
 private:
-    bool setup();
+    void init(const Metrics& metrics, const RootConfig& config);
+    bool setup(const CoreComponentPtr& top);
     bool verifyAPLVersionCompatibility(const std::vector<std::shared_ptr<Package>>& ordered,
                                        const APLVersion& compatibilityVersion);
     bool verifyTypeField(const std::vector<std::shared_ptr<Package>>& ordered, bool enforce);

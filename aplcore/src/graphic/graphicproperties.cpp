@@ -34,6 +34,8 @@ Bimap<int, std::string> sGraphicPropertyBimap = {
     {kGraphicPropertyFillOpacity,            "fillOpacity"},
     {kGraphicPropertyFillTransform,          "_fillTransform"},
     {kGraphicPropertyFillTransformAssigned,  "fillTransform"},
+    {kGraphicPropertyFilters,                "filters"},
+    {kGraphicPropertyFilters,                "filter"},
     {kGraphicPropertyFontFamily,             "fontFamily" },
     {kGraphicPropertyFontSize,               "fontSize" },
     {kGraphicPropertyFontStyle,              "fontStyle" },
@@ -96,7 +98,8 @@ Bimap<int, std::string> sGraphicTextAnchorBimap = {
 
 Bimap<int, std::string> sGraphicVersionBimap = {
     {kGraphicVersion10, "1.0"},
-    {kGraphicVersion11, "1.1"}
+    {kGraphicVersion11, "1.1"},
+    {kGraphicVersion12, "1.2"},
 };
 
 } // namespace apl

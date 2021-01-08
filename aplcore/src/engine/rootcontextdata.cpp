@@ -75,13 +75,9 @@ RootContextData::RootContextData(const Metrics& metrics,
                                  const SettingsPtr& settings,
                                  const SessionPtr& session,
                                  const std::vector<std::pair<std::string, std::string>>& extensions)
-    : pixelWidth(metrics.getPixelWidth()),
-      pixelHeight(metrics.getPixelHeight()),
-      width(metrics.getWidth()),
-      height(metrics.getHeight()),
-      pxToDp(160.0 / metrics.getDpi()),
-      theme(theme),
-      requestedAPLVersion(requestedAPLVersion),
+    : mMetrics(metrics),
+      mTheme(theme),
+      mRequestedAPLVersion(requestedAPLVersion),
       mStyles(new Styles()),
       mSequencer(new Sequencer(config.getTimeManager(), requestedAPLVersion)),
       mFocusManager(new FocusManager()),
@@ -103,13 +99,28 @@ RootContextData::RootContextData(const Metrics& metrics,
 }
 
 void
-RootContextData::terminate()     {
-    assert(mSequencer);
-    mSequencer->terminate();
-    if (mTop) {
-        mTop->release();
-        mTop = nullptr;
+RootContextData::terminate()
+{
+    auto top = halt();
+    if (top)
+        top->release();
+}
+
+CoreComponentPtr
+RootContextData::halt()
+{
+    if (mSequencer) {
+        mSequencer->terminate();
+        mSequencer = nullptr;
     }
+
+    // Clear any pending events and dirty components
+    events = std::queue<Event>();
+    dirty.clear();
+
+    auto result = mTop;
+    mTop = nullptr;
+    return result;
 }
 
 } // namespace apl

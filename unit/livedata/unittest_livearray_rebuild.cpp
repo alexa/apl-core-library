@@ -779,8 +779,10 @@ TEST_F(LiveArrayRebuildTest, SequencePositionContext)
     scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
     ASSERT_EQ(0, scrollPosition);
 
+    ASSERT_TRUE(CheckDirtyVisualContext(root,component));
     rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
+    auto context = root->serializeVisualContext(document.GetAllocator());
+
     ASSERT_TRUE(context.HasMember("tags"));
     auto& tags = context["tags"];
     ASSERT_STREQ("sequence", context["id"].GetString());
@@ -805,7 +807,10 @@ TEST_F(LiveArrayRebuildTest, SequencePositionContext)
     scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
     ASSERT_EQ(400, scrollPosition);
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(component->isVisualContextDirty());
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(component->isVisualContextDirty());
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("sequence", context["id"].GetString());
@@ -823,7 +828,10 @@ TEST_F(LiveArrayRebuildTest, SequencePositionContext)
     ASSERT_TRUE(component->getCalculated(kPropertyScrollPosition).isDimension());
     ASSERT_EQ(200, scrollPosition);
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(component->isVisualContextDirty());
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(component->isVisualContextDirty());
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("sequence", context["id"].GetString());
@@ -846,7 +854,10 @@ TEST_F(LiveArrayRebuildTest, SequencePositionContext)
     scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
     ASSERT_EQ(400, scrollPosition);
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(component->isVisualContextDirty());
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(component->isVisualContextDirty());
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("sequence", context["id"].GetString());
@@ -872,7 +883,9 @@ TEST_F(LiveArrayRebuildTest, SequenceContextInsertRemove)
     ASSERT_EQ(0, scrollPosition);
 
     rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
+    auto context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(component->isVisualContextDirty());
+
     ASSERT_TRUE(context.HasMember("tags"));
     auto& tags = context["tags"];
     ASSERT_STREQ("sequence", context["id"].GetString());
@@ -885,6 +898,7 @@ TEST_F(LiveArrayRebuildTest, SequenceContextInsertRemove)
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 4}, true));
 
     component->update(kUpdateScrollPosition, 200);
+    ASSERT_TRUE(component->isVisualContextDirty());
 
     // Insert items before scroll position in un-ensured and ensured area.
     myArray->insert(2, "12.5");
@@ -900,7 +914,9 @@ TEST_F(LiveArrayRebuildTest, SequenceContextInsertRemove)
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 0}, false));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {1, 6}, true));
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    context = root->serializeVisualContext(document.GetAllocator());
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("sequence", context["id"].GetString());
@@ -919,7 +935,9 @@ TEST_F(LiveArrayRebuildTest, SequenceContextInsertRemove)
     scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
     ASSERT_EQ(300, scrollPosition);
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    context = root->serializeVisualContext(document.GetAllocator());
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("sequence", context["id"].GetString());
@@ -951,10 +969,12 @@ TEST_F(LiveArrayRebuildTest, SequenceScrollingContext)
     myArray->push_back("14");
     root->clearPending();
 
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
     ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {0, 4}));
     // Verify initial context
     rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
+    auto context = root->serializeVisualContext(document.GetAllocator());
+
     ASSERT_TRUE(context.HasMember("tags"));
     auto& tags = context["tags"];
     ASSERT_STREQ("sequence", context["id"].GetString());
@@ -985,7 +1005,10 @@ TEST_F(LiveArrayRebuildTest, SequenceScrollingContext)
 
     ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {0, 1}));
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(component->isVisualContextDirty());
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(component->isVisualContextDirty());
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("sequence", context["id"].GetString());
@@ -1009,7 +1032,10 @@ TEST_F(LiveArrayRebuildTest, SequenceScrollingContext)
 
     ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 4));
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(component->isVisualContextDirty());
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(component->isVisualContextDirty());
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("sequence", context["id"].GetString());
@@ -1029,7 +1055,10 @@ TEST_F(LiveArrayRebuildTest, SequenceScrollingContext)
     scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
     ASSERT_EQ(1000, scrollPosition);
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(component->isVisualContextDirty());
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(component->isVisualContextDirty());
+
     tags = context["tags"];
     ASSERT_STREQ("sequence", context["id"].GetString());
     ASSERT_TRUE(tags.HasMember("list"));
@@ -1214,7 +1243,8 @@ TEST_F(LiveArrayRebuildTest, PagerContext)
     ASSERT_TRUE(CheckChildrenLaidOut(component, {2, 4}, false));
 
     rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
+    auto context = root->serializeVisualContext(document.GetAllocator());
+
     ASSERT_TRUE(context.HasMember("tags"));
     auto& tags = context["tags"];
     ASSERT_STREQ("pager", context["id"].GetString());
@@ -1242,7 +1272,10 @@ TEST_F(LiveArrayRebuildTest, PagerContext)
     ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 6}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {7, 9}, false));
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(component->isVisualContextDirty());
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(component->isVisualContextDirty());
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("pager", context["id"].GetString());
@@ -1265,7 +1298,8 @@ TEST_F(LiveArrayRebuildTest, PagerContextInsertRemove)
     ASSERT_EQ(5, component->getChildCount());
 
     rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
+    auto context = root->serializeVisualContext(document.GetAllocator());
+
     ASSERT_TRUE(context.HasMember("tags"));
     auto& tags = context["tags"];
     ASSERT_STREQ("pager", context["id"].GetString());
@@ -1285,7 +1319,10 @@ TEST_F(LiveArrayRebuildTest, PagerContextInsertRemove)
     ASSERT_TRUE(CheckChildrenLaidOut(component, {1, 3}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 5}, false));
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(component->isVisualContextDirty());
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(component->isVisualContextDirty());
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("pager", context["id"].GetString());
@@ -1306,7 +1343,10 @@ TEST_F(LiveArrayRebuildTest, PagerContextInsertRemove)
     myArray->remove(2, 1);
     root->clearPending();
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(component->isVisualContextDirty());
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(component->isVisualContextDirty());
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("pager", context["id"].GetString());

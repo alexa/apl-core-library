@@ -24,8 +24,7 @@ class VectorGraphicComponent : public TouchableComponent {
 public:
     static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const std::string& path);
     VectorGraphicComponent(const ContextPtr& context, Properties&& properties, const std::string& path);
-
-    ~VectorGraphicComponent() override;
+    void release() override;
 
     ComponentType getType() const override { return kComponentTypeVectorGraphic; };
     void initialize() override;

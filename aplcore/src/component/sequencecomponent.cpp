@@ -39,7 +39,8 @@ const ComponentPropDefSet&
 SequenceComponent::propDefSet() const {
     static ComponentPropDefSet sSequenceComponentProperties(MultiChildScrollableComponent::propDefSet(), {
             {kPropertyFastScrollScale, 1.0,                      asNonNegativeNumber,  kPropInOut | kPropStyled},
-            {kPropertyScrollDirection, kScrollDirectionVertical, sScrollDirectionMap,  kPropInOut, yn::setScrollDirection}
+            {kPropertyScrollDirection, kScrollDirectionVertical, sScrollDirectionMap,  kPropInOut | kPropVisualContext,
+                                                                                       yn::setScrollDirection}
     });
     return sSequenceComponentProperties;
 }

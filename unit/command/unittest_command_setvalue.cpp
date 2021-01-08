@@ -79,11 +79,13 @@ TEST_F(CommandSetValueTest, Component)
 
     ASSERT_FALSE(ConsoleMessage());  // No console messages so far
 
-    // First check that non-dynamic properties can't be set.
+    // Accessibility label is dynamic.
     executeSetValue("tw", "accessibilityLabel", "New one");
-    ASSERT_FALSE(root->isDirty());
-    ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).asString());
-    ASSERT_TRUE(ConsoleMessage());
+    ASSERT_TRUE(CheckDirty(component, kPropertyAccessibilityLabel));
+    ASSERT_TRUE(CheckDirty(root, component));
+    root->clearDirty();
+    ASSERT_EQ("New one", component->getCalculated(kPropertyAccessibilityLabel).asString());
+    ASSERT_FALSE(ConsoleMessage());
 
     // Opacity and all further properties in this test can be set
     executeSetValue("tw", "opacity", "0.7");

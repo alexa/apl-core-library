@@ -44,6 +44,7 @@ public:
 private:
     rapidjson::Document mDocument;
     rapidjson::Value mSource;
+    rapidjson::Value mArguments;
 };
 
 } // namespace apl

@@ -20,25 +20,64 @@
 
 namespace apl {
 
+class Gesture;
+
 /**
- * An actionable component is one that accepts keyboard focus.
+ * An actionable component is one that accepts interaction focus.
  */
 class ActionableComponent : public CoreComponent {
+public:
+    /**
+     * Disable gestures processing. Some of the events could lead to gestures not having any sense,
+     * or require to pause processing for time of animation.
+     */
+    void disableGestures() { mGesturesDisabled = true; }
+
+    /**
+     * Enable gestures processing. State of all supported gestures will be reset.
+     */
+    void enableGestures();
+
+    /**
+     * Get the touch event specific properties
+     * @param point Properties of the component segment of the event.
+     * @return The event data-binding context.
+     */
+    virtual ObjectMapPtr createTouchEventProperties(const Point& localPoint) const;
+
+    /**
+     * @return true if component supports horizontal movement.
+     */
+    virtual bool isHorizontal() const { return false; }
+
+    /**
+     * @return true if component supports vertical movement.
+     */
+    virtual bool isVertical() const { return false; }
+
+    /// CoreComponent overrides
+    bool isActionable() const override { return true; }
+    bool isTouchable() const override;
+
 protected:
-    ActionableComponent(const ContextPtr& context, Properties&& properties, const std::string& path) :
-        CoreComponent(context, std::move(properties), path)
-    {}
-
     bool isFocusable() const override { return true; }
-
     void executeOnBlur() override;
-
     void executeOnFocus() override;
-
     bool executeKeyHandlers(KeyHandlerType type, const ObjectMapPtr& keyboard)  override;
-
     const ComponentPropDefSet& propDefSet() const override;
+    void release() override;
 
+    ActionableComponent(const ContextPtr& context, Properties&& properties, const std::string& path) :
+            CoreComponent(context, std::move(properties), path), mGesturesDisabled(false) {}
+
+    bool processGestures(const PointerEvent& event, apl_time_t timestamp, bool topComponent) override;
+    void invokeStandardAccessibilityAction(const std::string& name) override;
+
+    std::vector<std::shared_ptr<Gesture>> mGestureHandlers;
+    std::shared_ptr<Gesture> mActiveGesture;
+
+private:
+    bool mGesturesDisabled;
 };
 
 } // namespace apl

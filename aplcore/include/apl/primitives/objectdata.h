@@ -334,7 +334,7 @@ public:
     std::string toDebugString() const override {
         std::string result = "Map<size=" + std::to_string(mMap->size()) + ">[";
         for (const auto& m : *mMap) {
-            result += "{" + m.first + "," + m.second.toDebugString() + "}, ";
+            result += "{'" + m.first + "': " + m.second.toDebugString() + "}, ";
         }
         result += "]";
         return result;

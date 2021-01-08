@@ -27,6 +27,7 @@ add_executable( unittest
         command/unittest_command_animateitem.cpp
         command/unittest_command_array.cpp
         command/unittest_command_document.cpp
+        command/unittest_command_event_binding.cpp
         command/unittest_command_macros.cpp
         command/unittest_command_media.cpp
         command/unittest_command_openurl.cpp
@@ -41,6 +42,7 @@ add_executable( unittest
         command/unittest_setvalue.cpp
         command/unittest_speak_item.cpp
         command/unittest_speak_list.cpp
+        component/unittest_accessibility_actions.cpp
         component/unittest_bounds.cpp
         component/unittest_component_events.cpp
         component/unittest_default_component_size.cpp
@@ -50,6 +52,7 @@ add_executable( unittest
         component/unittest_flexbox.cpp
         component/unittest_frame_component.cpp
         component/unittest_grid_sequence_component.cpp
+        component/unittest_properties.cpp
         component/unittest_scroll.cpp
         component/unittest_serialize.cpp
         component/unittest_signature.cpp
@@ -69,6 +72,7 @@ add_executable( unittest
         datasource/unittest_dynamicindexlist.cpp
         engine/unittest_arrayify.cpp
         engine/unittest_builder.cpp
+        engine/unittest_builder_config_change.cpp
         engine/unittest_builder_pager.cpp
         engine/unittest_builder_sequence.cpp
         engine/unittest_context.cpp
@@ -83,12 +87,16 @@ add_executable( unittest
         engine/unittest_resources.cpp
         engine/unittest_styles.cpp
         engine/unittest_viewhost.cpp
+        extension/unittest_extension_client.cpp
         extension/unittest_extension_command.cpp
         extension/unittest_extension_handler.cpp
         extension/unittest_requested_extension.cpp
         graphic/unittest_dependant_graphic.cpp
         graphic/unittest_graphic.cpp
+        graphic/unittest_graphic_bind.cpp
         graphic/unittest_graphic_component.cpp
+        graphic/unittest_graphic_data.cpp
+        graphic/unittest_graphic_filters.cpp
         livedata/unittest_livearray_change.cpp
         livedata/unittest_livearray_rebuild.cpp
         livedata/unittest_livemap_change.cpp
@@ -107,11 +115,14 @@ add_executable( unittest
         time/unittest_sequencer.cpp
         touch/unittest_gestures.cpp
         touch/unittest_pointer.cpp
+        touch/unittest_velocity_tracking.cpp
+        touch/unittest_native_gestures.cpp
         unittest_testeventloop.cpp
         utils/unittest_encoding.cpp
         utils/unittest_log.cpp
         utils/unittest_path.cpp
         utils/unittest_range.cpp
+        utils/unittest_ringbuffer.cpp
         utils/unittest_session.cpp
         utils/unittest_url.cpp
         utils/unittest_userdata.cpp

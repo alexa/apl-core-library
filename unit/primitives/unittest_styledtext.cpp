@@ -302,3 +302,52 @@ TEST_F(StyledTextTest, TagAttribute)
     createAndVerifyStyledText(u8"hello<br 3459dfiuwcr9ergh da lia e  =ar -e 89q3 403i4 ''\"<<>><<''' << k'asd \" >world", u8"helloworld", 1);
     createAndVerifyStyledText(u8"hello<br 3459dfiuwcr9ergh da lia e  =ar -e 89q3 403i4 ''\"<<<<''' <>< k'asd \" />world", u8"helloworld", 1);
 }
+
+TEST_F(StyledTextTest, WbrSimple)
+{
+    createAndVerifyStyledText(u8"He screamed \"Run<WBR>faster<Wbr>the<wBr>tiger<wbR>is<wbr>right<wbr/>behind< wbr>you!!!\"",
+            u8"He screamed \"Runfasterthetigerisrightbehindyou!!!\"", 7);
+    verifySpan(0, StyledText::kSpanTypeWordBreak, 16, 16);
+    verifySpan(1, StyledText::kSpanTypeWordBreak, 22, 22);
+    verifySpan(2, StyledText::kSpanTypeWordBreak, 25, 25);
+    verifySpan(3, StyledText::kSpanTypeWordBreak, 30, 30);
+    verifySpan(4, StyledText::kSpanTypeWordBreak, 32, 32);
+    verifySpan(5, StyledText::kSpanTypeWordBreak, 37, 37);
+    verifySpan(6, StyledText::kSpanTypeWordBreak, 43, 43);
+}
+
+TEST_F(StyledTextTest, WbrSpaced)
+{
+    createAndVerifyStyledText(u8"Should break<wbr> here, and also<wbr> <wbr>twice. Once <wbr><wbr>here though.",
+                              u8"Should break here, and also twice. Once here though.", 4);
+    verifySpan(0, StyledText::kSpanTypeWordBreak, 12, 12);
+    verifySpan(1, StyledText::kSpanTypeWordBreak, 27, 27);
+    verifySpan(2, StyledText::kSpanTypeWordBreak, 28, 28);
+    verifySpan(3, StyledText::kSpanTypeWordBreak, 40, 40);
+}
+
+TEST_F(StyledTextTest, WbrComplex)
+{
+    createAndVerifyStyledText(u8"He screamed \"Run<wbr><wbr>faster<br>the<i>tiger<wbr>is</i>right<wbr><br>behind<wbr>you!!!\"",
+                              u8"He screamed \"Runfasterthetigerisrightbehindyou!!!\"", 7);
+    verifySpan(0, StyledText::kSpanTypeWordBreak, 16, 16);
+    verifySpan(1, StyledText::kSpanTypeLineBreak, 22, 22);
+    verifySpan(2, StyledText::kSpanTypeItalic, 25, 32);
+    verifySpan(3, StyledText::kSpanTypeWordBreak, 30, 30);
+    verifySpan(4, StyledText::kSpanTypeLineBreak, 37, 37);
+    verifySpan(5, StyledText::kSpanTypeWordBreak, 37, 37);
+    verifySpan(6, StyledText::kSpanTypeWordBreak, 43, 43);
+}
+
+TEST_F(StyledTextTest, WbrCollapse)
+{
+    createAndVerifyStyledText(u8"He screamed \"Run<wbr><wbr>faster<wbr>the<wbr>tiger<wbr><wbr>is<wbr>right<wbr><wbr>behind<wbr>you!!!\"",
+                              u8"He screamed \"Runfasterthetigerisrightbehindyou!!!\"", 7);
+    verifySpan(0, StyledText::kSpanTypeWordBreak, 16, 16);
+    verifySpan(1, StyledText::kSpanTypeWordBreak, 22, 22);
+    verifySpan(2, StyledText::kSpanTypeWordBreak, 25, 25);
+    verifySpan(3, StyledText::kSpanTypeWordBreak, 30, 30);
+    verifySpan(4, StyledText::kSpanTypeWordBreak, 32, 32);
+    verifySpan(5, StyledText::kSpanTypeWordBreak, 37, 37);
+    verifySpan(6, StyledText::kSpanTypeWordBreak, 43, 43);
+}

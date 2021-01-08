@@ -49,7 +49,7 @@ public:
      */
     Object::ObjectType getType() const override { return Object::kMapType; }
 
-    virtual std::shared_ptr<LiveMapObject> asMap() override {
+    std::shared_ptr<LiveMapObject> asMap() override {
         return std::static_pointer_cast<LiveMapObject>(shared_from_this());
     }
 
@@ -66,11 +66,16 @@ public:
     /**
      * This is called from the LiveDataManager to flush all stored map changes and update the context
      */
-    void flush() override {
-        LiveDataObject::flush();
-        mChanges.clear();
-    }
+    void flush() override;
 
+    /**
+     * @return list of changes processed for this map.
+     */
+    const std::vector<LiveMapChange>& getChanges();
+
+    /**
+     * @return List of changed keys.
+     */
     const std::set<std::string>& getChanged();
 
 private:
@@ -78,7 +83,8 @@ private:
 
 private:
     LiveMapPtr mLiveMap;
-    std::set<std::string> mChanges;
+    std::vector<LiveMapChange> mChanges;
+    std::set<std::string> mChanged;
 };
 
 } // namespace apl

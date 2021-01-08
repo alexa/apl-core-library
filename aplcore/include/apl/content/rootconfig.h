@@ -23,6 +23,7 @@
 #include "apl/content/aplversion.h"
 #include "apl/content/extensioncommanddefinition.h"
 #include "apl/content/extensioneventhandler.h"
+#include "apl/content/extensionfilterdefinition.h"
 #include "apl/livedata/liveobject.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
@@ -33,6 +34,10 @@ namespace apl {
 class LiveDataObject;
 class CoreEasing;
 class TimeManager;
+class LiveDataObjectWatcher;
+
+using LiveDataObjectWatcherPtr = std::shared_ptr<LiveDataObjectWatcher>;
+using LiveDataObjectWatcherWPtr = std::weak_ptr<LiveDataObjectWatcher>;
 
 /**
  * Configuration settings used when creating a RootContext.
@@ -50,6 +55,16 @@ public:
         kAnimationQualityNone,
         kAnimationQualitySlow,
         kAnimationQualityNormal
+    };
+
+    enum ScreenMode {
+        kScreenModeNormal,
+        kScreenModeHighContrast
+    };
+
+    enum ExperimentalFeature {
+        /// Core internal scrolling and paging.
+        kExperimentalFeatureHandleScrollingAndPagingInCore
     };
 
     /**
@@ -309,6 +324,17 @@ public:
     }
 
     /**
+     * Register watcher for live data object with given name.
+     * @param name Name of LiveData object.
+     * @param watcher Watcher.
+     * @return
+     */
+    RootConfig& liveDataWatcher(const std::string& name, const std::shared_ptr<LiveDataObjectWatcher>& watcher) {
+        mLiveDataObjectWatchersMap.emplace(name, watcher);
+        return *this;
+    }
+
+    /**
      * Register an extension event handler.  The name should be something like 'onDomainAction'.
      * This method will also register the extension as a supported extension.
      * @param uri The extension URI this handler is registered to
@@ -339,6 +365,19 @@ public:
         return *this;
     }
 
+    /**
+     * Register an extension filter that can be executed in Image components.
+     * This method will also register the extension as a supported extension.
+     * @param filterDef The definition of the custom filter (includes the name, URI, properties)
+     * @return This object for chaining
+     */
+    RootConfig& registerExtensionFilter(ExtensionFilterDefinition filterDef) {
+        const auto& uri = filterDef.getURI();
+        if (mSupportedExtensions.find(uri) == mSupportedExtensions.end())
+            registerExtension(uri);
+        mExtensionFilters.emplace_back(std::move(filterDef));
+        return *this;
+    }
 
     /**
      * Register an environment for an extension.  The document may access the extension environment by
@@ -379,7 +418,7 @@ public:
 
     /**
      * Set double press timeout.
-     * @param timeout new double press timeout. Default is 500ms.
+     * @param timeout new double press timeout. Default is 500 ms.
      * @return This object for chaining
      */
     RootConfig& doublePressTimeout(apl_duration_t timeout) {
@@ -389,7 +428,7 @@ public:
 
     /**
      * Set long press timeout.
-     * @param timeout new long press timeout. Default is 1000ms.
+     * @param timeout new long press timeout. Default is 1000 ms.
      * @return This object for chaining
      */
     RootConfig& longPressTimeout(apl_duration_t timeout) {
@@ -398,7 +437,29 @@ public:
     }
 
     /**
-     * Set SwipeAway gesture trigger distance threshold in pixels. Initial movement below this threshold does not trigger the
+     * Set pressed duration timeout.  This is the duration to show the "pressed" state of a component
+     * when programmatically invoked.
+     * @param timeout Duration in milliseconds.  Default is 64 ms.
+     * @return This object for chaining
+     */
+    RootConfig& pressedDuration(apl_duration_t timeout) {
+        mPressedDuration = timeout;
+        return *this;
+    }
+
+    /**
+     * Set the tap or scroll timeout.  This is the maximum amount of time that can pass before the
+     * system has to commit to this being a touch event instead of a scroll event.
+     * @param timeout Duration in milliseconds.  Default is 100 ms.
+     * @return This object for chaining
+     */
+    RootConfig& tapOrScrollTimeout(apl_duration_t timeout) {
+        mTapOrScrollTimeout = timeout;
+        return *this;
+    }
+
+    /**
+     * Set SwipeAway gesture trigger distance threshold in dp. Initial movement below this threshold does not trigger the
      * gesture.
      * @param distance threshold distance.
      * @return This object for chaining
@@ -428,11 +489,52 @@ public:
 
     /**
      * Set SwipeAway (and any related gesture) gesture swipe speed threshold.
-     * @param velocity swipe velocity threshold in pixels per second.
+     * @param velocity swipe velocity threshold in dp per second.
      * @return This object for chaining
      */
     RootConfig& swipeVelocityThreshold(float velocity) {
         mSwipeVelocityThreshold = velocity;
+        return *this;
+    }
+
+    /**
+     * Set SwipeAway gesture tolerance in degrees when determining whether a swipe was triggered.
+     * This is provided as a convenience API in addition to @c swipeAngleSlope.
+     *
+     * @param degrees swipe direction tolerance, in degrees.
+     * @return This object for chaining
+     */
+    RootConfig& swipeAngleTolerance(float degrees);
+
+    /**
+     * Set the max pointer slope allowed during SwipeAway gesture. Also see
+     * @c swipeAngleTolerance for an alternative way to specify this value.
+     *
+     * @param slope max pointer slope
+     * @return This object for chaining
+     */
+    RootConfig& swipeAngleSlope(float slope) {
+        mSwipeAngleSlope = slope;
+        return *this;
+    }
+
+    /**
+     * Set max animation duration, in ms, for SwipeAway animations.
+     * @param duration the maximum duration for animations, in ms.
+     * @return This object for chaining
+     */
+    RootConfig& maxSwipeAnimationDuration(apl_duration_t duration) {
+        mMaxSwipeAnimationDuration = duration;
+        return *this;
+    }
+
+    /**
+     * Set the fling velocity threshold.  The user must fling at least this fast to start a fling action.
+     * @param velocity Fling velocity in dp per second.
+     * @return This object for chaining
+     */
+    RootConfig& minimumFlingVelocity(float velocity) {
+        mMinimumFlingVelocity = velocity;
         return *this;
     }
 
@@ -443,6 +545,123 @@ public:
      */
     RootConfig& tickHandlerUpdateLimit(apl_duration_t updateLimit) {
         mTickHandlerUpdateLimit = std::max(updateLimit, 1.0);
+        return *this;
+    }
+
+    /**
+     * Set the requested font scaling factor for the document.
+     * @param scale The scaling factor.  Default is 1.0
+     * @return This object for chaining
+     */
+    RootConfig& fontScale(float scale) {
+        mFontScale = scale;
+        return *this;
+    }
+
+    /**
+     * Set the screen display mode for accessibility (normal or high-contrast)
+     * @param screenMode The screen display mode
+     * @return This object for chaining
+     */
+    RootConfig& screenMode(ScreenMode screenMode) {
+        mScreenMode = screenMode;
+        return *this;
+    }
+
+    /**
+     * Inform that a screen reader is turned on.
+     * @param enabled True if the screen reader is enabled
+     * @return This object for chaining
+     */
+    RootConfig& screenReader(bool enabled) {
+        mScreenReaderEnabled = enabled;
+        return *this;
+    }
+
+    /**
+     * Enable core internal scrolling and paging.
+     * @experimental
+     * @deprecated Use enableExperimentalFeature(kHandleScrollingAndPagingInCore)
+     * @param flag true to enable, false by default.
+     * @return This object for chaining
+     */
+    RootConfig& handleScrollAndPagingInCore(bool flag) {
+        if (flag) {
+            enableExperimentalFeature(kExperimentalFeatureHandleScrollingAndPagingInCore);
+        }
+        return *this;
+    }
+
+    /**
+     * Set pointer inactivity timeout. Pointer considered stale after pointer was not updated for this time.
+     * @param timeout inactivity timeout in ms.
+     * @return This object for chaining
+     */
+    RootConfig& pointerInactivityTimeout(apl_duration_t timeout) {
+        mPointerInactivityTimeout = timeout;
+        return *this;
+    }
+
+    /**
+     * Set fling gestures velocity limit.
+     * @param velocity fling gesture velocity in dp per second.
+     * @return This object for chaining
+     */
+    RootConfig& maximumFlingVelocity(float velocity) {
+        mMaximumFlingVelocity = velocity;
+        return *this;
+    }
+
+    /**
+     * Set the gesture distance threshold in dp. Initial movement below this threshold does not trigger
+     * gestures.
+     * @param distance threshold distance.
+     * @return This object for chaining
+     */
+    RootConfig& pointerSlopThreshold(float distance) {
+        mPointerSlopThreshold = distance;
+        return *this;
+    }
+
+    /**
+     * Set scroll commands duration.
+     * @param duration duration in ms.
+     * @return This object for chaining
+     */
+    RootConfig& scrollCommandDuration(apl_duration_t duration) {
+        mScrollCommandDuration = duration;
+        return *this;
+    }
+
+    /**
+     * Set scroll snap duration.
+     * @param duration duration in ms.
+     * @return This object for chaining
+     */
+    RootConfig& scrollSnapDuration(apl_duration_t duration) {
+        mScrollSnapDuration = duration;
+        return *this;
+    }
+
+    /**
+     * Set default pager page switch animation duration.
+     * @param duration duration in ms.
+     * @return This object for chaining
+     */
+    RootConfig& defaultPagerAnimationDuration(apl_duration_t duration) {
+        mDefaultPagerAnimationDuration = duration;
+        return *this;
+    }
+
+    /**
+     * Enable experimental feature. @see enum ExperimentalFeatures for available set.
+     * None of the features enabled by default.
+     * @experimental Not guaranteed to work for any of available features and can change Engine behaviors drastically.
+     * @param feature experimental feature to enable.
+     * @return This object for chaining
+     */
+    RootConfig& enableExperimentalFeature(ExperimentalFeature feature) {
+        mEnabledExperimentalFeatures.emplace(feature);
         return *this;
     }
 
@@ -621,6 +840,21 @@ public:
     }
 
     /**
+     * @param LiveData name.
+     * @return Registered LiveDataWatcher for provided name.
+     */
+    const std::vector<LiveDataObjectWatcherPtr> getLiveDataWatchers(const std::string& name) const {
+        std::vector<LiveDataObjectWatcherPtr> result;
+        auto watchers = mLiveDataObjectWatchersMap.equal_range(name);
+        for (auto it = watchers.first; it != watchers.second; it++) {
+            auto ptr = it->second.lock();
+            if (ptr)
+                result.emplace_back(ptr);
+        }
+        return result;
+    }
+
+    /**
      * Get data source provider for provided type.
      * @param type DataSource type.
      * @return DataSourceProvider if registered, nullptr otherwise.
@@ -649,10 +883,17 @@ public:
     }
 
     /**
-     * @return The map of URI, custom
+     * @return The registered extension events
      */
     const std::vector<ExtensionEventHandler>& getExtensionEventHandlers() const {
         return mExtensionHandlers;
+    }
+
+    /**
+     * @return The registered extension filters
+     */
+    const std::vector<ExtensionFilterDefinition>& getExtensionFilters() const {
+        return mExtensionFilters;
     }
 
     /**
@@ -664,7 +905,7 @@ public:
     }
 
     /**
-     * @param uri The for the extension.
+     * @param uri The URI of the extension.
      * @return The environment Object for a supported extensions, Object::NULL_OBJECT if no environment exists.
      */
     Object getExtensionEnvironment(const std::string& uri) const {
@@ -682,17 +923,31 @@ public:
     }
 
     /**
-     * @return Double press timeout in millisecons.
+     * @return Double press timeout in milliseconds.
      */
     apl_duration_t getDoublePressTimeout() const {
         return mDoublePressTimeout;
     }
 
     /**
-     * @return Long press timeout in millisecons.
+     * @return Long press timeout in milliseconds.
      */
     apl_duration_t getLongPressTimeout() const {
         return mLongPressTimeout;
+    }
+
+    /**
+     * @return Duration to show the "pressed" state of a component when programmatically invoked
+     */
+    apl_duration_t getPressedDuration() const {
+        return mPressedDuration;
+    }
+
+    /**
+     * @return Maximum time to wait before deciding that a touch event starts a scroll or paging gesture.
+     */
+    apl_duration_t getTapOrScrollTimeout() const {
+        return mTapOrScrollTimeout;
     }
 
     /**
@@ -712,7 +967,7 @@ public:
     /**
      * @return Animation easing for SwipeAway gesture.
      */
-    std::shared_ptr<Easing> getSwipeAwayAnimationEasing() const {
+    EasingPtr getSwipeAwayAnimationEasing() const {
         return mSwipeAwayAnimationEasing;
     }
 
@@ -724,49 +979,180 @@ public:
     }
 
     /**
+     * @return Max allowed pointer movement angle during swipe gestures, as a slope.
+     */
+    float getSwipeAngleSlope() const {
+        return mSwipeAngleSlope;
+    }
+
+    /**
+     * @return Max animation duration for SwipeAway gestures, in ms.
+     */
+    apl_duration_t getMaxSwipeAnimationDuration() const {
+        return mMaxSwipeAnimationDuration;
+    }
+
+    /**
+     * @return Fling velocity threshold
+     */
+    float getMinimumFlingVelocity() const {
+        return mMinimumFlingVelocity;
+    }
+
+    /**
      * @return Tick handler update limit.
      */
     apl_duration_t getTickHandlerUpdateLimit() const {
         return mTickHandlerUpdateLimit;
     }
 
+    /**
+     * @return The requested scaling factor for fonts
+     */
+    float getFontScale() const {
+        return mFontScale;
+    }
+
+    /**
+     * @return The current screen mode (high-contrast or normal)
+     */
+    const char * getScreenMode() const {
+        switch (mScreenMode) {
+            case kScreenModeNormal:
+                return "normal";
+            case kScreenModeHighContrast:
+                return "high-contrast";
+        }
+        return "normal";
+    }
+
+    /**
+     * @return True if an accessibility screen reader is enabled
+     */
+    bool getScreenReaderEnabled() const {
+        return mScreenReaderEnabled;
+    }
+
+    /**
+     * @return Pointer inactivity timeout.
+     */
+    apl_duration_t getPointerInactivityTimeout() const {
+        return mPointerInactivityTimeout;
+    }
+
+    /**
+     * @return Maximum fling speed.
+     */
+    float getMaximumFlingVelocity() const {
+        return mMaximumFlingVelocity;
+    }
+
+    /**
+     * @return Pointer slop threshold.
+     */
+    float getPointerSlopThreshold() const {
+        return mPointerSlopThreshold;
+    }
+
+    /**
+     * @return Scroll command duration.
+     */
+    apl_duration_t getScrollCommandDuration() const {
+        return mScrollCommandDuration;
+    }
+
+    /**
+     * @return Scroll snap duration.
+     */
+    apl_duration_t getScrollSnapDuration() const {
+        return mScrollSnapDuration;
+    }
+
+    /**
+     * @return Default pager animation duration.
+     */
+    apl_duration_t getDefaultPagerAnimationDuration() const {
+        return mDefaultPagerAnimationDuration;
+    }
+
+    /**
+     * @param feature feature to check.
+     * @return true if feature enabled, false otherwise.
+     */
+    bool experimentalFeatureEnabled(ExperimentalFeature feature) const {
+        return mEnabledExperimentalFeatures.count(feature) > 0;
+    }
+
 private:
-    std::string mAgentName;
-    std::string mAgentVersion;
     TextMeasurementPtr mTextMeasurement;
     std::shared_ptr<TimeManager> mTimeManager;
-    apl_time_t mUTCTime;
-    apl_duration_t mLocalTimeAdjustment;
-    std::map<std::string, DataSourceProviderPtr> mDataSources;
-    AnimationQuality mAnimationQuality;
-    bool mAllowOpenUrl;
-    bool mDisallowVideo;
-    int mDefaultIdleTimeout;
-    APLVersion mEnforcedAPLVersion;
-    std::string mReportedAPLVersion;
-    bool mEnforceTypeField;
-    Color mDefaultFontColor;
-    std::string mDefaultFontFamily;
-    Color mDefaultHighlightColor;
-    std::map<std::string, Color> mDefaultThemeFontColor;
-    std::map<std::string, Color> mDefaultThemeHighlightColor;
-    bool mTrackProvenance;
     std::map<std::pair<ComponentType, bool>, std::pair<Dimension, Dimension>> mDefaultComponentSize;
-    int mPagerChildCache;
-    int mSequenceChildCache;
+
     SessionPtr mSession;
+    ObjectMap mEnvironmentValues;
+    EasingPtr mSwipeAwayAnimationEasing;
+
+    // Data sources and live maps
+    std::map<std::string, DataSourceProviderPtr> mDataSources;
     std::map<std::string, LiveObjectPtr> mLiveObjectMap;
+    std::multimap<std::string, LiveDataObjectWatcherWPtr> mLiveDataObjectWatchersMap;
+
+    // Extensions
     ObjectMap mSupportedExtensions; // URI -> config
     std::vector<ExtensionEventHandler> mExtensionHandlers;
     std::vector<ExtensionCommandDefinition> mExtensionCommands;
-    ObjectMap mEnvironmentValues;
-    apl_duration_t mDoublePressTimeout;
-    apl_duration_t mLongPressTimeout;
-    float mSwipeAwayTriggerDistanceThreshold;
-    float mSwipeAwayFulfillDistancePercentageThreshold;
-    std::shared_ptr<Easing> mSwipeAwayAnimationEasing;
-    float mSwipeVelocityThreshold;
-    apl_duration_t mTickHandlerUpdateLimit;
+    std::vector<ExtensionFilterDefinition> mExtensionFilters;
+
+    // Constants with initializers, ordered by type to help bit-packing
+    std::string mAgentName = "Default agent";
+    std::string mAgentVersion = "1.0";
+    std::string mReportedAPLVersion = "1.5";
+    std::string mDefaultFontFamily = "sans-serif";
+
+    apl_time_t mUTCTime = 0;
+    apl_duration_t mLocalTimeAdjustment = 0;
+    apl_duration_t mDefaultIdleTimeout = 30000;
+    apl_duration_t mDoublePressTimeout = 500;
+    apl_duration_t mLongPressTimeout = 1000;
+    apl_duration_t mPressedDuration = 64;
+    apl_duration_t mTapOrScrollTimeout = 100;
+    apl_duration_t mTickHandlerUpdateLimit = 16;
+    apl_duration_t mPointerInactivityTimeout = 50;
+    apl_duration_t mScrollCommandDuration = 1000;
+    apl_duration_t mScrollSnapDuration = 500;
+    apl_duration_t mDefaultPagerAnimationDuration = 600;
+
+    std::map<std::string, Color> mDefaultThemeFontColor = {{"light", 0x1e2222ff}, {"dark", 0xfafafaff}};
+    std::map<std::string, Color> mDefaultThemeHighlightColor = {{"light", 0x0070ba4d}, {"dark",  0x00caff4d}};
+
+    AnimationQuality mAnimationQuality = kAnimationQualityNormal;
+    APLVersion mEnforcedAPLVersion = APLVersion::kAPLVersionIgnore;
+    ScreenMode mScreenMode = kScreenModeNormal;
+
+    Color mDefaultFontColor = 0xfafafaff;
+    Color mDefaultHighlightColor = 0x00caff4d;
+
+    int mPagerChildCache = 1;
+    int mSequenceChildCache = 1;
+
+    float mSwipeAwayTriggerDistanceThreshold = 10;
+    float mSwipeAwayFulfillDistancePercentageThreshold = 0.5;
+    float mSwipeVelocityThreshold = 200;
+    float mSwipeAngleSlope;
+    apl_duration_t mMaxSwipeAnimationDuration = 300;
+    float mMinimumFlingVelocity = 50;
+    float mMaximumFlingVelocity = 500;
+    float mFontScale = 1.0;
+    float mPointerSlopThreshold = 10;
+
+    bool mScreenReaderEnabled = false;
+    bool mAllowOpenUrl = false;
+    bool mDisallowVideo = false;
+    bool mEnforceTypeField = false;
+    bool mTrackProvenance = true;
+
+    // Set of enabled experimental features
+    std::set<ExperimentalFeature> mEnabledExperimentalFeatures;
 };
 
 }

@@ -796,7 +796,9 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
 
     // Verify initial context
     rapidjson::Document document(rapidjson::kObjectType);
-    auto context = component->serializeVisualContext(document.GetAllocator());
+    auto context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(CheckDirtyVisualContext(root, component));
+
     ASSERT_TRUE(context.HasMember("tags"));
     auto& tags = context["tags"];
     ASSERT_STREQ("grid", context["id"].GetString());
@@ -830,7 +832,10 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
             4,
             8));
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(component->isVisualContextDirty());
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(CheckDirtyVisualContext(root));
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("grid", context["id"].GetString());
@@ -855,7 +860,10 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
             0,
             4));
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(CheckDirtyVisualContext(root));
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("grid", context["id"].GetString());
@@ -882,7 +890,10 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
     myArray->push_back(19);
     root->clearPending();
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(CheckDirtyVisualContext(root, component));
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("grid", context["id"].GetString());
@@ -915,7 +926,10 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
             0,
             0));
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(CheckDirtyVisualContext(root, component));
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("grid", context["id"].GetString());
@@ -933,7 +947,10 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
     scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
     ASSERT_EQ(600, scrollPosition);
 
-    context = component->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_FALSE(CheckDirtyVisualContext(root, component));
+
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
     ASSERT_STREQ("grid", context["id"].GetString());

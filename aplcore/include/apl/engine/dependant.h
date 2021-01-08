@@ -33,12 +33,8 @@ namespace apl {
  * It's common for the target object to have its own list of dependants so that changes in one part of the
  * system will fan out and update many targets.  Loops in the dependant graph are not allowed.
  */
-class Dependant : private Counter<Dependant>,  public std::enable_shared_from_this<Dependant> {
-#ifdef DEBUG_MEMORY_USE
-public:
-    using Counter<Dependant>::itemsDelta;
-#endif
-
+class Dependant : public Counter<Dependant>,
+                  public std::enable_shared_from_this<Dependant> {
 public:
     Dependant(const Object& equation, const ContextPtr& bindingContext, BindingFunction bindingFunction)
         : mEquation(equation),

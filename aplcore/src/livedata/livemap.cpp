@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ LiveMap::remove(const std::string& key)
     if (it == mMap.end())
         return false;
     mMap.erase(it);
-    broadcast(mMap.empty() ? LiveMapChange::replace() : LiveMapChange::remove(key));
+    broadcast(LiveMapChange::remove(key));
     return true;
 }
 

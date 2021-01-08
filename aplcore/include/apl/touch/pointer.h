@@ -22,7 +22,8 @@
 
 namespace apl {
 
-using TouchableComponentPtr = std::shared_ptr<TouchableComponent>;
+class ActionableComponent;
+using ActionableComponentPtr = std::shared_ptr<ActionableComponent>;
 
 /**
  * The Pointer class encapsulates the relationship between a given pointer, identified by its ID and an associated target
@@ -42,11 +43,11 @@ public:
      *
      * @return The cursor target
      */
-    TouchableComponentPtr getTarget() const {
+    ActionableComponentPtr getTarget() const {
         return mTarget.lock();;
     }
 
-    void setTarget(const TouchableComponentPtr& target) {
+    void setTarget(const ActionableComponentPtr& target) {
         mTarget = target;
     }
 
@@ -78,7 +79,7 @@ private:
     const id_type mId;
     Point mPosition;
 
-    std::weak_ptr<TouchableComponent> mTarget;
+    std::weak_ptr<ActionableComponent> mTarget;
 };
 }
 

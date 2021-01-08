@@ -53,13 +53,17 @@ SendEventCommand::execute(const TimersPtr& timers, bool fastMode) {
 
     // Freeze the "event.source" property as a JSON object
     mSource = mContext->opt("event").get("source").serialize(mDocument.GetAllocator());
-
     rapidjson::Document sourceDoc;
     sourceDoc.CopyFrom(mSource, sourceDoc.GetAllocator());
 
+    // Freeze the arguments array as a JSON object
+    mArguments = mValues.at(kCommandPropertyArguments).serialize(mDocument.GetAllocator());
+    rapidjson::Document argumentsDoc;
+    argumentsDoc.CopyFrom(mArguments, argumentsDoc.GetAllocator());
+
     EventBag bag;
     bag.emplace(kEventPropertySource, Object(std::move(sourceDoc)));
-    bag.emplace(kEventPropertyArguments, mValues.at(kCommandPropertyArguments));
+    bag.emplace(kEventPropertyArguments, Object(std::move(argumentsDoc)));
     bag.emplace(kEventPropertyComponents, componentsMap);
 
     if (DEBUG_SEND_EVENT) {
