@@ -210,14 +210,14 @@ CoreEasing::calcInternal(float t)
 {
     switch (mSegments.begin()->type) {
         case kEndSegment:
-        case kLinearSegment:
+        case kLinearSegment: // FALL_THROUGH
         case kCurveSegment: {
             auto segment = BaseSegment(*this, mSegments.begin());
             if (t <= segment.startTime())
                 return segment.startValue();
         }
 
-        case kSEndSegment:
+        case kSEndSegment: // FALL_THROUGH
         case kSCurveSegment: {
             auto segment = PSegment(*this, mSegments.begin());
             if (t <= segment.startTime()) {

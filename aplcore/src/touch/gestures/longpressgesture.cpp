@@ -34,6 +34,7 @@ LongPressGesture::create(const ActionablePtr& actionable, const Context& context
 
 LongPressGesture::LongPressGesture(const ActionablePtr& actionable, Object&& onLongPressStart, Object&& onLongPressEnd) :
         Gesture(actionable),
+        mStartTime(0),
         mOnLongPressStart(std::move(onLongPressStart)),
         mOnLongPressEnd(std::move(onLongPressEnd)),
         mLongPressTimeout(actionable->getRootConfig().getLongPressTimeout()) {}

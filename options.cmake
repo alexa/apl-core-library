@@ -18,6 +18,11 @@ option(COVERAGE "Coverage instrumentation" OFF)
 option(WERROR "Build with -Werror enabled." OFF)
 option(VALIDATE_HEADERS "Validate that only external headers are (transitively) included from apl.h" ON)
 option(USER_DATA_RELEASE_CALLBACKS "Enable release callbacks in UserData" ON)
+option(BUILD_SHARED "Build as shared library." OFF)
+option(ENABLE_PIC "Build position independent code (i.e. -fPIC)" OFF)
+
+option(USE_SYSTEM_RAPIDJSON "Use the system-provided RapidJSON instead of the bundled one." OFF)
+option(USE_SYSTEM_YOGA "Use the system-provided Yoga library instead of the bundled one." OFF)
 
 # Test options
 option(BUILD_TESTS "Build unit tests and test programs." OFF)

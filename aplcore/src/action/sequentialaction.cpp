@@ -111,8 +111,7 @@ SequentialAction::doCommand(const Object& command)
         mCurrentCommand = commandPtr;
         mCurrentAction = DelayAction::make(timers(), mCurrentCommand, mFastMode);
 
-        auto sptr = std::static_pointer_cast<SequentialAction>(shared_from_this());
-        std::weak_ptr<SequentialAction> weak_ptr(sptr);
+        std::weak_ptr<SequentialAction> weak_ptr(std::static_pointer_cast<SequentialAction>(shared_from_this()));
 
         mCurrentAction->then([weak_ptr](const ActionPtr&) {
             auto self = weak_ptr.lock();

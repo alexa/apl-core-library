@@ -315,6 +315,7 @@ public:
         context = nullptr;
         root = nullptr;
         content = nullptr;
+        config = RootConfig();  // Clear out the root config
 
         // Call this last - it checks if all of the components, commands, and actions are released
         ActionWrapper::TearDown();

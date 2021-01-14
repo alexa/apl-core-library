@@ -161,10 +161,9 @@ private:
 #endif
 #define LOG(LEVEL) apl::LoggerFactory::instance().getLogger(LEVEL,__FILENAME__,__func__)
 #define LOGF(LEVEL,FORMAT,...) apl::LoggerFactory::instance().getLogger(LEVEL,__FILENAME__,__func__).log(FORMAT,__VA_ARGS__)
-#define LOG_IF(CONDITION) \
-        !(CONDITION) ? (void) 0 : LogVoidify() & LOG(LogLevel::DEBUG)
+#define LOG_IF(CONDITION) !(CONDITION) ? (void)0 : apl::LogVoidify() & LOG(apl::LogLevel::DEBUG)
 #define LOGF_IF(CONDITION,FORMAT,...) \
-        !(CONDITION) ? (void) 0 : LOGF(LogLevel::DEBUG,FORMAT,__VA_ARGS__)
+        !(CONDITION) ? (void) 0 : LOGF(apl::LogLevel::DEBUG,FORMAT,__VA_ARGS__)
 } // namespace apl
 
 #endif // _APL_LOG_H

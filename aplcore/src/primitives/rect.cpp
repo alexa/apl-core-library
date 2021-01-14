@@ -31,9 +31,9 @@ static inline std::string
 floatAsLongString(float value)
 {
     auto v = static_cast<long>(value);
-    if (value > std::numeric_limits<long>::max())
+    if (value > static_cast<float>(std::numeric_limits<long>::max()))
         v = std::numeric_limits<long>::max();
-    else if (value < std::numeric_limits<long>::lowest())
+    else if (value < static_cast<float>(std::numeric_limits<long>::lowest()))
         v = std::numeric_limits<long>::lowest();
 
     return std::to_string(v);

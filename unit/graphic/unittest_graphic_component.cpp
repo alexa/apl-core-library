@@ -2390,3 +2390,147 @@ TEST_F(GraphicComponentTest, InheritedTouchNotBubbles) {
     ASSERT_FALSE(root->hasEvent());
     ASSERT_TRUE(ConsoleMessage());
 }
+
+static const char * SLIDER_DISABLED = R"(
+{
+  "type": "APL",
+  "version": "1.4",
+  "graphics": {
+    "ToggleButton": {
+      "type": "AVG",
+      "version": "1.0",
+      "parameters": [
+        "ButtonPosition",
+        "ShowButton"
+      ],
+      "width": 256,
+      "height": 90,
+      "scaleTypeWidth": "stretch",
+      "items": [
+        {
+          "type": "path",
+          "description": "Slider Background",
+          "pathData": "M45,55 a10,10,0,0,1,0,-20 l${width-90},0 a10,10,0,0,1,0,20 Z",
+          "stroke": "#979797",
+          "fill": "#d8d8d8",
+          "strokeWidth": 2,
+          "opacity": 0.4
+        },
+        {
+          "type": "path",
+          "description": "Slider Fill",
+          "pathData": "M45,55 a10,10,0,0,1,0,-20 l${ButtonPosition *(width-90)},0 a10,10,0,0,1,0,20 Z",
+          "stroke": "#979797",
+          "fill": "#88e",
+          "strokeWidth": 2
+        },
+        {
+          "type": "group",
+          "description": "Button",
+          "translateX": "${ButtonPosition * (width - 90)}",
+          "opacity": "${ShowButton ? 1 : 0}",
+          "items": {
+            "type": "path",
+            "pathData": "M45,82 a36,36,0,0,1,0,-76 a36,36,0,1,1,0,76 Z",
+            "fill": "#88e",
+            "stroke": "white",
+            "strokeWidth": 6
+          }
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "VectorGraphic",
+          "source": "ToggleButton",
+          "id": "MySlider",
+          "disabled": true,
+          "scale": "fill",
+          "width": "590",
+          "bind": [
+            {
+              "name": "Position",
+              "value": 0.50
+            },
+            {
+              "name": "OldPosition",
+              "value": 0.50
+            },
+            {
+              "name": "ShowButton",
+              "value": false
+            }
+          ],
+          "ButtonPosition": "${Position}",
+          "ShowButton": "${ShowButton}",
+          "onDown": [
+            {
+              "type": "SetValue",
+              "property": "ShowButton",
+              "value": true
+            },
+            {
+              "type": "SetValue",
+              "property": "OldPosition",
+              "value": "${Position}"
+            },
+            {
+              "type": "SetValue",
+              "property": "Position",
+              "value": "${Math.clamp(0, (event.viewport.x - 45) / (event.viewport.width - 90), 1)}"
+            }
+          ],
+          "onUp": [
+            {
+              "type": "SetValue",
+              "property": "ShowButton",
+              "value": false
+            },
+            {
+              "type": "SetValue",
+              "description": "Reset the position if we release the pointer at some far location",
+              "when": "${!event.inBounds}",
+              "property": "Position",
+              "value": "${OldPosition}"
+            }
+          ],
+          "onMove": {
+            "type": "SetValue",
+            "property": "Position",
+            "value": "${Math.clamp(0, (event.viewport.x - 45) / (event.viewport.width - 90), 1)}"
+          }
+        }
+      ]
+    }
+  }
+}
+)";
+
+TEST_F(GraphicComponentTest, DisabledMoveToSlide) {
+    loadDocument(SLIDER_DISABLED);
+    auto slider = context->findComponentById("MySlider");
+
+    // initial slider position
+    double position = slider->getContext()->find("Position").object().value().asNumber();
+    ASSERT_EQ(0.5, position);
+
+    // move disabled slider and check position
+    root->handlePointerEvent(PointerEvent(kPointerDown, Point(45, 0), 0, kTouchPointer));
+    ASSERT_FALSE(root->isDirty());
+    position = slider->getContext()->find("Position").object().value().asNumber();
+    ASSERT_EQ(0.5, position);
+
+    root->handlePointerEvent(PointerEvent(kPointerMove, Point(170, 0), 0, kTouchPointer));
+    ASSERT_FALSE(root->isDirty());
+    position = slider->getContext()->find("Position").object().value().asNumber();
+    ASSERT_EQ(0.5, position);
+
+    root->handlePointerEvent(PointerEvent(kPointerUp, Point(384, 380), 0, kTouchPointer));
+    ASSERT_FALSE(root->isDirty());
+    position = slider->getContext()->find("Position").object().value().asNumber();
+    ASSERT_EQ(0.5, position);
+}

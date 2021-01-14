@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.5.1]
+
+### Changed
+
+- Improved native SwipeAway behavior
+- Fixed JSON serialization of singular transforms
+- Build improvements
+- Other bug fixes
+
 ## [1.5.0]
 
 This release adds support for version 1.5 of the APL specification.

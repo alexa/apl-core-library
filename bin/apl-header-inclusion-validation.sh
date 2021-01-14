@@ -17,7 +17,7 @@
 
 include_dirs=("aplcore/include")
 
-whitelisted_apl_headers=(
+public_apl_headers=(
     "apl/action/action.h"
     "apl/apl.h"
     "apl/apl_config.h"
@@ -101,14 +101,14 @@ whitelisted_apl_headers=(
     "apl/utils/visitor.h"
 )
 
-whitelisted_external_headers=(
+public_external_headers=(
     "rapidjson/document.h"
     "rapidjson/error/en.h"
     "rapidjson/stringbuffer.h"
     "rapidjson/writer.h"
 )
 
-blacklisted_headers=(
+private_headers=(
     "yoga/Yoga.h"
     "yoga/YGConfig.h"
     "yoga/YGEnums.h"
@@ -124,10 +124,10 @@ worklist=(
     "apl/dynamicdata.h"
 )
 
-function is_whitelisted_apl_header() {
+function is_public_apl_header() {
     local canonical_header="$1"
 
-    for h in "${whitelisted_apl_headers[@]}"; do
+    for h in "${public_apl_headers[@]}"; do
         if [ "${h}" == "${canonical_header}" ] ; then
             return 0
         fi
@@ -136,10 +136,10 @@ function is_whitelisted_apl_header() {
     return 1
 }
 
-function is_whitelisted_external_header() {
+function is_public_external_header() {
     local canonical_header="$1"
 
-    for h in "${whitelisted_external_headers[@]}"; do
+    for h in "${public_external_headers[@]}"; do
         if [ "${h}" == "${canonical_header}" ] ; then
             return 0
         fi
@@ -148,10 +148,10 @@ function is_whitelisted_external_header() {
     return 1
 }
 
-function is_blacklisted_header() {
+function is_private_header() {
     local canonical_header="$1"
 
-    for h in "${blacklisted_headers[@]}"; do
+    for h in "${private_headers[@]}"; do
         if [ "${h}" == "${canonical_header}" ] ; then
             return 0
         fi
@@ -160,12 +160,12 @@ function is_blacklisted_header() {
     return 1
 }
 
-function is_whitelisted() {
-    if is_whitelisted_apl_header "$1" ; then
+function is_public() {
+    if is_public_apl_header "$1" ; then
         return 0
     fi
 
-    if is_whitelisted_external_header "$1" ; then
+    if is_public_external_header "$1" ; then
         return 0
     fi
 
@@ -222,17 +222,17 @@ function validate_canonical_header() {
     local canonical_parent_header="$1"
     local resolved_header_path=$(resolve_header_path "${canonical_parent_header}")
 
-    if is_whitelisted_external_header "${canonical_parent_header}" ; then
+    if is_public_external_header "${canonical_parent_header}" ; then
         # external header found, stop here without looking at its list of includes
         :
-    elif is_whitelisted_apl_header "${canonical_parent_header}" ; then
+    elif is_public_apl_header "${canonical_parent_header}" ; then
 
-        # check all included headers for whitelisting
+        # check all included headers with public header list
         included_raw_headers=( `egrep '^#include[[:space:]]"[[:print:]]+"' "${resolved_header_path}" | sed 's/^[[:space:]]*#include[[:space:]]*"\([^"]*\)".*/\1/'` )
 
         for raw_header in "${included_raw_headers[@]}"; do
             canonical_header=$(resolve_canonical_header "${raw_header}" "${resolved_header_path}")
-            if ! is_whitelisted "${canonical_header}" ; then
+            if ! is_public "${canonical_header}" ; then
                 echo "ERROR: file ${canonical_parent_header} includes invalid header ${raw_header}"
                 exit 1
             fi
@@ -240,12 +240,12 @@ function validate_canonical_header() {
             enqueue "${canonical_header}"
         done
 
-        # check all included headers for blacklisting
+        # check that no private headers are transitively included from public ones
         included_lib_headers=( `egrep '^#include[[:space:]]<[[:print:]]+>' "${resolved_header_path}" | sed 's/^[[:space:]]*#include[[:space:]]*<\([^<]*\)>.*/\1/'` )
         for lib_header in "${included_lib_headers[@]}"; do
             canonical_header=$(resolve_canonical_header "${lib_header}" "${resolved_header_path}")
-            if is_blacklisted_header "${lib_header}" ||  is_blacklisted_header "${canonical_header}"; then
-                echo "ERROR: file ${canonical_parent_header} includes blacklisted header ${lib_header}"
+            if is_private_header "${lib_header}" ||  is_private_header "${canonical_header}"; then
+                echo "ERROR: file ${canonical_parent_header} includes private header ${lib_header}"
                 exit 1
             fi
         done

@@ -30,7 +30,6 @@ std::string
 DataSource::toDebugString() const
 {
     std::string result;
-    result += "maxItems:" + std::to_string(mMaxItems);
     result += "{";
     result += LiveArrayObject::toDebugString();
     result += "}";

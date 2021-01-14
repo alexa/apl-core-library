@@ -53,7 +53,7 @@ public:
     typename std::map<int, Object>::const_iterator begin() const { return mValues.begin(); }
     typename std::map<int, Object>::const_iterator end() const { return mValues.end(); }
 
-    const unsigned int size() const { return mValues.size(); }
+    unsigned int size() const { return mValues.size(); }
 
     bool operator==(const ObjectBag<mapper>& rhs) const { return mValues == rhs.mValues; }
 };

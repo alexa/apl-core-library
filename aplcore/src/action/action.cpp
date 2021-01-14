@@ -23,6 +23,10 @@ namespace apl {
 
 const static bool DEBUG_ACTION = false;
 
+#ifdef DEBUG_MEMORY_USE
+static int sActionNumber = 0;
+#endif
+
 /**
  * Common base class of action contracts.
  */
@@ -32,16 +36,19 @@ Action::Action(const TimersPtr& timers, TerminateFunc terminate)
       mTimeoutId(0),
       mTimers(timers),
       mArgument({0})
+#ifdef DEBUG_MEMORY_USE
+      , mActionNumber(++sActionNumber)
+#endif
 {
     if (terminate)
         mTerminate.push_back(terminate);
 
-    LOG_IF(DEBUG_ACTION) << "Creating action " << *this;
+    LOG_IF(DEBUG_ACTION) << *this;
 }
 
 Action::~Action()
 {
-    LOG_IF(DEBUG_ACTION) << "Destroying action " << *this << " timeout_id " << mTimeoutId;
+    LOG_IF(DEBUG_ACTION) << *this << " timeout_id " << mTimeoutId;
     if (mTimeoutId) {
         mTimers->clearTimeout(mTimeoutId);
         mTimeoutId = 0;
@@ -122,7 +129,7 @@ void
 Action::doResolve()
 {
     if (mState == ActionState::RESOLVED && mThen) {
-        LOG_IF(DEBUG_ACTION) << "Resolving " << this;
+        LOG_IF(DEBUG_ACTION) << "Resolving " << *this;
 
         mTimeoutId = mTimers->setTimeout([this]() {
             mTimeoutId = 0;
@@ -153,6 +160,7 @@ Action::make(const TimersPtr& timers, StartFunc func)
  * Make an action that fires after a delay.  If you don't pass a starting function,
  * the action resolves after the delay.
  */
+
 ActionPtr
 Action::makeDelayed(const TimersPtr& timers, apl_duration_t delay, StartFunc func)
 {
@@ -160,15 +168,18 @@ Action::makeDelayed(const TimersPtr& timers, apl_duration_t delay, StartFunc fun
         return make(timers, func);
 
     auto ptr = std::make_shared<Action>(timers);
-    auto self = ptr.get();
+    auto weak = std::weak_ptr<Action>(ptr);
 
-    ptr->mTimeoutId = timers->setTimeout([func, self]() {
-        self->mTimeoutId = 0;
-        if (self->isPending()) {
-            if (func)
-                func(self->shared_from_this());
-            else
-                self->resolve();
+    ptr->mTimeoutId = timers->setTimeout([func, weak]() {
+        auto self = weak.lock();
+        if (self) {
+            self->mTimeoutId = 0;
+            if (self->isPending()) {
+                if (func)
+                    func(self->shared_from_this());
+                else
+                    self->resolve();
+            }
         }
     }, delay);
 
@@ -184,19 +195,21 @@ Action::makeAnimation(const TimersPtr& timers, apl_duration_t delay, Timers::Ani
     }
 
     auto ptr = std::make_shared<Action>(timers);
-    auto self = ptr.get();
+    auto weak = std::weak_ptr<Action>(ptr);
 
-    ptr->mTimeoutId = timers->setAnimator([delay, animator, self](apl_duration_t currentDelay) {
-        if (self->isTerminated())
-            return;
+    ptr->mTimeoutId = timers->setAnimator([delay, animator, weak](apl_duration_t currentDelay) {
+        auto self = weak.lock();
+        if (self) {
+            if (self->isTerminated())
+                return;
 
-        if (currentDelay < delay) {
-            animator(currentDelay);
-        }
-        else {
-            animator(delay);
-            self->mTimeoutId = 0;
-            self->resolve();
+            if (currentDelay < delay) {
+                animator(currentDelay);
+            } else {
+                animator(delay);
+                self->mTimeoutId = 0;
+                self->resolve();
+            }
         }
     }, delay);
 
@@ -297,7 +310,12 @@ Action::makeAny(const TimersPtr& timers, const ActionList &actionList)
 streamer&
 operator<<(streamer& os, Action& action)
 {
-    os << "Action<" << &action << ", timers=" << action.mTimers.get() << ">";
+    os << "Action<"
+#ifdef DEBUG_MEMORY_USE
+        << action.mActionNumber << ">";
+#else
+        << (void *) &action << ">";
+#endif
     return os;
 }
 } // namespace apl

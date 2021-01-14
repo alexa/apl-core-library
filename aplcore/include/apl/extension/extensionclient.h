@@ -176,8 +176,8 @@ private:
     bool processCommandResponse(const Context& context, const Object& response);
     bool processLiveDataUpdate(const Context& context, const Object& update);
 
-    bool updateLiveMap(ExtensionLiveDataUpdateType type, LiveDataRef dataRef, const Object& operation);
-    bool updateLiveArray(ExtensionLiveDataUpdateType type, LiveDataRef dataRef, const Object& operation);
+    bool updateLiveMap(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation);
+    bool updateLiveArray(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation);
     void reportLiveMapChanges(const RootContextPtr& rootContext, const LiveDataRef& ref, LiveDataObject& liveDataObject);
     void reportLiveArrayChanges(const RootContextPtr& rootContext, const LiveDataRef& ref, LiveDataObject& liveDataObject);
 

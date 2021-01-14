@@ -17,6 +17,7 @@
 #define _APL_LIVE_MAP_OBJECT_H
 
 #include "apl/common.h"
+#include "apl/utils/counter.h"
 #include "apl/livedata/livedataobject.h"
 #include "apl/livedata/livemapchange.h"
 
@@ -32,7 +33,7 @@ namespace apl {
  *
  * To observe when a LiveMapObject is flushed, register a "flush" callback.
  */
-class LiveMapObject : public LiveDataObject {
+class LiveMapObject : public LiveDataObject, Counter<LiveMapObject> {
 public:
     /**
      * Constructor. Do not call this directly; use the LiveDataObject::create() method instead

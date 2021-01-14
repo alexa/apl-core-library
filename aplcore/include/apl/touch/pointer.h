@@ -70,7 +70,7 @@ public:
         return mId;
      }
 
-    const PointerType getPointerType() const {
+    PointerType getPointerType() const {
         return mPointerType;
     };
 

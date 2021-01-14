@@ -72,8 +72,7 @@ ArrayAction::advance() {
         mCurrentCommand = commandPtr;
         mCurrentAction = DelayAction::make(timers(), mCurrentCommand, mFastMode);
 
-        auto sptr = std::static_pointer_cast<ArrayAction>(shared_from_this());
-        std::weak_ptr<ArrayAction> weak_ptr(sptr);
+        std::weak_ptr<ArrayAction> weak_ptr(std::static_pointer_cast<ArrayAction>(shared_from_this()));
 
         mCurrentAction->then([weak_ptr](const ActionPtr&) {
             auto self = weak_ptr.lock();

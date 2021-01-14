@@ -1,0 +1,21 @@
+@PACKAGE_INIT@
+
+set(YOGA_EXTERNAL_LIB @YOGA_EXTERNAL_LIB@)
+
+if(YOGA_EXTERNAL_LIB)
+    set_and_check(aplcore_yoga_LIBRARY "${YOGA_EXTERNAL_LIB}")
+else()
+    # This file gets installed at ${APL_CORE_INSTALL_DIR}/lib/cmake/aplcore/aplcoreConfig.cmake, so go up 3 directories
+    # to find the root
+    get_filename_component(APL_CORE_INSTALL_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../" ABSOLUTE)
+
+    set_and_check(aplcore_yoga_LIBRARY "${APL_CORE_INSTALL_DIR}/lib/@YOGA_LIB_NAME@")
+
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/aplcoreTargets.cmake")
+
+set_target_properties(apl::core
+    PROPERTIES
+        INTERFACE_LINK_LIBRARIES "${aplcore_yoga_LIBRARY}"
+)

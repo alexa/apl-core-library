@@ -308,8 +308,18 @@ public:
       */
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const {
         rapidjson::Value v(rapidjson::kArrayType);
-        for (const auto& p : mData)
-            v.PushBack(p, allocator);
+        if (singular()) {
+            // Avoid serializing NaN that could be present in transforms by
+            // serializing the singular transform [0, 0, 0, 0, 0, 0] instead
+            // TODO: serialize the original transform instead, but using a different JSON encoding
+            for (int i = 0; i < mData.size(); i++) {
+                v.PushBack(0.0f, allocator);
+            }
+        } else {
+            for (const auto& p : mData)
+                v.PushBack(p, allocator);
+        }
+
         return v;
     }
 

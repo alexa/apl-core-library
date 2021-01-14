@@ -17,6 +17,7 @@
 #define _APL_LAYOUT_REBUILDER_H
 
 #include "apl/common.h"
+#include "apl/utils/counter.h"
 #include "apl/utils/path.h"
 #include "apl/livedata/livedataobjectwatcher.h"
 
@@ -30,7 +31,9 @@ class LiveArrayObject;
  * new Components as the array is extended, removing Components that no longer apply, and updating
  * Components that have a changed data set.
  */
-class LayoutRebuilder : public std::enable_shared_from_this<LayoutRebuilder>, public LiveDataObjectWatcher {
+class LayoutRebuilder : public std::enable_shared_from_this<LayoutRebuilder>,
+                        public LiveDataObjectWatcher,
+                        public Counter<LayoutRebuilder> {
 public:
     /**
      * Construct a LayoutRebuilder and register it with the parent layout and LiveArray

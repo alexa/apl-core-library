@@ -51,7 +51,6 @@ public:
     std::string toDebugString() const override;
 
 private:
-    int mMaxItems;
     std::shared_ptr<DataSourceConnection> mSourceConnection;
 };
 

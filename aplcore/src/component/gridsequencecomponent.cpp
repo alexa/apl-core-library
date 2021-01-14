@@ -211,7 +211,7 @@ GridSequenceComponent::adjustChildDimensions(
     if (numAutos > 0) {
         // apply size budget to remaining components
         for (auto it = adjustedCrossAxisSizes.begin(); it != adjustedCrossAxisSizes.end(); ++it) {
-            if (*it == -1) {
+            if (*it == -1 && numAutos > 0) {
                 float sizePerComponent = std::max(0.0f, std::round(autoSizeBudget / numAutos));
                 *it = sizePerComponent;
                 autoSizeBudget -= sizePerComponent;

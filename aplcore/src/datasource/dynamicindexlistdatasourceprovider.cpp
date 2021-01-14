@@ -115,8 +115,8 @@ DynamicIndexListDataSourceConnection::scheduleTimeout(const ContextPtr& context,
     std::weak_ptr<Context> weak_ctx(context);
     return timeManager->setTimeout([weak_ptr, weak_ctx, correlationToken]() {
         auto self = weak_ptr.lock();
-        auto context = weak_ctx.lock();
-        if (!self || !context)
+        auto ctx = weak_ctx.lock();
+        if (!self || !ctx)
             return;
         auto provider = self->mProvider.lock();
         if (!provider) {
@@ -128,7 +128,7 @@ DynamicIndexListDataSourceConnection::scheduleTimeout(const ContextPtr& context,
         provider->constructAndReportError(ERROR_REASON_LOAD_TIMEOUT, self,
                                           Object::NULL_OBJECT(),
                                           "Retrying timed out request: " + correlationToken);
-        self->retryFetchRequest(context, correlationToken, provider);
+        self->retryFetchRequest(ctx, correlationToken, provider);
     }, mConfiguration.fetchTimeout);
 }
 

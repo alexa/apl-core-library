@@ -41,7 +41,11 @@ PagerFlingGesture::create(const ActionablePtr& actionable)
 
 PagerFlingGesture::PagerFlingGesture(const ActionablePtr& actionable) : Gesture(actionable),
     mVelocityTracker(new VelocityTracker(mActionable->getRootConfig())),
-    mPageDirection(kPageDirectionNone)
+    mCurrentPage(0),
+    mTargetPage(0),
+    mPageDirection(kPageDirectionNone),
+    mAmount(0)
+
 {}
 
 void

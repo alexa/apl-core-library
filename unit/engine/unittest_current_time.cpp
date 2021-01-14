@@ -560,3 +560,25 @@ TEST_F(CurrentTimeTest, Format)
         ASSERT_TRUE(IsEqual(TIME_FORMAT_ANSWERS.at(i), text->getCalculated(kPropertyText).asString())) << i;
     }
 }
+
+/**
+ * Test that an attempt to update time after terminate is ignored.
+ */
+TEST_F(CurrentTimeTest, Terminated){
+
+    loadDocument(TIME);
+    ASSERT_TRUE(loop);
+    ASSERT_FALSE(loop->isTerminated());
+    ASSERT_EQ(0, loop->currentTime());
+
+    // Move forward one second
+    root->updateTime(1000);
+    ASSERT_EQ(1000, loop->currentTime());
+
+    // artificially terminate the timer, verify updates have no effect
+    // simulates an improper view host thread termination
+    loop->terminate();
+    ASSERT_TRUE(loop->isTerminated());
+    root->updateTime(6464);
+    ASSERT_EQ(1000, loop->currentTime());
+}

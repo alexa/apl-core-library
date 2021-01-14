@@ -102,7 +102,7 @@ public:
     /**
      * @return The type of the dimension (auto, relative, absolute).
      */
-    const DimensionType getType() const { return mType; }
+    DimensionType getType() const { return mType; }
 
     friend streamer& operator<<(streamer&, const Dimension&);
 

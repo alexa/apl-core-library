@@ -461,6 +461,7 @@ public:
     /**
      * Set SwipeAway gesture trigger distance threshold in dp. Initial movement below this threshold does not trigger the
      * gesture.
+     * @deprecated see RootConfig::pointerSlopThreshold. Swiping is not that different from scrolling.
      * @param distance threshold distance.
      * @return This object for chaining
      */
@@ -498,6 +499,16 @@ public:
     }
 
     /**
+     * Set maximum SwipeAway (and any related gesture) gesture swipe speed.
+     * @param velocity max swipe velocity in dp per second.
+     * @return This object for chaining
+     */
+    RootConfig& swipeMaxVelocity(float velocity) {
+        mSwipeMaxVelocity = velocity;
+        return *this;
+    }
+
+    /**
      * Set SwipeAway gesture tolerance in degrees when determining whether a swipe was triggered.
      * This is provided as a convenience API in addition to @c swipeAngleSlope.
      *
@@ -515,6 +526,16 @@ public:
      */
     RootConfig& swipeAngleSlope(float slope) {
         mSwipeAngleSlope = slope;
+        return *this;
+    }
+
+    /**
+     * Set default animation duration, in ms, for SwipeAway animations.
+     * @param duration the default duration for animations, in ms.
+     * @return This object for chaining
+     */
+    RootConfig& defaultSwipeAnimationDuration(apl_duration_t duration) {
+        mDefaultSwipeAnimationDuration = duration;
         return *this;
     }
 
@@ -979,10 +1000,24 @@ public:
     }
 
     /**
+     * @return Maximum swipe velocity.
+     */
+    float getSwipeMaxVelocity() const {
+        return mSwipeMaxVelocity;
+    }
+
+    /**
      * @return Max allowed pointer movement angle during swipe gestures, as a slope.
      */
     float getSwipeAngleSlope() const {
         return mSwipeAngleSlope;
+    }
+
+    /**
+     * @return Default animation duration for SwipeAway gestures, in ms.
+     */
+    apl_duration_t getDefaultSwipeAnimationDuration() const {
+        return mDefaultSwipeAnimationDuration;
     }
 
     /**
@@ -1137,13 +1172,15 @@ private:
 
     float mSwipeAwayTriggerDistanceThreshold = 10;
     float mSwipeAwayFulfillDistancePercentageThreshold = 0.5;
-    float mSwipeVelocityThreshold = 200;
+    float mSwipeVelocityThreshold = 500;
+    float mSwipeMaxVelocity = 2000;
     float mSwipeAngleSlope;
-    apl_duration_t mMaxSwipeAnimationDuration = 300;
+    apl_duration_t mDefaultSwipeAnimationDuration = 200;
+    apl_duration_t mMaxSwipeAnimationDuration = 400;
     float mMinimumFlingVelocity = 50;
     float mMaximumFlingVelocity = 500;
     float mFontScale = 1.0;
-    float mPointerSlopThreshold = 10;
+    float mPointerSlopThreshold = 40;
 
     bool mScreenReaderEnabled = false;
     bool mAllowOpenUrl = false;

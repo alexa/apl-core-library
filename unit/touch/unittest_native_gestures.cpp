@@ -2210,3 +2210,55 @@ TEST_F(NativeGesturesTest, ScrollSnapForceEndLimit)
     // Should be at the end limit (which is accidentally snap).
     ASSERT_EQ(Point(0, 50), component->scrollPosition());
 }
+
+
+static const char *SCROLL_TRIGGERS_SCROLL = R"apl(
+    {
+      "type": "APL",
+      "version": "1.5",
+      "mainTemplate": {
+        "item": {
+          "type": "ScrollView",
+          "id": "SCROLLER",
+          "width": 200,
+          "height": 200,
+          "item": {
+            "type": "Frame",
+            "width": 100,
+            "height": 600
+          },
+          "onScroll": {
+            "when": "${event.source.position > 0.5}",
+            "type": "Scroll",
+            "distance": 0.5,
+            "sequencer": "OTHER"
+          }
+        }
+      }
+    }
+)apl";
+
+// Execute a "Scroll" command, which will trigger a _second_ "Scroll" command.
+TEST_F(NativeGesturesTest, ScrollTriggersScroll)
+{
+    metrics.size(200,200);
+    loadDocument(SCROLL_TRIGGERS_SCROLL);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(Point(0,0), component->scrollPosition());
+
+    auto action = executeCommand("Scroll", {{"componentId", "SCROLLER"}, {"distance", 1}}, false);
+    ASSERT_TRUE(action);
+
+    // Skip ahead TWO scroll delays.  The first scroll command will complete in a single step and trigger
+    // the second scroll command, which will ALSO complete in a single step.  The second scroll command
+    // will trigger a THIRD scroll command.
+    auto delta = config.getScrollCommandDuration();   // How long the scroll command should take
+    root->updateTime(delta * 2);
+    ASSERT_EQ(Point(0,300), component->scrollPosition());  // distance = 100% + 50% = 300 dp
+    ASSERT_FALSE(action->isPending());
+
+    // The THIRD scroll command will complete within this time.  It will try to trigger a FOURTH scroll command,
+    // but that will be dropped because the scroll view is already at the maximum scroll position
+    root->updateTime(delta * 4);
+    ASSERT_EQ(Point(0,400), component->scrollPosition());
+}

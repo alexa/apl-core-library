@@ -17,6 +17,7 @@
 #define _APL_LIVE_ARRAY_H
 
 #include "apl/livedata/liveobject.h"
+#include "apl/utils/counter.h"
 
 namespace apl {
 
@@ -64,7 +65,7 @@ class LiveArrayChange;
  * have new children inserted and removed, but changing the value stored in
  * an existing LiveArray index will not cause that child to be re-inflated.
  */
-class LiveArray : public LiveObject {
+class LiveArray : public LiveObject, public Counter<LiveArray> {
 public:
     using size_type = ObjectArray::size_type;
     using ChangeCallback = std::function<void(const LiveArrayChange&)>;

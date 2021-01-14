@@ -125,6 +125,13 @@ public:
         return *this;
     }
 
+    streamer& operator<<(void *__f) {
+        char hex[30];
+        snprintf(hex, sizeof(hex), "%p", __f);
+        mString += hex;
+        return *this;
+    }
+
     void reset() {
         mString = "";
     }

@@ -980,31 +980,29 @@ static const char *MULTI_CLONED_DATA = R"({
   }
 })";
 
-TEST_F(DynamicIndexListTest, WrongDefinition) {
+TEST_F(DynamicIndexListTest, WrongMissingFieldsData) {
     loadDocument(BASIC, WRONG_MISSING_FIELDS_DATA);
     ASSERT_TRUE(session->checkAndClear());
-    ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
+    ASSERT_TRUE(CheckErrors({"INTERNAL_ERROR"}));
     ASSERT_EQ(component->getChildCount(), 1);
-    component = nullptr;
-    context = nullptr;
-    root = nullptr;
+}
+
+TEST_F(DynamicIndexListTest, WrongNINIndexData) {
 
     loadDocument(BASIC, WRONG_NIN_INDEX_DATA);
     ASSERT_TRUE(session->checkAndClear());
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
     ASSERT_EQ(component->getChildCount(), 1);
-    component = nullptr;
-    context = nullptr;
-    root = nullptr;
+}
 
+TEST_F(DynamicIndexListTest,WrongMaxIndexData) {
     loadDocument(BASIC, WRONG_MAX_INDEX_DATA);
     ASSERT_TRUE(session->checkAndClear());
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
     ASSERT_EQ(component->getChildCount(), 1);
-    component = nullptr;
-    context = nullptr;
-    root = nullptr;
+}
 
+TEST_F(DynamicIndexListTest,MultiCloneData) {
     loadDocument(MULTI, MULTI_CLONED_DATA);
     ASSERT_TRUE(session->checkAndClear());
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
@@ -2817,7 +2815,8 @@ static const char *SWIPE_TO_DELETE_DATA = R"({
 TEST_F(DynamicIndexListTest, SwipeToDelete)
 {
     config.swipeAwayAnimationEasing("linear");
-    config.swipeAwayTriggerDistanceThreshold(5);
+    config.pointerSlopThreshold(5);
+    config.swipeVelocityThreshold(100);
     config.pointerInactivityTimeout(1000);
 
     loadDocument(SWIPE_TO_DELETE, SWIPE_TO_DELETE_DATA);

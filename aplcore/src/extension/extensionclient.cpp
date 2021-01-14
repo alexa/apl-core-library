@@ -146,7 +146,7 @@ ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& me
         case kExtensionMethodRegisterFailure:
             mRegistrationProcessed = true;
             break;
-        case kExtensionMethodCommandSuccess:
+        case kExtensionMethodCommandSuccess: // FALL_THROUGH
         case kExtensionMethodCommandFailure:
             result = processCommandResponse(*context, evaluated);
             break;
@@ -483,7 +483,7 @@ ExtensionClient::processLiveDataUpdate(const Context& context, const Object& upd
 }
 
 bool
-ExtensionClient::updateLiveMap(ExtensionLiveDataUpdateType type, LiveDataRef dataRef, const Object& operation) {
+ExtensionClient::updateLiveMap(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation) {
     std::string triggerEvent;
     auto keyObj = operation.opt("key", "");
     if (keyObj.empty()) {
@@ -523,7 +523,7 @@ ExtensionClient::updateLiveMap(ExtensionLiveDataUpdateType type, LiveDataRef dat
 }
 
 bool
-ExtensionClient::updateLiveArray(ExtensionLiveDataUpdateType type, LiveDataRef dataRef, const Object& operation) {
+ExtensionClient::updateLiveArray(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation) {
     std::string triggerEvent;
 
     auto item = operation.get("item");
@@ -562,6 +562,7 @@ ExtensionClient::updateLiveArray(ExtensionLiveDataUpdateType type, LiveDataRef d
             break;
         case kExtensionLiveDataUpdateTypeClear:
             liveArray->clear();
+            break;
         default:
             CONSOLE_S(mSession) << "Unknown operation for=" << dataRef.name;
             return false;

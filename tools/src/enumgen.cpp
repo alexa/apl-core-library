@@ -164,7 +164,12 @@ generateTypescript(const State& state, const std::string& writeDir,
 
         bool matched = filter.empty();
         for (const std::string& pattern : filter) {
-            matched |= std::regex_match(cppenum->name, std::regex(pattern));
+            try {
+                matched |= std::regex_match(cppenum->name, std::regex(pattern));
+            }
+            catch (std::regex_error e) {
+                std::cerr << "Can't match with pattern: " << e.what() << std::endl;
+            }
             if (matched)
                 break;
         }
@@ -224,7 +229,12 @@ generateJava(const State& state, const std::string& writeDir, const std::string&
 
         bool matched = filter.empty();
         for (const std::string& pattern : filter) {
-            matched |= std::regex_match(cppenum->name, std::regex(pattern));
+            try {
+                matched |= std::regex_match(cppenum->name, std::regex(pattern));
+            }
+            catch (std::regex_error e) {
+                std::cerr << "Can't match with pattern: " << e.what() << std::endl;
+            }
             if (matched)
                 break;
         }

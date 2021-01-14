@@ -942,3 +942,44 @@ TEST_F(SerializeTest, AVGInSequence) {
         ASSERT_EQ(json["graphic"]["root"]["children"][0]["props"]["strokeWidth"].GetDouble(), 3.0);
     }
 }
+
+static const char *SINGULAR_TRANSFORM = R"({
+    "type": "APL",
+    "version": "1.5",
+    "mainTemplate": {
+        "items": [
+            {
+                "type": "Container",
+                "height": "100%",
+                "width": "100%",
+                "id": "document",
+                "items": [
+                    {
+                        "type": "Text",
+                        "id": "text",
+                        "transform": [
+                            {"scale": "${1/0}"}
+                        ],
+                        "text": "Lorem Ipsum"
+                    }
+                ]
+            }
+        ]
+    }
+})";
+
+TEST_F(SerializeTest, SingularTransform) {
+    loadDocument(SINGULAR_TRANSFORM);
+    ASSERT_TRUE(component);
+
+    rapidjson::Document doc;
+    auto json = component->serialize(doc.GetAllocator());
+
+    auto &transformJson = json["children"][0]["_transform"];
+    ASSERT_EQ(0.0f, transformJson[0].GetFloat());
+    ASSERT_EQ(0.0f, transformJson[1].GetFloat());
+    ASSERT_EQ(0.0f, transformJson[2].GetFloat());
+    ASSERT_EQ(0.0f, transformJson[3].GetFloat());
+    ASSERT_EQ(0.0f, transformJson[4].GetFloat());
+    ASSERT_EQ(0.0f, transformJson[5].GetFloat());
+}

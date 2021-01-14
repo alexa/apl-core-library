@@ -503,7 +503,9 @@ CoreComponent::ensureChildAttached(const CoreComponentPtr& child, int targetIdx)
         }
     } else {
         // Just attach single one inside of ensured range if needed.
-        attachChild(child, targetIdx - mEnsuredChildren.lowerBound());
+        if (!attachChild(child, targetIdx - mEnsuredChildren.lowerBound())) {
+            LOG(LogLevel::WARN) << "Can't attach child: " << child->getUniqueId() << ", it's already attached.";
+        }
     }
 }
 
@@ -1758,7 +1760,7 @@ CoreComponent::processPointerEvent(const PointerEvent& event, apl_time_t timesta
     //  "intrinsic gestures." Intrinsic gestures in that particular case could be scrolling flick/usual scrolling/pager
     //  "flick".
 
-    if (processGestures(event, timestamp, topComponent))
+    if (!mState.get(kStateDisabled) && processGestures(event, timestamp, topComponent))
         return shared_from_corecomponent();
 
     // Break out if feature not enabled

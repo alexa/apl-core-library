@@ -17,6 +17,7 @@
 #define _APL_LIVE_ARRAY_OBJECT_H
 
 #include "apl/common.h"
+#include "apl/utils/counter.h"
 #include "apl/livedata/livedataobject.h"
 #include "apl/livedata/livearraychange.h"
 
@@ -35,7 +36,7 @@ namespace apl {
  * TODO: All internal changes are stored in a single array.  It may be more efficient to collapse
  *       these into three vectors: "removed", "updated", and "inserted".
  */
-class LiveArrayObject : public LiveDataObject {
+class LiveArrayObject : public LiveDataObject, Counter<LiveArrayObject> {
 public:
     using size_type = ObjectArray::size_type;
 

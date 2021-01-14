@@ -36,6 +36,7 @@ DoublePressGesture::DoublePressGesture(const ActionablePtr& actionable, Object&&
         Gesture(actionable),
         mOnDoublePress(std::move(onDoublePress)),
         mOnSinglePress(std::move(onSinglePress)),
+        mStartTime(0),
         mBetweenPresses(false),
         mDoublePressTimeout(actionable->getRootConfig().getDoublePressTimeout()) {}
 

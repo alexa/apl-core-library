@@ -53,8 +53,7 @@ void
 SpeakListAction::advance()
 {
     while (mNextIndex < mEndIndex) {
-        auto child = std::static_pointer_cast<CoreComponent>(mContainer->getChildAt(mNextIndex++));
-        mCurrentAction = SpeakItemAction::make(timers(), mCommand, child);
+        mCurrentAction = SpeakItemAction::make(timers(), mCommand, mContainer->getCoreChildAt(mNextIndex++));
         if (!mCurrentAction)
             continue;
 

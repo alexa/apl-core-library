@@ -683,7 +683,7 @@ MultiChildScrollableComponent::getSnapOffset() const
         case kSnapForceEnd:
             // If < 50% visible -> snap to previous.
             if (childFractionOnScreenWithProposedScrollOffset(targetChild, scrollOffset) < 0.5) {
-                if (targetIndex - itemsPerCourse >= 0) {
+                if (targetIndex >= itemsPerCourse) {
                     targetIndex -= itemsPerCourse;
                     targetChild = getChildAt(targetIndex);
                 }

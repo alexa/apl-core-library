@@ -76,11 +76,11 @@ SwipeAwayGesture::SwipeAwayGesture(const ActionablePtr& actionable, SwipeAwayAct
         mOnSwipeMove(std::move(onSwipeMove)),
         mOnSwipeDone(std::move(onSwipeDone)),
         mItems(std::move(items)),
+        mLocalDistance(0),
+        mTraveledDistance(0),
         mAnimationEasing(actionable->getRootConfig().getSwipeAwayAnimationEasing()),
-        mVelocityTracker(new VelocityTracker(actionable->getRootConfig())),
-        mTriggerDistanceThreshold(actionable->getRootConfig().getSwipeAwayTriggerDistanceThreshold()),
-        mFulfillDistanceThreshold(actionable->getRootConfig().getSwipeAwayFulfillDistancePercentageThreshold()),
-        mVelocityThreshold(actionable->getRootConfig().getSwipeVelocityThreshold()/time::MS_PER_SECOND) {}
+        mInitialMove(0),
+        mVelocityTracker(new VelocityTracker(actionable->getRootConfig())) {}
 
 void
 SwipeAwayGesture::reset() {
@@ -115,12 +115,12 @@ SwipeAwayGesture::invokeAccessibilityAction(const std::string& name)
 
 float
 SwipeAwayGesture::getMove(SwipeDirection direction, Point localPos) {
-    if (mLocalPosition == localPos) {
+    if (mInitialPosition == localPos) {
         // No move happened
         return 0;
     }
 
-    auto delta = mLocalPosition - localPos;
+    auto delta = mInitialPosition - localPos;
     auto horizontal = delta.getX();
     auto vertical = delta.getY();
 
@@ -148,14 +148,6 @@ SwipeAwayGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
     mVelocityTracker->addPointerEvent(event, timestamp);
 
     auto touchableBounds = mActionable->getGlobalBounds();
-
-    if (mDirection == SwipeDirection::kSwipeDirectionLeft ||
-        mDirection == SwipeDirection::kSwipeDirectionUp)
-        // Bottom right
-        mLocalPosition = {touchableBounds.getWidth(), touchableBounds.getHeight()};
-    else
-        // Top left
-        mLocalPosition = {0, 0};
 
     // Need just directional distance really.
     if (mDirection == SwipeDirection::kSwipeDirectionLeft ||
@@ -272,7 +264,7 @@ SwipeAwayGesture::onMove(const PointerEvent& event, apl_time_t timestamp) {
             processTransformChange(travelPercentage);
         }
     } else {
-        if (move - mInitialMove > toLocalThreshold(mTriggerDistanceThreshold)) {
+        if (move - mInitialMove > toLocalThreshold(mActionable->getRootConfig().getPointerSlopThreshold())) {
             if (!isSlopeWithinTolerance(localPoint)) {
                 reset();
                 return;
@@ -283,7 +275,7 @@ SwipeAwayGesture::onMove(const PointerEvent& event, apl_time_t timestamp) {
 
             mSwipeComponent = Builder().inflate(mActionable->getContext(), mItems);
 
-            std::static_pointer_cast<TouchWrapperComponent>(mActionable)->injectReplaceComponent(mSwipeComponent,
+            std::dynamic_pointer_cast<TouchWrapperComponent>(mActionable)->injectReplaceComponent(mSwipeComponent,
                     mAction != SwipeAwayActionType::kSwipeAwayActionReveal);
 
             if (mAction == SwipeAwayActionType::kSwipeAwayActionReveal ||
@@ -310,18 +302,23 @@ SwipeAwayGesture::onMove(const PointerEvent& event, apl_time_t timestamp) {
 
 void
 SwipeAwayGesture::animateRemainder(bool fulfilled, float velocity) {
-    auto timeManager = mActionable->getRootConfig().getTimeManager();
+    auto& rootConfig = mActionable->getRootConfig();
+    auto timeManager = rootConfig.getTimeManager();
     float remainingDistance = fulfilled ? mLocalDistance - mTraveledDistance : -mTraveledDistance;
     auto travelPercentage = mTraveledDistance/mLocalDistance;
     float remainingPercentage = remainingDistance/mLocalDistance;
-    // Duration is same as it will take to finish up with current velocity
-    apl_duration_t animationDuration = std::abs(remainingDistance) / velocity;
-    auto maxDuration = mActionable->getRootConfig().getMaxSwipeAnimationDuration();
-    if (animationDuration > maxDuration) {
-        animationDuration = maxDuration;
+
+    apl_duration_t animationDuration = velocity > 0
+        ? std::abs(remainingDistance) / velocity
+        : rootConfig.getDefaultSwipeAnimationDuration();
+    animationDuration = std::min(animationDuration, rootConfig.getMaxSwipeAnimationDuration());
+
+    // Ensure "Early exit",
+    if (remainingDistance == 0) {
+        animationDuration = 0;
     }
 
-    std::weak_ptr<SwipeAwayGesture> weak_ptr(std::static_pointer_cast<SwipeAwayGesture>(shared_from_this()));
+    std::weak_ptr<SwipeAwayGesture> weak_ptr(std::dynamic_pointer_cast<SwipeAwayGesture>(shared_from_this()));
     mAnimateAction = Action::makeAnimation(timeManager, animationDuration,
        [this, weak_ptr, animationDuration, travelPercentage, remainingPercentage](apl_duration_t offset) {
            auto self = weak_ptr.lock();
@@ -350,7 +347,7 @@ SwipeAwayGesture::animateRemainder(bool fulfilled, float velocity) {
                 self->mReplacedComponent->remove();
                 self->mReplacedComponent->release();
                 // Need that as absolute positioning does not play well when original child removed
-                std::static_pointer_cast<TouchWrapperComponent>(self->mActionable)->resetChildPositionType();
+                std::dynamic_pointer_cast<TouchWrapperComponent>(self->mActionable)->resetChildPositionType();
                 auto params = std::make_shared<ObjectMap>();
                 params->emplace("direction", sSwipeDirectionMap.at(self->mDirection));
                 self->mActionable->executeEventHandler("SwipeDone", self->mOnSwipeDone, false, params);
@@ -366,6 +363,31 @@ SwipeAwayGesture::animateRemainder(bool fulfilled, float velocity) {
     });
 }
 
+float
+SwipeAwayGesture::getCurrentVelocity()
+{
+    auto velocities = toLocalVector(mVelocityTracker->getEstimatedVelocity());
+    return (mDirection == SwipeDirection::kSwipeDirectionLeft ||
+            mDirection == SwipeDirection::kSwipeDirectionRight) ?
+            velocities.getX() : velocities.getY();
+}
+
+bool
+SwipeAwayGesture::swipedFarEnough()
+{
+    return mTraveledDistance / mLocalDistance
+        >= mActionable->getRootConfig().getSwipeAwayFulfillDistancePercentageThreshold();
+}
+
+bool
+SwipeAwayGesture::swipedFastEnough(float velocity)
+{
+    auto swipeVelocityThreshold = mActionable->getRootConfig().getSwipeVelocityThreshold()/time::MS_PER_SECOND;
+    auto velocityThreshold = toLocalThreshold(swipeVelocityThreshold);
+    // Check for velocity condition
+    return (getFulfillMoveDirection() * velocity > 0) && (std::abs(velocity) >= velocityThreshold);
+}
+
 void
 SwipeAwayGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
     mVelocityTracker->addPointerEvent(event, timestamp);
@@ -374,25 +396,26 @@ SwipeAwayGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
         return;
     }
 
-    auto velocities = toLocalVector(mVelocityTracker->getEstimatedVelocity());
-    auto velocity = (mDirection == SwipeDirection::kSwipeDirectionLeft ||
-            mDirection == SwipeDirection::kSwipeDirectionRight) ?
-                   velocities.getX() : velocities.getY();
+    auto velocity = getCurrentVelocity();
     if (std::isnan(velocity)) {
         CONSOLE_CTP(mActionable->getContext()) << "Singular transform encountered during "
                                                   "SwipeAway, aborting swipe";
-        animateRemainder(false, mVelocityThreshold);
+        animateRemainder(false, 0);
     } else {
-        bool finishUp = mTraveledDistance / mLocalDistance >= mFulfillDistanceThreshold;
-        // Could also be fulfilled if enough speed in appropriate direction.
-        auto velocityThreshold = toLocalThreshold(mVelocityThreshold);
-        if (!finishUp && getFulfillMoveDirection() * velocity > 0) {
-            finishUp = std::abs(velocity) >= velocityThreshold;
+        // Check for velocity condition
+        bool finishUp = swipedFastEnough(velocity);
+
+        // If not sufficient - check for distance
+        if (!finishUp) {
+            finishUp = swipedFarEnough();
+            velocity = 0;
+        } else {
+            // Limit to the configured maximum. We don't want speed of light here.
+            velocity = std::min(std::abs(velocity),
+                mActionable->getRootConfig().getSwipeMaxVelocity()/time::MS_PER_SECOND);
         }
-        velocity = std::abs(velocity);
-        animateRemainder(finishUp, (finishUp && (velocity >= velocityThreshold))
-                                       ? velocity
-                                       : velocityThreshold);
+
+        animateRemainder(finishUp, velocity);
     }
 }
 

@@ -210,7 +210,7 @@ public:
             return;
         }
 
-        auto& span = mBuildStack.top();
+        auto span = mBuildStack.top();
         mBuildStack.pop();
 
         // If start == end then span is unnecessary so don't record it

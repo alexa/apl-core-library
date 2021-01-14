@@ -35,14 +35,14 @@ DocumentAction::make(const TimersPtr& timers,
 }
 
 DocumentAction::DocumentAction(const TimersPtr& timers,
-                                 const std::shared_ptr<DocumentCommand>& command,
-                                 bool fastMode)
+                               const std::shared_ptr<DocumentCommand>& command,
+                               bool fastMode)
     : Action(timers),
       mCommand(command),
       mFastMode(fastMode),
       mStateFinally(false)
 {
-    addTerminateCallback([this](const TimersPtr& timers) {
+    addTerminateCallback([this](const TimersPtr&) {
         if (mCurrentAction) {
             mCurrentAction->terminate();
             mCurrentAction = nullptr;

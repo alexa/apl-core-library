@@ -14,6 +14,8 @@
  */
 
 #include "testeventloop.h"
+#include "apl/livedata/livearrayobject.h"
+#include "apl/livedata/livemapobject.h"
 
 namespace apl {
 
@@ -63,6 +65,11 @@ getMemoryCounterMap() {
         {"RootContextData",      Counter<RootContextData>::itemsDelta},
         {"Sequencer",            Counter<Sequencer>::itemsDelta},
         {"Styles",               Counter<Styles>::itemsDelta},
+        {"LayoutRebuilder",      Counter<LayoutRebuilder>::itemsDelta},
+        {"LiveMapObject",        Counter<LiveMapObject>::itemsDelta},
+        {"LiveArrayObject",      Counter<LiveArrayObject>::itemsDelta},
+        {"LiveArray",            Counter<LiveArray>::itemsDelta},
+        {"LiveMap",              Counter<LiveMap>::itemsDelta},
     };
     return sMemoryCounters;
 }

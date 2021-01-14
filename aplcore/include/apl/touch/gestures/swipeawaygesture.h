@@ -59,6 +59,9 @@ private:
     void sendSwipeMove(float travelPercentage);
     float toLocalThreshold(float threshold);
     bool isSlopeWithinTolerance(Point localPosition);
+    float getCurrentVelocity();
+    bool swipedFarEnough();
+    bool swipedFastEnough(float velocity);
 
     SwipeAwayActionType mAction;
     SwipeDirection mDirection;
@@ -67,7 +70,6 @@ private:
     Object mItems;
     Point mInitialPosition;
     float mLocalDistance;
-    Point mLocalPosition;
     float mTraveledDistance;
     CoreComponentPtr mReplacedComponent;
     CoreComponentPtr mSwipeComponent;
@@ -77,9 +79,6 @@ private:
     EasingPtr mAnimationEasing;
     float mInitialMove;
     std::unique_ptr<VelocityTracker> mVelocityTracker;
-    float mTriggerDistanceThreshold;
-    float mFulfillDistanceThreshold;
-    float mVelocityThreshold;
 };
 
 } // namespace apl

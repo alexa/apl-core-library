@@ -58,6 +58,11 @@ public:
      * Clear any pending actions and release any held references.
      */
     virtual void terminate() = 0;
+
+    /**
+     * @return true if terminate() has been called.
+     */
+    virtual bool isTerminated() = 0;
 };
 
 } // namespace apl

@@ -518,3 +518,78 @@ TEST_F(MountTest, TerminateUnexpectedly)
     // because a bug in DocumentAction would attempt to execute "finally" commands
     // on termination even though the DocumentCommand no longer had a valid context.
 }
+
+static const char *EXECUTE_WHILE_ONMOUNT_SCROLLING = R"({
+  "type": "APL",
+  "version": "1.5",
+  "onMount": [
+    {
+      "type": "ScrollToComponent",
+      "componentId": "id3",
+      "align": "first"
+    }
+  ],
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Sequence",
+        "id": "scrollable",
+        "height": "200",
+        "width": "100%",
+        "data": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "items": [
+          {
+            "type": "Frame",
+            "id": "id${data}",
+            "backgroundColor": "#D6DBDF",
+            "borderColor": "#566573",
+            "borderWidth": "2dp",
+            "width": "100",
+            "height": "100",
+            "item": {
+              "type": "Text",
+              "width": "100%",
+              "height": "100%",
+              "text": "${data}",
+              "color": "black"
+            }
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+TEST_F(MountTest, ExecuteCommandsWhileOnMountScrolling)
+{
+    loadDocument(EXECUTE_WHILE_ONMOUNT_SCROLLING);
+    ASSERT_TRUE(component);
+
+    // Check that we asked to scroll
+    auto scrollEvent = root->popEvent();
+    ASSERT_EQ(kEventTypeScrollTo, scrollEvent.getType());
+    auto actionRef = scrollEvent.getActionRef();
+    ASSERT_TRUE(actionRef.isPending());
+
+    // Wait for a second.
+    root->updateTime(1000);
+
+    // Send some command that will clear main sequencer and as a result terminate the scrolling.
+    executeCommand("SetValue", {{"componentId", "id2"}, {"property", "opacity"}, {"value", 0.5}}, false);
+    root->clearPending();
+
+    ASSERT_TRUE(actionRef.isTerminated());
+
+    // Assume that scrolling decided it's finished
+    actionRef.resolve();
+
+    // Check "interrupting" command was executed
+    auto child = root->findComponentById("id2");
+    ASSERT_EQ(0.5, child->getCalculated(kPropertyOpacity).getDouble());
+}

@@ -17,6 +17,7 @@
 #define _APL_LIVE_MAP_H
 
 #include "apl/livedata/liveobject.h"
+#include "apl/utils/counter.h"
 
 namespace apl {
 
@@ -51,7 +52,7 @@ class LiveMapChange;
  *  Please note that as in LiveArrays, the component hierarchy will NOT
  *  be re-inflated.
  */
-class LiveMap : public LiveObject {
+class LiveMap : public LiveObject, public Counter<LiveMap> {
 public:
     using ChangeCallback = std::function<void(const LiveMapChange&)>;
 

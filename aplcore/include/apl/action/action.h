@@ -191,6 +191,9 @@ private:
     timeout_id mTimeoutId;
     const TimersPtr mTimers;
     ActionResolveArg mArgument;
+#ifdef DEBUG_MEMORY_USE
+    int mActionNumber;   // Individually number actions to simplify debugging
+#endif
 };
 
 /**

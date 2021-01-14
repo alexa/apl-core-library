@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <vector>
 #include <limits>
+#include <atomic>
 
 #include "apl/time/timemanager.h"
 
@@ -29,97 +30,27 @@ namespace apl {
  */
 class CoreTimeManager : public TimeManager {
 public:
-    explicit CoreTimeManager(apl_time_t time) : mTime(time), mNextId(100), mAnimatorCount(0) {}
+    explicit CoreTimeManager(apl_time_t time) : mTime(time), mNextId(100), mAnimatorCount(0), mTerminated(false){}
     ~CoreTimeManager() override = default;
 
     /****** Methods from Timers *******/
 
-    timeout_id setTimeout(Runnable func, apl_duration_t delay) override {
-        timeout_id id = mNextId++;
-        mTimerHeap.emplace_back(TimeoutTuple(func, nullptr, mTime, delay, id));
-        std::push_heap(mTimerHeap.begin(), mTimerHeap.end());
-        return id;
-    }
-
-    timeout_id setAnimator(Animator animator, apl_duration_t delay) override {
-        timeout_id id = mNextId++;
-        mTimerHeap.emplace_back(TimeoutTuple(nullptr, animator, mTime, delay, id));
-        std::push_heap(mTimerHeap.begin(), mTimerHeap.end());
-        mAnimatorCount++;
-        return id;
-    }
-
-    bool clearTimeout(timeout_id id) override {
-        for (auto it = mTimerHeap.begin(); it != mTimerHeap.end(); it++) {
-            if (it->id == id) {
-                if (it->animator)
-                    mAnimatorCount--;
-                it = mTimerHeap.erase(it);
-                std::make_heap(mTimerHeap.begin(), mTimerHeap.end());
-                return true;
-            }
-        }
-
-        return false;
-    }
+    timeout_id setTimeout(Runnable func, apl_duration_t delay) override;
+    timeout_id setAnimator(Animator animator, apl_duration_t delay) override;
+    bool clearTimeout(timeout_id id) override;
 
     /****** Methods from TimeManager *******/
 
     int size() const override { return mTimerHeap.size(); }
-
-    void updateTime(apl_time_t updatedTime) override {
-        // Block going backwards in time, but clear any pending timeouts.
-        if (updatedTime <= mTime) {
-            runPending();
-            return;
-        }
-
-        while (!mTimerHeap.empty() && mTimerHeap.begin()->endTime <= updatedTime)
-            advanceToNext();
-
-        mTime = updatedTime;
-
-        // Run any animations outstanding. TODO: Could we make this more efficient by skipping non-animators?
-        for (auto& m : mTimerHeap) {
-            if (m.animator)
-                m.animator(mTime - m.startTime);
-        }
-    }
-
-    apl_time_t nextTimeout() override {
-        if (mAnimatorCount > 0)
-            return mTime + 1;
-
-        if (mTimerHeap.size())
-            return mTimerHeap.at(0).endTime;
-
-        return std::numeric_limits<apl_time_t>::max();
-    }
-
+    void updateTime(apl_time_t updatedTime) override;
+    apl_time_t nextTimeout() override;
     apl_time_t currentTime() const override { return mTime; }
-
-    void runPending() override {
-        while (mTimerHeap.size() && mTimerHeap.begin()->endTime <= mTime)
-            advanceToNext();
-    }
-
-    void terminate() override {
-        mTimerHeap.clear();
-    }
+    void runPending() override;
+    void terminate() override;
+    bool isTerminated() override;
 
 protected:
-    void advanceToNext() {
-        std::pop_heap(mTimerHeap.begin(), mTimerHeap.end());  // Move to end
-        TimeoutTuple tt = mTimerHeap.back();  // Grab the last element
-        mTimerHeap.pop_back();  // Remove the last element
-        mTime = tt.endTime;   // Advance the clock
-        if (tt.runnable)
-            tt.runnable();  // Execute the runnable
-        else {
-            tt.animator(tt.endTime - tt.startTime);
-            mAnimatorCount--;
-        }
-    }
+    void advanceToNext();
 
 protected:
     // Hold regular timers until they fire
@@ -142,6 +73,7 @@ protected:
     apl_time_t mTime;
     timeout_id mNextId;
     int mAnimatorCount;
+    std::atomic<bool> mTerminated;
 };
 
 
