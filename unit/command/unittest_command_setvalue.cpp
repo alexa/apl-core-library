@@ -434,3 +434,40 @@ TEST_F(CommandSetValueTest, BindObject)
     ASSERT_EQ("Price3 $3.47", t3);
     ASSERT_EQ("#ff0000ff", c3);
 }
+
+
+static const char *TEXT_LAYOUT_CHANGE = R"apl(
+    {
+      "type": "APL",
+      "version": "1.5",
+      "mainTemplate": {
+        "items": {
+          "type": "Container",
+          "alignItems": "start",
+          "items": {
+            "type": "Text",
+            "id": "MyText",
+            "text": "Short phrase"
+          }
+        }
+      }
+    }
+)apl";
+
+TEST_F(CommandSetValueTest, TextLayout)
+{
+    loadDocument(TEXT_LAYOUT_CHANGE);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(1, component->getChildCount());
+
+    auto text = component->getChildAt(0);
+    ASSERT_TRUE(IsEqual(Rect(0, 0, 120, 10), text->getCalculated(kPropertyBounds)));
+
+    std::string s("Short phrase combined with a longer phrase");
+    executeSetValue("MyText", "text", s);
+    root->clearPending();  // This toggles the layout pass
+
+    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyText));
+    ASSERT_TRUE(CheckDirty(root, text));
+    ASSERT_TRUE(IsEqual(Rect(0, 0, s.size() * 10, 10), text->getCalculated(kPropertyBounds)));
+}

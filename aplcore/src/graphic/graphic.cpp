@@ -93,6 +93,26 @@ Graphic::Graphic(const ContextPtr& context, const rapidjson::Value& json, Graphi
     mInternalContext->putSystemWriteable("height", 100);
 }
 
+Graphic::~Graphic()
+{
+    release();
+}
+
+/**
+ * Aggressively clear out internal references to avoid problems when runtime holds to GraphicElement
+ * longer than required..
+ */
+void
+Graphic::release()
+{
+    clearDirty();
+    if (mRootElement)
+        mRootElement->release();
+    if (mInternalContext)
+        mInternalContext->release();  // This ensures any resources holding GraphicPattern are cleared
+    mComponent.reset();
+}
+
 /*
  * Some notes on how we hook up context and properties and parameters
  *

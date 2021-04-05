@@ -20,8 +20,8 @@
 #include "../testeventloop.h"
 #include "apl/component/component.h"
 #include "apl/component/pagercomponent.h"
-#include "apl/engine/focusmanager.h"
 #include "apl/engine/keyboardmanager.h"
+#include "apl/focus/focusmanager.h"
 #include "apl/primitives/object.h"
 #include "gtest/gtest.h"
 
@@ -597,8 +597,7 @@ TEST_F(KeyboardManagerTest, ReservedNotConsumed) {
     ASSERT_TRUE(component);
     ASSERT_FALSE(root->handleKeyboard(kKeyDown, Keyboard::BACK_KEY()));
     ASSERT_FALSE(root->handleKeyboard(kKeyDown, Keyboard::ENTER_KEY()));
-    ASSERT_FALSE(root->handleKeyboard(kKeyDown, Keyboard::TAB_KEY()));
-    ASSERT_FALSE(root->handleKeyboard(kKeyDown, Keyboard::SHIFT_TAB_KEY()));
+    ASSERT_FALSE(root->handleKeyboard(kKeyDown, Keyboard::NUMPAD_ENTER_KEY()));
     ASSERT_FALSE(root->handleKeyboard(kKeyDown, Keyboard::PAGE_UP_KEY()));
     ASSERT_FALSE(root->handleKeyboard(kKeyDown, Keyboard::PAGE_DOWN_KEY()));
     ASSERT_FALSE(root->handleKeyboard(kKeyDown, Keyboard::HOME_KEY()));
@@ -606,8 +605,7 @@ TEST_F(KeyboardManagerTest, ReservedNotConsumed) {
 
     ASSERT_FALSE(root->handleKeyboard(kKeyUp, Keyboard::BACK_KEY()));
     ASSERT_FALSE(root->handleKeyboard(kKeyUp, Keyboard::ENTER_KEY()));
-    ASSERT_FALSE(root->handleKeyboard(kKeyUp, Keyboard::TAB_KEY()));
-    ASSERT_FALSE(root->handleKeyboard(kKeyUp, Keyboard::SHIFT_TAB_KEY()));
+    ASSERT_FALSE(root->handleKeyboard(kKeyUp, Keyboard::NUMPAD_ENTER_KEY()));
     ASSERT_FALSE(root->handleKeyboard(kKeyUp, Keyboard::PAGE_UP_KEY()));
     ASSERT_FALSE(root->handleKeyboard(kKeyUp, Keyboard::PAGE_DOWN_KEY()));
     ASSERT_FALSE(root->handleKeyboard(kKeyUp, Keyboard::HOME_KEY()));

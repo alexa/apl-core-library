@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -75,8 +75,8 @@ TEST_F(BuilderTest, StatesOnOff)
     loadDocument(TEST_MULTIPLE_STATES);
 
     ASSERT_EQ(Object(1.0), component->getCalculated(kPropertyOpacity));
-    ASSERT_TRUE(IsEqual(config.getDefaultFontColor("dark"), component->getCalculated(kPropertyColor)));
-    ASSERT_TRUE(IsEqual(config.getDefaultFontColor("dark"), component->getCalculated(kPropertyColorKaraokeTarget)));
+    ASSERT_TRUE(IsEqual(config->getDefaultFontColor("dark"), component->getCalculated(kPropertyColor)));
+    ASSERT_TRUE(IsEqual(config->getDefaultFontColor("dark"), component->getCalculated(kPropertyColorKaraokeTarget)));
 
     component->setState(kStatePressed, true);
     ASSERT_EQ(Object(0.25), component->getCalculated(kPropertyOpacity));
@@ -95,8 +95,8 @@ TEST_F(BuilderTest, StatesOnOff)
 
     component->setState(kStateKaraoke, false);
     ASSERT_EQ(Object(1.0), component->getCalculated(kPropertyOpacity));
-    ASSERT_TRUE(IsEqual(config.getDefaultFontColor("dark"), component->getCalculated(kPropertyColor)));
-    ASSERT_TRUE(IsEqual(config.getDefaultFontColor("dark"), component->getCalculated(kPropertyColorKaraokeTarget)));
+    ASSERT_TRUE(IsEqual(config->getDefaultFontColor("dark"), component->getCalculated(kPropertyColor)));
+    ASSERT_TRUE(IsEqual(config->getDefaultFontColor("dark"), component->getCalculated(kPropertyColorKaraokeTarget)));
 
     clearDirty();
 }
@@ -147,10 +147,11 @@ TEST_F(BuilderTest, SimpleImage)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinHeight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinWidth));
     ASSERT_EQ(1.0, component->getCalculated(kPropertyOpacity).getDouble());
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingBottom));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingLeft));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingBottom));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingLeft));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingRight));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object(ObjectArray{}), component->getCalculated(kPropertyPadding));
     ASSERT_EQ(kRoleNone, component->getCalculated(kPropertyRole).getInteger());
     ASSERT_EQ(Object(Color(Color::TRANSPARENT)), component->getCalculated(kPropertyShadowColor));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyShadowHorizontalOffset));
@@ -350,10 +351,11 @@ TEST_F(BuilderTest, SimpleText)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinHeight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinWidth));
     ASSERT_EQ(1.0, component->getCalculated(kPropertyOpacity).getDouble());
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingBottom));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingLeft));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingBottom));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingLeft));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingRight));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object(ObjectArray{}), component->getCalculated(kPropertyPadding));
     ASSERT_EQ(kRoleNone, component->getCalculated(kPropertyRole).getInteger());
     ASSERT_EQ(Object::IDENTITY_2D(), component->getCalculated(kPropertyTransform));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyTransformAssigned));
@@ -488,10 +490,11 @@ TEST_F(BuilderTest, SimpleContainer)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinHeight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinWidth));
     ASSERT_EQ(1.0, component->getCalculated(kPropertyOpacity).getDouble());
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingBottom));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingLeft));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingBottom));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingLeft));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingRight));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object(ObjectArray{}), component->getCalculated(kPropertyPadding));
     ASSERT_EQ(kRoleNone, component->getCalculated(kPropertyRole).getInteger());
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
     ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
@@ -887,10 +890,11 @@ TEST_F(BuilderTest, SimpleScrollView)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinHeight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinWidth));
     ASSERT_EQ(1.0, component->getCalculated(kPropertyOpacity).getDouble());
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingBottom));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingLeft));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingBottom));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingLeft));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingRight));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object(ObjectArray{}), component->getCalculated(kPropertyPadding));
     ASSERT_EQ(kRoleNone, component->getCalculated(kPropertyRole).getInteger());
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
     ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
@@ -950,10 +954,11 @@ TEST_F(BuilderTest, SimpleTouchWrapper)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinHeight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinWidth));
     ASSERT_EQ(1.0, component->getCalculated(kPropertyOpacity).getDouble());
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingBottom));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingLeft));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingBottom));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingLeft));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingRight));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object(ObjectArray{}), component->getCalculated(kPropertyPadding));
     ASSERT_EQ(kRoleNone, component->getCalculated(kPropertyRole).getInteger());
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
     ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
@@ -1133,10 +1138,11 @@ TEST_F(BuilderTest, SimpleVideo)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinHeight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinWidth));
     ASSERT_EQ(1.0, component->getCalculated(kPropertyOpacity).getDouble());
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingBottom));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingLeft));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingBottom));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingLeft));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingRight));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object(ObjectArray{}), component->getCalculated(kPropertyPadding));
     ASSERT_EQ(kRoleNone, component->getCalculated(kPropertyRole).getInteger());
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyWidth));
     ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
@@ -1287,10 +1293,11 @@ TEST_F(BuilderTest, FullVideo)
     ASSERT_EQ(Object(Dimension(0)), map.get(kPropertyMinHeight));
     ASSERT_EQ(Object(Dimension(0)), map.get(kPropertyMinWidth));
     ASSERT_EQ(1.0, map.get(kPropertyOpacity).getDouble());
-    ASSERT_EQ(Object(Dimension(0)), map.get(kPropertyPaddingBottom));
-    ASSERT_EQ(Object(Dimension(0)), map.get(kPropertyPaddingLeft));
-    ASSERT_EQ(Object(Dimension(0)), map.get(kPropertyPaddingRight));
-    ASSERT_EQ(Object(Dimension(0)), map.get(kPropertyPaddingTop));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingBottom));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingLeft));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingRight));
+    ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object(ObjectArray{}), component->getCalculated(kPropertyPadding));
     ASSERT_EQ(kRoleNone, component->getCalculated(kPropertyRole).getInteger());
     ASSERT_EQ(Object(Dimension(100)), map.get(kPropertyWidth));
     ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
@@ -2117,7 +2124,7 @@ static const char *CONFIG_TEXT_DEFAULT_THEME =
 // Verify that we can configure the default text color and font family
 TEST_F(BuilderTest, ConfigTextDarkTheme)
 {
-    config.defaultFontFamily("Helvetica");
+    config->defaultFontFamily("Helvetica");
 
     // The default theme is "dark", which has a color of 0xFAFAFAFF
     loadDocument(CONFIG_TEXT_DEFAULT_THEME);
@@ -2126,12 +2133,12 @@ TEST_F(BuilderTest, ConfigTextDarkTheme)
     ASSERT_TRUE(IsEqual("Helvetica", component->getCalculated(kPropertyFontFamily)));
 
     // Override the generic theme color.  The document defaults to dark theme, so this is ignored
-    config.defaultFontColor(0x11223344);
+    config->defaultFontColor(0x11223344);
     loadDocument(CONFIG_TEXT_DEFAULT_THEME);
     ASSERT_TRUE(IsEqual(Color(0xFAFAFAFF), component->getCalculated(kPropertyColor)));
 
     // Explicitly override the 'dark' theme color
-    config.defaultFontColor("dark", 0x44332211);
+    config->defaultFontColor("dark", 0x44332211);
     loadDocument(CONFIG_TEXT_DEFAULT_THEME);
     ASSERT_TRUE(IsEqual(Color(0x44332211), component->getCalculated(kPropertyColor)));
 }
@@ -2157,12 +2164,12 @@ TEST_F(BuilderTest, ConfigTextLightTheme)
     ASSERT_TRUE(IsEqual(Color(0x1E2222FF), component->getCalculated(kPropertyColor)));
 
     // Override the generic theme color.  The document has a theme, so this is ignored
-    config.defaultFontColor(0x11223344);
+    config->defaultFontColor(0x11223344);
     loadDocument(CONFIG_TEXT_LIGHT_THEME);
     ASSERT_TRUE(IsEqual(Color(0x1E2222FF), component->getCalculated(kPropertyColor)));
 
     // Explicitly override the 'light' theme color
-    config.defaultFontColor("light", 0x44332211);
+    config->defaultFontColor("light", 0x44332211);
     loadDocument(CONFIG_TEXT_LIGHT_THEME);
     ASSERT_TRUE(IsEqual(Color(0x44332211), component->getCalculated(kPropertyColor)));
 }
@@ -2188,12 +2195,12 @@ TEST_F(BuilderTest, ConfigTextFuzzyTheme)
     ASSERT_TRUE(IsEqual(Color(0xfafafaff), component->getCalculated(kPropertyColor)));
 
     // Override the generic theme color.  Because 'fuzzy' isn't light or dark, this should happen
-    config.defaultFontColor(0x11223344);
+    config->defaultFontColor(0x11223344);
     loadDocument(CONFIG_TEXT_FUZZY_THEME);
     ASSERT_TRUE(IsEqual(Color(0x11223344), component->getCalculated(kPropertyColor)));
 
     // Explicitly override the 'fuzzy' theme color
-    config.defaultFontColor("fuzzy", 0x44332211);
+    config->defaultFontColor("fuzzy", 0x44332211);
     loadDocument(CONFIG_TEXT_FUZZY_THEME);
     ASSERT_TRUE(IsEqual(Color(0x44332211), component->getCalculated(kPropertyColor)));
 }

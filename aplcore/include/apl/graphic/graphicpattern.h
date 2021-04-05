@@ -18,6 +18,7 @@
 
 #include "apl/common.h"
 #include "apl/primitives/objectdata.h"
+#include "apl/utils/counter.h"
 
 namespace apl {
 
@@ -25,7 +26,8 @@ namespace apl {
  * AVG patterns are non-parameterized re-usable vector graphic elements that can be applied to path stroke and
  * fill properties.
  */
-class GraphicPattern : public ObjectData {
+class GraphicPattern : public ObjectData,
+                       public Counter<GraphicPattern> {
 public:
     static Object create(const Context& context, const Object& object);
 
@@ -64,7 +66,7 @@ public:
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override;
     bool empty() const override { return false; }
     bool truthy() const override { return true; }
-    size_t size() const override { return mItems.size(); }
+    std::uint64_t size() const override { return mItems.size(); }
 private:
     std::string mId;
     std::string mDescription;

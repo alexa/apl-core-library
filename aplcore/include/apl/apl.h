@@ -43,6 +43,7 @@
 #include "apl/engine/event.h"
 #include "apl/engine/rootcontext.h"
 #include "apl/extension/extensionclient.h"
+#include "apl/focus/focusdirection.h"
 #include "apl/graphic/graphic.h"
 #include "apl/graphic/graphicfilter.h"
 #include "apl/graphic/graphicpattern.h"
@@ -58,8 +59,13 @@
 #include "apl/primitives/styledtext.h"
 #include "apl/scaling/metricstransform.h"
 #include "apl/touch/pointerevent.h"
+#include "apl/utils/localemethods.h"
 #include "apl/utils/log.h"
 #include "apl/utils/session.h"
 #include "apl/utils/telemetry.h"
+
+#ifdef ALEXAEXTENSIONS
+#include "apl/extension/extensionmediator.h"
+#endif
 
 #endif // _APL_H

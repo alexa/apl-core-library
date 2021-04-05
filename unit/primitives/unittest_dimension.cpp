@@ -25,7 +25,7 @@ public:
                       .dpi(320)
                       .theme("green")
                       .shape(apl::RECTANGLE);
-        c = Context::create(m, session);
+        c = Context::createTestContext(m, session);
     }
 
     void TearDown() override

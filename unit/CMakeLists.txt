@@ -13,6 +13,7 @@
 
 # Unit tests
 include_directories(../aplcore/include)
+include_directories(../tools/src)
 include_directories(${RAPIDJSON_INCLUDE})
 include_directories(${PEGTL_INCLUDE})
 include_directories(${YOGA_INCLUDE})
@@ -21,113 +22,29 @@ include_directories(${YOGA_INCLUDE})
 add_executable( unittest
         testeventloop.cpp
         debugtools.cpp
-        action/unittest_action.cpp
-        animation/unittest_easing.cpp
-        animation/unittest_easing_approximation.cpp
-        command/unittest_command_animateitem.cpp
-        command/unittest_command_array.cpp
-        command/unittest_command_document.cpp
-        command/unittest_command_event_binding.cpp
-        command/unittest_command_macros.cpp
-        command/unittest_command_media.cpp
-        command/unittest_command_openurl.cpp
-        command/unittest_command_page.cpp
-        command/unittest_command_select.cpp
-        command/unittest_command_sendevent.cpp
-        command/unittest_command_setvalue.cpp
-        command/unittest_commands.cpp
-        command/unittest_screenlock.cpp
-        command/unittest_serialize_event.cpp
-        command/unittest_setstate.cpp
-        command/unittest_setvalue.cpp
-        command/unittest_speak_item.cpp
-        command/unittest_speak_list.cpp
-        component/unittest_accessibility_actions.cpp
-        component/unittest_bounds.cpp
-        component/unittest_component_events.cpp
-        component/unittest_default_component_size.cpp
-        component/unittest_dynamic_component.cpp
-        component/unittest_edit_text_component.cpp
-        component/unittest_find_component_at_position.cpp
-        component/unittest_flexbox.cpp
-        component/unittest_frame_component.cpp
-        component/unittest_grid_sequence_component.cpp
-        component/unittest_properties.cpp
-        component/unittest_scroll.cpp
-        component/unittest_serialize.cpp
-        component/unittest_signature.cpp
-        component/unittest_state.cpp
-        component/unittest_tick.cpp
-        component/unittest_transform.cpp
-        component/unittest_visual_context.cpp
-        content/unittest_apl.cpp
-        content/unittest_directive.cpp
-        content/unittest_document.cpp
-        content/unittest_document_background.cpp
-        datagrammar/unittest_arithmetic.cpp
-        datagrammar/unittest_grammar.cpp
-        datagrammar/unittest_parse.cpp
-        datasource/testdatasourceprovider.cpp
-        datasource/unittest_datasource.cpp
-        datasource/unittest_dynamicindexlist.cpp
-        engine/unittest_arrayify.cpp
-        engine/unittest_builder.cpp
-        engine/unittest_builder_config_change.cpp
-        engine/unittest_builder_pager.cpp
-        engine/unittest_builder_sequence.cpp
-        engine/unittest_context.cpp
-        engine/unittest_current_time.cpp
-        engine/unittest_dependant.cpp
-        engine/unittest_focus_manager.cpp
-        engine/unittest_hover.cpp
-        engine/unittest_keyboard_manager.cpp
-        engine/unittest_layouts.cpp
-        engine/unittest_memory.cpp
-        engine/unittest_propdef.cpp
-        engine/unittest_resources.cpp
-        engine/unittest_styles.cpp
-        engine/unittest_viewhost.cpp
-        extension/unittest_extension_client.cpp
-        extension/unittest_extension_command.cpp
-        extension/unittest_extension_handler.cpp
-        extension/unittest_requested_extension.cpp
-        graphic/unittest_dependant_graphic.cpp
-        graphic/unittest_graphic.cpp
-        graphic/unittest_graphic_bind.cpp
-        graphic/unittest_graphic_component.cpp
-        graphic/unittest_graphic_data.cpp
-        graphic/unittest_graphic_filters.cpp
-        livedata/unittest_livearray_change.cpp
-        livedata/unittest_livearray_rebuild.cpp
-        livedata/unittest_livemap_change.cpp
-        primitives/unittest_color.cpp
-        primitives/unittest_dimension.cpp
-        primitives/unittest_filters.cpp
-        primitives/unittest_keyboard.cpp
-        primitives/unittest_object.cpp
-        primitives/unittest_rect.cpp
-        primitives/unittest_styledtext.cpp
-        primitives/unittest_symbols.cpp
-        primitives/unittest_time_grammar.cpp
-        primitives/unittest_transform.cpp
-        primitives/unittest_unicode.cpp
-        scaling/unittest_scaling.cpp
-        time/unittest_sequencer.cpp
-        touch/unittest_gestures.cpp
-        touch/unittest_pointer.cpp
-        touch/unittest_velocity_tracking.cpp
-        touch/unittest_native_gestures.cpp
+        unittest_simpletextmeasurement.cpp
         unittest_testeventloop.cpp
-        utils/unittest_encoding.cpp
-        utils/unittest_log.cpp
-        utils/unittest_path.cpp
-        utils/unittest_range.cpp
-        utils/unittest_ringbuffer.cpp
-        utils/unittest_session.cpp
-        utils/unittest_url.cpp
-        utils/unittest_userdata.cpp
-        utils/unittest_weakcache.cpp)
+        ../tools/src/enumparser.cpp
+        unittest_enumgen.cpp
+)
 
+add_subdirectory(action)
+add_subdirectory(animation)
+add_subdirectory(command)
+add_subdirectory(component)
+add_subdirectory(content)
+add_subdirectory(datagrammar)
+add_subdirectory(datasource)
+add_subdirectory(engine)
+add_subdirectory(extension)
+add_subdirectory(focus)
+add_subdirectory(graphic)
+add_subdirectory(livedata)
+add_subdirectory(primitives)
+add_subdirectory(scaling)
+add_subdirectory(time)
+add_subdirectory(touch)
+add_subdirectory(utils)
 
 # Add googletest directly to our build. This defines
 # the gtest and gtest_main targets.
@@ -138,6 +55,10 @@ if(COVERAGE)
     target_add_code_coverage(unittest apl)
 endif()
 target_link_libraries(unittest apl gtest gtest_main)
+if (BUILD_ALEXAEXTENSIONS)
+    target_link_libraries(unittest alexaext)
+endif(BUILD_ALEXAEXTENSIONS)
+
 if(CTEST_INDIVIDUALLY)
     # NOTE: discovered ctest targets below are much slower than their direct counterparts.  Ctest loads
     #       tests individually instead of just running all in a class.  This makes it take much

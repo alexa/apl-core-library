@@ -141,7 +141,7 @@ Content::addPackage(const ImportRequest& request, JsonData&& raw) {
     // Insert into the mLoaded list.  Note that json has been moved
     auto ptr = Package::create(mSession, request.reference().toString(), std::move(raw));
     if (!ptr) {
-        LOGF(LogLevel::ERROR, "Package %s (%s) could not be moved to the loaded list.",
+        LOGF(LogLevel::kError, "Package %s (%s) could not be moved to the loaded list.",
              request.reference().name().c_str(),
              request.reference().version().c_str());
         mState = ERROR;
@@ -194,9 +194,9 @@ Content::getMainProperties(Properties& out) const {
         out.emplace(m.name, mParameterValues.at(m.name).get());
 
     if (DEBUG_CONTENT) {
-        LOG(LogLevel::DEBUG) << "Main Properties:";
+        LOG(LogLevel::kDebug) << "Main Properties:";
         for (const auto& m : out)
-            LOG(LogLevel::DEBUG) << " " << m.first << ": " << m.second.toDebugString();
+            LOG(LogLevel::kDebug) << " " << m.first << ": " << m.second.toDebugString();
     }
 
     return true;
@@ -384,7 +384,7 @@ Content::getBackground(const Metrics& metrics, const RootConfig& config) const {
 
     // Create a working context and evaluate any data-binding expression
     // This is a restricted context because we don't load any resources or styles
-    auto context = Context::create(metrics, config, theme);
+    auto context = Context::createBackgroundEvaluationContext(metrics, config, theme);
     auto object = evaluate(*context, backgroundIter->value);
     return asFill(*context, object);
 }
@@ -458,7 +458,7 @@ Content::addToDependencyList(std::vector<PackagePtr>& ordered,
         // Convert the reference into a loaded PackagePtr
         const auto& pkg = mLoaded.find(ref);
         if (pkg == mLoaded.end()) {
-            LOGF(LogLevel::ERROR, "Missing package '%s' in the loaded set", ref.name().c_str());
+            LOGF(LogLevel::kError, "Missing package '%s' in the loaded set", ref.name().c_str());
             return false;
         }
 

@@ -91,6 +91,7 @@ public:
     PageMoveDrawOrder getDrawOrder() const { return mDrawOrder; }
     int getCurrentPage() const { return mCurrentPage; }
     int getTargetPage() const { return mTargetPage; }
+    SwipeDirection getSwipeDirection() const { return mSwipeDirection; }
 
 
 private:

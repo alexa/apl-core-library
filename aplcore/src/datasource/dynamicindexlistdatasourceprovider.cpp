@@ -15,6 +15,7 @@
 
 #include "apl/datasource/dynamicindexlistdatasourceprovider.h"
 #include "apl/datasource/datasource.h"
+#include "apl/datasource/datasourceprovider.h"
 #include "apl/engine/evaluate.h"
 #include "apl/time/timemanager.h"
 #include "rapidjson/stringbuffer.h"
@@ -23,9 +24,7 @@
 
 using namespace apl;
 using namespace DynamicIndexListConstants;
-
-/// Semi-magic number to seed correlation tokens
-static const int STARTING_REQUEST_TOKEN = 100;
+using namespace DynamicListConstants;
 
 const std::map<std::string, DynamicIndexListUpdateType> sDatasourceUpdateType = {
     {"InsertListItem", kTypeInsert},
@@ -48,147 +47,28 @@ DynamicIndexListDataSourceConnection::DynamicIndexListDataSourceConnection(
         int maximumExclusiveIndex,
         size_t offset,
         size_t maxItems) :
-        OffsetIndexDataSourceConnection(std::move(liveArray), offset, maxItems, configuration.cacheChunkSize),
-        mListId(listId),
-        mProvider(std::move(provider)),
-        mConfiguration(configuration),
-        mContext(std::move(context)),
+        DynamicListDataSourceConnection(std::move(context), listId, std::move(provider), configuration, std::move(liveArray), offset, maxItems),
         mMinimumInclusiveIndex(minimumInclusiveIndex),
         mMaximumExclusiveIndex(maximumExclusiveIndex),
-        mListVersion(0),
         mInFailState(false),
         mLazyLoadingOnly(false)
         {}
 
 void
-DynamicIndexListDataSourceConnection::enqueueFetchRequestEvent(const ContextPtr& context, const ObjectMapPtr& request) {
-    EventBag bag;
-    bag.emplace(kEventPropertyName, mConfiguration.type);
-    bag.emplace(kEventPropertyValue, request);
-    context->pushEvent(Event(kEventTypeDataSourceFetchRequest, std::move(bag)));
-}
-
-void
-DynamicIndexListDataSourceConnection::sendFetchRequest(const ContextPtr& context, int index, int count) {
-    for (const auto& request : mPendingFetchRequests) {
-        auto requestMap = request.second->request;
-        if (requestMap->at(LIST_ID) != mListId)
-            continue;
-
-        // If request such as that already in the go - ignore.
-        if (requestMap->at(START_INDEX) == index && requestMap->at(COUNT) == count) {
-            return;
-        }
-    }
-
-    auto provider = mProvider.lock();
-    if (!provider) {
-        // Provider dead. Should not happen.
-        LOG(LogLevel::ERROR) << "DataSource provider for " << mConfiguration.type
-            << " is dead while trying send fetch request.";
-        return;
-    }
-
-    int requestToken = provider->getAndIncrementCorrelationToken();
-
-    std::string correlationToken = std::to_string(requestToken);
-    ObjectMap request;
-    request.emplace(CORRELATION_TOKEN, correlationToken);
-    request.emplace(LIST_ID, mListId);
-    request.emplace(START_INDEX, index);
-    request.emplace(COUNT, count);
-
-    auto requestMap = std::make_shared<ObjectMap>(request);
-    auto timeoutId = scheduleTimeout(context, correlationToken);
-
-    enqueueFetchRequestEvent(context, requestMap);
-
-    PendingFetchRequest pendingFetchRequest = {requestMap, provider->getConfiguration().fetchRetries, timeoutId,
-                                              {correlationToken}};
-    mPendingFetchRequests.emplace(correlationToken, std::make_shared<PendingFetchRequest>(pendingFetchRequest));
-}
-
-timeout_id
-DynamicIndexListDataSourceConnection::scheduleTimeout(const ContextPtr& context, const std::string& correlationToken) {
-    auto timeManager = context->getRootConfig().getTimeManager();
-    std::weak_ptr<DynamicIndexListDataSourceConnection> weak_ptr(shared_from_this());
-    std::weak_ptr<Context> weak_ctx(context);
-    return timeManager->setTimeout([weak_ptr, weak_ctx, correlationToken]() {
-        auto self = weak_ptr.lock();
-        auto ctx = weak_ctx.lock();
-        if (!self || !ctx)
-            return;
-        auto provider = self->mProvider.lock();
-        if (!provider) {
-            // Provider dead. Should not happen.
-            LOG(LogLevel::ERROR) << "DataSource provider is dead.";
-            return;
-        }
-
-        provider->constructAndReportError(ERROR_REASON_LOAD_TIMEOUT, self,
-                                          Object::NULL_OBJECT(),
-                                          "Retrying timed out request: " + correlationToken);
-        self->retryFetchRequest(ctx, correlationToken, provider);
-    }, mConfiguration.fetchTimeout);
-}
-
-void
-DynamicIndexListDataSourceConnection::retryFetchRequest(const ContextPtr& context, const std::string& correlationToken,
-        const DILProviderPtr& provider) {
-    if (!correlationToken.empty()) {
-        std::string newToken = correlationToken;
-        auto it = mPendingFetchRequests.find(correlationToken);
-        if (it != mPendingFetchRequests.end()) {
-            auto pendingRequest = it->second;
-            pendingRequest->retries--;
-            context->getRootConfig().getTimeManager()->clearTimeout(pendingRequest->timeoutId);
-
-            auto liveArray = mLiveArray.lock();
-            if (liveArray && liveArray->size() != mMaxItems) {
-                // Replace token with new one as it should be unique.
-                newToken = std::to_string(provider->getAndIncrementCorrelationToken());
-                (*pendingRequest->request)[CORRELATION_TOKEN] = newToken;
-                pendingRequest->relatedTokens.emplace_back(newToken);
-
-                enqueueFetchRequestEvent(context, pendingRequest->request);
-
-                if (pendingRequest->retries > 0) {
-                    // Reset timeout
-                    pendingRequest->timeoutId = scheduleTimeout(context, newToken);
-                    mPendingFetchRequests.emplace(newToken, pendingRequest);
-                } else {
-                    // Clean up all related
-                    for (auto& token : pendingRequest->relatedTokens) {
-                        mPendingFetchRequests.erase(token);
-                    }
-                }
-            }
-        }
-    }
-}
-
-void
 DynamicIndexListDataSourceConnection::fetch(size_t index, size_t count) {
     int idx = index + mMinimumInclusiveIndex;
-    auto context = mContext.lock();
-    if (context)
-        sendFetchRequest(context, idx, count);
+
+    auto requestData = ObjectMap{{START_INDEX, idx}, {COUNT, count}};
+
+    sendFetchRequest(requestData);
 }
 
 bool
 DynamicIndexListDataSourceConnection::processLazyLoad(int index, const Object& data, const Object& correlationToken) {
-    auto provider = mProvider.lock();
-    if (!provider) {
-        // Provider dead. Should not happen.
-        LOG(LogLevel::ERROR) << "DataSource provider for " << mConfiguration.type
-            << " is dead while trying to process lazy loading.";
-        return false;
-    }
-
     auto context = mContext.lock();
-    if (!context) {
+    if (!context)
         return false;
-    }
+
     auto items = evaluateRecursive(*context, data);
 
     bool result = false;
@@ -214,30 +94,22 @@ DynamicIndexListDataSourceConnection::processLazyLoad(int index, const Object& d
 
         size_t idx = index - mMinimumInclusiveIndex;
         if (overlaps(idx, dataArray.size())) {
-            provider->constructAndReportError(ERROR_REASON_OCCUPIED_LIST_INDEX, shared_from_this(), index,
+            constructAndReportError(ERROR_REASON_OCCUPIED_LIST_INDEX, index,
                     "Load range overlaps existing items. New items for existing range discarded.");
         }
         result = update(idx, dataArray, false);
     } else {
-        provider->constructAndReportError(ERROR_REASON_MISSING_LIST_ITEMS, shared_from_this(), index,
+        constructAndReportError(ERROR_REASON_MISSING_LIST_ITEMS, index,
                 "No items provided to load.");
-        retryFetchRequest(context, correlationToken.asString(), provider);
+            retryFetchRequest(correlationToken.asString());
         return result;
     }
 
-    // Clear timeouts and remove request from pending list
-    if (result && !correlationToken.isNull()) {
-        auto it = mPendingFetchRequests.find(correlationToken.asString());
-        if (it != mPendingFetchRequests.end()) {
-            context->getRootConfig().getTimeManager()->clearTimeout(it->second->timeoutId);
-            for (auto& token : it->second->relatedTokens) {
-                mPendingFetchRequests.erase(token);
-            }
-        }
-    }
+    if (result)
+        clearTimeouts(context, correlationToken.asString());
 
     if (!result || outOfRange) {
-        provider->constructAndReportError(ERROR_REASON_LOAD_INDEX_OUT_OF_RANGE, shared_from_this(), index,
+        constructAndReportError(ERROR_REASON_LOAD_INDEX_OUT_OF_RANGE, index,
                 "Requested index out of bounds.");
     }
     return result;
@@ -246,17 +118,8 @@ DynamicIndexListDataSourceConnection::processLazyLoad(int index, const Object& d
 bool
 DynamicIndexListDataSourceConnection::processUpdate(DynamicIndexListUpdateType type, int index, const Object& data,
         int count) {
-    auto provider = mProvider.lock();
-    if (!provider) {
-        // Provider dead. Should not happen.
-        LOG(LogLevel::ERROR) << "DataSource provider for " << mConfiguration.type
-            << " is dead while trying to process update.";
-        return false;
-    }
-
     if (index < mMinimumInclusiveIndex) {
-        provider->constructAndReportError(ERROR_REASON_LIST_INDEX_OUT_OF_RANGE,
-                                            shared_from_this(), index,
+        constructAndReportError(ERROR_REASON_LIST_INDEX_OUT_OF_RANGE, index,
                                             "Requested index out of bounds.");
         return false;
     }
@@ -296,7 +159,7 @@ DynamicIndexListDataSourceConnection::processUpdate(DynamicIndexListUpdateType t
             }
 
             if (!items.isArray()) {
-                provider->constructAndReportError(ERROR_REASON_INTERNAL_ERROR, shared_from_this(), index,
+                constructAndReportError(ERROR_REASON_INTERNAL_ERROR, index,
                         "No array provided for range insert.");
                 return false;
             }
@@ -318,7 +181,7 @@ DynamicIndexListDataSourceConnection::processUpdate(DynamicIndexListUpdateType t
             break;
     }
     if (!result) {
-        provider->constructAndReportError(ERROR_REASON_LIST_INDEX_OUT_OF_RANGE, shared_from_this(), index,
+        constructAndReportError(ERROR_REASON_LIST_INDEX_OUT_OF_RANGE, index,
                 "Requested index out of bounds.");
     }
     return result;
@@ -376,92 +239,8 @@ DynamicIndexListDataSourceConnection::updateBounds(
     return wasChanged;
 }
 
-timeout_id
-DynamicIndexListDataSourceConnection::scheduleUpdateExpiry(int version) {
-    auto context = mContext.lock();
-    if (context) {
-        // Schedule "expiry" of list version cache
-        auto timeManager = context->getRootConfig().getTimeManager();
-        std::weak_ptr<DynamicIndexListDataSourceConnection> weak_ptr(shared_from_this());
-
-        return timeManager->setTimeout([weak_ptr, version]() {
-            auto self = weak_ptr.lock();
-            if (!self)
-                return;
-
-            self->reportUpdateExpired(version);
-        }, mConfiguration.cacheExpiryTimeout);
-    }
-    return 0;
-}
-
-void
-DynamicIndexListDataSourceConnection::reportUpdateExpired(int version) {
-    auto context = mContext.lock();
-    auto provider = mProvider.lock();
-
-    if (!context || !provider)
-        return;
-
-    auto it = mUpdatesCache.find(version);
-    if (it != mUpdatesCache.end()) {
-        context->getRootConfig().getTimeManager()->clearTimeout(it->second.expiryTimeout);
-        provider->constructAndReportError(ERROR_REASON_MISSING_LIST_VERSION, shared_from_this(), Object::NULL_OBJECT(),
-                "Update to version " + std::to_string(version + 1) + " buffered longer than expected.");
-    }
-}
-
-void
-DynamicIndexListDataSourceConnection::putCacheUpdate(int version, const Object& payload) {
-    auto provider = mProvider.lock();
-    if (!provider) {
-        // Provider dead. Should not happen.
-        LOG(LogLevel::ERROR) << "DataSource provider for " << mConfiguration.type
-            << " is dead while trying to process update cache.";
-        return;
-    }
-
-    if (mUpdatesCache.size() >= provider->getConfiguration().listUpdateBufferSize) {
-        // Remove highest or discard current one if it's one.
-        provider->constructAndReportError(ERROR_REASON_MISSING_LIST_VERSION, shared_from_this(),
-                Object::NULL_OBJECT(), "Too many updates buffered. Discarding highest version.");
-        auto it = mUpdatesCache.rbegin();
-        if (it->first > version) {
-            retrieveCachedUpdate(it->first);
-        } else {
-            return;
-        }
-    }
-
-    if (!mUpdatesCache.count(version)) {
-        auto timeoutId = scheduleUpdateExpiry(version);
-        Update update = {payload, timeoutId};
-        mUpdatesCache.emplace(version, update);
-    } else {
-        provider->constructAndReportError(ERROR_REASON_DUPLICATE_LIST_VERSION, shared_from_this(),
-                Object::NULL_OBJECT(), "Trying to cache existing list version.");
-    }
-}
-
-Object
-DynamicIndexListDataSourceConnection::retrieveCachedUpdate(int version) {
-    auto it = mUpdatesCache.find(version);
-    if (it != mUpdatesCache.end()) {
-        auto context = mContext.lock();
-        if (context) {
-            context->getRootConfig().getTimeManager()->clearTimeout(it->second.expiryTimeout);
-        }
-
-        Object payload = it->second.update;
-        mUpdatesCache.erase(version);
-
-        return payload;
-    }
-    return Object::NULL_OBJECT();
-}
-
 DynamicIndexListDataSourceProvider::DynamicIndexListDataSourceProvider(const DynamicIndexListConfiguration& config)
-        : mConfiguration(config), mRequestToken(STARTING_REQUEST_TOKEN) {}
+        : DynamicListDataSourceProvider(config) {}
 
 DynamicIndexListDataSourceProvider::DynamicIndexListDataSourceProvider(const std::string& type, size_t cacheChunkSize)
         : DynamicIndexListDataSourceProvider(DynamicIndexListConfiguration(type, cacheChunkSize)) {}
@@ -469,22 +248,14 @@ DynamicIndexListDataSourceProvider::DynamicIndexListDataSourceProvider(const std
 DynamicIndexListDataSourceProvider::DynamicIndexListDataSourceProvider()
         : DynamicIndexListDataSourceProvider(DynamicIndexListConfiguration()) {}
 
-std::shared_ptr<DataSourceConnection>
-DynamicIndexListDataSourceProvider::create(const Object& sourceDefinition, std::weak_ptr<Context> context,
-        std::weak_ptr<LiveArray> liveArray) {
-    clearStaleConnections();
-
-    if (!sourceDefinition.has(LIST_ID) || !sourceDefinition.has(START_INDEX) ||
-        !sourceDefinition.get(LIST_ID).isString() || !sourceDefinition.get(START_INDEX).isNumber()) {
+std::shared_ptr<DynamicListDataSourceConnection>
+DynamicIndexListDataSourceProvider::createConnection(
+    const Object& sourceDefinition,
+    std::weak_ptr<Context> context,
+    std::weak_ptr<LiveArray> liveArray,
+    const std::string& listId) {
+    if (!sourceDefinition.has(START_INDEX) || !sourceDefinition.get(START_INDEX).isNumber()) {
         constructAndReportError(ERROR_REASON_INTERNAL_ERROR, "N/A", "Missing required fields.");
-        return nullptr;
-    }
-
-    auto listId = sourceDefinition.get(LIST_ID).getString();
-    auto it = mConnections.find(listId);
-    if (it != mConnections.end()) {
-        // Trying to reuse existing listId/DataSource. Should not happen.
-        constructAndReportError(ERROR_REASON_INTERNAL_ERROR, listId, "Trying to reuse existing listId.");
         return nullptr;
     }
 
@@ -494,7 +265,11 @@ DynamicIndexListDataSourceProvider::create(const Object& sourceDefinition, std::
     int minimumInclusiveIndex = minimumInclusiveIndexObj.isNumber() ? minimumInclusiveIndexObj.getInteger() : INT_MIN;
     int maximumExclusiveIndex = maximumExclusiveIndexObj.isNumber() ? maximumExclusiveIndexObj.getInteger() : INT_MAX;
 
-    if (minimumInclusiveIndex > startIndex || maximumExclusiveIndex <= startIndex) {
+    // Check if boundaries and start position is valid:
+    //  * startIndex should generally be in [minimumInclusiveIndex, maximumExclusiveIndex) range.
+    //  * As an exception we allow for all of properties to be equal for proactive loading case.
+    if (!(minimumInclusiveIndex == startIndex && maximumExclusiveIndex == startIndex) &&
+         (minimumInclusiveIndex > startIndex || maximumExclusiveIndex < startIndex)) {
         constructAndReportError(ERROR_REASON_INTERNAL_ERROR, listId, "DataSource bounds configuration is wrong.");
         return nullptr;
     }
@@ -513,10 +288,8 @@ DynamicIndexListDataSourceProvider::create(const Object& sourceDefinition, std::
         }
     }
 
-    auto connection = std::make_shared<DynamicIndexListDataSourceConnection>(shared_from_this(), mConfiguration,
+    return std::make_shared<DynamicIndexListDataSourceConnection>(shared_from_this(), mConfiguration,
             context, liveArray, listId, minimumInclusiveIndex, maximumExclusiveIndex, offset, maxItems);
-    mConnections.emplace(listId, connection);
-    return connection;
 }
 
 bool
@@ -525,17 +298,8 @@ DynamicIndexListDataSourceProvider::processLazyLoadInternal(
     int startIndex = responseMap.get(START_INDEX).getInteger();
     auto correlationToken = responseMap.get(CORRELATION_TOKEN);
 
-    if (!correlationToken.isNull() && !connection->canProcess(correlationToken.asString())) {
-        int tokenNumber = correlationToken.asInt();
-        if (tokenNumber < mRequestToken && tokenNumber > STARTING_REQUEST_TOKEN) {
-            // Most likely duplicate response because of timeout. Skill can't really track it so just exit.
-            return false;
-        }
-
-        // Responding to processed or non-existing event
-        constructAndReportError(ERROR_REASON_INTERNAL_ERROR, connection, startIndex, "Wrong correlation token.");
+    if (!canFetch(correlationToken, connection))
         return false;
-    }
 
     auto minimumInclusiveIndex = responseMap.get(MINIMUM_INCLUSIVE_INDEX);
     auto maximumExclusiveIndex = responseMap.get(MAXIMUM_EXCLUSIVE_INDEX);
@@ -604,9 +368,7 @@ DynamicIndexListDataSourceProvider::processUpdateInternal(
 }
 
 bool
-DynamicIndexListDataSourceProvider::processUpdate(const Object& payload) {
-    clearStaleConnections();
-
+DynamicIndexListDataSourceProvider::process(const Object& payload) {
     if (!payload.isString()) {
         constructAndReportError(ERROR_REASON_INTERNAL_ERROR, "N/A", "Can't process payload.");
         return false;
@@ -624,39 +386,13 @@ DynamicIndexListDataSourceProvider::processUpdate(const Object& payload) {
 
     std::string listId = responseMap.get(LIST_ID).getString();
 
-    bool hasValidListId = true;
-    auto connectionIter = mConnections.find(listId);
-    if (connectionIter == mConnections.end()) {
-        hasValidListId = false;
+    auto dataSourceConnection = getConnection(listId, responseMap.get(CORRELATION_TOKEN));
 
-        // Non-existing. Give it a chance to figure out by correlationToken.
-        auto correlationToken = responseMap.get(CORRELATION_TOKEN);
-        if (!correlationToken.isNull()) {
-            connectionIter = mConnections.begin();
-            while (connectionIter != mConnections.end()) {
-                auto connection = connectionIter->second.lock();
-                if (connection && connection->canProcess(correlationToken.asString())) {
-                    break;
-                }
-                connectionIter++;
-            }
-        }
-    }
-
-    if (!hasValidListId && connectionIter != mConnections.end()) {
-        constructAndReportError(ERROR_REASON_INCONSISTENT_LIST_ID, listId, "Non-existing listId.");
-    } else if (connectionIter == mConnections.end()) {
-        constructAndReportError(ERROR_REASON_INVALID_LIST_ID, listId, "Unexpected response.");
+    if(!dataSourceConnection) {
         return false;
     }
 
-    auto connection = connectionIter->second.lock();
-    if (!connection) {
-        // Link is dead. Clean it up. Unlikely to happen but clean anyway.
-        mConnections.erase(connectionIter);
-        constructAndReportError(ERROR_REASON_INTERNAL_ERROR, listId, "DataSource context lost.");
-        return false;
-    }
+    auto connection = std::dynamic_pointer_cast<DynamicIndexListDataSourceConnection>(dataSourceConnection);
 
     if(connection->inFailState()) {
         constructAndReportError(ERROR_REASON_INTERNAL_ERROR, listId, "List in fail state.");
@@ -718,78 +454,11 @@ DynamicIndexListDataSourceProvider::processUpdate(const Object& payload) {
     return result;
 }
 
-Object
-DynamicIndexListDataSourceProvider::getPendingErrors() {
-    Object result = Object(std::make_shared<ObjectArray>(mPendingErrors));
-    mPendingErrors.clear();
-    return result;
-}
-
 std::pair<int, int>
 DynamicIndexListDataSourceProvider::getBounds(const std::string& listId) {
-    auto connectionIter = mConnections.find(listId);
-    if (connectionIter == mConnections.end()) {
-        // Non-existing
-        return {};
-    }
-    auto connection = connectionIter->second.lock();
-    if (!connection)
+    auto connection = std::dynamic_pointer_cast<DynamicIndexListDataSourceConnection>(getConnection(listId));
+    if(!connection)
         return {};
 
     return connection->getBounds();
-}
-
-void
-DynamicIndexListDataSourceProvider::clearStaleConnections() {
-    auto cIt = mConnections.cbegin();
-    while (cIt != mConnections.cend()) {
-        if (cIt->second.expired()) {
-            // Link is dead. Clean it up.
-            cIt = mConnections.erase(cIt);
-        } else {
-            ++cIt;
-        }
-    }
-}
-
-void
-DynamicIndexListDataSourceProvider::constructAndReportError(
-        const std::string& reason,
-        const std::string& listId,
-        const Object& listVersion,
-        const Object& operationIndex,
-        const std::string& message) {
-    auto error = std::make_shared<ObjectMap>();
-
-    error->emplace(ERROR_TYPE, ERROR_TYPE_LIST_ERROR);
-    error->emplace(ERROR_REASON, reason);
-    error->emplace(LIST_ID, listId);
-    if (listVersion.isNumber()) {
-        error->emplace(LIST_VERSION, listVersion);
-    }
-    if (operationIndex.isNumber()) {
-        error->emplace(ERROR_OPERATION_INDEX, operationIndex);
-    }
-    error->emplace(ERROR_MESSAGE, message);
-
-    mPendingErrors.emplace_back(std::move(error));
-    // Throw errors into log to help debugging on device
-    LOG(LogLevel::WARN) << "Datasource " << listId << "; Error: " << message;
-}
-
-void
-DynamicIndexListDataSourceProvider::constructAndReportError(
-        const std::string& reason,
-        const std::string& listId,
-        const std::string& message) {
-    constructAndReportError(reason, listId, Object::NULL_OBJECT(), Object::NULL_OBJECT(), message);
-}
-
-void
-DynamicIndexListDataSourceProvider::constructAndReportError(
-        const std::string& reason,
-        const DILConnectionPtr& connection,
-        const Object& operationIndex,
-        const std::string& message) {
-    constructAndReportError(reason, connection->getListId(), connection->getListVersion(), operationIndex, message);
 }

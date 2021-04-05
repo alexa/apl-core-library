@@ -22,13 +22,13 @@
 namespace apl {
 
 /**
- * Simple LiveData watcher that get's notified when registered objects flushed.
+ * Simple LiveData watcher that gets notified when registered objects flushed.
  */
 class LiveDataObjectWatcher {
 public:
+    virtual ~LiveDataObjectWatcher();
+
     void registerObjectWatcher(const std::shared_ptr<LiveDataObject>& object);
-    void unregisterObjectWatcher();
-    virtual ~LiveDataObjectWatcher() = default;
 
 protected:
     virtual void liveDataObjectFlushed(const std::string& key, LiveDataObject& liveDataObject) = 0;

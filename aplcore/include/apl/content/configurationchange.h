@@ -18,6 +18,7 @@
 
 #include "apl/content/rootconfig.h"
 #include "apl/content/metrics.h"
+#include "apl/primitives/size.h"
 
 namespace apl {
 
@@ -126,14 +127,45 @@ public:
      */
     RootConfig mergeRootConfig(const RootConfig& oldRootConfig) const;
 
+    /**
+     * Merge this configuration change into a new size object
+     * @param oldSize
+     * @return A new size object with these changes
+     */
+    Size mergeSize(const Size& oldSize) const;
+
+    /**
+     * Merge a new configuration change into this one.
+     * @param other
+     */
+    void mergeConfigurationChange(const ConfigurationChange& other);
+
+    /**
+     * Create a map of properties to add include in the onConfigChange event handler
+     * @param rootConfig The current root config
+     * @param metrics The current metrics
+     * @return A key-value map of properties
+     */
+    ObjectMap asEventProperties(const RootConfig& rootConfig, const Metrics& metrics) const;
+
+    /**
+     * @return True if the configuration change is empty
+     */
+    bool empty() const { return mFlags == 0; }
+
+    /**
+     * Clear the configuration change
+     */
+    void clear() { mFlags = 0; }
+
 private:
     enum SetFlags : unsigned int {
-        kConfigurationChangeSize = 1 << 0,
-        kConfigurationChangeTheme = 1 << 1,
-        kConfigurationChangeViewportMode = 1 << 2,
-        kConfigurationChangeScreenMode = 1 << 3,
-        kConfigurationChangeFontScale = 1 << 4,
-        kConfigurationChangeScreenReader = 1 << 5
+        kConfigurationChangeSize = 1u << 0,
+        kConfigurationChangeTheme = 1u << 1,
+        kConfigurationChangeViewportMode = 1u << 2,
+        kConfigurationChangeScreenMode = 1u << 3,
+        kConfigurationChangeFontScale = 1u << 4,
+        kConfigurationChangeScreenReader = 1u << 5
     };
 
     unsigned int mFlags = 0;

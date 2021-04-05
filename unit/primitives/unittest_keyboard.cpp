@@ -83,8 +83,6 @@ TEST(Keyboard, Reserved) {
     ASSERT_TRUE(Keyboard::PAGE_DOWN_KEY().isReservedKey());
     ASSERT_TRUE(Keyboard::HOME_KEY().isReservedKey());
     ASSERT_TRUE(Keyboard::END_KEY().isReservedKey());
-    ASSERT_TRUE(Keyboard::TAB_KEY().isReservedKey());
-    ASSERT_TRUE(Keyboard::SHIFT_TAB_KEY().isReservedKey());
 
     // False for random key
     ASSERT_FALSE(Keyboard("No", "No").isReservedKey());

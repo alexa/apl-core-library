@@ -243,7 +243,7 @@ TEST(ObjectTest, Gradient)
     doc.AddMember("colorRange", colorRange, allocator);
     doc.AddMember("type", "radial", allocator);
 
-    auto context = Context::create(Metrics().size(1024,800), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics().size(1024,800), makeDefaultSession());
 
     Object a = Gradient::create(*context, doc);
 
@@ -363,7 +363,7 @@ TEST(ObjectTest, MalformedGradient)
     rapidjson::ParseResult ok = doc.Parse(BAD_CASES);
     ASSERT_TRUE(ok);
 
-    auto context = Context::create(Metrics().size(1024,800), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics().size(1024,800), makeDefaultSession());
 
     for (auto& m : doc.GetObject()) {
         Object result = Gradient::create(*context, m.value);
@@ -395,7 +395,7 @@ TEST(ObjectTest, Transform)
     rapidjson::ParseResult ok = doc.Parse(SCALE);
     ASSERT_TRUE(ok);
 
-    auto context = Context::create(Metrics().size(1024,800), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics().size(1024,800), makeDefaultSession());
 
     auto transform = Transformation::create(*context, arrayify(*context, Object(doc)));
 
@@ -586,4 +586,51 @@ TEST(ObjectTest, MutableObjects)
 
     array = Object(ObjectArray{2,3,4}, true).getMutableArray();
     ASSERT_EQ(3, array.size());
+}
+
+TEST(ObjectTest, IntLongFloatNumber)
+{
+    ASSERT_EQ(0, Object::NULL_OBJECT().asInt());
+    ASSERT_EQ(0, Object::FALSE_OBJECT().asInt());
+    ASSERT_EQ(1, Object::TRUE_OBJECT().asInt());
+    ASSERT_EQ(32, Object(32).asInt());
+    ASSERT_EQ(33, Object(32.5).asInt());
+    ASSERT_EQ(23, Object("23").asInt());
+    ASSERT_EQ(23, Object("0x17").asInt(0));
+    ASSERT_EQ(23, Object("23.9999").asInt());
+    ASSERT_EQ(23, Object(Dimension(23)).asInt());
+    ASSERT_EQ(0, Object(Dimension(DimensionType::Relative, 23)).asInt());  // Relative dimensions don't have a integer type
+
+    int max_int = std::numeric_limits<int>::max();
+    int64_t max_int_in_long = max_int;
+    auto bigNumber = Object(max_int_in_long + 1);
+    ASSERT_EQ(max_int_in_long + 1, bigNumber.asInt64());
+    if (sizeof(int) <= sizeof(4)) {
+        ASSERT_NE(max_int_in_long + 1, bigNumber.asInt());
+    }
+
+    ASSERT_EQ(0LL, Object::NULL_OBJECT().asInt64());
+    ASSERT_EQ(0LL, Object::FALSE_OBJECT().asInt64());
+    ASSERT_EQ(1LL, Object::TRUE_OBJECT().asInt64());
+    ASSERT_EQ(32LL, Object(32).asInt64());
+    ASSERT_EQ(33LL, Object(32.5).asInt64());
+    ASSERT_EQ(23LL, Object("23").asInt64());
+    ASSERT_EQ(23LL, Object("0x17").asInt64(0));
+    ASSERT_EQ(23LL, Object("23.9999").asInt64());
+    ASSERT_EQ(23LL, Object(Dimension(23)).asInt64());
+    ASSERT_EQ(0LL, Object(Dimension(DimensionType::Relative, 23)).asInt64());  // Relative dimensions don't have a integer type
+
+    int64_t max_long_in_double = 9007199254740992;  // 2^53: Largest integer before we get rounding errors
+    ASSERT_EQ(max_long_in_double, Object(max_long_in_double).asInt64());
+    ASSERT_NE(max_long_in_double + 1, Object(max_long_in_double + 1).asInt64());
+
+    ASSERT_TRUE(std::isnan(Object::NULL_OBJECT().asNumber()));
+    ASSERT_EQ(0.0, Object::FALSE_OBJECT().asNumber());
+    ASSERT_EQ(1.0, Object::TRUE_OBJECT().asNumber());
+    ASSERT_EQ(32.0, Object(32).asNumber());
+    ASSERT_EQ(32.5, Object(32.5).asNumber());
+    ASSERT_EQ(23.0, Object("23").asNumber());
+    ASSERT_NEAR(23.9999, Object("23.9999").asNumber(), 0.000001);
+    ASSERT_EQ(23.5, Object(Dimension(23.5)).asNumber());
+    ASSERT_TRUE(std::isnan(Object(Dimension(DimensionType::Relative, 23)).asNumber()));  // Relative dimensions don't have a integer type
 }

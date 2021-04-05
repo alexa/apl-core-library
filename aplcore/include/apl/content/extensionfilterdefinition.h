@@ -109,7 +109,7 @@ public:
      */
     ExtensionFilterDefinition& property(const std::string& name, Property&& prop) {
         if (name == "when" || name == "type" || name == "source" || name == "destination")
-            LOG(LogLevel::WARN) << "Unable to register property '" << name << "' in custom filter extension " << mName;
+            LOG(LogLevel::kWarn) << "Unable to register property '" << name << "' in custom filter extension " << mName;
         else
             mPropertyMap.emplace(name, std::move(prop));
         return *this;

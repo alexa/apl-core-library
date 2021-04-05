@@ -32,7 +32,7 @@ public:
     DumpVisitor() : mIndent(0) {}
 
     void visit(const Object& object) {
-        LOG(LogLevel::DEBUG) << std::string(mIndent + 1,' ') << object;
+        LOG(LogLevel::kDebug) << std::string(mIndent + 1,' ') << object;
     }
 
     void push() { mIndent += 2; }

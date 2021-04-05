@@ -14,6 +14,8 @@
 target_sources_local(apl
     PRIVATE
     datasource.cpp
+    dynamiclistdatasourceprovider.cpp
     dynamicindexlistdatasourceprovider.cpp
+    dynamictokenlistdatasourceprovider.cpp
     offsetindexdatasourceconnection.cpp
 )

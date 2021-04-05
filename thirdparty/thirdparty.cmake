@@ -21,7 +21,7 @@ foreach(CACHE_VAR ${CACHE_VARS})
 endforeach()
 
 set(EXT_CXX_ARGS "-std=c++11 ${WASM_FLAGS} ${CMAKE_CXX_FLAGS}")
-if (BUILD_SHARED)
+if (BUILD_SHARED OR ENABLE_PIC)
     set(EXT_CXX_ARGS "${EXT_CXX_ARGS} -fPIC")
 endif()
 list(APPEND CMAKE_ARGS -DCMAKE_CXX_FLAGS=${EXT_CXX_ARGS})
@@ -90,7 +90,7 @@ ExternalProject_Add(pegtl
 ExternalProject_Get_Property(pegtl install_dir)
 set(PEGTL_INCLUDE ${install_dir}/src/pegtl/include)
 
-if (USE_SYSTEM_RAPIDJON)
+if (USE_SYSTEM_RAPIDJSON)
     find_path(RAPIDJSON_INCLUDE
         NAMES rapidjson/document.h
         REQUIRED)

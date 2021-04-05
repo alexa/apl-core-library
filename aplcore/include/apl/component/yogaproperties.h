@@ -51,11 +51,6 @@ extern void setGridScrollDirection(YGNodeRef nodeRef, const Object& value, const
 extern void setDisplay(YGNodeRef nodeRef, const Object& value, const Context&);
 
 template<YGEdge edge>
-void setPadding(YGNodeRef nodeRef, const Object& value, const Context& context) {
-    setPadding(nodeRef, edge, value, context);
-}
-
-template<YGEdge edge>
 void setBorder(YGNodeRef nodeRef, const Object& value, const Context& context) {
     setBorder(nodeRef, edge, value, context);
 }

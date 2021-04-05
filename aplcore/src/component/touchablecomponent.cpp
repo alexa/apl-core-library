@@ -16,7 +16,6 @@
 #include "apl/component/componentpropdef.h"
 #include "apl/component/touchablecomponent.h"
 #include "apl/content/rootconfig.h"
-#include "apl/engine/context.h"
 #include "apl/engine/keyboardmanager.h"
 #include "apl/engine/propdef.h"
 #include "apl/time/sequencer.h"
@@ -53,25 +52,13 @@ TouchableComponent::setGestureHandlers()
 }
 
 bool
-TouchableComponent::processGestures(const PointerEvent& event, apl_time_t timestamp, bool topComponent) {
-    // Touchable components is only process pointer events if initially designated as targets as per spec.
-    // Could change in future.
-    if (!topComponent) return false;
-    return ActionableComponent::processGestures(event, timestamp, topComponent);
-}
+TouchableComponent::processPointerEvent(const PointerEvent& event, apl_time_t timestamp)
+{
+    if (ActionableComponent::processPointerEvent(event, timestamp))
+        return true;
 
-bool
-TouchableComponent::shouldPropagatePointerEvent(const PointerEvent& event, apl_time_t timestamp) {
-    if (!ActionableComponent::shouldPropagatePointerEvent(event, timestamp)) {
-        return false;
-    }
-
-    // TODO: Will not handle multitouch properly.
-    if (event.pointerEventType == kPointerDown) {
-        mPointerInteractionStartTime = timestamp;
-    }
-
-    return timestamp < mPointerInteractionStartTime + mContext->getRootConfig().getTapOrScrollTimeout();
+    // Exit as we processed it as pressed.
+    return event.pointerEventType == kPointerUp;
 }
 
 void
@@ -85,7 +72,8 @@ TouchableComponent::invokeStandardAccessibilityAction(const std::string& name)
 }
 
 const ComponentPropDefSet &
-TouchableComponent::propDefSet() const {
+TouchableComponent::propDefSet() const
+{
     static ComponentPropDefSet sTouchableComponentProperties(ActionableComponent::propDefSet(), {
         {kPropertyOnCancel, Object::EMPTY_ARRAY(), asCommand, kPropIn},
         {kPropertyOnDown,   Object::EMPTY_ARRAY(), asCommand, kPropIn},
@@ -98,17 +86,20 @@ TouchableComponent::propDefSet() const {
 }
 
 void
-TouchableComponent::executePreEventActions(PropertyKey handlerKey) {
+TouchableComponent::executePreEventActions(PropertyKey handlerKey)
+{
     switch (handlerKey) {
         case kPropertyOnUp:
         case kPropertyOnCancel:
         case kPropertyOnPress:
         case kPropertyHandleKeyUp:
             setState(kStatePressed, false);
+            mReceivedOnDown = false;
             break;
         case kPropertyOnDown:
         case kPropertyHandleKeyDown:
             setState(kStatePressed, true);
+            mReceivedOnDown = true;
             break;
         case kPropertyOnMove:
         default:
@@ -117,7 +108,8 @@ TouchableComponent::executePreEventActions(PropertyKey handlerKey) {
 }
 
 void
-TouchableComponent::executePostEventActions(PropertyKey handlerKey, const Point &localPoint) {
+TouchableComponent::executePostEventActions(PropertyKey handlerKey, const Point &localPoint)
+{
     switch (handlerKey) {
         case kPropertyOnUp:
             if (containsLocalPosition(localPoint)) {
@@ -136,7 +128,8 @@ TouchableComponent::executePostEventActions(PropertyKey handlerKey, const Point 
 void
 TouchableComponent::addHandlerEventProperties(PropertyKey handlerKey,
                                               const Point& localPoint,
-                                              const ObjectMapPtr& eventProperties) const {
+                                              const ObjectMapPtr& eventProperties) const
+{
     switch (handlerKey) {
         case kPropertyOnMove:
         case kPropertyOnUp:
@@ -155,6 +148,9 @@ TouchableComponent::executePointerEventHandler(PropertyKey handlerKey, const Poi
 {
     if (mState.get(kStateDisabled)) return;
 
+    // If not pressed - do not propagate any "finishing" event.
+    if (!mReceivedOnDown && (handlerKey == kPropertyOnUp || handlerKey == kPropertyOnCancel)) return;
+
     executePreEventActions(handlerKey);
     auto& commands = getCalculated(handlerKey);
     if (!commands.empty()) {
@@ -170,21 +166,23 @@ TouchableComponent::executePointerEventHandler(PropertyKey handlerKey, const Poi
 }
 
 bool
-TouchableComponent::executeIntrinsicKeyHandlers(KeyHandlerType type, const ObjectMapPtr& keyboard) {
-    auto key = keyboard->at("key").getString();
+TouchableComponent::executeIntrinsicKeyHandlers(KeyHandlerType type, const Keyboard& keyboard)
+{
     if (!mState.get(kStateDisabled)) {
         auto handlerKey = KeyboardManager::getHandlerPropertyKey(type);
-        if ((key == "Enter" || key == "NumpadEnter") && !getCalculated(kPropertyOnPress).empty()) {
+        if ((Keyboard::ENTER_KEY().sameKey(keyboard) || Keyboard::NUMPAD_ENTER_KEY().sameKey(keyboard))
+            && !getCalculated(kPropertyOnPress).empty()) {
             executePreEventActions(handlerKey);
             handleEnterKey(handlerKey);
             return true;
-        } // add elseif for other keys
+        }
     }
-    return ActionableComponent::executeKeyHandlers(type, keyboard);
+    return ActionableComponent::executeIntrinsicKeyHandlers(type, keyboard);
 }
 
 void
-TouchableComponent::handleEnterKey(PropertyKey handlerKey) {
+TouchableComponent::handleEnterKey(PropertyKey handlerKey)
+{
     switch (handlerKey) {
         case kPropertyHandleKeyDown:
             break;
@@ -198,26 +196,30 @@ TouchableComponent::handleEnterKey(PropertyKey handlerKey) {
 
 
 bool
-TouchableComponent::getTags(rapidjson::Value &outMap, rapidjson::Document::AllocatorType &allocator) {
+TouchableComponent::getTags(rapidjson::Value &outMap, rapidjson::Document::AllocatorType &allocator)
+{
     CoreComponent::getTags(outMap, allocator);
     outMap.AddMember("clickable", true, allocator);
     return true;
 }
 
 Object
-TouchableComponent::getValue() const {
+TouchableComponent::getValue() const
+{
     return mState.get(kStateChecked);
 }
 
 void
-TouchableComponent::initialize() {
+TouchableComponent::initialize()
+{
     CoreComponent::initialize();
     setGestureHandlers();
 }
 
 // TODO: remove once we support handing intrinsic/reserved keys
 void
-TouchableComponent::update(UpdateType type, float value) {
+TouchableComponent::update(UpdateType type, float value)
+{
     if (type == kUpdatePressed) {
         // don't bother with setting pressed state and unsetting it here, although this should only
         // be triggered from the enter key/dpad center, we've lost the timings of key up/down.  Will

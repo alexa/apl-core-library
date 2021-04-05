@@ -19,20 +19,26 @@
 #include <map>
 #include <set>
 
+#include "apl/content/configurationchange.h"
 #include "apl/content/settings.h"
 #include "apl/common.h"
 #include "apl/engine/event.h"
 #include "apl/engine/info.h"
 #include "apl/content/rootconfig.h"
+#include "apl/focus/focusdirection.h"
+#include "apl/utils/noncopyable.h"
 #include "apl/utils/userdata.h"
 #include "apl/primitives/keyboard.h"
+
+#ifdef ALEXAEXTENSIONS
+#include "apl/extension/extensionmediator.h"
+#endif
 
 namespace apl {
 
 class Metrics;
 class RootConfig;
 class RootContextData;
-class ConfigurationChange;
 class TimeManager;
 struct PointerEvent;
 
@@ -78,7 +84,9 @@ extern const char *UTC_TIME;
  *
  * To cancel any currently running commands, use cancelExecution().
  */
-class RootContext : public std::enable_shared_from_this<RootContext>, public UserData<RootContext> {
+class RootContext : public std::enable_shared_from_this<RootContext>,
+                    public UserData<RootContext>,
+                    public NonCopyable {
 public:
     /**
      * Construct a top-level root context.
@@ -115,12 +123,28 @@ public:
                                  std::function<void(const RootContextPtr&)> callback);
 
     /**
-     * Reinflate this context given a change in configuration.  This will terminate any existing
-     * animations, remove any events on the queue, clear the dirty components, and create a new
-     * component hierarchy.
+     * Inform the view host of a configuration change. Internally this method will trigger the "onConfigChange"
+     * event handler in the APL document.  A common behavior in the onConfigChange event handler is to
+     * send a Reinflate (kEventTypeReinflate) event.
+     *
      * @param change Configuration change information
      */
-    void reinflate(const ConfigurationChange& change);
+    void configurationChange(const ConfigurationChange& change);
+
+    /**
+     * Reinflate this context using the internally cached configuration changes.  This will terminate any
+     * existing animations, remove any events on the queue, clear the dirty components, and create a new
+     * component hierarchy.  After calling this method the view host should rebuild its visual hierarchy.
+     *
+     * This method should be called by the view host when it receives a Reinflate (kEventTypeReinflate) event.
+     */
+    void reinflate();
+
+    /**
+     * Trigger a resize based on stored configuration changes.  This is normally not called by the view host; the
+     * RootContext::configurationChange() method handles resizing automatically.
+     */
+    void resize();
 
     /**
      * Clear any pending timers that need to be processed and execute any layout passes that are required.
@@ -147,7 +171,7 @@ public:
      */
     RootContext(const Metrics& metrics, const ContentPtr& content, const RootConfig& config);
 
-    virtual ~RootContext();
+    ~RootContext() override;
 
     /**
      * @return The top-level context.
@@ -194,9 +218,18 @@ public:
     bool isVisualContextDirty() const;
 
     /**
-     * Retrieve component's visual context as a JSON object.
+     * Clear the visual context dirty flag
+     */
+    void clearVisualContextDirty();
+
+    /**
+     * Retrieve component's visual context as a JSON object. This method also clears the
+     * visual context dirty flag
+     * @param allocator Rapidjson allocator
+     * @return The serialized visual context
      */
     rapidjson::Value serializeVisualContext(rapidjson::Document::AllocatorType& allocator);
+
 
     /**
      * Execute an externally-driven command
@@ -206,15 +239,15 @@ public:
     ActionPtr executeCommands(const Object& commands, bool fastMode);
 
     /**
-     * Invoke an extension event handler handler
+     * Invoke an extension event handler.
      * @param uri The URI of the custom document handler
      * @param name The name of the handler to invoke
      * @param data The data to associate with the handler
      * @param fastMode If true, this handler will be invoked in fast mode
      * @return An ActionPtr
      */
-    ActionPtr invokeExtensionEventHandler(const std::string& uri, const std::string& name, const ObjectMap& data,
-                                          bool fastMode);
+    ActionPtr invokeExtensionEventHandler(const std::string& uri, const std::string& name,
+        const ObjectMap& data, bool fastMode);
 
     /**
      * Cancel any current commands in execution.  This is typically called
@@ -363,10 +396,67 @@ public:
      */
     ComponentPtr findComponentById(const std::string& id) const;
 
+    /**
+     * Get top level focusable areas available from APL Core. It's up to engine to decide if it needs to pass focus to
+     * the any child of provided area.
+     * All dimensions is in APL viewport coordinate space.
+     * @return map from ID to focusable area.
+     */
+    std::map<std::string, Rect> getFocusableAreas();
+
+    /**
+     * Pass focus from runtime to APL Core.
+     * @param direction focus movement direction.
+     * @param origin previously focused area in APL viewport coordinate space.
+     * @param targetId ID of area selected by runtime from list provided by getFocusableAreas().
+     * @return true if focus was accepted, false otherwise.
+     */
+    bool setFocus(FocusDirection direction, const Rect& origin, const std::string& targetId);
+
+    /**
+     * Request to switch focus in provided direction. Different from setFocus above as actually defers decision on what
+     * component to focus to core instead of giving choice to the runtime.
+     * @param direction focus movement direction.
+     * @param origin previously focused area in APL viewport coordinate space.
+     * @return true if processed successfully, false otherwise.
+     */
+    bool nextFocus(FocusDirection direction, const Rect& origin);
+
+    /**
+     * Request to switch focus in provided direction. If nothing is focused works similarly to
+     * @see nextFocus(direction, origin) with origin defined as viewport edge opposite to the movement direction.
+     * @param direction focus movement direction.
+     * @return true if processed successfully, false otherwise.
+     */
+    bool nextFocus(FocusDirection direction);
+
+    /**
+     * Force APL to release focus. Always succeeds.
+     */
+    void clearFocus();
+
+    /**
+     * Check if core has anything focused.
+     * @return ID of focused element if something focused, empty if not.
+     */
+    std::string getFocused();
+
+    /**
+     * Notify core about requested media being loaded.
+     * @param source requested source.
+     */
+    void mediaLoaded(const std::string& source);
+
+    /**
+     * Notify core about requested media fail to load.
+     * @param source requested source.
+     */
+    void mediaLoadFailed(const std::string& source);
+
     friend streamer& operator<<(streamer& os, const RootContext& root);
 
 private:
-    void init(const Metrics& metrics, const RootConfig& config);
+    void init(const Metrics& metrics, const RootConfig& config, bool reinflation);
     bool setup(const CoreComponentPtr& top);
     bool verifyAPLVersionCompatibility(const std::vector<std::shared_ptr<Package>>& ordered,
                                        const APLVersion& compatibilityVersion);
@@ -382,6 +472,7 @@ private:
     std::shared_ptr<TimeManager> mTimeManager;
     apl_time_t mUTCTime;  // Track the system UTC time
     apl_duration_t mLocalTimeAdjustment;
+    ConfigurationChange mActiveConfigurationChanges;
 };
 
 } // namespace apl

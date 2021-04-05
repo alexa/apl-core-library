@@ -15,7 +15,7 @@
 
 #include "../testeventloop.h"
 
-#include "apl/engine/focusmanager.h"
+#include "apl/focus/focusmanager.h"
 
 using namespace apl;
 
@@ -322,8 +322,9 @@ TEST_F(FocusManagerTest, FocusEvent)
     auto text = root->context().findComponentById("frame");
     ASSERT_TRUE(text);
     ASSERT_TRUE(IsEqual("", text->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(IsEqual(Rect(0,0,1024,0), text->getCalculated(kPropertyBounds)));
 
-    // Take focus
+    // Take focus.  This will update the text displayed, changing its size
     component->update(kUpdateTakeFocus, 1);
     ASSERT_TRUE(component->getState().get(kStateFocused));
     ASSERT_EQ(component, fm.getFocus());
@@ -331,10 +332,11 @@ TEST_F(FocusManagerTest, FocusEvent)
 
     ASSERT_TRUE(CheckState(component, kStateFocused));
     ASSERT_TRUE(IsEqual("Focus:true", text->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(IsEqual(Rect(0,0,1024,10), text->getCalculated(kPropertyBounds)));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(root,text));
 
-    // Drop focus
+    // Drop focus.  This does not change the text size, so the bounds do not change
     component->update(kUpdateTakeFocus, 0);
     ASSERT_FALSE(component->getState().get(kStateFocused));
     ASSERT_EQ(nullptr, fm.getFocus());

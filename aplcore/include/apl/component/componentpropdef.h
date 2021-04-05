@@ -24,6 +24,8 @@ namespace apl {
 using Trigger = void (*)(Component&);
 using LayoutFunc = void (*)(YGNodeRef nodeRef, const Object& object, const Context& context);
 using DefaultFunc = Object (*)(Component&, const RootConfig&);
+using GetterFunc = Object (*)(const CoreComponent&);
+using SetterFunc = void (*)(CoreComponent&, const Object&);
 
 /**
  * A component property definition is precompiled set of information on how to handle a
@@ -82,7 +84,7 @@ public:
         : ComponentPropDef(key, defvalue, func, flags, nullptr, trigger, defaultFunc) {}
 
     ComponentPropDef(PropertyKey key, const Object& defvalue, BindingFunction func, int flags, LayoutFunc layoutFunc, DefaultFunc defaultFunc)
-            : ComponentPropDef(key, defvalue, func, flags, layoutFunc, nullptr, defaultFunc) {}
+        : ComponentPropDef(key, defvalue, func, flags, layoutFunc, nullptr, defaultFunc) {}
 
     /**
      * Create a property definition of a typed property.
@@ -125,11 +127,27 @@ public:
           layoutFunc(layoutFunc),
           defaultFunc(nullptr) {}
 
-    ComponentPropDef& operator=(ComponentPropDef& rhs) = default;
+    /**
+     * Create a property definition of a virtual property that has a getter and a setter (optional).
+     * @param key The key for the property.  The PropDef bimap will be used to retrieve the string name
+     * @param getter Getter function for retrieving the property
+     * @param setter Setter function for setting the property
+     * @param flags A collection of flags specifying how to handle this property
+     */
+    ComponentPropDef(PropertyKey key, GetterFunc getter, SetterFunc setter, int flags)
+        : PropDef(key, Object::NULL_OBJECT(), asAny, flags),
+          getterFunc(getter),
+          setterFunc(setter)
+    {
+    }
 
-    Trigger trigger;
-    LayoutFunc layoutFunc;
-    DefaultFunc defaultFunc;
+    ComponentPropDef& operator=(const ComponentPropDef& rhs) = default;
+
+    Trigger trigger = nullptr;
+    LayoutFunc layoutFunc = nullptr;
+    DefaultFunc defaultFunc = nullptr;
+    GetterFunc getterFunc = nullptr;
+    SetterFunc setterFunc = nullptr;
 };
 
 /**

@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.6.0]
+
+This release adds support for version 1.6 of the APL specification.
+
+### Added
+
+- Reinflation support for viewport size and orientation changes
+- Add handlePageMove property to Pager to allow custom transitions 
+- Add pageDirection to support vertical pagers
+- Added support for <nobr> text markup
+- New Math functions: Math.int and Math.float
+- New API to expose visible children of a component
+- Support bound values in layouts
+- Alpha feature: Asynchronous management of media requests
+- Alpha feature: Focus EditText on tap
+- Alpha feature: Alexa Extensions library. The Alexa Extensions library facilitates extending APL capabilities by providing custom extensions
+
+### Changed
+
+- Build improvements
+- Extended key handling to offer consistent spatial (focus) navigation experience accross platforms
+- Extended handling of all scrolling and fling gestures
+- Enumgen tool improvements
+- Handle pager animations consistently across all platforms
+- Made string locatization configurable with platform-specific implementations
+- Memory management improvements
+- Previously styled properties that only affect component bounds are now also dynamic
+- Other bug fixes
+
 ## [1.5.1]
 
 ### Changed

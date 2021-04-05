@@ -25,8 +25,7 @@ id_type Component::sUniqueIdGenerator = 1000;
 Component::Component(const ContextPtr& context, const std::string& id)
     : mContext(context),
       mUniqueId(':'+std::to_string(Component::sUniqueIdGenerator++)),
-      mId(id),
-      mIsValid(true)
+      mId(id)
 {
 }
 
@@ -40,12 +39,12 @@ Component::name() const
 void
 Component::updateMediaState(const MediaState& state, bool fromEvent)
 {
-    LOG(LogLevel::ERROR) << "updateMediaState called for component that does not support it.";
+    LOG(LogLevel::kError) << "updateMediaState called for component that does not support it.";
 }
 
 bool
 Component::updateGraphic(const GraphicContentPtr& json) {
-    LOG(LogLevel::ERROR) << "updateGraphic called for component that does not support it.";
+    LOG(LogLevel::kError) << "updateGraphic called for component that does not support it.";
     return false;
 }
 
@@ -101,7 +100,7 @@ Component::toDebugSimpleString() const
 
 bool
 Component::isCharacterValid(const wchar_t wc) const {
-    LOG(LogLevel::ERROR) << "isCharacterValid called for component that does not support it.";
+    LOG(LogLevel::kError) << "isCharacterValid called for component that does not support it.";
     return false;
 }
 

@@ -34,7 +34,7 @@ protected:
                       .dpi(320)
                       .theme("green")
                       .shape(apl::ROUND);
-        c = Context::create(m, makeDefaultSession());
+        c = Context::createTestContext(m, makeDefaultSession());
         c->putConstant("a", Dimension());
         c->putConstant("w", Dimension(0));
         c->putConstant("x", Dimension(10));

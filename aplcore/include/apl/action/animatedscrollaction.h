@@ -21,23 +21,28 @@
 namespace apl {
 
 class CoreCommand;
-class Easing;
+class AutoScroller;
 
 class AnimatedScrollAction : public ResourceHoldingAction {
+public:
+    CoreComponentPtr getScrollableContainer() const { return mContainer; }
+
 protected:
     AnimatedScrollAction(const TimersPtr& timers,
                          const ContextPtr& context,
-                         const CoreComponentPtr& scrollable);
+                         const CoreComponentPtr& scrollable,
+                         apl_duration_t duration = 0);
 
     void scroll(bool vertical, const Point& position);
 
     CoreComponentPtr mContainer;
 
 private:
-    void advance(float from, float to);
+    void advance();
 
-    EasingPtr mEasing;
+    std::shared_ptr<AutoScroller> mScroller;
     ActionPtr mCurrentAction;
+    apl_duration_t mDuration;
 };
 
 

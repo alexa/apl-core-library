@@ -57,7 +57,7 @@ public:
         CommandFactory::instance().set("Test", TestCommand::create);
         TestCommand::sSum = 0;
 
-        context = Context::create(Metrics(), RootConfig().timeManager(loop));
+        context = Context::createTestContext(Metrics(), RootConfig().timeManager(loop));
     }
 
     void TearDown() override {

@@ -34,6 +34,7 @@ public:
     std::shared_ptr<ObjectMap> createTouchEventProperties(const Point &point) const override;
 
     bool isFocusable() const override;
+    bool isActionable() const override;
     bool isTouchable() const override;
 
 protected:

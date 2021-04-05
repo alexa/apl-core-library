@@ -25,6 +25,7 @@ target_sources_local(apl
     framecomponent.cpp
     gridsequencecomponent.cpp
     imagecomponent.cpp
+    mediacomponenttrait.cpp
     multichildscrollablecomponent.cpp
     pagercomponent.cpp
     scrollablecomponent.cpp

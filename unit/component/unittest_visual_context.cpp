@@ -811,9 +811,7 @@ TEST_F(VisualContextTest, ShiftedSequence) {
     ASSERT_TRUE(reportedChild1.HasMember("entities"));
     ASSERT_FALSE(reportedChild1.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild1["type"].GetString());
-    ASSERT_STREQ(
-        "10x40+100+100:0",
-        reportedChild1["position"].GetString()); // Only 10 wide due to default text measure
+    ASSERT_STREQ("70x40+100+100:0", reportedChild1["position"].GetString()); // 70 as default text measure counts characters
     ASSERT_TRUE(reportedChild1.HasMember("tags"));
     auto& c1t = reportedChild1["tags"];
     ASSERT_FALSE(c1t.HasMember("focused"));
@@ -825,7 +823,7 @@ TEST_F(VisualContextTest, ShiftedSequence) {
     ASSERT_STREQ("item_1", reportedChild2["id"].GetString());
     ASSERT_FALSE(reportedChild2.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild2["type"].GetString());
-    ASSERT_STREQ("10x40+100+140:0", reportedChild2["position"].GetString());
+    ASSERT_STREQ("70x40+100+140:0", reportedChild2["position"].GetString());
     ASSERT_TRUE(reportedChild2.HasMember("tags"));
     auto& c2t = reportedChild2["tags"];
     ASSERT_FALSE(c2t.HasMember("focused"));
@@ -837,7 +835,7 @@ TEST_F(VisualContextTest, ShiftedSequence) {
     ASSERT_STREQ("item_2", reportedChild3["id"].GetString());
     ASSERT_FLOAT_EQ(0.5f, reportedChild3["visibility"].GetFloat());
     ASSERT_STREQ("text", reportedChild3["type"].GetString());
-    ASSERT_STREQ("10x40+100+180:0", reportedChild3["position"].GetString());
+    ASSERT_STREQ("70x40+100+180:0", reportedChild3["position"].GetString());
     ASSERT_TRUE(reportedChild3.HasMember("tags"));
     auto& c3t = reportedChild3["tags"];
     ASSERT_TRUE(reportedChild3.HasMember("entities"));
@@ -870,7 +868,7 @@ TEST_F(VisualContextTest, ShiftedSequence) {
     ASSERT_TRUE(reportedChild1.HasMember("entities"));
     ASSERT_FLOAT_EQ(0.5f, reportedChild1["visibility"].GetFloat());
     ASSERT_STREQ("text", reportedChild1["type"].GetString());
-    ASSERT_STREQ("10x40+100+80:0", reportedChild1["position"].GetString());
+    ASSERT_STREQ("70x40+100+80:0", reportedChild1["position"].GetString());
     ASSERT_TRUE(reportedChild1.HasMember("tags"));
     c1t = reportedChild1["tags"];
     ASSERT_FALSE(c1t.HasMember("focused"));
@@ -882,7 +880,7 @@ TEST_F(VisualContextTest, ShiftedSequence) {
     ASSERT_STREQ("item_3", reportedChild2["id"].GetString());
     ASSERT_FALSE(reportedChild2.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild2["type"].GetString());
-    ASSERT_STREQ("10x40+100+120:0", reportedChild2["position"].GetString());
+    ASSERT_STREQ("70x40+100+120:0", reportedChild2["position"].GetString());
     ASSERT_TRUE(reportedChild2.HasMember("tags"));
     c2t = reportedChild2["tags"];
     ASSERT_FALSE(c2t.HasMember("focused"));
@@ -894,7 +892,7 @@ TEST_F(VisualContextTest, ShiftedSequence) {
     ASSERT_STREQ("item_4", reportedChild3["id"].GetString());
     ASSERT_FALSE(reportedChild3.HasMember("visibility"));
     ASSERT_STREQ("text", reportedChild3["type"].GetString());
-    ASSERT_STREQ("10x40+100+160:0", reportedChild3["position"].GetString());
+    ASSERT_STREQ("70x40+100+160:0", reportedChild3["position"].GetString());
     ASSERT_TRUE(reportedChild3.HasMember("tags"));
     c3t = reportedChild3["tags"];
     ASSERT_TRUE(c3t.HasMember("spoken"));
@@ -1724,7 +1722,7 @@ TEST_F(VisualContextTest, Type) {
     ASSERT_STREQ("mixed", visualContext["type"].GetString());
 
     // Check children
-    ASSERT_EQ(5, visualContext["children"].Size());
+    ASSERT_EQ(4, visualContext["children"].Size());
     auto& c1 = visualContext["children"][0];
     ASSERT_STREQ("text", c1["id"].GetString());
     ASSERT_STREQ("text", c1["type"].GetString());
@@ -1740,10 +1738,6 @@ TEST_F(VisualContextTest, Type) {
     auto& c4 = visualContext["children"][3];
     ASSERT_STREQ("image", c4["id"].GetString());
     ASSERT_STREQ("graphic", c4["type"].GetString());
-
-    auto& c5 = visualContext["children"][4];
-    ASSERT_STREQ("empty", c5["id"].GetString());
-    ASSERT_STREQ("empty", c5["type"].GetString());
 }
 
 static const char* TYPE_PROPAGATE = "{"
@@ -1763,7 +1757,7 @@ static const char* TYPE_PROPAGATE = "{"
                                     "        {"
                                     "          \"type\": \"Text\","
                                     "          \"id\": \"empty\","
-                                    "          \"text\": \"\","
+                                    "          \"text\": \"text\","
                                     "          \"entities\": [\"entity\"]"
                                     "        }"
                                     "      ]"
@@ -1780,14 +1774,14 @@ TEST_F(VisualContextTest, TypePropagate) {
     ASSERT_TRUE(visualContext.HasMember("tags"));
     ASSERT_STREQ("ctr", visualContext["id"].GetString());
     ASSERT_TRUE(visualContext["tags"].HasMember("viewport"));
-    ASSERT_STREQ("empty", visualContext["type"].GetString());
+    ASSERT_STREQ("text", visualContext["type"].GetString());
 
     // Check children
     ASSERT_EQ(1, visualContext["children"].Size());
 
     auto& c1 = visualContext["children"][0];
     ASSERT_STREQ("empty", c1["id"].GetString());
-    ASSERT_STREQ("empty", c1["type"].GetString());
+    ASSERT_STREQ("text", c1["type"].GetString());
 }
 
 static const char* OPACITY = "{"
@@ -2341,7 +2335,7 @@ public:
 };
 
 TEST_F(VisualContextTest, LayoutChange) {
-    config.measure(std::make_shared<VCTextMeasure>());
+    config->measure(std::make_shared<VCTextMeasure>());
     loadDocument(LAYOUT_CHANGE, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
@@ -2408,7 +2402,7 @@ static const char* EDIT_TEXT_LAYOUT_CHANGE = R"(
 )";
 
 TEST_F(VisualContextTest, EditTextLayoutChange) {
-    config.measure(std::make_shared<VCTextMeasure>());
+    config->measure(std::make_shared<VCTextMeasure>());
     loadDocument(EDIT_TEXT_LAYOUT_CHANGE, DATA);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());

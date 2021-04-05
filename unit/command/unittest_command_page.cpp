@@ -87,7 +87,7 @@ static const char *PAGER_TEST =
     "        \"text\": \"TEXT${data}\","
     "        \"speech\": \"URL${data}\""
     "      },"
-    "      \"data\": [ 1, 2, 3, 4, 5 ],"
+    "      \"data\": [ 1, 2, 3, 4, 5, 6 ],"
     "      \"onPageChanged\": {"
     "        \"type\": \"SendEvent\","
     "        \"arguments\": ["
@@ -102,11 +102,14 @@ TEST_F(CommandPageTest, Pager)
 {
     loadDocument(PAGER_TEST);
 
-    ASSERT_EQ(5, component->getChildCount());
+    ASSERT_EQ(6, component->getChildCount());
     // Only initial pages ensured
     ASSERT_TRUE(CheckChild(0, "id1", Rect(0, 0, 100, 100)));
     ASSERT_TRUE(CheckChild(1, "id2", Rect(0, 0, 100, 100)));
     ASSERT_TRUE(CheckChild(2, "id3", Rect(0, 0, 0, 0)));
+    ASSERT_TRUE(CheckChild(3, "id4", Rect(0, 0, 0, 0)));
+    ASSERT_TRUE(CheckChild(4, "id5", Rect(0, 0, 0, 0)));
+    ASSERT_TRUE(CheckChild(5, "id6", Rect(0, 0, 0, 0)));
 
     executeSetPage("myPager", "relative", 2);  // Page forward twice
     ASSERT_TRUE(root->hasEvent());
@@ -128,7 +131,8 @@ TEST_F(CommandPageTest, Pager)
     ASSERT_EQ(2, component->getCalculated(kPropertyCurrentPage).getInteger());
     event.getActionRef().resolve();
 
-    // Ones around visible page ensured too
+    // Ones around visible page ensured too AFTER a layout pass
+    root->clearPending();
     ASSERT_TRUE(CheckChild(3, "id4", Rect(0, 0, 100, 100)));
     ASSERT_TRUE(CheckChild(4, "id5", Rect(0, 0, 0, 0)));
 
@@ -255,12 +259,12 @@ TEST_F(CommandPageTest, SimplePageRelativeWrap)
 {
     loadDocument(SIMPLE_PAGER_WRAP);
 
-    // Wrap results in all pages ensured straight away.
-    ASSERT_TRUE(CheckChild(0, "id1", Rect(0, 0, 100, 100)));
+    // Pages around #2 are laid out
+    ASSERT_TRUE(CheckChild(0, "id1", Rect(0, 0, 0, 0)));
     ASSERT_TRUE(CheckChild(1, "id2", Rect(0, 0, 100, 100)));
     ASSERT_TRUE(CheckChild(2, "id3", Rect(0, 0, 100, 100)));
     ASSERT_TRUE(CheckChild(3, "id4", Rect(0, 0, 100, 100)));
-    ASSERT_TRUE(CheckChild(4, "id5", Rect(0, 0, 100, 100)));
+    ASSERT_TRUE(CheckChild(4, "id5", Rect(0, 0, 0, 0)));
 
     for (int i = -8 ; i <= 8 ; i++) {
         executeSetPage("myPager", "relative", i);

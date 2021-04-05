@@ -26,8 +26,9 @@
 #include "apl/engine/properties.h"
 #include "apl/engine/context.h"
 #include "apl/engine/recalculatetarget.h"
+#include "apl/focus/focusdirection.h"
 #include "apl/primitives/keyboard.h"
-#include "apl/utils/range.h"
+#include "apl/primitives/size.h"
 
 namespace apl {
 
@@ -131,6 +132,16 @@ public:
     ComponentPtr getChildAt(size_t index) const override { return mChildren.at(index); }
 
     /**
+     * Return the index of a particular child.
+     * @param child The child to search for.
+     * @return The index of that child or -1 if it is not found
+     */
+    int getChildIndex(const CoreComponentPtr& child) const {
+        auto it = std::find(mChildren.begin(), mChildren.end(), child);
+        return it != mChildren.end() ? std::distance(mChildren.begin(), it) : -1;
+    }
+
+    /**
      * Convenience routine for internal methods that don't want to write a casting
      * operation on the returned child from getChildAt()
      * @param index The index of the child.
@@ -138,9 +149,30 @@ public:
      */
     CoreComponentPtr getCoreChildAt(size_t index) const { return mChildren.at(index); }
 
+    /**
+     * Marks the display of this component as stale, and thus needing to be recalculated
+     * at the next opportunity.
+     *
+     * This only marks the current component as stale and not any of its children.
+     */
+    void markDisplayedChildrenStale();
+
+    // Documentation from component.h
+    size_t getDisplayedChildCount() const override;
+
+    // Documentation from component.h
+    ComponentPtr getDisplayedChildAt(size_t drawIndex) const override;
+
+    /**
+     * Check if child of a components is in the list of displayed children.
+     * @param child Component's child.
+     * @return true if displayed, false otherwise.
+     */
+    bool isDisplayedChild(const CoreComponent& child) const;
+
     // Documentation from component.h
     bool insertChild(const ComponentPtr& child, size_t index) override {
-        return canInsertChild() && insertChild(child, index, true);
+        return canInsertChild() && insertChild(std::dynamic_pointer_cast<CoreComponent>(child), index, true);
     }
 
     // Documentation from component.h
@@ -190,12 +222,6 @@ public:
     void setProperty(const std::string& key, const Object& value);
 
     /**
-     * Set z-order of a component.
-     * @param value The value to set.
-     */
-    void setZOrder(int value);
-
-    /**
      * Return true if this property has been assigned for this component.  Normally
      * used to see if a command handler needs to be attached.  For example, if
      * hasProperty(kCommandPropertyOnPress) returns true, then the rendering layer
@@ -204,6 +230,13 @@ public:
      * @return True if this property key has an assigned value.
      */
     bool hasProperty(PropertyKey key) const { return mAssigned.count(key) != 0; }
+
+    /**
+     * The opposite of setProperty(), this method retrieves the property value.
+     * @param key The property or data-binding to retrieve
+     * @return The value or null if the property does not exist
+     */
+    Object getProperty(const std::string& key);
 
     /**
      * Mark a property as being changed.  This only applies to properties set to
@@ -245,19 +278,11 @@ public:
     ComponentPtr getParent() const override { return mParent; }
 
     /**
-     * Call this to ensure that the component has a layout.  This method must be used by
-     * children of a sequence to before retrieving the layout bounds.
+     * Guarantees that this component has been laid out, so that layout bounds are fully calculated.
+     * This method will conduct a full layout pass if it is required, which is expensive, so avoid
+     * calling this method unless you absolutely must guarantee that a specific component has been laid out.
      */
     void ensureLayout(bool useDirtyFlag) override;
-
-    /**
-     * Run measure and layout on this component.  This method should not be used
-     * by the view host layer.
-     * @param width Target width.
-     * @param height Target height.
-     * @param useDirtyFlag If true, set dirty properties if the layout changes.
-     */
-    void layout(int width, int height, bool useDirtyFlag);
 
     /**
      * @return True if the yoga node needs to run a layout pass.
@@ -300,6 +325,11 @@ public:
      * Update the output transformation
      */
     void fixTransform(bool useDirtyFlag);
+
+    /**
+     * Update the padding
+     */
+    void fixPadding();
 
     /**
      * Calculate component's relative visibility.
@@ -425,20 +455,12 @@ public:
     virtual void executeOnCursorExit();
 
     /**
-     * Execute the component key handlers if present.
+     * Process key press targeted to the component.
      * @param type The key handler type (up/down).
      * @param keyboard The keyboard update.
      * @return True, if consumed.
      */
-    virtual bool executeKeyHandlers(KeyHandlerType type, const ObjectMapPtr& keyboard) { return false; };
-
-    /**
-     * Execute the intrinsic actions for given keys if appropriate.  These key updates are not forwarded to the document.
-     * @param type The key handler type (up/down).
-     * @param keyboard The keyboard update.
-     * @return True, if consumed.
- */
-    virtual bool executeIntrinsicKeyHandlers(KeyHandlerType type, const ObjectMapPtr& keyboard) { return false; };
+    virtual bool processKeyPress(KeyHandlerType type, const Keyboard& keyboard);
 
     /**
      * Create an event data-binding context. Standard value of component will be used unless explicitly specified.
@@ -478,6 +500,11 @@ public:
      * @param useDirtyFlag
      */
     virtual void processLayoutChanges(bool useDirtyFlag);
+
+    /**
+     * After a layout has been completed, call this to execute any actions that may occur after a layout
+     */
+    virtual void postProcessLayoutChanges();
 
     /**
      * Update the event object map with additional properties.  These fill out "event.XXX" values other
@@ -546,6 +573,12 @@ public:
                                                             const Rect& visibleRect, int visualLayer);
 
     /**
+     * @return true when the component has 'normal' display property and an
+     * opacity greater than zero.
+     */
+    bool isDisplayable() const;
+
+    /**
     * Calculate real opacity of component.
     * @param parentRealOpacity parent component real opacity.
     * @return component cumulative opacity.
@@ -593,6 +626,11 @@ public:
      * Check if component attached to yoga hierarchy.
      */
     bool isAttached() const;
+
+    /**
+     * @return True if the component is attached to the yoga hierarchy and there are no dirty ancestor nodes
+     */
+    bool isLaidOut() const;
 
     static void resolveDrawnBorder(Component& component);
 
@@ -734,10 +772,9 @@ public:
      * Defer pointer processing to component.
      * @param event pointer event.
      * @param timestamp event timestamp.
-     * @param topComponent true if it's top component in processing chain, false otherwise.
-     * @return pointer to component that processed event. False otherwise.
+     * @return true if pointer captured by a component processing, false otherwise.
      */
-    CoreComponentPtr processPointerEvent(const PointerEvent& event, apl_time_t timestamp, bool topComponent = true);
+    virtual bool processPointerEvent(const PointerEvent& event, apl_time_t timestamp);
 
     /**
      * @return The root configuration provided by the viewhost
@@ -761,19 +798,78 @@ public:
      */
     void markGlobalToLocalTransformStale() { mGlobalToLocalIsStale = true; }
 
+    /**
+     * Check if component can consume focus event coming from particular direction (by taking focus or performing some
+     * internal processing).
+     * @param direction Focus movement direction.
+     * @param fromInside true if check done by component's parent false otherwise.
+     * @return true if event could be consumed, false otherwise.
+     */
+    virtual bool canConsumeFocusDirectionEvent(FocusDirection direction, bool fromInside) { return false; }
+
+    /**
+     * Process focus exit passed from component's child. Used in case if focus direction does not point to another
+     * visible peer of this child and processing should be deferred to actionable parent that could bring some new
+     * children in view.
+     * @param direction focus movement direction.
+     * @param origin origin rectangle relative to self.
+     * @return component that should be focused.
+     */
+    virtual CoreComponentPtr takeFocusFromChild(FocusDirection direction, const Rect& origin) { return nullptr; }
+
+    /**
+     * Get next component to be focused based on component-specified preferences.
+     * @param direction direction of search.
+     * @return Found component if exists, nullptr otherwise.
+     */
+    virtual CoreComponentPtr getUserSpecifiedNextFocus(FocusDirection direction) { return nullptr; }
+
+    /**
+     * The Yoga Flexbox engine is called on the top component in the DOM and the children of a PagerComponent
+     * with the size of the screen or PagerComponent.  The layout size used is cached with the component.  This
+     * method returns that cached size.
+     *
+     * @return The layout size last used when laying out this component.  May be (0,0), which indicates that
+     *         a new Flexbox layout pass is required if this component is the top of the DOM or a direct child
+     *         of a PagerComponent.
+     */
+    Size getLayoutSize() const { return mLayoutSize; }
+
+    /**
+     * Set the cached layout size of the component.  This is only used with the top component in the DOM and
+     * direct children of a PagerComponent.
+     * @param layoutSize The layout size to cache.
+     */
+    void setLayoutSize(Size layoutSize) { mLayoutSize = layoutSize; }
+
+    /**
+     * Certain Flexbox layout properties (such as "spacing") may only be set on a component once the component's
+     * Yoga node has been attached to its parent's Yoga node.  This method ensures that all node-dependent layout
+     * properties have been set.
+     */
+    void updateNodeProperties();
+
+    /**
+     * Sets a calculated property value.
+     *
+     * @param key The key to set
+     * @param value The property value
+     */
+    void setCalculated(PropertyKey key, const Object &value) { mCalculated.set(key, value); }
+
 protected:
     // internal, do not call directly
-    virtual bool insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag);
+    virtual bool insertChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag);
     virtual void removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag);
     virtual void reportLoaded(size_t index);
 
-    void ensureChildAttached(const CoreComponentPtr& child, int targetIdx);
+    // Attach the yoga node of this child
+    virtual void attachYogaNode(const CoreComponentPtr& child);
 
     virtual const EventPropertyMap& eventPropertyMap() const;
     virtual void invokeStandardAccessibilityAction(const std::string& name) {}
 
-    virtual bool processGestures(const PointerEvent& event, apl_time_t timestamp, bool topComponent) { return false; }
-    virtual bool shouldPropagatePointerEvent(const PointerEvent& event, apl_time_t timestamp);
+    virtual bool processGestures(const PointerEvent& event, apl_time_t timestamp) { return false; }
 
     virtual void handlePropertyChange(const ComponentPropDef& def, const Object& value);
 
@@ -784,16 +880,40 @@ protected:
         return c;
     }
 
+    /**
+     * Execute the component key handlers if present.
+     * @param type The key handler type (up/down).
+     * @param keyboard The keyboard update.
+     * @return True, if consumed.
+     */
+    virtual bool executeKeyHandlers(KeyHandlerType type, const Keyboard& keyboard) { return false; };
+
+    /**
+     * Execute the intrinsic actions for given keys if appropriate.  These key updates are not forwarded to the document.
+     * @param type The key handler type (up/down).
+     * @param keyboard The keyboard update.
+     * @return True, if consumed.
+    */
+    virtual bool executeIntrinsicKeyHandlers(KeyHandlerType type, const Keyboard& keyboard) { return false; };
+
+    virtual void finalizePopulate() {}
+
+    /**
+     * Call this to ensure that the displayed child components have been calculated. The order
+     * of displayed children matches the intended rendering order. The number of displayed children
+     * can be accessed with getDisplayedChildCount().  The ordered list of children can
+     * be accessed with getDisplayedChildAt(displayIndex);
+     */
+    virtual void ensureDisplayedChildren();
+
+
 private:
     friend streamer& operator<<(streamer&, const Component&);
 
     friend class Builder;
     friend class LayoutRebuilder;
+    friend class LayoutManager;
     friend class ChildWalker;
-
-    void ensureChildAttached(const CoreComponentPtr& child);
-
-    bool attachChild(const CoreComponentPtr& child, size_t index);
 
     bool appendChild(const ComponentPtr& child, bool useDirtyFlag);
 
@@ -824,8 +944,6 @@ private:
 
     virtual const ComponentPropDefSet* layoutPropDefSet() const { return nullptr; };
 
-    void updateNodeProperties();
-
     void serializeVisualContextInternal(rapidjson::Value& outArray, rapidjson::Document::AllocatorType& allocator,
                                         float realOpacity, float visibility, const Rect& visibleRect, int visualLayer);
 
@@ -835,9 +953,7 @@ private:
 
     void notifyChildChanged(size_t index, const std::string& uid, const std::string& action);
 
-    virtual void finalizePopulate() {}
-
-    void attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index);
+    virtual void attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index);
 
     void scheduleTickHandler(const Object& handler, double delay);
     void processTickHandlers();
@@ -848,24 +964,28 @@ private:
      */
     void ensureGlobalToLocalTransform();
 
+
 protected:
     bool                             mInheritParentState;
     State                            mState;       // Operating state (pressed, checked, etc)
     std::string                      mStyle;       // Name of the current STYLE
     Properties                       mProperties;  // Assigned properties from JSON
     std::set<PropertyKey>            mAssigned;    // Properties that have been assigned from JSON or SetValue
-    std::vector<CoreComponentPtr>    mChildren;
+    std::vector<CoreComponentPtr>    mChildren;    // Children of this component
+    std::vector<CoreComponentPtr>    mDisplayedChildren; // ordered list of children to be drawn
     CoreComponentPtr                 mParent;
     YGNodeRef                        mYGNodeRef;
     std::string                      mPath;
     std::shared_ptr<LayoutRebuilder> mRebuilder;
-    Range                            mEnsuredChildren;
+    Size                             mLayoutSize;
+    bool                             mDisplayedChildrenStale;
 
 private:
     // The members below are used to store cached values for performance reasons, and not part of
     // the state of this component.
     Transform2D                      mGlobalToLocal;
     bool                             mGlobalToLocalIsStale;
+
 };
 
 }  // namespace apl

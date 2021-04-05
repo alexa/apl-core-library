@@ -25,6 +25,7 @@
 #include "apl/utils/counter.h"
 #include "apl/content/importref.h"
 #include "apl/content/jsondata.h"
+#include "apl/utils/noncopyable.h"
 #include "apl/utils/streamer.h"
 
 namespace apl {
@@ -32,7 +33,8 @@ namespace apl {
 /**
  * Store the JSON information and dependency graph for a single downloaded package.
  */
-class Package : public Counter<Package> {
+class Package : public Counter<Package>,
+                public NonCopyable {
 public:
     /**
      * Build a named package with JSON data.

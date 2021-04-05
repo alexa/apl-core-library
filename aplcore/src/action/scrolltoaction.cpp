@@ -17,6 +17,7 @@
 #include "apl/command/corecommand.h"
 #include "apl/time/sequencer.h"
 #include "apl/component/pagercomponent.h"
+#include "apl/content/rootconfig.h"
 
 namespace apl {
 
@@ -28,8 +29,9 @@ ScrollToAction::ScrollToAction(const TimersPtr& timers,
                                const ContextPtr& context,
                                bool scrollToSubBounds,
                                const ComponentPtr& target,
-                               const CoreComponentPtr& scrollableParent)
-        : AnimatedScrollAction(timers, context, scrollableParent),
+                               const CoreComponentPtr& scrollableParent,
+                               apl_duration_t duration)
+        : AnimatedScrollAction(timers, context, scrollableParent, duration),
           mAlign(align),
           mSubBounds(subBounds),
           mScrollToSubBounds(scrollToSubBounds),
@@ -62,6 +64,15 @@ ScrollToAction::make(const TimersPtr& timers,
 }
 
 std::shared_ptr<ScrollToAction>
+ScrollToAction::makeUsingSnap(const TimersPtr& timers,
+                              const ComponentPtr& target,
+                              apl_duration_t duration)
+{
+    return make(timers, kCommandScrollAlignVisible, Rect(), target->getContext(), false,
+                target, duration, true);
+}
+
+std::shared_ptr<ScrollToAction>
 ScrollToAction::make(const TimersPtr& timers,
                      const CommandScrollAlign& align,
                      const Rect& subBounds,
@@ -76,7 +87,9 @@ ScrollToAction::make(const TimersPtr& timers,
                      const Rect& subBounds,
                      const ContextPtr& context,
                      bool scrollToSubBounds,
-                     const ComponentPtr& target) {
+                     const ComponentPtr& target,
+                     apl_duration_t duration,
+                     bool useSnap) {
     if (!target)
         return nullptr;
 
@@ -88,10 +101,44 @@ ScrollToAction::make(const TimersPtr& timers,
     if (!container)
         return nullptr;
 
-    auto ptr = std::make_shared<ScrollToAction>(timers, align, subBounds, context, scrollToSubBounds, target,
-            std::dynamic_pointer_cast<CoreComponent>(container));
+    auto resultingAlign = align;
 
-    context->sequencer().claimResource({kCommandResourcePosition, container}, ptr);
+    if (useSnap) {
+        LOG_IF(DEBUG_SCROLL_TO) << "Ignoring provided align and using component defined snap.";
+        auto snapObject = container->getCalculated(kPropertySnap);
+        if (!snapObject.isNull()) {
+            auto snap = static_cast<Snap>(snapObject.getInteger());
+            switch (snap) {
+                case kSnapStart:
+                case kSnapForceStart:
+                    resultingAlign = kCommandScrollAlignFirst;
+                    break;
+                case kSnapCenter:
+                case kSnapForceCenter:
+                    resultingAlign = kCommandScrollAlignCenter;
+                    break;
+                case kSnapEnd:
+                case kSnapForceEnd:
+                    resultingAlign = kCommandScrollAlignLast;
+                    break;
+                default:
+                    resultingAlign = kCommandScrollAlignVisible;
+                    break;
+            }
+        }
+    }
+
+    auto ptr = std::make_shared<ScrollToAction>(
+            timers,
+            resultingAlign,
+            subBounds,
+            context,
+            scrollToSubBounds,
+            target,
+            std::dynamic_pointer_cast<CoreComponent>(container),
+            duration ? duration : context->getRootConfig().getScrollCommandDuration());
+
+    context->sequencer().claimResource({kExecutionResourcePosition, container}, ptr);
 
     ptr->start();
     return ptr;
@@ -216,7 +263,7 @@ ScrollToAction::pageTo()
     }
 
     if (targetPage == -1) {
-        LOG(LogLevel::ERROR) << "Unrecoverable error in pageTo";
+        LOG(LogLevel::kError) << "Unrecoverable error in pageTo";
         resolve();
         return;
     }
@@ -231,7 +278,8 @@ ScrollToAction::pageTo()
     // We assume we were invoked from a ScrollToComponent/Index command.  We use absolute
     // positioning.
     PagerComponent::setPageUtil(mContext, mContainer, targetPage,
-            targetPage < currentPage ? kPageDirectionBack : kPageDirectionForward, shared_from_this());
+        targetPage < currentPage ? kPageDirectionBack : kPageDirectionForward, shared_from_this(),
+        mContext->getRequestedAPLVersion().compare("1.6") < 0);
 }
 
 } // namespace apl

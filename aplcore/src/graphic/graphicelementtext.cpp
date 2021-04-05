@@ -17,6 +17,7 @@
 #include "apl/graphic/graphicpropdef.h"
 
 #include "apl/component/componentproperties.h"
+#include "apl/content/rootconfig.h"
 
 namespace apl {
 
@@ -35,6 +36,11 @@ GraphicElementText::create(const GraphicPtr &graphic,
     return text;
 }
 
+inline Object
+defaultFontFamily(GraphicElement&, const RootConfig& rootConfig)
+{
+    return Object(rootConfig.getDefaultFontFamily());
+}
 
 const GraphicPropDefSet&
 GraphicElementText::propDefSet() const
@@ -46,7 +52,7 @@ GraphicElementText::propDefSet() const
                  {kGraphicPropertyFillTransform,           Object::IDENTITY_2D(),   nullptr,                 kPropOut},
                  {kGraphicPropertyFillTransformAssigned,   "",                      asString,                kPropIn    | kPropDynamic, fixFillTransform},
                  {kGraphicPropertyFilters,                 Object::EMPTY_ARRAY(),   asGraphicFilterArray,    kPropInOut },
-                 {kGraphicPropertyFontFamily,              "sans-serif",            asString,                kPropInOut | kPropDynamic},
+                 {kGraphicPropertyFontFamily,              "",                      asString,                kPropInOut | kPropDynamic, defaultFontFamily},
                  {kGraphicPropertyFontSize,                40,                      asNonNegativeNumber,     kPropInOut | kPropDynamic},
                  {kGraphicPropertyFontStyle,               kFontStyleNormal,        sFontStyleMap,           kPropInOut | kPropDynamic},
                  {kGraphicPropertyFontWeight,              400,                     sFontWeightMap,          kPropInOut | kPropDynamic},

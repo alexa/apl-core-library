@@ -112,3 +112,26 @@ TEST_F(RangeTest, Equality) {
     range2.shift(-1);
     ASSERT_TRUE(range1 == range2);
 }
+
+TEST_F(RangeTest, ExtendTowards)
+{
+    Range r1;
+    ASSERT_TRUE(r1.empty());
+
+    // Extension on an empty range gives the number
+    ASSERT_EQ(3, r1.extendTowards(3));
+
+    // Extending towards a higher number indexes upwards
+    ASSERT_EQ(4, r1.extendTowards(5));
+    ASSERT_EQ(5, r1.extendTowards(5));
+    ASSERT_EQ(5, r1.extendTowards(5));
+
+    // Extending towards a lower number indexes downwards
+    ASSERT_EQ(2, r1.extendTowards(0));
+    ASSERT_EQ(1, r1.extendTowards(0));
+    ASSERT_EQ(0, r1.extendTowards(0));
+    ASSERT_EQ(0, r1.extendTowards(0));
+
+    ASSERT_EQ(0, r1.lowerBound());
+    ASSERT_EQ(5, r1.upperBound());
+}

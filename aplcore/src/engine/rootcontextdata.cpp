@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@
 #include "apl/component/textmeasurement.h"
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
-#include "apl/engine/focusmanager.h"
-#include "apl/engine/keyboardmanager.h"
 #include "apl/engine/rootcontextdata.h"
+#include "apl/engine/keyboardmanager.h"
 #include "apl/engine/styles.h"
+#include "apl/focus/focusmanager.h"
 #include "apl/livedata/livedatamanager.h"
+#include "apl/time/timemanager.h"
 #include "apl/utils/log.h"
 
 namespace apl {
@@ -31,14 +32,14 @@ static LogLevel
 ygLevelToDebugLevel(YGLogLevel level)
 {
     switch (level) {
-        case YGLogLevelError: return LogLevel::ERROR;
-        case YGLogLevelWarn: return LogLevel::WARN;
-        case YGLogLevelInfo: return LogLevel::INFO;
-        case YGLogLevelDebug: return LogLevel::DEBUG;
-        case YGLogLevelVerbose: return LogLevel::TRACE;
-        case YGLogLevelFatal: return LogLevel::CRITICAL;
+        case YGLogLevelError: return LogLevel::kError;
+        case YGLogLevelWarn: return LogLevel::kWarn;
+        case YGLogLevelInfo: return LogLevel::kInfo;
+        case YGLogLevelDebug: return LogLevel::kDebug;
+        case YGLogLevelVerbose: return LogLevel::kTrace;
+        case YGLogLevelFatal: return LogLevel::kCritical;
     }
-    return LogLevel::DEBUG;
+    return LogLevel::kDebug;
 }
 
 static int
@@ -70,22 +71,22 @@ ygLogger(const YGConfigRef config,
  */
 RootContextData::RootContextData(const Metrics& metrics,
                                  const RootConfig& config,
-                                 const std::string& theme,
-                                 const std::string& requestedAPLVersion,
+                                 RuntimeState runtimeState,
                                  const SettingsPtr& settings,
                                  const SessionPtr& session,
                                  const std::vector<std::pair<std::string, std::string>>& extensions)
-    : mMetrics(metrics),
-      mTheme(theme),
-      mRequestedAPLVersion(requestedAPLVersion),
+    : mRuntimeState(std::move(runtimeState)),
+      mMetrics(metrics),
       mStyles(new Styles()),
-      mSequencer(new Sequencer(config.getTimeManager(), requestedAPLVersion)),
-      mFocusManager(new FocusManager()),
+      mSequencer(new Sequencer(config.getTimeManager(), mRuntimeState.getRequestedAPLVersion())),
+      mFocusManager(new FocusManager(*this)),
       mHoverManager(new HoverManager(*this)),
       mPointerManager(new PointerManager(*this)),
       mKeyboardManager(new KeyboardManager()),
       mDataManager(new LiveDataManager()),
       mExtensionManager(new ExtensionManager(extensions, config)),
+      mLayoutManager(new LayoutManager(*this)),
+      mMediaManager(new MediaManager(*this)),
       mYGConfigRef(YGConfigNew()),
       mTextMeasurement(config.getMeasure()),
       mConfig(config),
@@ -109,6 +110,9 @@ RootContextData::terminate()
 CoreComponentPtr
 RootContextData::halt()
 {
+    mLayoutManager->terminate();
+    mConfig.getTimeManager()->clear();
+
     if (mSequencer) {
         mSequencer->terminate();
         mSequencer = nullptr;
@@ -117,6 +121,7 @@ RootContextData::halt()
     // Clear any pending events and dirty components
     events = std::queue<Event>();
     dirty.clear();
+    dirtyVisualContext.clear();
 
     auto result = mTop;
     mTop = nullptr;

@@ -20,6 +20,7 @@
 
 #include "apl/common.h"
 #include "apl/utils/counter.h"
+#include "apl/utils/noncopyable.h"
 #include "apl/primitives/object.h"
 #include "apl/engine/binding.h"
 
@@ -34,12 +35,13 @@ namespace apl {
  * system will fan out and update many targets.  Loops in the dependant graph are not allowed.
  */
 class Dependant : public Counter<Dependant>,
+                  public NonCopyable,
                   public std::enable_shared_from_this<Dependant> {
 public:
     Dependant(const Object& equation, const ContextPtr& bindingContext, BindingFunction bindingFunction)
         : mEquation(equation),
           mBindingContext(bindingContext),
-          mBindingFunction(bindingFunction)
+          mBindingFunction(std::move(bindingFunction))
         {}
     virtual ~Dependant() = default;
 

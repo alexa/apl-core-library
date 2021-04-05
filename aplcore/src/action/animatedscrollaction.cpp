@@ -14,11 +14,13 @@
  */
 
 #include "apl/action/animatedscrollaction.h"
-#include "apl/command/corecommand.h"
-#include "apl/time/sequencer.h"
-#include "apl/animation/coreeasing.h"
+
 #include "apl/animation/animatedproperty.h"
+#include "apl/command/corecommand.h"
+#include "apl/component/scrollablecomponent.h"
 #include "apl/content/rootconfig.h"
+#include "apl/time/sequencer.h"
+#include "apl/touch/utils/autoscroller.h"
 
 namespace apl {
 
@@ -26,20 +28,34 @@ static const bool DEBUG_SCROLL = false;
 
 AnimatedScrollAction::AnimatedScrollAction(const TimersPtr& timers,
                                            const ContextPtr& context,
-                                           const CoreComponentPtr& container)
+                                           const CoreComponentPtr& container,
+                                           apl_duration_t duration)
         : ResourceHoldingAction(timers, context),
           mContainer(container),
-          // TODO: Following is really specific to simplified scroll animation we have ATM. Replace
-          //  with something more configurable similarly to VelocityTracking.
-          mEasing(CoreEasing::bezier(0.42, 0, 0.58, 1))
-{}
+          mDuration(duration)
+{
+    // Default to programmatic duration if not specified
+    mDuration = mDuration ? mDuration : context->getRootConfig().getScrollCommandDuration();
+}
 
 void
 AnimatedScrollAction::scroll(bool vertical, const Point& position) {
     if (mContext->getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore)) {
-        auto from = vertical ? mContainer->scrollPosition().getY() : mContainer->scrollPosition().getX();
-        auto to = vertical ? position.getY() : position.getX();
-        advance(from, to);
+        if (isTerminated())
+            return;
+
+        // Ensure that it doesn't scroll if don't need to.
+        if (mContainer->scrollPosition() == position) {
+            resolve();
+            return;
+        }
+
+        mScroller = AutoScroller::make(mContext->getRootConfig(),
+            std::dynamic_pointer_cast<ScrollableComponent>(mContainer),
+            []() {},
+            position - mContainer->scrollPosition(),
+            mDuration);
+        advance();
     } else {
         EventBag bag;
         bag.emplace(kEventPropertyPosition, Dimension(vertical ? position.getY() : position.getX()));
@@ -50,21 +66,13 @@ AnimatedScrollAction::scroll(bool vertical, const Point& position) {
 }
 
 void
-AnimatedScrollAction::advance(float from, float to) {
-    if (isTerminated())
-        return;
-
+AnimatedScrollAction::advance() {
     std::weak_ptr<AnimatedScrollAction> weak_ptr(std::static_pointer_cast<AnimatedScrollAction>(shared_from_this()));
-    auto duration = mContext->getRootConfig().getScrollCommandDuration();
-    mCurrentAction = Action::makeAnimation(timers(), duration,
-       [weak_ptr, from, to, duration](apl_duration_t offset) {
+    mCurrentAction = Action::makeAnimation(timers(), mScroller->getDuration(),
+       [weak_ptr](apl_duration_t offset) {
            auto self = weak_ptr.lock();
            if (self && !self->isTerminated()) {
-               float alpha = offset / duration;
-               alpha = self->mEasing->calc(alpha);
-
-               double value = from * (1 - alpha) + to * alpha;
-               self->mContainer->update(kUpdateScrollPosition, value);
+               self->mScroller->updateOffset(offset);
            }
        });
 

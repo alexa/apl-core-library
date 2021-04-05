@@ -53,7 +53,7 @@ void
 SpeakItemAction::start()
 {
     auto context = mCommand->context();
-    context->sequencer().claimResource(kCommandResourceForegroundAudio, shared_from_this());
+    context->sequencer().claimResource(kExecutionResourceForegroundAudio, shared_from_this());
 
     // Start by sending a pre-roll event
     mSource = mTarget->getCalculated(kPropertySpeech).asString();

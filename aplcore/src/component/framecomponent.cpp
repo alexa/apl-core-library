@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -57,18 +57,31 @@ FrameComponent::propDefSet() const
                                                                                        kPropStyled |
                                                                                        kPropDynamic},
         {kPropertyBorderWidth,             Dimension(0),          asNonNegativeAbsoluteDimension, kPropInOut |
-                                                                                       kPropStyled, yn::setBorder<YGEdgeAll>},
+                                                                                       kPropStyled |
+                                                                                       kPropDynamic, yn::setBorder<YGEdgeAll>},
 
         // These are input-only properties that trigger the calculation of the output properties
-        {kPropertyBorderBottomLeftRadius,  Object::NULL_OBJECT(), asAbsoluteDimension, kPropIn | kPropStyled, checkBorderRadii },
-        {kPropertyBorderBottomRightRadius, Object::NULL_OBJECT(), asAbsoluteDimension, kPropIn | kPropStyled, checkBorderRadii },
-        {kPropertyBorderRadius,            Dimension(0),          asAbsoluteDimension, kPropIn | kPropStyled, checkBorderRadii },
-        {kPropertyBorderTopLeftRadius,     Object::NULL_OBJECT(), asAbsoluteDimension, kPropIn | kPropStyled, checkBorderRadii },
-        {kPropertyBorderTopRightRadius,    Object::NULL_OBJECT(), asAbsoluteDimension, kPropIn | kPropStyled, checkBorderRadii },
+        {kPropertyBorderBottomLeftRadius,  Object::NULL_OBJECT(), asAbsoluteDimension, kPropIn |
+                                                                                       kPropStyled |
+                                                                                       kPropDynamic, checkBorderRadii },
+        {kPropertyBorderBottomRightRadius, Object::NULL_OBJECT(), asAbsoluteDimension, kPropIn |
+                                                                                       kPropStyled |
+                                                                                       kPropDynamic, checkBorderRadii },
+        {kPropertyBorderRadius,            Dimension(0),          asAbsoluteDimension, kPropIn |
+                                                                                       kPropStyled |
+                                                                                       kPropDynamic, checkBorderRadii },
+        {kPropertyBorderTopLeftRadius,     Object::NULL_OBJECT(), asAbsoluteDimension, kPropIn |
+                                                                                       kPropStyled |
+                                                                                       kPropDynamic, checkBorderRadii },
+        {kPropertyBorderTopRightRadius,    Object::NULL_OBJECT(), asAbsoluteDimension, kPropIn |
+                                                                                       kPropStyled |
+                                                                                       kPropDynamic, checkBorderRadii },
 
         // The width of the drawn border.  If borderStrokeWith is set, the drawn border is the min of borderWidth
         // and borderStrokeWidth.  If borderStrokeWidth is unset, the drawn border defaults to borderWidth
-        {kPropertyBorderStrokeWidth, Object::NULL_OBJECT(), asNonNegativeAbsoluteDimension, kPropIn | kPropStyled | kPropDynamic, resolveDrawnBorder},
+        {kPropertyBorderStrokeWidth, Object::NULL_OBJECT(), asNonNegativeAbsoluteDimension, kPropIn |
+                                                                                            kPropStyled |
+                                                                                            kPropDynamic, resolveDrawnBorder},
         {kPropertyDrawnBorderWidth,  Object::NULL_OBJECT(), asNonNegativeAbsoluteDimension, kPropOut},
     });
 

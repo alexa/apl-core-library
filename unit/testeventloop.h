@@ -33,8 +33,16 @@
 #include "apl/time/coretimemanager.h"
 
 #include "apl/utils/searchvisitor.h"
+#include "apl/utils/range.h"
 
 namespace apl {
+
+class SimpleTextMeasurement : public TextMeasurement {
+public:
+    LayoutSize measure(Component *component, float width, MeasureMode widthMode,
+                       float height, MeasureMode heightMode) override;
+    float baseline(Component *component, float width, float height) override;
+};
 
 inline ::testing::AssertionResult
 MemoryMatch(const CounterPair& atStart, const CounterPair& atEnd)
@@ -96,12 +104,12 @@ public:
 
 private:
     const std::map<LogLevel, std::string> LEVEL_MAPPING = {
-        {LogLevel::TRACE, "T"},
-        {LogLevel::DEBUG, "D"},
-        {LogLevel::INFO, "I"},
-        {LogLevel::WARN, "W"},
-        {LogLevel::ERROR, "E"},
-        {LogLevel::CRITICAL, "C"}
+        {LogLevel::kTrace, "T"},
+        {LogLevel::kDebug, "D"},
+        {LogLevel::kInfo, "I"},
+        {LogLevel::kWarn, "W"},
+        {LogLevel::kError, "E"},
+        {LogLevel::kCritical, "C"}
     };
 
     LogLevel mLastLevel;
@@ -234,8 +242,10 @@ class DocumentWrapper : public ActionWrapper {
 public:
     DocumentWrapper() : ActionWrapper()
     {
+        config = RootConfig::create();
         metrics.size(1024,800).dpi(160).theme("dark");
-        config.agent("Unit tests", "1.0").timeManager(loop).session(session);
+        config->agent("Unit tests", "1.0").timeManager(loop).session(session);
+        config->measure(std::make_shared<SimpleTextMeasurement>());
     }
 
     void loadDocument(const char *docName, const char *dataName = nullptr) {
@@ -315,7 +325,7 @@ public:
         context = nullptr;
         root = nullptr;
         content = nullptr;
-        config = RootConfig();  // Clear out the root config
+        config = nullptr;
 
         // Call this last - it checks if all of the components, commands, and actions are released
         ActionWrapper::TearDown();
@@ -331,7 +341,7 @@ public:
         }
     }
 
-    ActionPtr executeCommand(const std::string& name, const std::map<std::string, Object> values, bool fastMode) {
+    ActionPtr executeCommand(const std::string& name, const std::map<std::string, Object>& values, bool fastMode) {
         rapidjson::Value cmd(rapidjson::kObjectType);
         auto& alloc = command.GetAllocator();
         cmd.AddMember("type", rapidjson::Value(name.c_str(), alloc).Move(), alloc);
@@ -402,28 +412,43 @@ protected:
         ASSERT_TRUE(content);
         ASSERT_TRUE(content->isReady());
 
-        root = RootContext::create(metrics, content, config, createCallback);
+        root = RootContext::create(metrics, content, *config, createCallback);
 
         if (root) {
             context = root->contextPtr();
             ASSERT_TRUE(context);
-
+            ASSERT_FALSE(context->getReinflationFlag());
             component = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
         }
 
         postInflate();
     }
 
-    void reinflate(const ConfigurationChange& change) {
+    // Register a configuration change
+    void configChange(const ConfigurationChange& change) {
         ASSERT_TRUE(content);
         ASSERT_TRUE(content->isReady());
         ASSERT_TRUE(root);
 
-        root->reinflate(change);
+        root->configurationChange(change);
+    }
+
+    void processReinflate() {
+        root->clearPending();
+        ASSERT_TRUE(root->hasEvent());
+        auto event = root->popEvent();
+        ASSERT_EQ(kEventTypeReinflate, event.getType());
+        root->reinflate();
         context = root->contextPtr();
         ASSERT_TRUE(context);
-
+        ASSERT_TRUE(context->getReinflationFlag());
         component = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+    }
+
+    // Register a configuration change and expect a reinflate event
+    void configChangeReinflate(const ConfigurationChange& change) {
+        configChange(change);
+        processReinflate();
     }
 
 public:
@@ -431,11 +456,9 @@ public:
     RootContextPtr root;
     ContextPtr context;
     Metrics metrics;
-    RootConfig config;
+    RootConfigPtr config;
     rapidjson::Document command;
     std::function<void(const RootContextPtr&)> createCallback;
-
-    std::vector<CommandPtr> issuedCommands;
     ContentPtr content;
 };
 
@@ -453,7 +476,7 @@ class CommandWrapper : public Command {
 public:
     CommandWrapper(T wrapped, int& counter)
         : Command(),
-          mWrapped(wrapped),
+          mWrapped(std::move(wrapped)),
           mCounter(counter)
     {
         assert(mWrapped);
@@ -652,6 +675,28 @@ template<class... Args>
     return ::testing::AssertionSuccess();
 }
 
+
+template<class... Args>
+::testing::AssertionResult CheckDirtyDoNotClear(const ComponentPtr& component, Args... args)
+{
+    static const std::size_t value = sizeof...(Args);
+
+    std::size_t actual = component->getDirty().size();
+    std::vector<PropertyKey> v = {args...};
+
+    if (actual != value)
+        return ::testing::AssertionFailure() << "expected number of dirty component properties=" << value
+                                             << " actual=" << actual
+                                             << " [" << join<PropertyKey, sComponentPropertyBimap>(component->getDirty()) << "]";
+
+    for (auto key : v) {
+        if (component->getDirty().count(key) != 1)
+            return ::testing::AssertionFailure() << "missing property key " << sComponentPropertyBimap.at(key);
+    }
+
+    return ::testing::AssertionSuccess();
+}
+
 // Check that EXACTLY these components are dirty
 template<class... Args>
 ::testing::AssertionResult CheckDirty(const RootContextPtr& root, Args... args)
@@ -659,12 +704,12 @@ template<class... Args>
     static const std::size_t value = sizeof...(Args);
 
     std::vector<ComponentPtr> v = {args...};
-    for (auto key : v) {
+    for (const auto& key : v) {
         if (root->getDirty().count(key) != 1)
             return ::testing::AssertionFailure() << "missing component " << key << ":" << key->toDebugString();
     }
 
-    for (auto key : root->getDirty()) {
+    for (const auto &key : root->getDirty()) {
         auto it = std::find(v.begin(), v.end(), key);
         if (it == v.end())
             return ::testing::AssertionFailure() << "extra component " << key << ":" << key->toDebugString();
@@ -678,12 +723,36 @@ template<class... Args>
     return ::testing::AssertionSuccess();
 }
 
+template<class... Args>
+::testing::AssertionResult CheckDirtyDoNotClear(const RootContextPtr& root, Args... args)
+{
+    static const std::size_t value = sizeof...(Args);
+
+    std::vector<ComponentPtr> v = {args...};
+    for (const auto& key : v) {
+        if (root->getDirty().count(key) != 1)
+            return ::testing::AssertionFailure() << "missing component " << key << ":" << key->toDebugString();
+    }
+
+    for (const auto &key : root->getDirty()) {
+        auto it = std::find(v.begin(), v.end(), key);
+        if (it == v.end())
+            return ::testing::AssertionFailure() << "extra component " << key << ":" << key->toDebugString();
+    }
+
+    std::size_t actual = root->getDirty().size();
+    if (actual != value)
+        return ::testing::AssertionFailure() << "wrong number of dirty components.  Expected " << value << " but got " << actual;
+
+    return ::testing::AssertionSuccess();
+}
+
 // Check that AT LEAST all of this components are dirty.  More may be dirty; that's fine.
 template<class... Args>
 ::testing::AssertionResult CheckDirtyAtLeast(const RootContextPtr& root, Args... args)
 {
     std::vector<ComponentPtr> v = {args...};
-    for (auto key : v) {
+    for (const auto& key : v) {
         if (root->getDirty().count(key) != 1)
             return ::testing::AssertionFailure() << "missing component " << key << ":" << key->toDebugString();
     }
@@ -702,7 +771,7 @@ template<class... Args>
         return ::testing::AssertionFailure() << "wrong number of dirty graphic elements.  Expected " << value << " but got " << actual;
 
     std::vector<GraphicElementPtr> v = {args...};
-    for (auto key : v) {
+    for (const auto& key : v) {
         if (graphic->getDirty().count(key) != 1)
             return ::testing::AssertionFailure() << "missing graphic element " << key;
     }
@@ -851,6 +920,26 @@ CheckChildrenLaidOut(const ComponentPtr& component, Range childRange, bool laidO
 
 inline
 ::testing::AssertionResult
+CheckChildrenLaidOut(const ComponentPtr& component, std::set<int>&& laidOutChildren)
+{
+    int matched = 0;
+    for (size_t childIndex = 0; childIndex < component->getChildCount(); childIndex++) {
+        bool expectedToBeLaidOut = laidOutChildren.find(childIndex) != laidOutChildren.end();
+        auto result = CheckChildLaidOut(component, childIndex, expectedToBeLaidOut);
+        if (!result)
+            return result;
+        if (expectedToBeLaidOut)
+            matched++;
+    }
+    if (matched != laidOutChildren.size())
+        return ::testing::AssertionFailure() << "expected " << laidOutChildren.size() << " children; actually found "
+                                             << matched << " laid-out children";
+
+    return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
 CheckChildLaidOutDirtyFlags(const ComponentPtr& component, int idx) {
     return CheckDirty(component->getChildAt(idx), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut);
 }
@@ -871,19 +960,15 @@ CheckChildrenLaidOutDirtyFlags(const ComponentPtr& component, Range range) {
 template<class... Args>
 ::testing::AssertionResult CheckDirtyVisualContext(const RootContextPtr& root, Args... args)
 {
-    // Check the root
-    if (!root->isVisualContextDirty()) {
-        return ::testing::AssertionFailure() << "invalid root visual context isDirty" ;
-    }
+    static const bool value = (sizeof...(Args) != 0);
 
-    // check components
+    if (root->isVisualContextDirty() != value)
+        return ::testing::AssertionFailure() << "expected root visual context dirty to be " << value;
+
     std::vector<ComponentPtr> v = {args...};
-    for (auto key : v) {
-        auto target = std::dynamic_pointer_cast<CoreComponent>(key);
-        if (!target->isVisualContextDirty()) {
+    for (const auto& target : v)
+        if (!std::dynamic_pointer_cast<CoreComponent>(target)->isVisualContextDirty())
             return ::testing::AssertionFailure() << "invalid visual context isDirty" ;
-        }
-    }
 
     return ::testing::AssertionSuccess();
 }

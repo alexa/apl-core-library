@@ -18,7 +18,7 @@
 
 #include "apl/common.h"
 #include "apl/primitives/object.h"
-#include "apl/touch/gesture.h"
+#include "apl/touch/gestures/flinggesture.h"
 
 namespace apl {
 
@@ -34,7 +34,7 @@ enum SwipeAwayActionType {
     kSwipeAwayActionCover,
 };
 
-class SwipeAwayGesture : public Gesture, public std::enable_shared_from_this<SwipeAwayGesture> {
+class SwipeAwayGesture : public FlingGesture, public std::enable_shared_from_this<SwipeAwayGesture> {
 public:
     static std::shared_ptr<SwipeAwayGesture> create(const ActionablePtr& actionable, const Context& context, const Object& object);
 
@@ -46,9 +46,9 @@ public:
     bool invokeAccessibilityAction(const std::string& name) override;
 
 protected:
-    void onMove(const PointerEvent& event, apl_time_t timestamp) override;
-    void onDown(const PointerEvent& event, apl_time_t timestamp) override;
-    void onUp(const PointerEvent& event, apl_time_t timestamp) override;
+    bool onMove(const PointerEvent& event, apl_time_t timestamp) override;
+    bool onDown(const PointerEvent& event, apl_time_t timestamp) override;
+    bool onUp(const PointerEvent& event, apl_time_t timestamp) override;
 
 private:
     float getMove(SwipeDirection direction, Point localPos);
@@ -58,7 +58,6 @@ private:
     void animateRemainder(bool fulfilled, float velocity);
     void sendSwipeMove(float travelPercentage);
     float toLocalThreshold(float threshold);
-    bool isSlopeWithinTolerance(Point localPosition);
     float getCurrentVelocity();
     bool swipedFarEnough();
     bool swipedFastEnough(float velocity);
@@ -68,7 +67,6 @@ private:
     Object mOnSwipeMove;
     Object mOnSwipeDone;
     Object mItems;
-    Point mInitialPosition;
     float mLocalDistance;
     float mTraveledDistance;
     CoreComponentPtr mReplacedComponent;
@@ -78,7 +76,6 @@ private:
     ActionPtr mAnimateAction;
     EasingPtr mAnimationEasing;
     float mInitialMove;
-    std::unique_ptr<VelocityTracker> mVelocityTracker;
 };
 
 } // namespace apl

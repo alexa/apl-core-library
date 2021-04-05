@@ -32,6 +32,7 @@ public:
      * @param component The component receiving the key press.  If null, ignored.
      * @param keyboard The key press definition.
      * @param document The Content document.
+     * @result True, if the key was consumed.
      */
     bool handleKeyboard(KeyHandlerType type, const CoreComponentPtr& component, const Keyboard& keyboard,
                         const RootContextPtr& rootContext);
@@ -49,8 +50,7 @@ public:
     static std::string getHandlerId(KeyHandlerType type);
 
 private:
-
-    bool executeDocumentKeyHandlers(const RootContextPtr& rootContext,  KeyHandlerType type, const ObjectMapPtr& keyboard);
+    bool executeDocumentKeyHandlers(const RootContextPtr& rootContext,  KeyHandlerType type, const Keyboard& keyboard);
 
 };
 

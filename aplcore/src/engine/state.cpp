@@ -38,7 +38,7 @@ State::stringToState(const std::string& name)
 ContextPtr
 State::extend(const ContextPtr& context) const
 {
-    auto c = Context::create(context);
+    auto c = Context::createFromParent(context);
     auto map = std::make_shared<ObjectMap>();
     for (auto& m : sStateBimap)
         map->emplace(m.second, mStateMap[m.first]);

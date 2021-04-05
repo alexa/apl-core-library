@@ -75,7 +75,7 @@ public:
             mLayout->removeChildAt(mIndex, true);
         }
 
-        LOG(LogLevel::ERROR) << "Failed to find child with dataIndex of " << oldIndex;
+        LOG(LogLevel::kError) << "Failed to find child with dataIndex of " << oldIndex;
         return false;
     }
 
@@ -104,7 +104,7 @@ inline ContextPtr findToken(const CoreComponentPtr& component, int token)
     if (value.isNumber() && value.getInteger() == token)
         return p.context();
 
-    LOG(LogLevel::WARN) << "Unable to find token parent of context. Token=" << token;
+    LOG(LogLevel::kWarn) << "Unable to find token parent of context. Token=" << token;
     return nullptr;
 }
 
@@ -138,12 +138,16 @@ LayoutRebuilder::LayoutRebuilder(const ContextPtr& context,
       mNumbered(numbered),
       mRebuilderToken(sRebuilderToken++)
 {
-    registerObjectWatcher(array);
 }
 
 LayoutRebuilder::~LayoutRebuilder()
 {
-    unregisterObjectWatcher();
+    if (mCallbackToken != -1) {
+        auto array = mArray.lock();
+        if (array)
+            array->removeFlushCallback(mCallbackToken);
+        mCallbackToken = -1;
+    }
 }
 
 /**
@@ -156,7 +160,7 @@ LayoutRebuilder::build()
     auto array = mArray.lock();
 
     if (!layout || !array) {
-        LOG(LogLevel::ERROR) << "Attempting to build a layout without a layout or data array";
+        LOG(LogLevel::kError) << "Attempting to build a layout without a layout or data array";
         return;
     }
 
@@ -168,7 +172,7 @@ LayoutRebuilder::build()
     auto length = array->size();
     for (size_t dataIndex = 0; dataIndex < length; dataIndex++) {
         const auto& data = array->at(dataIndex);
-        auto childContext = Context::create(mContext);
+        auto childContext = Context::createFromParent(mContext);
         childContext->putSystemWriteable("data", data);  // This can be changed
         childContext->putSystemWriteable("index", index);
         childContext->putSystemWriteable("length", length);
@@ -195,6 +199,11 @@ LayoutRebuilder::build()
             }
         }
     }
+
+    // After the first build() we register for LiveDataFlush callbacks and connect these to layout rebuilds.
+    mCallbackToken = array->addFlushCallback([this](const std::string& key, LiveDataObject& ldo){
+        rebuild();
+    });
 }
 
 
@@ -205,7 +214,7 @@ LayoutRebuilder::rebuild()
     auto array = mArray.lock();
 
     if (!layout || !array) {
-        LOG(LogLevel::ERROR) << "Attempting to rebuild a layout without a layout or data array";
+        LOG(LogLevel::kError) << "Attempting to rebuild a layout without a layout or data array";
         return;
     }
 
@@ -226,7 +235,7 @@ LayoutRebuilder::rebuild()
         auto needsRefresh = p.second;
 
         if (oldIndex == -1) {  // Insert a new child - this one doesn't exist
-            auto childContext = Context::create(mContext);
+            auto childContext = Context::createFromParent(mContext);
             childContext->putSystemWriteable("data", data);
             childContext->putSystemWriteable("index", index);
             childContext->putSystemWriteable("length", array->size());

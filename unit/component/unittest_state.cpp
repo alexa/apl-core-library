@@ -55,7 +55,7 @@ TEST(StateTest, Extend)
     State a(kStateDisabled);
     a.set(kStateKaraoke, true);
     a.set(kStateKaraokeTarget, true);
-    auto context = a.extend(Context::create(Metrics(), makeDefaultSession()));
+    auto context = a.extend(Context::createTestContext(Metrics(), makeDefaultSession()));
 
     ASSERT_FALSE(evaluate(*context, "${state.pressed}").asBoolean());
     ASSERT_TRUE(evaluate(*context, "${state.disabled}").asBoolean());

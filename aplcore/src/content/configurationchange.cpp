@@ -18,15 +18,11 @@
 
 namespace apl {
 
-/**
- * Merge this configuration change into a metrics object.
- * @param oldMetrics The old metrics to be updated
- * @return The updated metrics
- */
 Metrics
 ConfigurationChange::mergeMetrics(const Metrics& oldMetrics) const
 {
     auto metrics = oldMetrics;
+
     if ((mFlags & kConfigurationChangeSize) != 0)
         metrics.size(mPixelWidth, mPixelHeight);
 
@@ -39,15 +35,11 @@ ConfigurationChange::mergeMetrics(const Metrics& oldMetrics) const
     return metrics;
 }
 
-/**
- * Merge this configuration change into a root config object
- * @param oldRootConfig The RootConfig object to be modifie
- * @return The updated RootConfig
- */
 RootConfig
 ConfigurationChange::mergeRootConfig(const RootConfig& oldRootConfig) const
 {
     auto rootConfig = oldRootConfig;
+
     if ((mFlags & kConfigurationChangeScreenMode) != 0)
         rootConfig.screenMode(mScreenMode);
 
@@ -59,6 +51,63 @@ ConfigurationChange::mergeRootConfig(const RootConfig& oldRootConfig) const
 
     return rootConfig;
 }
+
+void
+ConfigurationChange::mergeConfigurationChange(const apl::ConfigurationChange& other)
+{
+    mFlags |= other.mFlags;
+
+    if ((other.mFlags & kConfigurationChangeSize) != 0) {
+        mPixelWidth = other.mPixelWidth;
+        mPixelHeight = other.mPixelHeight;
+    }
+
+    if ((other.mFlags & kConfigurationChangeTheme) != 0)
+        mTheme = other.mTheme;
+
+    if ((other.mFlags & kConfigurationChangeViewportMode) != 0)
+        mViewportMode = other.mViewportMode;
+
+    if ((other.mFlags & kConfigurationChangeScreenMode) != 0)
+        mScreenMode = other.mScreenMode;
+
+    if ((other.mFlags & kConfigurationChangeFontScale) != 0)
+        mFontScale = other.mFontScale;
+
+    if ((other.mFlags & kConfigurationChangeScreenReader) != 0)
+        mScreenReaderEnabled = other.mScreenReaderEnabled;
+}
+
+Size
+ConfigurationChange::mergeSize(const Size& oldSize) const
+{
+    auto size = oldSize;
+
+    if ((mFlags & kConfigurationChangeSize))
+        size = { static_cast<float>(mPixelWidth), static_cast<float>(mPixelHeight) };
+
+    return size;
+}
+
+ObjectMap
+ConfigurationChange::asEventProperties(const RootConfig& rootConfig, const Metrics& metrics) const
+{
+    auto sizeChanged = mPixelHeight != metrics.getPixelHeight() || mPixelWidth != metrics.getPixelWidth();
+    auto rotated = sizeChanged && mPixelWidth == metrics.getPixelHeight() && mPixelHeight == metrics.getPixelWidth();
+
+    return {
+        {"height",       mPixelHeight},
+        {"width",        mPixelWidth},
+        {"theme",        mTheme},
+        {"viewportMode", sViewportModeBimap.at(mViewportMode)},
+        {"fontScale",    mFontScale},
+        {"screenMode",   sScreenModeBimap.at(mScreenMode)},
+        {"screenReader", mScreenReaderEnabled},
+        {"sizeChanged",  sizeChanged},
+        {"rotated",      rotated}
+    };
+}
+
 
 
 } // namespace apl

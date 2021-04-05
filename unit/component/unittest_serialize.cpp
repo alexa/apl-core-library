@@ -440,10 +440,12 @@ const static char *SERIALIZE_ALL_RESULT = R"({
   "minWidth": 0,
   "onMount": [],
   "opacity": 1,
-  "paddingBottom": 0,
-  "paddingLeft": 0,
-  "paddingRight": 0,
-  "paddingTop": 0,
+  "padding": [],
+  "paddingBottom": null,
+  "paddingLeft": null,
+  "paddingRight": null,
+  "paddingTop": null,
+  "preserve": [],
   "role": "none",
   "shadowColor": "#00000000",
   "shadowHorizontalOffset": 0,
@@ -469,8 +471,7 @@ const static char *SERIALIZE_ALL_RESULT = R"({
   "width": "100%",
   "onCursorEnter": [],
   "onCursorExit": [],
-  "_laidOut": true,
-  "_zOrder": 0
+  "_laidOut": true
 })";
 
 TEST_F(SerializeTest, SerializeAll)
@@ -512,7 +513,7 @@ static const char *CHILDREN_UPDATE = R"({
 TEST_F(SerializeTest, ChildrenUpdateNotification)
 {
     auto myArray = LiveArray::create(ObjectArray{"A", "B"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(CHILDREN_UPDATE);
 
@@ -568,7 +569,7 @@ static const char *SEQUENCE_CHILDREN_UPDATE = R"({
 TEST_F(SerializeTest, SequencePositionChildrenUpdate)
 {
     auto myArray = LiveArray::create(ObjectArray{"A", "B"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(SEQUENCE_CHILDREN_UPDATE);
 
@@ -612,7 +613,7 @@ static const char *PAGER_CHILDREN_UPDATE = R"({
 TEST_F(SerializeTest, PagerPositionChildrenUpdate)
 {
     auto myArray = LiveArray::create(ObjectArray{"A", "B"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(PAGER_CHILDREN_UPDATE);
 

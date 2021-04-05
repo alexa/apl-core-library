@@ -18,9 +18,9 @@
 #include <cmath>
 #include <algorithm>
 
-#include "apl/component/scrollablecomponent.h"
 #include "apl/component/pagercomponent.h"
 #include "apl/content/rootconfig.h"
+#include "apl/time/sequencer.h"
 #include "apl/time/timemanager.h"
 
 #include "apl/engine/builder.h"
@@ -33,100 +33,173 @@
 
 namespace apl {
 
+static const bool DEBUG_FLING_GESTURE = false;
+
+static inline float
+getDistance(const ActionablePtr& actionable, const Point& startPosition, const Point& localPoint)
+{
+    auto shift = localPoint - startPosition;
+    return actionable->isHorizontal() ? shift.getX() : shift.getY();
+}
+
+static inline float
+getAnimationDistance(const ActionablePtr& actionable, PageDirection direction, float amount)
+{
+    auto parentBounds = actionable->getCalculated(kPropertyBounds).getRect();
+    auto wholeDistance = actionable->isHorizontal() ? parentBounds.getWidth() : parentBounds.getHeight();
+    return (direction == kPageDirectionForward ? 1.0f : -1.0f) * amount * wholeDistance;
+}
+
+static inline float
+getTranslationAmount(const ActionablePtr& actionable, float distance)
+{
+    auto parentBounds = actionable->getCalculated(kPropertyBounds).getRect();
+    return std::abs(distance) /
+           (actionable->isHorizontal() ? parentBounds.getWidth() : parentBounds.getHeight());
+}
+
+static inline size_t
+calculateTargetPage(const ActionablePtr& actionable, PageDirection direction, size_t current)
+{
+    const int childCount = actionable->getChildCount();
+    const int delta = direction == kPageDirectionForward ? 1 : childCount - 1;
+    return (current + delta) % childCount;
+}
+
 std::shared_ptr<PagerFlingGesture>
 PagerFlingGesture::create(const ActionablePtr& actionable)
 {
     return std::make_shared<PagerFlingGesture>(actionable);
 }
 
-PagerFlingGesture::PagerFlingGesture(const ActionablePtr& actionable) : Gesture(actionable),
-    mVelocityTracker(new VelocityTracker(mActionable->getRootConfig())),
+PagerFlingGesture::PagerFlingGesture(const ActionablePtr& actionable) :
+    FlingGesture(actionable),
     mCurrentPage(0),
     mTargetPage(0),
     mPageDirection(kPageDirectionNone),
-    mAmount(0)
+    mLastAnimationAmount(0.0f),
+    mAmount(0.0f)
+{
+    mResourceHolder = ExecutionResourceHolder::create(kExecutionResourcePosition, actionable, [&](){reset();});
+}
 
-{}
+void
+PagerFlingGesture::release()
+{
+    mResourceHolder->release();
+    reset();
+}
 
 void
 PagerFlingGesture::reset() {
-    Gesture::reset();
-    mVelocityTracker->reset();
-    mActionable->enableGestures();
+    FlingGesture::reset();
+
+    if (isTriggered())
+        mResourceHolder->releaseResource();
+
     mPageDirection = kPageDirectionNone;
 }
 
-void
+bool
 PagerFlingGesture::onDown(const PointerEvent& event, apl_time_t timestamp)
 {
-    if (mTriggered) return;
-    mStartPosition = mActionable->toLocalPoint(event.pointerEventPosition);
-    mVelocityTracker->reset();
-    mVelocityTracker->addPointerEvent(event, timestamp);
+    LOG_IF(DEBUG_FLING_GESTURE) << "event: " << event.pointerEventPosition.toString() << ", timestamp: " << timestamp;
+    auto startTime = mStartTime;
+    if (!FlingGesture::onDown(event, timestamp)) return false;
+    // If triggered and onDown received - animation currently happening
+    if (isTriggered()) {
+        // We stop animation but allow for chaining
+        if (mAnimateAction) {
+            mAnimateAction->terminate();
+            mAnimateAction = nullptr;
+        }
+
+        // Figure how far we need to offset.
+        auto lastDistance = getAnimationDistance(mActionable, mPageDirection, mLastAnimationAmount);
+
+        // Reset non-significant (non-distance related) direction from the offset to avoid hitting angle restriction.
+        auto distanceShift = mActionable->isHorizontal() ? Point(lastDistance, 0) : Point(0, lastDistance);
+
+        // Offset start position by already covered distance.
+        mStartPosition += distanceShift;
+        // Restore old start time to avoid move timeout
+        mStartTime = startTime;
+        LOG_IF(DEBUG_FLING_GESTURE) << "Chaining. distanceShift:" << distanceShift
+            << ", mStartPosition: " << mStartPosition.toString() << ", mAmount: " << mAmount
+            << ", mLastAnimationAmount: " << mLastAnimationAmount;
+        return true;
+    }
     mCurrentPage = mTargetPage = mActionable->pagePosition();
+    return true;
 }
 
-float
-PagerFlingGesture::getDistance(const Point& currentPosition)
-{
-    auto shift = mActionable->toLocalPoint(currentPosition) - mStartPosition;
-    return mActionable->isHorizontal() ? shift.getX() : shift.getY();
-}
-
-float
-PagerFlingGesture::getAmount(float distance)
-{
-    auto parentBounds = mActionable->getCalculated(kPropertyBounds).getRect();
-    return std::abs(distance) /
-           (mActionable->isHorizontal() ? parentBounds.getWidth() : parentBounds.getHeight());
-}
-
-void
+bool
 PagerFlingGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
 {
-    mVelocityTracker->addPointerEvent(event, timestamp);
+    if (!FlingGesture::onMove(event, timestamp))
+        return false;
 
     auto pager = std::dynamic_pointer_cast<PagerComponent>(mActionable);
-    auto distance = getDistance(event.pointerEventPosition);
+    auto localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
+    auto distance = getDistance(mActionable, mStartPosition, localPoint);
     auto direction = distance < 0 ? kPageDirectionForward : kPageDirectionBack;
+
+    LOG_IF(DEBUG_FLING_GESTURE) << "Distance: " << distance << ", direction: " << direction;
 
     if (mTriggered && direction != mPageDirection) {
         mTriggered = false;
-        pager->resetPage(mCurrentPage);
-        pager->resetPage(mTargetPage);
+        LOG_IF(DEBUG_FLING_GESTURE) << "Reverse direction from: " << mPageDirection;
     }
 
+    auto horizontal = mActionable->isHorizontal();
     auto availableDirection = pager->pageDirection();
     auto globalToLocal = mActionable->getGlobalToLocalTransform();
     auto flingDistanceThreshold = mActionable->getRootConfig().getPointerSlopThreshold() *
-        (mActionable->isHorizontal() ? globalToLocal.getXScaling() : globalToLocal.getYScaling());
+        (horizontal ? globalToLocal.getXScaling() : globalToLocal.getYScaling());
 
-    // Trigger only if distance is above the threshold ANG navigation direction available
+    // Trigger only if distance is above the threshold AND navigation direction available
     if (!mTriggered
         && (std::abs(distance) > std::abs(flingDistanceThreshold))
         && (availableDirection == direction || availableDirection == kPageDirectionBoth)) {
-        mTriggered = true;
-        mPageDirection = direction;
+        if (!isSlopeWithinTolerance(localPoint, horizontal)) {
+            reset();
+            return false;
+        }
 
-        const int childCount = mActionable->getChildCount();
-        const int delta = mPageDirection == kPageDirectionForward ? 1 : childCount - 1;
-        mTargetPage = (mCurrentPage + delta) % childCount;
+        mTriggered = true;
+        LOG_IF(DEBUG_FLING_GESTURE) << "Triggered";
+        mResourceHolder->takeResource();
+        mPageDirection = direction;
+        mTargetPage = calculateTargetPage(mActionable, mPageDirection, mCurrentPage);
 
         pager->startPageMove(mPageDirection, mCurrentPage, mTargetPage);
     }
 
     if (mTriggered) {
-        mAmount = getAmount(distance);
+        mAmount = getTranslationAmount(mActionable, distance);
+        if (mAmount > 1.0f) {
+            LOG_IF(DEBUG_FLING_GESTURE) << "Moved over 100%, restarting with new page.";
+
+            // Reset start of the gesture, we effectively switched the page
+            pager->endPageMove(true, ActionRef(nullptr), false);
+            mStartPosition = localPoint;
+            mAmount = mAmount - 1.0f;
+
+            // Start new one from the new page
+            mCurrentPage = mTargetPage;
+            mTargetPage = calculateTargetPage(mActionable, mPageDirection, mCurrentPage);
+            pager->startPageMove(mPageDirection, mCurrentPage, mTargetPage);
+        }
+        mLastAnimationAmount = mAmount;
         pager->executePageMove(mAmount);
     }
+
+    return true;
 }
 
 void
 PagerFlingGesture::animateRemainder(bool fulfill)
 {
-    // Stop gestures from propagating to this component. It mekes no sense in between the pages.
-    mActionable->disableGestures();
-
     auto duration = mActionable->getRootConfig().getDefaultPagerAnimationDuration();
     auto remainder = fulfill ? 1.0f - mAmount : -mAmount;
 
@@ -140,6 +213,7 @@ PagerFlingGesture::animateRemainder(bool fulfill)
                alpha = std::max(0.0f, std::min(1.0f, alpha));
 
                auto amount = self->mAmount + alpha * remainder;
+               self->mLastAnimationAmount = amount;
                std::dynamic_pointer_cast<PagerComponent>(self->mActionable)->executePageMove(amount);
            }
        });
@@ -179,27 +253,25 @@ PagerFlingGesture::awaitForFinish(const std::weak_ptr<PagerFlingGesture>& weak_p
     }
 }
 
-void
+bool
 PagerFlingGesture::onUp(const PointerEvent& event, apl_time_t timestamp)
 {
-    if (!mTriggered) {
-        reset();
-        return;
-    }
+    if (!FlingGesture::onUp(event, timestamp))
+        return false;
 
-    mVelocityTracker->addPointerEvent(event, timestamp);
-    mAmount = getAmount(getDistance(event.pointerEventPosition));
+    mAmount = getTranslationAmount(mActionable, getDistance(mActionable, mStartPosition, event.pointerEventPosition));
     finishUp();
+    return true;
 }
 
-void
+bool
 PagerFlingGesture::onCancel(const PointerEvent& event, apl_time_t timestamp)
 {
     // We explicitly ignore cancel position - it should not be necessary and can be outside of Pager.
-    finishUp();
+    return finishUp();
 }
 
-void
+bool
 PagerFlingGesture::finishUp()
 {
     auto horizontal = mActionable->isHorizontal();
@@ -214,7 +286,7 @@ PagerFlingGesture::finishUp()
         pager->endPageMove(false);
         // And gesture.
         reset();
-        return;
+        return false;
     }
 
     auto velocities = toLocalVector(mVelocityTracker->getEstimatedVelocity());
@@ -227,12 +299,13 @@ PagerFlingGesture::finishUp()
     // In case if we don't get enough fling or distance or fling in opposite direction - snap back.
     if ((mAmount < 0.5f && std::abs(velocity) < (minFlingVelocity / time::MS_PER_SECOND))
         || direction != mPageDirection) {
-        LOG(LogLevel::DEBUG) << "Do not fling with velocity: " << velocity << ", amount :" << mAmount
+        LOG(LogLevel::kDebug) << "Do not fling with velocity: " << velocity << ", amount :" << mAmount
             << ", expected direction: " << mPageDirection << ", direction: " << direction;
         fulfill = false;
     }
 
     animateRemainder(fulfill);
+    return true;
 }
 
 } // namespace apl

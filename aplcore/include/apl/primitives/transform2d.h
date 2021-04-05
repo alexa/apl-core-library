@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 #include "apl/common.h"
 
 #include "apl/primitives/point.h"
+#include "apl/primitives/rect.h"
 #include "rapidjson/document.h"
 
 #include "apl/utils/bimap.h"
@@ -209,6 +210,15 @@ public:
      * @return the scaling factor in the Y direction due to this transform.
      */
     float getYScaling() const { return std::sqrt(mData[2]*mData[2] + mData[3]*mData[3]); }
+
+    /**
+    * Calculate the axis aligned bounding box of a transformed rectangle. This
+    * method transforms the 4 corners of the rectangle, and returns the minimum,
+    * axis aligned, rectangle that encompasses the transformed corners.
+    *
+    * @return A new rectangle representing the axis aligned bounding box.
+    */
+    Rect calculateAxisAlignedBoundingBox(const Rect& rect);
 
     /**
      * Product of two transforms

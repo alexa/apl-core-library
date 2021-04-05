@@ -18,8 +18,10 @@
 
 #include "apl/common.h"
 #include "apl/content/jsondata.h"
+#include "apl/content/extensionproperty.h"
 #include "apl/engine/event.h"
 #include "apl/utils/counter.h"
+#include "apl/utils/noncopyable.h"
 #include "apl/utils/session.h"
 #include "apl/livedata/livedataobjectwatcher.h"
 
@@ -96,6 +98,7 @@ public:
  */
 class ExtensionClient : public Counter<ExtensionClient>,
                         public LiveDataObjectWatcher,
+                        public NonCopyable,
                         public std::enable_shared_from_this<ExtensionClient> {
 public:
     /**
@@ -113,7 +116,7 @@ public:
     /**
      * Destructor
      */
-    ~ExtensionClient();
+    ~ExtensionClient() override = default;
 
     /**
      * Form a registration request for current extension.

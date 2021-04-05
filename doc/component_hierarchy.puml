@@ -1,0 +1,33 @@
+@startuml
+Counter <|-- Component
+enable_shared_from_this <|-- Component
+UserData <|-- Component
+Component <|-- CoreComponent
+RecalculateTarget <|-- CoreComponent
+CoreComponent <|-- ActionableComponent
+ActionableComponent <|-- EditTextComponent
+ActionableComponent <|-- PagerComponent
+ActionableComponent <|-- ScrollableComponent
+ScrollableComponent <|-- MultiChildScrollableComponent
+MultiChildScrollableComponent <|-- GridSequenceComponent
+MultiChildScrollableComponent <|-- SequenceComponent
+ScrollableComponent <|-- ScrollViewComponent
+ActionableComponent <|-- TouchableComponent
+TouchableComponent <|-- TouchWrapperComponent
+TouchableComponent <|-- VectorGraphicComponent
+CoreComponent <|-- ContainerComponent
+CoreComponent <|-- FrameComponent
+CoreComponent <|-- ImageComponent
+CoreComponent <|-- TextComponent
+CoreComponent <|-- VideoComponent
+
+CoreComponent : layout()
+CoreComponent : ensureLayout(bool)
+CoreComponent : processLayoutChanges()
+ContainerComponent : processLayoutChanges()
+MultiChildScrollableComponent : processLayoutChanges()
+GridSequenceComponent : processLayoutChanges()
+PagerComponent : processLayoutChanges()
+VectorGraphicComponent : processLayoutChanges()
+
+@enduml

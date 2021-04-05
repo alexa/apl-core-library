@@ -56,4 +56,30 @@ Object asOldBoolean(const Context& context, const Object& object)
     return object.asBoolean();
 }
 
+Object asPaddingArray(const Context& context, const Object& object)
+{
+    std::vector<Object> data;
+    for (auto& m : arrayify(context, object))
+        data.emplace_back(asAbsoluteDimension(context, m));
+
+    auto size = data.size();
+    if (size == 1) {
+        data.resize(4);
+        data[1] = data[0];  // [X] -> [X,X,X,X]
+        data[2] = data[0];
+        data[3] = data[0];
+    }
+    else if (size == 2) {
+        data.resize(4);
+        data[2] = data[0];  // [X,Y] -> [X,Y,X,Y]
+        data[3] = data[1];
+    }
+    else if (size == 3) {
+        data.resize(4);
+        data[3] = data[1];  // [X,Y,Z] -> [X,Y,Z,Y]
+    }
+
+    return Object(std::move(data));
+}
+
 } // namespace apl

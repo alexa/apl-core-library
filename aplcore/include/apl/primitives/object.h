@@ -39,6 +39,7 @@
 
 #include <map>
 #include <cmath>
+#include <cstdint>
 
 #include "rapidjson/document.h"
 
@@ -279,7 +280,8 @@ public:
     std::string asString() const;
     bool asBoolean() const { return truthy(); }
     double asNumber() const;
-    int asInt() const;
+    int asInt(int base=10) const;
+    int64_t asInt64(int base = 10) const;
     Dimension asDimension(const Context& ) const;
     Dimension asAbsoluteDimension(const Context&) const;
     Dimension asNonAutoDimension(const Context&) const;
@@ -293,7 +295,7 @@ public:
     const std::string& getString() const { assert(mType == kStringType); return mU.string; }
     bool getBoolean() const { assert(mType == kBoolType); return mU.value != 0; }
     double getDouble() const { assert(mType == kNumberType); return mU.value; }
-    int getInteger() const { assert(mType == kNumberType); return static_cast<int>(std::rint(mU.value)); }
+    int getInteger() const { assert(mType == kNumberType); return static_cast<int>(std::round(mU.value)); }
     unsigned getUnsigned() const { assert(mType == kNumberType); return static_cast<unsigned>(mU.value);}
     double getAbsoluteDimension() const { assert(mType == kAbsoluteDimensionType); return mU.value; }
     double getRelativeDimension() const { assert(mType == kRelativeDimensionType); return mU.value; }
@@ -331,12 +333,12 @@ public:
     Object opt(const std::string& key, const Object& def) const;
 
     // ARRAY objects
-    Object at(size_t index) const;
+    Object at(std::uint64_t index) const;
 
     ObjectType getType() const;
 
     // MAP, ARRAY, and STRING objects
-    size_t size() const;
+    std::uint64_t size() const;
 
     // NULL, MAP, ARRAY, RECT, and STRING objects
     bool empty() const;

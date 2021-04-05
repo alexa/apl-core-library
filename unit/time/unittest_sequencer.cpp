@@ -93,8 +93,8 @@ TEST_F(SequencerTest, OnSequencerTerminateMain)
     execute(TERMINATE_MAIN, false);
 
     auto sequencer = context->sequencer();
-    ASSERT_FALSE(sequencer.isEmpty("secondary"));
-    ASSERT_FALSE(sequencer.isEmpty(MAIN_SEQUENCER_NAME));
+    ASSERT_FALSE(sequencer.empty("secondary"));
+    ASSERT_FALSE(sequencer.empty(MAIN_SEQUENCER_NAME));
 
     // Overcome timeout.
     loop->advanceToEnd();
@@ -113,8 +113,8 @@ TEST_F(SequencerTest, OnSequencerTerminateScheduled)
     execute(TERMINATE_SECONDARY, false);
 
     auto sequencer = context->sequencer();
-    ASSERT_TRUE(sequencer.isEmpty("secondary"));
-    ASSERT_TRUE(sequencer.isEmpty(MAIN_SEQUENCER_NAME));
+    ASSERT_TRUE(sequencer.empty("secondary"));
+    ASSERT_TRUE(sequencer.empty(MAIN_SEQUENCER_NAME));
 
     // Overcome timeout.
     loop->advanceToEnd();
@@ -133,8 +133,8 @@ TEST_F(SequencerTest, ParallelNormal)
     execute(SEND_EVENT_ON_MAIN, false);
 
     auto sequencer = context->sequencer();
-    ASSERT_FALSE(sequencer.isEmpty("secondary"));
-    ASSERT_FALSE(sequencer.isEmpty(MAIN_SEQUENCER_NAME));
+    ASSERT_FALSE(sequencer.empty("secondary"));
+    ASSERT_FALSE(sequencer.empty(MAIN_SEQUENCER_NAME));
 
     // Overcome timeout.
     loop->advanceToEnd();
@@ -152,9 +152,9 @@ TEST_F(SequencerTest, OnSequencerTerminateSecondary)
     execute(SEND_EVENT_ON_TERTIARY, false);
 
     auto sequencer = context->sequencer();
-    ASSERT_FALSE(sequencer.isEmpty("secondary"));
-    ASSERT_FALSE(sequencer.isEmpty("tertiary"));
-    ASSERT_TRUE(sequencer.isEmpty(MAIN_SEQUENCER_NAME));
+    ASSERT_FALSE(sequencer.empty("secondary"));
+    ASSERT_FALSE(sequencer.empty("tertiary"));
+    ASSERT_TRUE(sequencer.empty(MAIN_SEQUENCER_NAME));
 
     // Submit idle on one of the sequencers will terminate it
     execute(TERMINATE_SECONDARY, false);
@@ -200,8 +200,8 @@ TEST_F(SequencerTest, SequentialOnSequencer)
     // Should schedule send event on magic sequencer
     execute(SEQUENTIAL_ON_SECONDARY, false);
     auto sequencer = context->sequencer();
-    ASSERT_FALSE(sequencer.isEmpty("magic"));
-    ASSERT_TRUE(sequencer.isEmpty(MAIN_SEQUENCER_NAME));
+    ASSERT_FALSE(sequencer.empty("magic"));
+    ASSERT_TRUE(sequencer.empty(MAIN_SEQUENCER_NAME));
 
     // Overcome timeout.
     loop->advanceToTime(101);
@@ -246,8 +246,8 @@ TEST_F(SequencerTest, ParallelOnSequencer)
     // Should schedule send event
     execute(PARALLEL_ON_SECONDARY, false);
     auto sequencer = context->sequencer();
-    ASSERT_FALSE(sequencer.isEmpty("magic"));
-    ASSERT_TRUE(sequencer.isEmpty(MAIN_SEQUENCER_NAME));
+    ASSERT_FALSE(sequencer.empty("magic"));
+    ASSERT_TRUE(sequencer.empty(MAIN_SEQUENCER_NAME));
 
     // Overcome timeout.
     loop->advanceToTime(101);
@@ -484,7 +484,7 @@ TEST_F(SequencerTest, SelectOnDifferentSequencer)
 
 TEST_F(SequencerTest, SelectOnDifferentSequencerTerminate)
 {
-    config.agent("Unit tests", "1.1");
+    config->agent("Unit tests", "1.1");
     loadDocument(BASIC);
 
     // Should schedule send event
@@ -529,7 +529,7 @@ static const char *SELECT_OTHERWISE = R"([
 
 TEST_F(SequencerTest, SelectOtherwise)
 {
-    config.agent("Unit tests", "1.2");
+    config->agent("Unit tests", "1.2");
     loadDocument(BASIC);
 
     // Should schedule send event
@@ -1228,15 +1228,15 @@ TEST_F(SequencerTest, SequentialOnSequencer13)
     loop->advanceToEnd();
 
     auto sequencer = context->sequencer();
-    ASSERT_TRUE(sequencer.isEmpty("magic"));
-    ASSERT_FALSE(sequencer.isEmpty(MAIN_SEQUENCER_NAME));
+    ASSERT_TRUE(sequencer.empty("magic"));
+    ASSERT_FALSE(sequencer.empty(MAIN_SEQUENCER_NAME));
 
     CheckSendEvent(root, 1);
     CheckSendEvent(root, 2);
 
     sequencer.reset();
-    ASSERT_TRUE(sequencer.isEmpty("magic"));
-    ASSERT_TRUE(sequencer.isEmpty(MAIN_SEQUENCER_NAME));
+    ASSERT_TRUE(sequencer.empty("magic"));
+    ASSERT_TRUE(sequencer.empty(MAIN_SEQUENCER_NAME));
 
 
 }

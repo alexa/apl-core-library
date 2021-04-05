@@ -94,15 +94,16 @@ DoublePressGesture::onSecondUpInternal(const PointerEvent& event, apl_time_t tim
     reset();
 }
 
-void
+bool
 DoublePressGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
     mStartTime = timestamp;
     if (mBetweenPresses) {
         onSecondDownInternal(event, timestamp);
     }
+    return true;
 }
 
-void
+bool
 DoublePressGesture::onTimeUpdate(const apl::PointerEvent& event, apl::apl_time_t timestamp) {
     // Will only do something when in between presses
     if (timestamp >= mStartTime + mDoublePressTimeout && mBetweenPresses) {
@@ -111,15 +112,17 @@ DoublePressGesture::onTimeUpdate(const apl::PointerEvent& event, apl::apl_time_t
                                          mActionable->createTouchEventProperties(localPoint));
         reset();
     }
+    return true;
 }
 
-void
+bool
 DoublePressGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
     if (mTriggered) {
         onSecondUpInternal(event, timestamp);
     } else {
         onFirstUpInternal(event, timestamp);
     }
+    return true;
 }
 
 } // namespace apl

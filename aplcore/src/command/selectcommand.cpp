@@ -52,7 +52,7 @@ SelectCommand::execute(const TimersPtr& timers, bool fastMode) {
             int index = 0;
             auto dataLength = data.size();
             for (const auto& datum : data) {
-                auto childContext = Context::create(context());
+                auto childContext = Context::createFromParent(context());
                 childContext->putConstant("data", datum);
                 childContext->putConstant("index", index);
                 childContext->putConstant("length", dataLength);

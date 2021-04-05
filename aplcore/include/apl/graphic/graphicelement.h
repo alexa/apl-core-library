@@ -21,6 +21,7 @@
 
 #include "apl/common.h"
 #include "apl/utils/counter.h"
+#include "apl/utils/noncopyable.h"
 #include "apl/utils/userdata.h"
 #include "apl/primitives/object.h"
 #include "apl/engine/properties.h"
@@ -46,6 +47,7 @@ using GraphicPropertyMap = PropertyMap<GraphicPropertyKey, sGraphicPropertyBimap
 class GraphicElement : public std::enable_shared_from_this<GraphicElement>,
                        public RecalculateTarget<GraphicPropertyKey>,
                        public UserData<GraphicElement>,
+                       public NonCopyable,
                        public Counter<GraphicElement> {
     friend class Graphic;
     friend class GraphicDependant;

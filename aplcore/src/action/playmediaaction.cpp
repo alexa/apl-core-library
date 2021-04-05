@@ -36,9 +36,9 @@ PlayMediaAction::make(const TimersPtr& timers,
 
     auto audioTrack = command->getValue(kCommandPropertyAudioTrack);
     if (audioTrack == kCommandAudioTrackForeground) {
-        command->context()->sequencer().claimResource(kCommandResourceForegroundAudio, ptr);
+        command->context()->sequencer().claimResource(kExecutionResourceForegroundAudio, ptr);
     } else if (audioTrack == kCommandAudioTrackBackground) {
-        command->context()->sequencer().claimResource(kCommandResourceBackgroundAudio, ptr);
+        command->context()->sequencer().claimResource(kExecutionResourceBackgroundAudio, ptr);
     }
 
     ptr->start();

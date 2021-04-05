@@ -23,7 +23,7 @@ protected:
         for (auto& m : content->getExtensionRequests()) {
             // Skip requests that start with an underscore
             if (m[0] != '_')
-                config.registerExtension(m);
+                config->registerExtension(m);
         }
     }
 };
@@ -194,7 +194,7 @@ static const char* REPEATED_NAME = R"({
  * points to the same URI.
  */
 TEST_F(RequestedExtensionTest, RepeatedAlias) {
-    config.registerExtension("_URI1");
+    config->registerExtension("_URI1");
     loadDocument(REPEATED_NAME);
 
     ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.myname}")));
@@ -238,7 +238,7 @@ TEST_F(RequestedExtensionTest, ExtensionWithDefaultConfig) {
 
     loadDocument(BASIC);
 
-    auto c = config.getExtensionEnvironment("URI1");
+    auto c = config->getExtensionEnvironment("URI1");
     ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), c));
 
     // verify the environment evaluates to true for the extension name
@@ -252,16 +252,16 @@ TEST_F(RequestedExtensionTest, IndirectDefaultConfig) {
 
     // unregistered extension registers command
     auto cmd = ExtensionCommandDefinition("ext:Cmd", "cmd");
-    config.registerExtensionCommand(cmd);
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), config.getExtensionEnvironment("ext:Cmd")));
+    config->registerExtensionCommand(cmd);
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), config->getExtensionEnvironment("ext:Cmd")));
 
     // unregistered extension registers handler
     auto handler = ExtensionEventHandler("ext:Hdlr", "hdlr");
-    config.registerExtensionEventHandler(handler);
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), config.getExtensionEnvironment("ext:Hdlr")));
+    config->registerExtensionEventHandler(handler);
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), config->getExtensionEnvironment("ext:Hdlr")));
 
-    config.registerExtensionEnvironment("ext:Cfg", Object(64));
-    ASSERT_TRUE(IsEqual(64, config.getExtensionEnvironment("ext:Cfg")));
+    config->registerExtensionEnvironment("ext:Cfg", Object(64));
+    ASSERT_TRUE(IsEqual(64, config->getExtensionEnvironment("ext:Cfg")));
 }
 
 /**
@@ -274,39 +274,39 @@ TEST_F(RequestedExtensionTest, ConfigAPIOrder) {
     // order: register, handler, command
     auto cmd1 = ExtensionCommandDefinition("ext:1", "cmd");
     auto handler1 = ExtensionEventHandler("ext:1", "hdlr");
-    config.registerExtension("ext:1", six4).registerExtensionEventHandler(handler1).registerExtensionCommand(cmd1);
-    ASSERT_TRUE(IsEqual(64, config.getExtensionEnvironment("ext:1")));
+    config->registerExtension("ext:1", six4).registerExtensionEventHandler(handler1).registerExtensionCommand(cmd1);
+    ASSERT_TRUE(IsEqual(64, config->getExtensionEnvironment("ext:1")));
 
     // order: command, register, handler
     auto cmd2 = ExtensionCommandDefinition("ext:2", "cmd");
     auto handler2 = ExtensionEventHandler("ext:2", "hdlr");
-    config.registerExtensionCommand(cmd2).registerExtension("ext:2", six4).registerExtensionEventHandler(handler2);
-    ASSERT_TRUE(IsEqual(64, config.getExtensionEnvironment("ext:2")));
+    config->registerExtensionCommand(cmd2).registerExtension("ext:2", six4).registerExtensionEventHandler(handler2);
+    ASSERT_TRUE(IsEqual(64, config->getExtensionEnvironment("ext:2")));
 
     // order: command, handler, register
     auto cmd3 = ExtensionCommandDefinition("ext:3", "cmd");
     auto handler3 = ExtensionEventHandler("ext:3", "hdlr");
-    config.registerExtensionCommand(cmd3).registerExtensionEventHandler(handler3).registerExtension("ext:3", six4);
-    ASSERT_TRUE(IsEqual(64, config.getExtensionEnvironment("ext:3")));
+    config->registerExtensionCommand(cmd3).registerExtensionEventHandler(handler3).registerExtension("ext:3", six4);
+    ASSERT_TRUE(IsEqual(64, config->getExtensionEnvironment("ext:3")));
 
     // order: command, handler, config
     auto cmd4 = ExtensionCommandDefinition("ext:4", "cmd");
     auto handler4 = ExtensionEventHandler("ext:4", "hdlr");
-    config.registerExtensionCommand(cmd4).registerExtensionEventHandler(handler4).registerExtensionEnvironment("ext:4",
+    config->registerExtensionCommand(cmd4).registerExtensionEventHandler(handler4).registerExtensionEnvironment("ext:4",
                                                                                                                six4);
-    ASSERT_TRUE(IsEqual(64, config.getExtensionEnvironment("ext:4")));
+    ASSERT_TRUE(IsEqual(64, config->getExtensionEnvironment("ext:4")));
 
     // order: handler, config, command
     auto cmd5 = ExtensionCommandDefinition("ext:5", "cmd");
     auto handler5 = ExtensionEventHandler("ext:5", "hdlr");
-    config.registerExtensionEventHandler(handler5).registerExtensionEnvironment("ext:5", six4).registerExtensionCommand(cmd5);
-    ASSERT_TRUE(IsEqual(64, config.getExtensionEnvironment("ext:5")));
+    config->registerExtensionEventHandler(handler5).registerExtensionEnvironment("ext:5", six4).registerExtensionCommand(cmd5);
+    ASSERT_TRUE(IsEqual(64, config->getExtensionEnvironment("ext:5")));
 
     // order: config, handler, command
     auto cmd6 = ExtensionCommandDefinition("ext:6", "cmd");
     auto handler6 = ExtensionEventHandler("ext:6", "hdlr");
-    config.registerExtensionEnvironment("ext:6", six4).registerExtensionEventHandler(handler6).registerExtensionCommand(cmd6);
-    ASSERT_TRUE(IsEqual(64, config.getExtensionEnvironment("ext:6")));
+    config->registerExtensionEnvironment("ext:6", six4).registerExtensionEventHandler(handler6).registerExtensionCommand(cmd6);
+    ASSERT_TRUE(IsEqual(64, config->getExtensionEnvironment("ext:6")));
 }
 
 /**
@@ -315,14 +315,14 @@ TEST_F(RequestedExtensionTest, ConfigAPIOrder) {
  */
 TEST_F(RequestedExtensionTest, ConfigOverwrite) {
 
-    config.registerExtension("ext:1", Object(64)).registerExtensionEnvironment("ext:1", Object(53));
-    ASSERT_TRUE(IsEqual(53, config.getExtensionEnvironment("ext:1")));
+    config->registerExtension("ext:1", Object(64)).registerExtensionEnvironment("ext:1", Object(53));
+    ASSERT_TRUE(IsEqual(53, config->getExtensionEnvironment("ext:1")));
 
-    config.registerExtensionEnvironment("ext:2", Object(53)).registerExtension("ext:2", Object(64));
-    ASSERT_TRUE(IsEqual(64, config.getExtensionEnvironment("ext:2")));
+    config->registerExtensionEnvironment("ext:2", Object(53)).registerExtension("ext:2", Object(64));
+    ASSERT_TRUE(IsEqual(64, config->getExtensionEnvironment("ext:2")));
 
-    config.registerExtensionEnvironment("ext:3", Object(53)).registerExtension("ext:3");
-    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), config.getExtensionEnvironment("ext:3")));
+    config->registerExtensionEnvironment("ext:3", Object(53)).registerExtension("ext:3");
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), config->getExtensionEnvironment("ext:3")));
 
 }
 
@@ -362,33 +362,33 @@ static const char* WITH_CONFIG = R"({
  * Register and extension with simple Object configuration.
  */
 TEST_F(RequestedExtensionTest, ExtensionWithSimpleConfig) {
-    config.registerExtension("_URIXbool", Object::TRUE_OBJECT());
-    config.registerExtension("_URIXstring", Object("dog"));
-    config.registerExtension("_URIXnumber", Object(64));
-    config.registerExtension("_URIXcolor", Object(Color(Color::BLUE)));
+    config->registerExtension("_URIXbool", Object::TRUE_OBJECT());
+    config->registerExtension("_URIXstring", Object("dog"));
+    config->registerExtension("_URIXnumber", Object(64));
+    config->registerExtension("_URIXcolor", Object(Color(Color::BLUE)));
 
     loadDocument(WITH_CONFIG);
 
     // verify config and environment for boolean
-    auto b = config.getExtensionEnvironment("_URIXbool");
+    auto b = config->getExtensionEnvironment("_URIXbool");
     ASSERT_TRUE(b.isBoolean());
     ASSERT_TRUE(b.getBoolean());
     ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.Xbool}")));
 
     // verify config and environment for string
-    auto d = config.getExtensionEnvironment("_URIXstring");
+    auto d = config->getExtensionEnvironment("_URIXstring");
     ASSERT_TRUE(d.isString());
     ASSERT_EQ("dog", d.getString());
     ASSERT_TRUE(IsEqual("dog", evaluate(*context, "${environment.extension.Xstring}")));
 
     // verify config and environment for number
-    auto n = config.getExtensionEnvironment("_URIXnumber");
+    auto n = config->getExtensionEnvironment("_URIXnumber");
     ASSERT_TRUE(n.isNumber());
     ASSERT_EQ(64, n.getInteger());
     ASSERT_TRUE(IsEqual(64, evaluate(*context, "${environment.extension.Xnumber}")));
 
     // verify config and environment for boolean
-    auto c = config.getExtensionEnvironment("_URIXcolor");
+    auto c = config->getExtensionEnvironment("_URIXcolor");
     ASSERT_TRUE(c.isColor());
     ASSERT_EQ(Color::BLUE, c.getColor());
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), evaluate(*context, "${environment.extension.Xcolor}")));
@@ -402,12 +402,12 @@ TEST_F(RequestedExtensionTest, ExtensionWithConfigMap) {
     cfgMap->emplace("cfg1", "dog");
     cfgMap->emplace("cfg2", 64);
     cfgMap->emplace("cfg3", true);
-    config.registerExtension("_URIXmap", cfgMap);
+    config->registerExtension("_URIXmap", cfgMap);
 
     loadDocument(WITH_CONFIG);
 
     // Register the extension with configuration
-    auto c = config.getExtensionEnvironment("_URIXmap");
+    auto c = config->getExtensionEnvironment("_URIXmap");
     ASSERT_TRUE(c.isMap());
     auto map = c.getMap();
     ASSERT_EQ(3, map.size());
@@ -428,12 +428,12 @@ TEST_F(RequestedExtensionTest, ExtensionWithConfigMap) {
 TEST_F(RequestedExtensionTest, ExtensionWithSimpleConfigMultiName) {
 
     auto dog = Object("dog");
-    config.registerExtension("_URI1", dog); //overwrites test framework simple config
+    config->registerExtension("_URI1", dog); //overwrites test framework simple config
 
     loadDocument(REPEATED_NAME);
 
     // Register the extension with configuration
-    auto c = config.getExtensionEnvironment("_URI1");
+    auto c = config->getExtensionEnvironment("_URI1");
     ASSERT_TRUE(c.isString());
     auto str = c.getString();
     ASSERT_EQ("dog", str);
@@ -450,12 +450,12 @@ TEST_F(RequestedExtensionTest, ExtensionWithConfigMapMultiName) {
     cfgMap->emplace("cfg1", "dog");
     cfgMap->emplace("cfg2", 64);
     cfgMap->emplace("cfg3", true);
-    config.registerExtension("_URI1", cfgMap); //overwrites test framework empty config
+    config->registerExtension("_URI1", cfgMap); //overwrites test framework empty config
 
     loadDocument(REPEATED_NAME);
 
     // Register the extension with configuration
-    auto c = config.getExtensionEnvironment("_URI1");
+    auto c = config->getExtensionEnvironment("_URI1");
     ASSERT_TRUE(c.isMap());
     auto map = c.getMap();
     ASSERT_EQ(3, map.size());

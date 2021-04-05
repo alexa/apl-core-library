@@ -1,5 +1,5 @@
 /**
- * Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -23,11 +23,12 @@
 
 #include "apl/primitives/object.h"
 #include "apl/primitives/styledtext.h"
+#include "apl/utils/noncopyable.h"
 
 namespace apl {
 
 // Internal class for holding a shared pointer
-class ObjectData {
+class ObjectData : public NonCopyable {
 public:
     virtual ~ObjectData() = default;
 
@@ -59,12 +60,12 @@ public:
      * @param index The index to return.
      * @return The value at that point in the array or NULL if the array index is out of bounds.
      */
-    virtual Object at(size_t index) const { return Object::NULL_OBJECT(); }
+    virtual Object at(std::uint64_t index) const { return Object::NULL_OBJECT(); }
 
     /**
      * @return The size of the array or map.  Not all maps will return an accurate size.
      */
-    virtual size_t size() const { return 0; }
+    virtual std::uint64_t size() const { return 0; }
 
     /**
      * @return True if the array or map is empty; false otherwise.
@@ -163,16 +164,16 @@ public:
     }
 
     Object
-    at(size_t index) const override
+    at(std::uint64_t index) const override
     {
-        size_t len = mArray->size();
+        std::uint64_t len = mArray->size();
         if (index >= len)
             return Object::NULL_OBJECT();
 
         return mArray->at(index);
     }
 
-    size_t size() const override { return mArray->size(); }
+    std::uint64_t size() const override { return mArray->size(); }
     bool empty() const override { return mArray->empty(); }
 
     bool isMutable() const override { return mIsMutable; }
@@ -219,16 +220,16 @@ public:
     FixedArrayData(ObjectArray&& array, bool isMutable) : mArray(std::move(array)), mIsMutable(isMutable) {}
 
     Object
-    at(size_t index) const override
+    at(std::uint64_t index) const override
     {
-        size_t len = mArray.size();
+        std::uint64_t len = mArray.size();
         if (index >= len)
             return Object::NULL_OBJECT();
 
         return mArray.at(index);
     }
 
-    size_t size() const override {
+    std::uint64_t size() const override {
         return mArray.size();
     }
 
@@ -301,7 +302,7 @@ public:
         return def;
     }
 
-    size_t size() const override { return mMap->size(); }
+    std::uint64_t size() const override { return mMap->size(); }
     bool empty() const override { return mMap->empty(); }
     bool isMutable() const override { return mIsMutable; }
     bool has(const std::string& key) const override { return mMap->count(key) != 0; }
@@ -382,13 +383,13 @@ public:
     }
 
     Object
-    at(size_t index) const override {
+    at(std::uint64_t index) const override {
         if (!mValue->IsArray() || index >= mValue->Size())
             return Object::NULL_OBJECT();
         return (*mValue)[index];
     }
 
-    size_t
+    std::uint64_t
     size() const override {
         if (mValue->IsArray())
             return mValue->Size();
@@ -479,13 +480,13 @@ public:
     }
 
     Object
-    at(size_t index) const override {
+    at(std::uint64_t index) const override {
         if (!mDoc.IsArray() || index >= mDoc.Size())
             return Object::NULL_OBJECT();
         return mDoc[index];
     }
 
-    size_t
+    std::uint64_t
     size() const override {
         if (mDoc.IsArray())
             return mDoc.Size();

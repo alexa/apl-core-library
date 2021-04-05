@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -13,9 +13,6 @@
  * permissions and limitations under the License.
  */
 
-#include <regex>
-#include <vector>
-#include <stack>
 #include <set>
 #include <locale>
 #include <codecvt>
@@ -23,28 +20,15 @@
 #include <tao/pegtl.hpp>
 
 #include "apl/primitives/object.h"
+#include "apl/primitives/unicode.h"
 #include "apl/primitives/styledtext.h"
+#include "apl/primitives/styledtextstate.h"
 
 
 namespace apl {
 
 namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 using namespace pegtl;
-
-const std::map<std::string, StyledText::SpanType> sTextSpanTypeMap = {
-        {"br", StyledText::kSpanTypeLineBreak},
-        {"strong", StyledText::kSpanTypeStrong},
-        {"b", StyledText::kSpanTypeStrong},
-        {"em", StyledText::kSpanTypeItalic},
-        {"i", StyledText::kSpanTypeItalic},
-        {"strike", StyledText::kSpanTypeStrike},
-        {"u", StyledText::kSpanTypeUnderline},
-        {"tt", StyledText::kSpanTypeMonospace},
-        {"code", StyledText::kSpanTypeMonospace},
-        {"sup", StyledText::kSpanTypeSuperscript},
-        {"sub", StyledText::kSpanTypeSubscript},
-        {"wbr", StyledText::kSpanTypeWordBreak},
-};
 
 const std::map<std::string, std::string> sTextSpecialEntity = {
         {"&amp;", "&"},
@@ -90,23 +74,6 @@ static inline std::string stripControl(const std::string& str)
     return output;
 }
 
-/**
- * Internal utility to convert string to lowercase.
- * Not using transform as it does it inplace.
- * Applicable only to latin characters.
- * @param str string to process.
- * @return lowercase version of str.
- */
-static inline std::string tolower(const std::string& str) {
-    std::string output = str;
-
-    std::transform(output.begin(), output.end(), output.begin(), [](unsigned char ch) {
-        return std::tolower(ch);
-    });
-
-    return output;
-}
-
 static inline std::string rtrim(const std::string &str) {
     std::string output(str);
     output.erase(std::find_if(output.rbegin(), output.rend(), [](unsigned char ch) {
@@ -115,210 +82,6 @@ static inline std::string rtrim(const std::string &str) {
                  output.end());
     return output;
 }
-
-/**
- * Internal builder to construct StyledText during PEGTL parsing.
- */
-class StyledTextState {
-public:
-    StyledTextState() = default;
-
-    /**
-     * Append text to raw text "container".
-     * @param val text to append.
-     */
-    void append( const std::string& val ) {
-        wchar_converter.to_bytes(wchar_converter.from_bytes(val.c_str()));
-
-        // Get real number of characters.
-        mPosition += wchar_converter.converted();
-        mText = mText.append(val);
-    }
-
-    /**
-     * Add space. Avoids wchar processing for spaces.
-     */
-    void space() {
-        mPosition+=1;
-        mText = mText.append(" ");
-    }
-
-    /**
-     * @param tag style tag.
-     */
-    void tag(const std::string& tag) {
-        mCurrentTag = tolower(tag);
-    }
-
-    /**
-     * Start style span on current text position.
-     */
-    void start() {
-        auto typeIt = sTextSpanTypeMap.find(mCurrentTag);
-        if(typeIt == sTextSpanTypeMap.end()) {
-            return;
-        }
-
-        auto type = typeIt->second;
-        if (StyledText::kSpanTypeLineBreak == type) {
-            // Handle as single tag.
-            single(type);
-            return;
-        }
-
-        if (StyledText::kSpanTypeWordBreak == type) {
-            singleCollapsible(type);
-            return;
-        }
-
-        size_t start = mPosition;
-        // If type same as previously closed tag - merge it instead of creating new one.
-        // TODO: Not ideal but simple enough. Nested merging to be added if we see problems with viewhost performance.
-        if(!mSpans.empty()) {
-            auto previous = mSpans.back();
-            if (previous.type == type && previous.end == mPosition) {
-                start = previous.start;
-                mSpans.pop_back();
-            }
-        }
-
-        mOpenedSpans.insert(type);
-        mBuildStack.push(StyledText::Span(start, type));
-    }
-
-    /**
-     * End style span on current text position. In case if tag was not opened it will close current one and move up to
-     * "parent". This implementation effectively replicates html behavior.
-     * @param tag style tag.
-     */
-    void end() {
-        auto typeIt = sTextSpanTypeMap.find(mCurrentTag);
-        if(typeIt == sTextSpanTypeMap.end()) {
-            return;
-        }
-
-        auto type = typeIt->second;
-
-        if(mOpenedSpans.find(type) == mOpenedSpans.end()) {
-            // No opened tag available
-            return;
-        }
-
-        if(StyledText::kSpanTypeLineBreak == type) {
-            // Handle as single tag.
-            single(type);
-            return;
-        }
-
-        auto span = mBuildStack.top();
-        mBuildStack.pop();
-
-        // If start == end then span is unnecessary so don't record it
-        if(span.start != mPosition) {
-            span.end = mPosition;
-            mSpans.emplace_back(span);
-        }
-
-        // If not equal then likely tag is unclosed so close it (above) and try again. This will split
-        // intersecting/wrongly closed tags to separate spans in order to simplify view-host processing.
-        if(span.type != type) {
-            end();
-            mBuildStack.push(StyledText::Span(mPosition, span.type));
-        } else {
-            mOpenedSpans.erase(type);
-        }
-    }
-
-    /**
-     * Record non-parameterized tag, for example line break.
-     * @param type style type.
-     */
-    void single(StyledText::SpanType type) {
-        mSpans.emplace_back(StyledText::Span(mPosition, type));
-    }
-
-    /**
-     * Record non-parameterized tag, for example word line break that should be collapsed.
-     * @param type style type.
-     */
-    void singleCollapsible(StyledText::SpanType type) {
-        auto targetSpan = StyledText::Span(mPosition, type);
-        if (mSpans.empty() || mSpans.back() != targetSpan) {
-            mSpans.push_back(std::move(targetSpan));
-        }
-    }
-
-    /**
-     * Record non-parameterized tag, for example line break.
-     * @param type style type.
-     */
-    void single() {
-        auto typeIt = sTextSpanTypeMap.find(mCurrentTag);
-        if(typeIt == sTextSpanTypeMap.end()) {
-            return;
-        }
-
-        auto type = typeIt->second;
-        if (StyledText::kSpanTypeLineBreak == type) {
-            // Handle as single tag.
-            single(type);
-        } else if (StyledText::kSpanTypeWordBreak == type) {
-            singleCollapsible(type);
-        }
-    }
-
-    /**
-     * Checks if any unhandled opened tags left and closes them.
-     * @return Vector of style spans.
-     */
-    std::vector<StyledText::Span> finalize() {
-        std::vector<StyledText::Span> output;
-        while(!mBuildStack.empty()) {
-            auto span = mBuildStack.top();
-            mBuildStack.pop();
-            span.end = mPosition;
-            mSpans.emplace_back(span);
-        }
-
-        std::sort(mSpans.begin(), mSpans.end(), spanComparator);
-        for(auto s : mSpans) {
-            output.emplace_back(s);
-        }
-
-        return output;
-    }
-
-    /**
-     * @return text.
-     */
-    std::string& getText() {return mText;}
-
-private:
-    std::stack<StyledText::Span> mBuildStack;
-    std::set<StyledText::SpanType> mOpenedSpans;
-    std::vector<StyledText::Span> mSpans;
-    std::string mText;
-    size_t mPosition = 0;
-    std::string mCurrentTag;
-
-    struct {
-        bool operator()(const StyledText::Span& a, const StyledText::Span& b) const {
-            if(a.start < b.start) {
-                return true;
-            } else if(a.start > b.start) {
-                return false;
-            }
-
-            if(a.end > b.end) {
-                return true;
-            } else if(a.end < b.end) {
-                return false;
-            }
-
-            return (a.type < b.type);
-        }
-    } spanComparator;
-};
 
 struct quote : sor<one<'"'>, one<'\''>> {};
 struct attributes :
@@ -339,7 +102,7 @@ struct symbol : not_one<'<','>','&',' '>{}; // Exclude markdown and whitespace c
 struct word : plus<symbol>{};
 struct ws : plus<space>{};
 struct tagname : plus<alnum>{};
-struct stag : seq<one<'<'>,star<space>,tagname,opt<attributes>,star<space>, one<'>'>>{};
+struct stag : seq<one<'<'>,star<space>,tagname,opt<attributes>,star<space>,one<'>'>>{};
 struct etag : seq<one<'<'>,one<'/'>,star<space>,tagname,star<space>,one<'>'>>{};
 // Start tag and single tag is too similar to do exact match so define line break itself.
 struct br : seq<star<space>,one<'<'>,star<space>,seq<one<'b','B'>,one<'r','R'>>,opt<attributes>,star<space>,opt<one<'/'>>,one<'>'>,star<space>>{};
@@ -492,6 +255,48 @@ StyledText::serialize(rapidjson::Document::AllocatorType& allocator) const {
     }
     v.AddMember("spans", spans, allocator);
     return v;
+}
+
+StyledText::Iterator::Iterator(const StyledText& styledText)
+    : mStyledText(styledText),
+        codePointCount(utf8StringLength(styledText.getText()))
+{}
+
+StyledText::SpanType
+StyledText::Iterator::getSpanType() const {
+    if (mSpanType == START) {
+        LOG(LogLevel::kError) << "StyledText::Iterator::getSpanType() called before mSpanType was set";
+        assert(mSpanType != START);
+    }
+    return mSpanType;
+};
+
+StyledText::Iterator::TokenType
+StyledText::Iterator::next() {
+    const auto& spans = mStyledText.getSpans();
+    size_t nextStartSpanPosition = mSpanIndex < spans.size() ? spans[mSpanIndex].start :  std::numeric_limits<int>::max();
+    size_t nextEndSpanPosition = mStack.empty() ? std::numeric_limits<int>::max() : mStack.top()->end;
+    size_t next = std::min({nextStartSpanPosition, nextEndSpanPosition, codePointCount});
+
+    if (mCurrentStrPos < next) {
+        mString = utf8StringSlice(mStyledText.getText(), mCurrentStrPos, next);
+        mCurrentStrPos = next;
+        return kString;
+    }
+
+    if (nextEndSpanPosition == mCurrentStrPos) {
+        mSpanType = mStack.top()->type;
+        mStack.pop();
+        return kEndSpan;
+    }
+
+    if (nextStartSpanPosition == mCurrentStrPos) {
+        mSpanType = spans[mSpanIndex].type;
+        mStack.push(&spans[mSpanIndex++]);
+        return kStartSpan;
+    }
+
+    return kEnd;
 }
 
 } // namespace apl

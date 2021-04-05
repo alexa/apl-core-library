@@ -35,17 +35,19 @@ public:
 
     ComponentType getType() const override { return kComponentTypeGridSequence; };
     void initialize() override;
+    void processLayoutChanges(bool useDirtyFlag) override;
 
 protected:
     const ComponentPropDefSet& propDefSet() const override;
     const ComponentPropDefSet* layoutPropDefSet() const override;
-    void layoutChildIfRequired(CoreComponentPtr& child,
+    void layoutChildIfRequired(const CoreComponentPtr& child,
                                size_t childIdx,
                                bool useDirtyFlag) override;
     const EventPropertyMap & eventPropertyMap() const override;
 
+    void handlePropertyChange(const ComponentPropDef& def, const Object& value) override;
+
     bool childrenUseSpacingProperty() const override { return false; }
-    void processLayoutChanges(bool useDirtyFlag) override;
 
     size_t getItemsPerCourse() const override { return mItemsPerCourse; }
 
@@ -64,8 +66,12 @@ private:
     std::vector<float> mAdjustedChildWidths;
 
     int mItemsPerCourse; /// Number of Rows for horizontal scroll, number of Columns for vertical scroll
-    Rect mLastParentBounds; /// Used to check if child sizes recalculation required.
     bool mCrossAxisDimensionIsAuto; /// Flag to identify that "auto" size was used on cross axis.
+
+    /// Used to check if child sizes recalculation required.
+    Object mLastChildHeight;
+    Object mLastChildWidth;
+    Rect mLastParentBounds;
 };
 
 } // namespace apl

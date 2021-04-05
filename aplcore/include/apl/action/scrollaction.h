@@ -17,6 +17,7 @@
 #define _APL_SCROLL_ACTION_H
 
 #include "apl/action/animatedscrollaction.h"
+#include "apl/primitives/object.h"
 
 namespace apl {
 
@@ -33,18 +34,39 @@ class AnimatedProperty;
  */
 class ScrollAction : public AnimatedScrollAction {
 public:
+    /**
+     * @param timers Timer reference.
+     * @param command Command that spawned this action.
+     * @return
+     */
     static std::shared_ptr<ScrollAction> make(const TimersPtr& timers,
-                                              const std::shared_ptr<CoreCommand>& command,
-                                              const CoreComponentPtr& target = nullptr);
+                                              const std::shared_ptr<CoreCommand>& command);
+
+    /**
+     * @param timers Timer reference.
+     * @param context context ot run this action in.
+     * @param target component to perform action on.
+     * @param targetDistance Object containing Dimension representing distance to be scrolled.
+     * @param duration scrolling duration.
+     * @return
+     */
+    static std::shared_ptr<ScrollAction> make(const TimersPtr& timers,
+                                              const ContextPtr& context,
+                                              const CoreComponentPtr& target,
+                                              const Object& targetDistance,
+                                              apl_duration_t duration = 0);
 
     ScrollAction(const TimersPtr& timers,
-                 const std::shared_ptr<CoreCommand>& command,
-                 const CoreComponentPtr& target);
+                 const ContextPtr& context,
+                 const CoreComponentPtr& target,
+                 const Object& targetDistance,
+                 apl_duration_t duration);
 
 private:
     void start();
 
     std::shared_ptr<CoreCommand> mCommand;
+    Object mTargetDistance;
 };
 
 

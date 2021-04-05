@@ -18,34 +18,41 @@
 
 #include "apl/common.h"
 #include "apl/primitives/object.h"
-#include "apl/touch/gesture.h"
+#include "apl/touch/gestures/flinggesture.h"
+#include "apl/touch/utils/autoscroller.h"
+#include "apl/time/executionresourceholder.h"
 
 namespace apl {
 
-class AutoScroller;
 class VelocityTracker;
 
-class ScrollGesture : public Gesture, public std::enable_shared_from_this<ScrollGesture> {
+class ScrollGesture : public FlingGesture,
+                      public std::enable_shared_from_this<ScrollGesture> {
 public:
     static std::shared_ptr<ScrollGesture> create(const ActionablePtr& actionable);
 
-    ScrollGesture(const ActionablePtr& actionable);
+    explicit ScrollGesture(const ActionablePtr& actionable);
     virtual ~ScrollGesture() = default;
 
-protected:
-    void onMove(const PointerEvent& event, apl_time_t timestamp) override;
-    void onDown(const PointerEvent& event, apl_time_t timestamp) override;
-    void onUp(const PointerEvent& event, apl_time_t timestamp) override;
-    void onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) override;
+    void release() override;
     void reset() override;
+
+protected:
+    bool onMove(const PointerEvent& event, apl_time_t timestamp) override;
+    bool onDown(const PointerEvent& event, apl_time_t timestamp) override;
+    bool onUp(const PointerEvent& event, apl_time_t timestamp) override;
+    bool onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) override;
     void scrollToSnap();
 
 private:
     float toLocalThreshold(float threshold);
+    bool isSlopeWithinTolerance(Point localPosition);
+    ScrollablePtr getScrollable() const { return std::dynamic_pointer_cast<ScrollableComponent>(mActionable); }
+    double getVelocityLimit(const Point& travel);
 
     Point mLastLocalPosition;
-    std::unique_ptr<VelocityTracker> mVelocityTracker;
     std::shared_ptr<AutoScroller> mScroller;
+    std::shared_ptr<ExecutionResourceHolder> mResourceHolder;
 };
 
 } // namespace apl

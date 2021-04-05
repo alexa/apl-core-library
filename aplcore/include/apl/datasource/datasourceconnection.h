@@ -23,6 +23,7 @@
 
 namespace apl {
 
+class LiveArray;
 /**
  * Dynamic DataSource connection. Aimed to provide fetch and update interface to particular data set.
  */
@@ -38,6 +39,14 @@ public:
      * @param index index to fetch items around.
      */
     virtual void ensure(size_t index) = 0;
+
+    /**
+     * LiveArray is owned and maintained by each data source connection. It is dynamically updated during runtime.
+     * LiveArray may be retrieved for reuse if preservation of dynamically loaded data is required (for example during reinflate).
+     *
+     * @return LiveArray used as data storage for this connection.
+     */
+    virtual std::shared_ptr<LiveArray> getLiveArray() = 0;
 };
 
 } // namespace apl

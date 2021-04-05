@@ -53,7 +53,7 @@ AnimateItemAction::start()
         auto ptr = AnimatedProperty::create(mCommand->context(), mCommand->target(), m);
         if (ptr) {
             // Claim all requested resources.
-            mContext->sequencer().claimResource({kCommandResourceProperty, mCommand->target(), ptr->key()},
+            mContext->sequencer().claimResource({kExecutionResourceProperty, mCommand->target(), ptr->key()},
                     shared_from_this());
             mAnimators.push_back(std::move(ptr));
         }

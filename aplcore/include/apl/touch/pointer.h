@@ -33,9 +33,7 @@ using ActionableComponentPtr = std::shared_ptr<ActionableComponent>;
 class Pointer {
 
 public:
-    Pointer(PointerType pointerType, id_type id = 0)
-        : mPointerType(pointerType),
-          mId(id) {}
+    Pointer(PointerType pointerType, id_type id = 0) : mPointerType(pointerType), mId(id) {}
 
     /**
      * Gets the target of this pointer.  For pointers involved in an ongoing interaction: post kCursorDown and pre
@@ -43,21 +41,36 @@ public:
      *
      * @return The cursor target
      */
-    ActionableComponentPtr getTarget() const {
-        return mTarget.lock();;
-    }
+    ActionableComponentPtr getTarget() const { return mTarget.lock(); }
 
     void setTarget(const ActionableComponentPtr& target) {
         mTarget = target;
     }
 
     /**
-     * @return Get last known pointer position.
+     * @return true if pointer captured by current target, false otherwise.
      */
-    Point getPosition() const {
-        return mPosition;
+    bool isCaptured() const { return mCaptured; }
+
+    /**
+     * Capture pointer by provided target.
+     * @param target Component that captured this pointer.
+     */
+    void setCapture(const ActionableComponentPtr& target) {
+        assert(!mCaptured);
+        setTarget(target);
+        mCaptured = true;
     }
 
+    /**
+     * @return Get last known pointer position.
+     */
+    Point getPosition() const { return mPosition; }
+
+    /**
+     * Set pointer position.
+     * @param position Pointer position.
+     */
     void setPosition(const Point& position) {
         mPosition = position;
     }
@@ -66,18 +79,18 @@ public:
      * @return Gets the id associated with this pointer.  There must never be two pointer with the same id active
      * at the same time, but id's may be reused.  For instance, once a touch ends, that pointer's id may be reused.
      */
-     id_type getId() const {
-        return mId;
-     }
+     id_type getId() const { return mId; }
 
-    PointerType getPointerType() const {
-        return mPointerType;
-    };
+     /**
+      * @return pointer type.
+      */
+    PointerType getPointerType() const { return mPointerType; }
 
 private:
     const PointerType mPointerType;
     const id_type mId;
     Point mPosition;
+    bool mCaptured = false;
 
     std::weak_ptr<ActionableComponent> mTarget;
 };

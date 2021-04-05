@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #define _APL_ACTIONABLE_COMPONENT_H
 
 #include "corecomponent.h"
+#include "apl/focus/focusdirection.h"
 
 namespace apl {
 
@@ -57,21 +58,27 @@ public:
 
     /// CoreComponent overrides
     bool isActionable() const override { return true; }
-    bool isTouchable() const override;
+    bool canConsumeFocusDirectionEvent(FocusDirection direction, bool fromInside) override { return !fromInside; }
+    CoreComponentPtr takeFocusFromChild(FocusDirection direction, const Rect& origin) override { return nullptr; }
+    CoreComponentPtr getUserSpecifiedNextFocus(FocusDirection direction) override;
 
 protected:
     bool isFocusable() const override { return true; }
     void executeOnBlur() override;
     void executeOnFocus() override;
-    bool executeKeyHandlers(KeyHandlerType type, const ObjectMapPtr& keyboard)  override;
+    bool executeKeyHandlers(KeyHandlerType type, const Keyboard& keyboard) override;
+    bool executeIntrinsicKeyHandlers(KeyHandlerType type, const Keyboard& keyboard) override;
     const ComponentPropDefSet& propDefSet() const override;
     void release() override;
 
     ActionableComponent(const ContextPtr& context, Properties&& properties, const std::string& path) :
             CoreComponent(context, std::move(properties), path), mGesturesDisabled(false) {}
 
-    bool processGestures(const PointerEvent& event, apl_time_t timestamp, bool topComponent) override;
+    bool processGestures(const PointerEvent& event, apl_time_t timestamp) override;
     void invokeStandardAccessibilityAction(const std::string& name) override;
+
+    static const std::map<Keyboard, FocusDirection, Keyboard::comparatorWithoutRepeat>& keyboardToFocusDirection();
+    static const std::map<FocusDirection, PropertyKey>& focusDirectionToNextProperty();
 
     std::vector<std::shared_ptr<Gesture>> mGestureHandlers;
     std::shared_ptr<Gesture> mActiveGesture;

@@ -62,9 +62,9 @@ public:
     /**
      * Overrides from Object::Data
      */
-    Object at(size_t index) const override;
+    Object at(std::uint64_t index) const override;
     virtual void ensure(size_t index) {}
-    size_t size() const override;
+    std::uint64_t size() const override;
     bool empty() const override;
     const std::vector<Object>& getArray() const override;
     void accept(Visitor<Object>& visitor) const override;

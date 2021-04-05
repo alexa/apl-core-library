@@ -15,21 +15,27 @@
 
 #include "apl/component/actionablecomponent.h"
 #include "apl/component/componentpropdef.h"
-#include "apl/time/sequencer.h"
-#include "apl/primitives/keyboard.h"
-#include "apl/engine/keyboardmanager.h"
-#include "apl/touch/gesture.h"
 #include "apl/content/rootconfig.h"
+#include "apl/engine/keyboardmanager.h"
+#include "apl/focus/focusmanager.h"
+#include "apl/primitives/keyboard.h"
+#include "apl/time/sequencer.h"
+#include "apl/touch/gesture.h"
 
 namespace apl {
 
 const ComponentPropDefSet&
 ActionableComponent::propDefSet() const {
     static ComponentPropDefSet sActionableComponentProperties(CoreComponent::propDefSet(), {
-            {kPropertyHandleKeyDown, Object::EMPTY_ARRAY(), asArray,   kPropIn},
-            {kPropertyHandleKeyUp,   Object::EMPTY_ARRAY(), asArray,   kPropIn},
-            {kPropertyOnBlur,        Object::EMPTY_ARRAY(), asCommand, kPropIn},
-            {kPropertyOnFocus,       Object::EMPTY_ARRAY(), asCommand, kPropIn}
+            {kPropertyHandleKeyDown,    Object::EMPTY_ARRAY(), asArray,   kPropIn},
+            {kPropertyHandleKeyUp,      Object::EMPTY_ARRAY(), asArray,   kPropIn},
+            {kPropertyOnBlur,           Object::EMPTY_ARRAY(), asCommand, kPropIn},
+            {kPropertyOnFocus,          Object::EMPTY_ARRAY(), asCommand, kPropIn},
+            {kPropertyNextFocusDown,    "",                    asString,  kPropIn},
+            {kPropertyNextFocusForward, "",                    asString,  kPropIn},
+            {kPropertyNextFocusLeft,    "",                    asString,  kPropIn},
+            {kPropertyNextFocusRight,   "",                    asString,  kPropIn},
+            {kPropertyNextFocusUp,      "",                    asString,  kPropIn},
     });
     return sActionableComponentProperties;
 }
@@ -50,7 +56,7 @@ ActionableComponent::executeOnFocus() {
 
 
 bool
-ActionableComponent::executeKeyHandlers(KeyHandlerType type, const ObjectMapPtr& keyboard) {
+ActionableComponent::executeKeyHandlers(KeyHandlerType type, const Keyboard& keyboard) {
     auto propertyKey = KeyboardManager::getHandlerPropertyKey(type);
     auto handlerId = KeyboardManager::getHandlerId(type);
 
@@ -59,7 +65,7 @@ ActionableComponent::executeKeyHandlers(KeyHandlerType type, const ObjectMapPtr&
     if (!handlers.isArray())
         return false;
 
-    ContextPtr eventContext = createKeyboardEventContext(handlerId, keyboard);
+    ContextPtr eventContext = createKeyboardEventContext(handlerId, keyboard.serialize());
 
     for (const auto& handler: handlers.getArray()) {
         if (handler.isMap() && propertyAsBoolean(*eventContext, handler, "when", true)) {
@@ -77,9 +83,38 @@ ActionableComponent::executeKeyHandlers(KeyHandlerType type, const ObjectMapPtr&
 }
 
 bool
-ActionableComponent::isTouchable() const {
-    // Actionable is inherently touchable with native navigation support.
-    return mContext->getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore);
+ActionableComponent::executeIntrinsicKeyHandlers(KeyHandlerType type, const Keyboard& keyboard)
+{
+    if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleFocusInCore)) {
+        // TODO: Do we need to allow SpatialNav to be disabled by runtime configuration?
+        if (type == kKeyDown) {
+            auto it = keyboardToFocusDirection().find(keyboard);
+            if (it != keyboardToFocusDirection().end()) {
+                // We consume the key, but don't perform any action as one is already in progress.
+                if (mContext->sequencer().isRunning(FOCUS_SEQUENCER))
+                    return true;
+
+                auto focusDirection = it->second;
+                auto& fm = getContext()->focusManager();
+                auto nextFocus = getUserSpecifiedNextFocus(focusDirection);
+                if (!nextFocus)
+                    nextFocus = takeFocusFromChild(focusDirection, Rect());
+
+                if (nextFocus) {
+                    // If returned self - it's already processed. Just ignore.
+                    if (nextFocus != shared_from_this()) {
+                        fm.setFocus(nextFocus, true);
+                    }
+                } else {
+                    // "Default" processing - means navigate out of component.
+                    fm.focus(focusDirection);
+                }
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 void
@@ -87,7 +122,7 @@ ActionableComponent::release()
 {
     // Avoiding reference loop.
     if (mActiveGesture) {
-        mActiveGesture->reset();
+        mActiveGesture->release();
         mActiveGesture = nullptr;
     }
     mGestureHandlers.clear();
@@ -95,7 +130,7 @@ ActionableComponent::release()
 }
 
 bool
-ActionableComponent::processGestures(const PointerEvent& event, apl_time_t timestamp, bool topComponent) {
+ActionableComponent::processGestures(const PointerEvent& event, apl_time_t timestamp) {
     if (mGesturesDisabled) return false;
 
     if (mActiveGesture) {
@@ -163,6 +198,46 @@ ActionableComponent::enableGestures()
     for (auto& gesture : mGestureHandlers) {
         gesture->reset();
     }
+}
+
+CoreComponentPtr
+ActionableComponent::getUserSpecifiedNextFocus(FocusDirection direction)
+{
+    auto it = focusDirectionToNextProperty().find(direction);
+    if (it != focusDirectionToNextProperty().end()) {
+        auto componentId = getCalculated(it->second).getString();
+        if (!componentId.empty()) {
+            return std::dynamic_pointer_cast<CoreComponent>(getContext()->findComponentById(componentId));
+        }
+    }
+    return nullptr;
+}
+
+const std::map<Keyboard, FocusDirection, Keyboard::comparatorWithoutRepeat>&
+ActionableComponent::keyboardToFocusDirection()
+{
+    static std::map<Keyboard, FocusDirection, Keyboard::comparatorWithoutRepeat> sKeyboardToFocusDirection = {
+        { Keyboard::ARROW_DOWN_KEY(), kFocusDirectionDown },
+        { Keyboard::ARROW_UP_KEY(), kFocusDirectionUp },
+        { Keyboard::ARROW_LEFT_KEY(), kFocusDirectionLeft },
+        { Keyboard::ARROW_RIGHT_KEY(), kFocusDirectionRight },
+        { Keyboard::TAB_KEY(), kFocusDirectionForward },
+        { Keyboard::SHIFT_TAB_KEY(), kFocusDirectionBackwards },
+    };
+    return sKeyboardToFocusDirection;
+}
+
+const std::map<FocusDirection, PropertyKey>&
+ActionableComponent::focusDirectionToNextProperty()
+{
+    static std::map<FocusDirection, PropertyKey> sFocusDirectionToNextProperty = {
+        { kFocusDirectionDown,      kPropertyNextFocusDown },
+        { kFocusDirectionUp,        kPropertyNextFocusUp },
+        { kFocusDirectionLeft,      kPropertyNextFocusLeft },
+        { kFocusDirectionRight,     kPropertyNextFocusRight },
+        { kFocusDirectionForward,   kPropertyNextFocusForward },
+    };
+    return sFocusDirectionToNextProperty;
 }
 
 } // namespace apl

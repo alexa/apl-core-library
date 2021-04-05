@@ -20,6 +20,7 @@
 #include "apl/graphic/graphicelement.h"
 #include "apl/engine/jsonresource.h"
 #include "apl/engine/styles.h"
+#include "apl/utils/noncopyable.h"
 #include "apl/utils/userdata.h"
 
 namespace apl {
@@ -31,6 +32,7 @@ class VectorGraphicComponent;
  * internally.
  */
 class Graphic : public std::enable_shared_from_this<Graphic>,
+                public NonCopyable,
                 public Counter<Graphic>,
                 public UserData<Graphic> {
     friend class GraphicElement;
@@ -69,6 +71,11 @@ public:
      * Internal constructor.  Use Graphic:create instead
      */
     Graphic(const ContextPtr& context, const rapidjson::Value& json, GraphicVersions version);
+
+    /**
+     * Override standard destructor to clear out
+     */
+    ~Graphic() override;
 
     /**
      * @return True if this graphic was successfully inflated and has content.
@@ -166,15 +173,8 @@ private:
     /**
      * Release any held resources.
      */
-    void release() {
-        // Aggressively clearing it out to avoid problems when runtime holds to GraphicElement
-        // longer than required.
-        clearDirty();
-        mRootElement->release();
-        mComponent.reset();
-    }
+    void release();
 
-private:
     void initialize(const ContextPtr &sourceContext,
                     const rapidjson::Value &json,
                     Properties &&properties,
@@ -183,6 +183,7 @@ private:
                     const StyleInstancePtr &styledPtr);
     void addDirtyChild(const GraphicElementPtr& child);
 
+private:
     ContextPtr                   mInternalContext;
     ParameterArray               mParameterArray;
     GraphicVersions              mVersion;

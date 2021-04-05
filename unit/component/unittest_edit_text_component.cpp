@@ -20,20 +20,17 @@
 
 using namespace apl;
 
-class EditTextComponentTest : public DocumentWrapper {
-};
+class EditTextComponentTest : public DocumentWrapper {};
 
-
-static const char* DEFAULT_DOC =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.4\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"EditText\""
-        "    }"
-        "  }"
-        "}";
+static const char* DEFAULT_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText"
+    }
+  }
+})";
 
 /**
  * Test that the defaults are as expected when no values are set.
@@ -74,17 +71,16 @@ TEST_F(EditTextComponentTest, ComponentDefaults) {
 }
 
 
-static const char* THEMED_DEFAULT_DOC =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.4\","
-        "  \"theme\": \"light\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"EditText\""
-        "    }"
-        "  }"
-        "}";
+static const char* THEMED_DEFAULT_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "theme": "light",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText"
+    }
+  }
+})";
 
 /**
  * Test that the defaults are as expected when no values are set.
@@ -102,53 +98,52 @@ TEST_F(EditTextComponentTest, ComponentThemedDefaults) {
 }
 
 
-static const char* NON_DEFAULT_DOC =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.r\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"EditText\","
-        "      \"borderColor\": \"blue\","
-        "      \"borderStrokeWidth\": 20,"
-        "      \"borderWidth\": 30,"
-        "      \"color\": \"yellow\","
-        "      \"fontFamily\": \"ember\","
-        "      \"fontSize\": 24,"
-        "      \"fontStyle\": \"italic\","
-        "      \"fontWeight\": 600,"
-        "      \"hint\": \"hint\","
-        "      \"highlightColor\": \"green\","
-        "      \"hintColor\": \"gray\","
-        "      \"hintStyle\": \"italic\","
-        "      \"hintWeight\": 500,"
-        "      \"keyboardType\": \"numberPad\","
-        "      \"maxLength\": 4,"
-        "      \"onSubmit\": ["
-        "        {"
-        "          \"type\": \"SetValue\","
-        "          \"componentId\": \"myEditText\","
-        "          \"property\": \"color\","
-        "          \"value\": \"blue\""
-        "        }"
-        "      ],"
-        "      \"onTextChange\": ["
-        "        {"
-        "          \"type\": \"SetValue\","
-        "          \"componentId\": \"myEditText\","
-        "          \"property\": \"color\","
-        "          \"value\": \"red\""
-        "        }"
-        "      ],"
-        "      \"secureInput\": true,"
-        "      \"selectOnFocus\": true,"
-        "      \"size\": 4,"
-        "      \"submitKeyType\": \"go\","
-        "      \"text\": \"1234\","
-        "      \"validCharacters\": \"0-9\""
-        "    }"
-        "  }"
-        "}";
+static const char* NON_DEFAULT_DOC = R"({
+  "type": "APL",
+  "version": "1.r",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "borderColor": "blue",
+      "borderStrokeWidth": 20,
+      "borderWidth": 30,
+      "color": "yellow",
+      "fontFamily": "ember",
+      "fontSize": 24,
+      "fontStyle": "italic",
+      "fontWeight": 600,
+      "hint": "hint",
+      "highlightColor": "green",
+      "hintColor": "gray",
+      "hintStyle": "italic",
+      "hintWeight": 500,
+      "keyboardType": "numberPad",
+      "maxLength": 4,
+      "onSubmit": [
+        {
+          "type": "SetValue",
+          "componentId": "myEditText",
+          "property": "color",
+          "value": "blue"
+        }
+      ],
+      "onTextChange": [
+        {
+          "type": "SetValue",
+          "componentId": "myEditText",
+          "property": "color",
+          "value": "red"
+        }
+      ],
+      "secureInput": true,
+      "selectOnFocus": true,
+      "size": 4,
+      "submitKeyType": "go",
+      "text": "1234",
+      "validCharacters": "0-9"
+    }
+  }
+})";
 
 /**
  * Test the setting of all properties to non default values.
@@ -193,18 +188,16 @@ TEST_F(EditTextComponentTest, NonDefaults) {
     ASSERT_TRUE(IsEqual("0-9", et->getCalculated(kPropertyValidCharacters)));
 }
 
-static const char* VALID_CHARACTER_RANGES_DOC = R"(
-{
-    "type": "APL",
-    "version": "1.4",
-    "mainTemplate": {
-        "item": {
-            "type": "EditText",
-            "validCharacters": "0-9a-yA-Y:-@"
-        }
+static const char* VALID_CHARACTER_RANGES_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "validCharacters": "0-9a-yA-Y:-@"
     }
-}
-)";
+  }
+})";
 
 /**
  * Test the isCharacterValid method, valid ranges
@@ -261,17 +254,16 @@ TEST_F(EditTextComponentTest, ValidCharacterRangesUnicode) {
     ASSERT_FALSE(pEditText->isCharacterValid(L'\u2196'));
 }
 
-static const char* EMPTY_CHARACTER_RANGES_DOC =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.4\","
-        "  \"theme\": \"light\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"EditText\""
-        "    }"
-        "  }"
-        "}";
+static const char* EMPTY_CHARACTER_RANGES_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "theme": "light",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText"
+    }
+  }
+})";
 
 TEST_F(EditTextComponentTest, EmptyCharacterRanges) {
 
@@ -289,18 +281,17 @@ TEST_F(EditTextComponentTest, EmptyCharacterRanges) {
     session->clear();
 }
 
-static const char* INVALID_CHARACTER_RANGES_DOC =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.4\","
-        "  \"theme\": \"light\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"EditText\","
-        "      \"validCharacters\": \"Q--\""
-        "    }"
-        "  }"
-        "}";
+static const char* INVALID_CHARACTER_RANGES_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "theme": "light",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "validCharacters": "Q--"
+    }
+  }
+})";
 
 TEST_F(EditTextComponentTest, InvalidCharacterRanges) {
 
@@ -318,18 +309,16 @@ TEST_F(EditTextComponentTest, InvalidCharacterRanges) {
     session->clear();
 }
 
-static const char* INVALID_DASH_CHARACTER_RANGES_DOC = R"(
-{
-    "type": "APL",
-    "version": "1.4",
-    "mainTemplate": {
-        "item": {
-            "type": "EditText",
-            "validCharacters": "0-9a-yA-Y--@"
-        }
+static const char* INVALID_DASH_CHARACTER_RANGES_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "validCharacters": "0-9a-yA-Y--@"
     }
-}
-)";
+  }
+})";
 
 TEST_F(EditTextComponentTest, InvalidDashCharacterRanges) {
 
@@ -348,18 +337,16 @@ TEST_F(EditTextComponentTest, InvalidDashCharacterRanges) {
     session->clear();
 }
 
-static const char* AMOUNT_CHARACTER_RANGES_DOC = R"(
-{
-    "type": "APL",
-    "version": "1.4",
-    "mainTemplate": {
-        "item": {
-            "type": "EditText",
-            "validCharacters": "0-9."
-        }
+static const char* AMOUNT_CHARACTER_RANGES_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "validCharacters": "0-9."
     }
-}
-)";
+  }
+})";
 
 TEST_F(EditTextComponentTest, AmountCharacterRanges) {
 
@@ -379,18 +366,16 @@ TEST_F(EditTextComponentTest, AmountCharacterRanges) {
     ASSERT_FALSE(pEditText->isCharacterValid(L'\u2192'));
 }
 
-static const char* EMAIL_CHARACTER_RANGES_DOC = R"(
-{
-    "type": "APL",
-    "version": "1.4",
-    "mainTemplate": {
-        "item": {
-            "type": "EditText",
-            "validCharacters": "-+a-zA-Z0-9_@."
-        }
+static const char* EMAIL_CHARACTER_RANGES_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "validCharacters": "-+a-zA-Z0-9_@."
     }
-}
-)";
+  }
+})";
 
 TEST_F(EditTextComponentTest, EmailCharacterRanges) {
 
@@ -418,19 +403,18 @@ TEST_F(EditTextComponentTest, EmailCharacterRanges) {
     ASSERT_FALSE(pEditText->isCharacterValid(L'\u2192'));
 }
 
-static const char* INVALID_DIMENSIONS_DOC =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.r\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"EditText\","
-        "      \"borderStrokeWidth\": -20,"
-        "      \"borderWidth\": -30,"
-        "      \"size\": -44"
-        "    }"
-        "  }"
-        "}";
+static const char* INVALID_DIMENSIONS_DOC = R"({
+  "type": "APL",
+  "version": "1.r",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "borderStrokeWidth": -20,
+      "borderWidth": -30,
+      "size": -44
+    }
+  }
+})";
 
 /**
  * Test the setting of all properties to non default values.
@@ -452,29 +436,27 @@ TEST_F(EditTextComponentTest, InvalidDimensions) {
 }
 
 
-static const char* BORDER_STROKE_CLAMP_DOC =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.r\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"EditText\","
-        "      \"id\": \"myEditText\","
-        "      \"borderStrokeWidth\": 64,"
-        "      \"borderWidth\": 30"
-        "    }"
-        "  }"
-        "}";
+static const char* BORDER_STROKE_CLAMP_DOC = R"({
+  "type": "APL",
+  "version": "1.r",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "id": "myEditText",
+      "borderStrokeWidth": 64,
+      "borderWidth": 30
+    }
+  }
+})";
 
-static const char * SET_VALUE_STROKEWIDTH_COMMAND =
-        "["
-        "  {"
-        "    \"type\": \"SetValue\","
-        "    \"componentId\": \"myEditText\","
-        "    \"property\": \"borderStrokeWidth\","
-        "    \"value\": \"17\""
-        "  }"
-        "]";
+static const char * SET_VALUE_STROKEWIDTH_COMMAND = R"([
+  {
+    "type": "SetValue",
+    "componentId": "myEditText",
+    "property": "borderStrokeWidth",
+    "value": "17"
+  }
+])";
 
 /**
  * Test the setting of all properties to non default values.
@@ -502,55 +484,54 @@ TEST_F(EditTextComponentTest, ClampDrawnBorder) {
     ASSERT_TRUE(IsEqual(Dimension(17), et->getCalculated(kPropertyDrawnBorderWidth)));
 }
 
-static const char* HANDLERS_DOC =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.r\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"Container\","
-        "      \"items\": ["
-        "        {"
-        "          \"type\": \"EditText\","
-        "          \"id\": \"myEditText\","
-        "          \"text\": \"hello\","
-        "          \"onSubmit\": ["
-        "            {"
-        "              \"type\": \"SetValue\","
-        "              \"componentId\": \"myEditText\","
-        "              \"property\": \"color\","
-        "              \"value\": \"blue\""
-        "            },"
-        "            {"
-        "              \"type\": \"SetValue\","
-        "              \"componentId\": \"myResult\","
-        "              \"property\": \"text\","
-        "              \"value\": \"${event.source.handler}:${event.source.value}\""
-        "            }"
-        "          ],"
-        "          \"onTextChange\": ["
-        "            {"
-        "              \"type\": \"SetValue\","
-        "              \"componentId\": \"myEditText\","
-        "              \"property\": \"color\","
-        "              \"value\": \"red\""
-        "            },"
-        "            {"
-        "              \"type\": \"SetValue\","
-        "              \"componentId\": \"myResult\","
-        "              \"property\": \"text\","
-        "              \"value\": \"${event.source.handler}:${event.source.value}\""
-        "            }"
-        "          ]"
-        "        },"
-        "        {"
-        "          \"type\": \"Text\","
-        "          \"id\": \"myResult\""
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
+static const char* HANDLERS_DOC = R"({
+  "type": "APL",
+  "version": "1.r",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "EditText",
+          "id": "myEditText",
+          "text": "hello",
+          "onSubmit": [
+            {
+              "type": "SetValue",
+              "componentId": "myEditText",
+              "property": "color",
+              "value": "blue"
+            },
+            {
+              "type": "SetValue",
+              "componentId": "myResult",
+              "property": "text",
+              "value": "${event.source.handler}:${event.source.value}"
+            }
+          ],
+          "onTextChange": [
+            {
+              "type": "SetValue",
+              "componentId": "myEditText",
+              "property": "color",
+              "value": "red"
+            },
+            {
+              "type": "SetValue",
+              "componentId": "myResult",
+              "property": "text",
+              "value": "${event.source.handler}:${event.source.value}"
+            }
+          ]
+        },
+        {
+          "type": "Text",
+          "id": "myResult"
+        }
+      ]
+    }
+  }
+})";
 
 /**
  * Test the event handlers for onSubmit and onTextChange
@@ -595,46 +576,45 @@ TEST_F(EditTextComponentTest, Handlers) {
 }
 
 
-static const char* STYLED_DOC =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.4\","
-        "  \"styles\": {"
-        "    \"myStyle\": {"
-        "      \"values\": ["
-        "        {"
-        "          \"borderColor\": \"blue\","
-        "          \"borderStrokeWidth\": 20,"
-        "          \"borderWidth\": 30,"
-        "          \"color\": \"yellow\","
-        "          \"fontFamily\": \"ember\","
-        "          \"fontSize\": 24,"
-        "          \"fontStyle\": \"italic\","
-        "          \"fontWeight\": 600,"
-        "          \"hint\": \"hint\","
-        "          \"highlightColor\": \"green\","
-        "          \"hintColor\": \"gray\","
-        "          \"hintStyle\": \"italic\","
-        "          \"hintWeight\": 500,"
-        "          \"keyboardType\": \"numberPad\","
-        "          \"maxLength\": 4,"
-        "          \"secureInput\": true,"
-        "          \"selectOnFocus\": true,"
-        "          \"size\": 4,"
-        "          \"submitKeyType\": \"go\","
-        "          \"text\": \"1234\","
-        "          \"validCharacters\": \"0-9\""
-        "        }"
-        "      ]"
-        "    }"
-        "  },"
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"EditText\","
-        "      \"style\": \"myStyle\""
-        "    }"
-        "  }"
-        "}";
+static const char* STYLED_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "styles": {
+    "myStyle": {
+      "values": [
+        {
+          "borderColor": "blue",
+          "borderStrokeWidth": 20,
+          "borderWidth": 30,
+          "color": "yellow",
+          "fontFamily": "ember",
+          "fontSize": 24,
+          "fontStyle": "italic",
+          "fontWeight": 600,
+          "hint": "hint",
+          "highlightColor": "green",
+          "hintColor": "gray",
+          "hintStyle": "italic",
+          "hintWeight": 500,
+          "keyboardType": "numberPad",
+          "maxLength": 4,
+          "secureInput": true,
+          "selectOnFocus": true,
+          "size": 4,
+          "submitKeyType": "go",
+          "text": "1234",
+          "validCharacters": "0-9"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "style": "myStyle"
+    }
+  }
+})";
 
 /**
  * Verify styled properties can be set via style, and non-styled properties cannot be set via style
@@ -693,24 +673,22 @@ public:
     }
 };
 
-static const char* EDITTEXT_MEASUREMENT_DOC = R"(
-{
-    "type": "APL",
-    "version": "1.4",
-    "mainTemplate": {
-        "item": {
-            "type": "Frame",
-            "borderWidth": 2,
-            "item": {
-                "type": "EditText",
-                "text": "Hello",
-                "size": 3,
-                "color": "#000000"
-            }
-        }
+static const char* EDITTEXT_MEASUREMENT_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "Frame",
+      "borderWidth": 2,
+      "item": {
+        "type": "EditText",
+        "text": "Hello",
+        "size": 3,
+        "color": "#000000"
+      }
     }
-}
-)";
+  }
+})";
 
 /**
  * Test text measurement for EditText component
@@ -733,4 +711,19 @@ TEST_F(EditTextComponentTest, EditTextMeasurement) {
     ASSERT_EQ(Rect(0, 0, 400, 400), top->getCalculated(kPropertyBounds).getRect());
     auto editText = top->getChildAt(0);
     ASSERT_EQ(Rect(2, 2, 60, 120), editText->getCalculated(kPropertyBounds).getRect());
+}
+
+/**
+ * Test that when update of text done - component marked as dirty.
+ */
+TEST_F(EditTextComponentTest, UpdateMarksDirty) {
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureMarkEditTextDirtyOnUpdate);
+    loadDocument(DEFAULT_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, et->getType());
+
+    et->update(kUpdateTextChange, "test");
+    ASSERT_TRUE(CheckDirty(et, kPropertyText));
 }

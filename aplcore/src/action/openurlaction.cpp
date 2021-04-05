@@ -57,7 +57,7 @@ OpenURLAction::handleFailure(int argument)
     auto event = std::make_shared<ObjectMap>();
     event->emplace("source", source);
 
-    ContextPtr context = Context::create(mCommand->context());
+    ContextPtr context = Context::createFromParent(mCommand->context());
     context->putConstant("event", event);
 
     auto array = ArrayCommand::create(context,

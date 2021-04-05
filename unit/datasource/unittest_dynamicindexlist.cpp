@@ -259,7 +259,7 @@ public:
             .setFetchTimeout(100)
             .setCacheExpiryTimeout(500);
         ds = std::make_shared<DynamicIndexListDataSourceProvider>(cnf);
-        config.dataSourceProvider(SOURCE_TYPE, ds);
+        config->dataSourceProvider(SOURCE_TYPE, ds);
     }
 
     void TearDown() override {
@@ -647,8 +647,7 @@ TEST_F(DynamicIndexListTest, WithFirst)
     ASSERT_EQ("id0", component->getChildAt(1)->getId());
     ASSERT_EQ("id15", component->getChildAt(16)->getId());
 
-    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 15), true));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(16, 16), false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 16), true));
 
     ASSERT_FALSE(root->hasEvent());
 }
@@ -2219,35 +2218,59 @@ TEST_F(DynamicIndexListTest, BasicPager)
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 1}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {2, 4}, false));
 
+    // Load 5 pages BEFORE the current set of pages
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 5, 5));
     ASSERT_TRUE(ds->processUpdate(FIVE_TO_NINE_FOLLOWUP_PAGER));
     root->clearPending();
-
     ASSERT_EQ(10, component->getChildCount());
-
     ASSERT_EQ("frame-5", component->getChildAt(0)->getId());
     ASSERT_EQ("frame-14", component->getChildAt(9)->getId());
+    ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 4));  // Page 4 gets loaded because we're on page 5
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,3}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {4,6}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {7,9}, false));
 
+    // Switch to the first page (index=0)
     component->update(UpdateType::kUpdatePagerByEvent, 0);
-    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {0, 4}));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 6}, true));
+    root->clearPending();
+    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {0, 1}));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 1}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {2, 3}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 6}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {7, 9}, false));
+
+    // Load 5 more pages BEFORE the current set of pages
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 0, 5));
     ASSERT_TRUE(ds->processUpdate(ZERO_TO_FOUR_RESPONSE_PAGER));
     root->clearPending();
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 3}, false));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 11}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 6}, true));  // Page 4 gets loaded because we're on page 5
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {7, 8}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {9, 11}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {12, 14}, false));
 
-
+    // Switch to the last page (index=14)
     component->update(UpdateType::kUpdatePagerByEvent, 14);
-    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {12, 14}));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 14}, true));
+    root->clearPending();
+    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {13, 14}));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 3}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 6}, true));  // Page 4 gets loaded because we're on page 5
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {7, 8}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {9, 11}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {12, 12}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {13, 14}, true));
+
+    // Load 5 more pages AFTER the current set of pages
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 15, 5));
     ASSERT_TRUE(ds->processUpdate(FIFTEEN_TO_NINETEEN_RESPONSE_PAGER));
     root->clearPending();
     ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 15));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 15}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 3}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 6}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {7, 8}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {9, 11}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {12, 12}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {13, 15}, true));  // Page 15 gets loaded because we're on page 14
     ASSERT_TRUE(CheckChildrenLaidOut(component, {16, 19}, false));
 
     ASSERT_TRUE(root->isDirty());
@@ -2814,15 +2837,20 @@ static const char *SWIPE_TO_DELETE_DATA = R"({
 
 TEST_F(DynamicIndexListTest, SwipeToDelete)
 {
-    config.swipeAwayAnimationEasing("linear");
-    config.pointerSlopThreshold(5);
-    config.swipeVelocityThreshold(100);
-    config.pointerInactivityTimeout(1000);
+    config->set({
+        {RootProperty::kSwipeAwayAnimationEasing, "linear"},
+        {RootProperty::kPointerSlopThreshold, 5},
+        {RootProperty::kSwipeVelocityThreshold, 5},
+        {RootProperty::kTapOrScrollTimeout, 10},
+        {RootProperty::kPointerInactivityTimeout, 1000}
+    });
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
 
     loadDocument(SWIPE_TO_DELETE, SWIPE_TO_DELETE_DATA);
 
     ASSERT_TRUE(component);
     ASSERT_EQ(5, component->getChildCount());
+    ASSERT_EQ(5, component->getDisplayedChildCount());
 
     auto idToDelete = component->getChildAt(0)->getUniqueId();
 
@@ -2844,7 +2872,8 @@ TEST_F(DynamicIndexListTest, SwipeToDelete)
     ASSERT_TRUE(ds->processUpdate(createDelete(1, indexToDelete)));
     root->clearPending();
     ASSERT_EQ(4, component->getChildCount());
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds));
+    ASSERT_EQ(4, component->getDisplayedChildCount());
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds, kPropertyNotifyChildrenChanged));
     root->clearDirty();
 
 
@@ -2870,7 +2899,8 @@ TEST_F(DynamicIndexListTest, SwipeToDelete)
     ASSERT_TRUE(ds->processUpdate(createDelete(2, indexToDelete)));
     root->clearPending();
     ASSERT_EQ(3, component->getChildCount());
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds));
+    ASSERT_EQ(3, component->getDisplayedChildCount());
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds,kPropertyNotifyChildrenChanged));
     root->clearDirty();
 
 
@@ -2898,4 +2928,158 @@ TEST_F(DynamicIndexListTest, SwipeToDelete)
     root->clearDirty();
 
     ASSERT_EQ(2, component->getChildCount());
+    ASSERT_EQ(2, component->getDisplayedChildCount());
+
+    // again
+    idToDelete = component->getChildAt(0)->getUniqueId();
+
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(200,1), false));
+    root->updateTime(3100);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(190,1), true));
+    root->updateTime(3200);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(140,1), true));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(140,1), true));
+
+    root->updateTime(4000);
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    deletedId = event.getValue(kEventPropertyArguments).getArray().at(0).asString();
+    indexToDelete = event.getValue(kEventPropertyArguments).getArray().at(1).asNumber();
+    ASSERT_EQ(idToDelete, deletedId);
+    ASSERT_EQ(0, indexToDelete);
+    root->clearDirty();
+
+    ASSERT_TRUE(ds->processUpdate(createDelete(4, indexToDelete)));
+    root->clearPending();
+    ASSERT_EQ(1, component->getChildCount());
+    ASSERT_EQ(1, component->getDisplayedChildCount());
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds,kPropertyNotifyChildrenChanged));
+    root->clearDirty();
+
+    // empty the list
+    idToDelete = component->getChildAt(0)->getUniqueId();
+
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(200,1), false));
+    root->updateTime(4100);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(190,1), true));
+    root->updateTime(4200);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(140,1), true));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(140,1), true));
+
+    root->updateTime(5000);
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    deletedId = event.getValue(kEventPropertyArguments).getArray().at(0).asString();
+    indexToDelete = event.getValue(kEventPropertyArguments).getArray().at(1).asNumber();
+    ASSERT_EQ(idToDelete, deletedId);
+    ASSERT_EQ(0, indexToDelete);
+    root->clearDirty();
+
+    ASSERT_TRUE(ds->processUpdate(createDelete(5, indexToDelete)));
+    root->clearPending();
+    ASSERT_EQ(0, component->getChildCount());
+    ASSERT_EQ(0, component->getDisplayedChildCount());
+    root->clearDirty();
+}
+
+static const char *PROACTIVE_LOAD_ONLY = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 5,
+    "minimumInclusiveIndex": 5,
+    "maximumExclusiveIndex": 5
+  }
+})";
+
+static const char *PROACTIVE_EXPAND_RESPONSE = R"({
+  "token": "presentationToken",
+  "listId": "vQdpOESlok",
+  "startIndex": 5,
+  "minimumInclusiveIndex": 5,
+  "maximumExclusiveIndex": 10,
+  "items": [ 5, 6, 7, 8, 9 ]
+})";
+
+TEST_F(DynamicIndexListTest, ProactiveLoadOnly)
+{
+    loadDocument(BASIC, PROACTIVE_LOAD_ONLY);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(0, component->getChildCount());
+
+    ASSERT_FALSE(root->hasEvent());
+
+    ASSERT_TRUE(ds->processUpdate(PROACTIVE_EXPAND_RESPONSE));
+    ASSERT_TRUE(CheckErrors({ "INCONSISTENT_RANGE" }));
+    root->clearPending();
+
+    ASSERT_EQ(5, component->getChildCount());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 4}, true));
+
+    ASSERT_TRUE(CheckBounds(5, 10));
+
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char *BASIC_CONFIG_CHANGE = R"({
+  "type": "APL",
+  "version": "1.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "preserve": ["centerIndex"],
+      "height": 300,
+      "data": "${dynamicSource}",
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "width": 100,
+        "height": 100,
+        "text": "${data}"
+      }
+    }
+  },
+  "onConfigChange": [
+    {
+      "type": "Reinflate"
+    }
+  ]
+})";
+
+TEST_F(DynamicIndexListTest, Reinflate) {
+    loadDocument(BASIC_CONFIG_CHANGE, DATA);
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+    ASSERT_EQ(5, component->getChildCount());
+    ASSERT_TRUE(CheckBounds(0, 20));
+    ASSERT_TRUE(CheckChildren({10, 11, 12, 13, 14}));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 5, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, 15, "15, 16, 17, 18, 19")));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 102, 5, "5, 6, 7, 8, 9")));
+    root->clearPending();
+    ASSERT_EQ(15, component->getChildCount());
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 0, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 103, 0, "0, 1, 2, 3, 4")));
+    root->clearPending();
+    ASSERT_EQ(20, component->getChildCount());
+    ASSERT_FALSE(root->hasEvent());
+
+    // re-inflate should get same result.
+    auto oldComponent = component;
+    configChangeReinflate(ConfigurationChange(100, 100));
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+    ASSERT_TRUE(component);
+    ASSERT_EQ(component->getId(), oldComponent->getId());
+    ASSERT_EQ(20, component->getChildCount());
+    ASSERT_TRUE(CheckBounds(0, 20));
+    ASSERT_FALSE(root->hasEvent());
 }

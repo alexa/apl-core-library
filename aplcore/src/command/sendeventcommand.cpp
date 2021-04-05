@@ -67,9 +67,9 @@ SendEventCommand::execute(const TimersPtr& timers, bool fastMode) {
     bag.emplace(kEventPropertyComponents, componentsMap);
 
     if (DEBUG_SEND_EVENT) {
-        LOG(LogLevel::DEBUG) << "SendEvent Bag";
+        LOG(LogLevel::kDebug) << "SendEvent Bag";
         for (auto m : bag) {
-            LOG(LogLevel::DEBUG) << "Property: " << sEventPropertyBimap.at(m.first) << "("
+            LOG(LogLevel::kDebug) << "Property: " << sEventPropertyBimap.at(m.first) << "("
                                  << m.first << ")";
             DumpVisitor::dump(m.second);
         }

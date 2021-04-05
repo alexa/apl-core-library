@@ -136,6 +136,46 @@ TEST_F(ActionTest, MakeActionAndResolve)
     ASSERT_TRUE(fired);
 }
 
+TEST_F(ActionTest, MakeWrappedActionAndResolve)
+{
+    auto p = fake_delayed_action(100);
+
+    bool fired = false;
+    bool result = false;
+    auto wrapped = Action::wrapWithCallback(loop, p, [&] (bool res, const ActionPtr&) {
+        fired = true;
+        result = res;
+    });
+
+    ASSERT_FALSE(fired);
+
+    // There should be a "resolved" pending on the event loop
+    ASSERT_EQ(1, loop->size());
+    loop->advanceToEnd();
+
+    ASSERT_TRUE(fired);
+    ASSERT_TRUE(result);
+}
+
+TEST_F(ActionTest, MakeWrappedActionAndTerminate)
+{
+    auto p = fake_delayed_action(100);
+
+    bool fired = false;
+    bool result = false;
+    auto wrapped = Action::wrapWithCallback(loop, p, [&] (bool res, const ActionPtr&) {
+      fired = true;
+      result = res;
+    });
+
+    ASSERT_FALSE(fired);
+
+    wrapped->terminate();
+
+    ASSERT_TRUE(fired);
+    ASSERT_FALSE(result);
+}
+
 TEST_F(ActionTest, MakeActionAndResolveArgument)
 {
     auto p = fake_action_argument(23);

@@ -16,6 +16,7 @@ target_sources_local(apl
     pointermanager.cpp
     gesture.cpp
     gestures/doublepressgesture.cpp
+    gestures/flinggesture.cpp
     gestures/longpressgesture.cpp
     gestures/pagerflinggesture.cpp
     gestures/scrollgesture.cpp

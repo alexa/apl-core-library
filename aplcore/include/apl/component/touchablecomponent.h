@@ -42,11 +42,11 @@ public:
 
     /// CoreComponent overrides
     void initialize() override;
-    bool executeIntrinsicKeyHandlers(KeyHandlerType type, const ObjectMapPtr& keyboard) override;
+    bool executeIntrinsicKeyHandlers(KeyHandlerType type, const Keyboard& keyboard) override;
 
 protected:
     TouchableComponent(const ContextPtr &context, Properties &&properties, const std::string &path) :
-        ActionableComponent(context, std::move(properties), path), mPointerInteractionStartTime(0) {}
+        ActionableComponent(context, std::move(properties), path) {}
 
     const ComponentPropDefSet &propDefSet() const override;
     bool getTags(rapidjson::Value &outMap, rapidjson::Document::AllocatorType &allocator) override;
@@ -54,8 +54,7 @@ protected:
     // TODO: override to be removed once we support handing intrinsic/reserved keys
     void update(UpdateType type, float value) override;
     void setGestureHandlers();
-    bool processGestures(const PointerEvent& event, apl_time_t timestamp, bool topComponent) override;
-    bool shouldPropagatePointerEvent(const PointerEvent& event, apl_time_t timestamp) override;
+    bool processPointerEvent(const PointerEvent& event, apl_time_t timestamp) override;
     void invokeStandardAccessibilityAction(const std::string& name) override;
 
 private:
@@ -67,9 +66,9 @@ private:
 
     void handleEnterKey(PropertyKey type);
 
-    /// Start timestamp for interaction targetting this component. Accurate only after most recent
-    /// kPointerDown event.
-    apl_time_t mPointerInteractionStartTime;
+    /// Track if pointer started in this component for purpose of handling onPress handler. It's different from pressed
+    /// state.
+    bool mReceivedOnDown = false;
 };
 } // namespace apl
 

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -115,7 +115,7 @@ static const char *ARRAY_TEST =
 TEST_F(LiveArrayChangeTest, SmallChanges)
 {
     auto myArray = LiveArray::create(ObjectArray{"a", "b", "c"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(ARRAY_TEST);
     ASSERT_TRUE(component);
@@ -195,7 +195,7 @@ TEST_F(LiveArrayChangeTest, SmallChanges)
 TEST_F(LiveArrayChangeTest, MultipleChanges)
 {
     auto myArray = LiveArray::create(ObjectArray{1, 2});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(ARRAY_TEST);
 
@@ -237,7 +237,7 @@ TEST_F(LiveArrayChangeTest, MultipleChanges)
 TEST_F(LiveArrayChangeTest, UpdateChecks)
 {
     auto myArray = LiveArray::create(ObjectArray{1, 2});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(ARRAY_TEST);
 
@@ -270,7 +270,7 @@ TEST_F(LiveArrayChangeTest, UpdateChecks)
 TEST_F(LiveArrayChangeTest, OutOfBounds)
 {
     auto myArray = LiveArray::create(ObjectArray{1, 2});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(ARRAY_TEST);
 
@@ -300,7 +300,7 @@ TEST_F(LiveArrayChangeTest, OutOfBounds)
 TEST_F(LiveArrayChangeTest, Replaced)
 {
     auto myArray = LiveArray::create(ObjectArray{1, 2});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(ARRAY_TEST);
 
@@ -324,7 +324,7 @@ TEST_F(LiveArrayChangeTest, Replaced)
 TEST_F(LiveArrayChangeTest, IteratorChanges)
 {
     auto myArray = LiveArray::create(ObjectArray{"a", "b"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(ARRAY_TEST);
     auto newItems = ObjectArray{"c", "d", "e"};
@@ -367,7 +367,7 @@ TEST_F(LiveArrayChangeTest, IteratorChanges)
 TEST_F(LiveArrayChangeTest, CombinedIteratorChanges)
 {
     auto myArray = LiveArray::create(ObjectArray{"a", "b"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(ARRAY_TEST);
     auto newItemsBackwards = ObjectArray{"z", "y", "x"};

@@ -68,7 +68,14 @@ Gesture::create(const ActionablePtr& actionable, const Object& object) {
 }
 
 void
-Gesture::reset() {
+Gesture::release()
+{
+    reset();
+}
+
+void
+Gesture::reset()
+{
     mTriggered = false;
     mStarted = false;
 }

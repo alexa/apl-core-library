@@ -21,7 +21,8 @@
 #include "apl/engine/context.h"
 #include "apl/component/corecomponent.h"
 #include "apl/command/command.h"
-#include "apl/command/executionresource.h"
+#include "apl/time/executionresource.h"
+#include "apl/time/executionresourceholder.h"
 
 namespace apl {
 
@@ -71,6 +72,26 @@ public:
     ActionPtr executeOnSequencer(const CommandPtr& commandPtr, const std::string& sequencerName);
 
     /**
+     * Attach action to existing or new sequencer. Requests to attach to main sequencer will be ignored.
+     * @param actionPtr action to attach.
+     * @param sequencerName target sequencer name.
+     */
+    void attachToSequencer(const ActionPtr& actionPtr, const std::string& sequencerName);
+
+    /**
+     * Terminate any running sequencer. Requests to terminate main will be ignored, use Sequencer::terminate() instead.
+     * @param sequencerName target sequencer name.
+     */
+    void terminateSequencer(const std::string& sequencerName);
+
+    /**
+     * Check if sequencer running. Main sequencer always considered running.
+     * @param sequencerName target sequencer name.
+     * @return true if something running on a sequences, false otherwise.
+     */
+    bool isRunning(const std::string& sequencerName);
+
+    /**
      * Terminate and clear out the sequencer.  After calling this, no more commands will be accepted.
      */
     void terminate();
@@ -85,14 +106,43 @@ public:
      * @param sequencerName The sequencer to check.
      * @return true when the sequencer is empty or does not exist.
      */
-    int isEmpty(const std::string& sequencerName) const;
+    bool empty(const std::string& sequencerName) const;
 
     /**
-     * Concurrent resource usage handling.
+     * Claim a system display resource (such as scrolling in a scroll view) and associate an action with that
+     * resource.  If the resource is claimed by someone else the action is terminated.  Note that a single action
+     * may be used to claim multiple resources.
+     * @param resource The display resource to claim
+     * @param action The action associated with that resource
      */
     void claimResource(const ExecutionResource& resource, const ActionPtr& action);
+
+    /**
+     * Claim a system display resource (such as scrolling in a scroll view) and associate a simple function callback.
+     * If the resource is claimed by someone else, the callback is invoked.
+     * @param resource The display resource to claim
+     * @param holder A shared object that is holding the resource.
+     */
+    void claimResource(const ExecutionResource& resource, const ExecutionResourceHolderPtr& holder);
+
+    /**
+     * Release any claims on a system display resource.  Any existing holders of this resource will be
+     * notified by action or callback.
+     * @param resource The resource to release
+     */
     void releaseResource(const ExecutionResource& resource);
+
+    /**
+     * Release all claimed resources associated with this action.
+     * @param action The action
+     */
     void releaseRelatedResources(const ActionPtr& action);
+
+    /**
+     * Release all claimed resources associated with this holder
+     * @param holder
+     */
+    void releaseRelatedResources(const ExecutionResourceHolderPtr& holder);
 
 private:
     void executeFast(const CommandPtr& commandPtr);
@@ -102,7 +152,8 @@ private:
     std::set<ActionPtr> mOneShotSet;
     std::set<std::string> mResetInExecute;
     std::map<std::string, ActionPtr> mSequencers;
-    std::map<ExecutionResource, ActionPtr> mResources;
+    std::map<ExecutionResource, ActionPtr> mResourcesByAction;
+    std::map<ExecutionResource, ExecutionResourceHolderPtr> mResourcesByHolder;
     bool mFeatureSupportResources = true;
     bool mFeatureSupportMultiSequencer = true;
 };

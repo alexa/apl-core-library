@@ -23,7 +23,7 @@ class ParseTest : public ::testing::Test {
 public:
     ParseTest() {
         Metrics m;
-        context = Context::create(m, makeDefaultSession());
+        context = Context::createTestContext(Metrics(), RootConfig());
     }
 
     ContextPtr context;
@@ -578,7 +578,7 @@ TEST_F(ParseTest, Compare)
     ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : COMPARE_EVAL) {
-        auto c = Context::create(context);
+        auto c = Context::createFromParent(context);
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
         bool target = (m.at(2).asInt() == -1);  // Must be less-than
@@ -590,7 +590,7 @@ TEST_F(ParseTest, Compare)
     ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : COMPARE_EVAL) {
-        auto c = Context::create(context);
+        auto c = Context::createFromParent(context);
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
         bool target = (m.at(2).asInt() == 1);  // Must be less-than
@@ -602,7 +602,7 @@ TEST_F(ParseTest, Compare)
     ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : COMPARE_EVAL) {
-        auto c = Context::create(context);
+        auto c = Context::createFromParent(context);
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
         bool target = (m.at(2).asInt() != 1);  // Must be equal or less-than
@@ -614,7 +614,7 @@ TEST_F(ParseTest, Compare)
     ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : COMPARE_EVAL) {
-        auto c = Context::create(context);
+        auto c = Context::createFromParent(context);
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
         bool target = (m.at(2).asInt() != -1);  // Must be equal or greater-than
@@ -626,7 +626,7 @@ TEST_F(ParseTest, Compare)
     ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : COMPARE_EVAL) {
-        auto c = Context::create(context);
+        auto c = Context::createFromParent(context);
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
         bool target = (m.at(2).asInt() == 0);  // Must be equal
@@ -638,7 +638,7 @@ TEST_F(ParseTest, Compare)
     ASSERT_TRUE(result.isEvaluable());
 
     for (auto& m : COMPARE_EVAL) {
-        auto c = Context::create(context);
+        auto c = Context::createFromParent(context);
         ASSERT_TRUE(context->userUpdateAndRecalculate("a", m.at(0), false));
         ASSERT_TRUE(context->userUpdateAndRecalculate("b", m.at(1), false));
         bool target = (m.at(2).asInt() != 0);  // Must be equal

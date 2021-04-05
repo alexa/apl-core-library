@@ -62,7 +62,7 @@ TEST_F(ExtensionHandlerTest, BasicMissingHandler)
  */
 TEST_F(ExtensionHandlerTest, BasicWithHandler)
 {
-    config.registerExtensionEventHandler(ExtensionEventHandler{"aplext:Test", "onSetArguments"});
+    config->registerExtensionEventHandler(ExtensionEventHandler{"aplext:Test", "onSetArguments"});
     loadDocument(BASIC);
 
     ASSERT_TRUE(component);
@@ -102,7 +102,7 @@ static const char *WITH_ARGUMENTS = R"({
  */
 TEST_F(ExtensionHandlerTest, WithArguments)
 {
-    config.registerExtensionEventHandler(ExtensionEventHandler{"aplext:Test", "onSetArguments"});
+    config->registerExtensionEventHandler(ExtensionEventHandler{"aplext:Test", "onSetArguments"});
     loadDocument(WITH_ARGUMENTS);
 
     ASSERT_TRUE(component);
@@ -153,7 +153,7 @@ static const char *IMPORT_TEST_PACKAGE = R"({
  */
 TEST_F(ExtensionHandlerTest, ImportTest)
 {
-    config.registerExtensionEventHandler(ExtensionEventHandler{"aplext:Test", "onSetArguments"});
+    config->registerExtensionEventHandler(ExtensionEventHandler{"aplext:Test", "onSetArguments"});
 
     loadDocumentWithPackage(IMPORT_TEST, IMPORT_TEST_PACKAGE);
     ASSERT_TRUE(component);
@@ -198,7 +198,7 @@ static const char *IMPORT_TEST_OVERRIDE = R"({
  */
 TEST_F(ExtensionHandlerTest, ImportTestOverride)
 {
-    config.registerExtensionEventHandler(ExtensionEventHandler{"aplext:Test", "onSetArguments"});
+    config->registerExtensionEventHandler(ExtensionEventHandler{"aplext:Test", "onSetArguments"});
 
     loadDocumentWithPackage(IMPORT_TEST_OVERRIDE, IMPORT_TEST_PACKAGE);
     ASSERT_TRUE(component);
@@ -243,7 +243,7 @@ static const char *FAST_MODE = R"({
  */
 TEST_F(ExtensionHandlerTest, FastMode)
 {
-    config.registerExtensionEventHandler(ExtensionEventHandler{"aplext:Test", "onSetArguments"});
+    config->registerExtensionEventHandler(ExtensionEventHandler{"aplext:Test", "onSetArguments"});
 
     loadDocument(FAST_MODE);
     ASSERT_TRUE(component);
@@ -294,7 +294,7 @@ static const char *DUPLICATE_EXTENSION_NAME = R"({
  */
 TEST_F(ExtensionHandlerTest, DuplicateExtensionName)
 {
-    config.registerExtensionEventHandler(ExtensionEventHandler{"test", "onExecute"});
+    config->registerExtensionEventHandler(ExtensionEventHandler{"test", "onExecute"});
 
     loadDocument(DUPLICATE_EXTENSION_NAME);
     ASSERT_TRUE(component);
@@ -340,7 +340,7 @@ static const char *EXTENSION_ACCESSING_PAYLOAD = R"({
  */
 TEST_F(ExtensionHandlerTest, ExtensionAccessingPayload)
 {
-    config.registerExtensionEventHandler(ExtensionEventHandler{"URI_A", "onExecute"});
+    config->registerExtensionEventHandler(ExtensionEventHandler{"URI_A", "onExecute"});
 
     loadDocument(EXTENSION_ACCESSING_PAYLOAD, R"({"start": "START", "end": "END"})");
    // ASSERT_TRUE(component);
@@ -416,7 +416,7 @@ static const char *DOCUMENT_DEFINED_COMMAND = R"({
  */
 TEST_F(ExtensionHandlerTest, ExtensionAccessingCommands)
 {
-    config.registerExtensionEventHandler(ExtensionEventHandler{"aplext:magic:0", "OnPress"});
+    config->registerExtensionEventHandler(ExtensionEventHandler{"aplext:magic:0", "OnPress"});
 
     loadDocument(DOCUMENT_DEFINED_COMMAND);
 

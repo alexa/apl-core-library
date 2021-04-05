@@ -38,7 +38,7 @@ public:
     Object get(const std::string& key) const override;
     Object opt(const std::string& key, const Object& def) const override;
     bool has(const std::string& key) const override;
-    size_t size() const override;
+    std::uint64_t size() const override;
 
     const ObjectMap& getMap() const override;
 

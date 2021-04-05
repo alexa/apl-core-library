@@ -44,6 +44,7 @@ enum CommandType {
     kCommandTypeSetFocus,
     kCommandTypeClearFocus,
     kCommandTypeFinish,
+    kCommandTypeReinflate,
     kCommandTypeCustomEvent,
 };
 

@@ -50,7 +50,7 @@ TEST_F(DefaultComponentTest, Container)
 
 TEST_F(DefaultComponentTest, ContainerOverride)
 {
-    config.defaultComponentSize(kComponentTypeContainer, Dimension(30), Dimension(40));
+    config->defaultComponentSize(kComponentTypeContainer, Dimension(30), Dimension(40));
     loadDocument(DEFAULT_CONTAINER_SIZE);
     ASSERT_TRUE(component);
 
@@ -72,7 +72,8 @@ static const char *DEFAULT_CONTAINER_WITH_CHILD_SIZE =
     "      \"item\": {"
     "        \"type\": \"Container\","
     "        \"item\": {"
-    "          \"type\": \"Text\""
+    "          \"type\": \"Text\","
+    "          \"text\": \"Hello\""
     "        }"
     "      }"
     "    }"
@@ -87,7 +88,7 @@ TEST_F(DefaultComponentTest, ContainerWithChild)
     auto container = component->getChildAt(0);
     ASSERT_TRUE(IsEqual(Dimension(), container->getCalculated(kPropertyHeight)));
     ASSERT_TRUE(IsEqual(Dimension(), container->getCalculated(kPropertyWidth)));
-    ASSERT_TRUE(IsEqual(Rect(0,0,10,10), container->getCalculated(kPropertyBounds)));
+    ASSERT_TRUE(IsEqual(Rect(0,0,50,10), container->getCalculated(kPropertyBounds)));
 }
 
 /*************** Frame ***************/
@@ -121,7 +122,7 @@ TEST_F(DefaultComponentTest, Frame)
 
 TEST_F(DefaultComponentTest, FrameOverride)
 {
-    config.defaultComponentSize(kComponentTypeFrame, 55, 66);
+    config->defaultComponentSize(kComponentTypeFrame, 55, 66);
     loadDocument(DEFAULT_FRAME_SIZE);
     ASSERT_TRUE(component);
 
@@ -143,7 +144,8 @@ static const char *DEFAULT_FRAME_WITH_CHILD_SIZE =
     "      \"item\": {"
     "        \"type\": \"Frame\","
     "        \"item\": {"
-    "          \"type\": \"Text\""
+    "          \"type\": \"Text\","
+    "          \"text\": \"Puppy!\""
     "        }"
     "      }"
     "    }"
@@ -158,7 +160,7 @@ TEST_F(DefaultComponentTest, FrameWithChild)
     auto frame = component->getChildAt(0);
     ASSERT_TRUE(IsEqual(Dimension(), frame->getCalculated(kPropertyHeight)));
     ASSERT_TRUE(IsEqual(Dimension(), frame->getCalculated(kPropertyWidth)));
-    ASSERT_TRUE(IsEqual(Rect(0,0,10,10), frame->getCalculated(kPropertyBounds)));
+    ASSERT_TRUE(IsEqual(Rect(0,0,60,10), frame->getCalculated(kPropertyBounds)));
 }
 
 /*************** Image ***************/
@@ -192,7 +194,7 @@ TEST_F(DefaultComponentTest, Image)
 
 TEST_F(DefaultComponentTest, ImageOverride)
 {
-    config.defaultComponentSize(kComponentTypeImage, 22, 33);
+    config->defaultComponentSize(kComponentTypeImage, 22, 33);
 
     loadDocument(DEFAULT_IMAGE_SIZE);
     ASSERT_TRUE(component);
@@ -234,7 +236,7 @@ TEST_F(DefaultComponentTest, Pager)
 
 TEST_F(DefaultComponentTest, PagerOverride)
 {
-    config.defaultComponentSize(kComponentTypePager, 111, 222);
+    config->defaultComponentSize(kComponentTypePager, 111, 222);
 
     loadDocument(DEFAULT_PAGER_SIZE);
     ASSERT_TRUE(component);
@@ -306,7 +308,7 @@ TEST_F(DefaultComponentTest, ScrollView)
 
 TEST_F(DefaultComponentTest, ScrollViewOverride)
 {
-    config.defaultComponentSize(kComponentTypeScrollView, 99, 400);
+    config->defaultComponentSize(kComponentTypeScrollView, 99, 400);
     loadDocument(DEFAULT_SCROLL_VIEW_SIZE);
     ASSERT_TRUE(component);
 
@@ -328,7 +330,8 @@ static const char *DEFAULT_SCROLL_VIEW_WITH_CHILD_SIZE =
     "      \"item\": {"
     "        \"type\": \"ScrollView\","
     "        \"item\": {"
-    "          \"type\": \"Text\""
+    "          \"type\": \"Text\","
+    "          \"text\": \"test\""
     "        }"
     "      }"
     "    }"
@@ -343,7 +346,7 @@ TEST_F(DefaultComponentTest, ScrollViewWithChild)
     auto scrollView = component->getChildAt(0);
     ASSERT_TRUE(IsEqual(Dimension(100), scrollView->getCalculated(kPropertyHeight)));
     ASSERT_TRUE(IsEqual(Dimension(), scrollView->getCalculated(kPropertyWidth)));
-    ASSERT_TRUE(IsEqual(Rect(0,0,10,100), scrollView->getCalculated(kPropertyBounds)));
+    ASSERT_TRUE(IsEqual(Rect(0,0,40,100), scrollView->getCalculated(kPropertyBounds)));
 }
 
 /*************** Sequence: Vertical ***************/
@@ -379,7 +382,7 @@ TEST_F(DefaultComponentTest, SequenceVertical)
 
 TEST_F(DefaultComponentTest, SequenceVerticalOverride)
 {
-    config.defaultComponentSize(kComponentTypeSequence, true, 200, 300);
+    config->defaultComponentSize(kComponentTypeSequence, true, 200, 300);
 
     loadDocument(DEFAULT_SEQUENCE_VERTICAL_SIZE);
     ASSERT_TRUE(component);
@@ -404,7 +407,8 @@ static const char *DEFAULT_SEQUENCE_VERTICAL_WITH_CHILD_SIZE =
     "        \"type\": \"Sequence\","
     "        \"scrollDirection\": \"vertical\","
     "        \"item\": {"
-    "          \"type\": \"Text\""
+    "          \"type\": \"Text\","
+    "          \"text\": \"Text\""
     "        },"
     "        \"data\": ["
     "          1"
@@ -424,7 +428,7 @@ TEST_F(DefaultComponentTest, SequenceVerticalWithChild)
 
     ASSERT_TRUE(IsEqual(Dimension(100), sequence->getCalculated(kPropertyHeight)));
     ASSERT_TRUE(IsEqual(Dimension(), sequence->getCalculated(kPropertyWidth)));
-    ASSERT_TRUE(IsEqual(Rect(0,0,10,100), sequence->getCalculated(kPropertyBounds)));
+    ASSERT_TRUE(IsEqual(Rect(0,0,40,100), sequence->getCalculated(kPropertyBounds)));
 }
 
 /*************** Sequence: Horizontal ***************/
@@ -460,8 +464,8 @@ TEST_F(DefaultComponentTest, SequenceHorizontal)
 
 TEST_F(DefaultComponentTest, SequenceHorizontalOverride)
 {
-    config.defaultComponentSize(kComponentTypeSequence, false, 300, 400);
-    config.defaultComponentSize(kComponentTypeSequence, true, 500, 600);  // Vertical scrolling
+    config->defaultComponentSize(kComponentTypeSequence, false, 300, 400);
+    config->defaultComponentSize(kComponentTypeSequence, true, 500, 600);  // Vertical scrolling
     loadDocument(DEFAULT_SEQUENCE_HORIZONTAL_SIZE);
     ASSERT_TRUE(component);
 
@@ -485,7 +489,8 @@ static const char *DEFAULT_SEQUENCE_HORIZONTAL_WITH_CHILD_SIZE =
     "        \"type\": \"Sequence\","
     "        \"scrollDirection\": \"horizontal\","
     "        \"item\": {"
-    "          \"type\": \"Text\""
+    "          \"type\": \"Text\","
+    "          \"text\": \"T\""
     "        },"
     "        \"data\": ["
     "          1"
@@ -520,7 +525,8 @@ static const char *DEFAULT_TEXT_SIZE =
         "      \"width\": 1000,"
         "      \"height\": 1000,"
         "      \"item\": {"
-        "        \"type\": \"Text\""
+        "        \"type\": \"Text\","
+        "        \"text\": \"Test\""
         "      }"
         "    }"
         "  }"
@@ -534,13 +540,12 @@ TEST_F(DefaultComponentTest, Text)
     auto text = component->getChildAt(0);
     ASSERT_TRUE(IsEqual(Dimension(), text->getCalculated(kPropertyHeight)));
     ASSERT_TRUE(IsEqual(Dimension(), text->getCalculated(kPropertyWidth)));
-    // NOTE: The default text measurement size is 10x10
-    ASSERT_TRUE(IsEqual(Rect(0,0,10,10), text->getCalculated(kPropertyBounds)));
+    ASSERT_TRUE(IsEqual(Rect(0,0,40,10), text->getCalculated(kPropertyBounds)));
 }
 
 TEST_F(DefaultComponentTest, TextOverride)
 {
-    config.defaultComponentSize(kComponentTypeText, 33, 44);
+    config->defaultComponentSize(kComponentTypeText, 33, 44);
 
     loadDocument(DEFAULT_TEXT_SIZE);
     ASSERT_TRUE(component);
@@ -583,7 +588,7 @@ TEST_F(DefaultComponentTest, TouchWrapper)
 
 TEST_F(DefaultComponentTest, TouchWrapperOverride)
 {
-    config.defaultComponentSize(kComponentTypeTouchWrapper, 33, 44);
+    config->defaultComponentSize(kComponentTypeTouchWrapper, 33, 44);
 
     loadDocument(DEFAULT_TOUCH_WRAPPER_SIZE);
     ASSERT_TRUE(component);
@@ -606,7 +611,8 @@ static const char *DEFAULT_TOUCH_WRAPPER_VIEW_WITH_CHILD_SIZE =
     "      \"item\": {"
     "        \"type\": \"TouchWrapper\","
     "        \"item\": {"
-    "          \"type\": \"Text\""
+    "          \"type\": \"Text\","
+    "          \"text\": \"Text\""
     "        }"
     "      }"
     "    }"
@@ -621,7 +627,7 @@ TEST_F(DefaultComponentTest, TouchWrapperWithChild)
     auto touchWrapper = component->getChildAt(0);
     ASSERT_TRUE(IsEqual(Dimension(), touchWrapper->getCalculated(kPropertyHeight)));
     ASSERT_TRUE(IsEqual(Dimension(), touchWrapper->getCalculated(kPropertyWidth)));
-    ASSERT_TRUE(IsEqual(Rect(0,0,10,10), touchWrapper->getCalculated(kPropertyBounds)));
+    ASSERT_TRUE(IsEqual(Rect(0,0,40,10), touchWrapper->getCalculated(kPropertyBounds)));
 }
 /*************** VectorGraphic ***************/
 
@@ -654,7 +660,7 @@ TEST_F(DefaultComponentTest, VectorGraphic)
 
 TEST_F(DefaultComponentTest, VectorGraphicOverride)
 {
-    config.defaultComponentSize(kComponentTypeVectorGraphic, 123, 345);
+    config->defaultComponentSize(kComponentTypeVectorGraphic, 123, 345);
 
     loadDocument(DEFAULT_VECTOR_GRAPHIC_SIZE);
     ASSERT_TRUE(component);
@@ -696,7 +702,7 @@ TEST_F(DefaultComponentTest, Video)
 
 TEST_F(DefaultComponentTest, VideoOverride)
 {
-    config.defaultComponentSize(kComponentTypeVideo, 22, 33);
+    config->defaultComponentSize(kComponentTypeVideo, 22, 33);
 
     loadDocument(DEFAULT_VIDEO_SIZE);
     ASSERT_TRUE(component);

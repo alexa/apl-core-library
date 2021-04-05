@@ -124,7 +124,7 @@ EasingApproximation::getPosition(float percentage, int coordinate)
     auto it = std::lower_bound(mCumulative.begin(), mCumulative.end(), targetLength); // TODO: Create faster algorithm
 
     if (it == mCumulative.end()) {  // This shouldn't happen
-        LOG(LogLevel::WARN) << "Illegal end segment";
+        LOG(LogLevel::kWarn) << "Illegal end segment";
         const auto last = &mData.at(mData.size() - mDOF);  // Point into last block
         return last[coordinate];  // Return the end point of the last block
     }

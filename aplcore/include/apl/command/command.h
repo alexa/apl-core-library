@@ -17,6 +17,7 @@
 #define _APL_COMMAND_H
 
 #include "apl/utils/counter.h"
+#include "apl/utils/noncopyable.h"
 #include "apl/action/action.h"
 #include "apl/command/commandproperties.h"
 
@@ -38,6 +39,7 @@ namespace apl {
  * required.
  */
 class Command : public std::enable_shared_from_this<Command>,
+                public NonCopyable,
                 public Counter<Command> {
 
 public:

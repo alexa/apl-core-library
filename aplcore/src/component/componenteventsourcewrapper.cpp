@@ -81,13 +81,13 @@ ComponentEventSourceWrapper::has(const std::string& key) const
     return ComponentEventWrapper::has(key);
 }
 
-size_t
+std::uint64_t
 ComponentEventSourceWrapper::size() const
 {
     // The number of properties in the source wrapper will be size of the parent class, one
     // for the "value" property, and one each for the "handler" and "source" properties if
     // they are present.
-    size_t result = ComponentEventWrapper::size() + 1;   // The "value" property is always present.
+    std::uint64_t result = ComponentEventWrapper::size() + 1;   // The "value" property is always present.
 
     if (!mHandler.empty())  // The "handler" property may be not be set
         result += 1;

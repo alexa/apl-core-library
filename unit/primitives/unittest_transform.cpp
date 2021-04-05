@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ public:
     void load(const std::string& data)
     {
         metrics = Metrics().size(1024,800).dpi(dpi);
-        context = Context::create(metrics, session);
+        context = Context::createTestContext(metrics, session);
         json = std::unique_ptr<JsonData>(new JsonData(data));
 
         array = Transformation::create(*context, arrayify(*context, json->get()));
@@ -47,7 +47,7 @@ public:
     void interpolate(const std::string& data)
     {
         metrics = Metrics().size(1024,800).dpi(dpi);
-        context = Context::create(metrics, session);
+        context = Context::createTestContext(metrics, session);
         json = std::unique_ptr<JsonData>(new JsonData(data));
 
         array = InterpolatedTransformation::create(*context,
@@ -58,7 +58,7 @@ public:
     void loadWithContext(const std::string& data, const ObjectMap& values)
     {
         metrics = Metrics().size(1024,800).dpi(dpi);
-        context = Context::create(metrics, session);
+        context = Context::createTestContext(metrics, session);
         for (auto it : values)
             context->putConstant(it.first, it.second);
         json = std::unique_ptr<JsonData>(new JsonData(data));
@@ -512,6 +512,39 @@ TEST_F(TransformTest, ParseBadTransforms)
         ASSERT_EQ(Transform2D(), transform) << "Test case: " << test;
         ASSERT_TRUE(session->checkAndClear());
     }
+}
+
+
+/**
+ * Axis aligned bounding box
+ */
+TEST_F(TransformTest, AABB)
+{
+
+    auto rect  = Rect (-1,-1,2,2);
+
+    auto t2d = Transform2D();
+    ASSERT_EQ(Rect(-1,-1,2,2), t2d.calculateAxisAlignedBoundingBox(rect));
+
+    t2d = Transform2D::translate(1,1);
+    ASSERT_EQ(Rect(0,0,2,2), t2d.calculateAxisAlignedBoundingBox(rect));
+
+    t2d = Transform2D::scale(20,10);
+    ASSERT_EQ(Rect(-20,-10,40,20) , t2d.calculateAxisAlignedBoundingBox(rect));
+
+    t2d = Transform2D::skewX(45);
+    ASSERT_EQ(Rect(-2,-1,4,2), t2d.calculateAxisAlignedBoundingBox(rect));
+    t2d = Transform2D::skewY(45);
+    ASSERT_EQ(Rect(-1,-2,2,4), t2d.calculateAxisAlignedBoundingBox(rect));
+
+    t2d = Transform2D::rotate(90);
+    ASSERT_EQ(Rect(-1,-1,2,2), t2d.calculateAxisAlignedBoundingBox(rect));
+
+    t2d = Transform2D::rotate(45);
+    auto r = Rect(-1.414214,-1.414214,2.828428,2.828428);
+    auto result = t2d.calculateAxisAlignedBoundingBox(rect);
+    ASSERT_PRED2(Close,r.getTopLeft(), result.getTopLeft());
+    ASSERT_PRED2(Close,r.getBottomRight(), result.getBottomRight());
 }
 
 // TEST ARRAYIFICATION

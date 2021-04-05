@@ -54,10 +54,10 @@ const ComponentPropDefSet&
 VectorGraphicComponent::propDefSet() const
 {
     static ComponentPropDefSet sVectorGraphicComponentProperties(TouchableComponent::propDefSet(), {
-        {kPropertyAlign,       kVectorGraphicAlignCenter, sVectorGraphicAlignMap, kPropInOut | kPropStyled},
+        {kPropertyAlign,       kVectorGraphicAlignCenter, sVectorGraphicAlignMap, kPropInOut | kPropStyled | kPropDynamic},
         {kPropertyGraphic,     Object::NULL_OBJECT(),     nullptr,                kPropOut},
         {kPropertyMediaBounds, Object::NULL_OBJECT(),     nullptr,                kPropOut},
-        {kPropertyScale,       kVectorGraphicScaleNone,   sVectorGraphicScaleMap, kPropInOut | kPropStyled},
+        {kPropertyScale,       kVectorGraphicScaleNone,   sVectorGraphicScaleMap, kPropInOut | kPropStyled | kPropDynamic},
         {kPropertySource,      "",                        asString,               kPropInOut},
     });
 
@@ -323,7 +323,8 @@ VectorGraphicComponent::createTouchEventProperties(const Point &localPoint) cons
 }
 
 bool
-VectorGraphicComponent::isFocusable() const {
+VectorGraphicComponent::isFocusable() const
+{
     // According to the APL specification, a Vector Graphic component should only receive keyboard
     // focus if at least one of the following handlers are defined:  onFocus, onBlur, handleKeyDown, handleKeyUp,
     // onDown, and onPress.
@@ -334,7 +335,15 @@ VectorGraphicComponent::isFocusable() const {
 }
 
 bool
-VectorGraphicComponent::isTouchable() const {
+VectorGraphicComponent::isActionable() const
+{
+    // Same rules as for focus
+    return isFocusable();
+}
+
+bool
+VectorGraphicComponent::isTouchable() const
+{
     // Same rules as for focus
     return isFocusable();
 }

@@ -13,6 +13,7 @@
 
 target_sources_local(apl
     PRIVATE
+    corelocalemethods.cpp
     log.cpp
     path.cpp
     session.cpp

@@ -20,22 +20,33 @@
 namespace apl {
 
 ScrollAction::ScrollAction(const TimersPtr& timers,
-                 const std::shared_ptr<CoreCommand>& command,
-                 const CoreComponentPtr& target)
-        : AnimatedScrollAction(timers, command->context(), target),
-          mCommand(command)
+                           const ContextPtr& context,
+                           const CoreComponentPtr& target,
+                           const Object& targetDistance,
+                           apl_duration_t duration)
+        : AnimatedScrollAction(timers, context, target, duration),
+          mTargetDistance(targetDistance)
 {}
 
 std::shared_ptr<ScrollAction>
 ScrollAction::make(const TimersPtr& timers,
-                   const std::shared_ptr<CoreCommand>& command,
-                   const CoreComponentPtr& target)
+                   const std::shared_ptr<CoreCommand>& command)
+{
+    return make(timers, command->context(), command->target(),  command->getValue(kCommandPropertyDistance));
+}
+
+std::shared_ptr<ScrollAction>
+ScrollAction::make(const TimersPtr& timers,
+                   const ContextPtr& context,
+                   const CoreComponentPtr& target,
+                   const Object& targetDistance,
+                   apl_duration_t duration)
 {
     // Ensure it's scrollable target.
-    if (!(command->target()->scrollType() == kScrollTypeVertical ||  command->target()->scrollType() == kScrollTypeHorizontal))
+    if (!(target->scrollType() == kScrollTypeVertical || target->scrollType() == kScrollTypeHorizontal))
         return nullptr;
-    auto ptr = std::make_shared<ScrollAction>(timers, command, command->target());
-    command->context()->sequencer().claimResource({kCommandResourcePosition, command->target()}, ptr);
+    auto ptr = std::make_shared<ScrollAction>(timers, context, target, targetDistance, duration);
+    context->sequencer().claimResource({kExecutionResourcePosition, target}, ptr);
     ptr->start();
     return ptr;
 }
@@ -47,13 +58,12 @@ ScrollAction::start() {
     auto innerBounds = mContainer->getCalculated(kPropertyInnerBounds).getRect();
 
     auto targetSize = (vertical ? innerBounds.getHeight() : innerBounds.getWidth());
-    auto prop = mCommand->getValue(kCommandPropertyDistance);
     float distance = 0;
 
-    if (prop.isRelativeDimension())
-        distance = prop.getRelativeDimension() * targetSize / 100;
-    else if (prop.isAbsoluteDimension())
-        distance = prop.getAbsoluteDimension();
+    if (mTargetDistance.isRelativeDimension())
+        distance = mTargetDistance.getRelativeDimension() * targetSize / 100;
+    else if (mTargetDistance.isAbsoluteDimension())
+        distance = mTargetDistance.getAbsoluteDimension();
 
     // Calculate the new position by trimming the old position plus the distance
     auto position = mContainer->trimScroll(mContainer->scrollPosition() + Point(distance, distance));

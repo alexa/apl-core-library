@@ -32,9 +32,9 @@ public:
     bool invokeAccessibilityAction(const std::string& name) override;
 
 protected:
-    void onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) override;
-    void onDown(const PointerEvent& event, apl_time_t timestamp) override;
-    void onUp(const PointerEvent& event, apl_time_t timestamp) override;
+    bool onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) override;
+    bool onDown(const PointerEvent& event, apl_time_t timestamp) override;
+    bool onUp(const PointerEvent& event, apl_time_t timestamp) override;
 
 private:
     apl_time_t mStartTime;

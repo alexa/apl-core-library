@@ -46,6 +46,7 @@ public:
     apl_time_t nextTimeout() override;
     apl_time_t currentTime() const override { return mTime; }
     void runPending() override;
+    void clear() override;
     void terminate() override;
     bool isTerminated() override;
 

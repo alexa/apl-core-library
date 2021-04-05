@@ -13,15 +13,26 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/command/commandresource.h"
+#include "alexaext/executor.h"
 
-namespace apl {
+namespace alexaext {
 
-Bimap<int, std::string> sCommandResourcesMap = {
-        {kCommandResourceForegroundAudio, "foregroundAudio"},
-        {kCommandResourceBackgroundAudio, "backgroundAudio"},
-        {kCommandResourcePosition,        "position"},
-        {kCommandResourceProperty,        "property"},
+/**
+ * Synchronous executor, executes task immediately.
+ */
+class SynchronousExecutor : public Executor {
+public:
+    bool enqueueTask(Task task) override {
+        task();
+        return true;
+    }
 };
 
-}  // namespace apl
+
+ExecutorPtr
+Executor::getSynchronousExecutor() {
+    static auto sInstance = std::make_shared<SynchronousExecutor>();
+    return sInstance;
+}
+
+} // namespace alexaext

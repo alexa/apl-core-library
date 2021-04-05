@@ -12,8 +12,8 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  *
- * Printf-style logging:     LOGF(LogLevel::ERROR, "%s -> %f", c_ptr, float);
- * iostream-style logging:   LOG(LogLevel::ERROR) << c_ptr << " -> " << float;
+ * Printf-style logging:     LOGF(LogLevel::kError, "%s -> %f", c_ptr, float);
+ * iostream-style logging:   LOG(LogLevel::kError) << c_ptr << " -> " << float;
  */
 
 #ifndef _APL_LOG_H
@@ -32,13 +32,26 @@ namespace apl {
 
 /// Logging levels
 enum class LogLevel {
-    NONE = -1,    /// Do not process log.
-    TRACE = 0,    /// Trace
-    DEBUG = 1,    /// Debug
-    INFO = 2,     /// Info
-    WARN = 3,     /// Warning
-    ERROR = 5,    /// Error
-    CRITICAL = 6, /// Critical
+    kNone = -1,    /// Do not process log.
+    kTrace = 0,    /// Trace
+    kDebug = 1,    /// Debug
+    kInfo = 2,     /// Info
+    kWarn = 3,     /// Warning
+    kError = 5,    /// Error
+    kCritical = 6, /// Critical
+
+    // Note: Stock Apple builds using XCode #define "DEBUG" as "1" when building with debugging turned on,
+    //       which collides with LogLevel::DEBUG.  Since these constants are used by view hosts, we leave
+    //       the old values in place when building a non-Apple target.
+#ifndef __APPLE__
+    NONE = kNone,         /// @deprecated Same as kNone
+    TRACE = kTrace,       /// @deprecated Same as kTrace
+    DEBUG = kDebug,       /// @deprecated Same as kDebug
+    INFO = kInfo,         /// @deprecated Same as kInfo
+    WARN = kWarn,         /// @deprecated Same as kWarn
+    ERROR = kError,       /// @deprecated Same as kError
+    CRITICAL = kCritical, /// @deprecated Same as kCritical
+#endif
 };
 
 /// Log bridge interface
@@ -137,12 +150,12 @@ private:
         }
     private:
         const std::map<LogLevel, std::string> LEVEL_MAPPING = {
-                {LogLevel::TRACE, "T"},
-                {LogLevel::DEBUG, "D"},
-                {LogLevel::INFO, "I"},
-                {LogLevel::WARN, "W"},
-                {LogLevel::ERROR, "E"},
-                {LogLevel::CRITICAL, "C"}
+                {LogLevel::kTrace, "T"},
+                {LogLevel::kDebug, "D"},
+                {LogLevel::kInfo, "I"},
+                {LogLevel::kWarn, "W"},
+                {LogLevel::kError, "E"},
+                {LogLevel::kCritical, "C"}
         };
     };
 
@@ -161,9 +174,9 @@ private:
 #endif
 #define LOG(LEVEL) apl::LoggerFactory::instance().getLogger(LEVEL,__FILENAME__,__func__)
 #define LOGF(LEVEL,FORMAT,...) apl::LoggerFactory::instance().getLogger(LEVEL,__FILENAME__,__func__).log(FORMAT,__VA_ARGS__)
-#define LOG_IF(CONDITION) !(CONDITION) ? (void)0 : apl::LogVoidify() & LOG(apl::LogLevel::DEBUG)
+#define LOG_IF(CONDITION) !(CONDITION) ? (void)0 : apl::LogVoidify() & LOG(apl::LogLevel::kDebug)
 #define LOGF_IF(CONDITION,FORMAT,...) \
-        !(CONDITION) ? (void) 0 : LOGF(apl::LogLevel::DEBUG,FORMAT,__VA_ARGS__)
+        !(CONDITION) ? (void) 0 : LOGF(apl::LogLevel::kDebug,FORMAT,__VA_ARGS__)
 } // namespace apl
 
 #endif // _APL_LOG_H

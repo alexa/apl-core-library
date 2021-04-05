@@ -23,5 +23,6 @@
  */
 
 #include "apl/datasource/dynamicindexlistdatasourceprovider.h"
+#include "apl/datasource/dynamictokenlistdatasourceprovider.h"
 
 #endif // _APL_DYNAMICDATA_H

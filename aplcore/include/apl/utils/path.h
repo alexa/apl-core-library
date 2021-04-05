@@ -53,7 +53,7 @@ public:
             return *this;
 
         if (mPath.back() == '/')
-            LOG(LogLevel::ERROR) << "Adding string segment to array path " << mPath << " - " << segment;
+            LOG(LogLevel::kError) << "Adding string segment to array path " << mPath << " - " << segment;
 
         return Path(mPath + '/' + segment);
     }
@@ -72,7 +72,7 @@ public:
             return *this;
 
         if (mPath.back() == '/')
-            LOG(LogLevel::ERROR) << "Adding array segment to array path " << mPath << " - " << segment;
+            LOG(LogLevel::kError) << "Adding array segment to array path " << mPath << " - " << segment;
 
         return Path(mPath + '/' + segment + '/');
     }
@@ -94,7 +94,7 @@ public:
             return Path(mPath + std::to_string(index));
 
         if (index != 0)
-            LOG(LogLevel::ERROR) << "Expected zero index for '" << mPath << "'";
+            LOG(LogLevel::kError) << "Expected zero index for '" << mPath << "'";
 
         return *this;
     }

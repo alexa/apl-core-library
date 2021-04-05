@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ TEST_F(SetValueTest, NonDynamicProperty)
     component->setProperty("foo", "Dummy");
     ASSERT_TRUE(ConsoleMessage());
 
-    component->setProperty(kPropertyFontFamily, "Dog");
+    component->setProperty(kPropertyLetterSpacing, "2dp");
     ASSERT_TRUE(ConsoleMessage());
 
     // Nothing should be dirty

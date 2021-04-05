@@ -26,6 +26,7 @@ target_sources_local(apl
     rect.cpp
     symbolreferencemap.cpp
     styledtext.cpp
+    styledtextstate.cpp
     timefunctions.cpp
     timegrammar.cpp
     transform.cpp

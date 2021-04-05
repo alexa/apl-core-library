@@ -63,7 +63,8 @@ GraphicElement::initialize(const GraphicPtr& graphic, const Object& json)
 
     for (const auto& cpd : propDefSet()) {
         const auto& pd = cpd.second;
-        auto value = pd.defvalue;
+        auto defValue = pd.defaultFunc ? pd.defaultFunc(*this, mContext->getRootConfig()) : pd.defvalue;
+        auto value = defValue;
 
         if ((pd.flags & kPropIn) != 0) {
             auto p = mProperties.find(pd.names);
@@ -98,7 +99,7 @@ GraphicElement::initialize(const GraphicPtr& graphic, const Object& json)
                 }
 
                 // If this was a required property, and not in style, abort
-                if ((pd.flags & kPropRequired) != 0 && (value == pd.defvalue)) {
+                if ((pd.flags & kPropRequired) != 0 && (value == defValue)) {
                     CONSOLE_CTP(mContext) << "Missing required graphic property: " << pd.names;
                     return false;
                 }
@@ -198,7 +199,7 @@ GraphicElement::updateStyleInternal(
             continue;
 
         // Check to see if the value has changed.
-        auto value = pd.defvalue;
+        auto value = pd.defaultFunc ? pd.defaultFunc(*this, mContext->getRootConfig()) : pd.defvalue;
         auto s = stylePtr->find(pd.names);
         if (s != stylePtr->end())
             value = pd.calculate(*mContext, s->second);

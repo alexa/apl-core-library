@@ -55,12 +55,14 @@ TEST_F(BuilderTestSequence, Simple)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinHeight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinWidth));
     ASSERT_EQ(1.0, component->getCalculated(kPropertyOpacity).getDouble());
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingBottom));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingLeft));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingBottom)));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingLeft)));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingRight)));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingTop)));
+    ASSERT_TRUE(IsEqual(Object(ObjectArray{}), component->getCalculated(kPropertyPadding)));
     ASSERT_EQ(Object(kSnapNone), component->getCalculated(kPropertySnap));
     ASSERT_EQ(Object(1.0), component->getCalculated(kPropertyFastScrollScale));
+    ASSERT_EQ(Object(kScrollAnimationDefault), component->getCalculated(kPropertyScrollAnimation));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
     ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
@@ -105,10 +107,11 @@ TEST_F(BuilderTestSequence, Empty)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinHeight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinWidth));
     ASSERT_EQ(1.0, component->getCalculated(kPropertyOpacity).getDouble());
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingBottom));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingLeft));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingBottom)));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingLeft)));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingRight)));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingTop)));
+    ASSERT_TRUE(IsEqual(Object(ObjectArray{}), component->getCalculated(kPropertyPadding)));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
     ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
@@ -127,8 +130,10 @@ const char *CHILDREN_TEST = R"({
     "item": {
       "type": "Sequence",
       "scrollDirection": "horizontal",
+      "width": "1000",
       "snap": "center",
       "-fastScrollScale": 0.5,
+      "-scrollAnimation": "smoothInOut",
       "numbered": true,
       "data": [
         "One",
@@ -163,13 +168,13 @@ const char *CHILDREN_TEST = R"({
 TEST_F(BuilderTestSequence, Children)
 {
     loadDocument(CHILDREN_TEST);
-    auto map = component->getCalculated();
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(kScrollDirectionHorizontal, component->getCalculated(kPropertyScrollDirection).getInteger());
     ASSERT_EQ(kSnapCenter, component->getCalculated(kPropertySnap).getInteger());
     ASSERT_EQ(0.5, component->getCalculated(kPropertyFastScrollScale).getDouble());
-    ASSERT_TRUE(IsEqual(Dimension(100), component->getCalculated(kPropertyWidth)));
+    ASSERT_TRUE(IsEqual(Dimension(1000), component->getCalculated(kPropertyWidth)));
+    ASSERT_EQ(kScrollAnimationSmoothInOut, component->getCalculated(kPropertyScrollAnimation).getInteger());
     ASSERT_TRUE(IsEqual(Dimension(), component->getCalculated(kPropertyHeight)));
 
     ASSERT_EQ(5, component->getChildCount());
@@ -290,4 +295,38 @@ TEST_F(BuilderTestSequence, Multisequence) {
 
     // Should stay at 0.
     ASSERT_EQ(Point(0, 0), component->scrollPosition());
+}
+
+const char *INVALID_SCROLL_ANIMATION = R"({
+  "type": "APL",
+  "version": "1.5",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "-scrollAnimation": "foo",
+      "height": 100,
+      "items": [
+        {
+          "type": "Text"
+        },
+        {
+          "type": "Text"
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(BuilderTestSequence, InvalidScrollAnimation)
+{
+    loadDocument(INVALID_SCROLL_ANIMATION);
+
+    auto map = component->getCalculated();
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    // inavlid value replaced by default
+    ASSERT_EQ(kScrollAnimationDefault, component->getCalculated(kPropertyScrollAnimation).getInteger());
+
+    // Children
+    ASSERT_EQ(2, component->getChildCount());
 }

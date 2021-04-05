@@ -53,7 +53,11 @@ if (TARGET yoga)
     add_dependencies(apl yoga)
 endif()
 add_dependencies(apl pegtl-build)
-add_dependencies(apl rapidjson-build)
+
+# Make sure not to add rapidjson-build if we are using the system one
+if (NOT USE_SYSTEM_RAPIDJSON)
+    add_dependencies(apl rapidjson-build)
+endif()
 
 add_subdirectory(src/action)
 add_subdirectory(src/animation)
@@ -64,6 +68,7 @@ add_subdirectory(src/datagrammar)
 add_subdirectory(src/datasource)
 add_subdirectory(src/engine)
 add_subdirectory(src/extension)
+add_subdirectory(src/focus)
 add_subdirectory(src/graphic)
 add_subdirectory(src/livedata)
 add_subdirectory(src/primitives)
@@ -103,7 +108,16 @@ target_include_directories(apl
         $<BUILD_INTERFACE:${YOGA_INCLUDE}>
 )
 
-target_link_libraries(apl PRIVATE libyoga)
+target_link_libraries(apl
+        PRIVATE
+            libyoga)
+
+# include the alexa extensions library
+if (BUILD_ALEXAEXTENSIONS)
+    target_link_libraries(apl
+        PUBLIC
+            alexa::extensions)
+endif(BUILD_ALEXAEXTENSIONS)
 
 # Log dependencies for Android
 
@@ -127,6 +141,7 @@ install(TARGETS apl
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         PUBLIC_HEADER DESTINATION include/apl)
+
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/aplcore/include/apl
         DESTINATION include
         FILES_MATCHING PATTERN "*.h")

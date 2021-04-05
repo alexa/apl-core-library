@@ -79,8 +79,13 @@ GridSequenceComponent::processLayoutChanges(bool useDirtyFlag) {
 
     //Calculate child sizes if needed.
     auto bounds = getCalculated(kPropertyBounds).getRect();
-    if (mLastParentBounds != bounds) {
+    auto childHeight = getCalculated(kPropertyChildHeight);
+    auto childWidth = getCalculated(kPropertyChildWidth);
+    if (mLastParentBounds != bounds || mLastChildHeight != childHeight || mLastChildWidth != childWidth) {
         mLastParentBounds = bounds;
+        mLastChildHeight = childHeight;
+        mLastChildWidth = childWidth;
+
         calculateAbsoluteChildSizes(bounds.getWidth(), bounds.getHeight());
         calculateItemsPerCourse();
     }
@@ -92,8 +97,8 @@ GridSequenceComponent::processLayoutChanges(bool useDirtyFlag) {
 const ComponentPropDefSet&
 GridSequenceComponent::propDefSet() const {
     static ComponentPropDefSet sSequenceComponentProperties(MultiChildScrollableComponent::propDefSet(), {
-            {kPropertyChildHeight,     Object::EMPTY_ARRAY(),    asArray,             kPropIn|kPropRequired},
-            {kPropertyChildWidth,      Object::EMPTY_ARRAY(),    asArray,             kPropIn|kPropRequired},
+            {kPropertyChildHeight,     Object::EMPTY_ARRAY(),    asArray,             kPropIn | kPropRequired | kPropDynamic},
+            {kPropertyChildWidth,      Object::EMPTY_ARRAY(),    asArray,             kPropIn | kPropRequired | kPropDynamic},
             {kPropertyScrollDirection, kScrollDirectionVertical, sScrollDirectionMap, kPropInOut|kPropVisualContext,
                                                                                       yn::setGridScrollDirection},
             {kPropertyWrap,            kFlexboxWrapWrap,         asInteger,           kPropOut,
@@ -124,16 +129,30 @@ GridSequenceComponent::eventPropertyMap() const
     return sGridEventProperties;
 }
 
-void GridSequenceComponent::layoutChildIfRequired(
-        CoreComponentPtr& child,
-        size_t childIdx,
-        bool useDirtyFlag) {
+void
+GridSequenceComponent::handlePropertyChange(const ComponentPropDef& def, const Object& value)
+{
+    MultiChildScrollableComponent::handlePropertyChange(def, value);
+
+    if (def.key == kPropertyChildHeight || def.key == kPropertyChildWidth) {
+        auto gridComponent = std::dynamic_pointer_cast<GridSequenceComponent>(shared_from_this());
+        gridComponent->processLayoutChanges(true);
+    }
+}
+
+void
+GridSequenceComponent::layoutChildIfRequired(const CoreComponentPtr& child,
+                                             size_t childIdx,
+                                             bool useDirtyFlag)
+{
     // We need to apply forced size before layout.
     applyChildSize(child, childIdx);
     MultiChildScrollableComponent::layoutChildIfRequired(child, childIdx, useDirtyFlag);
 }
 
-void GridSequenceComponent::calculateAbsoluteChildSizes(float gridWidth, float gridHeight) {
+void
+GridSequenceComponent::calculateAbsoluteChildSizes(float gridWidth, float gridHeight)
+{
     if (isHorizontal()) {
         auto result = adjustChildDimensions(getCalculated(kPropertyChildWidth).getArray()[0].asDimension(*mContext),
             gridWidth,

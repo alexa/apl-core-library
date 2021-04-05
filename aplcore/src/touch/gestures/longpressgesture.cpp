@@ -50,12 +50,13 @@ LongPressGesture::invokeAccessibilityAction(const std::string& name)
     return false;
 }
 
-void
+bool
 LongPressGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
     mStartTime = timestamp;
+    return true;
 }
 
-void
+bool
 LongPressGesture::onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) {
     if (!mTriggered && timestamp >= mStartTime + mLongPressTimeout) {
         Point localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
@@ -65,9 +66,10 @@ LongPressGesture::onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) 
         mActionable->executeEventHandler("LongPressStart", mOnLongPressStart, true, params);
         mTriggered = true;
     }
+    return true;
 }
 
-void
+bool
 LongPressGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
     if (mTriggered) {
         Point localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
@@ -76,6 +78,7 @@ LongPressGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
         mActionable->executeEventHandler("LongPressEnd", mOnLongPressEnd, false, params);
     }
     reset();
+    return true;
 }
 
 } // namespace apl

@@ -28,7 +28,7 @@ protected:
                       .mode(apl::kViewportModeTV);
         auto r = RootConfig().agent("UnitTests", "1.0");
         r.setEnvironmentValue("testEnvironment", "23.2");
-        c = Context::create(m,r);
+        c = Context::createTestContext(m,r);
     }
 
     void TearDown() override
@@ -47,7 +47,7 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ("1.0", env.get("agentVersion").asString());
     EXPECT_EQ("normal", env.get("animation").asString());
     EXPECT_FALSE(env.get("allowOpenURL").asBoolean());
-    EXPECT_EQ("1.5", env.get("aplVersion").asString());
+    EXPECT_EQ("1.6", env.get("aplVersion").asString());
     EXPECT_FALSE(env.get("disallowVideo").asBoolean());
     EXPECT_EQ("23.2", env.get("testEnvironment").asString());
     EXPECT_EQ(1.0, env.get("fontScale").asNumber());
@@ -101,7 +101,7 @@ TEST_F(ContextTest, AlternativeConfig)
         .pressedDuration(999)
         .tapOrScrollTimeout(777);
 
-    c = Context::create(Metrics().size(400,400), root);
+    c = Context::createTestContext(Metrics().size(400,400), root);
 
     auto env = c->opt("environment");
     EXPECT_EQ("MyTest", env.get("agentName").asString());
@@ -128,8 +128,8 @@ TEST_F(ContextTest, AlternativeConfig)
 
 TEST_F(ContextTest, Child)
 {
-    auto c2 = Context::create(c);
-    auto c3 = Context::create(c2);
+    auto c2 = Context::createFromParent(c);
+    auto c3 = Context::createFromParent(c2);
 
     c2->putConstant("name", "Fred");
     c2->putConstant("age", 23);
@@ -152,7 +152,7 @@ TEST_F(ContextTest, Shape)
         { RECTANGLE, "rectangle"},
         { ROUND, "round"},
     }) {
-        c = Context::create(Metrics().shape(m.first), session);
+        c = Context::createTestContext(Metrics().shape(m.first), session);
         ASSERT_EQ(Object(m.second), c->opt("viewport").get("shape")) << m.second;
     }
 }
@@ -166,7 +166,7 @@ TEST_F(ContextTest, Mode)
         { kViewportModePC, "pc"},
         { kViewportModeTV, "tv"}
     }) {
-        c = Context::create(Metrics().mode(m.first), session);
+        c = Context::createTestContext(Metrics().mode(m.first), session);
         ASSERT_EQ(Object(m.second), c->opt("viewport").get("mode")) << m.second;
     }
 }
@@ -223,4 +223,27 @@ TEST_F(ContextTest, Time)
 
     component = nullptr;
     root = nullptr;
+}
+
+/*
+ * Verify standard functions are not calculated for free-standing non test context.
+ */
+TEST_F(ContextTest, NoStandardFunction)
+{
+    auto rootConfig = RootConfig();
+    auto metrics = Metrics();
+    auto session = makeDefaultSession();
+
+    auto ctx1 = Context::createTypeEvaluationContext(rootConfig);
+    auto ctx2 = Context::createBackgroundEvaluationContext(metrics, rootConfig, metrics.getTheme());
+
+    ASSERT_TRUE(ctx1->opt("Array").empty());
+    ASSERT_TRUE(ctx1->opt("Math").empty());
+    ASSERT_TRUE(ctx1->opt("String").empty());
+    ASSERT_TRUE(ctx1->opt("Time").empty());
+
+    ASSERT_TRUE(ctx2->opt("Array").empty());
+    ASSERT_TRUE(ctx2->opt("Math").empty());
+    ASSERT_TRUE(ctx2->opt("String").empty());
+    ASSERT_TRUE(ctx2->opt("Time").empty());
 }

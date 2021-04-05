@@ -58,7 +58,9 @@ GraphicElementPtr
 GraphicBuilder::build(const Context& context, const Object& json)
 {
     GraphicBuilder builder(nullptr);
-    return builder.createChild(std::make_shared<Context>(context), json);
+    auto& mutableContext = const_cast<Context&>(context);
+    auto childContext = Context::createFromParent(mutableContext.shared_from_this());
+    return builder.createChild(childContext, json);
 }
 
 
@@ -96,7 +98,7 @@ GraphicBuilder::addChildren(GraphicElement& element, const Object& json)
             const auto length = dataItems.size();
             for (size_t dataIndex = 0; dataIndex < length; dataIndex++) {
                 const auto& dataItem = dataItems.at(dataIndex);
-                auto childContext = Context::create(element.mContext);
+                auto childContext = Context::createFromParent(element.mContext);
                 childContext->putConstant("data", dataItem);
                 childContext->putConstant("index", index);
                 childContext->putConstant("length", length);
@@ -115,7 +117,7 @@ GraphicBuilder::addChildren(GraphicElement& element, const Object& json)
     const auto length = items.size();
     for (size_t i = 0; i < length; i++) {
         const auto& item = items.at(i);
-        auto childContext = Context::create(element.mContext);
+        auto childContext = Context::createFromParent(element.mContext);
         if (mMultichildSupport) {
             childContext->putConstant("index", index);
             childContext->putConstant("length", length);
@@ -144,7 +146,7 @@ GraphicBuilder::createChild(const ContextPtr& context, const Object& json)
     }
 
     // Create a new context and apply data binding
-    ContextPtr expanded = Context::create(context);
+    ContextPtr expanded = Context::createFromParent(context);
     auto bindings = arrayifyProperty(*context, json, "bind");
     for (const auto& binding : bindings) {
         auto name = propertyAsString(*expanded, binding, "name");

@@ -282,7 +282,7 @@ public:
             std::chrono::system_clock::now().time_since_epoch());
 
         auto rootConfig = apl::RootConfig().agent("APL", "1.3").utcTime(now.count());
-        auto context = apl::Context::create(metrics(), rootConfig);
+        auto context = apl::Context::createTestContext(metrics(), rootConfig);
         for (const auto& m : mVariables)
             context->putUserWriteable(m.first, m.second);
         return context;

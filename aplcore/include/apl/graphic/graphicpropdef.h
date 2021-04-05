@@ -21,21 +21,35 @@
 namespace apl {
 
 using Trigger = void (*)(GraphicElement &);
+using DefaultFunc = Object (*)(GraphicElement&, const RootConfig&);
 
 class GraphicPropDef : public PropDef<GraphicPropertyKey, sGraphicPropertyBimap> {
 public:
     GraphicPropDef(GraphicPropertyKey key, int defvalue, Bimap<int, std::string> &map, int flags)
-            : PropDef(key, defvalue, map, flags),
-              trigger(nullptr) {}
+            : PropDef(key, defvalue, map, flags) {}
 
     GraphicPropDef(GraphicPropertyKey key, const Object &defvalue, BindingFunction func, int flags)
-            : GraphicPropDef(key, defvalue, std::move(func), flags, nullptr) {}
+            : GraphicPropDef(key, defvalue, std::move(func), flags, nullptr, nullptr) {}
 
     GraphicPropDef(GraphicPropertyKey key, const Object &defvalue, BindingFunction func, int flags, Trigger trigger)
-            : PropDef(key, defvalue, std::move(func), flags),
-              trigger(trigger) {}
+            : GraphicPropDef(key, defvalue, std::move(func), flags, trigger, nullptr) {}
 
-    Trigger trigger;
+    GraphicPropDef(GraphicPropertyKey key, const Object &defvalue, BindingFunction func, int flags, DefaultFunc defaultFunc)
+            : GraphicPropDef(key, defvalue, std::move(func), flags, nullptr, defaultFunc) {}
+
+    GraphicPropDef(
+            GraphicPropertyKey key,
+            const Object &defvalue,
+            BindingFunction func,
+            int flags,
+            Trigger trigger,
+            DefaultFunc defaultFunc)
+            : PropDef(key, defvalue, std::move(func), flags),
+              trigger(trigger),
+              defaultFunc(defaultFunc) {}
+
+    Trigger trigger = nullptr;
+    DefaultFunc defaultFunc = nullptr;
 };
 
 class GraphicPropDefSet : public PropDefSet<GraphicPropertyKey, sGraphicPropertyBimap, GraphicPropDef> {

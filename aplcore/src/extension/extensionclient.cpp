@@ -69,10 +69,6 @@ ExtensionClient::ExtensionClient(const RootConfigPtr& rootConfig, const std::str
     :  mRegistrationProcessed(false), mRegistered(false), mUri(uri), mRootConfig(rootConfig),
        mSession(rootConfig->getSession()) {}
 
-ExtensionClient::~ExtensionClient() {
-    unregisterObjectWatcher();
-}
-
 rapidjson::Value
 ExtensionClient::createRegistrationRequest(rapidjson::Document::AllocatorType& allocator, Content& content) {
     auto settings = content.getExtensionSettings(mUri);
@@ -108,15 +104,9 @@ ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& me
         return false;
     }
 
-    ContextPtr context;
-    if (rootContext) {
-        context = rootContext->contextPtr();
-    } else {
-        context = Context::create(*mRootConfig);
-    }
-
+    const auto& context = rootContext ? rootContext->context() : mRootConfig->evaluationContext();
     auto evaluated = Object(std::move(message).get());
-    auto method = propertyAsMapped<ExtensionMethod>(*context, evaluated, "method", static_cast<ExtensionMethod>(-1), sExtensionMethodBimap);
+    auto method = propertyAsMapped<ExtensionMethod>(context, evaluated, "method", static_cast<ExtensionMethod>(-1), sExtensionMethodBimap);
 
     if (!mRegistered) {
         if (mRegistrationProcessed) {
@@ -132,7 +122,7 @@ ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& me
         mCachedContext = rootContext;
     }
 
-    auto version = propertyAsObject(*context, evaluated, "version");
+    auto version = propertyAsObject(context, evaluated, "version");
     if (version.isNull() || version.getString() != IMPLEMENTED_INTERFACE_VERSION) {
         CONSOLE_S(mSession) << "Interface version is wrong. Expected=" << IMPLEMENTED_INTERFACE_VERSION
                             << "; Actual=" << version.toDebugString();
@@ -142,19 +132,19 @@ ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& me
     bool result = true;
     switch (method) {
         case kExtensionMethodRegisterSuccess:
-            result = processRegistrationResponse(*context, evaluated);
+            result = processRegistrationResponse(context, evaluated);
         case kExtensionMethodRegisterFailure:
             mRegistrationProcessed = true;
             break;
         case kExtensionMethodCommandSuccess: // FALL_THROUGH
         case kExtensionMethodCommandFailure:
-            result = processCommandResponse(*context, evaluated);
+            result = processCommandResponse(context, evaluated);
             break;
         case kExtensionMethodEvent:
-            result = processEvent(*context, evaluated);
+            result = processEvent(context, evaluated);
             break;
         case kExtensionMethodLiveDataUpdate:
-            result = processLiveDataUpdate(*context, evaluated);
+            result = processLiveDataUpdate(context, evaluated);
             break;
 //        case kExtensionMethodRegister: // Outgoing commands should not be processed here.
 //        case kExtensionMethodCommand:
@@ -209,7 +199,8 @@ ExtensionClient::processEvent(const Context& context, const Object& event) {
 
     auto name = propertyAsObject(context, event, "name");
     if (!name.isString() || name.empty() || (mEventModes.find(name.getString()) == mEventModes.end())) {
-        CONSOLE_S(mSession) << "Invalid extension event name for extension=" << mUri;
+        CONSOLE_S(mSession) << "Invalid extension event name for extension=" << mUri
+                << " name:" << name.toDebugString();
         return false;
     }
 
@@ -254,16 +245,15 @@ ExtensionClient::processCommand(rapidjson::Document::AllocatorType& allocator, c
     auto result = std::make_shared<ObjectMap>();
     result->emplace("version", IMPLEMENTED_INTERFACE_VERSION);
     result->emplace("method", sExtensionMethodBimap.at(kExtensionMethodCommand));
-    result->emplace("token", mConnectionToken); // Is it only to allow service to support multiple connections from same client?
+    result->emplace("token", mConnectionToken);
+    auto id = sCommandIdGenerator++;
+    result->emplace("id", id  );
 
     auto actionRef = event.getActionRef();
     if (!actionRef.isEmpty() && actionRef.isPending()) {
-        auto id = sCommandIdGenerator++;
         actionRef.addTerminateCallback([this, id](const TimersPtr&) {
             mActionRefs.erase(id);
         });
-
-        result->emplace("id", id  );
         mActionRefs.emplace(id, actionRef);
     }
 
@@ -277,17 +267,24 @@ ExtensionClient::processCommand(rapidjson::Document::AllocatorType& allocator, c
 
 bool
 ExtensionClient::processCommandResponse(const Context& context, const Object& response) {
+    // Resolve any Action associated with a command response.  The action is resolved independent
+    // of a Success or Failure in command execution
+
     auto id = propertyAsObject(context, response, "id");
-    if (!id.isNumber() || !mActionRefs.count(id.getDouble())) {
+    if (!id.isNumber() || id.getInteger() > sCommandIdGenerator) {
         CONSOLE_S(mSession) << "Invalid extension command response for extension=" << mUri << " id="
-            << id.toDebugString() << " pending=" << mActionRefs.count(id.asNumber());
+            << id.toDebugString() << " total pending=" << mActionRefs.size();
         return false;
+    }
+
+    if (!mActionRefs.count(id.getDouble())) {
+        // no action ref is tracked.
+        return true;
     }
 
     auto resultObj = propertyAsObject(context, response, "result");
     if (!resultObj.isNull()) {
-        // TODO: We don't have resolves with arbitrary results. We ignore it ATM. We also don't really process failures
-        //  in any special way.
+        // TODO: We don't have resolves with arbitrary results.
     }
 
     auto ref = mActionRefs.find(id.getDouble());
@@ -300,13 +297,13 @@ ExtensionClient::processCommandResponse(const Context& context, const Object& re
 void
 ExtensionClient::liveDataObjectFlushed(const std::string& key, LiveDataObject& liveDataObject) {
     if (!mLiveData.count(key)) {
-        LOG(LogLevel::WARN) << "Received update for unhandled LiveData " << key;
+        LOG(LogLevel::kWarn) << "Received update for unhandled LiveData " << key;
         return;
     }
 
     auto rootContext = mCachedContext.lock();
     if (!rootContext) {
-        LOG(LogLevel::WARN) << "RootContext not available";
+        LOG(LogLevel::kWarn) << "RootContext not available";
         return;
     }
 
@@ -368,7 +365,7 @@ ExtensionClient::reportLiveMapChanges(const RootContextPtr& rootContext, const L
                 }
                 break;
             default:
-                LOG(LogLevel::WARN) << "Unknown LiveDataObject change type: " << change.command()
+                LOG(LogLevel::kWarn) << "Unknown LiveDataObject change type: " << change.command()
                                     << " for: " << ref.name;
                 break;
         }
@@ -414,7 +411,7 @@ ExtensionClient::reportLiveArrayChanges(const RootContextPtr& rootContext, const
                 removeTriggerEvent = ref.removeEvent.name;
                 break;
             default:
-                LOG(LogLevel::WARN) << "Unknown LiveDataObject change type: " << change.command()
+                LOG(LogLevel::kWarn) << "Unknown LiveDataObject change type: " << change.command()
                                     << " for: " << ref.name;
                 break;
         }

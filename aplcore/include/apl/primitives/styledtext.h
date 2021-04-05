@@ -1,7 +1,7 @@
 #include <utility>
 
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@
 #ifndef _APL_STYLED_TEXT_H
 #define _APL_STYLED_TEXT_H
 
+#include "apl/primitives/object.h"
+
 #include <vector>
 #include <stack>
+#include <string>
 
 namespace apl {
-
-class Object;
-class Context;
 
 /**
  * Represents styled text.
@@ -47,7 +47,7 @@ public:
         kSpanTypeMonospace = 5,
         kSpanTypeSuperscript = 6,
         kSpanTypeSubscript = 7,
-        kSpanTypeWordBreak = 8,
+        kSpanTypeNoBreak = 8,
     };
 
     /**
@@ -101,6 +101,40 @@ public:
     };
 
     /**
+     * Iterate over span transitions (The start and end of spans).
+     * "The <b><i> quick  brown </i>fox </b>" has four transitions at <b>,<i>,</i> and </b>
+     */
+    class Iterator
+    {
+    public:
+        enum TokenType {
+            kStartSpan = 0,
+            kEndSpan = 1,
+            kString = 2,
+            kEnd = 3,
+        };
+
+        Iterator(const StyledText& styledText);
+
+        TokenType next();
+
+        SpanType getSpanType() const;
+
+        std::string getString() const { return mString; };
+
+    private:
+        const int START = -1;
+
+        const StyledText& mStyledText;
+        size_t codePointCount;
+        std::stack<const Span *> mStack;
+        SpanType mSpanType = (SpanType) START;
+        std::string mString;
+        int mCurrentStrPos = 0;
+        int mSpanIndex = 0;
+    };
+
+    /**
      * Build StyledText from object.
      * @param object The source of the text.
      * @return An object containing a StyledText or null.
@@ -116,14 +150,17 @@ public:
     /**
      * @return Raw text filtered of not-allowed characters and styles.
      */
-    const std::string getText() const { return mText; }
+    std::string getText() const { return mText; }
 
     /**
      * @return Raw original text.
      */
-    const std::string getRawText() const { return mRawText; }
+    std::string getRawText() const { return mRawText; }
 
     /**
+     * @deprecated Will be deleted, please use the StyledText::Iterator instead.
+     * This function has been deprecated because offsets often need to be reinterpreted in viewhosts based on the
+     * underlying string representation, which is both complex and error-prone.
      * @return Vector of style spans.
      */
     const std::vector<Span>& getSpans() const { return mSpans; }

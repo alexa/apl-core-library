@@ -27,17 +27,17 @@ namespace apl {
 class UnidirectionalEasingScroller : public AutoScroller {
 public:
     /**
-     * Make scroller from starting velocity.
+     * Make scroller from starting velocity. Usually touch movement driven.
      * @param scrollable target component.
      * @param finish callback to call when scrolling finished.
      * @param velocity starting velocity.
      * @return shared pointer to scroller object.
      */
     static std::shared_ptr<UnidirectionalEasingScroller>
-    make(const std::shared_ptr<ScrollableComponent>& scrollable, FinishFunc finish, const Point& velocity);
+    make(const std::shared_ptr<ScrollableComponent>& scrollable, FinishFunc&& finish, const Point& velocity);
 
     /**
-     * Make scroller from target position and duration.
+     * Make scroller from target position and duration. Usually programmatically defined.
      * @param scrollable target component.
      * @param finish callback to call when scrolling finished.
      * @param target target scrolling shift.
@@ -45,17 +45,21 @@ public:
      * @return shared pointer to scroller object.
      */
     static std::shared_ptr<UnidirectionalEasingScroller>
-    make(const std::shared_ptr<ScrollableComponent>& scrollable, FinishFunc finish, const Point& target,
-        apl_duration_t duration);
+    make(const std::shared_ptr<ScrollableComponent>& scrollable, FinishFunc&& finish, const Point& target,
+            apl_duration_t duration);
 
     /**
      * Constructor. Do not use directly, see UnidirectionalEasingScroller::make
      */
-    UnidirectionalEasingScroller(const std::shared_ptr<ScrollableComponent>& scrollable,
-        FinishFunc finish, const Point& target, apl_duration_t duration);
+    UnidirectionalEasingScroller(const std::shared_ptr<ScrollableComponent>& scrollable, const EasingPtr& easing,
+        FinishFunc&& finish, const Point& target, apl_duration_t duration);
+
+    /**
+     * @return Calculated or provided animation duration.
+     */
+    apl_duration_t getDuration() const override { return mDuration; }
 
 protected:
-    apl_duration_t getDuration() const override { return mDuration; }
     void update(const std::shared_ptr<ScrollableComponent>& scrollable, apl_duration_t offset) override;
 
 private:

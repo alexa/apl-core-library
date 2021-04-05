@@ -74,6 +74,44 @@ Sequencer::executeOnSequencer(const CommandPtr& commandPtr, const std::string& s
 }
 
 void
+Sequencer::attachToSequencer(const ActionPtr& actionPtr, const std::string& sequencerName)
+{
+    if (sequencerName == MAIN_SEQUENCER_NAME) return;
+
+    auto it = mSequencers.find(sequencerName);
+    if (it != mSequencers.end() && it->second != nullptr) {
+        it->second->terminate();
+        mSequencers.erase(sequencerName);
+    }
+
+    if (actionPtr && actionPtr->isPending()) {
+        mSequencers.emplace(sequencerName, actionPtr);
+    }
+
+    actionPtr->then([this, sequencerName](const ActionPtr &) {
+      mSequencers.erase(sequencerName);
+    });
+}
+
+void
+Sequencer::terminateSequencer(const std::string& sequencerName)
+{
+    if (sequencerName == MAIN_SEQUENCER_NAME) return;
+
+    auto it = mSequencers.find(sequencerName);
+    if (it != mSequencers.end() && it->second != nullptr) {
+        it->second->terminate();
+        mSequencers.erase(sequencerName);
+    }
+}
+
+bool
+Sequencer::isRunning(const std::string& sequencerName)
+{
+    return (sequencerName == MAIN_SEQUENCER_NAME) || mSequencers.count(sequencerName);
+}
+
+void
 Sequencer::executeFast(const CommandPtr& commandPtr)
 {
     ActionPtr ptr = commandPtr->execute(mTimeManager, true);
@@ -112,8 +150,11 @@ Sequencer::executeCommands(const Object& commands,
                            const CoreComponentPtr& baseComponent,
                            bool fastMode)
 {
+    if (mTerminated)
+        return nullptr;
+
     if (!commands.isArray()) {
-        LOG(LogLevel::ERROR) << "executeCommands: invalid command list";
+        LOG(LogLevel::kError) << "executeCommands: invalid command list";
         return nullptr;
     }
 
@@ -121,7 +162,7 @@ Sequencer::executeCommands(const Object& commands,
         return nullptr;
 
     if (!context->has("event") && !fastMode)
-        LOG(LogLevel::WARN) << "missing event in context";
+        LOG(LogLevel::kWarn) << "missing event in context";
 
     Properties props;
     auto commandPtr = ArrayCommand::create(context, commands, baseComponent, props, "");
@@ -132,12 +173,12 @@ void
 Sequencer::terminate()
 {
     if (DEBUG_SEQUENCER) {
-        LOG(LogLevel::DEBUG) << "Sequencer terminate";
+        LOG(LogLevel::kDebug) << "Sequencer terminate";
 
         for (auto t : mSequencers)
-            LOG(LogLevel::DEBUG) << "Thread: " << t.first;
+            LOG(LogLevel::kDebug) << "Thread: " << t.first;
 
-        LOG(LogLevel::DEBUG) << "OneShots: " << mOneShotSet.size();
+        LOG(LogLevel::kDebug) << "OneShots: " << mOneShotSet.size();
     }
 
     for (auto& sequencer : mSequencers) {
@@ -147,7 +188,8 @@ Sequencer::terminate()
 
     mSequencers.clear();
     mOneShotSet.clear();
-    mResources.clear();
+    mResourcesByAction.clear();
+    mResourcesByHolder.clear();
     mResetInExecute.clear();
     mTerminated = true;
 }
@@ -168,39 +210,79 @@ Sequencer::reset()
 void
 Sequencer::claimResource(const ExecutionResource& resource, const ActionPtr& action)
 {
+    if (mTerminated)
+        return;
+
     releaseResource(resource);
-    mResources.emplace(resource, action);
+    mResourcesByAction.emplace(resource, action);
+}
+
+void
+Sequencer::claimResource(const ExecutionResource& resource, const ExecutionResourceHolderPtr& holder)
+{
+    if (mTerminated)
+        return;
+
+    releaseResource(resource);
+    mResourcesByHolder.emplace(resource, holder);
 }
 
 void
 Sequencer::releaseResource(const ExecutionResource& resource)
 {
-    auto rIt = mResources.find(resource);
-    if (rIt != mResources.end()) {
-        auto holdingAction = rIt->second;
+    if (mTerminated)
+        return;
 
-        if (mFeatureSupportResources) {
-            holdingAction->terminate();
-        }
+    auto it = mResourcesByAction.find(resource);
+    if (it != mResourcesByAction.end()) {
+        if (mFeatureSupportResources)
+            it->second->terminate();
+        releaseRelatedResources(it->second);
+    }
 
-        releaseRelatedResources(holdingAction);
+    auto it2 = mResourcesByHolder.find(resource);
+    if (it2 != mResourcesByHolder.end()) {
+        if (mFeatureSupportResources)
+            it2->second->onResourceLoss();
+        releaseRelatedResources(it2->second);
     }
 }
 
 void
 Sequencer::releaseRelatedResources(const ActionPtr& action)
 {
-    for (auto it = mResources.cbegin(); it != mResources.cend(); )
-    {
+    if (mTerminated)
+        return;
+
+    auto it = mResourcesByAction.begin();
+    while (it != mResourcesByAction.end()) {
         if (it->second == action)
-            it = mResources.erase(it);
+            it = mResourcesByAction.erase(it);
         else
-            ++it;
+            it++;
     }
 }
 
-int
-Sequencer::isEmpty(const std::string& sequencerName) const {
+void
+Sequencer::releaseRelatedResources(const ExecutionResourceHolderPtr& holder)
+{
+    if (mTerminated)
+        return;
+
+    auto it = mResourcesByHolder.begin();
+    while (it != mResourcesByHolder.end()) {
+        if (it->second == holder)
+            it = mResourcesByHolder.erase(it);
+        else
+            it++;
+    }
+}
+
+bool
+Sequencer::empty(const std::string& sequencerName) const
+{
+    if (mTerminated)
+        return true;
 
     auto it = mSequencers.find(sequencerName);
     return !(it != mSequencers.end() && it->second != nullptr);

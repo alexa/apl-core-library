@@ -46,6 +46,7 @@ public:
 protected:
     const ComponentPropDefSet& propDefSet() const override;
     const EventPropertyMap& eventPropertyMap() const override;
+    bool processPointerEvent(const PointerEvent& event, apl_time_t timestamp) override;
 
 private:
     CharacterRangesPtr mCharacterRangesPtr;

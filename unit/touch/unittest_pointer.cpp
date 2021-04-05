@@ -912,7 +912,7 @@ static const char *DYNAMIC_SEQUENCE = R"({
 TEST_F(PointerTest, TouchEmptySequence)
 {
     auto myArray = LiveArray::create(ObjectArray{});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(DYNAMIC_SEQUENCE);
 
@@ -926,7 +926,7 @@ TEST_F(PointerTest, TouchEmptySequence)
 TEST_F(PointerTest, TouchEmptiedSequence)
 {
     auto myArray = LiveArray::create(ObjectArray{1, 2, 3, 4, 5});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(DYNAMIC_SEQUENCE);
 
@@ -981,7 +981,7 @@ static const char *DYNAMIC_PAGER = R"({
 TEST_F(PointerTest, TouchEmptyPager)
 {
     auto myArray = LiveArray::create(ObjectArray{});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(DYNAMIC_PAGER);
 
@@ -995,7 +995,7 @@ TEST_F(PointerTest, TouchEmptyPager)
 TEST_F(PointerTest, TouchEmptiedPager)
 {
     auto myArray = LiveArray::create(ObjectArray{1, 2, 3, 4, 5});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(DYNAMIC_PAGER);
 
@@ -1052,7 +1052,7 @@ static const char *DYNAMIC_CCONTAINER = R"({
 TEST_F(PointerTest, TouchEmptyContainer)
 {
     auto myArray = LiveArray::create(ObjectArray{});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(DYNAMIC_CCONTAINER);
 
@@ -1066,7 +1066,7 @@ TEST_F(PointerTest, TouchEmptyContainer)
 TEST_F(PointerTest, TouchEmptiedContainer)
 {
     auto myArray = LiveArray::create(ObjectArray{1, 2, 3, 4, 5});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(DYNAMIC_CCONTAINER);
 
@@ -1084,4 +1084,201 @@ TEST_F(PointerTest, TouchEmptiedContainer)
 
     ASSERT_FALSE(MouseDown(root, 200, 1));
     ASSERT_FALSE(MouseUp(root, 200, 1));
+}
+
+static const char *NESTED_INHERITED_AVG = R"({
+  "type": "APL",
+  "version": "1.4",
+  "theme": "dark",
+  "graphics": {
+    "Icon": {
+      "type": "AVG",
+      "version": "1.0",
+      "height": 50,
+      "width": 50,
+      "items": [
+        {
+          "type": "path",
+          "pathData": "M16,22c-0.256,0-0.512-0.098-0.707-0.293l-9-9c-0.391-0.391-0.391-1.023,0-1.414l9-9c0.391-0.391,1.023-0.391,1.414,0s0.391,1.023,0,1.414L8.414,12l8.293,8.293c0.391,0.391,0.391,1.023,0,1.414C16.512,21.902,16.256,22,16,22z",
+          "fill": "#FAFAFA"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "item": [
+      {
+        "type": "TouchWrapper",
+        "id": "tw",
+        "height": 100,
+        "width": 100,
+        "onPress": {
+          "type": "SendEvent",
+          "arguments": [
+            "sent!"
+          ]
+        },
+        "items": [
+          {
+            "type": "Frame",
+            "height": "100%",
+            "width": "100%",
+            "borderWidth": 1,
+            "borderColor": "green",
+            "inheritParentState": true,
+            "item": {
+              "type": "VectorGraphic",
+              "id": "vg",
+              "width": 50,
+              "height": 50,
+              "source": "Icon",
+              "inheritParentState": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+TEST_F(PointerTest, TouchNestedAVG) {
+    // Ensure we enable all that can affect it
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore);
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureHandleFocusInCore);
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
+
+    loadDocument(NESTED_INHERITED_AVG);
+
+    root->handlePointerEvent(PointerEvent(kPointerMove, Point(40, 40), 0, kMousePointer));
+    root->updateTime(50);
+    root->handlePointerEvent(PointerEvent(kPointerDown, Point(40, 40), 0, kMousePointer));
+    root->updateTime( 100);
+    root->handlePointerEvent(PointerEvent(kPointerUp, Point(40, 40), 0, kMousePointer));
+    root->updateTime( 150);
+    root->clearPending();
+
+    ASSERT_TRUE(root->hasEvent());
+
+    auto event = root->popEvent();
+    ASSERT_EQ(event.getType(), kEventTypeSendEvent);
+    ASSERT_EQ("sent!", event.getValue(kEventPropertyArguments).at(0).getString());
+}
+
+static const char *NESTED_AVG = R"({
+  "type": "APL",
+  "version": "1.4",
+  "theme": "dark",
+  "graphics": {
+    "Icon": {
+      "type": "AVG",
+      "version": "1.0",
+      "height": 50,
+      "width": 50,
+      "items": [
+        {
+          "type": "path",
+          "pathData": "M16,22c-0.256,0-0.512-0.098-0.707-0.293l-9-9c-0.391-0.391-0.391-1.023,0-1.414l9-9c0.391-0.391,1.023-0.391,1.414,0s0.391,1.023,0,1.414L8.414,12l8.293,8.293c0.391,0.391,0.391,1.023,0,1.414C16.512,21.902,16.256,22,16,22z",
+          "fill": "#FAFAFA"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "item": [
+      {
+        "type": "TouchWrapper",
+        "id": "tw",
+        "height": 100,
+        "width": 100,
+        "onPress": {
+          "type": "SendEvent",
+          "arguments": [
+            "sent!"
+          ]
+        },
+        "items": [
+          {
+            "type": "Frame",
+            "height": "100%",
+            "width": "100%",
+            "borderWidth": 1,
+            "borderColor": "green",
+            "inheritParentState": true,
+            "item": {
+              "type": "VectorGraphic",
+              "id": "vg",
+              "width": 50,
+              "height": 50,
+              "source": "Icon",
+              "onPress": {
+                "type": "SendEvent",
+                "arguments": [
+                  "Very sent!"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+TEST_F(PointerTest, TouchAVG) {
+    // Ensure we enable all that can affect it
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore);
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureHandleFocusInCore);
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
+
+    loadDocument(NESTED_AVG);
+
+    root->handlePointerEvent(PointerEvent(kPointerMove, Point(40, 40), 0, kMousePointer));
+    root->updateTime(50);
+    root->handlePointerEvent(PointerEvent(kPointerDown, Point(40, 40), 0, kMousePointer));
+    root->updateTime( 100);
+    root->handlePointerEvent(PointerEvent(kPointerUp, Point(40, 40), 0, kMousePointer));
+    root->updateTime( 150);
+    root->clearPending();
+
+    ASSERT_TRUE(root->hasEvent());
+
+    auto event = root->popEvent();
+    ASSERT_EQ(event.getType(), kEventTypeSendEvent);
+    ASSERT_EQ("Very sent!", event.getValue(kEventPropertyArguments).at(0).getString());
+}
+
+static const char *TW_INHERITS_STATE_OLD = R"({
+  "type": "APL",
+  "version": "1.5",
+  "theme": "dark",
+  "mainTemplate": {
+    "item": [
+      {
+        "type": "TouchWrapper",
+        "inheritParentState": true,
+        "id": "tw",
+        "height": 100,
+        "width": 100,
+        "onPress": {
+          "type": "SendEvent"
+        }
+      }
+    ]
+  }
+})";
+
+TEST_F(PointerTest, TouchWrapperInheritsState) {
+    loadDocument(TW_INHERITS_STATE_OLD);
+
+    ASSERT_TRUE(MouseDown(root, 50, 50));
+    ASSERT_EQ(false, component->getState().get(kStatePressed));
+    ASSERT_TRUE(session->checkAndClear());
+    ASSERT_TRUE(MouseUp(root, 50, 50));
+    ASSERT_TRUE(session->checkAndClear());
+    root->clearPending();
+
+    ASSERT_TRUE(root->hasEvent());
+
+    auto event = root->popEvent();
+    ASSERT_EQ(event.getType(), kEventTypeSendEvent);
 }

@@ -68,6 +68,17 @@ public:
      */
     void update(apl_time_t time);
 
+    /**
+     * Update scrolling state.
+     * @param offset time offset from the start of animation.
+     */
+    void updateOffset(apl_duration_t offset);
+
+    /**
+    * @return expected scroll duration.
+    */
+    virtual apl_duration_t getDuration() const = 0;
+
 protected:
     /**
      * Update function to be overriden by particular scroller implementation.
@@ -75,11 +86,6 @@ protected:
      * @param offset time offset in expected duration range.
      */
     virtual void update(const ScrollablePtr& scrollable, apl_duration_t offset) = 0;
-
-    /**
-     * @return expected scroll duration.
-     */
-    virtual apl_duration_t getDuration() const = 0;
 
     void finish()
     {

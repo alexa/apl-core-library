@@ -17,9 +17,10 @@
 #define _APL_GESTURE_H
 
 #include "apl/common.h"
-#include "apl/utils/bimap.h"
 #include "apl/touch/pointerevent.h"
 #include "apl/touch/gesturestep.h"
+#include "apl/utils/bimap.h"
+#include "apl/utils/noncopyable.h"
 
 namespace apl {
 
@@ -44,9 +45,14 @@ extern Bimap<GestureType, std::string> sGestureTypeBimap;
  * one of them is triggered. After that triggered gesture considered active and will consume all events until
  * finished/reset.
  */
-class Gesture {
+class Gesture : public NonCopyable {
 public:
     static std::shared_ptr<Gesture> create(const ActionablePtr& actionable, const Object& object);
+
+    /**
+     * Release this gesture and any dependencies.  The component attached to this gesture is no longer usable
+     */
+    virtual void release();
 
     /**
      * Process pointer event through gesture.
@@ -78,13 +84,48 @@ public:
 protected:
     Gesture(const ActionablePtr& actionable) : mActionable(actionable), mStarted(false), mTriggered(false) {}
 
-    /// Following should be overriden by specific gesture in order to respond to incoming events.
+    /// Following handlers should be overriden by specific gesture in order to respond to incoming events.
     /// See existing gestures for an example.
-    virtual void onMove(const PointerEvent& event, apl_time_t timestamp) {}
-    virtual void onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) {}
-    virtual void onDown(const PointerEvent& event, apl_time_t timestamp) {}
-    virtual void onUp(const PointerEvent& event, apl_time_t timestamp) {}
-    virtual void onCancel(const PointerEvent& event, apl_time_t timestamp) { if(mTriggered) reset(); }
+
+    /**
+     * Handle move event
+     * @param event pointer event to process.
+     * @param timestamp pointer event timestamp.
+     * @return true if handler executed properly, false in anything went wrong.
+     */
+    virtual bool onMove(const PointerEvent& event, apl_time_t timestamp) { return true; }
+
+    /**
+     * Handle time update
+     * @param event pointer event to process (simulated in this case, so should be generally ignored)
+     * @param timestamp pointer event timestamp.
+     * @return true if handler executed properly, false in anything went wrong.
+     */
+    virtual bool onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) { return true; }
+
+    /**
+     * Handle pointer entry/down event
+     * @param event pointer event to process.
+     * @param timestamp pointer event timestamp.
+     * @return true if handler executed properly, false in anything went wrong.
+     */
+    virtual bool onDown(const PointerEvent& event, apl_time_t timestamp) { return true; }
+
+    /**
+     * Handle pointer exit/up event
+     * @param event pointer event to process.
+     * @param timestamp pointer event timestamp.
+     * @return true if handler executed properly, false in anything went wrong.
+     */
+    virtual bool onUp(const PointerEvent& event, apl_time_t timestamp) { return true; }
+
+    /**
+     * Handle pointer cancel
+     * @param event pointer event to process.
+     * @param timestamp pointer event timestamp.
+     * @return true if handler executed properly, false in anything went wrong.
+     */
+    virtual bool onCancel(const PointerEvent& event, apl_time_t timestamp) { if(mTriggered) reset(); return true; }
 
     /**
      * Converts a vector in global coordinate space to the current target's local coordinate space.

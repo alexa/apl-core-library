@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -38,7 +38,6 @@ TextComponent::TextComponent(const ContextPtr& context,
     YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc<TextComponent>);
     YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc<TextComponent>);
     YGNodeSetNodeType(mYGNodeRef, YGNodeTypeText);
-    YGNodeSetContext(mYGNodeRef, this);   // Stash a pointer to this component
 }
 
 
@@ -66,10 +65,10 @@ TextComponent::propDefSet() const
                                                                                                   internalCheckKaraokeTargetColor, defaultFontColor},
         {kPropertyColorKaraokeTarget, Color(),                asColor,               kPropOut,    defaultFontColor},
         {kPropertyColorNonKaraoke,    Color(),                asColor,               kPropOut,    defaultFontColor},
-        {kPropertyFontFamily,         "",                     asString,              kPropInOut | kPropLayout | kPropStyled, defaultFontFamily},
-        {kPropertyFontSize,           Dimension(40),          asAbsoluteDimension,   kPropInOut | kPropLayout | kPropStyled},
-        {kPropertyFontStyle,          kFontStyleNormal,       sFontStyleMap,         kPropInOut | kPropLayout | kPropStyled},
-        {kPropertyFontWeight,         400,                    sFontWeightMap,        kPropInOut | kPropLayout | kPropStyled},
+        {kPropertyFontFamily,         "",                     asString,              kPropInOut | kPropLayout | kPropStyled | kPropDynamic, defaultFontFamily},
+        {kPropertyFontSize,           Dimension(40),          asAbsoluteDimension,   kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
+        {kPropertyFontStyle,          kFontStyleNormal,       sFontStyleMap,         kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
+        {kPropertyFontWeight,         400,                    sFontWeightMap,        kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
         {kPropertyLetterSpacing,      Dimension(0),           asAbsoluteDimension,   kPropInOut | kPropLayout | kPropStyled},
         {kPropertyLineHeight,         1.25,                   asNonNegativeNumber,   kPropInOut | kPropLayout | kPropStyled},
         {kPropertyMaxLines,           0,                      asInteger,             kPropInOut | kPropLayout | kPropStyled},

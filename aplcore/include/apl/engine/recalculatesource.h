@@ -49,12 +49,12 @@ public:
             auto ptr = it->second.lock();
             if (ptr) {
                 if (ptr == dependant) {
-                    LOG(LogLevel::WARN) << "Attempted to add duplicate pair " << key;
+                    LOG(LogLevel::kWarn) << "Attempted to add duplicate pair " << key;
                     return;    // This pair already exists
                 }
                 it++;
             } else {
-                LOG(LogLevel::WARN) << "Unexpected released weak pointer";
+                LOG(LogLevel::kWarn) << "Unexpected released weak pointer";
                 it = mDownstream.erase(it);  // Throw it away
             }
         }
@@ -93,7 +93,7 @@ public:
                 it++;
             }
             else {
-                LOG(LogLevel::WARN) << "Unexpected released weak pointer";
+                LOG(LogLevel::kWarn) << "Unexpected released weak pointer";
                 it = mDownstream.erase(it);
             }
         }

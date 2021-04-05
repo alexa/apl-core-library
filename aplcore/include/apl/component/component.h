@@ -26,6 +26,7 @@
 #include "apl/engine/propertymap.h"
 #include "apl/primitives/rect.h"
 #include "apl/engine/state.h"
+#include "apl/utils/noncopyable.h"
 #include "apl/utils/visitor.h"
 #include "apl/utils/userdata.h"
 
@@ -133,10 +134,11 @@ enum PageDirection {
  */
 class Component : public Counter<Component>,
                   public UserData<Component>,
+                  public NonCopyable,
                   public std::enable_shared_from_this<Component> {
 
 public:
-    virtual ~Component() {}
+    ~Component() override = default;
 
     /**
      * Release this component and all children.  This component may still be in
@@ -251,7 +253,12 @@ public:
      * @return True if this component was properly created with all required
      *         properties specified.
      */
-    bool isValid() { return mIsValid; }
+    bool isValid() { return (mFlags & kComponentFlagInvalid) == 0; }
+
+    /**
+     * @return True if this component has been inflated and should now run event handlers on a SetValue or equivalent.
+     */
+    bool allowEventHandlers() { return (mFlags & kComponentFlagAllowEventHandlers) != 0; }
 
     /**
      * An update message from the viewhost.  This method is used for all updates that take
@@ -280,6 +287,53 @@ public:
      * @param json graphic content
      */
     virtual bool updateGraphic(const GraphicContentPtr& json);
+
+    /*
+    * @return The number of children displayed.
+    */
+    virtual size_t getDisplayedChildCount() const = 0;
+
+    /**
+     * Retrieve a displayed child by index.  The order of displayed children
+     * matches the intended rendering order.
+     * The display index is not guaranteed to match the getChildAt() result.
+     * Throws an exception if out of bounds.
+     *
+     * Consumers using this method for drawing may implement a loop as follows:
+     *
+     *  void draw(Component c, Paint paint) {
+     *
+     *       auto display  = getCalculated(kPropertyDisplay).asInt();
+     *       auto opacity = getCalculated(kPropertyDisplay).asInt();
+     *       if (display == kDisplayNormal && opacity > 0.0) {
+     *
+     *          // Copy the current paint and apply opacity
+     *          auto p = paint;
+     *          p.opacity *= opacity;
+     *
+     *          // Apply clip bounds, exit if nothing visible
+     *          auto bounds = getCalculated(kPropertyBounds).getRect();
+     *          p.addClipping( bounds );
+     *          if (p.clipRegionEmpty())
+     *              return;
+     *
+     *          // Transform to the local coordinate space
+     *          p.translate( bounds.getTopLeft() );
+     *          auto transform = getCalculated(kPropertyTransform).getTransform2D();
+     *          p.applyTransform( c.getTransform() );
+     *
+     *          // Draw self, then children
+     *          drawInternal(opacity, clip);
+     *          for (size_t i = 0 ; i < c.getDisplayedChildCount() ; i++)
+     *               draw( c.getDisplayedChildAt(i), opacity );
+     *
+     *      }
+     *  }
+     *
+     * @param index The zero-based display index of the child.
+     * @return The child.
+     */
+    virtual ComponentPtr getDisplayedChildAt(size_t displayIndex) const = 0;
 
     /**
      * Call this to ensure that the component has a layout.  This method must be used by
@@ -425,14 +479,18 @@ protected:
 
     static id_type             sUniqueIdGenerator;
 
-    ContextPtr   mContext;
+    ContextPtr                 mContext;
     std::string                mUniqueId;
     std::string                mId;
     CalculatedPropertyMap      mCalculated;  // Current calculated object properties
     std::set<PropertyKey>      mDirty;
-    bool                       mIsValid;
 
+    enum {
+        kComponentFlagInvalid = 0x01,  // Marks a component missing a required property
+        kComponentFlagAllowEventHandlers = 0x02,  // Event handlers don't run when the component is first inflated
+    };
 
+    unsigned int               mFlags = 0;
 };
 
 }  // namespace apl

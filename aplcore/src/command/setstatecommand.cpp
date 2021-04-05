@@ -1,5 +1,5 @@
 /**
- * Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  */
 
 #include "apl/command/setstatecommand.h"
-#include "apl/engine/focusmanager.h"
+#include "apl/focus/focusmanager.h"
 
 namespace apl {
 

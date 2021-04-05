@@ -40,6 +40,7 @@ Bimap<int, std::string> sCommandNameBimap = {
     {kCommandTypeSetFocus,          "SetFocus"},
     {kCommandTypeClearFocus,        "ClearFocus"},
     {kCommandTypeFinish,            "Finish"},
+    {kCommandTypeReinflate,         "Reinflate"},
 };
 
 Bimap<int, std::string> sCommandPropertyBimap = {

@@ -185,7 +185,7 @@ public:
     SerializeEventTest() : DocumentWrapper() {
         // Register an extension command "Validate" that can be fired by all "onXXX" commands.
         // We'll pass up the event information in the "event" property and a distinguishing "name"
-        config.registerExtensionCommand(
+        config->registerExtensionCommand(
                 ExtensionCommandDefinition("aplext:Event", "Validate")
                 .allowFastMode(true)
                 .property("event", Object::NULL_OBJECT(), true)
@@ -2845,7 +2845,7 @@ static const char *EXTENSION_EVENT = R"(
 // that it is frozen here by sending the event, then modifying properties in the sending component.
 
 TEST_F(SerializeEventTest, ExtensionEvent) {
-    config.registerExtensionCommand(
+    config->registerExtensionCommand(
             ExtensionCommandDefinition("aplext:SerializeTest", "Fire")
             .property("name", "", true));
 
@@ -2917,7 +2917,7 @@ static const char * OPEN_URL_EVENT = R"(
  * still need to test it.
  */
 TEST_F(SerializeEventTest, OpenURL) {
-    config.allowOpenUrl(true);
+    config->allowOpenUrl(true);
 
     loadDocument(OPEN_URL_EVENT);
     ASSERT_TRUE(component);
@@ -2988,7 +2988,7 @@ static const char * BIND_REFERENCES = R"(
 )";
 
 TEST_F(SerializeEventTest, BindReferences) {
-    config.allowOpenUrl(true);
+    config->allowOpenUrl(true);
 
     loadDocument(BIND_REFERENCES);
     ASSERT_TRUE(component);

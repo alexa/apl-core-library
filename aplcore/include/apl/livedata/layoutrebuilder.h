@@ -18,6 +18,7 @@
 
 #include "apl/common.h"
 #include "apl/utils/counter.h"
+#include "apl/utils/noncopyable.h"
 #include "apl/utils/path.h"
 #include "apl/livedata/livedataobjectwatcher.h"
 
@@ -32,7 +33,7 @@ class LiveArrayObject;
  * Components that have a changed data set.
  */
 class LayoutRebuilder : public std::enable_shared_from_this<LayoutRebuilder>,
-                        public LiveDataObjectWatcher,
+                        public NonCopyable,
                         public Counter<LayoutRebuilder> {
 public:
     /**
@@ -107,12 +108,6 @@ public:
         return mHasLastItem;
     }
 
-protected:
-    /// LiveDataObjectWatcher methods
-    void liveDataObjectFlushed(const std::string& key, LiveDataObject& liveDataObject) override {
-        rebuild();
-    }
-
 private:
     ContextPtr mContext;
     std::weak_ptr<CoreComponent> mLayout;
@@ -120,6 +115,7 @@ private:
     const std::vector<Object> mItems;
     Path mChildPath;
     bool mNumbered;
+    int mCallbackToken = -1;
 
     bool mHasFirstItem = false;
     bool mHasLastItem = false;

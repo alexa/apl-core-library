@@ -52,10 +52,10 @@ addResourceBlock(
         const ResourceOperators& resourceOperators)
 {
     if (DEBUG_RESOURCES) {
-        LOG(LogLevel::DEBUG) << path;
+        LOG(LogLevel::kDebug) << path;
         auto description = block.FindMember("description");
         if (description != block.MemberEnd() && description->value.IsString())
-            LOG(LogLevel::DEBUG) << "Evaluating resource block: " << description->value.GetString();
+            LOG(LogLevel::kDebug) << "Evaluating resource block: " << description->value.GetString();
     }
 
     auto when = block.FindMember("when");

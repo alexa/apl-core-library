@@ -17,60 +17,75 @@
 
 #include "apl/animation/coreeasing.h"
 #include "apl/component/scrollablecomponent.h"
+#include "apl/content/rootconfig.h"
 #include "apl/primitives/timefunctions.h"
 
 namespace apl {
 
-/// Our base deceleration is 20% of starting speed per second.
-static const float BASE_DECELERATION_PERCENTAGE = 0.2;
-
-inline float
-getDeceleration(float velocity)
-{
-    return -velocity * BASE_DECELERATION_PERCENTAGE;
-}
+const bool DEBUG_SCROLLER = false;
 
 std::shared_ptr<UnidirectionalEasingScroller>
-UnidirectionalEasingScroller::make(const std::shared_ptr<ScrollableComponent>& scrollable,
-    FinishFunc finish, const Point& velocity)
+UnidirectionalEasingScroller::make(
+        const std::shared_ptr<ScrollableComponent>& scrollable,
+        FinishFunc&& finish,
+        const Point& velocity)
 {
     // Acting on "significant" direction.
     auto directionalVelocity = scrollable->isVertical() ?
                                velocity.getY() : velocity.getX();
 
     if (directionalVelocity == 0) {
-        LOG(LogLevel::WARN) << "Can't create a scroller with 0 velocity";
+        LOG(LogLevel::kWarn) << "Can't create a scroller with 0 velocity";
         return nullptr;
     }
 
-    auto deceleration = getDeceleration(directionalVelocity);
+    auto& rootConfig = scrollable->getRootConfig();
+    auto decelerationRate = rootConfig.getProperty(RootProperty::kUEScrollerDeceleration).getDouble();
+    auto deceleration = -directionalVelocity * decelerationRate;
+
+    LOG_IF(DEBUG_SCROLLER)
+        << "Velocity: " << velocity.toString()
+        << ", Deceleration" << decelerationRate;
 
     // S = v^2 / 2*a
     auto distance = (directionalVelocity * directionalVelocity) / (2 * deceleration) * time::MS_PER_SECOND;
-    return make(scrollable, std::move(finish), Point(distance, distance), std::abs(distance/directionalVelocity));
+    auto easing = rootConfig.getProperty(RootProperty::kUEScrollerVelocityEasing).getEasing();
+    auto maxDuration = rootConfig.getProperty(RootProperty::kUEScrollerMaxDuration).getDouble();
+    auto duration = std::min(static_cast<apl_duration_t>(std::abs(distance/directionalVelocity)), maxDuration);
+    return std::make_shared<UnidirectionalEasingScroller>(
+            scrollable, easing, std::move(finish), Point(distance, distance), duration);
 }
 
 std::shared_ptr<UnidirectionalEasingScroller>
-UnidirectionalEasingScroller::make(const std::shared_ptr<ScrollableComponent>& scrollable,
-    FinishFunc finish, const Point& target, apl_duration_t duration)
+UnidirectionalEasingScroller::make(
+        const std::shared_ptr<ScrollableComponent>& scrollable,
+        FinishFunc&& finish,
+        const Point& target,
+        apl_duration_t duration)
 {
     assert(duration > 0);
-    return std::make_shared<UnidirectionalEasingScroller>(scrollable, finish,
-        target, duration);
+    auto easing = scrollable->getRootConfig().getProperty(RootProperty::kUEScrollerDurationEasing).getEasing();
+    return std::make_shared<UnidirectionalEasingScroller>(scrollable, easing, std::move(finish), target, duration);
 }
 
 UnidirectionalEasingScroller::UnidirectionalEasingScroller(
         const std::shared_ptr<ScrollableComponent>& scrollable,
-        FinishFunc finish,
+        const EasingPtr& easing,
+        FinishFunc&& finish,
         const Point& target,
         apl_duration_t duration)
         : AutoScroller(scrollable, std::move(finish)),
-          mAnimationEasing(CoreEasing::bezier(0,0,0.58,1)),
+          mAnimationEasing(easing),
           mScrollStartPosition(scrollable->scrollPosition()),
           mLastScrollPosition(scrollable->scrollPosition()),
           mEndTarget(target),
           mDuration(duration)
-{}
+{
+    LOG_IF(DEBUG_SCROLLER)
+        << "StartPos: " << mScrollStartPosition.toString()
+        << ", LastPos: " << mLastScrollPosition.toString()
+        << ", TargetDistance: " << mEndTarget.toString();
+}
 
 void
 UnidirectionalEasingScroller::update(
@@ -81,10 +96,11 @@ UnidirectionalEasingScroller::update(
     auto delta = Point(alpha * mEndTarget.getX(), alpha * mEndTarget.getY());
     Point end = mEndTarget;
 
+    // May have got more items in the interim, or as a result of scroll position update
+    fixFlingStartPosition(scrollable);
+    auto availablePosition = scrollable->trimScroll(mScrollStartPosition + end);
+
     // This could lead to more loading, so fix fling and re-adjust
-    auto availablePosition = scrollable->trimScroll(
-        Point::bottomRightBound(Point::bottomRightBound(mScrollStartPosition + end, Point()),
-            mScrollStartPosition + delta));
     fixFlingStartPosition(scrollable);
 
     // Direction dependent.
@@ -98,8 +114,9 @@ UnidirectionalEasingScroller::update(
     float resultingPosition = target <= endTarget ? std::min(availableTarget, target)
                                                   : std::max(availableTarget, target);
 
+    // Set it to what we expect it to be, because it may move afterwards
+    mLastScrollPosition = vertical ? Point(0, resultingPosition) : Point(resultingPosition, 0);
     scrollable->update(UpdateType::kUpdateScrollPosition, resultingPosition);
-    mLastScrollPosition = scrollable->scrollPosition();
 
     // TODO: If update will bring us over maximum position we should switch to "overscroll" instead
     //  of stopping. It's not default behavior though. Can be resolved with "Overscroller" mixin?.
@@ -116,8 +133,10 @@ UnidirectionalEasingScroller::fixFlingStartPosition(const std::shared_ptr<Scroll
     // If position is not the same it was likely changed by dynamic changes, we need to
     // adjust for that.
     if (currentPosition != mLastScrollPosition) {
-        mScrollStartPosition += (currentPosition - mLastScrollPosition);
+        auto diff = currentPosition - mLastScrollPosition;
+        mScrollStartPosition += diff;
         mLastScrollPosition = currentPosition;
+        LOG_IF(DEBUG_SCROLLER) << "Diff: " << diff.toString();
     }
 }
 

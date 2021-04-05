@@ -20,12 +20,13 @@
 
 #include "apl/primitives/object.h"
 #include "apl/livedata/livearray.h"
+#include "apl/utils/noncopyable.h"
 
 namespace apl {
 
 class DataSourceConnection;
 
-class DataSourceProvider {
+class DataSourceProvider : public NonCopyable {
 public:
     virtual ~DataSourceProvider() = default;
 

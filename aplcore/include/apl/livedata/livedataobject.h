@@ -34,7 +34,8 @@ class LiveMapObject;
  *
  * This is an abstract base class.  Do not create instances of this object.
  */
-class LiveDataObject : public ObjectData, public std::enable_shared_from_this<LiveDataObject> {
+class LiveDataObject : public ObjectData,
+                       public std::enable_shared_from_this<LiveDataObject> {
 public:
     using FlushCallback = std::function<void(const std::string, LiveDataObject&)>;
 

@@ -23,16 +23,15 @@ LiveDataObjectWatcher::registerObjectWatcher(const std::shared_ptr<LiveDataObjec
     auto token = object->addFlushCallback([this](const std::string key, LiveDataObject& liveDataObject) {
         liveDataObjectFlushed(key, liveDataObject);
     });
-    mWatches.push_back({token, object});
+    mWatches.emplace_back(std::pair<int, std::weak_ptr<LiveDataObject>>{token, object});
 }
 
-void
-LiveDataObjectWatcher::unregisterObjectWatcher() {
+LiveDataObjectWatcher::~LiveDataObjectWatcher()
+{
     for (auto& watch : mWatches) {
         auto object = watch.second.lock();
-        if (object) {
+        if (object)
             object->removeFlushCallback(watch.first);
-        }
     }
     mWatches.clear();
 }

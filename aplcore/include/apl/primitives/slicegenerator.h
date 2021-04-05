@@ -32,17 +32,17 @@ namespace apl {
  */
 class SliceGenerator : public Generator {
 public:
-    static std::shared_ptr<SliceGenerator> create(Object array, int start, int end) {
+    static std::shared_ptr<SliceGenerator> create(Object array, std::int64_t start, std::int64_t end) {
         return std::make_shared<SliceGenerator>(std::move(array), start, end);
     }
 
-    SliceGenerator(Object array, int start, int end)
+    SliceGenerator(Object array, std::int64_t start, std::int64_t end)
         : mArray(std::move(array)),
           mStart(start),
           mEnd(end)
     {
         assert(mArray.isArray());
-        const int len = mArray.size();
+        const std::int64_t len = mArray.size();
 
         // Negative values are offsets from the end
         if (mStart < 0)
@@ -59,12 +59,12 @@ public:
             mEnd = mStart;
     }
 
-    Object at(size_t index) const override {
+    Object at(std::uint64_t index) const override {
         assert(index >= 0 && index < size());
         return mArray.at(index + mStart);
     }
 
-    size_t size() const override {
+    std::uint64_t size() const override {
         return mEnd - mStart;
     }
 
@@ -78,8 +78,8 @@ public:
 
 private:
     Object mArray;
-    int mStart;
-    int mEnd;
+    std::int64_t mStart;
+    std::int64_t mEnd;
 };
 
 } // namespace apl

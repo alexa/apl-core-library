@@ -163,7 +163,7 @@ static const char *BASIC_DOC = R"({
 
 TEST_F(LiveArrayRebuildTest, ComponentClear) {
     auto myArray = LiveArray::create(ObjectArray{1, 2});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(BASIC_DOC);
     ASSERT_TRUE(component);
@@ -177,7 +177,7 @@ TEST_F(LiveArrayRebuildTest, ComponentClear) {
 
 TEST_F(LiveArrayRebuildTest, ComponentExtendEmpty) {
     auto myArray = LiveArray::create();
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(BASIC_DOC);
     ASSERT_TRUE(component);
@@ -197,7 +197,7 @@ TEST_F(LiveArrayRebuildTest, ComponentExtendEmpty) {
 TEST_F(LiveArrayRebuildTest, ComponentUpdate)
 {
     auto myArray = LiveArray::create(ObjectArray{"A", "B"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(BASIC_DOC);
     ASSERT_TRUE(component);
@@ -218,7 +218,7 @@ TEST_F(LiveArrayRebuildTest, ComponentUpdate)
 TEST_F(LiveArrayRebuildTest, ComponentPushBack)
 {
     auto myArray = LiveArray::create(ObjectArray{"A", "B"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(BASIC_DOC);
     ASSERT_TRUE(component);
@@ -242,7 +242,7 @@ TEST_F(LiveArrayRebuildTest, ComponentPushBack)
 TEST_F(LiveArrayRebuildTest, ComponentInsert)
 {
     auto myArray = LiveArray::create(ObjectArray{"A", "B"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(BASIC_DOC);
     ASSERT_TRUE(component);
@@ -266,7 +266,7 @@ TEST_F(LiveArrayRebuildTest, ComponentInsert)
 TEST_F(LiveArrayRebuildTest, ComponentRemove)
 {
     auto myArray = LiveArray::create(ObjectArray{"A", "B"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(BASIC_DOC);
     ASSERT_TRUE(component);
@@ -290,7 +290,7 @@ TEST_F(LiveArrayRebuildTest, ComponentRemove)
 TEST_F(LiveArrayRebuildTest, ComponentRemoveFromEnd)
 {
     auto myArray = LiveArray::create(ObjectArray{"A", "B"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(BASIC_DOC);
     ASSERT_TRUE(component);
@@ -313,7 +313,7 @@ TEST_F(LiveArrayRebuildTest, ComponentRemoveFromEnd)
 TEST_F(LiveArrayRebuildTest, ComponentInsertPushBack)
 {
     auto myArray = LiveArray::create(ObjectArray{"A", "B"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(BASIC_DOC);
     ASSERT_TRUE(component);
@@ -357,7 +357,7 @@ static const char * CONDITIONAL = R"({
 TEST_F(LiveArrayRebuildTest, Conditional)
 {
     auto myArray = LiveArray::create(ObjectArray{1, 2, 3, 4});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(CONDITIONAL);
     ASSERT_TRUE(component);
@@ -419,7 +419,7 @@ static const char *DOUBLE_CONDITIONAL = R"({
 TEST_F(LiveArrayRebuildTest, DoubleConditional)
 {
     auto myArray = LiveArray::create(ObjectArray{1, 2, 3, 4, 5, 6});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(DOUBLE_CONDITIONAL);
     ASSERT_TRUE(component);
@@ -468,7 +468,7 @@ static const char *FIRST_AND_LAST = R"({
 TEST_F(LiveArrayRebuildTest, FirstAndLast)
 {
     auto myArray = LiveArray::create(ObjectArray{1, 2, 3, 4});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(FIRST_AND_LAST);
     ASSERT_TRUE(component);
@@ -517,7 +517,7 @@ static const char *FIRST_ONLY = R"({
 TEST_F(LiveArrayRebuildTest, FirstOnly)
 {
     auto myArray = LiveArray::create(ObjectArray{1, 2, 3, 4});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(FIRST_ONLY);
     ASSERT_TRUE(component);
@@ -566,7 +566,7 @@ static const char *LAST_ONLY = R"({
 TEST_F(LiveArrayRebuildTest, LastOnly)
 {
     auto myArray = LiveArray::create(ObjectArray{1, 2, 3, 4});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(LAST_ONLY);
     ASSERT_TRUE(component);
@@ -627,7 +627,7 @@ static const char *NUMBERING = R"({
 TEST_F(LiveArrayRebuildTest, Numbering)
 {
     auto myArray = LiveArray::create(ObjectArray{"a", "b", "c", "d", "e", "f"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(NUMBERING);
     ASSERT_TRUE(component);
@@ -684,11 +684,11 @@ static const char *MULTIPLE_CONTEXT = R"({
 TEST_F(LiveArrayRebuildTest, MultipleContexts)
 {
     auto myArray = LiveArray::create(ObjectArray{"a", "b", "c", "d", "e", "f"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     auto content1 = Content::create(MULTIPLE_CONTEXT, session);
-    auto root1 = RootContext::create(metrics, content1, config);
-    auto root2 = RootContext::create(metrics, content1, config);
+    auto root1 = RootContext::create(metrics, content1, *config);
+    auto root2 = RootContext::create(metrics, content1, *config);
 
     auto component1 = std::dynamic_pointer_cast<CoreComponent>(root1->topComponent());
     auto component2 = std::dynamic_pointer_cast<CoreComponent>(root2->topComponent());
@@ -753,9 +753,9 @@ static const char *LIVE_SEQUENCE = R"({
 
 TEST_F(LiveArrayRebuildTest, SequencePositionContext)
 {
-    config.measure(std::make_shared<InflateTextMeasure>());
+    config->measure(std::make_shared<InflateTextMeasure>());
     auto myArray = LiveArray::create();
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_SEQUENCE);
 
@@ -870,9 +870,9 @@ TEST_F(LiveArrayRebuildTest, SequencePositionContext)
 
 TEST_F(LiveArrayRebuildTest, SequenceContextInsertRemove)
 {
-    config.measure(std::make_shared<InflateTextMeasure>());
+    config->measure(std::make_shared<InflateTextMeasure>());
     auto myArray = LiveArray::create(ObjectArray{"10", "11", "12", "13", "14"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_SEQUENCE);
 
@@ -950,9 +950,9 @@ TEST_F(LiveArrayRebuildTest, SequenceContextInsertRemove)
 
 TEST_F(LiveArrayRebuildTest, SequenceScrollingContext)
 {
-    config.measure(std::make_shared<InflateTextMeasure>());
+    config->measure(std::make_shared<InflateTextMeasure>());
     auto myArray = LiveArray::create();
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_SEQUENCE);
 
@@ -1070,9 +1070,9 @@ TEST_F(LiveArrayRebuildTest, SequenceScrollingContext)
 
 TEST_F(LiveArrayRebuildTest, SequenceUpdateContext)
 {
-    config.measure(std::make_shared<InflateTextMeasure>());
+    config->measure(std::make_shared<InflateTextMeasure>());
     auto myArray = LiveArray::create(ObjectArray{"10", "11", "12", "13", "14"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_SEQUENCE);
 
@@ -1121,9 +1121,9 @@ static const char *LIVE_SEQUENCE_DEEP = R"({
 })";
 
 TEST_F(LiveArrayRebuildTest, SequenceScrollingDeep) {
-    config.measure(std::make_shared<InflateTextMeasure>());
+    config->measure(std::make_shared<InflateTextMeasure>());
     auto myArray = LiveArray::create(ObjectArray{"10", "11", "12", "13", "14"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_SEQUENCE_DEEP);
 
@@ -1198,9 +1198,9 @@ static const char *LIVE_SEQUENCE_VARIABLE = R"({
 
 TEST_F(LiveArrayRebuildTest, SequenceVariableSize)
 {
-    config.measure(std::make_shared<InflateTextMeasure>());
+    config->measure(std::make_shared<InflateTextMeasure>());
     auto myArray = LiveArray::create(ObjectArray{100, 25, 50, 25, 25, 100, 50, 50, 100});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_SEQUENCE_VARIABLE);
 
@@ -1218,6 +1218,7 @@ static const char *LIVE_PAGER = R"({
     "item": {
       "type": "Pager",
       "id": "pager",
+      "navigation": "normal",
       "data": "${TestArray}",
       "items": {
         "type": "Text",
@@ -1233,7 +1234,7 @@ static const char *LIVE_PAGER = R"({
 TEST_F(LiveArrayRebuildTest, PagerContext)
 {
     auto myArray = LiveArray::create(ObjectArray{"10", "11", "12", "13", "14"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_PAGER);
 
@@ -1290,7 +1291,7 @@ TEST_F(LiveArrayRebuildTest, PagerContext)
 TEST_F(LiveArrayRebuildTest, PagerContextInsertRemove)
 {
     auto myArray = LiveArray::create(ObjectArray{"10", "11", "12", "13", "14"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_PAGER);
 
@@ -1335,6 +1336,7 @@ TEST_F(LiveArrayRebuildTest, PagerContextInsertRemove)
 
     // Update position and remove one before it.
     component->update(kUpdatePagerPosition, 3);
+    root->clearPending();
     ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 4));
     ASSERT_TRUE(CheckChildLaidOut(component, 0, false));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {1, 4}, true));
@@ -1403,7 +1405,7 @@ TEST_F(LiveArrayRebuildTest, DeepComponentUpdate)
 {
     auto initMap = ObjectMap{{"text", "init"}, {"color", "white"}};
     auto myArray = LiveArray::create(ObjectArray{Object(std::make_shared<ObjectMap>(initMap))});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(LAYOUT_DEPENDENCY);
     ASSERT_TRUE(component);
@@ -1473,8 +1475,8 @@ CheckSpacing(const CoreComponentPtr& comp, float spacing) {
 
 TEST_F(LiveArrayRebuildTest, SpacedSequence) {
     auto myArray = LiveArray::create(ObjectArray{0, 1});
-    config.liveData("TestArray", myArray);
-    config.sequenceChildCache(2);
+    config->liveData("TestArray", myArray);
+    config->sequenceChildCache(2);
 
     loadDocument(SPACED_SEQUENCE);
     ASSERT_TRUE(component);
@@ -1552,8 +1554,8 @@ static const char *SPACED_CONTAINER = R"({
 
 TEST_F(LiveArrayRebuildTest, SpacedContainer) {
     auto myArray = LiveArray::create(ObjectArray{0, 1});
-    config.liveData("TestArray", myArray);
-    config.sequenceChildCache(2);
+    config->liveData("TestArray", myArray);
+    config->sequenceChildCache(2);
 
     loadDocument(SPACED_CONTAINER);
     ASSERT_TRUE(component);

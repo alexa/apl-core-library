@@ -194,6 +194,11 @@ OffsetIndexDataSourceConnection::ensure(size_t index) {
     }
 }
 
+std::shared_ptr<LiveArray>
+OffsetIndexDataSourceConnection::getLiveArray() {
+    return mLiveArray.lock();
+}
+
 bool
 OffsetIndexDataSourceConnection::overlaps(size_t index, size_t count) {
     LiveArrayPtr liveArray = mLiveArray.lock();

@@ -22,6 +22,7 @@
 #include "apl/content/jsondata.h"
 #include "apl/content/content.h"
 #include "apl/component/component.h"
+#include "apl/utils/noncopyable.h"
 
 namespace apl {
 
@@ -58,7 +59,7 @@ namespace apl {
  *
  * TODO: We are not currently parsing the "packages" field of the directive
  */
-class Directive {
+class Directive : public NonCopyable {
 public:
     /**
      * Parse and return a complete directive.  If the directive

@@ -74,13 +74,25 @@ public:
                                                 const ContextPtr& context,
                                                 const ComponentPtr& target = nullptr);
 
+    /**
+     * Called in order to bring child into view, utilizing snap setting if exists.
+     * @param timers Timer reference.
+     * @param target Component to scroll to.
+     * @param duration scrolling duration.
+     * @return
+     */
+    static std::shared_ptr<ScrollToAction> makeUsingSnap(const TimersPtr& timers,
+                                                         const ComponentPtr& target,
+                                                         apl_duration_t duration);
+
     ScrollToAction(const TimersPtr& timers,
                    const CommandScrollAlign& align,
                    const Rect& subBounds,
                    const ContextPtr& context,
                    bool scrollToSubBounds,
                    const ComponentPtr& target,
-                   const CoreComponentPtr& scrollableParent);
+                   const CoreComponentPtr& scrollableParent,
+                   apl_duration_t duration);
 
 private:
     static std::shared_ptr<ScrollToAction> make(const TimersPtr& timers,
@@ -88,7 +100,9 @@ private:
                                                 const Rect& subBounds,
                                                 const ContextPtr& context,
                                                 bool scrollToSubBounds,
-                                                const ComponentPtr& target = nullptr);
+                                                const ComponentPtr& target = nullptr,
+                                                apl_duration_t duration = 0,
+                                                bool useSnap = false);
 
     void start();
     void pageTo();

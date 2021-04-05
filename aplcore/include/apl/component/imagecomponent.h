@@ -16,22 +16,30 @@
 #ifndef _APL_IMAGE_COMPONENT_H
 #define _APL_IMAGE_COMPONENT_H
 
-#include "corecomponent.h"
+#include "mediacomponenttrait.h"
 
 namespace apl {
 
-class ImageComponent : public CoreComponent {
+class ImageComponent : public CoreComponent,
+                       public MediaComponentTrait {
 public:
     static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const std::string& path);
 
     ImageComponent(const ContextPtr& context, Properties&& properties, const std::string& path);
 
-    ComponentType getType() const override { return kComponentTypeImage; };
+    ComponentType getType() const override { return kComponentTypeImage; }
+
+    void postProcessLayoutChanges() override;
 
 protected:
     const EventPropertyMap& eventPropertyMap() const override;
     const ComponentPropDefSet& propDefSet() const override;
+
     std::string getVisualContextType() override;
+
+    /// Media component trait overrides
+    std::set<std::string> getSources() override;
+    CoreComponentPtr getComponent() override { return shared_from_corecomponent(); }
 };
 
 } // namespace apl

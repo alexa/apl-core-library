@@ -131,11 +131,15 @@ Action::doResolve()
     if (mState == ActionState::RESOLVED && mThen) {
         LOG_IF(DEBUG_ACTION) << "Resolving " << *this;
 
-        mTimeoutId = mTimers->setTimeout([this]() {
-            mTimeoutId = 0;
-            if (mState == ActionState::RESOLVED && mThen) {
-                onFinish();
-                mThen(shared_from_this());
+        auto weak = std::weak_ptr<Action>(shared_from_this());
+        mTimeoutId = mTimers->setTimeout([weak]() {
+            auto self = weak.lock();
+            if (self) {
+                self->mTimeoutId = 0;
+                if (self->mState == ActionState::RESOLVED && self->mThen) {
+                    self->onFinish();
+                    self->mThen(self);
+                }
             }
         });
     }
@@ -228,10 +232,6 @@ public:
         for (const auto& action : actionList)
             if (!action->isTerminated())
                 mActions.push_back(action);
-
-        addTerminateCallback([this](const TimersPtr&) {
-            terminateRemaining();
-        });
     }
 
     void
@@ -267,10 +267,14 @@ ActionPtr
 Action::makeAll(const TimersPtr& timers, const ActionList &actionList)
 {
     auto ptr = std::make_shared<Collection>(timers, actionList);
+    std::weak_ptr<Collection> weak_ptr(ptr);
+    ptr->addTerminateCallback([weak_ptr](const TimersPtr&) {
+        if (auto self = weak_ptr.lock())
+           self->terminateRemaining();
+    });
     if (ptr->size() == 0)
         return make(timers);
 
-    std::weak_ptr<Collection> weak_ptr(ptr);
     for (auto& action : ptr->actions()) {
         action->then([weak_ptr](const ActionPtr& p) {
             auto ptr = weak_ptr.lock();
@@ -289,10 +293,15 @@ ActionPtr
 Action::makeAny(const TimersPtr& timers, const ActionList &actionList)
 {
     auto ptr = std::make_shared<Collection>(timers, actionList);
+    std::weak_ptr<Collection> weak_ptr(ptr);
+    ptr->addTerminateCallback([weak_ptr](const TimersPtr&) {
+        if (auto self = weak_ptr.lock())
+            self->terminateRemaining();
+    });
+
     if (ptr->size() == 0)
         return make(timers);
 
-    std::weak_ptr<Collection> weak_ptr(ptr);
     for (auto& action : ptr->actions()) {
         action->then([weak_ptr](const ActionPtr& a) {
             auto ptr = weak_ptr.lock();
@@ -305,6 +314,44 @@ Action::makeAny(const TimersPtr& timers, const ActionList &actionList)
     }
 
     return std::static_pointer_cast<Action>(ptr);
+}
+
+class WrappedAction : public Action {
+public:
+    ActionPtr action;
+    CallbackFunc callback;
+
+    WrappedAction(const TimersPtr& timers, const ActionPtr& act, CallbackFunc&& cb)
+        : Action(timers), action(act), callback(std::move(cb))
+    {}
+};
+
+ActionPtr
+Action::wrapWithCallback(const TimersPtr& timers, const ActionPtr& action, CallbackFunc&& callback)
+{
+    if (!action->isPending()) {
+        callback(action->isResolved(), action);
+        return action;
+    }
+
+    auto ptr = std::make_shared<WrappedAction>(timers, action, std::move(callback));
+    std::weak_ptr<WrappedAction> weak_ptr(ptr);
+    ptr->addTerminateCallback([weak_ptr](const TimersPtr&) {
+        if (auto self = weak_ptr.lock()) {
+            self->callback(false, self->action);
+            self->action->terminate();
+        }
+    });
+
+    action->then([weak_ptr](const ActionPtr& actionPtr) {
+       auto self = weak_ptr.lock();
+       if (self) {
+           self->callback(true, actionPtr);
+           self->resolve();
+       }
+    });
+
+    return ptr;
 }
 
 streamer&

@@ -22,5 +22,6 @@ target_sources_local(apl
     metrics.cpp
     package.cpp
     rootconfig.cpp
+    rootproperties.cpp
     viewport.cpp
 )

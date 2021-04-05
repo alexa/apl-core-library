@@ -40,7 +40,8 @@ static const Bimap<SwipeAwayActionType, std::string> sSwipeAwayActionTypeBimap =
 };
 
 std::shared_ptr<SwipeAwayGesture>
-SwipeAwayGesture::create(const ActionablePtr& actionable, const Context& context, const Object& object) {
+SwipeAwayGesture::create(const ActionablePtr& actionable, const Context& context, const Object& object)
+{
     // Only TouchWrapper supported ATM
     if (actionable->getType() != kComponentTypeTouchWrapper) {
         return nullptr;
@@ -70,7 +71,7 @@ SwipeAwayGesture::create(const ActionablePtr& actionable, const Context& context
 SwipeAwayGesture::SwipeAwayGesture(const ActionablePtr& actionable, SwipeAwayActionType action,
                                    SwipeDirection direction, Object&& onSwipeMove, Object&& onSwipeDone,
                                    Object&& items) :
-        Gesture(actionable),
+        FlingGesture(actionable),
         mAction(action),
         mDirection(direction),
         mOnSwipeMove(std::move(onSwipeMove)),
@@ -79,11 +80,11 @@ SwipeAwayGesture::SwipeAwayGesture(const ActionablePtr& actionable, SwipeAwayAct
         mLocalDistance(0),
         mTraveledDistance(0),
         mAnimationEasing(actionable->getRootConfig().getSwipeAwayAnimationEasing()),
-        mInitialMove(0),
-        mVelocityTracker(new VelocityTracker(actionable->getRootConfig())) {}
+        mInitialMove(0) {}
 
 void
-SwipeAwayGesture::reset() {
+SwipeAwayGesture::reset()
+{
     if (mAnimateAction) {
         mAnimateAction->terminate();
     }
@@ -96,9 +97,8 @@ SwipeAwayGesture::reset() {
         mSwipeComponent->release();
         mSwipeComponent = nullptr;
     }
-    mVelocityTracker->reset();
     mTraveledDistance = 0;
-    Gesture::reset();
+    FlingGesture::reset();
 }
 
 bool
@@ -114,13 +114,14 @@ SwipeAwayGesture::invokeAccessibilityAction(const std::string& name)
 
 
 float
-SwipeAwayGesture::getMove(SwipeDirection direction, Point localPos) {
-    if (mInitialPosition == localPos) {
+SwipeAwayGesture::getMove(SwipeDirection direction, Point localPos)
+{
+    if (mStartPosition == localPos) {
         // No move happened
         return 0;
     }
 
-    auto delta = mInitialPosition - localPos;
+    auto delta = mStartPosition - localPos;
     auto horizontal = delta.getX();
     auto vertical = delta.getY();
 
@@ -134,7 +135,8 @@ SwipeAwayGesture::getMove(SwipeDirection direction, Point localPos) {
 }
 
 int
-SwipeAwayGesture::getFulfillMoveDirection() {
+SwipeAwayGesture::getFulfillMoveDirection()
+{
     if (mDirection == SwipeDirection::kSwipeDirectionLeft
      || mDirection == SwipeDirection::kSwipeDirectionUp)
         return -1;
@@ -142,10 +144,11 @@ SwipeAwayGesture::getFulfillMoveDirection() {
     return 1;
 }
 
-void
-SwipeAwayGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
-    mVelocityTracker->reset();
-    mVelocityTracker->addPointerEvent(event, timestamp);
+bool
+SwipeAwayGesture::onDown(const PointerEvent& event, apl_time_t timestamp)
+{
+    if (!FlingGesture::onDown(event, timestamp))
+        return false;
 
     auto touchableBounds = mActionable->getGlobalBounds();
 
@@ -157,13 +160,14 @@ SwipeAwayGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
         mLocalDistance = touchableBounds.getHeight();
     }
 
-    mInitialPosition = mActionable->toLocalPoint(event.pointerEventPosition);
-    mInitialMove = getMove(mDirection, mInitialPosition);
+    mInitialMove = getMove(mDirection, mStartPosition);
     mTraveledDistance = mInitialMove/mLocalDistance;
+    return true;
 }
 
 std::shared_ptr<InterpolatedTransformation>
-SwipeAwayGesture::getTransformation(bool above) {
+SwipeAwayGesture::getTransformation(bool above)
+{
     auto bounds = mActionable->getCalculated(kPropertyInnerBounds).getRect();
     auto from = std::make_shared<ObjectMap>();
     auto to = std::make_shared<ObjectMap>();
@@ -214,7 +218,8 @@ SwipeAwayGesture::getTransformation(bool above) {
 }
 
 void
-SwipeAwayGesture::processTransformChange(float alpha) {
+SwipeAwayGesture::processTransformChange(float alpha)
+{
     if (mAction == SwipeAwayActionType::kSwipeAwayActionReveal || mAction == SwipeAwayActionType::kSwipeAwayActionSlide) {
         mReplaceTransformation->interpolate(alpha);
         mReplacedComponent->markProperty(kPropertyTransformAssigned);
@@ -226,16 +231,19 @@ SwipeAwayGesture::processTransformChange(float alpha) {
 }
 
 void
-SwipeAwayGesture::sendSwipeMove(float travelPercentage) {
+SwipeAwayGesture::sendSwipeMove(float travelPercentage)
+{
     auto params = std::make_shared<ObjectMap>();
     params->emplace("position", travelPercentage);
     params->emplace("direction", sSwipeDirectionMap.at(mDirection));
     mActionable->executeEventHandler("SwipeMove", mOnSwipeMove, true, params);
 }
 
-void
-SwipeAwayGesture::onMove(const PointerEvent& event, apl_time_t timestamp) {
-    mVelocityTracker->addPointerEvent(event, timestamp);
+bool
+SwipeAwayGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
+{
+    if (!FlingGesture::onMove(event, timestamp))
+        return false;
 
     Point localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
     float move;
@@ -252,7 +260,7 @@ SwipeAwayGesture::onMove(const PointerEvent& event, apl_time_t timestamp) {
     auto distanceDiff = move - mTraveledDistance;
 
     if (distanceDiff == 0) {
-        return;
+        return false;
     }
 
     mTraveledDistance = move;
@@ -265,9 +273,9 @@ SwipeAwayGesture::onMove(const PointerEvent& event, apl_time_t timestamp) {
         }
     } else {
         if (move - mInitialMove > toLocalThreshold(mActionable->getRootConfig().getPointerSlopThreshold())) {
-            if (!isSlopeWithinTolerance(localPoint)) {
+            if (!isSlopeWithinTolerance(localPoint, mDirection == kSwipeDirectionLeft || mDirection == kSwipeDirectionRight)) {
                 reset();
-                return;
+                return false;
             }
 
             mTriggered = true;
@@ -294,14 +302,17 @@ SwipeAwayGesture::onMove(const PointerEvent& event, apl_time_t timestamp) {
             mActionable->executePointerEventHandler(kPropertyOnMove, localPoint);
             mActionable->executePointerEventHandler(kPropertyOnCancel, localPoint);
         } else {
-            return;
+            return false;
         }
     }
     sendSwipeMove(travelPercentage);
+
+    return true;
 }
 
 void
-SwipeAwayGesture::animateRemainder(bool fulfilled, float velocity) {
+SwipeAwayGesture::animateRemainder(bool fulfilled, float velocity)
+{
     auto& rootConfig = mActionable->getRootConfig();
     auto timeManager = rootConfig.getTimeManager();
     float remainingDistance = fulfilled ? mLocalDistance - mTraveledDistance : -mTraveledDistance;
@@ -388,13 +399,10 @@ SwipeAwayGesture::swipedFastEnough(float velocity)
     return (getFulfillMoveDirection() * velocity > 0) && (std::abs(velocity) >= velocityThreshold);
 }
 
-void
+bool
 SwipeAwayGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
-    mVelocityTracker->addPointerEvent(event, timestamp);
-    if (!isTriggered()) {
-        reset();
-        return;
-    }
+    if (!FlingGesture::onUp(event, timestamp))
+        return false;
 
     auto velocity = getCurrentVelocity();
     if (std::isnan(velocity)) {
@@ -417,6 +425,8 @@ SwipeAwayGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
 
         animateRemainder(finishUp, velocity);
     }
+
+    return true;
 }
 
 float
@@ -426,22 +436,6 @@ SwipeAwayGesture::toLocalThreshold(float threshold)
         return std::abs(threshold * mActionable->getGlobalToLocalTransform().getXScaling());
     } else {
         return std::abs(threshold * mActionable->getGlobalToLocalTransform().getYScaling());
-    }
-}
-
-bool
-SwipeAwayGesture::isSlopeWithinTolerance(Point localPosition)
-{
-    if (!localPosition.isFinite() || !mInitialPosition.isFinite()) {
-        return false;
-    }
-
-    auto pointerDelta = localPosition - mInitialPosition;
-    auto maxSlope = mActionable->getRootConfig().getSwipeAngleSlope();
-    if (mDirection == kSwipeDirectionLeft || mDirection == kSwipeDirectionRight) {
-        return std::abs(pointerDelta.getX()) * maxSlope >= std::abs(pointerDelta.getY());
-    } else {
-        return std::abs(pointerDelta.getY()) * maxSlope >= std::abs(pointerDelta.getX());
     }
 }
 

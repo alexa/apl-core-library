@@ -15,4 +15,5 @@ target_sources_local(apl
     PRIVATE
     extensionclient.cpp
     extensionmanager.cpp
+    extensionmediator.cpp
 )

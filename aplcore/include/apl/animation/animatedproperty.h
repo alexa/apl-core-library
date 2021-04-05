@@ -19,13 +19,14 @@
 #include "apl/common.h"
 #include "apl/component/componentproperties.h"
 #include "apl/primitives/transform.h"
+#include "apl/utils/noncopyable.h"
 
 namespace apl {
 
 class CoreComponent;
 class Context;
 
-class AnimatedProperty {
+class AnimatedProperty : public NonCopyable {
 public:
     virtual ~AnimatedProperty() = default;
     static std::unique_ptr<AnimatedProperty> create(const ContextPtr& context,

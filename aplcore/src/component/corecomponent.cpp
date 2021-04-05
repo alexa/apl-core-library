@@ -18,26 +18,27 @@
 #include <cmath>
 
 #include "apl/common.h"
-#include "apl/component/corecomponent.h"
-#include "apl/component/componentpropdef.h"
 #include "apl/component/componenteventsourcewrapper.h"
 #include "apl/component/componenteventtargetwrapper.h"
+#include "apl/component/componentpropdef.h"
+#include "apl/component/corecomponent.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
-#include "apl/engine/contextwrapper.h"
-#include "apl/engine/focusmanager.h"
-#include "apl/engine/hovermanager.h"
-#include "apl/engine/keyboardmanager.h"
 #include "apl/engine/builder.h"
 #include "apl/engine/componentdependant.h"
+#include "apl/engine/contextwrapper.h"
+#include "apl/engine/hovermanager.h"
+#include "apl/engine/keyboardmanager.h"
+#include "apl/engine/layoutmanager.h"
+#include "apl/focus/focusmanager.h"
 #include "apl/livedata/layoutrebuilder.h"
 #include "apl/primitives/accessibilityaction.h"
 #include "apl/primitives/keyboard.h"
 #include "apl/time/sequencer.h"
 #include "apl/time/timemanager.h"
 #include "apl/touch/pointerevent.h"
-#include "apl/utils/session.h"
 #include "apl/utils/searchvisitor.h"
+#include "apl/utils/session.h"
 
 namespace apl {
 
@@ -51,6 +52,7 @@ const std::string VISUAL_CONTEXT_TYPE_EMPTY = "empty";
 
 const static bool DEBUG_BOUNDS = false;
 const static bool DEBUG_ENSURE = false;
+const static bool DEBUG_PADDING = false;
 
 CoreComponent::CoreComponent(const ContextPtr& context,
                              Properties&& properties,
@@ -62,8 +64,9 @@ CoreComponent::CoreComponent(const ContextPtr& context,
       mParent(nullptr),
       mYGNodeRef(YGNodeNewWithConfig(context->ygconfig())),
       mPath(path),
-      mGlobalToLocalIsStale(true)
-{
+      mDisplayedChildrenStale(true),
+      mGlobalToLocalIsStale(true) {
+    YGNodeSetContext(mYGNodeRef, this);
 }
 
 void
@@ -148,6 +151,7 @@ void
 CoreComponent::release()
 {
     // TODO: Must remove this component from any dirty lists
+    mContext->layoutManager().remove(shared_from_corecomponent());
     RecalculateTarget::removeUpstreamDependencies();
     mParent = nullptr;
     for (auto& child : mChildren)
@@ -249,7 +253,7 @@ CoreComponent::update(UpdateType type, float value)
             setState(kStatePressed, value != 0);
             break;
         default:
-            LOG(LogLevel::WARN) << "Unexpected update command type " << type << " value=" << value;
+            LOG(LogLevel::kWarn) << "Unexpected update command type " << type << " value=" << value;
             break;
     }
 }
@@ -286,7 +290,7 @@ CoreComponent::update(UpdateType type, const std::string& value) {
 bool
 CoreComponent::appendChild(const ComponentPtr& child, bool useDirtyFlag)
 {
-    return insertChild(child, mChildren.size(), useDirtyFlag);
+    return insertChild(std::dynamic_pointer_cast<CoreComponent>(child), mChildren.size(), useDirtyFlag);
 }
 
 void
@@ -305,20 +309,98 @@ CoreComponent::notifyChildChanged(size_t index, const std::string& uid, const st
 void
 CoreComponent::attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index)
 {
-    // For most layouts we just attach the Yoga node.
-    // For sequences we don't attach until ensureLayout is called if outside of existing ensured range.
-    if (shouldAttachChildYogaNode(index)
-        || (mEnsuredChildren.contains(index) && index > mEnsuredChildren.lowerBound())) {
-        LOG_IF(DEBUG_ENSURE) << "attaching yoga node index=" << index << " this=" << *this;
-        auto offset = mEnsuredChildren.insert(index);
-        YGNodeInsertChild(mYGNodeRef, coreChild->getNode(), offset);
-    } else if (!mEnsuredChildren.empty() && index <= mEnsuredChildren.lowerBound()) {
-        mEnsuredChildren.shift(1);
-    }
+    // The default behavior is to attach the child. Override this for
+    // Pager and MultiChildScrollableComponent
+    YGNodeInsertChild(mYGNodeRef, coreChild->getNode(), index);
+}
+
+void
+CoreComponent::attachYogaNode(const CoreComponentPtr& child)
+{
+    auto it = std::find(mChildren.begin(), mChildren.end(), child);
+    assert(it != mChildren.end());
+
+    YGNodeInsertChild(mYGNodeRef, child->getNode(), std::distance(mChildren.begin(), it));
+    child->updateNodeProperties();
+}
+
+void
+CoreComponent::markDisplayedChildrenStale() {
+    mDisplayedChildrenStale = true;
+    if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange))
+        setDirty(kPropertyNotifyChildrenChanged);
+};
+
+size_t
+CoreComponent::getDisplayedChildCount() const {
+    auto& mutableThis = const_cast<CoreComponent&>(*this);
+    mutableThis.ensureDisplayedChildren();
+    return mDisplayedChildren.size();
+}
+
+ComponentPtr
+CoreComponent::getDisplayedChildAt(size_t drawIndex) const {
+    auto& mutableThis = const_cast<CoreComponent&>(*this);
+    mutableThis.ensureDisplayedChildren();
+    return mDisplayedChildren.at(drawIndex);
 }
 
 bool
-CoreComponent::insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag)
+CoreComponent::isDisplayedChild(const CoreComponent& child) const
+{
+    auto& mutableThis = const_cast<CoreComponent&>(*this);
+    mutableThis.ensureDisplayedChildren();
+    return std::count(mDisplayedChildren.begin(), mDisplayedChildren.end(), child.shared_from_corecomponent());
+}
+
+void
+CoreComponent::ensureDisplayedChildren() {
+
+    if (!mDisplayedChildrenStale)
+        return;
+
+    // clear previous calculations
+    mDisplayedChildren.clear();
+
+    // Identify this components local viewport using bounds and scroll position
+    // top left of viewport is the most significant offset found when comparing
+    // bounds offset and scroll offset
+    Rect bounds = getCalculated(kPropertyBounds).getRect();
+
+    // Get viewport offset by scroll Position
+    Rect viewportRect = Rect(0,0,bounds.getWidth(),bounds.getHeight());
+    viewportRect.offset(scrollPosition());
+
+    // Process the children, identify those displayed within local viewport
+    for (auto child : mChildren) {
+        // only visible children
+        if (child->isDisplayable()) {
+            // compare child rect, transformed as needed, against the viewport
+            auto childBounds = child->getCalculated(kPropertyBounds).getRect();
+            auto transform = child->getCalculated(kPropertyTransform).getTransform2D();
+            // The axis aligned bounding box is an approximation for checking bounds intersection.
+            // The AABB test eliminates children that are guaranteed NOT to intersect. It does not
+            // prove the parent and child do intersect.
+            // TODO a complete solution applies the "separating axis theorem". The parent AABB is
+            // TODO transformed into the child space and tested for intersection. If a separating axis cannot be
+            // TODO identified using both tests, the parent and child intersect.
+
+            // Note that the transform is applied assuming the top-left corner of the child is at (0,0)
+            Point childBoundsTopLeft = childBounds.getTopLeft();
+            childBounds = transform.calculateAxisAlignedBoundingBox(Rect{0, 0, childBounds.getWidth(), childBounds.getHeight()});
+            childBounds.offset(childBoundsTopLeft);
+
+            if (!viewportRect.intersect(childBounds).isEmpty()) {
+                mDisplayedChildren.emplace_back(child);
+            }
+        }
+    }
+
+    mDisplayedChildrenStale = false;
+}
+
+bool
+CoreComponent::insertChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag)
 {
     if (!child || child->getParent())
         return false;
@@ -340,6 +422,7 @@ CoreComponent::insertChild(const ComponentPtr& child, size_t index, bool useDirt
 
     coreChild->attachedToParent(shared_from_corecomponent());
     coreChild->markGlobalToLocalTransformStale();
+    markDisplayedChildrenStale();
     setVisualContextDirty();
 
     return true;
@@ -382,12 +465,7 @@ CoreComponent::removeChild(const CoreComponentPtr& child, size_t index, bool use
     if (useDirtyFlag)
         notifyChildChanged(index, child->getUniqueId(), "remove");
 
-    if (mEnsuredChildren.contains(index)) {
-        mEnsuredChildren.remove(index);
-    } else if (!mEnsuredChildren.empty() && (int)index < mEnsuredChildren.lowerBound()) {
-        mEnsuredChildren.shift(-1);
-    }
-
+    markDisplayedChildrenStale();
     setVisualContextDirty();
 }
 
@@ -421,7 +499,14 @@ CoreComponent::markRemoved()
     auto self = shared_from_corecomponent();
 
     mContext->clearDirty(self);
-    mContext->focusManager().releaseFocus(self, true);
+    auto& fm = mContext->focusManager();
+    if (fm.getFocus() == self) {
+        auto next = fm.find(kFocusDirectionForward);
+        if (next)
+            fm.setFocus(next, true);
+        else // If nothing suitable is found - clear focus forcefully as we don't have another choice.
+            fm.clearFocus(true, kFocusDirectionNone, true);
+    }
 
     for (auto& child : mChildren)
         std::static_pointer_cast<CoreComponent>(child)->markRemoved();
@@ -445,26 +530,10 @@ CoreComponent::markAdded()
 void
 CoreComponent::ensureLayout(bool useDirtyFlag)
 {
-    // Walk up the component hierarchy and ensure each component is attached to its parent
-    auto component = shared_from_corecomponent();
-    bool needsLayoutCalculation = false;
-
-    while(component->getParent()) {
-        auto parent = std::static_pointer_cast<CoreComponent>(component->getParent());
-        if(!component->isAttached()) {
-            parent->ensureChildAttached(component);
-            needsLayoutCalculation = true;
-        }
-        component = parent;
-    }
-
-    // Run layout calculation if required on the top most component.
-    if(needsLayoutCalculation) {
-        auto width = YGNodeLayoutGetWidth(component->getNode());
-        auto height = YGNodeLayoutGetHeight(component->getNode());
-        LOG_IF(DEBUG_ENSURE) << "Re-running parent layout with width=" << width << " height=" << height;
-        component->layout(width, height, useDirtyFlag);
-    }
+    LOG_IF(DEBUG_ENSURE) << toDebugSimpleString() << " useDirtyFlag=" << useDirtyFlag;
+    auto& lm = mContext->layoutManager();
+    if (lm.ensure(shared_from_corecomponent()))
+        lm.layout(useDirtyFlag);
 }
 
 void
@@ -482,65 +551,33 @@ CoreComponent::reportLoaded(size_t index) {
     }
 }
 
-void
-CoreComponent::ensureChildAttached(const CoreComponentPtr& child, int targetIdx)
-{
-    if (mEnsuredChildren.empty() || mEnsuredChildren.above(targetIdx)) {
-        // Ensure from upperBound to target
-        for (int index = mEnsuredChildren.empty() ? 0 : mEnsuredChildren.upperBound() + 1; index <= targetIdx ; index++) {
-            const auto& c = mChildren.at(index);
-            if (attachChild(c, mEnsuredChildren.size())) {
-                mEnsuredChildren.expandTo(index);
-            }
-        }
-    } else if (mEnsuredChildren.below(targetIdx)) {
-        // Ensure from lowerBound down to target
-        for (int index = mEnsuredChildren.lowerBound() - 1; index >= targetIdx ; index--) {
-            const auto& c = mChildren.at(index);
-            if (attachChild(c, 0)) {
-                mEnsuredChildren.expandTo(index);
-            }
-        }
-    } else {
-        // Just attach single one inside of ensured range if needed.
-        if (!attachChild(child, targetIdx - mEnsuredChildren.lowerBound())) {
-            LOG(LogLevel::WARN) << "Can't attach child: " << child->getUniqueId() << ", it's already attached.";
-        }
-    }
-}
-
-void
-CoreComponent::ensureChildAttached(const CoreComponentPtr& child)
-{
-    // This routine guarantees that all the children up to and including this one are attached.
-    auto it = std::find(mChildren.begin(), mChildren.end(), child);
-    int targetIdx = std::distance(mChildren.begin(), it);
-    ensureChildAttached(child, targetIdx);
-}
-
-bool
-CoreComponent::attachChild(const CoreComponentPtr& child, size_t index)
-{
-    if (child->isAttached()) {
-        return false;
-    }
-    LOG_IF(DEBUG_ENSURE) << "attaching yoga node index=" << index << " this=" << *this;
-    YGNodeInsertChild(mYGNodeRef, child->getNode(), index);
-    child->updateNodeProperties();
-    return true;
-}
-
 bool
 CoreComponent::isAttached() const
 {
     return mYGNodeRef->getOwner() != nullptr;
 }
 
-/**
- * Certain properties can only be set when we are attached to the node layout hierarchy.
- * These properties should already have been calculated; we call the layout method to
- * ensure that they have been set on the node.
- */
+bool
+CoreComponent::isLaidOut() const
+{
+    auto component = shared_from_corecomponent();
+    while (true) {
+        const auto& node = component->getNode();
+        if (YGNodeIsDirty(node))
+            return false;
+
+        auto parent = std::static_pointer_cast<CoreComponent>(component->getParent());
+        if (!parent)
+            return true;
+
+        if (node->getOwner() == nullptr)
+            return false;
+
+        component = parent;
+    }
+}
+
+
 void
 CoreComponent::updateNodeProperties()
 {
@@ -595,8 +632,8 @@ CoreComponent::assignProperties(const ComponentPropDefSet& propDefSet)
             } else {
                 // Make sure this wasn't a required property
                 if ((pd.flags & kPropRequired) != 0) {
-                    mIsValid = false;
-                    CONSOLE_CTP(mContext) << "Missing required property: " << "pd.name";
+                    mFlags |= kComponentFlagInvalid;
+                    CONSOLE_CTP(mContext) << "Missing required property: " << pd.names;
                 }
 
                 // Check for a styled property
@@ -615,6 +652,9 @@ CoreComponent::assignProperties(const ComponentPropDefSet& propDefSet)
             pd.layoutFunc(mYGNodeRef, value, *mContext);
     }
 
+    // Yoga padding values are calculated from a combination of two properties (e.g. "padding" and "paddingLeft").
+    // Since they can't be set directly during normal property assignment with a layout function, we update them here.
+    fixPadding();
 }
 
 void
@@ -623,8 +663,17 @@ CoreComponent::handlePropertyChange(const ComponentPropDef& def, const Object& v
     if ((def.flags & kPropMixedState) != 0 && mInheritParentState)
         return;
 
-    if (value != getCalculated(def.key)) {
+    auto previous = getCalculated(def.key);
+    if (value != previous) {
         mCalculated.set(def.key, value);
+
+        // display change, or opacity change to/from 0, makes parent display stale
+        if (mParent
+            && (def.key == kPropertyDisplay
+             ||(def.key == kPropertyOpacity && ((value.asNumber() == 0) != (previous.asNumber() == 0))))) {
+
+                mParent->markDisplayedChildrenStale();
+        }
 
         // Properties with the kPropVisualContext flag the visual context as dirty
         if ((def.flags & kPropVisualContext) != 0)
@@ -699,6 +748,18 @@ CoreComponent::setPropertyInternal( const ComponentPropDefSet& pds, PropertyKey 
     if (it == pds.dynamic().end())
         return false;
 
+    // Some properties can only be set correctly if the component has been laid out
+    if ((it->second.flags & kPropSetAfterLayout) != 0 && !isLaidOut()) {
+        mContext->layoutManager().addPostProcess(shared_from_corecomponent(), key, value);
+        return true;
+    }
+
+    // Properties with setters are called directly
+    if (it->second.setterFunc) {
+        it->second.setterFunc(*this, value);
+        return true;
+    }
+
     // If this property was previously assigned we need to clear any dependants
     auto assigned = mAssigned.find(key);
     if (assigned != mAssigned.end()) // Erase all upstream dependants that drive this key
@@ -748,6 +809,35 @@ CoreComponent::setProperty( const std::string& key, const Object& value )
         return;
 
     CONSOLE_CTP(mContext) << "Unknown property name " << key;
+}
+
+Object
+CoreComponent::getProperty(const std::string& key)
+{
+    // Check for a standard component property
+    if (sComponentPropertyBimap.has(key)) {
+        auto propertyKey = static_cast<PropertyKey>(sComponentPropertyBimap.at(key));
+        const auto& pds = propDefSet();
+        auto it = pds.find(propertyKey);
+        if (it != pds.end()) {
+            if (it->second.getterFunc)
+                return it->second.getterFunc(*this);
+
+            auto v = mCalculated.get(propertyKey);
+            // If it is a map we need to convert it back into a string
+            if (it->second.map)
+                return it->second.map->get(v.asInt(), "<ERROR>");
+            return v;
+        }
+    }
+
+    // Check for a data binding
+    auto ref = mContext->find(key);
+    if (!ref.empty())
+        return ref.object().value();
+
+    CONSOLE_CTP(mContext) << "Unknown property name " << key;
+    return Object::NULL_OBJECT();
 }
 
 bool
@@ -818,16 +908,8 @@ CoreComponent::updateProperty(PropertyKey key, const Object& value)
     }
 
     // We should not reach this point.  Only an assigned equation calls updateProperty
-    CONSOLE_CTP(mContext) << "Property " << sComponentPropertyBimap.at(key) << " is not dynamic and can't be updated." ;
-}
-
-void
-CoreComponent::setZOrder(int value)
-{
-    if (value != getCalculated(kPropertyZOrder).getInteger()) {
-        mCalculated.set(kPropertyZOrder, value);
-        setDirty(kPropertyZOrder);
-    }
+    CONSOLE_CTP(mContext) << "Property " << sComponentPropertyBimap.at(key)
+                          << " is not dynamic and can't be updated.";
 }
 
 /**
@@ -998,15 +1080,6 @@ CoreComponent::getLayoutPropDefSet() const
     return nullptr;
 }
 
-void
-CoreComponent::layout(int width, int height, bool useDirtyFlag)
-{
-    LOG_IF(DEBUG_ENSURE) << " width=" << width << " height=" << height
-        << " useDirty=" << useDirtyFlag << " this=" << *this;
-    YGNodeCalculateLayout(mYGNodeRef, width, height, YGDirection::YGDirectionLTR);
-    processLayoutChanges(useDirtyFlag);
-}
-
 bool
 CoreComponent::needsLayout() const
 {
@@ -1032,6 +1105,9 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag)
     if (changed) {
         mCalculated.set(kPropertyBounds, std::move(rect));
         markGlobalToLocalTransformStale();
+        markDisplayedChildrenStale();
+        if (mParent)
+            mParent->markDisplayedChildrenStale();
         setVisualContextDirty();
         if (useDirtyFlag)
             setDirty(kPropertyBounds);
@@ -1056,11 +1132,13 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag)
 
     if (changed) {
         mCalculated.set(kPropertyInnerBounds, std::move(inner));
+        markDisplayedChildrenStale();
         if (useDirtyFlag)
             setDirty(kPropertyInnerBounds);
     }
 
     // Inform all children that they should re-check their bounds. No need to do that for not attached ones.
+    // Note that children of a Pager are not attached, and hence they will not be processed.
     for (auto& child : mChildren)
         if (child->isAttached())
             child->processLayoutChanges(useDirtyFlag);
@@ -1070,6 +1148,22 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag)
         if (useDirtyFlag)
             setDirty(kPropertyLaidOut);
     }
+
+}
+
+
+void
+CoreComponent::postProcessLayoutChanges()
+{
+    // Mark this component as having been laid out at least once
+    mFlags |= kComponentFlagAllowEventHandlers;
+
+    for (auto& child : mChildren)
+        if (child->isAttached())
+            child->postProcessLayoutChanges();
+
+    // update the displayed children
+    ensureDisplayedChildren();
 }
 
 
@@ -1086,7 +1180,7 @@ CoreComponent::createEventProperties(const std::string& handler, const Object& v
 ContextPtr
 CoreComponent::createEventContext(const std::string& handler, const ObjectMapPtr& optional, const Object& value) const
 {
-    ContextPtr ctx = Context::create(mContext);
+    ContextPtr ctx = Context::createFromParent(mContext);
     auto compValue = getValue();
     if (!value.isNull()) {
         compValue = value;
@@ -1102,7 +1196,7 @@ CoreComponent::createEventContext(const std::string& handler, const ObjectMapPtr
 ContextPtr
 CoreComponent::createKeyboardEventContext(const std::string& handler, const ObjectMapPtr& keyboard) const
 {
-    ContextPtr ctx = Context::create(mContext);
+    ContextPtr ctx = Context::createFromParent(mContext);
     auto event = createEventProperties(handler, getValue());
     event->emplace("keyboard", keyboard);
     ctx->putConstant("event", event);
@@ -1193,6 +1287,10 @@ CoreComponent::fixTransform(bool useDirtyFlag)
     if (updated != value) {
         mCalculated.set(kPropertyTransform, Object(std::move(updated)));
         markGlobalToLocalTransformStale();
+        // transform change make parent display stale
+        if (mParent) {
+            mParent->markDisplayedChildrenStale();
+        }
         setVisualContextDirty();
         if (useDirtyFlag)
             setDirty(kPropertyTransform);
@@ -1201,11 +1299,40 @@ CoreComponent::fixTransform(bool useDirtyFlag)
     }
 }
 
+void
+CoreComponent::fixPadding()
+{
+    LOG_IF(DEBUG_PADDING) << mCalculated.get(kPropertyPadding);
+
+    static std::vector<std::pair<PropertyKey, YGEdge>> EDGES = {
+        {kPropertyPaddingLeft,   YGEdgeLeft},
+        {kPropertyPaddingTop,    YGEdgeTop},
+        {kPropertyPaddingRight,  YGEdgeRight},
+        {kPropertyPaddingBottom, YGEdgeBottom},
+    };
+
+    auto commonPadding = mCalculated.get(kPropertyPadding);
+
+    for (size_t i = 0 ; i < EDGES.size() ; i++) {
+        const auto& edge = EDGES.at(i);
+
+        // Padding value assigned by the "padding" property
+        auto assigned = commonPadding.size() >= i ? commonPadding.at(i) : Dimension(0);
+
+        // That value may be overridden by the specific paddingLeft/Top/Right/Bottom values
+        auto it = mCalculated.find(edge.first);
+        if (it != mCalculated.end() && !it->second.isNull())
+            assigned = it->second;
+
+        yn::setPadding(mYGNodeRef, edge.second, assigned, *mContext);
+    }
+}
+
 void CoreComponent::setHeight(const Dimension& height) {
     if (mYGNodeRef)
         yn::setHeight(mYGNodeRef, height, *mContext);
     else
-        LOG(LogLevel::ERROR) << "setHeight:  Missing yoga node for component id '" << getId() << "'";
+        LOG(LogLevel::kError) << "setHeight:  Missing yoga node for component id '" << getId() << "'";
     mCalculated.set(kPropertyHeight, height);
 }
 
@@ -1213,7 +1340,7 @@ void CoreComponent::setWidth(const Dimension& width) {
     if (mYGNodeRef)
         yn::setWidth(mYGNodeRef, width, *mContext);
     else
-        LOG(LogLevel::ERROR) << "setWidth:  Missing yoga node for component id '" << getId() << "'";
+        LOG(LogLevel::kError) << "setWidth:  Missing yoga node for component id '" << getId() << "'";
     mCalculated.set(kPropertyWidth, width);
 }
 
@@ -1532,6 +1659,12 @@ CoreComponent::calculateRealOpacity() {
     return assignedOpacity * mParent->calculateRealOpacity();
 }
 
+bool
+CoreComponent::isDisplayable() const {
+    return (getCalculated(kPropertyDisplay).asInt() == kDisplayNormal)
+    && (getCalculated(kPropertyOpacity).asNumber() > 0);
+}
+
 void
 CoreComponent::executeOnCursorEnter() {
     auto eventContext = createDefaultEventContext("CursorEnter");
@@ -1546,6 +1679,17 @@ CoreComponent::executeOnCursorExit() {
     mContext->sequencer().executeCommands(command, eventContext, shared_from_corecomponent(), true);
 }
 
+bool
+CoreComponent::processKeyPress(KeyHandlerType type, const Keyboard& keyboard) {
+    auto consumed = executeKeyHandlers(type, keyboard);
+    // If no handler executed - go for Core specific (intrinsic) processing.
+    if (!consumed) {
+        consumed = executeIntrinsicKeyHandlers(type, keyboard);
+    }
+
+    return consumed;
+}
+
 /*****************************************************************/
 
 inline void
@@ -1553,6 +1697,13 @@ inlineFixTransform(Component& component)
 {
     auto& core = dynamic_cast<CoreComponent&>(component);
     core.fixTransform(true);
+}
+
+inline void
+inlineFixPadding(Component& component)
+{
+    auto& core = dynamic_cast<CoreComponent&>(component);
+    core.fixPadding();
 }
 
 inline Object
@@ -1669,30 +1820,56 @@ CoreComponent::propDefSet() const {
                                                                                            kPropVisualContext},
       {kPropertyFocusable,              false,                 nullptr,                    kPropOut},
       {kPropertyHandleTick,             Object::EMPTY_ARRAY(), asArray,                    kPropIn},
-      {kPropertyHeight,                 Dimension(),           asDimension,                kPropIn,        yn::setHeight, defaultHeight},
+      {kPropertyHeight,                 Dimension(),           asDimension,                kPropIn |
+                                                                                           kPropDynamic |
+                                                                                           kPropStyled,    yn::setHeight, defaultHeight},
       {kPropertyInnerBounds,            Object::EMPTY_RECT(),  nullptr,                    kPropOut | kPropVisualContext},
-      {kPropertyMaxHeight,              Object::NULL_OBJECT(), asNonAutoDimension,         kPropIn,        yn::setMaxHeight},
-      {kPropertyMaxWidth,               Object::NULL_OBJECT(), asNonAutoDimension,         kPropIn,        yn::setMaxWidth},
-      {kPropertyMinHeight,              Dimension(0),          asNonAutoDimension,         kPropIn,        yn::setMinHeight},
-      {kPropertyMinWidth,               Dimension(0),          asNonAutoDimension,         kPropIn,        yn::setMinWidth},
+      {kPropertyMaxHeight,              Object::NULL_OBJECT(), asNonAutoDimension,         kPropIn |
+                                                                                           kPropDynamic |
+                                                                                           kPropStyled,    yn::setMaxHeight},
+      {kPropertyMaxWidth,               Object::NULL_OBJECT(), asNonAutoDimension,         kPropIn |
+                                                                                           kPropDynamic |
+                                                                                           kPropStyled,    yn::setMaxWidth},
+      {kPropertyMinHeight,              Dimension(0),          asNonAutoDimension,         kPropIn |
+                                                                                           kPropDynamic |
+                                                                                           kPropStyled,    yn::setMinHeight},
+      {kPropertyMinWidth,               Dimension(0),          asNonAutoDimension,         kPropIn |
+                                                                                           kPropDynamic |
+                                                                                           kPropStyled,    yn::setMinWidth},
       {kPropertyOnMount,                Object::EMPTY_ARRAY(), asCommand,                  kPropIn},
       {kPropertyOpacity,                1.0,                   asOpacity,                  kPropInOut |
                                                                                            kPropStyled |
                                                                                            kPropDynamic |
                                                                                            kPropVisualContext},
-      {kPropertyPaddingBottom,          Dimension(0),          asAbsoluteDimension,        kPropIn,        yn::setPadding<YGEdgeBottom>},
-      {kPropertyPaddingLeft,            Dimension(0),          asAbsoluteDimension,        kPropIn,        yn::setPadding<YGEdgeLeft>},
-      {kPropertyPaddingRight,           Dimension(0),          asAbsoluteDimension,        kPropIn,        yn::setPadding<YGEdgeRight>},
-      {kPropertyPaddingTop,             Dimension(0),          asAbsoluteDimension,        kPropIn,        yn::setPadding<YGEdgeTop>},
+      {kPropertyPadding,                Object::EMPTY_ARRAY(), asPaddingArray,             kPropIn |
+                                                                                           kPropDynamic |
+                                                                                           kPropStyled,    inlineFixPadding},
+      {kPropertyPaddingBottom,          Object::NULL_OBJECT(), asAbsoluteDimension,        kPropIn |
+                                                                                           kPropDynamic |
+                                                                                           kPropStyled,    inlineFixPadding},
+      {kPropertyPaddingLeft,            Object::NULL_OBJECT(), asAbsoluteDimension,        kPropIn |
+                                                                                           kPropDynamic |
+                                                                                           kPropStyled,    inlineFixPadding},
+      {kPropertyPaddingRight,           Object::NULL_OBJECT(), asAbsoluteDimension,        kPropIn |
+                                                                                           kPropDynamic |
+                                                                                           kPropStyled,    inlineFixPadding},
+      {kPropertyPaddingTop,             Object::NULL_OBJECT(), asAbsoluteDimension,        kPropIn |
+                                                                                           kPropDynamic |
+                                                                                           kPropStyled,    inlineFixPadding},
+      {kPropertyPreserve,               Object::EMPTY_ARRAY(), asArray,                    kPropIn},
       {kPropertyRole,                   kRoleNone,             sRoleMap,                   kPropInOut |
                                                                                            kPropStyled},
       {kPropertyShadowColor,            Color(),               asColor,                    kPropInOut |
+                                                                                           kPropDynamic |
                                                                                            kPropStyled},
       {kPropertyShadowHorizontalOffset, Dimension(0),          asAbsoluteDimension,        kPropInOut |
+                                                                                           kPropDynamic |
                                                                                            kPropStyled},
       {kPropertyShadowRadius,           Dimension(0),          asAbsoluteDimension,        kPropInOut |
+                                                                                           kPropDynamic |
                                                                                            kPropStyled},
       {kPropertyShadowVerticalOffset,   Dimension(0),          asAbsoluteDimension,        kPropInOut |
+                                                                                           kPropDynamic |
                                                                                            kPropStyled},
       {kPropertySpeech,                 "",                    asString,                   kPropIn | kPropVisualContext},
       {kPropertyTransformAssigned,      Object::NULL_OBJECT(), asTransformOrArray,         kPropIn |
@@ -1702,12 +1879,13 @@ CoreComponent::propDefSet() const {
       {kPropertyTransform,              Object::IDENTITY_2D(), nullptr,                    kPropOut |
                                                                                            kPropVisualContext},
       {kPropertyUser,                   Object::NULL_OBJECT(), nullptr,                    kPropOut},
-      {kPropertyWidth,                  Dimension(),           asDimension,                kPropIn,        yn::setWidth,  defaultWidth},
+      {kPropertyWidth,                  Dimension(),           asDimension,                kPropIn |
+                                                                                           kPropDynamic |
+                                                                                           kPropStyled,    yn::setWidth,  defaultWidth},
       {kPropertyOnCursorEnter,          Object::EMPTY_ARRAY(), asCommand,                  kPropIn},
       {kPropertyOnCursorExit,           Object::EMPTY_ARRAY(), asCommand,                  kPropIn},
       {kPropertyLaidOut,                false,                 asBoolean,                  kPropOut |
-                                                                                           kPropVisualContext},
-      {kPropertyZOrder,                 0,                     asInteger,                  kPropOut},
+                                                                                           kPropVisualContext}
     });
 
     return sCommonComponentProperties;
@@ -1754,26 +1932,21 @@ CoreComponent::inParentViewport() const {
     return !parentBounds.intersect(bounds).isEmpty();
 }
 
-CoreComponentPtr
-CoreComponent::processPointerEvent(const PointerEvent& event, apl_time_t timestamp, bool topComponent) {
-    // In particular circumstance Actionable component could become a target for a pointer to process
-    //  "intrinsic gestures." Intrinsic gestures in that particular case could be scrolling flick/usual scrolling/pager
-    //  "flick".
-
-    if (!mState.get(kStateDisabled) && processGestures(event, timestamp, topComponent))
-        return shared_from_corecomponent();
-
-    // Break out if feature not enabled
-    if (mContext->getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore)
-        && shouldPropagatePointerEvent(event, timestamp) && mParent)
-        return mParent->processPointerEvent(event, timestamp, false);
-
-    return nullptr;
-}
-
 bool
-CoreComponent::shouldPropagatePointerEvent(const PointerEvent& event, apl_time_t timestamp) {
-    return event.pointerEventType != kPointerTargetChanged;
+CoreComponent::processPointerEvent(const PointerEvent& event, apl_time_t timestamp)
+{
+    if (mState.get(kStateDisabled))
+        return false;
+
+    if (processGestures(event, timestamp))
+        return true;
+
+    auto pointInCurrent = toLocalPoint(event.pointerEventPosition);
+    auto it = sEventHandlers.find(event.pointerEventType);
+    if (it != sEventHandlers.end())
+        executePointerEventHandler(it->second, pointInCurrent);
+
+    return false;
 }
 
 const RootConfig&

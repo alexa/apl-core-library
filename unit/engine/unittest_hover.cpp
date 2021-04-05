@@ -362,9 +362,8 @@ TEST_F(HoverTest, Basic)
 
     // Simulate cursor entering in the frame
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, framePos));
-    auto dirty = root->getDirty();
-    ASSERT_EQ(1, dirty.size());
-    ASSERT_EQ(1, dirty.count(frame));
+    root->clearPending();
+
     // validate hover states
     ASSERT_FALSE(CheckState(top, kStateHover));
     ASSERT_TRUE(CheckState(frame, kStateHover));
@@ -376,15 +375,13 @@ TEST_F(HoverTest, Basic)
     ASSERT_FALSE(CheckDirty(text, kPropertyText));
     ASSERT_TRUE(IsEqual(TEXT_TEXT, text->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(IsEqual(Color(session, TEXT_COLOR), text->getCalculated(kPropertyColor)));
-
-    root->clearDirty();
+    // Only the frame was dirty
+    ASSERT_TRUE(CheckDirty(root, frame));
 
     // Simulate cursor entering in the text
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, textPos));
-    dirty = root->getDirty();
-    ASSERT_EQ(2, dirty.size());
-    ASSERT_EQ(1, dirty.count(frame));
-    ASSERT_EQ(1, dirty.count(text));
+    root->clearPending();
+
     // validate hover states
     ASSERT_FALSE(CheckState(top, kStateHover));
     ASSERT_FALSE(CheckState(frame, kStateHover));
@@ -393,18 +390,17 @@ TEST_F(HoverTest, Basic)
     ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
     ASSERT_TRUE(IsEqual(Color(session, FRAME_BORDERCOLOR), frame->getCalculated(kPropertyBorderColor)));
     // validate text string
-    ASSERT_TRUE(CheckDirty(text,  kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+        kPropertyInnerBounds, kPropertyBounds));
     ASSERT_TRUE(IsEqual(ON_CURSOR_ENTER_TEXT, text->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(IsEqual(Color(session, TEXT_COLOR_HOVER), text->getCalculated(kPropertyColor)));
-
-    root->clearDirty();
+    // Frame and text were dirty
+    ASSERT_TRUE(CheckDirty(root, text, frame));
 
     // Simulate cursor exiting in the text
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, framePos));
-    dirty = root->getDirty();
-    ASSERT_EQ(2, dirty.size());
-    ASSERT_EQ(1, dirty.count(frame));
-    ASSERT_EQ(1, dirty.count(text));
+    root->clearPending();
+
     // validate hover states
     ASSERT_FALSE(CheckState(top, kStateHover));
     ASSERT_TRUE(CheckState(frame, kStateHover));
@@ -414,19 +410,20 @@ TEST_F(HoverTest, Basic)
     ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
     ASSERT_TRUE(IsEqual(Color(session, FRAME_BORDERCOLOR_HOVER), frame->getCalculated(kPropertyBorderColor)));
     // validate text string
-    ASSERT_TRUE(CheckDirty(text,  kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+        kPropertyInnerBounds, kPropertyBounds));
     ASSERT_TRUE(IsEqual(ON_CURSOR_EXIT_TEXT, text->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(IsEqual(Color(session, TEXT_COLOR), text->getCalculated(kPropertyColor)));
+    // Frame and text were dirty
+    ASSERT_TRUE(CheckDirty(root, frame, text));
 
-    root->clearDirty();
     // Reset text string
     resetTextString();
 
     // Simulate cursor exiting all components
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, invalidPos));
-    dirty = root->getDirty();
-    ASSERT_EQ(1, dirty.size());
-    ASSERT_EQ(1, dirty.count(frame));
+    root->clearPending();
+
     // validate hover states
     ASSERT_FALSE(CheckState(top, kStateHover));
     ASSERT_FALSE(CheckState(frame, kStateHover));
@@ -435,11 +432,11 @@ TEST_F(HoverTest, Basic)
     ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
     ASSERT_TRUE(IsEqual(Color(session, FRAME_BORDERCOLOR), frame->getCalculated(kPropertyBorderColor)));
     // validate text string
-    ASSERT_FALSE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(IsEqual(TEXT_TEXT, text->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(IsEqual(Color(session, TEXT_COLOR), text->getCalculated(kPropertyColor)));
-
-    root->clearDirty();
+    // The frame and the text were dirty
+    ASSERT_TRUE(CheckDirty(root, frame, text));
 }
 
 // Test hover state with frame inherits parent state
@@ -451,62 +448,53 @@ TEST_F(HoverTest, FrameInherit)
 
     // Simulate cursor entering in the touch wrapper
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, framePos));
-    auto dirty = root->getDirty();
-    ASSERT_EQ(1, dirty.size());
-    ASSERT_EQ(1, dirty.count(frame));
-    // validate hover states
+    root->clearPending();
+
     validateHoverStates(true, true, false);
-    // validate frame changes
     validateFrame();
-    // validate text string
     validateTextString();
-    root->clearDirty();
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(root, frame));
 
     // Simulate cursor entering in the text
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, textPos));
-    dirty = root->getDirty();
-    ASSERT_EQ(2, dirty.size());
-    ASSERT_EQ(1, dirty.count(frame));
-    ASSERT_EQ(1, dirty.count(text));
-    // validate hover states
+    root->clearPending();
+
     validateHoverStates(false, false, true);
-    // validate frame changes
     validateFrame();
-    // validate text changes
     validateText();
     validateTextString(ON_CURSOR_ENTER_TEXT);
-    root->clearDirty();
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyBounds, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+        kPropertyInnerBounds, kPropertyColor));
+    ASSERT_TRUE(CheckDirty(root, frame, text));
 
     // Simulate cursor exiting in the text
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, framePos));
-    dirty = root->getDirty();
-    ASSERT_EQ(2, dirty.size());
-    ASSERT_EQ(1, dirty.count(frame));
-    ASSERT_EQ(1, dirty.count(text));
-    // validate hover states
+    root->clearPending();
+
     validateHoverStates(true, true, false);
-    // validate frame changes
     validateFrame();
-    // validate text changes
     validateText();
     validateTextString(ON_CURSOR_EXIT_TEXT);
-    root->clearDirty();
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyColor, kPropertyColorNonKaraoke, kPropertyColorKaraokeTarget,
+        kPropertyInnerBounds, kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(root, frame, text));
 
     // Reset text
     resetTextString();
 
     // Simulate cursor exiting in the touch wrapper
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, invalidPos));
-    dirty = root->getDirty();
-    ASSERT_EQ(1, dirty.size());
-    ASSERT_EQ(1, dirty.count(frame));
-    // validate hover states
+    root->clearPending();
+
     validateHoverStates(false, false, false);
-    // validate frame changes
     validateFrame();
-    // validate text string
     validateTextString();
-    root->clearDirty();
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root, frame, text));
 }
 
 
@@ -519,61 +507,52 @@ TEST_F(HoverTest, FrameDisabled)
 
     // Simulate cursor entering in the touch wrapper
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, framePos));
-    auto dirty = root->getDirty();
-    ASSERT_EQ(1, dirty.size());
-    // validate hover states
-    ASSERT_FALSE(CheckState(top, kStateHover));
+    root->clearPending();
+
+    ASSERT_TRUE(CheckState(top));
     ASSERT_TRUE(CheckState(frame, kStateHover));
-    ASSERT_FALSE(CheckState(text, kStateHover));
-    // validate text string
+    ASSERT_TRUE(CheckState(text));
     validateTextString();
-    root->clearDirty();
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(root, frame));
 
     // Disable the touch wrapper
     frame->setProperty(kPropertyDisabled, true);
-    dirty = root->getDirty();
-    ASSERT_EQ(1, dirty.size());
-    ASSERT_EQ(1, dirty.count(frame));
-    // validate hover states
-    ASSERT_FALSE(CheckState(top, kStateHover));
-    ASSERT_FALSE(CheckState(frame, kStateHover));
-    ASSERT_FALSE(CheckState(text, kStateHover));
-    // validate frame changes
+    root->clearPending();
+
+    ASSERT_TRUE(CheckState(top));
+    ASSERT_TRUE(CheckState(frame, kStateDisabled));
+    ASSERT_TRUE(CheckState(text));
     validateFrame(2);
     validateFrameDisabledState(true);
-    // validate text string
     validateTextString();
-    root->clearDirty();
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyDisabled));
+    ASSERT_TRUE(CheckDirty(root, frame));
 
     // Simulate cursor entering in the text
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, textPos));
-    dirty = root->getDirty();
-    ASSERT_EQ(1, dirty.size());
-    ASSERT_EQ(1, dirty.count(text));
-    // validate hover states
-    ASSERT_FALSE(CheckState(top, kStateHover));
-    ASSERT_FALSE(CheckState(frame, kStateHover));
+    root->clearPending();
+    ASSERT_TRUE(CheckState(top));
+    ASSERT_TRUE(CheckState(frame, kStateDisabled));
     ASSERT_TRUE(CheckState(text, kStateHover));
-    // validate text changes
     validateText();
     validateTextString(ON_CURSOR_ENTER_TEXT);
-    root->clearDirty();
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyBounds, kPropertyInnerBounds, kPropertyColorKaraokeTarget,
+        kPropertyColorNonKaraoke, kPropertyColor));
+    ASSERT_TRUE(CheckDirty(root, text));
 
     // Reset text
     resetTextString();
-
     // Enable the touch wrapper
     frame->setProperty(kPropertyDisabled, false);
-    dirty = root->getDirty();
-    ASSERT_EQ(1, dirty.size());
-    ASSERT_EQ(1, dirty.count(frame));
-    // validate hover states
+    root->clearPending();
+
     validateHoverStates(false, false, true);
-    // validate frame changes
     validateFrameDisabledState(false);
-    // validate text string
     validateTextString();
-    root->clearDirty();
+    ASSERT_TRUE(CheckDirty(frame, kPropertyDisabled));
+    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root, frame, text));
 }
 
 // Test hover state with frame disabled and text inherits parent state

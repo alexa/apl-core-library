@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -468,6 +468,7 @@ TEST_F(FlexboxTest, BorderTestWithPadding)
     auto frame = component->getChildAt(0);
     ASSERT_EQ(Rect(0, 0, 1024, 800), frame->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(Object(Dimension(10)), frame->getCalculated(kPropertyBorderWidth));
+    ASSERT_TRUE(IsEqual(Rect(30, 40, 944, 700), frame->getCalculated(kPropertyInnerBounds)));
     ASSERT_EQ(Rect(30, 40, 944, 700), frame->getCalculated(kPropertyInnerBounds).getRect());
 
     // The child of the frame respects the border
@@ -845,7 +846,7 @@ static const char *TEXT_MEASUREMENT = R"(
 
 TEST_F(FlexboxTest, TextCheck)
 {
-    config.measure(std::make_shared<TestTextMeasurement>());
+    config->measure(std::make_shared<TestTextMeasurement>());
     loadDocument(TEXT_MEASUREMENT);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(2, component->getChildCount());
@@ -909,7 +910,7 @@ static const char *FONT_STYLE_CHECK =
 
 TEST_F(FlexboxTest, FontStyleCheck)
 {
-    config.measure(std::make_shared<TestTextMeasurement>());
+    config->measure(std::make_shared<TestTextMeasurement>());
 
     loadDocument(FONT_STYLE_CHECK);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
@@ -957,7 +958,7 @@ const static char *BASELINE_TEST =
 
 TEST_F(FlexboxTest, BaselineTest)
 {
-    config.measure(std::make_shared<TestTextMeasurement>());
+    config->measure(std::make_shared<TestTextMeasurement>());
 
     loadDocument(BASELINE_TEST);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
@@ -1001,7 +1002,7 @@ const static char *BASELINE_EDITTEXT_TEST = R"(
 
 TEST_F(FlexboxTest, BaselineEditTextTest)
 {
-    config.measure(std::make_shared<TestTextMeasurement>());
+    config->measure(std::make_shared<TestTextMeasurement>());
 
     loadDocument(BASELINE_EDITTEXT_TEST);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
@@ -1164,7 +1165,7 @@ const static char *SPACED_SEQUENCE =
 
 TEST_F(FlexboxTest, SequenceWithSpacingTest)
 {
-    config.sequenceChildCache(2);
+    config->sequenceChildCache(2);
     loadDocument(SPACED_SEQUENCE);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(8, component->getChildCount());
@@ -1181,7 +1182,7 @@ TEST_F(FlexboxTest, SequenceWithSpacingTest)
 
 TEST_F(FlexboxTest, SequenceWithSpacingTestEnsureJump)
 {
-    config.sequenceChildCache(2);
+    config->sequenceChildCache(2);
     loadDocument(SPACED_SEQUENCE);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(8, component->getChildCount());

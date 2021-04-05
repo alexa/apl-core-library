@@ -37,43 +37,44 @@ namespace apl {
 
 // Use this to create a free-standing context.  Used for testing
 ContextPtr
-Context::create(const Metrics& metrics, const SessionPtr& session)
+Context::createTestContext(const Metrics& metrics, const SessionPtr& session)
 {
     auto config = RootConfig().session(session);
-    return Context::create(metrics, config);
+    auto contextPtr = std::make_shared<Context>(metrics, config, metrics.getTheme());
+    createStandardFunctions(*contextPtr);
+    return contextPtr;
 }
 
 // Use this to create a free-standing context.  Only used for testing
 ContextPtr
-Context::create(const Metrics& metrics, const RootConfig& config)
+Context::createTestContext(const Metrics& metrics, const RootConfig& config)
 {
-    return create(metrics, config, metrics.getTheme());
+    auto contextPtr = std::make_shared<Context>(metrics, config, metrics.getTheme());
+    createStandardFunctions(*contextPtr);
+    return contextPtr;
 }
 
-// Use this to create a free-standing context.  Only used extension definition.
+// Use this to create a free-standing context.  Used for type conversion and basic environment access.
 ContextPtr
-Context::create(const RootConfig& config)
+Context::createTypeEvaluationContext(const RootConfig& config)
 {
-    return create(Metrics(), config);
+    auto metrics = Metrics();
+    return std::make_shared<Context>(metrics, config, metrics.getTheme());
 }
 
 // Use this to create a free-standing context.  Only used for background extraction
 ContextPtr
-Context::create(const Metrics& metrics, const RootConfig& config, const std::string& theme)
+Context::createBackgroundEvaluationContext(const Metrics& metrics, const RootConfig& config, const std::string& theme)
 {
-    auto session = config.getSession() ? config.getSession() : makeDefaultSession();
-    auto rootContextData = std::make_shared<RootContextData>(metrics, config,
-                                                             theme, "1.2",
-                                                             std::make_shared<Settings>(), session,
-                                                             std::vector<std::pair<std::string, std::string>>());
-    return Context::create(metrics, rootContextData);
+    return std::make_shared<Context>(metrics, config, theme);
 }
 
-// Use this to create a free-standing context.  Generally only useful for testing.
 ContextPtr
-Context::create(const Metrics& metrics, const std::shared_ptr<RootContextData>& core)
+Context::createRootEvaluationContext(const Metrics& metrics, const std::shared_ptr<RootContextData>& core)
 {
-    return std::make_shared<Context>(metrics, core);
+    auto contextPtr =  std::make_shared<Context>(metrics, core);
+    createStandardFunctions(*contextPtr);
+    return contextPtr;
 }
 
 ContextPtr
@@ -83,8 +84,8 @@ Context::createClean(const ContextPtr& other)
     return std::make_shared<Context>(context);
 }
 
-Context::Context( const Metrics& metrics, const std::shared_ptr<RootContextData>& core )
-    : mCore(core)
+void
+Context::init(const Metrics& metrics, const std::shared_ptr<RootContextData>& core)
 {
     auto env = std::make_shared<ObjectMap>();
     auto& config = core->rootConfig();
@@ -98,6 +99,7 @@ Context::Context( const Metrics& metrics, const std::shared_ptr<RootContextData>
     env->emplace("fontScale", config.getFontScale());
     env->emplace("screenMode", config.getScreenMode());
     env->emplace("screenReader", config.getScreenReaderEnabled());
+    env->emplace("reason", core->getReinflationFlag() ? "reinflation" : "initial");
 
     auto timing = std::make_shared<ObjectMap>();
     timing->emplace("doublePressTimeout", config.getDoublePressTimeout());
@@ -112,11 +114,23 @@ Context::Context( const Metrics& metrics, const std::shared_ptr<RootContextData>
         env->emplace(m.first, m.second);
     putConstant("environment", env);
     putConstant("viewport", makeViewport(metrics, core->getTheme()));
-    createStandardFunctions(*this);
 }
 
-Context::~Context()
+Context::Context( const Metrics& metrics, const std::shared_ptr<RootContextData>& core )
+    : mCore(core)
 {
+    init(metrics, core);
+}
+
+Context::Context(const Metrics& metrics, const RootConfig& config, const std::string& theme)
+{
+    auto session = config.getSession() ? config.getSession() : makeDefaultSession();
+    mCore = std::make_shared<RootContextData>(metrics,
+                                              config,
+                                              RuntimeState(theme, "1.6", false),
+                                              std::make_shared<Settings>(), session,
+                                              std::vector<std::pair<std::string, std::string>>());
+    init(metrics, mCore);
 }
 
 double
@@ -209,6 +223,20 @@ Context::getTheme() const
     return mCore->getTheme();
 }
 
+std::shared_ptr<LocaleMethods>
+Context::getLocaleMethods() const
+{
+    assert(mCore);
+    return mCore->rootConfig().getLocaleMethods();
+}
+
+bool
+Context::getReinflationFlag() const
+{
+    assert(mCore);
+    return mCore->getReinflationFlag();
+}
+
 std::string
 Context::getRequestedAPLVersion() const
 {
@@ -292,6 +320,16 @@ Context::dataManager() const {
 ExtensionManager&
 Context::extensionManager() const {
     return mCore->extensionManager();
+}
+
+LayoutManager&
+Context::layoutManager() const {
+    return mCore->layoutManager();
+}
+
+MediaManager&
+Context::mediaManager() const {
+    return mCore->mediaManager();
 }
 
 const SessionPtr&

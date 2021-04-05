@@ -18,15 +18,19 @@
 #include "apl/component/edittextcomponent.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
+#include "apl/engine/event.h"
+#include "apl/focus/focusmanager.h"
 #include "apl/primitives/characterrange.h"
 #include "apl/time/sequencer.h"
+#include "apl/touch/pointerevent.h"
 
 namespace apl {
 
 CoreComponentPtr
 EditTextComponent::create(const ContextPtr& context,
                           Properties&& properties,
-                          const std::string& path) {
+                          const std::string& path)
+{
     auto ptr = std::make_shared<EditTextComponent>(context, std::move(properties), path);
     ptr->initialize();
     return ptr;
@@ -35,11 +39,11 @@ EditTextComponent::create(const ContextPtr& context,
 EditTextComponent::EditTextComponent(const ContextPtr& context,
                                      Properties&& properties,
                                      const std::string& path)
-        : ActionableComponent(context, std::move(properties), path) {
+        : ActionableComponent(context, std::move(properties), path)
+{
     YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc<EditTextComponent>);
     YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc<EditTextComponent>);
     YGNodeSetNodeType(mYGNodeRef, YGNodeTypeText);
-    YGNodeSetContext(mYGNodeRef, this);   // Stash a pointer to this component
 }
 
 /*
@@ -72,20 +76,21 @@ inline Object defaultHighlightColor(Component& component, const RootConfig& root
 }
 
 const ComponentPropDefSet&
-EditTextComponent::propDefSet() const {
+EditTextComponent::propDefSet() const
+{
     static ComponentPropDefSet sEditTextComponentProperties(ActionableComponent::propDefSet(), {
             {kPropertyBorderColor,      Color(),            asColor,             kPropInOut | kPropStyled | kPropDynamic},
-            {kPropertyBorderWidth,      Dimension(0),       asNonNegativeAbsoluteDimension, kPropInOut | kPropStyled, yn::setBorder<YGEdgeAll>},
+            {kPropertyBorderWidth,      Dimension(0),       asNonNegativeAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic, yn::setBorder<YGEdgeAll>},
             {kPropertyColor,            Color(),            asColor,             kPropInOut | kPropStyled | kPropDynamic, defaultFontColor},
-            {kPropertyFontFamily,       "",                 asString,            kPropInOut | kPropLayout | kPropStyled, defaultFontFamily},
-            {kPropertyFontSize,         Dimension(40),      asAbsoluteDimension, kPropInOut | kPropLayout | kPropStyled},
-            {kPropertyFontStyle,        kFontStyleNormal,   sFontStyleMap,       kPropInOut | kPropLayout | kPropStyled},
-            {kPropertyFontWeight,       400,                sFontWeightMap,      kPropInOut | kPropLayout | kPropStyled},
-            {kPropertyHighlightColor,   Color(),            asColor,             kPropInOut | kPropStyled, defaultHighlightColor},
-            {kPropertyHint,             "",                 asString,            kPropInOut | kPropStyled},
-            {kPropertyHintColor,        Color(),            asColor,             kPropInOut | kPropStyled, defaultFontColor},
-            {kPropertyHintStyle,        kFontStyleNormal,   sFontStyleMap,       kPropInOut | kPropLayout | kPropStyled},
-            {kPropertyHintWeight,       400,                sFontWeightMap,      kPropInOut | kPropLayout | kPropStyled},
+            {kPropertyFontFamily,       "",                 asString,            kPropInOut | kPropLayout | kPropStyled | kPropDynamic, defaultFontFamily},
+            {kPropertyFontSize,         Dimension(40),      asAbsoluteDimension, kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
+            {kPropertyFontStyle,        kFontStyleNormal,   sFontStyleMap,       kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
+            {kPropertyFontWeight,       400,                sFontWeightMap,      kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
+            {kPropertyHighlightColor,   Color(),            asColor,             kPropInOut | kPropStyled | kPropDynamic, defaultHighlightColor},
+            {kPropertyHint,             "",                 asString,            kPropInOut | kPropStyled | kPropDynamic},
+            {kPropertyHintColor,        Color(),            asColor,             kPropInOut | kPropStyled | kPropDynamic, defaultFontColor},
+            {kPropertyHintStyle,        kFontStyleNormal,   sFontStyleMap,       kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
+            {kPropertyHintWeight,       400,                sFontWeightMap,      kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
             {kPropertyKeyboardType,     kKeyboardTypeNormal, sKeyboardTypeMap,   kPropInOut | kPropStyled},
             {kPropertyMaxLength,        0,                  asInteger,           kPropInOut | kPropStyled},
             {kPropertyOnSubmit,         Object::EMPTY_ARRAY(), asCommand,        kPropIn},
@@ -108,7 +113,8 @@ EditTextComponent::propDefSet() const {
 }
 
 const EventPropertyMap&
-EditTextComponent::eventPropertyMap() const {
+EditTextComponent::eventPropertyMap() const
+{
     static EventPropertyMap sEditTextEventProperties = eventPropertyMerge(
         CoreComponent::eventPropertyMap(),
         {
@@ -126,7 +132,8 @@ EditTextComponent::getValue() const
 }
 
 void
-EditTextComponent::update(UpdateType type, float value) {
+EditTextComponent::update(UpdateType type, float value)
+{
     if (type == kUpdateSubmit) {
         ContextPtr eventContext = createEventContext("Submit");
         auto commands = getCalculated(kPropertyOnSubmit);
@@ -137,12 +144,17 @@ EditTextComponent::update(UpdateType type, float value) {
 }
 
 void
-EditTextComponent::update(UpdateType type, const std::string& value) {
+EditTextComponent::update(UpdateType type, const std::string& value)
+{
     if (type == kUpdateTextChange) {
         auto requestedValue = Object(value);
         auto currentValue = mCalculated.get(kPropertyText);
         if (requestedValue != currentValue) {
-            mCalculated.set(kPropertyText, value);
+            if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureMarkEditTextDirtyOnUpdate)) {
+                setProperty(kPropertyText, value);
+            } else {
+                mCalculated.set(kPropertyText, value);
+            }
             ContextPtr eventContext = createEventContext("TextChange");
             auto commands = getCalculated(kPropertyOnTextChange);
             mContext->sequencer().executeCommands(commands, eventContext, shared_from_corecomponent(), false);
@@ -152,21 +164,43 @@ EditTextComponent::update(UpdateType type, const std::string& value) {
 }
 
 bool
-EditTextComponent::isCharacterValid(const wchar_t wc) const {
+EditTextComponent::isCharacterValid(const wchar_t wc) const
+{
     if (mCharacterRangesPtr == nullptr) return true;
 
     std::vector<CharacterRangeData> validRanges = mCharacterRangesPtr->getRanges();
-    if (validRanges.size() == 0) return true;
+    if (validRanges.empty()) return true;
 
-    for (std::vector<CharacterRangeData>::iterator it = validRanges.begin(); it != validRanges.end(); ++it) {
-        if (it->isCharacterValid(wc)) return true;
+    for (auto& range : validRanges) {
+        if (range.isCharacterValid(wc)) return true;
     }
     return false;
 }
 
-void EditTextComponent::parseValidCharactersProperty() {
+void EditTextComponent::parseValidCharactersProperty()
+{
     mCharacterRangesPtr = std::make_shared<CharacterRanges>(CharacterRanges(getContext()->session(),
             mCalculated.get(kPropertyValidCharacters).asString()));
+}
+
+bool
+EditTextComponent::processPointerEvent(const PointerEvent& event, apl_time_t timestamp)
+{
+    if (ActionableComponent::processPointerEvent(event, timestamp))
+        return true;
+
+    if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureFocusEditTextOnTap) &&
+        event.pointerEventType == kPointerUp) {
+        getContext()->focusManager().setFocus(shared_from_corecomponent(), true);
+        return true;
     }
+    if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureRequestKeyboard) &&
+        event.pointerEventType == kPointerUp) {
+        getContext()->pushEvent(Event(kEventTypeOpenKeyboard, shared_from_this()));
+        return true;
+    }
+
+    return false;
+}
 
 }  // namespace apl

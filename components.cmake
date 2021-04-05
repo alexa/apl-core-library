@@ -68,6 +68,12 @@ endif()
 # Do not move. It requires WASM_FLAGS while defining targets and generates part of environment required by next target.
 include(thirdparty/thirdparty.cmake)
 
+# Build with dependency on the Alexa Extensions library.
+if (BUILD_ALEXAEXTENSIONS)
+    add_subdirectory(extensions/alexaext)
+    target_compile_definitions(alexaext PUBLIC ALEXAEXTENSIONS)
+endif(BUILD_ALEXAEXTENSIONS)
+
 # We treat enumgen as an external project because it needs to be built using the host toolchain
 include(tools.cmake)
 

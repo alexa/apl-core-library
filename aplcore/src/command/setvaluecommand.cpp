@@ -42,7 +42,7 @@ SetValueCommand::execute(const TimersPtr& timers, bool fastMode) {
 
     if (sComponentPropertyBimap.has(property)) {
         auto propKey = static_cast<PropertyKey>(sComponentPropertyBimap.at(property));
-        mContext->sequencer().releaseResource({kCommandResourceProperty, mTarget, propKey});
+        mContext->sequencer().releaseResource({kExecutionResourceProperty, mTarget, propKey});
     }
 
     mTarget->setProperty(property, value);

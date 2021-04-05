@@ -24,14 +24,16 @@
 #include <yoga/Yoga.h>
 
 #include "apl/common.h"
-#include "apl/primitives/object.h"
+#include "apl/engine/contextobject.h"
 #include "apl/engine/jsonresource.h"
 #include "apl/engine/recalculatesource.h"
 #include "apl/engine/recalculatetarget.h"
 #include "apl/engine/styleinstance.h"
-#include "apl/utils/path.h"
+#include "apl/primitives/object.h"
 #include "apl/utils/counter.h"
-#include "apl/engine/contextobject.h"
+#include "apl/utils/localemethods.h"
+#include "apl/utils/noncopyable.h"
+#include "apl/utils/path.h"
 
 namespace apl {
 
@@ -48,6 +50,8 @@ class HoverManager;
 class KeyboardManager;
 class LiveDataManager;
 class ExtensionManager;
+class LayoutManager;
+class MediaManager;
 
 /*
  * The data-binding context holds information about the local environment, metrics, and resources.
@@ -56,6 +60,7 @@ class ExtensionManager;
 class Context : public RecalculateTarget<std::string>,
                 public RecalculateSource<std::string>,
                 public std::enable_shared_from_this<Context>,
+                public NonCopyable,
                 public Counter<Context> {
 
 public:
@@ -64,7 +69,7 @@ public:
      * @param parent The parent context.
      * @return The child context.
      */
-    static ContextPtr create(const ContextPtr& parent) {
+    static ContextPtr createFromParent(const ContextPtr &parent) {
         return std::make_shared<Context>(parent);
     }
 
@@ -74,7 +79,7 @@ public:
      * @param session The logging session
      * @return The context
      */
-    static ContextPtr create(const Metrics& metrics, const SessionPtr& session);
+    static ContextPtr createTestContext(const Metrics& metrics, const SessionPtr& session);
 
     /**
      * Create a top-level context for testing. Do not use this for production.
@@ -82,7 +87,7 @@ public:
      * @param config Root configuration
      * @return The context
      */
-    static ContextPtr create(const Metrics& metrics, const RootConfig& config);
+    static ContextPtr createTestContext(const Metrics& metrics, const RootConfig& config);
 
     /**
      * Create a top-level context for the document background extraction.
@@ -91,14 +96,14 @@ public:
      * @param theme Theme
      * @return The context
      */
-    static ContextPtr create(const Metrics& metrics, const RootConfig& config, const std::string& theme);
+    static ContextPtr createBackgroundEvaluationContext(const Metrics& metrics, const RootConfig& config, const std::string& theme);
 
     /**
      * Create a top-level context for extension definition.
      * @param config Root configuration
      * @return The context
      */
-    static ContextPtr create(const RootConfig& config);
+    static ContextPtr createTypeEvaluationContext(const RootConfig& config);
 
     /**
      * Create a top-level context.  Only used by RootContext
@@ -106,7 +111,7 @@ public:
      * @param core Internal core data.
      * @return The context.
      */
-    static ContextPtr create(const Metrics& metrics,
+    static ContextPtr createRootEvaluationContext(const Metrics& metrics,
                                            const std::shared_ptr<RootContextData>& core);
 
     /**
@@ -119,23 +124,41 @@ public:
     static ContextPtr createClean(const ContextPtr& other);
 
     /**
-     * Construct a child context. Do not call this method directly; use the ::create() method instead.
+     * Construct a child context. Do not call this method directly; use the ::create*() method instead.
      * @param parent The parent of this context.
      */
     explicit Context(const ContextPtr& parent)
         : mParent(parent), mTop(parent->top() ? parent->top() : parent), mCore(parent->mCore) {}
 
     /**
-     * Construct a free-standing context.  Do not call this directly; use the ::create method instead
+     * Construct a free-standing context.  Do not call this directly; use the ::create* method instead
      * @param metrics The display metrics.
      * @param core A pointer to the common core data.
      */
     Context(const Metrics& metrics, const std::shared_ptr<RootContextData>& core);
 
     /**
+     * Construct a free-standing context with simulated runtime state and document parameters.  It should
+     * only be used for context or type evaluation not in data binding context hierarchy.  Do not call
+     * this directly; use the ::create* method instead
+     * @param metrics Display metrics.
+     * @param config Root configuration
+     * @param theme Theme
+     */
+    Context(const Metrics& metrics, const RootConfig& config, const std::string& theme);
+
+    /**
      * Standard destructor
      */
-    ~Context();
+    ~Context() override = default;
+
+    /**
+     * Release local data bindings in this context.  Resources that hold context references (such as a GraphicPattern)
+     * can set up a loop in the context system.  Calling this routine releases all locally defined data-bindings.
+     */
+    void release() {
+        mMap.clear();
+    }
 
     /**
      * Return a reference to an object in some context.  This is typically
@@ -204,6 +227,15 @@ public:
     bool has(const std::string& key) const {
         auto cr = find(key);
         return !cr.empty();
+    }
+
+    /**
+     * Check to see if a value exists in the local context
+     * @param key The string name to look up
+     * @return True if the values is defined somewhere in this immediate context (not an ancestor)
+     */
+    bool hasLocal(const std::string& key) const {
+        return mMap.find(key) != mMap.end();
     }
 
     /**
@@ -460,6 +492,16 @@ public:
     std::string getTheme() const;
 
     /**
+     * @return The locale methods
+     */
+    std::shared_ptr<LocaleMethods> getLocaleMethods() const;
+
+    /**
+     * @return The reinflation flag
+     */
+    bool getReinflationFlag() const;
+
+    /**
      * @return The APL version requested by the document
      */
     std::string getRequestedAPLVersion() const;
@@ -486,6 +528,9 @@ public:
     KeyboardManager& keyboardManager() const;
     LiveDataManager& dataManager() const;
     ExtensionManager& extensionManager() const;
+    LayoutManager& layoutManager() const;
+    MediaManager& mediaManager() const;
+
     std::shared_ptr<Styles> styles() const;
 
     const SessionPtr& session() const;
@@ -510,6 +555,14 @@ protected:
     ContextPtr mTop;
     std::shared_ptr<RootContextData> mCore;
     std::map<std::string, ContextObject> mMap;
+
+private:
+    /**
+     * Initialize environment parameters for the context
+     * @param metrics The display metrics.
+     * @param core A pointer to the common core data.
+     */
+    void init(const Metrics& metrics, const std::shared_ptr<RootContextData>& core);
 };
 
 }  // namespace apl

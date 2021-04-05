@@ -49,6 +49,20 @@ static Object oad(double d){ return Object(Dimension(d)); }
 
 }
 
+class DummyLocaleMethods : public LocaleMethods {
+public:
+    ~DummyLocaleMethods() override = default;
+
+    std::string toUpperCase( const std::string& value, const std::string& locale ) override {
+        return "DUMMY";
+    }
+
+    std::string toLowerCase( const std::string& value, const std::string& locale ) override {
+        return "dummy";
+    }
+
+};
+
 class GrammarTest : public ::testing::Test {
 public:
     void loadDocument(const char *doc, int width, int height) {
@@ -71,7 +85,7 @@ public:
     eval(const char *expression, int width, int height, int dpi)
     {
         auto m = Metrics().size(width, height).dpi(dpi);
-        auto ctx = Context::create(m, makeDefaultSession());
+        auto ctx = Context::createTestContext(m, RootConfig());
         rapidjson::Document person;
         person.SetObject();
         person.AddMember("surname", rapidjson::Value("Pat").Move(), person.GetAllocator());
@@ -185,7 +199,7 @@ TEST_F(GrammarTest, Logical)
 TEST_F(GrammarTest, Comparison)
 {
     auto m = Metrics().size(1024,800);
-    auto c = Context::create(m, makeDefaultSession());
+    auto c = Context::createTestContext(m, RootConfig());
 
     rapidjson::Document person;
     person.SetObject();
@@ -282,6 +296,31 @@ TEST_F(GrammarTest, Functions)
     ASSERT_NEAR(std::exp2(1), eval("${Math.exp2(1)}").asNumber(), 0.0000001);
     ASSERT_NEAR(std::expm1(1), eval("${Math.expm1(1)}").asNumber(), 0.0000001);
 
+    ASSERT_TRUE(IsEqual(23, eval("${Math.int('23.9')}")));
+    ASSERT_TRUE(IsEqual(-23, eval("${Math.int('-23.9')}")));
+    ASSERT_TRUE(IsEqual(23, eval("${Math.int('23.2', 0)}")));
+    ASSERT_TRUE(IsEqual(23, eval("${Math.int('23.2', 10)}")));
+    ASSERT_TRUE(IsEqual(102, eval("${Math.int('0102')}")));  // Defaults to base 10
+    ASSERT_TRUE(IsEqual(66, eval("${Math.int('0102', 0)}")));  // Infers base 8
+    ASSERT_TRUE(IsEqual(2, eval("${Math.int('0102', 2)}")));
+    ASSERT_TRUE(IsEqual(11, eval("${Math.int('0102', 3)}")));
+    ASSERT_TRUE(IsEqual(66, eval("${Math.int('0102', 8)}")));
+    ASSERT_TRUE(IsEqual(102, eval("${Math.int('0102', 10)}")));
+    ASSERT_TRUE(IsEqual(258, eval("${Math.int('0102', 16)}")));
+    ASSERT_TRUE(IsEqual(32, eval("${Math.int('20', 16)}")));
+    ASSERT_TRUE(IsEqual(0, eval("${Math.int('0x20')}")));   // Defaults to base 10
+    ASSERT_TRUE(IsEqual(32, eval("${Math.int('0x20', 0)}")));  // Infers base 16
+    ASSERT_TRUE(IsEqual(0, eval("${Math.int('0x20', 8)}")));
+    ASSERT_TRUE(IsEqual(32, eval("${Math.int('0x20', 16)}")));
+    ASSERT_TRUE(IsEqual(255, eval("${Math.int('0xfF', 0)}")));
+
+    ASSERT_TRUE(IsEqual(2.5, eval("${Math.float('2.5')}")));
+    ASSERT_TRUE(IsEqual(-2, eval("${Math.float('-2 x 2')}")));
+    ASSERT_TRUE(IsEqual(0.25, eval("${Math.float('25%')}")));
+    ASSERT_TRUE(IsEqual(0.25, eval("${Math.float('25 %')}")));
+    ASSERT_TRUE(IsEqual(25, eval("${Math.float('25#%')}")));
+    ASSERT_TRUE(IsEqual(1.0, eval("${Math.float(true)}")));
+    ASSERT_TRUE(IsEqual(0.0, eval("${Math.float(false)}")));
     ASSERT_TRUE(IsEqual(2, eval("${Math.floor(2.99999)}")));
     ASSERT_TRUE(IsEqual(-3, eval("${Math.floor(-2.01)}")));
 
@@ -359,6 +398,8 @@ TEST_F(GrammarTest, Functions)
 
     ASSERT_TRUE(IsEqual("fuzzy", eval("${String.toLowerCase('FUzZY')}")));
     ASSERT_TRUE(IsEqual("FUZZY", eval("${String.toUpperCase('FUzZY')}")));
+    ASSERT_TRUE(IsEqual("fuzzy", eval("${String.toLowerCase('FUzZY','en-US')}")));
+    ASSERT_TRUE(IsEqual("FUZZY", eval("${String.toUpperCase('FUzZY','en-US')}")));
     ASSERT_TRUE(IsEqual(5, eval("${String.length('schön')}")));
     ASSERT_TRUE(IsEqual("rr", eval("${String.slice('berry', 2, 4)}")));
     ASSERT_TRUE(IsEqual("ry", eval("${String.slice('berry', -2)}")));
@@ -371,12 +412,21 @@ TEST_F(GrammarTest, FunctionsNaN)
 {
     ASSERT_TRUE(eval("${Math.max(2,3,'fuzzy')}").isNaN());
     ASSERT_TRUE(eval("${Math.min(2,3,'fuzzy')}").isNaN());
+
+    ASSERT_TRUE(eval("${Math.int()}").isNaN());
+    ASSERT_TRUE(eval("${Math.int('23', -1)}").isNaN());
+    ASSERT_TRUE(eval("${Math.int(23,47)}").isNaN());
+    ASSERT_TRUE(eval("${Math.int(23,1)}").isNaN());
+    ASSERT_TRUE(eval("${Math.int('23', 10, 23)}").isNaN());  // Too many arguments
+
+    ASSERT_TRUE(eval("${Math.float()}").isNaN());
+    ASSERT_TRUE(eval("${Math.float(22,33)}").isNaN());
 }
 
 TEST_F(GrammarTest, Resources)
 {
     auto m = Metrics().size(1024,800);
-    auto c = Context::create(m, makeDefaultSession());
+    auto c = Context::createTestContext(m, RootConfig());
     c->putConstant("@name", "fred");
 
     EXPECT_EQ("fred", c->opt("@name").asString());
@@ -387,7 +437,7 @@ TEST_F(GrammarTest, Resources)
 TEST_F(GrammarTest, Objects)
 {
     auto m = Metrics().size(1024,800);
-    auto c = Context::create(m, makeDefaultSession());
+    auto c = Context::createTestContext(m, RootConfig());
     c->putConstant("ages", std::vector<Object>{10, 24, 82});
 
     EXPECT_EQ(3, evaluate(*c, "${ages.length}").asNumber());
@@ -423,7 +473,7 @@ static const char *RICH_OBJECT =
 TEST_F(GrammarTest, RichObject)
 {
     auto m = Metrics().size(1024, 800);
-    auto c = Context::create(m, makeDefaultSession());
+    auto c = Context::createTestContext(m, RootConfig());
     JsonData data(RICH_OBJECT);
     c->putConstant("payload", data.get());
 
@@ -727,7 +777,7 @@ TEST_F(GrammarTest, ViewportSizes)
 TEST_F(GrammarTest, CustomFunctionsAndAttributes)
 {
     auto m = Metrics().size(1024,800);
-    auto c = Context::create(m, makeDefaultSession());
+    auto c = Context::createTestContext(m, RootConfig());
 
     auto map = std::make_shared<ObjectMap>();
     map->emplace("alwaysOne",
@@ -767,7 +817,7 @@ Bimap<TestMapping , std::string> sTestMappingBimap = {
 TEST_F(GrammarTest, PropertyAsMapped)
 {
     auto m = Metrics().size(1024,800);
-    auto c = Context::create(m, makeDefaultSession());
+    auto c = Context::createTestContext(m, RootConfig());
 
     auto map = std::make_shared<ObjectMap>();
     map->emplace("one", "one");
@@ -815,11 +865,12 @@ static auto RANGE_TESTS = std::vector<std::pair<std::string, ObjectArray>>{
     {"Array.range(0,1,0.249)",   {0,    0.249,  0.498,  0.747,  0.996}},
     {"Array.range(0,-1,-0.249)", {0,    -0.249, -0.498, -0.747, -0.996}},
     {"Array.range(0,5,1,23,44)", {0,    1,      2,      3,      4}},
+    {"Array.range(99999999995,100000000000)", {99999999995,    99999999996,      99999999997,      99999999998,      99999999999}},
 };
 
 TEST_F(GrammarTest, RangeFunction)
 {
-    auto c = Context::create(Metrics(), makeDefaultSession());
+    auto c = Context::createTestContext(Metrics(), RootConfig());
 
     for (const auto& m : RANGE_TESTS) {
         auto range = evaluate(*c, "${" + m.first + "}");
@@ -835,10 +886,60 @@ TEST_F(GrammarTest, RangeFunction)
     }
 }
 
+static auto ACCESS_LAST_TESTS = std::vector<std::pair<std::string, int64_t>>{
+    {"Array.range(0,100000000000)", 100000000000},
+    {"Array.range(0,100000000000,3)", 33333333334},
+    {"Array.range(99999999995,100000000000)", 5},
+};
+
+TEST_F(GrammarTest, AccessLastInRange)
+{
+    auto c = Context::createTestContext(Metrics(), RootConfig());
+
+    for (const auto& range : ACCESS_LAST_TESTS) {
+        auto result = evaluate(*c, "${" + range.first + ".length}");
+        ASSERT_TRUE(IsEqual(range.second, result)) << range.first << " LENGTH " << result.toDebugString();
+
+        auto result2 = evaluate(*c, "${" + range.first + "[-1]}");
+        ASSERT_TRUE(IsEqual(Object(99999999999).getDouble(), result2)) << range.first << " INDEX=-1 " << result.toDebugString();
+    }
+}
+
+static const char* RANGE_WITH_TEXT = R"(
+{
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item":
+    {
+      "type": "Text",
+      "text": "${Array.range(0,100000000000,1)[-1]}"
+    }
+  }
+}
+)";
+
+TEST_F(GrammarTest, RangeGeneratorWithText) {
+
+    // Load the main document
+    auto content = Content::create(RANGE_WITH_TEXT, makeDefaultSession());
+    ASSERT_TRUE(content);
+
+    // Inflate the document
+    auto metrics = Metrics().size(800,800).dpi(320);
+    RootConfig rootConfig = RootConfig();
+    auto root = RootContext::create( metrics, content, rootConfig );
+    ASSERT_TRUE(root);
+
+    // Check the layout
+    auto top = root->topComponent().get();
+    ASSERT_EQ("99999999999", top->getCalculated(kPropertyText).asString());
+}
+
 // Test that the Object::getArray() method works for RangeGenerators
 TEST_F(GrammarTest, RangeAsArray)
 {
-    auto c = Context::create(Metrics(), makeDefaultSession());
+    auto c = Context::createTestContext(Metrics(), RootConfig());
 
     // Use getArray on a RangeGenerator
     auto range = evaluate(*c, "${Array.range(10)}");
@@ -876,11 +977,12 @@ static auto SLICE_TESTS = std::vector<std::pair<std::string, ObjectArray>>{
     {"Array.slice(a2,1)",                  {}},
     {"Array.slice(a2,0,-1)",               {}},
     {"Array.slice(Array.range(1000), -2)", {998, 999}},
+    {"Array.slice(Array.range(100000000000), -2)", {99999999998, 99999999999}},
 };
 
 TEST_F(GrammarTest, SliceFunction)
 {
-    auto c = Context::create(Metrics(), makeDefaultSession());
+    auto c = Context::createTestContext(Metrics(), RootConfig());
 
     c->putConstant("a1", ObjectArray{101,102,103,104,105,106});
     c->putConstant("a2", ObjectArray{});
@@ -902,7 +1004,7 @@ TEST_F(GrammarTest, SliceFunction)
 // Test that the Object::getArray() method works for SliceGenerators
 TEST_F(GrammarTest, SliceAsArray)
 {
-    auto c = Context::create(Metrics(), makeDefaultSession());
+    auto c = Context::createTestContext(Metrics(), RootConfig());
     c->putConstant("a1", ObjectArray{101,102,103,104,105,106});
 
     // Use getArray on a SliceGenerator
@@ -930,11 +1032,12 @@ static auto INDEX_OF_TESTS = std::vector<std::pair<std::string, int>>{
     {"Array.indexOf()", -1},
     {"Array.indexOf(Array.range(1000), 900)", 900},
     {"Array.indexOf(Array.slice(Array.range(1000), 500), 900)", 400},
+    {"Array.indexOf(Array.range(100000000), 99999998)", 99999998},
 };
 
 TEST_F(GrammarTest, IndexOfFunction)
 {
-    auto c = Context::create(Metrics(), makeDefaultSession());
+    auto c = Context::createTestContext(Metrics(), RootConfig());
 
     c->putConstant("a1", ObjectArray{101,102,103,104,105,106, "bar"});
 
@@ -942,4 +1045,77 @@ TEST_F(GrammarTest, IndexOfFunction)
         auto result = evaluate(*c, "${" + m.first + "}");
         ASSERT_TRUE(IsEqual(m.second, result)) << m.first << ":" << m.second;
     }
+}
+
+static const char* LOCALE_METHODS_TEST_DOC = R"(
+{
+  "type":"APL",
+  "version":"1.6",
+  "mainTemplate":{
+    "item":{
+      "type":"Container",
+      "items":[
+        {
+          "type":"Text",
+          "id":"toLower",
+          "text":"${String.toLowerCase('Test')}"
+        },
+        {
+          "type":"Text",
+          "id":"toUpper",
+          "text":"${String.toUpperCase('Test')}"
+        }
+      ]
+    }
+  }
+}
+)";
+
+/*
+ * Test to verify default LocaleMethods via RootConfig
+ */
+TEST_F(GrammarTest, LocaleMethodsDefault) {
+
+    // Load the main document
+    auto content = Content::create(LOCALE_METHODS_TEST_DOC, makeDefaultSession());
+    ASSERT_TRUE(content);
+
+    // Inflate the document
+    auto metrics = Metrics().size(800,800).dpi(320);
+    RootConfig rootConfig = RootConfig();
+    auto root = RootContext::create( metrics, content, rootConfig );
+    ASSERT_TRUE(root);
+
+    // Check toLower integration
+    auto lower = root->findComponentById("toLower");
+    ASSERT_EQ("test", lower->getCalculated(kPropertyText).asString());
+
+    // Check toUpper integration
+    auto upper = root->findComponentById("toUpper");
+    ASSERT_EQ("TEST", upper->getCalculated(kPropertyText).asString());
+}
+
+/*
+ * Test to verify dummy integration of LocaleMethods via RootConfig
+ */
+TEST_F(GrammarTest, LocaleMethodsIntegration) {
+
+    // Load the main document
+    auto content = Content::create(LOCALE_METHODS_TEST_DOC, makeDefaultSession());
+    ASSERT_TRUE(content);
+
+    // Inflate the document
+    auto metrics = Metrics().size(800,800).dpi(320);
+    auto dummyMethods = std::make_shared<DummyLocaleMethods>();
+    RootConfig rootConfig = RootConfig().localeMethods(dummyMethods);
+    auto root = RootContext::create( metrics, content, rootConfig );
+    ASSERT_TRUE(root);
+
+    // Check toLower integration
+    auto lower = root->findComponentById("toLower");
+    ASSERT_EQ("dummy", lower->getCalculated(kPropertyText).asString());
+
+    // Check toUpper integration
+    auto upper = root->findComponentById("toUpper");
+    ASSERT_EQ("DUMMY", upper->getCalculated(kPropertyText).asString());
 }

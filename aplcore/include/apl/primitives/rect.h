@@ -18,7 +18,8 @@
 
 #include "rapidjson/document.h"
 
-#include "point.h"
+#include "apl/primitives/point.h"
+#include "apl/primitives/size.h"
 
 namespace apl {
 
@@ -136,14 +137,19 @@ public:
     float getWidth() const { return mWidth; }
 
     /**
+     * @return The size (width/height).
+     */
+    Size getSize() const { return {mWidth, mHeight}; }
+
+    /**
      * @return The top-left corner as a point.
      */
-    Point getTopLeft() const { return Point(mX, mY); }
+    Point getTopLeft() const { return {mX, mY}; }
 
     /**
      * @return The bottom-right corner as a point
      */
-    Point getBottomRight() const { return Point(mX + mWidth, mY + mHeight); }
+    Point getBottomRight() const { return {mX + mWidth, mY + mHeight}; }
 
     /**
      * @return The center of the rectangle in the X direction
@@ -154,6 +160,11 @@ public:
      * @return The center of the rectangle in the Y direction
      */
     float getCenterY() const { return mY + mHeight / 2; }
+
+    /**
+     * @return The center of this rectangle
+     */
+    Point getCenter() const { return {getCenterX(), getCenterY()}; }
 
     /**
      * Offset this rectangle by a distance specified by a point.
@@ -174,6 +185,14 @@ public:
      * @return True if the point is within the rectangle.
      */
     bool contains(const Point& point) const;
+
+    /**
+     * Calculate the distance between this rectangle and a point.  If the point
+     * falls in the interior of the rectangle, the distance is zero.
+     * @param point The point
+     * @return The Euclidean distance from the rectangle to the point
+     */
+    float distanceTo(const Point& point) const;
 
     /**
      * Get rect area value.

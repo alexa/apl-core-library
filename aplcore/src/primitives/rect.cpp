@@ -58,8 +58,8 @@ Rect::operator!=(const Rect& rhs) const {
 std::string
 Rect::toString() const {
     return floatAsLongString(mWidth) + "x" + floatAsLongString(mHeight)
-            + (mX >= 0 ? "+" : "") + floatAsLongString(mX)
-            + (mY >= 0 ? "+" : "") + floatAsLongString(mY);
+            + (static_cast<long>(mX) >= 0 ? "+" : "") + floatAsLongString(mX)
+            + (static_cast<long>(mY) >= 0 ? "+" : "") + floatAsLongString(mY);
 }
 
 bool
@@ -87,6 +87,17 @@ Rect::contains(const Point& point) const {
     auto y = point.getY();
 
     return !isEmpty() && x >= mX && x <= mX + mWidth && y >= mY && y <= mY + mHeight;
+}
+
+float
+Rect::distanceTo(const Point& point) const {
+    auto x = point.getX() - mX;  // Offset from left side
+    auto y = point.getY() - mY;  // Offset from top
+    auto dx = x < 0 ? -x : (x > mWidth ? x - mWidth : 0);
+    auto dy = y < 0 ? -y : (y > mHeight ? y - mHeight : 0);
+    if (dx == 0) return dy;
+    if (dy == 0) return dx;
+    return std::sqrt(dx*dx + dy*dy);
 }
 
 rapidjson::Value

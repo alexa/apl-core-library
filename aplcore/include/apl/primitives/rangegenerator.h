@@ -46,12 +46,12 @@ public:
         }
     }
 
-    Object at(size_t index) const override {
+    Object at(std::uint64_t index) const override {
         assert(index >= 0 && index < mSize);
         return mMinimum + mStep * index;
     }
 
-    size_t size() const override {
+    std::uint64_t size() const override {
         return mSize;
     }
 
@@ -66,7 +66,7 @@ public:
 private:
     double mMinimum;
     double mStep;
-    size_t mSize;
+    std::uint64_t mSize;
 };
 
 } // namespace apl

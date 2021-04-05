@@ -130,7 +130,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                 auto length = dataItems.size();
                 for (size_t dataIndex = 0; dataIndex < length; dataIndex++) {
                     const auto& dataItem = dataItems.at(dataIndex);
-                    auto childContext = Context::create(context);
+                    auto childContext = Context::createFromParent(context);
                     childContext->putConstant("data", dataItem);
                     childContext->putConstant("index", index);
                     childContext->putConstant("length", length);
@@ -160,7 +160,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                 auto length = items.size();
                 for (int i = 0; i < length; i++) {
                     const auto& element = items.at(i);
-                    auto childContext = Context::create(context);
+                    auto childContext = Context::createFromParent(context);
                     childContext->putConstant("index", index);
                     childContext->putConstant("length", length);
                     if (numbered)
@@ -240,30 +240,12 @@ Builder::expandSingleComponent(const ContextPtr& context,
         properties.emplace(item);
 
         // Create a new context and fill out the binding
-        ContextPtr expanded = Context::create(context);
-        auto bindings = arrayifyProperty(*context, item, "bind");
-        for (const auto& binding : bindings) {
-            auto name = propertyAsString(*expanded, binding, "name");
-            if (name.empty() || !binding.has("value"))
-                continue;
-
-            // Extract the binding as an optional node tree.
-            auto tmp = propertyAsNode(*expanded, binding, "value");
-            auto value = evaluateRecursive(*expanded, tmp);
-            auto bindingType = propertyAsMapped<BindingType>(*expanded, binding, "type", kBindingTypeAny, sBindingMap);
-            auto bindingFunc = sBindingFunctions.at(bindingType);
-
-            // Store the value in the new context.  Binding values are mutable; they can be changed later.
-            expanded->putUserWriteable(name, bindingFunc(*expanded, value));
-
-            // If it is a node, we connect up the symbols that it is dependant upon
-            if (tmp.isEvaluable())
-                ContextDependant::create(expanded, name, tmp, expanded, bindingFunc);
-        }
+        ContextPtr expanded = Context::createFromParent(context);
+        attachBindings(expanded, item);
 
         // Construct the component
         CoreComponentPtr component = CoreComponentPtr(method->second(expanded, std::move(properties), path.toString()));
-        if (!component) {
+        if (!component || !component->isValid()) {
             CONSOLE_CTP(context) << "Unable to inflate component";
             return nullptr;
         }
@@ -273,6 +255,9 @@ Builder::expandSingleComponent(const ContextPtr& context,
         } else if (component->multiChild()) {
             populateLayoutComponent(expanded, item, component, path);
         }
+
+        // Copy preserved properties
+        copyPreservedProperties(component);
 
         LOG_IF(DEBUG_BUILDER) << "Returning component " << *component;
         return component;
@@ -287,6 +272,40 @@ Builder::expandSingleComponent(const ContextPtr& context,
 
     CONSOLE_CTP(context) << "Unable to find layout or component '" << type << "'";
     return nullptr;
+}
+
+/**
+ * Process data bindings
+ * @param context
+ * @param item
+ */
+void
+Builder::attachBindings(const apl::ContextPtr& context, const apl::Object& item)
+{
+    auto bindings = arrayifyProperty(*context, item, "bind");
+    for (const auto& binding : bindings) {
+        auto name = propertyAsString(*context, binding, "name");
+        if (name.empty() || !binding.has("value"))
+            continue;
+
+        if (context->hasLocal(name)) {
+            CONSOLE_CTP(context) << "Attempted to bind to pre-existing property '" << name << "'";
+            continue;
+        }
+
+        // Extract the binding as an optional node tree.
+        auto tmp = propertyAsNode(*context, binding, "value");
+        auto value = evaluateRecursive(*context, tmp);
+        auto bindingType = propertyAsMapped<BindingType>(*context, binding, "type", kBindingTypeAny, sBindingMap);
+        auto bindingFunc = sBindingFunctions.at(bindingType);
+
+        // Store the value in the new context.  Binding values are mutable; they can be changed later.
+        context->putUserWriteable(name, bindingFunc(*context, value));
+
+        // If it is a node, we connect up the symbols that it is dependant upon
+        if (tmp.isEvaluable())
+            ContextDependant::create(context, name, tmp, context, bindingFunc);
+    }
 }
 
 /**
@@ -338,7 +357,7 @@ Builder::expandLayout(const ContextPtr& context,
     assert(layout.IsObject());
 
     // Build a new context for this layout.
-    ContextPtr cptr = Context::create(context);
+    ContextPtr cptr = Context::createFromParent(context);
 
     // Add each parameter to the context.  It's either going to come from
     // a property or its default value.  This will remove the matching property from
@@ -349,10 +368,12 @@ Builder::expandLayout(const ContextPtr& context,
         properties.addToContext(cptr, param, true);
     }
 
+    attachBindings(cptr, layout);
+
     if (DEBUG_BUILDER) {
         for (std::shared_ptr<const Context> p = cptr; p; p = p->parent()) {
             for (const auto& m : *p)
-                LOG(LogLevel::DEBUG) << m.first << ": " << m.second;
+                LOG(LogLevel::kDebug) << m.first << ": " << m.second;
         }
     }
     return expandSingleComponentFromArray(cptr,
@@ -362,6 +383,33 @@ Builder::expandLayout(const ContextPtr& context,
                                           path.addProperty(layout, "item", "items"));
 }
 
+
+/**
+ * Copy preserved properties from the old hierarchy to the new
+ * @param component The component to copy
+ */
+void
+Builder::copyPreservedProperties(const CoreComponentPtr& component)
+{
+    LOG_IF(DEBUG_BUILDER) << component << " old=" << mOld;
+    if (!mOld || component->getId().empty())
+        return;
+
+    const auto& preserved = component->getCalculated(kPropertyPreserve).getArray();
+    if (preserved.empty())
+        return;
+
+    auto original = std::dynamic_pointer_cast<CoreComponent>(mOld->findComponentById(component->getId()));
+    if (!original)
+        return;
+
+    // We have an original component and we have at least one property that should be restored
+    for (const auto& m : preserved) {
+        auto property = m.asString();
+        auto value = original->getProperty(property);
+        component->setProperty(property, value);
+    }
+}
 
 
 CoreComponentPtr

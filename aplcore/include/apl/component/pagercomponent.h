@@ -46,6 +46,8 @@ public:
     /// Actionable overrides
     bool isHorizontal() const override { return scrollType() == kScrollTypeHorizontalPager; }
     bool isVertical() const override { return scrollType() == kScrollTypeVerticalPager; }
+    bool canConsumeFocusDirectionEvent(FocusDirection direction, bool fromInside) override;
+    CoreComponentPtr takeFocusFromChild(FocusDirection direction, const Rect& origin) override;
 
     /**
      * Command page switch helper function.
@@ -59,12 +61,6 @@ public:
      */
     static void setPageUtil(const ContextPtr& context, const ComponentPtr& target, int index,
         PageDirection direction, const ActionRef& ref, bool skipDefaultAnimation = false);
-
-    /**
-     * Reset page state. Resets transformations, opacity, z-order and interactivity.
-     * @param page page index.
-     */
-    void resetPage(int page);
 
     /**
      * Start page move process. Set initial states. Should be followed by executePageMove and endPageMove.
@@ -93,18 +89,23 @@ protected:
     const EventPropertyMap & eventPropertyMap() const override;
     void accept(Visitor<CoreComponent>& visitor) const override;
     void raccept(Visitor<CoreComponent>& visitor) const override;
-    bool insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag) override;
+    bool insertChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
     void removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
     bool shouldAttachChildYogaNode(int index) const override;
     void finalizePopulate() override;
+    void ensureDisplayedChildren() override;
 
 private:
     bool multiChild() const override { return true; }
+    void attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index) override {};
+
     std::map<int, float> getChildrenVisibility(float realOpacity, const Rect &visibleRect) const override;
-    bool attachCurrentAndReportLoaded();
+    void attachCurrentAndReportLoaded();
     ActionPtr executePageChangeEvent(bool fast);
     void setPage(int page);
+    void setPageImmediate(int pageIndex);
     void handleSetPage(int index, PageDirection direction, const ActionRef& ref, bool skipDefaultAnimation);
+    PageDirection focusDirectionToPage(FocusDirection direction);
 
     ActionPtr mCurrentAnimation;
     std::unique_ptr<PageMoveHandler> mPageMoveHandler;

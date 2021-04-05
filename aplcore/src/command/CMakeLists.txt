@@ -19,15 +19,16 @@ target_sources_local(apl
     clearfocuscommand.cpp
     commandfactory.cpp
     commandproperties.cpp
+    configchangecommand.cpp
     controlmediacommand.cpp
     corecommand.cpp
     documentcommand.cpp
     extensioneventcommand.cpp
-    executionresource.cpp
     finishcommand.cpp
     openurlcommand.cpp
     parallelcommand.cpp
     playmediacommand.cpp
+    reinflatecommand.cpp
     scrollcommand.cpp
     scrolltocomponentcommand.cpp
     scrolltoindexcommand.cpp

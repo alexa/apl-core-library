@@ -28,7 +28,7 @@ timeToString(const std::string& format, double time)
         return state.mString;
     }
     catch (parse_error e) {
-        LOG(LogLevel::ERROR) << "Error in '" << format << "', " << e.what();
+        LOG(LogLevel::kError) << "Error in '" << format << "', " << e.what();
     }
 
     return "";

@@ -23,6 +23,7 @@ option(ENABLE_PIC "Build position independent code (i.e. -fPIC)" OFF)
 
 option(USE_SYSTEM_RAPIDJSON "Use the system-provided RapidJSON instead of the bundled one." OFF)
 option(USE_SYSTEM_YOGA "Use the system-provided Yoga library instead of the bundled one." OFF)
+option(BUILD_ALEXAEXTENSIONS "Use the Alexa Extensions library." OFF)
 
 # Test options
 option(BUILD_TESTS "Build unit tests and test programs." OFF)

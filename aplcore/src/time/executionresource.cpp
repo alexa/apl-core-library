@@ -13,16 +13,23 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/command/executionresource.h"
+#include "apl/time/executionresource.h"
 #include "apl/component/component.h"
 
 namespace apl {
 
+Bimap<int, std::string> sExecutionResourceMap = {
+    {kExecutionResourceForegroundAudio, "foregroundAudio"},
+    {kExecutionResourceBackgroundAudio, "backgroundAudio"},
+    {kExecutionResourcePosition,        "position"},
+    {kExecutionResourceProperty,        "property"},
+};
+
 std::string
-ExecutionResource::constructResourceId(CommandResourceKey key, const ComponentPtr& component, PropertyKey propKey)
+ExecutionResource::constructResourceId(ExecutionResourceKey key, const ComponentPtr& component, PropertyKey propKey)
 {
     std::string resourceId;
-    auto resourceString = sCommandResourcesMap.get(key, "");
+    auto resourceString = sExecutionResourceMap.get(key, "");
     if (resourceString.empty()) {
         // Should not happen
         assert(false);
@@ -37,7 +44,7 @@ ExecutionResource::constructResourceId(CommandResourceKey key, const ComponentPt
     return resourceId;
 }
 
-ExecutionResource::ExecutionResource(CommandResourceKey key, const ComponentPtr& component, PropertyKey propKey)
+ExecutionResource::ExecutionResource(ExecutionResourceKey key, const ComponentPtr& component, PropertyKey propKey)
 {
     mResourceId = constructResourceId(key, component, propKey);
 }

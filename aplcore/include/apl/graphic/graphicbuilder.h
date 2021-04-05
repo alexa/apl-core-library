@@ -46,7 +46,7 @@ public:
      * Internal constructor - don't use this
      * @param graphic
      */
-    GraphicBuilder(const GraphicPtr& graphic);
+    explicit GraphicBuilder(const GraphicPtr& graphic);
 
 private:
     void addChildren(GraphicElement& element, const Object& json);

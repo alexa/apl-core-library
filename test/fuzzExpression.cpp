@@ -135,7 +135,7 @@ main(int argc, char *argv[]) {
     else
         std::cout << " iterations=" << repeatCount << std::endl;
 
-    auto context = Context::create(Metrics(), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics(), makeDefaultSession());
     auto original = evaluate(*context, expression);
     auto startTime = std::time(nullptr);
     auto stopTime = startTime + duration;

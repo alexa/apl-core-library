@@ -13,6 +13,7 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/apl.h"
 #include "apl/component/componentpropdef.h"
 #include "apl/component/videocomponent.h"
 #include "apl/component/yogaproperties.h"
@@ -20,6 +21,12 @@
 
 namespace apl {
 
+inline void
+inlineResetMediaState(Component &component)
+{
+    auto& comp = dynamic_cast<MediaComponentTrait&>(component);
+    comp.resetMediaFetchState();
+}
 
 CoreComponentPtr
 VideoComponent::create(const ContextPtr& context,
@@ -41,11 +48,43 @@ VideoComponent::VideoComponent(const ContextPtr& context,
 const ComponentPropDefSet&
 VideoComponent::propDefSet() const
 {
-    static ComponentPropDefSet sVideoComponentProperties(CoreComponent::propDefSet(), {
+    static const std::array<PropertyKey, 6> PLAYING_STATE = {
+        kPropertyTrackCount,
+        kPropertyTrackCurrentTime,
+        kPropertyTrackDuration,
+        kPropertyTrackIndex,
+        kPropertyTrackPaused,
+        kPropertyTrackEnded
+    };
+
+    // Save the current playing state of the component
+    static auto getPlayingState = [](const CoreComponent& component) -> Object {
+        auto array = ObjectArray();
+        for (auto key : PLAYING_STATE)
+            array.emplace_back(component.getCalculated(key));
+        return Object(std::move(array));
+    };
+
+    // Restore the current playing state of the component. Note that this is NOT guaranteed to
+    // be correct; the view host video component must check the current properties at load time
+    // and decide how to handle them.
+    static auto setPlayingState = [](CoreComponent& component, const Object& value ) -> void {
+        if (!value.isArray() || value.size() != PLAYING_STATE.size()) {
+            CONSOLE_CTP(component.getContext()) << "setPlayingState: Invalid " << value.toDebugString();
+            return;
+        }
+
+        auto& self = dynamic_cast<VideoComponent&>(component);
+        for (size_t index = 0 ; index < PLAYING_STATE.size() ; index++)
+            self.mCalculated.set(PLAYING_STATE.at(index), value.at(index));
+    };
+
+    static ComponentPropDefSet sVideoComponentProperties = ComponentPropDefSet(
+        CoreComponent::propDefSet(), MediaComponentTrait::propDefList()).add({
         { kPropertyAudioTrack,      kAudioTrackForeground,  sAudioTrackMap,     kPropInOut },
         { kPropertyAutoplay,        false,                  asOldBoolean,       kPropInOut },
         { kPropertyScale,           kVideoScaleBestFit,     sVideoScaleMap,     kPropInOut },
-        { kPropertySource,          Object::EMPTY_ARRAY(),  asMediaSourceArray, kPropDynamic | kPropInOut | kPropVisualContext },
+        { kPropertySource,          Object::EMPTY_ARRAY(),  asMediaSourceArray, kPropDynamic | kPropInOut | kPropVisualContext, inlineResetMediaState },
         { kPropertyOnEnd,           Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
         { kPropertyOnPause,         Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
         { kPropertyOnPlay,          Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
@@ -56,7 +95,8 @@ VideoComponent::propDefSet() const
         { kPropertyTrackDuration,   0,                      asInteger,          kPropRuntimeState | kPropVisualContext },
         { kPropertyTrackIndex,      0,                      asInteger,          kPropRuntimeState | kPropVisualContext },
         { kPropertyTrackPaused,     true,                   asBoolean,          kPropRuntimeState | kPropVisualContext },
-        { kPropertyTrackEnded,      false,                  asBoolean,          kPropRuntimeState | kPropVisualContext }
+        { kPropertyTrackEnded,      false,                  asBoolean,          kPropRuntimeState | kPropVisualContext },
+        { kPropertyPlayingState,    getPlayingState,        setPlayingState,    kPropDynamic },
     });
 
     return sVideoComponentProperties;
@@ -159,14 +199,20 @@ VideoComponent::addEventProperties(apl::ObjectMap &event) const
     event.emplace("ended", getCalculated(kPropertyTrackEnded).asBoolean());
 }
 
-static inline Object
-getCurrentURL(const CoreComponent *c) {
-    auto source = c->getCalculated(kPropertySource);
-    auto trackIndex = c->getCalculated(kPropertyTrackIndex).asInt();
+std::string
+VideoComponent::getCurrentUrl() const
+{
+    auto& source = getCalculated(kPropertySource);
+    auto trackIndex = getCalculated(kPropertyTrackIndex).asInt();
     if (trackIndex < 0 || trackIndex >= source.size())
         return "";
-    auto currentSource = source.at(trackIndex).getMediaSource();
-    return currentSource.getUrl();
+    return source.at(trackIndex).getMediaSource().getUrl();
+}
+
+static inline Object
+inlineGetCurrentURL(const CoreComponent *c) {
+    auto comp = dynamic_cast<const VideoComponent*>(c);
+    return comp->getCurrentUrl();
 }
 
 const EventPropertyMap&
@@ -192,8 +238,8 @@ VideoComponent::eventPropertyMap() const {
                     {"ended",       [](const CoreComponent *c) {
                         return c->getCalculated(kPropertyTrackEnded);
                     }},
-                    {"source",      &getCurrentURL},
-                    {"url",         &getCurrentURL},
+                    {"source",      &inlineGetCurrentURL},
+                    {"url",         &inlineGetCurrentURL},
             });
 
     return sVideoEventProperties;
@@ -246,5 +292,30 @@ VideoComponent::getVisualContextType() {
     return getCalculated(kPropertySource).empty() ? VISUAL_CONTEXT_TYPE_EMPTY : VISUAL_CONTEXT_TYPE_VIDEO;
 }
 
+std::set<std::string>
+VideoComponent::getSources()
+{
+    std::set<std::string> sources;
+    for (auto& source : getCalculated(kPropertySource).getArray()) {
+        sources.emplace(source.getMediaSource().getUrl());
+    }
+    return sources;
+}
+
+void
+VideoComponent::pendingMediaLoaded(const std::string& source, int stillPending)
+{
+    MediaComponentTrait::pendingMediaLoaded(source, stillPending);
+    // Give viewhost a chance to start rendering this component if current track loaded.
+    if (source == getCurrentUrl()) {
+        setDirty(kPropertyMediaState);
+    }
+}
+
+void
+VideoComponent::postProcessLayoutChanges() {
+    CoreComponent::postProcessLayoutChanges();
+    MediaComponentTrait::postProcessLayoutChanges();
+}
 
 } // namespace apl

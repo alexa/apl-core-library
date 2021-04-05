@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -208,7 +208,7 @@ TEST_F(ResourceTest, BasicInfo)
 TEST_F(ResourceTest, DisabledProvenance)
 {
     metrics.size(1024,800);
-    config.trackProvenance(false);
+    config->trackProvenance(false);
     loadDocument(BASIC_TEST);
 
     ASSERT_STREQ("", context->provenance("@one").c_str());
@@ -607,7 +607,7 @@ TEST_F(ResourceTest, GradientAngle)
     loadDocument(GRADIENT_ANGLE);
 
     for (auto& t : GRADIENT_ANGLE_TESTS) {
-        LOG(LogLevel::WARN) << t.at(0).toDebugString();
+        LOG(LogLevel::kWarn) << t.at(0).toDebugString();
         auto object = context->opt(t.at(0).asString());
         ASSERT_TRUE(object.isGradient());
 

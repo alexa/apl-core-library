@@ -24,6 +24,7 @@
 #include "apl/common.h"
 #include "apl/time/timers.h"
 #include "apl/utils/counter.h"
+#include "apl/utils/noncopyable.h"
 #include "apl/utils/streamer.h"
 #include "apl/utils/userdata.h"
 #include "apl/primitives/rect.h"
@@ -35,6 +36,7 @@ class ActionRef;
 
 using ActionList = std::vector<ActionPtr>;
 
+using CallbackFunc = std::function< void(bool,const ActionPtr&) >;
 using StartFunc = std::function< void(ActionRef) >;
 using ThenFunc  = std::function< void(const ActionPtr&) >;
 using TerminateFunc = std::function< void(const TimersPtr&) >;
@@ -49,6 +51,7 @@ union ActionResolveArg {
  */
 class Action : public std::enable_shared_from_this<Action>,
                public Counter<Action>,
+               public NonCopyable,
                public UserData<Action> {
 
 public:
@@ -100,9 +103,21 @@ public:
                                    apl_duration_t duration,
                                    Timers::Animator animator);
 
+    /**
+     * Wrap provided action with another one that will call a callback when provided resolved. If
+     * provided action is terminated wrap action will also be terminated.
+     * @param timers
+     * @param action action to wrap.
+     * @param callback Callback to call.
+     * @return Wrap action.
+     */
+    static ActionPtr wrapWithCallback(const TimersPtr& timers,
+                                      const ActionPtr& action,
+                                      CallbackFunc&& callback);
+
 public:
-    Action(const TimersPtr& timers, TerminateFunc terminate = nullptr);
-    virtual ~Action();
+    explicit Action(const TimersPtr& timers, TerminateFunc terminate = nullptr);
+    ~Action() override;
 
     Action& operator=(const Action&) = delete;
     Action(const Action&) = delete;
@@ -202,9 +217,8 @@ private:
  */
 class ActionRef  {
 public:
-
     ActionRef(const ActionPtr& ptr) : mPtr(ptr) {}
-    ActionRef(const ActionRef& ref) : mPtr(ref.mPtr) {}
+    ActionRef(const ActionRef& ref) = default;
 
     /**
      * Resolve the action
@@ -227,7 +241,7 @@ public:
      * Attach a terminate callback to the action.
      * @param terminateFunc The termination callback
      */
-    void addTerminateCallback(TerminateFunc terminateFunc) const { mPtr->addTerminateCallback(terminateFunc); }
+    void addTerminateCallback(TerminateFunc terminateFunc) const { mPtr->addTerminateCallback(std::move(terminateFunc)); }
 
     /**
      * @return True if this action is still pending and has not resolved or terminated.

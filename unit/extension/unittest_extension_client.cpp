@@ -1052,7 +1052,7 @@ TEST_F(ExtensionClientTest, CommandResolveWrong) {
 
     // Resolve a response
     std::string commandResponse = EXT_COMMAND_SUCCESS_HEADER;
-    commandResponse += R"("id": 11,)";
+    commandResponse += R"("id": 11111,)";
     commandResponse += R"("result": true })";
     ASSERT_FALSE(client->processMessage(root, commandResponse));
     ASSERT_TRUE(ConsoleMessage());
@@ -1090,8 +1090,8 @@ TEST_F(ExtensionClientTest, CommandInterruptedResolve) {
     std::string commandResponse = EXT_COMMAND_SUCCESS_HEADER;
     commandResponse += R"("id": )" + std::to_string(processedCommand["id"].GetDouble()) + R"(,)";
     commandResponse += R"("result": true })";
-    ASSERT_FALSE(client->processMessage(root, commandResponse));
-    ASSERT_TRUE(ConsoleMessage());
+    ASSERT_TRUE(client->processMessage(root, commandResponse));
+    ASSERT_FALSE(ConsoleMessage());
     ASSERT_FALSE(root->hasEvent());
 }
 

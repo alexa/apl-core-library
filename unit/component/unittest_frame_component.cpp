@@ -286,10 +286,11 @@ TEST_F(FrameComponentTest, SimpleFrame)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinHeight));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyMinWidth));
     ASSERT_EQ(1.0, component->getCalculated(kPropertyOpacity).getDouble());
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingBottom));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingLeft));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingRight));
-    ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object(Object::NULL_OBJECT()), component->getCalculated(kPropertyPaddingBottom));
+    ASSERT_EQ(Object(Object::NULL_OBJECT()), component->getCalculated(kPropertyPaddingLeft));
+    ASSERT_EQ(Object(Object::NULL_OBJECT()), component->getCalculated(kPropertyPaddingRight));
+    ASSERT_EQ(Object(Object::NULL_OBJECT()), component->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object(ObjectArray{}), component->getCalculated(kPropertyPadding));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
     ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 

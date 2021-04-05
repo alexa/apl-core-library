@@ -468,7 +468,7 @@ Object::Object(const rapidjson::Value& value)
 
 Object::Object(rapidjson::Document&& value)
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::DEBUG) << "Object constructor value: " << this;
+    if (OBJECT_DEBUG) LOG(LogLevel::kDebug) << "Object constructor value: " << this;
 
     switch(value.GetType()) {
         case rapidjson::kNullType:
@@ -514,7 +514,7 @@ Object::Object(const Dimension& d)
       mU(d.getValue())
 {
     if (OBJECT_DEBUG)
-        LOG(LogLevel::DEBUG) << "Object dimension constructor: " << this << " is " << *this << " dimension=" << d;
+        LOG(LogLevel::kDebug) << "Object dimension constructor: " << this << " is " << *this << " dimension=" << d;
 }
 
 Object::Object(const Color& color)
@@ -751,8 +751,9 @@ Object::isJson() const
 static inline std::string
 doubleToString(double value)
 {
-    if (value < std::numeric_limits<int>::max() && value > std::numeric_limits<int>::min()) {
-        auto iValue = static_cast<int>(value);
+    if (value < static_cast<double>(std::numeric_limits<std::int64_t>::max())
+     && value > static_cast<double>(std::numeric_limits<std::int64_t>::min())) {
+        auto iValue = static_cast<std::int64_t>(value);
         if (value == iValue)
             return std::to_string(iValue);
     }
@@ -856,23 +857,44 @@ Object::asNumber() const
 }
 
 int
-Object::asInt() const
+Object::asInt(int base) const
 {
     switch (mType) {
         case kBoolType:
             return static_cast<int>(mU.value);
         case kNumberType:
-            return std::rint(mU.value);
+            return std::lround(mU.value);
         case kStringType:
-            try { return std::stoi(mU.string); } catch(...) {}
-            return std::numeric_limits<int>::quiet_NaN();
+            try { return std::stoi(mU.string, nullptr, base); } catch(...) {}
+            return 0;
         case kStyledTextType:
-            try { return std::stoi(as<StyledText>().asString()); } catch(...) {}
-            return std::numeric_limits<int>::quiet_NaN();
+            try { return std::stoi(as<StyledText>().asString(), nullptr, base); } catch(...) {}
+            return 0;
         case kAbsoluteDimensionType:
-            return std::rint(mU.value);
+            return std::lround(mU.value);
         default:
-            return std::numeric_limits<int>::quiet_NaN();
+            return 0;
+    }
+}
+
+std::int64_t
+Object::asInt64(int base) const
+{
+    switch (mType) {
+        case kBoolType:
+            return static_cast<std::int64_t>(mU.value);
+        case kNumberType:
+            return std::llround(mU.value);
+        case kStringType:
+            try { return std::stoll(mU.string, nullptr, base); } catch(...) {}
+            return 0;
+        case kStyledTextType:
+            try { return std::stoll(as<StyledText>().asString(), nullptr, base); } catch(...) {}
+            return 0;
+        case kAbsoluteDimensionType:
+            return std::llround(mU.value);
+        default:
+            return 0;
     }
 }
 
@@ -1192,7 +1214,7 @@ Object::opt(const std::string& key, const Object& def) const
 
 // Methods for ARRAY objects
 Object
-Object::at(size_t index) const
+Object::at(std::uint64_t index) const
 {
     assert(mType == kArrayType);
     return mU.data->at(index);
@@ -1205,7 +1227,7 @@ Object::getType() const
 }
 
 
-size_t
+std::uint64_t
 Object::size() const
 {
     switch (mType) {

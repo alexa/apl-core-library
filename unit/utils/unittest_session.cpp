@@ -86,7 +86,7 @@ public:
         mCount++;
     }
 
-    LogLevel mLevel = LogLevel::NONE;
+    LogLevel mLevel = LogLevel::kNone;
     std::string mLog = "";
     int mCount = 0;
 };
@@ -100,6 +100,6 @@ TEST(DefaultConsole, VerifyLog)
 
     CONSOLE_S(session) << "TestVerifyLog";
     ASSERT_EQ(1, bridge->mCount);
-    ASSERT_EQ(LogLevel::WARN, bridge->mLevel);
+    ASSERT_EQ(LogLevel::kWarn, bridge->mLevel);
     ASSERT_STREQ("unittest_session.cpp:TestBody : TestVerifyLog", bridge->mLog.c_str());
 }

@@ -28,11 +28,13 @@ TEST_F(RectTest, Basic) {
 
     ASSERT_EQ(Point(0, 0), rect.getTopLeft());
     ASSERT_EQ(Point(100, 100), rect.getBottomRight());
+    ASSERT_EQ(Point(50,50), rect.getCenter());
 
-    Point offset(50, 50);
+    Point offset(25, 50);
     rect.offset(offset);
     ASSERT_EQ(offset, rect.getTopLeft());
-    ASSERT_EQ(Point(150, 150), rect.getBottomRight());
+    ASSERT_EQ(Point(125, 150), rect.getBottomRight());
+    ASSERT_EQ(Point(75,100), rect.getCenter());
 }
 
 TEST_F(RectTest, IntersectInside) {
@@ -152,6 +154,23 @@ TEST_F(RectTest, Contains) {
     ASSERT_TRUE(Rect(0, 0, 100, 100).contains(Point(0, 0)));
     ASSERT_TRUE(Rect(10, 10, 100, 100).contains(Point(50, 50)));
     ASSERT_FALSE(Rect(10, 10, 100, 100).contains(Point(5, 5)));
+}
+
+TEST_F(RectTest, DistanceTo) {
+    ASSERT_EQ(0.0f, Rect(0,0,0,0).distanceTo(Point(0,0)));
+    ASSERT_EQ(0.0f, Rect(10,10,20,20).distanceTo(Point(10,30)));
+    ASSERT_EQ(0.0f, Rect(10,10,20,20).distanceTo(Point(30,10)));
+
+    // Purely horizontal distance
+    ASSERT_EQ(10.0f, Rect(10,10,20,20).distanceTo(Point(40,10)));
+    ASSERT_EQ(10.0f, Rect(10,10,20,20).distanceTo(Point(0,20)));
+
+    // Purely vertical distance
+    ASSERT_EQ(10.0f, Rect(10,10,20,20).distanceTo(Point(10,40)));
+    ASSERT_EQ(10.0f, Rect(10,10,20,20).distanceTo(Point(20,0)));
+
+    // Diagonal
+    ASSERT_FLOAT_EQ(50.f, Rect(10,10,20,20).distanceTo(Point(60, -30)));
 }
 
 TEST_F(RectTest, Serialize) {

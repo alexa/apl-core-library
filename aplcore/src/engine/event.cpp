@@ -22,16 +22,21 @@
 namespace apl {
 
 Bimap<int, std::string> sEventTypeBimap = {
-    {kEventTypeControlMedia, "controlMedia"},
-    {kEventTypeFocus,        "focus"},
-    {kEventTypeFinish,       "finish"},
-    {kEventTypeOpenURL,      "openURL"},
-    {kEventTypePlayMedia,    "playMedia"},
-    {kEventTypePreroll,      "preroll"},
-    {kEventTypeScrollTo,     "scrollTo"},
-    {kEventTypeSendEvent,    "sendEvent"},
-    {kEventTypeSetPage,      "setPage"},
-    {kEventTypeSpeak,        "speak"}
+    {kEventTypeControlMedia,           "controlMedia"},
+    {kEventTypeDataSourceFetchRequest, "dataSourceFetchRequest"},
+    {kEventTypeExtension,              "extension"},
+    {kEventTypeFocus,                  "focus"},
+    {kEventTypeFinish,                 "finish"},
+    {kEventTypeMediaRequest,           "mediaRequest"},
+    {kEventTypeOpenURL,                "openURL"},
+    {kEventTypePlayMedia,              "playMedia"},
+    {kEventTypePreroll,                "preroll"},
+    {kEventTypeReinflate,              "reinflate"},
+    {kEventTypeRequestFirstLineBounds, "requestFirstLineBounds"},
+    {kEventTypeScrollTo,               "scrollTo"},
+    {kEventTypeSendEvent,              "sendEvent"},
+    {kEventTypeSetPage,                "setPage"},
+    {kEventTypeSpeak,                  "speak"}
 };
 
 Bimap<int, std::string> sEventPropertyBimap = {
@@ -132,7 +137,7 @@ Event::serialize(rapidjson::Document::AllocatorType& allocator) const
 
     for (auto& m : mData->bag) {
         if (!sEventPropertyBimap.has(m.first)) {
-            LOG(LogLevel::ERROR) << "Unknown property enum: " << m.first;
+            LOG(LogLevel::kError) << "Unknown property enum: " << m.first;
             continue;
         }
         const std::string& prop = sEventPropertyBimap.at(m.first);

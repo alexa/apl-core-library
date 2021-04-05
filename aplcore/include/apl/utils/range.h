@@ -183,6 +183,33 @@ public:
         mUpperBound += shift;
     }
 
+    /**
+     * Extend the range by up to one unit towards the target number.  This is useful if you
+     * need to perform an operation on each element in the extended range.  For example:
+     *
+     *     while (!range.contains(target)) {
+     *       int index = range.extendTowards(target);
+     *       int offset = index - range.lowerBound();
+     *     }
+     *
+     * @param to position to expand the range to
+     * @return the extension of the range
+     */
+    int extendTowards(int to) {
+        if (mUpperBound < mLowerBound) {
+            mLowerBound = to;
+            mUpperBound = to;
+            return to;
+        }
+
+        if (to < mLowerBound)
+            return --mLowerBound;
+        else if (to > mUpperBound)
+            return ++mUpperBound;
+        else
+            return to;
+    }
+
 private:
     int mLowerBound;
     int mUpperBound;

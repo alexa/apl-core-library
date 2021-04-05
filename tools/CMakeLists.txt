@@ -24,7 +24,10 @@ include(../thirdparty/thirdparty.cmake)
 
 include_directories(include)
 
-add_executable(enumgen src/enumgen.cpp)
+add_executable(enumgen
+        src/enumparser.cpp
+        src/enumgen.cpp)
+
 add_dependencies(enumgen pegtl-build)
 include_directories(${PEGTL_INCLUDE})
 

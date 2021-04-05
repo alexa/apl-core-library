@@ -24,10 +24,11 @@ target_sources_local(apl
     dependant.cpp
     evaluate.cpp
     event.cpp
-    focusmanager.cpp
     hovermanager.cpp
     info.cpp
     keyboardmanager.cpp
+    layoutmanager.cpp
+    mediamanager.cpp
     parameterarray.cpp
     propdef.cpp
     properties.cpp

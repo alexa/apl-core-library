@@ -36,8 +36,9 @@ protected:
         ASSERT_EQ(end, span.end);
     }
 
-private:
     Object styledText;
+
+private:
     std::shared_ptr<std::vector<StyledText::Span>> spans;
 };
 
@@ -48,7 +49,7 @@ TEST_F(StyledTextTest, Casting)
     ASSERT_TRUE(IsEqual(4, StyledText::create("4.3").asInt()));
     ASSERT_TRUE(IsEqual(Color(Color::RED), StyledText::create("#ff0000").asColor()));
 
-    auto context = Context::create(Metrics(), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics(), makeDefaultSession());
     ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 10), StyledText::create("10dp").asDimension(*context)));
     ASSERT_TRUE(IsEqual(Dimension(), StyledText::create("auto").asDimension(*context)));
     ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 10), StyledText::create("10%").asDimension(*context)));
@@ -144,6 +145,19 @@ TEST_F(StyledTextTest, UnopenedTagComplex)
     verifySpan(1, StyledText::kSpanTypeItalic, 7, 38);
 }
 
+TEST_F(StyledTextTest, UnopenedTagNested)
+{
+    createAndVerifyStyledText(u8"<i>Unopened</i></i> tag.", u8"Unopened tag.", 1);
+    verifySpan(0, StyledText::kSpanTypeItalic, 0, 8);
+}
+
+TEST_F(StyledTextTest, UnopenedTagDeepNested)
+{
+    createAndVerifyStyledText(u8"<i><i>Unopened</i></i></i></i></i></i> tag.", u8"Unopened tag.", 2);
+    verifySpan(0, StyledText::kSpanTypeItalic, 0, 8);
+    verifySpan(1, StyledText::kSpanTypeItalic, 0, 8);
+}
+
 TEST_F(StyledTextTest, UnclosedTagComplex)
 {
     createAndVerifyStyledText(u8"Multiple <b>very <u>unclosed<i> tags</b>. And few <tt>unclosed <strike>at the end.",
@@ -155,6 +169,31 @@ TEST_F(StyledTextTest, UnclosedTagComplex)
     verifySpan(4, StyledText::kSpanTypeUnderline, 27, 57);
     verifySpan(5, StyledText::kSpanTypeMonospace, 37, 57);
     verifySpan(6, StyledText::kSpanTypeStrike, 46, 57);
+}
+
+
+TEST_F(StyledTextTest, UnclosedSameTypeTagNested)
+{
+    createAndVerifyStyledText(u8"Multiple nested <b><b><b><b>very</b></b> unclosed tags.",
+    u8"Multiple nested very unclosed tags.", 4);
+    verifySpan(0, StyledText::kSpanTypeStrong, 16, 35);
+    verifySpan(1, StyledText::kSpanTypeStrong, 16, 35);
+    verifySpan(2, StyledText::kSpanTypeStrong, 16, 20);
+    verifySpan(3, StyledText::kSpanTypeStrong, 16, 20);
+}
+
+TEST_F(StyledTextTest, UnclosedSameTypeTagNestedComplex)
+{
+    createAndVerifyStyledText(u8"Multiple <b><b>very <u>unclosed<i> tags</b>. And few <tt>unclosed <strike>at the end.",
+    u8"Multiple very unclosed tags. And few unclosed at the end.", 8);
+    verifySpan(0, StyledText::kSpanTypeStrong, 9, 57);
+    verifySpan(1, StyledText::kSpanTypeStrong, 9, 27);
+    verifySpan(2, StyledText::kSpanTypeUnderline, 14, 27);
+    verifySpan(3, StyledText::kSpanTypeItalic, 22, 27);
+    verifySpan(4, StyledText::kSpanTypeItalic, 27, 57);
+    verifySpan(5, StyledText::kSpanTypeUnderline, 27, 57);
+    verifySpan(6, StyledText::kSpanTypeMonospace, 37, 57);
+    verifySpan(7, StyledText::kSpanTypeStrike, 46, 57);
 }
 
 TEST_F(StyledTextTest, UnsupportedTag)
@@ -303,51 +342,336 @@ TEST_F(StyledTextTest, TagAttribute)
     createAndVerifyStyledText(u8"hello<br 3459dfiuwcr9ergh da lia e  =ar -e 89q3 403i4 ''\"<<<<''' <>< k'asd \" />world", u8"helloworld", 1);
 }
 
-TEST_F(StyledTextTest, WbrSimple)
+TEST_F(StyledTextTest, NobrSimple)
 {
-    createAndVerifyStyledText(u8"He screamed \"Run<WBR>faster<Wbr>the<wBr>tiger<wbR>is<wbr>right<wbr/>behind< wbr>you!!!\"",
-            u8"He screamed \"Runfasterthetigerisrightbehindyou!!!\"", 7);
-    verifySpan(0, StyledText::kSpanTypeWordBreak, 16, 16);
-    verifySpan(1, StyledText::kSpanTypeWordBreak, 22, 22);
-    verifySpan(2, StyledText::kSpanTypeWordBreak, 25, 25);
-    verifySpan(3, StyledText::kSpanTypeWordBreak, 30, 30);
-    verifySpan(4, StyledText::kSpanTypeWordBreak, 32, 32);
-    verifySpan(5, StyledText::kSpanTypeWordBreak, 37, 37);
-    verifySpan(6, StyledText::kSpanTypeWordBreak, 43, 43);
+    createAndVerifyStyledText(u8"He screamed \"Run <NOBR>faster</nobr>the<noBR>tiger is</NObr>right<nobr/><nobr />behind<nobr>you!!!</nobr>\"",
+                              u8"He screamed \"Run fasterthetiger isrightbehindyou!!!\"", 3);
+    verifySpan(0, StyledText::kSpanTypeNoBreak, 17, 23);
+    verifySpan(1, StyledText::kSpanTypeNoBreak, 26, 34);
+    verifySpan(2, StyledText::kSpanTypeNoBreak, 45, 51);
 }
 
-TEST_F(StyledTextTest, WbrSpaced)
+TEST_F(StyledTextTest, NobrMerge)
 {
-    createAndVerifyStyledText(u8"Should break<wbr> here, and also<wbr> <wbr>twice. Once <wbr><wbr>here though.",
-                              u8"Should break here, and also twice. Once here though.", 4);
-    verifySpan(0, StyledText::kSpanTypeWordBreak, 12, 12);
-    verifySpan(1, StyledText::kSpanTypeWordBreak, 27, 27);
-    verifySpan(2, StyledText::kSpanTypeWordBreak, 28, 28);
-    verifySpan(3, StyledText::kSpanTypeWordBreak, 40, 40);
+    // Only some tags can be merged. For example "<b>te</b><b>xt</b>" can become "<b>text</b>"
+    createAndVerifyStyledText(u8"<nobr>This should not</nobr><nobr> merge</nobr> into one big tag",
+                              u8"This should not merge into one big tag", 2);
+    verifySpan(0, StyledText::kSpanTypeNoBreak, 0, 15);
+    verifySpan(1, StyledText::kSpanTypeNoBreak, 15, 21);
 }
 
-TEST_F(StyledTextTest, WbrComplex)
+TEST_F(StyledTextTest, NobrNested)
 {
-    createAndVerifyStyledText(u8"He screamed \"Run<wbr><wbr>faster<br>the<i>tiger<wbr>is</i>right<wbr><br>behind<wbr>you!!!\"",
-                              u8"He screamed \"Runfasterthetigerisrightbehindyou!!!\"", 7);
-    verifySpan(0, StyledText::kSpanTypeWordBreak, 16, 16);
-    verifySpan(1, StyledText::kSpanTypeLineBreak, 22, 22);
-    verifySpan(2, StyledText::kSpanTypeItalic, 25, 32);
-    verifySpan(3, StyledText::kSpanTypeWordBreak, 30, 30);
-    verifySpan(4, StyledText::kSpanTypeLineBreak, 37, 37);
-    verifySpan(5, StyledText::kSpanTypeWordBreak, 37, 37);
-    verifySpan(6, StyledText::kSpanTypeWordBreak, 43, 43);
+    createAndVerifyStyledText(u8"He screamed \"Run <NOBR><nobr><nobr>faster</nobr></nobr></nobr>the<noBR>tig<nobr>er </nobr>is</NObr>"
+                              "right<nobr/><nobr />behind<nobr><nobr>you!</nobr>!!</nobr>\"",
+                              u8"He screamed \"Run fasterthetiger isrightbehindyou!!!\"", 7);
+    verifySpan(0, StyledText::kSpanTypeNoBreak, 17, 23);
+    verifySpan(1, StyledText::kSpanTypeNoBreak, 17, 23);
+    verifySpan(2, StyledText::kSpanTypeNoBreak, 17, 23);
+    verifySpan(3, StyledText::kSpanTypeNoBreak, 26, 34);
+    verifySpan(4, StyledText::kSpanTypeNoBreak, 29, 32);
+    verifySpan(5, StyledText::kSpanTypeNoBreak, 45, 51);
+    verifySpan(6, StyledText::kSpanTypeNoBreak, 45, 49);
 }
 
-TEST_F(StyledTextTest, WbrCollapse)
+TEST_F(StyledTextTest, NobrComplex)
 {
-    createAndVerifyStyledText(u8"He screamed \"Run<wbr><wbr>faster<wbr>the<wbr>tiger<wbr><wbr>is<wbr>right<wbr><wbr>behind<wbr>you!!!\"",
-                              u8"He screamed \"Runfasterthetigerisrightbehindyou!!!\"", 7);
-    verifySpan(0, StyledText::kSpanTypeWordBreak, 16, 16);
-    verifySpan(1, StyledText::kSpanTypeWordBreak, 22, 22);
-    verifySpan(2, StyledText::kSpanTypeWordBreak, 25, 25);
-    verifySpan(3, StyledText::kSpanTypeWordBreak, 30, 30);
-    verifySpan(4, StyledText::kSpanTypeWordBreak, 32, 32);
-    verifySpan(5, StyledText::kSpanTypeWordBreak, 37, 37);
-    verifySpan(6, StyledText::kSpanTypeWordBreak, 43, 43);
+    createAndVerifyStyledText(u8"He screamed \"Run <NOBR><nobr><br>fas<br>ter</nobr></nobr><b>the<noBR>tig<nobr>er </nobr>i</b>s</NObr>"
+                              "right<nobr/><nobr />behind<nobr><nobr>you!</nobr>!!</nobr>\"",
+                              u8"He screamed \"Run fasterthetiger isrightbehindyou!!!\"", 10);
+    verifySpan(0, StyledText::kSpanTypeNoBreak, 17, 23);
+    verifySpan(1, StyledText::kSpanTypeNoBreak, 17, 23);
+    verifySpan(2, StyledText::kSpanTypeLineBreak, 17, 17);
+    verifySpan(3, StyledText::kSpanTypeLineBreak, 20, 20);
+    verifySpan(4, StyledText::kSpanTypeStrong, 23, 33);
+    verifySpan(5, StyledText::kSpanTypeNoBreak, 26, 33);
+    verifySpan(6, StyledText::kSpanTypeNoBreak, 29, 32);
+    verifySpan(7, StyledText::kSpanTypeNoBreak, 33, 34);
+    verifySpan(8, StyledText::kSpanTypeNoBreak, 45, 51);
+    verifySpan(9, StyledText::kSpanTypeNoBreak, 45, 49);
+}
+
+TEST_F(StyledTextTest, StyledTextIteratorBasic)
+{
+    createAndVerifyStyledText(u8"He screamed \"Run<u>faster<i>thetigerisbehind</i></u><i>you</i>!!!\"",
+            u8"He screamed \"Runfasterthetigerisbehindyou!!!\"", 3);
+
+    StyledText st = styledText.getStyledText();
+    StyledText::Iterator it(st);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), "He screamed \"Run");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeUnderline);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), "faster");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeItalic);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), "thetigerisbehind");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeItalic);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeUnderline);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeItalic);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), "you");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeItalic);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), "!!!\"");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEnd);
+}
+
+TEST_F(StyledTextTest, StyledTextIteratorEmpty)
+{
+    createAndVerifyStyledText("", "", 0);
+
+    StyledText st = styledText.getStyledText();
+    StyledText::Iterator it(st);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEnd);
+}
+
+TEST_F(StyledTextTest, StyledTextSpanEquality)
+{
+    auto st1 = StyledText::create(u8"He screamed <b>\"Runfasterthetigerisbehindyou!!!\"</b>").getStyledText();
+    auto st2 = StyledText::create(u8"He screamed <b>\"Runslowerthepuppywantstolickyou\"</b>").getStyledText();
+    auto st1Spans = st1.getSpans();
+    auto st2Spans = st2.getSpans();
+
+    EXPECT_EQ(st1Spans.size(), st2Spans.size());
+    EXPECT_FALSE(st1Spans.empty());
+    EXPECT_TRUE(st1Spans[0] == st2Spans[0]);
+}
+
+TEST_F(StyledTextTest, StyledTextSpanInequality)
+{
+    auto st1 = StyledText::create(u8"He screamed <b>\"Runfasterthetigerisbehindyou!!!\"</b>").getStyledText();
+    auto st2 = StyledText::create(u8"He screamed <b>\"Runslowertheturtleneedstolickyou\"</b>").getStyledText();
+    auto st1Spans = st1.getSpans();
+    auto st2Spans = st2.getSpans();
+
+    EXPECT_EQ(st1Spans.size(), st2Spans.size());
+    EXPECT_FALSE(st1Spans.empty());
+    EXPECT_TRUE(st1Spans[0] != st2Spans[0]);
+}
+
+TEST_F(StyledTextTest, StyledTextTruthy)
+{
+    createAndVerifyStyledText(u8"He screamed \"Runfasterthetigerisbehindyou!!!\"",
+                              u8"He screamed \"Runfasterthetigerisbehindyou!!!\"", 0);
+
+    StyledText st = styledText.getStyledText();
+    EXPECT_TRUE(st.truthy());
+
+    createAndVerifyStyledText(u8"He screamed <b>\"Runfasterthetigerisbehindyou!!!\"</b>",
+                              u8"He screamed \"Runfasterthetigerisbehindyou!!!\"", 1);
+
+    st = styledText.getStyledText();
+    EXPECT_TRUE(st.truthy());
+
+    createAndVerifyStyledText(u8"",
+                              u8"", 0);
+
+    st = styledText.getStyledText();
+    EXPECT_FALSE(st.truthy());
+}
+
+TEST_F(StyledTextTest, StyledTextIteratorNoTags)
+{
+    createAndVerifyStyledText(u8"He screamed \"Runfasterthetigerisbehindyou!!!\"",
+                              u8"He screamed \"Runfasterthetigerisbehindyou!!!\"", 0);
+
+    StyledText st = styledText.getStyledText();
+    StyledText::Iterator it(st);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"He screamed \"Runfasterthetigerisbehindyou!!!\"");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEnd);
+}
+
+TEST_F(StyledTextTest, CollapseWhiteSpaceSurroundingSpans)
+{
+    createAndVerifyStyledText(u8"Example 1:<b>hello</b> <b>world</b>",
+                              u8"Example 1:hello world", 2);
+    createAndVerifyStyledText(u8"Example 2: <b> hola</b> <b>mundo</b>",
+                              u8"Example 2: hola mundo", 2);
+    createAndVerifyStyledText(u8"Example 3:<b> hallo </b> <b>welt</b>",
+                              u8"Example 3: hallo welt", 2);
+    createAndVerifyStyledText(u8"Example 4: <b> ciao   </b> <b>    mondo </b>",
+                              u8"Example 4: ciao mondo ", 2);
+    createAndVerifyStyledText(u8"Example 5:<i> bonjour </i> <i>le monde</i>",
+                              u8"Example 5: bonjour le monde", 2);
+    createAndVerifyStyledText(u8"Example 6: hello   <b/>world",
+                              u8"Example 6: hello world", 0);
+    createAndVerifyStyledText(u8"Example 7:<u> hello </u> <u>underline</u>",
+                              u8"Example 7: hello underline", 2);
+    createAndVerifyStyledText(u8"Example 8: <b>hello </b><b>merge</b>",
+                              u8"Example 8: hello merge", 1);
+    createAndVerifyStyledText(u8"Example 9: <b>hello </b><b> merge</b>",
+                              u8"Example 9: hello merge", 1);
+    createAndVerifyStyledText(u8"Example 10: <b>hello </b> <i><b> potato</b></i>",
+                              u8"Example 10: hello potato", 3);
+}
+
+TEST_F(StyledTextTest, SpanMultipleBreaklines)
+{
+    createAndVerifyStyledText(u8"Example 1:<b>hello</b> <b>world</b><br>Example 2: <b> hola</b> <b>mundo</b><br>Example 3:<b> hallo </b> <b>welt</b><br>Example 4: <b> ciao   </b> <b>    mondo</b>",
+                              u8"Example 1:hello worldExample 2: hola mundoExample 3: hallo weltExample 4: ciao mondo", 11 /* 2 per line + 3 break lines 2 * 4 + 3 = 11*/);
+    auto st = styledText.getStyledText();
+    StyledText::Iterator it(st);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"Example 1:");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"hello");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8" ");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"world");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeLineBreak);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeLineBreak);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"Example 2: ");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"hola");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8" ");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"mundo");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeLineBreak);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeLineBreak);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"Example 3:");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8" hallo ");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"welt");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeLineBreak);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeLineBreak);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"Example 4: ");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"ciao ");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"mondo");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeStrong);
+}
+
+TEST_F(StyledTextTest, SpanTransitionUnicodes)
+{
+    createAndVerifyStyledText(u8"\u524D\u9031\n\u672B<i>\u6BD434\u5186</i>80\u92AD<br>",
+                              u8"\u524D\u9031 \u672B\u6BD434\u518680\u92AD", 2);
+
+    StyledText st = styledText.getStyledText();
+    StyledText::Iterator it(st);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"\u524D\u9031 \u672B");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeItalic);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"\u6BD434\u5186");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeItalic);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), u8"80\u92AD");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeLineBreak);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeLineBreak);
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEnd);
 }

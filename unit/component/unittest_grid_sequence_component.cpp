@@ -16,6 +16,8 @@
 
 #include "../testeventloop.h"
 
+#include "apl/component/gridsequencecomponent.h"
+
 using namespace apl;
 
 class GridSequenceComponentTest : public DocumentWrapper {
@@ -180,6 +182,50 @@ TEST_F(GridSequenceComponentTest, ComponentSimple) {
     ASSERT_EQ(200, component->getCalculated(kPropertyChildWidth).at(0).asInt());
     ASSERT_EQ(100, component->getCalculated(kPropertyChildWidth).at(1).asInt());
 }
+
+
+static std::vector<const char *> BAD_GRID_DOCS = {
+    R"({
+      "type": "APL",
+      "version": "1.4",
+      "mainTemplate": {
+        "item": {
+          "type": "GridSequence",
+          "width": "300dp",
+          "snap": "center",
+          "numbered": true,
+          "childHeight": "50%"
+        }
+      }
+    })",
+    R"({
+      "type": "APL",
+      "version": "1.4",
+      "mainTemplate": {
+        "item": {
+          "type": "GridSequence",
+          "width": "300dp",
+          "snap": "center",
+          "numbered": true,
+          "childWidth": "50%"
+        }
+      }
+    })"
+};
+
+/**
+ * Certain grid sequence properties are required.
+ * If they are not present, the grid sequence will not inflate.
+ */
+TEST_F(GridSequenceComponentTest, BadGridDoc)
+{
+    for (const auto& m : BAD_GRID_DOCS) {
+        loadDocumentExpectFailure(m);
+        ASSERT_FALSE(component);
+        ASSERT_TRUE(ConsoleMessage());
+    }
+}
+
 
 static const char* PLURAL_PROPS_GRID_DOC = R"({
   "type": "APL",
@@ -772,7 +818,7 @@ static const char *LIVE_GRID_SEQUENCE = R"({
 TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
 {
     auto myArray = LiveArray::create({8, 9, 10, 11, 12, 13, 14});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_GRID_SEQUENCE);
 
@@ -797,7 +843,7 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
     // Verify initial context
     rapidjson::Document document(rapidjson::kObjectType);
     auto context = root->serializeVisualContext(document.GetAllocator());
-    ASSERT_FALSE(CheckDirtyVisualContext(root, component));
+    ASSERT_TRUE(CheckDirtyVisualContext(root));
 
     ASSERT_TRUE(context.HasMember("tags"));
     auto& tags = context["tags"];
@@ -834,7 +880,7 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
 
     ASSERT_TRUE(component->isVisualContextDirty());
     context = root->serializeVisualContext(document.GetAllocator());
-    ASSERT_FALSE(CheckDirtyVisualContext(root));
+    ASSERT_TRUE(CheckDirtyVisualContext(root));
 
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
@@ -862,7 +908,7 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
 
     ASSERT_TRUE(CheckDirtyVisualContext(root, component));
     context = root->serializeVisualContext(document.GetAllocator());
-    ASSERT_FALSE(CheckDirtyVisualContext(root));
+    ASSERT_TRUE(CheckDirtyVisualContext(root));
 
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
@@ -892,7 +938,7 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
 
     ASSERT_TRUE(CheckDirtyVisualContext(root, component));
     context = root->serializeVisualContext(document.GetAllocator());
-    ASSERT_FALSE(CheckDirtyVisualContext(root, component));
+    ASSERT_TRUE(CheckDirtyVisualContext(root));
 
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
@@ -928,7 +974,7 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
 
     ASSERT_TRUE(CheckDirtyVisualContext(root, component));
     context = root->serializeVisualContext(document.GetAllocator());
-    ASSERT_FALSE(CheckDirtyVisualContext(root, component));
+    ASSERT_TRUE(CheckDirtyVisualContext(root));
 
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
@@ -949,7 +995,7 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
 
     ASSERT_TRUE(CheckDirtyVisualContext(root, component));
     context = root->serializeVisualContext(document.GetAllocator());
-    ASSERT_FALSE(CheckDirtyVisualContext(root, component));
+    ASSERT_TRUE(CheckDirtyVisualContext(root));
 
     ASSERT_TRUE(context.HasMember("tags"));
     tags = context["tags"];
@@ -990,7 +1036,7 @@ static const char *LIVE_GRID_DOC = R"({
 TEST_F(GridSequenceComponentTest, GridSequenceLiveChanges)
 {
     auto myArray = LiveArray::create({9, 10, 11, 12, 13, 14, 15, 16, 17});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_GRID_DOC);
 
@@ -1105,6 +1151,37 @@ TEST_F(GridSequenceComponentTest, GridSequenceLiveChanges)
     // | |  9 | | 12 | | 15 |        |
     // | +----+ +----+ +----+        |
     // +-----------------------------+
+}
+
+/**
+ * This test recreates a std::out_of_range exception which occurred in
+ * MultiChildScrollableComponent::processLayoutChange when mEnsuredChildren was empty but the
+ * mChildren was NOT empty. We called: mChildren.at(mEnsuredChildren.lowerBound()); without
+ * checking if it was a valid index
+ */
+TEST_F(GridSequenceComponentTest, CheckEmptyEnsuredChildren)
+{
+    auto myArray = LiveArray::create({1, 2, 3, 4});
+    config->liveData("TestArray", myArray);
+
+    loadDocument(LIVE_GRID_DOC);
+
+    // Insert a bunch of elements at the start to push the lowerBound of mEnsuredChildren up
+    for (int i = 0; i < 25; i++)
+        myArray->insert(0, "x");
+
+    root->clearPending();
+
+    // The lower bounds is now 13 so we will remove all elements from 13 onwards to force mEnsuredChildren
+    // to be empty
+    for (int i = 0; i < 16; i++)
+        myArray->remove(13);
+
+    // Now that mEnsuredChildren is empty we call MultiChildScrollableComponent::processLayoutChanges
+    root->clearPending();
+
+    auto grid = std::dynamic_pointer_cast<GridSequenceComponent>(root->findComponentById("grid"));
+    ASSERT_EQ(grid->getDisplayedChildCount(), 9);
 }
 
 static const char* CHILD_PADDING = R"({
@@ -1398,4 +1475,491 @@ TEST_F(GridSequenceComponentTest, AutoSequence) {
             4,  // num columns
             {100}, // child heights
             {300, 0, 100, 0})); // child widths
+}
+
+static const char* VERTICAL_GRID_SETVALUE = R"(
+{
+    "type": "APL",
+    "version": "1.6",
+    "mainTemplate": {
+        "item": {
+            "type": "GridSequence",
+            "scrollDirection": "vertical",
+            "height": "160dp",
+            "width": "190dp",
+            "childWidth": ["100dp", "auto"],
+            "childHeight": "25%",
+            "items": {
+                "type": "Text",
+                "id": "${data}"
+            },
+            "data": [1, 2, 3, 4, 5, 6]
+        }
+    }
+}
+)";
+
+// Test for vertical grid seq child height/width properties for dynamic
+TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
+    loadDocument(VERTICAL_GRID_SETVALUE);
+    ASSERT_TRUE(component);
+
+    auto gridSeq = std::dynamic_pointer_cast<CoreComponent>(component);
+    ASSERT_EQ(kComponentTypeGridSequence, gridSeq->getType());
+
+    ASSERT_EQ(kScrollDirectionVertical, gridSeq->getCalculated(kPropertyScrollDirection).asInt());
+    ASSERT_EQ("100dp", gridSeq->getCalculated(kPropertyChildWidth).at(0).asString());
+    ASSERT_EQ("auto", gridSeq->getCalculated(kPropertyChildWidth).at(1).asString());
+    ASSERT_EQ("25%", gridSeq->getCalculated(kPropertyChildHeight).at(0).asString());
+    ASSERT_EQ(2, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            3,  // num rows
+            2,  // num columns
+            {40}, // child heights
+            {100, 90})); // child widths
+
+    // Set childWidth property of grid sequence, it will impact all children of grid sequence
+    gridSeq->setProperty(kPropertyChildWidth, Object(ObjectArray{"90dp", "100dp"}));
+
+    ASSERT_EQ(6, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(gridSeq));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root,
+            gridSeq->getChildAt(0),
+            gridSeq->getChildAt(1),
+            gridSeq->getChildAt(2),
+            gridSeq->getChildAt(3),
+            gridSeq->getChildAt(4),
+            gridSeq->getChildAt(5)));
+    root->clearDirty();
+
+    ASSERT_EQ(2, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+    ASSERT_EQ("90dp", gridSeq->getCalculated(kPropertyChildWidth).at(0).asString());
+    ASSERT_EQ("100dp", gridSeq->getCalculated(kPropertyChildWidth).at(1).asString());
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            3,  // num rows
+            2,  // num columns
+            {40}, // child heights
+            {90, 100})); // child widths
+
+    // Set childWidth property of grid sequence, it will impact 3 of its children
+    gridSeq->setProperty(kPropertyChildWidth, "90dp");
+
+    ASSERT_EQ(3, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(gridSeq));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2)));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4)));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root,
+            gridSeq->getChildAt(1),
+            gridSeq->getChildAt(3),
+            gridSeq->getChildAt(5)));
+    root->clearDirty();
+
+    ASSERT_EQ(2, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+    ASSERT_EQ("90dp", gridSeq->getCalculated(kPropertyChildWidth).at(0).asString());
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            3,  // num rows
+            2,  // num columns
+            {40}, // child heights
+            {90, 90})); // child widths
+
+    // Set childWidth property of grid sequence, it will impact 5 children of grid sequence
+    gridSeq->setProperty(kPropertyChildWidth, Object(ObjectArray{"90dp", "80dp", "auto"}));
+
+    ASSERT_EQ(5, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(gridSeq));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root,
+            gridSeq->getChildAt(1),
+            gridSeq->getChildAt(2),
+            gridSeq->getChildAt(3),
+            gridSeq->getChildAt(4),
+            gridSeq->getChildAt(5)));
+    root->clearDirty();
+
+    ASSERT_EQ(3, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+    ASSERT_EQ("90dp", gridSeq->getCalculated(kPropertyChildWidth).at(0).asString());
+    ASSERT_EQ("80dp", gridSeq->getCalculated(kPropertyChildWidth).at(1).asString());
+    ASSERT_EQ("auto", gridSeq->getCalculated(kPropertyChildWidth).at(2).asString());
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            2,  // num rows
+            3,  // num columns
+            {40}, // child heights
+            {90, 80, 20})); // child widths
+
+    // Set childHeight property of grid sequence, it will impact all children of grid sequence
+    gridSeq->setProperty(kPropertyChildHeight, "20%");
+
+    ASSERT_EQ(6, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(gridSeq));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root,
+            gridSeq->getChildAt(0),
+            gridSeq->getChildAt(1),
+            gridSeq->getChildAt(2),
+            gridSeq->getChildAt(3),
+            gridSeq->getChildAt(4),
+            gridSeq->getChildAt(5)));
+    root->clearDirty();
+
+    ASSERT_EQ(3, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+    ASSERT_EQ("90dp", gridSeq->getCalculated(kPropertyChildWidth).at(0).asString());
+    ASSERT_EQ("80dp", gridSeq->getCalculated(kPropertyChildWidth).at(1).asString());
+    ASSERT_EQ("auto", gridSeq->getCalculated(kPropertyChildWidth).at(2).asString());
+    ASSERT_EQ("20%", gridSeq->getCalculated(kPropertyChildHeight).at(0).asString());
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            2,  // num rows
+            3,  // num columns
+            {32}, // child heights
+            {90, 80, 20})); // child widths
+}
+
+// Test for vertical grid seq height/width properties for dynamic
+TEST_F(GridSequenceComponentTest, HeightWidthVertical) {
+    loadDocument(VERTICAL_GRID_SETVALUE);
+    ASSERT_TRUE(component);
+
+    auto gridSeq = std::dynamic_pointer_cast<CoreComponent>(component);
+    ASSERT_EQ(kComponentTypeGridSequence, gridSeq->getType());
+
+    ASSERT_EQ(kScrollDirectionVertical, gridSeq->getCalculated(kPropertyScrollDirection).asInt());
+    ASSERT_EQ("100dp", gridSeq->getCalculated(kPropertyChildWidth).at(0).asString());
+    ASSERT_EQ("auto", gridSeq->getCalculated(kPropertyChildWidth).at(1).asString());
+    ASSERT_EQ("25%", gridSeq->getCalculated(kPropertyChildHeight).at(0).asString());
+    ASSERT_EQ(2, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            3,  // num rows
+            2,  // num columns
+            {40}, // child heights
+            {100, 90})); // child widths
+
+    // Set height property of grid sequence, it will impact all components
+    gridSeq->setProperty(kPropertyHeight, "200dp");
+
+    ASSERT_EQ(7, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root, gridSeq,
+            gridSeq->getChildAt(0),
+            gridSeq->getChildAt(1),
+            gridSeq->getChildAt(2),
+            gridSeq->getChildAt(3),
+            gridSeq->getChildAt(4),
+            gridSeq->getChildAt(5)));
+    root->clearDirty();
+
+    ASSERT_EQ(2, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+    ASSERT_EQ("100dp", gridSeq->getCalculated(kPropertyChildWidth).at(0).asString());
+    ASSERT_EQ("auto", gridSeq->getCalculated(kPropertyChildWidth).at(1).asString());
+    ASSERT_EQ("200dp", gridSeq->getCalculated(kPropertyHeight).asString());
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            3,  // num rows
+            2,  // num columns
+            {50}, // child heights
+            {100, 90})); // child widths
+
+    // Set width property of grid sequence, it will impact gridSeq and 3 children with width auto
+    gridSeq->setProperty(kPropertyWidth, "200dp");
+
+    ASSERT_EQ(4, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2)));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4)));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root, gridSeq,
+            gridSeq->getChildAt(1),
+            gridSeq->getChildAt(3),
+            gridSeq->getChildAt(5)));
+    root->clearDirty();
+
+    ASSERT_EQ(2, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+    ASSERT_EQ("100dp", gridSeq->getCalculated(kPropertyChildWidth).at(0).asString());
+    ASSERT_EQ("auto", gridSeq->getCalculated(kPropertyChildWidth).at(1).asString());
+    ASSERT_EQ("200dp", gridSeq->getCalculated(kPropertyWidth).asString());
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            3,  // num rows
+            2,  // num columns
+            {50}, // child heights
+            {100, 100})); // child widths
+}
+
+static const char* HORIZONTAL_GRID_SETVALUE = R"(
+{
+    "type": "APL",
+    "version": "1.6",
+    "mainTemplate": {
+        "item": {
+            "type": "GridSequence",
+            "scrollDirection": "horizontal",
+            "height": "160dp",
+            "width": "200dp",
+            "childWidth": "25%",
+            "childHeight": ["80dp", "auto"],
+            "items": {
+                "type": "Text",
+                "id": "${data}"
+            },
+            "data": [1, 2, 3, 4, 5, 6]
+        }
+    }
+}
+)";
+
+// Test for horizontal grid seq child height/width properties for dynamic
+TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
+    loadDocument(HORIZONTAL_GRID_SETVALUE);
+    ASSERT_TRUE(component);
+
+    auto gridSeq = std::dynamic_pointer_cast<CoreComponent>(component);
+    ASSERT_EQ(kComponentTypeGridSequence, gridSeq->getType());
+
+    ASSERT_EQ(kScrollDirectionHorizontal, gridSeq->getCalculated(kPropertyScrollDirection).asInt());
+    ASSERT_EQ("80dp", gridSeq->getCalculated(kPropertyChildHeight).at(0).asString());
+    ASSERT_EQ("auto", gridSeq->getCalculated(kPropertyChildHeight).at(1).asString());
+    ASSERT_EQ("25%", gridSeq->getCalculated(kPropertyChildWidth).at(0).asString());
+    ASSERT_EQ(2, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            2,  // num rows
+            3,  // num columns
+            {80, 80}, // child heights
+            {50})); // child widths
+
+    // Set childHeight property of grid sequence, it will impact all children of grid sequence
+    gridSeq->setProperty(kPropertyChildHeight, Object(ObjectArray{"60dp", "80dp"}));
+
+    ASSERT_EQ(6, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(gridSeq));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(root,
+            gridSeq->getChildAt(0),
+            gridSeq->getChildAt(1),
+            gridSeq->getChildAt(2),
+            gridSeq->getChildAt(3),
+            gridSeq->getChildAt(4),
+            gridSeq->getChildAt(5)));
+    root->clearDirty();
+
+    ASSERT_EQ(2, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+    ASSERT_EQ("60dp", gridSeq->getCalculated(kPropertyChildHeight).at(0).asString());
+    ASSERT_EQ("80dp", gridSeq->getCalculated(kPropertyChildHeight).at(1).asString());
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            2,  // num rows
+            3,  // num columns
+            {60, 80}, // child heights
+            {50})); // child widths
+
+    // Set childHeight property of grid sequence, it will impact 3 of its children
+    gridSeq->setProperty(kPropertyChildHeight, "60dp");
+
+    ASSERT_EQ(3, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(gridSeq));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2)));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4)));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root,
+            gridSeq->getChildAt(1),
+            gridSeq->getChildAt(3),
+            gridSeq->getChildAt(5)));
+    root->clearDirty();
+
+    ASSERT_EQ(2, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+    ASSERT_EQ("60dp", gridSeq->getCalculated(kPropertyChildHeight).at(0).asString());
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            2,  // num rows
+            3,  // num columns
+            {60, 60}, // child heights
+            {50})); // child widths
+
+    // Set childHeight property of grid sequence, it will impact 6 children of grid sequence
+    gridSeq->setProperty(kPropertyChildHeight, Object(ObjectArray{"80dp", "60dp", "auto"}));
+
+    ASSERT_EQ(6, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(gridSeq));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root,
+            gridSeq->getChildAt(0),
+            gridSeq->getChildAt(1),
+            gridSeq->getChildAt(2),
+            gridSeq->getChildAt(3),
+            gridSeq->getChildAt(4),
+            gridSeq->getChildAt(5)));
+    root->clearDirty();
+
+    ASSERT_EQ(3, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+    ASSERT_EQ("80dp", gridSeq->getCalculated(kPropertyChildHeight).at(0).asString());
+    ASSERT_EQ("60dp", gridSeq->getCalculated(kPropertyChildHeight).at(1).asString());
+    ASSERT_EQ("auto", gridSeq->getCalculated(kPropertyChildHeight).at(2).asString());
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            3,  // num rows
+            2,  // num columns
+            {80, 60, 20}, // child heights
+            {50})); // child widths
+
+    // Set childWidth property of grid sequence, it will impact all children of grid sequence
+    gridSeq->setProperty(kPropertyChildWidth, "50%");
+
+    ASSERT_EQ(6, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(gridSeq));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root,
+                           gridSeq->getChildAt(0),
+                           gridSeq->getChildAt(1),
+                           gridSeq->getChildAt(2),
+                           gridSeq->getChildAt(3),
+                           gridSeq->getChildAt(4),
+                           gridSeq->getChildAt(5)));
+    root->clearDirty();
+
+    ASSERT_EQ(3, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+    ASSERT_EQ("80dp", gridSeq->getCalculated(kPropertyChildHeight).at(0).asString());
+    ASSERT_EQ("60dp", gridSeq->getCalculated(kPropertyChildHeight).at(1).asString());
+    ASSERT_EQ("auto", gridSeq->getCalculated(kPropertyChildHeight).at(2).asString());
+    ASSERT_EQ("50%", gridSeq->getCalculated(kPropertyChildWidth).at(0).asString());
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            3,  // num rows
+            2,  // num columns
+            {80, 60, 20}, // child heights
+            {100})); // child widths
+}
+
+// Test for horizontal grid seq height/width properties for dynamic
+TEST_F(GridSequenceComponentTest, HeightWidthHorizontal) {
+    loadDocument(HORIZONTAL_GRID_SETVALUE);
+    ASSERT_TRUE(component);
+
+    auto gridSeq = std::dynamic_pointer_cast<CoreComponent>(component);
+    ASSERT_EQ(kComponentTypeGridSequence, gridSeq->getType());
+
+    ASSERT_EQ(kScrollDirectionHorizontal, gridSeq->getCalculated(kPropertyScrollDirection).asInt());
+    ASSERT_EQ("80dp", gridSeq->getCalculated(kPropertyChildHeight).at(0).asString());
+    ASSERT_EQ("auto", gridSeq->getCalculated(kPropertyChildHeight).at(1).asString());
+    ASSERT_EQ("25%", gridSeq->getCalculated(kPropertyChildWidth).at(0).asString());
+    ASSERT_EQ(2, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            2,  // num rows
+            3,  // num columns
+            {80, 80}, // child heights
+            {50})); // child widths
+
+    // Set width property of grid sequence, it will impact all components
+    gridSeq->setProperty(kPropertyWidth, "160dp");
+
+    ASSERT_EQ(7, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root, gridSeq,
+                           gridSeq->getChildAt(0),
+                           gridSeq->getChildAt(1),
+                           gridSeq->getChildAt(2),
+                           gridSeq->getChildAt(3),
+                           gridSeq->getChildAt(4),
+                           gridSeq->getChildAt(5)));
+    root->clearDirty();
+
+    ASSERT_EQ(2, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+    ASSERT_EQ("80dp", gridSeq->getCalculated(kPropertyChildHeight).at(0).asString());
+    ASSERT_EQ("auto", gridSeq->getCalculated(kPropertyChildHeight).at(1).asString());
+    ASSERT_EQ("160dp", gridSeq->getCalculated(kPropertyWidth).asString());
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            2,  // num rows
+            3,  // num columns
+            {80, 80}, // child heights
+            {40})); // child widths
+
+    // Set height property of grid sequence, it will impact gridSeq and 3 children with width auto
+    gridSeq->setProperty(kPropertyHeight, "200dp");
+
+    ASSERT_EQ(4, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2)));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4)));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root, gridSeq,
+                           gridSeq->getChildAt(1),
+                           gridSeq->getChildAt(3),
+                           gridSeq->getChildAt(5)));
+    root->clearDirty();
+
+    ASSERT_EQ(2, gridSeq->getCalculated(kPropertyItemsPerCourse).asInt());
+    ASSERT_EQ("80dp", gridSeq->getCalculated(kPropertyChildHeight).at(0).asString());
+    ASSERT_EQ("auto", gridSeq->getCalculated(kPropertyChildHeight).at(1).asString());
+    ASSERT_EQ("200dp", gridSeq->getCalculated(kPropertyHeight).asString());
+    ASSERT_TRUE(validateCellBounds(
+            gridSeq,
+            2,  // num rows
+            3,  // num columns
+            {80, 120}, // child heights
+            {40})); // child widths
 }

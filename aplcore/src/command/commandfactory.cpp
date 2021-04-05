@@ -100,7 +100,7 @@ CommandFactory::expandMacro(const ContextPtr& context,
     LOG_IF(DEBUG_COMMAND_FACTORY) << "Expanding macro";
 
     // Build a new context for this command macro
-    ContextPtr cptr = Context::create(context);
+    ContextPtr cptr = Context::createFromParent(context);
 
     // Add each parameter to the data-binding context and remove
     // the matching named property that was passed in.

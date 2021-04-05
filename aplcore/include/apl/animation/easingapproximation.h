@@ -14,6 +14,7 @@
  */
 
 #include "apl/animation/coreeasing.h"
+#include "apl/utils/noncopyable.h"
 
 #ifndef _APL_EASING_APPROXIMATION_H
 #define _APL_EASING_APPROXIMATION_H
@@ -23,7 +24,8 @@ namespace apl {
 /**
  * Store a piecewise linear approximation to a cubic-bezier path defined in "N" dimensions.
  */
-class EasingApproximation : public EasingSegment::Data {
+class EasingApproximation : public EasingSegment::Data,
+                            public NonCopyable {
 
 public:
     /**

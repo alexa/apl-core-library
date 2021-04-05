@@ -40,7 +40,7 @@ const std::map<BindingType, BindingFunction> sBindingFunctions = {
     {kBindingTypeColor,     [](const Context& c, const Object& v) { return v.asColor(c); }},
     {kBindingTypeComponent, [](const Context& c, const Object& v) { return v; }},
     {kBindingTypeDimension, [](const Context& c, const Object& v) { return v.asDimension(c); }},
-    {kBindingTypeInteger,   [](const Context& c, const Object& v) { return std::rint(v.asNumber()); }},
+    {kBindingTypeInteger,   [](const Context& c, const Object& v) { return std::round(v.asNumber()); }},
     {kBindingTypeMap,       [](const Context& c, const Object& v) { return v; }},
     {kBindingTypeNumber,    [](const Context& c, const Object& v) { return v.asNumber(); }},
     {kBindingTypeObject,    [](const Context& c, const Object& v) { return v; }},

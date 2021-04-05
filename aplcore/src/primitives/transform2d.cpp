@@ -259,4 +259,29 @@ Transform2D::parse(const SessionPtr& session, const std::string& transform)
     return Transform2D();
 }
 
+Rect
+Transform2D::calculateAxisAlignedBoundingBox(const Rect& rect) {
+
+    if (isIdentity())
+        return rect;
+
+    // add translation to the offset of the rect
+    Transform2D t2D = *this * Transform2D::translate(rect.getTopLeft());
+
+    // apply the transform to the 4 corners
+    auto p1 = t2D * Point(0,0);
+    auto p2 = t2D * Point(rect.getWidth(),0);
+    auto p3 = t2D * Point(rect.getWidth(),rect.getHeight());
+    auto p4 = t2D * Point(0, rect.getHeight());
+
+    // find the min/max x and y for bounding box
+    auto minX = std::min(p1.getX(), std::min(p2.getX(), (std::min(p3.getX(), p4.getX()))));
+    auto maxX = std::max(p1.getX(), std::max(p2.getX(), (std::max(p3.getX(), p4.getX()))));
+    auto minY = std::min(p1.getY(), std::min(p2.getY(), (std::min(p3.getY(), p4.getY()))));
+    auto maxY = std::max(p1.getY(), std::max(p2.getY(), (std::max(p3.getY(), p4.getY()))));
+    auto result = Rect(minX, minY, maxX-minX, maxY-minY);
+
+    return result;
+}
+
 }  // namespace apl

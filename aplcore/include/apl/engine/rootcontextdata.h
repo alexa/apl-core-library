@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -20,21 +20,25 @@
 #include <string>
 #include <queue>
 
-#include "apl/utils/counter.h"
-#include "apl/content/rootconfig.h"
-#include "apl/content/settings.h"
 #include "apl/content/content.h"
 #include "apl/content/metrics.h"
+#include "apl/content/rootconfig.h"
+#include "apl/content/settings.h"
 #include "apl/engine/event.h"
-#include "apl/extension/extensionmanager.h"
-#include "apl/engine/focusmanager.h"
 #include "apl/engine/hovermanager.h"
 #include "apl/engine/jsonresource.h"
 #include "apl/engine/keyboardmanager.h"
+#include "apl/engine/layoutmanager.h"
+#include "apl/engine/mediamanager.h"
+#include "apl/engine/runtimestate.h"
 #include "apl/engine/styles.h"
+#include "apl/extension/extensionmanager.h"
+#include "apl/focus/focusmanager.h"
 #include "apl/livedata/livedatamanager.h"
 #include "apl/time/sequencer.h"
 #include "apl/touch/pointermanager.h"
+#include "apl/utils/counter.h"
+#include "apl/primitives/size.h"
 
 namespace apl {
 
@@ -46,15 +50,14 @@ public:
      * Stock constructor
      * @param metrics Display metrics
      * @param config Configuration settings
-     * @param theme Display theme
-     * @param requestedAPLVersion Version of APL requested by the document
-     * @param session Logging session
-     * @param extensions Mapping of requested extension NAME -> URI
+     * @param runtimeState Runtime state information (theme, required APL version, re-inflation state)
+     * @param settings Document settings
+     * @param session Session information for logging messages and warnings
+     * @param extensions Mapping of requested extensions NAME -> URI
      */
     RootContextData(const Metrics& metrics,
                     const RootConfig& config,
-                    const std::string& theme,
-                    const std::string& requestedAPLVersion,
+                    RuntimeState runtimeState,
                     const SettingsPtr& settings,
                     const SessionPtr& session,
                     const std::vector<std::pair<std::string, std::string>>& extensions);
@@ -84,9 +87,11 @@ public:
     KeyboardManager& keyboardManager() const { return *mKeyboardManager; }
     LiveDataManager& dataManager() const { return *mDataManager; }
     ExtensionManager& extensionManager() const { return *mExtensionManager; }
+    LayoutManager& layoutManager() const { return *mLayoutManager; }
+    MediaManager& mediaManager() const { return *mMediaManager; }
 
     const YGConfigRef& ygconfig() const { return mYGConfigRef; }
-    ComponentPtr top() const { return mTop; }
+    CoreComponentPtr top() const { return mTop; }
     const std::map<std::string, JsonResource>& layouts() const { return mLayouts; }
     const std::map<std::string, JsonResource>& commands() const { return mCommands; }
     const std::map<std::string, JsonResource>& graphics() const { return mGraphics; }
@@ -119,22 +124,23 @@ public:
     int getPixelHeight() const { return mMetrics.getPixelHeight(); }
     double getWidth() const { return mMetrics.getWidth(); }
     double getHeight() const { return mMetrics.getHeight(); }
+    Size getSize() const { return { static_cast<float>(mMetrics.getWidth()), static_cast<float>(mMetrics.getHeight())}; }
     double getPxToDp() const { return 160.0 / mMetrics.getDpi(); }
 
-    std::string getTheme() const { return mTheme; }
-    std::string getRequestedAPLVersion() const { return mRequestedAPLVersion; }
+    std::string getTheme() const { return mRuntimeState.getTheme(); }
+    std::string getRequestedAPLVersion() const { return mRuntimeState.getRequestedAPLVersion(); }
+    bool getReinflationFlag() const { return mRuntimeState.getReinflation(); }
 
     std::queue<Event> events;
     std::set<ComponentPtr> dirty;
     std::set<ComponentPtr> dirtyVisualContext;
 
 private:
+    RuntimeState mRuntimeState;
     std::map<std::string, JsonResource> mLayouts;
     std::map<std::string, JsonResource> mCommands;
     std::map<std::string, JsonResource> mGraphics;
     Metrics mMetrics;
-    std::string mTheme;
-    std::string mRequestedAPLVersion;
     std::shared_ptr<Styles> mStyles;
     std::unique_ptr<Sequencer> mSequencer;
     std::unique_ptr<FocusManager> mFocusManager;
@@ -143,6 +149,8 @@ private:
     std::unique_ptr<KeyboardManager> mKeyboardManager;
     std::unique_ptr<LiveDataManager> mDataManager;
     std::unique_ptr<ExtensionManager> mExtensionManager;
+    std::unique_ptr<LayoutManager> mLayoutManager;
+    std::unique_ptr<MediaManager> mMediaManager;
     YGConfigRef mYGConfigRef;
     TextMeasurementPtr mTextMeasurement;
     CoreComponentPtr mTop;         // The top component

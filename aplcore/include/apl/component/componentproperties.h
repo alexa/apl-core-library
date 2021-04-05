@@ -281,6 +281,28 @@ enum SwipeDirection {
     kSwipeDirectionRight
 };
 
+/**
+ * Scrolling animation mode for custom visual experience
+ */
+enum ScrollAnimation {
+    kScrollAnimationDefault = 0,
+    kScrollAnimationSmoothInOut = 1
+};
+
+/**
+ * Component media state
+ */
+enum ComponentMediaState {
+    /// No media has been requested as of yet
+    kMediaStateNotRequested,
+    /// One or more media items is being loaded
+    kMediaStatePending,
+    /// All media required by component is available
+    kMediaStateReady,
+    /// One or more of the media items failed to load
+    kMediaStateError
+};
+
 enum PropertyKey {
     // NOTE: ScrollDirection is placed early in the list so that it loads BEFORE height and width (see SequenceComponent.cpp)
     /// SequenceComponent scrolling direction (see #ScrollDirection)
@@ -323,6 +345,10 @@ enum PropertyKey {
     kPropertyBottom,
     /// Component bounding rectangle (output only)
     kPropertyBounds,
+    /// Sequence preserve scroll position by ID
+    kPropertyCenterId,
+    /// Sequence preserve scroll position by index
+    kPropertyCenterIndex,
     /// GridSequenceComponent child height(s)
     kPropertyChildHeight,
     /// GridSequenceComponent child width(s)
@@ -353,6 +379,10 @@ enum PropertyKey {
     kPropertyFastScrollScale,
     /// ImageComponent array of filters
     kPropertyFilters,
+    /// Sequence preserve scroll position by ID
+    kPropertyFirstId,
+    /// Sequence preserve scroll position by index
+    kPropertyFirstIndex,
     /// Property that identifies that component is focusable and as a result of it navigable
     kPropertyFocusable,
     /// TextComponent | EditTextComponent valid font families
@@ -415,12 +445,24 @@ enum PropertyKey {
     kPropertyMaxWidth,
     /// VectorGraphicComponent bounding rectangle for displayed graphic (output only)
     kPropertyMediaBounds,
+    /// State of media required by the component
+    kPropertyMediaState,
     /// Component minimum height
     kPropertyMinHeight,
     /// Component minimum width
     kPropertyMinWidth,
     /// PagerComponent valid navigation mode (see #Navigation)
     kPropertyNavigation,
+    /// Component to switch to when a keyboard down command is receive
+    kPropertyNextFocusDown,
+    /// Component to switch to when a keyboard forward command is received
+    kPropertyNextFocusForward,
+    /// Component to switch to when a keyboard left command is received
+    kPropertyNextFocusLeft,
+    /// Component to switch to when a keyboard right command is received
+    kPropertyNextFocusRight,
+    /// Component to switch to when a keyboard up command is received
+    kPropertyNextFocusUp,
     /// Synthetic notification for dirty flag that the children of a component have changed (dirty only)
     kPropertyNotifyChildrenChanged,
     /// SequenceComponent or ContainerComponent has ordinal numbers
@@ -431,6 +473,8 @@ enum PropertyKey {
     kPropertyOnBlur,
     /// TouchableComponent handler for cancel
     kPropertyOnCancel,
+    /// Document handler for configuration changes
+    kPropertyOnConfigChange,
     /// TouchableComponent handler for down
     kPropertyOnDown,
     /// VideoComponent handler for video end
@@ -469,6 +513,8 @@ enum PropertyKey {
     kPropertyOverlayColor,
     /// ImageComponent overlay gradient
     kPropertyOverlayGradient,
+    /// Component padding [user-defined array of values]
+    kPropertyPadding,
     /// Component bottom padding
     kPropertyPaddingBottom,
     /// Component left padding
@@ -479,14 +525,28 @@ enum PropertyKey {
     kPropertyPaddingTop,
     /// Pager page direction
     kPropertyPageDirection,
+    /// Pager virtual property for the ID of the current page
+    kPropertyPageId,
+    /// Pager virtual property for the index of the current page
+    kPropertyPageIndex,
+    /// VideoComponent current playing state
+    kPropertyPlayingState,
     /// ContainerComponent child absolute or relative position (see #Position)
     kPropertyPosition,
+    /// Component properties to preserve over configuration changes
+    kPropertyPreserve,
     /// ContainerComponent child absolute right position
     kPropertyRight,
     /// Component accessibility role
     kPropertyRole,
     /// ImageComponent, VideoComponent, and VectorGraphicComponent scale property (see #ImageScale, #VectorGraphicScale, #VideoScale)
     kPropertyScale,
+    /// SequenceComponent scroll animation setting
+    kPropertyScrollAnimation,
+    /// Scrollable preserve position by absolute scroll position
+    kPropertyScrollOffset,
+    /// Scrollable preserve position by percentage
+    kPropertyScrollPercent,
     /// Scroll position of the Scrollable component.
     kPropertyScrollPosition,
     /// EditTextComponent hide characters as typed if true
@@ -557,9 +617,7 @@ enum PropertyKey {
     /// EditTextComponent restrict the characters that can be entered
     kPropertyValidCharacters,
     /// Flexbox wrap
-    kPropertyWrap,
-    /// Z-order of a component relative to its parent
-    kPropertyZOrder,
+    kPropertyWrap
 };
 
 // Be careful adding new items to this list or changing the order of the list.
@@ -613,6 +671,7 @@ extern Bimap<int, std::string> sDisplayMap;
 extern Bimap<int, std::string> sSnapMap;
 extern Bimap<int, std::string> sRoleMap;
 extern Bimap<int, std::string> sSwipeDirectionMap;
+extern Bimap<int, std::string> sScrollAnimationMap;
 
 }  // namespace apl
 

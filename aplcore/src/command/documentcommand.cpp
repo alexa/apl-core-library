@@ -29,7 +29,7 @@ DocumentCommand::collectChildCommands(const ComponentPtr& base,
                                        std::vector<CommandPtr>& collection)
 {
     auto commands = base->getCalculated(mPropertyKey);
-    if (commands.isArray() && commands.size() > 0) {
+    if (commands.isArray() && !commands.empty()) {
         auto core = std::static_pointer_cast<CoreComponent>(base);
         auto ctx = core->createDefaultEventContext(mHandler);
         collection.emplace_back(ArrayCommand::create(ctx, commands, core, Properties(), ""));
@@ -70,17 +70,17 @@ DocumentCommand::getComponentActions(const TimersPtr& timers, bool fastMode)
     std::vector<CommandPtr> parallelCommands;
     collectChildCommands(root->topComponent(), parallelCommands);
 
-    if (!parallelCommands.size())
+    if (parallelCommands.empty())
         return nullptr;
     ActionList actions;
 
-    for (CommandPtr command : parallelCommands) {
+    for (const CommandPtr& command : parallelCommands) {
         auto action = command->execute(timers, fastMode);
         if (action)
             actions.push_back(action);
     }
 
-    if (!actions.size())
+    if (actions.empty())
         return nullptr;
 
     return Action::makeAll(timers, actions);

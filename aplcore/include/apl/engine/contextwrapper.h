@@ -70,7 +70,7 @@ public:
     }
 
     // Context wrappers intentionally return a size of zero
-    size_t size() const override { return 0; }
+    std::uint64_t size() const override { return 0; }
 
     // Context wrappers intentionally return an empty map
     const ObjectMap& getMap() const override;

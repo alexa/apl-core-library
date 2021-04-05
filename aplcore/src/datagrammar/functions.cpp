@@ -803,8 +803,8 @@ CalcArrayAccess(const Object& a, const Object& b) {
         if (b.isString() && b.getString() == "length")
             return a.size();
         else if (b.isNumber()) {
-            size_t len = a.size();
-            int index = static_cast<int>(std::rint(b.getDouble()));
+            std::uint64_t len = a.size();
+            auto index = static_cast<std::int64_t>(std::round(b.getDouble()));
             if (index < 0)
                 index += len;
             if (index < 0 || index >= len)

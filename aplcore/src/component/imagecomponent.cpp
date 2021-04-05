@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -16,8 +16,18 @@
 #include "apl/component/componentpropdef.h"
 #include "apl/component/imagecomponent.h"
 #include "apl/component/yogaproperties.h"
+#include "apl/content/rootconfig.h"
+#include "apl/engine/event.h"
+#include "apl/engine/mediamanager.h"
 
 namespace apl {
+
+inline void
+inlineResetMediaState(Component &component)
+{
+    auto& comp = dynamic_cast<MediaComponentTrait&>(component);
+    comp.resetMediaFetchState();
+}
 
 CoreComponentPtr
 ImageComponent::create(const ContextPtr& context,
@@ -39,35 +49,68 @@ ImageComponent::ImageComponent(const ContextPtr& context,
 const ComponentPropDefSet&
 ImageComponent::propDefSet() const
 {
-    static ComponentPropDefSet sImageComponentProperties(CoreComponent::propDefSet(), {
-        {kPropertyAlign,           kImageAlignCenter,        sAlignMap,           kPropInOut | kPropStyled}, // Doesn't match 1.0 spec
-        {kPropertyBorderRadius,    Object::ZERO_ABS_DIMEN(), asAbsoluteDimension, kPropInOut | kPropStyled},
+    static ComponentPropDefSet sImageComponentProperties = ComponentPropDefSet(
+        CoreComponent::propDefSet(), MediaComponentTrait::propDefList()).add({
+        {kPropertyAlign,           kImageAlignCenter,        sAlignMap,           kPropInOut | kPropStyled | kPropDynamic}, // Doesn't match 1.0 spec
+        {kPropertyBorderRadius,    Object::ZERO_ABS_DIMEN(), asAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic},
         {kPropertyFilters,         Object::EMPTY_ARRAY(),    asFilterArray,       kPropInOut },
         {kPropertyOverlayColor,    Color(),                  asColor,             kPropInOut | kPropStyled | kPropDynamic},
-        {kPropertyOverlayGradient, Object::NULL_OBJECT(),    asGradient,          kPropInOut | kPropStyled},
-        {kPropertyScale,           kImageScaleBestFit,       sScaleMap,           kPropInOut | kPropStyled},
-        {kPropertySource,          "",                       asStringOrArray,     kPropInOut | kPropDynamic}
+        {kPropertyOverlayGradient, Object::NULL_OBJECT(),    asGradient,          kPropInOut | kPropStyled | kPropDynamic},
+        {kPropertyScale,           kImageScaleBestFit,       sScaleMap,           kPropInOut | kPropStyled | kPropDynamic},
+        {kPropertySource,          "",                       asStringOrArray,     kPropInOut | kPropDynamic, inlineResetMediaState}
     });
 
     return sImageComponentProperties;
+}
+
+std::set<std::string>
+ImageComponent::getSources()
+{
+    std::set<std::string> sources;
+
+    auto& sourceProp = getCalculated(kPropertySource);
+    // Check if there anything to fetch
+    if (sourceProp.empty()) {
+        return sources;
+    }
+
+    if (sourceProp.isString()) { // Single source
+        sources.emplace(sourceProp.getString());
+    } else if (sourceProp.isArray()) {
+        auto& filters = getCalculated(kPropertyFilters);
+        if (filters.empty()) { // If no filters use last
+            sources.emplace(sourceProp.at(sourceProp.size() - 1).getString());
+        } else { // Else request everything
+            for (auto& source : sourceProp.getArray()) {
+                sources.emplace(source.getString());
+            }
+        }
+    }
+
+    return sources;
 }
 
 const EventPropertyMap&
 ImageComponent::eventPropertyMap() const
 {
     static EventPropertyMap sImageEventProperties = eventPropertyMerge(
-            CoreComponent::eventPropertyMap(),
-            {
-                    {"source", [](const CoreComponent *c) { return c->getCalculated(kPropertySource); }},
-                    {"url", [](const CoreComponent *c) { return c->getCalculated(kPropertySource); }},
-            });
-
+        CoreComponent::eventPropertyMap(),
+        {
+            {"source", [](const CoreComponent *c) { return c->getCalculated(kPropertySource); }},
+            {"url", [](const CoreComponent *c) { return c->getCalculated(kPropertySource); }},
+        });
     return sImageEventProperties;
 }
 
 std::string
 ImageComponent::getVisualContextType() {
     return getCalculated(kPropertySource).empty() ? VISUAL_CONTEXT_TYPE_EMPTY : VISUAL_CONTEXT_TYPE_GRAPHIC;
+}
+
+void
+ImageComponent::postProcessLayoutChanges() {
+    CoreComponent::postProcessLayoutChanges();
+    MediaComponentTrait::postProcessLayoutChanges();
 }
 
 } // namespace apl

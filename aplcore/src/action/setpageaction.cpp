@@ -53,7 +53,7 @@ SetPageAction::make(const TimersPtr& timers,
         return nullptr;
 
     auto ptr = std::make_shared<SetPageAction>(timers, command, target);
-    command->context()->sequencer().claimResource({kCommandResourcePosition, target}, ptr);
+    command->context()->sequencer().claimResource({kExecutionResourcePosition, target}, ptr);
     ptr->start();
     return ptr;
 }
@@ -103,7 +103,7 @@ SetPageAction::start()
     else {
         mTarget->getChildAt(index)->ensureLayout(true);
         PagerComponent::setPageUtil(mContext, mTarget, index, direction, shared_from_this(),
-            position == kCommandPositionAbsolute);
+            position == kCommandPositionAbsolute || mContext->getRequestedAPLVersion().compare("1.6") < 0);
     }
 }
 

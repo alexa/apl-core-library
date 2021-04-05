@@ -21,7 +21,10 @@
 #include "apl/engine/styles.h"
 #include "apl/engine/propdef.h"
 #include "apl/action/scrolltoaction.h"
+#include "apl/command/arraycommand.h"
+#include "apl/command/configchangecommand.h"
 #include "apl/command/documentcommand.h"
+#include "apl/component/yogaproperties.h"
 #include "apl/content/content.h"
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
@@ -61,7 +64,7 @@ RootContext::create(const Metrics& metrics, const ContentPtr& content,
                     const RootConfig& config, std::function<void(const RootContextPtr&)> callback)
 {
     if (!content->isReady()) {
-        LOG(LogLevel::ERROR) << "Attempting to create root context with illegal content";
+        LOG(LogLevel::kError) << "Attempting to create root context with illegal content";
         return nullptr;
     }
 
@@ -71,19 +74,28 @@ RootContext::create(const Metrics& metrics, const ContentPtr& content,
     if (!root->setup(nullptr))
         return nullptr;
 
+#ifdef ALEXAEXTENSIONS
+    // Bind to the extension mediator
+    // TODO ExtensionMediator is an experimental class facilitating message passing to and from extensions.
+    // TODO The mediator class will be replaced by direct messaging between extensions and ExtensionManager
+    auto extensionMediator = config.getExtensionMediator();
+    if (extensionMediator) {
+        extensionMediator->bindContext(root);
+    }
+#endif
+
     return root;
 }
 
 RootContext::RootContext(const Metrics& metrics, const ContentPtr& content, const RootConfig& config)
     : mContent(content),
-      mTimeManager(config.getTimeManager())
-{
-    init(metrics, config);
+      mTimeManager(config.getTimeManager()) {
+    init(metrics, config, false);
 }
 
-RootContext::~RootContext()
-{
+RootContext::~RootContext() {
     assert(mCore);
+    mCore->sequencer().terminateSequencer(ConfigChangeCommand::SEQUENCER);
     clearDirty();
     mCore->dirtyVisualContext.clear();
     mTimeManager->terminate();
@@ -91,13 +103,32 @@ RootContext::~RootContext()
 }
 
 void
-RootContext::reinflate(const ConfigurationChange& change)
+RootContext::configurationChange(const ConfigurationChange& change)
+{
+    // If we're in the middle of a configuration change, drop it
+    mCore->sequencer().terminateSequencer(ConfigChangeCommand::SEQUENCER);
+
+    mActiveConfigurationChanges.mergeConfigurationChange(change);
+    if (mActiveConfigurationChanges.empty())
+        return;
+
+    auto cmd = ConfigChangeCommand::create(shared_from_this(),
+                                           mActiveConfigurationChanges.asEventProperties(mCore->mConfig,
+                                                                                         mCore->mMetrics));
+    mContext->sequencer().executeOnSequencer(cmd, ConfigChangeCommand::SEQUENCER);
+}
+
+void
+RootContext::reinflate()
 {
     // The basic algorithm is to simply re-build core and re-inflate the component hierarchy.
     // TODO: Re-use parts of the hierarchy and to maintain state during reinflation.
 
-    auto metrics = change.mergeMetrics(mCore->mMetrics);
-    auto config = change.mergeRootConfig(mCore->mConfig);
+    // Release any "onConfigChange" action
+    mCore->sequencer().terminateSequencer(ConfigChangeCommand::SEQUENCER);
+
+    auto metrics = mActiveConfigurationChanges.mergeMetrics(mCore->mMetrics);
+    auto config = mActiveConfigurationChanges.mergeRootConfig(mCore->mConfig);
 
     // Update the configuration with the current UTC time and time adjustment
     config.utcTime(mUTCTime);
@@ -105,18 +136,32 @@ RootContext::reinflate(const ConfigurationChange& change)
 
     // Stop any execution on the old core
     auto oldTop = mCore->halt();
+    // Ensure that nothing is pending.
+    assert(mTimeManager->size() == 0);
 
     // The initialization routine replaces mCore with a new core
-    init(metrics, config);
+    init(metrics, config, true);
     setup(oldTop);  // Pass the old top component
 
     // If there was a previous top component, release it and its children to free memory
     if (oldTop)
         oldTop->release();
+
+    // Clear the old active configuration; it is reset on a reinflation
+    mActiveConfigurationChanges.clear();
 }
 
 void
-RootContext::init(const Metrics& metrics, const RootConfig& config)
+RootContext::resize()
+{
+    // Release any "onConfigChange" action
+    mCore->sequencer().terminateSequencer(ConfigChangeCommand::SEQUENCER);
+    mCore->layoutManager().configChange(mActiveConfigurationChanges);
+    // Note: we do not clear the configuration changes - there may be a reinflate() coming in the future.
+}
+
+void
+RootContext::init(const Metrics& metrics, const RootConfig& config, bool reinflation)
 {
     std::string theme = metrics.getTheme();
     const auto& json = mContent->getDocument()->json();
@@ -128,12 +173,15 @@ RootContext::init(const Metrics& metrics, const RootConfig& config)
     if (!session)
         session = mContent->getSession();
 
-    mCore = std::make_shared<RootContextData>(metrics, config, theme,
-                                              mContent->getDocument()->version(),
+    mCore = std::make_shared<RootContextData>(metrics,
+                                              config,
+                                              RuntimeState(theme,
+                                                           mContent->getDocument()->version(),
+                                                           reinflation),
                                               mContent->getDocumentSettings(),
                                               session,
                                               mContent->mExtensionRequests);
-    mContext = Context::create(metrics, mCore);
+    mContext = Context::createRootEvaluationContext(metrics, mCore);
 
     mContext->putSystemWriteable(ELAPSED_TIME, mTimeManager->currentTime());
 
@@ -164,10 +212,11 @@ RootContext::clearPending() const
     // Make sure any pending events have executed
     mTimeManager->runPending();
 
-    // TODO: Reaching directly in to mTop is ugly.  See if there is a better approach
     // If we need a layout pass, do it now - it will update the dirty events
-    if (mCore->mTop != nullptr && mCore->mTop->needsLayout())
-        mCore->mTop->layout(mCore->getWidth(), mCore->getHeight(), true);
+    if (mCore->layoutManager().needsLayout())
+        mCore->layoutManager().layout(true);
+
+    mCore->mediaManager().processMediaRequests();
 }
 
 bool
@@ -191,7 +240,7 @@ RootContext::popEvent()
     }
 
     // This should never be reached.
-    LOG(LogLevel::ERROR) << "No events available";
+    LOG(LogLevel::kError) << "No events available";
     std::exit(EXIT_FAILURE);
 }
 
@@ -227,13 +276,20 @@ bool
 RootContext::isVisualContextDirty() const
 {
     assert(mCore);
-    return mCore->dirtyVisualContext.size() > 0;
+    return !mCore->dirtyVisualContext.empty();
 }
 
+void
+RootContext::clearVisualContextDirty()
+{
+    assert(mCore);
+    mCore->dirtyVisualContext.clear();
+}
 
 rapidjson::Value
-RootContext::serializeVisualContext(rapidjson::Document::AllocatorType& allocator) {
-    mCore->dirtyVisualContext.clear();
+RootContext::serializeVisualContext(rapidjson::Document::AllocatorType& allocator)
+{
+    clearVisualContextDirty();
     return topComponent()->serializeVisualContext(allocator);
 }
 
@@ -254,7 +310,7 @@ RootContext::createDocumentEventProperties(const std::string& handler) const {
 ContextPtr
 RootContext::createDocumentContext(const std::string& handler, const ObjectMap& optional)
 {
-    ContextPtr ctx = Context::create(payloadContext());
+    ContextPtr ctx = Context::createFromParent(payloadContext());
     auto event = createDocumentEventProperties(handler);
     for (const auto& m : optional)
         event->emplace(m.first, m.second);
@@ -266,7 +322,7 @@ RootContext::createDocumentContext(const std::string& handler, const ObjectMap& 
 ContextPtr
 RootContext::createKeyboardDocumentContext(const std::string& handler, const ObjectMapPtr& keyboard)
 {
-    ContextPtr ctx = Context::create(payloadContext());
+    ContextPtr ctx = Context::createFromParent(payloadContext());
     auto event = createDocumentEventProperties(handler);
     event->emplace("keyboard", keyboard);
     ctx->putConstant("event", event);
@@ -314,6 +370,8 @@ RootContext::payloadContext() const
 {
     // We could cache the payload context, but it is infrequently used. Instead we search upwards from the
     // top components context until we find the context right before the top-level context.
+    if (!mCore || !mCore->mTop)
+        return mContext;
 
     auto context = mCore->mTop->getContext();
     if (context == nullptr || context == mContext)
@@ -501,7 +559,7 @@ RootContext::setup(const CoreComponentPtr& top)
         return false;
 
     mCore->mTop->markGlobalToLocalTransformStale();
-    mCore->mTop->layout(mCore->getWidth(), mCore->getHeight(), false);
+    mCore->layoutManager().firstLayout();
 
     // Execute the "onMount" document command
     auto cmd = DocumentCommand::create(kPropertyOnMount, "Mount", shared_from_this());
@@ -657,6 +715,78 @@ RootContext::findComponentById(const std::string& id) const
 
     auto top = mCore->top();
     return top ? top->findComponentById(id) : nullptr;
+}
+
+std::map<std::string, Rect>
+RootContext::getFocusableAreas()
+{
+    assert(mCore);
+    return mCore->focusManager().getFocusableAreas();
+}
+
+bool
+RootContext::setFocus(FocusDirection direction, const Rect& origin, const std::string& targetId)
+{
+    assert(mCore);
+    auto top = mCore->top();
+    auto target = std::dynamic_pointer_cast<CoreComponent>(findComponentById(targetId));
+
+    if (!target) {
+        LOG(LogLevel::kWarn) << "Don't have component: " << targetId;
+        return false;
+    }
+
+    Rect targetRect;
+    target->getBoundsInParent(top, targetRect);
+
+    // Shift origin into target's coordinate space.
+    auto offsetFocusRect = origin;
+    offsetFocusRect.offset(-targetRect.getTopLeft());
+
+    return mCore->focusManager().focus(direction, offsetFocusRect, target);
+}
+
+bool
+RootContext::nextFocus(FocusDirection direction, const Rect& origin)
+{
+    assert(mCore);
+    return mCore->focusManager().focus(direction, origin);
+}
+
+bool
+RootContext::nextFocus(FocusDirection direction)
+{
+    assert(mCore);
+    return mCore->focusManager().focus(direction);
+}
+
+void
+RootContext::clearFocus()
+{
+    assert(mCore);
+    mCore->focusManager().clearFocus(false);
+}
+
+std::string
+RootContext::getFocused()
+{
+    assert(mCore);
+    auto focused = mCore->focusManager().getFocus();
+    return focused ? focused->getUniqueId() : "";
+}
+
+void
+RootContext::mediaLoaded(const std::string& source)
+{
+    assert(mCore);
+    mCore->mediaManager().mediaLoaded(source);
+}
+
+void
+RootContext::mediaLoadFailed(const std::string &source)
+{
+    assert(mCore);
+    mCore->mediaManager().mediaLoadFailed(source);
 }
 
 } // namespace apl

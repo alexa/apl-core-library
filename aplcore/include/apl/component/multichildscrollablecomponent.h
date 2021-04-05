@@ -16,8 +16,19 @@
 #define _APL_MULTICHILD_SCROLLABLE_COMPONENT_H
 
 #include "apl/component/scrollablecomponent.h"
+#include "apl/utils/range.h"
 
 namespace apl {
+
+/**
+ * Alignment properties used preserving a MultiChildScrollableComponent scroll position
+ * during reinflation.  The properties "firstId" and "firstIndex" use kScrollableAlignFirst;
+ * the properties "centerId" and "centerIndex" use kScrollableAlignCenter.
+ */
+enum ScrollableAlign {
+    kScrollableAlignFirst = 0,
+    kScrollableAlignCenter = 1
+};
 
 /**
  * Abstract class for logic common to components that are both scrollable
@@ -38,7 +49,6 @@ public:
             kScrollTypeVertical : kScrollTypeHorizontal;
     }
     Point trimScroll(const Point& point) const override;
-    void update(UpdateType type, float value) override;
 
     /// Scrollable overrides
     bool isHorizontal() const override { return getCalculated(kPropertyScrollDirection) == kScrollDirectionHorizontal; }
@@ -78,6 +88,14 @@ public:
         return mLastChildInView;
     }
 
+    /**
+     * Scroll immediately to position this child appropriately.
+     * @param child A direct child of the component
+     * @param align alignment of the child
+     * @param offset The offset
+     */
+    void setScrollPositionDirectlyByChild(const CoreComponentPtr& child, ScrollableAlign align, float offset );
+
 protected:
     /**
      * Finds the immediate child, if any, at the given position.
@@ -98,10 +116,10 @@ protected:
     bool allowForward() const override;
     const ComponentPropDefSet& propDefSet() const override;
     std::map<int, float> getChildrenVisibility(float realOpacity, const Rect &visibleRect) const override;
-    bool insertChild(const ComponentPtr& child, size_t index, bool useDirtyFlag) override;
+    bool insertChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
     void removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
-    virtual void layoutChildIfRequired(CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag);
+    virtual void layoutChildIfRequired(const CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag);
     float maxScroll() const override;
     bool shouldAttachChildYogaNode(int index) const override;
 
@@ -112,8 +130,53 @@ protected:
 
     virtual size_t getItemsPerCourse() const { return 1; }
 
+    void ensureChildAttached(const CoreComponentPtr& child, int targetIdx);
+
+    void attachYogaNode(const CoreComponentPtr& child) override;
+
+private:
+    /**
+     * Ensure that current state of visibility parameters properly calculated.
+     * It provides mechanism of lazy calculation to visibility related parameters.
+     */
+    void ensureChildrenVisibilityUpdated();
+
+    /**
+     * Calculate which child is the first visible child in the view and how far that child
+     * has been shifted from the "ideal" position of having the top of the child exactly aligned
+     * on the top of the innerBounds of the scrollable component.  The child shift value is calculated
+     * as a percentage of the height/width of the child.
+     * @return The first child or nullptr if no child is visible and the child shift percentage.
+     */
+    std::pair<CoreComponentPtr, float> getFirstChildInViewInternal() const;
+
+    /**
+     * Calculate the child closest to the center of the view or nullptr if no child is visible.
+     * There is no guarantee that the child actually occupies the center of the view.
+     * This method also returns how far that child has been shifted from the "ideal" position of having
+     * the center of the child exactly aligned with the center of the innerBounds of the scrollable
+     * component.  The child shift value is calculated as a percentage of the height/width of the child.
+     * @return The center child or nullptr if no child is visible and the child shift percentage
+     */
+    std::pair<CoreComponentPtr, float> getCenterChildInViewInternal() const;
+
+    float getSnapOffsetForChild(const ComponentPtr& child, Snap snap, float parentStart, float parentEnd) const;
+    float childFractionOnScreenWithProposedScrollOffset(const ComponentPtr& child,
+                                                        float scrollOffset) const;
+
+    /**
+     * Find child which center is closest to provided position. Search reduced to the current scrolling direction.
+     * @param position position to measure from.
+     * @return child pointer.
+     */
+    ComponentPtr findChildCloseToPosition(const Point& position) const;
+
+    void attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index) override;
+    bool attachChild(const CoreComponentPtr& child, size_t index);
+
 private:
     Range mIndexesSeen;
+    Range mEnsuredChildren;
     bool mChildrenVisibilityStale = false;
 
     // These cache variables are being used for event property calculation (lazy calculation)
@@ -123,15 +186,6 @@ private:
     int mLastChildFullyInView = -1;
     int mLastChildInView = -1;
 
-    /**
-     * Ensure that current state of visibility parameters properly calculated.
-     * It provides mechanism of lazy calculation to visibility related parameters.
-     */
-    void ensureChildrenVisibilityUpdated();
-
-    float getSnapOffsetForChild(const ComponentPtr& child, Snap snap, float parentStart, float parentEnd) const;
-    float childFractionOnScreenWithProposedScrollOffset(const ComponentPtr& child,
-                                                        float scrollOffset) const;
 };
 } // namespace apl
 

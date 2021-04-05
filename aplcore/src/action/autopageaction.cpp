@@ -66,7 +66,7 @@ AutoPageAction::make(const TimersPtr& timers,
         count = len - start;
 
     auto ptr = std::make_shared<AutoPageAction>(timers, command, target, start, start + count, duration);
-    command->context()->sequencer().claimResource({kCommandResourcePosition, target}, ptr);
+    command->context()->sequencer().claimResource({kExecutionResourcePosition, target}, ptr);
     ptr->advance();
     return ptr;
 }
@@ -88,7 +88,8 @@ AutoPageAction::advance() {
         bool firstTime = (mCurrentAction == nullptr);
 
         mCurrentAction = Action::makeDelayed(timers(), (firstTime ? 0 : mDuration), [this](ActionRef ref) {
-            PagerComponent::setPageUtil(mContext, mContainer, mNextIndex++, kPageDirectionForward, ref);
+            PagerComponent::setPageUtil(mContext, mContainer, mNextIndex++, kPageDirectionForward, ref,
+                                        mContext->getRequestedAPLVersion().compare("1.6") < 0);
         });
     }
 

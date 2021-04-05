@@ -103,6 +103,7 @@ ScrollViewComponent::allowBackwards() const {
 void
 ScrollViewComponent::onScrollPositionUpdated() {
     ScrollableComponent::onScrollPositionUpdated();
+    markDisplayedChildrenStale();
 
     if (getChildCount() > 0) {
         auto child = getCoreChildAt(0);

@@ -13,27 +13,23 @@
  * permissions and limitations under the License.
  */
 
-#ifndef _APL_EXECUTION_RESOURCE_H
-#define _APL_EXECUTION_RESOURCE_H
+#ifndef _APL_CORE_LOCALE_METHODS_H
+#define _APL_CORE_LOCALE_METHODS_H
 
-#include "apl/command/commandresource.h"
-#include "apl/common.h"
-#include "apl/component/componentproperties.h"
+#include "apl/utils/localemethods.h"
 
 namespace apl {
 
-class ExecutionResource {
+class CoreLocaleMethods : public LocaleMethods {
 public:
-    ExecutionResource(CommandResourceKey key, const ComponentPtr& component = nullptr, PropertyKey propKey = kPropertyId);
+    ~CoreLocaleMethods() override = default;
 
-    bool operator<(const ExecutionResource& other) const { return mResourceId < other.mResourceId; }
+    std::string toUpperCase( const std::string& value, const std::string& locale ) override;
 
-private:
-    static std::string constructResourceId(CommandResourceKey key, const ComponentPtr& component, PropertyKey propKey);
+    std::string toLowerCase( const std::string& value, const std::string& locale ) override;
 
-    std::string mResourceId;
 };
 
 } // namespace apl
 
-#endif //_APL_EXECUTION_RESOURCE_H
+#endif //_APL_CORE_LOCALE_METHODS_H

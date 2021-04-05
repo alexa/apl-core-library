@@ -16,11 +16,13 @@
 #ifndef _APL_FUNCTIONS_H
 #define _APL_FUNCTIONS_H
 
+#include <functional>
+
 #include "apl/primitives/objectdata.h"
 
 namespace apl {
 
-using UserFunction = Object (*)(const std::vector<Object>&);
+using UserFunction = std::function<Object(const std::vector<Object>&)>;
 
 extern void createStandardFunctions(Context& context);
 

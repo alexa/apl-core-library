@@ -38,6 +38,7 @@ ContainerComponent::ContainerComponent(const ContextPtr& context,
 
 void
 ContainerComponent::processLayoutChanges(bool useDirtyFlag) {
+    // TODO: FIX THIS - IT CAN CHANGE THE SIZE OF THE CONTAINER
     // Quite brute-forcy to do that, though it will handle any strange changes to layout direction in the future.
     if (!mChildren.empty()) {
         for (int i = 0; i < mChildren.size(); i++) {
@@ -52,12 +53,12 @@ const ComponentPropDefSet&
 ContainerComponent::propDefSet() const
 {
     static ComponentPropDefSet sContainerComponentProperties(CoreComponent::propDefSet(), {
-        {kPropertyAlignItems,       kFlexboxAlignStretch,        sFlexboxAlignMap,          kPropIn, yn::setAlignItems },
-        {kPropertyDirection,        kContainerDirectionColumn,   sContainerDirectionMap,    kPropIn, yn::setFlexDirection },
-        {kPropertyJustifyContent,   kFlexboxJustifyContentStart, sFlexboxJustifyContentMap, kPropIn, yn::setJustifyContent },
+        {kPropertyAlignItems,       kFlexboxAlignStretch,        sFlexboxAlignMap,          kPropIn | kPropStyled | kPropDynamic, yn::setAlignItems },
+        {kPropertyDirection,        kContainerDirectionColumn,   sContainerDirectionMap,    kPropIn | kPropStyled | kPropDynamic, yn::setFlexDirection },
+        {kPropertyJustifyContent,   kFlexboxJustifyContentStart, sFlexboxJustifyContentMap, kPropIn | kPropStyled | kPropDynamic, yn::setJustifyContent },
         {kPropertyNumbered,         false,                       asBoolean,                 kPropIn |
                                                                                             kPropVisualContext},
-        {kPropertyWrap,             kFlexboxWrapNoWrap,          sFlexboxWrapMap,           kPropIn, yn::setWrap },
+        {kPropertyWrap,             kFlexboxWrapNoWrap,          sFlexboxWrapMap,           kPropIn | kPropStyled | kPropDynamic, yn::setWrap },
     });
 
     return sContainerComponentProperties;
@@ -68,16 +69,16 @@ ContainerComponent::layoutPropDefSet() const
 {
     // TODO: Break these into two sets so we don't calculate everything all of the time.
     static ComponentPropDefSet sContainerChildProperties = ComponentPropDefSet().add({
-         {kPropertyAlignSelf, kFlexboxAlignAuto,     sFlexboxAlignMap,    kPropIn | kPropResetOnRemove, yn::setAlignSelf },
-         {kPropertyBottom,    Object::NULL_OBJECT(), asNonAutoDimension,  kPropIn | kPropResetOnRemove, yn::setPosition<YGEdgeBottom> },
-         {kPropertyGrow,      0,                     asNonNegativeNumber, kPropIn | kPropResetOnRemove, yn::setPropertyGrow },
-         {kPropertyLeft,      Object::NULL_OBJECT(), asNonAutoDimension,  kPropIn | kPropResetOnRemove, yn::setPosition<YGEdgeLeft> },
+         {kPropertyAlignSelf, kFlexboxAlignAuto,     sFlexboxAlignMap,    kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setAlignSelf },
+         {kPropertyBottom,    Object::NULL_OBJECT(), asNonAutoDimension,  kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<YGEdgeBottom> },
+         {kPropertyGrow,      0,                     asNonNegativeNumber, kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPropertyGrow },
+         {kPropertyLeft,      Object::NULL_OBJECT(), asNonAutoDimension,  kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<YGEdgeLeft> },
          {kPropertyNumbering, kNumberingNormal,      sNumberingMap,       kPropIn },
-         {kPropertyPosition,  kPositionRelative,     sPositionMap,        kPropIn | kPropResetOnRemove, yn::setPositionType },
-         {kPropertyRight,     Object::NULL_OBJECT(), asNonAutoDimension,  kPropIn | kPropResetOnRemove, yn::setPosition<YGEdgeRight> },
-         {kPropertyShrink,    0,                     asNonNegativeNumber, kPropIn | kPropResetOnRemove, yn::setPropertyShrink },
-         {kPropertySpacing,   Dimension(0),          asAbsoluteDimension, kPropIn | kPropNeedsNode | kPropResetOnRemove, yn::setSpacing },
-         {kPropertyTop,       Object::NULL_OBJECT(), asNonAutoDimension,  kPropIn | kPropResetOnRemove, yn::setPosition<YGEdgeTop> }
+         {kPropertyPosition,  kPositionRelative,     sPositionMap,        kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPositionType },
+         {kPropertyRight,     Object::NULL_OBJECT(), asNonAutoDimension,  kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<YGEdgeRight> },
+         {kPropertyShrink,    0,                     asNonNegativeNumber, kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPropertyShrink },
+         {kPropertySpacing,   Dimension(0),          asAbsoluteDimension, kPropIn | kPropStyled | kPropDynamic | kPropNeedsNode | kPropResetOnRemove, yn::setSpacing },
+         {kPropertyTop,       Object::NULL_OBJECT(), asNonAutoDimension,  kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<YGEdgeTop> }
      });
     return &sContainerChildProperties;
 }

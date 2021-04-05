@@ -36,12 +36,12 @@ LiveArrayObject::~LiveArrayObject() {
 }
 
 Object
-LiveArrayObject::at(size_t index) const
+LiveArrayObject::at(std::uint64_t index) const
 {
     return mLiveArray->at(index);
 }
 
-size_t
+std::uint64_t
 LiveArrayObject::size() const
 {
     return mLiveArray->size();

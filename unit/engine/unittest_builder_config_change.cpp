@@ -39,6 +39,74 @@ public:
     }
 };
 
+static const char *CHECK_ENVIRONMENT = R"apl(
+    {
+      "type": "APL",
+      "version": "1.5",
+      "mainTemplate": {
+        "item": {
+          "type": "Text",
+          "text": ""
+        }
+      },
+      "onConfigChange": [
+        {
+          "type": "SendEvent",
+          "sequencer": "DUMMY",
+          "arguments": [
+            "${event.source.type}",
+            "${event.source.handler}",
+            "${event.width}",
+            "${event.height}",
+            "${event.theme}",
+            "${event.viewportMode}",
+            "${event.fontScale}",
+            "${event.screenMode}",
+            "${event.screenReader}",
+            "${event.sizeChanged}",
+            "${event.rotated}"
+          ]
+        }
+      ]
+    }
+)apl";
+
+/**
+ * This test verifies the onConfigChange data-binding context
+ */
+TEST_F(BuilderConfigChange, CheckEnvironment)
+{
+    // Note: explicitly set these properties although most of them are the default values
+    metrics.size(100,200).theme("dark").mode(kViewportModeHub);
+    config->fontScale(1.0).screenMode(RootConfig::kScreenModeNormal).screenReader(false);
+
+    loadDocument(CHECK_ENVIRONMENT);
+    ASSERT_TRUE(component);
+
+    // Rotate the screen
+    configChange(ConfigurationChange(200,100));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 200, 100, "dark", "hub", 1.0, "normal", false, true, true));
+
+    // Resize the screen
+    configChange(ConfigurationChange(400,400));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 400, 400, "dark", "hub", 1.0, "normal", false, true, false));
+
+    // Rotate back. Since we never re-inflated, the sizeChanged and rotated flags should be false now
+    configChange(ConfigurationChange(100,200));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "dark", "hub", 1.0, "normal", false, false, false));
+
+    // Modify other properties
+    configChange(ConfigurationChange().theme("purple").screenReader(true));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "hub", 1.0, "normal", true, false, false));
+
+    configChange(ConfigurationChange().mode(kViewportModeAuto).fontScale(3.0));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "auto", 3.0, "normal", true, false, false));
+
+    configChange(ConfigurationChange().screenMode(RootConfig::kScreenModeHighContrast));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "auto", 3.0, "high-contrast", true, false, false));
+}
+
+
 static const char *BASIC_REINFLATE = R"apl(
     {
       "type": "APL",
@@ -61,7 +129,8 @@ static const char *BASIC_REINFLATE = R"apl(
           "type": "Frame",
           "backgroundColor": "@BKGND"
         }
-      }
+      },
+      "onConfigChange": { "type": "Reinflate" }
     }
 )apl";
 
@@ -74,11 +143,14 @@ TEST_F(BuilderConfigChange, Basic)
     loadDocument(BASIC_REINFLATE);
     ASSERT_TRUE(component);
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), component->getCalculated(kPropertyBackgroundColor)));
+    ASSERT_TRUE(IsEqual("initial", evaluate(*context, "${environment.reason}")));
 
-    reinflate(ConfigurationChange(500, 1000));
+    configChangeReinflate(ConfigurationChange(500, 1000));
+
     component = std::static_pointer_cast<CoreComponent>(root->topComponent());
     ASSERT_TRUE(component);
     ASSERT_TRUE(IsEqual(Color(Color::RED), component->getCalculated(kPropertyBackgroundColor)));
+    ASSERT_TRUE(IsEqual("reinflation", evaluate(*context, "${environment.reason}")));
 }
 
 
@@ -103,7 +175,8 @@ static const char *ALL_SETTINGS = R"apl(
             "ScreenReader: ${environment.screenReader}"
           ]
         }
-      }
+      },
+      "onConfigChange": { "type": "Reinflate" }
     }
 )apl";
 
@@ -112,7 +185,7 @@ static const char *ALL_SETTINGS = R"apl(
  */
 TEST_F(BuilderConfigChange, AllSettings) {
     metrics.size(400, 600).theme("light").mode(kViewportModeAuto);
-    config.fontScale(2.0).screenMode(RootConfig::kScreenModeNormal).screenReader(true);
+    config->fontScale(2.0).screenMode(RootConfig::kScreenModeNormal).screenReader(true);
 
     loadDocument(ALL_SETTINGS);
     ASSERT_TRUE(component);
@@ -128,7 +201,7 @@ TEST_F(BuilderConfigChange, AllSettings) {
     })) << "Starting condition";
 
     // Verify that changing a single element doesn't reset the others to the defaults
-    reinflate(ConfigurationChange().fontScale(1.5));
+    configChangeReinflate(ConfigurationChange().fontScale(1.5));
 
     ASSERT_TRUE(CheckChildStrings({
         "Width: 400",
@@ -141,7 +214,7 @@ TEST_F(BuilderConfigChange, AllSettings) {
     })) << "One element changed";
 
     // Change the remaining items and verify that they work correctly
-    reinflate(ConfigurationChange()
+    configChangeReinflate(ConfigurationChange()
                   .size(1000, 1200)
                   .mode(kViewportModeTV)
                   .theme("blue")
@@ -176,7 +249,8 @@ static const char *REINFLATE_FAIL = R"apl(
             "type": "Frame"
           }
         ]
-      }
+      },
+      "onConfigChange": { "type": "Reinflate" }
     }
 )apl";
 
@@ -190,10 +264,10 @@ TEST_F(BuilderConfigChange, ReinflateFail)
     ASSERT_TRUE(component);
     ASSERT_EQ(kComponentTypeText, component->getType());
 
-    reinflate(ConfigurationChange().size(500,500));
+    configChangeReinflate(ConfigurationChange().size(500,500));
     ASSERT_FALSE(component);
 
-    reinflate(ConfigurationChange().size(2000,2000));
+    configChangeReinflate(ConfigurationChange().size(2000,2000));
     ASSERT_TRUE(component);
     ASSERT_EQ(kComponentTypeFrame, component->getType());
 }
@@ -212,7 +286,8 @@ static const char *PAGER = R"apl(
           },
           "data": "${Array.range(viewport.width < viewport.height ? 3 : 10)}"
         }
-      }
+      },
+      "onConfigChange": { "type": "Reinflate" }
     }
 )apl";
 
@@ -220,29 +295,7 @@ static const char *PAGER = R"apl(
  * Rebuild the DOM and verify that all outstanding actions are terminated.
  * The events that generate actions are:  OpenURL, PlayMedia(foreground), FirstLineBounds, ScrollTo,
  * SetPage, Speak, Extension
- *
- * Note that any events setting on the outgoing queue must also be terminated.
  */
-TEST_F(BuilderConfigChange, StopEvents)
-{
-    metrics.size(1500, 1000);
-    loadDocument(PAGER);
-    ASSERT_TRUE(component);
-    ASSERT_EQ(10, component->getChildCount());
-
-    // Set the page, but leave the event on the root stack
-    executeCommand("SetPage", {{"componentId", "PAGER"},
-                               {"position",    "absolute"},
-                               {"value",       2}}, false);
-    ASSERT_TRUE(root->hasEvent());
-
-    reinflate(ConfigurationChange(1000, 1500));
-    ASSERT_TRUE(component);
-
-    ASSERT_FALSE(root->hasEvent());
-    ASSERT_EQ(3, component->getChildCount());
-    ASSERT_EQ(0, component->getCalculated(kPropertyCurrentPage).getInteger());  // Still on page zero
-}
 
 TEST_F(BuilderConfigChange, StopEventsPopped)
 {
@@ -259,7 +312,7 @@ TEST_F(BuilderConfigChange, StopEventsPopped)
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeSetPage, event.getType());
 
-    reinflate(ConfigurationChange(1000, 1500));
+    configChangeReinflate(ConfigurationChange(1000, 1500));
     ASSERT_TRUE(component);
 
     ASSERT_FALSE(root->hasEvent());
@@ -280,7 +333,8 @@ static const char *SINGLE_COMPONENT = R"apl(
         "item": {
           "type": "Frame"
         }
-      }
+      },
+      "onConfigChange": { "type": "Reinflate" }
     }
 )apl";
 
@@ -297,7 +351,7 @@ TEST_F(BuilderConfigChange, ReleaseOldComponent)
 
     auto ptr = std::weak_ptr<CoreComponent>(component);
 
-    reinflate(ConfigurationChange(1000,1500));
+    configChangeReinflate(ConfigurationChange(1000,1500));
     ASSERT_TRUE(component);
 
     // Check that our weak pointers have expired
@@ -318,7 +372,8 @@ static const char *COMPONENT_TREE = R"apl(
           },
           "data": "${Array.range(10)}"
         }
-      }
+      },
+      "onConfigChange": { "type": "Reinflate" }
     }
 )apl";
 
@@ -336,10 +391,354 @@ TEST_F(BuilderConfigChange, ReleaseOldComponentTree)
     auto ptr = std::weak_ptr<CoreComponent>(component);
     auto ptr2 = std::weak_ptr<Component>(component->getChildAt(4));
 
-    reinflate(ConfigurationChange(1000,1500));
+    configChangeReinflate(ConfigurationChange(1000,1500));
     ASSERT_TRUE(component);
 
     // Check that our weak pointers have expired
     ASSERT_TRUE(ptr2.expired());
     ASSERT_TRUE(ptr.expired());
+}
+
+
+static const char *NO_EVENTS_AFTER_REINFLATE = R"apl(
+    {
+      "type": "APL",
+      "version": "1.5",
+      "mainTemplate": {
+        "item": {
+          "type": "Frame"
+        }
+      },
+      "onConfigChange": [
+        {
+          "type": "SendEvent",
+          "sequencer": "DUMMY",
+          "arguments": [
+            "prereinflate"
+          ]
+        },
+        {
+          "type": "Reinflate"
+        },
+        {
+          "type": "SendEvent",
+          "sequencer": "DUMMY",
+          "arguments": [
+            "postreinflate"
+          ]
+        }
+      ]
+    }
+)apl";
+
+TEST_F(BuilderConfigChange, NoEventsAfterReinflate)
+{
+    metrics.size(200,200);
+    loadDocument(NO_EVENTS_AFTER_REINFLATE);
+    ASSERT_TRUE(component);
+
+    configChange(ConfigurationChange(400,400));
+    root->clearPending();
+
+    ASSERT_TRUE(CheckSendEvent(root, "prereinflate"));
+    processReinflate();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+
+static const char *CONFIG_CHANGE_RUNS_IN_FAST_MODE = R"apl(
+    {
+      "type": "APL",
+      "version": "1.5",
+      "mainTemplate": {
+        "item": {
+          "type": "Frame"
+        }
+      },
+      "onConfigChange": [
+        {
+          "type": "SendEvent",
+          "arguments": [
+            "blocked by fast mode"
+          ]
+        },
+        {
+          "type": "SendEvent",
+          "sequencer": "DUMMY",
+          "arguments": [
+            "prereinflate"
+          ]
+        }
+      ]
+    }
+)apl";
+
+TEST_F(BuilderConfigChange, ConfigChangeRunsInFastMode)
+{
+    metrics.size(200,200);
+    loadDocument(CONFIG_CHANGE_RUNS_IN_FAST_MODE);
+    ASSERT_TRUE(component);
+
+    configChange(ConfigurationChange(400,400));
+    root->clearPending();
+
+    ASSERT_TRUE(CheckSendEvent(root, "prereinflate"));
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());  // There should be a console message warning about SendEvent in fast mode
+}
+
+
+static const char * DEFAULT_RESIZE_BEHAVIOR = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "mainTemplate": {
+        "item": {
+          "type": "Frame"
+        }
+      }
+    }
+)apl";
+
+TEST_F(BuilderConfigChange, DefaultResizeBehavior)
+{
+    metrics.size(400,400).dpi(320);
+    loadDocument(DEFAULT_RESIZE_BEHAVIOR);
+    ASSERT_TRUE(component);
+    ASSERT_TRUE(IsEqual(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds)));
+
+    // Change the size.  There is no onConfigChange handler, so the document should resize automatically
+    configChange(ConfigurationChange(600,200));
+    root->clearPending();
+    ASSERT_TRUE(IsEqual(Rect({0,0,300,100}), component->getCalculated(kPropertyBounds).getRect()));
+    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root, component));
+}
+
+
+static const char *ON_CONFIG_CHANGE_NO_RELAYOUT = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "mainTemplate": {
+        "item": {
+          "type": "Frame"
+        }
+      },
+      "onConfigChange": {
+        "type": "SendEvent",
+        "sequencer": "FOO",
+        "arguments": [
+          "normal"
+        ]
+      }
+    }
+)apl";
+
+// This test case includes an onConfigChange command which does not call Relayout
+TEST_F(BuilderConfigChange, OnConfigChangeNoRelayout)
+{
+    metrics.size(200,200);
+    loadDocument(ON_CONFIG_CHANGE_NO_RELAYOUT);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+
+    // Change the size.
+    configChange(ConfigurationChange(300,100));
+    root->clearPending();
+    ASSERT_EQ(Rect({0,0,300,100}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root, component));
+    ASSERT_TRUE(CheckSendEvent(root, "normal"));  // The normal event has fired
+}
+
+
+static const char *ON_CONFIG_CHANGE_BASIC_RELAYOUT = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "mainTemplate": {
+        "item": {
+          "type": "Frame"
+        }
+      },
+      "onConfigChange": {
+        "type": "Reinflate"
+      }
+    }
+)apl";
+
+/**
+ * Verify that the Reinflate action reference is terminated after RootContext::reinflate()
+ */
+TEST_F(BuilderConfigChange, ReinflateActionRefIsTerminated)
+{
+    metrics.size(200,200);
+    loadDocument(ON_CONFIG_CHANGE_BASIC_RELAYOUT);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+
+    // Change the size.
+    configChange(ConfigurationChange(300,100));
+    root->clearPending();
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeReinflate, event.getType());
+    ASSERT_TRUE(event.getActionRef().isPending());  // There is a pending action reference
+
+    // No reinflation has occurred yet - we haven't resolved the action reference
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_TRUE(CheckDirty(component));
+    ASSERT_TRUE(CheckDirty(root));
+
+    // Call Reinflate - this should kill the action ref
+    root->reinflate();
+    context = root->contextPtr();
+    ASSERT_TRUE(context);
+    component = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+    ASSERT_EQ(Rect({0,0,300,100}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_TRUE(CheckDirty(component));
+    ASSERT_TRUE(CheckDirty(root));
+    ASSERT_TRUE(event.getActionRef().isTerminated());
+}
+
+static const char *RESIZE_QUEUE = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "mainTemplate": {
+        "item": {
+          "type": "Frame"
+        }
+      },
+      "onConfigChange": {
+        "type": "Reinflate"
+      }
+    }
+)apl";
+
+/**
+ * Queue up a bunch of resize events behind a reinflate; then resolve the reinflate to
+ * let the resizes take place just once.
+ */
+TEST_F(BuilderConfigChange, ResizeQueue)
+{
+    metrics.size(200,200);
+    loadDocument(RESIZE_QUEUE);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+
+    // Change the size.
+    configChange(ConfigurationChange(300,100));
+    root->clearPending();
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeReinflate, event.getType());
+    ASSERT_TRUE(event.getActionRef().isPending());  // There is a pending action reference
+
+    // No reinflation has occurred yet - we haven't resolved the first action reference
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_TRUE(CheckDirty(component));
+    ASSERT_TRUE(CheckDirty(root));
+
+    // Change the size again.  The first Reinflate action ref should be terminated; the size stays the same
+    configChange(ConfigurationChange(400,500));
+    root->clearPending();
+    ASSERT_TRUE(root->hasEvent());
+    auto event2 = root->popEvent();
+    ASSERT_EQ(kEventTypeReinflate, event2.getType());
+    ASSERT_TRUE(event.getActionRef().isTerminated());  // There is a pending action reference
+    ASSERT_TRUE(event2.getActionRef().isPending());  // There is a pending action reference
+
+    event.getActionRef().resolve();  // Try to resolve the terminated action ref
+    root->clearPending();
+
+    // No reinflation has occurred yet - we haven't resolved the new "live" action reference
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_TRUE(CheckDirty(component));
+    ASSERT_TRUE(CheckDirty(root));
+
+    // Resolve the second action ref - this will unblock the resize.
+    event2.getActionRef().resolve();
+    root->clearPending();
+    ASSERT_EQ(Rect({0,0,400,500}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(root, component));
+    ASSERT_TRUE(event.getActionRef().isTerminated());
+    ASSERT_TRUE(event2.getActionRef().isResolved());
+}
+
+static const char *HANDLE_TICK_REINFLATE = R"({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "settings": {
+    "supportsResizing": true
+  },
+  "onConfigChange": [
+    {
+      "type": "Reinflate"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "direction": "row",
+      "bind": [
+        {
+          "name": "Transparency",
+          "value": 0.5,
+          "type": "number"
+        }
+      ],
+      "handleTick": {
+        "minimumDelay": 1000,
+        "commands": {
+            "type": "SetValue",
+            "property": "Transparency",
+            "value": "${Transparency < 1 ? 1 : 0.5}"
+        }
+      },
+      "items": [
+        {
+          "type": "Text",
+          "id": "textField",
+          "opacity": "${Transparency}",
+          "height": 50,
+          "width": 200,
+          "text": "Party time!"
+        }
+      ]
+    }
+  }
+})";
+
+/**
+ * Verify that the Reinflate clears out any scheduled ticks handlers.
+ */
+TEST_F(BuilderConfigChange, ReinflateWithHandleTick)
+{
+    metrics.size(200,200);
+    loadDocument(HANDLE_TICK_REINFLATE);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+
+    auto text = component->findComponentById("textField");
+    ASSERT_TRUE(text);
+    ASSERT_EQ(kComponentTypeText, text->getType());
+    ASSERT_EQ(0.5, text->getCalculated(kPropertyOpacity).getDouble());
+    root->updateTime(1100);
+    ASSERT_EQ(1.0, text->getCalculated(kPropertyOpacity).getDouble());
+
+    // Change the size.
+    configChangeReinflate(ConfigurationChange(300,300));
+    ASSERT_TRUE(component);
+    ASSERT_EQ(Rect({0,0,300,300}), component->getCalculated(kPropertyBounds).getRect());
+
+    text = component->findComponentById("textField");
+    ASSERT_TRUE(text);
+    ASSERT_EQ(kComponentTypeText, text->getType());
+    ASSERT_EQ(0.5, text->getCalculated(kPropertyOpacity).getDouble());
+    root->updateTime(2200);
+    ASSERT_EQ(1.0, text->getCalculated(kPropertyOpacity).getDouble());
 }

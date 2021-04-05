@@ -164,7 +164,7 @@ static const char *SEQUENCE_WITH_PADDING = R"({
 TEST_F(FindComponentAtPosition, SequenceWithPadding)
 {
     // Force loading of all items we are looking at to simplify testing.
-    config.sequenceChildCache(5);
+    config->sequenceChildCache(5);
     loadDocument(SEQUENCE_WITH_PADDING);
     ASSERT_TRUE(component);
 
@@ -239,7 +239,7 @@ static const char *GRID_SEQUENCE_WITH_PADDING = R"({
 TEST_F(FindComponentAtPosition, GridSequenceWithPadding)
 {
     // Force loading of all items we are looking at to simplify testing.
-    config.sequenceChildCache(10);
+    config->sequenceChildCache(10);
     loadDocument(GRID_SEQUENCE_WITH_PADDING);
     ASSERT_TRUE(component);
 

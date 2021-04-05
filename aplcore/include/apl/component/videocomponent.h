@@ -16,13 +16,14 @@
 #ifndef _APL_VIDEO_COMPONENT_H
 #define _APL_VIDEO_COMPONENT_H
 
-#include "corecomponent.h"
 #include "apl/primitives/mediastate.h"
+#include "mediacomponenttrait.h"
 
 namespace apl {
 
 
-class VideoComponent : public CoreComponent {
+class VideoComponent : public CoreComponent,
+                       public MediaComponentTrait {
 public:
     static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const std::string& path);
     VideoComponent(const ContextPtr& context, Properties&& properties, const std::string& path);
@@ -32,12 +33,22 @@ public:
 
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
 
+    void pendingMediaLoaded(const std::string& source, int stillPending) override;
+
+    std::string getCurrentUrl() const;
+
+    void postProcessLayoutChanges() override;
+
 protected:
     const EventPropertyMap & eventPropertyMap() const override;
     const ComponentPropDefSet& propDefSet() const override;
     void addEventProperties(ObjectMap &event) const override;
     std::string getVisualContextType() override;
     void assignProperties(const ComponentPropDefSet &propDefSet) override;
+
+    /// Media component trait overrides
+    std::set<std::string> getSources() override;
+    CoreComponentPtr getComponent() override { return shared_from_corecomponent(); }
 
 private:
     void saveMediaState(const MediaState& state);

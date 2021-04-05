@@ -23,22 +23,66 @@ static std::set<std::string> sReservedKeys {
     Keyboard::PAGE_DOWN_KEY().getKey(),
     Keyboard::HOME_KEY().getKey(),
     Keyboard::END_KEY().getKey(),
-    Keyboard::TAB_KEY().getKey(),
-    Keyboard::SHIFT_TAB_KEY().getKey(),
 };
 
 static std::set<std::string> sIntrinsicKeys {
-    Keyboard::ENTER_KEY().getKey()
+    Keyboard::ENTER_KEY().getKey(),
+    Keyboard::NUMPAD_ENTER_KEY().getKey()
 };
 
 bool
 Keyboard::isReservedKey() const {
     return sReservedKeys.find(mKey) != sReservedKeys.end();
-};
+}
 
 bool
 Keyboard::isIntrinsicKey() const {
     return sIntrinsicKeys.find(mKey) != sIntrinsicKeys.end();
+}
+
+int
+Keyboard::compare(const Keyboard& other) const {
+    // Virtual ordering. Comparing in the order: key, code, alt, ctrl, meta, shift, repeat
+    auto result = compareWithoutRepeat(other);
+    if (result != 0) {
+        return result;
+    }
+
+    if (mRepeat != other.mRepeat) {
+        return other.mRepeat ? 1 : -1;
+    }
+
+    return 0;
+}
+
+int
+Keyboard::compareWithoutRepeat(const Keyboard& other) const {
+
+    if (mKey != other.mKey) {
+        return mKey.compare(other.mKey);
+    }
+
+    if (mCode != other.mCode) {
+        return mCode.compare(other.mCode);
+    }
+
+    if (mAltKey != other.mAltKey) {
+        return other.mAltKey ? 1 : -1;
+    }
+
+    if (mCtrlKey != other.mCtrlKey) {
+        return other.mCtrlKey ? 1 : -1;
+    }
+
+    if (mMetaKey != other.mMetaKey) {
+        return other.mMetaKey ? 1 : -1;
+    }
+
+    if (mShiftKey != other.mShiftKey) {
+        return other.mShiftKey ? 1 : -1;
+    }
+
+    return 0;
 }
 
 rapidjson::Value
@@ -65,6 +109,17 @@ Keyboard::serialize() const {
     map->emplace("metaKey", mMetaKey);
     map->emplace("shiftKey", mShiftKey);
     return map;
+}
+
+std::string
+Keyboard::toDebugString() const {
+    return "Keyboard<code=" + mCode +
+        ", key=" + mKey +
+        ", repeat=" + std::to_string(mRepeat) +
+        ", altKey=" + std::to_string(mAltKey) +
+        ", ctrlKey=" + std::to_string(mCtrlKey) +
+        ", metaKey=" + std::to_string(mMetaKey) +
+        ", shiftKey=" + std::to_string(mShiftKey) + ">";
 }
 
 } // namespace apl

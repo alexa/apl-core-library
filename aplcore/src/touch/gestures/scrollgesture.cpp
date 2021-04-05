@@ -28,6 +28,7 @@
 #include "apl/touch/utils/autoscroller.h"
 #include "apl/touch/utils/velocitytracker.h"
 #include "apl/utils/session.h"
+#include "apl/time/sequencer.h"
 
 namespace apl {
 
@@ -39,95 +40,146 @@ ScrollGesture::create(const ActionablePtr& actionable) {
 }
 
 ScrollGesture::ScrollGesture(const ActionablePtr& actionable)
-  : Gesture(actionable),
-    mVelocityTracker(new VelocityTracker(mActionable->getRootConfig()))
-{}
+  : FlingGesture(actionable)
+{
+    mResourceHolder = ExecutionResourceHolder::create(kExecutionResourcePosition, actionable, [&](){reset();});
+}
 
 void
-ScrollGesture::reset() {
-    Gesture::reset();
+ScrollGesture::release()
+{
+    LOG_IF(DEBUG_SCROLL_GESTURE) << "Release";
+    mResourceHolder->release();
+    reset();
+}
 
-    mVelocityTracker->reset();
+void
+ScrollGesture::reset()
+{
+    LOG_IF(DEBUG_SCROLL_GESTURE) << "Reset";
+    FlingGesture::reset();
+
+    if (isTriggered())
+        mResourceHolder->releaseResource();
+
     mScroller = nullptr;
 }
 
-void
-ScrollGesture::onMove(const PointerEvent& event, apl_time_t timestamp) {
-    mVelocityTracker->addPointerEvent(event, timestamp);
+bool
+ScrollGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
+{
+    if (!FlingGesture::onMove(event, timestamp))
+        return false;
 
-    auto scrollable = std::static_pointer_cast<ScrollableComponent>(mActionable);
-    auto delta = mActionable->toLocalPoint(event.pointerEventPosition) - mLastLocalPosition;
+    auto scrollable = getScrollable();
+    auto position = scrollable->toLocalPoint(event.pointerEventPosition);
+    auto delta = position - mStartPosition;
     if (!delta.isFinite()) {
         // TODO: log singularity once to the session once this functionality is available
-        return;
+        return false;
     }
-    auto distance = scrollable->isHorizontal() ? delta.getX() : delta.getY();
 
-    if (!mTriggered) {
-        auto flingTriggerDistanceThreshold = toLocalThreshold(mActionable->getRootConfig().getPointerSlopThreshold());
-        if (std::abs(distance) > flingTriggerDistanceThreshold) {
+    if (!isTriggered()) {
+        auto triggerDistance = scrollable->isHorizontal() ? delta.getX() : delta.getY();
+        auto flingTriggerDistanceThreshold = toLocalThreshold(scrollable->getRootConfig().getPointerSlopThreshold());
+        if (std::abs(triggerDistance) > flingTriggerDistanceThreshold) {
+            if (!isSlopeWithinTolerance(position)) {
+                reset();
+                return false;
+            }
+            LOG_IF(DEBUG_SCROLL_GESTURE) << "Triggering";
             mTriggered = true;
+            mResourceHolder->takeResource();
         }
     }
 
-    mLastLocalPosition = mActionable->toLocalPoint(event.pointerEventPosition);
-
     if (isTriggered()) {
         auto scrollPosition = scrollable->scrollPosition();
-        scrollPosition = scrollable->trimScroll(scrollPosition - delta);
+        scrollPosition = scrollable->trimScroll(scrollPosition - (position - mLastLocalPosition));
 
-        mActionable->update(UpdateType::kUpdateScrollPosition, scrollable->isHorizontal() ? scrollPosition.getX()
+        scrollable->update(UpdateType::kUpdateScrollPosition, scrollable->isHorizontal() ? scrollPosition.getX()
                                                                                           : scrollPosition.getY());
     }
+
+    mLastLocalPosition = position;
+    return true;
 }
 
-void
-ScrollGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
+bool
+ScrollGesture::onDown(const PointerEvent& event, apl_time_t timestamp)
+{
+    if (!FlingGesture::onDown(event, timestamp)) return false;
     if (isTriggered()) {
         // We stop animation but allow for chaining of scrolls
         // TODO: When deceleration physics is it it makes sense to pass impulse in instead of chaining.
         mScroller = nullptr;
-    } else {
-        mVelocityTracker->reset();
     }
-
-    mVelocityTracker->addPointerEvent(event, timestamp);
-    mLastLocalPosition = mActionable->toLocalPoint(event.pointerEventPosition);
+    mLastLocalPosition = mStartPosition;
+    return true;
 }
 
-void
-ScrollGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
-    if (!isTriggered()) {
-        reset();
-        return;
+double
+ScrollGesture::getVelocityLimit(const Point& travel) {
+    auto scrollable = getScrollable();
+    const auto& rootConfig = scrollable->getRootConfig();
+
+    auto maxTravel = scrollable->isVertical() ? mActionable->getContext()->height()
+                                              : mActionable->getContext()->width();
+    auto velocityEasing = scrollable->isVertical() ? rootConfig.getProperty(RootProperty::kScrollFlingVelocityLimitEasingVertical).getEasing()
+                                                   : rootConfig.getProperty(RootProperty::kScrollFlingVelocityLimitEasingHorizontal).getEasing();
+
+    auto directionalTravel = std::abs(scrollable->isVertical() ? travel.getY() : travel.getX());
+
+    LOG_IF(DEBUG_SCROLL_GESTURE) << "maxTravel " << maxTravel << " directionalTravel " << directionalTravel;
+
+    auto maxVelocity = toLocalThreshold(rootConfig.getProperty(RootProperty::kMaximumFlingVelocity).getDouble());
+
+    auto limit = maxVelocity;
+    // If fling distance is lower than defined limit - limit the velocity to mimic existing device behavior more
+    if (directionalTravel <= maxTravel) {
+        auto alpha = std::min(1.0, directionalTravel/maxTravel);
+        // Just linear distribution from minVelocity to maxVelocity across 0 to longFlingStart as limit
+        limit = maxVelocity * velocityEasing->calc(alpha);
+
+        LOG_IF(DEBUG_SCROLL_GESTURE) << " maxVelocity " << maxVelocity << " alpha " << alpha << " limit " << limit;
     }
 
-    mVelocityTracker->addPointerEvent(event, timestamp);
+    return limit / time::MS_PER_SECOND;
+}
 
-    auto scrollable = std::dynamic_pointer_cast<ScrollableComponent>(mActionable);
+bool
+ScrollGesture::onUp(const PointerEvent& event, apl_time_t timestamp)
+{
+    if (!FlingGesture::onUp(event, timestamp))
+        return false;
+
+    auto scrollable = getScrollable();
     auto velocities = toLocalVector(mVelocityTracker->getEstimatedVelocity());
     auto velocity = scrollable->isVertical() ? velocities.getY() : velocities.getX();
     if (std::isnan(velocity)) {
-        CONSOLE_CTP(mActionable->getContext()) << "Singularity encountered during scroll, resetting";
+        CONSOLE_CTP(scrollable->getContext()) << "Singularity encountered during scroll, resetting";
         reset();
-        return;
+        return false;
     }
 
     // TODO: Acting on "significant" direction. Will will need this to be changed when we have
     //  multidirectional scrolling.
-    if (std::abs(velocity) >= toLocalThreshold(mActionable->getRootConfig().getMinimumFlingVelocity()) /
+    const auto& rootConfig = scrollable->getRootConfig();
+    if (std::abs(velocity) >= toLocalThreshold(rootConfig.getMinimumFlingVelocity()) /
     time::MS_PER_SECOND) {
-        auto velocityLimit =
-            toLocalThreshold(mActionable->getRootConfig().getMaximumFlingVelocity()) / time::MS_PER_SECOND;
+        auto position =  scrollable->toLocalPoint(event.pointerEventPosition);
+        auto delta = position - mStartPosition;
+        auto velocityLimit = getVelocityLimit(delta);
         if (std::abs(velocity) > velocityLimit) {
             LOG_IF(DEBUG_SCROLL_GESTURE)
                 << "Velocity " << velocity << " is too fast, reset to " << velocityLimit;
             velocity = velocity > 0 ? velocityLimit : -velocityLimit;
+            velocities = Point(velocity, velocity);
         }
 
         // We have enough velocity to perform fling action. Create AutoScroller and drive it with further time updates.
         auto weak_ptr = std::weak_ptr<ScrollGesture>(shared_from_this());
-        mScroller = AutoScroller::make(mActionable->getRootConfig(), scrollable,
+        mScroller = AutoScroller::make(rootConfig, scrollable,
            [weak_ptr]() {
                auto self = weak_ptr.lock();
                if (self) {
@@ -145,18 +197,22 @@ ScrollGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
         LOG_IF(DEBUG_SCROLL_GESTURE) << "Velocity " << velocity << " is too low, do not fling.";
         reset();
     }
+    return true;
 }
 
-void
-ScrollGesture::onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) {
-    if (mTriggered && mScroller) {
+bool
+ScrollGesture::onTimeUpdate(const PointerEvent& event, apl_time_t timestamp)
+{
+    if (mTriggered && mScroller)
         mScroller->update(timestamp);
-    }
+    return true;
 }
 
 void
-ScrollGesture::scrollToSnap() {
-    auto snapOffset = std::dynamic_pointer_cast<ScrollableComponent>(mActionable)->getSnapOffset();
+ScrollGesture::scrollToSnap()
+{
+    auto scrollable = getScrollable();
+    auto snapOffset = scrollable->getSnapOffset();
 
     if (snapOffset == Point()) {
         reset();
@@ -164,22 +220,42 @@ ScrollGesture::scrollToSnap() {
     }
 
     auto weak_ptr = std::weak_ptr<ScrollGesture>(shared_from_this());
-    mScroller = AutoScroller::make(mActionable->getRootConfig(),
-                               std::dynamic_pointer_cast<ScrollableComponent>(mActionable), [weak_ptr]() {
+    const auto& rootConfig = scrollable->getRootConfig();
+    mScroller = AutoScroller::make(rootConfig, scrollable, [weak_ptr]() {
       auto self = weak_ptr.lock();
       if (self) {
           self->reset();
       }
-    }, snapOffset, mActionable->getRootConfig().getScrollSnapDuration());
+    }, snapOffset, rootConfig.getScrollSnapDuration());
 }
 
 float
-ScrollGesture::toLocalThreshold(float threshold) {
-    auto scrollable = std::static_pointer_cast<ScrollableComponent>(mActionable);
+ScrollGesture::toLocalThreshold(float threshold)
+{
+    auto scrollable = getScrollable();
     if (scrollable->isHorizontal()) {
         return std::abs(threshold * scrollable->getGlobalToLocalTransform().getXScaling());
     } else {
         return std::abs(threshold * scrollable->getGlobalToLocalTransform().getYScaling());
+    }
+}
+
+bool
+ScrollGesture::isSlopeWithinTolerance(Point localPosition)
+{
+    if (!localPosition.isFinite() || !mStartPosition.isFinite()) {
+        return false;
+    }
+
+    auto& config = mActionable->getRootConfig();
+    auto pointerDelta = localPosition - mStartPosition;
+    auto scrollable = getScrollable();
+    if (scrollable->isHorizontal()) {
+        return std::abs(pointerDelta.getX()) * config.getProperty(RootProperty::kScrollAngleSlopeHorizontal).getDouble()
+            >= std::abs(pointerDelta.getY());
+    } else {
+        return std::abs(pointerDelta.getY()) * config.getProperty(RootProperty::kScrollAngleSlopeVertical).getDouble()
+            >= std::abs(pointerDelta.getX());
     }
 }
 

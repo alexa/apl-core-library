@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -100,7 +100,7 @@ TEST_F(LiveMapChangeTest, SmallChange)
 {
     auto myMap = LiveMap::create(ObjectMap{{"adjective", "happy"},
                                            {"noun",      "dog"}});
-    config.liveData("TestMap", myMap);
+    config->liveData("TestMap", myMap);
 
     loadDocument(MAP_TEST);
     ASSERT_TRUE(component);
@@ -146,7 +146,7 @@ TEST_F(LiveMapChangeTest, MultipleChanges)
 {
     auto myMap = LiveMap::create(ObjectMap{{"adjective", "happy"},
                                            {"noun",      "dog"}});
-    config.liveData("TestMap", myMap);
+    config->liveData("TestMap", myMap);
 
     loadDocument(MAP_TEST);
     ASSERT_TRUE(component);
@@ -192,7 +192,7 @@ TEST_F(LiveMapChangeTest, Replaced)
 {
     auto myMap = LiveMap::create(ObjectMap{{"adjective", "happy"},
                                            {"noun",      "dog"}});
-    config.liveData("TestMap", myMap);
+    config->liveData("TestMap", myMap);
 
     loadDocument(MAP_TEST);
     ASSERT_TRUE(component);
@@ -218,5 +218,5 @@ TEST_F(LiveMapChangeTest, Replaced)
                     {"pronoun",   "it"}});
     ASSERT_TRUE(LiveMapTrack("TestMap", context,
                              {{"adjective", "sad", true},
-                              {"pronoun",   "it",  "true"}}));
+                              {"pronoun",   "it",  true}}));
 }

@@ -84,10 +84,11 @@ TEST_F(BuilderTestPager, SimplePager)
     ASSERT_TRUE(IsEqual(Dimension(0), component->getCalculated(kPropertyMinHeight)));
     ASSERT_TRUE(IsEqual(Dimension(0), component->getCalculated(kPropertyMinWidth)));
     ASSERT_TRUE(IsEqual(1.0, component->getCalculated(kPropertyOpacity).getDouble()));
-    ASSERT_TRUE(IsEqual(Dimension(0), component->getCalculated(kPropertyPaddingBottom)));
-    ASSERT_TRUE(IsEqual(Dimension(0), component->getCalculated(kPropertyPaddingLeft)));
-    ASSERT_TRUE(IsEqual(Dimension(0), component->getCalculated(kPropertyPaddingRight)));
-    ASSERT_TRUE(IsEqual(Dimension(0), component->getCalculated(kPropertyPaddingTop)));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingBottom)));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingLeft)));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingRight)));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingTop)));
+    ASSERT_TRUE(IsEqual(Object(ObjectArray{}), component->getCalculated(kPropertyPadding)));
     ASSERT_TRUE(IsEqual(Dimension(100), component->getCalculated(kPropertyWidth)));
     ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
 
@@ -272,6 +273,7 @@ TEST_F(BuilderTestPager, LazyPager)
     ASSERT_TRUE(CheckChild(3, "3", Rect(0, 0, 0, 0)));
 
     component->update(kUpdatePagerByEvent, 1);
+    root->clearPending();
     ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 2));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 2}, true));
     ASSERT_TRUE(CheckChildLaidOut(component, 3, false));
@@ -328,6 +330,7 @@ TEST_F(BuilderTestPager, LazyInitialSetPager)
     ASSERT_TRUE(CheckChild(4, "4", Rect(0, 0, 0, 0)));
 
     component->update(kUpdatePagerByEvent, 1);
+    root->clearPending();
     ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 0));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 3}, true));
     ASSERT_TRUE(CheckChildLaidOut(component, 4, false));

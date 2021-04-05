@@ -54,6 +54,11 @@ public:
         return kb;
     }
 
+    static const Keyboard& NUMPAD_ENTER_KEY() {
+        static auto kb = Keyboard("NumpadEnter", "NumpadEnter");
+        return kb;
+    }
+
     static const Keyboard& TAB_KEY() {
         static auto kb = Keyboard("Tab", "Tab");
         return kb;
@@ -221,10 +226,31 @@ public:
     */
     std::shared_ptr<ObjectMap> serialize() const;
 
-    bool operator==(const Keyboard& rhs) const {
-        return mKey == rhs.mKey && mCode == rhs.mCode && mRepeat == rhs.mRepeat
-               && mAltKey == rhs.mAltKey && mCtrlKey == rhs.mCtrlKey && mMetaKey == rhs.mMetaKey &&
-               mShiftKey == rhs.mShiftKey;
+    /**
+     * @return Standard comparison function. <0 if current object should be before other, 0 if equal,
+     * >0 if should be after other.
+     */
+    int compare(const Keyboard& other) const;
+
+    /**
+     * @return Compare without repeat. <0 if current object should be before other, 0 if equal,
+     * >0 if should be after other.
+     */
+    int compareWithoutRepeat(const Keyboard& other) const;
+
+    /// Comparison operators
+    bool operator==(const Keyboard& other) const { return this->compare(other) == 0; }
+    bool operator!=(const Keyboard& other) const { return this->compare(other) != 0; }
+    bool operator<(const Keyboard& other) const { return this->compare(other) < 0; }
+    bool operator>(const Keyboard& other) const { return this->compare(other) > 0; }
+
+    /**
+     * Compare ONLY key value.
+     * @param other The key to compare to.
+     * @return True if key is the same, false otherwise.
+     */
+    bool sameKey(const Keyboard& other) const {
+        return mKey == other.mKey;
     }
 
     /**
@@ -233,10 +259,20 @@ public:
      * @return True, if all properties are equal without repeat comparison.
      */
     bool keyEquals(const Keyboard& rhs) const {
-        return mKey == rhs.mKey && mCode == rhs.mCode
-               && mAltKey == rhs.mAltKey && mCtrlKey == rhs.mCtrlKey && mMetaKey == rhs.mMetaKey &&
-               mShiftKey == rhs.mShiftKey;
+        return compareWithoutRepeat(rhs) == 0;
     }
+
+    /**
+     * Comparator definition without repeat to use in maps.
+     */
+    struct comparatorWithoutRepeat {
+        bool operator() (const Keyboard& lhs, const Keyboard& rhs) const
+        {
+            return lhs.compareWithoutRepeat(rhs) < 0;
+        }
+    };
+
+    std::string toDebugString() const;
 
 private:
     std::string mCode;

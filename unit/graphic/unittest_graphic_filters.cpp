@@ -29,7 +29,7 @@ using namespace apl;
 
 TEST(GraphicFilterTest, Basic)
 {
-    auto context = Context::create(Metrics(), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics(), makeDefaultSession());
 
     JsonData json(R"({"type":"DropShadow"})");
     auto f = GraphicFilter::create(*context, json.get());
@@ -44,7 +44,7 @@ TEST(GraphicFilterTest, Basic)
 
 TEST(GraphicFilterTest, BadGraphicFilter)
 {
-    auto context = Context::create(Metrics(), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics(), makeDefaultSession());
 
     JsonData json(R"({"type":"DropShadoww"})");
     auto f = GraphicFilter::create(*context, json.get());
@@ -55,7 +55,7 @@ TEST(GraphicFilterTest, BadGraphicFilter)
 
 TEST(GraphicFilterTest, Equality)
 {
-    auto context = Context::create(Metrics(), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics(), makeDefaultSession());
 
     JsonData filter1(R"( {"type": "DropShadow", "color": "blue"} )");
     JsonData filter2(R"( {"type": "DropShadow"} )");
@@ -86,7 +86,7 @@ namespace {
 
 TEST(GraphicFilterTest, DropShadowGraphicFilter)
 {
-    auto context = Context::create(Metrics(), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics(), makeDefaultSession());
 
     for (auto& m : DROP_SHADOW_TESTS) {
         JsonData json(m.json);
@@ -103,7 +103,7 @@ TEST(GraphicFilterTest, DropShadowGraphicFilter)
 
 TEST(GraphicFilterTest, ResourceSubstitution)
 {
-    auto context = Context::create(Metrics(), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics(), makeDefaultSession());
     context->putConstant("@filterSize", Object(10));
 
     JsonData json1(R"({"type": "DropShadow", "radius": "@filterSize"})");

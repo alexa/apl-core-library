@@ -67,7 +67,7 @@ DataSource::create(const ContextPtr& context, const Object& object, const std::s
         CONSOLE_CTP(context) << "DataSourceConnection failed to initialize.";
         return Object::NULL_OBJECT();
     }
-
+    liveDataSourceArray = dataSourceConnection->getLiveArray();
     auto dataSource = std::make_shared<DataSource>(
             liveDataSourceArray,
             context,

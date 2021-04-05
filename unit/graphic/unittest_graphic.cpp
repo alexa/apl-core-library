@@ -32,8 +32,7 @@ public:
         GraphicContentPtr gc = GraphicContent::create(session, str);
         ASSERT_TRUE(gc);
         auto jr = JsonResource(&gc->get(), Path());
-
-        auto context = Context::create(metrics, session);
+        auto context = Context::createTestContext(metrics, *config);
         Properties properties;
         properties.emplace(propertyValues);
         graphic = Graphic::create(context, jr, std::move(properties), nullptr);
@@ -41,7 +40,7 @@ public:
     }
 
     void loadGraphic(const rapidjson::Value& json, const StyleInstancePtr& style = nullptr) {
-        auto context = Context::create(metrics, session);
+        auto context = Context::createTestContext(metrics, session);
         loadGraphic(context, json, style);
     }
 
@@ -565,6 +564,22 @@ TEST_F(GraphicTest, MinimalText)
     ASSERT_EQ(Object(0), text->getValue(kGraphicPropertyCoordinateY));
 
     ASSERT_EQ(0, text->getChildCount());
+}
+
+TEST_F(GraphicTest, MinimalTextDefaultFontFamily)
+{
+    config->set(RootProperty::kDefaultFontFamily, "potato");
+
+    loadGraphic(MINIMAL_TEXT);
+
+    auto container = graphic->getRoot();
+    ASSERT_TRUE(container);
+
+    ASSERT_EQ(1, container->getChildCount());
+    auto text = container->getChildAt(0);
+    ASSERT_EQ(kGraphicElementTypeText, text->getType());
+
+    ASSERT_EQ(Object("potato"), text->getValue(kGraphicPropertyFontFamily));
 }
 
 static const char *TEXT_PROPERTIES =

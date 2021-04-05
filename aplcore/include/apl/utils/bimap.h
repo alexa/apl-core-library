@@ -95,6 +95,14 @@ public:
         return (it != mAtoB.end() ? it->second : defvalue);
     }
 
+    typename std::map<A,B>::const_iterator find(A x) const {
+        return mAtoB.find(x);
+    }
+
+    typename std::map<B,A>::const_iterator find(B x) const {
+        return mBtoA.find(x);
+    }
+
     typename std::map<A,B>::const_iterator begin() const { return mAtoB.begin(); }
     typename std::map<A,B>::const_iterator end() const { return mAtoB.end(); }
 

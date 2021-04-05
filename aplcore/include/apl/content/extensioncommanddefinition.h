@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -121,7 +121,7 @@ public:
      */
     ExtensionCommandDefinition& property(const std::string& name, ExtensionProperty&& prop) {
         if (name == "when" || name == "type")
-            LOG(LogLevel::WARN) << "Unable to register property '" << name << "' in custom command " << mName;
+            LOG(LogLevel::kWarn) << "Unable to register property '" << name << "' in custom command " << mName;
         else
             mPropertyMap.emplace(name, std::move(prop));
         return *this;
@@ -137,7 +137,7 @@ public:
      */
     ExtensionCommandDefinition& arrayProperty(std::string property, bool required) {
         if (property == "when" || property == "type")
-            LOG(LogLevel::WARN) << "Unable to register array-ified property '" << property << "' in custom command " << mName;
+            LOG(LogLevel::kWarn) << "Unable to register array-ified property '" << property << "' in custom command " << mName;
         else
             mPropertyMap.emplace(property, ExtensionProperty{kBindingTypeArray, Object::EMPTY_ARRAY(), required});
         return *this;

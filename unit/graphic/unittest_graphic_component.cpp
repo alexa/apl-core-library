@@ -15,7 +15,7 @@
 
 #include "../testeventloop.h"
 
-#include "apl/engine/focusmanager.h"
+#include "apl/focus/focusmanager.h"
 #include "apl/graphic/graphic.h"
 #include "apl/primitives/object.h"
 
@@ -2307,7 +2307,7 @@ TEST_F(GraphicComponentTest, InheritedTouchBubbles) {
 static const char * INHERITED_NOT_BUBBLED_TOUCH = R"(
 {
   "type": "APL",
-  "version": "1.4",
+  "version": "1.6",
   "graphics": {
     "ToggleButton": {
       "type": "AVG",

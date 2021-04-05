@@ -37,18 +37,19 @@ public:
     virtual bool shouldForceSnap() const { return false; }
 
     void update(UpdateType type, float value) override;
+    bool canConsumeFocusDirectionEvent(FocusDirection direction, bool fromInside) override;
+    CoreComponentPtr takeFocusFromChild(FocusDirection direction, const Rect& origin) override;
 
 protected:
     ScrollableComponent(const ContextPtr& context, Properties&& properties, const std::string& path) :
         ActionableComponent(context, std::move(properties), path) {};
 
+    /// Core component overrides
     void initialize() override;
-
     const EventPropertyMap& eventPropertyMap() const override;
-
-    virtual bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
-
+    bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
     bool scrollable() const override { return true; }
+    const ComponentPropDefSet& propDefSet() const override;
 
     /**
      * Override this to calculate whether the scrollable can continue to scroll forward
@@ -63,10 +64,6 @@ protected:
      */
     virtual bool allowBackwards() const = 0;
 
-    bool isFocusable() const override { return true; }
-
-    const ComponentPropDefSet& propDefSet() const override;
-
     /**
      * Override this to calculate maximum available scroll position.
      * @return maximum available scroll position.
@@ -77,6 +74,17 @@ protected:
      * Called when the scroll position changes so that subclasses can respond with the appropriate state changes.
      */
     virtual void onScrollPositionUpdated();
+
+    /**
+     * This method directly changes the scroll position, usually as a result of a "SetValue" call.  It has the
+     * side effect of killing any Scroll-related commands that are being handled in the sequencer.
+     * @param value The target scroll offset (in dp)
+     */
+    void setScrollPositionDirectly(float value);
+
+private:
+    bool setScrollPositionInternal(float value);
+    bool canScroll(FocusDirection direction);
 };
 
 } // namespace apl

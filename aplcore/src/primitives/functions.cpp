@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -149,6 +149,26 @@ mathPredicate(const std::vector<Object>& args)
     return f(args[0].asNumber());
 }
 
+static Object
+mathToFloat(const std::vector<Object>& args)
+{
+    if (args.size() != 1)
+        return std::numeric_limits<double>::quiet_NaN();
+    return args.at(0).asNumber();
+}
+
+static Object
+mathToInt(const std::vector<Object>& args)
+{
+    if (args.size() < 1 || args.size() > 2)
+        return std::numeric_limits<double>::quiet_NaN();
+
+    auto base = args.size() == 2 ? args.at(1).asInt() : 10;
+    if (base < 0 || base == 1 || base > 36)
+        return std::numeric_limits<double>::quiet_NaN();
+
+    return args.at(0).asInt64(base);
+}
 
 static Object
 arrayIndexOf(const ObjectArray& args)
@@ -162,7 +182,7 @@ arrayIndexOf(const ObjectArray& args)
 
     const auto len = array.size();
     const auto& value = args.at(1);
-    for (size_t index = 0; index < len; index++)
+    for (std::uint64_t index = 0; index < len; index++)
         if (array.at(index) == value)
             return index;
 
@@ -199,28 +219,10 @@ arraySlice(const ObjectArray& args)
     if (args.size() == 1)
         return array;
 
-    auto start = args.at(1).asInt();
-    auto end = args.size() > 2 ? args.at(2).asInt() : array.size();
+    auto start = args.at(1).asInt64();
+    auto end = args.size() > 2 ? args.at(2).asInt64() : array.size();
     return SliceGenerator::create(array, start, end);
 }
-
-
-// Convenience template for string transformation
-// TODO: These are not unicode safe...
-template<int (*f)(int)>
-Object stringTransform(const std::vector<Object>& args)
-{
-    if (args.size() != 1)
-        return Object::NULL_OBJECT();
-
-    std::string s = args[0].asString();
-    std::string d;
-
-    d.resize(s.size());
-    std::transform(s.begin(), s.end(), d.begin(),  f);
-    return d;
-}
-
 
 /**
  * This method assumes a UTF-8 encoded string. It returns the number
@@ -234,6 +236,38 @@ stringLength(const std::vector<Object>& args)
 
     std::string s = args[0].asString();
     return utf8StringLength(s);
+}
+
+static Object
+stringToUpperImpl(const std::shared_ptr<LocaleMethods>& localeMethods, const std::vector<Object>& args)
+{
+    // passing empty string as locale is not provided in the request
+    // ex. “${String.toUpperCase(‘TestString’)}”
+    if (args.size() == 1)
+        return localeMethods->toUpperCase(args[0].asString(), "");
+
+    // passing locale value provided in the request
+    // ex. “${String.toUpperCase(‘TestString’, ‘fr-FR’)}”
+    if (args.size() == 2)
+        return localeMethods->toUpperCase(args[0].asString(), args[1].asString());
+
+    return Object::NULL_OBJECT();
+}
+
+static Object
+stringToLowerImpl(const std::shared_ptr<LocaleMethods>& localeMethods, const std::vector<Object>& args)
+{
+    // passing empty string as locale is not provided in the request
+    // ex. “${String.toLowerCase(‘TestString’)}”
+    if (args.size() == 1)
+        return localeMethods->toLowerCase(args[0].asString(), "");
+
+    // passing locale value provided in the request
+    // ex. “${String.toLowerCase(‘TestString’, ‘fr-FR’)}”
+    if (args.size() == 2)
+        return localeMethods->toLowerCase(args[0].asString(), args[1].asString());
+
+    return Object::NULL_OBJECT();
 }
 
 /**
@@ -335,10 +369,12 @@ createMathMap()
     map->emplace("exp2", Function::create("exp2", mathSingle<std::exp2>));
     map->emplace("expm1", Function::create("expm1", mathSingle<std::expm1>));
 
+    map->emplace("float", Function::create("float", mathToFloat));
     map->emplace("floor", Function::create("floor", mathSingle<std::floor>));
 
     map->emplace("hypot", Function::create("hypot", mathHypot));
 
+    map->emplace("int", Function::create("int", mathToInt));
     map->emplace("isFinite", Function::create("isFinite", mathPredicate<std::isfinite>));
     map->emplace("isInf", Function::create("isInf", mathPredicate<std::isinf>));
     map->emplace("isNaN", Function::create("isNan", mathPredicate<std::isnan>));
@@ -378,12 +414,16 @@ createMathMap()
 }
 
 static ObjectMapPtr
-createStringMap()
+createStringMap(const std::shared_ptr<LocaleMethods>& localeMethods)
 {
     auto map = std::make_shared<ObjectMap>();
 
-    map->emplace("toLowerCase", Function::create("toLower", stringTransform<::tolower>));
-    map->emplace("toUpperCase", Function::create("toUpper", stringTransform<::toupper>));
+    map->emplace("toLowerCase", Function::create("toLower", [localeMethods] (const std::vector<Object>& args) {
+        return stringToLowerImpl(localeMethods, args);
+    }));
+    map->emplace("toUpperCase", Function::create("toUpper", [localeMethods] (const std::vector<Object>& args) {
+        return stringToUpperImpl(localeMethods, args);
+    }));
     map->emplace("slice", Function::create("slice", stringSlice));
     map->emplace("length", Function::create("length", stringLength));
 
@@ -425,7 +465,8 @@ createStandardFunctions(Context& context)
 {
     static auto sArrayFunctions = createArrayMap();
     static auto sMathFunctions = createMathMap();
-    static auto sStringFunctions = createStringMap();
+    // String functions are dependent on RootConfig locale methods
+    auto sStringFunctions = createStringMap(context.getLocaleMethods());
     static auto sTimeFunctions = createTimeMap();
 
     context.putConstant("Array", sArrayFunctions);

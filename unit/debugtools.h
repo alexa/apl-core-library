@@ -43,6 +43,18 @@ void dumpHierarchy(const ComponentPtr& component, std::initializer_list<std::str
  */
 void dumpContext(const ContextPtr& context, int indent = 0);
 
+/**
+ * Convenience method for displaying the Yoga hierarchy
+ * @param component
+ */
+void dumpYoga(const ComponentPtr& component);
+
+/**
+ * Convenience method for dumping the current state of layouts
+ * @param component
+ */
+void dumpLayout(const ComponentPtr& component);
+
 
 } // namespace apl
 

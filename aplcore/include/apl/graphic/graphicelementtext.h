@@ -20,7 +20,8 @@
 
 namespace apl {
 
-class GraphicElementText : public GraphicElement {
+class GraphicElementText : public GraphicElement,
+                           public Counter<GraphicElementText> {
 public:
     static GraphicElementPtr create(const GraphicPtr &graphic, const ContextPtr &context, const Object &json);
 

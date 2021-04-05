@@ -75,6 +75,8 @@ private:
                                   const CoreComponentPtr& parent,
                                   const Path& path);
 
+    void copyPreservedProperties(const CoreComponentPtr& component);
+
     CoreComponentPtr expandSingleComponentFromArray(const ContextPtr& context,
                                                     const std::vector<Object>& items,
                                                     Properties& properties,
@@ -87,6 +89,7 @@ private:
                                            const CoreComponentPtr& parent,
                                            const Path& path);
 
+    void attachBindings(const ContextPtr& context, const Object& item);
 private:
     CoreComponentPtr mOld;
 };

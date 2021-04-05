@@ -56,15 +56,23 @@ AutoScroller::update(apl_time_t time)
 {
     if (mFinished) return;
 
+    // Make it safe in terms of limits.
+    auto offset = time < mStartTime ? 0 : time - mStartTime;
+    offset = offset >= getDuration() ? getDuration() : offset;
+
+    updateOffset(offset);
+}
+
+void
+AutoScroller::updateOffset(apl_duration_t offset)
+{
+    if (mFinished) return;
+
     auto scrollable = mScrollable.lock();
     if (!scrollable) {
         finish();
         return;
     }
-
-    // Make it safe in terms of limits.
-    auto offset = time < mStartTime ? 0 : time - mStartTime;
-    offset = offset >= getDuration() ? getDuration() : offset;
 
     update(scrollable, offset);
 }

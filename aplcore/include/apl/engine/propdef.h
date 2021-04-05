@@ -42,7 +42,7 @@ inline Object asBoolean(const Context &context, const Object &object) {
 }
 
 inline Object asInteger(const Context &context, const Object &object) {
-    return object.asInt();
+    return object.asInt64();
 }
 
 inline Object asArray(const Context &context, const Object &object) {
@@ -81,13 +81,13 @@ inline Object asNonNegativeNumber(const Context& context, const Object& object) 
 }
 
 inline Object asNonNegativeInteger(const Context& context, const Object& object) {
-    int value = object.asInt();
+    auto value = object.asInt64();
     return value < 0 ? 0 : value;
 }
 
 inline Object asPositiveInteger(const Context& context, const Object& object) {
-    int value = object.asInt();
-    return value < 1? 1 : value;
+    auto value = object.asInt64();
+    return value < 1 ? 1 : value;
 }
 
 inline Object asDimension(const Context& context, const Object& object) {
@@ -236,6 +236,9 @@ inline Object asAvgGradient(const Context& context, const Object& object) {
     return Gradient::createAVG(context, object);
 }
 
+Object asPaddingArray(const Context& context, const Object& object);
+
+
 /**
  * Flags that specify how the property definition will be used.
  */
@@ -272,6 +275,8 @@ enum PropertyDefFlags : uint32_t {
     kPropEvaluated = 0x800,
     /// This property may influence the visual context dirty state.
     kPropVisualContext = 0x1000,
+    /// This property can only be set once the children of this component have been laid out
+    kPropSetAfterLayout = 0x2000,
 };
 
 /**

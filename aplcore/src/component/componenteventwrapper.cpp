@@ -56,7 +56,7 @@ ComponentEventWrapper::has(const std::string& key) const
     return false;
 }
 
-size_t
+std::uint64_t
 ComponentEventWrapper::size() const
 {
     auto component = mComponent.lock();

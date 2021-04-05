@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ using namespace apl;
 
 TEST(FilterTest, Basic)
 {
-    auto context = Context::create(Metrics(), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics(), makeDefaultSession());
 
     JsonData json(R"({"type":"Blur", "radius": 10})");
     auto f = Filter::create(*context, json.get());
@@ -43,7 +43,7 @@ TEST(FilterTest, Basic)
 
 TEST(FilterTest, BadFilter)
 {
-    auto context = Context::create(Metrics(), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics(), makeDefaultSession());
 
     JsonData json(R"({"type":"Blurry", "radius": 10})");
     auto f = Filter::create(*context, json.get());
@@ -54,7 +54,7 @@ TEST(FilterTest, BadFilter)
 
 TEST(FilterTest, Equality)
 {
-    auto context = Context::create(Metrics().size(2000,1000), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics().size(2000,1000), makeDefaultSession());
 
     JsonData blend1(R"( {"type": "Blend", "mode": "multiply"} )");
     JsonData blend2(R"( {"type": "Blend"} )");
@@ -81,7 +81,7 @@ std::vector<BlendFilterTest> BLEND_TESTS = {
 
 TEST(FilterTest, BlendFilter)
 {
-    auto context = Context::create(Metrics().size(2000,1000), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics().size(2000,1000), makeDefaultSession());
 
     for (auto& m : BLEND_TESTS) {
         JsonData json(m.json);
@@ -117,7 +117,7 @@ std::vector<BlurFilterTest> BLUR_TESTS = {
 
 TEST(FilterTest, BlurFilter)
 {
-    auto context = Context::create(Metrics().size(2000,1000), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics().size(2000,1000), makeDefaultSession());
 
     for (auto& m : BLUR_TESTS) {
         JsonData json(m.json);
@@ -144,7 +144,7 @@ std::vector<ColorFilterTest> COLOR_TESTS = {
 }
 
 TEST(FilterTest, ColorFilter) {
-    auto context = Context::create(Metrics().size(2000,1000), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics().size(2000,1000), makeDefaultSession());
 
     for (auto& m : COLOR_TESTS) {
         JsonData json(m.json);
@@ -193,7 +193,7 @@ std::vector<GradientFilterTest> GRADIENT_TESTS = {
 }
 
 TEST(FilterTest, GradientFilter) {
-    auto context = Context::create(Metrics().size(2000,1000), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics().size(2000,1000), makeDefaultSession());
 
     for (auto& m : GRADIENT_TESTS) {
         JsonData json(m.json);
@@ -231,7 +231,7 @@ std::vector<GrayscaleFilterTest> GRAYSCALE_TESTS = {
 
 TEST(FilterTest, GrayscaleFilter)
 {
-    auto context = Context::create(Metrics().size(2000,1000), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics().size(2000,1000), makeDefaultSession());
 
     for (auto& m : GRAYSCALE_TESTS) {
         JsonData json(m.json);
@@ -263,7 +263,7 @@ std::vector<NoiseFilterTest> NOISE_TESTS = {
 
 TEST(FilterTest, NoiseFilter)
 {
-    auto context = Context::create(Metrics().size(2000,1000), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics().size(2000,1000), makeDefaultSession());
 
     for (auto& m : NOISE_TESTS) {
         JsonData json(m.json);
@@ -293,7 +293,7 @@ std::vector<SaturateFilterTest> SATURATE_TESTS = {
 
 TEST(FilterTest, SaturateFilter)
 {
-    auto context = Context::create(Metrics().size(2000,1000), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics().size(2000,1000), makeDefaultSession());
 
     for (auto& m : SATURATE_TESTS) {
         JsonData json(m.json);
@@ -308,7 +308,7 @@ TEST(FilterTest, SaturateFilter)
 
 TEST(FilterTest, ResourceSubstitution)
 {
-    auto context = Context::create(Metrics().size(2000,1000), makeDefaultSession());
+    auto context = Context::createTestContext(Metrics().size(2000,1000), makeDefaultSession());
     context->putConstant("@filterSize", Object(Dimension(10)));
 
     JsonData json(R"({"type": "Blur", "radius": "${@filterSize * 2}"})");
@@ -417,7 +417,7 @@ static const char *EXTENSION_FILTER = R"apl(
  */
 TEST_F(FilterTestDocument, ExtensionWithSource)
 {
-    config.registerExtensionFilter(ExtensionFilterDefinition("aplext:CannyEdgeFilters:10",
+    config->registerExtensionFilter(ExtensionFilterDefinition("aplext:CannyEdgeFilters:10",
                                                              "FindEdges",
                                                              ExtensionFilterDefinition::ONE)
                         .property("min", 0.1, kBindingTypeNumber)
@@ -473,7 +473,7 @@ static const char *EXTENSION_TWO_IMAGES_FILTER = R"apl(
  */
 TEST_F(FilterTestDocument, ExtensionWithSourceAndDestination)
 {
-    config.registerExtensionFilter(ExtensionFilterDefinition("aplext:MorphingFilters:10",
+    config->registerExtensionFilter(ExtensionFilterDefinition("aplext:MorphingFilters:10",
                                                              "MergeTwo",
                                                              ExtensionFilterDefinition::TWO)
                                        .property("amount", 0.5, kBindingTypeNumber));
@@ -529,7 +529,7 @@ static const char *EXTENSION_ZERO_IMAGES_FILTER = R"apl(
  */
 TEST_F(FilterTestDocument, ExtensionNoInputImages)
 {
-    config.registerExtensionFilter(ExtensionFilterDefinition("aplext:NoiseGeneration:10",
+    config->registerExtensionFilter(ExtensionFilterDefinition("aplext:NoiseGeneration:10",
                                                              "Perlin",
                                                              ExtensionFilterDefinition::ZERO)
                                        .property("width", 128, kBindingTypeInteger)
@@ -591,16 +591,16 @@ static const char *EXTENSION_EQUALITY = R"apl(
 // Extension filters have a slightly richer equality test
 TEST_F(FilterTestDocument, ExtensionEquality)
 {
-    auto context = Context::create(Metrics().size(2000, 1000), makeDefaultSession());
-    config.registerExtensionFilter(
+    auto context = Context::createTestContext(Metrics().size(2000, 1000), makeDefaultSession());
+    config->registerExtensionFilter(
         ExtensionFilterDefinition("TestURI", "afilter", ExtensionFilterDefinition::ONE)
             .property("a", 0)
     );
-    config.registerExtensionFilter(
+    config->registerExtensionFilter(
         ExtensionFilterDefinition("TestURI", "bfilter", ExtensionFilterDefinition::ONE)
             .property("a", 0)
     );
-    config.registerExtensionFilter(
+    config->registerExtensionFilter(
         ExtensionFilterDefinition("OtherURI", "afilter", ExtensionFilterDefinition::ONE)
             .property("a", 0)
     );
@@ -650,7 +650,7 @@ static const char *SERIALIZE_FILTERS = R"apl(
 // Verify that filters serialize correctly
 TEST_F(FilterTestDocument, Serialize)
 {
-    config.registerExtensionFilter(ExtensionFilterDefinition("aplext:MorphingFilters:10",
+    config->registerExtensionFilter(ExtensionFilterDefinition("aplext:MorphingFilters:10",
                                                              "MergeTwo",
                                                              ExtensionFilterDefinition::TWO)
                                        .property("amount", 0.5, kBindingTypeNumber)

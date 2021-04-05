@@ -20,7 +20,7 @@ using namespace apl;
 class Arrayify : public MemoryWrapper {
 public:
     Arrayify() : MemoryWrapper() {
-        context = Context::create(Metrics(), session);
+        context = Context::createTestContext(Metrics(), session);
     }
 
     ContextPtr context;

@@ -67,7 +67,7 @@ CoreTimeManager::updateTime(apl_time_t updatedTime)
     LOG_IF(DEBUG_CORE_TIME) << "updateTime=" << updatedTime;
 
     if (mTerminated) {
-        LOG(LogLevel::ERROR) << "Attempt to update time after termination.";
+        LOG(LogLevel::kError) << "Attempt to update time after termination.";
         return;
     }
 
@@ -109,10 +109,16 @@ CoreTimeManager::runPending()
 }
 
 void
+CoreTimeManager::clear()
+{
+    mTimerHeap.clear();
+}
+
+void
 CoreTimeManager::terminate()
 {
     mTerminated = true;
-    mTimerHeap.clear();
+    clear();
 }
 
 bool
@@ -137,7 +143,7 @@ void CoreTimeManager::advanceToNext()
         mAnimatorCount--;
     }
     else {
-        LOG(LogLevel::ERROR) << "No animator or runnable defined";
+        LOG(LogLevel::kError) << "No animator or runnable defined";
     }
 }
 

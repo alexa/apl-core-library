@@ -86,7 +86,7 @@ TEST_F(AnimateItemTest, Basic)
 
 TEST_F(AnimateItemTest, AnimateNone)
 {
-    config.animationQuality(RootConfig::AnimationQuality::kAnimationQualityNone);
+    config->animationQuality(RootConfig::AnimationQuality::kAnimationQualityNone);
     loadDocument(ANIMATE);
     auto frame = root->context().findComponentById("box");
     auto goButton = root->context().findComponentById("go");

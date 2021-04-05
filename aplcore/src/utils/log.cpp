@@ -27,7 +27,7 @@ Logger::Logger(std::shared_ptr<LogBridge> bridge, LogLevel level, const std::str
 
 Logger::~Logger()
 {
-    if(mLevel > LogLevel::NONE) {
+    if(mLevel > LogLevel::kNone) {
         mBridge->transport(mLevel, (mUncaught != std::uncaught_exception()) ? "***" : "" + mStringStream.str());
     }
 }
@@ -85,7 +85,7 @@ LoggerFactory::reset() {
 Logger
 LoggerFactory::getLogger(LogLevel level, const std::string& file, const std::string& function) {
     if(!mInitialized && !mWarned) {
-        Logger(mLogBridge, LogLevel::WARN, __FILE__, __func__) << "Logs not initialized. Using default bridge.";
+        Logger(mLogBridge, LogLevel::kWarn, __FILE__, __func__) << "Logs not initialized. Using default bridge.";
         mWarned = true;
     }
     return Logger(mLogBridge, level, file, function);

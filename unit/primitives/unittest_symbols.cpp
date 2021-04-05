@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -24,12 +24,12 @@ using namespace apl;
 class SymbolTest : public MemoryWrapper {
 protected:
     void SetUp() override {
-        auto c1 = Context::create(Metrics(), RootConfig());
+        auto c1 = Context::createTestContext(Metrics(), RootConfig());
         c1->putUserWriteable("a", 23);
         c1->putUserWriteable("b", 1);
         c1->putUserWriteable("c", Object(std::vector<Object>{1,2,3}));
 
-        auto c2 = Context::create(c1);
+        auto c2 = Context::createFromParent(c1);
         c2->putUserWriteable("b", 2);
 
         auto map = std::make_shared<std::map<std::string, Object>>();

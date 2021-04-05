@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -46,6 +46,15 @@ enum EventType {
      * Change the focus
      *
      * Does not have an ActionRef.
+     *
+     * With kExperimentalFeatureHandleFocusInCore enabled:
+     * Notifies server about acquired or lost focus. Have Component reference if focus acquired, don't if releasing.
+     *
+     * kEventPropertyValue: Rect representing bounds of focused component.
+     * kEventPropertyDirection: Focus movement direction (in case of focus releasing).
+     *
+     * Doesn't have an ActionRef in case of acquired focus, have one in case of releasing that should be resolved with true
+     * if focus should be released and false if docus should stay where it is.
      */
     kEventTypeFocus,
 
@@ -152,6 +161,43 @@ enum EventType {
      * Does not have an ActionRef
      */
     kEventTypeDataSourceFetchRequest,
+
+    /**
+     * The Document is asking to be reinflated.  The server (view host) should do one of the following:
+     *
+     * 1.  Leave the ActionRef unresolved and call RootContext::reinflate() to reinflate the document.
+     *     The ActionRef will be terminated and can be ignored.
+     * 2.  Resolve the ActionRef.  The RootContext will resize() the document if the screen size has changed
+     *     and continue normal command processing.
+     *
+     * No properties
+     *
+     * Has an ActionRef.
+     *
+     * Note: It is not necessary to resolve the ActionRef if the server is calling RootContext::reinflate()
+     * because all currently running command sequences will be terminated including the current ActionRef.
+     */
+    kEventTypeReinflate,
+
+    /**
+     * The Document is asking for external media to be loaded. Only issued when
+     * @c ExperimentalFeature::kExperimentalFeatureManageMediaRequests is enabled.
+     *
+     * kEventPropertySource: the source URI of the requested media
+     *
+     * Does not have an ActionRef
+     *
+     * Note: Runtime supposed to answer with a call to RootContext::mediaLoaded when media loaded.
+     */
+    kEventTypeMediaRequest,
+
+    /**
+     * The document asking for virtual keyboard to be open. It's up to runtime to satisfy this request or not.
+     * Only issued when @c ExperimentalFeature::kExperimentalFeatureRequestKeyboard is enabled.
+     *
+     * Does not have an ActionRef
+     */
+    kEventTypeOpenKeyboard,
 };
 
 enum EventProperty {

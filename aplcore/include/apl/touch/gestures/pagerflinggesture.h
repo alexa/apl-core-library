@@ -19,40 +19,41 @@
 #include "apl/common.h"
 #include "apl/component/component.h"
 #include "apl/primitives/object.h"
-#include "apl/touch/gesture.h"
+#include "apl/touch/gestures/flinggesture.h"
 
 namespace apl {
 
 class VelocityTracker;
 
-class PagerFlingGesture : public Gesture, public std::enable_shared_from_this<PagerFlingGesture> {
+class PagerFlingGesture : public FlingGesture, public std::enable_shared_from_this<PagerFlingGesture> {
 public:
     static std::shared_ptr<PagerFlingGesture> create(const ActionablePtr& actionable);
 
     PagerFlingGesture(const ActionablePtr& actionable);
     virtual ~PagerFlingGesture() = default;
 
-protected:
-    void onMove(const PointerEvent& event, apl_time_t timestamp) override;
-    void onDown(const PointerEvent& event, apl_time_t timestamp) override;
-    void onUp(const PointerEvent& event, apl_time_t timestamp) override;
-    void onCancel(const PointerEvent& event, apl_time_t timestamp) override;
+    void release() override;
     void reset() override;
+
+protected:
+    bool onMove(const PointerEvent& event, apl_time_t timestamp) override;
+    bool onDown(const PointerEvent& event, apl_time_t timestamp) override;
+    bool onUp(const PointerEvent& event, apl_time_t timestamp) override;
+    bool onCancel(const PointerEvent& event, apl_time_t timestamp) override;
+
 
 private:
     void animateRemainder(bool fulfill);
     void awaitForFinish(const std::weak_ptr<PagerFlingGesture>& weak_ptr, bool fulfill);
-    float getDistance(const Point& currentPosition);
-    float getAmount(float distance);
-    void finishUp();
+    bool finishUp();
 
-    Point mStartPosition;
-    std::unique_ptr<VelocityTracker> mVelocityTracker;
     ActionPtr mAnimateAction;
     size_t mCurrentPage;
     size_t mTargetPage;
     PageDirection mPageDirection;
+    float mLastAnimationAmount; // Last amount that was successfully applied to animation transition
     float mAmount;
+    std::shared_ptr<ExecutionResourceHolder> mResourceHolder;
 };
 
 } // namespace apl

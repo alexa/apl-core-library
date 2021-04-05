@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -152,7 +152,7 @@ static const char *BASIC =
 TEST_F(DynamicSourceTest, Basic)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(BASIC, DATA);
 
@@ -225,7 +225,7 @@ static const char *DATA_EMPTY =
 TEST_F(DynamicSourceTest, Empty)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(BASIC, DATA_EMPTY);
 
@@ -292,7 +292,7 @@ TEST_F(DynamicSourceTest, Empty)
 TEST_F(DynamicSourceTest, EmptyNotAligned)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(BASIC, DATA_EMPTY);
 
@@ -345,7 +345,7 @@ static const char *DATA_BACKWARDS =
 TEST_F(DynamicSourceTest, Backwards)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(BASIC, DATA_BACKWARDS);
 
@@ -422,9 +422,9 @@ static const char *DATA_OFFSET =
 
 TEST_F(DynamicSourceTest, Offset)
 {
-    config.sequenceChildCache(5);
+    config->sequenceChildCache(5);
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(BASIC, DATA_OFFSET);
 
@@ -523,7 +523,7 @@ TEST_F(DynamicSourceTest, Offset)
 TEST_F(DynamicSourceTest, OffsetSourceInitiated)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(BASIC, DATA_OFFSET);
 
@@ -693,7 +693,7 @@ static const char *CONDITIONAL =
 TEST_F(DynamicSourceTest, Conditional)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(CONDITIONAL, DATA);
 
@@ -891,7 +891,7 @@ static const char *DATA_EXPLICIT =
 TEST_F(DynamicSourceTest, Explicit)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(EXPLICIT, DATA_EXPLICIT);
 
@@ -931,7 +931,7 @@ static const char *DATA_EMPTY_OFFSET =
 TEST_F(DynamicSourceTest, ExplicitEmpty)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(EXPLICIT, DATA_EMPTY_OFFSET);
 
@@ -983,7 +983,7 @@ static const char *SIMPLE_SEQUENCE =
 TEST_F(DynamicSourceTest, IncompleteResponse)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(SIMPLE_SEQUENCE, DATA_OFFSET);
 
@@ -1008,7 +1008,7 @@ TEST_F(DynamicSourceTest, IncompleteResponse)
 TEST_F(DynamicSourceTest, BiggerResponse)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(SIMPLE_SEQUENCE, DATA_OFFSET);
 
@@ -1031,7 +1031,7 @@ TEST_F(DynamicSourceTest, BiggerResponse)
 TEST_F(DynamicSourceTest, IntersectResponse)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(SIMPLE_SEQUENCE, DATA_OFFSET);
 
@@ -1056,7 +1056,7 @@ TEST_F(DynamicSourceTest, IntersectResponse)
 TEST_F(DynamicSourceTest, GapResponse)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(SIMPLE_SEQUENCE, DATA_OFFSET);
 
@@ -1075,7 +1075,7 @@ TEST_F(DynamicSourceTest, GapResponse)
 TEST_F(DynamicSourceTest, SimpleReplace)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(SIMPLE_SEQUENCE, DATA_OFFSET);
 
@@ -1164,7 +1164,7 @@ TEST_F(DynamicSourceTest, SimpleReplace)
 TEST_F(DynamicSourceTest, InsertAndReplace)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(SIMPLE_SEQUENCE, DATA_OFFSET);
 
@@ -1236,7 +1236,7 @@ TEST_F(DynamicSourceTest, InsertAndReplace)
 TEST_F(DynamicSourceTest, SimpleInsertAndRemove)
 {
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
-    config.dataSourceProvider("GenericList", ds);
+    config->dataSourceProvider("GenericList", ds);
 
     loadDocument(SIMPLE_SEQUENCE, DATA_OFFSET);
 

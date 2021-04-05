@@ -13,7 +13,8 @@
 
 target_sources_local(apl
     PRIVATE
-    commandresource.cpp
     coretimemanager.cpp
+    executionresource.cpp
+    executionresourceholder.cpp
     sequencer.cpp
 )

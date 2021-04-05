@@ -16,6 +16,8 @@
 #include "apl/utils/pagemovehandler.h"
 #include "apl/utils/bimap.h"
 
+#include "apl/animation/easing.h"
+#include "apl/content/rootconfig.h"
 #include "apl/engine/context.h"
 #include "apl/engine/evaluate.h"
 #include "apl/engine/arrayify.h"
@@ -113,7 +115,8 @@ PageMoveHandler::execute(const CoreComponentPtr& component, float amount)
     auto nextChild = component->getCoreChildAt(mTargetPage);
 
     if (mCommands.isNull()) {
-        executeDefaultPagingAnimation(amount, currentChild, nextChild);
+        auto animationEasing = component->getRootConfig().getProperty(RootProperty::kDefaultPagerAnimationEasing).getEasing();
+        executeDefaultPagingAnimation(animationEasing->calc(amount), currentChild, nextChild);
     } else {
         component->getContext()->sequencer().executeCommands(mCommands,
             createPageMoveContext(amount, mSwipeDirection, currentChild, nextChild), component, true);
@@ -159,7 +162,8 @@ PageMoveHandler::executeDefaultPagingAnimation(
 }
 
 std::shared_ptr<InterpolatedTransformation>
-PageMoveHandler::getPageTransformation(const PagerPtr& pager, bool comeIn, bool fromLeft) {
+PageMoveHandler::getPageTransformation(const PagerPtr& pager, bool comeIn, bool fromLeft)
+{
     auto bounds = pager->getCalculated(kPropertyInnerBounds).getRect();
     auto from = std::make_shared<ObjectMap>();
     auto to = std::make_shared<ObjectMap>();

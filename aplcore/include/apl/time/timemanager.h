@@ -57,6 +57,11 @@ public:
     /**
      * Clear any pending actions and release any held references.
      */
+    virtual void clear() = 0;
+
+    /**
+     * Clear any pending actions and release any held references. This instance can't be used after that.
+     */
     virtual void terminate() = 0;
 
     /**

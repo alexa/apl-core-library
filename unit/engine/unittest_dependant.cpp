@@ -247,14 +247,14 @@ TEST_F(DependantTest, Counter)
 
 TEST_F(DependantTest, FreeContext)
 {
-    context = Context::create(metrics, makeDefaultSession());
+    context = Context::createTestContext(metrics, makeDefaultSession());
 
     // Parent context
-    auto first = Context::create(context);
+    auto first = Context::createFromParent(context);
     first->putUserWriteable("source", 23);
 
     // Child context
-    auto second = Context::create(first);
+    auto second = Context::createFromParent(first);
     second->putUserWriteable("target", 10);
     ASSERT_EQ(10, second->opt("target").asNumber());
 
@@ -386,10 +386,10 @@ static const char *STATIC_PROPERTY =
     "      \"bind\": ["
     "        {"
     "          \"name\": \"a\","
-    "          \"value\": 22"
+    "          \"value\": 5"
     "        }"
     "      ],"
-    "      \"fontSize\": \"${a}\""
+    "      \"letterSpacing\": \"${a}\""
     "    }"
     "  }"
     "}";
@@ -398,11 +398,11 @@ TEST_F(DependantTest, StaticProperty)
 {
     loadDocument(STATIC_PROPERTY);
     ASSERT_TRUE(component);
-    ASSERT_TRUE(IsEqual(Dimension(22), component->getCalculated(kPropertyFontSize)));
+    ASSERT_TRUE(IsEqual(Dimension(5), component->getCalculated(kPropertyLetterSpacing)));
 
-    // FontSize is not dynamic.  It can't be changed through propagation
+    // letterSpacing is not dynamic.  It can't be changed through propagation
     ASSERT_TRUE(component->getContext()->userUpdateAndRecalculate("a", 10, false));
-    ASSERT_TRUE(IsEqual(Dimension(22), component->getCalculated(kPropertyFontSize)));
+    ASSERT_FALSE(IsEqual(Dimension(10), component->getCalculated(kPropertyLetterSpacing)));
 }
 
 static const char *MUTABLE =

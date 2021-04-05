@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -92,7 +92,7 @@ static const char * BASIC =
     "}";
 
 /**
- * Invoking a extension command when it has not been set up in the RootConfig.
+ * Invoking a extension command when it has not been set up in the Rootconfig->
  * The extension command should be ignored and the following command should run normally.
  */
 TEST_F(ExtensionCommandTest, BasicMissingCommand)
@@ -114,12 +114,12 @@ TEST_F(ExtensionCommandTest, BasicMissingCommand)
 }
 
 /**
- * Invoke a extension command when it HAS been set up correctly in the RootConfig.
+ * Invoke a extension command when it HAS been set up correctly in the Rootconfig->
  * We expect to get an event with the command and correctly set property values.
  */
 TEST_F(ExtensionCommandTest, BasicCommand)
 {
-    config.registerExtensionCommand(ExtensionCommandDefinition("aplext:Test", "MyCommand")
+    config->registerExtensionCommand(ExtensionCommandDefinition("aplext:Test", "MyCommand")
                                         .property("value", -1, false));
     loadDocument(BASIC);
 
@@ -158,7 +158,7 @@ TEST_F(ExtensionCommandTest, BasicCommand)
  */
 TEST_F(ExtensionCommandTest, BasicCommandWithActionRef)
 {
-    config.registerExtensionCommand(ExtensionCommandDefinition("aplext:Test", "MyCommand")
+    config->registerExtensionCommand(ExtensionCommandDefinition("aplext:Test", "MyCommand")
                                         .property("value", -1, false)
                                         .requireResolution(true)
     );
@@ -228,7 +228,7 @@ static const char * RICH_ARGUMENTS =
  */
 TEST_F(ExtensionCommandTest, RichArguments)
 {
-    config.registerExtensionCommand(
+    config->registerExtensionCommand(
         ExtensionCommandDefinition("URI_A", "doIt")
             .property("value", Object::EMPTY_ARRAY(), false)
     );
@@ -298,7 +298,7 @@ static const char *RICH_ARGUMENTS_WITH_PAYLOAD =
  */
 TEST_F(ExtensionCommandTest, RichArgumentsArrayify)
 {
-    config.registerExtensionCommand(
+    config->registerExtensionCommand(
         ExtensionCommandDefinition("URI_A", "doIt")
             .arrayProperty("positions", false)
             .arrayProperty("missing", false)
@@ -388,7 +388,7 @@ static const char * SCROLL_VIEW =
  */
 TEST_F(ExtensionCommandTest, FastModeNotAllowed)
 {
-    config.registerExtensionCommand(ExtensionCommandDefinition("aplext:Test", "MyCommand")
+    config->registerExtensionCommand(ExtensionCommandDefinition("aplext:Test", "MyCommand")
                                         .property("id", "NO_ID", true)   // Required property
                                         .property("value", 0, false)
                                         .allowFastMode(false)     // Do not run in fast mode
@@ -418,7 +418,7 @@ TEST_F(ExtensionCommandTest, FastModeNotAllowed)
  */
 TEST_F(ExtensionCommandTest, FastModeAllowed)
 {
-    config.registerExtensionCommand(ExtensionCommandDefinition("aplext:Test", "MyCommand")
+    config->registerExtensionCommand(ExtensionCommandDefinition("aplext:Test", "MyCommand")
                                      .property("id", "NO_ID", true)   // Required property
                                      .property("value", 0, false)
                                      .allowFastMode(true)     // Allow running in fast mode
@@ -495,7 +495,7 @@ static const char * SCROLL_VIEW_BAD_COMMAND =
  */
 TEST_F(ExtensionCommandTest, MissingRequiredProperty)
 {
-    config.registerExtensionCommand(ExtensionCommandDefinition("aplext:Test", "MyCommand")
+    config->registerExtensionCommand(ExtensionCommandDefinition("aplext:Test", "MyCommand")
                                         .property("id", "NO_ID", true)   // Required property
                                         .property("value", 0, false)
                                         .allowFastMode(true)     // Allow running in fast mode
@@ -524,7 +524,7 @@ TEST_F(ExtensionCommandTest, MissingRequiredProperty)
  */
 TEST_F(ExtensionCommandTest, OptionalProperties)
 {
-    config.registerExtensionCommand(ExtensionCommandDefinition("aplext:Test", "MyCommand")
+    config->registerExtensionCommand(ExtensionCommandDefinition("aplext:Test", "MyCommand")
                                         .property("id", "NO_ID", false)
                                         .property("value", -1001, false)
                                         .allowFastMode(true)     // Allow running in fast mode
@@ -595,7 +595,7 @@ static const char *MULTIPLE_NAMES_FOR_SAME_COMMAND =
 
 TEST_F(ExtensionCommandTest, MultipleNames)
 {
-    config.registerExtensionCommand(ExtensionCommandDefinition("URI1", "doIt")
+    config->registerExtensionCommand(ExtensionCommandDefinition("URI1", "doIt")
                                         .property("value", "none", true));
     loadDocument(MULTIPLE_NAMES_FOR_SAME_COMMAND);
 

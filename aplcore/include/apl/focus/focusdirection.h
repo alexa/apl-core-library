@@ -13,24 +13,24 @@
  * permissions and limitations under the License.
  */
 
-#ifndef _APL_COMMAND_RESOURCE_H
-#define _APL_COMMAND_RESOURCE_H
-
-#include <string>
-
-#include "apl/utils/bimap.h"
+#ifndef _APL_FOCUS_DIRECTION_H
+#define _APL_FOCUS_DIRECTION_H
 
 namespace apl {
 
-enum CommandResourceKey {
-    kCommandResourceForegroundAudio,
-    kCommandResourceBackgroundAudio,
-    kCommandResourcePosition,
-    kCommandResourceProperty,
+/**
+ * Focus switch directions
+ */
+enum FocusDirection {
+    kFocusDirectionNone,
+    kFocusDirectionForward,
+    kFocusDirectionBackwards,
+    kFocusDirectionUp,
+    kFocusDirectionDown,
+    kFocusDirectionLeft,
+    kFocusDirectionRight
 };
-
-extern Bimap<int, std::string> sCommandResourcesMap;
 
 }  // namespace apl
 
-#endif //_APL_COMMAND_RESOURCE_H
+#endif //_APL_FOCUS_SWITCH_H

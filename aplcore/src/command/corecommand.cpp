@@ -42,6 +42,7 @@
 #include "apl/command/speakitemcommand.h"
 #include "apl/command/speaklistcommand.h"
 #include "apl/command/finishcommand.h"
+#include "apl/command/reinflatecommand.h"
 
 namespace apl {
 
@@ -191,7 +192,7 @@ CoreCommand::calculateProperties()
     // set the new object map as "event" property of the new context.
     ContextPtr context = mContext;
     if (mTarget) {
-        context = Context::create(mContext);
+        context = Context::createFromParent(mContext);
         auto event = mContext->opt("event");
         assert(event.isMap());
         auto map = std::make_shared<ObjectMap>(event.getMap());  // Copy out the existing event
@@ -216,7 +217,7 @@ CoreCommand::calculateProperties()
 
     if (DEBUG_COMMAND_VALUES) {
         for (const auto& m : mValues) {
-            LOG(LogLevel::DEBUG) << "Property: " << sCommandPropertyBimap.at(m.first) << "("
+            LOG(LogLevel::kDebug) << "Property: " << sCommandPropertyBimap.at(m.first) << "("
                       << m.first << ")";
             DumpVisitor::dump(m.second);
         }
@@ -249,6 +250,7 @@ std::map<int, CommandCreateFunc> sCommandCreatorMap = {
     {kCommandTypeSetFocus,          SetFocusCommand::create},
     {kCommandTypeClearFocus,        ClearFocusCommand::create},
     {kCommandTypeFinish,            FinishCommand::create},
+    {kCommandTypeReinflate,         ReinflateCommand::create},
 };
 
 }

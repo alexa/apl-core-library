@@ -41,7 +41,7 @@ SessionMessage::~SessionMessage()
     if (mSession)
         mSession->write(mFilename.c_str(), mFunction.c_str(), mStringStream.str());
     else
-        LoggerFactory::instance().getLogger(LogLevel::WARN, mFilename.c_str(), mFunction.c_str())
+        LoggerFactory::instance().getLogger(LogLevel::kWarn, mFilename.c_str(), mFunction.c_str())
                                  .log(mStringStream.str().c_str());
 }
 
@@ -69,7 +69,7 @@ SessionMessage& SessionMessage::log(const char *format, ...)
 class DefaultSession : public Session {
 public:
     void write(const char *filename, const char *func, const char *value) override {
-        LoggerFactory::instance().getLogger(LogLevel::WARN, filename, func).log(value);
+        LoggerFactory::instance().getLogger(LogLevel::kWarn, filename, func).log(value);
     }
 };
 

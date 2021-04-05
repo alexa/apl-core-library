@@ -32,7 +32,7 @@ protected:
 
         void reset()
         {
-            mLevel = LogLevel::NONE;
+            mLevel = LogLevel::kNone;
             mLog = "";
             mCalls = 0;
         }
@@ -64,15 +64,15 @@ protected:
 
 TEST_F(LogTest, Stream)
 {
-    LOG(LogLevel::INFO) << "Log";
-    ASSERT_EQ(LogLevel::INFO, level());
+    LOG(LogLevel::kInfo) << "Log";
+    ASSERT_EQ(LogLevel::kInfo, level());
     ASSERT_STREQ("unittest_log.cpp:TestBody : Log", log().c_str());
 }
 
 TEST_F(LogTest, Formatted)
 {
-    LOGF(LogLevel::INFO, "Log %d", 42);
-    ASSERT_EQ(LogLevel::INFO, level());
+    LOGF(LogLevel::kInfo, "Log %d", 42);
+    ASSERT_EQ(LogLevel::kInfo, level());
     ASSERT_STREQ("unittest_log.cpp:TestBody : Log 42", log().c_str());
 }
 

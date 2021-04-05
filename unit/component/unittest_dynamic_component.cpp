@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 #include "../testeventloop.h"
 
-#include "apl/engine/focusmanager.h"
+#include "apl/focus/focusmanager.h"
 
 // Test adding and remove components dynamically
 
@@ -417,8 +417,8 @@ TEST_F(DynamicComponentTestSimple, MoveDirty)
 
     // Now change the text. This should mark it as dirty
     executeCommand("SetValue", {{"componentId", "myText"}, {"property", "text"}, {"value", "foobar"}}, false);
-    ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_EQ(1, text->getDirty().size());
+    ASSERT_TRUE(CheckDirtyDoNotClear(text, kPropertyText));
+    ASSERT_TRUE(CheckDirtyDoNotClear(root, text));
 
     // Without clearing the dirty flags, remove the component
     ASSERT_TRUE(child->remove());
@@ -845,6 +845,7 @@ static const char *TEST_PAGER_ELEMENT =
 
 TEST_F(DynamicComponentTest, Pager)
 {
+    metrics.size(600, 500);
     loadDocument(PAGER);
     ASSERT_TRUE(component);
 
@@ -856,8 +857,15 @@ TEST_F(DynamicComponentTest, Pager)
     root->clearPending();
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(root, component));   // We haven't moved to the page, so it is not dirty
+    ASSERT_TRUE(IsEqual(Rect(0,0,0,0), child->getCalculated(kPropertyBounds)));
+
+    // Move forward one page - the child should be laid out and visible now
+    component->update(kUpdatePagerByEvent, 1);
+    root->clearPending();
+    ASSERT_TRUE(IsEqual(Rect(0,0,600,500), child->getCalculated(kPropertyBounds)));
     ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
-    ASSERT_TRUE(CheckDirty(root, component, child));
+    ASSERT_TRUE(CheckDirty(root, child));
 
     // Now move it to the first item
     child->remove();
@@ -949,7 +957,7 @@ static const char *REBUILDER =
 TEST_F(DynamicComponentTest, AddRemoveBlocking)
 {
     auto myArray = LiveArray::create(ObjectArray{"A", "B", "C"});
-    config.liveData("TestArray", myArray);
+    config->liveData("TestArray", myArray);
 
     loadDocument(REBUILDER);
     ASSERT_TRUE(component);
