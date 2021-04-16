@@ -124,7 +124,7 @@ enum EventType {
      * kEventPropertyPosition: The page to switch to (integer)
      * kEventPropertyDirection: The direction to move. Either kEventDirectionForward or kEventDirectionBackward
      *
-     * The server must resolve the ActionRef when the scroll is completed.
+     * The server must resolve the ActionRef when the page change is completed.
      */
     kEventTypeSetPage,
 
