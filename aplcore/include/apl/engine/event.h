@@ -134,7 +134,7 @@ enum EventType {
      * kEventPropertyHighlightMode: Highlight mode. kEventHighlightModeLine or kEventHighlightModeBlock
      * kEventPropertySource: The speech URI.
      *
-     * The server must resolve the ActionRef when the scroll is completed.
+     * The server must resolve the ActionRef when the speech is completed.
      */
     kEventTypeSpeak,
 
