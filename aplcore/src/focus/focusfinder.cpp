@@ -60,12 +60,25 @@ FocusFinder::findNext(const CoreComponentPtr& focused, FocusDirection direction)
 }
 
 CoreComponentPtr
-FocusFinder::findNext(const Rect& focusedRect, FocusDirection direction, const CoreComponentPtr& root)
+FocusFinder::findNext(
+        const CoreComponentPtr& focused,
+        const Rect& focusedRect,
+        FocusDirection direction,
+        const CoreComponentPtr& root)
 {
     if (direction == kFocusDirectionForward || direction == kFocusDirectionBackwards) {
         return findNextByTabOrder(nullptr, root, direction);
     }
-    return findNextInternal(root, focusedRect, direction);
+    auto next = findNextInternal(root, focusedRect, direction);
+    if (next != nullptr && next != focused) {
+        return next;
+    }
+
+    if (root != focused && root->isFocusable()) {
+        LOG_IF(DEBUG_FOCUS_FINDER) << "going with root";
+        return root->takeFocusFromChild(direction, focusedRect);
+    }
+    return nullptr;
 }
 
 CoreComponentPtr

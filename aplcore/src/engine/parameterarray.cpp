@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -13,10 +13,7 @@
  * permissions and limitations under the License.
  */
 
-#include <cmath>
-
 #include "apl/engine/parameterarray.h"
-#include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
 #include "apl/engine/arrayify.h"
 
@@ -42,7 +39,7 @@ ParameterArray::ParameterArray(const rapidjson::Value& layout)
 {
     for (const auto& param : arrayifyProperty(layout, "parameters")) {
         if (param.IsString()) {
-            mArray.push_back(Parameter(param.GetString(), kBindingTypeAny, Object::NULL_OBJECT()));
+            mArray.emplace_back(param.GetString(), kBindingTypeAny, Object::NULL_OBJECT());
         }
         else if (param.IsObject()) {
             auto it = param.FindMember("name");
@@ -52,7 +49,7 @@ ParameterArray::ParameterArray(const rapidjson::Value& layout)
                 auto dv = param.FindMember("default");
                 if (dv != param.MemberEnd())
                     defvalue = Object(dv->value);
-                mArray.push_back(Parameter(it->value.GetString(), type, defvalue));
+                mArray.emplace_back(it->value.GetString(), type, std::move(defvalue));
             }
         }
     }

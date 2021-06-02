@@ -1131,6 +1131,8 @@ TEST_F(CommandTest, ClearFocus)
     ASSERT_EQ(kEventTypeFocus, event.getType());
     ASSERT_FALSE(event.getComponent().get());
     ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(event.getActionRef().isEmpty());
+    root->clearPending();
 
     // Hit it again
     performTap(0, 10);
@@ -1200,6 +1202,8 @@ TEST_F(CommandTest, ExecuteFocus)
     event = root->popEvent();
     ASSERT_EQ(kEventTypeFocus, event.getType());
     ASSERT_EQ(nullptr, event.getComponent().get());
+    ASSERT_TRUE(event.getActionRef().isEmpty());
+    root->clearPending();
     ASSERT_FALSE(std::static_pointer_cast<CoreComponent>(touch1)->getState().get(kStateFocused));
     ASSERT_FALSE(std::static_pointer_cast<CoreComponent>(touch2)->getState().get(kStateFocused));
 

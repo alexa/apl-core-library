@@ -113,7 +113,9 @@ public:
         if (boundsResult != ::testing::AssertionSuccess()) {
             return boundsResult;
         }
-        event.getActionRef().resolve(true);
+        if (!event.getActionRef().isEmpty() && event.getActionRef().isPending()) {
+            event.getActionRef().resolve(true);
+        }
         root->clearPending();
 
         return ::testing::AssertionSuccess();
@@ -286,7 +288,10 @@ TEST_F(NativeFocusTest, SimpleGridClear)
     executeCommand("ClearFocus", {}, false);
     ASSERT_TRUE(root->hasEvent());
 
-    ASSERT_TRUE(verifyFocusReleaseEvent(child, root->popEvent(), kFocusDirectionNone));
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(nullptr, event.getComponent().get());
+    ASSERT_TRUE(event.getActionRef().isEmpty());
     ASSERT_EQ(nullptr, fm.getFocus());
 }
 
@@ -5872,10 +5877,148 @@ TEST_F(NativeFocusTest, EditTextFocusedOnTap)
     auto& fm = root->context().focusManager();
     ASSERT_EQ(nullptr, fm.getFocus());
 
-    ASSERT_TRUE(MouseClick(root, 10, 10));
+    ASSERT_FALSE(root->handlePointerEvent(PointerEvent(apl::kPointerDown, Point(10, 10))));
+    ASSERT_TRUE(root->handlePointerEvent(PointerEvent(apl::kPointerUp, Point(10, 10))));
 
     ASSERT_TRUE(verifyFocusSwitchEvent(component, root->popEvent()));
     ASSERT_EQ(component, fm.getFocus());
+}
+
+static const char *EDIT_TEXT_IN_TAP_TOUCHABLE = R"apl({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Sequence",
+        "width": "100%",
+        "height": "100%",
+        "alignItems": "center",
+        "justifyContent": "spaceAround",
+        "data": [{"color": "blue", "text": "Magic"}],
+        "items": [
+          {
+            "type": "Frame",
+            "backgroundColor": "white",
+            "items": [
+              {
+                "type": "TouchWrapper",
+                "width": 500,
+                "item": {
+                  "type": "Frame",
+                  "backgroundColor": "${data.color}",
+                  "height": 200,
+                  "items": {
+                    "type": "EditText",
+                    "id": "targetEdit",
+                    "text": "${data.text}",
+                    "width": 500,
+                    "height": 100,
+                    "fontSize": 60
+                  }
+                },
+                "onDown": {
+                  "type": "SendEvent",
+                  "arguments": "onDown",
+                  "sequencer": "MAIN"
+                },
+                "onUp": {
+                  "type": "SendEvent",
+                  "arguments": "onUp",
+                  "sequencer": "MAIN"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+})apl";
+
+TEST_F(NativeFocusTest, WrappedEditTextTap)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureFocusEditTextOnTap);
+    loadDocument(EDIT_TEXT_IN_TAP_TOUCHABLE);
+
+    auto& fm = root->context().focusManager();
+    ASSERT_EQ(nullptr, fm.getFocus());
+
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(400,50), false, "onDown"));
+    root->updateTime(20);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(400,50), true, "onUp"));
+
+    auto editText = root->findComponentById("targetEdit");
+    ASSERT_TRUE(editText);
+    ASSERT_EQ(editText, fm.getFocus());
+    verifyFocusSwitchEvent(editText, root->popEvent());
+}
+
+static const char *EDIT_TEXT_IN_UP_TOUCHABLE = R"apl({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Sequence",
+        "width": "100%",
+        "height": "100%",
+        "alignItems": "center",
+        "justifyContent": "spaceAround",
+        "data": [{"color": "blue", "text": "Magic"}],
+        "items": [
+          {
+            "type": "Frame",
+            "backgroundColor": "white",
+            "items": [
+              {
+                "type": "TouchWrapper",
+                "width": 500,
+                "item": {
+                  "type": "Frame",
+                  "backgroundColor": "${data.color}",
+                  "height": 200,
+                  "items": {
+                    "type": "EditText",
+                    "id": "targetEdit",
+                    "text": "${data.text}",
+                    "width": 500,
+                    "height": 100,
+                    "fontSize": 60
+                  }
+                },
+                "onUp": {
+                  "type": "SendEvent",
+                  "arguments": "onUp",
+                  "sequencer": "MAIN"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+})apl";
+
+TEST_F(NativeFocusTest, WrappedEditTextUp)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureFocusEditTextOnTap);
+    loadDocument(EDIT_TEXT_IN_UP_TOUCHABLE);
+
+    auto& fm = root->context().focusManager();
+    ASSERT_EQ(nullptr, fm.getFocus());
+
+    ASSERT_FALSE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400,50))));
+    root->updateTime(20);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(400,50), true, "onUp"));
+
+    auto editText = root->findComponentById("targetEdit");
+    ASSERT_TRUE(editText);
+    ASSERT_EQ(editText, fm.getFocus());
+    verifyFocusSwitchEvent(editText, root->popEvent());
 }
 
 static const char *GRID_SEQUENCE = R"({
@@ -5971,4 +6114,136 @@ TEST_F(NativeFocusTest, GridMoves)
     ASSERT_TRUE(child);
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
+}
+
+static const char *SCROLLABLE_IN_PAGER = R"({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "layouts": {
+    "Textbox": {
+      "parameters": [ "definedText" ],
+      "item": {
+        "type": "Frame",
+        "inheritParentState": true,
+        "style": "focusablePressableButton",
+        "width": "100%",
+        "height": "100%",
+        "item": {
+          "type": "Text",
+          "width": "100%",
+          "height": "100%",
+          "text": "${definedText}",
+          "color": "black"
+        }
+      }
+    },
+    "Box": {
+      "parameters": [ "label" ],
+      "item": {
+        "type": "Container",
+        "width": "10vw",
+        "height": "10vw",
+        "item": {
+          "type": "Textbox",
+          "definedText": "T ${label}"
+        }
+      }
+    },
+    "Button": {
+      "parameters": [ "label" ],
+      "item": {
+        "type": "TouchWrapper",
+        "id": "${label}",
+        "width": "10vw",
+        "height": "10vw",
+        "item": {
+          "type": "Textbox",
+          "definedText": "B ${label}"
+        }
+      }
+    }
+  },
+  "styles": {
+    "focusablePressableButton": {
+      "extend": "textStyleBody",
+      "values": [
+        {
+          "backgroundColor": "#D6DBDF",
+          "borderColor": "#566573",
+          "borderWidth": "2dp"
+        },
+        {
+          "when": "${state.focused}",
+          "borderColor": "#C0392B",
+          "backgroundColor": "yellow"
+        },
+        {
+          "when": "${state.pressed}",
+          "backgroundColor": "#808B96"
+        }
+      ]
+    }
+  },
+  "onMount": {
+    "type": "SetFocus",
+    "componentId": "13"
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "id": "pager",
+      "height": "100%",
+      "width": "100%",
+      "navigation": "wrap",
+      "items": [
+        {
+          "type": "ScrollView",
+          "height": "100%",
+          "width": "100%",
+          "items": [
+            {
+              "type": "Container",
+              "height": "auto",
+              "width": "auto",
+              "direction": "row",
+              "data": [ "1.1", "1.2", "1.3" ],
+              "items": [ { "type": "Button", "label": "${data}" } ]
+            }
+          ]
+        },
+        {
+          "type": "Container",
+          "height": "100%",
+          "width": "100%",
+          "item": [ { "type": "Box", "label": "2" } ]
+        },
+        {
+          "type": "Container",
+          "height": "100%",
+          "width": "100%",
+          "item": [ { "type": "Box", "label": "3" } ]
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(NativeFocusTest, CapturingScrollable)
+{
+    loadDocument(SCROLLABLE_IN_PAGER);
+    auto& fm = root->context().focusManager();
+
+    auto child = root->findComponentById("13");
+    ASSERT_TRUE(child);
+    ASSERT_EQ(child, fm.getFocus());
+    ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
+
+    ASSERT_TRUE(root->nextFocus(kFocusDirectionRight));
+    root->updateTime(1000);
+    child = root->findComponentById("pager");
+    ASSERT_TRUE(child);
+    ASSERT_EQ(child, fm.getFocus());
+    ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
+    ASSERT_EQ(1, child->pagePosition());
 }

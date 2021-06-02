@@ -182,10 +182,9 @@ LayoutRebuilder::build()
         if (mNumbered)
             childContext->putSystemWriteable("ordinal", ordinal);
 
-        Properties childProps;
         auto child = Builder().expandSingleComponentFromArray(childContext,
                                                               mItems,
-                                                              childProps,
+                                                              Properties(),
                                                               layout,
                                                               mChildPath);
         if (child && child->isValid()) {
@@ -245,10 +244,9 @@ LayoutRebuilder::rebuild()
             if (mNumbered)
                 childContext->putConstant("ordinal", ordinal);
 
-            Properties childProps;
             auto child = Builder().expandSingleComponentFromArray(childContext,
                                                                   mItems,
-                                                                  childProps,
+                                                                  Properties(),
                                                                   layout,
                                                                   mChildPath);
             if (child && child->isValid()) {

@@ -137,7 +137,8 @@ Properties::addToContext(const ContextPtr &context, const Parameter &parameter, 
 
     if (userWriteable) {
         context->putUserWriteable(parameter.name, result);
-        if (validNamedProperty && tmp.isEvaluable())
+        // Even if not valid at this point it could become one
+        if (tmp.isEvaluable())
             ContextDependant::create(context, parameter.name, tmp, context, bindingFunc);
     } else {
         context->putConstant(parameter.name, result);

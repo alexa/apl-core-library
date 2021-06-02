@@ -78,8 +78,8 @@ message(VERBOSE Using yoga include directory = ${YOGA_INCLUDE})
 message(VERBOSE Using yoga lib = ${YOGA_LIB})
 
 ExternalProject_Add(pegtl
-        URL ${APL_PROJECT_DIR}/thirdparty/pegtl-2.8.1.tar.gz
-        URL_MD5 10d625fb1da9e95c8e29c51be5e0e5e1
+        URL ${APL_PROJECT_DIR}/thirdparty/pegtl-2.8.3.tar.gz
+        URL_MD5 28b3c455d9ec392dd4230402383a8c6f
         PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/pegtl.patch
         STEP_TARGETS build
         EXCLUDE_FROM_ALL TRUE

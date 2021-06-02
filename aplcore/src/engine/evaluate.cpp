@@ -44,7 +44,7 @@ parseDataBinding(const Context& context, const std::string& value)
         LOG_IF(DEBUG_DATA_BINDING) << "Parse data binding " << value << "=" << result;
         return result;
     }
-    catch (pegtl::parse_error e) {
+    catch (const pegtl::parse_error& e) {
         CONSOLE_CTX(context) << "Parse error in '" << value << "' - " << e.what();
     }
 

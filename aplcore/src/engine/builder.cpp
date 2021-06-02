@@ -76,11 +76,9 @@ Builder::populateSingleChildLayout(const ContextPtr& context,
                                    const Path& path)
 {
     LOG_IF(DEBUG_BUILDER) << "call";
-
-    Properties props;
     auto child = expandSingleComponentFromArray(context,
                                                 arrayifyProperty(*context, item, "item", "items"),
-                                                props,
+                                                Properties(),
                                                 layout,
                                                 path.addProperty(item, "item", "items"));
     layout->appendChild(child, false);
@@ -94,11 +92,9 @@ Builder::populateLayoutComponent(const ContextPtr& context,
 {
     LOG_IF(DEBUG_BUILDER) << path;
 
-    Properties firstProps;
-
     auto child = expandSingleComponentFromArray(context,
                                                 arrayifyProperty(*context, item, "firstItem"),
-                                                firstProps,
+                                                Properties(),
                                                 layout,
                                                 path.addProperty(item, "firstItem"));
     bool hasFirstItem = false;
@@ -140,7 +136,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                     Properties childProps;
                     child = expandSingleComponentFromArray(childContext,
                                                            items,
-                                                           childProps,
+                                                           Properties(),
                                                            layout, childPath);
                     if (child && child->isValid()) {
                         layout->appendChild(child, false);
@@ -167,10 +163,9 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                         childContext->putConstant("ordinal", ordinal);
 
                     // TODO: Numbered, spacing, ordinal changes
-                    Properties childProps;
                     child = expandSingleComponentFromArray(childContext,
                                                            arrayify(*context, element),
-                                                           childProps,
+                                                           Properties(),
                                                            layout,
                                                            childPath.addIndex(i));
                     if (child && child->isValid()) {
@@ -188,10 +183,9 @@ Builder::populateLayoutComponent(const ContextPtr& context,
         }
     }
 
-    Properties lastProps;
     child = expandSingleComponentFromArray(context,
                                            arrayifyProperty(*context, item, "lastItem"),
-                                           lastProps,
+                                           Properties(),
                                            layout,
                                            path.addProperty(item, "lastItem"));
 
@@ -220,7 +214,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
 CoreComponentPtr
 Builder::expandSingleComponent(const ContextPtr& context,
                                const Object& item,
-                               Properties& properties,
+                               Properties&& properties,
                                const CoreComponentPtr& parent,
                                const Path& path)
 {
@@ -320,7 +314,7 @@ Builder::attachBindings(const apl::ContextPtr& context, const apl::Object& item)
 CoreComponentPtr
 Builder::expandSingleComponentFromArray(const ContextPtr& context,
                                         const std::vector<Object>& items,
-                                        Properties& properties,
+                                        Properties&& properties,
                                         const CoreComponentPtr& parent,
                                         const Path& path)
 {
@@ -331,7 +325,7 @@ Builder::expandSingleComponentFromArray(const ContextPtr& context,
             continue;
 
         if (propertyAsBoolean(*context, item, "when", true))
-            return expandSingleComponent(context, item, properties, parent, path.addIndex(index));
+            return expandSingleComponent(context, item, std::move(properties), parent, path.addIndex(index));
     }
 
     return nullptr;
@@ -368,7 +362,7 @@ Builder::expandLayout(const ContextPtr& context,
         properties.addToContext(cptr, param, true);
     }
 
-    attachBindings(cptr, layout);
+    Builder::attachBindings(cptr, layout);
 
     if (DEBUG_BUILDER) {
         for (std::shared_ptr<const Context> p = cptr; p; p = p->parent()) {
@@ -378,7 +372,7 @@ Builder::expandLayout(const ContextPtr& context,
     }
     return expandSingleComponentFromArray(cptr,
                                           arrayifyProperty(*cptr, layout, "item", "items"),
-                                          properties,
+                                          std::move(properties),
                                           parent,
                                           path.addProperty(layout, "item", "items"));
 }
@@ -426,13 +420,11 @@ Builder::inflate(const ContextPtr& context,
                  const Object& component)
 {
     assert(component.isMap() || component.isArray());
-
-    Properties p;
     if (component.isMap())
-        return expandSingleComponent(context, component, p, nullptr,
+        return expandSingleComponent(context, component, Properties(), nullptr,
             Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""));
     else if (component.isArray())
-        return expandSingleComponentFromArray(context, component.getArray(), p, nullptr,
+        return expandSingleComponentFromArray(context, component.getArray(), Properties(), nullptr,
             Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""));
     else
         return nullptr;

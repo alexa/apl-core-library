@@ -103,11 +103,12 @@ public:
     /**
      * Find next component to be focused based on provided parameters.
      * @param direction direction of search.
-     * @param origin currently focused rectangle.
+     * @param origin Component focus originates from if any, nullptr otherwise.
+     * @param originRect currently focused rectangle.
      * @param root root of search hierarchy.
      * @return Found component, nullptr otherwise.
      */
-    CoreComponentPtr find(FocusDirection direction, const Rect& origin, const CoreComponentPtr& root);
+    CoreComponentPtr find(FocusDirection direction, const CoreComponentPtr& origin, const Rect& originRect, const CoreComponentPtr& root);
 
     /**
      * Get focusable areas available from APL Core.

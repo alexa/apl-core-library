@@ -57,7 +57,7 @@ PageMoveHandler::create(
     }
 
     // Evaluating against event context to allow "when" to work properly
-    auto eventContext = createPageMoveContext(0.0f, swipeDirection, currentChild, nextChild);
+    auto eventContext = createPageMoveContext(0.0f, swipeDirection, component, currentChild, nextChild);
     for (const auto& object : array.getArray()) {
         if (!propertyAsBoolean(*eventContext, object, "when", true)) {
             continue;
@@ -119,12 +119,13 @@ PageMoveHandler::execute(const CoreComponentPtr& component, float amount)
         executeDefaultPagingAnimation(animationEasing->calc(amount), currentChild, nextChild);
     } else {
         component->getContext()->sequencer().executeCommands(mCommands,
-            createPageMoveContext(amount, mSwipeDirection, currentChild, nextChild), component, true);
+            createPageMoveContext(amount, mSwipeDirection, component, currentChild, nextChild), component, true);
     }
 }
 
 ContextPtr
-PageMoveHandler::createPageMoveContext(float amount, SwipeDirection direction, const CoreComponentPtr& currentChild, const CoreComponentPtr& nextChild)
+PageMoveHandler::createPageMoveContext(float amount, SwipeDirection direction, const CoreComponentPtr& self,
+                                       const CoreComponentPtr& currentChild, const CoreComponentPtr& nextChild)
 {
     auto eventProps = std::make_shared<ObjectMap>();
     eventProps->emplace("amount", amount);
@@ -141,7 +142,7 @@ PageMoveHandler::createPageMoveContext(float amount, SwipeDirection direction, c
     eventProps->emplace("currentChild", current);
     eventProps->emplace("nextChild", next);
 
-    return currentChild->createEventContext("Move", eventProps);
+    return self->createEventContext("Move", eventProps);
 }
 
 void

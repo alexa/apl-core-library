@@ -54,6 +54,16 @@ inline EventPropertyMap eventPropertyMerge(const EventPropertyMap& first, EventP
     return std::move(second);
 }
 
+enum PointerCaptureStatus {
+    /// The pointer has not been captured by any component
+    kPointerStatusNotCaptured,
+    /// The pointer has been captured by a component
+    kPointerStatusCaptured,
+    /// A component wants to capture the pointer, but is allowing other components to process the
+    // same pointer event first
+    kPointerStatusPendingCapture
+};
+
 /**
  * The native interface to a primitive APL Component.
  *
@@ -517,7 +527,7 @@ public:
     /**
      * @return The current calculated style.  This may be null.
      */
-    const StyleInstancePtr getStyle() const;
+    StyleInstancePtr getStyle() const;
 
     /**
      * Update the style of the component
@@ -635,12 +645,6 @@ public:
     static void resolveDrawnBorder(Component& component);
 
     void calculateDrawnBorder(bool useDirtyFlag);
-
-    /**
-     * @param position Point in global coordinates.
-     * @return Whether that point is within the bounds of this component.
-     */
-    bool containsGlobalPosition(const Point& position) const;
 
     /**
      * @param position Point in local coordinates.
@@ -772,9 +776,9 @@ public:
      * Defer pointer processing to component.
      * @param event pointer event.
      * @param timestamp event timestamp.
-     * @return true if pointer captured by a component processing, false otherwise.
+     * @return the status of the pointer following processing by this component
      */
-    virtual bool processPointerEvent(const PointerEvent& event, apl_time_t timestamp);
+    virtual PointerCaptureStatus processPointerEvent(const PointerEvent& event, apl_time_t timestamp);
 
     /**
      * @return The root configuration provided by the viewhost
@@ -906,6 +910,11 @@ protected:
      */
     virtual void ensureDisplayedChildren();
 
+    /**
+     * @return True if layout change calculations should not be propagated to component's children. Usually the case
+     * when component itself is not taking part in the layout tree.
+     */
+    bool shouldNotPropagateLayoutChanges() const;
 
 private:
     friend streamer& operator<<(streamer&, const Component&);

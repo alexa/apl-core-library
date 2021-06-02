@@ -198,7 +198,7 @@ ScrollableComponent::takeFocusFromChild(FocusDirection direction, const Rect& or
     auto canTravel = canScroll(direction);
     auto scrollable = shared_from_corecomponent();
     if (canTravel) {
-        auto next = getContext()->focusManager().find(direction, offsetRect, scrollable);
+        auto next = getContext()->focusManager().find(direction, scrollable, offsetRect, scrollable);
         if (next) return next;
     }
 
@@ -249,7 +249,7 @@ ScrollableComponent::takeFocusFromChild(FocusDirection direction, const Rect& or
                 break;
         }
 
-        return getContext()->focusManager().find(direction, offsetRect, focusRoot);
+        return getContext()->focusManager().find(direction, scrollable, offsetRect, focusRoot);
     }
 
     return nullptr;

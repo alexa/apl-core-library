@@ -679,7 +679,7 @@ PagerComponent::takeFocusFromChild(FocusDirection direction, const Rect& origin)
             getContext()->sequencer().releaseResource({kExecutionResourcePosition, shared_from_this()});
             setPageUtil(getContext(), shared_from_corecomponent(), targetPage, targetDirection, ActionRef(nullptr));
             auto pager = shared_from_corecomponent();
-            auto next = getContext()->focusManager().find(direction, offsetRect, pager);
+            auto next = getContext()->focusManager().find(direction, pager, offsetRect, pager);
             if (next) {
                 return next;
             } else {

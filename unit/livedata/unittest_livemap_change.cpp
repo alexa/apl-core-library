@@ -220,3 +220,64 @@ TEST_F(LiveMapChangeTest, Replaced)
                              {{"adjective", "sad", true},
                               {"pronoun",   "it",  true}}));
 }
+
+static const char *PASSED_THROUGH_PARAMETERS = R"({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "layouts": {
+    "TestText": {
+      "parameters": [
+        "Label"
+      ],
+      "items": [
+        {
+          "type": "Text",
+          "width": "100%",
+          "id": "${Label}",
+          "text": "${Label}",
+          "textAlign": "center",
+          "textAlignVertical": "center"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "TestText",
+      "Label": "${IAmLive.check}"
+    }
+  }
+})";
+
+TEST_F(LiveMapChangeTest, ReplaceLayoutMap)
+{
+    auto myMap = LiveMap::create(ObjectMap{{"check", "maybe"}});
+    config->liveData("IAmLive", myMap);
+
+    loadDocument(PASSED_THROUGH_PARAMETERS);
+    ASSERT_TRUE(component);
+
+    ASSERT_TRUE(IsEqual("maybe", component->getCalculated(kPropertyText).asString()));
+
+    myMap->set("check", "think so");
+    root->clearPending();
+
+    ASSERT_TRUE(IsEqual("think so", component->getCalculated(kPropertyText).asString()));
+}
+
+TEST_F(LiveMapChangeTest, PopulateLayoutMap)
+{
+    auto myMap = LiveMap::create(ObjectMap{});
+    config->liveData("IAmLive", myMap);
+
+    loadDocument(PASSED_THROUGH_PARAMETERS);
+    ASSERT_TRUE(component);
+
+    ASSERT_TRUE(IsEqual("", component->getCalculated(kPropertyText).asString()));
+
+    myMap->set("check", "think so");
+    root->clearPending();
+
+    ASSERT_TRUE(IsEqual("think so", component->getCalculated(kPropertyText).asString()));
+}

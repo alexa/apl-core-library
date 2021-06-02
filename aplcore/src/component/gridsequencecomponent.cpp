@@ -32,7 +32,8 @@ GridSequenceComponent::create(const ContextPtr& context,
 }
 
 void
-GridSequenceComponent::initialize() {
+GridSequenceComponent::initialize()
+{
     MultiChildScrollableComponent::initialize();
 
     // Figure out if we need to adjust cross axis.
@@ -43,7 +44,8 @@ GridSequenceComponent::initialize() {
 }
 
 void
-GridSequenceComponent::adjustAutoCrossAxisSize() {
+GridSequenceComponent::adjustAutoCrossAxisSize()
+{
     auto horizontal = isHorizontal();
     auto crossAxisProp = isHorizontal() ? kPropertyHeight : kPropertyWidth;
     float adjustedCrossAxisSize = 0.0f;
@@ -73,7 +75,8 @@ GridSequenceComponent::adjustAutoCrossAxisSize() {
  * layout changes processing.
  */
 void
-GridSequenceComponent::processLayoutChanges(bool useDirtyFlag) {
+GridSequenceComponent::processLayoutChanges(bool useDirtyFlag)
+{
     // Process parent sizing first to have info for child calculation.
     CoreComponent::processLayoutChanges(useDirtyFlag);
 
@@ -95,7 +98,8 @@ GridSequenceComponent::processLayoutChanges(bool useDirtyFlag) {
 }
 
 const ComponentPropDefSet&
-GridSequenceComponent::propDefSet() const {
+GridSequenceComponent::propDefSet() const
+{
     static ComponentPropDefSet sSequenceComponentProperties(MultiChildScrollableComponent::propDefSet(), {
             {kPropertyChildHeight,     Object::EMPTY_ARRAY(),    asArray,             kPropIn | kPropRequired | kPropDynamic},
             {kPropertyChildWidth,      Object::EMPTY_ARRAY(),    asArray,             kPropIn | kPropRequired | kPropDynamic},
@@ -110,7 +114,8 @@ GridSequenceComponent::propDefSet() const {
 }
 
 const ComponentPropDefSet*
-GridSequenceComponent::layoutPropDefSet() const {
+GridSequenceComponent::layoutPropDefSet() const
+{
     static ComponentPropDefSet sGridChildProperties = ComponentPropDefSet().add( {
         { kPropertyNumbering, kNumberingNormal, sNumberingMap, kPropIn }
     });
@@ -151,6 +156,13 @@ GridSequenceComponent::layoutChildIfRequired(const CoreComponentPtr& child,
 }
 
 void
+GridSequenceComponent::ensureChildAttached(const CoreComponentPtr& child, int targetIdx)
+{
+    MultiChildScrollableComponent::ensureChildAttached(child, targetIdx);
+    applyChildSize(child, targetIdx);
+}
+
+void
 GridSequenceComponent::calculateAbsoluteChildSizes(float gridWidth, float gridHeight)
 {
     if (isHorizontal()) {
@@ -177,8 +189,8 @@ GridSequenceComponent::adjustChildDimensions(
             const Dimension& transAxisChildDimension,
             float transAxisSize,
             const ObjectArray& crossAxisArray,
-            float crossAxisSize) {
-
+            float crossAxisSize)
+{
     assert(!crossAxisArray.empty());
 
     float adjustedTransAxiSize;
@@ -243,26 +255,43 @@ GridSequenceComponent::adjustChildDimensions(
 }
 
 void
-GridSequenceComponent::calculateItemsPerCourse() {
+GridSequenceComponent::calculateItemsPerCourse()
+{
     mItemsPerCourse = isHorizontal() ? mAdjustedChildHeights.size() : mAdjustedChildWidths.size();
     mCalculated.set(kPropertyItemsPerCourse, mItemsPerCourse);
 }
 
-void
-GridSequenceComponent::applyChildSize(const CoreComponentPtr& coreChild, size_t index) const {
+Size
+GridSequenceComponent::getChildSize(size_t index) const
+{
     auto horizontal = isHorizontal();
 
     size_t curRow = horizontal
-            ? index % mItemsPerCourse
-            : index / mItemsPerCourse;
-    auto idx = std::min(curRow, mAdjustedChildHeights.size() - 1);
-    coreChild->setHeight(mAdjustedChildHeights[idx]);
+                    ? index % mItemsPerCourse
+                    : index / mItemsPerCourse;
+    auto hIdx = std::min(curRow, mAdjustedChildHeights.size() - 1);
 
     size_t curColumn = horizontal
-            ? index / mItemsPerCourse
-            : index % mItemsPerCourse;
-    idx = std::min(curColumn, mAdjustedChildWidths.size() - 1);
-    coreChild->setWidth(mAdjustedChildWidths[idx]);
+                       ? index / mItemsPerCourse
+                       : index % mItemsPerCourse;
+    auto wIdx = std::min(curColumn, mAdjustedChildWidths.size() - 1);
+    return {mAdjustedChildWidths[wIdx], mAdjustedChildHeights[hIdx]};
+}
+
+void
+GridSequenceComponent::applyChildSize(const CoreComponentPtr& coreChild, size_t index) const
+{
+    auto size = getChildSize(index);
+    coreChild->setHeight(size.getHeight());
+    coreChild->setWidth(size.getWidth());
+}
+
+size_t
+GridSequenceComponent::estimateChildrenToCover(float distance, size_t baseChild)
+{
+    auto size = getChildSize(baseChild);
+    auto vertical = isVertical();
+    return std::floor((std::abs(distance) / (vertical ? size.getHeight() : size.getWidth())) * static_cast<float>(mItemsPerCourse));
 }
 
 } // namespace apl

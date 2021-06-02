@@ -43,6 +43,7 @@ protected:
     void layoutChildIfRequired(const CoreComponentPtr& child,
                                size_t childIdx,
                                bool useDirtyFlag) override;
+    void ensureChildAttached(const CoreComponentPtr& child, int targetIdx) override;
     const EventPropertyMap & eventPropertyMap() const override;
 
     void handlePropertyChange(const ComponentPropDef& def, const Object& value) override;
@@ -51,12 +52,16 @@ protected:
 
     size_t getItemsPerCourse() const override { return mItemsPerCourse; }
 
+    size_t estimateChildrenToCover(float distance, size_t baseChild) override;
+
 private:
     std::pair<float, std::vector<float>> adjustChildDimensions(
         const Dimension& transAxisChildDimension,
         float transAxisSize,
         const ObjectArray& crossAxisArray,
         float crossAxisSize);
+
+    Size getChildSize(size_t index) const;
     void applyChildSize(const CoreComponentPtr& coreChild, size_t index) const;
     void calculateAbsoluteChildSizes(float gridWidth, float gridHeight);
     void calculateItemsPerCourse();

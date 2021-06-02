@@ -182,13 +182,23 @@ PagerFlingGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
 
             // Reset start of the gesture, we effectively switched the page
             pager->endPageMove(true, ActionRef(nullptr), false);
-            mStartPosition = localPoint;
-            mAmount = mAmount - 1.0f;
 
-            // Start new one from the new page
-            mCurrentPage = mTargetPage;
-            mTargetPage = calculateTargetPage(mActionable, mPageDirection, mCurrentPage);
-            pager->startPageMove(mPageDirection, mCurrentPage, mTargetPage);
+            // If our translation amount is over 100% then we are moving two pages. Hence We
+            // need to check the available directions again for the second page. To do this we
+            // need to finish the previous page move so we can check our availableDirections with
+            // the second page.
+            auto nextAvailableDirection = pager->pageDirection();
+            if (nextAvailableDirection == direction || nextAvailableDirection == kPageDirectionBoth) {
+                mStartPosition = localPoint;
+                mAmount = mAmount - 1.0f;
+
+                // Start new one from the new page
+                mCurrentPage = mTargetPage;
+                mTargetPage = calculateTargetPage(mActionable, mPageDirection, mCurrentPage);
+                pager->startPageMove(mPageDirection, mCurrentPage, mTargetPage);
+            } else {
+                reset();
+            }
         }
         mLastAnimationAmount = mAmount;
         pager->executePageMove(mAmount);

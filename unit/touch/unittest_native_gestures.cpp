@@ -520,6 +520,139 @@ TEST_F(NativeGesturesTest, SetPage)
     root->popEvent();
 }
 
+static const char *PAGER_END_FLING_BUG = R"(
+{
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "item": {
+      "type": "Pager",
+      "height": "500px",
+      "width": "500px",
+      "navigation": "normal",
+      "items": [
+        {
+          "type": "Text",
+          "text": "Text content shown on page #0"
+        },
+        {
+          "type": "Text",
+          "text": "Text content shown on page #1"
+        }
+      ]
+    }
+  }
+}
+)";
+
+/**
+ * Make sure we can't fling past the end of a list when navigation: normal. This tests a fix for a bug
+ * were the pager would wrap at the end of a list if the user started another fling during a fling
+ * gesture at the end of a list.
+ */
+TEST_F(NativeGesturesTest, PagerFlingDoesntWrapAtEndOfListForNavigationNormal)
+{
+    loadDocument(PAGER_END_FLING_BUG);
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400,10)));
+    root->updateTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(100,10)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(100,10)));
+    root->clearPending();
+    root->updateTime(200);
+
+    ASSERT_EQ(0, component->pagePosition());
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400,10)));
+    root->updateTime(300);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(100,10)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(100,10)));
+    root->clearPending();
+    root->updateTime(400);
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage));
+
+    ASSERT_EQ(1, component->pagePosition());
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400,10)));
+    root->updateTime(500);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(100,10)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(100,10)));
+    root->clearPending();
+    root->updateTime(600);
+
+    ASSERT_EQ(1, component->pagePosition());
+
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400,10)));
+    root->updateTime(700);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(100,10)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(100,10)));
+    root->clearPending();
+    root->updateTime(800);
+
+    ASSERT_EQ(1, component->pagePosition());
+}
+
+/**
+ * Make sure we can't fling before the start of a list when navigation: normal. This tests a fix for
+ * a bug were the pager would wrap at the start of a list if the user started another fling during a
+ * fling gesture at the start of a list.
+ */
+TEST_F(NativeGesturesTest, PagerFlingDoesntWrapAtStartOfListForNavigationNormal) {
+    loadDocument(PAGER_END_FLING_BUG);
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400, 10)));
+    root->updateTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(100, 10)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(100, 10)));
+    root->clearPending();
+    root->updateTime(200);
+
+    ASSERT_EQ(0, component->pagePosition());
+
+    root->updateTime(1300);
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(100, 10)));
+    root->updateTime(1400);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(400, 10)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(400, 10)));
+    root->clearPending();
+    root->updateTime(1500);
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage));
+
+    ASSERT_EQ(1, component->pagePosition());
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(100, 10)));
+    root->updateTime(1600);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(400, 10)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(400, 10)));
+    root->clearPending();
+    root->updateTime(1700);
+
+    ASSERT_EQ(0, component->pagePosition());
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(100, 10)));
+    root->updateTime(1800);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(400, 10)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(400, 10)));
+    root->clearPending();
+    root->updateTime(1900);
+
+    ASSERT_EQ(0, component->pagePosition());
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(100, 10)));
+    root->updateTime(2000);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(400, 10)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(400, 10)));
+    root->clearPending();
+    root->updateTime(2100);
+
+    ASSERT_EQ(0, component->pagePosition());
+}
+
+
 static const char *PAGER_TEST_OLD = R"({
   "type": "APL",
   "version": "1.4",
@@ -3268,6 +3401,213 @@ TEST_F(NativeGesturesTest, PagerWidthDoubleWrappedPageStillNavigate)
     ASSERT_EQ(1, pager->pagePosition());
 }
 
+static const char *EDIT_TEXT_IN_TAP_TOUCHABLE = R"apl({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Sequence",
+        "width": "100%",
+        "height": "100%",
+        "alignItems": "center",
+        "justifyContent": "spaceAround",
+        "data": [{"color": "blue", "text": "Magic"}],
+        "items": [
+          {
+            "type": "Frame",
+            "backgroundColor": "white",
+            "items": [
+              {
+                "type": "TouchWrapper",
+                "width": 500,
+                "item": {
+                  "type": "Frame",
+                  "backgroundColor": "${data.color}",
+                  "height": 200,
+                  "items": {
+                    "type": "EditText",
+                    "id": "targetEdit",
+                    "text": "${data.text}",
+                    "width": 500,
+                    "height": 100,
+                    "fontSize": 60
+                  }
+                },
+                "onDown": {
+                  "type": "SendEvent",
+                  "arguments": "onDown",
+                  "sequencer": "MAIN"
+                },
+                "onUp": {
+                  "type": "SendEvent",
+                  "arguments": "onUp",
+                  "sequencer": "MAIN"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+})apl";
+
+TEST_F(NativeGesturesTest, WrappedEditTextTap)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureRequestKeyboard);
+    loadDocument(EDIT_TEXT_IN_TAP_TOUCHABLE);
+
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(400,50), false,
+                                   "onDown"));
+    root->updateTime(20);
+    ASSERT_TRUE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(400,50))));
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(apl::kEventTypeOpenKeyboard, event.getType());
+
+    ASSERT_TRUE(CheckSendEvent(root, "onUp"));
+}
+
+static const char *EDIT_TEXT_IN_UP_TOUCHABLE = R"apl({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Sequence",
+        "width": "100%",
+        "height": "100%",
+        "alignItems": "center",
+        "justifyContent": "spaceAround",
+        "data": [{"color": "blue", "text": "Magic"}],
+        "items": [
+          {
+            "type": "Frame",
+            "backgroundColor": "white",
+            "items": [
+              {
+                "type": "TouchWrapper",
+                "width": 500,
+                "item": {
+                  "type": "Frame",
+                  "backgroundColor": "${data.color}",
+                  "height": 200,
+                  "items": {
+                    "type": "EditText",
+                    "id": "targetEdit",
+                    "text": "${data.text}",
+                    "width": 500,
+                    "height": 100,
+                    "fontSize": 60
+                  }
+                },
+                "onUp": {
+                  "type": "SendEvent",
+                  "arguments": "onUp",
+                  "sequencer": "MAIN"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+})apl";
+
+TEST_F(NativeGesturesTest, WrappedEditTextUp)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureRequestKeyboard);
+    loadDocument(EDIT_TEXT_IN_UP_TOUCHABLE);
+
+    ASSERT_FALSE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400,50))));
+    root->updateTime(20);
+    ASSERT_TRUE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(400,50))));
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(apl::kEventTypeOpenKeyboard, event.getType());
+
+    ASSERT_TRUE(CheckSendEvent(root, "onUp"));
+}
+
+static const char *EDIT_TEXT_IN_NESTED_TOUCHABLES = R"apl({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Sequence",
+        "width": "100%",
+        "height": "100%",
+        "alignItems": "center",
+        "justifyContent": "spaceAround",
+        "data": [{"color": "blue", "text": "Magic"}],
+        "items": [
+          {
+            "type": "Frame",
+            "backgroundColor": "white",
+            "items": [
+              {
+                "type": "TouchWrapper",
+                "width": 500,
+                "item": {
+                  "type": "Frame",
+                  "backgroundColor": "${data.color}",
+                  "height": 200,
+                  "items": {
+                    "type": "TouchWrapper",
+                    "item": {
+                      "type": "EditText",
+                      "id": "targetEdit",
+                      "text": "${data.text}",
+                      "width": 500,
+                      "height": 100,
+                      "fontSize": 60
+                    },
+                    "onUp": {
+                      "type": "SendEvent",
+                      "arguments": "onUpInner",
+                      "sequencer": "MAIN"
+                    }
+                  }
+                },
+                "onUp": {
+                  "type": "SendEvent",
+                  "arguments": "onUpOuter",
+                  "sequencer": "MAIN"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+})apl";
+
+TEST_F(NativeGesturesTest, WrappedEditTextNestedTouchWrappers)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureRequestKeyboard);
+    loadDocument(EDIT_TEXT_IN_NESTED_TOUCHABLES);
+
+    ASSERT_FALSE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400,50))));
+    root->updateTime(20);
+    ASSERT_TRUE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(400,50))));
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(apl::kEventTypeOpenKeyboard, event.getType());
+
+    ASSERT_TRUE(CheckSendEvent(root, "onUpInner"));
+    ASSERT_FALSE(root->hasEvent());
+}
+
 static const char *EDIT_TEXT_IN_SWIPE_TOUCHABLE = R"apl({
   "type": "APL",
   "version": "1.6",
@@ -3338,34 +3678,15 @@ static const char *EDIT_TEXT_IN_SWIPE_TOUCHABLE = R"apl({
   }
 })apl";
 
-TEST_F(NativeGesturesTest, WrappedEditTextTap)
-{
-    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureRequestKeyboard);
-    loadDocument(EDIT_TEXT_IN_SWIPE_TOUCHABLE);
-
-    ASSERT_FALSE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(50,50))));
-    root->updateTime(10);
-    ASSERT_FALSE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(50,50))));
-    root->updateTime(20);
-    ASSERT_TRUE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(50,50))));
-
-    auto comp = component->findComponentById("targetEdit");
-    ASSERT_TRUE(comp);
-    ASSERT_EQ(kComponentTypeEditText, comp->getType());
-
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeOpenKeyboard, event.getType());
-    ASSERT_EQ(comp, event.getComponent());
-}
-
 TEST_F(NativeGesturesTest, WrappedEditTextSwipe)
 {
     config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureRequestKeyboard);
     loadDocument(EDIT_TEXT_IN_SWIPE_TOUCHABLE);
 
     ASSERT_FALSE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400,50))));
+
     root->updateTime(2000);
+
     ASSERT_TRUE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(50,50))));
     ASSERT_TRUE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(50,50))));
 
@@ -3375,3 +3696,87 @@ TEST_F(NativeGesturesTest, WrappedEditTextSwipe)
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
 }
+
+static const char *EDITTEXT = R"({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "height": 100,
+      "hint": "Example EditText",
+      "hintWeight": "100",
+      "hintColor": "grey"
+    }
+  }
+})";
+
+TEST_F(NativeGesturesTest, KeyboardRequestedOnTap)
+{
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureRequestKeyboard);
+    loadDocument(EDITTEXT);
+
+    ASSERT_FALSE(root->handlePointerEvent(PointerEvent(apl::kPointerDown, Point(10, 10))));
+    ASSERT_TRUE(root->handlePointerEvent(PointerEvent(apl::kPointerUp, Point(10, 10))));
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(apl::kEventTypeOpenKeyboard, event.getType());
+}
+
+
+static const char * SOURCE_PAGE = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "mainTemplate": {
+        "item": {
+          "type": "Pager",
+          "width": 400,
+          "height": 400,
+          "initialPage": 2,
+          "data": "${Array.range(10)}",
+          "items": {
+            "type": "Text",
+            "text": "Item ${data}",
+            "width": "100%",
+            "height": "100%"
+          },
+          "handlePageMove": {
+            "commands": {
+              "type": "SendEvent",
+              "sequencer": "foo",
+              "arguments": [
+                "${event.source.page}",
+                "${event.amount}"
+              ]
+            }
+          }
+        }
+      }
+    }
+)apl";
+
+TEST_F(NativeGesturesTest, SourcePage)
+{
+    metrics.dpi(160).size(400,400);
+    loadDocument(SOURCE_PAGE);
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(300,10)));
+    root->updateTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(200,10)));
+    ASSERT_TRUE(CheckSendEvent(root, 2, 0.25));
+
+    root->updateTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(100,10)));
+    ASSERT_TRUE(CheckSendEvent(root, 2, 0.5));
+
+    root->updateTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(-100,10)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(-100,10)));
+    ASSERT_TRUE(CheckSendEvent(root, 2, 1.0));
+
+    ASSERT_FALSE(root->hasEvent());
+}
+

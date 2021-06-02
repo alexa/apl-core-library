@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.6.1]
+
+### Changed
+
+- Improved pager fling behavior to provide a more consistent navigation
+- Fixed keyboard and focus handling when wrapping an EditText in a TouchWrapper
+- Updated PEGTL to version 2.8.3
+- Visibility property in visual context rounded to 2 decimal points
+- Perfomance improvements
+- Other bug fixes
+
 ## [1.6.0]
 
 This release adds support for version 1.6 of the APL specification.

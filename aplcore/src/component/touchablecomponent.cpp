@@ -51,14 +51,16 @@ TouchableComponent::setGestureHandlers()
     }
 }
 
-bool
+PointerCaptureStatus
 TouchableComponent::processPointerEvent(const PointerEvent& event, apl_time_t timestamp)
 {
-    if (ActionableComponent::processPointerEvent(event, timestamp))
-        return true;
+    auto pointerStatus = ActionableComponent::processPointerEvent(event, timestamp);
+    if (pointerStatus != kPointerStatusNotCaptured)
+        return pointerStatus;
 
     // Exit as we processed it as pressed.
-    return event.pointerEventType == kPointerUp;
+    return event.pointerEventType == kPointerUp ? kPointerStatusCaptured
+                                                : kPointerStatusNotCaptured;
 }
 
 void

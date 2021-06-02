@@ -442,7 +442,8 @@ Point
 MultiChildScrollableComponent::trimScroll(const Point& point) const
 {
     // Break out early. If there are no children - no scrolling possible
-    if (mChildren.empty())
+    if (shouldNotPropagateLayoutChanges() ||
+        getCalculated(kPropertyBounds).empty())
         return Point();
 
     auto innerBounds = mCalculated.get(kPropertyInnerBounds).getRect();
@@ -617,17 +618,20 @@ MultiChildScrollableComponent::layoutChildIfRequired(const CoreComponentPtr& chi
 {
     if (!child->isAttached() || child->getCalculated(kPropertyBounds).empty()) {
         ensureChildAttached(child, childIdx);
-        if (childIdx > 0 && childrenUseSpacingProperty()) {
-            child->fixSpacing();
-        }
+        relayoutInPlace(useDirtyFlag);
+    }
+}
 
-        // First calculate the layout for this component (if dirty)
-        auto bounds = mCalculated.get(kPropertyBounds).getRect();
-        YGNodeCalculateLayout(
-                mYGNodeRef,
-                bounds.getWidth(),
-                bounds.getHeight(),
-                YGDirection::YGDirectionLTR);
+void
+MultiChildScrollableComponent::relayoutInPlace(bool useDirtyFlag)
+{
+    // First calculate the layout for this component (if dirty)
+    auto bounds = mCalculated.get(kPropertyBounds).getRect();
+    YGNodeCalculateLayout(
+            mYGNodeRef,
+            bounds.getWidth(),
+            bounds.getHeight(),
+            YGDirection::YGDirectionLTR);
 
         // Then re-layout from the root if necessary. We don't expect any of components higher in
         // hierarchy to change when we attach to multichild scrollable. We need to call to root
@@ -637,12 +641,10 @@ MultiChildScrollableComponent::layoutChildIfRequired(const CoreComponentPtr& chi
         auto root = getRootComponent();
         if (root && root != shared_from_corecomponent()) {
             auto rootBounds = root->getCalculated(kPropertyBounds).getRect();
-            YGNodeCalculateLayout(root->getNode(), rootBounds.getWidth(), rootBounds.getHeight(),
-                                  YGDirection::YGDirectionLTR);
+            YGNodeCalculateLayout(root->getNode(), rootBounds.getWidth(), rootBounds.getHeight(), YGDirection::YGDirectionLTR);
         }
 
-        CoreComponent::processLayoutChanges(useDirtyFlag);
-    }
+    CoreComponent::processLayoutChanges(useDirtyFlag);
 }
 
 float
@@ -656,13 +658,6 @@ MultiChildScrollableComponent::maxScroll() const {
     auto lastChildBounds = mChildren.at(mEnsuredChildren.upperBound())->getCalculated(kPropertyBounds).getRect();
     float childEnd = horizontal ? lastChildBounds.getRight() : lastChildBounds.getBottom();
     return nonNegative(childEnd - end);
-}
-
-bool
-MultiChildScrollableComponent::shouldAttachChildYogaNode(int index) const {
-    // We can't predict the order in which new indexes attached. So just attach first one initially to have anchor
-    // in place.
-    return (mEnsuredChildren.empty() && index == 0);
 }
 
 bool
@@ -709,6 +704,43 @@ MultiChildScrollableComponent::removeChild(const CoreComponentPtr& child, size_t
     mChildrenVisibilityStale = true;
 }
 
+/**
+ * Relatively simple heuristics: take laid-out anchor component and estimate how many components will be required to
+ * cover child cache region. Precise calculation is still up to proper layout pass, but (especially for cases when
+ * children are uniform) number of layouts is decreased significantly (for up to 2 instead of n where n is number of
+ * required children).
+ */
+void
+MultiChildScrollableComponent::runLayoutHeuristics(size_t anchorIdx, float childCache, float pageSize, bool useDirtyFlag)
+{
+    // Estimate how many children is actually required based on available anchor dimensions
+    auto toCover = estimateChildrenToCover((childCache + 1) * pageSize, anchorIdx);
+    auto attached = false;
+    for (int i = mEnsuredChildren.upperBound(); i < std::min(anchorIdx + toCover, mChildren.size()); i++) {
+        auto child = mChildren.at(i);
+        if (!child->isAttached() || child->getCalculated(kPropertyBounds).empty()) {
+            attached = true;
+            ensureChildAttached(child, i);
+            if (i > 0 && childrenUseSpacingProperty()) {
+                child->fixSpacing();
+            }
+        }
+    }
+
+    toCover = estimateChildrenToCover(childCache * pageSize, anchorIdx);
+    for (int i = mEnsuredChildren.lowerBound(); i >= std::max(0, static_cast<int>(anchorIdx - toCover)); i--) {
+        auto child = mChildren.at(i);
+        if (!child->isAttached() || child->getCalculated(kPropertyBounds).empty()) {
+            attached = true;
+            ensureChildAttached(child, i);
+            if (i > 0 && childrenUseSpacingProperty()) {
+                child->fixSpacing();
+            }
+        }
+    }
+    if (attached) relayoutInPlace(useDirtyFlag);
+}
+
 void
 MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag) {
     // We need to account for padding as find function don't do that automatically.
@@ -723,16 +755,21 @@ MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag) {
 
     CoreComponent::processLayoutChanges(useDirtyFlag);
 
-    if (mChildren.empty()) {
-        // Starting with empty sequence
+    if (shouldNotPropagateLayoutChanges()) {
+        // Starting with empty or invalid sequence
         return;
     }
 
     // We have not laid-out anything before. Refer to first available attached child. Possible only on initial layout.
+    size_t anchorIdx = 0;
     if (!anchor) {
-        anchor = mChildren.at(mEnsuredChildren.lowerBound());
-        layoutChildIfRequired(anchor, mEnsuredChildren.lowerBound(), useDirtyFlag);
+        anchorIdx = mEnsuredChildren.empty() ? 0 : mEnsuredChildren.lowerBound();
+        anchor = mChildren.at(anchorIdx);
+        layoutChildIfRequired(anchor, anchorIdx, useDirtyFlag);
         oldAnchorBounds = anchor->getCalculated(kPropertyBounds).getRect();
+    } else {
+        auto it = std::find(mChildren.begin(), mChildren.end(), anchor);
+        anchorIdx = std::distance(mChildren.begin(), it);
     }
 
     if (!mChildren.empty() && childrenUseSpacingProperty()) {
@@ -752,7 +789,12 @@ MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag) {
     auto sequenceBounds = mCalculated.get(kPropertyBounds).getRect();
     float childCache = mContext->getRootConfig().getSequenceChildCache();
     float pageSize = horizontal ? sequenceBounds.getWidth() : sequenceBounds.getHeight();
-    float anchorPosition = horizontal ? oldAnchorBounds.getX() : oldAnchorBounds.getY();
+
+    // Try to figure majority of layout as a bulk
+    runLayoutHeuristics(anchorIdx, childCache, pageSize, useDirtyFlag);
+    // Anchor bounds may have shifted
+    Rect anchorBounds = anchor->getCalculated(kPropertyBounds).getRect();
+    float anchorPosition = horizontal ? anchorBounds.getX() : anchorBounds.getY();
 
     // Lay out children in positive direction until we hit cache limit.
     float distanceToCover = (childCache + 1) * pageSize + anchorPosition;
@@ -769,7 +811,6 @@ MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag) {
 
     reportLoaded(std::min(lastLoaded, mEnsuredChildren.upperBound()));
 
-    Rect anchorBounds;
     // Lay out children in negative direction until we hit cache limit.
     distanceToCover = childCache * pageSize;
     int firstLoaded = mEnsuredChildren.upperBound();

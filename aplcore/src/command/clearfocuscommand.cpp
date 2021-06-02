@@ -30,7 +30,7 @@ ClearFocusCommand::execute(const TimersPtr& timers, bool fastMode) {
         return nullptr;
 
     auto& fm = mContext->focusManager();
-    fm.clearFocus(true);
+    fm.clearFocus(true, kFocusDirectionNone, true);
     return nullptr;
 }
 

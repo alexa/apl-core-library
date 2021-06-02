@@ -122,7 +122,7 @@ GraphicElement::setValue(GraphicPropertyKey key, const Object& value, bool useDi
         return false;
 
     // See if we have it at all
-    auto pds = propDefSet();
+    const auto& pds = propDefSet();
     auto it = pds.find(key);
 
     // There shouldn't be a way to set a graphic property value that's not in the PDS.

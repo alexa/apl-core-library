@@ -120,8 +120,9 @@ protected:
     void removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
     virtual void layoutChildIfRequired(const CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag);
+    void relayoutInPlace(bool useDirtyFlag);
     float maxScroll() const override;
-    bool shouldAttachChildYogaNode(int index) const override;
+    bool shouldAttachChildYogaNode(int index) const override { return false; }
 
     const EventPropertyMap & eventPropertyMap() const override;
     void handlePropertyChange(const ComponentPropDef& def, const Object& value) override;
@@ -130,9 +131,14 @@ protected:
 
     virtual size_t getItemsPerCourse() const { return 1; }
 
-    void ensureChildAttached(const CoreComponentPtr& child, int targetIdx);
+    virtual void ensureChildAttached(const CoreComponentPtr& child, int targetIdx);
 
     void attachYogaNode(const CoreComponentPtr& child) override;
+
+    /**
+     * Estimate number of children required to cover provided distance based on parameters of child provided.
+     */
+    virtual size_t estimateChildrenToCover(float distance, size_t baseChild) = 0;
 
 private:
     /**
@@ -173,6 +179,7 @@ private:
 
     void attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index) override;
     bool attachChild(const CoreComponentPtr& child, size_t index);
+    void runLayoutHeuristics(size_t anchorIdx, float childCache, float pageSize, bool useDirtyFlag);
 
 private:
     Range mIndexesSeen;

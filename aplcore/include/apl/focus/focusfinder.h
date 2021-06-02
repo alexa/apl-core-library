@@ -43,12 +43,17 @@ public:
 
     /**
      * Find next focusable component.
+     * @param focused currently focused component or nullptr if none.
      * @param focusedRect currently focused rectangle.
      * @param direction direction of search.
      * @param root root of search hierarchy.
      * @return Found component, nullptr otherwise.
      */
-    CoreComponentPtr findNext(const Rect& focusedRect, FocusDirection direction, const CoreComponentPtr& root);
+    CoreComponentPtr findNext(
+            const CoreComponentPtr& focused,
+            const Rect& focusedRect,
+            FocusDirection direction,
+            const CoreComponentPtr& root);
 
     /**
      * Get all focusable components in provided root.

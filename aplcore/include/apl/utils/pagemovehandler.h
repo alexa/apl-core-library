@@ -96,7 +96,9 @@ public:
 
 private:
     static ContextPtr createPageMoveContext(
-            float amount, SwipeDirection direction,
+            float amount,
+            SwipeDirection direction,
+            const CoreComponentPtr& self,
             const CoreComponentPtr& currentChild,
             const CoreComponentPtr& nextChild);
     static ITPtr getPageTransformation(

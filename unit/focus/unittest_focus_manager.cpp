@@ -655,11 +655,6 @@ TEST_F(FocusManagerTest, FocusWithInheritParentState)
 
     // This clears the focus
     executeCommand("ClearFocus", {}, false);
-    ASSERT_FALSE(component->getState().get(kStateFocused));
-    ASSERT_FALSE(a->getState().get(kStateFocused));
-    ASSERT_FALSE(b->getState().get(kStateFocused));
-    ASSERT_TRUE(IsEqual("B not in focus", text->getCalculated(kPropertyText).asString()));
-
     ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
     ASSERT_EQ(kEventTypeFocus, event.getType());
@@ -667,4 +662,8 @@ TEST_F(FocusManagerTest, FocusWithInheritParentState)
     root->clearPending();
     ASSERT_FALSE(root->hasEvent());
 
+    ASSERT_FALSE(component->getState().get(kStateFocused));
+    ASSERT_FALSE(a->getState().get(kStateFocused));
+    ASSERT_FALSE(b->getState().get(kStateFocused));
+    ASSERT_TRUE(IsEqual("B not in focus", text->getCalculated(kPropertyText).asString()));
 }

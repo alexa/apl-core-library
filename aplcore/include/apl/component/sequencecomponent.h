@@ -31,6 +31,7 @@ protected:
     const ComponentPropDefSet& propDefSet() const override;
     const ComponentPropDefSet* layoutPropDefSet() const override;
     bool childrenUseSpacingProperty() const override { return true; }
+    size_t estimateChildrenToCover(float distance, size_t baseChild) override;
 
 };
 

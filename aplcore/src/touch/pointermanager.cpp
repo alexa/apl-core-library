@@ -149,21 +149,28 @@ PointerManager::handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t 
     if (pointer->isCaptured()) {
         target->processPointerEvent(pointerEvent, timestamp);
     } else {
-        bool capture = false;
         auto hitListIt = HitListIterator(target);
-        // Each component in the list in turn receives the event. The component can silently process the event or can
-        // claim it.
+        // Each component in the list in turn receives the event.
+        // The component can silently process the event or can
+        // claim it by returning one of kPointerStatusCaptured or kPointerStatusPendingCapture.
+        // In both cases, the component that returned this value will be set as the capturing
+        // component. In the case of kPointerStatusCaptured, processing is immediately interrupted
+        // and subsequent hit targets will not be given a chance to process the event. In the
+        // case of kPointerStatusPendingCapture, the event will be allowed to keep bubbling up
+        // through the component hierarchy.
         while (auto hitTarget = hitListIt.next()) {
-            capture = hitTarget->processPointerEvent(pointerEvent, timestamp);
+            PointerCaptureStatus pointerStatus = hitTarget->processPointerEvent(pointerEvent, timestamp);
             // If component claims the event - pointer should be captured by it.
-            if (capture) {
-                pointer->setCapture(std::dynamic_pointer_cast<ActionableComponent>(hitTarget));
-                break;
+            if (pointerStatus != kPointerStatusNotCaptured) {
+                if (!pointer->isCaptured())
+                    pointer->setCapture(std::dynamic_pointer_cast<ActionableComponent>(hitTarget));
+                if (pointerStatus == kPointerStatusCaptured)
+                    break;
             }
         }
 
         // If pointer was captured - cancel events to all the other components on the list.
-        if (capture) {
+        if (pointer->isCaptured()) {
             hitListIt.reset();
             while (auto hitTarget = hitListIt.next()) {
                 if (hitTarget != pointer->getTarget()) {

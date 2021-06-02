@@ -54,7 +54,7 @@ protected:
     // TODO: override to be removed once we support handing intrinsic/reserved keys
     void update(UpdateType type, float value) override;
     void setGestureHandlers();
-    bool processPointerEvent(const PointerEvent& event, apl_time_t timestamp) override;
+    PointerCaptureStatus processPointerEvent(const PointerEvent& event, apl_time_t timestamp) override;
     void invokeStandardAccessibilityAction(const std::string& name) override;
 
 private:

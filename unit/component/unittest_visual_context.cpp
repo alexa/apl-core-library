@@ -2590,5 +2590,40 @@ TEST_F(VisualContextTest, SerializeClearsTree) {
     ASSERT_FALSE(CheckDirtyVisualContext(root, txt0, txt1));
 }
 
+static const char *ODD_DPI = R"({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": {
+      "type": "Frame",
+      "width": "100%",
+      "height": "100%",
+      "backgroundColor": "red",
+      "entities": ["one potato"],
+      "item": {
+        "type": "Frame",
+        "backgroundColor": "green",
+        "width": "100%",
+        "height": "200%",
+        "entities": ["two potato"]
+      }
+    }
+  }
+})";
+
+TEST_F(VisualContextTest, OddDPI) {
+    metrics.dpi(213).size(960, 600);
+    loadDocument(ODD_DPI);
+
+    serializeVisualContext();
+
+    // Check parent
+    ASSERT_FALSE(visualContext.HasMember("visibility"));
+
+    auto& child = visualContext["children"][0];
+    ASSERT_EQ(0.5, child["visibility"].GetDouble());
+}
+
 
 

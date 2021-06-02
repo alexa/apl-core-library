@@ -79,17 +79,17 @@ private:
 
     CoreComponentPtr expandSingleComponentFromArray(const ContextPtr& context,
                                                     const std::vector<Object>& items,
-                                                    Properties& properties,
+                                                    Properties&& properties,
                                                     const CoreComponentPtr& parent,
                                                     const Path& path);
 
     CoreComponentPtr expandSingleComponent(const ContextPtr& context,
                                            const Object& item,
-                                           Properties& properties,
+                                           Properties&& properties,
                                            const CoreComponentPtr& parent,
                                            const Path& path);
 
-    void attachBindings(const ContextPtr& context, const Object& item);
+    static void attachBindings(const ContextPtr& context, const Object& item);
 private:
     CoreComponentPtr mOld;
 };

@@ -330,3 +330,135 @@ TEST_F(BuilderTestSequence, InvalidScrollAnimation)
     // Children
     ASSERT_EQ(2, component->getChildCount());
 }
+
+const char *NONE_SEQUENCE = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "items": {
+        "type": "Sequence",
+        "display": "none",
+        "items": {
+          "type": "Text",
+          "text": "${data}"
+        },
+        "data": "${Array.range(50)}"
+      }
+    }
+  }
+})";
+
+class CountingTextMeasurement : public SimpleTextMeasurement {
+public:
+    LayoutSize measure(Component *component, float width, MeasureMode widthMode,
+                       float height, MeasureMode heightMode) override {
+        auto ls = SimpleTextMeasurement::measure(component, width, widthMode, height, heightMode);
+        measures++;
+        return ls;
+    }
+
+    float baseline(Component *component, float width, float height) override {
+        auto bl = SimpleTextMeasurement::baseline(component, width, height);
+        baselines++;
+        return bl;
+    }
+
+    int measures = 0;
+    int baselines = 0;
+};
+
+TEST_F(BuilderTestSequence, DisplayNone)
+{
+    auto ctm = std::make_shared<CountingTextMeasurement>();
+    config->measure(ctm);
+    loadDocument(NONE_SEQUENCE);
+
+    // Nothing should try laying out
+    ASSERT_EQ(0, ctm->measures);
+    ASSERT_EQ(0, ctm->baselines);
+
+    auto sequence = component->getCoreChildAt(0);
+
+    // Force trimScroll
+    sequence->update(kUpdateScrollPosition, 100);
+
+    // Nothing should have happened
+    ASSERT_EQ(0, ctm->measures);
+    ASSERT_EQ(0, ctm->baselines);
+    ASSERT_EQ(0, sequence->scrollPosition().getY());
+
+    // Now make it appear
+    sequence->setProperty(kPropertyDisplay, kDisplayNormal);
+    root->clearPending();
+
+    // We now require some measures.
+    ASSERT_EQ(22, ctm->measures);
+    ASSERT_EQ(0, ctm->baselines);
+
+    // And scrolling works
+    sequence->update(kUpdateScrollPosition, 100);
+    ASSERT_EQ(100, sequence->scrollPosition().getY());
+}
+
+const char *NONE_NESTED_SEQUENCE = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "items": {
+        "type": "Container",
+        "width": "100%",
+        "height": "100%",
+        "display": "none",
+        "items": {
+          "type": "Sequence",
+          "items": {
+            "type": "Text",
+            "text": "${data}"
+          },
+          "data": "${Array.range(50)}"
+        }
+      }
+    }
+  }
+})";
+
+TEST_F(BuilderTestSequence, DisplayNoneNested)
+{
+    auto ctm = std::make_shared<CountingTextMeasurement>();
+    config->measure(ctm);
+    loadDocument(NONE_NESTED_SEQUENCE);
+
+    // Nothing should try laying out
+    ASSERT_EQ(0, ctm->measures);
+    ASSERT_EQ(0, ctm->baselines);
+
+    auto sequence = component->getCoreChildAt(0)->getCoreChildAt(0);
+
+    // Force trimScroll
+    sequence->update(kUpdateScrollPosition, 100);
+
+    // Nothing should have happened
+    ASSERT_EQ(0, ctm->measures);
+    ASSERT_EQ(0, ctm->baselines);
+    ASSERT_EQ(0, sequence->scrollPosition().getY());
+
+    // Now make it appear
+    component->getCoreChildAt(0)->setProperty(kPropertyDisplay, kDisplayNormal);
+    root->clearPending();
+
+    // We now require some measures.
+    ASSERT_EQ(22, ctm->measures);
+    ASSERT_EQ(0, ctm->baselines);
+
+    // And scrolling works
+    sequence->update(kUpdateScrollPosition, 100);
+    ASSERT_EQ(100, sequence->scrollPosition().getY());
+}

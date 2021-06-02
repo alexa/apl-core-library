@@ -242,7 +242,7 @@ bool
 FocusManager::focus(FocusDirection direction, const Rect& origin, const CoreComponentPtr& root)
 {
     if (mFinder) {
-        auto next = mFinder->findNext(origin, direction, root);
+        auto next = mFinder->findNext(mFocused.lock(), origin, direction, root);
         if (next) {
             setFocus(next, true);
         }
@@ -268,13 +268,13 @@ FocusManager::find(FocusDirection direction)
 CoreComponentPtr
 FocusManager::find(FocusDirection direction, const Rect& origin)
 {
-    return mFinder->findNext(origin, direction, std::dynamic_pointer_cast<CoreComponent>(mCore.top()));
+    return mFinder->findNext(mFocused.lock(), origin, direction, std::dynamic_pointer_cast<CoreComponent>(mCore.top()));
 }
 
 CoreComponentPtr
-FocusManager::find(FocusDirection direction, const Rect& origin, const CoreComponentPtr& root)
+FocusManager::find(FocusDirection direction, const CoreComponentPtr& origin, const Rect& originRect, const CoreComponentPtr& root)
 {
-    return mFinder->findNext(origin, direction, root);
+    return mFinder->findNext(origin, originRect, direction, root);
 }
 
 std::map<std::string, Rect>

@@ -183,24 +183,25 @@ void EditTextComponent::parseValidCharactersProperty()
             mCalculated.get(kPropertyValidCharacters).asString()));
 }
 
-bool
+PointerCaptureStatus
 EditTextComponent::processPointerEvent(const PointerEvent& event, apl_time_t timestamp)
 {
-    if (ActionableComponent::processPointerEvent(event, timestamp))
-        return true;
+    auto pointerStatus = ActionableComponent::processPointerEvent(event, timestamp);
+    if (pointerStatus != kPointerStatusNotCaptured)
+        return pointerStatus;
 
     if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureFocusEditTextOnTap) &&
-        event.pointerEventType == kPointerUp) {
+            event.pointerEventType == kPointerUp) {
         getContext()->focusManager().setFocus(shared_from_corecomponent(), true);
-        return true;
+        return kPointerStatusPendingCapture;
     }
     if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureRequestKeyboard) &&
-        event.pointerEventType == kPointerUp) {
+            event.pointerEventType == kPointerUp) {
         getContext()->pushEvent(Event(kEventTypeOpenKeyboard, shared_from_this()));
-        return true;
+        return kPointerStatusPendingCapture;
     }
 
-    return false;
+    return kPointerStatusNotCaptured;
 }
 
 }  // namespace apl

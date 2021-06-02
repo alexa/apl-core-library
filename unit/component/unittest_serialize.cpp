@@ -933,8 +933,8 @@ TEST_F(SerializeTest, AVGInSequence) {
         ASSERT_EQ(json["graphic"]["intrinsicHeight"].GetDouble(), 48.0);
         ASSERT_EQ(json["graphic"]["viewportWidth"].GetDouble(), 48.0);
         ASSERT_EQ(json["graphic"]["viewportHeight"].GetDouble(), 48.0);
-        ASSERT_EQ(json["graphic"]["root"]["props"]["width_actual"].GetDouble(), 0.0);
-        ASSERT_EQ(json["graphic"]["root"]["props"]["height_actual"].GetDouble(), 0.0);
+        ASSERT_EQ(json["graphic"]["root"]["props"]["width_actual"].GetDouble(), 48.0);
+        ASSERT_EQ(json["graphic"]["root"]["props"]["height_actual"].GetDouble(), 48.0);
         ASSERT_EQ(json["graphic"]["root"]["props"]["viewportWidth_actual"].GetDouble(), 48.0);
         ASSERT_EQ(json["graphic"]["root"]["props"]["viewportHeight_actual"].GetDouble(), 48.0);
 

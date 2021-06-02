@@ -588,7 +588,7 @@ CoreComponent::updateNodeProperties()
             pd.layoutFunc(mYGNodeRef, mCalculated.get(pd.key), *mContext);
         }
     }
-};
+}
 
 /**
  * Initial assignment of properties.  Don't set any dirty flags here; this
@@ -959,7 +959,7 @@ CoreComponent::updateStyle()
         if (layoutPDS)
             updateStyleInternal(stylePtr, *layoutPDS);
     }
-    for (auto child : mChildren) {
+    for (const auto& child : mChildren) {
         if (child->mInheritParentState)
             child->updateStyle();
     }
@@ -1065,7 +1065,7 @@ CoreComponent::findStateOwner() {
     return ptr;
 }
 
-const StyleInstancePtr
+StyleInstancePtr
 CoreComponent::getStyle() const
 {
     return mContext->getStyle(mStyle, mState);
@@ -1084,6 +1084,12 @@ bool
 CoreComponent::needsLayout() const
 {
     return YGNodeIsDirty(mYGNodeRef);
+}
+
+bool
+CoreComponent::shouldNotPropagateLayoutChanges() const
+{
+    return mChildren.empty() || static_cast<Display>(getCalculated(kPropertyDisplay).getInteger()) == kDisplayNone;
 }
 
 void
@@ -1137,18 +1143,20 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag)
             setDirty(kPropertyInnerBounds);
     }
 
-    // Inform all children that they should re-check their bounds. No need to do that for not attached ones.
-    // Note that children of a Pager are not attached, and hence they will not be processed.
-    for (auto& child : mChildren)
-        if (child->isAttached())
-            child->processLayoutChanges(useDirtyFlag);
-
     if (!mCalculated.get(kPropertyLaidOut).asBoolean() && !mCalculated.get(kPropertyBounds).getRect().isEmpty()) {
         mCalculated.set(kPropertyLaidOut, true);
         if (useDirtyFlag)
             setDirty(kPropertyLaidOut);
     }
 
+    // Break out early if possible - there are no need to propagate to children
+    if (shouldNotPropagateLayoutChanges()) return;
+
+    // Inform all children that they should re-check their bounds. No need to do that for not attached ones.
+    // Note that children of a Pager are not attached, and hence they will not be processed.
+    for (auto& child : mChildren)
+        if (child->isAttached())
+            child->processLayoutChanges(useDirtyFlag);
 }
 
 
@@ -1254,7 +1262,7 @@ std::string
 CoreComponent::getHierarchySignature() const
 {
     std::string result(1, sHierarchySig[getType()]);
-    if (mChildren.size()) {
+    if (!mChildren.empty()) {
         result += "[";
         for (const auto& child : mChildren)
             result += child->getHierarchySignature();
@@ -1372,7 +1380,7 @@ CoreComponent::serialize(rapidjson::Document::AllocatorType& allocator) const
                 allocator);
     }
 
-    if (mChildren.size() > 0) {
+    if (!mChildren.empty()) {
         rapidjson::Value children(rapidjson::kArrayType);
         for (const auto& child : mChildren)
             children.PushBack(child->serialize(allocator), allocator);
@@ -1409,7 +1417,7 @@ CoreComponent::serializeAll(rapidjson::Document::AllocatorType& allocator) const
         }
     }
 
-    if (mChildren.size() > 0) {
+    if (!mChildren.empty()) {
         rapidjson::Value children(rapidjson::kArrayType);
         for (const auto& child : mChildren)
             children.PushBack(child->serializeAll(allocator), allocator);
@@ -1572,17 +1580,20 @@ CoreComponent::getChildrenVisibility(float realOpacity, const Rect &visibleRect)
 float
 CoreComponent::calculateVisibility(float parentRealOpacity, const Rect& parentVisibleRect) {
     auto realOpacity = calculateRealOpacity(parentRealOpacity);
-    if(realOpacity == 0 || (getCalculated(kPropertyDisplay).asInt() != kDisplayNormal)) {
+    if(realOpacity <= 0 || (getCalculated(kPropertyDisplay).asInt() != kDisplayNormal)) {
         return 0.0;
     }
 
     auto boundingRect = getGlobalBounds();
-    if(boundingRect.area() == 0) {
+    if(boundingRect.area() <= 0) {
         return 0.0;
     }
 
     auto visibleRect = calculateVisibleRect(parentVisibleRect);
-    return visibleRect.area()/boundingRect.area() * realOpacity;
+    auto visibility = visibleRect.area()/boundingRect.area() * realOpacity;
+
+    // May be positive only, do simple math instead of including math.h
+    return ((int)(visibility * 100 + .5f) / 100.0f);
 }
 
 bool
@@ -1892,12 +1903,6 @@ CoreComponent::propDefSet() const {
 }
 
 bool
-CoreComponent::containsGlobalPosition(const Point &position) const {
-    Rect bounds = getGlobalBounds();
-    return bounds.contains(position);
-}
-
-bool
 CoreComponent::containsLocalPosition(const Point &position) const {
     auto bounds = getCalculated(kPropertyBounds).getRect();
     Rect localBounds(0, 0, bounds.getWidth(), bounds.getHeight());
@@ -1932,21 +1937,21 @@ CoreComponent::inParentViewport() const {
     return !parentBounds.intersect(bounds).isEmpty();
 }
 
-bool
+PointerCaptureStatus
 CoreComponent::processPointerEvent(const PointerEvent& event, apl_time_t timestamp)
 {
     if (mState.get(kStateDisabled))
-        return false;
+        return kPointerStatusNotCaptured;
 
     if (processGestures(event, timestamp))
-        return true;
+        return kPointerStatusCaptured;
 
     auto pointInCurrent = toLocalPoint(event.pointerEventPosition);
     auto it = sEventHandlers.find(event.pointerEventType);
     if (it != sEventHandlers.end())
         executePointerEventHandler(it->second, pointInCurrent);
 
-    return false;
+    return kPointerStatusNotCaptured;
 }
 
 const RootConfig&

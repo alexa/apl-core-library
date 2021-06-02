@@ -60,4 +60,12 @@ SequenceComponent::layoutPropDefSet() const {
     return &sSequenceChildProperties;
 }
 
+size_t
+SequenceComponent::estimateChildrenToCover(float distance, size_t baseChild)
+{
+    auto size = mChildren.at(baseChild)->getCalculated(kPropertyBounds).getRect();
+    auto vertical = isVertical();
+    return std::floor(std::abs(distance) / (vertical ? size.getHeight() : size.getWidth()));
+}
+
 } // namespace apl
