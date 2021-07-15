@@ -19,6 +19,7 @@
 #include <cfenv>
 
 #include "gtest/gtest.h"
+#include "../testeventloop.h"
 
 #include "apl/animation/easing.h"
 #include "apl/engine/context.h"
@@ -29,6 +30,8 @@
 #include "apl/primitives/transform.h"
 #include "apl/engine/arrayify.h"
 #include "apl/utils/session.h"
+
+
 
 using namespace apl;
 
@@ -633,4 +636,61 @@ TEST(ObjectTest, IntLongFloatNumber)
     ASSERT_NEAR(23.9999, Object("23.9999").asNumber(), 0.000001);
     ASSERT_EQ(23.5, Object(Dimension(23.5)).asNumber());
     ASSERT_TRUE(std::isnan(Object(Dimension(DimensionType::Relative, 23)).asNumber()));  // Relative dimensions don't have a integer type
+}
+
+TEST(ObjectTest, WhenDimensionIsNotFiniteSerializeReturnsZero)
+{
+    rapidjson::Document doc;
+    doc.SetObject();
+    rapidjson::Document::AllocatorType& allocator = doc.GetAllocator();
+
+    auto nanDimensionTest = Dimension(DimensionType::Absolute, NAN);
+    auto nanObject = Object(nanDimensionTest);
+    ASSERT_EQ(nanObject.serialize(allocator), rapidjson::Value(0));
+
+    auto infDimensionTest = Dimension(DimensionType::Absolute, INFINITY);
+    auto infObject = Object(infDimensionTest);
+    ASSERT_EQ(infObject.serialize(allocator), rapidjson::Value(0));
+}
+
+class DocumentObjectTest : public CommandTest {};
+
+static const char * SEND_EVENT_NEW_NAN = R"apl({
+	   "type": "APL",
+	   "version": "1.1",
+	   "resources": [
+	     {
+	       "dimension": {
+	         "absDimen": "${100/0}"
+	       }
+	     }
+	   ],
+	   "mainTemplate": {
+	     "item": {
+	       "type": "TouchWrapper",
+	       "onPress": {
+	         "type": "SendEvent",
+	         "arguments": [
+	           "@absDimen"
+	         ]
+	       }
+	     }
+	   }
+	 })apl";
+
+TEST_F(DocumentObjectTest, WithNewArguments)
+{
+    loadDocument(SEND_EVENT_NEW_NAN);
+
+    auto expectedObject = Object(0);
+
+    performClick(1, 1);
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    auto args = event.getValue(kEventPropertyArguments);
+    ASSERT_TRUE(args.isArray());
+    ASSERT_EQ(args.size(), 1);
+    ASSERT_TRUE(IsEqual(expectedObject, args.at(0)));
 }

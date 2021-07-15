@@ -1425,7 +1425,7 @@ Object::serialize(rapidjson::Document::AllocatorType& allocator) const
         case kFunctionType:
             return rapidjson::Value("UNABLE TO SERIALIZE FUNCTION", allocator);
         case kAbsoluteDimensionType:
-            return rapidjson::Value(mU.value);
+            return rapidjson::Value(std::isfinite(mU.value) ? mU.value : 0);
         case kRelativeDimensionType:
             return rapidjson::Value((doubleToString(mU.value)+"%").c_str(), allocator);
         case kAutoDimensionType:

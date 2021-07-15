@@ -1,0 +1,1015 @@
+{
+  "type": "APL",
+  "version": "1.1",
+  "theme": "auto",
+  "layouts": {
+    "Header": {
+      "parameters": [
+        "title",
+        "subtitle",
+        "logo",
+        "item"
+      ],
+      "items": [
+        {
+          "description": "*********** Header for Round screens *************",
+          "when": "${viewport.shape == 'round'}",
+          "type": "Container",
+          "orientation": "column",
+          "alignItems": "center",
+          "height": "100%",
+          "width": "100%",
+          "items": [
+            {
+              "type": "Image",
+              "height": "textSizeSecondary",
+              "source": "${logo}",
+              "when": "${logo}"
+            },
+            {
+              "type": "Text",
+              "text": "${title}",
+              "style": "textStyleDetails0",
+              "spacing": "@spacingSmall",
+              "maxLines": 1
+            },
+            {
+              "type": "Text",
+              "text": "${subtitle}",
+              "style": "textStyleDetails0",
+              "maxLines": 1
+            },
+            {
+              "type": "Container",
+              "items": "${item}",
+              "grow": 1,
+              "shrink": 1
+            }
+          ]
+        },
+        {
+          "description": "*********** Header for rectangular screens *************",
+          "type": "Container",
+          "orientation": "column",
+          "height": "100%",
+          "width": "100%",
+          "items": [
+            {
+              "type": "Container",
+              "direction": "row",
+              "justifyContent": "spaceBetween",
+              "items": [
+                {
+                  "type": "TitleSubtitle",
+                  "title": "${title}",
+                  "subtitle": "${subtitle}"
+                },
+                {
+                  "type": "Image",
+                  "height": "textSizeSecondary",
+                  "source": "${logo}"
+                }
+              ]
+            },
+            {
+              "type": "Container",
+              "items": "${item}",
+              "grow": 1,
+              "shrink": 1
+            }
+          ]
+        }
+      ]
+    },
+    "TitleSubtitle": {
+      "description": "*********** Title | Subtitle block *************",
+      "parameters": [
+        "title",
+        "subtitle"
+      ],
+      "item": [
+        {
+          "when": "${subtitle}",
+          "type": "Container",
+          "direction": "row",
+          "items": [
+            {
+              "type": "Text",
+              "style": "textStyleSecondary2",
+              "text": "${title}"
+            },
+            {
+              "type": "Text",
+              "style": "textStyleSecondary2",
+              "text": "|",
+              "spacing": 15
+            },
+            {
+              "type": "Text",
+              "style": "textStyleSecondary1",
+              "text": "${subtitle}",
+              "spacing": 15
+            }
+          ]
+        },
+        {
+          "type": "Text",
+          "style": "textStyleSecondary2",
+          "text": "${title}"
+        }
+      ]
+    },
+    "Circle": {
+      "description": "**************** Circle ****************",
+      "parameters": [
+        "number"
+      ],
+      "item": {
+        "type": "Frame",
+        "backgroundColor": "@colorControlNormal",
+        "borderRadius": 1000,
+        "alignItems": "center",
+        "justifyContent": "center",
+        "item": {
+          "type": "Text",
+          "style": "textStyleDetails2",
+          "maxLines": 1,
+          "width": 52,
+          "height": 52,
+          "textAlign": "center",
+          "textAlignVertical": "center",
+          "text": "${number}",
+          "color": "@colorTextPrimaryInverse"
+        }
+      }
+    },
+    "TwoLineTitle": {
+      "description": "*************** Two Line title at the top for a landscape screen **************",
+      "parameters": [
+        "title",
+        "subtitle",
+        "hint",
+        "items"
+      ],
+      "item": {
+        "type": "Container",
+        "alignItems": "${viewport.shape == 'round' ? 'center': 'start'}",
+        "height": "100%",
+        "width": "100%",
+        "items": [
+          {
+            "type": "Container",
+            "height": "${viewport.shape == 'round' ? 160 : 128}",
+            "justifyContent": "center",
+            "alignItems": "${viewport.shape == 'round' ? 'center': 'start'}",
+            "items": [
+              {
+                "type": "Text",
+                "text": "${title}",
+                "id": "twoLineTitleTitle"
+              },
+              {
+                "type": "Text",
+                "text": "${subtitle}",
+                "style": "textStyleSecondary1"
+              }
+            ]
+          },
+          {
+            "type": "Container",
+            "shrink": 1,
+            "grow": 1,
+            "items": "${items}",
+            "alignItems": "${viewport.shape == 'round' ? 'center' : 'start'}",
+            "justifyContent": "${viewport.shape == 'round' ? 'center' : 'start'}",
+            "width": "100%"
+          },
+          {
+            "type": "Text",
+            "when": "${viewport.shape != 'round'}",
+            "text": "${hint}",
+            "style": "textStylePrimaryHint"
+          }
+        ]
+      }
+    }
+  },
+  "resources": [
+    {
+      "description": "Common colors, universal",
+      "colors": {
+        "colorSpeechBlue": "#0070BA",
+        "colorSpeechGreen": "#629624",
+        "colorSpeechPink": "#FF4D4B",
+        "colorSpeechOrange": "#FF8F00"
+      }
+    },
+    {
+      "description": "Common colors, light theme",
+      "colors": {
+        "colorSpeechRed": "#D60D2B",
+        "colorSpeechPurple": "#A823DD"
+      }
+    },
+    {
+      "description": "Common colors, dark theme",
+      "when": "${viewport.theme == 'dark'}",
+      "colors": {
+        "colorSpeechRed": "#ff0729",
+        "colorSpeechPurple": "#cd36ff"
+      }
+    },
+    {
+      "description": "Stock colors for the light theme",
+      "colors": {
+        "colorBackground": "#F0F1EF",
+        "colorAccent": "#0070ba",
+        "colorTextPrimary": "#151920",
+        "colorTextPrimaryInverse": "#f0f1ef",
+        "colorTextSecondary": "#000000",
+        "colorTextSecondaryInverse": "#ffffff",
+        "colorTextTertiary": "#333333",
+        "colorTextDisabled": "rgba(21,25,32,.3)",
+        "colorTextDisabledInverse": "rgba(240,241,239,.3)",
+        "colorButtonNormal": "#dadada",
+        "colorButtonActivated": "#bbbbbb",
+        "colorControlNormal": "#151920",
+        "colorControlActivated": "#0070ba",
+        "colorButtonSecondaryActivated": "#005a95",
+        "colorListItemBackground": "#ffffff",
+        "colorImageScrim": "#F0F1EF44"
+      }
+    },
+    {
+      "description": "Stock colors for the dark theme",
+      "when": "${viewport.theme == 'dark'}",
+      "colors": {
+        "colorBackground": "#151920",
+        "colorAccent": "#00caff",
+        "colorTextPrimary": "#f0f1ef",
+        "colorTextPrimaryInverse": "#151920",
+        "colorTextSecondary": "#ffffff",
+        "colorTextSecondaryInverse": "#000000",
+        "colorTextTertiary": "#cccccc",
+        "colorTextDisabled": "rgba(240,241,239,.3)",
+        "colorTextDisabledInverse": "rgba(21,25,32,.3)",
+        "colorButtonNormal": "#2b2f35",
+        "colorButtonActivated": "#4c4f54",
+        "colorControlNormal": "#f0f1ef",
+        "colorControlActivated": "#00caff",
+        "colorButtonSecondaryActivated": "#66dfff",
+        "colorListItemBackground": "#1b222a",
+        "colorImageScrim": "#15192044"
+      }
+    },
+    {
+      "description": "Standard font sizes",
+      "dimensions": {
+        "textSizeClock": 84,
+        "textSizeDisplay": 120,
+        "textSizePrimaryHint": 28,
+        "textSizeTitle": 60,
+        "textSizeBody": 48,
+        "textSizeSubtitle": 36,
+        "textSizePrimary": 27,
+        "textSizeSecondary": 23,
+        "textSizeDetails": 20,
+        "textSizeCaption": 15,
+        "textSizeSecondaryHint": 25
+      }
+    },
+    {
+      "description": "Common spacing values",
+      "dimensions": {
+        "spacingThin": 6,
+        "spacingSmall": 12,
+        "spacingMedium": 24,
+        "spacingLarge": 48,
+        "spacingExtraLarge": 72
+      }
+    },
+    {
+      "description": "Common margins and padding",
+      "dimensions": {
+        "marginTop": 40,
+        "marginLeft": 60,
+        "marginRight": 60,
+        "marginBottom": 40
+      }
+    },
+    {
+      "description": "Standard button definitions",
+      "numbers": {
+        "buttonOutlinePressedOpacity": 0.2,
+        "buttonActivatedPressedOpacity": 0.25,
+        "backgroundPressedOpacity": 0.25,
+        "overlayDisabledOpacity": 0.5
+      },
+      "dimensions": {
+        "buttonNormalHeight": 80,
+        "buttonMinWidth": 160,
+        "buttonInnerHeight": 48,
+        "buttonInnerPaddingLeftRight": 16,
+        "buttonOuterPaddingLeftRight": 8,
+        "buttonInnerMinWidth": 142,
+        "buttonBorderWidth": 2,
+        "buttonBorderRadius": 4,
+        "buttonBorderThin": 1,
+        "iconButtonHeight": 80,
+        "iconButtonWidth": 80,
+        "iconButtonInnerHeight": 48,
+        "iconButtonInnerWidth": 48,
+        "iconButtonInnerPadding": 16,
+        "iconButtonBorderWidth": 2
+      }
+    }
+  ],
+  "styles": {
+    "flip": {
+      "description": "Color the Frame for Karaoke",
+      "extend": "textStylePrimary2",
+      "values": [
+        {
+          "backgroundColor": "@colorTextPrimary"
+        },
+        {
+          "when": "${state.pressed}",
+          "backgroundColor": "red",
+          "color": "red"
+        },
+        {
+          "when": "${state.karaoke}",
+          "backgroundColor": "@colorAccent"
+        }
+      ]
+    },
+    "textStyleBase": {
+      "description": "Base font description; set color and core font family",
+      "values": [
+        {
+          "color": "@colorTextPrimary",
+          "fontFamily": "Amazon Ember"
+        },
+        {
+          "when": "${state.karaoke}",
+          "color": "@colorAccent"
+        }
+      ]
+    },
+    "textStyleBase0": {
+      "description": "Thin version of basic font",
+      "extend": "textStyleBase",
+      "values": {
+        "fontWeight": 100
+      }
+    },
+    "textStyleBase1": {
+      "description": "Light version of basic font",
+      "extend": "textStyleBase",
+      "values": {
+        "fontWeight": 300
+      }
+    },
+    "textStyleBase2": {
+      "description": "Regular version of basic font",
+      "extend": "textStyleBase",
+      "values": {
+        "fontWeight": 500
+      }
+    },
+    "textStyleBase3": {
+      "description": "Medium version of basic font",
+      "extend": "textStyleBase",
+      "values": {
+        "fontWeight": 700
+      }
+    },
+    "textStyleBase4": {
+      "description": "Dark version of basic font",
+      "extend": "textStyleBase",
+      "values": {
+        "fontWeight": 900
+      }
+    },
+    "mixinDisplay": {
+      "values": {
+        "fontSize": "@textSizeDisplay"
+      }
+    },
+    "mixinClock": {
+      "values": {
+        "fontSize": "@textSizeClock"
+      }
+    },
+    "mixinTitle": {
+      "values": {
+        "fontSize": "@textSizeTitle"
+      }
+    },
+    "mixinBody": {
+      "values": {
+        "fontSize": "@textSizeBody"
+      }
+    },
+    "mixinSubtitle": {
+      "values": {
+        "fontSize": "@textSizeSubtitle"
+      }
+    },
+    "mixinPrimary": {
+      "values": {
+        "fontSize": "@textSizePrimary"
+      }
+    },
+    "mixinSecondary": {
+      "values": {
+        "fontSize": "@textSizeSecondary"
+      }
+    },
+    "mixinDetails": {
+      "values": {
+        "fontSize": "@textSizeDetails"
+      }
+    },
+    "mixinCaption": {
+      "values": {
+        "fontSize": "@textSizeCaption"
+      }
+    },
+    "textStyleDefault": [
+      {
+        "extend": "@textStylePrimary2"
+      }
+    ],
+    "textStyleDisplay0": {
+      "extend": [
+        "textStyleBase0",
+        "mixinDisplay"
+      ]
+    },
+    "textStyleDisplay1": {
+      "extend": [
+        "textStyleBase1",
+        "mixinDisplay"
+      ]
+    },
+    "textStyleDisplay2": {
+      "extend": [
+        "textStyleBase2",
+        "mixinDisplay"
+      ]
+    },
+    "textStyleDisplay3": {
+      "extend": [
+        "textStyleBase3",
+        "mixinDisplay"
+      ]
+    },
+    "textStyleDisplay4": {
+      "extend": [
+        "textStyleBase4",
+        "mixinDisplay"
+      ]
+    },
+    "textStyleClock0": {
+      "extend": [
+        "textStyleBase0",
+        "mixinClock"
+      ]
+    },
+    "textStyleClock1": {
+      "extend": [
+        "textStyleBase1",
+        "mixinClock"
+      ]
+    },
+    "textStyleClock2": {
+      "extend": [
+        "textStyleBase2",
+        "mixinClock"
+      ]
+    },
+    "textStyleClock3": {
+      "extend": [
+        "textStyleBase3",
+        "mixinClock"
+      ]
+    },
+    "textStyleClock4": {
+      "extend": [
+        "textStyleBase4",
+        "mixinClock"
+      ]
+    },
+    "textStyleTitle0": {
+      "extend": [
+        "textStyleBase0",
+        "mixinTitle"
+      ]
+    },
+    "textStyleTitle1": {
+      "extend": [
+        "textStyleBase1",
+        "mixinTitle"
+      ]
+    },
+    "textStyleTitle2": {
+      "extend": [
+        "textStyleBase2",
+        "mixinTitle"
+      ]
+    },
+    "textStyleTitle3": {
+      "extend": [
+        "textStyleBase3",
+        "mixinTitle"
+      ]
+    },
+    "textStyleTitle4": {
+      "extend": [
+        "textStyleBase4",
+        "mixinTitle"
+      ]
+    },
+    "textStyleBody0": {
+      "extend": [
+        "textStyleBase0",
+        "mixinBody"
+      ]
+    },
+    "textStyleBody1": {
+      "extend": [
+        "textStyleBase1",
+        "mixinBody"
+      ]
+    },
+    "textStyleBody2": {
+      "extend": [
+        "textStyleBase2",
+        "mixinBody"
+      ]
+    },
+    "textStyleBody3": {
+      "extend": [
+        "textStyleBase3",
+        "mixinBody"
+      ]
+    },
+    "textStyleBody4": {
+      "extend": [
+        "textStyleBase4",
+        "mixinBody"
+      ]
+    },
+    "textStyleSubtitle0": {
+      "extend": [
+        "textStyleBase0",
+        "mixinSubtitle"
+      ]
+    },
+    "textStyleSubtitle1": {
+      "extend": [
+        "textStyleBase1",
+        "mixinSubtitle"
+      ]
+    },
+    "textStyleSubtitle2": {
+      "extend": [
+        "textStyleBase2",
+        "mixinSubtitle"
+      ]
+    },
+    "textStyleSubtitle3": {
+      "extend": [
+        "textStyleBase3",
+        "mixinSubtitle"
+      ]
+    },
+    "textStyleSubtitle4": {
+      "extend": [
+        "textStyleBase4",
+        "mixinSubtitle"
+      ]
+    },
+    "textStylePrimary0": {
+      "extend": [
+        "textStyleBase0",
+        "mixinPrimary"
+      ]
+    },
+    "textStylePrimary1": {
+      "extend": [
+        "textStyleBase1",
+        "mixinPrimary"
+      ]
+    },
+    "textStylePrimary2": {
+      "extend": [
+        "textStyleBase2",
+        "mixinPrimary"
+      ]
+    },
+    "textStylePrimary3": {
+      "extend": [
+        "textStyleBase3",
+        "mixinPrimary"
+      ]
+    },
+    "textStylePrimary4": {
+      "extend": [
+        "textStyleBase4",
+        "mixinPrimary"
+      ]
+    },
+    "textStyleSecondary0": {
+      "extend": [
+        "textStyleBase0",
+        "mixinSecondary"
+      ]
+    },
+    "textStyleSecondary1": {
+      "extend": [
+        "textStyleBase1",
+        "mixinSecondary"
+      ]
+    },
+    "textStyleSecondary2": {
+      "extend": [
+        "textStyleBase2",
+        "mixinSecondary"
+      ]
+    },
+    "textStyleSecondary3": {
+      "extend": [
+        "textStyleBase3",
+        "mixinSecondary"
+      ]
+    },
+    "textStyleSecondary4": {
+      "extend": [
+        "textStyleBase4",
+        "mixinSecondary"
+      ]
+    },
+    "textStyleDetails0": {
+      "extend": [
+        "textStyleBase0",
+        "mixinDetails"
+      ]
+    },
+    "textStyleDetails1": {
+      "extend": [
+        "textStyleBase1",
+        "mixinDetails"
+      ]
+    },
+    "textStyleDetails2": {
+      "extend": [
+        "textStyleBase2",
+        "mixinDetails"
+      ]
+    },
+    "textStyleDetails3": {
+      "extend": [
+        "textStyleBase3",
+        "mixinDetails"
+      ]
+    },
+    "textStyleDetails4": {
+      "extend": [
+        "textStyleBase4",
+        "mixinDetails"
+      ]
+    },
+    "textStyleCaption0": {
+      "extend": [
+        "textStyleBase0",
+        "mixinCaption"
+      ]
+    },
+    "textStyleCaption1": {
+      "extend": [
+        "textStyleBase1",
+        "mixinCaption"
+      ]
+    },
+    "textStyleCaption2": {
+      "extend": [
+        "textStyleBase2",
+        "mixinCaption"
+      ]
+    },
+    "textStyleCaption3": {
+      "extend": [
+        "textStyleBase3",
+        "mixinCaption"
+      ]
+    },
+    "textStyleCaption4": {
+      "extend": [
+        "textStyleBase4",
+        "mixinCaption"
+      ]
+    },
+    "textStylePrimaryHint": {
+      "values": {
+        "fontFamily": "Bookerly",
+        "fontStyle": "italic",
+        "fontSize": "@textSizePrimaryHint",
+        "color": "@colorTextPrimary"
+      }
+    },
+    "textStyleSecondaryHint": {
+      "values": {
+        "fontFamily": "Bookerly",
+        "fontStyle": "italic",
+        "fontSize": "@textSizeSecondaryHint",
+        "color": "@colorTextPrimary"
+      }
+    },
+    "_textStyleTextButton": {
+      "extend": [
+        "textStyleSecondary2"
+      ]
+    },
+    "flat": {
+      "values": [
+        {
+          "backgroundColor": "transparent",
+          "borderColor": "transparent",
+          "borderWidth": "@buttonBorderWidth",
+          "color": "@colorTextPrimary"
+        },
+        {
+          "when": "${state.focused}",
+          "borderColor": "@colorTextPrimary"
+        },
+        {
+          "when": "${state.pressed}",
+          "backgroundColor": "@colorButtonActivated"
+        },
+        {
+          "when": "${state.disabled}",
+          "color": "@colorTextDisabled"
+        }
+      ]
+    },
+    "raised": {
+      "values": [
+        {
+          "backgroundColor": "@colorButtonNormal",
+          "borderColor": "transparent",
+          "borderWidth": "@buttonBorderWidth",
+          "color": "@colorTextPrimary"
+        },
+        {
+          "when": "${state.focused}",
+          "backgroundColor": "transparent",
+          "borderColor": "@colorTextPrimary"
+        },
+        {
+          "when": "${state.pressed}",
+          "backgroundColor": "@colorButtonActivated"
+        },
+        {
+          "when": "${state.disabled}",
+          "color": "@colorTextDisabled"
+        }
+      ]
+    },
+    "outline": {
+      "values": [
+        {
+          "backgroundColor": "transparent",
+          "borderColor": "@colorAccent",
+          "borderWidth": "@buttonBorderThin",
+          "color": "@colorAccent"
+        },
+        {
+          "when": "${state.focused}",
+          "backgroundColor": "transparent",
+          "borderColor": "@colorTextPrimary",
+          "borderWidth": "@buttonBorderWidth",
+          "color": "@colorTextPrimary"
+        },
+        {
+          "when": "${state.pressed}",
+          "backgroundColor": "rgb(${@colorAccent}, ${@buttonOutlinePressedOpacity})"
+        },
+        {
+          "when": "${state.disabled}",
+          "borderColor": "@colorTextDisabled",
+          "color": "@colorTextDisabled"
+        }
+      ]
+    },
+    "buttonDefault": {
+      "extend": [
+        "flat"
+      ]
+    },
+    "toggle": {
+      "description": "Color styling used for text and icon toggle buttons",
+      "values": [
+        {
+          "color": "@colorControlNormal",
+          "backgroundColor": "transparent",
+          "borderColor": "transparent",
+          "borderWidth": "@buttonBorderWidth"
+        },
+        {
+          "when": "${state.focused}",
+          "color": "@colorControlNormal",
+          "backgroundColor": "transparent",
+          "borderColor": "@colorControlNormal"
+        },
+        {
+          "when": "${state.pressed}",
+          "color": "@colorControlNormal",
+          "backgroundColor": "@colorButtonActivated",
+          "borderColor": "transparent"
+        },
+        {
+          "when": "${state.checked}",
+          "color": "@colorAccent",
+          "backgroundColor": "transparent",
+          "borderColor": "transparent"
+        },
+        {
+          "when": "${state.checked && state.focused}",
+          "color": "@colorAccent",
+          "backgroundColor": "transparent",
+          "borderColor": "@colorControlNormal"
+        },
+        {
+          "when": "${state.checked && state.pressed}",
+          "color": "@colorAccent",
+          "backgroundColor": "rgba(${@colorAccent}, 0.25)",
+          "borderColor": "transparent"
+        },
+        {
+          "when": "${state.disabled}",
+          "color": "@colorTextDisabled",
+          "backgroundColor": "transparent",
+          "borderColor": "transparent"
+        }
+      ]
+    },
+    "icon": {
+      "description": "Default style for icon buttons",
+      "values": [
+        {
+          "color": "@colorControlNormal",
+          "backgroundColor": "transparent",
+          "borderColor": "transparent",
+          "borderWidth": "@buttonBorderWidth"
+        },
+        {
+          "when": "${state.focused}",
+          "borderColor": "@colorControlNormal"
+        },
+        {
+          "when": "${state.pressed}",
+          "backgroundColor": "@colorButtonActivated"
+        },
+        {
+          "when": "${state.disabled}",
+          "color": "@colorTextDisabled"
+        }
+      ]
+    },
+    "touchableOverlay": {
+      "description": "Used for normal overlay button",
+      "values": [
+        {
+          "color": "transparent",
+          "backgroundColor": "transparent",
+          "borderColor": "transparent",
+          "borderWidth": "@buttonBorderWidth"
+        },
+        {
+          "when": "${state.focused}",
+          "borderColor": "@colorTextPrimary"
+        },
+        {
+          "when": "${state.pressed}",
+          "color": "rgba(${@colorControlNormal}, ${@backgroundPressedOpacity})"
+        },
+        {
+          "when": "${state.disabled}",
+          "color": "rgba(${@colorBackground}, ${@overlayDisabledOpacity})"
+        }
+      ]
+    },
+    "touchableBackground": {
+      "description": "Used for normal list items",
+      "values": [
+        {
+          "color": "transparent",
+          "backgroundColor": "transparent",
+          "borderColor": "transparent",
+          "borderWidth": "@buttonBorderWidth"
+        },
+        {
+          "when": "${state.focused}",
+          "borderColor": "@colorTextPrimary"
+        },
+        {
+          "when": "${state.pressed}",
+          "backgroundColor": "rgba(${@colorControlNormal}, ${@backgroundPressedOpacity})"
+        }
+      ]
+    },
+    "touchableDefault": {
+      "description": "Default style for touchable",
+      "extend": "touchableBackground"
+    }
+  },
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "items": [
+        {
+          "type": "Header",
+          "title": "My Cool List",
+          "subtitle": "of things to do",
+          "paddingLeft": "@marginLeft",
+          "paddingRight": "@marginRight",
+          "paddingTop": "@marginTop",
+          "position": "absolute",
+          "item": {
+            "type": "Sequence",
+            "id": "myTodoList",
+            "data": "${payload.listdata}",
+            "scrollDirection": "vertical",
+            "numbered": true,
+            "width": "100%",
+            "height": "100%",
+            "grow": 1,
+            "shrink": 1,
+            "item": {
+              "type": "TouchWrapper",
+              "separator": true,
+              "id": "touchwrapper1",
+              "item": {
+                "type": "Container",
+                "direction": "row",
+                "id": "container${ordinal}",
+                "spacing": 0,
+                "separator": true,
+                "height": 120,
+                "alignItems": "center",
+                "inheritParentState": true,
+                "items": [
+                  {
+                    "type": "Frame",
+                    "style": "flip",
+                    "id": "frame${ordinal}",
+                    "inheritParentState": true,
+                    "borderRadius": 45,
+                    "width": 60,
+                    "height": 60,
+                    "item": {
+                      "type": "Text",
+                      "text": "${ordinal}",
+                      "style": "textStylePrimary2",
+                      "color": "@colorTextPrimaryInverse",
+                      "width": 60,
+                      "height": 60,
+                      "textAlign": "center",
+                      "textAlignVertical": "center"
+                    }
+                  },
+                  {
+                    "type": "Image",
+                    "source": "${data.imageSource}",
+                    "inheritParentState": true,
+                    "spacing": 24,
+                    "width": 100,
+                    "height": 100,
+                    "borderRadius": 10
+                  },
+                  {
+                    "type": "Text",
+                    "id": "text${ordinal}",
+                    "text": "${data.item}",
+                    "style": "flip",
+                    "inheritParentState": true,
+                    "grow": 1,
+                    "shrink": 1,
+                    "spacing": 24
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

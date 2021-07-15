@@ -1,0 +1,24 @@
+{
+  "type": "APL",
+  "version": "1.0",
+  "resources": [
+    {
+      "colors": {
+        "myRed": "rgb(255, 16, 32)"
+      }
+    }
+  ],
+  "styles": {
+    "textStyle": {
+      "values": [
+        {
+          "color": "@myRed"
+        },
+        {
+          "when": "${state.pressed}",
+          "color": "blue"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,509 @@
+{
+  "type": "APL",
+  "version": "1.0.0",
+  "import": [
+    {
+      "name": "alexa-viewport-profiles",
+      "version": "1.0.0"
+    }
+  ],
+  "resources": [
+    {
+      "description": "Public resource definitions for colors",
+      "colors": {
+        "colorText": "#FAFAFA",
+        "colorTextReversed": "#1E2222",
+        "colorSecondaryText": "#FFFFFF",
+        "colorSecondaryReversed": "#1E2222",
+        "colorDisabledText": "#EBEDED4D",
+        "colorDisabledTextReversed": "#1E22224D",
+        "colorBackground": "#232F3E",
+        "colorSecondaryBackground": "#00000099",
+        "colorAccent": "#00CAFF",
+        "colorComponent": "#FAFAFA",
+        "colorButtonActivated": "#66DFFF",
+        "colorRed800": "#65151E",
+        "colorSalmon800": "#652E2C",
+        "colorOrange800": "#652718",
+        "colorYellow800": "#986300",
+        "colorGreen800": "#34581B",
+        "colorTeal800": "#0A655E",
+        "colorBlue800": "#2E536F",
+        "colorPurple800": "#3E3F68",
+        "colorGray800": "#6B7878"
+      }
+    },
+    {
+      "description": "Public resource definitions for colors - tv-landscape-xlarge",
+      "when": "${@viewportProfile == @tvLandscapeXLarge}",
+      "colors": {
+        "colorText": "#DADADA",
+        "colorSecondaryText": "#DADADA",
+        "colorComponent": "#DADADA"
+      }
+    },
+    {
+      "description": "Public resource definitions for font family",
+      "strings": {
+        "fontFamilyRomanSans": "Amazon Ember",
+        "fontFamilyRomanSerif": "Bookerly",
+        "fontFamilyCompact": "Noto Sans CJK"
+      }
+    },
+    {
+      "description": "Public resource definitions for font weight",
+      "strings": {
+        "fontWeightThin": "100",
+        "fontWeightLight": "300",
+        "fontWeightRegular": "400",
+        "fontWeightMedium": "500",
+        "fontWeightBold": "700",
+        "fontWeightHeavy": "900"
+      }
+    },
+    {
+      "description": "Public resource definitions for line height",
+      "numbers": {
+        "lineHeightNormal": 1.2,
+        "lineHeightExpanded": 1.6,
+        "lineHeightCondensed": 0.9
+      }
+    },
+    {
+      "description": "Public resource definitions for letter spacing",
+      "numbers": {
+        "letterSpacingNormal": 0,
+        "letterSpacingExpanded": 2,
+        "letterSpacingCondensed": 0.8
+      }
+    },
+    {
+      "description": "Public resource definitions for font size - defaults",
+      "dimensions": {
+        "fontSizeXXXSmall": 18,
+        "fontSizeXXSmall": 24,
+        "fontSizeXSmall": 28,
+        "fontSizeSmall": 32,
+        "fontSizeRegular": 40,
+        "fontSizeMedium": 48,
+        "fontSizeLarge": 68,
+        "fontSizeXLarge": 84,
+        "fontSizeXXLarge": 128,
+        "fontSizeXXXLarge": 168
+      }
+    },
+    {
+      "description": "Public resource definitions for font size - hub-round-small",
+      "when": "${@viewportProfile == @hubRoundSmall}",
+      "dimensions": {
+        "fontSizeXXXSmall": 14,
+        "fontSizeXXSmall": 18,
+        "fontSizeXSmall": 20,
+        "fontSizeSmall": 24,
+        "fontSizeRegular": 28,
+        "fontSizeMedium": 36,
+        "fontSizeLarge": 48,
+        "fontSizeXLarge": 64,
+        "fontSizeXXLarge": 84,
+        "fontSizeXXXLarge": 120
+      }
+    },
+    {
+      "description": "Public resource definitions for font size - hub-landscape-medium / hub-landscape-large",
+      "when": "${@viewportProfile == @hubLandscapeMedium || @viewportProfile == @hubLandscapeLarge}",
+      "dimensions": {
+        "fontSizeXXXSmall": 18,
+        "fontSizeXXSmall": 24,
+        "fontSizeXSmall": 28,
+        "fontSizeSmall": 32,
+        "fontSizeRegular": 40,
+        "fontSizeMedium": 48,
+        "fontSizeLarge": 68,
+        "fontSizeXLarge": 84,
+        "fontSizeXXLarge": 128,
+        "fontSizeXXXLarge": 168
+      }
+    },
+    {
+      "description": "Public resource definitions for font size - tv-landscape-xlarge",
+      "when": "${@viewportProfile == @tvLandscapeXLarge}",
+      "dimensions": {
+        "fontSizeXXXSmall": 14,
+        "fontSizeXXSmall": 14,
+        "fontSizeXSmall": 14,
+        "fontSizeSmall": 16,
+        "fontSizeRegular": 18,
+        "fontSizeMedium": 24,
+        "fontSizeLarge": 34,
+        "fontSizeXLarge": 42,
+        "fontSizeXXLarge": 64,
+        "fontSizeXXXLarge": 84
+      }
+    },
+    {
+      "description": "Public resource definitions for spacing - defaults",
+      "dimensions": {
+        "marginLeft": "6.25vw",
+        "marginRight": "6.25vw",
+        "spacingXXSmall": 8,
+        "spacingXSmall": 16,
+        "spacingSmall": 24,
+        "spacingRegular": 32,
+        "spacingMedium": 40,
+        "spacingLarge": 48,
+        "spacingXLarge": 56,
+        "spacingXXLarge": 64,
+        "spacingXXXLarge": 72
+      }
+    },
+    {
+      "description": "Public resource definitions for spacing - hub-round-small",
+      "when": "${@viewportProfile == @hubRoundSmall}",
+      "dimensions": {
+        "marginLeft": "12.5vw",
+        "marginRight": "12.5vw"
+      }
+    },
+    {
+      "description": "Public resource definitions for spacing - hub-landscape-medium",
+      "when": "${@viewportProfile == @hubLandscapeMedium}",
+      "dimensions": {
+        "marginLeft": "6.25vw",
+        "marginRight": "6.25vw",
+        "spacingXXSmall": 8,
+        "spacingXSmall": 16,
+        "spacingSmall": 24,
+        "spacingRegular": 32,
+        "spacingMedium": 40,
+        "spacingLarge": 48,
+        "spacingXLarge": 56,
+        "spacingXXLarge": 64,
+        "spacingXXXLarge": 72
+      }
+    },
+    {
+      "description": "Public resource definitions for spacing - hub-landscape-large",
+      "when": "${@viewportProfile == @hubLandscapeLarge}",
+      "dimensions": {
+        "marginLeft": "6.25vw",
+        "marginRight": "6.25vw",
+        "spacingXXSmall": 8,
+        "spacingXSmall": 16,
+        "spacingSmall": 24,
+        "spacingRegular": 32,
+        "spacingMedium": 40,
+        "spacingLarge": 48,
+        "spacingXLarge": 56,
+        "spacingXXLarge": 64,
+        "spacingXXXLarge": 72
+      }
+    },
+    {
+      "description": "Public resource definitions for spacing - tv-landscape-xlarge",
+      "when": "${@viewportProfile == @tvLandscapeXLarge}",
+      "dimensions": {
+        "marginLeft": "6.25vw",
+        "marginRight": "6.25vw"
+      }
+    },
+    {
+      "description": "Public resource definitions for image clipping",
+      "dimensions": {
+        "imageShapeRoundedRect": "8dp",
+        "imageShapeCircle": "100vw"
+      }
+    },
+    {
+      "description": "Public resource definitions for image clipping - tv-landscape-xlarge",
+      "when": "${@viewportProfile == @tvLandscapeXLarge}",
+      "dimensions": {
+        "imageShapeRoundedRect": "12dp"
+      }
+    }
+  ],
+  "styles": {
+    "textStyleDisplayBase": {
+      "values": {
+        "color": "@colorText",
+        "fontFamily": "@fontFamilyRomanSans",
+        "fontStyle": "normal",
+        "lineHeight": "@lineHeightNormal",
+        "letterSpacing": "@letterSpacingNormal",
+        "opacity": 1
+      }
+    },
+    "textStyleDisplay1": {
+      "description": "Used for glanceable text, such as acronyms, or large numbers to show time or day-of-the-week.",
+      "extend": "textStyleDisplayBase",
+      "values": [
+        {
+          "fontSize": "@fontSizeXXXLarge",
+          "fontWeight": "@fontWeightBold"
+        }
+      ]
+    },
+    "textStyleDisplay1Alt": {
+      "description": "Used for creating contrast with Display1.",
+      "extend": [
+        "textStyleDisplayBase",
+        "textStyleDisplay1"
+      ],
+      "values": [
+        {
+          "fontWeight": "@fontWeightLight"
+        }
+      ]
+    },
+    "textStyleDisplay2": {
+      "description": "Smaller than Display 1. Used for glanceable text, such as acronyms, or large numbers to show time or day-of-the-week.",
+      "extend": "textStyleDisplayBase",
+      "values": [
+        {
+          "fontSize": "@fontSizeXXLarge",
+          "fontWeight": "@fontWeightBold"
+        }
+      ]
+    },
+    "textStyleDisplay2Alt": {
+      "description": "Used for creating contrast with Display 2.",
+      "extend": [
+        "textStyleDisplayBase",
+        "textStyleDisplay2"
+      ],
+      "values": [
+        {
+          "fontWeight": "@fontWeightLight"
+        }
+      ]
+    },
+    "textStyleDisplay3": {
+      "description": "Used for displaying a small amount of text, such as list items to be read at a distance.",
+      "extend": "textStyleDisplayBase",
+      "values": [
+        {
+          "fontSize": "@fontSizeXLarge",
+          "fontWeight": "@fontWeightLight"
+        }
+      ]
+    },
+    "textStyleDisplay3Alt": {
+      "description": "Used for creating contrast with Display 3.",
+      "extend": [
+        "textStyleDisplayBase",
+        "textStyleDisplay3"
+      ],
+      "values": [
+        {
+          "fontWeight": "@fontWeightBold"
+        }
+      ]
+    },
+    "textStyleDisplay4": {
+      "description": "Smaller than Display 3. Used for displaying a small amount of text, such as list items to be read at a distance.",
+      "extend": "textStyleDisplayBase",
+      "values": [
+        {
+          "fontSize": "@fontSizeLarge",
+          "fontWeight": "@fontWeightLight"
+        }
+      ]
+    },
+    "textStyleDisplay4Alt": {
+      "description": "Used for creating contrast with Display 4.",
+      "extend": [
+        "textStyleDisplayBase",
+        "textStyleDisplay4"
+      ],
+      "values": [
+        {
+          "fontWeight": "@fontWeightBold"
+        }
+      ]
+    },
+    "textStyleKaraoke": {
+      "description": "Used for highlighting text in a karaoke experience.",
+      "values": [
+        {
+          "color": "@colorText",
+          "fontFamily": "@fontFamilyRomanSans",
+          "fontSize": "@fontSizeLarge",
+          "fontStyle": "normal",
+          "fontWeight": "@fontWeightRegular",
+          "lineHeight": "@lineHeightNormal",
+          "letterSpacing": "@letterSpacingNormal",
+          "opacity": 1
+        },
+        {
+          "when": "${state.karaoke}",
+          "color": "${viewport.theme == 'light' ? '#0070ba' : '#00caff'}"
+        }
+      ]
+    },
+    "textStyleKaraokeAlt": {
+      "description": "Used for creating contrast with Karaoke by pushing back the text in the experience.",
+      "extend": "textStyleKaraoke",
+      "values": [
+        {
+          "opacity": 0.5
+        }
+      ]
+    },
+    "textStyleHeadline": {
+      "description": "Used for text that is shown alongside an item, such as a brief description or synopsis of a movie.",
+      "values": [
+        {
+          "color": "@colorText",
+          "fontFamily": "@fontFamilyRomanSans",
+          "fontSize": "@fontSizeMedium",
+          "fontStyle": "normal",
+          "fontWeight": "@fontWeightLight",
+          "lineHeight": "@lineHeightNormal",
+          "letterSpacing": "@letterSpacingNormal",
+          "opacity": 1
+        }
+      ]
+    },
+    "textStyleHeadlineAlt": {
+      "description": "Used for creating contrast with Headline.",
+      "extend": "textStyleHeadline",
+      "values": [
+        {
+          "fontWeight": "@fontWeightBold"
+        }
+      ]
+    },
+    "textStyleBody": {
+      "description": "Used for long-form content, such as the synopsis of a book.",
+      "values": [
+        {
+          "color": "@colorText",
+          "fontFamily": "@fontFamilyRomanSans",
+          "fontSize": "@fontSizeRegular",
+          "fontStyle": "normal",
+          "fontWeight": "@fontWeightLight",
+          "lineHeight": "@lineHeightNormal",
+          "letterSpacing": "@letterSpacingNormal",
+          "opacity": 1
+        }
+      ]
+    },
+    "textStyleBodyAlt": {
+      "description": "Used for creating contrast with Body.",
+      "extend": "textStyleBody",
+      "values": [
+        {
+          "fontWeight": "@fontWeightBold"
+        }
+      ]
+    },
+    "textStyleCallout": {
+      "description": "Used for text that is playing a supporting role, such as a grid view of images that each have a title.",
+      "values": [
+        {
+          "color": "@colorSecondaryText",
+          "fontFamily": "@fontFamilyRomanSans",
+          "fontSize": "@fontSizeSmall",
+          "fontStyle": "normal",
+          "fontWeight": "@fontWeightBold",
+          "lineHeight": "@lineHeightNormal",
+          "letterSpacing": "@letterSpacingNormal",
+          "opacity": 1
+        }
+      ]
+    },
+    "textStyleCalloutAlt": {
+      "description": "Used for creating contrast with Callout.",
+      "extend": "textStyleCallout",
+      "values": [
+        {
+          "fontWeight": "@fontWeightLight"
+        }
+      ]
+    },
+    "textStyleHint": {
+      "description": "Used for Hint text or Action Hint text.",
+      "values": [
+        {
+          "color": "@colorText",
+          "fontFamily": "@fontFamilyRomanSerif",
+          "fontSize": "@fontSizeSmall",
+          "fontStyle": "italic",
+          "fontWeight": "@fontWeightRegular",
+          "lineHeight": "@lineHeightNormal",
+          "letterSpacing": "@letterSpacingNormal",
+          "opacity": 1
+        }
+      ]
+    },
+    "textStyleDetail": {
+      "description": "Used to accompany Callout titles, such as a displaying additional metadata about a movie time.",
+      "values": [
+        {
+          "color": "@colorSecondaryText",
+          "fontFamily": "@fontFamilyRomanSans",
+          "fontSize": "@fontSizeXSmall",
+          "fontStyle": "normal",
+          "fontWeight": "@fontWeightBold",
+          "lineHeight": "@lineHeightNormal",
+          "letterSpacing": "@letterSpacingCondensed",
+          "opacity": 1
+        },
+        {
+          "when": "${@viewportProfile == @tvLandscapeXLarge}",
+          "fontSize": "@fontSizeSmall"
+        }
+      ]
+    },
+    "textStyleDetailAlt": {
+      "description": "Used for creating contrast with Detail.",
+      "extend": "textStyleDetail",
+      "values": [
+        {
+          "fontWeight": "@fontWeightRegular"
+        },
+        {
+          "when": "${@viewportProfile == @tvLandscapeXLarge}",
+          "fontSize": "@fontSizeSmall"
+        }
+      ]
+    },
+    "textStyleLabel": {
+      "description": "Used for buttons and actionable touch controls.",
+      "values": [
+        {
+          "color": "@colorSecondaryText",
+          "fontFamily": "@fontFamilyRomanSans",
+          "fontSize": "@fontSizeXSmall",
+          "fontStyle": "normal",
+          "fontWeight": "@fontWeightMedium",
+          "lineHeight": "@lineHeightNormal",
+          "letterSpacing": "@letterSpacingNormal",
+          "opacity": 1
+        },
+        {
+          "when": "${@viewportProfile == @tvLandscapeXLarge}",
+          "fontSize": "@fontSizeSmall"
+        }
+      ]
+    },
+    "textStyleCaption": {
+      "description": "Used rarely, and only for displaying optional UI elements, such as time passed in a progress bar.",
+      "values": [
+        {
+          "color": "@colorSecondaryText",
+          "fontFamily": "@fontFamilyRomanSans",
+          "fontSize": "@fontSizeXXSmall",
+          "fontStyle": "normal",
+          "fontWeight": "@fontWeightRegular",
+          "lineHeight": "@lineHeightNormal",
+          "letterSpacing": "@letterSpacingNormal",
+          "opacity": 1
+        },
+        {
+          "when": "${@viewportProfile == @tvLandscapeXLarge}",
+          "fontSize": "@fontSizeXSmall"
+        }
+      ]
+    }
+  }
+}

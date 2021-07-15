@@ -1,0 +1,24 @@
+{
+  "type": "APL",
+  "version": "1.0",
+  "theme": "light",
+  "description": "This is a sample APL document",
+  "import": [],
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "Text",
+          "width": "100%",
+          "text": "Hello World",
+          "color": "blue",
+          "fontSize": 90
+        }
+      ]
+    }
+  }
+}
