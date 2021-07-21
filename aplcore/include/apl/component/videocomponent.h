@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -25,15 +25,13 @@ namespace apl {
 class VideoComponent : public CoreComponent,
                        public MediaComponentTrait {
 public:
-    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const std::string& path);
-    VideoComponent(const ContextPtr& context, Properties&& properties, const std::string& path);
+    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const Path& path);
+    VideoComponent(const ContextPtr& context, Properties&& properties, const Path& path);
 
     ComponentType getType() const override { return kComponentTypeVideo; };
     void updateMediaState(const MediaState& state, bool fromEvent) override;
 
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
-
-    void pendingMediaLoaded(const std::string& source, int stillPending) override;
 
     std::string getCurrentUrl() const;
 
@@ -43,11 +41,15 @@ protected:
     const EventPropertyMap & eventPropertyMap() const override;
     const ComponentPropDefSet& propDefSet() const override;
     void addEventProperties(ObjectMap &event) const override;
-    std::string getVisualContextType() override;
+    std::string getVisualContextType() const override;
     void assignProperties(const ComponentPropDefSet &propDefSet) override;
 
     /// Media component trait overrides
-    std::set<std::string> getSources() override;
+    std::vector<std::string> getSources() override;
+    EventMediaType mediaType() const override { return kEventMediaTypeVideo; }
+    void pendingMediaReturned(const MediaObjectPtr& source) override;
+
+    // Component trait overrides
     CoreComponentPtr getComponent() override { return shared_from_corecomponent(); }
 
 private:

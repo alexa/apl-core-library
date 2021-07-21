@@ -90,7 +90,9 @@ ExtensionMediator::loadExtensions(const RootConfigPtr& rootConfig, const Content
                                                           mediator->enqueueResponse(uri, registrationFailure);
                                                   });
 
-            if (!success) {
+            if (success) {
+                proxy->onRegistered(uri, client->getConnectionToken());
+            } else {
                 // call to extension failed without failure callback
                 CONSOLE_S(session) << "Extension registration failure - code: " << kErrorInvalidMessage
                                    << " message: " << sErrorMessage[kErrorInvalidMessage] + uri;
@@ -161,17 +163,21 @@ ExtensionMediator::registerExtension(const std::string& uri, const ExtensionProx
 
     extension->registerEventCallback(
             [weak_this](const std::string& uri, const rapidjson::Value& event) {
-                if (auto mediator = weak_this.lock())
-                    mediator->enqueueResponse(uri, event);
-                else if (DEBUG_EXTENSION_MEDIATOR)
+                if (auto mediator = weak_this.lock()) {
+                    if (mediator->isEnabled())
+                        mediator->enqueueResponse(uri, event);
+                } else if (DEBUG_EXTENSION_MEDIATOR) {
                     LOG(LogLevel::kDebug) << "Mediator expired for event callback.";
+                }
             });
     extension->registerLiveDataUpdateCallback(
             [weak_this](const std::string& uri, const rapidjson::Value& liveDataUpdate) {
-                if (auto mediator = weak_this.lock())
-                    mediator->enqueueResponse(uri, liveDataUpdate);
-                else if (DEBUG_EXTENSION_MEDIATOR)
+                if (auto mediator = weak_this.lock()) {
+                    if (mediator->isEnabled())
+                        mediator->enqueueResponse(uri, liveDataUpdate);
+                } else if (DEBUG_EXTENSION_MEDIATOR) {
                     LOG(LogLevel::kDebug) << "Mediator expired for live data callback.";
+                }
             });
 
     mClients.emplace(uri, client);

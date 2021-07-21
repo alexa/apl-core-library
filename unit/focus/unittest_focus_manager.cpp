@@ -83,13 +83,14 @@ TEST_F(FocusManagerTest, ManualControl)
     ASSERT_EQ(thing2, event.getComponent());
 
     fm.clearFocus(true);
-    ASSERT_FALSE(thing1->getState().get(kStateFocused));
-    ASSERT_FALSE(thing2->getState().get(kStateFocused));
-    ASSERT_FALSE(fm.getFocus());
-    ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
     ASSERT_EQ(kEventTypeFocus, event.getType());
     ASSERT_FALSE(event.getComponent());
+    event.getActionRef().resolve(true);
+    root->clearPending();
+    ASSERT_FALSE(thing1->getState().get(kStateFocused));
+    ASSERT_FALSE(thing2->getState().get(kStateFocused));
+    ASSERT_FALSE(fm.getFocus());
 
     thing1->update(kUpdateTakeFocus, 1);
     ASSERT_TRUE(thing1->getState().get(kStateFocused));
@@ -334,7 +335,7 @@ TEST_F(FocusManagerTest, FocusEvent)
     ASSERT_TRUE(IsEqual("Focus:true", text->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(IsEqual(Rect(0,0,1024,10), text->getCalculated(kPropertyBounds)));
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(root,text));
+    ASSERT_TRUE(CheckDirty(root, component, text));
 
     // Drop focus.  This does not change the text size, so the bounds do not change
     component->update(kUpdateTakeFocus, 0);
@@ -345,7 +346,7 @@ TEST_F(FocusManagerTest, FocusEvent)
     ASSERT_TRUE(CheckState(component));
     ASSERT_TRUE(IsEqual("Blur:false", text->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(CheckDirty(text, kPropertyText));
-    ASSERT_TRUE(CheckDirty(root,text));
+    ASSERT_TRUE(CheckDirty(root, text));
 }
 
 static const char *FOCUS_COMPONENT_TYPES =
@@ -655,13 +656,11 @@ TEST_F(FocusManagerTest, FocusWithInheritParentState)
 
     // This clears the focus
     executeCommand("ClearFocus", {}, false);
-    ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
     ASSERT_EQ(kEventTypeFocus, event.getType());
-    ASSERT_EQ(nullptr, event.getComponent());
+    ASSERT_FALSE(event.getComponent());
+    ASSERT_TRUE(event.getActionRef().isEmpty());
     root->clearPending();
-    ASSERT_FALSE(root->hasEvent());
-
     ASSERT_FALSE(component->getState().get(kStateFocused));
     ASSERT_FALSE(a->getState().get(kStateFocused));
     ASSERT_FALSE(b->getState().get(kStateFocused));

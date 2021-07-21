@@ -18,6 +18,7 @@
 #include "apl/focus/beamintersect.h"
 #include "apl/focus/focusvisitor.h"
 #include "apl/engine/rootcontextdata.h"
+#include "apl/component/corecomponent.h"
 
 namespace apl {
 
@@ -52,6 +53,10 @@ FocusFinder::findNext(const CoreComponentPtr& focused, FocusDirection direction)
         return next;
     }
 
+    if (!focused && root->isFocusable()) {
+        return root;
+    }
+
     if (root != focused && root->isFocusable()) {
         LOG_IF(DEBUG_FOCUS_FINDER) << "going with root";
         return root->takeFocusFromChild(direction, focusedRect);
@@ -67,11 +72,15 @@ FocusFinder::findNext(
         const CoreComponentPtr& root)
 {
     if (direction == kFocusDirectionForward || direction == kFocusDirectionBackwards) {
-        return findNextByTabOrder(nullptr, root, direction);
+        return findNextByTabOrder(focused, root, direction);
     }
     auto next = findNextInternal(root, focusedRect, direction);
     if (next != nullptr && next != focused) {
         return next;
+    }
+
+    if (!focused && root->isFocusable()) {
+        return root;
     }
 
     if (root != focused && root->isFocusable()) {
@@ -114,7 +123,7 @@ FocusFinder::findNextInternal(const CoreComponentPtr& root, const Rect& focusedR
         // relation to it's children.
         offsetFocusRect.offset(bestCandidate->scrollPosition());
         auto better = findNextInternal(bestCandidate, offsetFocusRect, direction);
-        if (better) {
+        if (better && !(bestCandidate->isTouchable() && better->isTouchable())) {
             return better;
         }
         return bestCandidate;
@@ -154,6 +163,8 @@ FocusFinder::findNextByTabOrder(const CoreComponentPtr& focused, const CoreCompo
         if (!current) {
             if (!focusables.empty())
                 return *focusables.begin();
+            if (!focused && root->isFocusable())
+                return root;
             return nullptr;
         }
 

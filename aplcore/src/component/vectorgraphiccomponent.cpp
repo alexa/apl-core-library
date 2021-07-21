@@ -26,7 +26,7 @@ namespace apl {
 CoreComponentPtr
 VectorGraphicComponent::create(const ContextPtr& context,
                                Properties&& properties,
-                               const std::string& path)
+                               const Path& path)
 {
     auto ptr = std::make_shared<VectorGraphicComponent>(context, std::move(properties), path);
     ptr->initialize();
@@ -35,7 +35,7 @@ VectorGraphicComponent::create(const ContextPtr& context,
 
 VectorGraphicComponent::VectorGraphicComponent(const ContextPtr& context,
                                                Properties&& properties,
-                                               const std::string& path)
+                                               const Path& path)
     : TouchableComponent(context, std::move(properties), path)
 {
 }
@@ -53,12 +53,13 @@ VectorGraphicComponent::release()
 const ComponentPropDefSet&
 VectorGraphicComponent::propDefSet() const
 {
-    static ComponentPropDefSet sVectorGraphicComponentProperties(TouchableComponent::propDefSet(), {
-        {kPropertyAlign,       kVectorGraphicAlignCenter, sVectorGraphicAlignMap, kPropInOut | kPropStyled | kPropDynamic},
-        {kPropertyGraphic,     Object::NULL_OBJECT(),     nullptr,                kPropOut},
-        {kPropertyMediaBounds, Object::NULL_OBJECT(),     nullptr,                kPropOut},
-        {kPropertyScale,       kVectorGraphicScaleNone,   sVectorGraphicScaleMap, kPropInOut | kPropStyled | kPropDynamic},
-        {kPropertySource,      "",                        asString,               kPropInOut},
+    static auto sVectorGraphicComponentProperties = ComponentPropDefSet(TouchableComponent::propDefSet(), MediaComponentTrait::propDefList())
+        .add({
+            {kPropertyAlign,       kVectorGraphicAlignCenter, sVectorGraphicAlignMap, kPropInOut | kPropStyled | kPropDynamic},
+            {kPropertyGraphic,     Object::NULL_OBJECT(),     nullptr,                kPropOut},
+            {kPropertyMediaBounds, Object::NULL_OBJECT(),     nullptr,                kPropOut},
+            {kPropertyScale,       kVectorGraphicScaleNone,   sVectorGraphicScaleMap, kPropInOut | kPropStyled | kPropDynamic},
+            {kPropertySource,      "",                        asString,               kPropInOut},
     });
 
     return sVectorGraphicComponentProperties;
@@ -115,7 +116,7 @@ VectorGraphicComponent::updateStyle()
         setDirty(kPropertyGraphic);
 
     // Changing the style may result in a size change or a position change
-    processLayoutChanges(true);
+    processLayoutChanges(true, false);
 }
 
 const EventPropertyMap&
@@ -159,15 +160,15 @@ VectorGraphicComponent::updateGraphic(const GraphicContentPtr& json)
     setDirty(kPropertyGraphic);
 
     // Recalculate the media bounds. This will internally do a layout
-    processLayoutChanges(true);
+    processLayoutChanges(true, false);
     g->clearDirty();   // Some flags may have been set; we clear them here because this is the first use of the graphic
     return true;
 }
 
 void
-VectorGraphicComponent::processLayoutChanges(bool useDirtyFlag)
+VectorGraphicComponent::processLayoutChanges(bool useDirtyFlag, bool first)
 {
-    CoreComponent::processLayoutChanges(useDirtyFlag);
+    CoreComponent::processLayoutChanges(useDirtyFlag, first);
 
     auto graphic = mCalculated.get(kPropertyGraphic);
     if (graphic.isGraphic()) {
@@ -265,7 +266,7 @@ VectorGraphicComponent::processLayoutChanges(bool useDirtyFlag)
 }
 
 std::string
-VectorGraphicComponent::getVisualContextType()
+VectorGraphicComponent::getVisualContextType() const
 {
     return getCalculated(kPropertyGraphic).isNull() ? VISUAL_CONTEXT_TYPE_EMPTY : VISUAL_CONTEXT_TYPE_GRAPHIC;
 }
@@ -346,6 +347,34 @@ VectorGraphicComponent::isTouchable() const
 {
     // Same rules as for focus
     return isFocusable();
+}
+
+std::vector<std::string>
+VectorGraphicComponent::getSources() {
+    std::vector<std::string> sources;
+
+    auto graphic = mCalculated.get(kPropertyGraphic);
+    if (graphic.isGraphic()) {
+        // Graphic is already present, nothing to load
+        return sources;
+    }
+
+    auto source = mCalculated.get(kPropertySource);
+    if (source.isString()) {
+        auto graphicResource = mContext->getGraphic(source.getString());
+        if (graphicResource.empty()) {
+            // Graphic is not a local resource, treat as URI
+            sources.emplace_back(source.getString());
+        }
+    }
+
+    return sources;
+}
+
+void
+VectorGraphicComponent::postProcessLayoutChanges() {
+    CoreComponent::postProcessLayoutChanges();
+    MediaComponentTrait::postProcessLayoutChanges();
 }
 
 } // namespace apl

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -49,6 +49,8 @@
 #include "apl/graphic/graphicpattern.h"
 #include "apl/livedata/livearray.h"
 #include "apl/livedata/livemap.h"
+#include "apl/media/mediamanager.h"
+#include "apl/media/mediaobject.h"
 #include "apl/primitives/accessibilityaction.h"
 #include "apl/primitives/dimension.h"
 #include "apl/primitives/filter.h"
@@ -62,7 +64,6 @@
 #include "apl/utils/localemethods.h"
 #include "apl/utils/log.h"
 #include "apl/utils/session.h"
-#include "apl/utils/telemetry.h"
 
 #ifdef ALEXAEXTENSIONS
 #include "apl/extension/extensionmediator.h"

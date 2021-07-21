@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -47,11 +47,13 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ("1.0", env.get("agentVersion").asString());
     EXPECT_EQ("normal", env.get("animation").asString());
     EXPECT_FALSE(env.get("allowOpenURL").asBoolean());
-    EXPECT_EQ("1.6", env.get("aplVersion").asString());
+    EXPECT_EQ("1.7", env.get("aplVersion").asString());
     EXPECT_FALSE(env.get("disallowVideo").asBoolean());
     EXPECT_EQ("23.2", env.get("testEnvironment").asString());
     EXPECT_EQ(1.0, env.get("fontScale").asNumber());
     EXPECT_EQ("normal", env.get("screenMode").asString());
+    EXPECT_EQ("", env.get("lang").asString());
+    EXPECT_EQ("LTR", env.get("layoutDirection").asString());
     EXPECT_EQ(false, env.get("screenReader").asBoolean());
 
     auto timing = env.get("timing");
@@ -96,6 +98,8 @@ TEST_F(ContextTest, AlternativeConfig)
         .screenMode(RootConfig::kScreenModeHighContrast)
         .screenReader(true)
         .doublePressTimeout(2000)
+        .set(RootProperty::kLang, "en-US")
+        .set(RootProperty::kLayoutDirection, "RTL")
         .longPressTimeout(2100)
         .minimumFlingVelocity(565)
         .pressedDuration(999)
@@ -223,6 +227,33 @@ TEST_F(ContextTest, Time)
 
     component = nullptr;
     root = nullptr;
+}
+
+static const char * BASIC_ENV_DOC = R"apl(
+{
+   "type": "APL",
+   "version": "1.7",
+   "lang": "en-US",
+   "layoutDirection": "RTL",
+   "mainTemplate": {
+     "item": {
+       "type": "Text",
+       "lang": "es-US",
+       "height": 110,
+       "text": "Document Lang: ${environment.lang} LayoutDirection: ${environment.layoutDirection}"
+     }
+   }
+ }
+)apl";
+
+TEST_F(ContextTest, LangAndLayoutDirectionCheck)
+{
+    auto rootConfig = RootConfig();
+    auto content = Content::create(BASIC_ENV_DOC);
+    auto root = RootContext::create(Metrics(), content, rootConfig);
+    auto component = root->topComponent();
+
+    ASSERT_EQ("Document Lang: en-US LayoutDirection: RTL", component->getCalculated(kPropertyText).asString());
 }
 
 /*

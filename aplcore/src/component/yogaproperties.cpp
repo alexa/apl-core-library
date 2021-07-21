@@ -14,6 +14,7 @@
  */
 
 #include "apl/component/yogaproperties.h"
+#include "apl/component/corecomponent.h"
 #include "apl/primitives/dimension.h"
 #include "apl/primitives/object.h"
 #include "apl/utils/log.h"
@@ -39,7 +40,7 @@ void
 setPositionType(YGNodeRef nodeRef, const Object& value, const Context&) {
     LOG_IF(DEBUG_FLEXBOX) << value << " [" << nodeRef << "]";
     auto positionType = static_cast<Position>(value.asInt());
-    if (positionType == kPositionRelative)
+    if (positionType == kPositionRelative || positionType == kPositionSticky)
         YGNodeStyleSetPositionType(nodeRef, YGPositionTypeRelative);
     else if (positionType == kPositionAbsolute)
         YGNodeStyleSetPositionType(nodeRef, YGPositionTypeAbsolute);
@@ -157,10 +158,18 @@ void setBorder(YGNodeRef nodeRef, YGEdge edge, const Object& value, const Contex
 
 void setPosition(YGNodeRef nodeRef, YGEdge edge, const Object& value, const Context& context) {
     LOG_IF(DEBUG_FLEXBOX) << sEdgeToString[edge] << "->" << value << " [" << nodeRef << "]";
-    if(value.isNull()) return;
+
+    CoreComponent *component = static_cast<CoreComponent*>(nodeRef->getContext());
+    if (component && component->getCalculated(kPropertyPosition) == kPositionSticky) {
+        YGNodeStyleSetPosition(nodeRef, edge, NAN);
+        return;
+    }
+
     Dimension position = value.asDimension(context);
     if (position.isRelative())
         YGNodeStyleSetPositionPercent(nodeRef, edge, position.getValue());
+    else if (value.isNull() || value.isAutoDimension())
+        YGNodeStyleSetPosition(nodeRef, edge, NAN);
     else if (position.isAbsolute())
         YGNodeStyleSetPosition(nodeRef, edge, position.getValue());
 }
@@ -305,6 +314,22 @@ setDisplay(YGNodeRef nodeRef, const Object& value, const Context&) {
     YGNodeStyleSetDisplay(nodeRef, display == kDisplayNone ? YGDisplayNone : YGDisplayFlex);
 }
 
+void
+setLayoutDirection(YGNodeRef nodeRef, const Object& value, const Context&) {
+    LOG_IF(DEBUG_FLEXBOX) << sLayoutDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
+    auto layoutDirection = static_cast<LayoutDirection>(value.asInt());
+    switch (layoutDirection) {
+        case kLayoutDirectionLTR:
+            YGNodeStyleSetDirection(nodeRef, YGDirection::YGDirectionLTR);
+            break;
+        case kLayoutDirectionRTL:
+            YGNodeStyleSetDirection(nodeRef, YGDirection::YGDirectionRTL);
+            break;
+        case kLayoutDirectionInherit: // FALL_THROUGH
+        default:
+            YGNodeStyleSetDirection(nodeRef, YGDirection::YGDirectionInherit);
+    }
+}
 
 } // namespace yn
 } // namespace apl

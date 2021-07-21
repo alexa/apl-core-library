@@ -1,4 +1,4 @@
-# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License").
 # You may not use this file except in compliance with the License.
@@ -244,10 +244,12 @@ function apl-config-android { # Run cmake for Android
         mkdir -p android-build
         cd android-build
         echo "Running $CMAKE"
-        $CMAKE -DANDROID_ABI="x86" \
+        $CMAKE -DCMAKE_BUILD_TYPE=Release \
+               -DANDROID_ABI="armeabi-v7a" \
                -DANDROID_PLATFORM=android-24 \
                -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
-               -DAPL_JNI=ON ..
+               -DAPL_JNI=ON \
+               -DBUILD_TESTS=ON ..
     )
 }
 
@@ -290,7 +292,7 @@ function apl-config-wasm {  # Run cmake in the wasm build
         cd $APL_DIR
         mkdir -p wasm-build
         cd wasm-build
-        emcmake cmake -DEMSCRIPTEN=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Debug -DEMSCRIPTEN_SOURCEMAPS=ON -DBUILD_TESTS=OFF ..
+        emcmake cmake -DEMSCRIPTEN=ON -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release -DEMSCRIPTEN_SOURCEMAPS=ON ..
     )
 }
 

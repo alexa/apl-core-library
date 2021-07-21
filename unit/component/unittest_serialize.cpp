@@ -85,7 +85,7 @@ static const char *SERIALIZE_COMPONENTS = R"({
         {
           "type": "Text",
           "id": "text",
-          "text": "<b>Styled</b> <i>text</i>"
+          "text": "<span color='red'>colorful</span> <b>Styled</b> <i>text</i>"
         },
         {
           "type": "ScrollView",
@@ -238,7 +238,8 @@ TEST_F(SerializeTest, Components)
     auto styledText = text->getCalculated(kPropertyText).getStyledText();
     ASSERT_EQ(styledText.getText(), textJson["text"]["text"].GetString());
     ASSERT_EQ(styledText.getSpans().size(), textJson["text"]["spans"].Size());
-    ASSERT_EQ(text->getCalculated(kPropertyTextAlign), textJson["textAlign"].GetDouble());
+    ASSERT_EQ(styledText.getSpans()[0].attributes.size(), textJson["text"]["spans"][0][3].Size());
+    ASSERT_EQ(text->getCalculated(kPropertyTextAlignAssigned), textJson["_textAlign"].GetDouble());
     ASSERT_EQ(text->getCalculated(kPropertyTextAlignVertical), textJson["textAlignVertical"].GetDouble());
 
     auto scroll = context->findComponentById("scroll");
@@ -363,7 +364,7 @@ TEST_F(SerializeTest, Event)
     ASSERT_EQ(1.0, json["arguments"][2].GetDouble());
 
     ASSERT_TRUE(json["components"].HasMember("text"));
-    ASSERT_STREQ("<b>Styled</b> <i>text</i>", json["components"]["text"].GetString());
+    ASSERT_STREQ("<span color='red'>colorful</span> <b>Styled</b> <i>text</i>", json["components"]["text"].GetString());
 
     ASSERT_STREQ("Press", json["source"]["handler"].GetString());
     ASSERT_STREQ("touch", json["source"]["id"].GetString());
@@ -431,6 +432,9 @@ const static char *SERIALIZE_ALL_RESULT = R"({
     1280,
     400
   ],
+  "lang": "",
+  "layoutDirection": "inherit",
+  "_layoutDirection": "LTR",
   "letterSpacing": 0,
   "lineHeight": 1.25,
   "maxHeight": null,
@@ -442,9 +446,11 @@ const static char *SERIALIZE_ALL_RESULT = R"({
   "opacity": 1,
   "padding": [],
   "paddingBottom": null,
+  "paddingEnd": null,
   "paddingLeft": null,
   "paddingRight": null,
   "paddingTop": null,
+  "paddingStart": null,
   "preserve": [],
   "role": "none",
   "shadowColor": "#00000000",
@@ -457,6 +463,7 @@ const static char *SERIALIZE_ALL_RESULT = R"({
     "spans": []
   },
   "textAlign": "center",
+  "_textAlign": "center",
   "textAlignVertical": "auto",
   "_transform": [
     1,
@@ -919,7 +926,7 @@ TEST_F(SerializeTest, AVGInSequence) {
     loadDocument(MUSIC_DOC);
     ASSERT_TRUE(component);
 
-    root->updateTime(5);
+    advanceTime(5);
 
     ASSERT_TRUE(root->isDirty());
     ASSERT_EQ(2, root->getDirty().size());

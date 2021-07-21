@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 #define _APL_DATA_SOURCE_CONNECTION_H
 
 #include <memory>
+
+#include "rapidjson/document.h"
 
 #include "apl/common.h"
 #include "apl/utils/counter.h"
@@ -47,6 +49,12 @@ public:
      * @return LiveArray used as data storage for this connection.
      */
     virtual std::shared_ptr<LiveArray> getLiveArray() = 0;
+
+    /**
+     * Retrieve datasource context as a JSON object. Should be called by RootContext->serializeDatasourceContext()
+     */
+    virtual void serialize(rapidjson::Value& outMap,
+                           rapidjson::Document::AllocatorType& allocator) = 0;
 };
 
 } // namespace apl

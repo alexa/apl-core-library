@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -14,19 +14,12 @@
  */
 
 #include <iostream>
-#include <apl/utils/log.h>
 
-#include "rapidjson/document.h"
 #include "gtest/gtest.h"
 
 #include "apl/engine/evaluate.h"
 #include "apl/engine/builder.h"
 #include "apl/component/component.h"
-#include "apl/engine/rootcontext.h"
-#include "apl/content/metrics.h"
-#include "apl/engine/resources.h"
-#include "apl/engine/styles.h"
-#include "apl/component/textmeasurement.h"
 
 #include "../testeventloop.h"
 
@@ -133,6 +126,7 @@ static const char *VERTICAL_SEQUENCE =
 TEST_F(BoundsTest, VerticalSequence)
 {
     loadDocument(VERTICAL_SEQUENCE);
+    advanceTime(10);
 
     ASSERT_EQ(Rect(0,0,200,500), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(5, component->getChildCount());
@@ -198,6 +192,7 @@ static const char *HORIZONTAL_SEQUENCE =
 TEST_F(BoundsTest, HorizontalSequence)
 {
     loadDocument(HORIZONTAL_SEQUENCE);
+    advanceTime(10);
 
     ASSERT_EQ(Rect(0,0,500,200), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(5, component->getChildCount());
@@ -231,6 +226,46 @@ TEST_F(BoundsTest, HorizontalSequence)
     // Verify that we can't set out of bounds position
     component->update(kUpdateScrollPosition, 1000);
     ASSERT_EQ(500, component->getCalculated(kPropertyScrollPosition).asNumber());
+}
+
+TEST_F(BoundsTest, HorizontalSequenceRTL)
+{
+    loadDocument(HORIZONTAL_SEQUENCE);
+    component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+    root->clearPending();
+
+    ASSERT_EQ(Rect(0,0,500,200), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(5, component->getChildCount());
+
+    for (auto i = 0 ; i < component->getChildCount() ; i++) {
+        auto child = component->getChildAt(i);
+        ASSERT_EQ(Rect(300 - 200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        Rect rect;
+        ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
+        ASSERT_EQ(Rect(300 - 200*i, 0, 200, 200), rect);
+    }
+
+    component->update(kUpdateScrollPosition, -100);
+    for (auto i = 0 ; i < component->getChildCount() ; i++) {
+        auto child = component->getChildAt(i);
+        ASSERT_EQ(Rect(300 - 200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        Rect rect;
+        ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
+        ASSERT_EQ(Rect(300 - 200*i + 100, 0, 200, 200), rect);
+    }
+
+    component->update(kUpdateScrollPosition, -500);
+    for (auto i = 0 ; i < component->getChildCount() ; i++) {
+        auto child = component->getChildAt(i);
+        ASSERT_EQ(Rect(300 - 200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        Rect rect;
+        ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
+        ASSERT_EQ(Rect(300 - 200*i + 500, 0, 200, 200), rect);
+    }
+
+    // Verify that we can't set out of bounds position
+    component->update(kUpdateScrollPosition, -1000);
+    ASSERT_EQ(-500, component->getCalculated(kPropertyScrollPosition).asNumber());
 }
 
 static const char *CHILD_IN_PARENT =
@@ -302,6 +337,7 @@ static const char *CHILD_IN_PARENT =
 TEST_F(BoundsTest, ChildInParent)
 {
     loadDocument(CHILD_IN_PARENT);
+    advanceTime(10);
 
     auto sequence = component->getChildAt(1);
     ASSERT_EQ(9, sequence->getChildCount());
@@ -355,8 +391,9 @@ TEST_F(BoundsTest, ChildInParent)
     }
 
     // Sanity test some binding logic
-    ASSERT_EQ(StyledText::create("3"), sequence->getChildAt(2)->getChildAt(0)->getCalculated(kPropertyText));
-    ASSERT_EQ(StyledText::create("Turtle"), sequence->getChildAt(2)->getChildAt(1)->getCalculated(kPropertyText));
+    auto context = Context::createTestContext(Metrics(), makeDefaultSession());
+    ASSERT_EQ(StyledText::create(*context, "3"), sequence->getChildAt(2)->getChildAt(0)->getCalculated(kPropertyText));
+    ASSERT_EQ(StyledText::create(*context, "Turtle"), sequence->getChildAt(2)->getChildAt(1)->getCalculated(kPropertyText));
 }
 
 static const char *NESTED_CHILD = "{"

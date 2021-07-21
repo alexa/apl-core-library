@@ -16,16 +16,12 @@
 #include <iostream>
 #include <apl/utils/log.h>
 
-#include "rapidjson/document.h"
 #include "gtest/gtest.h"
 
 #include "apl/engine/evaluate.h"
 #include "apl/engine/builder.h"
 #include "apl/component/component.h"
-#include "apl/engine/rootcontext.h"
 #include "apl/content/metrics.h"
-#include "apl/engine/resources.h"
-#include "apl/engine/styles.h"
 #include "apl/component/textmeasurement.h"
 
 #include "../testeventloop.h"
@@ -1078,6 +1074,7 @@ const static char *SEQUENCE_TEST =
 TEST_F(FlexboxTest, SequenceTest)
 {
     loadDocument(SEQUENCE_TEST);
+    advanceTime(10);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(4, component->getChildCount());
     ASSERT_EQ(kComponentTypeSequence, component->getType());
@@ -1116,6 +1113,7 @@ const static char *HORIZONTAL_SEQUENCE_TEST =
 TEST_F(FlexboxTest, HorizontalSequenceTest)
 {
     loadDocument(HORIZONTAL_SEQUENCE_TEST);
+    advanceTime(10);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(4, component->getChildCount());
     ASSERT_EQ(kComponentTypeSequence, component->getType());
@@ -1167,6 +1165,7 @@ TEST_F(FlexboxTest, SequenceWithSpacingTest)
 {
     config->sequenceChildCache(2);
     loadDocument(SPACED_SEQUENCE);
+    advanceTime(10);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(8, component->getChildCount());
     ASSERT_EQ(kComponentTypeSequence, component->getType());
@@ -1184,6 +1183,7 @@ TEST_F(FlexboxTest, SequenceWithSpacingTestEnsureJump)
 {
     config->sequenceChildCache(2);
     loadDocument(SPACED_SEQUENCE);
+    advanceTime(10);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(8, component->getChildCount());
     ASSERT_EQ(kComponentTypeSequence, component->getType());
@@ -1226,6 +1226,7 @@ TEST_F(FlexboxTest, PagerTest)
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
     ASSERT_EQ(3, component->getChildCount());
     ASSERT_EQ(kComponentTypePager, component->getType());
+    advanceTime(10);
 
     for (int i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);

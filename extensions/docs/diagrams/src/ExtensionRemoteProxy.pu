@@ -1,0 +1,143 @@
+@startuml RemoteExtensionProxy
+
+title
+<u><b>alexaext: ExtensionProxy Out-Of-Process Extensions</b></u>
+<i>secondary, alternate, and negative code paths removed for simplicity</i>
+
+ 'blank title line for spacing
+end title
+
+skinparam sequence {
+ParticipantBorderColor #808080
+}
+skinparam responseMessageBelowArrow true
+
+box "\nRuntime Process\n" #daedf4
+participant "<Actor>" as Actor #LightBlue
+participant "ClientExtensionProxy" as Proxy
+end box
+box "\n<Platform IPC>\n" #daf4ee
+participant "IPC Message" as IPC #bcebe0
+end box
+box "\nExtension Process\n" #ffffed
+participant "ServerExtensionProxy" as Server
+participant "Extension" as Extension
+end box
+
+note over Actor #LightGray: Actor may be a Provider or Execution Environment
+note over IPC #LightGray: all calls are asynchronous messages over platform specific ipc
+
+== Proxy Creation ==
+
+autonumber
+Actor <-> Proxy: create:Proxy:Proxy \n<font color=gray>(uri:string,\n<font color=gray>package:PackageInfo)
+Actor <-> Proxy : registerEventCallback:void \n<font color=gray>(callback:EventCallback)
+Actor <-> Proxy : registerLiveDataCallback:void \n<font color=gray>(callback:LiveDataCallback)
+autonumber stop
+
+...
+== Extension Initialization ==
+
+autonumber
+note over Actor,Proxy #LightGray
+  "prepare" is called to notify the proxy of intended extension use. Proxy
+  implementations may ignore, defer, construct the extension, or initialize
+  extension resources.  The proxy should not depend on on this call.
+end note
+Actor -> Proxy: prepare:void  \n<font color=gray>(uri:string)
+activate Actor
+activate Proxy
+activate Proxy
+return
+deactivate Actor
+
+Proxy --> Server: bindProcess:void  \n<font color=gray>(package:PackageInfo,  \n<font color=gray>callback:ProcessCallback)
+deactivate Proxy
+activate Server
+Server <-> Extension: create:Extension \n<font color=gray>(uri:string)
+activate Extension
+Server <-> Extension : registerEventCallback:void  \n<font color=gray>(proxyCB:EventCallback)
+Server <-> Extension : registerLiveDataCallback:  \n<font color=gray>void(proxyCb:EventCallback)
+deactivate Extension
+activate Proxy
+Server --> Proxy: callback:void \n<font color=gray>(pidHandle:ProcessHandle)
+deactivate Server
+deactivate Proxy
+autonumber stop
+
+...
+== Extension Registration ==
+
+autonumber
+Actor --> Proxy: getRegistration:void \n<font color=gray>({RegistrationRequest:json}, \n<font color=gray>callback:RegistrationCallback)
+activate Actor
+activate Proxy
+activate Proxy
+return
+deactivate Actor
+Proxy --> Server: send:  \n<font color=gray>({RegistrationRequest:json})
+deactivate Proxy
+activate Server
+Server -> Extension: getRegistration:void  \n<font color=gray>({RegistrationRequest:json},  \n<font color=gray>callback:RegistrationCallback)
+activate Extension
+Extension -> Server: callback:void \n<font color=gray>({RegistrationSuccess:json})
+deactivate Extension
+Server --> Proxy: send:void \n<font color=gray>({RegistrationSuccess:json})
+deactivate Server
+activate Proxy
+activate Actor
+Proxy --> Actor: callback:void \n<font color=gray>({RegistrationSuccess:json})
+deactivate Proxy
+deactivate Actor
+autonumber stop
+
+...
+== Extension Command ==
+
+autonumber
+note over Proxy #LightGray
+  "invokeCommand" returns the status of the call, the Command processing
+  result is returned asynchronously
+end note
+Actor --> Proxy: invokeCommand:bool \n<font color=gray>({Command:json} \n<font color=gray>callback:CommandCallback)
+activate Actor
+activate Proxy
+activate Proxy
+return true
+deactivate Actor
+Proxy --> Server: send \n<font color=gray>({Command:json})
+deactivate Proxy
+activate Server
+Server -> Extension: invokeCommand:bool \n<font color=gray>({Command:json},  \n<font color=gray>callback:CommandCallback)
+activate Extension
+Extension -> Extension: processCommand:bool
+Extension -> Server: callback:void \n<font color=gray>({CommandSucces:json})
+deactivate Extension
+Server --> Proxy: send \n<font color=gray>({CommandSuccess:json})
+deactivate Server
+activate Proxy
+activate Actor
+Proxy --> Actor: callback:void \n<font color=gray>(CommandSuccess):json
+deactivate Proxy
+deactivate Actor
+autonumber stop
+
+...
+== Extension Event / LiveData ==
+
+autonumber
+Extension -> Extension: internalEvent
+activate Extension
+Extension -> Server: callback:void \n<font color=gray>({Event:json})
+deactivate Extension
+activate Server
+Server --> Proxy: send \n<font color=gray>({Event:json})
+deactivate Server
+activate Proxy
+activate Actor
+Proxy -> Actor: callback:void  \n<font color=gray>({Event:json})
+deactivate Proxy
+deactivate Actor
+autonumber stop
+
+@enduml

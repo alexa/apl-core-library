@@ -1,4 +1,4 @@
-# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License").
 # You may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 
 # APL options
 option(DEBUG_MEMORY_USE "Track memory use." OFF)
-option(TELEMETRY "Telemetry support. Required for performance tests." OFF)
+option(TRACING "Enable tracing." OFF)
 option(COVERAGE "Coverage instrumentation" OFF)
 option(WERROR "Build with -Werror enabled." OFF)
 option(VALIDATE_HEADERS "Validate that only external headers are (transitively) included from apl.h" ON)

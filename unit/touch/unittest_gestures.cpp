@@ -49,6 +49,11 @@ public:
     HandleAndCheckConsumedPointerEvent(PointerEventType type, const Point& point, Args... args) {
         return HandlePointerEvent(root, type, point, true, args...);
     }
+
+    void swipeAwayLeftSlide();
+
+    void swipeAwayRightSlide();
+
 };
 
 static const char *DOUBLE_PRESS = R"(
@@ -137,7 +142,7 @@ TEST_F(GesturesTest, DoublePress)
     ASSERT_FALSE(root->hasEvent());
 
     // Timeout Double press and ensure it reported single press
-    root->updateTime(600);
+    advanceTime(600);
     ASSERT_TRUE(CheckEvent("onSinglePress", 10));
 
     ASSERT_EQ("Click", text->getCalculated(kPropertyText).asString());
@@ -145,7 +150,7 @@ TEST_F(GesturesTest, DoublePress)
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(15,0), "onDown"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(15,0), "onUp"));
     ASSERT_TRUE(CheckEvent("onPress"));
-    root->updateTime(1000);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerDown, Point(15,0), "onDown"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(15,0), "onCancel"));
     ASSERT_TRUE(CheckEvent("onDoublePress", 15));
@@ -168,18 +173,18 @@ TEST_F(GesturesTest, DoublePressThree)
     ASSERT_TRUE(CheckEvent("onPress"));
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(400);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerDown, Point(15,0), "onDown"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(15,0), "onCancel"));
     ASSERT_TRUE(CheckEvent("onDoublePress", 15));
 
-    root->updateTime(800);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(15,0), "onDown"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(15,0), "onUp"));
     ASSERT_TRUE(CheckEvent("onPress"));
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(1500);
+    advanceTime(700);
     ASSERT_TRUE(CheckEvent("onSinglePress", 15));
 }
 
@@ -193,11 +198,11 @@ TEST_F(GesturesTest, DoublePressTooLong)
     ASSERT_EQ("Lorem ipsum dolor", text->getCalculated(kPropertyText).asString());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(10,0), "onDown"));
-    root->updateTime(600);
+    advanceTime(600);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(10,0), "onUp"));
     ASSERT_TRUE(CheckEvent("onPress"));
 
-    root->updateTime(650);
+    advanceTime(50);
 
     // Single press triggered, as it was too slow
     ASSERT_TRUE(CheckEvent("onSinglePress", 10));
@@ -205,12 +210,12 @@ TEST_F(GesturesTest, DoublePressTooLong)
     ASSERT_EQ("Click", text->getCalculated(kPropertyText).asString());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(15,0), "onDown"));
-    root->updateTime(700);
+    advanceTime(50);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(15,0), "onUp"));
     ASSERT_TRUE(CheckEvent("onPress"));
-    root->updateTime(1000);
+    advanceTime(300);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerDown, Point(15,0), "onDown"));
-    root->updateTime(2000);
+    advanceTime(1000);
     // Long here is fine
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(15,0), "onCancel"));
     ASSERT_TRUE(CheckEvent("onDoublePress", 15));
@@ -306,14 +311,14 @@ TEST_F(GesturesTest, DoublePressDefinedTwice)
     ASSERT_FALSE(root->hasEvent());
 
     // Timeout Double press and ensure it reported single press.
-    root->updateTime(600);
+    advanceTime(600);
     ASSERT_TRUE(CheckEvent("onSinglePress", 1));
     ASSERT_FALSE(root->hasEvent());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(15,0), "onDown"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(15,0), "onUp"));
     ASSERT_TRUE(CheckEvent("onPress"));
-    root->updateTime(1000);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerDown, Point(15,0), "onDown"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(15,0), "onCancel"));
     ASSERT_TRUE(CheckEvent("onDoublePress", 1));
@@ -436,18 +441,18 @@ TEST_F(GesturesTest, DoublePressChangesTargetBetweenClicks) {
     ASSERT_TRUE(MouseUp(root, 50, 10));
 
     // 2nd click on the middle touch wrapper
-    root->updateTime(200);
+    advanceTime(200);
     ASSERT_TRUE(MouseDown(root, 150, 10));
     ASSERT_TRUE(MouseUp(root, 150, 10));
 
-    root->updateTime(800); // trigger timeout
+    advanceTime(600); // trigger timeout
     ASSERT_TRUE(CheckEvent("onSinglePress", "middle"));
     ASSERT_FALSE(root->hasEvent());
 
     // Click on the left touch wrapper again
     ASSERT_TRUE(MouseDown(root, 50, 10));
     ASSERT_TRUE(MouseUp(root, 50, 10));
-    root->updateTime(1400);
+    advanceTime(600);
     ASSERT_TRUE(CheckEvent("onSinglePress", "left"));
     ASSERT_FALSE(root->hasEvent());
 }
@@ -460,17 +465,17 @@ TEST_F(GesturesTest, DoublePressLosesTargetBetweenClicks) {
     ASSERT_TRUE(MouseUp(root, 50, 10));
 
     // 2nd click on the right text
-    root->updateTime(200);
+    advanceTime(200);
     ASSERT_FALSE(MouseDown(root, 250, 10)); // not a touchable component
     ASSERT_FALSE(MouseUp(root, 250, 10)); // not a touchable component
 
-    root->updateTime(800); // trigger timeout
+    advanceTime(600); // trigger timeout
     ASSERT_FALSE(root->hasEvent());
 
     // Click on the left touch wrapper again
     ASSERT_TRUE(MouseDown(root, 50, 10));
     ASSERT_TRUE(MouseUp(root, 50, 10));
-    root->updateTime(1400);
+    advanceTime(600);
     ASSERT_TRUE(CheckEvent("onSinglePress", "left"));
     ASSERT_FALSE(root->hasEvent());
 }
@@ -557,7 +562,7 @@ TEST_F(GesturesTest, LongPress)
 
     // Too short for long press
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(10,0), "onDown"));
-    root->updateTime(500);
+    advanceTime(500);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(10,0), "onUp"));
     ASSERT_EQ("Lorem ipsum dolor", text->getCalculated(kPropertyText).asString());
     ASSERT_TRUE(CheckEvent("onPress"));
@@ -566,17 +571,17 @@ TEST_F(GesturesTest, LongPress)
     ASSERT_FALSE(root->hasEvent());
 
     // Not enough to fire onLongPressStart
-    root->updateTime(1000);
+    advanceTime(500);
     ASSERT_EQ("Lorem ipsum dolor", text->getCalculated(kPropertyText).asString());
     ASSERT_FALSE(root->hasEvent());
 
     // This is enough
-    root->updateTime(1500);
+    advanceTime(500);
     ASSERT_EQ("Long ...", text->getCalculated(kPropertyText).asString());
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onLongPressStart", 10, true));
 
-    root->updateTime(2000);
+    advanceTime(500);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(10,0), "onLongPressEnd", 10, true));
     ASSERT_EQ("Long ... click", text->getCalculated(kPropertyText).asString());
 }
@@ -691,7 +696,7 @@ TEST_F(GesturesTest, SwipeAwayUnfinished)
     // Up before fulfilled.
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
     // Avoid flick triggered
-    root->updateTime(200);
+    advanceTime(200);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(190,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "left"));
@@ -702,7 +707,7 @@ TEST_F(GesturesTest, SwipeAwayUnfinished)
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    root->updateTime(800);
+    advanceTime(600);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(160,100), "onSwipeMove", 0.4, "left"));
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
@@ -712,12 +717,12 @@ TEST_F(GesturesTest, SwipeAwayUnfinished)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(160,100)));
 
     // Advance to half of remaining position.
-    root->updateTime(900);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-20), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.2, "left"));
 
     // Go to the end
-    root->updateTime(1000);
+    advanceTime(100);
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.0, "left"));
     ASSERT_FALSE(root->hasEvent());
 
@@ -742,7 +747,7 @@ TEST_F(GesturesTest, SwipeAwayUnfinishedMiddle)
     // Up before fulfilled.
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(150,100), "onDown"));
     // Avoid flick triggered
-    root->updateTime(200);
+    advanceTime(200);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(140,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "left"));
@@ -753,7 +758,7 @@ TEST_F(GesturesTest, SwipeAwayUnfinishedMiddle)
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    root->updateTime(800);
+    advanceTime(600);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(110,100), "onSwipeMove", 0.4, "left"));
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
@@ -763,12 +768,12 @@ TEST_F(GesturesTest, SwipeAwayUnfinishedMiddle)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(110,100)));
 
     // Advance to half of remaining position.
-    root->updateTime(900);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-20), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.2, "left"));
 
     // Go to the end
-    root->updateTime(1000);
+    advanceTime(100);
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.0, "left"));
     ASSERT_FALSE(root->hasEvent());
 
@@ -845,7 +850,7 @@ TEST_F(GesturesTest, SwipeAwayLeftReveal)
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(190,100), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(180,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "left"));
@@ -854,12 +859,13 @@ TEST_F(GesturesTest, SwipeAwayLeftReveal)
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-10), tw->getChildAt(1)));
 
 
-    root->updateTime(500);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(130,100), "onSwipeMove", 0.6, "left"));
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
@@ -868,11 +874,11 @@ TEST_F(GesturesTest, SwipeAwayLeftReveal)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(130,100)));
 
     // Advance to half of remaining position.
-    root->updateTime(600);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-80), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.8, "left"));
 
-    root->updateTime(700);
+    advanceTime(100);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
@@ -890,22 +896,22 @@ TEST_F(GesturesTest, SwipeAwayLeftRevealTapOrScrollTimeout)
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(190,100), "onDown"));
-    root->updateTime(50);
+    advanceTime(50);
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerMove, Point(185,100), "onMove"));
-    root->updateTime(100);
+    advanceTime(50);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(180,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "left"));
 
-    root->updateTime(500);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(130,100), "onSwipeMove", 0.6, "left"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(130,100)));
 
     // Advance to half of remaining position.
-    root->updateTime(600);
+    advanceTime(100);
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.8, "left"));
 
-    root->updateTime(700);
+    advanceTime(100);
     ASSERT_TRUE(CheckEvent("onSwipeMove", 1.0, "left"));
     ASSERT_TRUE(CheckEvent("onSwipeDone", "left"));
 }
@@ -921,7 +927,7 @@ TEST_F(GesturesTest, SwipeAwayLeftCover)
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(190,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "left"));
@@ -930,10 +936,11 @@ TEST_F(GesturesTest, SwipeAwayLeftCover)
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
     ASSERT_EQ("swipy", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
+                           kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(90), tw->getChildAt(1)));
 
-    root->updateTime(600);
+    advanceTime(500);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(140,100), "onSwipeMove", 0.60, "left"));
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
@@ -942,11 +949,11 @@ TEST_F(GesturesTest, SwipeAwayLeftCover)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(140,100)));
 
     // Advance to half of remaining position.
-    root->updateTime(700);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(20), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.8, "left"));
 
-    root->updateTime(800);
+    advanceTime(100);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
@@ -959,10 +966,9 @@ TEST_F(GesturesTest, SwipeAwayLeftCover)
     ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
 }
 
-TEST_F(GesturesTest, SwipeAwayLeftSlide)
+void
+GesturesTest::swipeAwayLeftSlide()
 {
-    loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "slide", "w": 100, "h": 100 })");
-
     auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
@@ -970,7 +976,7 @@ TEST_F(GesturesTest, SwipeAwayLeftSlide)
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(190,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "left"));
@@ -980,11 +986,13 @@ TEST_F(GesturesTest, SwipeAwayLeftSlide)
     ASSERT_EQ("swipy", tw->getChildAt(1)->getId());
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
+                           kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-10), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(90), tw->getChildAt(1)));
 
-    root->updateTime(600);
+    advanceTime(500);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(140,100), "onSwipeMove", 0.6, "left"));
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
@@ -995,12 +1003,12 @@ TEST_F(GesturesTest, SwipeAwayLeftSlide)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(140,100)));
 
     // Advance to half of remaining position.
-    root->updateTime(700);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-80), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(20), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.8, "left"));
 
-    root->updateTime(800);
+    advanceTime(100);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
@@ -1010,6 +1018,18 @@ TEST_F(GesturesTest, SwipeAwayLeftSlide)
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
     ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+}
+
+TEST_F(GesturesTest, SwipeAwayLeftSlide)
+{
+    loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "slide", "w": 100, "h": 100 })");
+    swipeAwayLeftSlide();
+}
+
+TEST_F(GesturesTest, SwipeAwayBackwardSlide)
+{
+    loadDocument(SWIPE_AWAY, R"({ "direction": "backward", "mode": "slide", "w": 100, "h": 100 })");
+    swipeAwayLeftSlide();
 }
 
 TEST_F(GesturesTest, SwipeAwayLeftRightLeftSlide)
@@ -1022,7 +1042,7 @@ TEST_F(GesturesTest, SwipeAwayLeftRightLeftSlide)
     ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
-    root->updateTime(800);
+    advanceTime(800);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(120,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.8, "left"));
@@ -1032,11 +1052,13 @@ TEST_F(GesturesTest, SwipeAwayLeftRightLeftSlide)
     ASSERT_EQ("swipy", tw->getChildAt(1)->getId());
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
+                           kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-80), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(20), tw->getChildAt(1)));
 
-    root->updateTime(1000);
+    advanceTime(200);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(140,100), "onSwipeMove", 0.60, "left"));
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
@@ -1048,12 +1070,12 @@ TEST_F(GesturesTest, SwipeAwayLeftRightLeftSlide)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(140,100)));
 
     // Advance to half of remaining position.
-    root->updateTime(1100);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-80), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(20), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.8, "left"));
 
-    loop->updateTime(1200);
+    advanceTime(100);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
@@ -1076,7 +1098,7 @@ TEST_F(GesturesTest, SwipeAwayLeftRightLeftSlideUnfinished)
     ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
-    root->updateTime(550);
+    advanceTime(550);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(145,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.55, "left"));
@@ -1086,11 +1108,13 @@ TEST_F(GesturesTest, SwipeAwayLeftRightLeftSlideUnfinished)
     ASSERT_EQ("swipy", tw->getChildAt(1)->getId());
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
+                           kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-55), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(45), tw->getChildAt(1)));
 
-    root->updateTime(600);
+    advanceTime(50);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(160,100), "onSwipeMove", 0.40, "left"));
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
@@ -1102,12 +1126,12 @@ TEST_F(GesturesTest, SwipeAwayLeftRightLeftSlideUnfinished)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(160,100)));
 
     // Advance to half of remaining position.
-    root->updateTime(700);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-20), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(80), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.2, "left"));
 
-    loop->updateTime(800);
+    advanceTime(100);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
@@ -1131,7 +1155,7 @@ TEST_F(GesturesTest, SwipeAwayFlickLeftSlide)
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
     // Advance time to something in flick range
-    root->updateTime(150);
+    advanceTime(150);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(170,100), "onMove"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(170,100), "onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.3, "left"));
@@ -1141,17 +1165,19 @@ TEST_F(GesturesTest, SwipeAwayFlickLeftSlide)
     ASSERT_EQ("swipy", tw->getChildAt(1)->getId());
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
+                           kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-30), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(70), tw->getChildAt(1)));
 
     // Advance to half of remaining position.
-    root->updateTime(350);
+    advanceTime(200);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-70), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(30), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.70, "left"));
 
-    loop->updateTime(550);
+    advanceTime(200);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
@@ -1175,7 +1201,7 @@ TEST_F(GesturesTest, SwipeAwayUnfinishedFlickLeftSlide)
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
     // Advance time to something not in flick range
-    root->updateTime(250);
+    advanceTime(250);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(180,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.2, "left"));
@@ -1185,19 +1211,21 @@ TEST_F(GesturesTest, SwipeAwayUnfinishedFlickLeftSlide)
     ASSERT_EQ("swipy", tw->getChildAt(1)->getId());
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
+                           kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-20), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(80), tw->getChildAt(1)));
 
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(180,100)));
 
     // Advance to half of remaining position.
-    root->updateTime(350);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-10), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(90), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "left"));
 
-    root->updateTime(450);
+    advanceTime(100);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
@@ -1220,17 +1248,17 @@ TEST_F(GesturesTest, SwipeAwayFlickTooFast)
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
     // This will actually give us 20000 dp/s, which would end up in 2 ms without a limit.
-    root->updateTime(1);
+    advanceTime(1);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(180,100), "onMove"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(180,100), "onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.2, "left"));
 
     // Advance to half of remaining position.
-    root->updateTime(21);
+    advanceTime(20);
 
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.6, "left"));
 
-    loop->updateTime(41);
+    advanceTime(20);
     ASSERT_TRUE(CheckEvent("onSwipeMove", 1.0, "left"));
     ASSERT_TRUE(CheckEvent("onSwipeDone", "left"));
 
@@ -1256,18 +1284,17 @@ TEST_F(GesturesTest, SwipeAwayLeftSlideNotEnoughDistance)
     ASSERT_FALSE(root->hasEvent());
 }
 
-TEST_F(GesturesTest, SwipeAwayRightSlide)
-{
-    loadDocument(SWIPE_AWAY, R"({ "direction": "right", "mode": "slide", "w": 100, "h": 100 })");
-
+void
+GesturesTest::swipeAwayRightSlide() {
     auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
     ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(100,100), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(110,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "right"));
@@ -1277,12 +1304,14 @@ TEST_F(GesturesTest, SwipeAwayRightSlide)
     ASSERT_EQ("swipy", tw->getChildAt(1)->getId());
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
+                           kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(10), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-90), tw->getChildAt(1)));
 
 
-    root->updateTime(600);
+    advanceTime(500);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(160,100), "onSwipeMove", 0.6, "right"));
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
@@ -1293,12 +1322,12 @@ TEST_F(GesturesTest, SwipeAwayRightSlide)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(160,100)));
 
     // Advance to half of remaining position.
-    root->updateTime(700);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(80), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-20), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.8, "right"));
 
-    root->updateTime(800);
+    advanceTime(100);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
@@ -1309,6 +1338,18 @@ TEST_F(GesturesTest, SwipeAwayRightSlide)
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
     ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+}
+
+TEST_F(GesturesTest, SwipeAwayRightSlide)
+{
+    loadDocument(SWIPE_AWAY, R"({ "direction": "right", "mode": "slide", "w": 100, "h": 100 })");
+    swipeAwayRightSlide();
+}
+
+TEST_F(GesturesTest, SwipeAwayForwardSlide)
+{
+    loadDocument(SWIPE_AWAY, R"({ "direction": "forward", "mode": "slide", "w": 100, "h": 100 })");
+    swipeAwayRightSlide();
 }
 
 TEST_F(GesturesTest, SwipeAwayUpSlide)
@@ -1322,7 +1363,7 @@ TEST_F(GesturesTest, SwipeAwayUpSlide)
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(100,200), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(100,190), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "up"));
@@ -1332,11 +1373,13 @@ TEST_F(GesturesTest, SwipeAwayUpSlide)
     ASSERT_EQ("swipy", tw->getChildAt(1)->getId());
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
+                           kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(-10), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(90), tw->getChildAt(1)));
 
-    root->updateTime(600);
+    advanceTime(500);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(100,140), "onSwipeMove", 0.60, "up"));
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
@@ -1347,12 +1390,12 @@ TEST_F(GesturesTest, SwipeAwayUpSlide)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(100,140)));
 
     // Advance to half of remaining position.
-    root->updateTime(700);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(-80), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(20), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.8, "up"));
 
-    root->updateTime(800);
+    advanceTime(100);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
@@ -1376,7 +1419,7 @@ TEST_F(GesturesTest, SwipeAwayDownSlide)
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(100,100), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(100,110), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "down"));
@@ -1386,11 +1429,13 @@ TEST_F(GesturesTest, SwipeAwayDownSlide)
     ASSERT_EQ("swipy", tw->getChildAt(1)->getId());
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
+                           kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(10), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(-90), tw->getChildAt(1)));
 
-    root->updateTime(600);
+    advanceTime(500);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(100,160), "onSwipeMove", 0.60, "down"));
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
@@ -1401,12 +1446,12 @@ TEST_F(GesturesTest, SwipeAwayDownSlide)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(100,160)));
 
     // Advance to half of remaining position.
-    root->updateTime(700);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(80), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(-20), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.8, "down"));
 
-    root->updateTime(800);
+    advanceTime(100);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
@@ -1438,7 +1483,9 @@ TEST_F(GesturesTest, SwipeAwayOverSwipe)
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
     ASSERT_EQ("swipy", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
+                           kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(40), tw->getChildAt(1)));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(90,100), "onSwipeMove", 1.0, "left"));
 
@@ -1451,7 +1498,7 @@ TEST_F(GesturesTest, SwipeAwayOverSwipe)
 
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(210,100)));
 
-    root->updateTime(200);
+    advanceTime(200);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
@@ -1470,12 +1517,12 @@ TEST_F(GesturesTest, SwipeAwayLeftPointerMovementTooVertical)
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     // Move by 10 in X direction, but by 20 in the Y direction (too vertical). Gesture should not be triggered.
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerMove, Point(190,120), "onMove"));
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(200);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(140,120), "onUp"));
     ASSERT_TRUE(CheckEvent("onPress"));
 }
@@ -1489,12 +1536,12 @@ TEST_F(GesturesTest, SwipeAwayRightPointerMovementTooVertical)
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(100,100), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     // Move by 10 in X direction, but by 20 in the Y direction (too vertical). Gesture should not be triggered.
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerMove, Point(110,120), "onMove"));
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(200);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(140,120), "onUp"));
     ASSERT_TRUE(CheckEvent("onPress"));
 }
@@ -1508,12 +1555,12 @@ TEST_F(GesturesTest, SwipeAwayUpPointerMovementTooHorizontal)
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(100,200), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     // Move by 10 in Y direction, but by 20 in the X direction (too vertical). Gesture should not be triggered.
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerMove, Point(120,190), "onMove"));
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(200);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(120,140), "onUp"));
     ASSERT_TRUE(CheckEvent("onPress"));
 }
@@ -1528,12 +1575,12 @@ TEST_F(GesturesTest, SwipeAwayDownPointerMovementTooHorizontal)
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(100,100), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     // Move by 10 in X direction, but by 20 in the Y direction (too vertical). Gesture should not be triggered.
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerMove, Point(120,110), "onMove"));
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(200);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(120,140), "onUp"));
     ASSERT_TRUE(CheckEvent("onPress"));
 }
@@ -1548,7 +1595,7 @@ TEST_F(GesturesTest, SwipeAwayMaxDurationEnforced)
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(500,100), "onDown"));
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(460,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "left"));
@@ -1557,11 +1604,12 @@ TEST_F(GesturesTest, SwipeAwayMaxDurationEnforced)
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-40), tw->getChildAt(1)));
 
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(260,100), "onSwipeMove", 0.6,
             "left"));
 
@@ -1571,11 +1619,11 @@ TEST_F(GesturesTest, SwipeAwayMaxDurationEnforced)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(260,100)));
 
     // Advance to half of remaining position.
-    root->updateTime(2100);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-320), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.8, "left"));
 
-    root->updateTime(2200);
+    advanceTime(100);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
@@ -1621,7 +1669,7 @@ TEST_F(GesturesTest, SwipeAwayContext)
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(190,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "left"));
@@ -1630,7 +1678,8 @@ TEST_F(GesturesTest, SwipeAwayContext)
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-10), tw->getChildAt(1)));
 
@@ -1655,14 +1704,14 @@ TEST_F(GesturesTest, SwipeAwayContext)
     ASSERT_FALSE(child.HasMember("tags"));
     //////////////////
 
-    root->updateTime(500);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(140,100), "onSwipeMove", 0.6, "left"));
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-60), tw->getChildAt(1)));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(140,100)));
 
-    root->updateTime(700);
+    advanceTime(200);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
@@ -1700,7 +1749,7 @@ TEST_F(GesturesTest, SwipeAwayLeftDisabled)
 
     // Up after fulfilled
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(200,100), false));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_FALSE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(190,100), true));
     ASSERT_FALSE(CheckEvent("onSwipeMove", 0.1, "left"));
     ASSERT_FALSE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
@@ -1710,7 +1759,7 @@ TEST_F(GesturesTest, SwipeAwayLeftDisabled)
     ASSERT_FALSE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
 
-    root->updateTime(600);
+    advanceTime(500);
     ASSERT_FALSE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(140,100), true));
 
     ASSERT_FALSE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
@@ -1719,11 +1768,11 @@ TEST_F(GesturesTest, SwipeAwayLeftDisabled)
     ASSERT_FALSE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(140,100), false));
 
     // Advance to half of remaining position.
-    root->updateTime(700);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
     ASSERT_FALSE(CheckEvent("onSwipeMove", 0.8, "left"));
 
-    root->updateTime(800);
+    advanceTime(100);
     ASSERT_FALSE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
@@ -1881,7 +1930,7 @@ TEST_F(GesturesTest, GestureCombo)
     /************ Too short for long press but could be ok for double click ************/
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
 
-    root->updateTime(400);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(0,0), "onUp"));
     ASSERT_EQ("Lorem ipsum dolor", text->getCalculated(kPropertyText).asString());
     ASSERT_TRUE(CheckEvent("onPress"));
@@ -1896,12 +1945,12 @@ TEST_F(GesturesTest, GestureCombo)
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
 
-    root->updateTime(800);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(0,0), "onUp"));
     ASSERT_EQ("Clicky click", text->getCalculated(kPropertyText).asString());
     ASSERT_TRUE(CheckEvent("onPress"));
 
-    root->updateTime(1500);
+    advanceTime(700);
     ASSERT_TRUE(CheckEvent("onSinglePress"));
 
     ASSERT_EQ("Click", text->getCalculated(kPropertyText).asString());
@@ -1910,10 +1959,10 @@ TEST_F(GesturesTest, GestureCombo)
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
 
-    root->updateTime(2500);
+    advanceTime(1000);
 
     ASSERT_EQ("Long ...", text->getCalculated(kPropertyText).asString());
-    root->updateTime(3500);
+    advanceTime(1000);
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onLongPressStart"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(0,0), "onLongPressEnd"));
@@ -1923,7 +1972,7 @@ TEST_F(GesturesTest, GestureCombo)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(0,0), "onUp"));
     ASSERT_TRUE(CheckEvent("onPress"));
 
-    root->updateTime(4000);
+    advanceTime(500);
     ASSERT_EQ("Click", text->getCalculated(kPropertyText).asString());
     ASSERT_TRUE(CheckEvent("onSinglePress"));
 
@@ -1935,9 +1984,9 @@ TEST_F(GesturesTest, GestureCombo)
     ASSERT_TRUE(CheckEvent("onPress"));
 
     // Double tap consumed long press start.
-    root->updateTime(4100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
-    root->updateTime(4500);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(0,0), "onCancel"));
     ASSERT_TRUE(CheckEvent("onDoublePress"));
 
@@ -1946,7 +1995,7 @@ TEST_F(GesturesTest, GestureCombo)
     /************ Insufficient move for swipe so single press only ************/
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
-    root->updateTime(4550);
+    advanceTime(50);
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerMove, Point(5,0), "onMove"));
 
     ASSERT_FALSE(root->hasEvent());
@@ -1955,19 +2004,19 @@ TEST_F(GesturesTest, GestureCombo)
     ASSERT_TRUE(CheckEvent("onPress"));
 
     // Wait out single press
-    root->updateTime(5050);
+    advanceTime(500);
     ASSERT_TRUE(CheckEvent("onSinglePress"));
 
     /************ Sufficient move for swipe ************/
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
-    root->updateTime(5650);
+    advanceTime(600);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(60,0), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.6, "right"));
 
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(60,0)));
-    root->updateTime(5850);
+    advanceTime(200);
     ASSERT_TRUE(CheckEvent("onSwipeMove", 1.0, "right"));
     ASSERT_TRUE(CheckEvent("onSwipeDone", "right"));
 
@@ -1986,7 +2035,7 @@ TEST_F(GesturesTest, SwipeAwayMiddle)
     /************ Too short for long press but could be ok for double click ************/
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(50,0), "onDown"));
 
-    root->updateTime(400);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(50,0), "onUp"));
     ASSERT_EQ("Lorem ipsum dolor", text->getCalculated(kPropertyText).asString());
     ASSERT_TRUE(CheckEvent("onPress"));
@@ -2001,12 +2050,12 @@ TEST_F(GesturesTest, SwipeAwayMiddle)
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(50,0), "onDown"));
 
-    root->updateTime(800);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(50,0), "onUp"));
     ASSERT_EQ("Clicky click", text->getCalculated(kPropertyText).asString());
     ASSERT_TRUE(CheckEvent("onPress"));
 
-    root->updateTime(1500);
+    advanceTime(700);
     ASSERT_TRUE(CheckEvent("onSinglePress"));
 
     ASSERT_EQ("Click", text->getCalculated(kPropertyText).asString());
@@ -2015,10 +2064,10 @@ TEST_F(GesturesTest, SwipeAwayMiddle)
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(50,0), "onDown"));
 
-    root->updateTime(2500);
+    advanceTime(1000);
 
     ASSERT_EQ("Long ...", text->getCalculated(kPropertyText).asString());
-    root->updateTime(3500);
+    advanceTime(1000);
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onLongPressStart"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(50,0), "onLongPressEnd"));
@@ -2028,7 +2077,7 @@ TEST_F(GesturesTest, SwipeAwayMiddle)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(50,0), "onUp"));
     ASSERT_TRUE(CheckEvent("onPress"));
 
-    root->updateTime(4000);
+    advanceTime(500);
     ASSERT_EQ("Click", text->getCalculated(kPropertyText).asString());
     ASSERT_TRUE(CheckEvent("onSinglePress"));
 
@@ -2040,9 +2089,9 @@ TEST_F(GesturesTest, SwipeAwayMiddle)
     ASSERT_TRUE(CheckEvent("onPress"));
 
     // Double tap consumed long press start.
-    root->updateTime(4100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerDown, Point(50,0), "onDown"));
-    root->updateTime(4500);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(50,0), "onCancel"));
     ASSERT_TRUE(CheckEvent("onDoublePress"));
 
@@ -2051,7 +2100,7 @@ TEST_F(GesturesTest, SwipeAwayMiddle)
     /************ Insufficient move for swipe so single press only ************/
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(50,0), "onDown"));
-    root->updateTime(4550);
+    advanceTime(50);
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerMove, Point(55,0), "onMove"));
 
     ASSERT_FALSE(root->hasEvent());
@@ -2060,19 +2109,19 @@ TEST_F(GesturesTest, SwipeAwayMiddle)
     ASSERT_TRUE(CheckEvent("onPress"));
 
     // Wait out single press
-    root->updateTime(5050);
+    advanceTime(500);
     ASSERT_TRUE(CheckEvent("onSinglePress"));
 
     /************ Sufficient move for swipe ************/
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(50,0), "onDown"));
-    root->updateTime(5650);
+    advanceTime(600);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(100,0), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.5, "right"));
 
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(100,0)));
-    root->updateTime(6000);
+    advanceTime(350);
     ASSERT_TRUE(CheckEvent("onSwipeMove", 1.0, "right"));
     ASSERT_TRUE(CheckEvent("onSwipeDone", "right"));
 
@@ -2244,13 +2293,13 @@ TEST_F(GesturesTest, DoublePressAVG)
     ASSERT_FALSE(root->hasEvent());
 
     // Timeout Double press and ensure it reported single press
-    root->updateTime(600);
+    advanceTime(600);
     ASSERT_TRUE(CheckEvent("onSinglePress"));
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(0,0), "onUp"));
     ASSERT_TRUE(CheckEvent("onPress"));
-    root->updateTime(1000);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(0,0), "onCancel"));
     ASSERT_TRUE(CheckEvent("onDoublePress"));
@@ -2271,13 +2320,13 @@ TEST_F(GesturesTest, DoublePressDisabledAVG)
     ASSERT_FALSE(root->hasEvent());
 
     // Timeout Double press and ensure it reported single press
-    root->updateTime(600);
+    advanceTime(600);
     ASSERT_FALSE(CheckEvent("onSinglePress"));
 
     ASSERT_FALSE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
     ASSERT_FALSE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(0,0), "onUp"));
     ASSERT_FALSE(CheckEvent("onPress"));
-    root->updateTime(1000);
+    advanceTime(400);
     ASSERT_FALSE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
     ASSERT_FALSE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(0,0), "onCancel"));
     ASSERT_FALSE(CheckEvent("onDoublePress"));
@@ -2291,27 +2340,27 @@ TEST_F(GesturesTest, LongPressAVG)
 
     // Too short for long press
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
-    root->updateTime(400);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(0,0), "onUp"));
     ASSERT_TRUE(CheckEvent("onPress"));
 
     // Wait out single press
-    root->updateTime(900);
+    advanceTime(500);
     ASSERT_TRUE(CheckEvent("onSinglePress"));
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
     ASSERT_FALSE(root->hasEvent());
 
     // Not enough to fire onLongPressStart
-    root->updateTime(1300);
+    advanceTime(400);
     ASSERT_FALSE(root->hasEvent());
 
     // This is enough
-    root->updateTime(2000);
+    advanceTime(700);
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onLongPressStart"));
 
-    root->updateTime(2500);
+    advanceTime(500);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(0,0), "onLongPressEnd"));
 }
 
@@ -2326,27 +2375,27 @@ TEST_F(GesturesTest, LongPressDisabledAVG)
 
     // Too short for long press
     ASSERT_FALSE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
-    root->updateTime(400);
+    advanceTime(400);
     ASSERT_FALSE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(0,0), "onUp"));
     ASSERT_FALSE(CheckEvent("onPress"));
 
     // Wait out single press
-    root->updateTime(900);
+    advanceTime(500);
     ASSERT_FALSE(CheckEvent("onSinglePress"));
 
     ASSERT_FALSE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(0,0), "onDown"));
     ASSERT_FALSE(root->hasEvent());
 
     // Not enough to fire onLongPressStart
-    root->updateTime(1300);
+    advanceTime(400);
     ASSERT_FALSE(root->hasEvent());
 
     // This is enough
-    root->updateTime(2000);
+    advanceTime(700);
     ASSERT_FALSE(CheckEvent("onCancel"));
     ASSERT_FALSE(CheckEvent("onLongPressStart"));
 
-    root->updateTime(2500);
+    advanceTime(500);
     ASSERT_FALSE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(0,0), "onLongPressEnd"));
 }
 
@@ -2358,7 +2407,7 @@ TEST_F(GesturesTest, SwipeAwayAVG)
 
     // Not supported so just single press should happen
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(100,0), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerMove, Point(90,0), "onMove"));
     ASSERT_FALSE(root->hasEvent());
 
@@ -2366,7 +2415,7 @@ TEST_F(GesturesTest, SwipeAwayAVG)
     ASSERT_TRUE(CheckEvent("onPress"));
 
     // Wait out single press
-    root->updateTime(1000);
+    advanceTime(900);
     ASSERT_TRUE(CheckEvent("onSinglePress"));
 }
 
@@ -2449,13 +2498,13 @@ TEST_F(GesturesTest, SwipeToDelete)
     auto idToDelete = component->getChildAt(0)->getUniqueId();
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,1)));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(190,1)));
-    root->updateTime(200);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(140,1)));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(140,1)));
 
-    root->updateTime(1000);
+    advanceTime(800);
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
     auto deletedId = event.getValue(kEventPropertyArguments).getArray().at(0).asString();
@@ -2465,7 +2514,7 @@ TEST_F(GesturesTest, SwipeToDelete)
 
     myArray->remove(indexToDelete);
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds, kPropertyNotifyChildrenChanged));
     root->clearDirty();
 
     ASSERT_EQ(4, component->getChildCount());
@@ -2474,13 +2523,13 @@ TEST_F(GesturesTest, SwipeToDelete)
     idToDelete = component->getChildAt(0)->getUniqueId();
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,1)));
-    root->updateTime(1100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(190,1)));
-    root->updateTime(1200);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(140,1)));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(140,1)));
 
-    root->updateTime(2000);
+    advanceTime(800);
     event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
     deletedId = event.getValue(kEventPropertyArguments).getArray().at(0).asString();
@@ -2491,7 +2540,7 @@ TEST_F(GesturesTest, SwipeToDelete)
 
     myArray->remove(indexToDelete);
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds, kPropertyNotifyChildrenChanged));
     root->clearDirty();
 
     ASSERT_EQ(3, component->getChildCount());
@@ -2500,13 +2549,13 @@ TEST_F(GesturesTest, SwipeToDelete)
     idToDelete = component->getChildAt(2)->getUniqueId();
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,201)));
-    root->updateTime(2100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(190,201)));
-    root->updateTime(2200);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(140,201)));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(140,201)));
 
-    root->updateTime(3000);
+    advanceTime(800);
     event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
     deletedId = event.getValue(kEventPropertyArguments).getArray().at(0).asString();
@@ -2643,11 +2692,11 @@ TEST_F(GesturesTest, DoublePressTransformed) {
     ASSERT_FALSE(root->hasEvent());
 
     // Timeout double press
-    root->updateTime(600);
+    advanceTime(600);
     ASSERT_TRUE(CheckEvent("onSinglePress", 20, 10, 400, 200));
 
     // Perform double press - first click
-    root->updateTime(700);
+    advanceTime(100);
     ASSERT_TRUE(MouseClick(root, 110, 55));
     ASSERT_TRUE(CheckEvent("onDown", 20, 10, 400, 200));
     ASSERT_TRUE(CheckEvent("onUp", 20, 10, 400, 200, true));
@@ -2655,7 +2704,7 @@ TEST_F(GesturesTest, DoublePressTransformed) {
     ASSERT_FALSE(root->hasEvent());
 
     // Perform double press - second click
-    root->updateTime(800);
+    advanceTime(100);
     ASSERT_TRUE(MouseClick(root, 110, 55));
     ASSERT_TRUE(CheckEvent("onDown", 20, 10, 400, 200));
     ASSERT_TRUE(CheckEvent("onCancel", 20, 10, 400, 200));
@@ -2853,12 +2902,12 @@ TEST_F(GesturesTest, LongPressTransformed) {
     ASSERT_FALSE(root->hasEvent());
 
     // Trigger long press start
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_TRUE(CheckEvent("onCancel", 20, 10, 400, 200));
     ASSERT_TRUE(CheckEvent("onLongPressStart", 20, 10, 400, 200, true));
 
     // Trigger long press end
-    root->updateTime(1500);
+    advanceTime(500);
     ASSERT_TRUE(MouseUp(root, 110, 55));
     ASSERT_TRUE(CheckEvent("onLongPressEnd", 20, 10, 400, 200, true));
     ASSERT_FALSE(root->hasEvent());
@@ -2872,7 +2921,7 @@ TEST_F(GesturesTest, LongPressTransformedBetweenMouseEvents) {
     ASSERT_FALSE(root->hasEvent());
 
     // Trigger long press start
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_TRUE(CheckEvent("onCancel", 10, 10, 400, 200));
     ASSERT_TRUE(CheckEvent("onLongPressStart", 10, 10, 400, 200, true));
 
@@ -2880,7 +2929,7 @@ TEST_F(GesturesTest, LongPressTransformedBetweenMouseEvents) {
     ASSERT_TRUE(TransformComponent(root, "tw", "scale", 0.5));
 
     // Trigger long press end
-    root->updateTime(1500);
+    advanceTime(500);
     ASSERT_FALSE(MouseUp(root, 10, 10));
     ASSERT_TRUE(CheckEvent("onLongPressEnd", -180, -80, 400, 200, false));
     ASSERT_FALSE(root->hasEvent());
@@ -2896,12 +2945,12 @@ TEST_F(GesturesTest, LongPressSingularTransformAfterMouseDown) {
     ASSERT_TRUE(TransformComponent(root, "tw", "scale", 0));
 
     // Trigger long press start
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_TRUE(CheckEvent("onCancel", NAN, NAN, 400, 200));
     ASSERT_TRUE(CheckEvent("onLongPressStart", NAN, NAN, 400, 200, false));
 
     // Trigger long press end
-    root->updateTime(1500);
+    advanceTime(500);
     ASSERT_FALSE(MouseUp(root, 200, 100)); // center
     ASSERT_TRUE(CheckEvent("onLongPressEnd", NAN, NAN, 400, 200, false));
     ASSERT_FALSE(root->hasEvent());
@@ -2915,14 +2964,14 @@ TEST_F(GesturesTest, LongPressSingularTransformAfterStart) {
     ASSERT_FALSE(root->hasEvent());
 
     // Trigger long press start
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_TRUE(CheckEvent("onCancel", 200, 100, 400, 200));
     ASSERT_TRUE(CheckEvent("onLongPressStart", 200, 100, 400, 200, true));
 
     ASSERT_TRUE(TransformComponent(root, "tw", "scale", 0));
 
     // Trigger long press end
-    root->updateTime(1500);
+    advanceTime(500);
     ASSERT_FALSE(MouseUp(root, 200, 100)); // center
     ASSERT_TRUE(CheckEvent("onLongPressEnd", NAN, NAN, 400, 200, false));
     ASSERT_FALSE(root->hasEvent());
@@ -2940,7 +2989,7 @@ TEST_F(GesturesTest, SwipeAwayScaled)
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(150,175), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(150,165), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.2, "left"));
@@ -2949,12 +2998,13 @@ TEST_F(GesturesTest, SwipeAwayScaled)
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-20), tw->getChildAt(1)));
 
 
-    root->updateTime(500);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(150,145), "onSwipeMove", 0.6,
             "left"));
 
@@ -2964,11 +3014,11 @@ TEST_F(GesturesTest, SwipeAwayScaled)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(150,145)));
 
     // Advance to half of remaining position.
-    root->updateTime(600);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-80), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.8, "left"));
 
-    root->updateTime(700);
+    advanceTime(100);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
@@ -2991,7 +3041,7 @@ TEST_F(GesturesTest, SwipeAwayRotated)
 
     // Up after min velocity reached
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(100,200), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(100,180), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.2, "left"));
@@ -3000,12 +3050,13 @@ TEST_F(GesturesTest, SwipeAwayRotated)
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-20), tw->getChildAt(1)));
 
 
-    root->updateTime(200);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(100,160), "onSwipeMove", 0.4,
             "left"));
 
@@ -3015,11 +3066,11 @@ TEST_F(GesturesTest, SwipeAwayRotated)
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(100,160)));
 
     // Advance to half of remaining position.
-    root->updateTime(350);
+    advanceTime(150);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-70), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.7, "left"));
 
-    root->updateTime(500);
+    advanceTime(150);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
@@ -3035,20 +3086,21 @@ TEST_F(GesturesTest, SwipeAwayTransformedDuringSwipe) {
     auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(190,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "left"));
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-10), tw->getChildAt(1)));
 
     ASSERT_TRUE(TransformComponent(root, "tw", "scale", 0.5));
     ASSERT_TRUE(CheckDirty(tw, kPropertyTransform));
 
-    root->updateTime(500);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(145,150), "onSwipeMove", 0.6, "left"));
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
@@ -3057,11 +3109,11 @@ TEST_F(GesturesTest, SwipeAwayTransformedDuringSwipe) {
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(145,150)));
 
     // Advance to half of remaining position.
-    root->updateTime(600);
+    advanceTime(100);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-80), tw->getChildAt(1)));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.8, "left"));
 
-    root->updateTime(700);
+    advanceTime(100);
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
@@ -3077,7 +3129,7 @@ TEST_F(GesturesTest, SwipeAwaySingularTransformDuringSwipe) {
     auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(190,100), "onMove"));
     ASSERT_TRUE(CheckEvent("onCancel"));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "left"));
@@ -3086,20 +3138,165 @@ TEST_F(GesturesTest, SwipeAwaySingularTransformDuringSwipe) {
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-10), tw->getChildAt(1)));
 
     ASSERT_TRUE(TransformComponent(root, "tw", "scale", 0.0));
     ASSERT_TRUE(CheckDirty(tw, kPropertyTransform));
 
-    root->updateTime(500);
+    advanceTime(400);
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(145,150), "onSwipeMove", 0.0, "left"));
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(600);
+    advanceTime(100);
     ASSERT_FALSE(MouseUp(root, 145,150));
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.0, "left"));
 
     ASSERT_TRUE(session->checkAndClear());
 }
+
+static const char *SWIPE_RTL = R"(
+{
+  "type": "APL",
+  "version": "1.7",
+  "layouts": {
+    "swipeAway" : {
+      "parameters": ["text1", "text2", "action", "dir"],
+      "item": {
+        "type": "TouchWrapper",
+        "width": "100%",
+        "item": {
+          "type": "Frame",
+          "backgroundColor": "blue",
+          "height": 100,
+          "items": {
+            "type": "Text",
+            "text": "${text1}",
+            "fontSize": 60
+          }
+        },
+        "gestures": [
+          {
+            "type": "SwipeAway",
+            "direction": "${dir}",
+            "action":"${action}",
+            "items": {
+              "type": "Frame",
+              "id": "internalFrame2",
+              "backgroundColor": "purple",
+              "width": "100%",
+              "height": 100,
+              "items": {
+                "type": "Text",
+                "text": "${text2}",
+                "fontSize": 60,
+                "color": "white"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Container",
+        "width": 400,
+        "height": 200,
+        "justifyContent": "spaceAround",
+        "items": [
+          {
+            "id": "forwardSwipe",
+            "height": 100,
+            "layoutDirection": "RTL",
+            "type": "swipeAway",
+            "text1": "Swipe with reveal",
+            "text2": "You swiped with reveal",
+            "action": "reveal",
+            "dir": "forward"
+          },
+          {
+            "id": "backwardSwipe",
+            "height": 100,
+            "layoutDirection": "RTL",
+            "type": "swipeAway",
+            "text1": "Swipe with reveal",
+            "text2": "You swiped with reveal",
+            "action": "reveal",
+            "dir": "backward"
+          }
+        ]
+      }
+    ]
+  }
+}
+)";
+
+TEST_F(GesturesTest, SwipeAwayRTL) {
+    loadDocument(SWIPE_RTL);
+    auto f1 = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("forwardSwipe"));
+    auto f2 = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("backwardSwipe"));
+
+    // Up after fulfilled
+    ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(20,40)));
+    advanceTime(100);
+
+    ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(-100,40)));
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), f1->getChildAt(0)));
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(-120), f1->getChildAt(1)));
+    advanceTime(100);
+
+    ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(-100,40)));
+
+    // Up after fulfilled
+    ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(20,140)));
+    advanceTime(100);
+
+    ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(100,140)));
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), f2->getChildAt(0)));
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(80), f2->getChildAt(1)));
+    advanceTime(100);
+
+    ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(100,140)));
+    advanceTime(200);
+
+    loop->advanceToEnd();
+}
+
+TEST_F(GesturesTest, SwipeAwayWrongDirectionRTL) {
+    loadDocument(SWIPE_RTL);
+    auto f1 = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("forwardSwipe"));
+    auto f2 = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("backwardSwipe"));
+
+    // Up after fulfilled
+    ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(20,40)));
+    advanceTime(100);
+
+    ASSERT_FALSE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(100,40)));
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), f1->getChildAt(0)));
+    advanceTime(100);
+
+    ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(100,40)));
+
+    // Up after fulfilled
+    ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(20,140)));
+    advanceTime(100);
+
+    ASSERT_FALSE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(-100,140)));
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), f2->getChildAt(0)));
+    advanceTime(100);
+
+    ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(-100,140)));
+}
+

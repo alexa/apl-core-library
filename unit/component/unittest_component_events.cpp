@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -224,7 +224,9 @@ TEST_F(ComponentEventsTest, ComponentScrolled)
     component->update(kUpdateScrollPosition, 10);
     ASSERT_EQ(Point(0, 10), component->scrollPosition());
     loop->advanceToEnd();
-    ASSERT_EQ(1, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(root, component, text));
     ASSERT_EQ("Two", text->getCalculated(kPropertyText).asString());
 }
 
@@ -265,6 +267,8 @@ TEST_F(ComponentEventsTest, PagerChanged)
     loadDocument(PAGER_CHANGED, DATA);
     ASSERT_TRUE(component);
     ASSERT_EQ(kComponentTypePager, component->getType());
+    advanceTime(10);
+    root->clearDirty();
 
     auto text = context->findComponentById("textComp");
     ASSERT_TRUE(text);
@@ -276,22 +280,22 @@ TEST_F(ComponentEventsTest, PagerChanged)
 
     // Simulate page "not happening"
     component->update(kUpdatePagerPosition, 1);
-    loop->advanceToEnd();
+    root->clearPending();
     ASSERT_EQ(0, root->getDirty().size());
     ASSERT_EQ("One", text->getCalculated(kPropertyText).asString());
     ASSERT_EQ(1, component->getCalculated(kPropertyCurrentPage).getInteger());
 
     // Simulate page
     component->update(kUpdatePagerPosition, 0);
-    loop->advanceToEnd();
-    ASSERT_EQ(1, root->getDirty().size());
+    root->clearPending();
+    ASSERT_EQ(2, root->getDirty().size());
     ASSERT_EQ("Two", text->getCalculated(kPropertyText).asString());
     ASSERT_EQ(0, component->getCalculated(kPropertyCurrentPage).getInteger());
 
     // Simulate page with float value
     component->update(kUpdatePagerPosition, 1.25);
-    loop->advanceToEnd();
-    ASSERT_EQ(1, root->getDirty().size());
+    root->clearPending();
+    ASSERT_EQ(2, root->getDirty().size());
     ASSERT_EQ(1, component->getCalculated(kPropertyCurrentPage).getInteger());
 }
 

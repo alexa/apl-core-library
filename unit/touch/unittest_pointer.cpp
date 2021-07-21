@@ -255,20 +255,21 @@ static const char *SCROLLING_CONTAINER =
 TEST_F(PointerTest, ScrollView)
 {
     loadDocument(SCROLLING_CONTAINER);
+    auto touch = std::static_pointer_cast<CoreComponent>(component->findComponentById("MyTouch"));
 
     // Verify you can hit the target at the starting location
-    ASSERT_TRUE(MouseClick(root, 25, 25));
-    ASSERT_FALSE(MouseClick(root, 15, 15));  // The padding adds up to 20,20
-    ASSERT_TRUE(MouseClick(root, 115, 25));  // Right side of the component
-    ASSERT_FALSE(MouseClick(root, 25, 45));  // Too far down
+    ASSERT_TRUE(MouseClick(root, touch, 25, 25));
+    ASSERT_TRUE(MouseClick(root, component, 15, 15));  // The padding adds up to 20,20
+    ASSERT_TRUE(MouseClick(root, touch, 115, 25));  // Right side of the component
+    ASSERT_TRUE(MouseClick(root, component, 25, 45));  // Too far down
 
     // Scroll down
     component->update(kUpdateScrollPosition, 100);
-    ASSERT_FALSE(MouseClick(root, 25, 25));
+    ASSERT_TRUE(MouseClick(root, component, 25, 25));
 
     // Move the touchwrapper down to compensate
     ASSERT_TRUE(TransformComponent(root, "MyTouch", "translateY", 100));  // Move it down by the scroll amount
-    ASSERT_TRUE(MouseClick(root, 25, 25));
+    ASSERT_TRUE(MouseClick(root, touch, 25, 25));
 }
 
 static const char* SEQUENCE_AND_PAGER = R"({
@@ -919,8 +920,8 @@ TEST_F(PointerTest, TouchEmptySequence)
     ASSERT_TRUE(component);
     ASSERT_EQ(0, component->getChildCount());
 
-    ASSERT_FALSE(MouseDown(root, 200, 1));
-    ASSERT_FALSE(MouseUp(root, 200, 1));
+    ASSERT_TRUE(MouseDown(root, component, 200, 1));
+    ASSERT_TRUE(MouseUp(root, component, 200, 1));
 }
 
 TEST_F(PointerTest, TouchEmptiedSequence)
@@ -942,8 +943,8 @@ TEST_F(PointerTest, TouchEmptiedSequence)
 
     ASSERT_EQ(0, component->getChildCount());
 
-    ASSERT_FALSE(MouseDown(root, 200, 1));
-    ASSERT_FALSE(MouseUp(root, 200, 1));
+    ASSERT_TRUE(MouseDown(root, component, 200, 1));
+    ASSERT_TRUE(MouseUp(root, component, 200, 1));
 }
 
 static const char *DYNAMIC_PAGER = R"({
@@ -988,8 +989,8 @@ TEST_F(PointerTest, TouchEmptyPager)
     ASSERT_TRUE(component);
     ASSERT_EQ(0, component->getChildCount());
 
-    ASSERT_FALSE(MouseDown(root, 200, 1));
-    ASSERT_FALSE(MouseUp(root, 200, 1));
+    ASSERT_TRUE(MouseDown(root, component, 200, 1));
+    ASSERT_TRUE(MouseUp(root, component, 200, 1));
 }
 
 TEST_F(PointerTest, TouchEmptiedPager)
@@ -1011,8 +1012,8 @@ TEST_F(PointerTest, TouchEmptiedPager)
 
     ASSERT_EQ(0, component->getChildCount());
 
-    ASSERT_FALSE(MouseDown(root, 200, 1));
-    ASSERT_FALSE(MouseUp(root, 200, 1));
+    ASSERT_TRUE(MouseDown(root, component, 200, 1));
+    ASSERT_TRUE(MouseUp(root, component, 200, 1));
 }
 
 static const char *DYNAMIC_CCONTAINER = R"({
@@ -1142,19 +1143,14 @@ static const char *NESTED_INHERITED_AVG = R"({
 })";
 
 TEST_F(PointerTest, TouchNestedAVG) {
-    // Ensure we enable all that can affect it
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore);
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureHandleFocusInCore);
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
-
     loadDocument(NESTED_INHERITED_AVG);
 
     root->handlePointerEvent(PointerEvent(kPointerMove, Point(40, 40), 0, kMousePointer));
-    root->updateTime(50);
+    advanceTime(50);
     root->handlePointerEvent(PointerEvent(kPointerDown, Point(40, 40), 0, kMousePointer));
-    root->updateTime( 100);
+    advanceTime(50);
     root->handlePointerEvent(PointerEvent(kPointerUp, Point(40, 40), 0, kMousePointer));
-    root->updateTime( 150);
+    advanceTime(50);
     root->clearPending();
 
     ASSERT_TRUE(root->hasEvent());
@@ -1225,19 +1221,14 @@ static const char *NESTED_AVG = R"({
 })";
 
 TEST_F(PointerTest, TouchAVG) {
-    // Ensure we enable all that can affect it
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore);
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureHandleFocusInCore);
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
-
     loadDocument(NESTED_AVG);
 
     root->handlePointerEvent(PointerEvent(kPointerMove, Point(40, 40), 0, kMousePointer));
-    root->updateTime(50);
+    advanceTime(50);
     root->handlePointerEvent(PointerEvent(kPointerDown, Point(40, 40), 0, kMousePointer));
-    root->updateTime( 100);
+    advanceTime(50);
     root->handlePointerEvent(PointerEvent(kPointerUp, Point(40, 40), 0, kMousePointer));
-    root->updateTime( 150);
+    advanceTime(50);
     root->clearPending();
 
     ASSERT_TRUE(root->hasEvent());

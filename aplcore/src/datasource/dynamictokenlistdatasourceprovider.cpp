@@ -167,16 +167,7 @@ DynamicTokenListDataSourceProvider::processLazyLoadInternal(
 }
 
 bool
-DynamicTokenListDataSourceProvider::process(const Object& payload) {
-    if (!payload.isString()) {
-        constructAndReportError(ERROR_REASON_INTERNAL_ERROR, "N/A", "Can't process payload.");
-        return false;
-    }
-
-    rapidjson::Document doc;
-    doc.Parse(payload.asString().c_str());
-    auto responseMap = Object(std::move(doc));
-
+DynamicTokenListDataSourceProvider::process(const Object& responseMap) {
     if (!responseMap.has(LIST_ID) || !responseMap.get(LIST_ID).isString()) {
         constructAndReportError(ERROR_REASON_INVALID_LIST_ID, "N/A", "Missing listId.");
         return false;
@@ -189,5 +180,22 @@ DynamicTokenListDataSourceProvider::process(const Object& payload) {
         return false;
 
     auto connection = std::dynamic_pointer_cast<DynamicTokenListDataSourceConnection>(dataSourceConnection);
-    return processLazyLoadInternal(connection, responseMap);
+
+    bool result = processLazyLoadInternal(connection, responseMap);
+    auto context = connection->getContext();
+    if (result && context != nullptr)
+        context->setDirtyDataSourceContext(
+            std::dynamic_pointer_cast<DataSourceConnection>(shared_from_this()));
+
+    return result;
+}
+
+void
+DynamicTokenListDataSourceConnection::serialize(rapidjson::Value& outMap,
+                                                rapidjson::Document::AllocatorType& allocator) {
+    outMap.AddMember("type", rapidjson::Value(DEFAULT_TYPE_NAME.c_str(), allocator).Move(), allocator);
+    outMap.AddMember("listId", rapidjson::Value(DynamicListDataSourceConnection::getListId().c_str(), allocator).Move(), allocator);
+
+    outMap.AddMember("backwardPageToken", rapidjson::Value(mFirstToken.asString().c_str(), allocator).Move(), allocator);
+    outMap.AddMember("forwardPageToken", rapidjson::Value(mLastToken.asString().c_str(), allocator).Move(), allocator);
 }

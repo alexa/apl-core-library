@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -145,6 +145,16 @@ public:
      * @return The top-left corner as a point.
      */
     Point getTopLeft() const { return {mX, mY}; }
+
+    /**
+     * @return The top-right corner as a point.
+     */
+    Point getTopRight() const { return {mX + mWidth, mY}; }
+
+    /**
+     * @return The bottom-left corner as a point
+     */
+    Point getBottomLeft() const { return {mX, mY + mHeight}; }
 
     /**
      * @return The bottom-right corner as a point

@@ -35,10 +35,6 @@
 #include <alexaext/alexaext.h>
 #endif
 
-#ifdef ALEXAEXTENSIONS
-#include <alexaext/alexaext.h>
-#endif
-
 namespace apl {
 
 class LiveDataObject;
@@ -79,16 +75,8 @@ public:
     };
 
     enum ExperimentalFeature {
-        /// Core internal scrolling and paging.
-        kExperimentalFeatureHandleScrollingAndPagingInCore,
-        /// Core internal focus handling
-        kExperimentalFeatureHandleFocusInCore,
         /// Mark EditText component dirty if text updated
         kExperimentalFeatureMarkEditTextDirtyOnUpdate,
-        /// mark kPropertyChildrenChanged as dirty when the Component "displayed children" collection changes.
-        /// In addition to a child being inserted or removed, the displayed children will be changed
-        /// when a child transform, display, or opacity changes, or the component has a new layout.
-        kExperimentalFeatureNotifyChildrenChangedOnDisplayChange,
         /// Manage media request status in core and update dirty properties
         kExperimentalFeatureManageMediaRequests,
         /// Enable the experimental API for Alexa Extensions, in addition to existing extension api.
@@ -165,6 +153,16 @@ public:
      */
     RootConfig& measure(const TextMeasurementPtr& textMeasurementPtr) {
         mTextMeasurement = textMeasurementPtr;
+        return *this;
+    }
+
+    /**
+     * Specify the media manager used for loading images, videos, and vector graphics.
+     * @param mediaManager The media manager object.
+     * @return This object for chaining.
+     */
+    RootConfig& mediaManager(const MediaManagerPtr& mediaManager) {
+        mMediaManager = mediaManager;
         return *this;
     }
 
@@ -707,20 +705,6 @@ public:
     }
 
     /**
-     * Enable core internal scrolling and paging.
-     * @experimental
-     * @deprecated Use enableExperimentalFeature(kHandleScrollingAndPagingInCore)
-     * @param flag true to enable, false by default.
-     * @return This object for chaining
-     */
-    RootConfig& handleScrollAndPagingInCore(bool flag) {
-        if (flag) {
-            enableExperimentalFeature(kExperimentalFeatureHandleScrollingAndPagingInCore);
-        }
-        return *this;
-    }
-
-    /**
      * Set pointer inactivity timeout. Pointer considered stale after pointer was not updated for this time.
      * @deprecated Use set(RootProperty::kPointerInactivityTimeout, timeout) instead
      * @param timeout inactivity timeout in ms.
@@ -804,6 +788,11 @@ public:
      * @return The configured text measurement object.
      */
     TextMeasurementPtr getMeasure() const { return mTextMeasurement; }
+
+    /**
+     * @return The configured media manager object
+     */
+     MediaManagerPtr getMediaManager() const { return mMediaManager; }
 
     /**
      * @return The time manager object
@@ -1242,6 +1231,7 @@ private:
     ContextPtr mContext;
 
     TextMeasurementPtr mTextMeasurement;
+    MediaManagerPtr mMediaManager;
     std::shared_ptr<TimeManager> mTimeManager;
     std::shared_ptr<LocaleMethods> mLocaleMethods;
     std::map<std::pair<ComponentType, bool>, std::pair<Dimension, Dimension>> mDefaultComponentSize;

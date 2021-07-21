@@ -67,25 +67,25 @@ static const char *SIMPLE = R"(
 TEST_F(TickTest, Simple) {
     loadDocument(SIMPLE);
 
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, "100"));
 
-    root->updateTime(200);
+    advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, "200"));
     ASSERT_TRUE(CheckSendEvent(root, "100"));
 
-    root->updateTime(300);
+    advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, "DOCUMENT"));
     ASSERT_TRUE(CheckSendEvent(root, "100"));
 
-    root->updateTime(400);
+    advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, "200"));
     ASSERT_TRUE(CheckSendEvent(root, "100"));
 
-    root->updateTime(500);
+    advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, "100"));
 
-    root->updateTime(600);
+    advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, "200"));
     ASSERT_TRUE(CheckSendEvent(root, "100"));
     ASSERT_TRUE(CheckSendEvent(root, "DOCUMENT"));
@@ -161,24 +161,24 @@ static const char *REPEAT_COUNTER = R"({
 TEST_F(TickTest, Counter) {
     loadDocument(REPEAT_COUNTER);
 
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_FALSE(root->hasEvent());
 
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(0, 0)));
 
-    root->updateTime(200);
+    advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, 1.0));
 
-    root->updateTime(300);
+    advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, 2.0));
 
-    root->updateTime(400);
+    advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, 3.0));
 
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(0, 0)));
     ASSERT_TRUE(CheckSendEvent(root, 0.0));
 
-    root->updateTime(500);
+    advanceTime(100);
     ASSERT_FALSE(root->hasEvent());
 }
 
@@ -259,19 +259,19 @@ static const char *REPEAT_COUNTER_DOUBLE = R"({
 TEST_F(TickTest, CounterDouble) {
     loadDocument(REPEAT_COUNTER_DOUBLE);
 
-    root->updateTime(250);
+    advanceTime(250);
     ASSERT_TRUE(CheckSendEvent(root, 0.0));
 
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(0, 0)));
 
     // 1 on 300, 1 on 400 and one on 5000
-    root->updateTime(500);
+    advanceTime(250);
     ASSERT_TRUE(CheckSendEvent(root, 3.0));
 
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(0, 0)));
     ASSERT_TRUE(CheckSendEvent(root, 0.0));
 
-    root->updateTime(750);
+    advanceTime(250);
     ASSERT_TRUE(CheckSendEvent(root, 0.0));
 }
 
@@ -330,26 +330,26 @@ static const char *RATE_LIMITING = R"({
 TEST_F(TickTest, RateLimiting) {
     loadDocument(RATE_LIMITING);
 
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_FALSE(root->hasEvent());
 
     component->update(UpdateType::kUpdateScrollPosition, 100);
 
-    root->updateTime(150);
+    advanceTime(50);
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(200);
+    advanceTime(50);
     ASSERT_TRUE(CheckSendEvent(root, 1));
 
-    root->updateTime(300);
+    advanceTime(100);
     ASSERT_FALSE(root->hasEvent());
 
     component->update(UpdateType::kUpdateScrollPosition, 300);
 
-    root->updateTime(350);
+    advanceTime(50);
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(400);
+    advanceTime(50);
     ASSERT_TRUE(CheckSendEvent(root, 3));
 }
 
@@ -360,7 +360,7 @@ static const char *REMOVE_TICKER = R"(
   "mainTemplate": {
     "item": {
       "type": "Container",
-      "data": [ 100, 200 ],
+      "data": "${TestArray}",
       "item": [
         {
           "type": "Text",
@@ -386,22 +386,24 @@ static const char *REMOVE_TICKER = R"(
 })";
 
 TEST_F(TickTest, RemoveTicker) {
+    auto myArray = LiveArray::create(ObjectArray{100, 200});
+    config->liveData("TestArray", myArray);
     loadDocument(REMOVE_TICKER);
 
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, "100"));
 
-    root->updateTime(200);
+    advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, "200"));
     ASSERT_TRUE(CheckSendEvent(root, "100"));
 
-    component->getChildAt(0)->remove();
+    myArray->remove(0);
     root->clearPending();
 
-    root->updateTime(300);
+    advanceTime(100);
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(400);
+    advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, "200"));
 }
 
@@ -444,16 +446,16 @@ static const char *UNLIMITED_UPDATES = R"({
 TEST_F(TickTest, FpsLimitedByDefault) {
     loadDocument(UNLIMITED_UPDATES);
 
-    root->updateTime(10);
+    advanceTime(10);
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(20);
+    advanceTime(10);
     ASSERT_TRUE(CheckSendEvent(root, 1.0));
 
-    root->updateTime(30);
+    advanceTime(10);
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(40);
+    advanceTime(10);
     ASSERT_TRUE(CheckSendEvent(root, 2.0));
 }
 
@@ -461,16 +463,16 @@ TEST_F(TickTest, AdjustedFpsLimit) {
     config->tickHandlerUpdateLimit(10);
     loadDocument(UNLIMITED_UPDATES);
 
-    root->updateTime(10);
+    advanceTime(10);
     ASSERT_TRUE(CheckSendEvent(root, 1.0));
 
-    root->updateTime(20);
+    advanceTime(10);
     ASSERT_TRUE(CheckSendEvent(root, 2.0));
 
-    root->updateTime(30);
+    advanceTime(10);
     ASSERT_TRUE(CheckSendEvent(root, 3.0));
 
-    root->updateTime(40);
+    advanceTime(10);
     ASSERT_TRUE(CheckSendEvent(root, 4.0));
 }
 
@@ -479,12 +481,12 @@ TEST_F(TickTest, CantGo0) {
     ASSERT_EQ(1.0, config->getTickHandlerUpdateLimit());
     loadDocument(UNLIMITED_UPDATES);
 
-    root->updateTime(0);
+    advanceTime(0);
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(1);
+    advanceTime(1);
     ASSERT_TRUE(CheckSendEvent(root, 1.0));
 
-    root->updateTime(2);
+    advanceTime(1);
     ASSERT_TRUE(CheckSendEvent(root, 2.0));
 }

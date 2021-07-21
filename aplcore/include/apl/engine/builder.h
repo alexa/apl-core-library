@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -62,32 +62,39 @@ private:
     void populateSingleChildLayout(const ContextPtr& context,
                                    const Object& item,
                                    const CoreComponentPtr& layout,
-                                   const Path& path);
+                                   const Path& path,
+                                   bool fullBuild);
 
     void populateLayoutComponent(const ContextPtr& context,
                                  const Object& item,
                                  const CoreComponentPtr& layout,
-                                 const Path& path);
+                                 const Path& path,
+                                 bool fullBuild);
 
     CoreComponentPtr expandLayout(const ContextPtr& context,
                                   Properties& properties,
                                   const rapidjson::Value& layout,
                                   const CoreComponentPtr& parent,
-                                  const Path& path);
+                                  const Path& path,
+                                  bool fullBuild);
 
-    void copyPreservedProperties(const CoreComponentPtr& component);
+    void copyPreservedBindings(const CoreComponentPtr& newComponent, const CoreComponentPtr& originalComponent);
+
+    void copyPreservedProperties(const CoreComponentPtr& newComponent, const CoreComponentPtr& originalComponent);
 
     CoreComponentPtr expandSingleComponentFromArray(const ContextPtr& context,
                                                     const std::vector<Object>& items,
                                                     Properties&& properties,
                                                     const CoreComponentPtr& parent,
-                                                    const Path& path);
+                                                    const Path& path,
+                                                    bool fullBuild);
 
     CoreComponentPtr expandSingleComponent(const ContextPtr& context,
                                            const Object& item,
                                            Properties&& properties,
                                            const CoreComponentPtr& parent,
-                                           const Path& path);
+                                           const Path& path,
+                                           bool fullBuild);
 
     static void attachBindings(const ContextPtr& context, const Object& item);
 private:

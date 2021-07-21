@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ public:
     bool processResponse(int requestToken = -1, size_t index = 0, size_t count = 0);
     bool replace(size_t index, const std::vector<std::string>& items);
     bool insert(size_t index, const std::string& item);
+    void serialize(rapidjson::Value &outMap, rapidjson::Document::AllocatorType &allocator) override {}
 
 protected:
     void fetch(size_t index, size_t count) override;

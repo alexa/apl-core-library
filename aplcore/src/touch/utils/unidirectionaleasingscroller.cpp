@@ -105,14 +105,22 @@ UnidirectionalEasingScroller::update(
 
     // Direction dependent.
     auto vertical = scrollable->isVertical();
+    auto horizontal = scrollable->isHorizontal();
+    bool isRTL = scrollable->getCalculated(kPropertyLayoutDirection) == kLayoutDirectionRTL;
     auto targetPoint = mScrollStartPosition + delta;
     auto endTargetPoint = mScrollStartPosition + end;
     auto target = vertical ? targetPoint.getY() : targetPoint.getX();
     auto endTarget = vertical ? endTargetPoint.getY() : endTargetPoint.getX();
     auto availableTarget = vertical ? availablePosition.getY() : availablePosition.getX();
 
-    float resultingPosition = target <= endTarget ? std::min(availableTarget, target)
-                                                  : std::max(availableTarget, target);
+    float resultingPosition;
+    if (horizontal && isRTL) {
+        resultingPosition = target >= endTarget ? std::max(availableTarget, target)
+                                                : std::min(availableTarget, target);
+    } else {
+        resultingPosition = target <= endTarget ? std::min(availableTarget, target)
+                                                : std::max(availableTarget, target);
+    }
 
     // Set it to what we expect it to be, because it may move afterwards
     mLastScrollPosition = vertical ? Point(0, resultingPosition) : Point(resultingPosition, 0);
@@ -120,8 +128,13 @@ UnidirectionalEasingScroller::update(
 
     // TODO: If update will bring us over maximum position we should switch to "overscroll" instead
     //  of stopping. It's not default behavior though. Can be resolved with "Overscroller" mixin?.
-    if (target <= 0 || (endTarget > target && availableTarget <= target) || offset == mDuration) {
-        finish();
+    if (offset <= 0)
+        return;
+    bool isFinished = (horizontal && isRTL)
+                          ? (target >= 0 || (endTarget < target && availableTarget >= target) || offset == mDuration)
+                          : (target <= 0 || (endTarget > target && availableTarget <= target) || offset == mDuration);
+    if (isFinished) {
+       finish();
     }
 }
 

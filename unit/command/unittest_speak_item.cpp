@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -265,25 +265,10 @@ TEST_F(SpeakItemTest, TestStages)
     ASSERT_EQ(child, event.getComponent());
     ASSERT_EQ(Object("URL2"), event.getValue(kEventPropertySource));
 
-    // The second thing we should get is a ScrollTo event
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(component, event.getComponent());  // This is the container that should scroll
-    ASSERT_EQ(Dimension(200), event.getValue(kEventPropertyPosition).asDimension(*context));
-
-    // At this point the system is waiting for the scrolling to occur
-    ASSERT_TRUE(CheckDirty(root));   // No dirty properties
-    ASSERT_FALSE(root->hasEvent());  // No events waiting
-
-    // Now we scroll the world.  To keep it real, let's advance the time a bit too.
-    root->updateTime(1000);
-    component->update(kUpdateScrollPosition, 200);
+    // Now we scroll the world.
+    advanceTime(1000);
     ASSERT_EQ(Point(0,200), component->scrollPosition());
-    ASSERT_TRUE(CheckDirty(root));   // No dirty properties yet - the scroll hasn't resolved
-
-    // Mark the scroll as finished.  This will kick off a karaoke color change and a speak event
-    event.getActionRef().resolve();
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     // We should have an event for speaking.
     ASSERT_TRUE(root->hasEvent());
@@ -295,11 +280,11 @@ TEST_F(SpeakItemTest, TestStages)
 
     // The item should have updated colors
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
-    ASSERT_TRUE(CheckDirty(root, child));
+    ASSERT_TRUE(CheckDirty(root, component, child));
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
     // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_TRUE(CheckDirty(root));   // No karaoke changes yet
 
     event.getActionRef().resolve();
@@ -336,25 +321,10 @@ TEST_F(SpeakItemTest, TestStagesFastSpeech)
     ASSERT_EQ(kEventTypePreroll, event.getType());
     ASSERT_EQ(Object("URL3"), event.getValue(kEventPropertySource));
 
-    // Check scroll-to event
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(component, event.getComponent());  // This is the container that should scroll
-    ASSERT_EQ(Dimension(250), event.getValue(kEventPropertyPosition).asDimension(*context));
-
-    // At this point the system is waiting for the scrolling to occur
-    ASSERT_TRUE(CheckDirty(root));   // No dirty properties
-    ASSERT_FALSE(root->hasEvent());  // No events waiting
-
-    // Advance time by 1000 and indicate we're finished scrolling
-    root->updateTime(1000);
-    component->update(kUpdateScrollPosition, 250);
+    // Now we scroll the world.
+    advanceTime(1000);
     ASSERT_EQ(Point(0,250), component->scrollPosition());
-    ASSERT_TRUE(CheckDirty(root));   // No dirty properties yet - the scroll hasn't resolved
-
-    // Mark the scroll as finished.  This will kick off a karaoke color change and a speak event
-    event.getActionRef().resolve();
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     // We should have an event for speaking.
     ASSERT_TRUE(root->hasEvent());
@@ -366,11 +336,11 @@ TEST_F(SpeakItemTest, TestStagesFastSpeech)
 
     // The item should have updated colors
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
-    ASSERT_TRUE(CheckDirty(root, child));
+    ASSERT_TRUE(CheckDirty(root, component, child));
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
     // We'll assume that speech is faster than the timeout
-    root->updateTime(1500);   // Move forward by 500 milliseconds
+    advanceTime(500);   // Move forward by 500 milliseconds
     event.getActionRef().resolve();
 
     // There should be no changes yet - we're still waiting for dwell time
@@ -378,7 +348,7 @@ TEST_F(SpeakItemTest, TestStagesFastSpeech)
     ASSERT_TRUE(CheckDirty(root));  // No karaoke changes yet
 
     // Reach the dwell time
-    root->updateTime(2000);
+    advanceTime(500);
 
     // No further events, but the color should have changed back
     ASSERT_FALSE(root->hasEvent());
@@ -420,24 +390,11 @@ TEST_F(SpeakItemTest, TestStagesNoScrollingRequired)
     // Reset event to simulate action reference cleared after resolve
     event = Event(EventType::kEventTypeSendEvent, nullptr);
     loop->advance();
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(component, event.getComponent());  // This is the container that should scroll
-    ASSERT_EQ(Dimension(0), event.getValue(kEventPropertyPosition).asDimension(*context));
-
-    // At this point the system is waiting for the scrolling to occur
-    ASSERT_TRUE(CheckDirty(root));   // No dirty properties
-    ASSERT_FALSE(root->hasEvent());  // No events waiting
 
     // Advance time by 1000 and indicate we're finished scrolling
-    root->updateTime(1000);
-    component->update(kUpdateScrollPosition, 250);
-    ASSERT_EQ(Point(0,250), component->scrollPosition());
-    ASSERT_TRUE(CheckDirty(root));   // No dirty properties yet - the scroll hasn't resolved
+    advanceTime(1000);
+    ASSERT_EQ(Point(0,0), component->scrollPosition());
 
-    // Mark the scroll as finished.  This will kick off a karaoke color change and a speak event
-    event.getActionRef().resolve();
 
     // We should have an event for speaking.
     ASSERT_TRUE(root->hasEvent());
@@ -453,7 +410,7 @@ TEST_F(SpeakItemTest, TestStagesNoScrollingRequired)
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
     // We'll assume that speech is faster than the timeout
-    root->updateTime(1500);   // Move forward by 500 milliseconds
+    advanceTime(500);   // Move forward by 500 milliseconds
     event.getActionRef().resolve();
 
     // No further events, but the color should have changed back
@@ -486,31 +443,13 @@ TEST_F(SpeakItemTest, TestTerminationDuringScroll)
     ASSERT_EQ(kEventTypePreroll, event.getType());
     ASSERT_EQ(Object("URL4"), event.getValue(kEventPropertySource));
 
-    // Check scroll-to event
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(component, event.getComponent());  // This is the container that should scroll
-    ASSERT_EQ(Dimension(300), event.getValue(kEventPropertyPosition).asDimension(*context));
-
-    // At this point the system is waiting for the scrolling to occur
-    ASSERT_TRUE(CheckDirty(root));   // No dirty properties
-    ASSERT_FALSE(root->hasEvent());  // No events waiting
-
-    bool scrollTerminated = false;
-    event.getActionRef().addTerminateCallback([&scrollTerminated](const TimersPtr&) {
-        scrollTerminated = true;
-    });
-
-    // Advance time by 1000 and indicate that we've scrolled part way
-    root->updateTime(1000);
-    component->update(kUpdateScrollPosition, 250);
-    ASSERT_EQ(Point(0,250), component->scrollPosition());
-    ASSERT_TRUE(CheckDirty(root));   // No dirty properties yet - the scroll hasn't resolved
+    advanceTime(500);
+    ASSERT_EQ(Point(0,150), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(root, component));   // No dirty properties yet - except children visibility
 
     // Terminate the command
     root->cancelExecution();
-    ASSERT_TRUE(scrollTerminated);
     ASSERT_FALSE(root->hasEvent());  // No events pending
     ASSERT_TRUE(CheckDirty(root));   // No dirty properties
 }
@@ -538,25 +477,9 @@ TEST_F(SpeakItemTest, TestTerminationDuringSpeech)
     ASSERT_EQ(kEventTypePreroll, event.getType());
     ASSERT_EQ(Object("URL4"), event.getValue(kEventPropertySource));
 
-    // Check scroll-to event
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(component, event.getComponent());  // This is the container that should scroll
-    ASSERT_EQ(Dimension(300), event.getValue(kEventPropertyPosition).asDimension(*context));
-
-    // At this point the system is waiting for the scrolling to occur
-    ASSERT_TRUE(CheckDirty(root));   // No dirty properties
-    ASSERT_FALSE(root->hasEvent());  // No events waiting
-
-    // Advance time by 1000 and indicate that we've scrolled all the way
-    root->updateTime(1000);
-    component->update(kUpdateScrollPosition, 300);
+    advanceTime(1000);
     ASSERT_EQ(Point(0,300), component->scrollPosition());
-    ASSERT_TRUE(CheckDirty(root));   // No dirty properties yet - the scroll hasn't resolved
-
-    // Mark the scroll as finished.  This will kick off color change and a speak event
-    event.getActionRef().resolve();
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     // We should have an event for speaking.
     ASSERT_TRUE(root->hasEvent());
@@ -568,7 +491,7 @@ TEST_F(SpeakItemTest, TestTerminationDuringSpeech)
 
     // The item should have updated colors
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
-    ASSERT_TRUE(CheckDirty(root, child));
+    ASSERT_TRUE(CheckDirty(root, component, child));
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
     bool speechTerminated = false;
@@ -577,7 +500,7 @@ TEST_F(SpeakItemTest, TestTerminationDuringSpeech)
     });
 
     // Move forward a bit in time and then terminate the command
-    root->updateTime(2000);
+    advanceTime(1000);
     root->cancelExecution();
 
     // No events should be pending, but the color should change back to green
@@ -690,26 +613,19 @@ TEST_F(SpeakItemTest, MissingSpeech)
 
     executeSpeakItem("text2", kCommandScrollAlignFirst, kCommandHighlightModeBlock, 1000);
 
-    // We should get a ScrollTo event
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(Dimension(200), event.getValue(kEventPropertyPosition).asDimension(*context));
-    ASSERT_EQ(component, event.getComponent());
-    ASSERT_TRUE(CheckDirty(root));
-
-    root->updateTime(1000);
-    event.getActionRef().resolve();
+    // Now we scroll the world.
+    advanceTime(1000);
+    ASSERT_EQ(Point(0,200), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     // We'll need to wait out the minimum dwell time because one was set
     ASSERT_FALSE(root->hasEvent());   // No events pending
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));  // Color change
-    ASSERT_TRUE(CheckDirty(root, child));
+    ASSERT_TRUE(CheckDirty(root, component, child));
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
     // Run through the minimum dwell time
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_FALSE(root->hasEvent());
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));  // Color change
     ASSERT_TRUE(CheckDirty(root, child));
@@ -727,17 +643,11 @@ TEST_F(SpeakItemTest, MissingSpeechNoDwell)
 
     executeSpeakItem("text2", kCommandScrollAlignFirst, kCommandHighlightModeBlock, 0);
 
-    // We should get a ScrollTo event
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(Dimension(200), event.getValue(kEventPropertyPosition).asDimension(*context));
-    ASSERT_EQ(component, event.getComponent());
-    ASSERT_TRUE(CheckDirty(root));
-
-    root->updateTime(1000);
-    event.getActionRef().resolve();
+    // Now we scroll the world.
+    advanceTime(1000);
+    ASSERT_EQ(Point(0,200), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(root, component));
 
     // At this point nothing should be left - without a dwell time or speech, we don't get a change
     ASSERT_FALSE(root->hasEvent());   // No events pending
@@ -801,7 +711,7 @@ TEST_F(SpeakItemTest, MissingSpeechAndScroll)
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
     // Run through the minimum dwell time
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_FALSE(root->hasEvent());
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));  // Color change
     ASSERT_TRUE(CheckDirty(root, child));
@@ -897,7 +807,7 @@ TEST_F(SpeakItemTest, MissingScroll)
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
     // Move forward a bit in time and finish speaking
-    root->updateTime(500);
+    advanceTime(500);
     event.getActionRef().resolve();
 
     // We haven't passed the minimum dwell time
@@ -905,7 +815,7 @@ TEST_F(SpeakItemTest, MissingScroll)
     ASSERT_TRUE(CheckDirty(root));
 
     // Move forward past the minimum dwell time
-    root->updateTime(1000);
+    advanceTime(500);
 
     // No events should be pending, but the color should change back to green
     ASSERT_FALSE(root->hasEvent());

@@ -15,6 +15,7 @@ target_sources_local(unittest
         PRIVATE
         testdatasourceprovider.cpp
         unittest_datasource.cpp
+        unittest_datasource_context.cpp
         unittest_dynamicindexlist.cpp
         unittest_dynamictokenlist.cpp
         )

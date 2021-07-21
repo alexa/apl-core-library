@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -138,6 +138,7 @@ static const char *PAGER_LAYOUT =
 TEST_F(SignatureTest, Pager)
 {
     loadDocument(PAGER_LAYOUT);
+    advanceTime(10);
     ASSERT_STREQ("P[S[W[I]]S[W[T]]]", component->getHierarchySignature().c_str());
     ASSERT_STREQ("S[W[I]]", component->getChildAt(0)->getHierarchySignature().c_str());
     ASSERT_STREQ("S[W[T]]", component->getChildAt(1)->getHierarchySignature().c_str());

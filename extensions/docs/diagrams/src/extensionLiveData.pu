@@ -1,0 +1,74 @@
+@startuml ExtensionLiveData
+
+title
+ <u><b>alexaext: Extension LiveData</b></u>
+ <i>Initialization and Registration simplified for clarity</i>
+
+ 'blank title line for spacing
+end title
+
+skinparam sequence {
+ParticipantBorderColor #808080
+}
+skinparam responseMessageBelowArrow true
+
+participant Document #FFD27F
+participant "ExecutionEnvironment" as ExeEnv #LightBlue
+participant "ExtensionProxy" as Proxy
+participant Extension
+
+Proxy -->Extension:asyncCall(example)
+note left
+All extension messaging is assumed to be asynchronous.
+(visually represented by dotted lines)
+Proxy Client/Server collapsed for simplicity
+end note
+Proxy <--Extension:asyncResponse(example)
+
+== Extension Initialization  ==
+
+autonumber
+note over Proxy, Extension #LightGray
+ In the Extension process, a single proxy to extension callback is registered
+ for all clients. The timing is implementation/technology dependent and may be
+ the result of prior extension use.  The callback forwards messages to the 
+ client process.
+ (see extension lifecycle for details)
+end note
+Proxy -> Extension:registerLiveDataCallback(proxyCB:LiveDataCallback)
+activate Extension
+autonumber stop
+
+...
+== Extension Registration ==
+autonumber
+Document -> ExeEnv : {ExtensionName,Uri}:json
+activate Document
+activate ExeEnv
+note over ExeEnv,Proxy #LightGray: The proxy manages registration from multiple clients via token.
+ExeEnv -> Proxy:registerLiveDataCallback:void\n<font color=gray>(token:string, exeEnvCB:LiveDataCallback)
+activate Proxy
+Proxy -> Proxy: map<Token,EventCallback>::put\n<font color=gray>(token, extEnvCB)
+return
+autonumber stop
+
+...
+== Extension LiveData ==
+
+autonumber
+Extension --> Proxy:proxyCB(LiveDataUpdate{token,LiveData}:json)
+deactivate Extension
+Proxy -> Proxy: map<token,LiveDataCallback>::get\n<font color=gray>(token)
+Proxy -> ExeEnv:eventCB:json\n<font color=gray>(LiveDataUpdate{token,LiveData}:json)
+deactivate Proxy
+ExeEnv -> Document:onLiveData(context:LiveDataContext)
+note over Document,ExeEnv #LightGray
+  the document receives the extension event
+  {
+    "type": "Text",
+    "text": "Status: {StatusData.state}" 
+  }
+end note
+autonumber stop
+
+@enduml

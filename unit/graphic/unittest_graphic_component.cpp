@@ -33,6 +33,7 @@ static const char * SIMPLE_TEST = R"(
       "version": "1.0",
       "height": 100,
       "width": 100,
+      "lang": "en-US",
       "items": {
         "type": "path",
         "pathData": "M0,0 h100 v100 h-100 z",
@@ -738,7 +739,7 @@ TEST_F(GraphicComponentTest, RelayoutTest)
     // The border width has changed on the frame.
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyBorderWidth));
     ASSERT_EQ(Rect(100, 100, 824, 600), component->getCalculated(kPropertyInnerBounds).getRect());
-    ASSERT_TRUE(CheckDirty(component, kPropertyInnerBounds, kPropertyBorderWidth));
+    ASSERT_TRUE(CheckDirty(component, kPropertyInnerBounds, kPropertyBorderWidth, kPropertyNotifyChildrenChanged));
 
     // The graphic itself should have a new viewport height and width
     ASSERT_EQ(100, graphic->getViewportWidth());

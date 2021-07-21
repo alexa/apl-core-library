@@ -32,7 +32,7 @@ FocusVisitor::visit(const CoreComponent& component)
     if (component.isFocusable() && component.getUniqueId() != mRootId && inTheViewport) {
         mFocusables.emplace_back(std::const_pointer_cast<CoreComponent>(component.shared_from_corecomponent()));
         // Sequences will define if focus should go to the child, usually
-        if (!mFullTree && component.scrollable()) mPruneBranch = true;
+        if (!mFullTree && (component.scrollable() || component.isTouchable())) mPruneBranch = true;
     }
 }
 

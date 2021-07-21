@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -126,7 +126,7 @@ TEST_F(SpeakListTest, TestStages)
 
     // Nothing happens initially (the delay must pass)
     ASSERT_FALSE(root->hasEvent());
-    root->updateTime(500);
+    advanceTime(500);
 
     for (int i = 0 ; i < CHILD_COUNT ; i++) {
         auto msg = "child[" + std::to_string(i) + "]";
@@ -141,25 +141,9 @@ TEST_F(SpeakListTest, TestStages)
         ASSERT_EQ(kEventTypePreroll, event.getType()) << msg;
         ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
 
-        // The second thing we should get is a ScrollTo event
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        event = root->popEvent();
-        ASSERT_EQ(kEventTypeScrollTo, event.getType()) << msg;
-        ASSERT_EQ(component, event.getComponent()) << msg;  // This is the container that should scroll
-        ASSERT_EQ(Dimension(scrollPosition), event.getValue(kEventPropertyPosition).asDimension(*context)) << msg;
-
-        // At this point the system is waiting for the scrolling to occur
-        ASSERT_TRUE(CheckDirty(root)) << msg;   // No dirty properties
-        ASSERT_FALSE(root->hasEvent()) << msg;  // No events waiting
-
-        // Now we scroll the world.  To keep it real, let's advance the time a bit too.
-        root->updateTime(root->currentTime() + 1000);
-        component->update(kUpdateScrollPosition, scrollPosition);
+        // Scroll
+        advanceTime(1000);
         ASSERT_EQ(Point(0, scrollPosition), component->scrollPosition()) << msg;
-        ASSERT_TRUE(CheckDirty(root)) << msg;   // No dirty properties yet - the scroll hasn't resolved
-
-        // Mark the scroll as finished.  This will kick off a karaoke color change and a speak event
-        event.getActionRef().resolve();
 
         // We should have an event for speaking.
         ASSERT_TRUE(root->hasEvent()) << msg;
@@ -170,12 +154,10 @@ TEST_F(SpeakListTest, TestStages)
 
         // The item should have updated colors
         ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget)) << msg;
-        ASSERT_TRUE(CheckDirty(root, target)) << msg;
         ASSERT_EQ(Object(Color(Color::BLUE)), target->getCalculated(kPropertyColor)) << msg;
 
         // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
-        root->updateTime(root->currentTime() + 2000);
-        ASSERT_TRUE(CheckDirty(root)) << msg;   // No karaoke changes yet
+        advanceTime(2000);
 
         // Mark speech as finished
         event.getActionRef().resolve();
@@ -183,7 +165,6 @@ TEST_F(SpeakListTest, TestStages)
 
         // Karaoke clears
         ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget)) << msg;
-        ASSERT_TRUE(CheckDirty(root, target)) << msg;
         ASSERT_EQ(Object(Color(Color::GREEN)), target->getCalculated(kPropertyColor)) << msg;
     }
 
@@ -210,7 +191,7 @@ TEST_F(SpeakListTest, TestStagesStartOffset)
 
     // Nothing happens initially (the delay must pass)
     ASSERT_FALSE(root->hasEvent());
-    root->updateTime(500);
+    advanceTime(500);
 
     for (int i = 2 ; i < CHILD_COUNT ; i++) {
         auto msg = "child[" + std::to_string(i) + "]";
@@ -226,25 +207,9 @@ TEST_F(SpeakListTest, TestStagesStartOffset)
         ASSERT_EQ(kEventTypePreroll, event.getType()) << msg;
         ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
 
-        // The second thing we should get is a ScrollTo event
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        event = root->popEvent();
-        ASSERT_EQ(kEventTypeScrollTo, event.getType()) << msg;
-        ASSERT_EQ(component, event.getComponent()) << msg;  // This is the container that should scroll
-        ASSERT_EQ(Dimension(scrollPosition) , event.getValue(kEventPropertyPosition).asDimension(*context)) << msg;
-
-        // At this point the system is waiting for the scrolling to occur
-        ASSERT_TRUE(CheckDirty(root)) << msg;   // No dirty properties
-        ASSERT_FALSE(root->hasEvent()) << msg;  // No events waiting
-
         // Now we scroll the world.  To keep it real, let's advance the time a bit too.
-        root->updateTime(root->currentTime() + 1000);
-        component->update(kUpdateScrollPosition, scrollPosition);
+        advanceTime(1000);
         ASSERT_EQ(Point(0, scrollPosition), component->scrollPosition()) << msg;
-        ASSERT_TRUE(CheckDirty(root)) << msg;   // No dirty properties yet - the scroll hasn't resolved
-
-        // Mark the scroll as finished.  This will kick off a karaoke color change and a speak event
-        event.getActionRef().resolve();
 
         // We should have an event for speaking.
         ASSERT_TRUE(root->hasEvent()) << msg;
@@ -255,12 +220,10 @@ TEST_F(SpeakListTest, TestStagesStartOffset)
 
         // The item should have updated colors
         ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget)) << msg;
-        ASSERT_TRUE(CheckDirty(root, target)) << msg;
         ASSERT_EQ(Object(Color(Color::BLUE)), target->getCalculated(kPropertyColor)) << msg;
 
         // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
-        root->updateTime(root->currentTime() + 2000);
-        ASSERT_TRUE(CheckDirty(root)) << msg;   // No karaoke changes yet
+        advanceTime(2000);
 
         // Mark speech as finished
         event.getActionRef().resolve();
@@ -268,7 +231,6 @@ TEST_F(SpeakListTest, TestStagesStartOffset)
 
         // Karaoke clears
         ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget)) << msg;
-        ASSERT_TRUE(CheckDirty(root, target)) << msg;
         ASSERT_EQ(Object(Color(Color::GREEN)), target->getCalculated(kPropertyColor)) << msg;
     }
 
@@ -298,13 +260,7 @@ TEST_F(SpeakListTest, TestStagesStartNegativeOffset)
         ASSERT_EQ(kEventTypePreroll, event.getType()) << msg;
         ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
 
-        // The second thing we should get is a ScrollTo event
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        event = root->popEvent();
-        ASSERT_EQ(kEventTypeScrollTo, event.getType()) << msg;
-
-        // Mark the scroll as finished.  This will kick off a karaoke color change and a speak event
-        event.getActionRef().resolve();
+        advanceTime(1000);
 
         // We should have an event for speaking.
         ASSERT_TRUE(root->hasEvent()) << msg;
@@ -313,7 +269,7 @@ TEST_F(SpeakListTest, TestStagesStartNegativeOffset)
         ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
 
         // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
-        root->updateTime(root->currentTime() + 2000);
+        advanceTime(2000);
         event.getActionRef().resolve();
     }
 
@@ -343,13 +299,7 @@ TEST_F(SpeakListTest, TestStagesStartWayNegativeOffset)
         ASSERT_EQ(kEventTypePreroll, event.getType()) << msg;
         ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
 
-        // The second thing we should get is a ScrollTo event
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        event = root->popEvent();
-        ASSERT_EQ(kEventTypeScrollTo, event.getType()) << msg;
-
-        // Mark the scroll as finished.  This will kick off a karaoke color change and a speak event
-        event.getActionRef().resolve();
+        advanceTime(1000);
 
         // We should have an event for speaking.
         ASSERT_TRUE(root->hasEvent()) << msg;
@@ -358,7 +308,7 @@ TEST_F(SpeakListTest, TestStagesStartWayNegativeOffset)
         ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
 
         // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
-        root->updateTime(root->currentTime() + 2000);
+        advanceTime(2000);
         event.getActionRef().resolve();
     }
 
@@ -416,13 +366,7 @@ TEST_F(SpeakListTest, TestTerminate)
         ASSERT_EQ(kEventTypePreroll, event.getType()) << msg;
         ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
 
-        // The second thing we should get is a ScrollTo event
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        event = root->popEvent();
-        ASSERT_EQ(kEventTypeScrollTo, event.getType()) << msg;
-
-        // Mark the scroll as finished.  This will kick off a karaoke color change and a speak event
-        event.getActionRef().resolve();
+        advanceTime(1000);
 
         // We should have an event for speaking.
         ASSERT_TRUE(root->hasEvent()) << msg;
@@ -437,7 +381,7 @@ TEST_F(SpeakListTest, TestTerminate)
         }
 
         // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
-        root->updateTime(root->currentTime() + 2000);
+        advanceTime(2000);
         event.getActionRef().resolve();
     }
 

@@ -1,0 +1,66 @@
+@startuml ExtensionCommand
+title
+ <u><b>alexaext: Extension Command</b></u>
+
+ 'blank title line for spacing
+end title
+
+skinparam sequence {
+ParticipantBorderColor #808080
+}
+skinparam responseMessageBelowArrow true
+
+participant Document #FFD27F
+participant "ExecutionEnvironment" as ExeEnv #LightBlue
+participant "ExtensionProxy" as Proxy
+participant Extension
+
+Proxy -->Extension:asyncCall(example)
+note left
+All extension messaging is assumed to be asynchronous.
+(visually represented by dotted lines)
+Proxy Client/Server collapsed for simplicity
+end note
+Proxy <--Extension:asyncResponse(example)
+
+autonumber
+== Extension Command ==
+
+note over Document, ExeEnv #LightGray
+  the document initiates an extension command
+  {
+    "type": "Button:lightButton",
+    "color": "blue"
+  }
+end note
+Document -> ExeEnv: ExtensionCommand:json \n<font color=gray>{extensionName,commandName,params}
+activate ExeEnv
+ExeEnv -> ExeEnv: getUri:string\n<font color=gray>(extensionName:string)
+ExeEnv -> ExeEnv: createCommand:Command\n<font color=gray>(uri:string, token, commandName:string, commandID++, params)
+ExeEnv -> ExeEnv: getProxy:ExtensionProxy\n<font color=gray>(uri:string)
+ExeEnv --> Proxy:invokeCommand:bool\n<font color=gray>(Command:json, \n\t<font color=gray>successCB:CommandSuccessCallback, \n\t<font color=gray>failureCB:CommandFailureCallback)
+activate Proxy
+
+
+Proxy <--> Extension:invokeCommand:bool\n<font color=gray>(Command:json)
+activate Extension
+group alt invoke [invoke success - async process command and response message]
+Extension -> Extension: process:bool\n<font color=gray>(Command:json)
+group alt response [success]
+Extension -> Proxy: CommandSuccess:json\n<font color=gray>{token, commandId}
+Proxy -> ExeEnv: successCB:json\n<font color=gray>(CommandSuccess:json)
+else failure
+Extension -> Proxy: CommandFailure:json\n<font color=gray>{token, commadId}:json
+Proxy -> ExeEnv: failureCB:json\n<font color=gray>(CommandFailure:json)
+end
+deactivate Extension
+|||
+else invoke failure - immediate failure callback
+' Extension -> Extension: isValid:bool\n<font color=gray>(Command:json)
+' Extension --> Proxy: success:bool
+Proxy -> ExeEnv: failureCB:void\n<font color=gray>(CommandFailure:json)
+deactivate proxy
+end
+
+
+@enduml

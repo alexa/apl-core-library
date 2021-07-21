@@ -28,7 +28,7 @@ ScrollToAction::ScrollToAction(const TimersPtr& timers,
                                const Rect& subBounds,
                                const ContextPtr& context,
                                bool scrollToSubBounds,
-                               const ComponentPtr& target,
+                               const CoreComponentPtr& target,
                                const CoreComponentPtr& scrollableParent,
                                apl_duration_t duration)
         : AnimatedScrollAction(timers, context, scrollableParent, duration),
@@ -42,9 +42,9 @@ std::shared_ptr<ScrollToAction>
 ScrollToAction::make(const TimersPtr& timers,
                      const std::shared_ptr<CoreCommand>& command,
                      const Rect& subBounds,
-                     const ComponentPtr& target)
+                     const CoreComponentPtr& target)
 {
-    auto t = target ? target : std::static_pointer_cast<Component>(command->target());
+    auto t = target ? target : command->target();
     if (!t)
         return nullptr;
     auto align = static_cast<CommandScrollAlign>(command->getValue(kCommandPropertyAlign).getInteger());
@@ -54,9 +54,9 @@ ScrollToAction::make(const TimersPtr& timers,
 std::shared_ptr<ScrollToAction>
 ScrollToAction::make(const TimersPtr& timers,
                      const std::shared_ptr<CoreCommand>& command,
-                     const ComponentPtr& target)
+                     const CoreComponentPtr& target)
 {
-    auto t = target ? target : std::static_pointer_cast<Component>(command->target());
+    auto t = target ? target : command->target();
     if (!t)
         return nullptr;
     auto align = static_cast<CommandScrollAlign>(command->getValue(kCommandPropertyAlign).getInteger());
@@ -65,7 +65,7 @@ ScrollToAction::make(const TimersPtr& timers,
 
 std::shared_ptr<ScrollToAction>
 ScrollToAction::makeUsingSnap(const TimersPtr& timers,
-                              const ComponentPtr& target,
+                              const CoreComponentPtr& target,
                               apl_duration_t duration)
 {
     return make(timers, kCommandScrollAlignVisible, Rect(), target->getContext(), false,
@@ -77,7 +77,7 @@ ScrollToAction::make(const TimersPtr& timers,
                      const CommandScrollAlign& align,
                      const Rect& subBounds,
                      const ContextPtr& context,
-                     const ComponentPtr& target) {
+                     const CoreComponentPtr& target) {
     return make(timers, align, subBounds, context, true, target);
 }
 
@@ -87,7 +87,7 @@ ScrollToAction::make(const TimersPtr& timers,
                      const Rect& subBounds,
                      const ContextPtr& context,
                      bool scrollToSubBounds,
-                     const ComponentPtr& target,
+                     const CoreComponentPtr& target,
                      apl_duration_t duration,
                      bool useSnap) {
     if (!target)
@@ -136,7 +136,7 @@ ScrollToAction::make(const TimersPtr& timers,
             scrollToSubBounds,
             target,
             std::dynamic_pointer_cast<CoreComponent>(container),
-            duration ? duration : context->getRootConfig().getScrollCommandDuration());
+            duration > 0 ? duration : context->getRootConfig().getScrollCommandDuration());
 
     context->sequencer().claimResource({kExecutionResourcePosition, container}, ptr);
 
@@ -147,7 +147,7 @@ ScrollToAction::make(const TimersPtr& timers,
 void
 ScrollToAction::start() {
     // Find a scrollable or page-able parent
-    mTarget->ensureLayout(true);
+    mContainer->ensureChildLayout(mTarget, true);
 
     switch (mContainer->scrollType()) {
         case kScrollTypeNone:
@@ -190,10 +190,12 @@ ScrollToAction::scrollTo()
 
     Rect parentInnerBounds = mContainer->getCalculated(kPropertyInnerBounds).getRect();
     bool vertical = (mContainer->scrollType() == kScrollTypeVertical);
+    bool isLTR = mContainer->getCalculated(kPropertyLayoutDirection) == kLayoutDirectionLTR;
 
     float parentStart, parentEnd;
     float childStart, childEnd;
     float scrollTo;
+    bool beforeParentStart, afterParentEnd;
 
     if (vertical) {
         parentStart = parentInnerBounds.getTop();
@@ -201,12 +203,24 @@ ScrollToAction::scrollTo()
         childStart = childBoundsInParent.getTop();
         childEnd = childBoundsInParent.getBottom();
         scrollTo = mContainer->scrollPosition().getY();
-    } else {
+        beforeParentStart = childStart - scrollTo < parentStart;
+        afterParentEnd = childEnd - scrollTo > parentEnd;
+    } else if (isLTR) { // Horizontal LTR
         parentStart = parentInnerBounds.getLeft();
         parentEnd = parentInnerBounds.getRight();
         childStart = childBoundsInParent.getLeft();
         childEnd = childBoundsInParent.getRight();
         scrollTo = mContainer->scrollPosition().getX();
+        beforeParentStart = childStart - scrollTo < parentStart;
+        afterParentEnd = childEnd - scrollTo > parentEnd;
+    } else { // Horizontal RTL
+        parentStart = parentInnerBounds.getRight();
+        parentEnd = parentInnerBounds.getLeft();
+        childStart = childBoundsInParent.getRight();
+        childEnd = childBoundsInParent.getLeft();
+        scrollTo = mContainer->scrollPosition().getX();
+        beforeParentStart = childStart - scrollTo > parentStart;
+        afterParentEnd = childEnd - scrollTo < parentEnd;
     }
 
     LOG_IF(DEBUG_SCROLL_TO) << "parent start=" << parentStart << " end=" << parentEnd;
@@ -227,9 +241,9 @@ ScrollToAction::scrollTo()
             break;
 
         case kCommandScrollAlignVisible:
-            if (childStart - scrollTo < parentStart)
+            if (beforeParentStart)
                 scrollTo = childStart - parentStart;
-            else if (childEnd - scrollTo > parentEnd)
+            else if (afterParentEnd)
                 scrollTo = childEnd - parentEnd;
             break;
     }
@@ -252,7 +266,7 @@ ScrollToAction::pageTo()
     // the component WITHIN the pager that is either the target or the ancestor of the target.
     auto component = mTarget;
     while (component->getParent() != mContainer)
-        component = component->getParent();
+        component = std::static_pointer_cast<CoreComponent>(component->getParent());
 
     int targetPage = -1;
     for (int i = 0 ; i < mContainer->getChildCount() ; i++) {

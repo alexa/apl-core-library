@@ -31,7 +31,7 @@ namespace alexaext {
 class ExtensionBase : public Extension {
 
 public:
-    ExtensionBase() = default;
+    ~ExtensionBase() override = default;
 
     explicit ExtensionBase(const std::string& uri) { mURIs.emplace(uri); }
 

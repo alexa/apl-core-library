@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -29,6 +29,14 @@ BoundSymbol::eval() const
 std::string
 BoundSymbol::toDebugString() const {
     return "BoundSymbol<" + mName + ">";
+}
+
+bool
+BoundSymbol::operator==(const BoundSymbol& rhs) const
+{
+    return !mContext.owner_before(rhs.mContext) &&
+               !rhs.mContext.owner_before(mContext) &&
+               mName == rhs.mName;
 }
 
 streamer& operator<<(streamer& os, const BoundSymbol& boundSymbol) {

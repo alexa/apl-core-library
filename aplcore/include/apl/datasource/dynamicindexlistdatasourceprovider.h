@@ -164,6 +164,9 @@ public:
       */
      bool changesAllowed() { return mMaxItems > 0; }
 
+    void serialize(rapidjson::Value& outMap,
+                    rapidjson::Document::AllocatorType& allocator) override;
+
 protected:
     /// Override to convert internal->source specific parameters.
     void fetch(size_t index, size_t count) override;
@@ -205,7 +208,7 @@ public:
         std::weak_ptr<Context> context,
         std::weak_ptr<LiveArray> liveArray,
         const std::string& listId) override;
-    bool process(const Object& payload) override;
+    bool process(const Object& responseMap) override;
 
     /**
      * @internal

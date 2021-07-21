@@ -32,6 +32,9 @@ main(int argc, char *argv[])
     argumentSet.parse(args);
 
     auto c = createContext(args, settings);
+    if (!c) {
+        return 1;
+    }
     apl::streamer s;
     s << *c;
     std::cout << s.str() << std::endl;

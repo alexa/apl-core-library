@@ -42,6 +42,8 @@ Bimap<int, std::string> sGraphicPropertyBimap = {
     {kGraphicPropertyFontWeight,             "fontWeight"},
     {kGraphicPropertyHeightOriginal,         "height"},
     {kGraphicPropertyHeightActual,           "height_actual"},
+    {kGraphicPropertyLang,                   "lang"},
+    {kGraphicPropertyLayoutDirection,        "layoutDirection"},
     {kGraphicPropertyLetterSpacing,          "letterSpacing"},
     {kGraphicPropertyOpacity,                "opacity"},
     {kGraphicPropertyPathData,               "pathData"},
@@ -76,6 +78,11 @@ Bimap<int, std::string> sGraphicPropertyBimap = {
     {kGraphicPropertyViewportWidthOriginal,  "viewportWidth"},
     {kGraphicPropertyWidthActual,            "width_actual"},
     {kGraphicPropertyWidthOriginal,          "width"}
+};
+
+Bimap<int, std::string> sGraphicLayoutDirectionBimap = {
+    {kGraphicLayoutDirectionLTR,    "LTR"},
+    {kGraphicLayoutDirectionRTL,    "RTL"},
 };
 
 Bimap<int, std::string> sGraphicLineCapBimap = {

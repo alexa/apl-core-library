@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -366,7 +366,10 @@ createContext(std::vector<std::string>& args, const ViewportSettings& settings)
 
     // Parse resources
     auto content = apl::Content::create(loadFile(args[0]));
-
+    if (!content) {
+        std::cerr << "Content pointer is empty" << std::endl;
+        exit(1);
+    }
     if (args.size() - 1 != content->getParameterCount()) {
         std::cerr << "Number of data files doesn't match the arguments in the layout" << std::endl;
         exit(1);

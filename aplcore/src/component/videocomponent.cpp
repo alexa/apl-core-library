@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -17,21 +17,16 @@
 #include "apl/component/componentpropdef.h"
 #include "apl/component/videocomponent.h"
 #include "apl/component/yogaproperties.h"
+#include "apl/media/mediamanager.h"
+#include "apl/media/mediaobject.h"
 #include "apl/time/sequencer.h"
 
 namespace apl {
 
-inline void
-inlineResetMediaState(Component &component)
-{
-    auto& comp = dynamic_cast<MediaComponentTrait&>(component);
-    comp.resetMediaFetchState();
-}
-
 CoreComponentPtr
 VideoComponent::create(const ContextPtr& context,
                        Properties&& properties,
-                       const std::string& path)
+                       const Path& path)
 {
     auto ptr = std::make_shared<VideoComponent>(context, std::move(properties), path);
     ptr->initialize();
@@ -40,7 +35,7 @@ VideoComponent::create(const ContextPtr& context,
 
 VideoComponent::VideoComponent(const ContextPtr& context,
                                Properties&& properties,
-                               const std::string& path)
+                               const Path& path)
     : CoreComponent(context, std::move(properties), path)
 {
 }
@@ -79,12 +74,17 @@ VideoComponent::propDefSet() const
             self.mCalculated.set(PLAYING_STATE.at(index), value.at(index));
     };
 
+    static auto resetMediaState = [](Component& component) {
+        auto& comp = dynamic_cast<VideoComponent&>(component);
+        comp.resetMediaFetchState();
+    };
+
     static ComponentPropDefSet sVideoComponentProperties = ComponentPropDefSet(
         CoreComponent::propDefSet(), MediaComponentTrait::propDefList()).add({
         { kPropertyAudioTrack,      kAudioTrackForeground,  sAudioTrackMap,     kPropInOut },
         { kPropertyAutoplay,        false,                  asOldBoolean,       kPropInOut },
         { kPropertyScale,           kVideoScaleBestFit,     sVideoScaleMap,     kPropInOut },
-        { kPropertySource,          Object::EMPTY_ARRAY(),  asMediaSourceArray, kPropDynamic | kPropInOut | kPropVisualContext, inlineResetMediaState },
+        { kPropertySource,          Object::EMPTY_ARRAY(),  asMediaSourceArray, kPropDynamic | kPropInOut | kPropVisualContext, resetMediaState },
         { kPropertyOnEnd,           Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
         { kPropertyOnPause,         Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
         { kPropertyOnPlay,          Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
@@ -288,26 +288,27 @@ VideoComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::Allocator
 }
 
 std::string
-VideoComponent::getVisualContextType() {
+VideoComponent::getVisualContextType() const
+{
     return getCalculated(kPropertySource).empty() ? VISUAL_CONTEXT_TYPE_EMPTY : VISUAL_CONTEXT_TYPE_VIDEO;
 }
 
-std::set<std::string>
+std::vector<std::string>
 VideoComponent::getSources()
 {
-    std::set<std::string> sources;
+    std::vector<std::string> sources;
     for (auto& source : getCalculated(kPropertySource).getArray()) {
-        sources.emplace(source.getMediaSource().getUrl());
+        sources.emplace_back(source.getMediaSource().getUrl());
     }
     return sources;
 }
 
 void
-VideoComponent::pendingMediaLoaded(const std::string& source, int stillPending)
+VideoComponent::pendingMediaReturned(const MediaObjectPtr& object)
 {
-    MediaComponentTrait::pendingMediaLoaded(source, stillPending);
+    MediaComponentTrait::pendingMediaReturned(object);
     // Give viewhost a chance to start rendering this component if current track loaded.
-    if (source == getCurrentUrl()) {
+    if (object->state() == MediaObject::kReady && object->url() == getCurrentUrl()) {
         setDirty(kPropertyMediaState);
     }
 }

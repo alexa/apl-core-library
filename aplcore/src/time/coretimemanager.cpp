@@ -13,6 +13,8 @@
  * permissions and limitations under the License.
  */
 
+#include <algorithm>
+
 #include "apl/time/coretimemanager.h"
 #include "apl/utils/log.h"
 
@@ -82,10 +84,15 @@ CoreTimeManager::updateTime(apl_time_t updatedTime)
 
     mTime = updatedTime;
 
-    // Run any animations outstanding. TODO: Could we make this more efficient by skipping non-animators?
-    for (auto& m : mTimerHeap) {
-        if (m.animator)
-            m.animator(mTime - m.startTime);
+    // Collect active (i.e. not completed) animators
+    std::vector<TimeoutTuple> animators;
+    animators.reserve(mAnimatorCount);
+    std::copy_if(mTimerHeap.begin(), mTimerHeap.end(), std::back_inserter(animators),
+                 [](TimeoutTuple m) { return m.animator; });
+
+    // Run animators outside timer heap iteration since running animators can mutate the heap
+    for (auto &m : animators) {
+        m.animator(mTime - m.startTime);
     }
 }
 

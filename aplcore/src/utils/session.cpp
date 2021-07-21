@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -36,13 +36,23 @@ SessionMessage::SessionMessage(const Context& context, const char *filename, con
       mFunction(function),
       mUncaught(std::uncaught_exception()) {}
 
+SessionMessage::SessionMessage(const std::weak_ptr<Context>& contextPtr, const char *filename, const char *function)
+    : mFilename(filename),
+      mFunction(function),
+      mUncaught(std::uncaught_exception())
+{
+    auto context = contextPtr.lock();
+    if (context)
+        mSession = context->session();
+}
+
 SessionMessage::~SessionMessage()
 {
     if (mSession)
         mSession->write(mFilename.c_str(), mFunction.c_str(), mStringStream.str());
     else
         LoggerFactory::instance().getLogger(LogLevel::kWarn, mFilename.c_str(), mFunction.c_str())
-                                 .log(mStringStream.str().c_str());
+                                 .log("%s", mStringStream.str().c_str());
 }
 
 SessionMessage& SessionMessage::log(const char *format, ...)
@@ -69,7 +79,7 @@ SessionMessage& SessionMessage::log(const char *format, ...)
 class DefaultSession : public Session {
 public:
     void write(const char *filename, const char *func, const char *value) override {
-        LoggerFactory::instance().getLogger(LogLevel::kWarn, filename, func).log(value);
+        LoggerFactory::instance().getLogger(LogLevel::kWarn, filename, func).log("%s", value);
     }
 };
 

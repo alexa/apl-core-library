@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ namespace apl {
 CoreComponentPtr
 TouchWrapperComponent::create(const ContextPtr& context,
                               Properties&& properties,
-                              const std::string& path) {
+                              const Path& path) {
     auto ptr = std::make_shared<TouchWrapperComponent>(context, std::move(properties), path);
     ptr->initialize();
     return ptr;
@@ -32,7 +32,7 @@ TouchWrapperComponent::create(const ContextPtr& context,
 
 TouchWrapperComponent::TouchWrapperComponent(const ContextPtr& context,
                                              Properties&& properties,
-                                             const std::string& path)
+                                             const Path& path)
         : TouchableComponent(context, std::move(properties), path) {
 }
 

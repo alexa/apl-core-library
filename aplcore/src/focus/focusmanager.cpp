@@ -94,7 +94,7 @@ FocusManager::setFocus(const CoreComponentPtr& component, bool notifyViewhost)
     component->setState(kStateFocused, true);
     component->executeOnFocus();
 
-    if (mCore.rootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleFocusInCore)) {
+    if (notifyViewhost) {
         auto timers = mCore.rootConfig().getTimeManager();
         mCore.sequencer().terminateSequencer(FOCUS_RELEASE_SEQUENCER);
         // Get target into viewport (a.g. scroll it in)
@@ -107,8 +107,6 @@ FocusManager::setFocus(const CoreComponentPtr& component, bool notifyViewhost)
         } else {
             reportFocusedComponent();
         }
-    } else if (notifyViewhost) {
-        component->getContext()->pushEvent(Event(kEventTypeFocus, component));
     }
 }
 
@@ -139,7 +137,10 @@ FocusManager::clearFocus(bool notifyViewhost, FocusDirection direction, bool for
         }
 
         // If forced we just release straight away without asking for viewhost confirmation
-        if (mCore.rootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleFocusInCore) && !force) {
+        if (force) {
+            clearFocusedComponent();
+            focused->getContext()->pushEvent(Event(kEventTypeFocus, nullptr));  // Indicate null focus
+        } else {
             auto timers = std::dynamic_pointer_cast<Timers>(mCore.rootConfig().getTimeManager());
             Rect bounds;
             focused->getBoundsInParent(mCore.top(), bounds);
@@ -157,9 +158,6 @@ FocusManager::clearFocus(bool notifyViewhost, FocusDirection direction, bool for
             });
             mCore.sequencer().terminateSequencer(FOCUS_SEQUENCER);
             mCore.sequencer().attachToSequencer(wrapped, FOCUS_RELEASE_SEQUENCER);
-        } else {
-            clearFocusedComponent();
-            focused->getContext()->pushEvent(Event(kEventTypeFocus, nullptr));  // Indicate null focus
         }
     }
 }

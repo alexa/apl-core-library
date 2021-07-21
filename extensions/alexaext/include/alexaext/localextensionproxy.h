@@ -33,7 +33,8 @@ namespace alexaext {
  * Default implementation of Extension proxy, used for built-in extensions. This
  * class forwards all calls from the extension framework directly to the extension.
  */
-class LocalExtensionProxy final : public ExtensionProxy {
+class LocalExtensionProxy final : public ExtensionProxy,
+                                  public std::enable_shared_from_this<LocalExtensionProxy> {
 
 public:
     /**
@@ -43,14 +44,14 @@ public:
      * @param The extension URI.
      * @return The extension instance.
      */
-    using ExtensionFactory = std::function<ExtensionPtr(const std::string &uri)>;
+    using ExtensionFactory = std::function<ExtensionPtr(const std::string& uri)>;
 
     /**
      * Proxy constructor for a local extension.
      *
      * @param extension The extension.
      */
-    explicit LocalExtensionProxy(const ExtensionPtr &extension)
+    explicit LocalExtensionProxy(const ExtensionPtr& extension)
             : mExtension(extension), mFactory(nullptr), mURIs(extension->getURIs()) {}
 
     /**
@@ -59,7 +60,7 @@ public:
      *
      * @param factory Factory to create the extension.
      */
-    explicit LocalExtensionProxy(const std::string &uri, ExtensionFactory factory)
+    explicit LocalExtensionProxy(const std::string& uri, ExtensionFactory factory)
             : mExtension(nullptr), mFactory(std::move(factory)) {
         mURIs.emplace(uri);
     }
@@ -75,7 +76,7 @@ public:
 
     std::set<std::string> getURIs() override { return mURIs; };
 
-    bool getRegistration(const std::string &uri, const rapidjson::Value &registrationRequest,
+    bool getRegistration(const std::string& uri, const rapidjson::Value& registrationRequest,
                          RegistrationSuccessCallback success,
                          RegistrationFailureCallback error) override {
 
@@ -85,8 +86,8 @@ public:
         // check the URI is supported
         if (mExtension == nullptr || mURIs.find(uri) == mURIs.end()) {
             if (error) {
-                rapidjson::Document fail = RegistrationFailure(uri, kErrorUnknownURI,
-                                                    sErrorMessage[kErrorUnknownURI] + uri);
+                rapidjson::Document fail = RegistrationFailure("1.0").uri(uri)
+                        .errorCode(kErrorUnknownURI).errorMessage(sErrorMessage[kErrorUnknownURI] + uri);
                 error(uri, fail);
             }
             return false;
@@ -97,7 +98,7 @@ public:
         try {
             registration = mExtension->createRegistration(uri, registrationRequest);
         }
-        catch (const std::exception &e) {
+        catch (const std::exception& e) {
             errorCode = kErrorExtensionException;
             errorMsg = e.what();
         }
@@ -114,12 +115,16 @@ public:
                 errorMsg = sErrorMessage[kErrorInvalidExtensionSchema] + uri;
             }
             if (error) {
-                rapidjson::Document fail = RegistrationFailure(uri, errorCode, errorMsg);
+                rapidjson::Document fail = RegistrationFailure("1.0")
+                        .errorCode(errorCode).errorMessage(errorMsg).uri(uri);
                 error(uri, fail);
             }
             return false; // registration message failed execution and was not handled by the extension
-        } else if (BaseMessage::getMethod(registration) != sExtensionMethods[kExtensionMethodRegisterSuccess] ) {
-            // non-success messages are assumed to be failure and forwarded to the error handler
+        }
+
+        // non-success messages are assumed to be failure and forwarded to the error handler
+        auto method = RegistrationSuccess::METHOD().Get(registration);
+        if (method &&  *method != "RegisterSuccess") {
             if (error) {
                 error(uri, registration);
             }
@@ -133,31 +138,56 @@ public:
         return true;
     }
 
-    bool initializeExtension(const std::string &uri) override {
+    bool initializeExtension(const std::string& uri) override {
         if (!mExtension && mFactory) {
             // create the extension
             mExtension = mFactory(uri);
         }
-        return mExtension != nullptr;
+
+        if (!mExtension) return false;
+
+        std::weak_ptr<LocalExtensionProxy> weakSelf = shared_from_this();
+        mExtension->registerEventCallback(
+            [weakSelf](const std::string& uri, const rapidjson::Value &event) {
+                if (auto self = weakSelf.lock()) {
+                    for (const auto &callback : self->mEventCallbacks) {
+                        callback(uri, event);
+                    }
+                }
+            });
+
+        mExtension->registerLiveDataUpdateCallback(
+            [weakSelf](const std::string& uri, const rapidjson::Value &liveDataUpdate) {
+              if (auto self = weakSelf.lock()) {
+                  for (const auto &callback : self->mLiveDataCallbacks) {
+                      callback(uri, liveDataUpdate);
+                  }
+              }
+            });
+
+        return true;
     }
 
-    bool invokeCommand(const std::string &uri, const rapidjson::Value &command,
+    bool invokeCommand(const std::string& uri, const rapidjson::Value& command,
                        CommandSuccessCallback success, CommandFailureCallback error) override {
 
         // verify the command has an ID
-        int commandID = Command::getId(command);
-        if (commandID <= 0) {
+        const rapidjson::Value* commandValue = Command::ID().Get(command);
+        if (!commandValue || !commandValue->IsNumber()) {
             if (error) {
-                rapidjson::Document fail = CommandFailure(uri, commandID, kErrorInvalidMessage, sErrorMessage[kErrorInvalidMessage]);
+                rapidjson::Document fail = CommandFailure("1.0").uri(uri)
+                        .errorCode(kErrorInvalidMessage).errorMessage(sErrorMessage[kErrorInvalidMessage]);
                 error(uri, fail);
             }
             return false;
         }
+        int commandID = (int) commandValue->GetDouble();
 
         // check the URI is supported and the command has ID
         if (mExtension == nullptr || mURIs.find(uri) == mURIs.end()) {
             if (error) {
-                rapidjson::Document fail = CommandFailure(uri, commandID, kErrorUnknownURI, sErrorMessage[kErrorUnknownURI] + uri);
+                rapidjson::Document fail = CommandFailure("1.0").uri(uri)
+                        .id(commandID).errorCode(kErrorUnknownURI).errorMessage(sErrorMessage[kErrorUnknownURI] + uri);
                 error(uri, fail);
             }
             return false;
@@ -170,7 +200,7 @@ public:
         try {
             result = mExtension->invokeCommand(uri, command);
         }
-        catch (const std::exception &e) {
+        catch (const std::exception& e) {
             errorCode = kErrorExtensionException;
             errorMsg = e.what();
         }
@@ -187,7 +217,8 @@ public:
                     errorCode = kErrorFailedCommand;
                     errorMsg = sErrorMessage[kErrorFailedCommand] + std::to_string(commandID);
                 }
-                rapidjson::Document fail = CommandFailure(uri, commandID, errorCode, errorMsg);
+                rapidjson::Document fail = CommandFailure("1.0").uri(uri)
+                        .id(commandID).errorCode(errorCode).errorMessage(errorMsg);
                 error(uri, fail);
             }
             return false;
@@ -195,26 +226,34 @@ public:
 
         // notify success callback
         if (success) {
-            rapidjson::Document win = CommandSuccess(uri, commandID);
+            rapidjson::Document win = CommandSuccess("1.0").uri(uri)
+                    .id(commandID);
             success(uri, win);
         }
         return true;
     }
 
     void registerEventCallback(Extension::EventCallback callback) override {
-        if (mExtension)
-            mExtension->registerEventCallback(callback);
+        if (callback)
+            mEventCallbacks.emplace_back(std::move(callback));
     }
 
     void registerLiveDataUpdateCallback(Extension::LiveDataUpdateCallback callback) override {
+        if (callback)
+            mLiveDataCallbacks.emplace_back(std::move(callback));
+    }
+
+    void onRegistered(const std::string &uri, const std::string &token) override {
         if (mExtension)
-            mExtension->registerLiveDataUpdateCallback(callback);
+            mExtension->onRegistered(uri, token);
     }
 
 private:
     ExtensionPtr mExtension;
     ExtensionFactory mFactory;
     std::set<std::string> mURIs;
+    std::vector<Extension::EventCallback> mEventCallbacks;
+    std::vector<Extension::LiveDataUpdateCallback> mLiveDataCallbacks;
 };
 
 using LocalExtensionProxyPtr = std::shared_ptr<LocalExtensionProxy>;

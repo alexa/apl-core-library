@@ -30,11 +30,12 @@
 #include "apl/primitives/timefunctions.h"
 #include "apl/primitives/timegrammar.h"
 #include "apl/primitives/unicode.h"
+#include "apl/utils/random.h"
 
 namespace apl {
 
 static Object
-mathMin(const std::vector<Object>& args)
+mathMin(const ObjectArray& args)
 {
     double result = std::numeric_limits<double>::infinity();
 
@@ -50,7 +51,7 @@ mathMin(const std::vector<Object>& args)
 }
 
 static Object
-mathMax(const std::vector<Object>& args)
+mathMax(const ObjectArray& args)
 {
     double result = -1 * std::numeric_limits<double>::infinity();
 
@@ -66,7 +67,7 @@ mathMax(const std::vector<Object>& args)
 }
 
 static Object
-mathClamp(const std::vector<Object>& args)
+mathClamp(const ObjectArray& args)
 {
     if (args.size() != 3)
         return std::numeric_limits<double>::quiet_NaN();
@@ -79,12 +80,11 @@ mathClamp(const std::vector<Object>& args)
 }
 
 #ifdef APL_CORE_UWP
-static std::random_device random_device;
-static std::mt19937 generator(random_device());
+    static std::mt19937 generator = Random::mt32Generator();
 #endif
 
 static Object
-mathRandom(const std::vector<Object>& args)
+mathRandom(const ObjectArray& args)
 {
 #ifdef HAVE_DECL_ARC4RANDOM
     // By contract, arc4random can return any valid uint32_t value
@@ -94,14 +94,14 @@ mathRandom(const std::vector<Object>& args)
     return generator() / ((double) std::mt19937::max());
 #else
     // By contract, random() returns values between 0 and RAND_MAX
-    return random() / ((double) RAND_MAX);
+     return random() / ((double) RAND_MAX);
 #endif
 }
 
 
 // Convenience template because many math functions take a single argument
 template<double (*f)(double)>
-Object mathSingle(const std::vector<Object>& args)
+Object mathSingle(const ObjectArray& args)
 {
     if (args.size() != 1)
         return std::numeric_limits<double>::quiet_NaN();
@@ -288,7 +288,7 @@ stringSlice(const std::vector<Object>& args)
 }
 
 Object
-timeExtractYear(const std::vector<Object>& args)
+timeExtractYear(const ObjectArray& args)
 {
     if (args.size() != 1)
         return Object::NULL_OBJECT();
@@ -298,7 +298,7 @@ timeExtractYear(const std::vector<Object>& args)
 }
 
 Object
-timeExtractMonth(const std::vector<Object>& args)
+timeExtractMonth(const ObjectArray& args)
 {
     if (args.size() != 1)
         return Object::NULL_OBJECT();
@@ -308,7 +308,7 @@ timeExtractMonth(const std::vector<Object>& args)
 }
 
 Object
-timeExtractDate(const std::vector<Object>& args)
+timeExtractDate(const ObjectArray& args)
 {
     if (args.size() != 1)
         return Object::NULL_OBJECT();
@@ -318,7 +318,7 @@ timeExtractDate(const std::vector<Object>& args)
 }
 
 Object
-timeExtractWeekDay(const std::vector<Object>& args)
+timeExtractWeekDay(const ObjectArray& args)
 {
     if (args.size() != 1)
         return Object::NULL_OBJECT();
@@ -328,7 +328,7 @@ timeExtractWeekDay(const std::vector<Object>& args)
 }
 
 template<long divisor, long modulus> Object
-timeExtract(const std::vector<Object>&args )
+timeExtract(const ObjectArray& args)
 {
     if (args.size() != 1)
         return Object::NULL_OBJECT();
@@ -337,7 +337,7 @@ timeExtract(const std::vector<Object>&args )
 }
 
 Object
-timeFormat(const std::vector<Object>& args)
+timeFormat(const ObjectArray& args)
 {
     if (args.size() != 2)
         return Object::NULL_OBJECT();

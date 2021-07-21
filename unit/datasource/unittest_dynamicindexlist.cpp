@@ -378,6 +378,7 @@ static const char *BASIC = R"({
 TEST_F(DynamicIndexListTest, Basic)
 {
     loadDocument(BASIC, DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -408,12 +409,152 @@ TEST_F(DynamicIndexListTest, Basic)
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
+    ASSERT_EQ(400, component->getCalculated(kPropertyScrollPosition).asNumber());
     ASSERT_EQ("id0", component->getChildAt(0)->getId());
     ASSERT_EQ("id19", component->getChildAt(19)->getId());
 
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 5), false));
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(6, 16), true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(17, 19), false));
+
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+TEST_F(DynamicIndexListTest, BasicAsMap)
+{
+    loadDocument(BASIC, DATA);
+    advanceTime(10);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(5, component->getChildCount());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 4}, true));
+
+    ASSERT_TRUE(CheckBounds(0, 20));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 5, 5));
+    ASSERT_TRUE(ds->processUpdate(StringToMapObject(createLazyLoad(-1, 101, 15, "15, 16, 17, 18, 19"))));
+    ASSERT_TRUE(ds->processUpdate(StringToMapObject(createLazyLoad(-1, 102, 5, "5, 6, 7, 8, 9"))));
+    root->clearPending();
+
+    ASSERT_EQ(15, component->getChildCount());
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 0, 5));
+    ASSERT_TRUE(ds->processUpdate(StringToMapObject(createLazyLoad(-1, 103, 0, "0, 1, 2, 3, 4"))));
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_EQ(400, component->getCalculated(kPropertyScrollPosition).asNumber());
+
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char *BASIC_HORIZONTAL_RTL = R"({
+  "type": "APL",
+  "version": "1.7",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "width": 300,
+      "scrollDirection": "horizontal",
+      "layoutDirection": "RTL",
+      "data": "${dynamicSource}",
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "width": 100,
+        "height": 100,
+        "text": "${data}"
+      }
+    }
+  }
+})";
+
+TEST_F(DynamicIndexListTest, BasicRTL)
+{
+    loadDocument(BASIC_HORIZONTAL_RTL, DATA);
+    advanceTime(10);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(5, component->getChildCount());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 4}, true));
+
+    ASSERT_TRUE(CheckBounds(0, 20));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 5, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, 15, "15, 16, 17, 18, 19")));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 102, 5, "5, 6, 7, 8, 9")));
+    root->clearPending();
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 0), false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(1, 11), true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(12, 14), false));
+
+    ASSERT_EQ(15, component->getChildCount());
+
+    ASSERT_EQ("id5", component->getChildAt(0)->getId());
+    ASSERT_EQ("id14", component->getChildAt(9)->getId());
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 0, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 103, 0, "0, 1, 2, 3, 4")));
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+
+    ASSERT_EQ(-400, component->getCalculated(kPropertyScrollPosition).asNumber());
+    ASSERT_EQ("id0", component->getChildAt(0)->getId());
+    ASSERT_EQ("id19", component->getChildAt(19)->getId());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 5), false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(6, 16), true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(17, 19), false));
+
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+TEST_F(DynamicIndexListTest, BasicAsMapRTL)
+{
+    loadDocument(BASIC_HORIZONTAL_RTL, DATA);
+    advanceTime(10);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(5, component->getChildCount());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 4}, true));
+
+    ASSERT_TRUE(CheckBounds(0, 20));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 5, 5));
+    ASSERT_TRUE(ds->processUpdate(StringToMapObject(createLazyLoad(-1, 101, 15, "15, 16, 17, 18, 19"))));
+    ASSERT_TRUE(ds->processUpdate(StringToMapObject(createLazyLoad(-1, 102, 5, "5, 6, 7, 8, 9"))));
+    root->clearPending();
+
+    ASSERT_EQ(15, component->getChildCount());
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 0, 5));
+    ASSERT_TRUE(ds->processUpdate(StringToMapObject(createLazyLoad(-1, 103, 0, "0, 1, 2, 3, 4"))));
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_EQ(-400, component->getCalculated(kPropertyScrollPosition).asNumber());
 
     // Check that timeout is not there
     loop->advanceToEnd();
@@ -433,6 +574,7 @@ static const char *EMPTY = R"({
 TEST_F(DynamicIndexListTest, Empty)
 {
     loadDocument(BASIC, EMPTY);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -572,6 +714,101 @@ TEST_F(DynamicIndexListTest, WithFirstAndLast)
     ASSERT_FALSE(root->hasEvent());
 }
 
+static const char *FIRST_AND_LAST_HORIZONTAL_RTL = R"({
+  "type": "APL",
+  "version": "1.7",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "scrollDirection": "horizontal",
+      "layoutDirection": "RTL",
+      "width": 300,
+      "data": "${dynamicSource}",
+      "firstItem": {
+        "type": "Text",
+        "id": "fi",
+        "width": 100,
+        "height": 100,
+        "text": "FI"
+      },
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "width": 100,
+        "height": 100,
+        "text": "${data}"
+      },
+      "lastItem": {
+        "type": "Text",
+        "id": "li",
+        "width": 100,
+        "height": 100,
+        "text": "LI"
+      }
+    }
+  }
+})";
+
+TEST_F(DynamicIndexListTest, WithFirstAndLastHorizontalRTL)
+{
+    loadDocument(FIRST_AND_LAST_HORIZONTAL_RTL, FIRST_AND_LAST_DATA);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(3, component->getChildCount());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 2}, true));
+
+    ASSERT_TRUE(CheckBounds(0, 20));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 11, 5));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 5, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, 11, "11, 12, 13, 14, 15")));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 102, 5, "5, 6, 7, 8, 9")));
+    root->clearPending();
+
+    // Whole range is laid out as we don't allow gaps
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 12), true));
+
+    ASSERT_EQ(13, component->getChildCount());
+
+    ASSERT_EQ("fi", component->getChildAt(0)->getId());
+    ASSERT_EQ("id5", component->getChildAt(1)->getId());
+    ASSERT_EQ("id15", component->getChildAt(11)->getId());
+    ASSERT_EQ("li", component->getChildAt(12)->getId());
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+
+    component->update(kUpdateScrollPosition, -600);
+    root->clearPending();
+
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 0, 5));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "104", 16, 4));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 103, 0, "0, 1, 2, 3, 4")));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 104, 16, "16, 17, 18, 19")));
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_EQ(-1100, component->getCalculated(kPropertyScrollPosition).asNumber());
+
+    ASSERT_EQ("fi", component->getChildAt(0)->getId());
+    ASSERT_EQ("id0", component->getChildAt(1)->getId());
+    ASSERT_EQ("id19", component->getChildAt(20)->getId());
+    ASSERT_EQ("li", component->getChildAt(21)->getId());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 21), true));
+
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
 static const char *FIRST = R"({
   "type": "APL",
   "version": "1.3",
@@ -686,6 +923,7 @@ static const char *LAST = R"({
 TEST_F(DynamicIndexListTest, WithLast)
 {
     loadDocument(LAST, FIRST_AND_LAST_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -722,7 +960,7 @@ TEST_F(DynamicIndexListTest, WithLast)
     ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 103, 16, "16, 17, 18, 19")));
     root->clearPending();
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     ASSERT_EQ("id5", component->getChildAt(0)->getId());
     ASSERT_EQ("id15", component->getChildAt(10)->getId());
@@ -793,7 +1031,7 @@ TEST_F(DynamicIndexListTest, WithLastOneWay)
     root->clearPending();
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "104", 16, 4));
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     ASSERT_EQ("id0", component->getChildAt(0)->getId());
     ASSERT_EQ("id5", component->getChildAt(5)->getId());
@@ -820,6 +1058,7 @@ static const char *SHRINKABLE_DATA = R"({
 TEST_F(DynamicIndexListTest, ShrinkData)
 {
     loadDocument(BASIC, SHRINKABLE_DATA);
+    advanceTime(10);
     ASSERT_TRUE(CheckBounds(10, 15));
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -1133,7 +1372,7 @@ TEST_F(DynamicIndexListTest, WrongUpdates)
 
     // Adjust boundaries and try to update around it.
     ASSERT_TRUE(ds->processUpdate(TEN_TO_FOURTEEN_RANGE));
-    ASSERT_TRUE(CheckErrors({ "INCONSISTENT_RANGE", "INTERNAL_ERROR" }));
+    ASSERT_TRUE(CheckErrors({ "INCONSISTENT_RANGE", "MISSING_LIST_ITEMS" }));
     ASSERT_FALSE(ds->processUpdate(createLazyLoad(-1, -1, 5, "5, 6, 7, 8, 9")));
     ASSERT_TRUE(CheckErrors({ "LOAD_INDEX_OUT_OF_RANGE" }));
 }
@@ -1192,6 +1431,7 @@ static const char *RESPONSE_AND_BOUND_UNKNOWN_DOWN = R"({
 TEST_F(DynamicIndexListTest, UnknownBounds)
 {
     loadDocument(BASIC, UNKNOWN_BOUNDS_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -1812,7 +2052,7 @@ TEST_F(DynamicIndexListTest, CrudMultiDeletePartialOOB) {
     ASSERT_TRUE(CheckBounds(-5, 5));
 
     // Some out of range
-    ASSERT_FALSE(ds->processUpdate(createMultiDelete(1, 3, 3)));
+    ASSERT_FALSE(ds->processUpdate(createMultiDelete(1, 15, 3)));
     ASSERT_TRUE(CheckErrors({ "LIST_INDEX_OUT_OF_RANGE" }));
 
     // In fail state so will not allow other operation
@@ -1854,7 +2094,7 @@ TEST_F(DynamicIndexListTest, CrudMultiDeleteMore) {
     ASSERT_TRUE(CheckBounds(-5, 5));
 
     // Some out of range
-    ASSERT_FALSE(ds->processUpdate(createMultiDelete(1, 0, 3)));
+    ASSERT_FALSE(ds->processUpdate(createMultiDelete(1, 15, 3)));
     ASSERT_TRUE(CheckErrors({ "LIST_INDEX_OUT_OF_RANGE" }));
 
     // In fail state so will not allow other operation
@@ -2178,40 +2418,13 @@ R"({
 ]
 })";
 
-static const char *ZERO_TO_FOUR_RESPONSE_PAGER =
-R"({
-"token": "presentationToken",
-"correlationToken": "102",
-"listId": "vQdpOESlok",
-"startIndex": 0,
-"items": [
-  { "color": "blue", "text": "0" },
-  { "color": "red", "text": "1" },
-  { "color": "green", "text": "2" },
-  { "color": "yellow", "text": "3" },
-  { "color": "white", "text": "4" }
-]
-})";
-
-static const char *FIFTEEN_TO_NINETEEN_RESPONSE_PAGER = R"({
-  "token": "presentationToken",
-  "correlationToken": "103",
-  "listId": "vQdpOESlok",
-  "startIndex": 15,
-  "items": [
-    { "color": "blue", "text": "15" },
-    { "color": "red", "text": "16" },
-    { "color": "green", "text": "17" },
-    { "color": "yellow", "text": "18" },
-    { "color": "white", "text": "19" }
-  ]
-})";
-
 TEST_F(DynamicIndexListTest, BasicPager)
 {
     loadDocument(BASIC_PAGER, BASIC_PAGER_DATA);
 
     ASSERT_EQ(kComponentTypePager, component->getType());
+    advanceTime(10);
+    root->clearDirty();
 
     ASSERT_EQ(5, component->getChildCount());
     ASSERT_TRUE(CheckBounds(0, 20));
@@ -2225,7 +2438,7 @@ TEST_F(DynamicIndexListTest, BasicPager)
     ASSERT_EQ(10, component->getChildCount());
     ASSERT_EQ("frame-5", component->getChildAt(0)->getId());
     ASSERT_EQ("frame-14", component->getChildAt(9)->getId());
-    ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 4));  // Page 4 gets loaded because we're on page 5
+    ASSERT_TRUE(CheckChildLaidOutDirtyFlagsWithNotify(component, 4));  // Page 4 gets loaded because we're on page 5
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0,3}, false));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {4,6}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {7,9}, false));
@@ -2233,15 +2446,27 @@ TEST_F(DynamicIndexListTest, BasicPager)
     // Switch to the first page (index=0)
     component->update(UpdateType::kUpdatePagerByEvent, 0);
     root->clearPending();
-    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {0, 1}));
+    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlagsWithNotify(component, {0, 1}));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 1}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {2, 3}, false));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 6}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {7, 9}, false));
 
     // Load 5 more pages BEFORE the current set of pages
-    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 0, 5));
-    ASSERT_TRUE(ds->processUpdate(ZERO_TO_FOUR_RESPONSE_PAGER));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 15, 5));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 0, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(0, 102, 15,
+                                                 R"({ "color": "blue", "text": "15" },
+                                                    { "color": "red", "text": "16" },
+                                                    { "color": "green", "text": "17" },
+                                                    { "color": "yellow", "text": "18" },
+                                                    { "color": "white", "text": "19" })" )));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(0, 103, 0,
+                                                 R"({ "color": "blue", "text": "0" },
+                                                    { "color": "red", "text": "1" },
+                                                    { "color": "green", "text": "2" },
+                                                    { "color": "yellow", "text": "3" },
+                                                    { "color": "white", "text": "4" })" )));
     root->clearPending();
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 3}, false));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 6}, true));  // Page 4 gets loaded because we're on page 5
@@ -2252,21 +2477,9 @@ TEST_F(DynamicIndexListTest, BasicPager)
     // Switch to the last page (index=14)
     component->update(UpdateType::kUpdatePagerByEvent, 14);
     root->clearPending();
-    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {13, 14}));
+    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlagsWithNotify(component, {13, 14}));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 3}, false));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 6}, true));  // Page 4 gets loaded because we're on page 5
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {7, 8}, false));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {9, 11}, true));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {12, 12}, false));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {13, 14}, true));
-
-    // Load 5 more pages AFTER the current set of pages
-    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 15, 5));
-    ASSERT_TRUE(ds->processUpdate(FIFTEEN_TO_NINETEEN_RESPONSE_PAGER));
-    root->clearPending();
-    ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 15));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 3}, false));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 6}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {7, 8}, false));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {9, 11}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {12, 12}, false));
@@ -2330,6 +2543,186 @@ TEST_F(DynamicIndexListTest, EmptyPager)
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 5, 5));
 }
 
+static const char *WRAPPING_PAGER = R"({
+  "type": "APL",
+  "version": "1.7",
+  "theme": "light",
+  "layouts": {
+    "square": {
+      "parameters": ["color", "text"],
+      "item": {
+        "type": "Frame",
+        "width": 200,
+        "height": 200,
+        "id": "frame-${text}",
+        "backgroundColor": "${color}",
+        "item": {
+          "type": "Text",
+          "text": "${text}",
+          "color": "black",
+          "width": "100%",
+          "height": "100%"
+        }
+      }
+    }
+  },
+  "mainTemplate": {
+    "parameters": [ "dynamicSource" ],
+    "item": {
+      "type": "Pager",
+      "id": "pager",
+      "data": "${dynamicSource}",
+      "width": "100%",
+      "height": "100%",
+      "navigation": "wrap",
+      "items": {
+        "type": "square",
+        "index": "${index}",
+        "color": "${data.color}",
+        "text": "${data.text}"
+      }
+    }
+  }
+})";
+
+static const char *WRAPPING_PAGER_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 5,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 20,
+    "items": [
+      { "color": "blue", "text": "5" },
+      { "color": "red", "text": "6" },
+      { "color": "green", "text": "7" },
+      { "color": "yellow", "text": "8" },
+      { "color": "white", "text": "9" }
+    ]
+  }
+})";
+
+TEST_F(DynamicIndexListTest, WrappedPager)
+{
+    loadDocument(WRAPPING_PAGER, WRAPPING_PAGER_DATA);
+
+    ASSERT_EQ(kComponentTypePager, component->getType());
+    ASSERT_EQ(kNavigationWrap, static_cast<Navigation>(component->getCalculated(kPropertyNavigation).getInteger()));
+
+    ASSERT_EQ(5, component->getChildCount());
+    advanceTime(10);
+    root->clearDirty();
+
+    // Load 5 pages every direction the current set of pages
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 0, 5));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 10, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(0, 101, 0,
+                                                 R"({ "color": "blue", "text": "0" },
+                                                    { "color": "red", "text": "1" },
+                                                    { "color": "green", "text": "2" },
+                                                    { "color": "yellow", "text": "3" },
+                                                    { "color": "white", "text": "4" })" )));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(0, 102, 10,
+                                                 R"({ "color": "blue", "text": "10" },
+                                                    { "color": "red", "text": "11" },
+                                                    { "color": "green", "text": "12" },
+                                                    { "color": "yellow", "text": "13" },
+                                                    { "color": "white", "text": "14" })" )));
+    root->clearPending();
+
+    ASSERT_EQ(15, component->getChildCount());
+
+    // Go back to 0
+    component->update(UpdateType::kUpdatePagerByEvent, 0);
+    root->clearPending();
+
+    // We need to wrap to load from 15 to 20
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 15, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(0, 103, 15,
+                                                 R"({ "color": "blue", "text": "15" },
+                                                    { "color": "red", "text": "16" },
+                                                    { "color": "green", "text": "17" },
+                                                    { "color": "yellow", "text": "18" },
+                                                    { "color": "white", "text": "19" })" )));
+    root->clearPending();
+
+    ASSERT_EQ(20, component->getChildCount());
+}
+
+static const char *OLD_WRAPPING_PAGER = R"({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "light",
+  "layouts": {
+    "square": {
+      "parameters": ["color", "text"],
+      "item": {
+        "type": "Frame",
+        "width": 200,
+        "height": 200,
+        "id": "frame-${text}",
+        "backgroundColor": "${color}",
+        "item": {
+          "type": "Text",
+          "text": "${text}",
+          "color": "black",
+          "width": "100%",
+          "height": "100%"
+        }
+      }
+    }
+  },
+  "mainTemplate": {
+    "parameters": [ "dynamicSource" ],
+    "item": {
+      "type": "Pager",
+      "id": "pager",
+      "data": "${dynamicSource}",
+      "width": "100%",
+      "height": "100%",
+      "navigation": "wrap",
+      "items": {
+        "type": "square",
+        "index": "${index}",
+        "color": "${data.color}",
+        "text": "${data.text}"
+      }
+    }
+  }
+})";
+
+TEST_F(DynamicIndexListTest, OldWrappedPager)
+{
+    loadDocument(OLD_WRAPPING_PAGER, WRAPPING_PAGER_DATA);
+
+    ASSERT_EQ(kComponentTypePager, component->getType());
+    // Check the override
+    ASSERT_EQ(kNavigationNormal, static_cast<Navigation>(component->getCalculated(kPropertyNavigation).getInteger()));
+
+    ASSERT_EQ(5, component->getChildCount());
+    advanceTime(10);
+    root->clearDirty();
+
+    // Load 5 pages every direction the current set of pages
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 0, 5));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 10, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(0, 102, 10,
+                                                 R"({ "color": "blue", "text": "10" },
+                                                    { "color": "red", "text": "11" },
+                                                    { "color": "green", "text": "12" },
+                                                    { "color": "yellow", "text": "13" },
+                                                    { "color": "white", "text": "14" })" )));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(0, 101, 0,
+                                                 R"({ "color": "blue", "text": "0" },
+                                                    { "color": "red", "text": "1" },
+                                                    { "color": "green", "text": "2" },
+                                                    { "color": "yellow", "text": "3" },
+                                                    { "color": "white", "text": "4" })" )));
+    root->clearPending();
+
+    ASSERT_EQ(15, component->getChildCount());
+}
+
 static const char *SMALLER_DATA_BACK = R"({
   "dynamicSource": {
     "type": "dynamicIndexList",
@@ -2343,6 +2736,8 @@ static const char *SMALLER_DATA_BACK = R"({
 
 TEST_F(DynamicIndexListTest, GarbageCollection) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
+    root->clearDirty();
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2360,7 +2755,10 @@ TEST_F(DynamicIndexListTest, GarbageCollection) {
     context = nullptr;
     root = nullptr;
 
+    loop = std::make_shared<TestTimeManager>();
+    config->timeManager(loop);
     loadDocument(BASIC, SMALLER_DATA_BACK);
+    advanceTime(20);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2392,6 +2790,8 @@ static const char *FIFTEEN_TO_NINETEEN_WRONG_LIST_RESPONSE = R"({
 
 TEST_F(DynamicIndexListTest, CorrelationTokenSubstitute) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
+    root->clearDirty();
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2419,6 +2819,8 @@ static const char *FIFTEEN_TO_TWENTY_FOUR_RESPONSE = R"({
 
 TEST_F(DynamicIndexListTest, BigLazyLoad) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
+    root->clearDirty();
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2470,6 +2872,7 @@ static const char *FIVE_TO_NINE_SHRINK_RESPONSE = R"({
 
 TEST_F(DynamicIndexListTest, BoundsShrinkTop) {
     loadDocument(BASIC, SMALLER_DATA_BACK);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2497,6 +2900,7 @@ static const char *SHRINK_FULL_RESPONSE = R"({
 
 TEST_F(DynamicIndexListTest, BoundsShrinkFull) {
     loadDocument(BASIC, SMALLER_DATA_BACK);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2549,6 +2953,7 @@ static const char *EXPAND_TOP_RESPONSE = R"({
 
 TEST_F(DynamicIndexListTest, BoundsExpandTop) {
     loadDocument(BASIC, SMALLER_DATA_BACK);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2576,6 +2981,7 @@ static const char *EXPAND_FULL_RESPONSE = R"({
 
 TEST_F(DynamicIndexListTest, BoundsExpandFull) {
     loadDocument(BASIC, SMALLER_DATA_BACK);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2601,6 +3007,7 @@ static const char *FIFTEEN_EMPTY_RESPONSE = R"({
 
 TEST_F(DynamicIndexListTest, EmptyLazyResponseRetryFail) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2621,6 +3028,7 @@ TEST_F(DynamicIndexListTest, EmptyLazyResponseRetryFail) {
 
 TEST_F(DynamicIndexListTest, EmptyLazyResponseRetryResolved) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2653,6 +3061,7 @@ static const char *FIFTEEN_SHRINK_RESPONSE = R"({
 
 TEST_F(DynamicIndexListTest, EmptyLazyResponseRetryBoundsUpdated) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2671,6 +3080,7 @@ TEST_F(DynamicIndexListTest, EmptyLazyResponseRetryBoundsUpdated) {
 
 TEST_F(DynamicIndexListTest, LazyResponseTimeout) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2679,22 +3089,23 @@ TEST_F(DynamicIndexListTest, LazyResponseTimeout) {
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
     // Not yet
-    loop->advanceToTime(60);
+    advanceTime(50);
     ASSERT_TRUE(CheckErrors({}));
 
     // Should go from here
-    loop->advanceToTime(100);
+    advanceTime(40);
     ASSERT_TRUE(CheckErrors({ "LOAD_TIMEOUT" }));
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 15, 5));
-    loop->advanceToTime(200);
+    advanceTime(100);
     ASSERT_TRUE(CheckErrors({ "LOAD_TIMEOUT" }));
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 15, 5));
-    loop->advanceToTime(300);
+    advanceTime(100);
     ASSERT_FALSE(root->hasEvent());
 }
 
 TEST_F(DynamicIndexListTest, LazyResponseTimeoutResolvedAfterLost) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2703,11 +3114,11 @@ TEST_F(DynamicIndexListTest, LazyResponseTimeoutResolvedAfterLost) {
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
     // Not yet
-    loop->advanceToTime(60);
+    advanceTime(50);
     ASSERT_TRUE(CheckErrors({}));
 
     // Should go from here
-    loop->advanceToTime(100);
+    advanceTime(40);
     ASSERT_TRUE(CheckErrors({ "LOAD_TIMEOUT" }));
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 15, 5));
 
@@ -2724,6 +3135,7 @@ TEST_F(DynamicIndexListTest, LazyResponseTimeoutResolvedAfterLost) {
 
 TEST_F(DynamicIndexListTest, LazyResponseTimeoutResolvedAfterDelayed) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -2732,11 +3144,11 @@ TEST_F(DynamicIndexListTest, LazyResponseTimeoutResolvedAfterDelayed) {
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
     // Not yet
-    loop->advanceToTime(60);
+    advanceTime(50);
     ASSERT_TRUE(CheckErrors({}));
 
     // Should go from here
-    loop->advanceToTime(100);
+    advanceTime(40);
     ASSERT_TRUE(CheckErrors({ "LOAD_TIMEOUT" }));
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 15, 5));
 
@@ -2844,8 +3256,6 @@ TEST_F(DynamicIndexListTest, SwipeToDelete)
         {RootProperty::kTapOrScrollTimeout, 10},
         {RootProperty::kPointerInactivityTimeout, 1000}
     });
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
-
     loadDocument(SWIPE_TO_DELETE, SWIPE_TO_DELETE_DATA);
 
     ASSERT_TRUE(component);
@@ -2855,13 +3265,13 @@ TEST_F(DynamicIndexListTest, SwipeToDelete)
     auto idToDelete = component->getChildAt(0)->getUniqueId();
 
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(200,1), false));
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(190,1), true));
-    root->updateTime(200);
+    advanceTime(100);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(140,1), true));
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(140,1), true));
 
-    root->updateTime(1000);
+    advanceTime(800);
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
     auto deletedId = event.getValue(kEventPropertyArguments).getArray().at(0).asString();
@@ -2881,13 +3291,13 @@ TEST_F(DynamicIndexListTest, SwipeToDelete)
     idToDelete = component->getChildAt(0)->getUniqueId();
 
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(200,1), false));
-    root->updateTime(1100);
+    advanceTime(100);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(190,1), true));
-    root->updateTime(1200);
+    advanceTime(100);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(140,1), true));
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(140,1), true));
 
-    root->updateTime(2000);
+    advanceTime(800);
     event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
     deletedId = event.getValue(kEventPropertyArguments).getArray().at(0).asString();
@@ -2908,13 +3318,13 @@ TEST_F(DynamicIndexListTest, SwipeToDelete)
     idToDelete = component->getChildAt(2)->getUniqueId();
 
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(200,201), false));
-    root->updateTime(2100);
+    advanceTime(100);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(190,201), true));
-    root->updateTime(2200);
+    advanceTime(100);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(140,201), true));
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(140,201), true));
 
-    root->updateTime(3000);
+    advanceTime(800);
     event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
     deletedId = event.getValue(kEventPropertyArguments).getArray().at(0).asString();
@@ -2934,13 +3344,13 @@ TEST_F(DynamicIndexListTest, SwipeToDelete)
     idToDelete = component->getChildAt(0)->getUniqueId();
 
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(200,1), false));
-    root->updateTime(3100);
+    advanceTime(100);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(190,1), true));
-    root->updateTime(3200);
+    advanceTime(100);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(140,1), true));
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(140,1), true));
 
-    root->updateTime(4000);
+    advanceTime(800);
     event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
     deletedId = event.getValue(kEventPropertyArguments).getArray().at(0).asString();
@@ -2960,13 +3370,13 @@ TEST_F(DynamicIndexListTest, SwipeToDelete)
     idToDelete = component->getChildAt(0)->getUniqueId();
 
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(200,1), false));
-    root->updateTime(4100);
+    advanceTime(100);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(190,1), true));
-    root->updateTime(4200);
+    advanceTime(100);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(140,1), true));
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(140,1), true));
 
-    root->updateTime(5000);
+    advanceTime(800);
     event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
     deletedId = event.getValue(kEventPropertyArguments).getArray().at(0).asString();
@@ -3022,6 +3432,28 @@ TEST_F(DynamicIndexListTest, ProactiveLoadOnly)
     ASSERT_TRUE(CheckBounds(5, 10));
 
     ASSERT_FALSE(root->hasEvent());
+}
+
+static const char *PROACTIVE_EXPAND_BAD_RESPONSE = R"({
+  "token": "presentationToken",
+  "listId": "vQdpOESlok",
+  "startIndex": 5,
+  "minimumInclusiveIndex": 5
+  "maximumExclusiveIndex": 10
+  "items": [ 5, 6, 7, 8, 9 ]
+})";
+
+TEST_F(DynamicIndexListTest, ProactiveLoadOnlyBadJson)
+{
+    loadDocument(BASIC, PROACTIVE_LOAD_ONLY);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(0, component->getChildCount());
+
+    ASSERT_FALSE(root->hasEvent());
+
+    ASSERT_FALSE(ds->processUpdate(PROACTIVE_EXPAND_BAD_RESPONSE));
 }
 
 static const char *BASIC_CONFIG_CHANGE = R"({
@@ -3081,5 +3513,458 @@ TEST_F(DynamicIndexListTest, Reinflate) {
     ASSERT_EQ(component->getId(), oldComponent->getId());
     ASSERT_EQ(20, component->getChildCount());
     ASSERT_TRUE(CheckBounds(0, 20));
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char *TYPED_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 0,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 20,
+    "items": [
+      { "type": "TYPE1", "value": 0 },
+      { "type": "TYPE2", "value": 1 },
+      { "type": "TYPE2", "value": 2 },
+      { "type": "TYPE1", "value": 3 },
+      { "type": "TYPE1", "value": 4 },
+      { "type": "TYPE1", "value": 5 },
+      { "type": "TYPE1", "value": 6 },
+      { "type": "TYPE1", "value": 7 },
+      { "type": "TYPE1", "value": 8 },
+      { "type": "TYPE1", "value": 9 }
+    ]
+  }
+})";
+
+static const char *MULTITYPE_SEQUENCE = R"({
+  "type": "APL",
+  "version": "1.7",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "height": 200,
+      "data": "${dynamicSource}",
+      "items": {
+        "type": "Text",
+        "when": "${data.type == 'TYPE2'}",
+        "id": "id${data.value}",
+        "width": 100,
+        "height": 100,
+        "text": "${data.value}"
+      }
+    }
+  }
+})";
+
+TEST_F(DynamicIndexListTest, ConditionalSequenceChildren)
+{
+    loadDocument(MULTITYPE_SEQUENCE, TYPED_DATA);
+    advanceTime(10);
+
+    ASSERT_TRUE(CheckBounds(0, 20));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 10, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, 10,
+        "{\"type\": \"TYPE1\", \"value\": 10},"
+        "{\"type\": \"TYPE1\", \"value\": 11},"
+        "{\"type\": \"TYPE1\", \"value\": 12},"
+        "{\"type\": \"TYPE1\", \"value\": 13},"
+        "{\"type\": \"TYPE1\", \"value\": 14}")));
+    root->clearPending();
+
+    ASSERT_EQ(2, component->getChildCount());
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 15, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 102, 15,
+         "{\"type\": \"TYPE1\", \"value\": 15},"
+         "{\"type\": \"TYPE1\", \"value\": 16},"
+         "{\"type\": \"TYPE1\", \"value\": 17},"
+         "{\"type\": \"TYPE2\", \"value\": 18},"
+         "{\"type\": \"TYPE2\", \"value\": 19}")));
+    root->clearPending();
+
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char *TYPED_DATA_BACK = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 0,
+    "minimumInclusiveIndex": -15,
+    "maximumExclusiveIndex": 2,
+    "items": [
+      { "type": "TYPE2", "value": 0 },
+      { "type": "TYPE1", "value": 1 }
+    ]
+  }
+})";
+
+TEST_F(DynamicIndexListTest, ConditionalSequenceChildrenBackwards)
+{
+    loadDocument(MULTITYPE_SEQUENCE, TYPED_DATA_BACK);
+    advanceTime(10);
+
+    ASSERT_TRUE(CheckBounds(-15, 2));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", -5, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, -5,
+                                                 "{\"type\": \"TYPE1\", \"value\": -5},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -4},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -3},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -2},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -1}")));
+    root->clearPending();
+
+    ASSERT_EQ(1, component->getChildCount());
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", -10, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 102, -10,
+                                                 "{\"type\": \"TYPE1\", \"value\": -10},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -9},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -8},"
+                                                 "{\"type\": \"TYPE2\", \"value\": -7},"
+                                                 "{\"type\": \"TYPE2\", \"value\": -6}")));
+    root->clearPending();
+
+    ASSERT_EQ(3, component->getChildCount());
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", -15, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 103, -15,
+                                                 "{\"type\": \"TYPE1\", \"value\": -15},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -14},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -13},"
+                                                 "{\"type\": \"TYPE2\", \"value\": -12},"
+                                                 "{\"type\": \"TYPE2\", \"value\": -11}")));
+    root->clearPending();
+
+    ASSERT_EQ(5, component->getChildCount());
+
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char *TYPED_DATA_START_EMPTY = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 0,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 5,
+    "items": [
+      { "type": "TYPE1", "value": 0 },
+      { "type": "TYPE1", "value": 1 }
+    ]
+  }
+})";
+
+TEST_F(DynamicIndexListTest, ConditionalSequenceChildrenStartEmpty)
+{
+    loadDocument(MULTITYPE_SEQUENCE, TYPED_DATA_START_EMPTY);
+    advanceTime(10);
+
+    ASSERT_TRUE(CheckBounds(0, 5));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 2, 3));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, 2,
+                                                 "{\"type\": \"TYPE1\", \"value\": 2},"
+                                                 "{\"type\": \"TYPE2\", \"value\": 3},"
+                                                 "{\"type\": \"TYPE1\", \"value\": 4}")));
+    root->clearPending();
+    ASSERT_EQ(1, component->getChildCount());
+
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char *MULTITYPE_PAGER = R"({
+  "type": "APL",
+  "version": "1.7",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "item": {
+      "type": "Pager",
+      "height": 200,
+      "width": 200,
+      "data": "${dynamicSource}",
+      "items": {
+        "type": "Text",
+        "when": "${data.type == 'TYPE2'}",
+        "id": "id${data.value}",
+        "width": 100,
+        "height": 100,
+        "text": "${data.value}"
+      }
+    }
+  }
+})";
+
+TEST_F(DynamicIndexListTest, ConditionalPagerChildren)
+{
+    loadDocument(MULTITYPE_PAGER, TYPED_DATA);
+    advanceTime(10);
+
+    ASSERT_TRUE(CheckBounds(0, 20));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 10, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, 10,
+                                                 "{\"type\": \"TYPE1\", \"value\": 10},"
+                                                 "{\"type\": \"TYPE1\", \"value\": 11},"
+                                                 "{\"type\": \"TYPE1\", \"value\": 12},"
+                                                 "{\"type\": \"TYPE1\", \"value\": 13},"
+                                                 "{\"type\": \"TYPE1\", \"value\": 14}")));
+    root->clearPending();
+
+    ASSERT_EQ(2, component->getChildCount());
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 15, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 102, 15,
+                                                 "{\"type\": \"TYPE1\", \"value\": 15},"
+                                                 "{\"type\": \"TYPE1\", \"value\": 16},"
+                                                 "{\"type\": \"TYPE1\", \"value\": 17},"
+                                                 "{\"type\": \"TYPE2\", \"value\": 18},"
+                                                 "{\"type\": \"TYPE2\", \"value\": 19}")));
+    root->clearPending();
+
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+TEST_F(DynamicIndexListTest, ConditionalPagerChildrenBackwards)
+{
+    loadDocument(MULTITYPE_PAGER, TYPED_DATA_BACK);
+    advanceTime(10);
+
+    ASSERT_TRUE(CheckBounds(-15, 2));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", -5, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, -5,
+                                                 "{\"type\": \"TYPE1\", \"value\": -5},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -4},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -3},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -2},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -1}")));
+    root->clearPending();
+
+    ASSERT_EQ(1, component->getChildCount());
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", -10, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 102, -10,
+                                                 "{\"type\": \"TYPE1\", \"value\": -10},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -9},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -8},"
+                                                 "{\"type\": \"TYPE2\", \"value\": -7},"
+                                                 "{\"type\": \"TYPE2\", \"value\": -6}")));
+    root->clearPending();
+
+    ASSERT_EQ(3, component->getChildCount());
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", -15, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 103, -15,
+                                                 "{\"type\": \"TYPE1\", \"value\": -15},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -14},"
+                                                 "{\"type\": \"TYPE1\", \"value\": -13},"
+                                                 "{\"type\": \"TYPE2\", \"value\": -12},"
+                                                 "{\"type\": \"TYPE2\", \"value\": -11}")));
+    root->clearPending();
+
+    ASSERT_EQ(5, component->getChildCount());
+
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+TEST_F(DynamicIndexListTest, ConditionalPagerChildrenStartEmpty)
+{
+    loadDocument(MULTITYPE_PAGER, TYPED_DATA_START_EMPTY);
+    advanceTime(10);
+
+    ASSERT_TRUE(CheckBounds(0, 5));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 2, 3));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, 2,
+                                                 "{\"type\": \"TYPE1\", \"value\": 2},"
+                                                 "{\"type\": \"TYPE2\", \"value\": 3},"
+                                                 "{\"type\": \"TYPE1\", \"value\": 4}")));
+    root->clearPending();
+    ASSERT_EQ(1, component->getChildCount());
+
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char *SEQUENCE_RECREATE_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 0,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 1,
+    "items": [
+      { "label": "I am a label.", "sequence": ["red", "green", "blue", "yellow", "purple"] }
+    ]
+  }
+})";
+
+static const char *SEQUENCE_RECREATE = R"({
+  "type": "APL",
+  "version": "1.7",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "item": {
+      "type": "Container",
+      "height": 300,
+      "width": 300,
+      "data": "${dynamicSource}",
+      "items": {
+        "type": "Container",
+        "height": "100%",
+        "width": "100%",
+        "items": [
+          {
+            "type": "Sequence",
+            "height": "50%",
+            "width": "100%",
+            "data": "${data.sequence}",
+            "items": {
+              "type": "Frame",
+              "backgroundColor": "${data}",
+              "height": 10,
+              "width": "100%"
+            }
+          }
+        ]
+      }
+    }
+  }
+})";
+
+static const char *REPLACE_SEQUENCE_CRUD = R"({
+  "presentationToken": "presentationToken",
+  "listId": "vQdpOESlok",
+  "listVersion": 1,
+  "operations": [
+    {
+      "type": "DeleteListItem",
+      "index": 0
+    },
+    {
+      "type": "InsertListItem",
+      "index": 0,
+      "item": { "sequence": ["purple", "yellow", "blue", "green", "red"] }
+    }
+  ]
+})";
+
+TEST_F(DynamicIndexListTest, SequenceRecreate)
+{
+    loadDocument(SEQUENCE_RECREATE, SEQUENCE_RECREATE_DATA);
+    advanceTime(10);
+
+    ASSERT_EQ(1, component->getChildCount());
+    auto sequence = component->getCoreChildAt(0)->getCoreChildAt(0);
+    ASSERT_EQ(5, sequence->getChildCount());
+
+    ASSERT_EQ(Rect(0,  0, 300, 300), component->getCoreChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 300, 150), sequence->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,  0, 300, 10), sequence->getCoreChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 10, 300, 10), sequence->getCoreChildAt(1)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 20, 300, 10), sequence->getCoreChildAt(2)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 30, 300, 10), sequence->getCoreChildAt(3)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 40, 300, 10), sequence->getCoreChildAt(4)->getCalculated(kPropertyBounds).getRect());
+
+    ASSERT_TRUE(ds->processUpdate(REPLACE_SEQUENCE_CRUD));
+    root->clearPending();
+
+    sequence = component->getCoreChildAt(0)->getCoreChildAt(0);
+    ASSERT_EQ(5, sequence->getChildCount());
+
+    ASSERT_EQ(Rect(0,  0, 300, 300).toDebugString(), component->getCoreChildAt(0)->getCalculated(kPropertyBounds).getRect().toDebugString());
+    ASSERT_EQ(Rect(0,  0, 300, 150), sequence->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,   0, 300, 10), sequence->getCoreChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 10, 300, 10), sequence->getCoreChildAt(1)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 20, 300, 10), sequence->getCoreChildAt(2)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 30, 300, 10), sequence->getCoreChildAt(3)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 40, 300, 10), sequence->getCoreChildAt(4)->getCalculated(kPropertyBounds).getRect());
+}
+
+static const char *FILLED_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 0,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 5,
+    "items": [ 0, 1, 2, 3, 4 ]
+  }
+})";
+
+TEST_F(DynamicIndexListTest, DeleteMultipleAll)
+{
+    loadDocument(BASIC, FILLED_DATA);
+    advanceTime(10);
+
+    ASSERT_TRUE(CheckBounds(0, 5));
+    ASSERT_EQ(5, component->getChildCount());
+
+    ASSERT_FALSE(root->hasEvent());
+
+    ASSERT_TRUE(ds->processUpdate(createMultiDelete(1, 0, 100)));
+    root->clearPending();
+
+    ASSERT_EQ(0, component->getChildCount());
+}
+
+
+
+static const char *FORWARD_ONLY_DATA = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 0,
+    "minimumInclusiveIndex": 0,
+    "maximumExclusiveIndex": 10,
+    "items": [ 0, 1, 2, 3, 4 ]
+  }
+})";
+
+static const char *SHRINK_BOUNDS_WITHOUT_ITEMS = R"({
+  "token": "presentationToken",
+  "listId": "vQdpOESlok",
+  "startIndex": 0,
+  "minimumInclusiveIndex": 0,
+  "maximumExclusiveIndex": 5
+})";
+
+TEST_F(DynamicIndexListTest, ShrinkWithoutItems)
+{
+    loadDocument(BASIC, FORWARD_ONLY_DATA);
+    advanceTime(10);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(5, component->getChildCount());
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 5, 5));
+
+    ASSERT_TRUE(ds->processUpdate(SHRINK_BOUNDS_WITHOUT_ITEMS));
+    ASSERT_TRUE(CheckErrors({"INCONSISTENT_RANGE", "MISSING_LIST_ITEMS"}));
+    root->clearPending();
+
+    advanceTime(10000);
     ASSERT_FALSE(root->hasEvent());
 }

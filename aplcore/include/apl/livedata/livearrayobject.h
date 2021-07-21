@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -59,16 +59,15 @@ public:
         return std::static_pointer_cast<LiveArrayObject>(shared_from_this());
     }
 
-    /**
-     * Overrides from Object::Data
-     */
+    /// Overrides from ObjectData
     Object at(std::uint64_t index) const override;
-    virtual void ensure(size_t index) {}
     std::uint64_t size() const override;
     bool empty() const override;
     const std::vector<Object>& getArray() const override;
     void accept(Visitor<Object>& visitor) const override;
     std::string toDebugString() const override { return "LiveArrayObject<size=" + std::to_string(size()) + ">"; }
+
+    virtual void ensure(size_t index) {}
 
     /**
      * This is called from the LiveDataManager to flush all stored array changes and update the context
@@ -87,6 +86,12 @@ public:
      *         If the current index reflects a new item in the array, the old index is set to -1.
      */
     std::pair<int, bool> newToOld(ObjectArray::size_type index);
+
+    /**
+     * @return true if internal implementation may request items added or removed based on current binding state, false
+     * otherwise.
+     */
+    virtual bool isPaginating() const { return false; }
 
 private:
     void handleArrayMessage(const LiveArrayChange& change);

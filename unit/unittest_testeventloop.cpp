@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -183,4 +183,35 @@ TEST_F(EventLoopWrapper, ParallelAnimations)
 
     ASSERT_EQ(10, count);
     ASSERT_EQ(std::vector<int>({10, 10}), timers);
+}
+
+TEST_F(EventLoopWrapper, AnimatorCreatesTimeout)
+{
+    int timeoutCalls = 0;
+    int animatorCalls = 0;
+    loop->setAnimator([&](apl_duration_t delta) {
+        animatorCalls++;
+        // This timeout created during animator execution trips up the previous
+        // implementation of the timer heap and causes a segmentation fault
+        loop->setTimeout([&]() {
+            timeoutCalls++;
+        }, 100);
+    }, 100);
+
+    loop->setAnimator([&](apl_duration_t delta) {
+        animatorCalls++;
+    }, 300);
+
+    ASSERT_EQ(2, loop->size());
+    ASSERT_EQ(2, loop->animatorCount());
+
+    loop->advanceBy(50);
+
+    ASSERT_EQ(2, animatorCalls);
+    ASSERT_EQ(0, timeoutCalls);
+    ASSERT_EQ(3, loop->size());
+
+    loop->advanceBy(1000);
+
+    ASSERT_EQ(2, timeoutCalls);
 }

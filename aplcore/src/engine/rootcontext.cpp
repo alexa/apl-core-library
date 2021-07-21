@@ -29,8 +29,9 @@
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
 #include "apl/content/configurationchange.h"
+#include "apl/datasource/datasource.h"
+#include "apl/datasource/datasourceprovider.h"
 #include "apl/engine/builder.h"
-#include "apl/engine/styles.h"
 #include "apl/extension/extensionmanager.h"
 #include "apl/engine/rootcontext.h"
 #include "apl/engine/resources.h"
@@ -40,12 +41,14 @@
 #include "apl/livedata/livedataobjectwatcher.h"
 #include "apl/time/timemanager.h"
 #include "apl/utils/log.h"
+#include "apl/utils/tracing.h"
 
 namespace apl {
 
-const char *ELAPSED_TIME = "elapsedTime";
-const char *LOCAL_TIME = "localTime";
-const char *UTC_TIME = "utcTime";
+static const char *ELAPSED_TIME = "elapsedTime";
+static const char *LOCAL_TIME = "localTime";
+static const char *UTC_TIME = "utcTime";
+static const char *ON_MOUNT_HANDLER_NAME = "Mount";
 
 RootContextPtr
 RootContext::create(const Metrics& metrics, const ContentPtr& content)
@@ -160,14 +163,40 @@ RootContext::resize()
     // Note: we do not clear the configuration changes - there may be a reinflate() coming in the future.
 }
 
+static LayoutDirection
+getLayoutDirection(const rapidjson::Value& json, const RootConfig& config) {
+    LayoutDirection layoutDirection = static_cast<LayoutDirection>(config.getProperty(RootProperty::kLayoutDirection).asInt());
+    auto layoutDirectionIter = json.FindMember("layoutDirection");
+    if (layoutDirectionIter != json.MemberEnd() && layoutDirectionIter->value.IsString()) {
+        auto s = layoutDirectionIter->value.GetString();
+        layoutDirection = static_cast<LayoutDirection>(sLayoutDirectionMap.get(s, kLayoutDirectionLTR));
+        if (sLayoutDirectionMap.find(s) == sLayoutDirectionMap.endBtoA()) {
+            LOG(LogLevel::kWarn) << "Document 'layoutDirection' property is invalid. Falling back to 'LTR' instead of : " << s;
+        }
+    }
+    if (layoutDirection == kLayoutDirectionInherit) {
+        LOG(LogLevel::kWarn) << "Document 'layoutDirection' can not be 'Inherit', falling back to 'LTR' instead";
+        layoutDirection = kLayoutDirectionLTR;
+    }
+    return layoutDirection;
+}
+
 void
 RootContext::init(const Metrics& metrics, const RootConfig& config, bool reinflation)
 {
+    APL_TRACE_BLOCK("RootContext:init");
     std::string theme = metrics.getTheme();
     const auto& json = mContent->getDocument()->json();
     auto themeIter = json.FindMember("theme");
     if (themeIter != json.MemberEnd() && themeIter->value.IsString())
         theme = themeIter->value.GetString();
+
+    std::string lang = config.getProperty(RootProperty::kLang).asString();
+    auto langIter = json.FindMember("lang");
+    if (langIter != json.MemberEnd() && langIter->value.IsString())
+        lang = langIter->value.GetString();
+
+    auto layoutDirection = getLayoutDirection(json, config);
 
     auto session = config.getSession();
     if (!session)
@@ -181,6 +210,8 @@ RootContext::init(const Metrics& metrics, const RootConfig& config, bool reinfla
                                               mContent->getDocumentSettings(),
                                               session,
                                               mContent->mExtensionRequests);
+    mCore->lang(lang)
+          .layoutDirection(layoutDirection);
     mContext = Context::createRootEvaluationContext(metrics, mCore);
 
     mContext->putSystemWriteable(ELAPSED_TIME, mTimeManager->currentTime());
@@ -204,8 +235,15 @@ RootContext::init(const Metrics& metrics, const RootConfig& config, bool reinfla
 void
 RootContext::clearPending() const
 {
+    clearPendingInternal(false);
+}
+
+void
+RootContext::clearPendingInternal(bool first) const
+{
     assert(mCore);
 
+    APL_TRACE_BLOCK("RootContext:clearPending");
     // Flush any dynamic data changes
     mCore->dataManager().flushDirty();
 
@@ -214,9 +252,35 @@ RootContext::clearPending() const
 
     // If we need a layout pass, do it now - it will update the dirty events
     if (mCore->layoutManager().needsLayout())
-        mCore->layoutManager().layout(true);
+        mCore->layoutManager().layout(true, first);
 
-    mCore->mediaManager().processMediaRequests();
+    mCore->mediaManager().processMediaRequests(mContext);
+
+    // Run any onMount handlers for something that may have been attached at runtime
+    // We execute those on the sequencer to avoid messing stuff up. Will work much more similarly to previous behavior,
+    // but will not interrupt something that may have been scheduled just before.
+    auto& onMounts = mCore->pendingOnMounts();
+    if (!onMounts.empty()) {
+        const auto& tm = getRootConfig().getTimeManager();
+        std::vector<ActionPtr> parallelCommands;
+        for (auto& pendingOnMount : onMounts) {
+            if (auto comp = pendingOnMount.lock()) {
+                auto commands = comp->getCalculated(kPropertyOnMount);
+                auto ctx = comp->createDefaultEventContext(ON_MOUNT_HANDLER_NAME);
+                parallelCommands.emplace_back(
+                        ArrayCommand::create(
+                                ctx,
+                                commands,
+                                comp,
+                                Properties(),
+                                "")->execute(tm, false));
+            }
+        }
+        onMounts.clear();
+
+        auto mountAction = Action::makeAll(tm, parallelCommands);
+        mCore->sequencer().attachToSequencer(mountAction, "__MOUNT_SEQUENCER");
+    }
 }
 
 bool
@@ -265,7 +329,8 @@ void
 RootContext::clearDirty()
 {
     assert(mCore);
-    for (auto component : mCore->dirty)
+    APL_TRACE_BLOCK("RootContext:clearDirty");
+    for (auto& component : mCore->dirty)
         component->clearDirty();
 
     mCore->dirty.clear();
@@ -291,6 +356,38 @@ RootContext::serializeVisualContext(rapidjson::Document::AllocatorType& allocato
 {
     clearVisualContextDirty();
     return topComponent()->serializeVisualContext(allocator);
+}
+
+bool
+RootContext::isDataSourceContextDirty() const
+{
+    assert(mCore);
+    return !mCore->dirtyDatasourceContext.empty();
+}
+
+void
+RootContext::clearDataSourceContextDirty()
+{
+    assert(mCore);
+    mCore->dirtyDatasourceContext.clear();
+}
+
+rapidjson::Value
+RootContext::serializeDataSourceContext(rapidjson::Document::AllocatorType& allocator)
+{
+    clearDataSourceContextDirty();
+
+    rapidjson::Value outArray(rapidjson::kArrayType);
+
+    for (const auto& tracker : mCore->dataManager().trackers()) {
+        if (auto sourceConnection = tracker->getDataSourceConnection()) {
+            rapidjson::Value datasource(rapidjson::kObjectType);
+            sourceConnection->serialize(datasource, allocator);
+
+            outArray.PushBack(datasource.Move(), allocator);
+        }
+    }
+    return outArray;
 }
 
 std::shared_ptr<ObjectMap>
@@ -414,7 +511,7 @@ RootContext::updateTime(apl_time_t elapsedTime, apl_time_t utcTime)
 void
 RootContext::scrollToRectInComponent(const ComponentPtr& component, const Rect &bounds,
                                      CommandScrollAlign align) {
-    ScrollToAction::make(mTimeManager, align, bounds, mContext, component);
+    ScrollToAction::make(mTimeManager, align, bounds, mContext, std::static_pointer_cast<CoreComponent>(component));
 }
 
 
@@ -454,6 +551,7 @@ RootContext::rootConfig() {
 bool
 RootContext::setup(const CoreComponentPtr& top)
 {
+    APL_TRACE_BLOCK("RootContext:setup");
     std::vector<PackagePtr> ordered = mContent->ordered();
 
     // check type field of each package
@@ -472,17 +570,22 @@ RootContext::setup(const CoreComponentPtr& top)
     // Read settings
     // Deprecated, get settings from Content->getDocumentSettings()
     {
+        APL_TRACE_BEGIN("RootContext:readSettings");
         mCore->mSettings->read(mCore->rootConfig());
+        APL_TRACE_END("RootContext:readSettings");
     }
 
     // Resource processing:
+    APL_TRACE_BEGIN("RootContext:processResources");
     for (const auto& child : ordered) {
         const auto& json = child->json();
         const auto path = Path(trackProvenance ? child->name() : std::string());
         addNamedResourcesBlock(*mContext, json, path, "resources");
     }
+    APL_TRACE_END("RootContext:processResources");
 
     // Style processing
+    APL_TRACE_BEGIN("RootContext:processStyles");
     for (const auto& child : ordered) {
         const auto& json = child->json();
         const auto path = Path(trackProvenance ? child->name() : std::string());
@@ -491,8 +594,10 @@ RootContext::setup(const CoreComponentPtr& top)
         if (styleIter != json.MemberEnd() && styleIter->value.IsObject())
             mCore->styles()->addStyleDefinitions(mCore->session(), &styleIter->value, path.addObject("styles"));
     }
+    APL_TRACE_END("RootContext:processStyles");
 
     // Layout processing
+    APL_TRACE_BEGIN("RootContext:processLayouts");
     for (const auto& child : ordered) {
         const auto& json = child->json();
         const auto path = Path(trackProvenance ? child->name() : std::string()).addObject("layouts");
@@ -505,8 +610,10 @@ RootContext::setup(const CoreComponentPtr& top)
             }
         }
     }
+    APL_TRACE_END("RootContext:processLayouts");
 
     // Command processing
+    APL_TRACE_BEGIN("RootContext:processCommands");
     for (const auto& child : ordered) {
         const auto& json = child->json();
         const auto path = Path(trackProvenance ? child->name() : std::string()).addObject("commands");
@@ -519,8 +626,10 @@ RootContext::setup(const CoreComponentPtr& top)
             }
         }
     }
+    APL_TRACE_END("RootContext:processCommands");
 
     // Graphics processing
+    APL_TRACE_BEGIN("RootContext:processGraphics");
     for (const auto& child : ordered) {
         const auto& json = child->json();
         const auto path = Path(trackProvenance ? child->name() : std::string()).addObject("graphics");
@@ -533,8 +642,10 @@ RootContext::setup(const CoreComponentPtr& top)
             }
         }
     }
+    APL_TRACE_END("RootContext:processGraphics");
 
     // Identify all registered event handlers in all ordered documents
+    APL_TRACE_BEGIN("RootContext:processExtensionHandlers");
     auto& em = mCore->extensionManager();
     for (const auto& handler : em.qualifiedHandlerMap()) {
         for (const auto& child : ordered) {
@@ -548,11 +659,15 @@ RootContext::setup(const CoreComponentPtr& top)
             }
         }
     }
+    APL_TRACE_END("RootContext:processExtensionHandlers");
 
     // Inflate the top component
     Properties properties;
 
+    APL_TRACE_BEGIN("RootContext:retrieveProperties");
     mContent->getMainProperties(properties);
+    APL_TRACE_END("RootContext:retrieveProperties");
+
     mCore->mTop = Builder(top).inflate(mContext, properties, mContent->getMainTemplate());
 
     if (!mCore->mTop)
@@ -562,11 +677,15 @@ RootContext::setup(const CoreComponentPtr& top)
     mCore->layoutManager().firstLayout();
 
     // Execute the "onMount" document command
-    auto cmd = DocumentCommand::create(kPropertyOnMount, "Mount", shared_from_this());
+    APL_TRACE_BEGIN("RootContext:executeOnMount");
+    auto cmd = DocumentCommand::create(kPropertyOnMount, ON_MOUNT_HANDLER_NAME, shared_from_this());
     mContext->sequencer().execute(cmd, false);
+    // Clear any pending mounts as we just executed those
+    mCore->pendingOnMounts().clear();
+    APL_TRACE_END("RootContext:executeOnMount");
 
     // A bunch of commands may be queued up at the start time.  Clear those out.
-    clearPending();
+    clearPendingInternal(true);
 
     // Those commands may have set the dirty flags.  Clear them.
     clearDirty();
@@ -779,14 +898,14 @@ void
 RootContext::mediaLoaded(const std::string& source)
 {
     assert(mCore);
-    mCore->mediaManager().mediaLoaded(source);
+    mCore->mediaManager().mediaLoadComplete(source, true);
 }
 
 void
 RootContext::mediaLoadFailed(const std::string &source)
 {
     assert(mCore);
-    mCore->mediaManager().mediaLoadFailed(source);
+    mCore->mediaManager().mediaLoadComplete(source, false);
 }
 
 } // namespace apl

@@ -46,12 +46,8 @@ TEST_F(ScreenLockTest, Basic) {
                                          {"screenLock",  true}}, false);
 
     ASSERT_TRUE(root->screenLock());
-
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-
-    event.getActionRef().resolve();
+    advanceTime(1000);
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
     ASSERT_FALSE(root->screenLock());
 }
 
@@ -64,15 +60,10 @@ TEST_F(ScreenLockTest, BasicWithDelay) {
                                          {"delay",       1000}}, false);
 
     ASSERT_TRUE(root->screenLock());
-
-    ASSERT_FALSE(root->hasEvent());
-    root->updateTime(1000);
-
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-
-    event.getActionRef().resolve();
+    advanceTime(1000);
+    ASSERT_EQ(Point(0, 0), component->scrollPosition());
+    advanceTime(1000);
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
     ASSERT_FALSE(root->screenLock());
 }
 
@@ -121,7 +112,7 @@ TEST_F(ScreenLockTest, BasicSendEventWithDelay) {
     ASSERT_TRUE(root->screenLock());
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(1000);
+    advanceTime(1000);
 
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
@@ -182,21 +173,14 @@ TEST_F(ScreenLockTest, OnMount) {
     ASSERT_TRUE(root->screenLock());
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(1000);
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(Dimension(900), event.getValue(kEventPropertyPosition).asDimension(*context));
+    advanceTime(1000);
     ASSERT_TRUE(root->screenLock());
 
-    root->updateTime(500);
-    component->update(kUpdateScrollPosition, 400);
-    root->updateTime(500);
-    component->update(kUpdateScrollPosition, 900);
-
+    advanceTime(500);
     ASSERT_TRUE(root->screenLock());
-    event.getActionRef().resolve();
+
+    advanceTime(1000);
+    ASSERT_EQ(Point(0, 900), component->scrollPosition());
     ASSERT_FALSE(root->screenLock());
 }
 
@@ -247,33 +231,24 @@ TEST_F(ScreenLockTest, OnMountInterrupt) {
     ASSERT_TRUE(root->screenLock());
     ASSERT_FALSE(root->hasEvent());
 
-    root->updateTime(1000);
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(Dimension(900), event.getValue(kEventPropertyPosition).asDimension(*context));
+    advanceTime(1000);
     ASSERT_TRUE(root->screenLock());
 
-    root->updateTime(500);
-    component->update(kUpdateScrollPosition, 400);
-
-    // If this test fails, the callback may execute after this method's stack is no longer valid
-    std::shared_ptr<bool> terminated = std::make_shared<bool>(false);
-    event.getActionRef().addTerminateCallback([terminated](const TimersPtr&) {
-         *terminated = true;
-    });
+    advanceTime(400);
+    ASSERT_TRUE(root->screenLock());
+    auto currentPos = component->scrollPosition();
+    ASSERT_TRUE(currentPos.getY() > 0);
 
     auto touch = context->findComponentById("myTouch");
     ASSERT_TRUE(touch);
 
-    performTap(0, 0);  // physically impossible tap to trigger
-    ASSERT_TRUE(*terminated);
-    ASSERT_TRUE(event.getActionRef().isTerminated());
+    performTap(0, 0);
+    advanceTime(600);
     ASSERT_FALSE(root->screenLock());
+    ASSERT_EQ(currentPos, component->scrollPosition());
 
     ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
+    auto event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
 }
 
@@ -357,45 +332,32 @@ TEST_F(ScreenLockTest, Overlapping) {
     performTap(0, 0);
 
     ASSERT_TRUE(root->screenLock());
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(Dimension(900), event.getValue(kEventPropertyPosition).asDimension(*context));  // Should max out at the end
-
-    ASSERT_FALSE(root->hasEvent());
 
     // Advance forward long enough to trigger the first SendEvent
-    root->updateTime(500);
+    advanceTime(500);
+    ASSERT_TRUE(component->scrollPosition().getY() > 0);
     ASSERT_TRUE(CheckSendEvent(root, "alpha"));
 
     // The "Scroll" event is still holding the screen lock
     ASSERT_TRUE(root->screenLock());
-    event.getActionRef().resolve();
+    advanceTime(500);
+    ASSERT_EQ(Point(0, 900), component->scrollPosition());
     ASSERT_FALSE(root->screenLock());
 
     // The next SendEvent will fire after 500 milliseconds
-    ASSERT_FALSE(root->hasEvent());
-    root->updateTime(1000);
+    advanceTime(500);
     ASSERT_TRUE(CheckSendEvent(root, "beta"));
 
     // Once that send event fired, we immediately start the next repeat, which locks the screen again
     ASSERT_TRUE(root->screenLock());
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
 
-    // This time we'll trigger the scroll command BEFORE we hit the send event
-    root->updateTime(1250);
-    event.getActionRef().resolve();
-    ASSERT_TRUE(root->screenLock());  // Still being held by the Send command
+    // Can't scroll any further
+    advanceTime(500);
+    ASSERT_EQ(Point(0, 900), component->scrollPosition());
+    ASSERT_FALSE(root->screenLock());  // Still being held by the Send command
 
-    root->updateTime(1500);
+    advanceTime(500);
     ASSERT_TRUE(CheckSendEvent(root, "alpha"));
-    ASSERT_FALSE(root->screenLock());
-
-    // Move forward to the final SendEvent
-    ASSERT_FALSE(root->hasEvent());
-    root->updateTime(1750);
     ASSERT_TRUE(CheckSendEvent(root, "beta"));
 }
 
@@ -407,37 +369,29 @@ TEST_F(ScreenLockTest, OverlappingWithInterrupt) {
     performTap(0, 0);
 
     ASSERT_TRUE(root->screenLock());
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_EQ(Dimension(900), event.getValue(kEventPropertyPosition).asDimension(*context));  // Should max out at the end
-
-    ASSERT_FALSE(root->hasEvent());
 
     // Advance forward long enough to trigger the first SendEvent
-    root->updateTime(500);
+    advanceTime(500);
+    ASSERT_TRUE(component->scrollPosition().getY() > 0);
     ASSERT_TRUE(CheckSendEvent(root, "alpha"));
 
     // The "Scroll" event is still holding the screen lock
     ASSERT_TRUE(root->screenLock());
-    event.getActionRef().resolve();
+    advanceTime(500);
+    ASSERT_EQ(Point(0, 900), component->scrollPosition());
     ASSERT_FALSE(root->screenLock());
 
     // The next SendEvent will fire after 500 milliseconds
-    ASSERT_FALSE(root->hasEvent());
-    root->updateTime(1000);
+    advanceTime(500);
     ASSERT_TRUE(CheckSendEvent(root, "beta"));
 
     // Once that send event fired, we immediately start the next repeat, which locks the screen again
     ASSERT_TRUE(root->screenLock());
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
 
     // This time we'll cancel everything with an external command
     executeCommand("SpeakItem", {{"componentId", "myScroll"}}, false);
 
-    ASSERT_FALSE(root->screenLock());
-    ASSERT_TRUE(event.getActionRef().isTerminated());
+    advanceTime(500);
+    ASSERT_FALSE(root->hasEvent());
 }
 

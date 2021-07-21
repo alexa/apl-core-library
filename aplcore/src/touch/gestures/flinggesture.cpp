@@ -31,6 +31,7 @@ namespace apl {
 
 FlingGesture::FlingGesture(const ActionablePtr& actionable)
   : Gesture(actionable),
+    mStartTime(0),
     mVelocityTracker(new VelocityTracker(actionable->getRootConfig()))
 {}
 

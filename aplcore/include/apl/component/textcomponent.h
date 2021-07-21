@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ namespace apl {
 
 class TextComponent : public CoreComponent {
 public:
-    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const std::string& path);
-    TextComponent(const ContextPtr& context, Properties&& properties, const std::string& path);
+    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const Path& path);
+    TextComponent(const ContextPtr& context, Properties&& properties, const Path& path);
 
     ComponentType getType() const override { return kComponentTypeText; };
 
@@ -34,11 +34,16 @@ public:
 
     rapidjson::Value serializeMeasure(rapidjson::Document::AllocatorType& allocator) const;
 
+private:
+    void updateTextAlign(bool useDirtyFlag);
+
 protected:
+    void handleLayoutDirectionChange(bool useDirtyFlag) override { updateTextAlign(useDirtyFlag); };
+
     const EventPropertyMap & eventPropertyMap() const override;
     const ComponentPropDefSet& propDefSet() const override;
     void assignProperties(const ComponentPropDefSet& propDefSet) override;
-    std::string getVisualContextType() override;
+    std::string getVisualContextType() const override;
 };
 
 

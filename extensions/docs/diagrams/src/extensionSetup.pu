@@ -1,0 +1,44 @@
+@startuml ExtensionSetup
+
+title
+<u><b>alexaext: Provider Configuration</b></u>
+
+ 'blank title line for spacing
+end title
+
+skinparam sequence {
+ParticipantBorderColor #808080
+}
+skinparam responseMessageBelowArrow true
+
+participant Runtime as Runtime #ADD1B2
+participant "ExtensionRegistrar" as Registrar
+participant "ExtensionProvider" as Provider
+participant "LocalExtensionProxy" as LocalProxy
+participant "ExecutionEnvironment" as ExeEnv #LightBlue
+
+autonumber
+
+== Initialize Providers ==
+Runtime <-> Registrar: create:Registrar
+activate Runtime
+activate Registrar
+
+group alt Provider [add 0..n providers] 
+Runtime <-> Provider: create:Provider
+activate Provider
+Runtime -> Registrar:add:void\n<font color=gray>(provider:Provider)
+end
+
+group alt Built-In [add 0..n built-in extensions]
+Runtime <-> LocalProxy:create:LocalExtensionProxy\n<font color=gray>("alexaext:foo:10", fooFactory:std::function)
+activate LocalProxy
+Runtime -> Registrar: add:void \n<font color=gray>(localProxy:LocalExtensionProxy)
+end
+
+== Configure Execution Environment ==
+
+Runtime -> ExeEnv:setExtensionProvider:void\n<font color=gray>(registrar)
+activate ExeEnv
+
+@enduml

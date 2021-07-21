@@ -24,7 +24,7 @@ namespace apl {
 CoreComponentPtr
 GridSequenceComponent::create(const ContextPtr& context,
                           Properties&& properties,
-                          const std::string& path)
+                          const Path& path)
 {
     auto ptr = std::make_shared<GridSequenceComponent>(context, std::move(properties), path);
     ptr->initialize();
@@ -75,10 +75,10 @@ GridSequenceComponent::adjustAutoCrossAxisSize()
  * layout changes processing.
  */
 void
-GridSequenceComponent::processLayoutChanges(bool useDirtyFlag)
+GridSequenceComponent::processLayoutChanges(bool useDirtyFlag, bool first)
 {
     // Process parent sizing first to have info for child calculation.
-    CoreComponent::processLayoutChanges(useDirtyFlag);
+    CoreComponent::processLayoutChanges(useDirtyFlag, first);
 
     //Calculate child sizes if needed.
     auto bounds = getCalculated(kPropertyBounds).getRect();
@@ -94,7 +94,7 @@ GridSequenceComponent::processLayoutChanges(bool useDirtyFlag)
     }
 
     // Process any lazy layouts.
-    MultiChildScrollableComponent::processLayoutChanges(useDirtyFlag);
+    MultiChildScrollableComponent::processLayoutChanges(useDirtyFlag, first);
 }
 
 const ComponentPropDefSet&
@@ -141,18 +141,19 @@ GridSequenceComponent::handlePropertyChange(const ComponentPropDef& def, const O
 
     if (def.key == kPropertyChildHeight || def.key == kPropertyChildWidth) {
         auto gridComponent = std::dynamic_pointer_cast<GridSequenceComponent>(shared_from_this());
-        gridComponent->processLayoutChanges(true);
+        gridComponent->processLayoutChanges(true, false);
     }
 }
 
 void
 GridSequenceComponent::layoutChildIfRequired(const CoreComponentPtr& child,
                                              size_t childIdx,
-                                             bool useDirtyFlag)
+                                             bool useDirtyFlag,
+                                             bool first)
 {
     // We need to apply forced size before layout.
     applyChildSize(child, childIdx);
-    MultiChildScrollableComponent::layoutChildIfRequired(child, childIdx, useDirtyFlag);
+    MultiChildScrollableComponent::layoutChildIfRequired(child, childIdx, useDirtyFlag, first);
 }
 
 void

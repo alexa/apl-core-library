@@ -71,6 +71,8 @@ public:
      */
     void ensure(size_t index) override;
 
+    void serialize(rapidjson::Value &outMap, rapidjson::Document::AllocatorType &allocator) override;
+
 protected:
     /// Override fetch not used in this class
     void fetch(size_t index, size_t count) override { return; };
@@ -101,7 +103,7 @@ public:
         std::weak_ptr<Context> context,
         std::weak_ptr<LiveArray> liveArray,
         const std::string& listId) override;
-    bool process(const Object& payload) override;
+    bool process(const Object& responseMap) override;
 
 private:
     bool processLazyLoadInternal(const DTLConnectionPtr& connection, const Object& responseMap);

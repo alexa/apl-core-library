@@ -60,7 +60,9 @@ TEST_F(FrameComponentTest, ComponentDefaults) {
     // kPropertyDrawnBorderWidth is calculated from kPropertyBorderStrokeWidth (inputOnly) and (kPropertyBorderWidth)
     ASSERT_TRUE(IsEqual(Dimension(0), frame->getCalculated(kPropertyDrawnBorderWidth)));
 
-
+    // Should not have scrollable moves
+    ASSERT_FALSE(component->allowForward());
+    ASSERT_FALSE(component->allowBackwards());
 }
 
 

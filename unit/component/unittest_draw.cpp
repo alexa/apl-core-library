@@ -114,9 +114,6 @@ TEST_F(ComponentDrawTest, ChildInParent) {
  * Test that display invisible and none are not considered in draw region.
  */
 TEST_F(ComponentDrawTest, ChildDisplay) {
-
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
-
     loadDocument(CHILD_IN_PARENT);
 
     auto touchWrapper = as<CoreComponent>(component->findComponentById("TouchWrapper"));
@@ -176,9 +173,6 @@ TEST_F(ComponentDrawTest, ChildDisplay) {
  * Test that Opaque children are not found in the draw region
  */
 TEST_F(ComponentDrawTest, Opacity) {
-
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
-
     loadDocument(CHILD_IN_PARENT);
 
     auto touchWrapper = as<CoreComponent>(component->findComponentById("TouchWrapper"));
@@ -277,8 +271,6 @@ static const char *MULTI_CHILD =
  * Test children that overeflow the parent are clipped.
  */
 TEST_F(ComponentDrawTest, Bounds) {
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
-
     loadDocument(MULTI_CHILD);
 
     ASSERT_EQ(11, component->getChildCount());
@@ -341,9 +333,6 @@ static const char *PADDING =
  * Test clipping with padding.
  */
 TEST_F(ComponentDrawTest, BoundsCheckWithPadding) {
-
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
-
     loadDocument(PADDING);
 
     // children overflow the parent and are clipped
@@ -408,9 +397,6 @@ static const char *SCROLL_VIEW =
 )apl";
 
 TEST_F(ComponentDrawTest, ScrollView) {
-
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
-
     loadDocument(SCROLL_VIEW);
 
     ASSERT_EQ(1, component->getDisplayedChildCount());
@@ -423,7 +409,7 @@ TEST_F(ComponentDrawTest, ScrollView) {
     // a single component, the children of the container are still reported
     // as displayed
     component->update(kUpdateScrollPosition, 300);
-    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     ASSERT_EQ(1, component->getDisplayedChildCount());
     ASSERT_EQ(11, container->getChildCount());
@@ -464,9 +450,6 @@ static const char *VERTICAL_SEQUENCE =
  * of scroll viewport.
  */
 TEST_F(ComponentDrawTest, VerticalSequence) {
-
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
-
     loadDocument(VERTICAL_SEQUENCE);
 
     ASSERT_TRUE(component);
@@ -481,7 +464,7 @@ TEST_F(ComponentDrawTest, VerticalSequence) {
 
     // Scroll full "page"
     component->update(kUpdateScrollPosition, 500);
-    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     // expect last 2.5 children on screen
     ASSERT_EQ(3, component->getDisplayedChildCount());
@@ -526,9 +509,6 @@ static const char *HORIZONTAL_SEQUENCE =
  * outside of scroll viewport.
  */
 TEST_F(ComponentDrawTest, HorizontalSequence) {
-
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
-
     loadDocument(HORIZONTAL_SEQUENCE);
 
     ASSERT_TRUE(component);
@@ -543,7 +523,35 @@ TEST_F(ComponentDrawTest, HorizontalSequence) {
 
     // scroll full "page"
     component->update(kUpdateScrollPosition, 500);
-    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+
+    // expect last 2.5 children on screen
+    ASSERT_EQ(3, component->getDisplayedChildCount());
+    for (int i = 0; i < 3; i++) {
+        auto child = component->getDisplayedChildAt(i);
+        ASSERT_EQ(std::to_string(i + 2), child->getId());
+    }
+}
+
+TEST_F(ComponentDrawTest, HorizontalSequenceRTL) {
+    loadDocument(HORIZONTAL_SEQUENCE);
+    component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(5, component->getChildCount());
+
+    // expect first 2.5 children on screen
+    ASSERT_EQ(3, component->getDisplayedChildCount());
+    for (int i = 0; i < 3; i++) {
+        auto child = component->getDisplayedChildAt(i);
+        ASSERT_EQ(std::to_string(i), child->getId());
+    }
+
+    // scroll full "page"
+    component->update(kUpdateScrollPosition, -500);
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     // expect last 2.5 children on screen
     ASSERT_EQ(3, component->getDisplayedChildCount());
@@ -589,9 +597,6 @@ static const char *HORIZONTAL_SEQUENCE_PADDING =
  * outside of scroll viewport.
  */
 TEST_F(ComponentDrawTest, HorizontalSequenceWPadding) {
-
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
-
     loadDocument(HORIZONTAL_SEQUENCE_PADDING);
 
     ASSERT_TRUE(component);
@@ -606,7 +611,35 @@ TEST_F(ComponentDrawTest, HorizontalSequenceWPadding) {
 
     // scroll full "page"
     component->update(kUpdateScrollPosition, 500);
-    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+
+    // expect last 3 children on screen
+    ASSERT_EQ(3, component->getDisplayedChildCount());
+    for (int i = 0; i < 3; i++) {
+        auto child = component->getDisplayedChildAt(i);
+        ASSERT_EQ(std::to_string(i + 2), child->getId());
+    }
+}
+
+TEST_F(ComponentDrawTest, HorizontalSequenceWPaddingRTL) {
+    loadDocument(HORIZONTAL_SEQUENCE_PADDING);
+    component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(5, component->getChildCount());
+
+    // expect padding & first 3 children on screen
+    ASSERT_EQ(3, component->getDisplayedChildCount());
+    for (int i = 0; i < 2; i++) {
+        auto child = component->getDisplayedChildAt(i);
+        ASSERT_EQ(std::to_string(i), child->getId());
+    }
+
+    // scroll full "page"
+    component->update(kUpdateScrollPosition, -500);
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     // expect last 3 children on screen
     ASSERT_EQ(3, component->getDisplayedChildCount());
@@ -652,9 +685,6 @@ static const char *VERTICAL_SEQUENCE_PADDING =
  * outside of scroll viewport.
  */
 TEST_F(ComponentDrawTest, VerticalSequenceWPadding) {
-
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
-
     loadDocument(VERTICAL_SEQUENCE_PADDING);
 
     ASSERT_TRUE(component);
@@ -669,7 +699,7 @@ TEST_F(ComponentDrawTest, VerticalSequenceWPadding) {
 
     // scroll full "page"
     component->update(kUpdateScrollPosition, 500);
-    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     // expect last 3 children on screen
     ASSERT_EQ(3, component->getDisplayedChildCount());
@@ -764,9 +794,6 @@ static const char *TRANSFORM =
  * Transformed components
  */
 TEST_F(ComponentDrawTest, Transforms) {
-
-    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureNotifyChildrenChangedOnDisplayChange);
-
     loadDocument(TRANSFORM);
     ASSERT_TRUE(component);
     ASSERT_EQ(5, component->getChildCount());

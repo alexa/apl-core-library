@@ -13,8 +13,6 @@
  * permissions and limitations under the License.
  */
 
-#include <algorithm>
-#include <cmath>
 #include <queue>
 #include <apl/utils/log.h>
 #include <apl/engine/builder.h>
@@ -97,6 +95,8 @@ Context::init(const Metrics& metrics, const std::shared_ptr<RootContextData>& co
     env->emplace("disallowVideo", config.getDisallowVideo());
     env->emplace("extension", core->extensionManager().getEnvironment());
     env->emplace("fontScale", config.getFontScale());
+    env->emplace("lang", core->getLang());
+    env->emplace("layoutDirection", sLayoutDirectionMap.get(core->getLayoutDirection(), ""));
     env->emplace("screenMode", config.getScreenMode());
     env->emplace("screenReader", config.getScreenReaderEnabled());
     env->emplace("reason", core->getReinflationFlag() ? "reinflation" : "initial");
@@ -127,9 +127,15 @@ Context::Context(const Metrics& metrics, const RootConfig& config, const std::st
     auto session = config.getSession() ? config.getSession() : makeDefaultSession();
     mCore = std::make_shared<RootContextData>(metrics,
                                               config,
-                                              RuntimeState(theme, "1.6", false),
+                                              RuntimeState(theme, config.getReportedAPLVersion(),
+                                                           false),
                                               std::make_shared<Settings>(), session,
                                               std::vector<std::pair<std::string, std::string>>());
+
+    auto layoutDirection = static_cast<LayoutDirection>(config.getProperty(RootProperty::kLayoutDirection).asInt());
+    mCore->lang(config.getProperty(RootProperty::kLang).asString())
+          .layoutDirection(layoutDirection);
+
     init(metrics, mCore);
 }
 
@@ -223,6 +229,20 @@ Context::getTheme() const
     return mCore->getTheme();
 }
 
+std::string
+Context::getLang() const
+{
+    assert(mCore);
+    return mCore->getLang();
+}
+
+LayoutDirection
+Context::getLayoutDirection() const
+{
+    assert(mCore);
+    return mCore->getLayoutDirection();
+}
+
 std::shared_ptr<LocaleMethods>
 Context::getLocaleMethods() const
 {
@@ -288,6 +308,12 @@ bool
 Context::isVisualContextDirty(const ComponentPtr& ptr) {
     auto found = mCore->dirtyVisualContext.find(ptr);
     return found != mCore->dirtyVisualContext.end();
+}
+
+void
+Context::setDirtyDataSourceContext(const DataSourceConnectionPtr& ptr) {
+    assert(mCore);
+    mCore->dirtyDatasourceContext.emplace(ptr);
 }
 
 Sequencer&
@@ -357,6 +383,12 @@ void Context::takeScreenLock() const
 void Context::releaseScreenLock() const
 {
     mCore->releaseScreenLock();
+}
+
+WeakPtrSet<CoreComponent>&
+Context::pendingOnMounts()
+{
+    return mCore->pendingOnMounts();
 }
 
 ComponentPtr

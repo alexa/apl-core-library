@@ -68,6 +68,13 @@ TEST_F(EditTextComponentTest, ComponentDefaults) {
     ASSERT_TRUE(IsEqual(kSubmitKeyTypeDone, et->getCalculated(kPropertySubmitKeyType)));
     ASSERT_TRUE(IsEqual("", et->getCalculated(kPropertyText)));
     ASSERT_TRUE(IsEqual("", et->getCalculated(kPropertyValidCharacters)));
+    ASSERT_TRUE(IsEqual("", et->getCalculated(kPropertyLang)));
+
+    // Should not have scrollable moves
+    ASSERT_FALSE(component->allowForward());
+    ASSERT_FALSE(component->allowBackwards());
+
+    ASSERT_TRUE(IsEqual(kBehaviorOnFocusSystemDefault, et->getCalculated(kPropertyKeyboardBehaviorOnFocus)));
 }
 
 
@@ -95,6 +102,73 @@ TEST_F(EditTextComponentTest, ComponentThemedDefaults) {
     ASSERT_TRUE(IsEqual(Color(0x1e2222ff), et->getCalculated(kPropertyColor)));
     ASSERT_TRUE(IsEqual(Color(0x0070ba4d), et->getCalculated(kPropertyHighlightColor)));
     ASSERT_TRUE(IsEqual(Color(0x1e2222ff), et->getCalculated(kPropertyHintColor)));
+}
+
+static const char* LANG_DEFAULT_DOC = R"({
+  "type": "APL",
+  "version": "1.7",
+  "lang": "en-US",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText"
+    }
+  }
+})";
+
+/**
+ * Enforce that the value is "" if rootconfig and doc level lang properties are not set
+ */
+TEST_F(EditTextComponentTest, ComponentLangDefaults) {
+    loadDocument(THEMED_DEFAULT_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_EQ("", et->getCalculated(kPropertyLang).asString());
+}
+
+/**
+ * Enforce that we are shadowing the rootconfig value if doc level lang property is not set
+ */
+TEST_F(EditTextComponentTest, ComponentLangDefaultsRootConfig) {
+    config->set(RootProperty::kLang, "en-US");
+    loadDocument(THEMED_DEFAULT_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_EQ("en-US", et->getCalculated(kPropertyLang).asString());
+}
+
+/**
+ * Enforce that we are shadowing the doc level lang property
+ */
+TEST_F(EditTextComponentTest, ComponentLangDefaultsDocumentLevel) {
+    loadDocument(LANG_DEFAULT_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_EQ("en-US", et->getCalculated(kPropertyLang).asString());
+}
+
+static const char* LANG_TEXT_DEFAULT_DOC = R"({
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "item": {
+      "lang": "en-US",
+      "type": "EditText"
+    }
+  }
+})";
+
+/**
+ * Check the lang property is set and dynamic
+ */
+TEST_F(EditTextComponentTest, ComponentTextLangDefaults) {
+    loadDocument(LANG_TEXT_DEFAULT_DOC);
+
+    auto et = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+    ASSERT_EQ("en-US", et->getCalculated(kPropertyLang).asString());
+
+    et->setProperty(kPropertyLang, "ja-jp");
+
+    ASSERT_EQ("ja-jp", et->getCalculated(kPropertyLang).asString());
 }
 
 
@@ -186,6 +260,7 @@ TEST_F(EditTextComponentTest, NonDefaults) {
     ASSERT_TRUE(IsEqual(kSubmitKeyTypeGo, et->getCalculated(kPropertySubmitKeyType)));
     ASSERT_TRUE(IsEqual("1234", et->getCalculated(kPropertyText)));
     ASSERT_TRUE(IsEqual("0-9", et->getCalculated(kPropertyValidCharacters)));
+    ASSERT_TRUE(IsEqual(kBehaviorOnFocusSystemDefault, et->getCalculated(kPropertyKeyboardBehaviorOnFocus)));
 }
 
 static const char* VALID_CHARACTER_RANGES_DOC = R"({
@@ -726,4 +801,69 @@ TEST_F(EditTextComponentTest, UpdateMarksDirty) {
 
     et->update(kUpdateTextChange, "test");
     ASSERT_TRUE(CheckDirty(et, kPropertyText));
+}
+
+static const char* OPEN_KEYBOARD_EVENT_DOC = R"(
+{
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "btn",
+          "item": {
+            "type": "Text",
+            "text": "Edit"
+          },
+          "onPress":[
+            {
+              "type": "SetFocus",
+              "componentId": "stickyNote"
+            }
+          ]
+        },
+        {
+          "type": "EditText",
+          "id": "stickyNote",
+          "size": 10,
+          "selectOnFocus": false,
+          "-keyboardBehaviorOnFocus": "openKeyboard",
+          "text": "MyText"
+        }
+      ]
+    }
+  }
+}
+)";
+
+/**
+ * Verify OpenKeyboard type event is generated at a time of setting focus on edittext component
+ */
+TEST_F(EditTextComponentTest, OpenKeyboardEventOnFocus) {
+
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureRequestKeyboard);
+    loadDocument(OPEN_KEYBOARD_EVENT_DOC);
+
+    performClick(0, 0);
+    loop->advanceToEnd();
+
+    auto edittext = component->findComponentById("stickyNote");
+    ASSERT_TRUE(edittext);
+    ASSERT_EQ(kComponentTypeEditText, edittext->getType());
+    ASSERT_TRUE(IsEqual(kBehaviorOnFocusOpenKeyboard, edittext->getCalculated(kPropertyKeyboardBehaviorOnFocus)));
+
+    auto hasEvent = root->hasEvent();
+    ASSERT_TRUE(hasEvent);
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeOpenKeyboard, event.getType());
+    ASSERT_EQ(edittext, event.getComponent());
+
+    hasEvent = root->hasEvent();
+    ASSERT_TRUE(hasEvent);
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(edittext, event.getComponent());
 }

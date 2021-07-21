@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -33,9 +33,7 @@ Bimap<int, std::string> sEventTypeBimap = {
     {kEventTypePreroll,                "preroll"},
     {kEventTypeReinflate,              "reinflate"},
     {kEventTypeRequestFirstLineBounds, "requestFirstLineBounds"},
-    {kEventTypeScrollTo,               "scrollTo"},
     {kEventTypeSendEvent,              "sendEvent"},
-    {kEventTypeSetPage,                "setPage"},
     {kEventTypeSpeak,                  "speak"}
 };
 
@@ -50,6 +48,7 @@ Bimap<int, std::string> sEventPropertyBimap = {
     {kEventPropertyExtension,     "extension"},
     {kEventPropertyExtensionURI,  "extensionURI"},
     {kEventPropertyHighlightMode, "highlightMode"},
+    {kEventPropertyMediaType,     "mediaType"},
     {kEventPropertyName,          "name"},
     {kEventPropertyPosition,      "position"},
     {kEventPropertyReason,        "reason"},

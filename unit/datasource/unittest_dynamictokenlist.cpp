@@ -191,6 +191,7 @@ static const char* BASIC = R"({
 
 TEST_F(DynamicTokenListTest, Basic) {
     loadDocument(BASIC, DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -238,8 +239,40 @@ TEST_F(DynamicTokenListTest, Basic) {
     ASSERT_FALSE(root->hasEvent());
 }
 
+TEST_F(DynamicTokenListTest, BasicAsMap) {
+    loadDocument(BASIC, DATA);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(5, component->getChildCount());
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", "forwardPageToken"));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", "backwardPageToken"));
+
+    ASSERT_TRUE(ds->processUpdate(
+            StringToMapObject(createLazyLoad(101, "forwardPageToken", "forwardPageToken1",
+                           "15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30"))));
+    ASSERT_TRUE(ds->processUpdate(
+            StringToMapObject(createLazyLoad(102, "backwardPageToken", "backwardPageToken1", "5, 6, 7, 8, 9"))));
+    root->clearPending();
+
+    ASSERT_EQ(26, component->getChildCount());
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", "backwardPageToken1"));
+    ASSERT_TRUE(ds->processUpdate(
+            StringToMapObject(createLazyLoad(103, "backwardPageToken1", "backwardPageToken2", "-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4"))));
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
 TEST_F(DynamicTokenListTest, NoNextToken) {
     loadDocument(BASIC, DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -371,6 +404,7 @@ static const char* FIRST_AND_LAST_DATA = R"({
 
 TEST_F(DynamicTokenListTest, WithFirstAndLast) {
     loadDocument(FIRST_AND_LAST, FIRST_AND_LAST_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -406,7 +440,7 @@ TEST_F(DynamicTokenListTest, WithFirstAndLast) {
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "104", "backwardPageToken1"));
 
     ASSERT_TRUE(ds->processUpdate(
-        createLazyLoad(103, "forwardPageToken1", "forwardPageToken2", "16, 17, 18, 19")));
+        createLazyLoad(103, "forwardPageToken1", "forwardPageToken2", "16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26")));
     ASSERT_TRUE(ds->processUpdate(
         createLazyLoad(104, "backwardPageToken1", "backwardPageToken2", "-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4")));
     root->clearPending();
@@ -416,8 +450,8 @@ TEST_F(DynamicTokenListTest, WithFirstAndLast) {
 
     ASSERT_EQ("fi", component->getChildAt(0)->getId());
     ASSERT_EQ("id-6", component->getChildAt(1)->getId());
-    ASSERT_EQ("id19", component->getChildAt(26)->getId());
-    ASSERT_EQ("li", component->getChildAt(27)->getId());
+    ASSERT_EQ("id26", component->getChildAt(33)->getId());
+    ASSERT_EQ("li", component->getChildAt(34)->getId());
 
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 27), true));
 
@@ -579,7 +613,7 @@ TEST_F(DynamicTokenListTest, WithLast) {
         createLazyLoad(103, "forwardPageToken1", "", "16, 17, 18, 19")));
     root->clearPending();
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     ASSERT_EQ("id5", component->getChildAt(0)->getId());
     ASSERT_EQ("id15", component->getChildAt(10)->getId());
@@ -649,7 +683,7 @@ TEST_F(DynamicTokenListTest, WithLastOneWay) {
     root->clearPending();
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "104", "forwardPageToken3"));
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     ASSERT_EQ("id0", component->getChildAt(0)->getId());
     ASSERT_EQ("id5", component->getChildAt(5)->getId());
@@ -967,6 +1001,8 @@ static const char* TWENTY_ONE_TO_TWENTY_FIVE_RESPONSE_PAGER = R"({
 
 TEST_F(DynamicTokenListTest, BasicPager) {
     loadDocument(BASIC_PAGER, BASIC_PAGER_DATA);
+    advanceTime(10);
+    root->clearDirty();
 
     ASSERT_EQ(kComponentTypePager, component->getType());
 
@@ -981,7 +1017,7 @@ TEST_F(DynamicTokenListTest, BasicPager) {
     ASSERT_EQ(16, component->getChildCount());
     ASSERT_EQ("frame-5", component->getChildAt(0)->getId());
     ASSERT_EQ("frame-20", component->getChildAt(15)->getId());
-    ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 4));  // Page 4 gets loaded because we're on page 5
+    ASSERT_TRUE(CheckChildLaidOutDirtyFlagsWithNotify(component, 4));  // Page 4 gets loaded because we're on page 5
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0,3}, false));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {4,6}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {7,15}, false));
@@ -989,7 +1025,7 @@ TEST_F(DynamicTokenListTest, BasicPager) {
     // Switch to the first page (index=0)
     component->update(UpdateType::kUpdatePagerByEvent, 0);
     root->clearPending();
-    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {0, 1}));
+    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlagsWithNotify(component, {0, 1}));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 1}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {2, 3}, false));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 6}, true));
@@ -1008,7 +1044,7 @@ TEST_F(DynamicTokenListTest, BasicPager) {
     // Switch to the last page (index=20)
     component->update(UpdateType::kUpdatePagerByEvent, 20);
     root->clearPending();
-    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {19, 20}));
+    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlagsWithNotify(component, {19, 20}));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 3}, false));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 6}, true));  // Page 4 gets loaded because we're on page 5
     ASSERT_TRUE(CheckChildrenLaidOut(component, {7, 8}, false));
@@ -1020,7 +1056,7 @@ TEST_F(DynamicTokenListTest, BasicPager) {
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", "forwardPageToken"));
     ASSERT_TRUE(ds->processUpdate(TWENTY_ONE_TO_TWENTY_FIVE_RESPONSE_PAGER));
     root->clearPending();
-    ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 21));
+    ASSERT_TRUE(CheckChildLaidOutDirtyFlagsWithNotify(component, 21));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 3}, false));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {4, 6}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {7, 8}, false));
@@ -1112,6 +1148,7 @@ static const char* SMALLER_DATA_BACK = R"({
 
 TEST_F(DynamicTokenListTest, GarbageCollection) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -1129,7 +1166,10 @@ TEST_F(DynamicTokenListTest, GarbageCollection) {
     context = nullptr;
     root = nullptr;
 
+    loop = std::make_shared<TestTimeManager>();
+    config->timeManager(loop);
     loadDocument(BASIC, SMALLER_DATA_BACK);
+    advanceTime(20);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -1161,6 +1201,7 @@ static const char *FIFTEEN_TO_NINETEEN_WRONG_LIST_RESPONSE = R"({
 
 TEST_F(DynamicTokenListTest, CorrelationTokenSubstitute) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -1187,6 +1228,7 @@ static const char *FIFTEEN_EMPTY_RESPONSE = R"({
 
 TEST_F(DynamicTokenListTest, EmptyLazyResponseRetryFail) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -1206,6 +1248,7 @@ TEST_F(DynamicTokenListTest, EmptyLazyResponseRetryFail) {
 
 TEST_F(DynamicTokenListTest, EmptyLazyResponseRetryResolved) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -1227,6 +1270,7 @@ TEST_F(DynamicTokenListTest, EmptyLazyResponseRetryResolved) {
 
 TEST_F(DynamicTokenListTest, LazyResponseTimeout) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -1234,22 +1278,23 @@ TEST_F(DynamicTokenListTest, LazyResponseTimeout) {
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", "forwardPageToken"));
     // Not yet
-    loop->advanceToTime(60);
+    advanceTime(50);
     ASSERT_TRUE(CheckErrors({}));
 
     // Should go from here
-    loop->advanceToTime(100);
+    advanceTime(40);
     ASSERT_TRUE(CheckErrors({ "LOAD_TIMEOUT" }));
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", "forwardPageToken"));
-    loop->advanceToTime(200);
+    advanceTime(100);
     ASSERT_TRUE(CheckErrors({ "LOAD_TIMEOUT" }));
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", "forwardPageToken"));
-    loop->advanceToTime(300);
+    advanceTime(100);
     ASSERT_FALSE(root->hasEvent());
 }
 
 TEST_F(DynamicTokenListTest, LazyResponseTimeoutResolvedAfterLost) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -1257,11 +1302,11 @@ TEST_F(DynamicTokenListTest, LazyResponseTimeoutResolvedAfterLost) {
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", "forwardPageToken"));
     // Not yet
-    loop->advanceToTime(60);
+    advanceTime(50);
     ASSERT_TRUE(CheckErrors({}));
 
     // Should go from here
-    loop->advanceToTime(100);
+    advanceTime(40);
     ASSERT_TRUE(CheckErrors({ "LOAD_TIMEOUT" }));
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", "forwardPageToken"));
 
@@ -1279,6 +1324,7 @@ TEST_F(DynamicTokenListTest, LazyResponseTimeoutResolvedAfterLost) {
 
 TEST_F(DynamicTokenListTest, LazyResponseTimeoutResolvedAfterDelayed) {
     loadDocument(BASIC, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -1286,11 +1332,11 @@ TEST_F(DynamicTokenListTest, LazyResponseTimeoutResolvedAfterDelayed) {
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", "forwardPageToken"));
     // Not yet
-    loop->advanceToTime(60);
+    advanceTime(50);
     ASSERT_TRUE(CheckErrors({}));
 
     // Should go from here
-    loop->advanceToTime(100);
+    advanceTime(40);
     ASSERT_TRUE(CheckErrors({ "LOAD_TIMEOUT" }));
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", "forwardPageToken"));
 
@@ -1342,6 +1388,7 @@ static const char *BASIC_CONFIG_CHANGE = R"({
 
 TEST_F(DynamicTokenListTest, Reinflate) {
     loadDocument(BASIC_CONFIG_CHANGE, SMALLER_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());

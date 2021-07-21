@@ -27,8 +27,8 @@ class PageMoveHandler;
 
 class PagerComponent : public ActionableComponent {
 public:
-    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const std::string& path);
-    PagerComponent(const ContextPtr& context, Properties&& properties, const std::string& path);
+    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const Path& path);
+    PagerComponent(const ContextPtr& context, Properties&& properties, const Path& path);
 
     ComponentType getType() const override { return kComponentTypePager; };
 
@@ -41,13 +41,17 @@ public:
     PageDirection pageDirection() const override;
     int pagePosition() const override { return getCalculated(kPropertyCurrentPage).asInt(); }
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
-    void processLayoutChanges(bool useDirtyFlag) override;
+    void processLayoutChanges(bool useDirtyFlag, bool first) override;
+    bool allowForward() const override;
+    bool allowBackwards() const override;
+    void release() override;
 
     /// Actionable overrides
     bool isHorizontal() const override { return scrollType() == kScrollTypeHorizontalPager; }
     bool isVertical() const override { return scrollType() == kScrollTypeVerticalPager; }
     bool canConsumeFocusDirectionEvent(FocusDirection direction, bool fromInside) override;
     CoreComponentPtr takeFocusFromChild(FocusDirection direction, const Rect& origin) override;
+    bool shouldBeFullyInflated(int index) const override { return false; }
 
     /**
      * Command page switch helper function.
@@ -100,14 +104,17 @@ private:
     void attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index) override {};
 
     std::map<int, float> getChildrenVisibility(float realOpacity, const Rect &visibleRect) const override;
-    void attachCurrentAndReportLoaded();
+    void attachPageAndReportLoaded(int page);
     ActionPtr executePageChangeEvent(bool fast);
     void setPage(int page);
     void setPageImmediate(int pageIndex);
     void handleSetPage(int index, PageDirection direction, const ActionRef& ref, bool skipDefaultAnimation);
     PageDirection focusDirectionToPage(FocusDirection direction);
 
+    void reportLoadedInternal(size_t index);
+
     ActionPtr mCurrentAnimation;
+    ActionPtr mDelayLayoutAction;
     std::unique_ptr<PageMoveHandler> mPageMoveHandler;
 };
 

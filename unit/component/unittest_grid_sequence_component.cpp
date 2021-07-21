@@ -35,12 +35,7 @@ public:
     void completeScroll(const ComponentPtr& component, float distance) {
         ASSERT_FALSE(root->hasEvent());
         executeScroll(component, distance);
-        ASSERT_TRUE(root->hasEvent());
-        auto event = root->popEvent();
-
-        auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
-        event.getComponent()->update(kUpdateScrollPosition, position.getValue());
-        event.getActionRef().resolve();
+        advanceTime(1000);
     }
 
     rapidjson::Document doc;
@@ -81,6 +76,10 @@ validateCellBounds(const CoreComponentPtr& grid,
     int numComponents = numRows * numColumns;
     auto scrollOffset = grid->getCalculated(kPropertyScrollPosition).asNumber();
     auto scrollDirection = grid->getCalculated(kPropertyScrollDirection);
+    bool isLTR = grid->getCalculated(kPropertyLayoutDirection) == kLayoutDirectionLTR;
+    auto startPoint = isLTR
+                      ? grid->getCalculated(kPropertyInnerBounds).getRect().getTopLeft()
+                      : grid->getCalculated(kPropertyInnerBounds).getRect().getTopRight();
 
     std::vector<std::string> labels;
 
@@ -108,7 +107,8 @@ validateCellBounds(const CoreComponentPtr& grid,
         auto x = startingLocation(childWidths, curColumn);
         auto y = startingLocation(childHeights, curRow);
         if (scrollDirection == kScrollDirectionHorizontal) {
-            x += scrollOffset;
+            if (isLTR) x += scrollOffset;
+            else x -= scrollOffset;
         } else {
             y += scrollOffset;
         }
@@ -130,7 +130,9 @@ validateCellBounds(const CoreComponentPtr& grid,
                 }
             }
         } else {
-            auto result = validateBounds(child, Rect(x, y, childWidth, childHeight));
+            auto result = isLTR
+                         ? validateBounds(child, Rect(x, y, childWidth, childHeight))
+                         : validateBounds(child, Rect(startPoint.getX() - childWidth - x, y, childWidth, childHeight));
             if (result != ::testing::AssertionSuccess()) {
                 return result;
             }
@@ -821,6 +823,7 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
     config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_GRID_SEQUENCE);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeGridSequence, component->getType());
     ASSERT_EQ(7, component->getChildCount());
@@ -1007,6 +1010,199 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
     ASSERT_EQ(15, list["highestIndexSeen"].GetInt());
 
     ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {17, 19}));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 19}, true));
+}
+
+TEST_F(GridSequenceComponentTest, GridSequenceScrollingContextRTL)
+{
+    auto myArray = LiveArray::create({8, 9, 10, 11, 12, 13, 14});
+    config->liveData("TestArray", myArray);
+
+    loadDocument(LIVE_GRID_SEQUENCE);
+    component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+    root->clearPending();
+
+    ASSERT_EQ(kComponentTypeGridSequence, component->getType());
+    ASSERT_EQ(7, component->getChildCount());
+
+    auto scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
+    ASSERT_EQ(0, scrollPosition);
+
+    // Just 1 page in view + 1 forward. Should be all laid-out.
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 6}, true));
+
+    ASSERT_TRUE(validateCellBounds(
+        component,
+        2,  // num rows
+        3,  // num columns
+        {75, 125}, // child heights
+        {100}, // child widths
+        0,
+        8));
+
+    // Verify initial context
+    rapidjson::Document document(rapidjson::kObjectType);
+    auto context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root));
+
+    ASSERT_TRUE(context.HasMember("tags"));
+    auto& tags = context["tags"];
+    ASSERT_STREQ("grid", context["id"].GetString());
+    ASSERT_TRUE(tags.HasMember("list"));
+    auto& list = tags["list"];
+    ASSERT_EQ(7, list["itemCount"].GetInt());
+    ASSERT_EQ(0, list["lowestIndexSeen"].GetInt());
+    ASSERT_EQ(3, list["highestIndexSeen"].GetInt());
+
+    // Prepend whole columns (1 page backwards, so should be pre-loaded)
+    myArray->insert(0, 7);
+    myArray->insert(0, 6);
+    myArray->insert(0, 5);
+    myArray->insert(0, 4);
+    root->clearPending();
+
+    ASSERT_EQ(11, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 10}, true));
+
+    scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
+    ASSERT_EQ(-200, scrollPosition);
+
+    // Check that original bunch just moved
+    ASSERT_TRUE(validateCellBounds(
+        component,
+        2,  // num rows
+        3,  // num columns
+        {75, 125}, // child heights
+        {100}, // child widths
+        4,
+        8));
+
+    ASSERT_TRUE(component->isVisualContextDirty());
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root));
+
+    ASSERT_TRUE(context.HasMember("tags"));
+    tags = context["tags"];
+    ASSERT_STREQ("grid", context["id"].GetString());
+    ASSERT_TRUE(tags.HasMember("list"));
+    list = tags["list"];
+    ASSERT_EQ(11, list["itemCount"].GetInt());
+    ASSERT_EQ(4, list["lowestIndexSeen"].GetInt());
+    ASSERT_EQ(7, list["highestIndexSeen"].GetInt());
+
+    // scroll back and verify that it's still fine.
+    completeScroll(component, -1);
+    scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
+    ASSERT_EQ(0, scrollPosition);
+
+    // Check that we see recently added stuff now
+    ASSERT_TRUE(validateCellBounds(
+        component,
+        2,  // num rows
+        3 + 2,  // num columns (with prepended ones)
+        {75, 125}, // child heights
+        {100}, // child widths
+        0,
+        4));
+
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root));
+
+    ASSERT_TRUE(context.HasMember("tags"));
+    tags = context["tags"];
+    ASSERT_STREQ("grid", context["id"].GetString());
+    ASSERT_TRUE(tags.HasMember("list"));
+    list = tags["list"];
+    ASSERT_EQ(11, list["itemCount"].GetInt());
+    ASSERT_EQ(0, list["lowestIndexSeen"].GetInt());
+    ASSERT_EQ(7, list["highestIndexSeen"].GetInt());
+
+
+    completeScroll(component, 1);
+    scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
+    ASSERT_EQ(-200, scrollPosition);
+
+    myArray->insert(0, 3);
+    myArray->insert(0, 2);
+    myArray->insert(0, 1);
+    myArray->insert(0, 0);
+
+    myArray->push_back(15);
+    myArray->push_back(16);
+    myArray->push_back(17);
+    myArray->push_back(18);
+    myArray->push_back(19);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root));
+
+    ASSERT_TRUE(context.HasMember("tags"));
+    tags = context["tags"];
+    ASSERT_STREQ("grid", context["id"].GetString());
+    ASSERT_TRUE(tags.HasMember("list"));
+    list = tags["list"];
+    ASSERT_EQ(20, list["itemCount"].GetInt());
+    ASSERT_EQ(4, list["lowestIndexSeen"].GetInt());
+    ASSERT_EQ(11, list["highestIndexSeen"].GetInt());
+
+    // 1 back should not be laid out. Same for 1 forward.
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 1}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {2, 16}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {17, 19}, false));
+
+    scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
+    ASSERT_EQ(-300, scrollPosition);
+
+    completeScroll(component, -2);
+    scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
+    ASSERT_EQ(0, scrollPosition);
+
+    // Check that we see recently added stuff now
+    ASSERT_TRUE(validateCellBounds(
+        component,
+        2,  // num rows
+        3 + 2,  // num columns (with prepended ones)
+        {75, 125}, // child heights
+        {100}, // child widths
+        0,
+        0));
+
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root));
+
+    ASSERT_TRUE(context.HasMember("tags"));
+    tags = context["tags"];
+    ASSERT_STREQ("grid", context["id"].GetString());
+    ASSERT_TRUE(tags.HasMember("list"));
+    list = tags["list"];
+    ASSERT_EQ(20, list["itemCount"].GetInt());
+    ASSERT_EQ(0, list["lowestIndexSeen"].GetInt());
+    ASSERT_EQ(11, list["highestIndexSeen"].GetInt());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 16}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {17, 19}, false));
+
+    completeScroll(component, 3);
+    scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
+    ASSERT_EQ(-600, scrollPosition);
+
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    context = root->serializeVisualContext(document.GetAllocator());
+    ASSERT_TRUE(CheckDirtyVisualContext(root));
+
+    ASSERT_TRUE(context.HasMember("tags"));
+    tags = context["tags"];
+    ASSERT_STREQ("grid", context["id"].GetString());
+    ASSERT_TRUE(tags.HasMember("list"));
+    list = tags["list"];
+    ASSERT_EQ(20, list["itemCount"].GetInt());
+    ASSERT_EQ(0, list["lowestIndexSeen"].GetInt());
+    ASSERT_EQ(15, list["highestIndexSeen"].GetInt());
+
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 19}, true));
 }
 
@@ -1211,6 +1407,7 @@ static const char* CHILD_PADDING = R"({
 
 TEST_F(GridSequenceComponentTest, ChildPadding) {
     loadDocument(CHILD_PADDING);
+    advanceTime(10);
     ASSERT_TRUE(component);
 
     ASSERT_EQ(kComponentTypeGridSequence, component->getType());
@@ -1255,6 +1452,7 @@ static const char* CHILD_PADDING_FIT = R"({
 
 TEST_F(GridSequenceComponentTest, ChildPaddingFit) {
     loadDocument(CHILD_PADDING_FIT);
+    advanceTime(10);
     ASSERT_TRUE(component);
 
     ASSERT_EQ(kComponentTypeGridSequence, component->getType());
@@ -1301,6 +1499,7 @@ static const char* CHILD_CLIPPING = R"({
 
 TEST_F(GridSequenceComponentTest, ChildClipping) {
     loadDocument(CHILD_CLIPPING);
+    advanceTime(10);
     ASSERT_TRUE(component);
 
     ASSERT_EQ(kComponentTypeGridSequence, component->getType());
@@ -1345,6 +1544,7 @@ static const char* UNIFORM_RELATIVE = R"({
 
 TEST_F(GridSequenceComponentTest, UniformRelative) {
     loadDocument(UNIFORM_RELATIVE);
+    advanceTime(10);
     ASSERT_TRUE(component);
 
     ASSERT_EQ(kComponentTypeGridSequence, component->getType());
@@ -1460,6 +1660,7 @@ static const char* AUTO_SEQUENCE = R"({
 
 TEST_F(GridSequenceComponentTest, AutoSequence) {
     loadDocument(AUTO_SEQUENCE);
+    advanceTime(10);
     ASSERT_TRUE(component);
 
     auto grid = component->getCoreChildAt(0);
@@ -1523,8 +1724,8 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
     // Set childWidth property of grid sequence, it will impact all children of grid sequence
     gridSeq->setProperty(kPropertyChildWidth, Object(ObjectArray{"90dp", "100dp"}));
 
-    ASSERT_EQ(6, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(gridSeq));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
@@ -1532,6 +1733,7 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(root,
+            gridSeq,
             gridSeq->getChildAt(0),
             gridSeq->getChildAt(1),
             gridSeq->getChildAt(2),
@@ -1553,8 +1755,8 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
     // Set childWidth property of grid sequence, it will impact 3 of its children
     gridSeq->setProperty(kPropertyChildWidth, "90dp");
 
-    ASSERT_EQ(3, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(gridSeq));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2)));
@@ -1562,6 +1764,7 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4)));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(root,
+            gridSeq,
             gridSeq->getChildAt(1),
             gridSeq->getChildAt(3),
             gridSeq->getChildAt(5)));
@@ -1579,8 +1782,8 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
     // Set childWidth property of grid sequence, it will impact 5 children of grid sequence
     gridSeq->setProperty(kPropertyChildWidth, Object(ObjectArray{"90dp", "80dp", "auto"}));
 
-    ASSERT_EQ(5, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(gridSeq));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
@@ -1588,6 +1791,7 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(root,
+            gridSeq,
             gridSeq->getChildAt(1),
             gridSeq->getChildAt(2),
             gridSeq->getChildAt(3),
@@ -1609,8 +1813,8 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
     // Set childHeight property of grid sequence, it will impact all children of grid sequence
     gridSeq->setProperty(kPropertyChildHeight, "20%");
 
-    ASSERT_EQ(6, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(gridSeq));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
@@ -1618,6 +1822,7 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(root,
+            gridSeq,
             gridSeq->getChildAt(0),
             gridSeq->getChildAt(1),
             gridSeq->getChildAt(2),
@@ -1663,8 +1868,8 @@ TEST_F(GridSequenceComponentTest, HeightWidthVertical) {
     // Set height property of grid sequence, it will impact all components
     gridSeq->setProperty(kPropertyHeight, "200dp");
 
-    ASSERT_EQ(7, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
@@ -1694,8 +1899,8 @@ TEST_F(GridSequenceComponentTest, HeightWidthVertical) {
     // Set width property of grid sequence, it will impact gridSeq and 3 children with width auto
     gridSeq->setProperty(kPropertyWidth, "200dp");
 
-    ASSERT_EQ(4, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2)));
@@ -1766,8 +1971,8 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
     // Set childHeight property of grid sequence, it will impact all children of grid sequence
     gridSeq->setProperty(kPropertyChildHeight, Object(ObjectArray{"60dp", "80dp"}));
 
-    ASSERT_EQ(6, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(gridSeq));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
@@ -1775,6 +1980,7 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds));
     ASSERT_TRUE(CheckDirty(root,
+            gridSeq,
             gridSeq->getChildAt(0),
             gridSeq->getChildAt(1),
             gridSeq->getChildAt(2),
@@ -1796,8 +2002,8 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
     // Set childHeight property of grid sequence, it will impact 3 of its children
     gridSeq->setProperty(kPropertyChildHeight, "60dp");
 
-    ASSERT_EQ(3, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(gridSeq));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2)));
@@ -1805,6 +2011,7 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4)));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(root,
+            gridSeq,
             gridSeq->getChildAt(1),
             gridSeq->getChildAt(3),
             gridSeq->getChildAt(5)));
@@ -1822,8 +2029,8 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
     // Set childHeight property of grid sequence, it will impact 6 children of grid sequence
     gridSeq->setProperty(kPropertyChildHeight, Object(ObjectArray{"80dp", "60dp", "auto"}));
 
-    ASSERT_EQ(6, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(gridSeq));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
@@ -1831,6 +2038,7 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(root,
+            gridSeq,
             gridSeq->getChildAt(0),
             gridSeq->getChildAt(1),
             gridSeq->getChildAt(2),
@@ -1853,8 +2061,8 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
     // Set childWidth property of grid sequence, it will impact all children of grid sequence
     gridSeq->setProperty(kPropertyChildWidth, "50%");
 
-    ASSERT_EQ(6, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(gridSeq));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
@@ -1862,6 +2070,7 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(root,
+                           gridSeq,
                            gridSeq->getChildAt(0),
                            gridSeq->getChildAt(1),
                            gridSeq->getChildAt(2),
@@ -1907,8 +2116,8 @@ TEST_F(GridSequenceComponentTest, HeightWidthHorizontal) {
     // Set width property of grid sequence, it will impact all components
     gridSeq->setProperty(kPropertyWidth, "160dp");
 
-    ASSERT_EQ(7, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
@@ -1939,7 +2148,7 @@ TEST_F(GridSequenceComponentTest, HeightWidthHorizontal) {
     gridSeq->setProperty(kPropertyHeight, "200dp");
 
     ASSERT_EQ(4, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2)));
@@ -1962,4 +2171,71 @@ TEST_F(GridSequenceComponentTest, HeightWidthHorizontal) {
             3,  // num columns
             {80, 120}, // child heights
             {40})); // child widths
+}
+
+const char * SNAP_MULTI_COMPS = R"apl(
+{
+  "type": "APL",
+  "version": "1.7",
+  "layoutDirection":"RTL",
+  "mainTemplate": {
+    "parameters": [],
+    "item": {
+      "type": "Container",
+      "width": 600,
+      "items": [{
+        "type": "GridSequence",
+        "id": "gridSequence",
+        "scrollDirection": "vertical",
+        "width": 650,
+        "height": 300,
+        "snap": "forceStart",
+        "childWidth": 300,
+        "childHeight": 150,
+        "items": {
+          "id":  "${data}",
+          "type": "Frame",
+          "borderColor": "green",
+          "borderWidth": 4,
+          "items": {
+            "type": "Text",
+            "text": "${data}"
+          }
+        },
+        "data": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ]
+      }]
+    }
+  }
+}
+)apl";
+
+/**
+ * Test fixes a bug with MultiChildScrollableComponent::findChildCloseToPosition not returning the
+ * correct closest child when we have more than one child per row.
+ */
+TEST_F(GridSequenceComponentTest, TestSnappingWithMultipleComponentsPerLine) {
+    loadDocument(SNAP_MULTI_COMPS);
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(300,20)));
+    advanceTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(300,100)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(300,100)));
+    advanceTime(100);
+
+    // Give time for the component to snap
+    advanceTime(1000);
+    auto grid = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("gridSequence"));
+
+    // Verify we snap to the top of the component
+    ASSERT_EQ(0, grid->getCalculated(kPropertyScrollPosition).asNumber());
 }

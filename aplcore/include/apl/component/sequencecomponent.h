@@ -22,8 +22,8 @@ namespace apl {
 
 class SequenceComponent : public MultiChildScrollableComponent {
 public:
-    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const std::string& path);
-    SequenceComponent(const ContextPtr& context, Properties&& properties, const std::string& path);
+    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const Path& path);
+    SequenceComponent(const ContextPtr& context, Properties&& properties, const Path& path);
 
     ComponentType getType() const override { return kComponentTypeSequence; };
 

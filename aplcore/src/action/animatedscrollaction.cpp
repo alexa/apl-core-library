@@ -24,8 +24,6 @@
 
 namespace apl {
 
-static const bool DEBUG_SCROLL = false;
-
 AnimatedScrollAction::AnimatedScrollAction(const TimersPtr& timers,
                                            const ContextPtr& context,
                                            const CoreComponentPtr& container,
@@ -39,34 +37,29 @@ AnimatedScrollAction::AnimatedScrollAction(const TimersPtr& timers,
 }
 
 void
-AnimatedScrollAction::scroll(bool vertical, const Point& position) {
-    if (mContext->getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore)) {
-        if (isTerminated())
-            return;
+AnimatedScrollAction::scroll(bool vertical, const Point& position)
+{
+    if (isTerminated())
+        return;
 
-        // Ensure that it doesn't scroll if don't need to.
-        if (mContainer->scrollPosition() == position) {
-            resolve();
-            return;
-        }
-
-        mScroller = AutoScroller::make(mContext->getRootConfig(),
-            std::dynamic_pointer_cast<ScrollableComponent>(mContainer),
-            []() {},
-            position - mContainer->scrollPosition(),
-            mDuration);
-        advance();
-    } else {
-        EventBag bag;
-        bag.emplace(kEventPropertyPosition, Dimension(vertical ? position.getY() : position.getX()));
-
-        LOG_IF(DEBUG_SCROLL) << "Pushing scroll event position=" << position;
-        mContext->pushEvent(Event(kEventTypeScrollTo, std::move(bag), mContainer, shared_from_this()));
+    // Ensure that it doesn't scroll if don't need to.
+    if (mContainer->scrollPosition() == position) {
+        resolve();
+        return;
     }
+
+
+    mScroller = AutoScroller::make(mContext->getRootConfig(),
+        std::dynamic_pointer_cast<ScrollableComponent>(mContainer),
+        []() {},
+        position - mContainer->scrollPosition(),
+        mDuration);
+    advance();
 }
 
 void
-AnimatedScrollAction::advance() {
+AnimatedScrollAction::advance()
+{
     std::weak_ptr<AnimatedScrollAction> weak_ptr(std::static_pointer_cast<AnimatedScrollAction>(shared_from_this()));
     mCurrentAction = Action::makeAnimation(timers(), mScroller->getDuration(),
        [weak_ptr](apl_duration_t offset) {

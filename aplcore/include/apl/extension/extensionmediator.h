@@ -108,6 +108,21 @@ public:
         mClients.clear();
     }
 
+    /**
+     * @return @c true if this mediator is enabled, @c false otherwise.
+     */
+    bool isEnabled() const { return mEnabled; }
+
+    /**
+     * Enables or disables this mediator. Disabled mediators will not process incoming messages. This is usefule when
+     * the document associated with the mediator is being backgrounded.
+     *
+     * Mediators are enabled when first created.
+     *
+     * @param enabled @c true if this mediator should become enabled, @c false if it should become disabled.
+     */
+    void enable(bool enabled) { mEnabled = enabled; }
+
 private:
     friend class RootContext;
 
@@ -141,6 +156,8 @@ private:
     std::map<std::string, std::shared_ptr<ExtensionClient>> mClients;
     // executor to enqueue/sequence message processing
     alexaext::ExecutorPtr mMessageExecutor;
+    // Determines whether incoming messages from extensions should be processed.
+    bool mEnabled = true;
 };
 
 } //namespace apl

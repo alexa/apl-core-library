@@ -38,7 +38,9 @@
 #include "extensionmessage.h"
 #include "extensionprovider.h"
 #include "extensionproxy.h"
+#include "extensionschema.h"
 #include "extensionregistrar.h"
 #include "localextensionproxy.h"
+#include "APLAudioPlayerExtension/AplAudioPlayerExtension.h"
 
 #endif //_ALEXAEXT_H

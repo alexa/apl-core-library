@@ -29,7 +29,7 @@ static void checkBorderRadii(Component& component)
 CoreComponentPtr
 FrameComponent::create(const ContextPtr& context,
                        Properties&& properties,
-                       const std::string& path)
+                       const Path& path)
 {
     auto ptr = std::make_shared<FrameComponent>(context, std::move(properties), path);
     ptr->initialize();
@@ -38,7 +38,7 @@ FrameComponent::create(const ContextPtr& context,
 
 FrameComponent::FrameComponent(const ContextPtr& context,
                                Properties&& properties,
-                               const std::string& path)
+                               const Path& path)
     : CoreComponent(context, std::move(properties), path)
 {
     // TODO: Auto-sized Frame just wraps the children.  Fix this for ScrollView and other containers?

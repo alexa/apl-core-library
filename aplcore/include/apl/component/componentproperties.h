@@ -63,7 +63,9 @@ enum TextAlign {
     kTextAlignAuto = 0,
     kTextAlignLeft = 1,
     kTextAlignCenter = 2,
-    kTextAlignRight = 3
+    kTextAlignRight = 3,
+    kTextAlignStart = 4,
+    kTextAlignEnd = 5,
 };
 
 /**
@@ -134,7 +136,8 @@ enum Numbering {
  */
 enum Position {
     kPositionAbsolute = 0,
-    kPositionRelative = 1
+    kPositionRelative = 1,
+    kPositionSticky = 2
 };
 
 /**
@@ -278,7 +281,9 @@ enum SwipeDirection {
     kSwipeDirectionUp,
     kSwipeDirectionLeft,
     kSwipeDirectionDown,
-    kSwipeDirectionRight
+    kSwipeDirectionRight,
+    kSwipeDirectionForward,
+    kSwipeDirectionBackward
 };
 
 /**
@@ -287,6 +292,16 @@ enum SwipeDirection {
 enum ScrollAnimation {
     kScrollAnimationDefault = 0,
     kScrollAnimationSmoothInOut = 1
+};
+
+/**
+ * Layout direction of a Component
+ */
+enum LayoutDirection {
+    /// Inherit is for input only, and will not be send out as output value.
+    kLayoutDirectionInherit = 0,
+    kLayoutDirectionLTR = 1,
+    kLayoutDirectionRTL = 2
 };
 
 /**
@@ -301,6 +316,14 @@ enum ComponentMediaState {
     kMediaStateReady,
     /// One or more of the media items failed to load
     kMediaStateError
+};
+
+/**
+ * Keyboard behavior when component gaining focus
+ */
+enum KeyboardBehaviorOnFocus {
+    kBehaviorOnFocusSystemDefault = 0,
+    kBehaviorOnFocusOpenKeyboard = 1
 };
 
 enum PropertyKey {
@@ -373,6 +396,8 @@ enum PropertyKey {
     kPropertyDisplay,
     /// FrameComponent | EditTextComponent drawn border width (output only)
     kPropertyDrawnBorderWidth,
+    /// ContainerComponent child absolute right position for LTR layout or left position for RTL layout
+    kPropertyEnd,
     /// Component array of opaque entity data
     kPropertyEntities,
     /// SequenceComponent fast scroll scaling setting
@@ -427,8 +452,14 @@ enum PropertyKey {
     kPropertyItemsPerCourse,
     /// ContainerComponent flexbox content justification (see #FlexboxJustifyContent)
     kPropertyJustifyContent,
+    /// EditTextComponent the keyboard behavior on component gaining focus
+    kPropertyKeyboardBehaviorOnFocus,
     /// EditTextComponent keyboard type
     kPropertyKeyboardType,
+    /// Calculated Component layout direction (output only)
+    kPropertyLayoutDirection,
+    /// Component layout direction assigned
+    kPropertyLayoutDirectionAssigned,
     /// ContainerComponent child absolute left position
     kPropertyLeft,
     /// TextComponent letter spacing
@@ -517,12 +548,16 @@ enum PropertyKey {
     kPropertyPadding,
     /// Component bottom padding
     kPropertyPaddingBottom,
+    /// Component layoutDirection aware end padding
+    kPropertyPaddingEnd,
     /// Component left padding
     kPropertyPaddingLeft,
     /// Component right padding
     kPropertyPaddingRight,
     /// Component top padding
     kPropertyPaddingTop,
+    /// Component layoutDirection aware start padding
+    kPropertyPaddingStart,
     /// Pager page direction
     kPropertyPageDirection,
     /// Pager virtual property for the ID of the current page
@@ -563,7 +598,7 @@ enum PropertyKey {
     kPropertyShadowVerticalOffset,
     /// ContainerComponent child flexbox shrink property
     kPropertyShrink,
-    /// EditTextComponent specifies approximately howmany characters canbe displayed
+    /// EditTextComponent specifies approximately how many characters can be displayed
     kPropertySize,
     /// SequenceComponent snap location (see #Snap)
     kPropertySnap,
@@ -573,14 +608,21 @@ enum PropertyKey {
     kPropertySpacing,
     /// Component opaque speech data
     kPropertySpeech,
-    // EditTextComponent label of the return key
+    /// ContainerComponent child absolute left position for LTR layout or right position for RTL layout
+    kPropertyStart,
+    /// EditTextComponent label of the return key
     kPropertySubmitKeyType,
     /// TextComponent | EditTextComponent assigned rich text
     kPropertyText,
-    /// TextComponent horizontal alignment (see #TextAlign)
+    /// Calculated TextComponent horizontal alignment (output only)
     kPropertyTextAlign,
+    /// TextComponent assigned horizontal alignment (see #TextAlign)
+    kPropertyTextAlignAssigned,
     /// TextComponent vertical alignment (see #TextAlignVertical)
     kPropertyTextAlignVertical,
+    /// A BCP-47 string (e.g., en-US) which affects the default font selection of Text or EditText components.
+    /// For example to select the japanese characters of the "Noto Sans CJK" font family set this to "ja-JP"
+    kPropertyLang,
     /// Integer property giving the total number of tracks in the video component. This property will be updated
     /// whenever a new set of tracks is assigned to the video component.
     kPropertyTrackCount,
@@ -672,6 +714,8 @@ extern Bimap<int, std::string> sSnapMap;
 extern Bimap<int, std::string> sRoleMap;
 extern Bimap<int, std::string> sSwipeDirectionMap;
 extern Bimap<int, std::string> sScrollAnimationMap;
+extern Bimap<int, std::string> sLayoutDirectionMap;
+extern Bimap<int, std::string> sKeyboardBehaviorOnFocusMap;
 
 }  // namespace apl
 

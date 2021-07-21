@@ -338,9 +338,9 @@ public:
     /**
      * Call this to ensure that the component has a layout.  This method must be used by
      * children of a sequence to before retrieving the layout bounds.
-     * @deprecated This method still works but not required to be used.
+     * @deprecated Should not be used. No-op.
      */
-    virtual void ensureLayout(bool useDirtyFlag = false) = 0;
+    virtual void ensureLayout(bool useDirtyFlag = false) {}
 
     /**
      * The bounds of this component within an ancestor.
@@ -370,7 +370,7 @@ public:
      * @param point The requested point.
      * @return A valid point to scroll to.
      */
-    virtual Point trimScroll(const Point& point) const { return Point(); }
+    virtual Point trimScroll(const Point& point) { return Point(); }
 
     /**
      * @return The valid directions that can be paged from the current page. This depends on the navigation setting.
@@ -381,6 +381,16 @@ public:
      * @return The current page of the pager
      */
     virtual int pagePosition() const { return 0; }
+
+    /**
+     * @return true if component like Pager or Scrollable can move forward.
+     */
+    virtual bool allowForward() const { return false; }
+
+    /**
+     * @return true if component like Pager or Scrollable can move backwards.
+     */
+    virtual bool allowBackwards() const { return false; }
 
     /**
      * The component hierarchy signature is a unique text string that represents the type
@@ -470,6 +480,16 @@ public:
      * This function will be called for dynamic component inflation
      */
     ComponentPtr inflateChildAt(const rapidjson::Value& component, size_t index);
+
+    /**
+     * @return true if component could be focused with input focus.
+     */
+    virtual bool isFocusable() const { return false; }
+
+    /**
+     * @return true if component should participate be reported to the accessibility system.
+     */
+    virtual bool isAccessible() const { return false; }
 
 protected:
     Component(const ContextPtr& context, const std::string& id);

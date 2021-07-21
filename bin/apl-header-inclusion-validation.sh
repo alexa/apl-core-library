@@ -77,6 +77,8 @@ public_apl_headers=(
     "apl/livedata/livemap.h"
     "apl/livedata/liveobject.h"
     "apl/livedata/livedataobjectwatcher.h"
+    "apl/media/mediamanager.h"
+    "apl/media/mediaobject.h"
     "apl/primitives/accessibilityaction.h"
     "apl/primitives/color.h"
     "apl/primitives/dimension.h"
@@ -105,7 +107,6 @@ public_apl_headers=(
     "apl/utils/path.h"
     "apl/utils/session.h"
     "apl/utils/streamer.h"
-    "apl/utils/telemetry.h"
     "apl/utils/userdata.h"
     "apl/utils/visitor.h"
 )

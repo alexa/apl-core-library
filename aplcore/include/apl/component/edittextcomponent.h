@@ -25,9 +25,9 @@ namespace apl {
 class EditTextComponent : public ActionableComponent {
 
 public:
-    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const std::string& path);
+    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const Path& path);
 
-    EditTextComponent(const ContextPtr& context, Properties&& properties, const std::string& path);
+    EditTextComponent(const ContextPtr& context, Properties&& properties, const Path& path);
 
     ComponentType getType() const override { return kComponentTypeEditText; };
 
@@ -47,6 +47,7 @@ protected:
     const ComponentPropDefSet& propDefSet() const override;
     const EventPropertyMap& eventPropertyMap() const override;
     PointerCaptureStatus processPointerEvent(const PointerEvent& event, apl_time_t timestamp) override;
+    void executeOnFocus() override;
 
 private:
     CharacterRangesPtr mCharacterRangesPtr;

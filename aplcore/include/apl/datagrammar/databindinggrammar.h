@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -12,11 +12,24 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  *
- * Data-binding grammar
+ * Data-binding grammar: BNF format
+ *
+ * exp ::= true | false | null | Number | String | dimension | resource |
+ *         exp binop exp | unop exp | prefixexp | exp '?' exp ':' exp | '(' exp ')'
+ * dimension ::= Number dimunit
+ * dimunit ::= dp | px | vh | vw
+ * resource ::= '@' Name
+ * prefixexp ::= var | prefixexp '(' [explist] ')'
+ * var ::= Name | prefixexp '[' exp ']' | prefixexp '.' Name
+ * explist ::= {exp ','} exp
+ * binop ::= '+' | '-' | '*' | '/' | '%' |
+ *           '<' | '>' | '<=' | '>=' | '==' | '!='
+ *           '&&' | '||' | '??'
+ * unop ::= '+' | '-' | '!'
  */
 
-#ifndef _APL_DATA_BINDING_GRAMMAR
-#define _APL_DATA_BINDING_GRAMMAR
+#ifndef _APL_DATA_BINDING_GRAMMAR_H
+#define _APL_DATA_BINDING_GRAMMAR_H
 
 #include <tao/pegtl.hpp>
 #include <tao/pegtl/contrib/abnf.hpp>
@@ -32,18 +45,17 @@ using namespace pegtl;
  * \cond ShowDataGrammar
  */
 // Forward declarations
-struct ternary;
+struct expression;
 struct ds_string;
 struct ss_string;
 
-struct ws : star<space> {};
-
+// ******* Symbols *******
 struct sym_dbstart : string<'$', '{'> {};
 struct sym_dbend : one<'}'> {};
 struct sym_question : one<'?'> {};
 struct sym_colon : one<':'> {};
-struct sym_term : one<'*', '/', '%'>  {};
-struct sym_expr : one<'+', '-' > {};
+struct sym_multiplicative : one<'*', '/', '%'>  {};
+struct sym_additive : one<'+', '-' > {};
 struct sym_compare : sor< string<'<', '='>, string<'>', '='>, one<'<', '>'> > {};
 struct sym_equal : sor< string<'=', '='>, string<'!', '='> > {};
 struct sym_and : string<'&', '&'> {};
@@ -55,8 +67,9 @@ struct sym_decimal : one<'.'> {};
 struct sym_attribute : one<'.'> {};
 struct sym_array_access_start : one<'['> {};
 struct sym_array_access_end : one<']'> {};
-struct sym_group_start : one<'('> {};
-struct sym_group_end : one<')'> {};
+
+struct sep : space {};
+struct ws : star<sep> {};
 
 struct str_false : string<'f', 'a', 'l', 's', 'e'> {};
 struct str_null : string<'n', 'u', 'l', 'l'> {};
@@ -65,6 +78,7 @@ struct str_dp : string<'d', 'p'> {};
 struct str_px : string<'p', 'x'> {};
 struct str_vh : string<'v', 'h'> {};
 struct str_vw : string<'v', 'w'> {};
+struct str_keyword : sor< str_false, str_null, str_true, str_dp, str_px, str_vh, str_vw>{};
 
 template<typename Key>
 struct key : seq<Key, not_at< identifier_other >> {};
@@ -72,10 +86,7 @@ struct key : seq<Key, not_at< identifier_other >> {};
 struct key_false : key<str_false> {};
 struct key_null : key<str_null> {};
 struct key_true : key<str_true> {};
-struct key_dp : key<str_dp> {};
-struct key_px : key<str_px> {};
-struct key_vh : key<str_vh> {};
-struct key_vw : key<str_vw> {};
+struct keyword : key<str_keyword> {};
 
 struct zero : if_must<one<'0'>, not_at<digit>> {};
 struct number_int : sor<zero, seq< range<'1', '9'>, star<digit>>> {};
@@ -83,60 +94,105 @@ struct number     : sor<seq<number_int, sym_decimal, star<digit>>,    // INTEGER
                         seq<sym_decimal, plus<digit>>,                // . DIGITS+
                         number_int> {};                               // INTEGER
 
-struct symbol : seq<alpha, star<identifier_other> > {};
-struct resource : seq<one<'@'>, identifier> {};
+struct symbol : seq< not_at<keyword>, alpha, star<identifier_other> > {};
 
-struct postfix_identifier: identifier {};
+// Inline Arrays (e.g., [1,2,3])
+struct array_comma : one<','> {};
+struct array_list : list_must<expression, array_comma, sep> {};
+struct array_body : pad_opt<array_list, sep> {};
+struct array_start : one<'['> {};
+struct array_end : one<']'> {};
+struct array : if_must<array_start, array_body, array_end> {};
+
+// Inline maps
+struct map_start : one<'{'> {};
+struct map_comma : one<','> {};
+struct map_assign : one<':'> {};
+struct map_end : one<'}'> {};
+struct map_element : if_must<sor<ss_string, ds_string>, ws, map_assign, ws, expression> {};
+struct map_list : list_must<map_element, map_comma, sep> {};
+struct map_body : pad_opt<map_list, sep> {};
+struct map : if_must<map_start, map_body, map_end> {};
+
+struct postfix_identifier : identifier {};
 struct postfix_attribute : seq<sym_attribute, postfix_identifier> {};
-struct postfix_array_access : seq<sym_array_access_start, ws, ternary, ws, sym_array_access_end> {};
+struct postfix_array_access : seq<sym_array_access_start, ws, expression, ws, sym_array_access_end> {};
+struct argument_list : list_must<expression, sym_comma, sep> {};
 struct postfix_left_paren : one<'('> {};
 struct postfix_right_paren : one<')'> {};
-struct argument_list : list_must<ternary, sym_comma, space> {};
-struct postfix_function : if_must<postfix_left_paren, pad_opt<argument_list, space>, postfix_right_paren> {};
-struct postfix : sor<postfix_attribute, postfix_array_access, postfix_function> {};
-struct postfix_expression : seq<sor<resource, symbol>, star<postfix>> {};
+struct postfix_function : if_must<postfix_left_paren, pad_opt<argument_list, sep>, postfix_right_paren> {};
+struct postfix : sor< postfix_attribute,
+                      postfix_array_access,
+                      postfix_function >{};
+struct plain_symbol : symbol {};
+struct resource : seq<one<'@'>, identifier > {};
+struct postfix_expression : seq< sor<plain_symbol, resource, array, map>, star< postfix >> {};
 
-struct dimension_unit : sor<key_dp, key_px, key_vh, key_vw> {};
-struct dimension_or_number : seq<number, opt<ws, dimension_unit>> {};
-struct grouping : if_must<sym_group_start, ws, ternary, ws, sym_group_end> {};
+// TODO: Can I collapse this so we don't parse numbers twice?
+struct dimension : seq<disable<number>, ws, sor<str_dp, str_px, str_vh, str_vw> > {};
+struct group_start : one<'('> {};
+struct group_end : one<')'> {};
+struct grouping : if_must<group_start, ws, expression, ws, group_end > {};
 
 struct factor : sor<
     grouping,
-    dimension_or_number,
     key_true,
     key_false,
     key_null,
+    dimension,
     postfix_expression,
+    number,
     ss_string,
     ds_string> {
 };
 
-struct sfactor : seq<star<sym_unary>, factor> {};
-struct term : list_must<sfactor, sym_term, space > {};
-struct expression : list_must<term, sym_expr, space > {};
-struct compare : list_must<expression, sym_compare, space> {};
-struct equate : list_must< compare, sym_equal, space >{};
-struct logical_and : list_must< equate, sym_and, space > {};
-struct logical_or : list_must< logical_and, sym_or, space >{};
-struct nullc : list_must< logical_or, sym_nullc, space >{};
-struct ternary_tail : seq< ternary, ws, sym_colon, ws, ternary >{};
-struct ternary : seq< nullc,
+struct unary_expression : seq<star<sym_unary>, factor> {};
+struct multiplicative_expression : list_must<unary_expression, sym_multiplicative, sep > {};
+struct additive_expression : list_must<multiplicative_expression, sym_additive, sep > {};
+struct comparison_expression : list_must<additive_expression, sym_compare, sep> {};
+struct equality_expression : list_must< comparison_expression, sym_equal, sep >{};
+struct logical_and_expression : list_must< equality_expression, sym_and, sep > {};
+struct logical_or_expression : list_must< logical_and_expression, sym_or, sep >{};
+struct nullc_expression : list_must< logical_or_expression, sym_nullc, sep >{};
+struct ternary_tail : seq< expression, ws, sym_colon, ws, expression >{};
+struct ternary_expression : seq< nullc_expression,
                       opt< ws, if_must<sym_question, ws, ternary_tail>>> {};
 
-struct db : if_must<sym_dbstart, ws, opt<ternary, ws>, sym_dbend> {};
+struct expression : ternary_expression {};
+
+struct db_empty : success {};    // No expression - by default we insert an empty string
+struct db_body : pad_opt<sor<expression, db_empty>, sep> {};
+struct db : if_must<sym_dbstart, db_body, sym_dbend> {};
 
 // TODO: This assumes UTF-8 encoding.  We're relying on RapidJSON to return UTF-8
 struct char_ : utf8::any {};
 
-struct ds_raw : until<sor<at<one<'"'> >, at<sym_dbstart> >, must<char_> > {};
-struct ds_string : if_must<one<'"'>, list<ds_raw, db>, disable<one<'"'> > > {};
+// Double-quoted string.  E.g.: ${"foo"}
+struct sym_double_quote : one<'"'> {};
+struct ds_char : char_ {};
+struct ds_raw : until<sor<at<sym_double_quote>, at<sym_dbstart> >, must<ds_char> > {};
+struct ds_start : sym_double_quote {};
+struct ds_end : sym_double_quote {};
+struct ds_body : list<ds_raw, db> {};
+struct ds_string : if_must<ds_start, ds_body, ds_end> {};
 
-struct ss_raw : until<sor<at<one<'\''> >, at<sym_dbstart> >, must<char_> > {};
-struct ss_string : if_must<one<'\''>, list<ss_raw, db>, disable<one<'\''> > > {};
+// Single-quoted string.  E.g.: ${'foo'}
+struct sym_single_quote : one<'\''> {};
+struct ss_char : char_ {};
+struct ss_raw : until<sor<at<sym_single_quote>, at<sym_dbstart> >, must<ss_char> > {};
+struct ss_start : sym_single_quote {};
+struct ss_end : sym_single_quote {};
+struct ss_body : list<ss_raw, db> {};
+struct ss_string : if_must<ss_start, ss_body, ss_end> {};
 
-struct raw : until<sor<at<eof>, at<sym_dbstart> >, must<char_> > {};
-struct openstring : list<raw, db> {};
-struct grammar : must<openstring, eof> {};
+// NOTE: Probably can change this to until< at<sym_dbstart>, char_ > {};
+// Open-string:  E.g. "this is a ${1+3} generic string"
+struct os_raw : until<sor<at<eof>, at<sym_dbstart> >, must<char_> > {};
+struct os_start : success {};
+struct os_string : seq<os_start, list<os_raw, db>> {};
+
+struct grammar : must<os_string, eof> {};
+
 
 /**
  * \endcond
@@ -145,4 +201,4 @@ struct grammar : must<openstring, eof> {};
 } // namespace datagrammar
 } // namespace apl
 
-#endif // _APL_DATA_BINDING_GRAMMAR
+#endif // _APL_DATA_BINDING_GRAMMAR_H

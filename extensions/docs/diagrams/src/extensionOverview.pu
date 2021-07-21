@@ -1,0 +1,47 @@
+@startuml ExtensionOverview
+
+title
+ <u><b>alexaext: High Level Messages</b></u>
+ <i> Setup(S), Registration(R), Command(C), Event(E), LiveData(D)
+end title
+
+skinparam component {
+borderColor #808080
+}
+
+[Document] as Document #FFD27F
+[Execution Environment\n] as ExeEnv #LightBlue
+[Runtime] as Runtime #ADD1B2
+[Extension] as Extension
+[Extension Proxy] as Proxy
+[Extension Provider] as Provider
+[Extension Registrar] as Registrar
+
+Runtime -[#DarkGray]->  Registrar : S1 create()
+Runtime -[#DarkGray]-> Registrar : S2 addProvider(0..n)
+Runtime -[#DarkGray]->  ExeEnv : S3 setProvider(Registrar)
+Runtime -[#DarkGray]-> ExeEnv : S4 render(Document)
+
+Document -[#DarkRed]->  ExeEnv : R1 requestExtension(uri)
+ExeEnv -[#DarkRed]->  Registrar : R2 getProxy(uri)
+Registrar -[#DarkRed]->  Provider : R3 getProxy(uri)
+Provider -[#DarkRed]->  Proxy : R4 create(uri)
+Provider -[#DarkRed]-> Registrar : R4 Proxy(uri)
+Registrar -[#DarkRed]->  ExeEnv : R5 Proxy(uri)
+ExeEnv -[#DarkRed]->  Proxy : R6 getRegistration(Settings)
+Proxy -[#DarkRed]->  Extension : R7 getRegistration(Settings)
+Proxy -[#DarkRed]->  ExeEnv : R8 Schema+Environment
+
+Document -[#DarkOliveGreen]-> ExeEnv : C1 Command
+ExeEnv -[#DarkOliveGreen]-> Proxy : C2 invokeCommend(Command)
+Proxy -[#DarkOliveGreen]-> Extension : C3 invokeCommand(Command)
+
+Extension -[#DarkBlue]-> Proxy : E1 Event
+Proxy -[#DarkBlue]-> ExeEnv : E2 invokeExtensionEventHandler(Event)
+ExeEnv -[#DarkBlue]->> Document : E3 onEvent(Event)
+
+Extension -[#Purple]-> Proxy : D1 LiveData
+Proxy -[#Purple]-> ExeEnv : D2 update(LiveData)
+ExeEnv -[#Purple]-> Document : D3 LiveData
+
+@enduml

@@ -1017,8 +1017,8 @@ TEST_F(DependantTest, AVGDependency)
     root->clearDirty();
     ASSERT_FALSE(root->isDirty());
 
-    root->updateTime(34);
-    root->updateTime(100);
+    advanceTime(34);
+    advanceTime(66);
 
     ASSERT_FALSE(root->hasEvent());
     root->clearDirty();

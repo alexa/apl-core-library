@@ -13,6 +13,7 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/component/corecomponent.h"
 #include "apl/component/textmeasurement.h"
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
@@ -86,13 +87,13 @@ RootContextData::RootContextData(const Metrics& metrics,
       mDataManager(new LiveDataManager()),
       mExtensionManager(new ExtensionManager(extensions, config)),
       mLayoutManager(new LayoutManager(*this)),
-      mMediaManager(new MediaManager(*this)),
       mYGConfigRef(YGConfigNew()),
       mTextMeasurement(config.getMeasure()),
       mConfig(config),
       mScreenLockCount(0),
       mSettings(settings),
-      mSession(session)
+      mSession(session),
+      mLayoutDirection(kLayoutDirectionInherit)
 {
     YGConfigSetPrintTreeFlag(mYGConfigRef, DEBUG_YG_PRINT_TREE);
     YGConfigSetLogger(mYGConfigRef, ygLogger);

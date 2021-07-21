@@ -27,6 +27,8 @@
 #include "apl/livedata/livemap.h"
 #include "apl/livedata/livemapobject.h"
 #include "apl/engine/rootcontext.h"
+#include "apl/utils/streamer.h"
+#include "apl/utils/random.h"
 
 namespace apl {
 
@@ -97,6 +99,11 @@ ExtensionClient::registered() {
     return mRegistered;
 }
 
+std::string
+ExtensionClient::getConnectionToken() const {
+    return mConnectionToken;
+}
+
 bool
 ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& message) {
     if (!message) {
@@ -157,6 +164,27 @@ ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& me
     return result;
 }
 
+static std::string
+generateToken(const std::string& uri)  {
+
+    static auto gen = Random::mt32Generator();
+    static std::uniform_int_distribution<> dis(11, 42);
+    static std::uniform_int_distribution<> dis2(42, 64);
+
+    streamer ss;
+    int i;
+    ss << uri << "-" ;
+    for (i = 0; i < 8; i++) {
+        ss << dis(gen);
+    }
+    ss << "-";
+    ss << dis2(gen);
+    for (i = 0; i < 8; i++) {
+        ss << dis(gen);
+    }
+    return ss.str();
+}
+
 bool
 ExtensionClient::processRegistrationResponse(const Context& context, const Object& connectionResponse) {
     if (mRegistered) {
@@ -171,11 +199,16 @@ ExtensionClient::processRegistrationResponse(const Context& context, const Objec
         return false;
     }
 
-    mConnectionToken = connectionToken.getString();
-
     if (!readExtension(context, schema)) {
         CONSOLE_S(mRootConfig->getSession()).log("Malformed schema.");
         return false;
+    }
+
+    const auto& assignedToken = connectionToken.getString();
+    if (assignedToken == "<AUTO_TOKEN>") {
+        mConnectionToken = generateToken(mUri);
+    } else {
+        mConnectionToken = assignedToken;
     }
 
     auto environment = propertyAsRecursive(context, connectionResponse, "environment");
@@ -489,17 +522,7 @@ ExtensionClient::updateLiveMap(ExtensionLiveDataUpdateType type, const LiveDataR
     }
     const auto& key = keyObj.getString();
     auto typeDef = mTypes.at(dataRef.type);
-
-    if (!typeDef->count(key)) {
-        CONSOLE_S(mSession) << "Trying to update LiveData non-defined property=" << key << " for=" << dataRef.name;
-        return false;
-    }
-
     auto item = operation.get("item");
-    if (item.isNull() && type != kExtensionLiveDataUpdateTypeRemove) {
-        CONSOLE_S(mSession) << "Malformed items on LiveData update for=" << dataRef.name;
-        return false;
-    }
 
     auto liveMap = std::dynamic_pointer_cast<LiveMap>(dataRef.objectPtr);
     auto result = true;
@@ -693,6 +716,8 @@ ExtensionClient::readExtensionCommands(const Context& context, const Object& com
         // set required response
         auto req = propertyAsBoolean(context, command, "requireResponse", false);
         commandDef.requireResolution(req);
+        auto fast = propertyAsBoolean(context, command, "allowFastMode", false);
+        commandDef.allowFastMode(fast);
 
         // add command properties
         if (command.has("payload")) {

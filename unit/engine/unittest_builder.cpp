@@ -511,15 +511,15 @@ TEST_F(BuilderTest, SimpleContainer)
 
     // The child has relative positioning
     ASSERT_EQ(kFlexboxAlignAuto, text["alignSelf"].getInteger());
-    ASSERT_EQ(Object::NULL_OBJECT(), text["bottom"]);
+    ASSERT_EQ(Object::AUTO_OBJECT(), text["bottom"]);
     ASSERT_EQ(0, text["grow"].getDouble());
-    ASSERT_EQ(Object::NULL_OBJECT(), text["left"]);
+    ASSERT_EQ(Object::AUTO_OBJECT(), text["left"]);
     ASSERT_EQ(kNumberingNormal, text["numbering"].getInteger());
     ASSERT_EQ(kPositionRelative, text["position"].getInteger());
-    ASSERT_EQ(Object::NULL_OBJECT(), text["right"]);
+    ASSERT_EQ(Object::AUTO_OBJECT(), text["right"]);
     ASSERT_EQ(0, text["shrink"].getDouble());
     ASSERT_EQ(Object(Dimension(0)), text["spacing"]);
-    ASSERT_EQ(Object::NULL_OBJECT(), text["top"]);
+    ASSERT_EQ(Object::AUTO_OBJECT(), text["top"]);
 }
 
 static const char *FULL_CONTAINER = "{"
@@ -634,18 +634,227 @@ TEST_F(BuilderTest, FullContainer)
     // Third item (Relative positioning)
     child = component->getChildAt(2)->getCalculated();
     ASSERT_EQ(kFlexboxAlignBaseline, child["alignSelf"].getInteger());
-    ASSERT_EQ(Object::NULL_OBJECT(), child["bottom"]);
+    ASSERT_EQ(Object::AUTO_OBJECT(), child["bottom"]);
     ASSERT_EQ(1, child["grow"].getDouble());
     ASSERT_EQ(Object(Dimension(10)), child["left"]);
     ASSERT_EQ(kNumberingSkip, child["numbering"].getInteger());
     ASSERT_EQ(kPositionRelative, child["position"].getInteger());
-    ASSERT_EQ(Object::NULL_OBJECT(), child["right"]);
+    ASSERT_EQ(Object::AUTO_OBJECT(), child["right"]);
     ASSERT_EQ(2, child["shrink"].getDouble());
     ASSERT_EQ(Object(Dimension(20)), child["spacing"]);
-    ASSERT_EQ(Object::NULL_OBJECT(), child["top"]);
+    ASSERT_EQ(Object::AUTO_OBJECT(), child["top"]);
 
     // Fourth item
     ASSERT_EQ("Last", component->getChildAt(3)->getCalculated(kPropertyText).asString());
+}
+
+static const char *START_END_OFFSETS_BASIC = R"apl(
+{
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "width": "500",
+      "height": "500",
+      "items": {
+        "layoutDirection": "RTL",
+        "id": "textComp",
+        "type": "Frame",
+        "width": "100",
+        "height": "100",
+        "start": 100,
+        "position": "relative",
+        "backgroundColor": "blue"
+      }
+    }
+  }
+}
+)apl";
+
+TEST_F(BuilderTest, BasicStartOffset)
+{
+    loadDocument(START_END_OFFSETS_BASIC);
+
+    auto text = component->getCoreChildAt(0);
+    text->setProperty(kPropertyStart, 100);
+    root->clearPending(); // Force layout
+
+    auto childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 100, 100, 200));
+}
+
+TEST_F(BuilderTest, BasicEndOffset)
+{
+    loadDocument(START_END_OFFSETS_BASIC);
+
+    auto text = component->getCoreChildAt(0);
+    text->setProperty(kPropertyEnd, 100);
+    root->clearPending(); // Force layout
+
+    auto childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 100, 100, 200));
+}
+
+TEST_F(BuilderTest, BasicStartOverrideOffset)
+{
+    loadDocument(START_END_OFFSETS_BASIC);
+
+    auto text = component->getCoreChildAt(0);
+    text->setProperty(kPropertyLeft, 200);
+    text->setProperty(kPropertyStart, 100);
+    root->clearPending(); // Force layout
+
+    auto childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 100, 100, 200));
+}
+
+TEST_F(BuilderTest, BasicEndOverrideOffset)
+{
+    loadDocument(START_END_OFFSETS_BASIC);
+
+    auto text = component->getCoreChildAt(0);
+    text->setProperty(kPropertyRight, 200);
+    text->setProperty(kPropertyEnd, 100);
+    root->clearPending(); // Force layout
+
+    auto childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 100, 100, 200));
+}
+
+TEST_F(BuilderTest, CombinedStartEndOffset)
+{
+    loadDocument(START_END_OFFSETS_BASIC);
+
+    auto text = component->getCoreChildAt(0);
+    text->setProperty(kPropertyStart, 200);
+    text->setProperty(kPropertyEnd, 100);
+    root->clearPending(); // Force layout
+
+    auto childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 200, 100, 300));
+}
+
+TEST_F(BuilderTest, CombinedStartEndWithOverrideOffset)
+{
+    loadDocument(START_END_OFFSETS_BASIC);
+
+    auto text = component->getCoreChildAt(0);
+    text->setProperty(kPropertyLeft, 400);
+    text->setProperty(kPropertyRight, 300);
+    text->setProperty(kPropertyStart, 200);
+    text->setProperty(kPropertyEnd, 100);
+    root->clearPending(); // Force layout
+
+    auto childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 200, 100, 300));
+}
+
+TEST_F(BuilderTest, BasicStartOffsetRTL)
+{
+    loadDocument(START_END_OFFSETS_BASIC);
+    component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+
+    auto text = component->getCoreChildAt(0);
+    text->setProperty(kPropertyStart, 100);
+    root->clearPending(); // Force layout
+
+    auto childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 300, 100, 400));
+}
+
+TEST_F(BuilderTest, BasicEndOffsetRTL)
+{
+    loadDocument(START_END_OFFSETS_BASIC);
+    component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+
+    auto text = component->getCoreChildAt(0);
+    text->setProperty(kPropertyEnd, 100);
+    root->clearPending(); // Force layout
+
+    auto childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 300, 100, 400));
+}
+
+TEST_F(BuilderTest, BasicStartOverrideOffsetRTL)
+{
+    loadDocument(START_END_OFFSETS_BASIC);
+    component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+    root->clearPending(); // Force layout
+
+    auto text = component->getCoreChildAt(0);
+    text->setProperty(kPropertyRight, 200);
+    text->setProperty(kPropertyStart, 100);
+    root->clearPending(); // Force layout
+
+    auto childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 300, 100, 400));
+}
+
+TEST_F(BuilderTest, BasicEndOverrideOffsetRTL)
+{
+    loadDocument(START_END_OFFSETS_BASIC);
+    component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+
+    auto text = component->getCoreChildAt(0);
+    text->setProperty(kPropertyLeft, 200);
+    text->setProperty(kPropertyEnd, 100);
+    root->clearPending(); // Force layout
+
+    auto childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 300, 100, 400));
+}
+
+TEST_F(BuilderTest, CombinedStartEndOffsetRTL)
+{
+    loadDocument(START_END_OFFSETS_BASIC);
+    component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+
+    auto text = component->getCoreChildAt(0);
+    text->setProperty(kPropertyStart, 200);
+    text->setProperty(kPropertyEnd, 100);
+    root->clearPending(); // Force layout
+
+    auto childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 200, 100, 300));
+}
+
+TEST_F(BuilderTest, CombinedStartEndWithOverrideOffsetRTL)
+{
+    loadDocument(START_END_OFFSETS_BASIC);
+    component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+
+    auto text = component->getCoreChildAt(0);
+    text->setProperty(kPropertyLeft, 400);
+    text->setProperty(kPropertyRight, 300);
+    text->setProperty(kPropertyStart, 200);
+    text->setProperty(kPropertyEnd, 100);
+    root->clearPending(); // Force layout
+
+    auto childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 200, 100, 300));
+}
+
+TEST_F(BuilderTest, CombinedStartEndWithOverrideOffsetWithDirectionChangeRTL)
+{
+    loadDocument(START_END_OFFSETS_BASIC);
+    component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+
+    auto text = component->getCoreChildAt(0);
+    text->setProperty(kPropertyLeft, 400);
+    text->setProperty(kPropertyRight, 300);
+    text->setProperty(kPropertyStart, 200);
+    text->setProperty(kPropertyEnd, 100);
+    root->clearPending(); // Force layout
+
+    auto childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 200, 100, 300));
+
+    component->setProperty(kPropertyLayoutDirectionAssigned, "LTR");
+    root->clearPending(); // Force layout
+
+    childBounds = text->getCalculated(kPropertyBounds);
+    ASSERT_TRUE(expectBounds(text, 0, 200, 100, 300));
 }
 
 static const char *RELATIVE_POSITION =
@@ -1910,9 +2119,10 @@ TEST_F(BuilderTest, DisplayTest)
     ASSERT_EQ(Object(Rect(0,0,0,0)), thing1->getCalculated(kPropertyBounds));
     ASSERT_EQ(Object(Rect(0,0,100,200)), thing2->getCalculated(kPropertyBounds));  // Shifts upwards
 
-    ASSERT_TRUE(CheckDirty(thing1, kPropertyDisplay, kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(thing2, kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(component));
+    ASSERT_TRUE(CheckDirty(thing1,
+                           kPropertyDisplay, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(thing2, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
 
     thing1->setProperty(kPropertyDisplay, "invisible");
     root->clearPending();
@@ -1921,9 +2131,10 @@ TEST_F(BuilderTest, DisplayTest)
     ASSERT_EQ(Object(Rect(0,0,200,100)), thing1->getCalculated(kPropertyBounds));
     ASSERT_EQ(Object(Rect(0,100,100,200)), thing2->getCalculated(kPropertyBounds));  // Shifts downwards
 
-    ASSERT_TRUE(CheckDirty(thing1, kPropertyDisplay, kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(thing2, kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(component));
+    ASSERT_TRUE(CheckDirty(thing1,
+                           kPropertyDisplay, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(thing2, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
 
     thing1->setProperty(kPropertyDisplay, "normal");
     root->clearPending();
@@ -1934,7 +2145,7 @@ TEST_F(BuilderTest, DisplayTest)
 
     ASSERT_TRUE(CheckDirty(thing1, kPropertyDisplay));
     ASSERT_TRUE(CheckDirty(thing2));
-    ASSERT_TRUE(CheckDirty(component));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
 }
 
 static const char *USER_TEST =
@@ -2317,4 +2528,555 @@ TEST_F(BuilderTest, ResourceLookupAtBinding)
     //onUp text component will be updated to 11
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(1,1)));
     ASSERT_TRUE(IsEqual("11", text->getCalculated(kPropertyText).asString()));
+}
+
+static const char *BASIC_START_END_PADDING = R"(
+{
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "item": {
+      "id": "cont",
+      "type": "Container",
+      "direction": "row",
+      "height": 200,
+      "width": 500,
+      "items": [
+        {
+          "id": "paddedFrame",
+          "type": "Frame",
+          "backgroundColor": "blue",
+          "paddingEnd": 20,
+          "item": {
+            "id": "paddedFrameChild",
+            "type": "Frame",
+            "backgroundColor": "pink",
+            "item": {
+              "type": "Text",
+              "text": "Test text"
+            }
+          }
+        },
+        {
+          "id": "paddedFrame2",
+          "type": "Frame",
+          "backgroundColor": "blue",
+          "paddingStart": 10,
+          "item": {
+            "id": "paddedFrameChild2",
+            "type": "Frame",
+            "backgroundColor": "pink",
+            "item": {
+              "type": "Text",
+              "text": "Test text"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+)";
+
+/**
+ * Make sure paddingStart overrides paddingLeft
+ */
+TEST_F(BuilderTest, BasicStartEndPaddingLTR)
+{
+    loadDocument(BASIC_START_END_PADDING);
+
+    auto frame = component->findComponentById("paddedFrame");
+    auto frame2 = component->findComponentById("paddedFrame2");
+    auto child = component->findComponentById("paddedFrameChild");
+    auto child2 = component->findComponentById("paddedFrameChild2");
+    ASSERT_EQ(Object::NULL_OBJECT(), frame->getCalculated(kPropertyPaddingBottom));
+    ASSERT_EQ(Object::NULL_OBJECT(), frame->getCalculated(kPropertyPaddingLeft));
+    ASSERT_EQ(Object::NULL_OBJECT(), frame->getCalculated(kPropertyPaddingRight));
+    ASSERT_EQ(Object::NULL_OBJECT(), frame->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object::NULL_OBJECT(), frame->getCalculated(kPropertyPaddingStart));
+    ASSERT_EQ(20.0, frame->getCalculated(kPropertyPaddingEnd).asNumber());
+    ASSERT_EQ(Object(ObjectArray{}), frame->getCalculated(kPropertyPadding));
+
+    EXPECT_TRUE(expectBounds(frame, 0, 0, 200, 110));
+    EXPECT_TRUE(expectInnerBounds(frame, 0, 0, 200, 90));
+    EXPECT_TRUE(expectBounds(child, 0, 0, 10, 90));
+    EXPECT_TRUE(expectInnerBounds(child, 0, 0, 10, 90));
+    EXPECT_TRUE(expectBounds(frame2, 0, 110, 200, 210));
+    EXPECT_TRUE(expectInnerBounds(frame2, 0, 10, 200, 100));
+    EXPECT_TRUE(expectBounds(child2, 0, 10, 10, 100));
+    EXPECT_TRUE(expectInnerBounds(child2, 0, 0, 10, 90));
+}
+
+static const char *START_END_PADDING_OVERRIDE = R"(
+{
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "item": {
+      "id": "cont",
+      "type": "Container",
+      "direction": "row",
+      "height": 200,
+      "width": 500,
+      "items": [
+        {
+          "id": "paddedFrame",
+          "type": "Frame",
+          "backgroundColor": "blue",
+          "paddingRight": 10,
+          "paddingEnd": 20,
+          "item": {
+            "id": "paddedFrameChild",
+            "type": "Frame",
+            "backgroundColor": "pink",
+            "item": {
+              "type": "Text",
+              "text": "Test text"
+            }
+          }
+        },
+        {
+          "id": "paddedFrame2",
+          "type": "Frame",
+          "backgroundColor": "blue",
+          "paddingStart": 10,
+          "paddingLeft": 20,
+          "item": {
+            "id": "paddedFrameChild2",
+            "type": "Frame",
+            "backgroundColor": "pink",
+            "item": {
+              "type": "Text",
+              "text": "Test text"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+)";
+
+/**
+ * Make sure paddingEnd overrides paddingRight and padding start overrides paddingLeft
+ */
+TEST_F(BuilderTest, ComplexStartEndPaddingLTR)
+{
+    loadDocument(START_END_PADDING_OVERRIDE);
+
+    auto frame = component->findComponentById("paddedFrame");
+    auto frame2 = component->findComponentById("paddedFrame2");
+    auto child = component->findComponentById("paddedFrameChild");
+    auto child2 = component->findComponentById("paddedFrameChild2");
+    ASSERT_EQ(Object::NULL_OBJECT(), frame->getCalculated(kPropertyPaddingBottom));
+    ASSERT_EQ(Object::NULL_OBJECT(), frame->getCalculated(kPropertyPaddingLeft));
+    ASSERT_EQ(10.0, frame->getCalculated(kPropertyPaddingRight).asNumber());
+    ASSERT_EQ(Object::NULL_OBJECT(), frame->getCalculated(kPropertyPaddingTop));
+    ASSERT_EQ(Object::NULL_OBJECT(), frame->getCalculated(kPropertyPaddingStart));
+    ASSERT_EQ(20.0, frame->getCalculated(kPropertyPaddingEnd).asNumber());
+    ASSERT_EQ(Object(ObjectArray{}), frame->getCalculated(kPropertyPadding));
+
+    EXPECT_TRUE(expectBounds(frame, 0, 0, 200, 110));
+    EXPECT_TRUE(expectInnerBounds(frame, 0, 0, 200, 90));
+    EXPECT_TRUE(expectBounds(child, 0, 0, 10, 90));
+    EXPECT_TRUE(expectInnerBounds(child, 0, 0, 10, 90));
+    EXPECT_TRUE(expectBounds(frame2, 0, 110, 200, 210));
+    EXPECT_TRUE(expectInnerBounds(frame2, 0, 10, 200, 100));
+    EXPECT_TRUE(expectBounds(child2, 0, 10, 10, 100));
+    EXPECT_TRUE(expectInnerBounds(child2, 0, 0, 10, 90));
+}
+
+static const char *START_END_NO_PADDING_OVERRIDE = R"(
+{
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "item": {
+      "id": "cont",
+      "type": "Container",
+      "direction": "row",
+      "height": 200,
+      "width": 500,
+      "items": [
+        {
+          "id": "paddedFrame",
+          "type": "Frame",
+          "backgroundColor": "blue",
+          "item": {
+            "id": "paddedFrameChild",
+            "type": "Frame",
+            "backgroundColor": "pink",
+            "item": {
+              "type": "Text",
+              "text": "Test text"
+            }
+          }
+        },
+        {
+          "id": "paddedFrame2",
+          "type": "Frame",
+          "backgroundColor": "blue",
+          "item": {
+            "id": "paddedFrameChild2",
+            "type": "Frame",
+            "backgroundColor": "pink",
+            "item": {
+              "type": "Text",
+              "text": "Test text"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+)";
+
+/**
+ * Make sure paddingEnd overrides paddingRight and padding start overrides paddingLeft
+ */
+TEST_F(BuilderTest, DynamicStartEndPaddingLTR)
+{
+    loadDocument(START_END_NO_PADDING_OVERRIDE);
+
+    auto frame = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("paddedFrame"));
+    auto frame2 = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("paddedFrame2"));
+    auto child = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("paddedFrameChild"));
+    auto child2 = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("paddedFrameChild2"));
+
+    //Check setting End and the right doesn't apply the right padding
+    {
+        frame->setProperty(kPropertyPaddingEnd, 20);
+        root->clearPending(); // force layout changes
+
+        EXPECT_TRUE(expectBounds(frame, 0, 0, 200, 110));
+        EXPECT_TRUE(expectInnerBounds(frame, 0, 0, 200, 90));
+        EXPECT_TRUE(expectBounds(child, 0, 0, 10, 90));
+        EXPECT_TRUE(expectInnerBounds(child, 0, 0, 10, 90));
+        EXPECT_TRUE(expectBounds(frame2, 0, 110, 200, 200));
+        EXPECT_TRUE(expectInnerBounds(frame2, 0, 0, 200, 90));
+        EXPECT_TRUE(expectBounds(child2, 0, 0, 10, 90));
+        EXPECT_TRUE(expectInnerBounds(child2, 0, 0, 10, 90));
+
+        // make sure adding right padding has no affect
+        frame->setProperty(kPropertyPaddingRight, 20);
+        root->clearPending(); // force layout changes
+
+        EXPECT_TRUE(expectBounds(frame, 0, 0, 200, 110));
+        EXPECT_TRUE(expectInnerBounds(frame, 0, 0, 200, 90));
+        EXPECT_TRUE(expectBounds(child, 0, 0, 10, 90));
+        EXPECT_TRUE(expectInnerBounds(child, 0, 0, 10, 90));
+        EXPECT_TRUE(expectBounds(frame2, 0, 110, 200, 200));
+        EXPECT_TRUE(expectInnerBounds(frame2, 0, 0, 200, 90));
+        EXPECT_TRUE(expectBounds(child2, 0, 0, 10, 90));
+        EXPECT_TRUE(expectInnerBounds(child2, 0, 0, 10, 90));
+
+    }
+
+    //Check the start overrides the left when setting dynamically
+    {
+        frame2->setProperty(kPropertyPaddingLeft, 20);
+        root->clearPending(); // force layout changes
+
+        EXPECT_TRUE(expectBounds(frame, 0, 0, 200, 110));
+        EXPECT_TRUE(expectInnerBounds(frame, 0, 0, 200, 90));
+        EXPECT_TRUE(expectBounds(child, 0, 0, 10, 90));
+        EXPECT_TRUE(expectInnerBounds(child, 0, 0, 10, 90));
+        EXPECT_TRUE(expectBounds(frame2, 0, 110, 200, 220));
+        EXPECT_TRUE(expectInnerBounds(frame2, 0, 20, 200, 110));
+        EXPECT_TRUE(expectBounds(child2, 0, 20, 10, 110));
+        EXPECT_TRUE(expectInnerBounds(child2, 0, 0, 10, 90));
+
+        frame2->setProperty(kPropertyPaddingStart, 10);
+        root->clearPending(); // force layout changes
+
+        EXPECT_TRUE(expectBounds(frame, 0, 0, 200, 110));
+        EXPECT_TRUE(expectInnerBounds(frame, 0, 0, 200, 90));
+        EXPECT_TRUE(expectBounds(child, 0, 0, 10, 90));
+        EXPECT_TRUE(expectInnerBounds(child, 0, 0, 10, 90));
+        EXPECT_TRUE(expectBounds(frame2, 0, 110, 200, 210));
+        EXPECT_TRUE(expectInnerBounds(frame2, 0, 10, 200, 100));
+        EXPECT_TRUE(expectBounds(child2, 0, 10, 10, 100));
+        EXPECT_TRUE(expectInnerBounds(child2, 0, 0, 10, 90));
+    }
+}
+
+static const char *START_END_PADDING_OVERRIDE_RTL = R"(
+{
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "item": {
+      "id": "cont",
+      "layoutDirection": "RTL",
+      "type": "Container",
+      "direction": "row",
+      "height": 200,
+      "width": 500,
+      "items": [
+        {
+          "id": "paddedFrame",
+          "type": "Frame",
+          "backgroundColor": "blue",
+          "paddingRight": 10,
+          "paddingEnd": 20,
+          "item": {
+            "id": "paddedFrameChild",
+            "type": "Frame",
+            "backgroundColor": "pink",
+            "item": {
+              "type": "Text",
+              "text": "Test text"
+            }
+          }
+        },
+        {
+          "id": "paddedFrame2",
+          "type": "Frame",
+          "backgroundColor": "blue",
+          "paddingStart": 10,
+          "paddingLeft": 20,
+          "item": {
+            "id": "paddedFrameChild2",
+            "type": "Frame",
+            "backgroundColor": "pink",
+            "item": {
+              "type": "Text",
+              "text": "Test text"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+)";
+
+/*
+ * Test with RTL layout
+ */
+TEST_F(BuilderTest, BasicStartEndPaddingRTL)
+{
+    loadDocument(START_END_PADDING_OVERRIDE_RTL);
+
+    auto frame = component->findComponentById("paddedFrame");
+    auto frame2 = component->findComponentById("paddedFrame2");
+    auto child = component->findComponentById("paddedFrameChild");
+    auto child2 = component->findComponentById("paddedFrameChild2");
+
+    EXPECT_TRUE(expectBounds(frame, 0, 380, 200, 500));
+    EXPECT_TRUE(expectInnerBounds(frame, 0, 20, 200, 110));
+    EXPECT_TRUE(expectBounds(child, 0, 20, 10, 110));
+    EXPECT_TRUE(expectInnerBounds(child, 0, 0, 10, 90));
+    EXPECT_TRUE(expectBounds(frame2, 0, 260, 200, 380));
+    EXPECT_TRUE(expectInnerBounds(frame2, 0, 20, 200, 110));
+    EXPECT_TRUE(expectBounds(child2, 0, 20, 10, 110));
+    EXPECT_TRUE(expectInnerBounds(child2, 0, 0, 10, 90));
+}
+
+/*
+ * Check padding works when layout direction is set dynamically
+ */
+TEST_F(BuilderTest, ComplexDynamicStartEndPaddingRTL)
+{
+    loadDocument(START_END_PADDING_OVERRIDE);
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("cont"));
+    cont->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+    root->clearPending();
+
+    auto frame = component->findComponentById("paddedFrame");
+    auto frame2 = component->findComponentById("paddedFrame2");
+    auto child = component->findComponentById("paddedFrameChild");
+    auto child2 = component->findComponentById("paddedFrameChild2");
+
+    EXPECT_TRUE(expectBounds(frame, 0, 380, 200, 500));
+    EXPECT_TRUE(expectInnerBounds(frame, 0, 20, 200, 110));
+    EXPECT_TRUE(expectBounds(child, 0, 20, 10, 110));
+    EXPECT_TRUE(expectInnerBounds(child, 0, 0, 10, 90));
+    EXPECT_TRUE(expectBounds(frame2, 0, 260, 200, 380));
+    EXPECT_TRUE(expectInnerBounds(frame2, 0, 20, 200, 110));
+    EXPECT_TRUE(expectBounds(child2, 0, 20, 10, 110));
+    EXPECT_TRUE(expectInnerBounds(child2, 0, 0, 10, 90));
+}
+
+const char *POSITION_TYPE_TEST = R"apl(
+{
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "width": "500",
+      "height": "400",
+      "item": {
+        "id": "containerComp",
+        "type": "Container",
+        "width": "500",
+        "height": "1000",
+        "items": [
+          {
+            "id": "frameComp1",
+            "type": "Frame",
+            "width": "100",
+            "height": "100",
+            "backgroundColor": "blue"
+          },
+          {
+            "id": "frameComp2",
+            "type": "Frame",
+            "width": "100",
+            "height": "100",
+            "backgroundColor": "red"
+          }
+        ]
+      }
+    }
+  }
+}
+)apl";
+
+/*
+ * Check that changing the position type from relative, absolute and sticky works as expected and
+ * verify that position insets can be unset using "auto"
+ */
+TEST_F(BuilderTest, PositionTypeRelativeToAbsolute)
+{
+    loadDocument(POSITION_TYPE_TEST);
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("frameComp1"));
+    cont->setProperty(kPropertyRight, 0);
+
+    EXPECT_TRUE(expectBounds(cont, 0, 0, 100, 100));
+
+    cont->setProperty(kPropertyPosition, "absolute");
+    root->clearPending(); // Force layout
+
+    EXPECT_TRUE(expectBounds(cont, 0, 400, 100, 500));
+
+    // verify setting a position inset to auto works.
+    cont->setProperty(kPropertyRight, "auto");
+    root->clearPending(); // Force layout
+
+    EXPECT_TRUE(expectBounds(cont, 0, 0, 100, 100));
+
+    // verify the NAN value passed to yoga hasn't broken anything
+    cont->setProperty(kPropertyRight, 10);
+    root->clearPending(); // Force layout
+
+    EXPECT_TRUE(expectBounds(cont, 0, 390, 100, 490));
+
+    cont->setProperty(kPropertyLeft, 10);
+    root->clearPending(); // Force layout
+
+    EXPECT_TRUE(expectBounds(cont, 0, 10, 100, 110));
+
+    cont->setProperty(kPropertyPosition, "sticky");
+    root->clearPending(); // Force layout
+
+    EXPECT_TRUE(expectBounds(cont, 0, 0, 100, 100));
+
+    cont->setProperty(kPropertyPosition, "absolute");
+    root->clearPending(); // Force layout
+
+    // unset the left inset so the element is inset from the right side
+    cont->setProperty(kPropertyLeft, "auto");
+    root->clearPending(); // Force layout
+
+    EXPECT_TRUE(expectBounds(cont, 0, 390, 100, 490));
+}
+
+/*
+ * Check that changing the position type from relative, absolute and sticky works as expected and
+ * verify that start/end insets can be unset using "auto"
+ */
+TEST_F(BuilderTest, PositionTypeRelativeToAbsoluteStartEndInsets)
+{
+    loadDocument(POSITION_TYPE_TEST);
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("frameComp1"));
+    auto containerComp = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("containerComp"));
+    cont->setProperty(kPropertyStart, 10);
+    cont->setProperty(kPropertyRight, 20);
+
+    EXPECT_TRUE(expectBounds(cont, 0, 0, 100, 100));
+
+    cont->setProperty(kPropertyPosition, "absolute");
+    root->clearPending(); // Force layout
+
+    EXPECT_TRUE(expectBounds(cont, 0, 10, 100, 110));
+
+    // Switch the layout direction and verify start now overrides right and that the component
+    // is offset from the right side now that left has been set back to "auto"
+    containerComp->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+    root->clearPending(); // Force layout
+
+    EXPECT_TRUE(expectBounds(cont, 0, 390, 100, 490));
+
+    // verify changing to/from position: sticky restores the same values
+    cont->setProperty(kPropertyPosition, "sticky");
+    root->clearPending(); // Force layout
+
+    EXPECT_TRUE(expectBounds(cont, 0, 400, 100, 500));
+
+    cont->setProperty(kPropertyPosition, "absolute");
+    root->clearPending(); // Force layout
+
+    EXPECT_TRUE(expectBounds(cont, 0, 390, 100, 490));
+}
+
+static const char *NULL_LAYOUT_NULL_POINTER = R"(
+{
+    "type": "APL",
+    "version": "1.7",
+    "mainTemplate":     4      }             { "items": {
+            "type": "Container",
+            "items": [
+    {
+                    "type": "Image",
+                    "id": "myImage",
+                    "source": [],
+                    "onReady": {
+                        "type": "Select",
+  / ?                  {
+commands": [
+                            {
+                                "when": "${success}",
+                "type": "SetValue",
+                "componentId": "textComp",
+                                "prop
+                                     rty": "text",
+                                "value": "tango"
+                            },
+                {
+                                "when": "${!success}",
+                                "type": "SetValue",
+                                "componentId": "textComp",
+     	                          "property": "text",
+                                "value": "bravo"
+                            }         ]
+                    }
+                },
+                {
+                    "type": "Text",
+                    "id": "textComi",
+                    "text": "tiger"
+                {
+    "type": "APL",
+    "vers
+)";
+
+/*
+ * Test the template doesn't assert. Just check it finishes.
+ */
+TEST_F(BuilderTest, NullLayoutReturnsNullPointer)
+{
+    auto content = apl::Content::create(NULL_LAYOUT_NULL_POINTER);
+    EXPECT_TRUE(content != nullptr);
+    EXPECT_FALSE(apl::RootContext::create(apl::Metrics()
+                                              .size(1280, 800)
+                                              .dpi(160)
+                                              .shape(apl::ScreenShape::ROUND),
+                                          content));
+
 }

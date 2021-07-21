@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -489,8 +489,11 @@ TEST(ObjectTest, DoubleConversion)
         std::string result = object.asString();
         ASSERT_EQ(m.second, result) << m.first << " : " << m.second;
     }
+    // Note: Not all architectures support FE_INVALID (e.g., wasm)
+#if defined(FE_INVALID)
     int fe = fetestexcept (FE_INVALID);
     ASSERT_EQ(0, fe);
+#endif
 }
 
 static const std::vector<std::pair<std::string, double>> STRING_TO_DOUBLE{

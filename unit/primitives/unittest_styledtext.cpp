@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -21,8 +21,13 @@ using namespace apl;
 
 class StyledTextTest : public ::testing::Test {
 protected:
+    StyledTextTest() {
+        context = Context::createTestContext(Metrics(), makeDefaultSession());
+        context->putConstant("@testFontSize", Dimension(DimensionType::Absolute, 10));
+    }
+
     void createAndVerifyStyledText(const std::string& rawText, const std::string& expectedText, size_t spansCount) {
-        styledText = StyledText::create(rawText);
+        styledText = StyledText::create(*context, rawText);
         ASSERT_EQ(Object::kStyledTextType, styledText.getType());
         spans = std::make_shared<std::vector<StyledText::Span>>(styledText.getStyledText().getSpans());
         ASSERT_EQ(expectedText, styledText.getStyledText().getText());
@@ -30,12 +35,40 @@ protected:
     }
 
     void verifySpan(size_t spanIndex, StyledText::SpanType type, size_t start, size_t end) {
+        verifySpan(spanIndex, type, start, end, 0);
+    }
+
+    void verifySpan(size_t spanIndex, StyledText::SpanType type, size_t start, size_t end, size_t attributesCount) {
         auto span = spans->at(spanIndex);
         ASSERT_EQ(type, span.type);
         ASSERT_EQ(start, span.start);
         ASSERT_EQ(end, span.end);
+        ASSERT_EQ(span.attributes.size(), attributesCount);
     }
 
+    void verifyColorAttribute(
+        size_t spanIndex,
+        size_t attributeIndex,
+        const std::string& attributeValue) {
+        auto span = spans->at(spanIndex);
+        auto attribute = span.attributes.at(attributeIndex);
+        EXPECT_EQ(attribute.name, 0);
+        EXPECT_TRUE(attribute.value.isColor());
+        EXPECT_EQ(attribute.value.asString(), attributeValue);
+    }
+
+    void verifyFontSizeAttribute(
+        size_t spanIndex,
+        size_t attributeIndex,
+        const std::string& attributeValue) {
+        auto span = spans->at(spanIndex);
+        auto attribute = span.attributes.at(attributeIndex);
+        EXPECT_EQ(attribute.name, 1);
+        EXPECT_TRUE(attribute.value.isAbsoluteDimension());
+        EXPECT_EQ(attribute.value.asString(), attributeValue);
+    }
+
+    ContextPtr context;
     Object styledText;
 
 private:
@@ -44,33 +77,32 @@ private:
 
 TEST_F(StyledTextTest, Casting)
 {
-    ASSERT_TRUE(IsEqual("<i>FOO</i>", StyledText::create("<i>FOO</i>").asString()));
-    ASSERT_TRUE(IsEqual(4.5, StyledText::create("4.5").asNumber()));
-    ASSERT_TRUE(IsEqual(4, StyledText::create("4.3").asInt()));
-    ASSERT_TRUE(IsEqual(Color(Color::RED), StyledText::create("#ff0000").asColor()));
+    ASSERT_TRUE(IsEqual("<i>FOO</i>", StyledText::create(*context, "<i>FOO</i>").asString()));
+    ASSERT_TRUE(IsEqual(4.5, StyledText::create(*context, "4.5").asNumber()));
+    ASSERT_TRUE(IsEqual(4, StyledText::create(*context, "4.3").asInt()));
+    ASSERT_TRUE(IsEqual(Color(Color::RED), StyledText::create(*context, "#ff0000").asColor()));
 
-    auto context = Context::createTestContext(Metrics(), makeDefaultSession());
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 10), StyledText::create("10dp").asDimension(*context)));
-    ASSERT_TRUE(IsEqual(Dimension(), StyledText::create("auto").asDimension(*context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 10), StyledText::create("10%").asDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 10), StyledText::create(*context, "10dp").asDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(), StyledText::create(*context, "auto").asDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 10), StyledText::create(*context, "10%").asDimension(*context)));
 
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 5), StyledText::create("5dp").asAbsoluteDimension(*context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 0), StyledText::create("auto").asAbsoluteDimension(*context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 0), StyledText::create("10%").asAbsoluteDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 5), StyledText::create(*context, "5dp").asAbsoluteDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 0), StyledText::create(*context, "auto").asAbsoluteDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 0), StyledText::create(*context, "10%").asAbsoluteDimension(*context)));
 
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 5), StyledText::create("5dp").asNonAutoDimension(*context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 0), StyledText::create("auto").asNonAutoDimension(*context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 10), StyledText::create("10%").asNonAutoDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 5), StyledText::create(*context, "5dp").asNonAutoDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 0), StyledText::create(*context, "auto").asNonAutoDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 10), StyledText::create(*context, "10%").asNonAutoDimension(*context)));
 
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 5), StyledText::create("5dp").asNonAutoRelativeDimension(*context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 0), StyledText::create("auto").asNonAutoRelativeDimension(*context)));
-    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 10), StyledText::create("10%").asNonAutoRelativeDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Absolute, 5), StyledText::create(*context, "5dp").asNonAutoRelativeDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 0), StyledText::create(*context, "auto").asNonAutoRelativeDimension(*context)));
+    ASSERT_TRUE(IsEqual(Dimension(DimensionType::Relative, 10), StyledText::create(*context, "10%").asNonAutoRelativeDimension(*context)));
 
-    ASSERT_TRUE(StyledText::create("").empty());
-    ASSERT_FALSE(StyledText::create("<h2></h2>").empty());
+    ASSERT_TRUE(StyledText::create(*context, "").empty());
+    ASSERT_FALSE(StyledText::create(*context, "<h2></h2>").empty());
 
-    ASSERT_EQ(0, StyledText::create("").size());
-    ASSERT_EQ(9, StyledText::create("<h2></h2>").size());
+    ASSERT_EQ(0, StyledText::create(*context, "").size());
+    ASSERT_EQ(9, StyledText::create(*context, "<h2></h2>").size());
 }
 
 TEST_F(StyledTextTest, NotStyled)
@@ -335,11 +367,66 @@ TEST_F(StyledTextTest, TagAttribute)
     createAndVerifyStyledText(u8"hello<br +name='value'>world", u8"helloworld", 1);
     createAndVerifyStyledText(u8"hello<br 1+n:a-me='value'>world", u8"helloworld", 1);
     createAndVerifyStyledText(u8"hello<br name='va<lue' >world", u8"helloworld", 1);
-    createAndVerifyStyledText(u8"hello<br name='va>lue' >world", u8"helloworld", 1);
 
     // cat literally walks across the keyboard
-    createAndVerifyStyledText(u8"hello<br 3459dfiuwcr9ergh da lia e  =ar -e 89q3 403i4 ''\"<<>><<''' << k'asd \" >world", u8"helloworld", 1);
-    createAndVerifyStyledText(u8"hello<br 3459dfiuwcr9ergh da lia e  =ar -e 89q3 403i4 ''\"<<<<''' <>< k'asd \" />world", u8"helloworld", 1);
+    createAndVerifyStyledText(u8"hello<br 3459dfiuwcr9ergh da lia e  =ar -e 89q3 403i4 ''\"<<<<''' << k'asd \" />world", u8"helloworld", 1);
+    createAndVerifyStyledText(u8"hello<span color='red' 3459dfiuwcr9ergh da lia e  =ar -e 89q3 403i4 ''\"<<<<''' << k'asd \" >world</span>", u8"helloworld", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 5, 10, 1);
+    verifyColorAttribute(0, 0, "#ff0000ff");
+
+    // span tag with attributes
+    createAndVerifyStyledText(u8"Hello <span color='red'>this is an attr</span>", u8"Hello this is an attr", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 6, 21, 1);
+    verifyColorAttribute(0, 0, "#ff0000ff");
+    createAndVerifyStyledText(u8"Hello <span fontSize='48dp'>this is an attr</span>", u8"Hello this is an attr", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 6, 21, 1);
+    verifyFontSizeAttribute(0, 0, "48dp");
+
+    // span tag with attribute name with resource binding
+    createAndVerifyStyledText(u8"Hello <span fontSize='@testFontSize'>this is an attr</span>", u8"Hello this is an attr", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 6, 21, 1);
+    verifyFontSizeAttribute(0, 0, "10dp");
+
+    // span tag with multiple attributes
+    createAndVerifyStyledText(u8"Hello <span color='red' fontSize='48dp'>this is an attr</span>", u8"Hello this is an attr", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 6, 21, 2);
+    verifyColorAttribute(0, 0, "#ff0000ff");
+    verifyFontSizeAttribute(0, 1, "48dp");
+
+    // span tag with different kinds of color attributes
+    createAndVerifyStyledText(u8"Hello <span color='#edb'>this is an attr</span>", u8"Hello this is an attr", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 6, 21, 1);
+    verifyColorAttribute(0, 0, "#eeddbbff");
+    createAndVerifyStyledText(u8"Hello <span color='rgba(blue, 50%)'>this is an attr</span>", u8"Hello this is an attr", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 6, 21, 1);
+    verifyColorAttribute(0, 0, "#0000ff7f");
+    createAndVerifyStyledText(u8"Hello <span color='rgb(rgba(green, 50%), 50%)'>this is an attr</span>", u8"Hello this is an attr", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 6, 21, 1);
+    verifyColorAttribute(0, 0, "#0080003f");
+    createAndVerifyStyledText(u8"Hello <span color='hsl(0, 100%, 50%)'>this is an attr</span>", u8"Hello this is an attr", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 6, 21, 1);
+    verifyColorAttribute(0, 0, "#ff0000ff");
+    createAndVerifyStyledText(u8"Hello <span color='hsla(120, 0, 50%, 25%)'>this is an attr</span>", u8"Hello this is an attr", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 6, 21, 1);
+    verifyColorAttribute(0, 0, "#80808040");
+
+    // span tag with inherit attribute value
+    createAndVerifyStyledText(u8"Hello <span color='inherit'>this is an attr</span>", u8"Hello this is an attr", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 6, 21);
+
+    // span tag with same attributes
+    createAndVerifyStyledText(u8"Hello <span color='blue' fontSize='50' color='red' fontSize='7'>this is an attr</span>", u8"Hello this is an attr", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 6, 21, 2);
+    verifyColorAttribute(0, 0, "#0000ffff");
+    verifyFontSizeAttribute(0, 1, "50dp");
+
+    // span tag without attributes
+    createAndVerifyStyledText(u8"Hello <span>this is an attr</span>", u8"Hello this is an attr", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 6, 21);
+
+    // span tag with non-supported attributes
+    createAndVerifyStyledText(u8"Hello <span foo='bar'>this is an attr</span>", u8"Hello this is an attr", 1);
+    verifySpan(0, StyledText::kSpanTypeSpan, 6, 21);
 }
 
 TEST_F(StyledTextTest, NobrSimple)
@@ -393,14 +480,27 @@ TEST_F(StyledTextTest, NobrComplex)
 
 TEST_F(StyledTextTest, StyledTextIteratorBasic)
 {
-    createAndVerifyStyledText(u8"He screamed \"Run<u>faster<i>thetigerisbehind</i></u><i>you</i>!!!\"",
-            u8"He screamed \"Runfasterthetigerisbehindyou!!!\"", 3);
+    createAndVerifyStyledText(u8"He screamed \"<span color='red'>Run</span><u>faster<i>thetigerisbehind</i></u><i>you</i>!!!\"",
+            u8"He screamed \"Runfasterthetigerisbehindyou!!!\"", 4);
 
     StyledText st = styledText.getStyledText();
     StyledText::Iterator it(st);
 
     EXPECT_EQ(it.next(), StyledText::Iterator::kString);
-    EXPECT_EQ(it.getString(), "He screamed \"Run");
+    EXPECT_EQ(it.getString(), "He screamed \"");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeSpan);
+    auto attribute = it.getSpanAttributes().at(0);
+    EXPECT_EQ(attribute.name, 0);
+    EXPECT_TRUE(attribute.value.isColor());
+    EXPECT_EQ(attribute.value.asString(), "#ff0000ff");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kString);
+    EXPECT_EQ(it.getString(), "Run");
+
+    EXPECT_EQ(it.next(), StyledText::Iterator::kEndSpan);
+    EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeSpan);
 
     EXPECT_EQ(it.next(), StyledText::Iterator::kStartSpan);
     EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeUnderline);
@@ -447,8 +547,20 @@ TEST_F(StyledTextTest, StyledTextIteratorEmpty)
 
 TEST_F(StyledTextTest, StyledTextSpanEquality)
 {
-    auto st1 = StyledText::create(u8"He screamed <b>\"Runfasterthetigerisbehindyou!!!\"</b>").getStyledText();
-    auto st2 = StyledText::create(u8"He screamed <b>\"Runslowerthepuppywantstolickyou\"</b>").getStyledText();
+    auto st1 = StyledText::create(*context, u8"He screamed <b>\"Runfasterthetigerisbehindyou!!!\"</b>").getStyledText();
+    auto st2 = StyledText::create(*context, u8"He screamed <b>\"Runslowerthepuppywantstolickyou\"</b>").getStyledText();
+    auto st1Spans = st1.getSpans();
+    auto st2Spans = st2.getSpans();
+
+    EXPECT_EQ(st1Spans.size(), st2Spans.size());
+    EXPECT_FALSE(st1Spans.empty());
+    EXPECT_TRUE(st1Spans[0] == st2Spans[0]);
+}
+
+TEST_F(StyledTextTest, StyledTextSpanWithAttributesEquality)
+{
+    auto st1 = StyledText::create(*context, u8"He screamed <span color='red'>\"Runfasterthetigerisbehindyou!!!\"</span>").getStyledText();
+    auto st2 = StyledText::create(*context, u8"He screamed <span color='red'>\"Runslowerthepuppywantstolickyou\"</span>").getStyledText();
     auto st1Spans = st1.getSpans();
     auto st2Spans = st2.getSpans();
 
@@ -459,8 +571,20 @@ TEST_F(StyledTextTest, StyledTextSpanEquality)
 
 TEST_F(StyledTextTest, StyledTextSpanInequality)
 {
-    auto st1 = StyledText::create(u8"He screamed <b>\"Runfasterthetigerisbehindyou!!!\"</b>").getStyledText();
-    auto st2 = StyledText::create(u8"He screamed <b>\"Runslowertheturtleneedstolickyou\"</b>").getStyledText();
+    auto st1 = StyledText::create(*context, u8"He screamed <b>\"Runfasterthetigerisbehindyou!!!\"</b>").getStyledText();
+    auto st2 = StyledText::create(*context, u8"He screamed <b>\"Runslowertheturtleneedstolickyou\"</b>").getStyledText();
+    auto st1Spans = st1.getSpans();
+    auto st2Spans = st2.getSpans();
+
+    EXPECT_EQ(st1Spans.size(), st2Spans.size());
+    EXPECT_FALSE(st1Spans.empty());
+    EXPECT_TRUE(st1Spans[0] != st2Spans[0]);
+}
+
+TEST_F(StyledTextTest, StyledTextSpanWithAttributesInequality)
+{
+    auto st1 = StyledText::create(*context, u8"He screamed <span color='red'>\"Runfasterthetigerisbehindyou!!!\"</span>").getStyledText();
+    auto st2 = StyledText::create(*context, u8"He screamed <span color='blue'>\"Runslowerthepuppywantstolickyou\"</span>").getStyledText();
     auto st1Spans = st1.getSpans();
     auto st2Spans = st2.getSpans();
 

@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -13,8 +13,10 @@
  * permissions and limitations under the License.
  */
 
+#include <type_traits>
+
 #include "apl/engine/evaluate.h"
-#include "apl/datagrammar/databindingrules.h"
+#include "apl/datagrammar/bytecodeassembler.h"
 #include "apl/engine/context.h"
 #include "apl/primitives/dimension.h"
 #include "apl/utils/log.h"
@@ -22,33 +24,20 @@
 
 namespace apl {
 
-namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
+Object
+getDataBinding(const Context& context, const std::string& value)
+{
+    return datagrammar::ByteCodeAssembler::parse(context, value);
+}
 
-const bool DEBUG_DATA_BINDING = false;
-
-/**
- * Evaluation stages we need:
- *
- *  1. If a string, apply data binding to expand the string.
- *  2. If it is still a string, expand resources and repeat data-binding step
- *  3. Convert the object to the correct internal type.  It is still an object.
- */
 Object
 parseDataBinding(const Context& context, const std::string& value)
 {
-    try {
-        datagrammar::Stacks stacks(context);
-        pegtl::string_input<> in(value, "");
-        pegtl::parse<datagrammar::grammar, datagrammar::action>(in, stacks);
-        Object result = stacks.finish();
-        LOG_IF(DEBUG_DATA_BINDING) << "Parse data binding " << value << "=" << result;
-        return result;
-    }
-    catch (const pegtl::parse_error& e) {
-        CONSOLE_CTX(context) << "Parse error in '" << value << "' - " << e.what();
-    }
+    auto result = datagrammar::ByteCodeAssembler::parse(context, value);
+    if (result.isEvaluable())
+        return result.getByteCode()->simplify();
 
-    return value;
+    return result;
 }
 
 Object
@@ -59,13 +48,12 @@ parseDataBindingRecursive(const Context& context, const Object& object)
     }
     else if (object.isTrueMap()) {
         auto result = std::make_shared<std::map<std::string, Object>>();
-        for (const auto& m : object.getMap())
+        for (const auto &m : object.getMap())
             result->emplace(m.first, parseDataBindingRecursive(context, m.second));
         return Object(result);
-    }
-    else if (object.isArray()) {
+    } else if (object.isArray()) {
         auto v = std::make_shared<std::vector<Object>>();
-        for (auto index = 0 ; index < object.size() ; index++)
+        for (auto index = 0; index < object.size(); index++)
             v->push_back(parseDataBindingRecursive(context, object.at(index)));
         return Object(v);
     }
@@ -76,7 +64,7 @@ parseDataBindingRecursive(const Context& context, const Object& object)
 Object
 applyDataBinding(const Context& context, const std::string& value)
 {
-    Object parsed = parseDataBinding(context, value);
+    Object parsed = getDataBinding(context, value);
     if (parsed.isEvaluable())
         return parsed.eval();
 
@@ -87,7 +75,7 @@ Object
 evaluate(const Context& context, const Object& object)
 {
     // If it is a string, we check for data-binding
-    auto result = object.isString() ? parseDataBinding(context, object.getString()) : object;
+    auto result = object.isString() ? getDataBinding(context, object.getString()) : object;
 
     // Nodes get evaluated
     if (result.isEvaluable())

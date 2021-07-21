@@ -35,6 +35,8 @@ namespace alexaext {
 class ExtensionProxy {
 
 public:
+    virtual ~ExtensionProxy() = default;
+
     /**
      * Get the URIs described by the extension.
      *
@@ -135,18 +137,30 @@ public:
      * to the document. This callback is registered by the runtime and called by ExtensionBase
      * via invokeExtensionEventHandler(...).
      *
+     * This method can be called multiple times to register multiple callbacks.
+     *
      * @param callback The extension event callback.
      */
     virtual void registerEventCallback(Extension::EventCallback callback) = 0;
 
     /**
-    * Register a callback for extension generated "LiveDataUpdate" messages that are sent from the extension
-    * to the document. This callback is registered by the runtime and called by ExtensionBase
-    * via invokeLiveDataUpdate(...).
-    *
-    * @param callback The live data update callback.
-    */
+     * Register a callback for extension generated "LiveDataUpdate" messages that are sent from
+     * the extension to the document. This callback is registered by the runtime and called by
+     * ExtensionBase via invokeLiveDataUpdate(...).
+     *
+     * This method can be called multiple times to register multiple callbacks.
+     *
+     * @param callback The live data update callback.
+     */
     virtual void registerLiveDataUpdateCallback(Extension::LiveDataUpdateCallback callback) = 0;
+
+    /**
+     * Invoked when an extension behind this proxy is successfully registered.
+     *
+     * @param uri The extension URI
+     * @param token The client token issued during registration
+     */
+     virtual void onRegistered(const std::string &uri, const std::string &token) = 0;
 };
 
 using ExtensionProxyPtr = std::shared_ptr<ExtensionProxy>;

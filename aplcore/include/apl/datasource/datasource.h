@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ public:
 
     /// LiveArrayObject override
     void ensure(size_t idx) override;
+    bool isPaginating() const override { return true; }
 
     /**
      * Internal constructor, use create() function instead.
@@ -45,13 +46,15 @@ public:
     DataSource(
             const LiveArrayPtr& liveArray,
             const ContextPtr& context,
-            const std::shared_ptr<DataSourceConnection>& connection,
+            const DataSourceConnectionPtr& connection,
             const std::string& name);
 
     std::string toDebugString() const override;
 
+    DataSourceConnectionPtr getDataSourceConnection() const override { return mSourceConnection; }
+
 private:
-    std::shared_ptr<DataSourceConnection> mSourceConnection;
+    DataSourceConnectionPtr mSourceConnection;
 };
 
 } // namespace apl

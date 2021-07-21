@@ -85,8 +85,14 @@ public:
     /**
      * Layout all pending components
      * @param useDirtyFlag If true, updated properties will set a dirty flag in components
+     * @param first if true - it's a first layout for this document
      */
-    void layout(bool useDirtyFlag);
+    void layout(bool useDirtyFlag, bool first = false);
+
+    /**
+     * Flash any non-inflated components in hierarchy, where supported.
+     */
+    void flushLazyInflation();
 
     /**
      * Inform the layout manager of a configuration change.  If the configuration change
@@ -138,8 +144,14 @@ public:
      */
     void addPostProcess(const CoreComponentPtr& component, PropertyKey key, const Object& value );
 
+    /**
+     * Notify LayoutManager that additional processing pass required after layout.
+     */
+    void needToReProcessLayoutChanges() { mNeedToReProcessLayoutChanges = true; }
+
 private:
-    void layoutComponent(const CoreComponentPtr& component, bool useDirtyFlag);
+    void layoutComponent(const CoreComponentPtr& component, bool useDirtyFlag, bool first);
+    void flushLazyInflationInternal(const CoreComponentPtr& comp);
 
 private:
     using PPKey = std::pair<CoreComponentPtr, PropertyKey>;
@@ -149,6 +161,7 @@ private:
     Size mConfiguredSize;
     bool mTerminated = false;
     bool mInLayout = false;    // Guard against recursive calls to layout
+    bool mNeedToReProcessLayoutChanges = false;
     std::map<PPKey, Object> mPostProcess;   // Collection of elements to post-process
 };
 

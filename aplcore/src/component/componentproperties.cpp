@@ -67,7 +67,9 @@ Bimap<int, std::string> sTextAlignMap = {
     {kTextAlignAuto,   "auto"},
     {kTextAlignLeft,   "left"},
     {kTextAlignCenter, "center"},
-    {kTextAlignRight,  "right"}
+    {kTextAlignRight,  "right"},
+    {kTextAlignStart,  "start"},
+    {kTextAlignEnd,    "end"}
 };
 
 Bimap<int, std::string> sTextAlignVerticalMap = {
@@ -122,7 +124,8 @@ Bimap<int, std::string> sNumberingMap = {
 
 Bimap<int, std::string> sPositionMap = {
     {kPositionAbsolute, "absolute"},
-    {kPositionRelative, "relative"}
+    {kPositionRelative, "relative"},
+    {kPositionSticky, "sticky"}
 };
 
 Bimap<int, std::string> sScrollDirectionMap = {
@@ -251,11 +254,24 @@ Bimap<int, std::string> sSwipeDirectionMap = {
     {kSwipeDirectionLeft,  "left"},
     {kSwipeDirectionDown,  "down"},
     {kSwipeDirectionRight, "right"},
+    {kSwipeDirectionForward, "forward"},
+    {kSwipeDirectionBackward,  "backward"},
 };
 
 Bimap<int, std::string> sScrollAnimationMap = {
     {kScrollAnimationDefault,   "default"},
     {kScrollAnimationSmoothInOut,  "smoothInOut"}
+};
+
+Bimap<int, std::string> sLayoutDirectionMap = {
+    {kLayoutDirectionInherit,     "inherit"},
+    {kLayoutDirectionLTR,         "LTR"},
+    {kLayoutDirectionRTL,         "RTL"}
+};
+
+Bimap<int, std::string> sKeyboardBehaviorOnFocusMap = {
+    {kBehaviorOnFocusSystemDefault, "systemDefault"},
+    {kBehaviorOnFocusOpenKeyboard,  "openKeyboard"}
 };
 
 /**
@@ -307,6 +323,7 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyDisabled,                "disabled"},
     {kPropertyDisplay,                 "display"},
     {kPropertyDrawnBorderWidth,        "_drawnBorderWidth"},
+    {kPropertyEnd,                     "end"},
     {kPropertyEntities,                "entities"},
     {kPropertyFastScrollScale,         "-fastScrollScale"},
     {kPropertyFilters,                 "filters"},
@@ -336,7 +353,11 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyInnerBounds,             "_innerBounds"},
     {kPropertyItemsPerCourse,          "_itemsPerCourse"},
     {kPropertyJustifyContent,          "justifyContent"},
+    {kPropertyKeyboardBehaviorOnFocus, "-keyboardBehaviorOnFocus"},
     {kPropertyKeyboardType,            "keyboardType"},
+    {kPropertyLang,                    "lang"},
+    {kPropertyLayoutDirection,         "_layoutDirection"},
+    {kPropertyLayoutDirectionAssigned, "layoutDirection"},
     {kPropertyLeft,                    "left"},
     {kPropertyLetterSpacing,           "letterSpacing"},
     {kPropertyLineHeight,              "lineHeight"},
@@ -381,8 +402,10 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyOverlayGradient,         "overlayGradient"},
     {kPropertyPadding,                 "padding"},
     {kPropertyPaddingBottom,           "paddingBottom"},
+    {kPropertyPaddingEnd,              "paddingEnd"},
     {kPropertyPaddingLeft,             "paddingLeft"},
     {kPropertyPaddingRight,            "paddingRight"},
+    {kPropertyPaddingStart,            "paddingStart"},
     {kPropertyPaddingTop,              "paddingTop"},
     {kPropertyPageDirection,           "pageDirection"},
     {kPropertyPageId,                  "pageId"},
@@ -412,8 +435,10 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertySpacing,                 "spacing"},
     {kPropertySpeech,                  "speech"},
     {kPropertySubmitKeyType,           "submitKeyType"},
+    {kPropertyStart,                   "start"},
     {kPropertyText,                    "text"},
-    {kPropertyTextAlign,               "textAlign"},
+    {kPropertyTextAlign,               "_textAlign"},
+    {kPropertyTextAlignAssigned,       "textAlign"},
     {kPropertyTextAlignVertical,       "textAlignVertical"},
     {kPropertyTop,                     "top"},
     {kPropertyTrackCount,              "_trackCount"},

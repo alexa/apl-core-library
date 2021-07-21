@@ -36,11 +36,11 @@ enum ScrollableAlign {
  */
 class MultiChildScrollableComponent : public ScrollableComponent {
 public:
-    MultiChildScrollableComponent(const ContextPtr& context, Properties&& properties, const std::string& path) :
+    MultiChildScrollableComponent(const ContextPtr& context, Properties&& properties, const Path& path) :
             ScrollableComponent(context, std::move(properties), path) {};
     Object getValue() const override;
     bool multiChild() const override { return true; }
-    void processLayoutChanges(bool useDirtyFlag) override;
+    void processLayoutChanges(bool useDirtyFlag, bool first) override;
     void accept(Visitor<CoreComponent>& visitor) const override;
     void raccept(Visitor<CoreComponent>& visitor) const override;
     Point scrollPosition() const override;
@@ -48,7 +48,7 @@ public:
         return getCalculated(kPropertyScrollDirection) == kScrollDirectionVertical ?
             kScrollTypeVertical : kScrollTypeHorizontal;
     }
-    Point trimScroll(const Point& point) const override;
+    Point trimScroll(const Point& point) override;
 
     /// Scrollable overrides
     bool isHorizontal() const override { return getCalculated(kPropertyScrollDirection) == kScrollDirectionHorizontal; }
@@ -96,6 +96,9 @@ public:
      */
     void setScrollPositionDirectlyByChild(const CoreComponentPtr& child, ScrollableAlign align, float offset );
 
+    /// CoreComponent override.
+    void ensureChildLayout(const CoreComponentPtr& child, bool useDirtyFlag) override;
+
 protected:
     /**
      * Finds the immediate child, if any, at the given position.
@@ -119,10 +122,11 @@ protected:
     bool insertChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
     void removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
-    virtual void layoutChildIfRequired(const CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag);
-    void relayoutInPlace(bool useDirtyFlag);
+    virtual void layoutChildIfRequired(const CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag, bool first);
+    void relayoutInPlace(bool useDirtyFlag, bool first);
     float maxScroll() const override;
     bool shouldAttachChildYogaNode(int index) const override { return false; }
+    bool shouldBeFullyInflated(int index) const override;
 
     const EventPropertyMap & eventPropertyMap() const override;
     void handlePropertyChange(const ComponentPropDef& def, const Object& value) override;
@@ -179,7 +183,8 @@ private:
 
     void attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index) override;
     bool attachChild(const CoreComponentPtr& child, size_t index);
-    void runLayoutHeuristics(size_t anchorIdx, float childCache, float pageSize, bool useDirtyFlag);
+    void runLayoutHeuristics(size_t anchorIdx, float childCache, float pageSize, bool useDirtyFlag, bool first);
+    void fixScrollPosition(const Rect& oldAnchorRect, const Rect& anchorRect);
 
 private:
     Range mIndexesSeen;
@@ -193,6 +198,7 @@ private:
     int mLastChildFullyInView = -1;
     int mLastChildInView = -1;
 
+    ActionPtr mDelayLayoutAction;
 };
 } // namespace apl
 

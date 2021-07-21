@@ -186,9 +186,8 @@ public:
         ASSERT_EQ(textHoverState, text->getState().get(kStateHover));
     }
 
-    void validateFrame(int dirtySize = 1) const {
+    void validateFrame() const {
         std::string borderColor = (frame->getState().get(kStateHover)) ? FRAME_BORDERCOLOR_HOVER : FRAME_BORDERCOLOR;
-        ASSERT_EQ(dirtySize, frame->getDirty().size());
         ASSERT_EQ(1, frame->getDirty().count(kPropertyBorderColor));
         ASSERT_TRUE(IsEqual(Color(session, borderColor), frame->getCalculated(kPropertyBorderColor)));
     }
@@ -213,7 +212,7 @@ public:
         if (str != TEXT_TEXT) {
             ASSERT_EQ(1, text->getDirty().count(kPropertyText));
         }
-        ASSERT_EQ(StyledText::create(str), text->getCalculated(kPropertyText));
+        ASSERT_EQ(StyledText::create(*context, str), text->getCalculated(kPropertyText));
     }
 
     void resetTextString() {
@@ -235,13 +234,7 @@ public:
     void completeScroll(const ComponentPtr& component, float distance) {
         ASSERT_FALSE(root->hasEvent());
         executeScroll(component->getId(), distance);
-        ASSERT_TRUE(root->hasEvent());
-        auto event = root->popEvent();
-
-        auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
-        event.getComponent()->update(kUpdateScrollPosition, position.getValue());
-        event.getActionRef().resolve();
-        root->clearPending();
+        advanceTime(1000);
     }
 
     void executeScrollToComponent(const std::string& component, CommandScrollAlign align) {
@@ -387,7 +380,7 @@ TEST_F(HoverTest, Basic)
     ASSERT_FALSE(CheckState(frame, kStateHover));
     ASSERT_TRUE(CheckState(text, kStateHover));
     // validate frame changes
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(IsEqual(Color(session, FRAME_BORDERCOLOR), frame->getCalculated(kPropertyBorderColor)));
     // validate text string
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
@@ -407,7 +400,7 @@ TEST_F(HoverTest, Basic)
     ASSERT_FALSE(CheckState(text, kStateHover));
     // validate frame changes
     // validate frame changes
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(IsEqual(Color(session, FRAME_BORDERCOLOR_HOVER), frame->getCalculated(kPropertyBorderColor)));
     // validate text string
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
@@ -429,7 +422,7 @@ TEST_F(HoverTest, Basic)
     ASSERT_FALSE(CheckState(frame, kStateHover));
     ASSERT_FALSE(CheckState(text, kStateHover));
     // validate frame changes
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(IsEqual(Color(session, FRAME_BORDERCOLOR), frame->getCalculated(kPropertyBorderColor)));
     // validate text string
     ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds));
@@ -464,7 +457,7 @@ TEST_F(HoverTest, FrameInherit)
     validateFrame();
     validateText();
     validateTextString(ON_CURSOR_ENTER_TEXT);
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyBounds, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
         kPropertyInnerBounds, kPropertyColor));
     ASSERT_TRUE(CheckDirty(root, frame, text));
@@ -477,7 +470,7 @@ TEST_F(HoverTest, FrameInherit)
     validateFrame();
     validateText();
     validateTextString(ON_CURSOR_EXIT_TEXT);
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyColor, kPropertyColorNonKaraoke, kPropertyColorKaraokeTarget,
         kPropertyInnerBounds, kPropertyBounds));
     ASSERT_TRUE(CheckDirty(root, frame, text));
@@ -492,7 +485,7 @@ TEST_F(HoverTest, FrameInherit)
     validateHoverStates(false, false, false);
     validateFrame();
     validateTextString();
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(root, frame, text));
 }
@@ -523,7 +516,7 @@ TEST_F(HoverTest, FrameDisabled)
     ASSERT_TRUE(CheckState(top));
     ASSERT_TRUE(CheckState(frame, kStateDisabled));
     ASSERT_TRUE(CheckState(text));
-    validateFrame(2);
+    validateFrame();
     validateFrameDisabledState(true);
     validateTextString();
     ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyDisabled));
@@ -539,7 +532,7 @@ TEST_F(HoverTest, FrameDisabled)
     validateTextString(ON_CURSOR_ENTER_TEXT);
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyBounds, kPropertyInnerBounds, kPropertyColorKaraokeTarget,
         kPropertyColorNonKaraoke, kPropertyColor));
-    ASSERT_TRUE(CheckDirty(root, text));
+    ASSERT_TRUE(CheckDirty(root, frame, text));
 
     // Reset text
     resetTextString();
@@ -550,7 +543,7 @@ TEST_F(HoverTest, FrameDisabled)
     validateHoverStates(false, false, true);
     validateFrameDisabledState(false);
     validateTextString();
-    ASSERT_TRUE(CheckDirty(frame, kPropertyDisabled));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyDisabled, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds));
     ASSERT_TRUE(CheckDirty(root, frame, text));
 }
@@ -583,7 +576,7 @@ TEST_F(HoverTest, FrameDisabledTextInherit)
     ASSERT_FALSE(CheckState(frame, kStateHover));
     ASSERT_FALSE(CheckState(text, kStateHover));
     // validate frame changes
-    validateFrame(2);
+    validateFrame();
     validateFrameDisabledState(true);
     // validate text changes
     validateText();
@@ -601,8 +594,7 @@ TEST_F(HoverTest, FrameDisabledTextInherit)
     ASSERT_TRUE(CheckState(frame, kStateHover));
     ASSERT_TRUE(CheckState(text, kStateHover));
     // validate frame changes
-    ASSERT_EQ(2, frame->getDirty().size());
-    validateFrame(2);
+    validateFrame();
     validateFrameDisabledState(false);
     // validate text changes
     validateText();
@@ -776,16 +768,8 @@ TEST_F(HoverTest, Pager) {
     }
     ASSERT_EQ(context->hoverManager().findHoverByPosition(Point(1,1)), frames[0]);
     executeScrollToComponent("id2", kCommandScrollAlignFirst);
-
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-
-    ASSERT_EQ(kEventTypeSetPage, event.getType());
-    ASSERT_EQ(component, event.getComponent());
-    ASSERT_EQ(Dimension(1), event.getValue(kEventPropertyPosition).asDimension(*context));
-    ASSERT_EQ(kEventDirectionForward, event.getValue(kEventPropertyDirection).getInteger());
-    event.getComponent()->update(kUpdatePagerPosition, 1.0);
-    event.getActionRef().resolve();
+    advanceTime(600);
+    ASSERT_EQ(1, component->pagePosition());
 
     ASSERT_EQ(context->hoverManager().findHoverByPosition(Point(1,1)), frames[1]);
 }
@@ -825,6 +809,8 @@ static const char *PAGER_TEST_FRAME =
 
 TEST_F(HoverTest, PagerFrame) {
     loadDocument(PAGER_TEST_FRAME);
+    advanceTime(10);
+    root->clearDirty();
 
     auto pager = context->findComponentById("myPager");
 
@@ -838,16 +824,8 @@ TEST_F(HoverTest, PagerFrame) {
     }
     ASSERT_EQ(context->hoverManager().findHoverByPosition(Point(1,1)), texts[0]);
     executeScrollToComponent("frame2", kCommandScrollAlignFirst);
-
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-
-    ASSERT_EQ(kEventTypeSetPage, event.getType());
-    ASSERT_EQ(component, event.getComponent());
-    ASSERT_EQ(Dimension(1), event.getValue(kEventPropertyPosition).asDimension(*context));
-    ASSERT_EQ(kEventDirectionForward, event.getValue(kEventPropertyDirection).getInteger());
-    event.getComponent()->update(kUpdatePagerPosition, 1.0);
-    event.getActionRef().resolve();
+    advanceTime(600);
+    ASSERT_EQ(1, component->pagePosition());
 
     ASSERT_EQ(context->hoverManager().findHoverByPosition(Point(1,1)), texts[1]);
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -25,12 +25,13 @@ namespace datagrammar {
 /**
  * A reference to a symbol in a specific context.  Bound symbols are used in equations
  * to retrieve the current value of a symbol.  They hold a weak pointer to the bound
- * context to avoid referential loops.
+ * context to avoid referential loops.  Bounds symboles are normallly only used for mutable
+ * values (immutable values should be directly referenced).
  */
 class BoundSymbol : public ObjectData
 {
 public:
-    BoundSymbol(const ContextPtr& context, const std::string&& name)
+    BoundSymbol(const ContextPtr& context, std::string name)
         : mContext(context), mName(std::move(name))
     {}
 
@@ -42,6 +43,8 @@ public:
     SymbolReference getSymbol() const { return SymbolReference(mName + "/", mContext.lock()); }
 
     std::string toDebugString() const override;
+
+    bool operator==(const BoundSymbol& rhs) const;
 
     friend streamer& operator<<(streamer&, const BoundSymbol&);
 

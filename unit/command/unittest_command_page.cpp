@@ -70,37 +70,38 @@ public:
 };
 
 
-static const char *PAGER_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Pager\","
-    "      \"id\": \"myPager\","
-    "      \"width\": 100,"
-    "      \"height\": 100,"
-    "      \"navigation\": \"normal\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"id\": \"id${data}\","
-    "        \"text\": \"TEXT${data}\","
-    "        \"speech\": \"URL${data}\""
-    "      },"
-    "      \"data\": [ 1, 2, 3, 4, 5, 6 ],"
-    "      \"onPageChanged\": {"
-    "        \"type\": \"SendEvent\","
-    "        \"arguments\": ["
-    "          \"${event.target.page}\""
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *PAGER_TEST = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "id": "myPager",
+      "width": 100,
+      "height": 100,
+      "navigation": "normal",
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "text": "TEXT${data}",
+        "speech": "URL${data}"
+      },
+      "data": [ 1, 2, 3, 4, 5, 6 ],
+      "onPageChanged": {
+        "type": "SendEvent",
+        "sequencer": "SET_PAGE",
+        "arguments": [
+          "${event.target.page}"
+        ]
+      }
+    }
+  }
+})";
 
 TEST_F(CommandPageTest, Pager)
 {
     loadDocument(PAGER_TEST);
+    advanceTime(10);
 
     ASSERT_EQ(6, component->getChildCount());
     // Only initial pages ensured
@@ -112,24 +113,13 @@ TEST_F(CommandPageTest, Pager)
     ASSERT_TRUE(CheckChild(5, "id6", Rect(0, 0, 0, 0)));
 
     executeSetPage("myPager", "relative", 2);  // Page forward twice
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
 
-    ASSERT_EQ(kEventTypeSetPage, event.getType());
-    ASSERT_EQ(component, event.getComponent());
-    ASSERT_EQ(2, event.getValue(kEventPropertyPosition).getInteger());
-    ASSERT_EQ(kEventDirectionForward, event.getValue(kEventPropertyDirection).getInteger());
-
-    root->updateTime(500);
-    ASSERT_FALSE(root->hasEvent());
+    advanceTime(600);
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->pagePosition());
     // Target one becomes ensured
     ASSERT_TRUE(CheckChild(2, "id3", Rect(0, 0, 100, 100)));
-    ASSERT_TRUE(CheckChild(3, "id4", Rect(0, 0, 0, 0)));
-
-    // Update the page and resolve the event
-    component->update(kUpdatePagerPosition, 2);
-    ASSERT_EQ(2, component->getCalculated(kPropertyCurrentPage).getInteger());
-    event.getActionRef().resolve();
+    ASSERT_TRUE(CheckChild(3, "id4", Rect(0, 0, 100, 100)));
 
     // Ones around visible page ensured too AFTER a layout pass
     root->clearPending();
@@ -142,62 +132,63 @@ TEST_F(CommandPageTest, Pager)
     ASSERT_TRUE(CheckNoActions());
 }
 
-static const char *SIMPLE_PAGER =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Pager\","
-    "      \"id\": \"myPager\","
-    "      \"width\": 100,"
-    "      \"height\": 100,"
-    "      \"initialPage\": 2,"
-    "      \"navigation\": \"normal\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"id\": \"id${data}\","
-    "        \"text\": \"TEXT${data}\","
-    "        \"speech\": \"URL${data}\""
-    "      },"
-    "      \"data\": [ 1, 2, 3, 4, 5 ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SIMPLE_PAGER = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "id": "myPager",
+      "width": 100,
+      "height": 100,
+      "initialPage": 2,
+      "navigation": "normal",
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "text": "TEXT${data}",
+        "speech": "URL${data}"
+      },
+      "data": [ 1, 2, 3, 4, 5 ]
+    }
+  }
+})";
 
 TEST_F(CommandPageTest, SimplePageRelative)
 {
     loadDocument(SIMPLE_PAGER);
+    advanceTime(10);
+    root->clearDirty();
+    ASSERT_EQ(2, component->pagePosition());
 
     for (int i = -3 ; i <= 3 ; i++) {
         executeSetPage("myPager", "relative", i);
+        advanceTime(500);
         std::string msg = "Relative(" + std::to_string(i) + ")";
 
         int target = i + 2;
-        EventDirection direction = i < 0 ? kEventDirectionBackward : kEventDirectionForward;
         if (i == 0 || target < 0 || target > 4) {
-            ASSERT_FALSE(root->hasEvent()) << msg;
+            ASSERT_TRUE(CheckDirty(component)) << msg;
         }
         else {
-            ASSERT_TRUE(root->hasEvent()) << msg;
-            auto event = root->popEvent();
-            ASSERT_EQ(kEventTypeSetPage, event.getType()) << msg;
-            ASSERT_EQ(component, event.getComponent()) << msg;
-            ASSERT_EQ(target, event.getValue(kEventPropertyPosition).getInteger()) << msg;
-            ASSERT_EQ(direction, event.getValue(kEventPropertyDirection).getInteger()) << msg;
-            event.getActionRef().resolve();   // Resolve without moving
-
-            ASSERT_FALSE(root->hasEvent()) << msg;
+            ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged)) << msg;
+            ASSERT_EQ(target, component->pagePosition()) << msg;
         }
+
+        // Reset position
+        component->update(kUpdatePagerPosition, 2);
+        root->clearDirty();
     }
 }
 
 TEST_F(CommandPageTest, SimplePageAbsolute)
 {
     loadDocument(SIMPLE_PAGER);
+    ASSERT_EQ(2, component->pagePosition());
 
     for (int i = -8 ; i <= 8 ; i++) {
         executeSetPage("myPager", "absolute", i);
+        advanceTime(500);
         std::string msg = "Absolute(" + std::to_string(i) + ")";
 
         int target = i;
@@ -205,59 +196,49 @@ TEST_F(CommandPageTest, SimplePageAbsolute)
         if (target < 0) target = 0;
         if (target > 4) target = 4;
 
-        EventDirection direction = target < 2 ? kEventDirectionBackward : kEventDirectionForward;
-
         if (target == 2) {
-            ASSERT_FALSE(root->hasEvent()) << msg;
+            ASSERT_TRUE(CheckDirty(component)) << msg;
         }
         else {
-            ASSERT_TRUE(root->hasEvent()) << msg;
-            auto event = root->popEvent();
-            ASSERT_EQ(kEventTypeSetPage, event.getType()) << msg;
-            ASSERT_EQ(component, event.getComponent()) << msg;
-            ASSERT_EQ(target, event.getValue(kEventPropertyPosition).getInteger()) << msg;
-            ASSERT_EQ(direction, event.getValue(kEventPropertyDirection).getInteger()) << msg;
-            event.getActionRef().resolve();   // Resolve without moving
-
-            ASSERT_FALSE(root->hasEvent()) << msg;
+            ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged)) << msg;
+            ASSERT_EQ(target, component->pagePosition()) << msg;
         }
+
+        // Reset position
+        component->update(kUpdatePagerPosition, 2);
+        root->clearDirty();
     }
 }
 
 
 
-static const char *SIMPLE_PAGER_WRAP =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Pager\","
-    "      \"id\": \"myPager\","
-    "      \"width\": 100,"
-    "      \"height\": 100,"
-    "      \"initialPage\": 2,"
-    "      \"navigation\": \"wrap\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"id\": \"id${data}\","
-    "        \"text\": \"TEXT${data}\","
-    "        \"speech\": \"URL${data}\""
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SIMPLE_PAGER_WRAP = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "id": "myPager",
+      "width": 100,
+      "height": 100,
+      "initialPage": 2,
+      "navigation": "wrap",
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "text": "TEXT${data}",
+        "speech": "URL${data}"
+      },
+      "data": [ 1, 2, 3, 4, 5 ]
+    }
+  }
+})";
 
 TEST_F(CommandPageTest, SimplePageRelativeWrap)
 {
     loadDocument(SIMPLE_PAGER_WRAP);
+    advanceTime(10);
+    ASSERT_EQ(2, component->pagePosition());
 
     // Pages around #2 are laid out
     ASSERT_TRUE(CheckChild(0, "id1", Rect(0, 0, 0, 0)));
@@ -268,35 +249,34 @@ TEST_F(CommandPageTest, SimplePageRelativeWrap)
 
     for (int i = -8 ; i <= 8 ; i++) {
         executeSetPage("myPager", "relative", i);
+        advanceTime(500);
         std::string msg = "Relative(" + std::to_string(i) + ")";
 
         int target = i + 2;
-        EventDirection direction = i < 0 ? kEventDirectionBackward : kEventDirectionForward;
         while (target < 0) target += 5;
         while (target >= 5) target -= 5;
         if (target == 2) {
-            ASSERT_FALSE(root->hasEvent()) << msg;
+            ASSERT_TRUE(CheckDirty(component)) << msg;
         }
         else {
-            ASSERT_TRUE(root->hasEvent()) << msg;
-            auto event = root->popEvent();
-            ASSERT_EQ(kEventTypeSetPage, event.getType()) << msg;
-            ASSERT_EQ(component, event.getComponent()) << msg;
-            ASSERT_EQ(target, event.getValue(kEventPropertyPosition).getInteger()) << msg;
-            ASSERT_EQ(direction, event.getValue(kEventPropertyDirection).getInteger()) << msg;
-            event.getActionRef().resolve();   // Resolve without moving
-
-            ASSERT_FALSE(root->hasEvent()) << msg;
+            ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged)) << msg;
+            ASSERT_EQ(target, component->pagePosition()) << msg;
         }
+
+        // Reset position
+        component->update(kUpdatePagerPosition, 2);
+        root->clearDirty();
     }
 }
 
 TEST_F(CommandPageTest, SimplePageAbsoluteWrap)
 {
     loadDocument(SIMPLE_PAGER_WRAP);
+    ASSERT_EQ(2, component->pagePosition());
 
     for (int i = -8 ; i <= 8 ; i++) {
         executeSetPage("myPager", "absolute", i);
+        advanceTime(500);
         std::string msg = "Absolute(" + std::to_string(i) + ")";
 
         int target = i;
@@ -304,54 +284,42 @@ TEST_F(CommandPageTest, SimplePageAbsoluteWrap)
         if (target < 0) target = 0;
         if (target > 4) target = 4;
 
-        EventDirection direction = target < 2 ? kEventDirectionBackward : kEventDirectionForward;
-
         if (target == 2) {
-            ASSERT_FALSE(root->hasEvent()) << msg;
+            ASSERT_TRUE(CheckDirty(component)) << msg;
         }
         else {
-            ASSERT_TRUE(root->hasEvent()) << msg;
-            auto event = root->popEvent();
-            ASSERT_EQ(kEventTypeSetPage, event.getType()) << msg;
-            ASSERT_EQ(component, event.getComponent()) << msg;
-            ASSERT_EQ(target, event.getValue(kEventPropertyPosition).getInteger()) << msg;
-            ASSERT_EQ(direction, event.getValue(kEventPropertyDirection).getInteger()) << msg;
-            event.getActionRef().resolve();   // Resolve without moving
-
-            ASSERT_FALSE(root->hasEvent()) << msg;
+            ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged)) << msg;
+            ASSERT_EQ(target, component->pagePosition()) << msg;
         }
+
+        // Reset position
+        component->update(kUpdatePagerPosition, 2);
+        root->clearDirty();
     }
 }
 
 
-static const char *AUTO_PAGE_BASIC =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Pager\","
-    "      \"id\": \"myPager\","
-    "      \"width\": 100,"
-    "      \"height\": 100,"
-    "      \"initialPage\": 1,"
-    "      \"navigation\": \"wrap\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"id\": \"id${data}\","
-    "        \"text\": \"TEXT${data}\","
-    "        \"speech\": \"URL${data}\""
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *AUTO_PAGE_BASIC = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "id": "myPager",
+      "width": 100,
+      "height": 100,
+      "initialPage": 1,
+      "navigation": "wrap",
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "text": "TEXT${data}",
+        "speech": "URL${data}"
+      },
+      "data": [ 1, 2, 3, 4, 5 ]
+    }
+  }
+})";
 
 
 TEST_F(CommandPageTest, AutoPage)
@@ -359,32 +327,16 @@ TEST_F(CommandPageTest, AutoPage)
     loadDocument(AUTO_PAGE_BASIC);
 
     executeAutoPage("myPager", 100000, 1000);  // Play all, pausing for 1000 milliseconds between them
+    advanceTime(600);
 
     for (int index = 2 ; index < 5 ; index++) {
         std::string msg = "Auto(" + std::to_string(index) + ")";
+        ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged)) << msg;
+        ASSERT_EQ(index, component->pagePosition()) << msg;
 
-        if (index != 2) {
-            ASSERT_FALSE(root->hasEvent()) << msg;
-            root->updateTime(root->currentTime() + 1000);  // 1000 milliseconds AFTER the resolution
-        }
-
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        auto event = root->popEvent();
-        ASSERT_EQ(kEventTypeSetPage, event.getType()) << msg;
-        ASSERT_EQ(component, event.getComponent()) << msg;
-        ASSERT_EQ(index, event.getValue(kEventPropertyPosition).getInteger()) << msg;
-        ASSERT_EQ(kEventDirectionForward, event.getValue(kEventPropertyDirection).getInteger()) << msg;
-
-        root->updateTime(root->currentTime() + 500);
-        component->update(kUpdatePagerByEvent, index);
-        event.getActionRef().resolve();   // Resolve without moving
+        advanceTime(1600);
     }
 
-    root->clearPending();
-    ASSERT_EQ(1, loop->size());  // Waiting for the final delay
-    root->updateTime(root->currentTime() + 1000);
-
-    ASSERT_FALSE(root->hasEvent());
     ASSERT_EQ(0, loop->size());
 }
 
@@ -393,23 +345,15 @@ TEST_F(CommandPageTest, AutoPageNoDelay)
     loadDocument(AUTO_PAGE_BASIC);
 
     executeAutoPage("myPager", 100000, 0);  // Play all, no delay
+    advanceTime(600);
 
     for (int index = 2 ; index < 5 ; index++) {
         std::string msg = "Auto(" + std::to_string(index) + ")";
-
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        auto event = root->popEvent();
-        ASSERT_EQ(kEventTypeSetPage, event.getType()) << msg;
-        ASSERT_EQ(component, event.getComponent()) << msg;
-        ASSERT_EQ(index, event.getValue(kEventPropertyPosition).getInteger()) << msg;
-        ASSERT_EQ(kEventDirectionForward, event.getValue(kEventPropertyDirection).getInteger()) << msg;
-
-        root->updateTime(root->currentTime() + 500);
-        component->update(kUpdatePagerByEvent, index);
-        event.getActionRef().resolve();   // Resolve without moving
+        ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged)) << msg;
+        ASSERT_EQ(index, component->pagePosition()) << msg;
+        advanceTime(600);
     }
 
-    ASSERT_FALSE(root->hasEvent());
     ASSERT_EQ(0, loop->size());
 }
 
@@ -418,31 +362,16 @@ TEST_F(CommandPageTest, AutoPageShort)
     loadDocument(AUTO_PAGE_BASIC);
 
     executeAutoPage("myPager", 2, 1000);  // Just show two pages
+    advanceTime(600);
 
     for (int index = 2 ; index < 4 ; index++) {
         std::string msg = "Auto(" + std::to_string(index) + ")";
+        ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged)) << msg;
+        ASSERT_EQ(index, component->pagePosition()) << msg;
 
-        if (index != 2) {
-            ASSERT_FALSE(root->hasEvent()) << msg;
-            root->updateTime(root->currentTime() + 1000);  // 1000 milliseconds AFTER the resolution
-        }
-
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        auto event = root->popEvent();
-        ASSERT_EQ(kEventTypeSetPage, event.getType()) << msg;
-        ASSERT_EQ(component, event.getComponent()) << msg;
-        ASSERT_EQ(index, event.getValue(kEventPropertyPosition).getInteger()) << msg;
-        ASSERT_EQ(kEventDirectionForward, event.getValue(kEventPropertyDirection).getInteger()) << msg;
-
-        root->updateTime(root->currentTime() + 500);
-        component->update(kUpdatePagerByEvent, index);
-        event.getActionRef().resolve();   // Resolve without moving
+        advanceTime(1600);
     }
 
-    ASSERT_FALSE(root->hasEvent());
-    ASSERT_EQ(1, loop->size());
-
-    root->updateTime(root->currentTime() + 1000);
     ASSERT_EQ(0, loop->size());
 }
 
@@ -451,30 +380,14 @@ TEST_F(CommandPageTest, AutoPageTerminateInDelay)
     loadDocument(AUTO_PAGE_BASIC);
 
     auto action = executeAutoPage("myPager", 2, 1000);  // Just show two pages
+    advanceTime(600);
 
-    for (int index = 2 ; index < 4 ; index++) {
-        std::string msg = "Auto(" + std::to_string(index) + ")";
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->pagePosition());
 
-        if (index != 2) {
-            ASSERT_FALSE(root->hasEvent()) << msg;
-            action->terminate();  // Terminate while we're waiting for the next timeout
-            break;
-        }
+    advanceTime(600);
+    action->terminate();
 
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        auto event = root->popEvent();
-        ASSERT_EQ(kEventTypeSetPage, event.getType()) << msg;
-        ASSERT_EQ(component, event.getComponent()) << msg;
-        ASSERT_EQ(index, event.getValue(kEventPropertyPosition).getInteger()) << msg;
-        ASSERT_EQ(kEventDirectionForward, event.getValue(kEventPropertyDirection).getInteger()) << msg;
-
-        root->updateTime(root->currentTime() + 500);
-        component->update(kUpdatePagerPosition, index);
-        ASSERT_EQ(index, component->getCalculated(kPropertyCurrentPage).getInteger());
-        event.getActionRef().resolve();   // Resolve without moving
-    }
-
-    ASSERT_FALSE(root->hasEvent());
     ASSERT_EQ(0, loop->size());
 }
 
@@ -488,25 +401,13 @@ TEST_F(CommandPageTest, AutoPageAbortSetPage)
         terminated = true;
     });
 
-    for (int index = 2 ; index < 4 ; index++) {
-        std::string msg = "Auto(" + std::to_string(index) + ")";
+    advanceTime(600);
 
-        if (index != 2) {
-            ASSERT_FALSE(root->hasEvent()) << msg;
-            root->updateTime(root->currentTime() + 1000);  // 1000 milliseconds AFTER the resolution
-        }
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->pagePosition());
 
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        auto event = root->popEvent();
-        ASSERT_EQ(kEventTypeSetPage, event.getType()) << msg;
-        ASSERT_EQ(component, event.getComponent()) << msg;
-        ASSERT_EQ(index, event.getValue(kEventPropertyPosition).getInteger()) << msg;
-        ASSERT_EQ(kEventDirectionForward, event.getValue(kEventPropertyDirection).getInteger()) << msg;
-
-        root->updateTime(root->currentTime() + 500);
-        root->cancelExecution();
-        break;
-    }
+    advanceTime(600);
+    root->cancelExecution();
 
     ASSERT_FALSE(root->hasEvent());
     ASSERT_TRUE(terminated);
@@ -517,6 +418,7 @@ TEST_F(CommandPageTest, AutoPageAbortSetPage)
 TEST_F(CommandPageTest, AutoPageNone)
 {
     loadDocument(AUTO_PAGE_BASIC);
+    advanceTime(10);
 
     executeAutoPage("myPager", 0, 0);  // Ask for zero
     ASSERT_FALSE(root->hasEvent());
@@ -528,41 +430,39 @@ TEST_F(CommandPageTest, AutoPageNone)
 }
 
 
-static const char *EMPTY_PAGER =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Pager\","
-    "      \"id\": \"myPager\","
-    "      \"width\": 100,"
-    "      \"height\": 100,"
-    "      \"initialPage\": 2,"
-    "      \"navigation\": \"wrap\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"id\": \"id${data}\","
-    "        \"text\": \"TEXT${data}\","
-    "        \"speech\": \"URL${data}\""
-    "      },"
-    "      \"data\": ["
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *EMPTY_PAGER = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "id": "myPager",
+      "width": 100,
+      "height": 100,
+      "initialPage": 2,
+      "navigation": "wrap",
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "text": "TEXT${data}",
+        "speech": "URL${data}"
+      },
+      "data": []
+    }
+  }
+})";
 
 TEST_F(CommandPageTest, EmptyPagerSetPage)
 {
     loadDocument(EMPTY_PAGER);
 
     executeSetPage("myPager", "absolute", 0);
-    ASSERT_FALSE(root->hasEvent());
-    ASSERT_EQ(0, loop->size());
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component));
 
     executeSetPage("myPager", "relative", 1);
-    ASSERT_FALSE(root->hasEvent());
-    ASSERT_EQ(0, loop->size());
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component));
 }
 
 TEST_F(CommandPageTest, EmptyPagerAutoPage)
@@ -570,47 +470,44 @@ TEST_F(CommandPageTest, EmptyPagerAutoPage)
     loadDocument(EMPTY_PAGER);
 
     executeAutoPage("myPager", 2, 0);
-    ASSERT_FALSE(root->hasEvent());
-    ASSERT_EQ(0, loop->size());
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component));
 }
 
 
-static const char *SINGLE_PAGE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Pager\","
-    "      \"id\": \"myPager\","
-    "      \"width\": 100,"
-    "      \"height\": 100,"
-    "      \"initialPage\": 2,"
-    "      \"navigation\": \"wrap\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"id\": \"id${data}\","
-    "        \"text\": \"TEXT${data}\","
-    "        \"speech\": \"URL${data}\""
-    "      },"
-    "      \"data\": ["
-    "        1"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SINGLE_PAGE = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "id": "myPager",
+      "width": 100,
+      "height": 100,
+      "initialPage": 2,
+      "navigation": "wrap",
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "text": "TEXT${data}",
+        "speech": "URL${data}"
+      },
+      "data": [ 1 ]
+    }
+  }
+})";
 
 TEST_F(CommandPageTest, SinglePageSetPage)
 {
     loadDocument(SINGLE_PAGE);
 
     executeSetPage("myPager", "absolute", 0);
-    ASSERT_FALSE(root->hasEvent());
-    ASSERT_EQ(0, loop->size());
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component));
 
     executeSetPage("myPager", "relative", 1);
-    ASSERT_FALSE(root->hasEvent());
-    ASSERT_EQ(0, loop->size());
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component));
 }
 
 TEST_F(CommandPageTest, SinglePageAutoPage)
@@ -618,6 +515,206 @@ TEST_F(CommandPageTest, SinglePageAutoPage)
     loadDocument(SINGLE_PAGE);
 
     executeAutoPage("myPager", 1, 0);
-    ASSERT_FALSE(root->hasEvent());
-    ASSERT_EQ(0, loop->size());
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component));
+}
+
+static const char *COMBINATION = R"({
+  "type": "APL",
+  "version": "1.0",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [ "payload" ],
+    "items": [
+      {
+        "type": "Pager",
+        "id": "aPager",
+        "navigation": "none",
+        "width": "100%",
+        "height": "100%",
+        "items": [
+          {
+            "type": "Container",
+            "items": [
+              {
+                "type": "Text",
+                "text": "Page 0"
+              }
+            ]
+          },
+          {
+            "type": "Container",
+            "items": [
+              {
+                "type": "Text",
+                "text": "Page 1"
+              },
+              {
+                "type": "Text",
+                "id": "shooshSpeechId",
+                "text": "",
+                "speech": "${payload.data.properties.shooshSpeech}"
+              },
+              {
+                "type": "Text",
+                "id": "showingBoxValueSpeechId",
+                "text": "",
+                "speech": "${payload.data.properties.showingBoxValueSpeech}"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+static const char *COMBINATION_DATA = R"({
+  "data": {
+    "type": "object",
+    "properties": {
+      "showingBoxValueSpeech": "https://iamspeech.com/1.mp3",
+      "shooshSpeech": "https://iamspeech.com/2.mp3"
+    }
+  }
+})";
+
+static const char *COMBINATION_COMMANDS = R"([{
+  "type": "Sequential",
+  "commands": [
+    {
+      "type": "Parallel",
+      "commands": [
+        {
+          "type": "SpeakItem",
+          "componentId": "shooshSpeechId"
+        },
+        {
+          "type": "SetPage",
+          "componentId": "aPager",
+          "position": "absolute",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "type": "SpeakItem",
+      "componentId": "showingBoxValueSpeechId"
+    }
+  ]
+}])";
+
+TEST_F(CommandPageTest, SpeakItemCombination)
+{
+    loadDocument(COMBINATION, COMBINATION_DATA);
+    advanceTime(10);
+    clearDirty();
+
+    ASSERT_EQ(0, component->pagePosition());
+    doc.Parse(COMBINATION_COMMANDS);
+    auto action = root->executeCommands(apl::Object(doc), false);
+
+    // Should have preroll for first speech
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypePreroll, event.getType());
+    if (!event.getActionRef().isEmpty() && event.getActionRef().isPending()) event.getActionRef().resolve();
+
+    // And page should have switched - command is in parallel
+    ASSERT_EQ(1, component->pagePosition());
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeSpeak, event.getType());
+    if (!event.getActionRef().isEmpty() && event.getActionRef().isPending()) event.getActionRef().resolve();
+
+    root->clearPending();
+
+    // Should start next karaoke here
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypePreroll, event.getType());
+    if (!event.getActionRef().isEmpty() && event.getActionRef().isPending()) event.getActionRef().resolve();
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeSpeak, event.getType());
+    if (!event.getActionRef().isEmpty() && event.getActionRef().isPending()) event.getActionRef().resolve();
+}
+
+static const char *AUTO_PAGER_ON_MOUNT_WITH_DELAY = R"apl(
+{
+  "type": "APL",
+  "version": "1.6",
+  "commands": {
+    "NextCard": {
+      "command": {
+        "type": "SetPage",
+        "sequencer": "dummySequencer",
+        "delay": 5000,
+        "position": "relative",
+        "value": 1
+      }
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Pager",
+      "width": "100vw",
+      "height": "100vh",
+      "onMount": [
+        {
+          "type": "NextCard"
+        }
+      ],
+      "onPageChanged": [
+        {
+          "type": "NextCard"
+        }
+      ],
+      "items": [
+        {
+          "type": "Frame",
+          "backgroundColor": "red"
+        },
+        {
+          "type": "Frame",
+          "backgroundColor": "green"
+        },
+        {
+          "type": "Frame",
+          "backgroundColor": "blue"
+        },
+        {
+          "type": "Frame",
+          "backgroundColor": "orange"
+        }
+      ]
+    }
+  }
+}
+)apl";
+
+TEST_F(CommandPageTest, AutoPagerOnMountWithDelay)
+{
+    loadDocument(AUTO_PAGER_ON_MOUNT_WITH_DELAY);
+    ASSERT_EQ(0, component->pagePosition());
+
+    advanceTime(5000);
+    ASSERT_EQ(0, component->pagePosition());
+
+    advanceTime(600);
+    ASSERT_EQ(1, component->pagePosition());
+
+    advanceTime(5000);
+    advanceTime(600);
+    ASSERT_EQ(2, component->pagePosition());
+
+    advanceTime(5000);
+    advanceTime(600);
+    ASSERT_EQ(3, component->pagePosition());
+
+    advanceTime(5000);
+    advanceTime(600);
+    ASSERT_EQ(0, component->pagePosition());
 }

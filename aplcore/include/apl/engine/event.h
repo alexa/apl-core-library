@@ -97,16 +97,6 @@ enum EventType {
     kEventTypeRequestFirstLineBounds,
 
     /**
-     * Scroll a component into view.
-     *
-     * The component is the component to scroll.
-     * kEventPropertyPosition: The scroll position or page to change to.
-     *
-     * The server must resolve the ActionRef when the scroll is completed.
-     */
-    kEventTypeScrollTo,
-
-    /**
      * Send an event to the server
      *
      * kEventPropertySource: The rich source object describing who raised this event.
@@ -116,17 +106,6 @@ enum EventType {
      * Does not have an ActionRef
      */
     kEventTypeSendEvent,
-
-    /**
-     * Change the page in a pager.
-     *
-     * The component is the pager.
-     * kEventPropertyPosition: The page to switch to (integer)
-     * kEventPropertyDirection: The direction to move. Either kEventDirectionForward or kEventDirectionBackward
-     *
-     * The server must resolve the ActionRef when the scroll is completed.
-     */
-    kEventTypeSetPage,
 
     /**
      * Speak a single component.
@@ -184,6 +163,7 @@ enum EventType {
      * @c ExperimentalFeature::kExperimentalFeatureManageMediaRequests is enabled.
      *
      * kEventPropertySource: the source URI of the requested media
+     * kEventPropertyMediaType: the type of media being requested
      *
      * Does not have an ActionRef
      *
@@ -211,6 +191,7 @@ enum EventProperty {
     kEventPropertyExtension,
     kEventPropertyExtensionURI,
     kEventPropertyHighlightMode,
+    kEventPropertyMediaType,
     kEventPropertyName,
     kEventPropertyPosition,
     kEventPropertyReason,
@@ -254,6 +235,12 @@ enum EventScrollAlign {
 enum EventReason {
     kEventReasonBack = CommandReason::kCommandReasonBack,
     kEventReasonExit = CommandReason::kCommandReasonExit
+};
+
+enum EventMediaType {
+    kEventMediaTypeImage,
+    kEventMediaTypeVideo,
+    kEventMediaTypeVectorGraphic
 };
 
 extern Bimap<int, std::string> sEventTypeBimap;

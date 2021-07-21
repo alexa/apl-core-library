@@ -13,8 +13,8 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/component/component.h"
-#include "apl/engine//componentdependant.h"
+#include "apl/component/corecomponent.h"
+#include "apl/engine/componentdependant.h"
 #include "apl/engine/evaluate.h"
 #include "apl/engine/propdef.h"
 #include "apl/primitives/accessibilityaction.h"

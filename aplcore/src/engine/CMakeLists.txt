@@ -28,7 +28,6 @@ target_sources_local(apl
     info.cpp
     keyboardmanager.cpp
     layoutmanager.cpp
-    mediamanager.cpp
     parameterarray.cpp
     propdef.cpp
     properties.cpp

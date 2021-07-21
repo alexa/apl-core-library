@@ -37,6 +37,7 @@ class ComponentPropDefSet;
 class LayoutRebuilder;
 class Pointer;
 struct PointerEvent;
+class StickyChildrenTree;
 
 extern const std::string VISUAL_CONTEXT_TYPE_MIXED;
 extern const std::string VISUAL_CONTEXT_TYPE_GRAPHIC;
@@ -45,6 +46,7 @@ extern const std::string VISUAL_CONTEXT_TYPE_VIDEO;
 extern const std::string VISUAL_CONTEXT_TYPE_EMPTY;
 
 inline float nonNegative(float value) { return value < 0 ? 0 : value; }
+inline float nonPositive(float value) { return value > 0 ? 0 : value; }
 
 using EventPropertyGetter = std::function<Object(const CoreComponent*)>;
 using EventPropertyMap = std::map<std::string, EventPropertyGetter>;
@@ -85,7 +87,7 @@ class CoreComponent : public Component,
 public:
     CoreComponent(const ContextPtr& context,
                   Properties&& properties,
-                  const std::string& path);
+                  const Path& path);
 
     virtual ~CoreComponent() {
         YGNodeFree(mYGNodeRef);  // TODO: Check to make sure we're deallocating correctly
@@ -165,13 +167,7 @@ public:
      *
      * This only marks the current component as stale and not any of its children.
      */
-    void markDisplayedChildrenStale();
-
-    // Documentation from component.h
-    size_t getDisplayedChildCount() const override;
-
-    // Documentation from component.h
-    ComponentPtr getDisplayedChildAt(size_t drawIndex) const override;
+    void markDisplayedChildrenStale(bool useDirtyFlag);
 
     /**
      * Check if child of a components is in the list of displayed children.
@@ -180,35 +176,21 @@ public:
      */
     bool isDisplayedChild(const CoreComponent& child) const;
 
-    // Documentation from component.h
-    bool insertChild(const ComponentPtr& child, size_t index) override {
-        return canInsertChild() && insertChild(std::dynamic_pointer_cast<CoreComponent>(child), index, true);
-    }
-
-    // Documentation from component.h
-    bool appendChild(const ComponentPtr& child) override {
-        return canInsertChild() && appendChild(child, true);
-    }
-
-    // Documentation from component.h
+    /// Component overrides
+    size_t getDisplayedChildCount() const override;
+    ComponentPtr getDisplayedChildAt(size_t drawIndex) const override;
+    bool insertChild(const ComponentPtr& child, size_t index) override;
+    bool appendChild(const ComponentPtr& child) override;
     bool remove() override;
-
-    // Documentation will be inherited
     bool canInsertChild() const override {
         // Child insertion is permitted if (a) there isn't a layout rebuilder and (b) there is space for a child.
         return !mRebuilder && ((singleChild() && mChildren.empty()) || multiChild());
     }
-
-    // Documentation will be inherited
     bool canRemoveChild() const override {
         // Child removal is permitted if (a) there isn't a layout rebuilder and (b) there is at least one child
         return !mRebuilder && !mChildren.empty();
     }
-
-    // Documentation will be inherited
     void update(UpdateType type, float value) override;
-
-    // Documentation will be inherited
     void update(UpdateType type, const std::string& value) override;
 
     /**
@@ -292,7 +274,13 @@ public:
      * This method will conduct a full layout pass if it is required, which is expensive, so avoid
      * calling this method unless you absolutely must guarantee that a specific component has been laid out.
      */
-    void ensureLayout(bool useDirtyFlag) override;
+    void ensureLayoutInternal(bool useDirtyFlag);
+
+    /**
+     * Guarantees that this component's child'has been laid out, so that layout bounds are fully
+     * calculated.
+     */
+    virtual void ensureChildLayout(const CoreComponentPtr& child, bool useDirtyFlag);
 
     /**
      * @return True if the yoga node needs to run a layout pass.
@@ -342,18 +330,23 @@ public:
     void fixPadding();
 
     /**
+     * Update the output layoutDirection
+     */
+    void fixLayoutDirection(bool useDirtyFlag);
+
+    /**
      * Calculate component's relative visibility.
      * @param parentRealOpacity cumulative opacity value
      * @param parentVisibleRect component visible rect
      */
-    float calculateVisibility(float parentRealOpacity, const Rect& parentVisibleRect);
+    float calculateVisibility(float parentRealOpacity, const Rect& parentVisibleRect) const;
 
     /**
      * Calculate component visible rect.
      * @param parentVisibleRect parents visible rect.
      * @return visible rectangle of component
      */
-    Rect calculateVisibleRect(const Rect& parentVisibleRect);
+    Rect calculateVisibleRect(const Rect& parentVisibleRect) const;
 
     /**
      * Create the default event data-binding context for this component.
@@ -393,7 +386,12 @@ public:
     rapidjson::Value serializeDirty(rapidjson::Document::AllocatorType& allocator) override;
 
     // Documentation from component.h
-    std::string provenance() const override { return mPath; };
+    std::string provenance() const override { return mPath.toString(); };
+
+    /**
+     * Return path object used to generate provenance.
+     */
+    Path getPathObject() const { return mPath; }
 
     /**
      * Retrieve component's visual context as a JSON object.
@@ -439,6 +437,11 @@ public:
      * @return True if this component is scrollable
      */
     virtual bool scrollable() const { return false; }
+
+    /**
+     * @return scrollables return the tree of children with position: sticky
+     */
+    virtual std::shared_ptr<StickyChildrenTree> getStickyTree() { return nullptr; }
 
     /**
      * Execute any "onBlur" commands associated with this component.  These commands
@@ -507,9 +510,10 @@ public:
 
     /**
      * Walk the hierarchy updating child boundaries.
-     * @param useDirtyFlag
+     * @param useDirtyFlag true to notify runtime about changes with dirty properties
+     * @param first true for first layout for current template
      */
-    virtual void processLayoutChanges(bool useDirtyFlag);
+    virtual void processLayoutChanges(bool useDirtyFlag, bool first);
 
     /**
      * After a layout has been completed, call this to execute any actions that may occur after a layout
@@ -546,7 +550,7 @@ public:
     /**
      * @return true if component could be focused.
      */
-    virtual bool isFocusable() const { return false; }
+    bool isFocusable() const override { return false; }
 
     /**
      * @return true if component can react to pointer events.
@@ -558,6 +562,10 @@ public:
      */
     virtual bool isActionable() const { return false; }
 
+    /// Documentation inherited from component.h
+    bool isAccessible() const override {
+        return isFocusable() || !getCalculated(apl::kPropertyAccessibilityLabel).empty();
+    }
 
     /**
      * Get visible children of component and respective visibility values.
@@ -570,7 +578,7 @@ public:
     /**
      * @return Type of visual context.
      */
-    virtual std::string getVisualContextType();
+    virtual std::string getVisualContextType() const;
 
     /**
      * Calculate visual layer.
@@ -593,27 +601,34 @@ public:
     * @param parentRealOpacity parent component real opacity.
     * @return component cumulative opacity.
     */
-    float calculateRealOpacity(float parentRealOpacity);
+    float calculateRealOpacity(float parentRealOpacity) const;
 
     /**
      * Calculate real opacity of component.
      * Note: it's recursive so better to utilize @see calculateRealOpacity(float parentRealOpacity) when possible.
      * @return component cumulative opacity.
      */
-    float calculateRealOpacity();
+    float calculateRealOpacity() const;
 
     /**
      * Calculate component visible rect.
      * Note: it's recursive so better to utilize @see calculateVisibleRect(const Rect& parentVisibleRect) when possible.
      * @return visible rectangle of component
      */
-    Rect calculateVisibleRect();
+    Rect calculateVisibleRect() const;
 
     /**
      * @param index index of child.
      * @return True if child should be automatically Yoga-attached to this component
      */
     virtual bool shouldAttachChildYogaNode(int index) const { return true; }
+
+    /**
+     * @param index index of child.
+     * @return True if component should be fully inflated. False if it should be left
+     * up to lazy inflation controlled by parent component.
+     */
+    virtual bool shouldBeFullyInflated(int index) const { return true; }
 
     /**
      * Checks to see if this Component inherits state from another Component. State
@@ -677,6 +692,11 @@ public:
      * @return Yoga node reference for the component.
      */
     YGNodeRef getNode() const { return mYGNodeRef; }
+
+    /**
+     * @return Direction in which component is laid out.
+     */
+    YGDirection getLayoutDirection() const;
 
     /**
      * Call this method to get shared ptr of CoreComponent
@@ -861,6 +881,16 @@ public:
      */
     void setCalculated(PropertyKey key, const Object &value) { mCalculated.set(key, value); }
 
+    /**
+     * Get the offset applied to this component if it's position property is "sticky"
+     */
+    const Point& getStickyOffset() const { return mStickyOffset; }
+
+    /**
+     * Set the offset applied to this component if it's position property is "sticky"
+     */
+    void setStickyOffset(Point stickyOffset) { mStickyOffset = stickyOffset; }
+
 protected:
     // internal, do not call directly
     virtual bool insertChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag);
@@ -883,6 +913,11 @@ protected:
             c = c->mParent;
         return c;
     }
+
+    /**
+     * Allow derived classes to react to layout direction change
+     */
+    virtual void handleLayoutDirectionChange(bool useDirtyFlag) {};
 
     /**
      * Execute the component key handlers if present.
@@ -984,7 +1019,7 @@ protected:
     std::vector<CoreComponentPtr>    mDisplayedChildren; // ordered list of children to be drawn
     CoreComponentPtr                 mParent;
     YGNodeRef                        mYGNodeRef;
-    std::string                      mPath;
+    Path                             mPath;
     std::shared_ptr<LayoutRebuilder> mRebuilder;
     Size                             mLayoutSize;
     bool                             mDisplayedChildrenStale;
@@ -994,7 +1029,7 @@ private:
     // the state of this component.
     Transform2D                      mGlobalToLocal;
     bool                             mGlobalToLocalIsStale;
-
+    Point                            mStickyOffset;
 };
 
 }  // namespace apl

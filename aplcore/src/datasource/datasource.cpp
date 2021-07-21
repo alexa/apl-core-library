@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -86,7 +86,7 @@ DataSource::create(const ContextPtr& context, const Object& object, const std::s
 DataSource::DataSource(
         const LiveArrayPtr& liveArray,
         const ContextPtr& context,
-        const std::shared_ptr<DataSourceConnection>& connection,
+        const DataSourceConnectionPtr& connection,
         const std::string& name) :
         LiveArrayObject(liveArray, context, name),
         mSourceConnection(connection) {}

@@ -228,10 +228,10 @@ For more info on installing and configuring Docker, see:
     https://www.docker.com/get-started
 
 # Global configuration
-## Telemetry
-In order to compile core telemetry support use TELEMETRY cmake parameter:
+## Tracing
+In order to compile core tracing support use TRACING cmake parameter:
 ```
-$ cmake -DTELEMETRY=ON
+$ cmake -DTRACING=ON
 ```
 
 ## Memory debugging

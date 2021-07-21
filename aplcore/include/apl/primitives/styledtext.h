@@ -48,6 +48,45 @@ public:
         kSpanTypeSuperscript = 6,
         kSpanTypeSubscript = 7,
         kSpanTypeNoBreak = 8,
+        kSpanTypeSpan = 9,
+    };
+
+    /**
+     * Limited set of APL supported span attributes.
+     */
+    enum SpanAttributeName {
+        kSpanAttributeNameColor = 0,
+        kSpanAttributeNameFontSize = 1,
+    };
+
+    struct SpanAttribute {
+        /**
+         * Name of span attribute.
+         */
+        SpanAttributeName name;
+
+        /**
+         * Name of span attribute.
+         */
+        Object value;
+
+        /**
+         * Compare two span attributes for equality.
+         * @param rhs The other span attribute.
+         * @return True if they are equal.
+         */
+        bool operator==(const SpanAttribute& rhs) const {
+            return name == rhs.name && value == rhs.value;
+        }
+
+        /**
+         * Compare two span attributes for inequality.
+         * @param rhs The other span attribute.
+         * @return True if they are not equal.
+         */
+        bool operator!=(const SpanAttribute& rhs) const {
+            return name != rhs.name || value != rhs.value;
+        }
     };
 
     /**
@@ -55,16 +94,31 @@ public:
      */
     struct Span {
         /**
-         * @param start style span starting index.
-         * @param type style type.
-         */
-        Span(size_t start, SpanType type) : type(type), start(start), end(start) {}
+          * @param start style span starting index.
+          * @param type style type.
+          * @param attributes style attributes.
+          */
+        Span(size_t start, SpanType type, const std::map<SpanAttributeName, Object>&  attributeMap) :
+              type(type),
+              start(start),
+              end(start) {
+            if (attributeMap.empty()) return;
+            attributes =  std::vector<SpanAttribute>();
+            for (const auto& kv : attributeMap)
+                attributes.push_back(SpanAttribute{kv.first, kv.second});
+        };
 
         /**
-         * Copy constructor for emplace to vector<const Span> to work with clang.
-         * @param obj object to copy.
-         */
-        Span(const Span& obj) : type(obj.type), start(obj.start), end(obj.end) {};
+          * @param start style span starting index.
+          * @param type style type.
+          */
+        Span(size_t start, SpanType type) : type(type), start(start), end(start) {};
+
+        /**
+          * Copy constructor for emplace to vector<const Span> to work with clang.
+          * @param obj object to copy.
+          */
+        Span(const Span& obj) : type(obj.type), start(obj.start), end(obj.end), attributes(obj.attributes) {};
 
         /**
          * Type of span.
@@ -82,12 +136,17 @@ public:
         size_t end;
 
         /**
+         * Span attributes.
+         */
+        std::vector<SpanAttribute> attributes;
+
+        /**
          * Compare two spans for equality.
          * @param rhs The other span.
          * @return True if they are equal.
          */
         bool operator==(const Span& rhs) const {
-            return type == rhs.type && start == rhs.start && end == rhs.end;
+            return type == rhs.type && start == rhs.start && end == rhs.end && attributes == rhs.attributes;
         }
 
         /**
@@ -96,7 +155,7 @@ public:
          * @return True if they are not equal
          */
         bool operator!=(const Span& rhs) const {
-            return type != rhs.type || start != rhs.start || end != rhs.end;
+            return type != rhs.type || start != rhs.start || end != rhs.end || attributes != rhs.attributes;
         }
     };
 
@@ -120,6 +179,8 @@ public:
 
         SpanType getSpanType() const;
 
+        std::vector<SpanAttribute> getSpanAttributes() const { return mSpanAttributes; };
+
         std::string getString() const { return mString; };
 
     private:
@@ -129,6 +190,7 @@ public:
         size_t codePointCount;
         std::stack<const Span *> mStack;
         SpanType mSpanType = (SpanType) START;
+        std::vector<SpanAttribute> mSpanAttributes;
         std::string mString;
         int mCurrentStrPos = 0;
         int mSpanIndex = 0;
@@ -136,10 +198,11 @@ public:
 
     /**
      * Build StyledText from object.
+     * @param context The data-binding context.
      * @param object The source of the text.
      * @return An object containing a StyledText or null.
      */
-    static Object create(const Object& object);
+    static Object create(const Context& context, const Object& object);
 
     /**
      * Empty styled text object. Useful as default value.
@@ -181,7 +244,7 @@ public:
 
     bool operator==(const StyledText& rhs) const { return mRawText == rhs.mRawText; }
 
-    StyledText(const std::string& raw);
+    StyledText(const Context& context, const std::string& raw);
 
 private:
     StyledText() {}

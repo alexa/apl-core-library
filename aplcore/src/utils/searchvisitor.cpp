@@ -95,10 +95,7 @@ TouchableAtPosition::universalCondition(const CoreComponent& component,
 
 bool
 TouchableAtPosition::spotCondition(const CoreComponent& component, const Point& point) {
-    if (component.getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore)) {
-        return component.isActionable();
-    }
-    return component.isTouchable();
+    return component.isActionable();
 }
 
 /*

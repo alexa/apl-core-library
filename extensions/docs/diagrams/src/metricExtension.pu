@@ -1,0 +1,22 @@
+@startuml MetricsExtension
+title
+ <u>APL Metrics Extensions</u>
+ 
+end title
+
+skinparam component {
+borderColor #808080
+}
+
+[\nDocument\n] as Document #FFD27F
+[\nExecution Environment\n] as ExeEnv #LightBlue
+[\nRuntime\n] as Runtime #ADD1B2
+[\nExtension\n] as Extension
+[\nMetricService\n] as MetricService #LightGray
+
+Document -[#808080]-> ExeEnv : {"type":"Metrics:incrementCounter", "by":5}
+ExeEnv -[#808080]-> Extension : ExtensionCommandEvent\n("type":"Metrics:incrementCounter", "by":5)
+Extension -[#808080]-> Runtime :  ExtensionCommandEvent(\n("type":"Metrics:incrementCounter", "by":5)
+Runtime --> MetricService : incrementCounter(#)
+ExeEnv ..> Runtime :  incrementCounter("componentCount", 1)\n(operational metric)
+@enduml

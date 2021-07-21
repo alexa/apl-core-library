@@ -113,7 +113,7 @@ TEST_F(DynamicPropertiesTest, HeightWidthStyled)
 
     // disabling state to change style
     frame1->setState(StateProperty::kStateDisabled, true);
-    ASSERT_TRUE(CheckDirty(root, frame1, frame2, frame3));
+    ASSERT_TRUE(CheckDirty(root, component, frame1, frame2, frame3));
     ASSERT_TRUE(CheckProperties(frame1, {
             {kPropertyHeight, Dimension(90) },
             {kPropertyWidth, Dimension(90) },
@@ -174,11 +174,11 @@ TEST_F(DynamicPropertiesTest, HeightWidthDynamic)
 
     // Set height property of frame1, it will impact frame2 and 3 also
     frame1->setProperty(kPropertyHeight, 400);
-    ASSERT_EQ(3, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(root, frame1, frame2, frame3));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(root, component, frame1, frame2, frame3));
     root->clearDirty();
 
     ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).getRect());
@@ -188,9 +188,9 @@ TEST_F(DynamicPropertiesTest, HeightWidthDynamic)
 
     // Set width property of frame1, it will impact only frame1
     frame1->setProperty(kPropertyWidth, 150);
-    ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(root, frame1));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(root, component, frame1));
     root->clearDirty();
 
     ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).getRect());
@@ -245,12 +245,11 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
 
     // Set maxHeight property of frame1, it will impact frame2 and 3 also
     frame1->setProperty(kPropertyMaxHeight, 90);
-
-    ASSERT_EQ(3, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(root, frame1, frame2, frame3));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(root, component, frame1, frame2, frame3));
     ASSERT_EQ(Object(Dimension(90)), frame1->getCalculated(kPropertyMaxHeight));
     root->clearDirty();
 
@@ -276,9 +275,9 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     // Set maxWidth property of frame1 to lower than width, it will impact only frame1
     frame1->setProperty(kPropertyMaxWidth, 90);
 
-    ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(root, frame1));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(root, component, frame1));
     ASSERT_EQ(Object(Dimension(90)), frame1->getCalculated(kPropertyMaxWidth));
     root->clearDirty();
 
@@ -290,10 +289,10 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     // Set minHeight property of frame2, it will impact frame3 also
     frame2->setProperty(kPropertyMinHeight, 125);
 
-    ASSERT_EQ(2, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(root, frame2, frame3));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(root, component, frame2, frame3));
     ASSERT_EQ(Object(Dimension(125)), frame2->getCalculated(kPropertyMinHeight));
     root->clearDirty();
 
@@ -305,7 +304,7 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     // Set minWidth property of frame2, it will not impact any component
     frame2->setProperty(kPropertyMinWidth, 50);
 
-    ASSERT_EQ(0, root->getDirty().size());
+    root->clearPending();
     ASSERT_TRUE(CheckDirty(frame2)); // No property is dirty
     ASSERT_TRUE(CheckDirty(root));
     ASSERT_EQ(Object(Dimension(50)), frame2->getCalculated(kPropertyMinWidth));
@@ -319,9 +318,9 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     // Set minWidth property of frame2 to higher than width, it will impact only frame2
     frame2->setProperty(kPropertyMinWidth, 125);
 
-    ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(root, frame2));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(root, component, frame2));
     ASSERT_EQ(Object(Dimension(125)), frame2->getCalculated(kPropertyMinWidth));
     root->clearDirty();
 
@@ -380,6 +379,197 @@ TEST_F(DynamicPropertiesTest, ShadowProperties)
     ASSERT_TRUE(CheckDirty(root, frame2));
     ASSERT_EQ(Object(Dimension(4)), frame2->getCalculated(kPropertyShadowVerticalOffset));
     root->clearDirty();
+}
+
+static const char *LAYOUTDIRCTION_SETVALUE = R"apl(
+{
+    "type": "APL",
+    "version": "1.7",
+    "styles": {
+        "base1": {
+            "values": [
+                {
+                    "layoutDirection": "LTR"
+                },
+                {
+                    "when": "${state.disabled}",
+                    "layoutDirection": "RTL"
+                }
+            ]
+        }
+    },
+    "mainTemplate": {
+        "item": {
+            "type": "Container",
+            "id": "c1",
+            "height": 400,
+            "width": 500,
+            "style": "base1",
+            "items": [
+                {
+                    "type": "Frame",
+                    "height": 100,
+                    "width": 200,
+                    "id": "frame1",
+                    "backgroundColor": "red"
+                },
+                {
+                    "type": "Frame",
+                    "height": 100,
+                    "width": 200,
+                    "id": "frame2",
+                    "alignSelf": "center",
+                    "backgroundColor": "red",
+                    "items": [
+                        {
+                            "type": "Frame",
+                            "height": 100,
+                            "width": 100,
+                            "id": "frame3",
+                            "backgroundColor": "blue"
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}
+)apl";
+
+TEST_F(DynamicPropertiesTest, LayoutDirectionPropertyStyled)
+{
+    loadDocument(LAYOUTDIRCTION_SETVALUE);
+    ASSERT_TRUE(component);
+    // Given a container with layoutDirection as LTR
+    auto container = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("c1"));
+    ASSERT_TRUE(container);
+    ASSERT_EQ(kComponentTypeContainer, container->getType());
+    ASSERT_EQ(Object(kLayoutDirectionLTR), container->getCalculated(kPropertyLayoutDirection));
+    // and the frame1 displays at top-left.
+    auto frame1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame1"));
+    ASSERT_TRUE(CheckProperties(frame1, {
+        {kPropertyLayoutDirection, Object(kLayoutDirectionLTR)},
+        {kPropertyBounds, Rect(0, 0, 200, 100) },
+        {kPropertyInnerBounds, Rect(0, 0, 200, 100) },
+    }));
+    // and the frame2 displays at center.
+    auto frame2 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame2"));
+    ASSERT_TRUE(CheckProperties(frame2, {
+        {kPropertyLayoutDirection, Object(kLayoutDirectionLTR)},
+        {kPropertyBounds, Rect(150, 100, 200, 100) },
+        {kPropertyInnerBounds, Rect(0, 0, 200, 100) },
+    }));
+    // and the frame3 displays at top-left of frame2.
+    auto frame3 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame3"));
+    ASSERT_TRUE(CheckProperties(frame3, {
+        {kPropertyLayoutDirection, Object(kLayoutDirectionLTR)},
+        {kPropertyBounds, Rect(0, 0, 100, 100) },
+        {kPropertyInnerBounds, Rect(0, 0, 100, 100) },
+    }));
+
+    // When update the container style, the layoutDirection is also updated to RTL.
+    executeCommand("SetValue", {{"componentId", container->getUniqueId()},
+                                {"property", "disabled"},
+                                {"value", true}}, true);
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(container, kPropertyDisabled, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+
+    // Then calculated layoutDirection is RTL.
+    ASSERT_EQ(Object(kLayoutDirectionRTL), container->getCalculated(kPropertyLayoutDirection));
+    ASSERT_EQ(Object(kLayoutDirectionRTL), frame1->getCalculated(kPropertyLayoutDirection));
+    ASSERT_EQ(Object(kLayoutDirectionRTL), frame2->getCalculated(kPropertyLayoutDirection));
+    ASSERT_EQ(Object(kLayoutDirectionRTL), frame3->getCalculated(kPropertyLayoutDirection));
+    // and the frame1 displays at top-right.
+    ASSERT_TRUE(CheckProperties(frame1, {
+        {kPropertyBounds, Rect(300, 0, 200, 100) },
+        {kPropertyInnerBounds, Rect(0, 0, 200, 100) },
+    }));
+    // frame2 still displays at center
+    ASSERT_TRUE(CheckProperties(frame2, {
+        {kPropertyBounds, Rect(150, 100, 200, 100) },
+        {kPropertyInnerBounds, Rect(0, 0, 200, 100) },
+    }));
+    // frame3 displays at top-right of frame 2
+    ASSERT_TRUE(CheckProperties(frame3, {
+        {kPropertyBounds, Rect(100, 0, 100, 100) },
+        {kPropertyInnerBounds, Rect(0, 0, 100, 100) },
+    }));
+}
+
+TEST_F(DynamicPropertiesTest, LayoutDirectionPropertyDynamic)
+{
+    loadDocument(LAYOUTDIRCTION_SETVALUE);
+    ASSERT_TRUE(component);
+    // Given a container with layoutDirection as LTR
+    auto container = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("c1"));
+    ASSERT_TRUE(container);
+    ASSERT_EQ(kComponentTypeContainer, container->getType());
+    ASSERT_EQ(Object(kLayoutDirectionLTR), container->getCalculated(kPropertyLayoutDirection));
+    // and the frame1 displays at top-left.
+    auto frame1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame1"));
+    ASSERT_TRUE(CheckProperties(frame1, {
+        {kPropertyLayoutDirection, Object(kLayoutDirectionLTR)},
+        {kPropertyBounds, Rect(0, 0, 200, 100) },
+        {kPropertyInnerBounds, Rect(0, 0, 200, 100) },
+    }));
+    // and the frame2 displays at center.
+    auto frame2 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame2"));
+    ASSERT_TRUE(CheckProperties(frame2, {
+        {kPropertyLayoutDirection, Object(kLayoutDirectionLTR)},
+        {kPropertyBounds, Rect(150, 100, 200, 100) },
+        {kPropertyInnerBounds, Rect(0, 0, 200, 100) },
+    }));
+    // and the frame3 displays at top-left of frame2.
+    auto frame3 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame3"));
+    ASSERT_TRUE(CheckProperties(frame3, {
+        {kPropertyLayoutDirection, Object(kLayoutDirectionLTR)},
+        {kPropertyBounds, Rect(0, 0, 100, 100) },
+        {kPropertyInnerBounds, Rect(0, 0, 100, 100) },
+    }));
+
+    // If set layoutDirection to same value, should not set dirty
+    executeCommand("SetValue", {{"componentId", container->getUniqueId()},
+                                {"property", "layoutDirection"},
+                                {"value", "LTR"}}, true);
+    ASSERT_TRUE(CheckDirty(root));
+    ASSERT_EQ(Object(kLayoutDirectionLTR), container->getCalculated(kPropertyLayoutDirection));
+    ASSERT_EQ(Object(kLayoutDirectionLTR), frame1->getCalculated(kPropertyLayoutDirection));
+    ASSERT_EQ(Object(kLayoutDirectionLTR), frame2->getCalculated(kPropertyLayoutDirection));
+    ASSERT_EQ(Object(kLayoutDirectionLTR), frame3->getCalculated(kPropertyLayoutDirection));
+
+    // When test dynamic property for layoutDirection by set to RTL
+    executeCommand("SetValue", {{"componentId", container->getUniqueId()},
+                                {"property", "layoutDirection"},
+                                {"value", "RTL"}}, true);
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(container, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+
+    // Then calculated layoutDirection is RTL.
+    ASSERT_EQ(Object(kLayoutDirectionRTL), container->getCalculated(kPropertyLayoutDirection));
+    ASSERT_EQ(Object(kLayoutDirectionRTL), frame1->getCalculated(kPropertyLayoutDirection));
+    ASSERT_EQ(Object(kLayoutDirectionRTL), frame2->getCalculated(kPropertyLayoutDirection));
+    ASSERT_EQ(Object(kLayoutDirectionRTL), frame3->getCalculated(kPropertyLayoutDirection));
+    // and the frame1 displays at top-right.
+    ASSERT_TRUE(CheckProperties(frame1, {
+        {kPropertyBounds, Rect(300, 0, 200, 100) },
+        {kPropertyInnerBounds, Rect(0, 0, 200, 100) },
+    }));
+    // frame2 still displays at center
+    ASSERT_TRUE(CheckProperties(frame2, {
+        {kPropertyBounds, Rect(150, 100, 200, 100) },
+        {kPropertyInnerBounds, Rect(0, 0, 200, 100) },
+    }));
+    // frame3 displays at top-right of frame 2
+    ASSERT_TRUE(CheckProperties(frame3, {
+        {kPropertyBounds, Rect(100, 0, 100, 100) },
+        {kPropertyInnerBounds, Rect(0, 0, 100, 100) },
+    }));
 }
 
 static const char *PADDING_SETVALUE = R"apl(
@@ -531,8 +721,8 @@ TEST_F(DynamicPropertiesTest, PaddingDynamic) {
     // Set padding property of frame1
     frame1->setProperty(kPropertyPadding, Object(ObjectArray{15, 5}));
 
-    ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyInnerBounds));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, frame1));
     root->clearDirty();
 
@@ -544,8 +734,8 @@ TEST_F(DynamicPropertiesTest, PaddingDynamic) {
     // Set paddingBottom property of frame2
     frame2->setProperty(kPropertyPaddingBottom, 10);
 
-    ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, frame2));
     root->clearDirty();
 
@@ -557,8 +747,8 @@ TEST_F(DynamicPropertiesTest, PaddingDynamic) {
     // Set paddingLeft property of frame2
     frame2->setProperty(kPropertyPaddingLeft, 10);
 
-    ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, frame2));
     root->clearDirty();
 
@@ -570,8 +760,8 @@ TEST_F(DynamicPropertiesTest, PaddingDynamic) {
     // Set paddingRight property of frame2
     frame2->setProperty(kPropertyPaddingRight, 10);
 
-    ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, frame2));
     root->clearDirty();
 
@@ -583,8 +773,8 @@ TEST_F(DynamicPropertiesTest, PaddingDynamic) {
     // Set paddingTop property of frame2
     frame2->setProperty(kPropertyPaddingTop, 10);
 
-    ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds));
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, frame2));
     root->clearDirty();
 
@@ -612,7 +802,7 @@ TEST_F(DynamicPropertiesTest, BorderWidth) {
     frame1->setProperty(kPropertyBorderWidth, 10);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderWidth, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderWidth, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, frame1));
     root->clearDirty();
 
@@ -899,7 +1089,8 @@ static const char *TEXT_SETVALUE = R"apl(
             "fontFamily": "times new roman",
             "fontSize": "50dp",
             "fontStyle": "italic",
-            "fontWeight": 100
+            "fontWeight": 100,
+            "lang": "en-US"
         }
     }
 }
@@ -918,6 +1109,7 @@ TEST_F(DynamicPropertiesTest, TextProperties) {
             {kPropertyFontSize, Dimension(50) },
             {kPropertyFontStyle, kFontStyleItalic },
             {kPropertyFontWeight, 100 },
+            {kPropertyLang, "en-US"}
     }));
 
     // Set fontFamily property of txt
@@ -928,6 +1120,15 @@ TEST_F(DynamicPropertiesTest, TextProperties) {
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ("amazon-ember", txt->getCalculated(kPropertyFontFamily).getString());
+
+    // Set lang property of txt
+    txt->setProperty(kPropertyLang, "ja-JP");
+
+    ASSERT_EQ(1, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(txt, kPropertyLang));
+    ASSERT_TRUE(CheckDirty(root, txt));
+    root->clearDirty();
+    ASSERT_EQ("ja-JP", txt->getCalculated(kPropertyLang).getString());
 
     // Set fontSize property of txt
     txt->setProperty(kPropertyFontSize, "60dp");
@@ -972,6 +1173,7 @@ static const char *EDIT_TEXT_SETVALUE = R"apl(
             "fontSize": "50dp",
             "fontStyle": "italic",
             "fontWeight": 100,
+            "lang": "en-US",
             "color": "blue",
             "borderWidth": 2,
             "highlightColor": "yellow",
@@ -997,6 +1199,7 @@ TEST_F(DynamicPropertiesTest, EditTextFontProperties) {
             {kPropertyFontSize, Dimension(50) },
             {kPropertyFontStyle, kFontStyleItalic },
             {kPropertyFontWeight, 100 },
+            {kPropertyLang, "en-US"}
     }));
 
 
@@ -1008,6 +1211,15 @@ TEST_F(DynamicPropertiesTest, EditTextFontProperties) {
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ("amazon-ember", txt->getCalculated(kPropertyFontFamily).getString());
+
+    // Set lang property of txt
+    txt->setProperty(kPropertyLang, "ja-JP");
+
+    ASSERT_EQ(1, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(txt, kPropertyLang));
+    ASSERT_TRUE(CheckDirty(root, txt));
+    root->clearDirty();
+    ASSERT_EQ("ja-JP", txt->getCalculated(kPropertyLang).getString());
 
     // Set fontSize property of txt
     txt->setProperty(kPropertyFontSize, "60dp");
@@ -1211,8 +1423,7 @@ TEST_F(DynamicPropertiesTest, SequenceStyled)
 
     // disabling state of child1 to change style
     child1->setState(StateProperty::kStateDisabled, true);
-    ASSERT_EQ(2, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(root, child1, child2));
+    ASSERT_TRUE(CheckDirty(root, component, child1, child2));
 
     ASSERT_EQ(Object(Dimension(20)), child1 ->getCalculated(kPropertySpacing));
     ASSERT_EQ(Rect(0, 0, 100, 20), child0->getCalculated(kPropertyBounds).getRect());
@@ -1252,10 +1463,10 @@ TEST_F(DynamicPropertiesTest, SequenceDynamic) {
     // Set spacing property of child at index 1
     child1->setProperty(kPropertySpacing, 20);
 
-    ASSERT_EQ(2, root->getDirty().size());
+    root->clearPending();
     ASSERT_TRUE(CheckDirty(child1, kPropertyBounds));
     ASSERT_TRUE(CheckDirty(child2, kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(root, child1, child2));
+    ASSERT_TRUE(CheckDirty(root, component, child1, child2));
     root->clearDirty();
     ASSERT_EQ(Object(Dimension(20)), child1 ->getCalculated(kPropertySpacing));
     ASSERT_EQ(Rect(0, 0, 100, 20), child0->getCalculated(kPropertyBounds).getRect());

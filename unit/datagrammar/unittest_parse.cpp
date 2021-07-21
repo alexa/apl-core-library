@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -22,11 +22,12 @@ using namespace apl;
 class ParseTest : public ::testing::Test {
 public:
     ParseTest() {
-        Metrics m;
-        context = Context::createTestContext(Metrics(), RootConfig());
+        session = std::make_shared<TestSession>();
+        context = Context::createTestContext(Metrics(), session);
     }
 
     ContextPtr context;
+    std::shared_ptr<TestSession> session;
 };
 
 
@@ -48,7 +49,7 @@ TEST_F(ParseTest, Simple)
     ASSERT_EQ(4, foo.asNumber());
 
     foo = parseDataBinding(*context, "${@red}");
-    ASSERT_FALSE(foo.isNode());
+    ASSERT_FALSE(foo.isEvaluable());
     ASSERT_TRUE(foo.isNull());
 
     context->putConstant("@red", Color(Color::RED));
@@ -68,7 +69,7 @@ TEST_F(ParseTest, Simple)
 
 static const std::vector<std::pair<std::string, std::set<std::string>>> SYMBOL_TESTS = {
     {"${a+Math.min(b+(c-d),c/d)} ${e-f}",   {"a/", "b/", "c/", "d/", "e/", "f/"}},
-    {"${a[b].c ? (e || f) : 'foo ${g}'}",   {"a/test_b/c/", "b/", "e/", "f/", "g/"}},
+    {"${a[b].c ? (e || f) : 'foo ${g}'}",   {"a/", "b/", "e/", "f/", "g/"}},
     {"${viewport.width > 10000 ? a : b.c}", {"b/c/"}}
 };
 
@@ -646,12 +647,119 @@ TEST_F(ParseTest, Compare)
     }
 }
 
+static std::vector<std::pair<std::string, Object>> AND_OR_NULLC_TESTS = {
+    {"${ 1 || false }", 1},
+    {"${ 1 || true }", 1},
+    {"${ 0 || false }", false},
+    {"${ 0 || true }", true},
+    {"${ null || false }", false},
+    {"${ null || true }", true},
+    {"${ 1 && false }", false},
+    {"${ 1 && true }", true},
+    {"${ 0 && false }", 0},
+    {"${ 0 && true }", 0},
+    {"${ null && false }", Object::NULL_OBJECT()},
+    {"${ null && true }", Object::NULL_OBJECT()},
+    {"${ 1 ?? false}", 1},
+    {"${ 1 ?? true }", 1},
+    {"${ 0 ?? false }", 0},
+    {"${ 0 ?? true }", 0},
+    {"${ null ?? false }", false},
+    {"${ null ?? true }", true},
+    {"${ 1 || 2 || 3 }", 1},
+    {"${ 0 || 1 || 2 }", 1},
+    {"${ 0 || 0 || 1 }", 1},
+    {"${ 1 || (2 || 3) }", 1},
+    {"${ 0 || (1 || 2) }", 1},
+    {"${ 0 || (0 || 1) }", 1},
+    {"${ 1 && 2 && 3 }", 3},
+    {"${ 0 && 1 && 2 }", 0},
+    {"${ 2 && 0 && 1 }", 0},
+    {"${ 1 && (2 && 3) }", 3},
+    {"${ 0 && (1 && 2) }", 0},
+    {"${ 2 && (0 && 1) }", 0},
+    {"${ 1 ?? 2 ?? 3 }", 1},
+    {"${ null ?? 1 ?? 2 }", 1},
+    {"${ null ?? null ?? 1 }", 1},
+    {"${ 1 ?? (2 ?? 3) }", 1},
+    {"${ null ?? (1 ?? 2) }", 1},
+    {"${ null ?? (null ?? 1) }", 1},
+    {"${ null ?? 4 || 5 && 0 }", 4},
+    {"${ 0 || 5 && 0 ?? 17 }", 0},
+};
+
+TEST_F(ParseTest, AndOrNullC)
+{
+    for (const auto& m : AND_OR_NULLC_TESTS) {
+        auto result = parseDataBinding(*context, m.first);
+        ASSERT_TRUE(IsEqual(m.second, result)) << m.first;
+    }
+}
+
+static std::vector<std::pair<std::string, Object>> TERNARY_TEST = {
+    {"${ 1 ? 2 : 3 }",                             2},
+    {"${ 0 ? 2 : 3 }",                             3},
+    {"${ true ? true ? 1 : 2 : 3 }",               1},
+    {"${ true ? false ? 1 : 2 : 3 }",              2},
+    {"${ false ? true ? 1 : 2 : 3 }",              3},
+    {"${ false ? false ? 1 : 2 : 3 }",             3},
+    {"${ true ? 1 : true ? 2 : 3 }",               1},
+    {"${ true ? 1 : false ? 2 : 3 }",              1},
+    {"${ false ? 1 : true ? 2 : 3 }",              2},
+    {"${ false ? 1 : false ? 2 : 3 }",             3},
+    {"${ true ? true ? 1 : 2 : true ? 3 : 4 }",    1},
+    {"${ true ? true ? 1 : 2 : false ? 3 : 4 }",   1},
+    {"${ true ? false ? 1 : 2 : true ? 3 : 4 }",   2},
+    {"${ true ? false ? 1 : 2 : false ? 3 : 4 }",  2},
+    {"${ true ? true ? 1 : 2 : true ? 3 : 4 }",    1},
+    {"${ true ? true ? 1 : 2 : false ? 3 : 4 }",   1},
+    {"${ true ? false ? 1 : 2 : true ? 3 : 4 }",   2},
+    {"${ true ? false ? 1 : 2 : false ? 3 : 4 }",  2},
+    {"${ false ? true ? 1 : 2 : true ? 3 : 4 }",   3},
+    {"${ false ? true ? 1 : 2 : false ? 3 : 4 }",  4},
+    {"${ false ? false ? 1 : 2 : true ? 3 : 4 }",  3},
+    {"${ false ? false ? 1 : 2 : false ? 3 : 4 }", 4},
+    {"${ false ? true ? 1 : 2 : true ? 3 : 4 }",   3},
+    {"${ false ? true ? 1 : 2 : false ? 3 : 4 }",  4},
+    {"${ false ? false ? 1 : 2 : true ? 3 : 4 }",  3},
+    {"${ false ? false ? 1 : 2 : false ? 3 : 4 }", 4},
+};
+
+TEST_F(ParseTest, Ternary)
+{
+    for (const auto& m : TERNARY_TEST) {
+        auto result = parseDataBinding(*context, m.first);
+        ASSERT_TRUE(IsEqual(m.second, result)) << m.first;
+    }
+}
+
+static std::vector<std::pair<std::string, Object>> FIELD_ARRAY_ACCESS = {
+    {"${x[1]}",          2},
+    {"${y.a}",           1},
+    {"${y['a']}",        1},
+    {"${y.c[0]}",        5},
+    {"${y['c'][0]}",     5},
+    {"${x[y.b]}",        3},
+    {"${x[y['b']]}",     3},
+    {"${x[y.c[5-3]-6]}", 2},
+};
+
+TEST_F(ParseTest, FieldArrayAccess)
+{
+    auto array = JsonData("[1,2,3]");
+    auto map = JsonData(R"({"a": 1, "b": 2, "c": [5,6,7]})");
+
+    context->putConstant("x", array.get());
+    context->putConstant("y", map.get());
+
+    for (const auto& m : FIELD_ARRAY_ACCESS) {
+        auto result = parseDataBinding(*context, m.first);
+        ASSERT_TRUE(IsEqual(m.second, result)) << m.first;
+    }
+}
+
+
 // TODO: Check Equal and NotEqual for boolean, color, null, auto dimension
-// TODO: Check AND, OR
-// TODO: Check NULLC
-// TODO: Check Ternary
 // TODO: Check combine
 // TODO: Check symbol
-// TODO: Check field access
-// TODO: Check array access
 // TODO: Check function call

@@ -228,7 +228,9 @@ main(int argc, char *argv[]) {
             exit(1);
         } else {
             while (content->isWaiting()) {
-                for (const auto& m : content->getRequestedPackages()) {
+                auto pkgList = content->getRequestedPackages();
+                for (const auto& m : pkgList) {
+                    std::cerr << "Loading package " << m.reference().name() << std::endl;
                     const auto& packageName = m.reference().name();
                     const auto& packageVersion = m.reference().version();
 

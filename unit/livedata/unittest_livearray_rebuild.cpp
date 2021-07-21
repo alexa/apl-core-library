@@ -122,13 +122,7 @@ public:
     void completeScroll(const std::string& component, float distance) {
         ASSERT_FALSE(root->hasEvent());
         executeScroll(component, distance);
-        ASSERT_TRUE(root->hasEvent());
-        auto event = root->popEvent();
-
-        auto position = event.getValue(kEventPropertyPosition).asDimension(*context);
-        event.getComponent()->update(kUpdateScrollPosition, position.getValue());
-        event.getActionRef().resolve();
-        root->clearPending();
+        advanceTime(1000);
     }
 
 private:
@@ -333,6 +327,135 @@ TEST_F(LiveArrayRebuildTest, ComponentInsertPushBack)
 
     ASSERT_EQ(4, component->getChildCount());
     ASSERT_TRUE(CheckChildOrder({"Z 0 0 4", "A 1 1 4", "B 2 2 4", "C 3 3 4"}));
+}
+
+TEST_F(LiveArrayRebuildTest, InsertAround) {
+    auto myArray = LiveArray::create(ObjectArray{1, 2});
+    config->liveData("TestArray", myArray);
+
+    loadDocument(BASIC_DOC);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(2, component->getChildCount());
+
+    myArray->insert(0, 0);
+    root->clearPending();
+    ASSERT_EQ(3, component->getChildCount());
+
+    myArray->insert(3, 3);
+    root->clearPending();
+    ASSERT_EQ(4, component->getChildCount());
+
+    myArray->insert(2, 2.1);
+    root->clearPending();
+    ASSERT_EQ(5, component->getChildCount());
+}
+
+TEST_F(LiveArrayRebuildTest, Remove) {
+    auto myArray = LiveArray::create(ObjectArray{1, 2, 3});
+    config->liveData("TestArray", myArray);
+
+    loadDocument(BASIC_DOC);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(3, component->getChildCount());
+
+    myArray->insert(0, 0);
+    myArray->insert(4, 4);
+    root->clearPending();
+    ASSERT_EQ(5, component->getChildCount());
+
+    myArray->remove(2);
+    root->clearPending();
+    ASSERT_EQ(4, component->getChildCount());
+
+    myArray->remove(3);
+    myArray->remove(0);
+    root->clearPending();
+    ASSERT_EQ(2, component->getChildCount());
+}
+
+static const char *LIMITED_SEQUENCE = R"({
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "width": 100,
+      "height": 100,
+      "data": "${TestArray}",
+      "item": {
+        "type": "Frame",
+        "width": "100%",
+        "height": 60
+      }
+    }
+  }
+})";
+
+TEST_F(LiveArrayRebuildTest, CacheOnSecondFrame) {
+    auto myArray = LiveArray::create(ObjectArray{0, 1, 2, 3, 4, 5});
+    config->liveData("TestArray", myArray);
+
+    loadDocument(LIMITED_SEQUENCE);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(6, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,1}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {2,5}, false));
+    root->clearDirty();
+
+    advanceTime(10);
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,3}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {4,5}, false));
+}
+
+static const char *LIMITED_SEQUENCE_DEEP = R"({
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "width": 100,
+      "height": 100,
+      "data": "${TestArray}",
+      "item": {
+        "type": "Frame",
+        "width": "100%",
+        "height": 60,
+        "item": {
+          "type": "Text",
+          "text": "${data}",
+          "width": "100%",
+          "height": "100%"
+        }
+      }
+    }
+  }
+})";
+
+TEST_F(LiveArrayRebuildTest, CacheOnSecondFrameDeep) {
+    auto myArray = LiveArray::create(ObjectArray{0, 1, 2, 3, 4, 5});
+    config->liveData("TestArray", myArray);
+
+    loadDocument(LIMITED_SEQUENCE_DEEP);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(6, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,1}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {2,5}, false));
+    root->clearDirty();
+
+    advanceTime(10);
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    for (auto dp : component->getCoreChildAt(2)->getCalculated(kPropertyNotifyChildrenChanged).getArray()) {
+        LOG(LogLevel::kError) << dp.toDebugString();
+    }
+    ASSERT_TRUE(CheckDirty(component->getCoreChildAt(2), kPropertyNotifyChildrenChanged, kPropertyBounds,
+                           kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(component->getCoreChildAt(2)->getChildAt(0), kPropertyBounds,
+                           kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(component->getCoreChildAt(3), kPropertyNotifyChildrenChanged, kPropertyBounds,
+                           kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,3}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {4,5}, false));
 }
 
 /**
@@ -875,6 +998,7 @@ TEST_F(LiveArrayRebuildTest, SequenceContextInsertRemove)
     config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_SEQUENCE);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -1091,7 +1215,7 @@ TEST_F(LiveArrayRebuildTest, SequenceUpdateContext)
     myArray->update(0, R"({"color": "#BEEF00", "text": "It's a very, very, very, very long string (kind of)."})");
     root->clearPending();
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyScrollPosition, kPropertyNotifyChildrenChanged));
     scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
     ASSERT_EQ(200, scrollPosition);
 }
@@ -1142,7 +1266,7 @@ TEST_F(LiveArrayRebuildTest, SequenceScrollingDeep) {
     root->clearPending();
 
     completeScroll("sequence", -1);
-    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {0, 1}));
+    ASSERT_TRUE(CheckChildrenLaidOutDirtyFlagsWithNotify(component, {0, 1}));
 
     // Check position (-1 page == 5 children back == 300 - 300 + 2 new after move = 200)
     scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
@@ -1160,7 +1284,7 @@ TEST_F(LiveArrayRebuildTest, SequenceScrollingDeep) {
     myArray->push_back("19");
     root->clearPending();
 
-    ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 4));
+    ASSERT_TRUE(CheckChildLaidOutDirtyFlagsWithNotify(component, 4));
 
     // Scroll forwards
     completeScroll("sequence", 2);
@@ -1203,6 +1327,7 @@ TEST_F(LiveArrayRebuildTest, SequenceVariableSize)
     config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_SEQUENCE_VARIABLE);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(9, component->getChildCount());
@@ -1237,6 +1362,8 @@ TEST_F(LiveArrayRebuildTest, PagerContext)
     config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_PAGER);
+    advanceTime(10);
+    root->clearDirty();
 
     ASSERT_EQ(kComponentTypePager, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -1358,6 +1485,61 @@ TEST_F(LiveArrayRebuildTest, PagerContextInsertRemove)
     ASSERT_EQ(2, list["index"].GetInt());
     ASSERT_EQ(true, list["allowForward"].GetBool());
     ASSERT_EQ(true, list["allowBackwards"].GetBool());
+}
+
+static const char *LIVE_WRAP_PAGER = R"({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "mainTemplate": {
+    "item": {
+      "type": "Pager",
+      "id": "pager",
+      "navigation": "wrap",
+      "data": "${TestArray}",
+      "items": {
+        "type": "Text",
+        "text": "data",
+        "color": "black",
+        "width": 100,
+        "height": 100
+      }
+    }
+  },
+  "onMount": {
+    "type": "Sequential",
+    "sequencer": "PAGE_ADVANCER",
+    "repeatCount": 1,
+    "commands": [
+      {
+        "type": "SetPage",
+        "componentId": "pager",
+        "position": "relative",
+        "value": 1
+      }
+    ]
+  }
+})";
+
+TEST_F(LiveArrayRebuildTest, PagerWrap)
+{
+    auto myArray = LiveArray::create(ObjectArray{"10", "11"});
+    config->liveData("TestArray", myArray);
+
+    loadDocument(LIVE_WRAP_PAGER);
+
+    ASSERT_EQ(kComponentTypePager, component->getType());
+    ASSERT_EQ(kNavigationWrap, static_cast<Navigation>(component->getCalculated(kPropertyNavigation).getInteger()));
+    ASSERT_EQ(2, component->getChildCount());
+
+    ASSERT_EQ(0, component->pagePosition());
+    advanceTime(100);
+    advanceTime(500);
+    ASSERT_EQ(1, component->pagePosition());
+
+    advanceTime(200);
+    advanceTime(600);
+    ASSERT_EQ(0, component->pagePosition());
 }
 
 static const char *LAYOUT_DEPENDENCY = R"({
@@ -1596,5 +1778,66 @@ TEST_F(LiveArrayRebuildTest, SpacedContainer) {
 
     ASSERT_TRUE(CheckSpacing(component, 10));
 }
+
+TEST_F(LiveArrayRebuildTest, SpacedContainerColumnReverse) {
+    auto myArray = LiveArray::create(ObjectArray{0, 1});
+    config->liveData("TestArray", myArray);
+
+    loadDocument(SPACED_CONTAINER);
+    component->setProperty(kPropertyDirection, "columnReverse");
+    myArray->insert(0, 13);
+    myArray->insert(0, 14);
+    root->clearPending();
+
+    auto c  = component->getChildAt(0);
+    auto c2 = component->getChildAt(1);
+    auto c3 = component->getChildAt(2);
+    auto c4 = component->getChildAt(3);
+    ASSERT_TRUE(expectBounds(c,  700, 0, 800, 100));
+    ASSERT_TRUE(expectBounds(c2, 590, 10, 690, 110));
+    ASSERT_TRUE(expectBounds(c3, 480, 0, 580, 100));
+    ASSERT_TRUE(expectBounds(c4, 370, 0, 470, 100));
+}
+
+TEST_F(LiveArrayRebuildTest, SpacedContainerRow) {
+    auto myArray = LiveArray::create(ObjectArray{0, 1});
+    config->liveData("TestArray", myArray);
+
+    loadDocument(SPACED_CONTAINER);
+    component->setProperty(kPropertyDirection, "row");
+    myArray->insert(0, 13);
+    myArray->insert(0, 14);
+    root->clearPending();
+
+    auto c  = component->getChildAt(0);
+    auto c2 = component->getChildAt(1);
+    auto c3 = component->getChildAt(2);
+    auto c4 = component->getChildAt(3);
+    ASSERT_TRUE(expectBounds(c,  0,    0, 100, 100));
+    ASSERT_TRUE(expectBounds(c2, 0,  110, 100, 210));
+    ASSERT_TRUE(expectBounds(c3, 0,  220, 100, 320));
+    ASSERT_TRUE(expectBounds(c4, 10, 330, 110, 430));
+}
+
+TEST_F(LiveArrayRebuildTest, SpacedContainerRowReverse) {
+    auto myArray = LiveArray::create(ObjectArray{0, 1});
+    config->liveData("TestArray", myArray);
+
+    loadDocument(SPACED_CONTAINER);
+    component->setProperty(kPropertyDirection, "rowReverse");
+    myArray->insert(0, 13);
+    myArray->insert(0, 14);
+    root->clearPending();
+
+    auto c  = component->getChildAt(0);
+    auto c2 = component->getChildAt(1);
+    auto c3 = component->getChildAt(2);
+    auto c4 = component->getChildAt(3);
+    ASSERT_TRUE(expectBounds(c,  0,  924, 100, 1024));
+    ASSERT_TRUE(expectBounds(c2, 0,  814, 100,  914));
+    ASSERT_TRUE(expectBounds(c3, 0,  694, 100,  794));
+    ASSERT_TRUE(expectBounds(c4, 10, 584, 110,  684));
+}
+
 
 } // namespace apl

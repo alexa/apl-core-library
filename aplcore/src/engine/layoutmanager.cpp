@@ -17,7 +17,9 @@
 #include "apl/component/corecomponent.h"
 #include "apl/content/configurationchange.h"
 #include "apl/engine/rootcontextdata.h"
+#include "apl/livedata/layoutrebuilder.h"
 #include "apl/primitives/size.h"
+#include "apl/utils/tracing.h"
 
 namespace apl {
 
@@ -63,10 +65,12 @@ LayoutManager::firstLayout()
     if (mTerminated)
         return;
 
+    APL_TRACE_BLOCK("LayoutManager:firstLayout");
+
     assert(mCore.top());
     YGNodeSetDirtiedFunc(mCore.top()->getNode(), yogaNodeDirtiedCallback);
     mPendingLayout.emplace(mCore.top());
-    layout(false);
+    layout(false, true);
 }
 
 void
@@ -102,12 +106,14 @@ compareComponents(const CoreComponentPtr& a, const CoreComponentPtr& b)
 }
 
 void
-LayoutManager::layout(bool useDirtyFlag)
+LayoutManager::layout(bool useDirtyFlag, bool first)
 {
     LOG_IF(DEBUG_LAYOUT_MANAGER) << mTerminated << " dirty_flag=" << useDirtyFlag;
 
     if (mTerminated || mInLayout)
         return;
+
+    APL_TRACE_BLOCK("LayoutManager:layout");
 
     std::set<CoreComponentPtr> laidOut;
 
@@ -121,7 +127,7 @@ LayoutManager::layout(bool useDirtyFlag)
         mPendingLayout.clear();
 
         for (const auto& m : dirty) {
-            layoutComponent(m, useDirtyFlag);
+            layoutComponent(m, useDirtyFlag, first);
             laidOut.emplace(m);
         }
     }
@@ -141,6 +147,23 @@ LayoutManager::layout(bool useDirtyFlag)
 }
 
 void
+LayoutManager::flushLazyInflation()
+{
+    flushLazyInflationInternal(mCore.top());
+}
+
+void
+LayoutManager::flushLazyInflationInternal(const CoreComponentPtr& comp)
+{
+    for (const auto& child : comp->mChildren) {
+        if (comp->mRebuilder) {
+            comp->mRebuilder->inflateIfRequired(child);
+        }
+        flushLazyInflationInternal(child);
+    }
+}
+
+void
 LayoutManager::setAsTopNode(const CoreComponentPtr& component)
 {
     LOG_IF(DEBUG_LAYOUT_MANAGER) << component->toDebugSimpleString();
@@ -157,8 +180,9 @@ LayoutManager::removeAsTopNode(const CoreComponentPtr& component)
 }
 
 void
-LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyFlag)
+LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyFlag, bool first)
 {
+    APL_TRACE_BLOCK("LayoutManager:layoutComponent");
     auto parent = component->getParent();
 
     LOG_IF(DEBUG_LAYOUT_MANAGER) << "component=" << component->toDebugSimpleString()
@@ -173,8 +197,16 @@ LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyF
 
     // Layout the component if it has a dirty Yoga node OR if the cached size doesn't match the target size
     if (YGNodeIsDirty(node) || size != component->getLayoutSize()) {
-        YGNodeCalculateLayout(node, size.getWidth(), size.getHeight(), YGDirection::YGDirectionLTR);
-        component->processLayoutChanges(useDirtyFlag);
+        APL_TRACE_BEGIN("LayoutManager:YGNodeCalculateLayout");
+        YGNodeCalculateLayout(node, size.getWidth(), size.getHeight(), component->getLayoutDirection());
+        APL_TRACE_END("LayoutManager:YGNodeCalculateLayout");
+        component->processLayoutChanges(useDirtyFlag, first);
+
+        if (mNeedToReProcessLayoutChanges) {
+            // Previous call may have changed sizes for auto-sized components if any lazyness involved. Apply this changes.
+            component->processLayoutChanges(useDirtyFlag, first);
+            mNeedToReProcessLayoutChanges = false;
+        }
     }
 
     // Cache the laid-out size of the component.

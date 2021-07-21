@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -79,6 +79,8 @@ public:
 
     SessionMessage(const Context& context, const char *filename, const char *function);
 
+    SessionMessage(const std::weak_ptr<Context>& contextPtr, const char *filename, const char *function);
+
     ~SessionMessage();
 
     template<class T> friend SessionMessage& operator<<(SessionMessage&& sm, T&& value)
@@ -111,7 +113,7 @@ public:
     SessionMessage& log(const char *format, ...);
 
 private:
-    const SessionPtr mSession;
+    SessionPtr mSession;
     std::string mFilename;
     std::string mFunction;
 
@@ -127,7 +129,6 @@ private:
 
 /// Report content errors using a context object (which contains a session)
 #define CONSOLE_CTX(CONTEXT) SessionMessage(CONTEXT,__FILENAME__,__func__)
-
 
 } // namespace apl
 

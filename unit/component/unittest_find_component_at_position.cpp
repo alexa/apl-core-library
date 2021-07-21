@@ -304,6 +304,7 @@ TEST_F(FindComponentAtPosition, Pager)
 {
     loadDocument(PAGER_TEST);
     ASSERT_TRUE(component);
+    advanceTime(10);
 
     ASSERT_EQ(3, component->getChildCount());
 

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -85,32 +85,30 @@ ActionableComponent::executeKeyHandlers(KeyHandlerType type, const Keyboard& key
 bool
 ActionableComponent::executeIntrinsicKeyHandlers(KeyHandlerType type, const Keyboard& keyboard)
 {
-    if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleFocusInCore)) {
-        // TODO: Do we need to allow SpatialNav to be disabled by runtime configuration?
-        if (type == kKeyDown) {
-            auto it = keyboardToFocusDirection().find(keyboard);
-            if (it != keyboardToFocusDirection().end()) {
-                // We consume the key, but don't perform any action as one is already in progress.
-                if (mContext->sequencer().isRunning(FOCUS_SEQUENCER))
-                    return true;
-
-                auto focusDirection = it->second;
-                auto& fm = getContext()->focusManager();
-                auto nextFocus = getUserSpecifiedNextFocus(focusDirection);
-                if (!nextFocus)
-                    nextFocus = takeFocusFromChild(focusDirection, Rect());
-
-                if (nextFocus) {
-                    // If returned self - it's already processed. Just ignore.
-                    if (nextFocus != shared_from_this()) {
-                        fm.setFocus(nextFocus, true);
-                    }
-                } else {
-                    // "Default" processing - means navigate out of component.
-                    fm.focus(focusDirection);
-                }
+    // TODO: Do we need to allow SpatialNav to be disabled by runtime configuration?
+    if (type == kKeyDown) {
+        auto it = keyboardToFocusDirection().find(keyboard);
+        if (it != keyboardToFocusDirection().end()) {
+            // We consume the key, but don't perform any action as one is already in progress.
+            if (mContext->sequencer().isRunning(FOCUS_SEQUENCER))
                 return true;
+
+            auto focusDirection = it->second;
+            auto& fm = getContext()->focusManager();
+            auto nextFocus = getUserSpecifiedNextFocus(focusDirection);
+            if (!nextFocus)
+                nextFocus = takeFocusFromChild(focusDirection, Rect());
+
+            if (nextFocus) {
+                // If returned self - it's already processed. Just ignore.
+                if (nextFocus != shared_from_this()) {
+                    fm.setFocus(nextFocus, true);
+                }
+            } else {
+                // "Default" processing - means navigate out of component.
+                fm.focus(focusDirection);
             }
+            return true;
         }
     }
 

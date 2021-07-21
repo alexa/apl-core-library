@@ -92,7 +92,7 @@ public:
      * @param args The arguments to pass.
      * @return The returned value or NULL.
      */
-    virtual Object call(const ObjectArray &args) const { return Object::NULL_OBJECT(); }
+    virtual Object call(const ObjectArray& args) const { return Object::NULL_OBJECT(); }
 
     /**
      * Accept a visitor pattern to iterate over the object.

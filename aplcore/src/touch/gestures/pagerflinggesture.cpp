@@ -43,11 +43,17 @@ getDistance(const ActionablePtr& actionable, const Point& startPosition, const P
 }
 
 static inline float
-getAnimationDistance(const ActionablePtr& actionable, PageDirection direction, float amount)
+getAnimationDistance(const ActionablePtr& actionable, PageDirection direction, float amount,
+                     LayoutDirection layoutDirection)
 {
     auto parentBounds = actionable->getCalculated(kPropertyBounds).getRect();
     auto wholeDistance = actionable->isHorizontal() ? parentBounds.getWidth() : parentBounds.getHeight();
-    return (direction == kPageDirectionForward ? 1.0f : -1.0f) * amount * wholeDistance;
+    auto sign = direction == kPageDirectionForward ? 1.0f : -1.0f;
+    if (actionable->isHorizontal() && layoutDirection == kLayoutDirectionRTL) {
+        sign *= -1.0f;
+    }
+
+    return sign * amount * wholeDistance;
 }
 
 static inline float
@@ -81,6 +87,7 @@ PagerFlingGesture::PagerFlingGesture(const ActionablePtr& actionable) :
     mAmount(0.0f)
 {
     mResourceHolder = ExecutionResourceHolder::create(kExecutionResourcePosition, actionable, [&](){reset();});
+    mLayoutDirection = static_cast<LayoutDirection>(actionable->getCalculated(kPropertyLayoutDirection).asInt());
 }
 
 void
@@ -104,6 +111,9 @@ bool
 PagerFlingGesture::onDown(const PointerEvent& event, apl_time_t timestamp)
 {
     LOG_IF(DEBUG_FLING_GESTURE) << "event: " << event.pointerEventPosition.toString() << ", timestamp: " << timestamp;
+
+    // We don't change layout direction during a gesture
+    mLayoutDirection = static_cast<LayoutDirection>(mActionable->getCalculated(kPropertyLayoutDirection).asInt());
     auto startTime = mStartTime;
     if (!FlingGesture::onDown(event, timestamp)) return false;
     // If triggered and onDown received - animation currently happening
@@ -115,7 +125,8 @@ PagerFlingGesture::onDown(const PointerEvent& event, apl_time_t timestamp)
         }
 
         // Figure how far we need to offset.
-        auto lastDistance = getAnimationDistance(mActionable, mPageDirection, mLastAnimationAmount);
+        auto lastDistance = getAnimationDistance(mActionable, mPageDirection, mLastAnimationAmount,
+                                                 mLayoutDirection);
 
         // Reset non-significant (non-distance related) direction from the offset to avoid hitting angle restriction.
         auto distanceShift = mActionable->isHorizontal() ? Point(lastDistance, 0) : Point(0, lastDistance);
@@ -142,7 +153,10 @@ PagerFlingGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
     auto pager = std::dynamic_pointer_cast<PagerComponent>(mActionable);
     auto localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
     auto distance = getDistance(mActionable, mStartPosition, localPoint);
-    auto direction = distance < 0 ? kPageDirectionForward : kPageDirectionBack;
+    // Flip direction for RTL layout
+    auto direction = (mActionable->isHorizontal() && mLayoutDirection == kLayoutDirectionRTL)
+                         ? (distance < 0 ? kPageDirectionBack    : kPageDirectionForward)
+                         : (distance < 0 ? kPageDirectionForward : kPageDirectionBack);
 
     LOG_IF(DEBUG_FLING_GESTURE) << "Distance: " << distance << ", direction: " << direction;
 
@@ -303,7 +317,11 @@ PagerFlingGesture::finishUp()
     auto velocity = horizontal ? velocities.getX() : velocities.getY();
     auto minFlingVelocity = std::abs(mActionable->getRootConfig().getMinimumFlingVelocity() * scaleFactor);
     auto fulfill = true;
-    auto direction = velocity < 0 ? kPageDirectionForward : kPageDirectionBack;
+    auto direction = (mActionable->isHorizontal() && mLayoutDirection == kLayoutDirectionRTL)
+                     ? (velocity < 0 ? kPageDirectionBack    : kPageDirectionForward)
+                     : (velocity < 0 ? kPageDirectionForward : kPageDirectionBack);
+
+
     direction = velocity == 0 ? mPageDirection : direction;
 
     // In case if we don't get enough fling or distance or fling in opposite direction - snap back.

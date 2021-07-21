@@ -16,8 +16,10 @@ target_sources_local(apl
     corelocalemethods.cpp
     log.cpp
     path.cpp
-    session.cpp
     searchvisitor.cpp
-    telemetry.cpp
+    session.cpp
+    stickychildrentree.cpp
+    stickyfunctions.cpp
+    tracing.cpp
     url.cpp
 )

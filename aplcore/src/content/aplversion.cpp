@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -27,7 +27,8 @@ static Bimap<APLVersion::Value, std::string> sVersionMap = {
         { APLVersion::kAPLVersion13, "1.3" },
         { APLVersion::kAPLVersion14, "1.4" },
         { APLVersion::kAPLVersion15, "1.5" },
-        { APLVersion::kAPLVersion16, "1.6" }
+        { APLVersion::kAPLVersion16, "1.6" },
+        { APLVersion::kAPLVersion17, "1.7" }
 };
 
 bool
@@ -45,6 +46,12 @@ APLVersion::isValid(const std::string& other) const
         return true;
     Value version = sVersionMap.get(other, kAPLVersionIgnore);
     return !(kAPLVersionIgnore == version) && isValid(version);
+}
+
+std::string
+APLVersion::getDefaultReportedVersionString()
+{
+    return sVersionMap.at(kAPLVersionReported);
 }
 
 } // namespace apl

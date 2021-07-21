@@ -21,36 +21,35 @@ using namespace apl;
 
 class MountTest : public DocumentWrapper {};
 
-static const char *TRIVIAL =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"mainTemplate\": {"
-        "    \"items\": {"
-        "      \"type\": \"Frame\","
-        "      \"id\": \"frame\","
-        "      \"backgroundColor\": \"blue\","
-        "      \"onMount\":"
-        "      ["
-        "        {"
-        "          \"type\": \"SetValue\","
-        "          \"property\": \"backgroundColor\","
-        "          \"value\": \"red\""
-        "        },"
-        "        {"
-        "          \"type\": \"SendEvent\","
-        "          \"arguments\": [ "
-        "            \"${event.source.source}\","
-        "            \"${event.source.handler}\","
-        "            \"${event.source.id}\","
-        "            \"${event.source.uid}\","
-        "            \"${event.source.value}\""
-        "          ]"
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
+static const char *TRIVIAL = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Frame",
+      "id": "frame",
+      "backgroundColor": "blue",
+      "onMount":
+      [
+        {
+          "type": "SetValue",
+          "property": "backgroundColor",
+          "value": "red"
+        },
+        {
+          "type": "SendEvent",
+          "arguments": [ 
+            "${event.source.source}",
+            "${event.source.handler}",
+            "${event.source.id}",
+            "${event.source.uid}",
+            "${event.source.value}"
+          ]
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(MountTest, Trivial)
 {
@@ -67,35 +66,34 @@ TEST_F(MountTest, Trivial)
     ASSERT_TRUE(CheckSendEvent(root, "Frame", "Mount", "frame", component->getUniqueId(), Object::NULL_OBJECT()));
 }
 
-static const char *ANIMATION =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Frame\","
-    "      \"backgroundColor\": \"blue\","
-    "      \"onMount\": ["
-    "        {"
-    "          \"type\": \"SetValue\","
-    "          \"property\": \"backgroundColor\","
-    "          \"value\": \"red\""
-    "        },"
-    "        {"
-    "          \"type\": \"AnimateItem\","
-    "          \"duration\": 1000,"
-    "          \"value\": ["
-    "            {"
-    "              \"property\": \"opacity\","
-    "              \"from\": 0,"
-    "              \"to\": 1"
-    "            }"
-    "          ]"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *ANIMATION = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Frame",
+      "backgroundColor": "blue",
+      "onMount": [
+        {
+          "type": "SetValue",
+          "property": "backgroundColor",
+          "value": "red"
+        },
+        {
+          "type": "AnimateItem",
+          "duration": 1000,
+          "value": [
+            {
+              "property": "opacity",
+              "from": 0,
+              "to": 1
+            }
+          ]
+        }
+      ]
+    }
+  }
+})";
 
 
 TEST_F(MountTest, Animation)
@@ -112,7 +110,7 @@ TEST_F(MountTest, Animation)
     auto startTime = root->currentTime();
     auto endTime = startTime + 1000;
     while (root->currentTime() < endTime) {
-        root->updateTime(root->currentTime() + 100);
+        advanceTime(100);
         ASSERT_TRUE(CheckDirty(component, kPropertyOpacity));
         ASSERT_TRUE(CheckDirty(root, component));
         ASSERT_NEAR((root->currentTime() - startTime)/1000.0,
@@ -121,65 +119,62 @@ TEST_F(MountTest, Animation)
     }
 }
 
-static const char *MULTIPLE_ITEMS =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"text\": \"A\","
-    "          \"id\": \"thing1\","
-    "          \"color\": \"blue\","
-    "          \"onMount\": {"
-    "            \"type\": \"SetValue\","
-    "            \"property\": \"color\","
-    "            \"value\": \"red\","
-    "            \"delay\": 500"
-    "          }"
-    "        },"
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"text\": \"B\","
-    "          \"id\": \"thing2\","
-    "          \"onMount\": {"
-    "            \"type\": \"AnimateItem\","
-    "            \"duration\": \"1000\","
-    "            \"value\": ["
-    "              {"
-    "                \"property\": \"transform\","
-    "                \"from\": {"
-    "                  \"translateX\": 100"
-    "                },"
-    "                \"to\": {"
-    "                  \"translateX\": 0"
-    "                }"
-    "              }"
-    "            ]"
-    "          }"
-    "        }"
-    "      ],"
-    "      \"onMount\": ["
-    "        {"
-    "          \"type\": \"AnimateItem\","
-    "          \"duration\": 1000,"
-    "          \"value\": ["
-    "            {"
-    "              \"property\": \"opacity\","
-    "              \"from\": 0,"
-    "              \"to\": 1"
-    "            }"
-    "          ]"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
-
-
+static const char *MULTIPLE_ITEMS = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "Text",
+          "text": "A",
+          "id": "thing1",
+          "color": "blue",
+          "onMount": {
+            "type": "SetValue",
+            "property": "color",
+            "value": "red",
+            "delay": 500
+          }
+        },
+        {
+          "type": "Text",
+          "text": "B",
+          "id": "thing2",
+          "onMount": {
+            "type": "AnimateItem",
+            "duration": "1000",
+            "value": [
+              {
+                "property": "transform",
+                "from": {
+                  "translateX": 100
+                },
+                "to": {
+                  "translateX": 0
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "onMount": [
+        {
+          "type": "AnimateItem",
+          "duration": 1000,
+          "value": [
+            {
+              "property": "opacity",
+              "from": 0,
+              "to": 1
+            }
+          ]
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(MountTest, AnimateMultiple)
 {
@@ -199,10 +194,10 @@ TEST_F(MountTest, AnimateMultiple)
     auto startTime = root->currentTime();
     auto endTime = startTime + 1000;
     while (root->currentTime() < endTime) {
-        root->updateTime(root->currentTime() + 100);
+        advanceTime(100);
         auto delta = (root->currentTime() - startTime) / 1000.0;
 
-        ASSERT_TRUE(CheckDirty(component, kPropertyOpacity));
+        ASSERT_TRUE(CheckDirty(component, kPropertyOpacity, kPropertyNotifyChildrenChanged));
         ASSERT_TRUE(CheckDirty(thing2, kPropertyTransform));
         if (delta >= 0.5 && delta < 0.55) {
             ASSERT_TRUE(CheckDirty(thing1, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
@@ -222,36 +217,35 @@ TEST_F(MountTest, AnimateMultiple)
     }
 }
 
-static const char * DOCUMENT_ON_MOUNT =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"id\": \"myText\""
-    "    }"
-    "  },"
-    "  \"onMount\": "
-    "  ["
-    "    {"
-    "      \"type\": \"SetValue\","
-    "      \"componentId\": \"myText\","
-    "      \"property\": \"text\","
-    "      \"value\": \"Ha!\""
-    "    },"
-    "    {"
-    "      \"type\": \"SendEvent\","
-    "      \"arguments\": [ "
-    "        \"${event.source.source}\","
-    "        \"${event.source.handler}\","
-    "        \"${event.source.id}\","
-    "        \"${event.source.uid}\","
-    "        \"${event.source.value}\""
-    "      ]"
-    "    }"
-    "  ]"
-    "}";
+static const char * DOCUMENT_ON_MOUNT = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Text",
+      "id": "myText"
+    }
+  },
+  "onMount": 
+  [
+    {
+      "type": "SetValue",
+      "componentId": "myText",
+      "property": "text",
+      "value": "Ha!"
+    },
+    {
+      "type": "SendEvent",
+      "arguments": [ 
+        "${event.source.source}",
+        "${event.source.handler}",
+        "${event.source.id}",
+        "${event.source.uid}",
+        "${event.source.value}"
+      ]
+    }
+  ]
+})";
 
 TEST_F(MountTest, DocumentOnMount)
 {
@@ -268,39 +262,38 @@ TEST_F(MountTest, DocumentOnMount)
     ASSERT_TRUE(CheckSendEvent(root, "Document", "Mount", Object::NULL_OBJECT(), Object::NULL_OBJECT(), Object::NULL_OBJECT()));
 }
 
-static const char *DOCUMENT_ON_MOUNT_DELAYED =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"id\": \"myText\","
-    "      \"color\": \"red\","
-    "      \"onMount\": ["
-    "        {"
-    "          \"type\": \"SetValue\","
-    "          \"property\": \"text\","
-    "          \"value\": \"uh-oh\","
-    "          \"delay\": 1000"
-    "        },"
-    "        {"
-    "          \"type\": \"SetValue\","
-    "          \"property\": \"color\","
-    "          \"value\": \"blue\","
-    "          \"delay\": 1000"
-    "        }"
-    "      ]"
-    "    }"
-    "  },"
-    "  \"onMount\": {"
-    "    \"type\": \"SetValue\","
-    "    \"componentId\": \"myText\","
-    "    \"property\": \"text\","
-    "    \"value\": \"Ha!\","
-    "    \"delay\": 1000"
-    "  }"
-    "}";
+static const char *DOCUMENT_ON_MOUNT_DELAYED = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Text",
+      "id": "myText",
+      "color": "red",
+      "onMount": [
+        {
+          "type": "SetValue",
+          "property": "text",
+          "value": "uh-oh",
+          "delay": 1000
+        },
+        {
+          "type": "SetValue",
+          "property": "color",
+          "value": "blue",
+          "delay": 1000
+        }
+      ]
+    }
+  },
+  "onMount": {
+    "type": "SetValue",
+    "componentId": "myText",
+    "property": "text",
+    "value": "Ha!",
+    "delay": 1000
+  }
+})";
 
 
 TEST_F(MountTest, DocumentOnMountDelayed)
@@ -347,55 +340,54 @@ TEST_F(MountTest, DocumentOnMountTerminated)
     ASSERT_EQ(Object(Color(Color::RED)), component->getCalculated(kPropertyColor));
 }
 
-static const char *DOCUMENT_ON_MOUNT_TERMINATED_2 =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"id\": \"myText\","
-    "      \"color\": \"red\","
-    "      \"onMount\": ["
-    "        {"
-    "          \"type\": \"SetValue\","
-    "          \"property\": \"text\","
-    "          \"value\": \"uh-oh\","
-    "          \"delay\": 1000"
-    "        },"
-    "        {"
-    "          \"type\": \"SetValue\","
-    "          \"property\": \"color\","
-    "          \"value\": \"blue\","
-    "          \"delay\": 1000"
-    "        }"
-    "      ]"
-    "    }"
-    "  },"
-    "  \"onMount\": ["
-    "    {"
-    "      \"type\": \"SetValue\","
-    "      \"componentId\": \"myText\","
-    "      \"property\": \"text\","
-    "      \"value\": \"Ha!\","
-    "      \"delay\": 1000"
-    "    },"
-    "    {"
-    "      \"type\": \"SetValue\","
-    "      \"componentId\": \"myText\","
-    "      \"property\": \"text\","
-    "      \"value\": \"Ha-Ha!\","
-    "      \"delay\": 1000"
-    "    },"
-    "    {"
-    "      \"type\": \"SetValue\","
-    "      \"componentId\": \"myText\","
-    "      \"property\": \"text\","
-    "      \"value\": \"Ha-Ha-Ha!\","
-    "      \"delay\": 1000"
-    "    }"
-    "  ]"
-    "}";
+static const char *DOCUMENT_ON_MOUNT_TERMINATED_2 = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Text",
+      "id": "myText",
+      "color": "red",
+      "onMount": [
+        {
+          "type": "SetValue",
+          "property": "text",
+          "value": "uh-oh",
+          "delay": 1000
+        },
+        {
+          "type": "SetValue",
+          "property": "color",
+          "value": "blue",
+          "delay": 1000
+        }
+      ]
+    }
+  },
+  "onMount": [
+    {
+      "type": "SetValue",
+      "componentId": "myText",
+      "property": "text",
+      "value": "Ha!",
+      "delay": 1000
+    },
+    {
+      "type": "SetValue",
+      "componentId": "myText",
+      "property": "text",
+      "value": "Ha-Ha!",
+      "delay": 1000
+    },
+    {
+      "type": "SetValue",
+      "componentId": "myText",
+      "property": "text",
+      "value": "Ha-Ha-Ha!",
+      "delay": 1000
+    }
+  ]
+})";
 
 TEST_F(MountTest, DocumentOnMountLong)
 {
@@ -453,33 +445,31 @@ TEST_F(MountTest, TerminateInDocument)
     ASSERT_EQ(Object(Color(Color::BLUE)), component->getCalculated(kPropertyColor));
 }
 
-static const char *DOCUMENT_ON_MOUNT_TERMINATED_NO_DOCUMENT_CMD =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"mainTemplate\": {"
-        "    \"items\": {"
-        "      \"type\": \"Text\","
-        "      \"id\": \"myText\","
-        "      \"color\": \"red\","
-        "      \"onMount\": ["
-        "        {"
-        "          \"type\": \"SetValue\","
-        "          \"property\": \"text\","
-        "          \"value\": \"uh-oh\","
-        "          \"delay\": 1000"
-        "        },"
-        "        {"
-        "          \"type\": \"SetValue\","
-        "          \"property\": \"color\","
-        "          \"value\": \"blue\","
-        "          \"delay\": 1000"
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
-
+static const char *DOCUMENT_ON_MOUNT_TERMINATED_NO_DOCUMENT_CMD = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Text",
+      "id": "myText",
+      "color": "red",
+      "onMount": [
+        {
+          "type": "SetValue",
+          "property": "text",
+          "value": "uh-oh",
+          "delay": 1000
+        },
+        {
+          "type": "SetValue",
+          "property": "color",
+          "value": "blue",
+          "delay": 1000
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(MountTest, TerminateNoDocumentCommand)
 {
@@ -536,13 +526,7 @@ static const char *EXECUTE_WHILE_ONMOUNT_SCROLLING = R"({
         "id": "scrollable",
         "height": "200",
         "width": "100%",
-        "data": [
-          0,
-          1,
-          2,
-          3,
-          4
-        ],
+        "data": [0,1,2,3,4],
         "items": [
           {
             "type": "Frame",
@@ -571,25 +555,300 @@ TEST_F(MountTest, ExecuteCommandsWhileOnMountScrolling)
     loadDocument(EXECUTE_WHILE_ONMOUNT_SCROLLING);
     ASSERT_TRUE(component);
 
-    // Check that we asked to scroll
-    auto scrollEvent = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, scrollEvent.getType());
-    auto actionRef = scrollEvent.getActionRef();
-    ASSERT_TRUE(actionRef.isPending());
+    ASSERT_EQ(0.0f, component->scrollPosition().getY());
 
-    // Wait for a second.
-    root->updateTime(1000);
+    // Wait for some time.
+    advanceTime(100);
+
+    // Check that scrolling started
+    ASSERT_TRUE(CheckDirty(component, kPropertyScrollPosition, kPropertyNotifyChildrenChanged));
+    ASSERT_NE(0.0f, component->scrollPosition().getY());
+    auto scrollPosition = component->scrollPosition().getY();
 
     // Send some command that will clear main sequencer and as a result terminate the scrolling.
     executeCommand("SetValue", {{"componentId", "id2"}, {"property", "opacity"}, {"value", 0.5}}, false);
     root->clearPending();
 
-    ASSERT_TRUE(actionRef.isTerminated());
-
-    // Assume that scrolling decided it's finished
-    actionRef.resolve();
+    advanceTime(100);
+    // Check that scrolling stopped
+    ASSERT_EQ(scrollPosition, component->scrollPosition().getY());
 
     // Check "interrupting" command was executed
     auto child = root->findComponentById("id2");
     ASSERT_EQ(0.5, child->getCalculated(kPropertyOpacity).getDouble());
+}
+
+static const char *PAGER_CHILD_ONMOUNT = R"({
+  "type": "APL",
+  "version": "1.7",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Pager",
+        "height": "100%",
+        "width": "100%",
+        "data": [0,1,2],
+        "navigation": "normal",
+        "item": {
+          "type": "Container",
+          "item": {
+            "type": "Text",
+            "id": "affectedText${data}",
+            "text": "${data}",
+            "onMount": {
+              "type": "SetValue",
+              "property": "text",
+              "value": "triggered"
+            }
+          }
+        }
+      }
+    ]
+  }
+})";
+
+TEST_F(MountTest, PagerChildOnMount)
+{
+    loadDocument(PAGER_CHILD_ONMOUNT);
+
+    auto affectedText = component->findComponentById("affectedText0");
+    ASSERT_EQ("triggered", affectedText->getCalculated(kPropertyText).asString());
+
+    affectedText = component->findComponentById("affectedText1");
+    ASSERT_FALSE(affectedText);
+
+    advanceTime(10);
+
+    affectedText = component->findComponentById("affectedText1");
+    ASSERT_EQ("triggered", affectedText->getCalculated(kPropertyText).asString());
+
+    affectedText = component->findComponentById("affectedText2");
+    ASSERT_FALSE(affectedText);
+
+    component->update(kUpdatePagerPosition, 1);
+    root->clearPending();
+
+    affectedText = component->findComponentById("affectedText2");
+    ASSERT_TRUE(affectedText);
+    ASSERT_EQ("triggered", affectedText->getCalculated(kPropertyText).asString());
+}
+
+static const char *SEQUENCE_CHILD_ONMOUNT = R"({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "height": 300,
+      "width": 300,
+      "data": [0,1,2,3,4,5,6,7,8,9],
+      "items": [
+        {
+          "type": "Container",
+          "width": "100%",
+          "height": 100,
+          "items": [
+            {
+              "type": "Text",
+              "id": "text${data}",
+              "width": "100%",
+          	  "height": "100%",
+              "text": "${data}",
+              "onMount": {
+                "type": "SetValue",
+                "property": "text",
+                "value": "hit"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(MountTest, SequenceChildOnMount)
+{
+    loadDocument(SEQUENCE_CHILD_ONMOUNT);
+
+    auto affectedText = component->findComponentById("text0");
+    ASSERT_TRUE(affectedText->getCalculated(kPropertyLaidOut).getBoolean());
+    ASSERT_EQ("hit", affectedText->getCalculated(kPropertyText).asString());
+
+    affectedText = component->findComponentById("text2");
+    ASSERT_EQ("hit", affectedText->getCalculated(kPropertyText).asString());
+
+    affectedText = component->findComponentById("text3");
+    ASSERT_EQ("hit", affectedText->getCalculated(kPropertyText).asString());
+
+    affectedText = component->findComponentById("text6");
+    ASSERT_FALSE(affectedText);
+
+    advanceTime(10);
+    affectedText = component->findComponentById("text6");
+    ASSERT_TRUE(affectedText);
+    ASSERT_EQ("hit", affectedText->getCalculated(kPropertyText).asString());
+
+    affectedText = component->findComponentById("text9");
+    ASSERT_FALSE(affectedText);
+
+    component->update(kUpdateScrollPosition, 300);
+    advanceTime(10);
+
+    affectedText = component->findComponentById("text9");
+    ASSERT_TRUE(affectedText);
+    ASSERT_EQ("hit", affectedText->getCalculated(kPropertyText).asString());
+}
+
+static const char *PAGER_DELAYED_ONMOUNT = R"({
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Pager",
+        "data": ["page1", "page2", "page3"],
+        "width": "100%",
+        "height": "100%",
+        "item": {
+          "type": "Container",
+          "items": [
+            {
+              "type": "Text",
+              "id": "${data}",
+              "text": "${data}",
+              "opacity": 0,
+              "onMount": [
+                {
+                  "type": "Sequential",
+                  "commands": [
+                    {
+                      "type": "SetValue",
+                      "property": "opacity",
+                      "value": 0
+                    },
+                    {
+                      "type": "SetValue",
+                      "property": "opacity",
+                      "delay": 1000,
+                      "value": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "type": "APL",
+  "version": "1.4"
+})";
+
+TEST_F(MountTest, PagerDelayedOnmount)
+{
+    loadDocument(PAGER_DELAYED_ONMOUNT);
+
+    advanceTime(10);
+
+    auto affectedText = component->findComponentById("page1");
+    ASSERT_TRUE(affectedText->getCalculated(kPropertyLaidOut).getBoolean());
+    ASSERT_EQ(0.0, affectedText->getCalculated(kPropertyOpacity).asNumber());
+
+    affectedText = component->findComponentById("page2");
+    ASSERT_EQ(0.0, affectedText->getCalculated(kPropertyOpacity).asNumber());
+
+    affectedText = component->findComponentById("page3");
+    ASSERT_EQ(0.0, affectedText->getCalculated(kPropertyOpacity).asNumber());
+
+    advanceTime(1000);
+
+    affectedText = component->findComponentById("page1");
+    ASSERT_TRUE(affectedText->getCalculated(kPropertyLaidOut).getBoolean());
+    ASSERT_EQ(1.0, affectedText->getCalculated(kPropertyOpacity).asNumber());
+
+    affectedText = component->findComponentById("page2");
+    ASSERT_EQ(1.0, affectedText->getCalculated(kPropertyOpacity).asNumber());
+
+    affectedText = component->findComponentById("page3");
+    ASSERT_EQ(1.0, affectedText->getCalculated(kPropertyOpacity).asNumber());
+}
+
+static const char *PAGER_FINAL_ONMOUNT = R"({
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Pager",
+        "data": ["page1", "page2", "page3"],
+        "width": "100%",
+        "height": "100%",
+        "item": {
+          "type": "Container",
+          "items": [
+            {
+              "type": "Text",
+              "id": "${data}",
+              "text": "${data}",
+              "opacity": 0,
+              "onMount": [
+                {
+                  "type": "Sequential",
+                  "commands": [
+                    {
+                      "type": "SetValue",
+                      "property": "opacity",
+                      "value": 0
+                    },
+                    {
+                      "type": "Idle",
+                      "delay": 1000
+                    }
+                  ],
+                  "finally": [
+                    {
+                      "type": "SetValue",
+                      "property": "opacity",
+                      "value": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "type": "APL",
+  "version": "1.4"
+})";
+
+TEST_F(MountTest, PagerFinalOnmount)
+{
+    loadDocument(PAGER_FINAL_ONMOUNT);
+
+    advanceTime(10);
+
+    auto affectedText = component->findComponentById("page1");
+    ASSERT_TRUE(affectedText->getCalculated(kPropertyLaidOut).getBoolean());
+    ASSERT_EQ(0.0, affectedText->getCalculated(kPropertyOpacity).asNumber());
+
+    affectedText = component->findComponentById("page2");
+    ASSERT_EQ(0.0, affectedText->getCalculated(kPropertyOpacity).asNumber());
+
+    affectedText = component->findComponentById("page3");
+    ASSERT_EQ(0.0, affectedText->getCalculated(kPropertyOpacity).asNumber());
+
+    advanceTime(1000);
+
+    affectedText = component->findComponentById("page1");
+    ASSERT_TRUE(affectedText->getCalculated(kPropertyLaidOut).getBoolean());
+    ASSERT_EQ(1.0, affectedText->getCalculated(kPropertyOpacity).asNumber());
+
+    affectedText = component->findComponentById("page2");
+    ASSERT_EQ(1.0, affectedText->getCalculated(kPropertyOpacity).asNumber());
+
+    affectedText = component->findComponentById("page3");
+    ASSERT_EQ(1.0, affectedText->getCalculated(kPropertyOpacity).asNumber());
 }

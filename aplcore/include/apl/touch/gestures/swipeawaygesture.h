@@ -64,6 +64,7 @@ private:
 
     SwipeAwayActionType mAction;
     SwipeDirection mDirection;
+    SwipeDirection mDirectionAssigned;
     Object mOnSwipeMove;
     Object mOnSwipeDone;
     Object mItems;

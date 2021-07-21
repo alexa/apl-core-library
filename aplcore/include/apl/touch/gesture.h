@@ -20,6 +20,7 @@
 #include "apl/touch/pointerevent.h"
 #include "apl/touch/gesturestep.h"
 #include "apl/utils/bimap.h"
+#include "apl/utils/counter.h"
 #include "apl/utils/noncopyable.h"
 
 namespace apl {
@@ -45,7 +46,8 @@ extern Bimap<GestureType, std::string> sGestureTypeBimap;
  * one of them is triggered. After that triggered gesture considered active and will consume all events until
  * finished/reset.
  */
-class Gesture : public NonCopyable {
+class Gesture : public Counter<Gesture>,
+                public NonCopyable {
 public:
     static std::shared_ptr<Gesture> create(const ActionablePtr& actionable, const Object& object);
 

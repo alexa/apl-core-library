@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -102,4 +102,21 @@ TEST(DefaultConsole, VerifyLog)
     ASSERT_EQ(1, bridge->mCount);
     ASSERT_EQ(LogLevel::kWarn, bridge->mLevel);
     ASSERT_STREQ("unittest_session.cpp:TestBody : TestVerifyLog", bridge->mLog.c_str());
+}
+
+/**
+ * Test to verify that user strings that may get log are not expanded and may access to
+ * non valid positions.
+ */
+TEST(DefaultConsole, UserDataInjection)
+{
+    auto bridge = std::make_shared<TestLoggingBridge>();
+    LoggerFactory::instance().initialize(bridge);
+
+    auto session = makeDefaultSession();
+    // if this entry expands, it will crash
+    CONSOLE_S(session) << "cce   %s";
+    ASSERT_EQ(1, bridge->mCount);
+    ASSERT_EQ(LogLevel::kWarn, bridge->mLevel);
+    ASSERT_STREQ("unittest_session.cpp:TestBody : cce   %s", bridge->mLog.c_str());
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -26,38 +26,19 @@ class Object;
 
 namespace datagrammar {
 
-// Pull these two out so we can identify them when extracting symbols from a Node.
-Object ApplyArrayAccess(const std::vector<Object>& args);
-Object ApplyFieldAccess(const std::vector<Object>& args);
+extern Object CalculateUnaryPlus(const Object& arg);
+extern Object CalculateUnaryMinus(const Object& arg);
+extern Object CalculateUnaryNot(const Object& arg);
+extern Object CalculateMultiply(const Object& a, const Object& b);
+extern Object CalculateDivide(const Object& a, const Object& b);
+extern Object CalculateRemainder(const Object& a, const Object& b);
+extern Object CalculateAdd(const Object& a, const Object& b);
+extern Object CalculateSubtract(const Object& a, const Object& b);
+extern Object CalcFieldAccess(const Object& a, const Object& b);
+extern Object CalcArrayAccess(const Object& a, const Object& b);
 
-// Use these to construct an Object which may be a node or a calculated value
-extern Object UnaryPlus(std::vector<Object>&& );
-extern Object UnaryMinus(std::vector<Object>&& );
-extern Object UnaryNot(std::vector<Object>&& );
-
-extern Object Multiply(std::vector<Object>&& );
-extern Object Divide(std::vector<Object>&& );
-extern Object Remainder(std::vector<Object>&& );
-extern Object Add(std::vector<Object>&& );
-extern Object Subtract(std::vector<Object>&& );
-
-extern Object LessThan(std::vector<Object>&& );
-extern Object GreaterThan(std::vector<Object>&& );
-extern Object LessEqual(std::vector<Object>&& );
-extern Object GreaterEqual(std::vector<Object>&& );
-extern Object Equal(std::vector<Object>&& );
-extern Object NotEqual(std::vector<Object>&& );
-extern Object And(std::vector<Object>&& );
-extern Object Or(std::vector<Object>&& );
-extern Object Nullc(std::vector<Object>&& );
-extern Object Ternary(std::vector<Object>&& );
-
-extern Object Combine(std::vector<Object>&& );
-extern Object Symbol(const Context&, std::vector<Object>&&, const std::string& );
-extern Object FieldAccess(std::vector<Object>&& );
-extern Object ArrayAccess(std::vector<Object>&& );
-extern Object FunctionCall(std::vector<Object>&& );
-
+extern int Compare(const Object& a, const Object& b);
+extern Object MergeOp(const Object& a, const Object& b);
 
 } // datagrammar
 } // apl

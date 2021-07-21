@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -468,6 +468,6 @@ TEST_F(CommandSetValueTest, TextLayout)
     root->clearPending();  // This toggles the layout pass
 
     ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyText));
-    ASSERT_TRUE(CheckDirty(root, text));
+    ASSERT_TRUE(CheckDirty(root, component, text));
     ASSERT_TRUE(IsEqual(Rect(0, 0, s.size() * 10, 10), text->getCalculated(kPropertyBounds)));
 }

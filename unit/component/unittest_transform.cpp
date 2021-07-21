@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -241,6 +241,7 @@ static const char *VERTICAL_SEQUENCE =
 TEST_F(ComponentTransformTest, VerticalSequence)
 {
     loadDocument(VERTICAL_SEQUENCE);
+    advanceTime(10);
 
     ASSERT_EQ(Transform2D(), component->getGlobalToLocalTransform());
 
@@ -290,6 +291,7 @@ static const char *HORIZONTAL_SEQUENCE =
 TEST_F(ComponentTransformTest, HorizontalSequence)
 {
     loadDocument(HORIZONTAL_SEQUENCE);
+    advanceTime(10);
 
     ASSERT_EQ(Transform2D(), component->getGlobalToLocalTransform());
 
@@ -366,6 +368,7 @@ static const char *STALENESS_PROPAGATION =
 TEST_F(ComponentTransformTest, StalenessPropagation)
 {
     loadDocument(STALENESS_PROPAGATION);
+    advanceTime(10);
 
     ASSERT_EQ(Transform2D(), component->getGlobalToLocalTransform());
 

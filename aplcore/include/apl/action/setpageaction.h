@@ -37,14 +37,14 @@ public:
 
     SetPageAction(const TimersPtr& timers,
                   const std::shared_ptr<CoreCommand>& command,
-                  const ComponentPtr& target);
+                  const CoreComponentPtr& target);
 
 private:
     void start();
 
 private:
     std::shared_ptr<CoreCommand> mCommand;
-    ComponentPtr mTarget;
+    CoreComponentPtr mTarget;
 };
 
 } // namespace apl

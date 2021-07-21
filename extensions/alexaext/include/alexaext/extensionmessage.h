@@ -18,408 +18,825 @@
 
 #include <atomic>
 #include <cstdint>
+#include <iostream>
 #include <map>
+
 #include <rapidjson/document.h>
+#include <rapidjson/pointer.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
+
+#include "alexaext/extensionexception.h"
+#include "alexaext/extensionschema.h"
 
 namespace alexaext {
 
-/**
- * Extension schema version.
- */
-enum ExtensionSchemaVersion : std::uint32_t {
-    kAlexaExtVersion10 = 0x1
-};
-
-static std::map<ExtensionSchemaVersion, std::string> sExtensionSchemaVersion = {
-        {kAlexaExtVersion10, "1.0"}
-};
 
 /**
- * Message RPC version.
- */
-enum ExtensionRPCVersion : std::uint32_t {
-    kAlexaExtRPC10 = 0x1
-};
-
-static std::map<ExtensionRPCVersion, std::string> sExtensionRPCVersion = {
-        {kAlexaExtRPC10, "1.0"}
-};
-
-
-enum ExtensionMethod {
-    kExtensionMethodRegister,
-    kExtensionMethodRegisterSuccess,
-    kExtensionMethodRegisterFailure,
-    kExtensionMethodCommand,
-    kExtensionMethodCommandSuccess,
-    kExtensionMethodCommandFailure,
-    kExtensionMethodEvent,
-    kExtensionMethodLiveDataUpdate,
-};
-
-static std::map<ExtensionMethod, std::string> sExtensionMethods = {
-    {kExtensionMethodRegister,        "Register"},
-    {kExtensionMethodRegisterSuccess, "RegisterSuccess"},
-    {kExtensionMethodRegisterFailure, "RegisterFailure"},
-    {kExtensionMethodCommand,         "Command"},
-    {kExtensionMethodCommandSuccess,  "CommandSuccess"},
-    {kExtensionMethodCommandFailure,  "CommandFailure"},
-    {kExtensionMethodEvent,           "Event"},
-    {kExtensionMethodLiveDataUpdate,  "LiveDataUpdate"}
-};
-
-static const rapidjson::Value sEmpty;
-static std::atomic<int> sCmdId(64);
-
-/**
- * Base message holds a document smart pointer to allow for chaining in builders.
+ * The extension message schema defines json based messages used by the extension
+ * framework for communication between the the extension and the execution environment.
+ * The schema supports messages for extension registration, commands, events, and data binding.
+ * The payload of extension messages is defined by the Extension Schema.
  *
- * TODO this is an experimental class, the API is expected to change significantly.
+ * Registration: Handshake between runtime and extension when the extension is requested by a document.
+ *      RegistrationRequest: (runtime -> extension) a request to use the extension
+ *      RegistrationSuccess: (extension -> runtime) success response to RegistrationRequest
+ *      RegistrationFailure: (extension -> runtime) failure response to RegistrationRequest
+ *
+ * Commands: Discrete messages sent to the extension from the document.
+ *      Command: (runtime -> extension) invoke an extension command
+ *      CommandSuccess: (extension -> runtime) a successful execution of a requested Command
+ *      CommandFailure: (extension -> runtime) a failure to execute requested Command
+ *
+ * Events: Discrete messages sent by the extension, and received by the document.
+ *     Event: (extension -> runtime) notifies the runtime an event was generated within the Extension
+ *
+ * Data Binding: Dynamic state information streamed from the extension and made available to the document
+ * in the data binding context.
+ *     LiveDataUpdate: (extension -> runtime) notifies the runtime extension generated data has changed
+ *
+ * Extension message are json objects and may be created with using rapidjson, or using the builders from
+ * this class.
+ *
+ * An example message may look as follows:
+ *
+ *     auto event = Event("FunEvent").uri("alexaext:myextension:10")
+ *           .name("myEvent")
+ *           .property("key1", 1)
+ *           .property("key2", true)
+ *           .property("key3", "three");
+ *
+ *
+ * Message builders may be assigned to rapidjson::Document objects.  Move semantics are used
+ * in the assignment, making the memory resources of the builder invalid.
+ *              rapidjson::Document eventDoc = event;
+ *                                OR
+ * rapidjson::Document eventDoc = Event("FunEvent").uri("alexaext:myextension:10")
+ *
+ * Message values can be extracted using the rapidjson:Pointers defined in the builders.  For example:
+ *
+ *              auto uri = Command::URI().Get(rawMessage)->GetString();
+ *
+ *  Rapidjson tutorial: https://rapidjson.org/md_doc_tutorial.html
+ *  Rapidjson Pointers: https://rapidjson.org/md_doc_pointer.html
+ *
  */
+
+static std::string DEFAULT_SCHEMA_VERSION = "1.0";
+
+/**
+ * Base message provides properties common to all messages and supports assignment of
+ * a message builder to a rapidjson::Document.
+ */
+template<typename Message>
 class BaseMessage {
 public:
-
-    BaseMessage& put(const std::string& key, const rapidjson::Value& value) {
-        auto& alloc = mMessage.GetAllocator();
-        rapidjson::Value copy;
-        copy.CopyFrom(value, alloc);
-        mMessage.AddMember(rapidjson::Value(key.c_str(), alloc).Move(), copy, alloc);
-        return *this;
-    }
-
-    BaseMessage& put(const std::string& key, const std::string& value) {
-        auto& alloc = mMessage.GetAllocator();
-        mMessage.AddMember(rapidjson::Value(key.c_str(), alloc).Move(),
-                           rapidjson::Value(value.c_str(), alloc).Move(), alloc);
-        return *this;
-    }
+    virtual ~BaseMessage() = default;
 
     rapidjson::Document& getDocument() {
-        return mMessage;
+        return *mMessage;
     }
 
     operator rapidjson::Document&&() {
-        return std::move(mMessage);
+        return std::move(*mMessage);
     }
 
-    static std::string getTarget(const rapidjson::Value& message) {
-        if (message.HasMember("target")) {
-            return message["target"].GetString();
-        }
-        return "";
+    // deprecated, use uri
+    Message& target(const std::string& target) {
+        uri(target);
+        return static_cast<Message&>(*this);
     }
 
-    static std::string getVersion(const rapidjson::Value& message) {
-        if (message.HasMember("version")) {
-            return message["version"].GetString();
-        }
-        return "";
+    // deprecated, use URI
+    static const rapidjson::Pointer& TARGET() {
+        static const rapidjson::Pointer ptr("/target");
+        return ptr;
     }
 
-    static std::string getMethod(const rapidjson::Value& message) {
-        if (message.HasMember("method")) {
-            return message["method"].GetString();
-        }
-        return "";
+    Message& uri(const std::string& uri) {
+        URI().Set(*mMessage, uri.c_str());
+        TARGET().Set(*mMessage, uri.c_str());
+        return static_cast<Message&>(*this);
     }
 
-    static const rapidjson::Value& getValue(const char* key, const rapidjson::Value& message) {
-        if (message.HasMember(key))
-            return message[key];
-        return sEmpty;
+    static const rapidjson::Pointer& URI() {
+        static const rapidjson::Pointer ptr("/uri");
+        return ptr;
+    }
+
+    static const rapidjson::Pointer& VERSION() {
+        static const rapidjson::Pointer ptr("/version");
+        return ptr;
+    }
+
+    static const rapidjson::Pointer& METHOD() {
+        static const rapidjson::Pointer ptr("/method");
+        return ptr;
     }
 
 protected:
-    explicit BaseMessage() {
-        mMessage.SetObject();
+
+    explicit BaseMessage(const std::string& method, const std::string& version)
+            : mMessage(std::make_shared<rapidjson::Document>()) {
+        VERSION().Set(*mMessage, version.c_str());
+        METHOD().Set(*mMessage, method.c_str());
     }
 
-    explicit BaseMessage(const std::string& uri, ExtensionMethod method)
-            : BaseMessage(sExtensionMethods[method], uri) {}
+    std::shared_ptr<rapidjson::Document> mMessage;
+};
 
-    explicit BaseMessage(const std::string& uri, const std::string& method) {
-        mMessage.SetObject();
-        put("target", uri);
-        put("uri", uri);
-        put("version", sExtensionRPCVersion[kAlexaExtRPC10]);
-        put("method", method);
+/**
+ * Base failure message contains error and error codes and error messages
+ */
+template<typename Failure>
+class BaseFailure {
+public:
+    virtual ~BaseFailure() = default;
+
+    Failure& errorCode(int errorCode) {
+        CODE().Set(*mFailMessage, errorCode);
+        return static_cast<Failure&>(*this);
     }
 
-    rapidjson::Document mMessage;
+    static const rapidjson::Pointer& CODE() {
+        static const rapidjson::Pointer ptr("/code");
+        return ptr;
+    }
+
+    Failure& errorMessage(const std::string errorMessage) {
+        MESSAGE().Set(*mFailMessage, errorMessage.c_str());
+        return static_cast<Failure&>(*this);
+    }
+
+    static const rapidjson::Pointer& MESSAGE() {
+        static const rapidjson::Pointer ptr("/message");
+        return ptr;
+    }
+
+
+protected:
+    explicit BaseFailure(const std::shared_ptr<rapidjson::Document>& failMessage)
+            : mFailMessage(failMessage) {}
+
+    std::shared_ptr<rapidjson::Document> mFailMessage;
 };
 
 
 /**
- * Registration Request builder.
+ * Trait for messages that carry a property payload.
+ * This class creates the payload container object, only when a value is set.
  */
-class RegistrationRequest : public BaseMessage {
+template<typename Message>
+class Payload {
 public:
-    explicit RegistrationRequest(const std::string& uri)
-            : BaseMessage(uri, sExtensionMethods[kExtensionMethodRegister]) {}
 
+    // Set a complex property with move semantics.
+    Message& property(const std::string& key, rapidjson::Value& value) {
+        auto& alloc =  mPayloadMessage->GetAllocator();
+        getPath()->AddMember(rapidjson::Value().SetString(key.c_str(), alloc),
+                        value.Move(),
+                        alloc);
+        return static_cast<Message&>(*this);
+    }
+
+    // Set a complex property with copy semantics.
+    Message& property(const std::string& key, const rapidjson::Value& value) {
+        auto& alloc =  mPayloadMessage->GetAllocator();
+        getPath()->AddMember(rapidjson::Value().SetString(key.c_str(), alloc),
+                rapidjson::Value().CopyFrom(value, alloc),
+                       alloc);
+        return static_cast<Message&>(*this);
+    }
+
+    // Set a property of type string
+    Message& property(const std::string& key, const std::string& value) {
+        return property(key, value.c_str());
+    }
+
+    Message& property(const std::string& key, const char *value) {
+        auto& alloc =  mPayloadMessage->GetAllocator();
+        getPath()->AddMember(rapidjson::Value().SetString(key.c_str(), alloc ),
+                             rapidjson::Value().SetString(value, alloc), alloc);
+        return static_cast<Message&>(*this);
+    }
+
+    /**
+     * Set a property of type T. Supports primitive types:
+    * tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float
+    */
+    template<typename T,
+             typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
+    Message& property(const std::string& key, const T value) {
+        auto& alloc =  mPayloadMessage->GetAllocator();
+        getPath()->AddMember(rapidjson::Value().SetString(key.c_str(), alloc ),
+                rapidjson::Value().Set(value), alloc);
+        return static_cast<Message&>(*this);
+    }
+
+protected:
+    explicit Payload(const std::shared_ptr<rapidjson::Document>& payloadMessage, const rapidjson::Pointer& path)
+            : mPayloadMessage(payloadMessage), mPath(path) {}
+
+    rapidjson::Value * getPath() {
+        rapidjson::Value *container = mPath.Get(*mPayloadMessage);
+        if (!container) {
+            container = &mPath.Set(*mPayloadMessage,rapidjson::Value(rapidjson::kObjectType));
+        }
+        return container;
+    }
+
+protected:
+    std::shared_ptr<rapidjson::Document> mPayloadMessage;
+    rapidjson::Pointer mPath;
+};
+
+/**
+ * Get a value of type T, or return the provided default. Supports primitive types:
+ * tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float
+*/
+template<typename T>
+T GetWithDefault(const rapidjson::Pointer& path, const rapidjson::Value& root, T defaultValue) {
+    const rapidjson::Value* value = path.Get(root);
+    if (!value)
+        return defaultValue;
+    if (value->Is<T>()) {
+        return value->Get<T>();
+    }
+    if (value->IsNumber()) {
+        return (T) value->GetDouble();
+    }
+    return defaultValue;
+}
+
+template<>
+const char* GetWithDefault<const char*>(const rapidjson::Pointer& path,
+                                         const rapidjson::Value& root,
+                                         const char* defaultValue);
+
+template<>
+std::string GetWithDefault<std::string>(const rapidjson::Pointer& path,
+                                        const rapidjson::Value& root,
+                                        std::string defaultValue);
+
+/**
+ * Get a value of type T, or return the provided default. Supports primitive types:
+ * tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float, const char*
+*/
+template<typename T>
+T GetWithDefault(const std::string& path, const rapidjson::Value& root, T defaultValue) {
+    auto localPath = "/" + path;
+    rapidjson::Pointer ptr(localPath.c_str());
+    return GetWithDefault(ptr, root, defaultValue);
+}
+
+/**
+ * Get a value of type T, or return the provided default. Supports primitive types:
+ * tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float, const char*
+*/
+template<typename T>
+T GetWithDefault(const std::string& path, const rapidjson::Value* root, T defaultValue) {
+    if (!root) return defaultValue;
+    return GetWithDefault<T>(path, *root, defaultValue);
+}
+
+/**
+ * Create a "pretty" string from a Value.
+ */
+inline std::string AsPrettyString(const rapidjson::Value& value) {
+    rapidjson::StringBuffer buffer;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+    value.Accept(writer);
+    return std::string(buffer.GetString());
+}
+
+/**
+ * Create a string from a Value.
+ */
+inline std::string AsString(const rapidjson::Value& value) {
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    value.Accept(writer);
+    return std::string(buffer.GetString());
+}
+
+/**
+ * Registration Request builder. A RegistrationRequest represents a document request
+ * to use an extension.
+ */
+class RegistrationRequest : public BaseMessage<RegistrationRequest> {
+public:
+
+    explicit RegistrationRequest(const std::string& version)
+            : BaseMessage("Register", version) {}
+
+    // uses Copy semantics
     RegistrationRequest& settings(const rapidjson::Value& settings) {
-        put("settings", settings);
+        SETTINGS().Set(*mMessage, settings);
         return *this;
     }
 
-    static const rapidjson::Value& getSettings(const rapidjson::Value& registrationRequest) {
-        if (registrationRequest.HasMember("settings"))
-            return registrationRequest["settings"];
-        return sEmpty;
+    // uses Move semantics
+    RegistrationRequest& settings(rapidjson::Value& settings) {
+        SETTINGS().Set(*mMessage, settings);
+        return *this;
+    }
+
+    static const rapidjson::Pointer& SETTINGS() {
+        static const rapidjson::Pointer ptr("/settings");
+        return ptr;
     }
 };
 
 
-class BaseFailure : public BaseMessage {
+/**
+* Registration Failure builder. A response to RegistrationRequest that indicates failure.
+*/
+class RegistrationFailure :
+        public BaseMessage<RegistrationFailure>,
+        public BaseFailure<RegistrationFailure> {
 public:
+    explicit RegistrationFailure(const std::string& version)
+            : BaseMessage("RegisterFailure", version),
+              BaseFailure(mMessage) {}
 
-    static std::string getMessage(const rapidjson::Value& message) {
-        if (message.HasMember("message")) {
-            // intentional narrowing conversion for systems that store numbers as double
-            return message["message"].GetString();
-        }
-        return "";
+    /**
+     * Creates a new registration failure message indicating that the specified URI is unknown.
+     *
+     * @param uri The unknown URI
+     * @return The new registration failure message
+     */
+    static RegistrationFailure forUnknownURI(const std::string &uri) {
+        return RegistrationFailure(DEFAULT_SCHEMA_VERSION)
+            .uri(uri)
+            .errorCode(kErrorUnknownURI)
+            .errorMessage(sErrorMessage[kErrorUnknownURI] + uri);
     }
 
-    static int getCode(const rapidjson::Value& message) {
-        if (message.HasMember("code")) {
-            // intentional narrowing conversion for systems that store numbers as double
-            return (int) message["code"].GetDouble();
+    /**
+     * Creates a new registration failure message indicating that an invalid message was
+     * received.
+     *
+     * @param uri The URI of the extension
+     * @return The new registration failure message
+     */
+    static RegistrationFailure forInvalidMessage(const std::string &uri) {
+        return RegistrationFailure(DEFAULT_SCHEMA_VERSION)
+            .uri(uri)
+            .errorCode(kErrorInvalidMessage)
+            .errorMessage(sErrorMessage[kErrorInvalidMessage]);
+    }
+
+    /**
+     * Creates a new registration failure message indicating that an unknown exception has
+     * been encountered.
+     *
+     * @param uri The URI of the extension
+     * @return The new registration failure message
+     */
+    static RegistrationFailure forUnknownException(const std::string &uri) {
+        return RegistrationFailure(DEFAULT_SCHEMA_VERSION)
+            .uri(uri)
+            .errorCode(kErrorException)
+            .errorMessage(sErrorMessage[kErrorException]);
+    }
+
+    /**
+     * Creates a new registration failure message indicating that an extension encountered
+     * an exception.
+     *
+     * @param uri The URI of the extension
+     * @param message A human-readable message describing the exception
+     * @return The new registration failure message
+     */
+    static RegistrationFailure forException(const std::string &uri, const std::string &message) {
+        std::string errorMessage = sErrorMessage[kErrorExtensionException];
+        auto pos = errorMessage.find("%s");
+        if (pos != std::string::npos) {
+            errorMessage.replace(pos, 2 /* length of %s */, uri);
         }
-        return -1;
+
+        pos = errorMessage.find("%s");
+        if (pos != std::string::npos) {
+            errorMessage.replace(pos, 2 /* length of %s */, message);
+        }
+
+        return RegistrationFailure(DEFAULT_SCHEMA_VERSION)
+            .uri(uri)
+            .errorCode(kErrorExtensionException)
+            .errorMessage(errorMessage);
+    }
+
+    /**
+     * Creates a new registration failure message indicating that the specified command ID failed
+     * to execute.
+     *
+     * @param uri The URI of the extension
+     * @param commandId The ID of the failed command
+     * @return The new registration failure message
+     */
+    static RegistrationFailure forFailedCommand(const std::string &uri, const std::string &commandId) {
+        return RegistrationFailure(DEFAULT_SCHEMA_VERSION)
+            .uri(uri)
+            .errorCode(kErrorFailedCommand)
+            .errorMessage(sErrorMessage[kErrorFailedCommand] + commandId);
+    }
+
+    /**
+     * Creates a new registration failure message indicating that the extension schema
+     * for the specified URI was invalid.
+     *
+     * @param uri The extension URI
+     * @return The new registration failure message
+     */
+    static RegistrationFailure forInvalidExtensionSchema(const std::string &uri) {
+        return RegistrationFailure(DEFAULT_SCHEMA_VERSION)
+            .uri(uri)
+            .errorCode(kErrorInvalidExtensionSchema)
+            .errorMessage(sErrorMessage[kErrorInvalidExtensionSchema] + uri);
+    }
+};
+
+/**
+ * Builder for environment properties.
+ */
+class Environment : public Payload<Environment> {
+public:
+    explicit Environment(const std::shared_ptr<rapidjson::Document>& payloadMessage, const rapidjson::Pointer& path)
+            : Payload(payloadMessage, path) {}
+
+    Environment& version(const std::string& value) {
+        VERSION().Set(*getPath(), value.c_str(), mPayloadMessage->GetAllocator());
+        return *this;
+    }
+
+    static const rapidjson::Pointer& VERSION() {
+        static const rapidjson::Pointer ptr("/version");
+        return ptr;
+    }
+};
+
+/**
+* Registration Success builder. A response to RegistrationRequest the indicates success.
+*/
+class RegistrationSuccess :
+        public BaseMessage<RegistrationSuccess> {
+public:
+    explicit RegistrationSuccess(const std::string& version)
+            : BaseMessage("RegisterSuccess", version) {}
+
+    RegistrationSuccess& token(const std::string& token) {
+        TOKEN().Set(*mMessage, token.c_str());
+        return *this;
+    }
+
+    static const rapidjson::Pointer& TOKEN() {
+        static const rapidjson::Pointer ptr("/token");
+        return ptr;
+    }
+
+    RegistrationSuccess& environment(const std::function<void(Environment&)>& f) {
+        Environment env(mMessage, ENVIRONMENT());
+        f(env);
+        return *this;
+    }
+
+    // uses copy semantics
+    RegistrationSuccess& environment(const rapidjson::Value& environment) {
+        ENVIRONMENT().Set(*mMessage, environment);
+        return *this;
+    }
+
+    static const rapidjson::Pointer& ENVIRONMENT() {
+        static const rapidjson::Pointer ptr("/environment");
+        return ptr;
+    }
+
+    RegistrationSuccess&
+    schema(const std::string& schemaVersion, const std::function<void(ExtensionSchema&)>& f) {
+        ExtensionSchema builder(&mMessage->GetAllocator(), schemaVersion);
+        f(builder);
+        SCHEMA().Set(*mMessage, builder);
+        return *this;
+    }
+
+    // uses copy semantics
+    RegistrationSuccess& schema(const rapidjson::Value& schema) {
+        SCHEMA().Set(*mMessage, schema);
+        return *this;
+    }
+
+    static const rapidjson::Pointer& SCHEMA() {
+        static const rapidjson::Pointer ptr("/schema");
+        return ptr;
+    }
+};
+
+
+/**
+  * Command Request builder. Discrete messages send to the extension from the document.
+  */
+class Command : public BaseMessage<Command>, public Payload<Command> {
+public:
+    explicit Command(const std::string& version)
+            : BaseMessage("Command", version), Payload<Command>(mMessage, PAYLOAD()) {}
+
+    Command& id(int id) {
+        ID().Set(*mMessage, id);
+        return *this;
+    }
+
+    Command& name(const std::string& name) {
+        NAME().Set(*mMessage, name.c_str());
+        return *this;
+    }
+
+    static const rapidjson::Pointer& ID() {
+        static const rapidjson::Pointer ptr("/id");
+        return ptr;
+    }
+
+    static const rapidjson::Pointer& NAME() {
+        static const rapidjson::Pointer ptr("/name");
+        return ptr;
+    }
+
+    static const rapidjson::Pointer& PAYLOAD() {
+        static const rapidjson::Pointer ptr("/payload");
+        return ptr;
+    }
+
+};
+
+/**
+* Command Success builder. A response to Command messages indicating successful execution.
+*/
+class CommandSuccess : public BaseMessage<CommandSuccess> {
+public:
+    explicit CommandSuccess(const std::string& version)
+            : BaseMessage("CommandSuccess", version) {}
+
+    CommandSuccess& id(int id) {
+        ID().Set(*mMessage, id);
+        return *this;
+    }
+
+    // uses copy semantics
+    CommandSuccess& result(const rapidjson::Value& result) {
+        RESULT().Set(*mMessage, result);
+        return *this;
+    }
+
+    static const rapidjson::Pointer& RESULT() {
+        static const rapidjson::Pointer ptr("/result");
+        return ptr;
+    }
+
+    static const rapidjson::Pointer& ID() {
+        static const rapidjson::Pointer ptr("/id");
+        return ptr;
+    }
+};
+
+/**
+* Command Failure builder. A respose to Command messages indicating execution failure.
+*/
+class CommandFailure :
+        public BaseMessage<CommandFailure>,
+        public BaseFailure<CommandFailure> {
+public:
+    explicit CommandFailure(const std::string& version)
+            : BaseMessage("CommandFailure", version),
+              BaseFailure(mMessage) {}
+
+    CommandFailure& id(int id) {
+        ID().Set(*mMessage, id);
+        return *this;
+    }
+
+    static const rapidjson::Pointer& ID() {
+        static const rapidjson::Pointer ptr("/id");
+        return ptr;
+    }
+};
+
+/**
+ * Event builder. Discrete messages sent by the extension, and received by the document.
+ */
+class Event : public BaseMessage<Event>, public Payload<Event> {
+public:
+    explicit Event(const std::string& version)
+            : BaseMessage("Event", version), Payload(mMessage, PAYLOAD()) {}
+
+
+    Event& name(const std::string& name) {
+        NAME().Set(*mMessage, name.c_str());
+        return *this;
+    }
+
+    static const rapidjson::Pointer& NAME() {
+        static const rapidjson::Pointer ptr("/name");
+        return ptr;
+    }
+
+    static const rapidjson::Pointer& PAYLOAD() {
+        static const rapidjson::Pointer ptr("/payload");
+        return ptr;
+    }
+
+};
+
+// forward declare LiveDataUpdate builder dependencies for file readability
+class LiveDataMapOperation;
+class LiveDataArrayOperation;
+
+/**
+ * LiveDataUpdate builder. Dynamic state information streamed from the extension and made
+ * available to the document in the data binding context.
+ */
+class LiveDataUpdate
+        : public BaseMessage<LiveDataUpdate>,
+          public SchemaBuilder {
+public:
+    explicit LiveDataUpdate(const std::string& version)
+            : BaseMessage("LiveDataUpdate", version),
+              SchemaBuilder(mMessage) {
+        OPERATIONS().Set(*mMessage, rapidjson::Value(rapidjson::kArrayType));
+    }
+
+    LiveDataUpdate& objectName(const std::string& name) {
+        OBJECT_NAME().Set(*mMessage, name.c_str());
+        return *this;
+    }
+
+    static const rapidjson::Pointer& OBJECT_NAME() {
+        static const rapidjson::Pointer ptr("/name");
+        return ptr;
+    }
+
+    LiveDataUpdate&
+    liveDataArrayUpdate(const std::function<void(LiveDataArrayOperation &)> &builder) {
+        factoryPush<LiveDataArrayOperation>(OPERATIONS(), builder);
+        return *this;
+    }
+
+    LiveDataUpdate&
+    liveDataMapUpdate(const std::function<void(LiveDataMapOperation&)>& builder) {
+        factoryPush<LiveDataMapOperation>(OPERATIONS(), builder);
+        return *this;
+    }
+
+    static const rapidjson::Pointer& OPERATIONS() {
+        static const rapidjson::Pointer ptr("/operations");
+        return ptr;
+    }
+};
+
+/**
+ * Base builder for a live data operation.
+ */
+template<typename Operation>
+class LiveDataOperation {
+public:
+
+    virtual Operation& type(const std::string& type) {
+        TYPE().Set(*mValue, type.c_str(), *mAllocator);
+        return static_cast<Operation&>(*this);
+    }
+
+    static const rapidjson::Pointer& TYPE() {
+        static const rapidjson::Pointer ptr("/type");
+        return ptr;
+    }
+
+    /**
+    * Add an Item of type T. Supports primitive types:
+    * tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float, const char*
+    */
+    template<typename T>
+    Operation& item(const T value) {
+        ITEM().Set(*mValue, value, *mAllocator);
+        return static_cast<Operation&>(*this);
+    }
+
+    // Add a complex item with move semantics.
+    Operation& item(rapidjson::Value& value) {
+        ITEM().Set(*mValue, value, *mAllocator);
+        return static_cast<Operation&>(*this);
+    }
+
+    // Add a item string value.
+    Operation& item(const std::string& value) {
+        ITEM().Set(*mValue, rapidjson::Value().Set(value.c_str(), *mAllocator), *mAllocator);
+        return static_cast<Operation&>(*this);
+    }
+
+    // Add a complex item with copy semantics.
+    Operation& item(const rapidjson::Value& value) {
+        ITEM().Set(*mValue, rapidjson::Value().CopyFrom(value, *mAllocator), *mAllocator);
+        return static_cast<Operation&>(*this);
+    }
+
+    static const rapidjson::Pointer& ITEM() {
+        static const rapidjson::Pointer ptr("/item");
+        return ptr;
+    }
+
+    operator rapidjson::Value&&() {
+        return std::move(*mValue);
     }
 
 protected:
-    explicit BaseFailure(const std::string& uri, const std::string& method, int errorCode,
-                         const std::string& errorMessage)
-            : BaseMessage(uri, method) {
-        auto& alloc = mMessage.GetAllocator();
-        mMessage.AddMember("code", errorCode, alloc);
-        mMessage.AddMember("message", rapidjson::Value(errorMessage.c_str(), alloc).Move(), alloc);
-    }
-};
 
+    explicit LiveDataOperation(rapidjson::MemoryPoolAllocator<>* allocator)
+            : mAllocator(allocator),
+              mValue(std::make_shared<rapidjson::Value>()) {}
 
-/**
-* Registration Failure builder.
-*/
-class RegistrationFailure : public BaseFailure {
-public:
-    explicit RegistrationFailure(const std::string& uri, int errorCode, const std::string& errorMessage)
-            : BaseFailure(uri, sExtensionMethods[kExtensionMethodRegisterFailure], errorCode, errorMessage) {}
+    rapidjson::Document::AllocatorType* mAllocator;
+    std::shared_ptr<rapidjson::Value> mValue;
 };
 
 /**
-* Registration Success builder.
-*/
-class RegistrationSuccess : public BaseMessage {
-public:
-    explicit RegistrationSuccess(const std::string& uri, const std::string& token)
-            : BaseMessage(uri, sExtensionMethods[kExtensionMethodRegisterSuccess]) {
-        put("token", token);
-    }
-
-    RegistrationSuccess& environment(const rapidjson::Value& environment) {
-        put("environment", environment);
-        return *this;
-    }
-
-    RegistrationSuccess& schema(const rapidjson::Value& schema) {
-        put("schema", schema);
-        return *this;
-    }
-
-    static const rapidjson::Value& getEnvironment(const rapidjson::Value& message) {
-        return BaseMessage::getValue("environment", message);
-    }
-
-    static const rapidjson::Value& getSchema(const rapidjson::Value& message) {
-        return BaseMessage::getValue("schema", message);
-    }
-};
-
-/**
- * Extension Schema builder.
+ * Live data operation update for a data map.
  */
-class ExtensionSchema : public BaseMessage {
+class LiveDataMapOperation
+        : public LiveDataOperation<LiveDataMapOperation> {
 public:
-    explicit ExtensionSchema(const std::string& uri)
-            : BaseMessage() {
-        auto& alloc = mMessage.GetAllocator();
-        mMessage.AddMember(rapidjson::Value("events", alloc).Move(),
-                           rapidjson::Value(rapidjson::kArrayType), alloc);
-        mMessage.AddMember(rapidjson::Value("types", alloc).Move(),
-                           rapidjson::Value(rapidjson::kArrayType), alloc);
-        mMessage.AddMember(rapidjson::Value("commands", alloc).Move(),
-                           rapidjson::Value(rapidjson::kArrayType), alloc);
-        mMessage.AddMember(rapidjson::Value("liveData", alloc).Move(),
-                           rapidjson::Value(rapidjson::kArrayType), alloc);
+
+    explicit LiveDataMapOperation(rapidjson::Document::AllocatorType* allocator)
+            : LiveDataOperation(allocator) {
     }
 
-    ExtensionSchema& event(const std::string& eventName) {
-        return event(eventName, true);
+    // Map operation name: Set, Remove
+    LiveDataMapOperation& type(const std::string& type) override {
+        return LiveDataOperation::type(type);
     }
 
-    ExtensionSchema& event(const std::string& eventName, bool fastMode) {
-        auto events = mMessage["events"].GetArray();
-        auto& alloc = mMessage.GetAllocator();
-        rapidjson::Value event(rapidjson::kObjectType);
-        event.AddMember(rapidjson::Value("name", alloc).Move(),
-                        rapidjson::Value(eventName.c_str(), alloc).Move(), alloc);
-        event.AddMember(rapidjson::Value("fastMode", alloc).Move(),
-                        fastMode, alloc);
-        events.PushBack(event.Move(), alloc);
+    static const rapidjson::Pointer& TYPE() {
+        return LiveDataOperation::TYPE();
+    }
+
+    static const rapidjson::Pointer& ITEM() {
+        return LiveDataOperation::ITEM();
+    }
+
+    // Array index.
+    LiveDataMapOperation& key(const std::string& key) {
+        KEY().Set(*mValue, key.c_str(), *mAllocator);
         return *this;
     }
 
-};
-
-
-/**
-  * Command Request builder.
-  */
-class Command : public BaseMessage {
-public:
-    explicit Command(const std::string& uri, const std::string& commandName)
-            : BaseMessage(uri, sExtensionMethods[kExtensionMethodCommand]) {
-        auto& alloc = mMessage.GetAllocator();
-        mMessage.AddMember("id", sCmdId++, alloc);
-        mMessage.AddMember("payload", rapidjson::Value(rapidjson::kObjectType).Move(), alloc);
-        mMessage.AddMember("name", rapidjson::Value(commandName.c_str(), alloc).Move(), alloc);
-    }
-
-    Command& property(const std::string& key, rapidjson::Value& value) {
-        auto& alloc = mMessage.GetAllocator();
-        auto payload = mMessage["payload"].GetObject();
-        rapidjson::Value copy;
-        copy.CopyFrom(value,mMessage.GetAllocator());
-        payload.AddMember(rapidjson::Value(key.c_str(), alloc).Move(), copy, alloc);
-        return *this;
-    }
-
-    static int getId(const rapidjson::Value& command) {
-        if (command.HasMember("id")) {
-            // intentional narrowing conversion for systems that store numbers as double
-            return (int) command["id"].GetDouble();
-        }
-        return -1;
-    }
-
-    static std::string getName(const rapidjson::Value& command) {
-        if (command.HasMember("name")) {
-            // intentional narrowing conversion for systems that store numbers as double
-            return command["name"].GetString();
-        }
-        return "";
-    }
-
-    static const rapidjson::Value& getPayload(const rapidjson::Value& message) {
-        return BaseMessage::getValue("payload", message);
-    }
-};
-
-
-/**
-* Registration Success builder.
-*/
-class CommandSuccess : public BaseMessage {
-public:
-    explicit CommandSuccess(const std::string& uri, int commandId)
-            : BaseMessage(uri, sExtensionMethods[kExtensionMethodCommandSuccess]) {
-        auto& alloc = mMessage.GetAllocator();
-        mMessage.AddMember("id", commandId, alloc);
-    }
-
-    CommandSuccess& result(const rapidjson::Value& result) {
-        put("result", result);
-        return *this;
+    static const rapidjson::Pointer& KEY() {
+        static const rapidjson::Pointer ptr("/key");
+        return ptr;
     }
 };
 
 /**
-* Command Failure builder.
-*/
-class CommandFailure : public BaseFailure {
-public:
-    explicit CommandFailure(const std::string& uri, int commandId, int errorCode,
-                            const std::string& errorMessage)
-            : BaseFailure(uri, sExtensionMethods[kExtensionMethodCommandFailure], errorCode, errorMessage) {
-        auto& alloc = mMessage.GetAllocator();
-        mMessage.AddMember("id", commandId, alloc);
-    }
-
-    static int getId(const rapidjson::Value& command) {
-        if (command.HasMember("id")) {
-            // intentional narrowing conversion for systems that store numbers as double
-            return (int) command["id"].GetDouble();
-        }
-        return -1;
-    }
-};
-
-
-/**
- * Event builder.
+ * Live data operation update for array data.
  */
-class Event : public BaseMessage {
+class LiveDataArrayOperation
+        : public LiveDataOperation<LiveDataArrayOperation> {
 public:
-    explicit Event(const std::string& uri, const std::string& eventName)
-            : BaseMessage(uri, sExtensionMethods[kExtensionMethodEvent]) {
-        auto& alloc = mMessage.GetAllocator();
-        mMessage.AddMember("name", rapidjson::Value(eventName.c_str(), alloc).Move(), alloc);
-        mMessage.AddMember("payload", rapidjson::Value(rapidjson::kObjectType).Move(), alloc);
+
+    explicit LiveDataArrayOperation(rapidjson::Document::AllocatorType* allocator)
+            : LiveDataOperation(allocator) {
     }
 
-    Event& property(const std::string& key, rapidjson::Value& value) {
-        auto& alloc = mMessage.GetAllocator();
-        auto payload = mMessage["payload"].GetObject();
-        rapidjson::Value copy;
-        copy.CopyFrom(value,mMessage.GetAllocator());
-        payload.AddMember(rapidjson::Value(key.c_str(), alloc).Move(), value, alloc);
+    // Array operation name: Insert, Update, Set, Remove, Clear
+    LiveDataArrayOperation& type(const std::string& type) override {
+        return LiveDataOperation::type(type);
+    }
+
+    static const rapidjson::Pointer& TYPE() {
+        static const rapidjson::Pointer ptr("/type");
+        return ptr;
+    }
+
+    // Array index.
+    LiveDataArrayOperation& index(int index) {
+        INDEX().Set(*mValue, index, *mAllocator);
         return *this;
     }
 
-    static std::string getName(const rapidjson::Value& event) {
-        if (event.HasMember("name")) {
-            // intentional narrowing conversion for systems that store numbers as double
-            return event["name"].GetString();
-        }
-        return "";
-    }
-};
-
-
-/**
- * LiveDataUpdate builder.
- */
-class LiveDataUpdate : public BaseMessage {
-public:
-    explicit LiveDataUpdate(const std::string& uri, const std::string& objectName)
-            : BaseMessage(uri, sExtensionMethods[kExtensionMethodLiveDataUpdate]) {
-        auto& alloc = mMessage.GetAllocator();
-        mMessage.AddMember("name", rapidjson::Value(objectName.c_str(), alloc).Move(), alloc);
-        mMessage.AddMember("operations", rapidjson::Value(rapidjson::kArrayType).Move(), alloc);
+    static const rapidjson::Pointer& INDEX() {
+        static const rapidjson::Pointer ptr("/index");
+        return ptr;
     }
 
-    LiveDataUpdate& operation(const rapidjson::Value& operation) {
-        auto& alloc = mMessage.GetAllocator();
-        auto op = mMessage["operation"].GetArray();
-        rapidjson::Value copy;
-        copy.CopyFrom(operation,mMessage.GetAllocator());
-        op.PushBack(copy, alloc);
+    // Remove Only, Number of items to remove.
+    LiveDataArrayOperation& count(const int count) {
+        COUNT().Set(*mValue, count, *mAllocator);
         return *this;
     }
 
-    // TODO Operation builders for different operation types
-
-    static std::string getName(const rapidjson::Value& liveDataUpdate) {
-        if (liveDataUpdate.HasMember("name")) {
-            return liveDataUpdate["name"].GetString();
-        }
-        return "";
+    static const rapidjson::Pointer& COUNT() {
+        static const rapidjson::Pointer ptr("/count");
+        return ptr;
     }
 };
 
 } // namespace alexaext
 
 #endif // ALEXAEXT_EXTENSIONMESSAGE_H
+
+

@@ -257,7 +257,7 @@ TEST_F(ExtensionClientTest, ExtensionParseRequiredMalFormed) {
 static const char* EXTENSION_SIMPLE = R"({
   "method": "RegisterSuccess",
   "version": "1.0",
-  "token": "TOKEN",
+  "token": "TOKEN-12",
   "extension": "aplext:hello:10",
   "schema": {"type":"Schema", "version":"1.0", "uri":"aplext:hello:10"}
 })";
@@ -266,6 +266,28 @@ TEST_F(ExtensionClientTest, ExtensionParseRequired) {
     createConfigAndClient(EXT_DOC);
     ASSERT_TRUE(client->processMessage(nullptr, EXTENSION_SIMPLE));
     ASSERT_FALSE(ConsoleMessage());
+    ASSERT_TRUE(client->registrationMessageProcessed());
+    ASSERT_EQ("TOKEN-12", client->getConnectionToken());
+    auto ext = configPtr->getSupportedExtensions();
+    ASSERT_EQ(1, ext.size());
+    ASSERT_NE(ext.end(), ext.find("aplext:hello:10"));
+}
+
+static const char* EXTENSION_DEFERRED = R"({
+  "method": "RegisterSuccess",
+  "version": "1.0",
+  "token": "<AUTO_TOKEN>",
+  "extension": "aplext:hello:10",
+  "schema": {"type":"Schema", "version":"1.0", "uri":"aplext:hello:10"}
+})";
+
+TEST_F(ExtensionClientTest, ExtensionParseAutoToken){
+    createConfigAndClient(EXT_DOC);
+    ASSERT_TRUE(client->processMessage(nullptr, EXTENSION_DEFERRED));
+    ASSERT_FALSE(ConsoleMessage());
+    ASSERT_TRUE(client->registrationMessageProcessed());
+    const auto &token = client->getConnectionToken();
+    ASSERT_EQ(0, token.rfind("aplext:hello:10", 0));
     auto ext = configPtr->getSupportedExtensions();
     ASSERT_EQ(1, ext.size());
     ASSERT_NE(ext.end(), ext.find("aplext:hello:10"));
@@ -328,16 +350,19 @@ static const char* EXTENSION_COMMANDS = R"(
     },
     {
       "name": "lead",
-      "requireResponse": "true"
+      "requireResponse": true,
+      "allowFastMode":  false
     },
     {
       "name": "freeze",
       "requireResponse": false,
+      "allowFastMode": true,
       "payload": "FreezePayload"
     },
     {
       "name": "clipEntity",
       "requireResponse": false,
+      "allowFastMode": true,
       "payload": {
         "type": "FreezePayload",
         "description": "Don't really care about this property."
@@ -473,15 +498,18 @@ TEST_F(ExtensionClientTest, ExtensionParseCommands) {
     ASSERT_EQ("aplext:hello:10", commands[0].getURI());
     ASSERT_EQ("follow", commands[0].getName());
     ASSERT_FALSE(commands[0].getRequireResolution());
+    ASSERT_FALSE(commands[0].getAllowFastMode());
     ASSERT_TRUE(commands[0].getPropertyMap().empty());
 
     ASSERT_EQ("aplext:hello:10", commands[1].getURI());
     ASSERT_EQ("lead", commands[1].getName());
     ASSERT_TRUE(commands[1].getRequireResolution());
+    ASSERT_FALSE(commands[1].getAllowFastMode());
     ASSERT_TRUE(commands[1].getPropertyMap().empty());
 
     ASSERT_EQ("aplext:hello:10", commands[2].getURI());
     ASSERT_EQ("freeze", commands[2].getName());
+    ASSERT_TRUE(commands[2].getAllowFastMode());
     ASSERT_FALSE(commands[2].getRequireResolution());
 
     auto props = commands[2].getPropertyMap();
@@ -496,6 +524,7 @@ TEST_F(ExtensionClientTest, ExtensionParseCommands) {
     ASSERT_EQ("aplext:hello:10", commands[3].getURI());
     ASSERT_EQ("clipEntity", commands[3].getName());
     ASSERT_FALSE(commands[3].getRequireResolution());
+    ASSERT_TRUE(commands[3].getAllowFastMode());
 
     props = commands[3].getPropertyMap();
     ASSERT_EQ(3, props.size());
@@ -1309,7 +1338,7 @@ TEST_F(ExtensionClientTest, LiveDataUpdates) {
     ASSERT_EQ("onDeviceUpdate:true::", text->getCalculated(kPropertyText).asString());
 
     ASSERT_TRUE(client->processMessage(root, ENTITY_MAP_SET_POSITION_AND_ROTATION));
-    ASSERT_TRUE(ConsoleMessage());
+    ASSERT_FALSE(ConsoleMessage());
     ASSERT_EQ("onDeviceUpdate:true::", text->getCalculated(kPropertyText).asString());
     ASSERT_TRUE(client->processMessage(root, ENTITY_MAP_REMOVE_FAIL));
     ASSERT_TRUE(ConsoleMessage());
@@ -1915,4 +1944,89 @@ TEST_F(ExtensionClientTest, BadlyExtendedTypes) {
     const auto& askParams = ask.getPropertyMap();
     ASSERT_EQ(1, askParams.size());
     ASSERT_TRUE(askParams.count("department"));
+}
+
+
+/**
+ * A Weather Live Data map example.
+ * The map does not have the properties defined at time of registration,
+ * but provides LiveDataUpdates to property values post registration.
+ */
+static const char* WEATHER = R"(
+"types": [
+  {
+    "name": "Weather",
+    "properties": {
+    }
+  }
+],
+"liveData": [
+    {"name": "MyWeather", "type": "Weather"}
+]
+)";
+
+static const char* WEATHER_MAP_SET_PROP = R"(
+{
+  "version": "1.0",
+  "method": "LiveDataUpdate",
+  "name": "MyWeather",
+  "target": "aplext:hello:10",
+  "operations": [
+    {
+      "type": "Set",
+      "key": "location",
+      "item": "Boston"
+    },
+    {
+      "type": "Set",
+      "key": "temperature",
+      "item": "64"
+    },
+    {
+      "type": "Set",
+      "key": "propNull"
+    }
+  ]
+})";
+TEST_F(ExtensionClientTest, TypeWithoutPropertis) {
+    createConfigAndClient(EXT_DOC);
+
+    std::string doc = "{";
+    doc += EXTENSION_DEFINITION;
+    doc += WEATHER;
+    doc += "}}";
+
+    ASSERT_TRUE(client->processMessage(nullptr, doc));
+    ASSERT_FALSE(ConsoleMessage());
+
+    // Verify the extension is registered
+    auto ext = configPtr->getSupportedExtensions();
+    ASSERT_EQ(1, ext.size());
+    auto ex = ext.find("aplext:hello:10");
+    ASSERT_NE(ext.end(), ex);
+
+    // Verify the live map is configured, without properties
+    auto liveDataMap = configPtr->getLiveObjectMap();
+    ASSERT_EQ(1, liveDataMap.size());
+    auto& map = liveDataMap.at("MyWeather");
+    ASSERT_EQ(Object::ObjectType::kMapType, map->getType());
+    auto liveMap = std::dynamic_pointer_cast<LiveMap>(map);
+    ASSERT_EQ(0, liveMap->getMap().size());
+
+    // Inflate the doc
+    initializeContext();
+
+    // Verify the defined LiveData object exist in the document context as an empty map
+    ASSERT_TRUE(IsEqual(Object::EMPTY_MAP(), evaluate(*context, "${MyWeather}")));
+
+    // Process an update message
+    client->processMessage(root, WEATHER_MAP_SET_PROP);
+    ASSERT_FALSE(ConsoleMessage());
+
+    // Verify the LiveData object exists in the document context with expected properties
+    ASSERT_TRUE(IsEqual(Object::EMPTY_MAP(), evaluate(*context, "${MyWeather}")));
+    ASSERT_TRUE(IsEqual("Boston", evaluate(*context, "${MyWeather.location}")));
+    ASSERT_TRUE(IsEqual("64", evaluate(*context, "${MyWeather.temperature}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${MyWeather.propNull}")));
+
 }

@@ -45,7 +45,7 @@ public:
     bool executeIntrinsicKeyHandlers(KeyHandlerType type, const Keyboard& keyboard) override;
 
 protected:
-    TouchableComponent(const ContextPtr &context, Properties &&properties, const std::string &path) :
+    TouchableComponent(const ContextPtr &context, Properties &&properties, const Path& path) :
         ActionableComponent(context, std::move(properties), path) {}
 
     const ComponentPropDefSet &propDefSet() const override;

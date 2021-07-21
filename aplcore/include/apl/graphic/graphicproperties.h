@@ -27,6 +27,11 @@ enum GraphicScale {
     kGraphicScaleStretch = 3
 };
 
+enum GraphicLayoutDirection {
+    kGraphicLayoutDirectionLTR = 0,
+    kGraphicLayoutDirectionRTL = 1
+};
+
 enum GraphicLineCap {
     kGraphicLineCapButt = 0,
     kGraphicLineCapRound = 1,
@@ -60,6 +65,8 @@ enum GraphicPropertyKey {
     kGraphicPropertyFontWeight,
     kGraphicPropertyHeightActual,
     kGraphicPropertyHeightOriginal,
+    kGraphicPropertyLang,
+    kGraphicPropertyLayoutDirection,
     kGraphicPropertyLetterSpacing,
     kGraphicPropertyOpacity,
     kGraphicPropertyPathData,
@@ -111,6 +118,7 @@ enum GraphicVersions {
 
 extern Bimap<int, std::string> sGraphicScaleBimap;
 extern Bimap<int, std::string> sGraphicPropertyBimap;
+extern Bimap<int, std::string> sGraphicLayoutDirectionBimap;
 extern Bimap<int, std::string> sGraphicLineCapBimap;
 extern Bimap<int, std::string> sGraphicLineJoinBimap;
 extern Bimap<int, std::string> sGraphicTextAnchorBimap;

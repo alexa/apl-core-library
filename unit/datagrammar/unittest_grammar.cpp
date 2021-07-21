@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -89,6 +89,7 @@ public:
         rapidjson::Document person;
         person.SetObject();
         person.AddMember("surname", rapidjson::Value("Pat").Move(), person.GetAllocator());
+        person.AddMember("pet", rapidjson::Value("Cat").Move(), person.GetAllocator());
         ctx->putConstant("person", person);
         return evaluate(*ctx, expression);
     }
@@ -123,18 +124,34 @@ TEST_F(GrammarTest, Strings)
     EXPECT_STREQ(u8"\u0916\u093C\u0941\u0936\u0940", doc.GetString());
 }
 
+TEST_F(GrammarTest, Embedded)
+{
+    EXPECT_TRUE(IsEqual("Dog Cat", eval("${ 2==3 ? 'doggy' : 'Dog'  } ${ person.pet }")));
+    EXPECT_TRUE(IsEqual(">Cat<", eval(">${'${person.pet}'}<")));
+    EXPECT_TRUE(IsEqual(">true<", eval(">${1<2}<")));
+    EXPECT_TRUE(IsEqual("> =cat= <", eval("> ${  '=${ String.toLowerCase( person.pet ) }=' } <")));
+    EXPECT_TRUE(IsEqual("> =cat= <", eval("> ${ 1 > 2 ? false : '=${ String.toLowerCase( person.pet ) }=' } <")));
+    EXPECT_TRUE(IsEqual(">=cat=<", eval(
+        ">${1<2 ? '=${ String.toLowerCase( person.pet ) }=' : '-${ String.toUpperCase( person.pet )}-'}<")));
+    EXPECT_TRUE(IsEqual("><", eval(">${ '' }<")));
+    EXPECT_TRUE(IsEqual("true<", eval("${ '${ 1<2 }' }<")));
+    EXPECT_TRUE(IsEqual(">", eval(">${ '' }")));
+    EXPECT_TRUE(IsEqual("", eval("${2<3 ? '' : 'foo'}")));
+}
+
+
 TEST_F(GrammarTest, Symbols)
 {
-    EXPECT_EQ(o(""), eval(""));
-    EXPECT_EQ(o("nothing"), eval("nothing"));
-    EXPECT_EQ(o("   "), eval("   "));
-    EXPECT_EQ(o(""), eval("${}"));
-    EXPECT_EQ(o(""), eval("${''}"));
-    EXPECT_EQ(Object::TRUE_OBJECT(), eval("${true}"));
-    EXPECT_EQ(Object::FALSE_OBJECT(), eval("${false}"));
-    EXPECT_EQ(Object::NULL_OBJECT(), eval("${null}"));
-    EXPECT_EQ(o(6), eval("${6}"));
-    EXPECT_EQ(o("${    "), eval("${    "));
+    EXPECT_TRUE(IsEqual("", eval("")));
+    EXPECT_TRUE(IsEqual("nothing", eval("nothing")));
+    EXPECT_TRUE(IsEqual("   ", eval("   ")));
+    EXPECT_TRUE(IsEqual("", eval("${}")));
+    EXPECT_TRUE(IsEqual("", eval("${''}")));
+    EXPECT_TRUE(IsEqual(Object::TRUE_OBJECT(), eval("${true}")));
+    EXPECT_TRUE(IsEqual(Object::FALSE_OBJECT(), eval("${false}")));
+    EXPECT_TRUE(IsEqual(Object::NULL_OBJECT(), eval("${null}")));
+    EXPECT_TRUE(IsEqual(6, eval("${6}")));
+    EXPECT_TRUE(IsEqual("${    ", eval("${    ")));
 }
 
 TEST_F(GrammarTest, UnaryOperations)
@@ -428,10 +445,12 @@ TEST_F(GrammarTest, Resources)
     auto m = Metrics().size(1024,800);
     auto c = Context::createTestContext(m, RootConfig());
     c->putConstant("@name", "fred");
+    c->putConstant("@func", Easing::parse(c->session(), "linear"));
 
     EXPECT_EQ("fred", c->opt("@name").asString());
     EXPECT_EQ("fred", evaluate(*c, "${@name}").asString());
     EXPECT_EQ("fredfred", evaluate(*c, "${@name + @name}").asString());
+    EXPECT_EQ(0.5, evaluate(*c, "${@func(0.5)}").asNumber());
 }
 
 TEST_F(GrammarTest, Objects)
@@ -595,7 +614,6 @@ static const std::vector<const char *> MALFORMED = {
     // Attribute access
     "${ foo[ }",
     "${ foo] }",
-    "${ [] }",
     "${ ] }",
     "${ [ }",
     "${ ][ }",
@@ -643,8 +661,10 @@ static const std::vector<const char *> MALFORMED = {
 
 TEST_F(GrammarTest, Malformed)
 {
-    for (const auto& m : MALFORMED)
+    for (const auto& m : MALFORMED) {
+        LOG(LogLevel::kDebug) << m;
         EXPECT_TRUE(IsEqual(m, eval(m))) << m;
+    }
 }
 
 static const char* DIMENSIONS_DOC =
@@ -1118,4 +1138,28 @@ TEST_F(GrammarTest, LocaleMethodsIntegration) {
     // Check toUpper integration
     auto upper = root->findComponentById("toUpper");
     ASSERT_EQ("DUMMY", upper->getCalculated(kPropertyText).asString());
+}
+
+
+static const auto INLINE_OBJECT_TESTS = std::vector<std::pair<std::string, Object>> {
+    {"[101,102,103][0]", 101},
+    {"[101,102,103][-1]", 103},
+    {"[101,102,103][4]", Object::NULL_OBJECT()},
+    {"[]", Object::EMPTY_MUTABLE_ARRAY()},
+    {"[].length", 0},
+    {"[101,102,103].length", 3},
+    {"{'a': 101, 'b': 102, 'c': 103}['a']", 101},
+    {"{'a': 'b', 'c': 'd'}['c']", "d"},
+    {"{'a': 'b', 'c': 'd'}['e']", Object::NULL_OBJECT()},
+    {"{}", Object::EMPTY_MUTABLE_MAP()},
+};
+
+TEST_F(GrammarTest, InlineObject)
+{
+    auto c = Context::createTestContext(Metrics(), RootConfig());
+
+    for (const auto& m : INLINE_OBJECT_TESTS) {
+        auto result = evaluate(*c, "${" + m.first + "}");
+        ASSERT_TRUE(IsEqual(m.second, result)) << m.first << ":" << m.second;
+    }
 }

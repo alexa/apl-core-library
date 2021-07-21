@@ -21,6 +21,7 @@
 #include <vector>
 #include <iostream>
 #include <regex>
+#include <algorithm>
 
 #include "rapidjson/error/en.h"
 #include "rapidjson/pointer.h"
@@ -44,6 +45,25 @@ public:
     float baseline(Component *component, float width, float height) override;
 };
 
+class CountingTextMeasurement : public SimpleTextMeasurement {
+public:
+    LayoutSize measure(Component *component, float width, MeasureMode widthMode,
+                       float height, MeasureMode heightMode) override {
+        auto ls = SimpleTextMeasurement::measure(component, width, widthMode, height, heightMode);
+        measures++;
+        return ls;
+    }
+
+    float baseline(Component *component, float width, float height) override {
+        auto bl = SimpleTextMeasurement::baseline(component, width, height);
+        baselines++;
+        return bl;
+    }
+
+    int measures = 0;
+    int baselines = 0;
+};
+
 inline ::testing::AssertionResult
 MemoryMatch(const CounterPair& atStart, const CounterPair& atEnd)
 {
@@ -62,39 +82,71 @@ MemoryMatch(const CounterPair& atStart, const CounterPair& atEnd)
 
 class MixinCounter {
 public:
-    int getCount() const { return mCount; }
-    void clear() { mCount = 0; }
+    int getCount() const { return mMessages.size(); }
+
+    void clear() { mMessages.clear(); }
+
+    bool check(const std::string& msg) {
+        auto s = msg;
+        s.erase(std::remove_if(s.begin(),
+                               s.end(),
+                               [](unsigned char x) { return std::isspace(x); }), s.end());
+
+        for (const auto& m : mMessages) {
+            auto s2 = m;
+            s2.erase(std::remove_if(s2.begin(), s2.end(),
+                                    [](unsigned char x) { return std::isspace(x); }), s2.end());
+
+            if (s2.find(s) != std::string::npos)
+                return true;
+        }
+
+        return false;
+    }
 
     bool checkAndClear() {
-        auto result = mCount != 0;
-        mCount = 0;
+        auto result = !mMessages.empty();
+        if (!result)
+            for (const auto& m : mMessages)
+                fprintf(stderr, "SESSION %s\n", m.c_str());
+        clear();
         return result;
     }
 
-    std::string getLast() const { return mLast; }
+    // Check for the existing of message.  To simplify testing, we
+    // strip all whitespace.
+    bool checkAndClear(const std::string& msg) {
+        auto result = check(msg);
+        if (!result)
+            for (const auto& m : mMessages)
+                fprintf(stderr, "SESSION %s\n", m.c_str());
+        clear();
+        return result;
+    }
+
+    std::string getLast() const {
+        if (mMessages.empty())
+            return std::string();
+
+        return mMessages.back();
+    }
 
 protected:
-    int mCount = 0;
-    std::string mLast;
+    std::vector<std::string> mMessages;
 };
 
 class TestSession : public Session, public MixinCounter {
 public:
     void write(const char *filename, const char *func, const char *value) override {
-        mLast = std::string(value);
-        mCount++;
-
-        fprintf(stderr, "SESSION %s\n", value);
-        fflush(stderr);
+        mMessages.emplace_back(std::string(value));
     }
 };
 
 class TestLogBridge : public LogBridge, public MixinCounter {
 public:
     void transport(LogLevel level, const std::string& log) override {
-        mLast = log;
+        mMessages.push_back(log);
         mLastLevel = level;
-        mCount++;
 
         fprintf(stderr, "%s %s\n", LEVEL_MAPPING.at(level).c_str(), log.c_str());
         fflush(stderr);
@@ -112,7 +164,7 @@ private:
         {LogLevel::kCritical, "C"}
     };
 
-    LogLevel mLastLevel;
+    LogLevel mLastLevel = LogLevel::kCritical;
 };
 
 #ifdef DEBUG_MEMORY_USE
@@ -278,6 +330,7 @@ public:
 
         inflate();
         ASSERT_TRUE(root);
+        advanceTime(10);
     }
 
     template<class... Args>
@@ -305,6 +358,7 @@ public:
 
         inflate();
         ASSERT_TRUE(root);
+        advanceTime(10);
     }
 
     /*
@@ -372,6 +426,11 @@ public:
     void performTap(int x, int y) {
         root->handlePointerEvent(PointerEvent(kPointerDown, Point(x, y), 0, kTouchPointer));
         root->handlePointerEvent(PointerEvent(kPointerUp, Point(x, y), 0, kTouchPointer));
+    }
+
+    void advanceTime(apl_duration_t duration) {
+        root->updateTime(root->currentTime() + duration);
+        root->clearPending();
     }
 
 protected:
@@ -593,7 +652,8 @@ public:
 
     void wrap(const char *name, int index)
     {
-        assert(sCommandCreatorMap.at(index) != nullptr);
+        if (sCommandCreatorMap.find(index) == sCommandCreatorMap.end())
+            return;
 
         mOld.emplace(name, CommandFactory::instance().get(name));
         CommandFactory::instance().set(name,
@@ -863,6 +923,19 @@ inline
     return ::testing::AssertionSuccess();
 }
 
+template<class T>
+::testing::AssertionResult IsEqual(const std::vector<T>& a, const std::vector<T>& b) {
+    if (a.size() != b.size())
+        return ::testing::AssertionFailure() << "Size mismatch a=" << a.size() << " b=" << b.size();
+
+    for (int i = 0; i < a.size(); i++)
+        if (a.at(i) != b.at(i))
+            return ::testing::AssertionFailure()
+                   << "Element mismatch index=" << i << " a=" << a.at(i) << " b=" << b.at(i);
+
+    return ::testing::AssertionSuccess();
+}
+
 inline
 ::testing::AssertionResult IsEqual(const Object& lhs, const Object& rhs)
 {
@@ -946,9 +1019,28 @@ CheckChildLaidOutDirtyFlags(const ComponentPtr& component, int idx) {
 
 inline
 ::testing::AssertionResult
+CheckChildLaidOutDirtyFlagsWithNotify(const ComponentPtr& component, int idx) {
+    return CheckDirty(component->getChildAt(idx),
+                      kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged);
+}
+
+inline
+::testing::AssertionResult
 CheckChildrenLaidOutDirtyFlags(const ComponentPtr& component, Range range) {
     for (int idx = range.lowerBound(); idx <= range.upperBound(); idx++) {
         ::testing::AssertionResult result = CheckChildLaidOutDirtyFlags(component, idx);
+        if (!result) {
+            return result << ", for component: " << idx;
+        }
+    }
+    return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
+CheckChildrenLaidOutDirtyFlagsWithNotify(const ComponentPtr& component, Range range) {
+    for (int idx = range.lowerBound(); idx <= range.upperBound(); idx++) {
+        ::testing::AssertionResult result = CheckChildLaidOutDirtyFlagsWithNotify(component, idx);
         if (!result) {
             return result << ", for component: " << idx;
         }
@@ -1039,6 +1131,38 @@ CheckSendEvent(const RootContextPtr& root, Args... args) {
 
 inline
 ::testing::AssertionResult
+MouseDown(const RootContextPtr& root, const CoreComponentPtr& comp, double x, double y) {
+    auto point = Point(x,y);
+    root->handlePointerEvent(PointerEvent(kPointerDown, point));
+
+    auto visitor = TouchableAtPosition(point);
+    std::dynamic_pointer_cast<CoreComponent>(root->topComponent())->raccept(visitor);
+    auto target = std::dynamic_pointer_cast<CoreComponent>(visitor.getResult());
+
+    if (target != comp)
+        return ::testing::AssertionFailure() << "Down failed to hit target at " << x << "," << y;
+
+    return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
+MouseUp(const RootContextPtr& root, const CoreComponentPtr& comp, double x, double y) {
+    auto point = Point(x,y);
+    root->handlePointerEvent(PointerEvent(kPointerUp, point));
+
+    auto visitor = TouchableAtPosition(point);
+    std::dynamic_pointer_cast<CoreComponent>(root->topComponent())->raccept(visitor);
+    auto target = std::dynamic_pointer_cast<CoreComponent>(visitor.getResult());
+
+    if (target != comp)
+        return ::testing::AssertionFailure() << "Up failed to hit target at " << x << "," << y;
+
+    return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
 MouseDown(const RootContextPtr& root, double x, double y) {
     auto point = Point(x,y);
     root->handlePointerEvent(PointerEvent(kPointerDown, point));
@@ -1099,6 +1223,20 @@ MouseClick(const RootContextPtr& root, double x, double y) {
     return ::testing::AssertionSuccess();
 }
 
+inline
+::testing::AssertionResult
+MouseClick(const RootContextPtr& root, const CoreComponentPtr& comp, double x, double y) {
+    auto downResult = MouseDown(root, comp, x, y);
+    auto upResult = MouseUp(root, comp, x, y);
+
+    if (downResult != ::testing::AssertionSuccess())
+        return downResult;
+    if (upResult != ::testing::AssertionSuccess())
+        return upResult;
+
+    return ::testing::AssertionSuccess();
+}
+
 template<class... Args>
 ::testing::AssertionResult
 HandlePointerEvent(const RootContextPtr& root, PointerEventType type, const Point& point, bool consumed, Args... args) {
@@ -1134,6 +1272,58 @@ inline
 ::testing::AssertionResult
 CheckTransform(const Transform2D& expected, const ComponentPtr& component) {
     return compareTransformApprox(expected, component->getCalculated(kPropertyTransform).getTransform2D());
+}
+
+inline
+::testing::AssertionResult
+CheckTransformApprox(const Transform2D& expected, const ComponentPtr& component, float delta) {
+    return compareTransformApprox(expected, component->getCalculated(kPropertyTransform).getTransform2D(), delta);
+}
+
+inline
+::testing::AssertionResult
+expectBounds(ComponentPtr comp, float top, float left, float bottom, float right) {
+    auto bounds = comp->getCalculated(kPropertyBounds).getRect();
+    if (bounds.getTop() != top)
+        return ::testing::AssertionFailure() << "bounds.getTop() does not equal top: "
+                                             << bounds.getTop() << " != " << top;
+    if (bounds.getLeft() != left)
+        return ::testing::AssertionFailure() << "bounds.getLeft() does not equal left: "
+                                             << bounds.getLeft() << " != " << left;
+    if (bounds.getBottom() != bottom)
+        return ::testing::AssertionFailure() << "bounds.getBottom() does not equal bottom: "
+                                             << bounds.getBottom() << " != " << bottom;
+    if (bounds.getRight() != right)
+        return ::testing::AssertionFailure() << "bounds.getRight() does not equal right: "
+                                             << bounds.getRight() << " != " << right;
+    return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
+expectInnerBounds(ComponentPtr comp, float top, float left, float bottom, float right) {
+    auto bounds = comp->getCalculated(kPropertyInnerBounds).getRect();
+    if (bounds.getTop() != top)
+        return ::testing::AssertionFailure() << "bounds.getTop() does not equal top: "
+                                             << bounds.getTop() << " != " << top;
+    if (bounds.getLeft() != left)
+        return ::testing::AssertionFailure() << "bounds.getLeft() does not equal left: "
+                                             << bounds.getLeft() << " != " << left;
+    if (bounds.getBottom() != bottom)
+        return ::testing::AssertionFailure() << "bounds.getBottom() does not equal bottom: "
+                                             << bounds.getBottom() << " != " << bottom;
+    if (bounds.getRight() != right)
+        return ::testing::AssertionFailure() << "bounds.getRight() does not equal right: "
+                                             << bounds.getRight() << " != " << right;
+    return ::testing::AssertionSuccess();
+}
+
+inline
+Object
+StringToMapObject(const std::string& payload) {
+    rapidjson::Document doc;
+    doc.Parse(payload.c_str());
+    return Object(std::move(doc));
 }
 
 extern std::ostream& operator<<(std::ostream& os, const Point& point);

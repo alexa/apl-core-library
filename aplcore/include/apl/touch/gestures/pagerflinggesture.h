@@ -54,6 +54,7 @@ private:
     float mLastAnimationAmount; // Last amount that was successfully applied to animation transition
     float mAmount;
     std::shared_ptr<ExecutionResourceHolder> mResourceHolder;
+    LayoutDirection mLayoutDirection;
 };
 
 } // namespace apl

@@ -13,12 +13,11 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/utils/pagemovehandler.h"
+#include "apl/touch/utils/pagemovehandler.h"
 #include "apl/utils/bimap.h"
 
 #include "apl/animation/easing.h"
 #include "apl/content/rootconfig.h"
-#include "apl/engine/context.h"
 #include "apl/engine/evaluate.h"
 #include "apl/engine/arrayify.h"
 #include "apl/time/sequencer.h"
@@ -57,7 +56,7 @@ PageMoveHandler::create(
     }
 
     // Evaluating against event context to allow "when" to work properly
-    auto eventContext = createPageMoveContext(0.0f, swipeDirection, component, currentChild, nextChild);
+    auto eventContext = createPageMoveContext(0.0f, swipeDirection, pageDirection, component, currentChild, nextChild);
     for (const auto& object : array.getArray()) {
         if (!propertyAsBoolean(*eventContext, object, "when", true)) {
             continue;
@@ -68,34 +67,44 @@ PageMoveHandler::create(
             kPageMoveDrawOrderHigherAbove, sPageMoveDrawOrderBimap);
 
         return std::unique_ptr<PageMoveHandler>(new PageMoveHandler(std::move(commands), action,
-            swipeDirection, currentPage, targetPage));
+            swipeDirection, pageDirection, currentPage, targetPage));
     }
 
     // Go for default handling.
     auto pager = std::dynamic_pointer_cast<PagerComponent>(component);
-    auto currentChildTransform = getPageTransformation(pager, false,
-        pageDirection == PageDirection::kPageDirectionForward);
-    auto targetChildTransform = getPageTransformation(pager, true,
-        pageDirection == PageDirection::kPageDirectionForward);
-    return std::unique_ptr<PageMoveHandler>(new PageMoveHandler(swipeDirection, currentPage,
+    auto layoutDireciton = static_cast<LayoutDirection>(component->getCalculated(kPropertyLayoutDirection).asInt());
+    bool fromLeft = pageDirection == PageDirection::kPageDirectionForward;
+    // Flip direction for RTL layout
+    if (pager->isHorizontal() && layoutDireciton == kLayoutDirectionRTL) {
+        fromLeft = !fromLeft;
+    }
+
+    auto currentChildTransform = getPageTransformation(pager, false, fromLeft);
+    auto targetChildTransform = getPageTransformation(pager, true, fromLeft);
+    auto handler = std::unique_ptr<PageMoveHandler>(new PageMoveHandler(swipeDirection, pageDirection, currentPage,
         targetPage, std::move(currentChildTransform), std::move(targetChildTransform)));
+    handler->reset(*pager);
+    return handler;
 }
 
 PageMoveHandler::PageMoveHandler(
     Object&& commands,
     PageMoveDrawOrder drawOrder,
     SwipeDirection swipeDirection,
+    PageDirection pageDirection,
     int currentPage,
     int targetPage) :
     mCommands(std::move(commands)),
     mDrawOrder(drawOrder),
     mSwipeDirection(swipeDirection),
+    mPageDirection(pageDirection),
     mCurrentPage(currentPage),
     mTargetPage(targetPage)
 {}
 
 PageMoveHandler::PageMoveHandler(
     SwipeDirection swipeDirection,
+    PageDirection pageDirection,
     int currentPage,
     int targetPage,
     ITPtr&& currentPageTransform,
@@ -103,10 +112,24 @@ PageMoveHandler::PageMoveHandler(
     mCommands(Object::NULL_OBJECT()),
     mDrawOrder(kPageMoveDrawOrderHigherAbove),
     mSwipeDirection(swipeDirection),
+    mPageDirection(pageDirection),
     mCurrentPage(currentPage), mTargetPage(targetPage),
     mCurrentPageTransform(std::move(currentPageTransform)),
     mTargetPageTransform(std::move(targetPageTransform))
 {}
+
+void
+PageMoveHandler::reset(const CoreComponent& component)
+{
+    auto currentChild = component.getCoreChildAt(mCurrentPage);
+    auto nextChild = component.getCoreChildAt(mTargetPage);
+
+    // Reset opacity and transforms
+    currentChild->setProperty(kPropertyOpacity, 1.0f);
+    currentChild->setProperty(kPropertyTransformAssigned, Object::EMPTY_ARRAY());
+    nextChild->setProperty(kPropertyOpacity, 1.0f);
+    nextChild->setProperty(kPropertyTransformAssigned, Object::EMPTY_ARRAY());
+}
 
 void
 PageMoveHandler::execute(const CoreComponentPtr& component, float amount)
@@ -119,17 +142,19 @@ PageMoveHandler::execute(const CoreComponentPtr& component, float amount)
         executeDefaultPagingAnimation(animationEasing->calc(amount), currentChild, nextChild);
     } else {
         component->getContext()->sequencer().executeCommands(mCommands,
-            createPageMoveContext(amount, mSwipeDirection, component, currentChild, nextChild), component, true);
+            createPageMoveContext(amount, mSwipeDirection, mPageDirection, component, currentChild, nextChild), component, true);
     }
 }
 
 ContextPtr
-PageMoveHandler::createPageMoveContext(float amount, SwipeDirection direction, const CoreComponentPtr& self,
-                                       const CoreComponentPtr& currentChild, const CoreComponentPtr& nextChild)
+PageMoveHandler::createPageMoveContext(float amount, SwipeDirection direction, PageDirection pageDirection,
+                                       const CoreComponentPtr& self, const CoreComponentPtr& currentChild,
+				                       const CoreComponentPtr& nextChild)
 {
     auto eventProps = std::make_shared<ObjectMap>();
     eventProps->emplace("amount", amount);
     eventProps->emplace("direction", sSwipeDirectionMap.at(direction));
+    eventProps->emplace("forward", pageDirection == kPageDirectionForward);
 
     auto current = std::make_shared<ObjectMap>();
     current->emplace("id", currentChild->getId());

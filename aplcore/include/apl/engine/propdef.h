@@ -203,11 +203,11 @@ inline Object asDashArray(const Context& context, const Object& object) {
 }
 
 inline Object asStyledText(const Context& context, const Object& object) {
-    return StyledText::create(object);
+    return StyledText::create(context, object);
 }
 
 inline Object asFilteredText(const Context& context, const Object& object) {
-    return StyledText::create(object).getStyledText().getText();
+    return StyledText::create(context, object).getStyledText().getText();
 }
 
 inline Object asTransformOrArray(const Context& context, const Object& object) {

@@ -22,7 +22,7 @@
 
 namespace apl {
 
-using UserFunction = std::function<Object(const std::vector<Object>&)>;
+using UserFunction = std::function<Object(const ObjectArray&)>;
 
 extern void createStandardFunctions(Context& context);
 

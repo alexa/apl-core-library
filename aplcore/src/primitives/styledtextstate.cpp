@@ -13,6 +13,7 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/engine/evaluate.h"
 #include "apl/primitives/styledtextstate.h"
 
 #include <codecvt>
@@ -20,6 +21,13 @@
 #include <set>
 
 namespace apl {
+
+const std::string INHERIT_ATTRIBUTE_VALUE = "inherit";
+
+const std::map<std::string, StyledText::SpanAttributeName> sSpanAttributeMap = {
+    {"color", StyledText::kSpanAttributeNameColor},
+    {"fontSize", StyledText::kSpanAttributeNameFontSize},
+};
 
 const std::map<std::string, StyledText::SpanType> sTextSpanTypeMap = {
     {"br", StyledText::kSpanTypeLineBreak},
@@ -34,6 +42,11 @@ const std::map<std::string, StyledText::SpanType> sTextSpanTypeMap = {
     {"sup", StyledText::kSpanTypeSuperscript},
     {"sub", StyledText::kSpanTypeSubscript},
     {"nobr", StyledText::kSpanTypeNoBreak},
+    {"span", StyledText::kSpanTypeSpan},
+};
+
+const std::set<std::string> sAttributableTags = {
+    "span",
 };
 
 // Only some tags can be merged. For example "<b>te</b><b>xt</b>" can become "<b>text</b>"
@@ -106,6 +119,26 @@ StyledTextState::space() {
 }
 
 void
+StyledTextState::attributeName(const std::string& attributeName) {
+    mCurrentAttributeName = attributeName;
+}
+
+void
+StyledTextState::attributeValue(const std::string& attributeValue) {
+    if (mCurrentAttributeName.empty()) {
+        return;
+    }
+
+    // Skip if current tag can't be attributed
+    if (!sAttributableTags.count(mCurrentTag)) {
+        mCurrentAttributeName = "";
+        return;
+    }
+
+    emplaceAttribute(attributeValue);
+}
+
+void
 StyledTextState::tag(const std::string& tag) {
     mCurrentTag = tolower(tag);
 }
@@ -130,7 +163,9 @@ StyledTextState::start() {
     }
 
     mOpenedSpans[type] += 1;
-    mBuildStack.push(StyledText::Span(start, type));
+    mBuildStack.push(StyledText::Span(start, type, mCurrentAttributeMap));
+
+    mCurrentAttributeMap.clear();
 
     // Do not allow merging after a start tag, only after and end tag
     mAllowMerge = false;
@@ -220,6 +255,34 @@ StyledTextState::finalize() {
     }
 
     return output;
+}
+
+void
+StyledTextState::emplaceAttribute(const std::string& value) {
+    // Skip if this attribute name is not supported in APL
+    auto nameIt = sSpanAttributeMap.find(mCurrentAttributeName);
+    if (nameIt == sSpanAttributeMap.end()) {
+        mCurrentAttributeName = "";
+        return;
+    }
+
+    auto valueObject = evaluate(mContext, value);
+    if (valueObject == INHERIT_ATTRIBUTE_VALUE) {
+        mCurrentAttributeName  = "";
+        return;
+    }
+
+    auto name = nameIt->second;
+    switch (name) {
+        case StyledText::kSpanAttributeNameColor:
+            mCurrentAttributeMap.emplace(name, valueObject.asColor(mContext));
+            break;
+        case StyledText::kSpanAttributeNameFontSize:
+            mCurrentAttributeMap.emplace(name, valueObject.asAbsoluteDimension(mContext));
+            break;
+    }
+
+    mCurrentAttributeName  = "";
 }
 
 } // namespace apl

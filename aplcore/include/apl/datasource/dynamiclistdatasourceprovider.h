@@ -89,8 +89,18 @@ public:
      */
     void advanceListVersion() { mListVersion++; }
 
+    /**
+     * @return context object
+     */
+    std::shared_ptr<Context> getContext() { return mContext.lock(); }
+
 protected:
-    void retryFetchRequest(const std::string& correlationToken);
+    /**
+     * Retry fetch request.
+     * @return true if request sent, false otherwise.
+     */
+    bool retryFetchRequest(const std::string& correlationToken);
+
     void sendFetchRequest(const ObjectMap& requestData);
     void clearTimeouts(const ContextPtr& context, const std::string& correlationToken);
     timeout_id scheduleUpdateExpiry(int version);
@@ -168,7 +178,7 @@ protected:
         std::weak_ptr<Context> context,
         std::weak_ptr<LiveArray> liveArray,
         const std::string& listId) = 0;
-    virtual bool process(const Object& payload) = 0;
+    virtual bool process(const Object& responseMap) = 0;
 
     DynamicListConfiguration mConfiguration;
 

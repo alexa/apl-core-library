@@ -126,7 +126,7 @@ TEST_F(GraphicBindTest, BindToTime)
     auto group = box->getChildAt(0);
     ASSERT_TRUE(IsEqual(Transform2D(), group->getValue(kGraphicPropertyTransform)));
 
-    root->updateTime(500);
+    advanceTime(500);
     ASSERT_TRUE(CheckDirty(group, kGraphicPropertyTransform));
     ASSERT_TRUE(CheckDirty(graphic, group));
     ASSERT_TRUE(CheckDirty(component, kPropertyGraphic));

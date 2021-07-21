@@ -25,24 +25,25 @@ namespace apl {
 class GridSequenceComponent : public MultiChildScrollableComponent {
 public:
 
-    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const std::string& path);
+    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const Path& path);
     GridSequenceComponent(const ContextPtr& context,
                           Properties&& properties,
-                          const std::string& path)
+                          const Path& path)
             : MultiChildScrollableComponent(context, std::move(properties), path),
               mItemsPerCourse(0),
               mCrossAxisDimensionIsAuto(false) {}
 
     ComponentType getType() const override { return kComponentTypeGridSequence; };
     void initialize() override;
-    void processLayoutChanges(bool useDirtyFlag) override;
+    void processLayoutChanges(bool useDirtyFlag, bool first) override;
 
 protected:
     const ComponentPropDefSet& propDefSet() const override;
     const ComponentPropDefSet* layoutPropDefSet() const override;
     void layoutChildIfRequired(const CoreComponentPtr& child,
                                size_t childIdx,
-                               bool useDirtyFlag) override;
+                               bool useDirtyFlag,
+                               bool first) override;
     void ensureChildAttached(const CoreComponentPtr& child, int targetIdx) override;
     const EventPropertyMap & eventPropertyMap() const override;
 

@@ -19,7 +19,6 @@
 #include "apl/utils/counter.h"
 #include "apl/action/action.h"
 #include "apl/engine/context.h"
-#include "apl/component/corecomponent.h"
 #include "apl/command/command.h"
 #include "apl/time/executionresource.h"
 #include "apl/time/executionresourceholder.h"

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -114,24 +114,27 @@ int LayoutRebuilder::sRebuilderToken = 100;
 std::shared_ptr<LayoutRebuilder>
 LayoutRebuilder::create(const ContextPtr& context,
                         const CoreComponentPtr& layout,
-                        const std::shared_ptr<LiveArrayObject>& array,
-                        const std::vector<Object>& items,
+                        const CoreComponentPtr& old,
+                        const LiveArrayObjectPtr& array,
+                        const ObjectArray& items,
                         const Path& childPath,
                         bool numbered)
 {
-    auto self = std::make_shared<LayoutRebuilder>(context, layout, array, items, childPath, numbered);
+    auto self = std::make_shared<LayoutRebuilder>(context, layout, old, array, items, childPath, numbered);
     layout->attachRebuilder(self);
     return self;
 }
 
 LayoutRebuilder::LayoutRebuilder(const ContextPtr& context,
                                  const CoreComponentPtr& layout,
-                                 const std::shared_ptr<LiveArrayObject>& array,
-                                 const std::vector<Object>& items,
+                                 const CoreComponentPtr& old,
+                                 const LiveArrayObjectPtr& array,
+                                 const ObjectArray& items,
                                  const Path& childPath,
                                  bool numbered)
     : mContext(context),
       mLayout(layout),
+      mOld(old),
       mArray(array),
       mItems(items),
       mChildPath(childPath),
@@ -150,6 +153,20 @@ LayoutRebuilder::~LayoutRebuilder()
     }
 }
 
+ContextPtr
+LayoutRebuilder::buildBaseChildContext(const LiveArrayObjectPtr& array, size_t dataIndex, size_t insertIndex)
+{
+    auto length = array->size();
+    const auto& data = array->at(dataIndex);
+    auto childContext = Context::createFromParent(mContext);
+    childContext->putSystemWriteable("data", data);  // This can be changed
+    childContext->putSystemWriteable("index", insertIndex);
+    childContext->putSystemWriteable("length", length);
+    childContext->putSystemWriteable("dataIndex", dataIndex);  // This is an addition
+    childContext->putSystemWriteable("_token", mRebuilderToken);  // Drop a token for later sanity checking
+    return childContext;
+}
+
 /**
  * Add the core children to the layout.  The first/last child is handled by the builder.
  */
@@ -164,29 +181,25 @@ LayoutRebuilder::build()
         return;
     }
 
+    auto old = mOld.lock(); // Can be nullptr, so not checking
+
     int ordinal = 1;
     int index = 0;
 
     // Note: we do NOT evaluate the array items.  Why?  Well, I'm worried about consistency
-    // TODO: Move some of this common child-generation logic into a separate routine and share it with the rebuild code.
     auto length = array->size();
     for (size_t dataIndex = 0; dataIndex < length; dataIndex++) {
-        const auto& data = array->at(dataIndex);
-        auto childContext = Context::createFromParent(mContext);
-        childContext->putSystemWriteable("data", data);  // This can be changed
-        childContext->putSystemWriteable("index", index);
-        childContext->putSystemWriteable("length", length);
-        childContext->putSystemWriteable("dataIndex", dataIndex);  // This is an addition
-        childContext->putSystemWriteable("_token", mRebuilderToken);  // Drop a token for later sanity checking
+        auto childContext = buildBaseChildContext(array, dataIndex, index);
 
         if (mNumbered)
             childContext->putSystemWriteable("ordinal", ordinal);
 
-        auto child = Builder().expandSingleComponentFromArray(childContext,
+        auto child = Builder(old).expandSingleComponentFromArray(childContext,
                                                               mItems,
                                                               Properties(),
                                                               layout,
-                                                              mChildPath);
+                                                              mChildPath,
+                                                              layout->shouldBeFullyInflated(index));
         if (child && child->isValid()) {
             layout->appendChild(child, false);
             index++;
@@ -223,6 +236,7 @@ LayoutRebuilder::rebuild()
 
     auto walker = ChildWalker(layout, mHasFirstItem);
 
+    auto old = mOld.lock();  // Can be nullptr, so not checking
     int ordinal = 1;
     int index = 0;
 
@@ -234,21 +248,17 @@ LayoutRebuilder::rebuild()
         auto needsRefresh = p.second;
 
         if (oldIndex == -1) {  // Insert a new child - this one doesn't exist
-            auto childContext = Context::createFromParent(mContext);
-            childContext->putSystemWriteable("data", data);
-            childContext->putSystemWriteable("index", index);
-            childContext->putSystemWriteable("length", array->size());
-            childContext->putSystemWriteable("dataIndex", newIndex);  // This is an addition
-            childContext->putSystemWriteable("_token", mRebuilderToken);  // Drop a token for later sanity checking
+            auto childContext = buildBaseChildContext(array, newIndex, index);
 
             if (mNumbered)
                 childContext->putConstant("ordinal", ordinal);
 
-            auto child = Builder().expandSingleComponentFromArray(childContext,
+            auto child = Builder(old).expandSingleComponentFromArray(childContext,
                                                                   mItems,
                                                                   Properties(),
                                                                   layout,
-                                                                  mChildPath);
+                                                                  mChildPath,
+                                                                  layout->shouldBeFullyInflated(index));
             if (child && child->isValid()) {
                 layout->insertChild(child, index + (mHasFirstItem ? 1 : 0), true);
                 index++;
@@ -290,11 +300,14 @@ LayoutRebuilder::rebuild()
     walker.finish(mHasLastItem);
 
     // Allow lazy components to process new children layout (if any).
-    layout->processLayoutChanges(true);
+    layout->processLayoutChanges(true, false);
+    // And allow for full DOM to adjust any changed relative sizes
+    layout->getRootComponent()->processLayoutChanges(true, false);
 }
 
 void
-LayoutRebuilder::notifyItemOnScreen(int idx) {
+LayoutRebuilder::notifyItemOnScreen(int idx)
+{
     auto layout = mLayout.lock();
     auto array = mArray.lock();
     if (!layout || !array)
@@ -307,5 +320,36 @@ LayoutRebuilder::notifyItemOnScreen(int idx) {
     }
 }
 
+void
+LayoutRebuilder::notifyStartEdgeReached()
+{
+    if (auto array = mArray.lock()) {
+        array->ensure(0);
+    }
+}
+
+void
+LayoutRebuilder::notifyEndEdgeReached()
+{
+    if (auto array = mArray.lock()) {
+        array->ensure(array->size());
+    }
+}
+
+void
+LayoutRebuilder::inflateIfRequired(const CoreComponentPtr& child)
+{
+    // We only act on children
+    auto ctx = child->getContext();
+
+    auto item = ctx->opt("_item");
+    if (item.isNull()) return;
+    if (child->singleChild()) {
+        Builder(mOld.lock()).populateSingleChildLayout(ctx, item, child, child->getPathObject(), true);
+    } else if (child->multiChild()) {
+        Builder(mOld.lock()).populateLayoutComponent(ctx, item, child, child->getPathObject(), true);
+    }
+    ctx->remove("_item");
+}
 
 } // namespace apl

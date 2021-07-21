@@ -28,10 +28,12 @@ const char *SIMPLE_SEQUENCE = R"({
       "height": 100,
       "items": [
         {
-          "type": "Text"
+          "type": "Text",
+          "height": 100
         },
         {
-          "type": "Text"
+          "type": "Text",
+          "height": 100
         }
       ]
     }
@@ -77,6 +79,77 @@ TEST_F(BuilderTestSequence, Simple)
     auto scrollPosition = component->getCalculated(kPropertyScrollPosition);
     ASSERT_TRUE(scrollPosition.isDimension());
     ASSERT_EQ(0, scrollPosition.asNumber());
+}
+
+TEST_F(BuilderTestSequence, SimpleScrolled)
+{
+    loadDocument(SIMPLE_SEQUENCE);
+
+    ASSERT_EQ(ScrollType::kScrollTypeVertical, component->scrollType());
+    ASSERT_TRUE(component->allowForward());
+    ASSERT_FALSE(component->allowBackwards());
+
+    component->update(kUpdateScrollPosition, 1000);
+    root->clearPending();
+    ASSERT_FALSE(component->allowForward());
+    ASSERT_TRUE(component->allowBackwards());
+}
+
+const static char *SIMPLE_HORIZONTAL_SEQUENCE_RTL = R"(
+    {
+      "type": "APL",
+      "version": "1.7",
+      "mainTemplate": {
+        "items": {
+          "type": "Sequence",
+          "layoutDirection": "RTL",
+          "width": "100%",
+          "scrollDirection": "horizontal",
+          "items": {
+            "type": "Frame",
+            "width": "400",
+            "height": "100%"
+          },
+          "data": [
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      }
+    }
+)";
+
+TEST_F(BuilderTestSequence, SimpleHorizontalSequenceRTL)
+{
+    loadDocument(SIMPLE_HORIZONTAL_SEQUENCE_RTL);
+    advanceTime(10);
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+    ASSERT_EQ(kScrollDirectionHorizontal, component->getCalculated(kPropertyScrollDirection).asInt());
+
+    for (int i = 0 ; i < component->getChildCount() ; i++) {
+        auto child = component->getChildAt(i);
+        ASSERT_EQ(Rect(624-400*i, 0, 400, 800), child->getCalculated(kPropertyBounds).getRect());
+    }
+
+    // Children
+    ASSERT_EQ(4, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 3), true));
+
+    auto scrollPosition = component->getCalculated(kPropertyScrollPosition);
+    ASSERT_TRUE(scrollPosition.isDimension());
+    ASSERT_EQ(0, scrollPosition.asNumber());
+
+    ASSERT_EQ(ScrollType::kScrollTypeHorizontal, component->scrollType());
+    ASSERT_TRUE(component->allowForward());
+    ASSERT_FALSE(component->allowBackwards());
+
+    component->update(kUpdateScrollPosition, -1000);
+    root->clearPending();
+    ASSERT_FALSE(component->allowForward());
+    ASSERT_TRUE(component->allowBackwards());
 }
 
 const char *EMPTY_SEQUENCE = R"({
@@ -232,6 +305,7 @@ const char *LAYOUT_CACHE_TEST = R"({
 TEST_F(BuilderTestSequence, LayoutCache)
 {
     loadDocument(LAYOUT_CACHE_TEST);
+    advanceTime(10);
     auto map = component->getCalculated();
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
@@ -240,6 +314,91 @@ TEST_F(BuilderTestSequence, LayoutCache)
 
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 4), true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(5, 5), false));
+}
+
+const char *LAYOUT_CACHE_TEST_HORIZONTAL = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "width": 200,
+      "scrollDirection": "horizontal",
+      "height": "auto",
+      "data": [
+        "One",
+        "Two",
+        "Three",
+        "Four",
+        "Five",
+        "Six"
+      ],
+      "items": [
+        {
+          "type": "Text",
+          "width": 100,
+          "text": "${data}"
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(BuilderTestSequence, LayoutCacheHorizontal)
+{
+    loadDocument(LAYOUT_CACHE_TEST_HORIZONTAL);
+    advanceTime(10);
+    ASSERT_EQ(kScrollDirectionHorizontal, component->getCalculated(kPropertyScrollDirection).getInteger());
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(6, component->getChildCount());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 4), true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(5, 5), false));
+
+    component->update(kUpdateScrollPosition, 100);
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 5), true));
+}
+
+TEST_F(BuilderTestSequence, LayoutCacheHorizontalRTL)
+{
+    loadDocument(LAYOUT_CACHE_TEST_HORIZONTAL);
+    component->update(kUpdateScrollPosition, 50);
+    ASSERT_EQ(Point(50, 0), component->scrollPosition());
+    ASSERT_EQ(6, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 4), true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(5, 5), false));
+
+    component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+    root->clearPending();
+
+    ASSERT_EQ(kLayoutDirectionRTL, component->getCalculated(kPropertyLayoutDirection).getInteger());
+    ASSERT_EQ(kScrollDirectionHorizontal, component->getCalculated(kPropertyScrollDirection).getInteger());
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(6, component->getChildCount());
+    ASSERT_EQ(Point(-50, 0), component->scrollPosition());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 4), true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(5, 5), false));
+
+    component->update(kUpdateScrollPosition, -100);
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 5), true));
+    for (auto i = 0 ; i < component->getChildCount() ; i++) {
+        auto child = component->getChildAt(i);
+        ASSERT_EQ(Rect(100 - 100*i, 0, 100, 800), child->getCalculated(kPropertyBounds).getRect());
+        Rect rect;
+        ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
+        ASSERT_EQ(Rect(100 - 100*i + 100, 0, 100, 800), rect);
+    }
+
+    component->setProperty(kPropertyLayoutDirectionAssigned, "LTR");
+    root->clearPending();
+
+    ASSERT_EQ(6, component->getChildCount());
+    ASSERT_EQ(Point(100, 0), component->scrollPosition());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 5), true));
 }
 
 static const char* MULTISEQUENCE = R"apl({
@@ -352,25 +511,6 @@ const char *NONE_SEQUENCE = R"({
   }
 })";
 
-class CountingTextMeasurement : public SimpleTextMeasurement {
-public:
-    LayoutSize measure(Component *component, float width, MeasureMode widthMode,
-                       float height, MeasureMode heightMode) override {
-        auto ls = SimpleTextMeasurement::measure(component, width, widthMode, height, heightMode);
-        measures++;
-        return ls;
-    }
-
-    float baseline(Component *component, float width, float height) override {
-        auto bl = SimpleTextMeasurement::baseline(component, width, height);
-        baselines++;
-        return bl;
-    }
-
-    int measures = 0;
-    int baselines = 0;
-};
-
 TEST_F(BuilderTestSequence, DisplayNone)
 {
     auto ctm = std::make_shared<CountingTextMeasurement>();
@@ -396,7 +536,7 @@ TEST_F(BuilderTestSequence, DisplayNone)
     root->clearPending();
 
     // We now require some measures.
-    ASSERT_EQ(22, ctm->measures);
+    ASSERT_EQ(21, ctm->measures);
     ASSERT_EQ(0, ctm->baselines);
 
     // And scrolling works
@@ -455,10 +595,59 @@ TEST_F(BuilderTestSequence, DisplayNoneNested)
     root->clearPending();
 
     // We now require some measures.
-    ASSERT_EQ(22, ctm->measures);
+    ASSERT_EQ(21, ctm->measures);
     ASSERT_EQ(0, ctm->baselines);
 
     // And scrolling works
     sequence->update(kUpdateScrollPosition, 100);
     ASSERT_EQ(100, sequence->scrollPosition().getY());
+}
+
+const char *AUTO_SEQUENCE_SIZING = R"({
+  "type": "APL",
+  "version": "1.7",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "height": "100%",
+      "width": "100%",
+      "items": {
+        "type": "Frame",
+        "borderColor": "red",
+        "borderWidth": "2dp",
+        "height": "auto",
+        "width": "100%",
+        "items": {
+          "type": "Container",
+          "height": "auto",
+          "width": "100%",
+          "items": {
+            "type": "Sequence",
+            "height": "auto",
+            "width": "100%",
+            "data": ["green","blue","purple","white"],
+            "scrollDirection": "horizontal",
+            "items": [
+              {
+                "type": "Frame",
+                "borderColor": "${data}",
+                "borderWidth": "2dp",
+                "height": "100",
+                "width": "100"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+})";
+
+TEST_F(BuilderTestSequence, AutoSequenceSizing)
+{
+    loadDocument(AUTO_SEQUENCE_SIZING);
+
+    auto frame = component->getCoreChildAt(0);
+    ASSERT_EQ(Object(Rect(0, 0, 1024, 104)), frame->getCalculated(kPropertyBounds));
 }

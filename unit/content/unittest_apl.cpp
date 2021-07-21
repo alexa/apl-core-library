@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -153,7 +153,7 @@ TEST(APLTest, Basic)
     ASSERT_EQ(Object(Color()), frame->getCalculated(kPropertyBorderColor));
     auto text = frame->getChildAt(0);
     ASSERT_EQ(Rect(2, 2, 120, 60), text->getCalculated(kPropertyBounds).getRect());  // Frame has a 2 dp border
-    ASSERT_EQ(StyledText::create("Your text inserted here"), text->getCalculated(kPropertyText));
+    ASSERT_EQ(StyledText::create(root->context(), "Your text inserted here"), text->getCalculated(kPropertyText));
     ASSERT_EQ(Object(Color(root->getSession(), "#ff1020")), text->getCalculated(kPropertyColor));
 
     // Simulate a user touching on the screen

@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.7.0]
+
+This release adds support for version 1.7 of the APL specification.
+
+## Added
+
+- Added new position sticky for children containers
+- Support specifying layout direction for components as well as the entire document
+- Support for document level language 
+- Extended swipe away gesture to support forward and backward directions
+- Added support for \<span\> text markup
+- Added start*, end* and padding variants to override left* and right* variants depending on layoutDirection
+- Data-binding definitions now support Array and Maps
+- Alpha feature: Improved extension message builder API
+- Alpha feature: Extension client now supports modification of non-defined LiveMap members
+- Alpha feature: APL Audio Player Extension. The Audio Player Extension extends APL capabilities providing a custom audio player extension
+
+## Changed
+
+- Data grammar now translates to byte code
+- Performance improvements during the inflation process
+- Component properties shadowColor, shadowHorizonalOffset, shadowRadius and shadowVerticalOffset are now also styled and dynamic
+- Pager navigation and pageDirection properties are now also dynamic
+- Updated reported APL version to 1.7
+- Other bug fixes
+- Build improvements
+
 ## [1.6.2]
 
 ### Changed
@@ -26,7 +53,7 @@ This release adds support for version 1.6 of the APL specification.
 - Reinflation support for viewport size and orientation changes
 - Add handlePageMove property to Pager to allow custom transitions 
 - Add pageDirection to support vertical pagers
-- Added support for <nobr> text markup
+- Added support for \<nobr\> text markup
 - New Math functions: Math.int and Math.float
 - New API to expose visible children of a component
 - Support bound values in layouts

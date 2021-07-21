@@ -42,7 +42,7 @@ static std::map<ExtensionError, std::string> sErrorMessage = {
         {kErrorInvalidMessage,         "Invalid or malformed message."},
         {kErrorException,              "Unknown Exception."},
         {kErrorExtensionException,     "Extension Exception - uri:%s msg:%s"},
-        {kErrorFailedCommand,          "Failed Command - id:"},
+        {kErrorFailedCommand,          "Failed Command - id: "},
         {kErrorInvalidExtensionSchema, "Invalid or malformed extension schema. uri: "}
 };
 

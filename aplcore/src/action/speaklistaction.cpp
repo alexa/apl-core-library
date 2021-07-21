@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ SpeakListAction::make(const TimersPtr& timers,
     auto container = command->target();
     auto start = command->getValue(kCommandPropertyStart).asInt();
     auto count = command->getValue(kCommandPropertyCount).asInt();
-    int len = container->getChildCount();
+    auto len = static_cast<int>(container->getChildCount());
 
     // Sanity checks
     if (len <= 0 || count <= 0 || start >= len)

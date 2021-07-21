@@ -65,6 +65,7 @@ TEST_F(PagerTest, PageCacheByNavigation)
     loadDocument(PAGE_CACHE_BY_NAVIGATION);
     ASSERT_TRUE(component);
     ASSERT_EQ(4, component->getChildCount());
+    advanceTime(10);
 
     // Navigation: "normal".  No wrapping, forward/backwards allowed
     auto pager = root->findComponentById("pager-normal");
@@ -143,6 +144,7 @@ TEST_F(PagerTest, VariableSize)
     ASSERT_TRUE(component);
     ASSERT_EQ(3, component->getChildCount());
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 1, 2}));  // All Pagers should be laid out
+    advanceTime(10);
 
     auto pager = component->getChildAt(0);
     ASSERT_TRUE(IsEqual(Rect(0, 0, 100, 200), pager->getCalculated(kPropertyBounds)));
@@ -160,7 +162,7 @@ TEST_F(PagerTest, VariableSize)
     root->clearPending();
     ASSERT_TRUE(IsEqual(Rect(0,0,100,300), pager->getCalculated(kPropertyBounds)));
     ASSERT_TRUE(IsEqual(Rect(0,0,100,300), text->getCalculated(kPropertyBounds)));
-    ASSERT_TRUE(CheckDirty(pager, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(pager, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds));
 
     // The removed pager has zero size.  Its children have NOT been laid out again

@@ -23,7 +23,7 @@ namespace apl {
 CoreComponentPtr
 SequenceComponent::create(const ContextPtr& context,
                           Properties&& properties,
-                          const std::string& path)
+                          const Path& path)
 {
     auto ptr = std::make_shared<SequenceComponent>(context, std::move(properties), path);
     ptr->initialize();
@@ -32,7 +32,7 @@ SequenceComponent::create(const ContextPtr& context,
 
 SequenceComponent::SequenceComponent(const ContextPtr& context,
                                      Properties&& properties,
-                                     const std::string& path)
+                                     const Path& path)
     : MultiChildScrollableComponent(context, std::move(properties), path) {}
 
 const ComponentPropDefSet&
@@ -65,7 +65,7 @@ SequenceComponent::estimateChildrenToCover(float distance, size_t baseChild)
 {
     auto size = mChildren.at(baseChild)->getCalculated(kPropertyBounds).getRect();
     auto vertical = isVertical();
-    return std::floor(std::abs(distance) / (vertical ? size.getHeight() : size.getWidth()));
+    return std::ceil(std::abs(distance) / (vertical ? size.getHeight() : size.getWidth()));
 }
 
 } // namespace apl

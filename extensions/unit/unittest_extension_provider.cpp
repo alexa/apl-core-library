@@ -30,11 +30,11 @@ public:
     explicit SimpleExtension(const std::set<std::string>& uris) : ExtensionBase(uris) {};
 
     bool invokeCommand(const std::string& uri, const rapidjson::Value& command) override {
-        auto name = alexaext::Command::getName(command);
         if (getURIs().count("aplext:ugly:1")) {
             throw ExtensionException::create("ugly %s %s", "exception", "error");
         }
-        return (name != "nope");
+        auto name = Command::NAME().Get(command);
+        return (name && *name != "nope");
     }
 
     rapidjson::Document createRegistration(const std::string& uri, const rapidjson::Value& registerRequest) override {
@@ -42,39 +42,40 @@ public:
         if (uri == "aplext:ugly:1") {
             throw ExtensionException::create("ugly %s %s", "exception", "error");
         } else if (uri == "aplext:ugly:2") {
-            return RegistrationFailure("aplext:ugly:2", 13, "total failure");
+            return RegistrationFailure("1.0").uri("aplext:ugly:2").errorCode(13).errorMessage("total failure");
         }
 
-        const auto& config = RegistrationRequest::getSettings(registerRequest);
+        const Value* config = RegistrationRequest::SETTINGS().Get(registerRequest);
 
         // extract the settings
-        if (config.IsObject()) {
-            auto obj = config.GetObject();
+        if (config->IsObject()) {
+            auto obj = config->GetObject();
             if (obj.HasMember("A"))
                 settingA = obj["A"].GetInt();
             if (obj.HasMember("B"))
                 settingsB = obj["B"].GetString();
         }
 
-        Document schema = ExtensionSchema(uri).event("boo");
         Document environment;
-        environment.CopyFrom(config, environment.GetAllocator()); // sending the settings back as environment
-        Document registration = RegistrationSuccess(uri, "SessionToken1")
-                .schema(schema)
-                .environment(environment);
+        environment.CopyFrom(*config, environment.GetAllocator()); // sending the settings back as environment
 
+        auto registration = RegistrationSuccess("1.0").uri(uri).token("SessionToken1")
+                .environment(environment)
+                .schema("1.0", [uri](ExtensionSchema schema) {
+                    schema.uri(uri).event("boo");
+                });
 
         return registration;
     }
 
     // test method to simulate internally generated events
     bool generateTestEvent(const std::string& uri, const std::string& eventName) {
-        return invokeExtensionEventHandler(uri, Event(uri, eventName));
+        return invokeExtensionEventHandler(uri, Event("1.0").uri(uri).name(eventName));
     }
 
     // test method to simulate internally generated live data updates
     bool generateLiveDataUpdate(const std::string& uri, const std::string& objectName) {
-        return invokeLiveDataUpdate(uri, LiveDataUpdate(uri, objectName));
+        return invokeLiveDataUpdate(uri, LiveDataUpdate("1.0").uri(uri).objectName(objectName));
     }
 
     int settingA;
@@ -126,11 +127,15 @@ public:
         testExtensions.emplace("aplext:ugly:2", ugly);
     }
 
+    // Used for testing message values
+    class AssertMessage : public BaseMessage<AssertMessage> {
+    };
+
     void AssertMessage(const std::string& target, const std::string& method, const rapidjson::Value& message) {
         ASSERT_TRUE(message.IsObject());
-        ASSERT_EQ(target, BaseMessage::getTarget(message));
-        ASSERT_EQ(method, BaseMessage::getMethod(message));
-        ASSERT_EQ("1.0", BaseMessage::getVersion(message));
+        ASSERT_EQ(target, GetWithDefault<const char*>(AssertMessage::TARGET(), message, ""));
+        ASSERT_EQ(method, GetWithDefault<const char*>(AssertMessage::METHOD(), message, ""));
+        ASSERT_STREQ("1.0", GetWithDefault<const char*>(AssertMessage::VERSION(), message, ""));
     }
 
     void TearDown() override {
@@ -193,7 +198,7 @@ TEST_F(ExtensionProviderTest, RegistrationSuccess) {
     ASSERT_TRUE(foo);
 
     document.Parse(SETTINGS);
-    Document req = RegistrationRequest("aplext:foo:10").settings(document);
+    Document req = RegistrationRequest("1.0").uri("aplext:foo:10").settings(document);
 
     bool gotsuccess = false;
     auto invoke = foo->getRegistration(
@@ -222,7 +227,7 @@ TEST_F(ExtensionProviderTest, RegistrationSuccessNullCallbacks) {
     ASSERT_TRUE(foo);
 
     document.Parse(SETTINGS);
-    Document req = RegistrationRequest("aplext:foo:10").settings(document);
+    Document req = RegistrationRequest("1.0").uri("aplext:foo:10").settings(document);
 
     // test null callbacks are tolerated
     auto invoke = foo->getRegistration("aplext:foo:10", req, nullptr, nullptr);
@@ -238,7 +243,7 @@ TEST_F(ExtensionProviderTest, RegistrationFailure) {
     ASSERT_TRUE(foo);
 
     document.Parse(SETTINGS);
-    Document req = RegistrationRequest("aplext:foo:10").settings(document);
+    Document req = RegistrationRequest("1.0").uri("aplext:foo:10").settings(document);
 
     bool gotfailure = false;
     auto invoke = foo->getRegistration(
@@ -247,8 +252,9 @@ TEST_F(ExtensionProviderTest, RegistrationFailure) {
                 gotfailure = true;
                 ASSERT_EQ("DNE", uri);
                 AssertMessage(uri, "RegisterFailure", registerFailure);
-                ASSERT_EQ(kErrorUnknownURI, RegistrationFailure::getCode(registerFailure));
-                ASSERT_EQ((sErrorMessage[kErrorUnknownURI] + uri), RegistrationFailure::getMessage(registerFailure));
+                ASSERT_EQ(kErrorUnknownURI, GetWithDefault<int>(RegistrationFailure::CODE(), registerFailure, -1));
+                ASSERT_EQ((sErrorMessage[kErrorUnknownURI] + uri),
+                          GetWithDefault<const char*>(RegistrationFailure::MESSAGE(), registerFailure, ""));
             });
     ASSERT_FALSE(invoke);
     ASSERT_TRUE(gotfailure);
@@ -263,7 +269,7 @@ TEST_F(ExtensionProviderTest, RegistrationException) {
     ASSERT_TRUE(ugly);
 
     document.Parse(SETTINGS);
-    Document req = RegistrationRequest("aplext:ugly:1").settings(document);
+    Document req = RegistrationRequest("1.0").uri("aplext:ugly:1").settings(document);
 
     bool gotfailure = false;
     auto invoke = ugly->getRegistration(
@@ -272,8 +278,10 @@ TEST_F(ExtensionProviderTest, RegistrationException) {
                 gotfailure = true;
                 ASSERT_EQ("aplext:ugly:1", uri);
                 AssertMessage(uri, "RegisterFailure", registerFailure);
-                ASSERT_EQ(kErrorExtensionException, RegistrationFailure::getCode(registerFailure));
-                ASSERT_EQ("ugly exception error", RegistrationFailure::getMessage(registerFailure));
+                ASSERT_EQ(kErrorExtensionException,
+                          GetWithDefault<int>(RegistrationFailure::CODE(), registerFailure, -1));
+                ASSERT_STREQ("ugly exception error",
+                             GetWithDefault<const char*>(RegistrationFailure::MESSAGE(), registerFailure, ""));
             });
     ASSERT_FALSE(invoke);
     ASSERT_TRUE(gotfailure);
@@ -288,7 +296,7 @@ TEST_F(ExtensionProviderTest, RegistrationFailureFromExtension) {
     ASSERT_TRUE(ugly);
 
     document.Parse(SETTINGS);
-    Document req = RegistrationRequest("aplext:ugly:2").settings(document);
+    Document req = RegistrationRequest("1.0").uri("aplext:ugly:2").settings(document);
 
     bool gotfailure = false;
     auto invoke = ugly->getRegistration(
@@ -297,8 +305,9 @@ TEST_F(ExtensionProviderTest, RegistrationFailureFromExtension) {
                 gotfailure = true;
                 ASSERT_EQ("aplext:ugly:2", uri);
                 AssertMessage(uri, "RegisterFailure", registerFailure);
-                ASSERT_EQ(13, RegistrationFailure::getCode(registerFailure));
-                ASSERT_EQ("total failure", RegistrationFailure::getMessage(registerFailure));
+                ASSERT_EQ(13, GetWithDefault<int>(RegistrationFailure::CODE(), registerFailure, -1));
+                ASSERT_STREQ("total failure",
+                             GetWithDefault<const char*>(RegistrationFailure::MESSAGE(), registerFailure, ""));
             });
     ASSERT_TRUE(invoke);
     ASSERT_TRUE(gotfailure);
@@ -370,10 +379,11 @@ TEST_F(ExtensionProviderTest, RegistrationSettingsEnvironment) {
                 ASSERT_EQ("aplext:foo:10", uri);
                 AssertMessage(uri, "RegisterSuccess", registerSuccess);
                 ASSERT_TRUE(registerSuccess.HasMember("environment"));
-                const auto& environment = RegistrationSuccess::getEnvironment(registerSuccess);
+                const auto& environment = RegistrationSuccess::ENVIRONMENT().Get(registerSuccess);
                 // extract the settings
-                ASSERT_TRUE(environment.IsObject());
-                auto obj = environment.GetObject();
+                ASSERT_TRUE(environment);
+                ASSERT_TRUE(environment->IsObject());
+                auto obj = environment->GetObject();
                 ASSERT_TRUE(obj.HasMember("A"));
                 ASSERT_EQ(64, obj["A"]);
                 ASSERT_TRUE(obj.HasMember("B"));
@@ -395,8 +405,10 @@ TEST_F(ExtensionProviderTest, RegistrationSettingsEnvironment) {
 TEST_F(ExtensionProviderTest, InvokeCommandSuccess) {
 
 
-    Document command = alexaext::Command("aplext:foo:10", "command1").property("prop1", Value(1).Move());
-    int id = alexaext::Command::getId(command);
+    int id = 31;
+    Document command = Command("1.0").uri("aplext:foo:10").name("command1").id(id)
+            .property("prop1", Value(1).Move());
+
 
     // the extension was registered
     ASSERT_TRUE(extPro->hasExtension("aplext:foo:10"));
@@ -423,7 +435,7 @@ TEST_F(ExtensionProviderTest, InvokeCommandSuccess) {
  * Test get definition success without without callback.
  */
 TEST_F(ExtensionProviderTest, InvokeCommandSuccessNullCallbacks) {
-    Document command = alexaext::Command("aplext:foo:10", "command1").property("prop1", Value(1).Move());
+    Document command = Command("1.0").uri("aplext:foo:10").name("command1").id(31).property("prop1", Value(1).Move());
 
     // the extension was registered
     ASSERT_TRUE(extPro->hasExtension("aplext:foo:10"));
@@ -440,8 +452,8 @@ TEST_F(ExtensionProviderTest, InvokeCommandSuccessNullCallbacks) {
  */
 TEST_F(ExtensionProviderTest, InvokeCommandFailure) {
 
-    Document command = alexaext::Command("aplext:foo:10", "nope").property("prop1", Value(1).Move());
-    int id = alexaext::Command::getId(command);
+    int id = 31;
+    Document command = Command("1.0").uri("aplext:foo:10").name("nope").id(id).property("prop1", Value(1).Move());
 
     // the extension was registered
     ASSERT_TRUE(extPro->hasExtension("aplext:foo:10"));
@@ -458,9 +470,9 @@ TEST_F(ExtensionProviderTest, InvokeCommandFailure) {
                 ASSERT_EQ("aplext:foo:10", uri);
                 this->AssertMessage(uri, "CommandFailure", commandFailure);
                 ASSERT_TRUE(commandFailure.HasMember("code"));
-                ASSERT_EQ(kErrorFailedCommand, CommandFailure::getCode(commandFailure));
+                ASSERT_EQ(kErrorFailedCommand, GetWithDefault<int>(CommandFailure::CODE(), commandFailure, -1));
                 ASSERT_EQ(sErrorMessage[kErrorFailedCommand] + std::to_string(id),
-                          CommandFailure::getMessage(commandFailure));
+                          GetWithDefault<const char*>(CommandFailure::MESSAGE(), commandFailure, ""));
             });
     ASSERT_FALSE(invoke);
     ASSERT_TRUE(gotfailure);
@@ -471,8 +483,8 @@ TEST_F(ExtensionProviderTest, InvokeCommandFailure) {
  */
 TEST_F(ExtensionProviderTest, InvokeCommandException) {
 
-    Document command = alexaext::Command("aplext:ugly:1", "ugly").property("prop1", Value(1).Move());
-    int id = alexaext::Command::getId(command);
+    int id = 31;
+    Document command = Command("1.0").uri("aplext:ugly:1").name("ugly").id(id).property("prop1", Value(1).Move());
 
     // the extension was registered
     ASSERT_TRUE(extPro->hasExtension("aplext:ugly:1"));
@@ -488,9 +500,10 @@ TEST_F(ExtensionProviderTest, InvokeCommandException) {
                 gotfailure = true;
                 ASSERT_EQ("aplext:ugly:1", uri);
                 AssertMessage(uri, "CommandFailure", commandFailure);
-                ASSERT_EQ(id, CommandFailure::getId(commandFailure));
-                ASSERT_EQ(kErrorExtensionException, CommandFailure::getCode(commandFailure));
-                ASSERT_EQ("ugly exception error", CommandFailure::getMessage(commandFailure));
+                ASSERT_EQ(id, GetWithDefault<int>(Command::ID(), commandFailure, -1));
+                ASSERT_EQ(kErrorExtensionException, GetWithDefault<int>(CommandFailure::CODE(), commandFailure, -1));
+                ASSERT_STREQ("ugly exception error",
+                             GetWithDefault<const char*>(CommandFailure::MESSAGE(), commandFailure, ""));
             });
     ASSERT_FALSE(invoke);
     ASSERT_TRUE(gotfailure);
@@ -511,7 +524,7 @@ TEST_F(ExtensionProviderTest, InvokeEventHandlerSuccess) {
                 gotsuccess = true;
                 ASSERT_EQ("aplext:foo:10", uri);
                 AssertMessage(uri, "Event", event);
-                ASSERT_EQ("hello", Event::getName(event));
+                ASSERT_STREQ("hello", GetWithDefault<const char*>(Event::NAME(), event, ""));
             });
 
     // simulate an internal generated event
@@ -544,9 +557,42 @@ TEST_F(ExtensionProviderTest, InvokeEventHandlerNullCallback) {
     ASSERT_TRUE(simple);
     bool handled = simple->generateTestEvent("aplext:foo:10", "FooEvent");
 
-    // no callback means not handled
-    ASSERT_FALSE(handled);
+    // The local proxy always installs a handler, so the event is handled
+    ASSERT_TRUE(handled);
 
+}
+
+/**
+ * Test that multiple event handlers can be registered.
+ */
+TEST_F(ExtensionProviderTest, MultipleEventHandlers) {
+
+    ASSERT_TRUE(extPro->hasExtension("aplext:foo:10"));
+    auto foo = extPro->getExtension("aplext:foo:10");
+    ASSERT_TRUE(foo);
+
+    bool firstSuccess = false;
+    bool secondSuccess = false;
+    foo->registerEventCallback(
+        [&](const std::string& uri, const rapidjson::Value& event) {
+          firstSuccess = true;
+        });
+    foo->registerEventCallback(
+        [&](const std::string& uri, const rapidjson::Value& event) {
+          secondSuccess = true;
+        });
+
+    // simulate an internal generated event
+    auto ext = testExtensions.at("aplext:foo:10");
+    ASSERT_TRUE(foo);
+    auto simple = std::static_pointer_cast<SimpleExtension>(ext);
+    ASSERT_TRUE(simple);
+    bool handled = simple->generateTestEvent("aplext:foo:10", "hello");
+
+    // the event is handled and received by the callback.
+    ASSERT_TRUE(handled);
+    ASSERT_TRUE(firstSuccess);
+    ASSERT_TRUE(secondSuccess);
 }
 
 /**
@@ -564,7 +610,7 @@ TEST_F(ExtensionProviderTest, InvokeLiveDataUpdate) {
                 gotsuccess = true;
                 ASSERT_EQ("aplext:foo:10", uri);
                 AssertMessage(uri, "LiveDataUpdate", liveDataUpdate);
-                ASSERT_EQ("HelloObject", LiveDataUpdate::getName(liveDataUpdate));
+                ASSERT_STREQ("HelloObject", GetWithDefault<const char*>(LiveDataUpdate::OBJECT_NAME(), liveDataUpdate, ""));
             });
 
     // simulate an internal generated event
@@ -597,7 +643,40 @@ TEST_F(ExtensionProviderTest, InvokeLiveDataUpdateNullCallback) {
     ASSERT_TRUE(simple);
     bool handled = simple->generateLiveDataUpdate("aplext:foo:10", "FooObject");
 
-    // no callback means not handled
-    ASSERT_FALSE(handled);
+    // The local proxy always installs a handler, so the update is handled
+    ASSERT_TRUE(handled);
+}
 
+
+/**
+ * Test that multiple live data update callbacks can be registered.
+ */
+TEST_F(ExtensionProviderTest, MultipleLiveDataUpdateCallbacks) {
+
+    ASSERT_TRUE(extPro->hasExtension("aplext:foo:10"));
+    auto foo = extPro->getExtension("aplext:foo:10");
+    ASSERT_TRUE(foo);
+
+    bool firstSuccess = false;
+    bool secondSuccess = false;
+    foo->registerLiveDataUpdateCallback(
+        [&firstSuccess](const std::string& uri, const rapidjson::Value& liveDataUpdate) {
+          firstSuccess = true;
+        });
+    foo->registerLiveDataUpdateCallback(
+        [&secondSuccess](const std::string& uri, const rapidjson::Value& liveDataUpdate) {
+          secondSuccess = true;
+        });
+
+    // simulate an internal generated event
+    auto ext = testExtensions.at("aplext:foo:10");
+    ASSERT_TRUE(foo);
+    auto simple = std::static_pointer_cast<SimpleExtension>(ext);
+    ASSERT_TRUE(simple);
+    bool handled = simple->generateLiveDataUpdate("aplext:foo:10", "HelloObject");
+
+    // the event is handled and received by the callback.
+    ASSERT_TRUE(handled);
+    ASSERT_TRUE(firstSuccess);
+    ASSERT_TRUE(secondSuccess);
 }

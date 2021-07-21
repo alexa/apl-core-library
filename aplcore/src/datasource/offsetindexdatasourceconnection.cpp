@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -159,6 +159,8 @@ OffsetIndexDataSourceConnection::remove(size_t index, size_t count) {
     if (index > upperBound || index < lowerBound) {
         return false;
     }
+
+    if (index + count > upperBound) count = upperBound - index;
 
     if (liveArray->remove(index - mOffset, count)) {
         mMaxItems -= count;

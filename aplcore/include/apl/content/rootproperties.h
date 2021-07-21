@@ -53,6 +53,11 @@ enum RootProperty {
     kSequenceChildCache,
     /// Current UTC time in milliseconds since the epoch
     kUTCTime,
+    /// A BCP-47 string (e.g., en-US) which affects the default font selection of Text or EditText components.
+    /// For example to select the japanese characters of the "Noto Sans CJK" font family set this to "ja-JP"
+    kLang,
+    /// The document layout direction. Can be "RTL" or "LTR". Default is "LTR" (left to right)
+    kLayoutDirection,
     /// Local time zone adjustment in milliseconds
     kLocalTimeAdjustment,
     /// Double press timeout

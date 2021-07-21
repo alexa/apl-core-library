@@ -14,6 +14,10 @@
 target_sources_local(apl
     PRIVATE
     boundsymbol.cpp
+    bytecode.cpp
+    bytecodeassembler.cpp
+    bytecodeevaluator.cpp
+    bytecodeoptimizer.cpp
     functions.cpp
-    node.cpp
+    grammarerror.cpp
 )

@@ -44,6 +44,8 @@
 #include "apl/command/finishcommand.h"
 #include "apl/command/reinflatecommand.h"
 
+#include "apl/engine/layoutmanager.h"
+
 namespace apl {
 
 const static bool DEBUG_COMMAND_VALUES = false;
@@ -173,14 +175,22 @@ CoreCommand::calculateProperties()
     auto cpd = propDefSet().find(kCommandPropertyComponentId);
     if (cpd != propDefSet().end()) {
         auto p = mProperties.find(cpd->second.names);
+        std::string id;
         if (p != mProperties.end()) {
-            std::string id = evaluate(*mContext, p->second).asString();
+            id = evaluate(*mContext, p->second).asString();
             mTarget = std::dynamic_pointer_cast<CoreComponent>(mContext->findComponentById(id));
         }
 
         if (mTarget == nullptr) {
-            CONSOLE_CTP(mContext) << "Illegal command - need to specify a target componentId";
-            return false;
+            // TODO: Try full inflation, we may be missing deep component inflated. Quite inefficient, especially if done
+            //  in onMount, revisit.
+            auto& lm = mContext->layoutManager();
+            lm.flushLazyInflation();
+            mTarget = std::dynamic_pointer_cast<CoreComponent>(mContext->findComponentById(id));
+            if (mTarget == nullptr) {
+                CONSOLE_CTP(mContext) << "Illegal command - need to specify a target componentId";
+                return false;
+            }
         }
 
         mValues.emplace(kCommandPropertyComponentId, mTarget->getUniqueId());

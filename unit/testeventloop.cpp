@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include "apl/graphic/graphicelementgroup.h"
 #include "apl/graphic/graphicelementpath.h"
 #include "apl/graphic/graphicelementtext.h"
+#include "apl/touch/gesture.h"
 
 namespace apl {
 
@@ -63,6 +64,7 @@ getMemoryCounterMap() {
         {"DataSourceConnection",    Counter<DataSourceConnection>::itemsDelta},
         {"Dependant",               Counter<Dependant>::itemsDelta},
         {"ExtensionClient",         Counter<ExtensionClient>::itemsDelta},
+        {"Gesture",                 Counter<Gesture>::itemsDelta},
         {"Graphic",                 Counter<Graphic>::itemsDelta},
         {"GraphicElement",          Counter<GraphicElement>::itemsDelta},
         {"GraphicElementContainer", Counter<GraphicElementContainer>::itemsDelta},
@@ -70,6 +72,7 @@ getMemoryCounterMap() {
         {"GraphicElementPath",      Counter<GraphicElementPath>::itemsDelta},
         {"GraphicElementText",      Counter<GraphicElementText>::itemsDelta},
         {"GraphicPattern",          Counter<GraphicPattern>::itemsDelta},
+        {"MediaObject",             Counter<MediaObject>::itemsDelta},
         {"Package",                 Counter<Package>::itemsDelta},
         {"RootContextData",         Counter<RootContextData>::itemsDelta},
         {"Sequencer",               Counter<Sequencer>::itemsDelta},

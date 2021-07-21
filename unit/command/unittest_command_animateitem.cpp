@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -59,6 +59,7 @@ static const char *ANIMATE =
 TEST_F(AnimateItemTest, Basic)
 {
     loadDocument(ANIMATE);
+    advanceTime(10);
     auto frame = root->context().findComponentById("box");
     auto goButton = root->context().findComponentById("go");
     ASSERT_TRUE(frame);
@@ -72,13 +73,12 @@ TEST_F(AnimateItemTest, Basic)
 
     ASSERT_EQ(Object(0.5), frame->getCalculated(kPropertyOpacity));
 
-    auto startTime = loop->currentTime();
     for (int i = 1; i <= 10; i++) {
-        loop->advanceToTime(startTime + i * 100);
+        advanceTime(100);
         ASSERT_NEAR(0.5 * (1 - i * 0.1), frame->getCalculated(kPropertyOpacity).asNumber(), 0.00001);
         ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));
-        ASSERT_TRUE(CheckDirty(root, frame));
     }
+    ASSERT_TRUE(CheckDirty(root, component, frame));
 
     ASSERT_EQ(0, loop->size());
     ASSERT_TRUE(CheckDirty(root));

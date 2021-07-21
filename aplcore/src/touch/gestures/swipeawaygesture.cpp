@@ -74,6 +74,7 @@ SwipeAwayGesture::SwipeAwayGesture(const ActionablePtr& actionable, SwipeAwayAct
         FlingGesture(actionable),
         mAction(action),
         mDirection(direction),
+        mDirectionAssigned(direction),
         mOnSwipeMove(std::move(onSwipeMove)),
         mOnSwipeDone(std::move(onSwipeDone)),
         mItems(std::move(items)),
@@ -151,6 +152,13 @@ SwipeAwayGesture::onDown(const PointerEvent& event, apl_time_t timestamp)
         return false;
 
     auto touchableBounds = mActionable->getGlobalBounds();
+
+    auto layoutDirection = static_cast<LayoutDirection>(mActionable->getCalculated(kPropertyLayoutDirection).asInt());
+    if (mDirectionAssigned == kSwipeDirectionForward) {
+        mDirection = (layoutDirection == kLayoutDirectionRTL ? kSwipeDirectionLeft  : kSwipeDirectionRight);
+    } else if (mDirectionAssigned == kSwipeDirectionBackward) {
+        mDirection = (layoutDirection == kLayoutDirectionRTL ? kSwipeDirectionRight : kSwipeDirectionLeft);
+    }
 
     // Need just directional distance really.
     if (mDirection == SwipeDirection::kSwipeDirectionLeft ||

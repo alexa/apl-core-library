@@ -1,0 +1,70 @@
+@startuml LocalExtensionProxy
+
+title
+<u><b>alexaext: ExtensionProxy In-Process Extensions</b></u>
+<i>Isolates the Proxy <-> Extension messages for Extensions running in the Runtime process</i>
+<i>alternate and negative code paths removed for simplicity</i>
+ 'blank title line for spacing
+end title
+
+skinparam sequence {
+ParticipantBorderColor #808080
+}
+skinparam responseMessageBelowArrow true
+
+participant "<Actor>" as Actor #LightBlue
+participant "LocalExtensionProxy" as Proxy
+participant "Extension" as Extension
+
+== Proxy Creation ==
+
+autonumber
+group alt ExtensionFactory [lazy - preferred]
+    Actor <-> Proxy: create:Proxy\n<font color=gray>(uri:string, extensionFactory:function)
+else assigned 
+    Actor <-> Proxy: create:Proxy\n<font color=gray>(uri:string, extension:ExtensionFactory)
+end
+Actor <-> Proxy : registerEventCallback(callback)
+Actor <-> Proxy : registerLiveDataCallback(callback)
+autonumber stop
+
+...
+== Extension Initialization ==
+
+autonumber
+Actor -> Proxy: prepare:void
+activate Proxy
+group alt ExtensionFactory [lazy]
+    Proxy <-> Extension: create:Extension
+end
+return
+deactivate Actor
+autonumber stop
+
+...
+== Extension Registration ==
+
+autonumber
+ExeEnv -> Proxy: getRegistration:json
+activate ExeEnv
+activate Proxy
+Proxy -> Extension: getRegistration:json
+activate Extension
+return {RegistratonSuccess{token, Schema, Environment}
+deactivate Extension
+Proxy -> ExeEnv: {RegistrationSuccess:json}
+deactivate Proxy
+deactivate ExeEnv
+autonumber stop
+
+...
+== Extension Commands ==
+
+autonumber
+ExeEnv --> Proxy: invokeCommand:bool
+Proxy -> Extension: invokeCommand:bool
+Entension -> Proxy: true
+Extension -> Proxy: CommandSucces:json
+Proxy --> ExeEnv: CommandSuccess:json
+
+@enduml

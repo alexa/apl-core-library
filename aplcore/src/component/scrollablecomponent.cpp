@@ -22,8 +22,14 @@
 #include "apl/content/rootconfig.h"
 #include "apl/touch/gestures/scrollgesture.h"
 #include "apl/time/timemanager.h"
+#include "apl/utils/stickychildrentree.h"
 
 namespace apl {
+
+ScrollableComponent::ScrollableComponent(const ContextPtr& context, Properties&& properties,
+                                         const Path& path) :
+    ActionableComponent(context, std::move(properties), path),
+    mStickyTree(std::make_shared<StickyChildrenTree>(*this)) {};
 
 const ComponentPropDefSet&
 ScrollableComponent::propDefSet() const
@@ -41,8 +47,13 @@ ScrollableComponent::propDefSet() const
     };
 
     static auto setScrollPercent = [](CoreComponent& component, const Object& value) -> void {
-        auto height = YGNodeLayoutGetHeight(component.getNode());
-        dynamic_cast<ScrollableComponent&>(component).setScrollPositionDirectly(height * value.asNumber());
+        float scrollSize;
+        if (component.scrollType() == kScrollTypeHorizontal) {
+            scrollSize = YGNodeLayoutGetWidth(component.getNode());
+        } else {
+            scrollSize = YGNodeLayoutGetHeight(component.getNode());
+        }
+        dynamic_cast<ScrollableComponent&>(component).setScrollPositionDirectly(scrollSize * value.asNumber());
     };
 
     static ComponentPropDefSet sScrollableComponentProperties(ActionableComponent::propDefSet(), {
@@ -130,18 +141,17 @@ ScrollableComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::Allo
 void
 ScrollableComponent::initialize() {
     ActionableComponent::initialize();
-    // If native gestures enabled - register them.
-    if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore))
-        mGestureHandlers.emplace_back(ScrollGesture::create(std::static_pointer_cast<ScrollableComponent>(shared_from_this())));
+    mGestureHandlers.emplace_back(ScrollGesture::create(std::static_pointer_cast<ScrollableComponent>(shared_from_this())));
 }
 
 void
 ScrollableComponent::onScrollPositionUpdated()
 {
     setVisualContextDirty();
-    markDisplayedChildrenStale();
-    if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore))
-        setDirty(kPropertyScrollPosition);
+    markDisplayedChildrenStale(true);
+    setDirty(kPropertyScrollPosition);
+
+    mStickyTree->updateStickyOffsets();
 }
 
 bool
@@ -158,11 +168,16 @@ bool
 ScrollableComponent::canScroll(FocusDirection direction)
 {
     auto sp = scrollType();
-    return (((direction == kFocusDirectionUp && sp == kScrollTypeVertical) ||
-             (direction == kFocusDirectionLeft && sp == kScrollTypeHorizontal) ||
+    bool isLTR = getCalculated(kPropertyLayoutDirection) == kLayoutDirectionLTR;
+    bool horizontalBackwards = isLTR
+              ? (direction == kFocusDirectionLeft && sp == kScrollTypeHorizontal)
+              : (direction == kFocusDirectionRight && sp == kScrollTypeHorizontal);
+    bool horizontalForwards = isLTR
+              ? (direction == kFocusDirectionRight && sp == kScrollTypeHorizontal)
+              : (direction == kFocusDirectionLeft && sp == kScrollTypeHorizontal);
+    return (((direction == kFocusDirectionUp && sp == kScrollTypeVertical) || horizontalBackwards ||
              (direction == kFocusDirectionBackwards)) && allowBackwards()) ||
-           (((direction == kFocusDirectionDown && sp == kScrollTypeVertical) ||
-             (direction == kFocusDirectionRight && sp == kScrollTypeHorizontal) ||
+           (((direction == kFocusDirectionDown && sp == kScrollTypeVertical) || horizontalForwards ||
              (direction == kFocusDirectionForward)) && allowForward());
 }
 
@@ -205,7 +220,10 @@ ScrollableComponent::takeFocusFromChild(FocusDirection direction, const Rect& or
     if (canTravel) {
         // Shift in %
         float targetShift = 0;
-        if (direction == kFocusDirectionRight ||
+        bool horizontalForward = getCalculated(kPropertyLayoutDirection) == kLayoutDirectionLTR
+                                     ? (scrollType() == kScrollTypeHorizontal && direction == kFocusDirectionRight)
+                                     : (scrollType() == kScrollTypeHorizontal && direction == kFocusDirectionLeft);
+        if (horizontalForward ||
             direction == kFocusDirectionDown ||
             direction == kFocusDirectionForward) {
             targetShift = 100;

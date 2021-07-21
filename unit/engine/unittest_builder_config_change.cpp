@@ -276,7 +276,7 @@ TEST_F(BuilderConfigChange, ReinflateFail)
 static const char *PAGER = R"apl(
     {
       "type": "APL",
-      "version": "1.5",
+      "version": "1.6",
       "mainTemplate": {
         "item": {
           "type": "Pager",
@@ -305,22 +305,19 @@ TEST_F(BuilderConfigChange, StopEventsPopped)
     ASSERT_EQ(10, component->getChildCount());
 
     // Set the page, and pull the event off of the root stack
-    executeCommand("SetPage", {{"componentId", "PAGER"},
-                               {"position",    "absolute"},
-                               {"value",       2}}, false);
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeSetPage, event.getType());
+    auto actionRef = executeCommand("SetPage", {{"componentId", "PAGER"},
+                                                            {"position",    "relative"},
+                                                            {"value",       2}}, false);
+    ASSERT_EQ(0, component->pagePosition());
 
     configChangeReinflate(ConfigurationChange(1000, 1500));
     ASSERT_TRUE(component);
+    ASSERT_TRUE(actionRef->isTerminated());
 
+    advanceTime(1000);
     ASSERT_FALSE(root->hasEvent());
     ASSERT_EQ(3, component->getChildCount());
     ASSERT_EQ(0, component->getCalculated(kPropertyCurrentPage).getInteger());  // Still on page zero
-
-    // The event should have been terminated
-    ASSERT_TRUE(event.getActionRef().isTerminated());
 }
 
 
@@ -511,7 +508,7 @@ TEST_F(BuilderConfigChange, DefaultResizeBehavior)
     configChange(ConfigurationChange(600,200));
     root->clearPending();
     ASSERT_TRUE(IsEqual(Rect({0,0,300,100}), component->getCalculated(kPropertyBounds).getRect()));
-    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component));
 }
 
@@ -547,7 +544,7 @@ TEST_F(BuilderConfigChange, OnConfigChangeNoRelayout)
     configChange(ConfigurationChange(300,100));
     root->clearPending();
     ASSERT_EQ(Rect({0,0,300,100}), component->getCalculated(kPropertyBounds).getRect());
-    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(CheckSendEvent(root, "normal"));  // The normal event has fired
 }
@@ -662,7 +659,7 @@ TEST_F(BuilderConfigChange, ResizeQueue)
     event2.getActionRef().resolve();
     root->clearPending();
     ASSERT_EQ(Rect({0,0,400,500}), component->getCalculated(kPropertyBounds).getRect());
-    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(event.getActionRef().isTerminated());
     ASSERT_TRUE(event2.getActionRef().isResolved());
@@ -727,7 +724,7 @@ TEST_F(BuilderConfigChange, ReinflateWithHandleTick)
     ASSERT_TRUE(text);
     ASSERT_EQ(kComponentTypeText, text->getType());
     ASSERT_EQ(0.5, text->getCalculated(kPropertyOpacity).getDouble());
-    root->updateTime(1100);
+    advanceTime(1100);
     ASSERT_EQ(1.0, text->getCalculated(kPropertyOpacity).getDouble());
 
     // Change the size.
@@ -739,6 +736,6 @@ TEST_F(BuilderConfigChange, ReinflateWithHandleTick)
     ASSERT_TRUE(text);
     ASSERT_EQ(kComponentTypeText, text->getType());
     ASSERT_EQ(0.5, text->getCalculated(kPropertyOpacity).getDouble());
-    root->updateTime(2200);
+    advanceTime(1100);
     ASSERT_EQ(1.0, text->getCalculated(kPropertyOpacity).getDouble());
 }

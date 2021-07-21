@@ -16,6 +16,7 @@
 #ifndef _APL_STYLED_TEXT_STATE_H
 #define _APL_STYLED_TEXT_STATE_H
 
+#include "apl/engine/context.h"
 #include "apl/primitives/styledtext.h"
 
 #include <map>
@@ -29,7 +30,10 @@ namespace apl {
  */
 class StyledTextState {
 public:
-    StyledTextState() = default;
+    /**
+      * @param context The data-binding context.
+      */
+    StyledTextState(const Context& context) : mContext(context) {};
 
     /**
      * Append text to raw text "container".
@@ -41,6 +45,16 @@ public:
      * Add space. Avoids wchar processing for spaces because " " is already utf-8 encoded.
      */
     void space();
+
+    /**
+     * @param attributeName style attributeName.
+     */
+    void attributeName(const std::string& attributeName);
+
+    /**
+     * @param attributeValue style attributeName.
+     */
+    void attributeValue(const std::string& attributeValue);
 
     /**
      * @param tag style tag.
@@ -95,10 +109,13 @@ public:
     std::string& getText() { return mText; }
 
 private:
+    const Context& mContext;
     std::stack<StyledText::Span> mBuildStack;
     std::map<StyledText::SpanType, size_t> mOpenedSpans;
     std::vector<StyledText::Span> mSpans;
     std::string mText;
+    std::map<StyledText::SpanAttributeName, Object> mCurrentAttributeMap;
+    std::string mCurrentAttributeName;
     /**
      *  All span offsets are codepoint offsets. Note that the number of bytes per codepoint depends on the string encoding used.
      */
@@ -134,6 +151,8 @@ private:
             return (a.type < b.type);
         }
     } spanComparator;
+
+    void emplaceAttribute(const std::string& value);
 };
 
 } // namespace apl

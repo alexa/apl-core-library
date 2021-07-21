@@ -142,9 +142,14 @@ public:
     bool registrationMessageProcessed();
 
     /**
-     * @return True if extension was sucessfully registered. False otherwise.
+     * @return True if extension was successfully registered. False otherwise.
      */
     bool registered();
+
+    /**
+     * @return The assigned connection token.
+     */
+    std::string getConnectionToken() const;
 
     /**
      * Process service message directed to this extension.

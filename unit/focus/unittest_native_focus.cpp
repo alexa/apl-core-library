@@ -21,12 +21,6 @@ using namespace apl;
 
 class NativeFocusTest : public DocumentWrapper {
 public:
-    NativeFocusTest() : DocumentWrapper() {
-        // Pager/Scrolling required to support spatial navigation.
-        config->enableExperimentalFeature(RootConfig::kExperimentalFeatureHandleScrollingAndPagingInCore);
-        config->enableExperimentalFeature(RootConfig::kExperimentalFeatureHandleFocusInCore);
-    }
-
     void
     prepareMainFocus() {
         auto& fm = root->context().focusManager();
@@ -1726,7 +1720,7 @@ TEST_F(NativeFocusTest, PagerCombinationUpFromBot)
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
 
     ASSERT_EQ(pager, fm.getFocus());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(1, pager->pagePosition());
 
     ASSERT_EQ(pager, fm.getFocus());
@@ -1887,6 +1881,7 @@ TEST_F(NativeFocusTest, PagerTrappedInB4Up)
 
     auto pager = root->findComponentById("pager");
     executeCommand("SetPage", {{"componentId", "pager"}, {"value", "3"}}, false);
+    advanceTime(600);
     ASSERT_EQ(3, pager->pagePosition());
 
     executeCommand("SetFocus", {{"componentId", "4"}}, false);
@@ -1913,6 +1908,7 @@ TEST_F(NativeFocusTest, PagerTrappedInB4Down)
 
     auto pager = root->findComponentById("pager");
     executeCommand("SetPage", {{"componentId", "pager"}, {"value", "3"}}, false);
+    advanceTime(600);
     ASSERT_EQ(3, pager->pagePosition());
 
     executeCommand("SetFocus", {{"componentId", "4"}}, false);
@@ -1939,6 +1935,7 @@ TEST_F(NativeFocusTest, PagerFocusInternalRight)
 
     auto pager = root->findComponentById("pager");
     executeCommand("SetPage", {{"componentId", "pager"}, {"value", "2"}}, false);
+    advanceTime(600);
     ASSERT_EQ(2, pager->pagePosition());
 
     executeCommand("SetFocus", {{"componentId", "pager"}}, false);
@@ -1965,6 +1962,7 @@ TEST_F(NativeFocusTest, PagerFocusInternalLeft)
 
     auto pager = root->findComponentById("pager");
     executeCommand("SetPage", {{"componentId", "pager"}, {"value", "4"}}, false);
+    advanceTime(600);
     ASSERT_EQ(4, pager->pagePosition());
 
     executeCommand("SetFocus", {{"componentId", "pager"}}, false);
@@ -2024,12 +2022,12 @@ TEST_F(NativeFocusTest, PagerNormalHorizontalForward) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(2, component->pagePosition());
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(2, component->pagePosition());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionRight));
@@ -2044,12 +2042,12 @@ TEST_F(NativeFocusTest, PagerNormalHorizontalBackwards) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(0, component->pagePosition());
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(0, component->pagePosition());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionLeft));
@@ -2065,7 +2063,7 @@ TEST_F(NativeFocusTest, PagerNormalHorizontalExitUp) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(1, component->pagePosition());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionUp));
@@ -2081,7 +2079,7 @@ TEST_F(NativeFocusTest, PagerNormalHorizontalExitDown) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(1, component->pagePosition());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionDown));
@@ -2101,12 +2099,12 @@ TEST_F(NativeFocusTest, PagerNormalVerticalForward) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(2, component->pagePosition());
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(2, component->pagePosition());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionDown));
@@ -2121,12 +2119,12 @@ TEST_F(NativeFocusTest, PagerNormalVerticalBackwards) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(0, component->pagePosition());
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(0, component->pagePosition());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionUp));
@@ -2142,7 +2140,7 @@ TEST_F(NativeFocusTest, PagerNormalVerticalExitLeft) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(1, component->pagePosition());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionLeft));
@@ -2158,7 +2156,7 @@ TEST_F(NativeFocusTest, PagerNormalVerticalExitRight) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(1, component->pagePosition());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionRight));
@@ -2177,12 +2175,12 @@ TEST_F(NativeFocusTest, PagerNormalHorizontalWrapForward) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(2, component->pagePosition());
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(0, component->pagePosition());
 }
 
@@ -2193,12 +2191,12 @@ TEST_F(NativeFocusTest, PagerNormalHorizontalWrapBackwards) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(0, component->pagePosition());
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(2, component->pagePosition());
 }
 
@@ -2215,7 +2213,7 @@ TEST_F(NativeFocusTest, PagerNormalHorizontalNoneForward) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(1, component->pagePosition());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionRight));
@@ -2230,7 +2228,7 @@ TEST_F(NativeFocusTest, PagerNormalHorizontalNoneBackwards) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(1, component->pagePosition());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionLeft));
@@ -2250,12 +2248,12 @@ TEST_F(NativeFocusTest, PagerNormalHorizontalFOForward) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(2, component->pagePosition());
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(2, component->pagePosition());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionRight));
@@ -2270,7 +2268,7 @@ TEST_F(NativeFocusTest, PagerNormalHorizontalFOBackwards) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(1, component->pagePosition());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionLeft));
@@ -2447,6 +2445,8 @@ TEST_F(NativeFocusTest, PagerTouchablePassThrough) {
     loadDocument(TOUCHABLE_PAGER);
     ASSERT_TRUE(component);
     ASSERT_EQ(0, component->pagePosition());
+    advanceTime(10);
+    root->clearDirty();
 
     auto& fm = root->context().focusManager();
 
@@ -2458,7 +2458,7 @@ TEST_F(NativeFocusTest, PagerTouchablePassThrough) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(1, pager->pagePosition());
 
     auto child = root->findComponentById("1");
@@ -2576,6 +2576,8 @@ TEST_F(NativeFocusTest, PagerSwitchBoundsRight) {
     loadDocument(SIMPLER_PAGER, R"({"direction": "horizontal"})");
     ASSERT_TRUE(component);
     ASSERT_EQ(0, component->pagePosition());
+    advanceTime(10);
+    root->clearDirty();
 
     auto& fm = root->context().focusManager();
     auto pager = root->findComponentById("pager");
@@ -2588,7 +2590,7 @@ TEST_F(NativeFocusTest, PagerSwitchBoundsRight) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(1, pager->pagePosition());
 
     child = root->findComponentById("22");
@@ -2598,7 +2600,7 @@ TEST_F(NativeFocusTest, PagerSwitchBoundsRight) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
 
     child = root->findComponentById("23");
     ASSERT_EQ(child, fm.getFocus());
@@ -2607,7 +2609,7 @@ TEST_F(NativeFocusTest, PagerSwitchBoundsRight) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
     ASSERT_EQ(2, pager->pagePosition());
 
     child = root->findComponentById("33");
@@ -2619,6 +2621,8 @@ TEST_F(NativeFocusTest, PagerSwitchBoundsLeft) {
     loadDocument(SIMPLER_PAGER, R"({"direction": "horizontal"})");
     ASSERT_TRUE(component);
     ASSERT_EQ(0, component->pagePosition());
+    advanceTime(10);
+    root->clearDirty();
 
     auto& fm = root->context().focusManager();
     auto pager = root->findComponentById("pager");
@@ -2631,7 +2635,7 @@ TEST_F(NativeFocusTest, PagerSwitchBoundsLeft) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(2, pager->pagePosition());
 
     child = root->findComponentById("32");
@@ -2641,7 +2645,7 @@ TEST_F(NativeFocusTest, PagerSwitchBoundsLeft) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
 
     child = root->findComponentById("33");
     ASSERT_EQ(child, fm.getFocus());
@@ -2650,7 +2654,7 @@ TEST_F(NativeFocusTest, PagerSwitchBoundsLeft) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
     ASSERT_EQ(1, pager->pagePosition());
 
     child = root->findComponentById("23");
@@ -2674,7 +2678,7 @@ TEST_F(NativeFocusTest, PagerSwitchBoundsDown) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
 
     child = root->findComponentById("13");
     ASSERT_EQ(child, fm.getFocus());
@@ -2683,7 +2687,7 @@ TEST_F(NativeFocusTest, PagerSwitchBoundsDown) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(1, pager->pagePosition());
 
     child = root->findComponentById("21");
@@ -2707,7 +2711,7 @@ TEST_F(NativeFocusTest, PagerSwitchBoundsUp) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
 
     child = root->findComponentById("11");
     ASSERT_EQ(child, fm.getFocus());
@@ -2716,7 +2720,7 @@ TEST_F(NativeFocusTest, PagerSwitchBoundsUp) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(2, pager->pagePosition());
 
     child = root->findComponentById("33");
@@ -2814,11 +2818,11 @@ TEST_F(NativeFocusTest, ScrollViewDownUp) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(500, component->scrollPosition().getY());
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(0, component->scrollPosition().getY());
 }
 
@@ -2869,12 +2873,12 @@ TEST_F(NativeFocusTest, ScrollViewExitDown) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(500, component->scrollPosition().getY());
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(500, component->scrollPosition().getY());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionDown));
@@ -2889,12 +2893,12 @@ TEST_F(NativeFocusTest, ScrollViewExitNext) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::TAB_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(500, component->scrollPosition().getY());
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::TAB_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(500, component->scrollPosition().getY());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionForward));
@@ -3042,19 +3046,19 @@ TEST_F(NativeFocusTest, ComplexScrollViewExitDown) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(500, component->scrollPosition().getY());
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(750, component->scrollPosition().getY());
 
     ASSERT_EQ(component, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(component, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionDown));
     ASSERT_EQ(nullptr, fm.getFocus());
@@ -3090,11 +3094,11 @@ TEST_F(NativeFocusTest, SequenceDownUp) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(500, component->scrollPosition().getY());
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(0, component->scrollPosition().getY());
 }
 
@@ -3145,15 +3149,115 @@ TEST_F(NativeFocusTest, SequenceExitDown) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(500, component->scrollPosition().getY());
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(500, component->scrollPosition().getY());
 
     ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionDown));
+    ASSERT_EQ(nullptr, fm.getFocus());
+}
+
+static const char* HORIZONTAL_SEQUENCE_RTL = R"({
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "layoutDirection": "RTL",
+      "id": "initial",
+      "scrollDirection": "horizontal",
+      "height": 400,
+      "width": 500,
+      "data": ["red", "blue", "green", "yellow"],
+      "items": [
+        {
+          "type": "Frame",
+          "height": "100%",
+          "width": 250,
+          "id": "${data}${index}",
+          "backgroundColor": "${data}"
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(NativeFocusTest, RTLHorizontalSequenceLeftRight) {
+    loadDocument(HORIZONTAL_SEQUENCE_RTL);
+    prepareMainFocus();
+
+    //////////////////////////////////////////////////////////////
+
+    root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
+    advanceTime(1000);
+    ASSERT_EQ(-500, component->scrollPosition().getX());
+
+    root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
+    advanceTime(1000);
+    ASSERT_EQ(0, component->scrollPosition().getX());
+
+}
+
+TEST_F(NativeFocusTest, RTLHorizontalSequenceExitRight) {
+    loadDocument(HORIZONTAL_SEQUENCE_RTL);
+    auto& fm = root->context().focusManager();
+    prepareMainFocus();
+
+    //////////////////////////////////////////////////////////////
+
+    root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
+
+    ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionRight));
+    ASSERT_EQ(nullptr, fm.getFocus());
+}
+
+TEST_F(NativeFocusTest, RTLHorizontalSequenceExitUp) {
+    loadDocument(HORIZONTAL_SEQUENCE_RTL);
+    auto& fm = root->context().focusManager();
+    prepareMainFocus();
+
+    //////////////////////////////////////////////////////////////
+
+    root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
+
+    ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionUp));
+    ASSERT_EQ(nullptr, fm.getFocus());
+}
+
+TEST_F(NativeFocusTest, RTLHorizontalSequenceExitDown) {
+    loadDocument(HORIZONTAL_SEQUENCE_RTL);
+    auto& fm = root->context().focusManager();
+    prepareMainFocus();
+
+    //////////////////////////////////////////////////////////////
+
+    root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
+
+    ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionDown));
+    ASSERT_EQ(nullptr, fm.getFocus());
+}
+
+TEST_F(NativeFocusTest, RTLHorizontalSequenceExitLeft) {
+    loadDocument(HORIZONTAL_SEQUENCE_RTL);
+    auto& fm = root->context().focusManager();
+    prepareMainFocus();
+
+    //////////////////////////////////////////////////////////////
+
+    root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
+    advanceTime(1000);
+    ASSERT_EQ(-500, component->scrollPosition().getX());
+
+    // Should exit here as normal
+    root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
+    advanceTime(1000);
+    ASSERT_EQ(-500, component->scrollPosition().getX());
+
+    ASSERT_TRUE(verifyFocusReleaseEvent(component, root->popEvent(), kFocusDirectionLeft));
     ASSERT_EQ(nullptr, fm.getFocus());
 }
 
@@ -3265,6 +3369,7 @@ static const char* COMPLEX_SEQUENCE = R"({
 
 TEST_F(NativeFocusTest, ComplexSequenceExitDown) {
     loadDocument(COMPLEX_SEQUENCE);
+    advanceTime(10);
     ASSERT_TRUE(component);
 
     auto& fm = root->context().focusManager();
@@ -3277,7 +3382,7 @@ TEST_F(NativeFocusTest, ComplexSequenceExitDown) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(750, component->scrollPosition().getY());
     child = root->findComponentById("4");
     ASSERT_EQ(child, fm.getFocus());
@@ -3285,7 +3390,7 @@ TEST_F(NativeFocusTest, ComplexSequenceExitDown) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
 
     ASSERT_TRUE(verifyFocusReleaseEvent(child, root->popEvent(), kFocusDirectionDown));
     ASSERT_EQ(nullptr, fm.getFocus());
@@ -3305,7 +3410,7 @@ TEST_F(NativeFocusTest, ComplexSequenceEntryDown) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(0, component->scrollPosition().getY());
     child = root->findComponentById("0");
     ASSERT_EQ(child, fm.getFocus());
@@ -3421,7 +3526,7 @@ TEST_F(NativeFocusTest, SnapSequenceStart) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(250, component->scrollPosition().getY());
 
     child = root->findComponentById("1");
@@ -3430,7 +3535,7 @@ TEST_F(NativeFocusTest, SnapSequenceStart) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(500, component->scrollPosition().getY());
 
     child = root->findComponentById("2");
@@ -3438,7 +3543,7 @@ TEST_F(NativeFocusTest, SnapSequenceStart) {
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
     ASSERT_EQ(250, component->scrollPosition().getY());
 
     child = root->findComponentById("1");
@@ -3460,7 +3565,7 @@ TEST_F(NativeFocusTest, SnapSequenceStartNexpPrevious) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::TAB_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(250, component->scrollPosition().getY());
 
     child = root->findComponentById("1");
@@ -3469,7 +3574,7 @@ TEST_F(NativeFocusTest, SnapSequenceStartNexpPrevious) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(500, component->scrollPosition().getY());
 
     child = root->findComponentById("2");
@@ -3477,7 +3582,7 @@ TEST_F(NativeFocusTest, SnapSequenceStartNexpPrevious) {
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
     ASSERT_EQ(250, component->scrollPosition().getY());
 
     child = root->findComponentById("1");
@@ -3503,7 +3608,7 @@ TEST_F(NativeFocusTest, SnapSequenceEnd) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(0, component->scrollPosition().getY());
 
     child = root->findComponentById("1");
@@ -3512,7 +3617,7 @@ TEST_F(NativeFocusTest, SnapSequenceEnd) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(250, component->scrollPosition().getY());
 
     child = root->findComponentById("2");
@@ -3520,7 +3625,7 @@ TEST_F(NativeFocusTest, SnapSequenceEnd) {
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
     ASSERT_EQ(0, component->scrollPosition().getY());
 
     child = root->findComponentById("1");
@@ -3546,7 +3651,7 @@ TEST_F(NativeFocusTest, SnapSequenceCenter) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(125, component->scrollPosition().getY());
 
     child = root->findComponentById("1");
@@ -3555,7 +3660,7 @@ TEST_F(NativeFocusTest, SnapSequenceCenter) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(375, component->scrollPosition().getY());
 
     child = root->findComponentById("2");
@@ -3563,7 +3668,7 @@ TEST_F(NativeFocusTest, SnapSequenceCenter) {
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
     ASSERT_EQ(125, component->scrollPosition().getY());
 
     child = root->findComponentById("1");
@@ -3589,7 +3694,7 @@ TEST_F(NativeFocusTest, SnapSequenceNone) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(0, component->scrollPosition().getY());
 
     child = root->findComponentById("1");
@@ -3598,7 +3703,7 @@ TEST_F(NativeFocusTest, SnapSequenceNone) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(250, component->scrollPosition().getY());
 
     child = root->findComponentById("2");
@@ -3606,7 +3711,7 @@ TEST_F(NativeFocusTest, SnapSequenceNone) {
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
     ASSERT_EQ(250, component->scrollPosition().getY());
 
     child = root->findComponentById("1");
@@ -3745,7 +3850,7 @@ TEST_F(NativeFocusTest, TouchableSequenceExitUp) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(0, scrollable->scrollPosition().getY());
 
     child = root->findComponentById("0");
@@ -3754,7 +3859,7 @@ TEST_F(NativeFocusTest, TouchableSequenceExitUp) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(0, scrollable->scrollPosition().getY());
 
     child = root->findComponentById("TOP");
@@ -3778,7 +3883,7 @@ TEST_F(NativeFocusTest, TouchableSequenceExitDown) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(80, scrollable->scrollPosition().getY());
 
     child = root->findComponentById("3");
@@ -3786,7 +3891,7 @@ TEST_F(NativeFocusTest, TouchableSequenceExitDown) {
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(182, scrollable->scrollPosition().getY());
 
     child = root->findComponentById("4");
@@ -3795,7 +3900,7 @@ TEST_F(NativeFocusTest, TouchableSequenceExitDown) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
 
     child = root->findComponentById("BOT");
     ASSERT_EQ(child, fm.getFocus());
@@ -3817,7 +3922,7 @@ TEST_F(NativeFocusTest, TouchableSequenceExitBack) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::SHIFT_TAB_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(0, scrollable->scrollPosition().getY());
 
     child = root->findComponentById("0");
@@ -3826,7 +3931,7 @@ TEST_F(NativeFocusTest, TouchableSequenceExitBack) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::SHIFT_TAB_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_EQ(0, scrollable->scrollPosition().getY());
 
     child = root->findComponentById("scrollable");
@@ -3850,7 +3955,7 @@ TEST_F(NativeFocusTest, TouchableSequenceEnterFromRight) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(80, scrollable->scrollPosition().getY());
 
     child = root->findComponentById("3");
@@ -3863,7 +3968,7 @@ TEST_F(NativeFocusTest, TouchableSequenceEnterFromRight) {
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
 
     child = root->findComponentById("2");
     ASSERT_EQ(child, fm.getFocus());
@@ -3886,7 +3991,7 @@ TEST_F(NativeFocusTest, TouchableSequenceEnterFromBottom) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(80, scrollable->scrollPosition().getY());
 
     child = root->findComponentById("3");
@@ -3988,7 +4093,7 @@ TEST_F(NativeFocusTest, NestedSequenceParentTraversal) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(100, component->scrollPosition().getY());
 
     child = root->findComponentById("30");
@@ -3998,7 +4103,7 @@ TEST_F(NativeFocusTest, NestedSequenceParentTraversal) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
 
     child = root->findComponentById("40");
     ASSERT_EQ(child, fm.getFocus());
@@ -4009,7 +4114,7 @@ TEST_F(NativeFocusTest, NestedSequenceParentTraversal) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
 
     child = root->findComponentById("30");
     ASSERT_EQ(child, fm.getFocus());
@@ -4028,7 +4133,7 @@ TEST_F(NativeFocusTest, NestedSequenceCrossChildLeft) {
     auto child = root->findComponentById("06");
     ASSERT_EQ(child, fm.getFocus());
 
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
     ASSERT_EQ(200, component->getChildAt(0)->scrollPosition().getX());
 
@@ -4055,7 +4160,7 @@ TEST_F(NativeFocusTest, NestedSequenceCrossChildRight) {
     auto child = root->findComponentById("16");
     ASSERT_EQ(child, fm.getFocus());
 
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
     ASSERT_EQ(200, component->getChildAt(1)->scrollPosition().getX());
 
@@ -4079,21 +4184,21 @@ TEST_F(NativeFocusTest, NestedSequenceRepeatKey) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(100);
+    advanceTime(100);
     child = root->findComponentById("04");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(200);
+    advanceTime(100);
     child = root->findComponentById("05");
     ASSERT_EQ(child, fm.getFocus());
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(300);
+    advanceTime(100);
     ASSERT_EQ(child, fm.getFocus());
 
-    root->updateTime(400);
+    advanceTime(100);
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 }
 
@@ -4257,11 +4362,11 @@ TEST_F(NativeFocusTest, ExitableSequenceFromVisible) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(child, fm.getFocus());
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     child = root->findComponentById("50");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
@@ -4278,7 +4383,7 @@ TEST_F(NativeFocusTest, ExitableSequenceProperPositionDownUp) {
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     executeCommand("SetFocus", {{"componentId", "44"}}, false);
-    root->updateTime(1000);
+    advanceTime(1000);
     child = root->findComponentById("44");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
@@ -4286,13 +4391,13 @@ TEST_F(NativeFocusTest, ExitableSequenceProperPositionDownUp) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     child = root->findComponentById("50");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_UP_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
     child = root->findComponentById("44");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
@@ -4309,7 +4414,7 @@ TEST_F(NativeFocusTest, ExitableSequenceProperPositionRight) {
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     executeCommand("SetFocus", {{"componentId", "44"}}, false);
-    root->updateTime(1000);
+    advanceTime(1000);
     child = root->findComponentById("44");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
@@ -4317,13 +4422,13 @@ TEST_F(NativeFocusTest, ExitableSequenceProperPositionRight) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     child = root->findComponentById("50");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
     child = root->findComponentById("44");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
@@ -4457,7 +4562,7 @@ TEST_F(NativeFocusTest, JumpingSequence) {
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
     child = root->findComponentById("12");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
@@ -4465,7 +4570,7 @@ TEST_F(NativeFocusTest, JumpingSequence) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     ASSERT_TRUE(verifyFocusReleaseEvent(child, root->popEvent(), kFocusDirectionRight));
 }
 
@@ -4476,19 +4581,19 @@ TEST_F(NativeFocusTest, WrapSequence) {
     auto& fm = root->context().focusManager();
 
     executeCommand("SetFocus", {{"componentId", "23"}}, false);
-    root->updateTime(1000);
+    advanceTime(1000);
     auto child = root->findComponentById("23");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
     child = root->findComponentById("21");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
     child = root->findComponentById("lowerSequence");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
@@ -4496,7 +4601,7 @@ TEST_F(NativeFocusTest, WrapSequence) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(4000);
+    advanceTime(1000);
     ASSERT_TRUE(verifyFocusReleaseEvent(child, root->popEvent(), kFocusDirectionLeft));
 }
 
@@ -4601,7 +4706,7 @@ TEST_F(NativeFocusTest, PagerToSequenceCrossChild) {
     auto child = root->findComponentById("06");
     ASSERT_EQ(child, fm.getFocus());
 
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
     ASSERT_EQ(200, component->getChildAt(0)->scrollPosition().getX());
 
@@ -4717,7 +4822,7 @@ TEST_F(NativeFocusTest, SequenceExitRightToContainer) {
     //////////////////////////////////////////////////////////////
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY());
-    root->updateTime(1000);
+    advanceTime(1000);
 
     child = root->findComponentById("10");
     ASSERT_EQ(child, fm.getFocus());
@@ -4725,21 +4830,21 @@ TEST_F(NativeFocusTest, SequenceExitRightToContainer) {
 
     // Should exit here as normal
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(2000);
+    advanceTime(1000);
 
     child = root->findComponentById("11");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
-    root->updateTime(3000);
+    advanceTime(1000);
 
     child = root->findComponentById("12");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY());
-    root->updateTime(4000);
+    advanceTime(1000);
     ASSERT_EQ(50, scrollable->scrollPosition().getY());
 
     child = root->findComponentById("2");
@@ -4782,7 +4887,7 @@ TEST_F(NativeFocusTest, RuntimeAPIFocusParentPager)
     loadDocument(TOUCHABLE_PAGER);
     auto child = std::dynamic_pointer_cast<CoreComponent>(root->findComponentById("pager"));
     executeCommand("SetPage", {{"componentId", "pager"}, {"position", "relative"}, {"value", 1}}, false);
-    root->updateTime(1000);
+    advanceTime(1000);
 
     ASSERT_EQ(1, child->pagePosition());
 
@@ -5223,7 +5328,7 @@ TEST_F(NativeFocusTest, ComplexPagerRight)
 
     auto pager = root->findComponentById("pager");
     executeCommand("SetPage", {{"componentId", "pager"}, {"value", "1"}}, false);
-    root->updateTime(1000);
+    advanceTime(1000);
     ASSERT_EQ(1, pager->pagePosition());
 
     auto child = root->findComponentById("41");
@@ -5946,7 +6051,7 @@ TEST_F(NativeFocusTest, WrappedEditTextTap)
     ASSERT_EQ(nullptr, fm.getFocus());
 
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(400,50), false, "onDown"));
-    root->updateTime(20);
+    advanceTime(20);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(400,50), true, "onUp"));
 
     auto editText = root->findComponentById("targetEdit");
@@ -6012,7 +6117,7 @@ TEST_F(NativeFocusTest, WrappedEditTextUp)
     ASSERT_EQ(nullptr, fm.getFocus());
 
     ASSERT_FALSE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400,50))));
-    root->updateTime(20);
+    advanceTime(20);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(400,50), true, "onUp"));
 
     auto editText = root->findComponentById("targetEdit");
@@ -6240,10 +6345,281 @@ TEST_F(NativeFocusTest, CapturingScrollable)
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 
     ASSERT_TRUE(root->nextFocus(kFocusDirectionRight));
-    root->updateTime(1000);
+    advanceTime(1000);
     child = root->findComponentById("pager");
     ASSERT_TRUE(child);
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
     ASSERT_EQ(1, child->pagePosition());
+}
+
+static const char *MEDIA_KEYS_TAKE_IN = R"({
+   "type":"APL",
+   "version":"1.2",
+   "mainTemplate":{
+      "item":{
+         "type":"TouchWrapper",
+         "item":{
+            "type":"Frame",
+            "id":"testFrame",
+            "backgroundColor":"red",
+            "width":"300dp",
+            "height":"300dp"
+         },
+         "handleKeyDown":[
+            {
+               "when":"${event.keyboard.code == 'ArrowUp' || event.keyboard.code == 'KeyW' || event.keyboard.code == 'MediaRewind' }",
+               "commands":[
+                  {
+                     "type":"SetValue",
+                     "property":"backgroundColor",
+                     "value":"green",
+                     "componentId":"testFrame"
+                  }
+               ]
+            },
+            {
+               "when":"${event.keyboard.code == 'ArrowDown' || event.keyboard.code == 'KeyS' || event.keyboard.code == 'MediaFastForward' }",
+               "commands":[
+                  {
+                     "type":"SetValue",
+                     "property":"backgroundColor",
+                     "value":"blue",
+                     "componentId":"testFrame"
+                  }
+               ]
+            },
+            {
+               "when":"${event.keyboard.code == 'Enter' || event.keyboard.code == 'MediaPlayPause' || event.keyboard.code == 'KeyG' }",
+               "commands":[
+                  {
+                     "type":"SetValue",
+                     "property":"backgroundColor",
+                     "value":"yellow",
+                     "componentId":"testFrame"
+                  }
+               ]
+            }
+         ],
+         "handleKeyUp":[
+            {
+               "when":"${event.keyboard.code == 'Home' || event.keyboard.code == 'KeyK' || event.keyboard.code == 'VolumeUp' }",
+               "commands":[
+                  {
+                     "type":"SetValue",
+                     "property":"backgroundColor",
+                     "value":"pink",
+                     "componentId":"testFrame"
+                  }
+               ]
+            },
+            {
+               "when":"${event.keyboard.code == 'Back' || event.keyboard.code == 'KeyL' || event.keyboard.code == 'VolumeDown' }",
+               "commands":[
+                  {
+                     "type":"SetValue",
+                     "property":"backgroundColor",
+                     "value":"white",
+                     "componentId":"testFrame"
+                  }
+               ]
+            }
+         ]
+      }
+   }
+})";
+
+TEST_F(NativeFocusTest, MediaKeysTakeInNext)
+{
+    loadDocument(MEDIA_KEYS_TAKE_IN);
+    auto& fm = root->context().focusManager();
+
+    root->nextFocus(kFocusDirectionForward);
+    root->clearPending();
+
+    ASSERT_EQ(component, fm.getFocus());
+    ASSERT_TRUE(verifyFocusSwitchEvent(component, root->popEvent()));
+}
+
+TEST_F(NativeFocusTest, MediaKeysTakeInRight)
+{
+    loadDocument(MEDIA_KEYS_TAKE_IN);
+    auto& fm = root->context().focusManager();
+
+    root->nextFocus(kFocusDirectionRight);
+    root->clearPending();
+
+    ASSERT_EQ(component, fm.getFocus());
+    ASSERT_TRUE(verifyFocusSwitchEvent(component, root->popEvent()));
+}
+
+static const char *TW_IN_TW = R"({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "resources": [
+    {
+      "colors": {
+        "colorItemBase": "#D6DBDF",
+        "colorItemPressed": "#808B96",
+        "colorItemBorderNormal": "#566573",
+        "colorItemBorderFocused": "#C0392B"
+      }
+    }
+  ],
+  "styles": {
+    "textStyleBody": {
+      "textAlign": "center",
+      "textAlignVertical": "center",
+      "color": "black"
+    },
+    "focusablePressableButton": {
+      "extend": "textStyleBody",
+      "values": [
+        {
+          "backgroundColor": "@colorItemBase",
+          "borderColor": "@colorItemBorderNormal",
+          "borderWidth": "2dp"
+        },
+        {
+          "when": "${state.focused}",
+          "borderColor": "@colorItemBorderFocused"
+        },
+        {
+          "when": "${state.pressed}",
+          "backgroundColor": "@colorItemPressed"
+        }
+      ]
+    },
+    "focusablePressableRow": {
+      "extend": "textStyleBody",
+      "values": [
+        {
+          "borderColor": "@colorItemBorderNormal",
+          "borderWidth": "2dp"
+        },
+        {
+          "when": "${state.focused}",
+          "borderColor": "@colorItemBorderFocused"
+        },
+        {
+          "when": "${state.pressed}",
+          "backgroundColor": "@colorItemPressed"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "height": "100%",
+      "width": "100%",
+      "data": [1,2,3,4,5],
+      "items": {
+        "type": "TouchWrapper",
+        "id": "row${data}",
+        "width": "100%",
+        "height": 50,
+        "nextFocusRight": "button${data}",
+        "item": {
+          "type": "Frame",
+          "inheritParentState": true,
+          "style": "focusablePressableRow",
+          "width": "100%",
+          "height": "100%",
+          "item": {
+            "type": "Container",
+            "width": "100%",
+            "height": "100%",
+            "items": [
+              {
+                "type": "Text",
+                "text": "Text${data}",
+                "width": "100%",
+                "height": "100%",
+                "position": "absolute"
+              },
+              {
+                "type": "TouchWrapper",
+                "id": "button${data}",
+                "width": 150,
+                "height": "100%",
+                "right": 5,
+                "position": "absolute",
+                "onPress": {
+                  "type": "SetValue",
+                  "property": "disabled",
+                  "value": "true"
+                },
+                "item": {
+                  "type": "Frame",
+                  "style": "focusablePressableButton",
+                  "inheritParentState": true,
+                  "height": "100%",
+                  "width": "100%",
+                  "item": {
+                    "type": "Text",
+                    "text": "Text${data}",
+                    "height": "100%",
+                    "width": "100%"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+})";
+
+TEST_F(NativeFocusTest, JumpBetweenTheRows)
+{
+    loadDocument(TW_IN_TW);
+    advanceTime(10);
+    auto& fm = root->context().focusManager();
+
+    auto focusableAreas = root->getFocusableAreas();
+    auto toFocus = focusableAreas.begin();
+    ASSERT_TRUE(root->setFocus(kFocusDirectionForward, toFocus->second, toFocus->first));
+
+    auto child = component->findComponentById("row1");
+    ASSERT_EQ(child, fm.getFocus());
+    ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
+
+    root->nextFocus(kFocusDirectionDown);
+    root->clearPending();
+
+    child = component->findComponentById("row2");
+    ASSERT_EQ(child, fm.getFocus());
+    ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
+
+    root->nextFocus(kFocusDirectionRight);
+    root->clearPending();
+
+    child = component->findComponentById("button2");
+    ASSERT_EQ(child, fm.getFocus());
+    ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
+
+    root->nextFocus(kFocusDirectionDown);
+    root->clearPending();
+
+    child = component->findComponentById("row3");
+    ASSERT_EQ(child, fm.getFocus());
+    ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
+
+    root->nextFocus(kFocusDirectionRight);
+    root->clearPending();
+
+    child = component->findComponentById("button3");
+    ASSERT_EQ(child, fm.getFocus());
+    ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
+
+    root->handleKeyboard(kKeyDown, Keyboard::ENTER_KEY());
+    root->handleKeyboard(kKeyUp, Keyboard::ENTER_KEY());
+    root->clearPending();
+
+    child = component->findComponentById("row4");
+    ASSERT_EQ(child, fm.getFocus());
+    ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 }

@@ -35,7 +35,7 @@ inline int modulus(int a, int b)
 
 SetPageAction::SetPageAction(const TimersPtr& timers,
                              const std::shared_ptr<CoreCommand>& command,
-                             const ComponentPtr& target)
+                             const CoreComponentPtr& target)
         : ResourceHoldingAction(timers, command->context()),
           mCommand(command),
           mTarget(target)
@@ -61,8 +61,6 @@ SetPageAction::make(const TimersPtr& timers,
 void
 SetPageAction::start()
 {
-    mTarget->ensureLayout(true);
-
     auto position = static_cast<CommandPosition>(mCommand->getValue(kCommandPropertyPosition).asInt());
     auto value = mCommand->getValue(kCommandPropertyValue).asInt();
     int len = mTarget->getChildCount();
@@ -101,7 +99,7 @@ SetPageAction::start()
         resolve();
     }
     else {
-        mTarget->getChildAt(index)->ensureLayout(true);
+        mTarget->ensureChildLayout(mTarget->getCoreChildAt(index), true);
         PagerComponent::setPageUtil(mContext, mTarget, index, direction, shared_from_this(),
             position == kCommandPositionAbsolute || mContext->getRequestedAPLVersion().compare("1.6") < 0);
     }

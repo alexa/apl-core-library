@@ -1,0 +1,111 @@
+@startuml ExtensionRegistration
+title
+ <u><b>alexaext: Extension Registration</b></u>
+ 
+ 'blank title line for spacing
+end title
+
+skinparam sequence {
+ParticipantBorderColor #808080
+}
+skinparam responseMessageBelowArrow true
+
+participant Document #FFD27F
+participant "ExecutionEnvironment" as ExeEnv #LightBlue
+participant "ExtensionRegistrar" as Registrar
+participant "ExtensionProvider" as Provider
+participant "ExtensionProxy" as Proxy
+participant "Extension Context" as Extension #FFBBCC
+
+Proxy -->Extension:asyncCall(example)
+note left
+All extension messaging is assumed to be asynchronous.
+(visually represented by dotted lines)
+Proxy Client/Server collapsed for simplicity
+end note
+Proxy <--Extension:asyncResponse(example)
+
+== Extension Registration ==
+autonumber
+
+note over Document,ExeEnv #LightGray
+  the document requests an extension
+  "extensions": [
+    {
+      "name": "Button",
+      "uri": "alexaext:gadgets:10"
+    }
+  ]
+end note
+Document -> ExeEnv : {ExtensionName,Uri}:json
+activate ExeEnv
+
+ExeEnv -> Registrar : getProxy:ExtensionProxy\n<font color=gray>(uri:string)
+activate Registrar
+Registrar -> Registrar : list<ExtensionProvider>::find\n<font color=gray>(uri)
+return null
+
+group alt Find Extension [Not Available]
+ExeEnv -> Document: {extensions.ExtensionName.environment} = false
+deactivate Registrar
+deactivate ExeEnv
+else Found
+Registrar -> Provider : getProxy:ExtensionProxy\n<font color=gray>(uri:string)
+activate Registrar
+activate Provider
+|||
+end
+|||
+
+alt
+note over Provider #LightGray
+ A single proxy instance is mapped to extension uri.  The proxy creation
+ timing is ExtensionProvider implementation dependent. The proxy instance
+ may be created on provider construction, or lazy created on uri request. Since
+ the proxy is shared, the instance may be a result of a prior extension request.
+end note
+Provider <-> Proxy : create:ExtensionProxy\n<font color=gray>(uri:string)
+Provider -> Provider: map<uri,Proxy>::put\n<font color=gray>(uri:string, proxy:ExtensionProxy)
+end
+return proxy:ExtensionProxy
+deactivate Provider
+Registrar -> ExeEnv : proxy:ExtensionProxy
+deactivate Registrar
+
+
+ExeEnv --> Proxy:getRegistration:json\n<font color=gray>({RegistrationRequest}:json,\n<font color=gray>successCB:CommandSuccessCallback,\n<font color=gray>failureCB:CommandFailureCallback)
+activate Proxy
+note over Proxy,Extension #LightGray
+ An extension does not need to be instantiated for registration. In this context
+ the extension definition (Schema + Environment) can be obtained from an extension
+ instance or static assets. (See text for limitation on static assets.)
+end note
+group alt Lifecycle [extension instance]
+Proxy --> Extension:getRegistration:json\n<font color=gray>{RegistrationRequest{Settings}:json}
+activate Extension
+Extension -> Extension: configure:bool\n<font color=gray>({Settings}:json)
+|||
+alt 
+Extension -> Extension: createRegistration:json\n<font color=gray>(uri:string, token++, Schema, Environment)
+Extension --> Proxy: {RegistrationSuccess}:json
+else
+Extension --> Proxy: {RegistrationFailure}:json
+end
+|||
+else extension static asset
+Proxy -> Extension : readRegistration:json
+Extension -> Proxy: {RegistrationSuccess}:json\n<font color=gray>{"<AUTO_TOKEN>", Schema, Environment}:json
+deactivate Extension
+Proxy -> Proxy: injectAutoToken:json\n<font color=gray>{RegistrationSuccess}:json
+end
+
+alt success
+Proxy -> ExeEnv: successCB:void\n<font color=gray>({RegistrationSuccess{Token, Schema, Environment}}:json)
+ExeEnv -> ExeEnv: defineExtension:void\n<font color=gray>({Schema:json})
+ExeEnv -> Document:  {extensions.ExtensionName.environment} = {Environment}:json
+
+else failure
+Proxy -> ExeEnv: failureCB:void\n<font color=gray>({RegistrationFailure}:json)
+end
+
+@enduml

@@ -14,6 +14,9 @@
 target_sources_local(unittest
         PRIVATE
         unittest_arithmetic.cpp
+        unittest_decompile.cpp
         unittest_grammar.cpp
+        unittest_grammar_error.cpp
+        unittest_optimize.cpp
         unittest_parse.cpp
         )

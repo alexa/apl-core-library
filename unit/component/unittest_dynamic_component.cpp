@@ -23,27 +23,35 @@ using namespace apl;
 
 class DynamicComponentTest : public DocumentWrapper {};
 
-static const char *TEST_BASE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"item\": {"
-    "        \"type\": \"Frame\","
-    "        \"id\": \"frame${data}\","
-    "        \"width\": 100,"
-    "        \"height\": 100"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *TEST_BASE = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "Frame",
+          "id": "frame1",
+          "width": 100,
+          "height": 100
+        },
+        {
+          "type": "Frame",
+          "id": "frame2",
+          "width": 100,
+          "height": 100
+        },
+        {
+          "type": "Frame",
+          "id": "frame3",
+          "width": 100,
+          "height": 100
+        }
+      ]
+    }
+  }
+})";
 
 class DynamicComponentTestSimple : public DynamicComponentTest {
 public:
@@ -69,12 +77,11 @@ public:
     }
 };
 
-static const char *TEST_ELEMENT =
-    "{"
-    "  \"type\": \"Frame\","
-    "  \"width\": 200,"
-    "  \"height\": 200"
-    "}";
+static const char *TEST_ELEMENT = R"({
+  "type": "Frame",
+  "width": 200,
+  "height": 200
+})";
 
 TEST_F(DynamicComponentTestSimple, AddOnly)
 {
@@ -95,10 +102,11 @@ TEST_F(DynamicComponentTestSimple, AddOnly)
     ASSERT_TRUE(IsEqual(Rect(0,400,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
-    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(child,
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component, child,frame[0], frame[1], frame[2]));
 }
 
@@ -121,10 +129,11 @@ TEST_F(DynamicComponentTestSimple, InsertInMiddle)
     ASSERT_TRUE(IsEqual(Rect(0,400,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(child,
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(frame[0]));
     ASSERT_TRUE(CheckDirty(frame[1]));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component, child, frame[2]));
 }
 
@@ -147,7 +156,8 @@ TEST_F(DynamicComponentTestSimple, InsertAtEnd)
     ASSERT_TRUE(IsEqual(Rect(0,200,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(child,
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(frame[0]));
     ASSERT_TRUE(CheckDirty(frame[1]));
     ASSERT_TRUE(CheckDirty(frame[2]));
@@ -166,9 +176,9 @@ TEST_F(DynamicComponentTestSimple, RemoveFront)
     ASSERT_TRUE(IsEqual(Rect(0,0,100,100), frame[1]->getCalculated(kPropertyBounds)));
     ASSERT_TRUE(IsEqual(Rect(0,100,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
-    ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component, frame[1], frame[2]));
 }
 
@@ -184,8 +194,8 @@ TEST_F(DynamicComponentTestSimple, RemoveMiddle)
     ASSERT_TRUE(IsEqual(Rect(0,0,100,100), frame[0]->getCalculated(kPropertyBounds)));
     ASSERT_TRUE(IsEqual(Rect(0,100,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
-    ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component, frame[2]));
 }
 
@@ -226,10 +236,11 @@ TEST_F(DynamicComponentTestSimple, AddAndRemove)
     ASSERT_TRUE(IsEqual(Rect(0,400,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
-    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(child,
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component, child,frame[0], frame[1], frame[2]));
 
     // Remove the child
@@ -242,11 +253,11 @@ TEST_F(DynamicComponentTestSimple, AddAndRemove)
     ASSERT_TRUE(IsEqual(Rect(0,100,100,100), frame[1]->getCalculated(kPropertyBounds)));
     ASSERT_TRUE(IsEqual(Rect(0,200,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
-    ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(child));
-    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component, frame[0], frame[1], frame[2]));
 }
 
@@ -269,10 +280,11 @@ TEST_F(DynamicComponentTestSimple, AddAndMove)
     ASSERT_TRUE(IsEqual(Rect(0,400,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
-    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(child,
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component, child,frame[0], frame[1], frame[2]));
 
     // Move the child to a new location
@@ -287,22 +299,21 @@ TEST_F(DynamicComponentTestSimple, AddAndMove)
     ASSERT_TRUE(IsEqual(Rect(0,200,200,200), child->getCalculated(kPropertyBounds)));
     ASSERT_TRUE(IsEqual(Rect(0,400,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
-    ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(frame[2]));  // It didn't move
     ASSERT_TRUE(CheckDirty(root, component, child, frame[0], frame[1]));
 }
 
-const static char * CHILD_WITH_LAYOUT_PROPERTIES =
-    "{"
-    "  \"type\": \"Frame\","
-    "  \"width\": 200,"
-    "  \"height\": 200,"
-    "  \"grow\": 1,"
-    "  \"alignSelf\": \"center\""
-    "}";
+const static char * CHILD_WITH_LAYOUT_PROPERTIES = R"({
+  "type": "Frame",
+  "width": 200,
+  "height": 200,
+  "grow": 1,
+  "alignSelf": "center"
+})";
 
 TEST_F(DynamicComponentTestSimple, LayoutProperties)
 {
@@ -326,9 +337,10 @@ TEST_F(DynamicComponentTestSimple, LayoutProperties)
     ASSERT_TRUE(IsEqual(Rect(0,height - 100,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(child,
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component, child, frame[1], frame[2]));  // frame[0] didn't move
 
     // Move the child to a new location
@@ -344,24 +356,23 @@ TEST_F(DynamicComponentTestSimple, LayoutProperties)
     ASSERT_TRUE(IsEqual(Rect(0,height-100,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     // frame[1] and child swapped places
-    ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component, child, frame[1]));
 }
 
-static const char *HIERARCHY =
-    "{"
-    "  \"type\": \"TouchWrapper\","
-    "  \"checked\": true,"
-    "  \"width\": 200,"
-    "  \"height\": 200,"
-    "  \"items\": {"
-    "    \"type\": \"Text\","
-    "    \"id\": \"myText\","
-    "    \"text\": \"Hello\""
-    "  }"
-    "}";
+static const char *HIERARCHY = R"({
+  "type": "TouchWrapper",
+  "checked": true,
+  "width": 200,
+  "height": 200,
+  "items": {
+    "type": "Text",
+    "id": "myText",
+    "text": "Hello"
+  }
+})";
 
 TEST_F(DynamicComponentTestSimple, AddHierarchy)
 {
@@ -379,7 +390,8 @@ TEST_F(DynamicComponentTestSimple, AddHierarchy)
 
     // Running layout updates the bounds of the attached children
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(child,
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(child->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
     ASSERT_TRUE(CheckDirty(root, component, child, child->getChildAt(0), frame[1], frame[2]));
 
@@ -392,7 +404,7 @@ TEST_F(DynamicComponentTestSimple, AddHierarchy)
     ASSERT_TRUE(IsEqual(Rect(0,300,200,200), child->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component, child, frame[1], frame[2]));  // frame[0] and the embedded Text don't change
 
     ASSERT_TRUE(child->remove());
@@ -533,19 +545,18 @@ TEST_F(DynamicComponentTestSimple, FindByUID)
     child->release();
 }
 
-static const char *HIERARCHY_INHERIT =
-    "{"
-    "  \"type\": \"TouchWrapper\","
-    "  \"checked\": true,"
-    "  \"inheritParentState\": true,"
-    "  \"width\": 200,"
-    "  \"height\": 200,"
-    "  \"items\": {"
-    "    \"type\": \"Text\","
-    "    \"text\": \"Hello\","
-    "    \"inheritParentState\": true"
-    "  }"
-    "}";
+static const char *HIERARCHY_INHERIT = R"({
+  "type": "TouchWrapper",
+  "checked": true,
+  "inheritParentState": true,
+  "width": 200,
+  "height": 200,
+  "items": {
+    "type": "Text",
+    "text": "Hello",
+    "inheritParentState": true
+  }
+})";
 
 // Test what happens when you add and remove a hierarchy that has inherit parent state set
 TEST_F(DynamicComponentTestSimple, AddHierarchyInherit)
@@ -573,7 +584,9 @@ TEST_F(DynamicComponentTestSimple, AddHierarchyInherit)
     // Running layout updates the bounds of the attached children
     // This also propagates checked.
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyChecked, kPropertyLaidOut));
+    ASSERT_TRUE(CheckDirty(child,
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyChecked, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyChecked, kPropertyLaidOut));
     ASSERT_TRUE(CheckDirty(root, component, child, text, frame[1], frame[2]));
 
@@ -589,7 +602,7 @@ TEST_F(DynamicComponentTestSimple, AddHierarchyInherit)
     ASSERT_TRUE(IsEqual(true, text->getCalculated(kPropertyChecked)));
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyChecked));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyChecked, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(text, kPropertyChecked));
     ASSERT_TRUE(CheckDirty(root, component, child, text));
 }
@@ -615,43 +628,46 @@ TEST_F(DynamicComponentTestSimple, RemoveUnattached)
     child->release();
 }
 
-static const char *SEQUENCE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"width\": \"100%\","
-    "      \"height\": \"100%\","
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"id\": \"frame${index}\","
-    "        \"width\": 100,"
-    "        \"height\": 300"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE = R"({
+  "type": "APL",
+  "version": "1.1",
+  "layouts": {
+    "Box":{
+      "parameters": [ "label" ],
+      "items": {
+        "type": "Frame",
+        "id": "frame${label}",
+        "width": 100,
+        "height": 300
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "width": "100%",
+      "height": "100%",
+      "items": [
+          { "type": "Box", "label": 1 },
+          { "type": "Box", "label": 2 },
+          { "type": "Box", "label": 3 },
+          { "type": "Box", "label": 4 },
+          { "type": "Box", "label": 5 },
+          { "type": "Box", "label": 6 },
+          { "type": "Box", "label": 7 },
+          { "type": "Box", "label": 8 },
+          { "type": "Box", "label": 9 }
+      ]
+    }
+  }
+})";
 
-static const char *SEQUENCE_COMPONENT =
-    "{"
-    "  \"type\": \"Frame\","
-    "  \"width\": 200,"
-    "  \"height\": 200,"
-    "  \"spacing\": 40"
-    "}";
+static const char *SEQUENCE_COMPONENT = R"({
+  "type": "Frame",
+  "width": 200,
+  "height": 200,
+  "spacing": 40
+})";
 
 TEST_F(DynamicComponentTest, Sequence)
 {
@@ -675,17 +691,18 @@ TEST_F(DynamicComponentTest, Sequence)
 
     ASSERT_TRUE(IsEqual(Rect(0,340,200,200), child->getCalculated(kPropertyBounds)));
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(child,
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirtyAtLeast(root, component, child, frame[1], frame[2], frame[3]));  // frame[0] was skipped over
 
     child->remove();
     root->clearPending();
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(child));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirtyAtLeast(root, component, frame[1], frame[2], frame[3]));  // frame[0] was skipped over
 }
 
@@ -720,61 +737,62 @@ TEST_F(DynamicComponentTest, SequenceFarOut)
     ASSERT_TRUE(CheckDirty(root, component));  // Nothing changed on the screen
 }
 
-static const char *TWO_CONTAINERS =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Container\","
-    "          \"id\": \"myContainer\","
-    "          \"height\": \"50%\","
-    "          \"width\": \"100%\","
-    "          \"direction\": \"row\","
-    "          \"items\": {"
-    "            \"type\": \"Frame\","
-    "            \"width\": 100,"
-    "            \"height\": 100"
-    "          },"
-    "          \"data\": ["
-    "            1,"
-    "            2,"
-    "            3"
-    "          ]"
-    "        },"
-    "        {"
-    "          \"type\": \"Sequence\","
-    "          \"id\": \"mySequence\","
-    "          \"scrollDirection\": \"horizontal\","
-    "          \"height\": \"50%\","
-    "          \"width\": \"100%\","
-    "          \"items\": {"
-    "            \"type\": \"Frame\","
-    "            \"width\": 100,"
-    "            \"height\": 100"
-    "          },"
-    "          \"data\": ["
-    "            1,"
-    "            2,"
-    "            3"
-    "          ]"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *TWO_CONTAINERS = R"({
+  "type": "APL",
+  "version": "1.1",
+  "layouts": {
+    "Box":{
+      "parameters": [ "label" ],
+      "items": {
+        "type": "Frame",
+        "id": "frame${label}",
+        "width": 100,
+        "height": 100
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "height": "100%",
+      "width": "100%",
+      "items": [
+        {
+          "type": "Container",
+          "id": "myContainer",
+          "height": "50%",
+          "width": "100%",
+          "direction": "row",
+          "items": [
+            { "type": "Box", "label": 1 },
+            { "type": "Box", "label": 2 },
+            { "type": "Box", "label": 3 }
+          ]
+        },
+        {
+          "type": "Sequence",
+          "id": "mySequence",
+          "scrollDirection": "horizontal",
+          "height": "50%",
+          "width": "100%",
+          "items": [
+            { "type": "Box", "label": 4 },
+            { "type": "Box", "label": 5 },
+            { "type": "Box", "label": 6 }
+          ]
+        }
+      ]
+    }
+  }
+})";
 
-static const char *MIXED_COMPONENT =
-    "{"
-    "  \"type\": \"Frame\","
-    "  \"width\": 200,"
-    "  \"height\": 200,"
-    "  \"spacing\": 40,"
-    "  \"alignSelf\": \"end\""
-    "}";
+static const char *MIXED_COMPONENT = R"({
+  "type": "Frame",
+  "width": 200,
+  "height": 200,
+  "spacing": 40,
+  "alignSelf": "end"
+})";
 
 // Move a component between two containers.
 TEST_F(DynamicComponentTest, MoveBetween)
@@ -799,9 +817,10 @@ TEST_F(DynamicComponentTest, MoveBetween)
     ASSERT_TRUE(IsEqual(Rect(140,height/2-200,200,200), child->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(container, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
-    ASSERT_TRUE(CheckDirty(container->getChildAt(2), kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(container->getChildAt(3), kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(child,
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(container->getChildAt(2), kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(container->getChildAt(3), kPropertyBounds, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, container, child, container->getChildAt(2), container->getChildAt(3)));
 
     // Now move it to the sequence
@@ -812,42 +831,48 @@ TEST_F(DynamicComponentTest, MoveBetween)
     ASSERT_TRUE(IsEqual(Rect(140,0,200,200), child->getCalculated(kPropertyBounds)));
 }
 
-static const char *PAGER =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Pager\","
-    "      \"id\": \"myPager\","
-    "      \"height\": \"100%\","
-    "      \"width\": \"100%\","
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"width\": 100,"
-    "        \"height\": 100"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *PAGER = R"({
+  "type": "APL",
+  "version": "1.1",
+  "layouts": {
+    "Box":{
+      "parameters": [ "label" ],
+      "items": {
+        "type": "Frame",
+        "id": "frame${label}",
+        "width": 100,
+        "height": 100
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "id": "myPager",
+      "height": "100%",
+      "width": "100%",
+      "items": [
+        { "type": "Box", "label": 1 },
+        { "type": "Box", "label": 2 },
+        { "type": "Box", "label": 3 }
+      ]
+    }
+  }
+})";
 
-static const char *TEST_PAGER_ELEMENT =
-    "{"
-    "  \"type\": \"Frame\","
-    "  \"width\": 200,"
-    "  \"height\": 200"
-    "}";
+static const char *TEST_PAGER_ELEMENT = R"({
+  "type": "Frame",
+  "width": 200,
+  "height": 200
+})";
 
 TEST_F(DynamicComponentTest, Pager)
 {
     metrics.size(600, 500);
     loadDocument(PAGER);
     ASSERT_TRUE(component);
+    advanceTime(10);
+    root->clearDirty();
 
     JsonData data(TEST_PAGER_ELEMENT);
     auto child = context->inflate(data.get());
@@ -864,8 +889,9 @@ TEST_F(DynamicComponentTest, Pager)
     component->update(kUpdatePagerByEvent, 1);
     root->clearPending();
     ASSERT_TRUE(IsEqual(Rect(0,0,600,500), child->getCalculated(kPropertyBounds)));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
-    ASSERT_TRUE(CheckDirty(root, child));
+    ASSERT_TRUE(CheckDirty(child,
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(root, component, child));
 
     // Now move it to the first item
     child->remove();
@@ -880,31 +906,29 @@ TEST_F(DynamicComponentTest, Pager)
 }
 
 
-static const char *FRAME =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Frame\","
-    "      \"height\": \"100%\","
-    "      \"width\": \"100%\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"id\": \"myText\","
-    "        \"width\": 100,"
-    "        \"height\": 100"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *FRAME = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Frame",
+      "height": "100%",
+      "width": "100%",
+      "items": {
+        "type": "Text",
+        "id": "myText",
+        "width": 100,
+        "height": 100
+      }
+    }
+  }
+})";
 
-static const char *TEST_FRAME_ELEMENT =
-    "{"
-    "  \"type\": \"Text\","
-    "  \"width\": 200,"
-    "  \"height\": 200"
-    "}";
+static const char *TEST_FRAME_ELEMENT = R"({
+  "type": "Text",
+  "width": 200,
+  "height": 200
+})";
 
 TEST_F(DynamicComponentTest, Frame)
 {
@@ -937,23 +961,22 @@ TEST_F(DynamicComponentTest, Frame)
     text->release();
 }
 
-static const char *REBUILDER =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.2\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"data\": \"${TestArray}\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"text\": \"${data}\""
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *REBUILDER = R"({
+  "type": "APL",
+  "version": "1.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "data": "${TestArray}",
+      "items": {
+        "type": "Text",
+        "text": "${data}"
+      }
+    }
+  }
+})";
 
-// A component using a LayoutRebuilder blocks normal add/remove commands
+// A component using a LayoutRebuilder or data based inflation blocks normal add/remove commands
 TEST_F(DynamicComponentTest, AddRemoveBlocking)
 {
     auto myArray = LiveArray::create(ObjectArray{"A", "B", "C"});

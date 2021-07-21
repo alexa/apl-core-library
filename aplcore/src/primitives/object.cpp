@@ -20,7 +20,7 @@
 
 #include "apl/animation/easing.h"
 #include "apl/datagrammar/boundsymbol.h"
-#include "apl/datagrammar/node.h"
+#include "apl/datagrammar/bytecode.h"
 #include "apl/graphic/graphic.h"
 #include "apl/graphic/graphicfilter.h"
 #include "apl/graphic/graphicpattern.h"
@@ -396,11 +396,11 @@ Object::Object(ObjectArray&& v, bool isMutable)
       mU(std::static_pointer_cast<ObjectData>(std::make_shared<FixedArrayData>(std::move(v),isMutable)))
 {}
 
-Object::Object(const std::shared_ptr<datagrammar::Node>& n)
-    : mType(kNodeType),
+Object::Object(const std::shared_ptr<datagrammar::ByteCode>& n)
+    : mType(kByteCodeType),
       mU(std::static_pointer_cast<ObjectData>(n))
 {
-    LOG_IF(OBJECT_DEBUG) << "Object constructor node: " << this;
+    LOG_IF(OBJECT_DEBUG) << "Object constructor compiled byte code: " << this;
 }
 
 Object::Object(const std::shared_ptr<datagrammar::BoundSymbol>& bs)
@@ -681,7 +681,7 @@ Object::operator==(const Object& rhs) const
             return true;
         }
 
-        case kNodeType:
+        case kByteCodeType:
         case kFunctionType:
             return mU.data == rhs.mU.data;
 
@@ -710,7 +710,8 @@ Object::operator==(const Object& rhs) const
         case kTransformType:
             return mU.data == rhs.mU.data;
         case kBoundSymbolType:
-            return mU.data == rhs.mU.data;
+            return *std::static_pointer_cast<datagrammar::BoundSymbol>(mU.data) ==
+                   *std::static_pointer_cast<datagrammar::BoundSymbol>(rhs.mU.data);
         case kComponentType:
             return *std::static_pointer_cast<ComponentEventWrapper>(mU.data) ==
                    *std::static_pointer_cast<ComponentEventWrapper>(rhs.mU.data);
@@ -792,7 +793,7 @@ Object::asString() const
         case kColorType: return Color(mU.value).asString();
         case kMapType: return "";
         case kArrayType: return "";
-        case kNodeType: return "";
+        case kByteCodeType: return "";
         case kFunctionType: return "";
         case kFilterType: return "";
         case kGraphicFilterType: return "";
@@ -1036,11 +1037,11 @@ Object::getLiveDataObject() const
     return std::dynamic_pointer_cast<LiveDataObject>(mU.data);
 }
 
-std::shared_ptr<datagrammar::Node>
-Object::getNode() const
+std::shared_ptr<datagrammar::ByteCode>
+Object::getByteCode() const
 {
-    assert(mType == kNodeType);
-    return std::static_pointer_cast<datagrammar::Node>(mU.data);
+    assert(mType == kByteCodeType);
+    return std::static_pointer_cast<datagrammar::ByteCode>(mU.data);
 }
 
 std::shared_ptr<AccessibilityAction>
@@ -1151,7 +1152,7 @@ Object::truthy() const
             return mU.string.size() != 0;
         case kArrayType:
         case kMapType:
-        case kNodeType:
+        case kByteCodeType:
         case kFunctionType:
             return true;
         case kAbsoluteDimensionType:
@@ -1281,7 +1282,7 @@ Object::isMutable() const
 Object
 Object::eval() const
 {
-    return (mType == kNodeType || mType == kBoundSymbolType) ? mU.data->eval() : *this;
+    return (mType == kByteCodeType || mType == kBoundSymbolType) ? mU.data->eval() : *this;
 }
 
 /**
@@ -1337,10 +1338,8 @@ public:
             if (symbol.second)  // An invalid bound symbol will not have a context
                 mMap.emplace(symbol.first + (mIndex == 0 ? mParentSuffix : ""), symbol.second);
         }
-        else if (object.isNode()) {  // A node may prepend a string to the suffix or reset the suffix to a new value
-            auto suffix = object.getNode()->getSuffix();
-            if (!suffix.empty())
-                mCurrentSuffix = suffix + "/" + (mIndex == 0 ? mParentSuffix : "");
+        else if (object.isByteCode()) {
+            object.symbols(mMap);
         }
 
         mIndex++;
@@ -1375,13 +1374,19 @@ private:
 };
 
 void
-Object::symbols(SymbolReferenceMap& symbols) const {
-    SymbolVisitor visitor(symbols);
-    accept(visitor);
+Object::symbols(SymbolReferenceMap& symbols) const
+{
+    if (mType == kByteCodeType)
+        std::dynamic_pointer_cast<datagrammar::ByteCode>(getByteCode())->symbols(symbols);
+    else {
+        SymbolVisitor visitor(symbols);
+        accept(visitor);
+    }
 }
 
 Object
-Object::call(const ObjectArray& args) const {
+Object::call(const ObjectArray& args) const
+{
     assert(mType == kFunctionType || mType == kEasingType);
     LOG_IF(OBJECT_DEBUG) << "Calling user function";
     return mU.data->call(args);
@@ -1392,7 +1397,7 @@ void
 Object::accept(Visitor<Object>& visitor) const
 {
     visitor.visit(*this);
-    if (!visitor.isAborted() && (mType == kArrayType || mType == kMapType || mType == kNodeType))
+    if (!visitor.isAborted() && (mType == kArrayType || mType == kMapType))
         mU.data->accept(visitor);
 }
 
@@ -1420,8 +1425,8 @@ Object::serialize(rapidjson::Document::AllocatorType& allocator) const
                 m.AddMember(rapidjson::Value(kv.first.c_str(), allocator), kv.second.serialize(allocator).Move(), allocator);
             return m;
         }
-        case kNodeType:
-            return rapidjson::Value("UNABLE TO SERIALIZE NODE", allocator);
+        case kByteCodeType:
+            return rapidjson::Value("UNABLE TO SERIALIZE COMPILED BYTE CODE", allocator);
         case kFunctionType:
             return rapidjson::Value("UNABLE TO SERIALIZE FUNCTION", allocator);
         case kAbsoluteDimensionType:
@@ -1491,7 +1496,7 @@ Object::toDebugString() const
             return "'" + mU.string + "'";
         case Object::kMapType:
         case Object::kArrayType:
-        case Object::kNodeType:
+        case Object::kByteCodeType:
         case Object::kFunctionType:
             return mU.data->toDebugString();
         case Object::kAbsoluteDimensionType:

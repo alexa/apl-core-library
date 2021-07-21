@@ -17,7 +17,8 @@
 #include "apl/component/componentpropdef.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/event.h"
-#include "apl/engine/mediamanager.h"
+#include "apl/media/mediamanager.h"
+#include "apl/media/mediaobject.h"
 
 namespace apl {
 
@@ -36,9 +37,10 @@ MediaComponentTrait::resetMediaFetchState()
 {
     auto component = getComponent();
     component->setCalculated(kPropertyMediaState, kMediaStateNotRequested);
-    if (component->getCalculated(kPropertyLaidOut).truthy()) {
+    mMediaObjects.clear();
+
+    if (component->getCalculated(kPropertyLaidOut).truthy())
         ensureMediaRequested();
-    }
 }
 
 void
@@ -46,6 +48,7 @@ MediaComponentTrait::postProcessLayoutChanges() {
     // Component was laid out, so likely needs media loaded
     ensureMediaRequested();
 }
+
 
 void
 MediaComponentTrait::ensureMediaRequested()
@@ -60,49 +63,61 @@ MediaComponentTrait::ensureMediaRequested()
         return;
 
     auto sources = getSources();
-    if (!sources.empty()) {
-        auto stillPending = context->mediaManager().registerComponentMedia(component, sources);
-        if (stillPending > 0) {
-            component->setCalculated(kPropertyMediaState, kMediaStatePending);
-        } else {
-            component->setCalculated(kPropertyMediaState, kMediaStateReady);
+    if (sources.empty())
+        return;
+
+    component->setCalculated(kPropertyMediaState, kMediaStatePending);
+    component->setDirty(kPropertyMediaState);
+
+    for (const auto& m : sources) {
+        mMediaObjects.push_back(context->mediaManager().request(m, mediaType()));
+        if (mMediaObjects.back()->state() == MediaObject::kPending) {
+            auto weak = std::weak_ptr<CoreComponent>(component);
+            mMediaObjects.back()->addCallback([weak](const MediaObjectPtr& mediaObjectPtr) {
+                auto self = weak.lock();
+                if (self)
+                    std::dynamic_pointer_cast<MediaComponentTrait>(self)->pendingMediaReturned(mediaObjectPtr);
+            });
         }
-        component->setDirty(kPropertyMediaState);
     }
+
+    // Some of the media objects may have been ready or in error state
+    updateMediaState();
 }
 
 void
-MediaComponentTrait::pendingMediaLoaded(const std::string& source, int stillPending)
+MediaComponentTrait::pendingMediaReturned(const MediaObjectPtr& source)
 {
-    auto component = getComponent();
-    auto state = static_cast<ComponentMediaState>(component->getCalculated(kPropertyMediaState).getInteger());
-    switch (state) {
-        case kMediaStatePending:
-        {
-            if (stillPending == 0) {
-                component->setCalculated(kPropertyMediaState, kMediaStateReady);
-                component->setDirty(kPropertyMediaState);
-            }
-            break;
-        }
-        case kMediaStateReady: // FALL_THROUGH
-        case kMediaStateNotRequested:
-        case kMediaStateError:
-        default:
-            // We are in state that can't produce any changes.
-            return;
-    }
+    updateMediaState();
 }
 
 void
-MediaComponentTrait::pendingMediaFailed(const std::string& source)
+MediaComponentTrait::updateMediaState()
 {
     auto component = getComponent();
     auto state = static_cast<ComponentMediaState>(component->getCalculated(kPropertyMediaState).getInteger());
-    if (state != kMediaStateError) {
+    if (state != kMediaStatePending)
+        return;
+
+    // Check for error conditions first
+    if (std::any_of(mMediaObjects.begin(),
+                    mMediaObjects.end(),
+                    [](const MediaObjectPtr& ptr) { return ptr->state() == MediaObject::kError; })) {
         component->setCalculated(kPropertyMediaState, kMediaStateError);
         component->setDirty(kPropertyMediaState);
+        return;
+    }
+
+    // Check if all media objects are ready
+    if (std::all_of(mMediaObjects.begin(),
+                    mMediaObjects.end(),
+                    [](const MediaObjectPtr& ptr) {
+                        return ptr->state() == MediaObject::kReady;
+                    })) {
+        component->setCalculated(kPropertyMediaState, kMediaStateReady);
+        component->setDirty(kPropertyMediaState);
     }
 }
+
 
 } // namespace apl

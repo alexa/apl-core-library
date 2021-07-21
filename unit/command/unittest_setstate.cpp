@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -300,7 +300,7 @@ TEST_F(SetStateTest, InheritedStyles)
     ASSERT_EQ(0.0, text->getCalculated(kPropertyOpacity).asNumber());
 
     root->handlePointerEvent(PointerEvent(kPointerDown, Point(1,1)));
-    ASSERT_TRUE(CheckDirty(touch, kPropertyOpacity));
+    ASSERT_TRUE(CheckDirty(touch, kPropertyOpacity, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(text, kPropertyOpacity));
     ASSERT_TRUE(CheckDirty(root, text, touch));
     ASSERT_TRUE(CheckState(touch, kStatePressed));
@@ -348,6 +348,7 @@ static const char *INHERITED_DEEP =
     "      \"style\": \"touchWrapperStyle\","
     "      \"items\": {"
     "        \"type\": \"Container\","
+    "        \"id\": \"myContainer\","
     "        \"inheritParentState\": true,"
     "        \"items\": {"
     "          \"type\": \"Text\","
@@ -367,6 +368,7 @@ TEST_F(SetStateTest, InheritedDeepStyles)
 
     auto touch = context->findComponentById("myTouchWrapper");
     auto text = context->findComponentById("myText");
+    auto container = context->findComponentById("myContainer");
 
     ASSERT_EQ(1.0, touch->getCalculated(kPropertyOpacity).asNumber());
     ASSERT_EQ(0.0, text->getCalculated(kPropertyOpacity).asNumber());
@@ -374,7 +376,7 @@ TEST_F(SetStateTest, InheritedDeepStyles)
     root->handlePointerEvent(PointerEvent(kPointerDown, Point(1,1)));
     ASSERT_TRUE(CheckDirty(touch, kPropertyOpacity));
     ASSERT_TRUE(CheckDirty(text, kPropertyOpacity));
-    ASSERT_TRUE(CheckDirty(root, touch, text));
+    ASSERT_TRUE(CheckDirty(root, touch, text, container));
     ASSERT_TRUE(CheckState(touch, kStatePressed));
     ASSERT_TRUE(CheckState(text, kStatePressed));
 

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -389,7 +389,7 @@ TEST_F(EasingTest, Rotate)
     ASSERT_TRUE(IsEqual(222, group1->getValue(kGraphicPropertyTranslateX)));
     ASSERT_TRUE(IsEqual(Transform2D::translate(222, 118.5), group1->getValue(kGraphicPropertyTransform)));
 
-    root->updateTime(5000);
+    advanceTime(5000);
 
     ASSERT_TRUE(IsEqual(222, group1->getValue(kGraphicPropertyTranslateX)));
     ASSERT_TRUE(IsEqual(Transform2D::translate(222, 118.5), group1->getValue(kGraphicPropertyTransform).getTransform2D()));

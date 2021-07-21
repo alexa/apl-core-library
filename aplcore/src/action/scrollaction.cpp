@@ -65,6 +65,11 @@ ScrollAction::start() {
     else if (mTargetDistance.isAbsoluteDimension())
         distance = mTargetDistance.getAbsoluteDimension();
 
+    bool isRTL = mContainer->getCalculated(kPropertyLayoutDirection) == kLayoutDirectionRTL;
+    if (!vertical && isRTL) {
+        distance *= -1.0f;
+    }
+
     // Calculate the new position by trimming the old position plus the distance
     auto position = mContainer->trimScroll(mContainer->scrollPosition() + Point(distance, distance));
 

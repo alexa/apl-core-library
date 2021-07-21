@@ -40,11 +40,13 @@
 #include "apl/content/rootconfig.h"
 #include "apl/engine/properties.h"
 #include "apl/engine/parameterarray.h"
+#include "apl/livedata/livearray.h"
 #include "apl/livedata/livearrayobject.h"
 #include "apl/livedata/layoutrebuilder.h"
 #include "apl/utils/log.h"
 #include "apl/utils/path.h"
 #include "apl/utils/session.h"
+#include "apl/utils/tracing.h"
 #include "apl/primitives/object.h"
 
 namespace apl {
@@ -52,7 +54,7 @@ namespace apl {
 const bool DEBUG_BUILDER = false;
 
 
-using MakeComponentFunc = CoreComponentPtr (*)(const ContextPtr&, Properties&&, const std::string&);
+using MakeComponentFunc = CoreComponentPtr (*)(const ContextPtr&, Properties&&, const Path&);
 
 static const std::map<std::string, MakeComponentFunc> sComponentMap = {
     {"Container",     ContainerComponent::create},
@@ -73,34 +75,40 @@ void
 Builder::populateSingleChildLayout(const ContextPtr& context,
                                    const Object& item,
                                    const CoreComponentPtr& layout,
-                                   const Path& path)
+                                   const Path& path,
+                                   bool fullBuild)
 {
     LOG_IF(DEBUG_BUILDER) << "call";
+    APL_TRACE_BLOCK("Builder:populateSingleChildLayout");
     auto child = expandSingleComponentFromArray(context,
                                                 arrayifyProperty(*context, item, "item", "items"),
                                                 Properties(),
                                                 layout,
-                                                path.addProperty(item, "item", "items"));
-    layout->appendChild(child, false);
+                                                path.addProperty(item, "item", "items"),
+                                                fullBuild);
+    layout->appendChild(child, true);
 }
 
 void
 Builder::populateLayoutComponent(const ContextPtr& context,
                                  const Object& item,
                                  const CoreComponentPtr& layout,
-                                 const Path& path)
+                                 const Path& path,
+                                 bool fullBuild)
 {
     LOG_IF(DEBUG_BUILDER) << path;
+    APL_TRACE_BLOCK("Builder:populateLayoutComponent");
 
     auto child = expandSingleComponentFromArray(context,
                                                 arrayifyProperty(*context, item, "firstItem"),
                                                 Properties(),
                                                 layout,
-                                                path.addProperty(item, "firstItem"));
+                                                path.addProperty(item, "firstItem"),
+                                                true);
     bool hasFirstItem = false;
     if (child && child->isValid()) {
         hasFirstItem = true;
-        layout->appendChild(child, false);
+        layout->appendChild(child, true);
     }
 
     bool numbered = layout->getCalculated(kPropertyNumbered).asBoolean();
@@ -116,41 +124,27 @@ Builder::populateLayoutComponent(const ContextPtr& context,
 
         auto liveData = data.getLiveDataObject();
         if (liveData && liveData->asArray()) {
-            layoutBuilder = LayoutRebuilder::create(context, layout, liveData->asArray(), items, childPath, numbered);
+            layoutBuilder = LayoutRebuilder::create(context, layout, mOld, liveData->asArray(), items, childPath, numbered);
             layoutBuilder->build();
         }
         else {
             auto dataItems = evaluateRecursive(*context, data);
             if (!dataItems.empty()) {
                 LOG_IF(DEBUG_BUILDER) << "data size=" << dataItems.size();
-                auto length = dataItems.size();
-                for (size_t dataIndex = 0; dataIndex < length; dataIndex++) {
-                    const auto& dataItem = dataItems.at(dataIndex);
-                    auto childContext = Context::createFromParent(context);
-                    childContext->putConstant("data", dataItem);
-                    childContext->putConstant("index", index);
-                    childContext->putConstant("length", length);
-                    if (numbered)
-                        childContext->putConstant("ordinal", ordinal);
 
-                    Properties childProps;
-                    child = expandSingleComponentFromArray(childContext,
-                                                           items,
-                                                           Properties(),
-                                                           layout, childPath);
-                    if (child && child->isValid()) {
-                        layout->appendChild(child, false);
-                        index++;
-
-                        if (numbered) {
-                            int numbering = child->getCalculated(kPropertyNumbering).getInteger();
-                            if (numbering == kNumberingNormal) ordinal++;
-                            else if (numbering == kNumberingReset) ordinal = 1;
-                        }
-                    }
+                // Transform data into LiveData and use rebuilder to have more control over its content.
+                auto rawArray = ObjectArray();
+                for (const auto& dataItem : dataItems.getArray()) {
+                    rawArray.emplace_back(dataItem);
                 }
+                liveData = LiveDataObject::create(
+                        LiveArray::create(std::move(rawArray)),
+                        context,
+                        "__data" + layout->getUniqueId());
+
+                layoutBuilder = LayoutRebuilder::create(context, layout, mOld, liveData->asArray(), items, childPath, numbered);
+                layoutBuilder->build();
             }
-                // TODO: A list of children.  Ignore the data object???  Or add to context??
             else {
                 LOG_IF(DEBUG_BUILDER) << "items size=" << items.size();
                 auto length = items.size();
@@ -167,9 +161,11 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                                                            arrayify(*context, element),
                                                            Properties(),
                                                            layout,
-                                                           childPath.addIndex(i));
+                                                           childPath.addIndex(i),
+                                                           fullBuild);
+                    // TODO: Full or not full here?
                     if (child && child->isValid()) {
-                        layout->appendChild(child, false);
+                        layout->appendChild(child, true);
                         index++;
 
                         if (numbered) {
@@ -187,12 +183,13 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                                            arrayifyProperty(*context, item, "lastItem"),
                                            Properties(),
                                            layout,
-                                           path.addProperty(item, "lastItem"));
+                                           path.addProperty(item, "lastItem"),
+                                           true);
 
     bool hasLastItem = false;
     if (child && child->isValid()) {
         hasLastItem = true;
-        layout->appendChild(child, false);
+        layout->appendChild(child, true);
     }
 
     // Chance to get final child dependent set-up before actual layout happened.
@@ -216,9 +213,11 @@ Builder::expandSingleComponent(const ContextPtr& context,
                                const Object& item,
                                Properties&& properties,
                                const CoreComponentPtr& parent,
-                               const Path& path)
+                               const Path& path,
+                               bool fullBuild)
 {
     LOG_IF(DEBUG_BUILDER) << path.toString();
+    APL_TRACE_BLOCK("Builder:expandSingleComponent");
 
     std::string type = propertyAsString(*context, item, "type");
     if (type.empty()) {
@@ -238,20 +237,35 @@ Builder::expandSingleComponent(const ContextPtr& context,
         attachBindings(expanded, item);
 
         // Construct the component
-        CoreComponentPtr component = CoreComponentPtr(method->second(expanded, std::move(properties), path.toString()));
+        CoreComponentPtr component = CoreComponentPtr(method->second(expanded, std::move(properties), path));
         if (!component || !component->isValid()) {
             CONSOLE_CTP(context) << "Unable to inflate component";
+            if (component)
+                component->release();
             return nullptr;
         }
 
-        if (component->singleChild()) {
-            populateSingleChildLayout(expanded, item, component, path);
-        } else if (component->multiChild()) {
-            populateLayoutComponent(expanded, item, component, path);
+        CoreComponentPtr oldComponent;
+        if(mOld) {
+            oldComponent = std::dynamic_pointer_cast<CoreComponent>(
+                mOld->findComponentById(component->getId()));
+            copyPreservedBindings(component, oldComponent);
         }
 
-        // Copy preserved properties
-        copyPreservedProperties(component);
+        if (fullBuild) {
+            if (component->singleChild()) {
+                populateSingleChildLayout(expanded, item, component, path, true);
+            } else if (component->multiChild()) {
+                populateLayoutComponent(expanded, item, component, path, true);
+            }
+        } else {
+            expanded->putConstant("_item", item);
+        }
+
+        if(oldComponent) {
+            // Copy preserved properties other than local bindings
+            copyPreservedProperties(component, oldComponent);
+        }
 
         LOG_IF(DEBUG_BUILDER) << "Returning component " << *component;
         return component;
@@ -261,7 +275,7 @@ Builder::expandSingleComponent(const ContextPtr& context,
     auto resource = context->getLayout(type);
     if (!resource.empty()) {
         properties.emplace(item);
-        return expandLayout(context, properties, resource.json(), parent, resource.path());
+        return expandLayout(context, properties, resource.json(), parent, resource.path(), fullBuild);
     }
 
     CONSOLE_CTP(context) << "Unable to find layout or component '" << type << "'";
@@ -276,6 +290,7 @@ Builder::expandSingleComponent(const ContextPtr& context,
 void
 Builder::attachBindings(const apl::ContextPtr& context, const apl::Object& item)
 {
+    APL_TRACE_BLOCK("Builder:attachBindings");
     auto bindings = arrayifyProperty(*context, item, "bind");
     for (const auto& binding : bindings) {
         auto name = propertyAsString(*context, binding, "name");
@@ -310,13 +325,15 @@ Builder::attachBindings(const apl::ContextPtr& context, const apl::Object& item)
  * @param properties The user-specified properties for this component
  * @param parent The parent component of this component
  * @param path The path description of this component
+ * @param fullBuild Build whole hierarchy.
  */
 CoreComponentPtr
 Builder::expandSingleComponentFromArray(const ContextPtr& context,
                                         const std::vector<Object>& items,
                                         Properties&& properties,
                                         const CoreComponentPtr& parent,
-                                        const Path& path)
+                                        const Path& path,
+                                        bool fullBuild)
 {
     LOG_IF(DEBUG_BUILDER) << path;
     for (int index = 0; index < items.size(); index++) {
@@ -324,8 +341,9 @@ Builder::expandSingleComponentFromArray(const ContextPtr& context,
         if (!item.isMap())
             continue;
 
-        if (propertyAsBoolean(*context, item, "when", true))
-            return expandSingleComponent(context, item, std::move(properties), parent, path.addIndex(index));
+        if (propertyAsBoolean(*context, item, "when", true)) {
+            return expandSingleComponent(context, item, std::move(properties), parent, path.addIndex(index), fullBuild);
+        }
     }
 
     return nullptr;
@@ -345,10 +363,16 @@ Builder::expandLayout(const ContextPtr& context,
                       Properties& properties,
                       const rapidjson::Value& layout,
                       const CoreComponentPtr& parent,
-                      const Path& path)
+                      const Path& path,
+                      bool fullBuild)
 {
     LOG_IF(DEBUG_BUILDER) << path;
-    assert(layout.IsObject());
+    if (!layout.IsObject()) {
+        std::string errorMessage = "Layout inflation for one of the components failed. Path: " + path.toString();
+        CONSOLE_CTP(context) << errorMessage;
+        return nullptr;
+    }
+    APL_TRACE_BLOCK("Builder:expandLayout");
 
     // Build a new context for this layout.
     ContextPtr cptr = Context::createFromParent(context);
@@ -374,45 +398,82 @@ Builder::expandLayout(const ContextPtr& context,
                                           arrayifyProperty(*cptr, layout, "item", "items"),
                                           std::move(properties),
                                           parent,
-                                          path.addProperty(layout, "item", "items"));
+                                          path.addProperty(layout, "item", "items"),
+                                          fullBuild);
 }
 
-
 /**
- * Copy preserved properties from the old hierarchy to the new
- * @param component The component to copy
+ * Copy preserved properties and local bindings from one component to another
+ *
+ * @param newComponent The component to copy properties to
+ * @param originalComponent The component to copy properties from
+ * @param copyLocalBindings if true, copy local bindings, true by default
+ * @param copyComponentProperties if true, copy local bindings, true by default
  */
-void
-Builder::copyPreservedProperties(const CoreComponentPtr& component)
+static inline void copyPreserved(const CoreComponentPtr& newComponent, const CoreComponentPtr& originalComponent,
+                                 bool copyLocalBindings, bool copyComponentProperties)
 {
-    LOG_IF(DEBUG_BUILDER) << component << " old=" << mOld;
-    if (!mOld || component->getId().empty())
+    if(!(copyLocalBindings || copyComponentProperties))
         return;
 
-    const auto& preserved = component->getCalculated(kPropertyPreserve).getArray();
+    if (!originalComponent || !newComponent)
+        return;
+
+    const auto& preserved = newComponent->getCalculated(kPropertyPreserve).getArray();
     if (preserved.empty())
         return;
 
-    auto original = std::dynamic_pointer_cast<CoreComponent>(mOld->findComponentById(component->getId()));
-    if (!original)
-        return;
-
     // We have an original component and we have at least one property that should be restored
+    auto originalContext = originalComponent->getContext();
     for (const auto& m : preserved) {
         auto property = m.asString();
-        auto value = original->getProperty(property);
-        component->setProperty(property, value);
+        bool isPropLocal = originalContext->hasLocal(property);
+        if(!isPropLocal && copyComponentProperties) {
+            newComponent->setProperty(property, originalComponent->getProperty(property));
+        } else if(copyLocalBindings && isPropLocal) {
+            auto oldRef = originalContext->find(property);
+            if(!oldRef.empty())
+                newComponent->setProperty(property, oldRef.object().value());
+        }
     }
 }
 
+/**
+ * Copy preserved local bindings from one component to other.
+ *
+ * @param newComponent The component to copy bindings to.
+ * @param originalComponent The component to copy bindings from.
+ */
+void
+Builder::copyPreservedBindings(const CoreComponentPtr& newComponent, const CoreComponentPtr& originalComponent)
+{
+    APL_TRACE_BLOCK("Builder:copyPreservedBindings");
+    LOG_IF(DEBUG_BUILDER) << newComponent << " old=" << mOld;
+    copyPreserved(newComponent, originalComponent, true, false);
+}
+
+/**
+ * Copy preserved component properties from one component to other.
+ *
+ * @param newComponent The component to copy bindings to.
+ * @param originalComponent The component to copy bindings from.
+ */
+void
+Builder::copyPreservedProperties(const CoreComponentPtr& newComponent, const CoreComponentPtr& originalComponent)
+{
+    APL_TRACE_BLOCK("Builder:copyPreservedProperties");
+    LOG_IF(DEBUG_BUILDER) << newComponent << " old=" << mOld;
+    copyPreserved(newComponent, originalComponent, false, true);
+}
 
 CoreComponentPtr
 Builder::inflate(const ContextPtr& context,
                  Properties& mainProperties,
                  const rapidjson::Value& mainDocument)
 {
+    APL_TRACE_BLOCK("Builder:inflate");
     return expandLayout(context, mainProperties, mainDocument, nullptr,
-        Path(context->getRootConfig().getTrackProvenance() ? std::string(Path::MAIN) + "/mainTemplate" : ""));
+        Path(context->getRootConfig().getTrackProvenance() ? std::string(Path::MAIN) + "/mainTemplate" : ""), true);
 }
 
 CoreComponentPtr
@@ -422,10 +483,10 @@ Builder::inflate(const ContextPtr& context,
     assert(component.isMap() || component.isArray());
     if (component.isMap())
         return expandSingleComponent(context, component, Properties(), nullptr,
-            Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""));
+            Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""), true);
     else if (component.isArray())
         return expandSingleComponentFromArray(context, component.getArray(), Properties(), nullptr,
-            Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""));
+            Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""), true);
     else
         return nullptr;
 }

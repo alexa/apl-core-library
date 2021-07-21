@@ -22,15 +22,15 @@ namespace apl {
 
 class ScrollViewComponent : public ScrollableComponent {
 public:
-    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const std::string& path);
-    ScrollViewComponent(const ContextPtr& context, Properties&& properties, const std::string& path);
+    static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const Path& path);
+    ScrollViewComponent(const ContextPtr& context, Properties&& properties, const Path& path);
 
     ComponentType getType() const override { return kComponentTypeScrollView; };
     Object getValue() const override;
 
     ScrollType scrollType() const override { return kScrollTypeVertical; }
     Point scrollPosition() const override;
-    Point trimScroll(const Point& point) const override;
+    Point trimScroll(const Point& point) override;
 
     bool isHorizontal() const override { return false; }
     bool isVertical() const override { return true; }

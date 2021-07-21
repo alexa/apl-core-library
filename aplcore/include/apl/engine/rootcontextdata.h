@@ -24,21 +24,22 @@
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
 #include "apl/content/settings.h"
+#include "apl/datasource/datasourceconnection.h"
 #include "apl/engine/event.h"
 #include "apl/engine/hovermanager.h"
 #include "apl/engine/jsonresource.h"
 #include "apl/engine/keyboardmanager.h"
 #include "apl/engine/layoutmanager.h"
-#include "apl/engine/mediamanager.h"
 #include "apl/engine/runtimestate.h"
 #include "apl/engine/styles.h"
 #include "apl/extension/extensionmanager.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/livedata/livedatamanager.h"
+#include "apl/media/mediamanager.h"
+#include "apl/primitives/size.h"
 #include "apl/time/sequencer.h"
 #include "apl/touch/pointermanager.h"
 #include "apl/utils/counter.h"
-#include "apl/primitives/size.h"
 
 namespace apl {
 
@@ -88,7 +89,7 @@ public:
     LiveDataManager& dataManager() const { return *mDataManager; }
     ExtensionManager& extensionManager() const { return *mExtensionManager; }
     LayoutManager& layoutManager() const { return *mLayoutManager; }
-    MediaManager& mediaManager() const { return *mMediaManager; }
+    MediaManager& mediaManager() const { return *mConfig.getMediaManager(); }
 
     const YGConfigRef& ygconfig() const { return mYGConfigRef; }
     CoreComponentPtr top() const { return mTop; }
@@ -96,6 +97,11 @@ public:
     const std::map<std::string, JsonResource>& commands() const { return mCommands; }
     const std::map<std::string, JsonResource>& graphics() const { return mGraphics; }
     const SessionPtr& session() const { return mSession; }
+
+    RootContextData& lang(std::string lang) { mLang = lang; return *this; }
+    RootContextData& layoutDirection(LayoutDirection layoutDirection) {
+        mLayoutDirection = layoutDirection; return *this;
+    }
 
     /**
      * @return The installed text measurement for this context.
@@ -119,6 +125,11 @@ public:
      */
     void releaseScreenLock() { mScreenLockCount--; }
 
+    /**
+     * @return List of pending onMount handlers for recently inflated components.
+     */
+    WeakPtrSet<CoreComponent>& pendingOnMounts() { return mPendingOnMounts; }
+
 public:
     int getPixelWidth() const { return mMetrics.getPixelHeight(); }
     int getPixelHeight() const { return mMetrics.getPixelHeight(); }
@@ -129,11 +140,14 @@ public:
 
     std::string getTheme() const { return mRuntimeState.getTheme(); }
     std::string getRequestedAPLVersion() const { return mRuntimeState.getRequestedAPLVersion(); }
+    std::string getLang() const { return mLang; }
+    LayoutDirection getLayoutDirection() const { return mLayoutDirection; }
     bool getReinflationFlag() const { return mRuntimeState.getReinflation(); }
 
     std::queue<Event> events;
     std::set<ComponentPtr> dirty;
     std::set<ComponentPtr> dirtyVisualContext;
+    std::set<DataSourceConnectionPtr> dirtyDatasourceContext;
 
 private:
     RuntimeState mRuntimeState;
@@ -150,7 +164,6 @@ private:
     std::unique_ptr<LiveDataManager> mDataManager;
     std::unique_ptr<ExtensionManager> mExtensionManager;
     std::unique_ptr<LayoutManager> mLayoutManager;
-    std::unique_ptr<MediaManager> mMediaManager;
     YGConfigRef mYGConfigRef;
     TextMeasurementPtr mTextMeasurement;
     CoreComponentPtr mTop;         // The top component
@@ -158,6 +171,9 @@ private:
     int mScreenLockCount;
     SettingsPtr mSettings;
     SessionPtr mSession;
+    std::string mLang;
+    LayoutDirection mLayoutDirection;
+    WeakPtrSet<CoreComponent> mPendingOnMounts;
 };
 
 

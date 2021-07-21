@@ -1,4 +1,4 @@
-# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License").
 # You may not use this file except in compliance with the License.
@@ -13,10 +13,10 @@
 
 project (apl VERSION 1.0.0 LANGUAGES C CXX)
 
-if (TELEMETRY)
-    message("Telemetry enabled.")
-    add_definitions(-DWITH_TELEMETRY)
-endif(TELEMETRY)
+if (TRACING)
+    message("Tracing enabled.")
+    add_definitions(-DENABLE_TRACING)
+endif(TRACING)
 
 if (POLICY CMP0048)
     cmake_policy(SET CMP0048 NEW)
@@ -68,12 +68,6 @@ endif()
 # Do not move. It requires WASM_FLAGS while defining targets and generates part of environment required by next target.
 include(thirdparty/thirdparty.cmake)
 
-# Build with dependency on the Alexa Extensions library.
-if (BUILD_ALEXAEXTENSIONS)
-    add_subdirectory(extensions/alexaext)
-    target_compile_definitions(alexaext PUBLIC ALEXAEXTENSIONS)
-endif(BUILD_ALEXAEXTENSIONS)
-
 # We treat enumgen as an external project because it needs to be built using the host toolchain
 include(tools.cmake)
 
@@ -89,15 +83,18 @@ if (BUILD_TESTS)
     set(BUILD_TEST_PROGRAMS ON)
 endif (BUILD_TESTS)
 
+# Build with dependency on the Alexa Extensions library.
+if (BUILD_ALEXAEXTENSIONS)
+    add_subdirectory(extensions/alexaext)
+    target_compile_definitions(alexaext PUBLIC ALEXAEXTENSIONS)
+endif(BUILD_ALEXAEXTENSIONS)
+
 # Test cases are built conditionally. Only affect core do not build them for everything else.
 if (BUILD_UNIT_TESTS)
     include(CTest)
     include_directories(${GTEST_INCLUDE})
     add_subdirectory(unit)
 
-    if (TELEMETRY)
-        add_subdirectory(performance)
-    endif(TELEMETRY)
     set(MEMCHECK_OPTIONS "--tool=memcheck --leak-check=full --show-reachable=no --error-exitcode=1 --errors-for-leak-kinds=definite,possible")
     add_custom_target(unittest_memcheck
             COMMAND ${CMAKE_CTEST_COMMAND} -VV

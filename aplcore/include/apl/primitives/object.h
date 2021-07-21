@@ -26,7 +26,6 @@
  *    String
  *    Gradient
  *    MediaSource
- *    Node
  *    JSONObject
  *    JSONArray
  *    IOptArray
@@ -59,8 +58,8 @@
 namespace apl {
 
 namespace datagrammar {
-    class Node;
     class BoundSymbol;
+    class ByteCode;
 }
 
 class Object;
@@ -96,7 +95,7 @@ using SharedVectorPtr = ObjectArrayPtr;
 /**
  * A single Object which can hold a variety of types.
  * Most objects are of type null, boolean, number, or string.  They all fit within
- * this basic object.  Other possibilities include nodes (for expression evaluate),
+ * this basic object.  Other possibilities include byte code (for expression evaluate),
  * maps (for context and for JSONObject) and arrays (vectors or JSONArray).
  *
  * To avoid dynamic casting, the base object has methods for manipulating all of these
@@ -123,11 +122,11 @@ using SharedVectorPtr = ObjectArrayPtr;
  * - Styled Text
  * - 2D Transformations
  * - Bound Symbol
+ * - ByteCode
  *
  * The mutable types are:
  * - Vector graphic
  * - Generalized transformation
- * - Node
  */
 class Object
 {
@@ -139,7 +138,7 @@ public:
         kStringType,
         kArrayType,
         kMapType,
-        kNodeType,
+        kByteCodeType,
         kFunctionType,
         kAbsoluteDimensionType,
         kRelativeDimensionType,
@@ -178,7 +177,7 @@ public:
     Object(double d);
     Object(const char *s);
     Object(const std::string& s);
-    Object(const std::shared_ptr<datagrammar::Node>& n);
+    Object(const std::shared_ptr<datagrammar::ByteCode>& bc);
     Object(const ObjectMapPtr& m, bool isMutable=false);
     Object(const ObjectArrayPtr& v, bool isMutable=false);
     Object(ObjectArray&& v, bool isMutable=false);
@@ -244,10 +243,11 @@ public:
     bool isArray() const { return mType == kArrayType; }
     bool isMap() const { return mType == kMapType || mType == kComponentType || mType == kContextType; }
     bool isTrueMap() const { return mType == kMapType; }
-    bool isNode() const { return mType == kNodeType; }
     bool isBoundSymbol() const { return mType == kBoundSymbolType; }
-    bool isEvaluable() const { return mType == kNodeType || mType == kBoundSymbolType; }
     bool isCallable() const { return mType == kFunctionType || mType == kEasingType; }
+    bool isByteCode() const { return mType == kByteCodeType; }
+    bool isEvaluable() const { return mType == kByteCodeType ||
+                                      mType == kBoundSymbolType; }
     bool isFunction() const { return mType == kFunctionType; }
     bool isAbsoluteDimension() const { return mType == kAbsoluteDimensionType; }
     bool isRelativeDimension() const { return mType == kRelativeDimensionType; }
@@ -304,8 +304,8 @@ public:
     std::shared_ptr<Function> getFunction() const;
     std::shared_ptr<datagrammar::BoundSymbol> getBoundSymbol() const;
     std::shared_ptr<LiveDataObject> getLiveDataObject() const;
-    std::shared_ptr<datagrammar::Node> getNode() const;
     std::shared_ptr<AccessibilityAction> getAccessibilityAction() const;
+    std::shared_ptr<datagrammar::ByteCode> getByteCode() const;
 
     const ObjectMap& getMap() const;
     ObjectMap& getMutableMap();
@@ -346,13 +346,13 @@ public:
     // Mutable objects
     bool isMutable() const;
 
-    // NODE & BoundSymbol objects
+    // BoundSymbol, and compiled ByteCodeInstruction objects
     Object eval() const;
 
-    // NODE & BoundSymbol objects
+    // BoundSymbol, and compiled ByteCodeInstruction objects
     bool isPure() const;
 
-    // NODE & BoundSymbol: Add any symbols defined by this node to the "symbols" set
+    // BoundSymbol, ByteCode: Add any symbols defined by this node to the "symbols" set
     void symbols(SymbolReferenceMap& symbols) const;
 
     // FUNCTION & Easing objects

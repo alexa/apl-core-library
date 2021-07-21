@@ -33,6 +33,7 @@ Bimap<int, std::string> sRootPropertyBimap = {
         { RootProperty::kPagerChildCache,                             "pagerChildCache" },
         { RootProperty::kSequenceChildCache,                          "sequenceChildCache" },
         { RootProperty::kUTCTime,                                     "utcTime" },
+        { RootProperty::kLang,                                        "lang" },
         { RootProperty::kLocalTimeAdjustment,                         "localTimeAdjustment" },
         { RootProperty::kDoublePressTimeout,                          "doublePressTimeout" },
         { RootProperty::kLongPressTimeout,                            "longPressTimeout" },

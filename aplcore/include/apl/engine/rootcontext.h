@@ -42,10 +42,6 @@ class RootContextData;
 class TimeManager;
 struct PointerEvent;
 
-extern const char *ELAPSED_TIME;
-extern const char *LOCAL_TIME;
-extern const char *UTC_TIME;
-
 /**
  * Represents a top-level APL document.
  *
@@ -230,6 +226,24 @@ public:
      */
     rapidjson::Value serializeVisualContext(rapidjson::Document::AllocatorType& allocator);
 
+    /**
+     * Identifies when the datasource context may have changed.  A call to serializeDatasourceContext resets this value to false.
+     * @return true if the datasource context has changed since the last call to serializeDatasourceContext, false otherwise.
+     */
+    bool isDataSourceContextDirty() const;
+
+    /**
+     * Clear the datasource context dirty flag
+     */
+    void clearDataSourceContextDirty();
+
+    /**
+     * Retrieve datasource context as a JSON array object. This method also clears the
+     * datasource context dirty flag
+     * @param allocator Rapidjson allocator
+     * @return The serialized datasource context
+     */
+    rapidjson::Value serializeDataSourceContext(rapidjson::Document::AllocatorType& allocator);
 
     /**
      * Execute an externally-driven command
@@ -464,6 +478,7 @@ private:
     ObjectMapPtr createDocumentEventProperties(const std::string& handler) const;
     void scheduleTickHandler(const Object& handler, double delay);
     void processTickHandlers();
+    void clearPendingInternal(bool first) const;
 
 private:
     ContentPtr mContent;

@@ -202,9 +202,14 @@ public:
     explicit TestExtension(const std::set<std::string>& uris) : ExtensionBase(uris) {};
 
     bool invokeCommand(const std::string& uri, const rapidjson::Value& command) override {
-        lastCommandId = alexaext::Command::getId(command);
-        lastCommandName = alexaext::Command::getName(command);
-        return true;
+        auto id = alexaext::Command::ID().Get(command);
+        auto name = alexaext::Command::NAME().Get(command);
+        if (id && name) {
+            lastCommandId = (int)id->GetDouble();
+            lastCommandName = name->GetString();
+            return true;
+        }
+        return false;
     }
 
     rapidjson::Document createRegistration(const std::string& uri, const rapidjson::Value& registerRequest) override {
@@ -225,7 +230,7 @@ public:
         rapidjson::Document doc;
         doc.Parse(schema.c_str());
         doc.AddMember("uri", rapidjson::Value(uri.c_str(), doc.GetAllocator()), doc.GetAllocator());
-        return RegistrationSuccess(uri, "SessionToken12").schema(doc);
+        return RegistrationSuccess("1.0").uri(uri).token("SessionToken12").schema(doc);
     }
 
     // test method to simulate internally generated
@@ -242,8 +247,13 @@ public:
         return invokeLiveDataUpdate(uri, doc);
     }
 
+    void onRegistered(const std::string &uri, const std::string &token) override {
+        registered = true;
+    }
+
     int lastCommandId;
     std::string lastCommandName;
+    bool registered = false;
 };
 
 
@@ -731,6 +741,8 @@ void ExtensionMediatorTest::testLifecycle() {
 
     // We have all we need. Inflate.
     inflate();
+
+    ASSERT_TRUE(hello->registered);
 
     auto text = component->findComponentById("label");
     ASSERT_EQ(kComponentTypeText, text->getType());

@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -101,7 +101,7 @@ DynamicIndexListDataSourceConnection::processLazyLoad(int index, const Object& d
     } else {
         constructAndReportError(ERROR_REASON_MISSING_LIST_ITEMS, index,
                 "No items provided to load.");
-            retryFetchRequest(correlationToken.asString());
+        retryFetchRequest(correlationToken.asString());
         return result;
     }
 
@@ -309,7 +309,13 @@ DynamicIndexListDataSourceProvider::processLazyLoadInternal(
                 "Bounds were changed in runtime.");
     }
 
-    if (!responseMap.has(ITEMS) || !connection->changesAllowed()) {
+    if (!responseMap.has(ITEMS)) {
+        constructAndReportError(ERROR_REASON_MISSING_LIST_ITEMS, connection, Object::NULL_OBJECT(),
+                                "No items defined.");
+        return true;
+    }
+
+    if (!connection->changesAllowed()) {
         constructAndReportError(ERROR_REASON_INTERNAL_ERROR, connection, Object::NULL_OBJECT(),
                 "Payload has unexpected fields.");
         return true;
@@ -368,16 +374,7 @@ DynamicIndexListDataSourceProvider::processUpdateInternal(
 }
 
 bool
-DynamicIndexListDataSourceProvider::process(const Object& payload) {
-    if (!payload.isString()) {
-        constructAndReportError(ERROR_REASON_INTERNAL_ERROR, "N/A", "Can't process payload.");
-        return false;
-    }
-
-    rapidjson::Document doc;
-    doc.Parse(payload.asString().c_str());
-    auto responseMap = Object(std::move(doc));
-
+DynamicIndexListDataSourceProvider::process(const Object& responseMap) {
     if (!responseMap.has(LIST_ID) ||
         !responseMap.get(LIST_ID).isString()) {
         constructAndReportError(ERROR_REASON_INVALID_LIST_ID, "N/A", "Missing listId.");
@@ -419,7 +416,7 @@ DynamicIndexListDataSourceProvider::process(const Object& payload) {
     || ((currentListVersion > 0 || listVersion > 0) && listVersion != currentListVersion + 1)) {
         // Check if cachable
         if (listVersion > currentListVersion + 1) {
-            connection->putCacheUpdate(listVersion - 1, payload);
+            connection->putCacheUpdate(listVersion - 1, responseMap);
         } else if (listVersion < 0) {
             constructAndReportError(ERROR_REASON_MISSING_LIST_VERSION_IN_SEND_DATA, connection,
                     Object::NULL_OBJECT(), "Missing list version.");
@@ -451,6 +448,11 @@ DynamicIndexListDataSourceProvider::process(const Object& payload) {
         processUpdate(cachedPayload);
     }
 
+    auto context = connection->getContext();
+    if (result && context != nullptr)
+        context->setDirtyDataSourceContext(
+            std::dynamic_pointer_cast<DataSourceConnection>(shared_from_this()));
+
     return result;
 }
 
@@ -461,4 +463,17 @@ DynamicIndexListDataSourceProvider::getBounds(const std::string& listId) {
         return {};
 
     return connection->getBounds();
+}
+
+void
+DynamicIndexListDataSourceConnection::serialize(rapidjson::Value& outMap,
+                                                rapidjson::Document::AllocatorType& allocator) {
+
+    outMap.AddMember("type", rapidjson::Value(DEFAULT_TYPE_NAME.c_str(), allocator).Move(), allocator);
+    outMap.AddMember("listId", rapidjson::Value(DynamicListDataSourceConnection::getListId().c_str(), allocator).Move(), allocator);
+
+    outMap.AddMember("listVersion", getListVersion(), allocator);
+    outMap.AddMember("minimumInclusiveIndex", Object(mMinimumInclusiveIndex).asInt(), allocator);
+    outMap.AddMember("maximumExclusiveIndex", Object(mMaximumExclusiveIndex).asInt(), allocator);
+    outMap.AddMember("startIndex", Object(mOffset).asInt(), allocator);
 }

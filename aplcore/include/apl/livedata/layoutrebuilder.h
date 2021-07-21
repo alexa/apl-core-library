@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@
 namespace apl {
 
 class LiveArrayObject;
+using LiveArrayObjectPtr = std::shared_ptr<LiveArrayObject>;
 
 /**
  * A LayoutRebuilder updates and adjust the children of a Component if the "data" property
@@ -40,6 +41,7 @@ public:
      * Construct a LayoutRebuilder and register it with the parent layout and LiveArray
      * @param context The data-binding context that children will be created with.
      * @param layout The parent layout Component
+     * @param old old top component for case of reinflation
      * @param array The DynamicArray that is controlled by the LiveArray
      * @param items The list of items defined in the Component
      * @param childPath The provenance path for the children
@@ -48,8 +50,9 @@ public:
      */
     static std::shared_ptr<LayoutRebuilder> create(const ContextPtr& context,
                                                    const CoreComponentPtr& layout,
-                                                   const std::shared_ptr<LiveArrayObject>& array,
-                                                   const std::vector<Object>& items,
+                                                   const CoreComponentPtr& old,
+                                                   const LiveArrayObjectPtr& array,
+                                                   const ObjectArray& items,
                                                    const Path& childPath,
                                                    bool numbered);
 
@@ -58,8 +61,9 @@ public:
      */
     LayoutRebuilder(const ContextPtr& context,
                     const CoreComponentPtr& layout,
-                    const std::shared_ptr<LiveArrayObject>& array,
-                    const std::vector<Object>& items,
+                    const CoreComponentPtr& old,
+                    const LiveArrayObjectPtr& array,
+                    const ObjectArray& items,
                     const Path& childPath,
                     bool numbered);
 
@@ -79,10 +83,26 @@ public:
     void rebuild();
 
     /**
+     * Inflate child of component associated with rebuilder if not fully inflated already.
+     * @param child child to inflate.
+     */
+    void inflateIfRequired(const CoreComponentPtr& child);
+
+    /**
      * Notify rebuilder that particular data index is on screen.
      * @param idx
      */
     void notifyItemOnScreen(int idx);
+
+    /**
+     * Notify rebuilder that the start edge of existing range was reached,
+     */
+    void notifyStartEdgeReached();
+
+    /**
+     * Notify rebuilder that the end edge of existing range was reached,
+     */
+    void notifyEndEdgeReached();
 
     /**
      * Must be called after construction to inform the LayoutRebuilder that the layout has a firstItem or lastItem
@@ -108,11 +128,20 @@ public:
         return mHasLastItem;
     }
 
+    /**
+     * @return array that backs this Rebuilder. May be nullptr if array is lost by any reason.
+     */
+    std::shared_ptr<LiveArrayObject> getBackingArray() const { return mArray.lock(); }
+
+private:
+    ContextPtr buildBaseChildContext(const LiveArrayObjectPtr& array, size_t dataIndex, size_t insertIndex);
+
 private:
     ContextPtr mContext;
     std::weak_ptr<CoreComponent> mLayout;
+    std::weak_ptr<CoreComponent> mOld;
     std::weak_ptr<LiveArrayObject> mArray;
-    const std::vector<Object> mItems;
+    const ObjectArray mItems;
     Path mChildPath;
     bool mNumbered;
     int mCallbackToken = -1;

@@ -182,27 +182,16 @@ TEST_F(BuilderPreserveScrollTest, ScrollViewCancelScrollCommand)
 
     // Start a "Scroll" command running
     executeCommand("Scroll", {{"componentId", "MyScrollView"}, {"distance", 1}}, false);
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    ASSERT_TRUE(IsEqual(Dimension(300), event.getValue(kEventPropertyPosition)));
-    ASSERT_EQ(component, event.getComponent());
-    ASSERT_TRUE(event.getActionRef().isPending());
 
     // As we scroll down eventually the "onScroll" handler will trigger (at 200dp).  When that happens,
     //  (1) we'll jump back to a scroll offset of 10 and
     //  (2) the scroll event will be terminated
-    root->updateTime(200);
-    component->update(kUpdateScrollPosition, 199);
-    ASSERT_TRUE(IsEqual(Dimension(199), component->getCalculated(kPropertyScrollPosition)));
-    ASSERT_TRUE(event.getActionRef().isPending());
+    advanceTime(500);
+    ASSERT_TRUE(component->getCalculated(kPropertyScrollPosition).asNumber() > 0);
 
     // Now we cross the threshold
-    root->updateTime(300);
-    component->update(kUpdateScrollPosition, 250);
+    advanceTime(500);
     ASSERT_TRUE(IsEqual(Dimension(10), component->getCalculated(kPropertyScrollPosition)));
-    ASSERT_FALSE(event.getActionRef().isPending());
-    ASSERT_TRUE(event.getActionRef().isTerminated());
 }
 
 
@@ -252,7 +241,7 @@ TEST_F(BuilderPreserveScrollTest, ScrollViewEventHandler)
     ASSERT_TRUE(IsEqual(Dimension(100), component->getCalculated(kPropertyScrollPosition)));
     ASSERT_TRUE(IsEqual("Position: 0.5", text->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(CheckDirty(text, kPropertyText));
-    ASSERT_TRUE(CheckDirty(root, text));
+    ASSERT_TRUE(CheckDirty(root, component, text));
 
     // Trigger reinflate
     auto oldComponent = component;
@@ -270,7 +259,7 @@ TEST_F(BuilderPreserveScrollTest, ScrollViewEventHandler)
     ASSERT_TRUE(IsEqual(Dimension(200), component->getCalculated(kPropertyScrollPosition)));
     ASSERT_TRUE(IsEqual("Position: 2", text->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(CheckDirty(text, kPropertyText));
-    ASSERT_TRUE(CheckDirty(root, text));
+    ASSERT_TRUE(CheckDirty(root, component, text));
 }
 
 
@@ -304,24 +293,23 @@ static const char *SCROLL_VIEW_CANCEL_NATIVE_SCROLLING = R"apl(
 // When native scrolling, if we set the scroll position we need to cancel any existing scrolling action or fling.
 TEST_F(BuilderPreserveScrollTest, ScrollViewCancelNativeScrolling)
 {
-    config->enableExperimentalFeature(RootConfig::ExperimentalFeature::kExperimentalFeatureHandleScrollingAndPagingInCore);
     metrics.size(200,200);
     loadDocument(SCROLL_VIEW_CANCEL_NATIVE_SCROLLING);
 
     ASSERT_FALSE(root->handlePointerEvent({PointerEventType::kPointerDown, Point(10,190)}));
 
     // Scroll up 90 units
-    root->updateTime(100);
+    advanceTime(100);
     ASSERT_TRUE(root->handlePointerEvent({PointerEventType::kPointerMove, Point(10,100)}));  // The scroll gesture should take control
     ASSERT_TRUE(IsEqual(Dimension(90), component->getCalculated(kPropertyScrollPosition)));
 
     // Scroll up another 50 units.  The SetValue method should execute and cancel the scrolling
-    root->updateTime(50);
+    advanceTime(50);
     ASSERT_TRUE(root->handlePointerEvent({PointerEventType::kPointerMove, Point(10,50)}));
     ASSERT_TRUE(IsEqual(Dimension(20), component->getCalculated(kPropertyScrollPosition)));
 
     // Keep scrolling - but the gesture should be cancelled now, so nothing happens
-    root->updateTime(50);
+    advanceTime(50);
     ASSERT_TRUE(root->handlePointerEvent({PointerEventType::kPointerMove, Point(10,10)}));
     ASSERT_TRUE(IsEqual(Dimension(20), component->getCalculated(kPropertyScrollPosition)));
 }
@@ -647,6 +635,175 @@ TEST_F(BuilderPreserveScrollTest, SequencesPreserveCenter)
     ASSERT_TRUE(ConsoleMessage());   // There should be an exception warning that we can't find a component
 }
 
+
+static const char *HORIZONTAL_SEQUENCE_PRESERVE_PERCENT = R"apl(
+    {
+      "type": "APL",
+      "version": "1.7",
+      "onConfigChange": {
+        "type": "Reinflate"
+      },
+      "mainTemplate": {
+        "items": {
+          "type": "Sequence",
+          "scrollDirection": "horizontal",
+          "layoutDirection": "RTL",
+          "width": "100%",
+          "height": "100%",
+          "id": "SEQUENCE",
+          "preserve": [
+            "scrollPercent"
+          ],
+          "items": {
+            "type": "Text",
+            "id": "TEXT-${data}",
+            "width": 100,
+            "height": 100
+          },
+          "data": "${Array.range(10)}"
+        }
+      }
+    }
+)apl";
+
+TEST_F(BuilderPreserveScrollTest, HorezontalSequencePercentRTL)
+{
+    metrics.size(200,200);
+    loadDocument(HORIZONTAL_SEQUENCE_PRESERVE_PERCENT);
+    ASSERT_TRUE(component);
+
+    ASSERT_TRUE(IsEqual(Dimension(0), component->getCalculated(kPropertyScrollPosition)));
+
+    // Scroll down
+    component->update(kUpdateScrollPosition, -100);  // This is 50% of the height of the scroll view (200 dp)
+    root->clearPending();
+    ASSERT_TRUE(IsEqual(Dimension(-100), component->getCalculated(kPropertyScrollPosition)));
+
+    // Trigger reinflate
+    auto old = component;
+    configChangeReinflate(ConfigurationChange(100,100));
+    ASSERT_TRUE(component);
+    ASSERT_EQ(component->getId(), old->getId());
+    ASSERT_TRUE(IsEqual(Dimension(-50), component->getCalculated(kPropertyScrollPosition)));  // This is 50% of the NEW height
+}
+
+const static char *SEQUENCES_PRESERVE_FIRST_LIVE = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "onConfigChange": {
+        "type": "Reinflate"
+      },
+      "mainTemplate": {
+        "items": {
+          "type": "Container",
+          "width": "100%",
+          "height": "100%",
+          "direction": "row",
+          "items": {
+            "type": "Sequence",
+            "bind": {
+              "name": "NAME",
+              "value": "${data.name}"
+            },
+            "id": "SEQUENCE-${NAME}",
+            "preserve": [
+              "${data.value}"
+            ],
+            "width": "50%",
+            "height": "100%",
+            "items": {
+              "type": "Text",
+              "when": "${viewport.theme == 'light' || data % 2 == 0}",
+              "id": "TEXT-${NAME}-${data}",
+              "text": "text-${NAME}-${data}",
+              "width": "100%",
+              "height": "50vh"
+            },
+            "data": "${Array.range(12)}"
+          },
+          "data": "${TestArray}"
+        }
+      }
+    }
+)apl";
+
+/**
+ * Same as @see SequencesPreserveFirstLive but with LiveArray as a base for top container.
+ */
+TEST_F(BuilderPreserveScrollTest, SequencesPreserveFirstLive)
+{
+    // Define container through LiveArray
+    auto firstElement = ObjectMap{{"name", "INDEX"}, {"value", "firstIndex"}};
+    auto secondElement = ObjectMap{{"name", "ID"}, {"value", "firstId"}};
+    auto myArray = LiveArray::create(ObjectArray{
+        Object(std::make_shared<ObjectMap>(firstElement)),
+        Object(std::make_shared<ObjectMap>(secondElement))});
+    config->liveData("TestArray", myArray);
+
+    // The child height is always 50% of the screen height
+    // If the theme is not "light", then odd child components are dropped
+    metrics.size(200,200).theme("light");
+    loadDocument(SEQUENCES_PRESERVE_FIRST_LIVE);
+    ASSERT_TRUE(component);
+
+    const std::string INDEX = "SEQUENCE-INDEX";
+    const std::string ID = "SEQUENCE-ID";
+
+    ASSERT_TRUE(IsEqual(Rect(0,0,100,200), getCalc(INDEX, kPropertyBounds)));
+    ASSERT_TRUE(IsEqual(Rect(100,0,100,200), getCalc(ID, kPropertyBounds)));
+
+    // Scroll both of the sequences down and reinflate without a size change
+    // This will place the third (index 2) component with 25% of it hiding off the top of the Sequence
+    setScroll(INDEX, 225);
+    setScroll(ID, 225);
+    configChangeReinflate(ConfigurationChange(300,200));  // Child size remains the same; scroll position is the same
+    ASSERT_EQ(225, getCalc(INDEX, kPropertyScrollPosition).asNumber());
+    ASSERT_EQ(225, getCalc(ID, kPropertyScrollPosition).asNumber());
+
+    // Double the height of the text boxes by doubling the screen height
+    // The child height will double, which makes the scroll position double
+    configChangeReinflate(ConfigurationChange(300,400));
+    ASSERT_EQ(450, getCalc(INDEX, kPropertyScrollPosition).asNumber());
+    ASSERT_EQ(450, getCalc(ID, kPropertyScrollPosition).asNumber());
+
+    // Change the theme to dark.  This will cause the odd-numbered components to disappear
+    // The INDEX-saving sequence stays at the same scroll position (which shows index=2, 25% off the top)
+    // The ID-saving sequence switches to a new scroll position (which shows index=1, 25% off the top)
+    configChangeReinflate(ConfigurationChange().theme("dark"));
+    ASSERT_EQ(450, getCalc(INDEX, kPropertyScrollPosition).asNumber());
+    ASSERT_EQ(250, getCalc(ID, kPropertyScrollPosition).asNumber());
+
+    // Change the theme back to light and set the text height to 100.  All the components re-appear.  The scroll positions
+    // go back to what they were before we threw away half of the components
+    configChangeReinflate(ConfigurationChange(200,200).theme("light"));
+    ASSERT_EQ(225, getCalc(INDEX, kPropertyScrollPosition).asNumber());   // The scroll position is tracking the INDEX
+    ASSERT_EQ(225, getCalc(ID, kPropertyScrollPosition).asNumber());  // The scroll position is tracking the ID - which goes back
+
+    // Scroll down so that the fourth child (index=3) is just at the top of the screen
+    // The ID-saving sequence doesn't work because the component no longer exists. It goes back to 0.
+    // The INDEX-saving sequence works and stays in the same place
+    setScroll(INDEX, 300);
+    setScroll(ID, 300);
+    configChangeReinflate(ConfigurationChange().theme("dark"));
+    ASSERT_EQ(300, getCalc(INDEX, kPropertyScrollPosition).asNumber());
+    ASSERT_EQ(0, getCalc(ID, kPropertyScrollPosition).asNumber());
+    ASSERT_TRUE(ConsoleMessage());   // There should be an exception warning that we can't find a component
+
+    // Reshow ALL of the components, scroll down to the very bottom of the list, and HIDE all of the components.
+    // This will put the 11th component (index=10) at the top of the screen.
+    // The ID-saving sequence will work because the component still exists
+    // The INDEX-saving sequence will fail because the component no longer exists.
+    configChangeReinflate(ConfigurationChange().theme("light"));
+    setScroll(INDEX, 100000);
+    setScroll(ID, 100000);
+    ASSERT_EQ(1000, getCalc(INDEX, kPropertyScrollPosition).asNumber());  // Sanity check our scroll position
+    ASSERT_EQ(1000, getCalc(ID, kPropertyScrollPosition).asNumber());
+    configChangeReinflate(ConfigurationChange().theme("dark"));   // Throw away half of the components
+    ASSERT_EQ(0, getCalc(INDEX, kPropertyScrollPosition).asNumber());
+    ASSERT_EQ(400, getCalc(ID, kPropertyScrollPosition).asNumber());  // This is the max scroll position
+    ASSERT_TRUE(ConsoleMessage());   // There should be an exception warning that we can't find a component
+}
 
 static const char *HORIZONTAL_WITH_PADDING = R"apl(
     {

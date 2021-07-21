@@ -35,6 +35,8 @@ namespace alexaext {
 class Extension {
 
 public:
+    virtual ~Extension() = default;
+
     /**
      * Get the URIs supported by the extension.
      *
@@ -44,7 +46,7 @@ public:
 
     /**
      * Create a registration for the extension. The registration is returned in a "RegistrationSuccess" or
-     * "RegistrationFailure" message. The extension is defined by a unique token per session, an environment of
+     * "RegistrationFailure" message. The extension is defined by a unique token per registration, an environment of
      * static properties, and the extension schema.
      *
      * The schema defines the extension api, including commands, events and live data.  The "RegistrationRequest"
@@ -100,16 +102,25 @@ public:
     virtual void registerLiveDataUpdateCallback(LiveDataUpdateCallback callback) = 0;
 
     /**
-     * Execute a command that was initiated by the document.
+     * Execute a Command that was initiated by the document.
      *
      * std::exception or ExtensionException thrown from this method are converted to "CommandFailure"
      * messages and returned to the caller.
      *
      * @param uri The extension URI.
-     * @param command The requested command
+     * @param command The requested Command message.
      * @return true if the command succeeded.
      */
     virtual bool invokeCommand(const std::string& uri, const rapidjson::Value &command) = 0;
+
+    /**
+     * Invoked after registration has been completed successfully. This is useful for
+     * stateful extensions that require initializing session data upfront.
+     *
+     * @param uri The extension URI used during registration.
+     * @param token The client token issued during registration.
+     */
+    virtual void onRegistered(const std::string &uri, const std::string &token) {}
 };
 
 using ExtensionPtr = std::shared_ptr<Extension>;

@@ -44,7 +44,7 @@ public:
      */
     static std::shared_ptr<ScrollToAction> make(const TimersPtr& timers,
                                                 const std::shared_ptr<CoreCommand>& command,
-                                                const ComponentPtr& target = nullptr);
+                                                const CoreComponentPtr& target = nullptr);
     /**
      * Called from SpeakItem during line highlight mode.
      * @param timers Timer reference.
@@ -56,7 +56,7 @@ public:
     static std::shared_ptr<ScrollToAction> make(const TimersPtr& timers,
                                                 const std::shared_ptr<CoreCommand>& command,
                                                 const Rect& subBounds,
-                                                const ComponentPtr& target = nullptr);
+                                                const CoreComponentPtr& target = nullptr);
 
 
     /**
@@ -72,7 +72,7 @@ public:
                                                 const CommandScrollAlign& align,
                                                 const Rect& subBounds,
                                                 const ContextPtr& context,
-                                                const ComponentPtr& target = nullptr);
+                                                const CoreComponentPtr& target = nullptr);
 
     /**
      * Called in order to bring child into view, utilizing snap setting if exists.
@@ -82,7 +82,7 @@ public:
      * @return
      */
     static std::shared_ptr<ScrollToAction> makeUsingSnap(const TimersPtr& timers,
-                                                         const ComponentPtr& target,
+                                                         const CoreComponentPtr& target,
                                                          apl_duration_t duration);
 
     ScrollToAction(const TimersPtr& timers,
@@ -90,7 +90,7 @@ public:
                    const Rect& subBounds,
                    const ContextPtr& context,
                    bool scrollToSubBounds,
-                   const ComponentPtr& target,
+                   const CoreComponentPtr& target,
                    const CoreComponentPtr& scrollableParent,
                    apl_duration_t duration);
 
@@ -100,7 +100,7 @@ private:
                                                 const Rect& subBounds,
                                                 const ContextPtr& context,
                                                 bool scrollToSubBounds,
-                                                const ComponentPtr& target = nullptr,
+                                                const CoreComponentPtr& target = nullptr,
                                                 apl_duration_t duration = 0,
                                                 bool useSnap = false);
 
@@ -112,7 +112,7 @@ private:
     CommandScrollAlign mAlign;
     Rect mSubBounds;
     bool mScrollToSubBounds;
-    ComponentPtr mTarget;
+    CoreComponentPtr mTarget;
 };
 
 

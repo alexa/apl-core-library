@@ -40,9 +40,10 @@ public:
     bool canConsumeFocusDirectionEvent(FocusDirection direction, bool fromInside) override;
     CoreComponentPtr takeFocusFromChild(FocusDirection direction, const Rect& origin) override;
 
+    std::shared_ptr<StickyChildrenTree> getStickyTree() override { return mStickyTree; }
+
 protected:
-    ScrollableComponent(const ContextPtr& context, Properties&& properties, const std::string& path) :
-        ActionableComponent(context, std::move(properties), path) {};
+    ScrollableComponent(const ContextPtr& context, Properties&& properties, const Path& path);
 
     /// Core component overrides
     void initialize() override;
@@ -50,19 +51,6 @@ protected:
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
     bool scrollable() const override { return true; }
     const ComponentPropDefSet& propDefSet() const override;
-
-    /**
-     * Override this to calculate whether the scrollable can continue to scroll forward
-     * @return true if scrollable can continue to scroll forward, false otherwise.
-     */
-    virtual bool allowForward() const = 0;
-
-    /**
-     * Override this to calculate whether the scrollable can scroll backwards from its
-     * current position.
-     * @return true if scrollable can continue to scroll backwards, false otherwise.
-     */
-    virtual bool allowBackwards() const = 0;
 
     /**
      * Override this to calculate maximum available scroll position.
@@ -85,6 +73,9 @@ protected:
 private:
     bool setScrollPositionInternal(float value);
     bool canScroll(FocusDirection direction);
+
+    // A tree of the descendants of this scroll with position: sticky.
+    std::shared_ptr<StickyChildrenTree> mStickyTree;
 };
 
 } // namespace apl

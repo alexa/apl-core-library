@@ -29,7 +29,7 @@ namespace apl {
 CoreComponentPtr
 EditTextComponent::create(const ContextPtr& context,
                           Properties&& properties,
-                          const std::string& path)
+                          const Path& path)
 {
     auto ptr = std::make_shared<EditTextComponent>(context, std::move(properties), path);
     ptr->initialize();
@@ -38,7 +38,7 @@ EditTextComponent::create(const ContextPtr& context,
 
 EditTextComponent::EditTextComponent(const ContextPtr& context,
                                      Properties&& properties,
-                                     const std::string& path)
+                                     const Path& path)
         : ActionableComponent(context, std::move(properties), path)
 {
     YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc<EditTextComponent>);
@@ -60,17 +60,22 @@ EditTextComponent::assignProperties(const ComponentPropDefSet& propDefSet)
     parseValidCharactersProperty();
 }
 
-inline Object defaultFontColor(Component& component, const RootConfig& rootConfig)
+static inline Object defaultFontColor(Component& component, const RootConfig& rootConfig)
 {
     return Object(rootConfig.getDefaultFontColor(component.getContext()->getTheme()));
 }
 
-inline Object defaultFontFamily(Component& component, const RootConfig& rootConfig)
+static inline Object defaultFontFamily(Component& component, const RootConfig& rootConfig)
 {
     return Object(rootConfig.getDefaultFontFamily());
 }
 
-inline Object defaultHighlightColor(Component& component, const RootConfig& rootConfig)
+static inline Object inheritLang(Component& comp, const RootConfig& rconfig)
+{
+    return Object(comp.getContext()->getLang());
+};
+
+static inline Object defaultHighlightColor(Component& component, const RootConfig& rootConfig)
 {
     return Object(rootConfig.getDefaultHighlightColor(component.getContext()->getTheme()));
 }
@@ -79,33 +84,35 @@ const ComponentPropDefSet&
 EditTextComponent::propDefSet() const
 {
     static ComponentPropDefSet sEditTextComponentProperties(ActionableComponent::propDefSet(), {
-            {kPropertyBorderColor,      Color(),            asColor,             kPropInOut | kPropStyled | kPropDynamic},
-            {kPropertyBorderWidth,      Dimension(0),       asNonNegativeAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic, yn::setBorder<YGEdgeAll>},
-            {kPropertyColor,            Color(),            asColor,             kPropInOut | kPropStyled | kPropDynamic, defaultFontColor},
-            {kPropertyFontFamily,       "",                 asString,            kPropInOut | kPropLayout | kPropStyled | kPropDynamic, defaultFontFamily},
-            {kPropertyFontSize,         Dimension(40),      asAbsoluteDimension, kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
-            {kPropertyFontStyle,        kFontStyleNormal,   sFontStyleMap,       kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
-            {kPropertyFontWeight,       400,                sFontWeightMap,      kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
-            {kPropertyHighlightColor,   Color(),            asColor,             kPropInOut | kPropStyled | kPropDynamic, defaultHighlightColor},
-            {kPropertyHint,             "",                 asString,            kPropInOut | kPropStyled | kPropDynamic},
-            {kPropertyHintColor,        Color(),            asColor,             kPropInOut | kPropStyled | kPropDynamic, defaultFontColor},
-            {kPropertyHintStyle,        kFontStyleNormal,   sFontStyleMap,       kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
-            {kPropertyHintWeight,       400,                sFontWeightMap,      kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
-            {kPropertyKeyboardType,     kKeyboardTypeNormal, sKeyboardTypeMap,   kPropInOut | kPropStyled},
-            {kPropertyMaxLength,        0,                  asInteger,           kPropInOut | kPropStyled},
-            {kPropertyOnSubmit,         Object::EMPTY_ARRAY(), asCommand,        kPropIn},
-            {kPropertyOnTextChange,     Object::EMPTY_ARRAY(), asCommand,        kPropIn},
-            {kPropertySecureInput,      false,              asBoolean,           kPropInOut | kPropStyled | kPropDynamic},
-            {kPropertySelectOnFocus,    false,              asBoolean,           kPropInOut | kPropStyled},
-            {kPropertySize,             8,                  asPositiveInteger,   kPropInOut | kPropStyled | kPropLayout},
-            {kPropertySubmitKeyType,    kSubmitKeyTypeDone, sSubmitKeyTypeMap,   kPropInOut | kPropStyled},
-            {kPropertyText,             "",                 asString,            kPropInOut | kPropDynamic | kPropVisualContext},
-            {kPropertyValidCharacters,  "",                 asString,            kPropIn | kPropStyled},
+            {kPropertyBorderColor,              Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic},
+            {kPropertyBorderWidth,              Dimension(0),                   asNonNegativeAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic, yn::setBorder<YGEdgeAll>},
+            {kPropertyColor,                    Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic, defaultFontColor},
+            {kPropertyFontFamily,               "",                             asString,                       kPropInOut | kPropLayout | kPropStyled | kPropDynamic, defaultFontFamily},
+            {kPropertyFontSize,                 Dimension(40),                  asAbsoluteDimension,            kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
+            {kPropertyFontStyle,                kFontStyleNormal,               sFontStyleMap,                  kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
+            {kPropertyFontWeight,               400,                            sFontWeightMap,                 kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
+            {kPropertyHighlightColor,           Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic, defaultHighlightColor},
+            {kPropertyHint,                     "",                             asString,                       kPropInOut | kPropStyled | kPropDynamic},
+            {kPropertyHintColor,                Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic, defaultFontColor},
+            {kPropertyHintStyle,                kFontStyleNormal,               sFontStyleMap,                  kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
+            {kPropertyHintWeight,               400,                            sFontWeightMap,                 kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
+            {kPropertyKeyboardType,             kKeyboardTypeNormal,            sKeyboardTypeMap,               kPropInOut | kPropStyled},
+            {kPropertyLang,                     "",                             asString,                       kPropInOut | kPropLayout | kPropStyled | kPropDynamic, inheritLang},
+            {kPropertyMaxLength,                0,                              asInteger,                      kPropInOut | kPropStyled},
+            {kPropertyOnSubmit,                 Object::EMPTY_ARRAY(),          asCommand,                      kPropIn},
+            {kPropertyOnTextChange,             Object::EMPTY_ARRAY(),          asCommand,                      kPropIn},
+            {kPropertySecureInput,              false,                          asBoolean,                      kPropInOut | kPropStyled | kPropDynamic},
+            {kPropertyKeyboardBehaviorOnFocus,  kBehaviorOnFocusSystemDefault,  sKeyboardBehaviorOnFocusMap,    kPropIn | kPropStyled},
+            {kPropertySelectOnFocus,            false,                          asBoolean,                      kPropInOut | kPropStyled},
+            {kPropertySize,                     8,                              asPositiveInteger,              kPropInOut | kPropStyled | kPropLayout},
+            {kPropertySubmitKeyType,            kSubmitKeyTypeDone,             sSubmitKeyTypeMap,              kPropInOut | kPropStyled},
+            {kPropertyText,                     "",                             asString,                       kPropInOut | kPropDynamic | kPropVisualContext},
+            {kPropertyValidCharacters,          "",                             asString,                       kPropIn | kPropStyled},
 
             // The width of the drawn border.  If borderStrokeWith is set, the drawn border is the min of borderWidth
             // and borderStrokeWidth.  If borderStrokeWidth is unset, the drawn border defaults to borderWidth
-            {kPropertyBorderStrokeWidth, Object::NULL_OBJECT(), asNonNegativeAbsoluteDimension, kPropIn | kPropStyled | kPropDynamic, resolveDrawnBorder},
-            {kPropertyDrawnBorderWidth,  Object::NULL_OBJECT(), asNonNegativeAbsoluteDimension, kPropOut},
+            {kPropertyBorderStrokeWidth,        Object::NULL_OBJECT(),          asNonNegativeAbsoluteDimension, kPropIn | kPropStyled | kPropDynamic, resolveDrawnBorder},
+            {kPropertyDrawnBorderWidth,         Object::NULL_OBJECT(),          asNonNegativeAbsoluteDimension, kPropOut},
 
     });
 
@@ -202,6 +209,15 @@ EditTextComponent::processPointerEvent(const PointerEvent& event, apl_time_t tim
     }
 
     return kPointerStatusNotCaptured;
+}
+
+void
+EditTextComponent::executeOnFocus() {
+    ActionableComponent::executeOnFocus();
+
+    if (getCalculated(kPropertyKeyboardBehaviorOnFocus) == kBehaviorOnFocusOpenKeyboard) {
+        getContext()->pushEvent(Event(kEventTypeOpenKeyboard, shared_from_this()));
+    }
 }
 
 }  // namespace apl

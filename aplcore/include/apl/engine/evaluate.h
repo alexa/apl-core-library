@@ -1,5 +1,5 @@
 /**
- * Copyright 2018, 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -23,33 +23,54 @@
 namespace apl {
 
 /**
+ * Parse a data-binding string and return the parsed expression. The returned object will
+ * be byte code if the string contained at least one data-binding expression and will be
+ * a plain string if no data-binding expressions were found
+ * @param context  The data-binding context
+ * @param value The string value to evaluate
+ * @return The byte code or a string if no data-binding was found
+ */
+Object getDataBinding(const Context& context, const std::string& value);
+
+/**
  * Parse a data-binding string and return the parsed expression.  If the string contains
  * data-binding expressions referring to symbols not defined in the current context
- * or symbols that have been marked as mutable, the returned object will be a Node
- * containing the parse tree.
+ * or symbols that have been marked as mutable, the returned object will be byte code.
+ * If the parsed expression is constant, the returned object will be the appropriate type.
+ *
  * @param context The data-binding context
  * @param value The string value to evaluate
- * @return The evaluated object or a Node object
+ * @return The evaluated object or byte code
  */
 Object parseDataBinding(const Context& context, const std::string& value);
 
 /**
- * Parse a data-binding recursively and return the parsed expressiontree.  If the object contains any strings with
- * data-binding expressions referring to symbols not defined in the current context or symbols that have been marked
- * as mutable, the returned object will have corresponding Nodes containing the parse tree.
+ * Parse a data-binding recursively and return the parsed expression tree.  If the object contains
+ * any strings with data-binding expressions referring to symbols not defined in the current context
+ * or symbols that have been marked as mutable, the returned object will be byte code.
  * @param context The data-binding context
  * @param object The object to evaluate
- * @return The evaluated object or a Node object
+ * @return The evaluated object or byte code
  */
 Object parseDataBindingRecursive(const Context& context, const Object& object);
 
 /**
- * Evaluate an object applying data-binding
+ * Evaluate an object applying data-binding.  The object or expression will be converted
+ * into byte code if necessary, evaluated, and resources will be substituted.
+ *
  * @param context The data-binding context.
  * @param object The object to evaluate.
- * @return
+ * @return The result
  */
 Object evaluate(const Context& context, const Object& object);
+
+/**
+ * Evaluate a string applying data-binding.  The object or expression will be converted
+ * into byte code if necessary, evaluated, and resources will be substituted.
+ * @param context The data-binding context
+ * @param expression The string to evaluate
+ * @return The result
+ */
 Object evaluate(const Context& context, const char *expression);
 
 /**

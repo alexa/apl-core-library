@@ -49,6 +49,7 @@ extern YGFlexDirection scrollDirectionLookup(ScrollDirection direction);
 extern void setScrollDirection(YGNodeRef nodeRef, const Object& value, const Context&);
 extern void setGridScrollDirection(YGNodeRef nodeRef, const Object& value, const Context&);
 extern void setDisplay(YGNodeRef nodeRef, const Object& value, const Context&);
+extern void setLayoutDirection(YGNodeRef nodeRef, const Object& value, const Context&);
 
 template<YGEdge edge>
 void setBorder(YGNodeRef nodeRef, const Object& value, const Context& context) {

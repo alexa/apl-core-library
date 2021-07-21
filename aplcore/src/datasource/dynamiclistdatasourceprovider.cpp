@@ -44,22 +44,22 @@ DynamicListDataSourceConnection::enqueueFetchRequestEvent(const ContextPtr& cont
     context->pushEvent(Event(kEventTypeDataSourceFetchRequest, std::move(bag)));
 }
 
-void
+bool
 DynamicListDataSourceConnection::retryFetchRequest(const std::string& correlationToken) {
     auto context = mContext.lock();
     auto provider = mProvider.lock();
 
     if (!context || !provider || correlationToken.empty())
-        return;
+        return false;
 
     auto liveArray = mLiveArray.lock();
     if (!liveArray || liveArray->size() == mMaxItems)
-        return;
+        return false;
 
     std::string newToken = correlationToken;
     auto it = mPendingFetchRequests.find(correlationToken);
     if (it == mPendingFetchRequests.end())
-        return;
+        return false;
 
     auto pendingRequest = it->second;
     pendingRequest->retries--;
@@ -82,6 +82,7 @@ DynamicListDataSourceConnection::retryFetchRequest(const std::string& correlatio
             mPendingFetchRequests.erase(token);
         }
     }
+    return true;
 }
 
 timeout_id
@@ -99,9 +100,10 @@ DynamicListDataSourceConnection::scheduleTimeout(const std::string& correlationT
       if (!self || !ctx)
           return;
 
-      self->constructAndReportError(ERROR_REASON_LOAD_TIMEOUT, Object::NULL_OBJECT(),
-                                    "Retrying timed out request: " + correlationToken);
-      self->retryFetchRequest(correlationToken);
+      if (self->retryFetchRequest(correlationToken)) {
+          self->constructAndReportError(ERROR_REASON_LOAD_TIMEOUT, Object::NULL_OBJECT(),
+                                        "Retrying timed out request: " + correlationToken);
+      }
     }, mConfiguration.fetchTimeout);
 }
 
@@ -298,7 +300,26 @@ bool
 DynamicListDataSourceProvider::processUpdate(const Object &payload) {
     clearStaleConnections();
 
-    return process(payload);
+    auto result = false;
+    if (payload.isString()) {
+        rapidjson::Document doc;
+        rapidjson::ParseResult parseResult =
+                doc.Parse<rapidjson::kParseValidateEncodingFlag | rapidjson::kParseStopWhenDoneFlag>(
+                        payload.asString().c_str());
+
+        if (parseResult.IsError()) {
+            LOG(LogLevel::kError) << "Failed to parse update JSON: "
+                << std::string(rapidjson::GetParseError_En(parseResult.Code()));
+            return false;
+        }
+        result = process(Object(std::move(doc)));
+    } else if (payload.isMap()) {
+        result = process(payload);
+    } else {
+        constructAndReportError(ERROR_REASON_INTERNAL_ERROR, "N/A", "Can't process payload.");
+    }
+
+    return result;
 }
 
 void

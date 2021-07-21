@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -69,6 +69,11 @@ public:
      * @return This object as a live map object or nullptr if that is invalid
      */
     virtual std::shared_ptr<LiveMapObject> asMap() { return nullptr; }
+
+    /**
+     * @return datasource connection pointer or nullptr if livedata object is not type of datasource
+     */
+    virtual DataSourceConnectionPtr getDataSourceConnection() const { return nullptr; }
 
     /**
      * Flush tracking changes

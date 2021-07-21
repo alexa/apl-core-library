@@ -39,15 +39,17 @@ void
 CommandFactory::reset()
 {
     mCommandMap.clear();
-    auto it = sCommandNameBimap.beginBtoA();
-    for (; it != sCommandNameBimap.endBtoA(); ++it)
-        mCommandMap.emplace(it->first, sCommandCreatorMap.at(it->second));
+    for (auto it = sCommandNameBimap.beginBtoA() ; it != sCommandNameBimap.endBtoA() ; ++it) {
+        auto fptr = sCommandCreatorMap.find(it->second);
+        if (fptr != sCommandCreatorMap.end())
+            mCommandMap.emplace(it->first, fptr->second);
+    }
 }
 
 CommandFactory&
 CommandFactory::set(const char *name, CommandFunc func)
 {
-    mCommandMap[name] = func;   // Allow overrwriting
+    mCommandMap[name] = func;   // Allow over-writing
     return *this;
 }
 

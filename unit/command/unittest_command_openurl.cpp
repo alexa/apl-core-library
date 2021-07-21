@@ -160,7 +160,7 @@ TEST_F(CommandOpenURLTest, OpenURLDelayFail)
     performClick(1, 1);
 
     ASSERT_FALSE(root->hasEvent());
-    loop->advanceToTime(1000);
+    advanceTime(1000);
 
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
@@ -169,7 +169,7 @@ TEST_F(CommandOpenURLTest, OpenURLDelayFail)
 
     event.getActionRef().resolve(123);
     ASSERT_FALSE(root->hasEvent());   // The onFail runs in slow mode
-    root->updateTime(root->currentTime() + 1000);
+    advanceTime(1000);
     ASSERT_TRUE(CheckSendEvent(root, "failed", "OpenURL", "Fail", 123));
 }
 

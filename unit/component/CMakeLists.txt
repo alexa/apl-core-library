@@ -14,6 +14,7 @@
 target_sources_local(unittest
         PRIVATE
         unittest_accessibility_actions.cpp
+        unittest_accessibility_api.cpp
         unittest_bounds.cpp
         unittest_component_events.cpp
         unittest_default_component_size.cpp
@@ -26,12 +27,14 @@ target_sources_local(unittest
         unittest_flexbox.cpp
         unittest_frame_component.cpp
         unittest_grid_sequence_component.cpp
+        unittest_layout_direction.cpp
         unittest_pager.cpp
         unittest_properties.cpp
         unittest_scroll.cpp
         unittest_serialize.cpp
         unittest_signature.cpp
         unittest_state.cpp
+        unittest_text_component.cpp
         unittest_tick.cpp
         unittest_transform.cpp
         unittest_visual_context.cpp

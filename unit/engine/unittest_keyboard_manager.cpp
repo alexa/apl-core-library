@@ -1108,5 +1108,14 @@ TEST_F(KeyboardManagerTest, ArrowKeysForAvg)
     transform = group->getValue(kGraphicPropertyTransform).getTransform2D();
     ASSERT_EQ(Transform2D::translate(300, 50), transform);
 
-    ASSERT_FALSE(root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY()));
+    // Actually passed to focus nav
+    ASSERT_TRUE(root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY()));
+    transform = group->getValue(kGraphicPropertyTransform).getTransform2D();
+    ASSERT_EQ(Transform2D::translate(300, 50), transform);
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_FALSE(event.getComponent());
+    event.getActionRef().resolve(true);
+    root->clearPending();
 }

@@ -64,6 +64,8 @@ static const char * HEART =
     R"({
       "type": "AVG",
       "version": "1.0",
+      "lang": "en-US",
+      "layoutDirection": "RTL",
       "description": "Partially filled heart with rotation",
       "height": 157,
       "width": 171,
@@ -115,6 +117,8 @@ TEST_F(GraphicTest, Basic)
     ASSERT_EQ(Object(171), container->getValue(kGraphicPropertyViewportWidthOriginal));
     ASSERT_EQ(Object(kGraphicScaleNone), container->getValue(kGraphicPropertyScaleTypeHeight));
     ASSERT_EQ(Object(kGraphicScaleNone), container->getValue(kGraphicPropertyScaleTypeWidth));
+    ASSERT_EQ(Object("en-US"), container->getValue(kGraphicPropertyLang));
+    ASSERT_EQ(kGraphicLayoutDirectionRTL, container->getValue(kGraphicPropertyLayoutDirection).asInt());
 
     ASSERT_EQ(1, container->getChildCount());
     auto child = container->getChildAt(0);
@@ -280,6 +284,8 @@ TEST_F(GraphicTest, MinimalResources)
 static const char *MINIMAL_DOCUMENT =
     R"({
       "type": "APL",
+      "lang": "en-US",
+      "layoutDirection": "RTL",
       "version": "1.1",
       "graphics": {
         "box": {
@@ -326,6 +332,10 @@ TEST_F(GraphicTest, MinimalProvenance)
 
     ASSERT_STREQ("_main/graphics/box/resources/0/strings/test", graphic->getContext()->provenance("@test").c_str());
     ASSERT_EQ(Object::NULL_OBJECT(), context->opt("@test"));
+
+    // Make sure we don't shadow the document lang
+    ASSERT_EQ(Object(""), graphic->getRoot()->getValue(kGraphicPropertyLang));
+    ASSERT_EQ(kGraphicLayoutDirectionLTR, graphic->getRoot()->getValue(kGraphicPropertyLayoutDirection).asInt());
 }
 
 static const char *GRAPHIC_RESOURCES =
@@ -543,6 +553,8 @@ TEST_F(GraphicTest, MinimalText)
 
     auto container = graphic->getRoot();
     ASSERT_TRUE(container);
+    ASSERT_EQ(Object(""), container->getValue(kGraphicPropertyLang));
+    ASSERT_EQ(kGraphicLayoutDirectionLTR, container->getValue(kGraphicPropertyLang).asInt());
 
     ASSERT_EQ(1, container->getChildCount());
     auto text = container->getChildAt(0);
@@ -3220,6 +3232,8 @@ static const char *GRAPHIC_FILTER_ARRAY = R"apl(
 {
   "type":"AVG",
   "version":"1.1",
+  "lang": "ja-JP",
+  "layoutDirection": "RTL",
   "height":157,
   "width":171,
   "viewportHeight":157,
@@ -3359,5 +3373,92 @@ TEST_F(GraphicTest, Serialize)
     ASSERT_EQ(3, json[0]["verticalOffset"].GetDouble());
 
     ASSERT_EQ("No 'type' property defined for graphic filter", session->getLast());
+
+    const auto& graphicJson = container->serialize(doc.GetAllocator()).FindMember("props")->value;
+    auto lang = graphicJson.FindMember("lang")->value.GetString();
+    ASSERT_STREQ("ja-JP", lang);
+
+    auto layoutDirection = graphicJson.FindMember("layoutDirection")->value.GetDouble();
+    ASSERT_EQ(kGraphicLayoutDirectionRTL, layoutDirection);
+
     session->clear();
+}
+
+static const char *GRAPHIC_ELEMENT_MISSING_WIDTH = R"apl(
+{
+  "type": "APL",
+  "version": "1.6",
+  "graphics": {
+    "ToggleButton": {
+      "type": "AVG",
+  "version": "1.0",
+"parameters": [
+"On"   ],
+     "itedth": 150,
+      "height": 90,
+      "items": [
+        {   "type": "path",
+          "deption": "Background shape",
+  "pathData": "M45,88 A4L105,2 A43,43,0,0,1,105,88 Z",
+  "stroke": "#97On ? 'green' : '#d8d8d8' }",
+          "strokeWidth": 2
+    },
+        {
+  "type": "group",
+          "description": "Button",
+          "translateX": "${On ? 60: 0}",
+          "items": {
+    "type": "path",
+            "pathData": "M45,82 A36,36,0,0,1,45,8 A36,36,0,1,1,45,82 Z",
+            "fill": "white",
+            "stroke": "#979797",
+            "strokeWidth": 2
+          }
+}
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "TouchWrapper",
+      "bind": {
+        "name": "IsOn",
+        "value": false
+      },
+      "onPress": [ {
+          "type": "SetValue",
+          "property": "IsOn",
+          "value": "${!IsOn}"
+        },
+        {
+          "type": "SendEvent"
+}
+      ],
+      "items": [
+        {
+  "type": "VectorGraphic",
+          "source": "ToggleButton",
+          "On": "${IsOn}",
+          "inheritParentState": true,
+          "onPress": [
+            {
+      "type": "SetValue",
+              "property": "On",
+              "value": "${!On}"
+    }
+          ]
+        }
+      ]
+    }
+  }
+}
+)apl";
+
+// Verify that filters serialize correctly
+TEST_F(GraphicTest, MissingWidthDoesntStop)
+{
+    auto content = apl::Content::create(GRAPHIC_ELEMENT_MISSING_WIDTH);
+    ASSERT_TRUE(content->isReady());
+    ASSERT_TRUE(apl::RootContext::create(
+        apl::Metrics().size(1280, 800).dpi(160).shape(apl::ScreenShape::ROUND), content));
 }

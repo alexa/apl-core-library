@@ -40,6 +40,7 @@ add_subdirectory(extension)
 add_subdirectory(focus)
 add_subdirectory(graphic)
 add_subdirectory(livedata)
+add_subdirectory(media)
 add_subdirectory(primitives)
 add_subdirectory(scaling)
 add_subdirectory(time)
@@ -59,6 +60,10 @@ if (BUILD_ALEXAEXTENSIONS)
     target_link_libraries(unittest alexaext)
 endif(BUILD_ALEXAEXTENSIONS)
 
+if (ANDROID)
+    target_link_libraries(unittest log)
+endif(ANDROID)
+
 if(CTEST_INDIVIDUALLY)
     # NOTE: discovered ctest targets below are much slower than their direct counterparts.  Ctest loads
     #       tests individually instead of just running all in a class.  This makes it take much
@@ -69,5 +74,8 @@ if(CTEST_INDIVIDUALLY)
 else()
     # Adds the entire unittest executable as a single ctest.  Great for speed.
     add_test(all-tests unittest)
+    if (BUILD_ALEXAEXTENSIONS)
+        add_test(all-tests alexaext-unittest)
+    endif(BUILD_ALEXAEXTENSIONS)
 endif()
 

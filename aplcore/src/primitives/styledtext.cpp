@@ -84,13 +84,10 @@ static inline std::string rtrim(const std::string &str) {
 }
 
 struct quote : sor<one<'"'>, one<'\''>> {};
-struct attributes :
-        seq<plus<space>, until<
-            seq<
-                quote, star<space>,
-                at<sor<one<'>'>, string<'/','>'>>
-                >>>> {};
-
+struct attributename : plus<alnum>{};
+struct attributevalue : plus<not_one<'"', '\''>>{};
+struct attribute : seq<attributename,star<space>,one<'='>,star<space>,quote,attributevalue,quote,star<space>>{};
+struct attributes : seq<plus<space>,star<attribute>,until<at<sor<one<'>'>,string<'/','>'>>>>>{};
 struct markdownchar : one<'<','>','&'>{};
 struct stringentity : seq<one<'&'>, plus<alpha>, one<';'>>{};
 struct decnum : plus<digit>{};
@@ -114,6 +111,22 @@ struct styledtext : seq<star<space>,star<element>,eof>{};
 template<typename Rule>
 struct action : nothing< Rule >
 {
+};
+
+template<> struct action< attributename >
+{
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
+        state.attributeName(in.string());
+    }
+};
+
+template<> struct action< attributevalue >
+{
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
+        state.attributeValue(in.string());
+    }
 };
 
 template<> struct action< tagname >
@@ -220,18 +233,18 @@ template<> struct action< hexentity >
 };
 
 Object
-StyledText::create(const Object& object) {
+StyledText::create(const Context& context, const Object& object) {
     if (object.isStyledText())
         return object;
 
-    return Object(StyledText(object.asString()));
+    return Object(StyledText(context, object.asString()));
 }
 
-StyledText::StyledText(const std::string& raw) {
+StyledText::StyledText(const Context& context, const std::string& raw) {
     mRawText = raw;
     auto filtered = rtrim(stripControl(raw));
 
-    StyledTextState state;
+    auto state = StyledTextState(context);
     pegtl::string_input<> in(filtered, "");
     pegtl::parse<styledtext, action>(in, state);
 
@@ -251,6 +264,14 @@ StyledText::serialize(rapidjson::Document::AllocatorType& allocator) const {
         span.PushBack(s.type, allocator);
         span.PushBack(static_cast<unsigned>(s.start), allocator);
         span.PushBack(static_cast<unsigned>(s.end), allocator);
+        Value attributes(rapidjson::kArrayType);
+        for (auto &a : s.attributes) {
+            Value attribute(rapidjson::kArrayType);
+            attribute.PushBack(a.name, allocator);
+            attribute.PushBack(a.value.serialize(allocator), allocator);
+            attributes.PushBack(attribute, allocator);
+        }
+        span.PushBack(attributes, allocator);
         spans.PushBack(span, allocator);
     }
     v.AddMember("spans", spans, allocator);
@@ -292,6 +313,7 @@ StyledText::Iterator::next() {
 
     if (nextStartSpanPosition == mCurrentStrPos) {
         mSpanType = spans[mSpanIndex].type;
+        mSpanAttributes = spans[mSpanIndex].attributes;
         mStack.push(&spans[mSpanIndex++]);
         return kStartSpan;
     }

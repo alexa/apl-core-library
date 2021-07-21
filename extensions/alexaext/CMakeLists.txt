@@ -21,7 +21,10 @@ project(AlexaExt
         CXX C)
 
 add_library(alexaext STATIC
-            src/executor.cpp)
+            src/APLAudioPlayerExtension/AplAudioPlayerExtension.cpp
+            src/executor.cpp
+            src/extensionmessage.cpp
+    )
 
 if (BUILD_SHARED OR ENABLE_PIC)
     set_target_properties(alexaext
@@ -88,6 +91,3 @@ install(
 
 add_library(alexa::extensions ALIAS alexaext)
 
-if (BUILD_UNIT_TESTS)
-    # add_subdirectory(unit) # TODO: unit tests
-endif()

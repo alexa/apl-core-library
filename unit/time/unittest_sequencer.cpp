@@ -764,34 +764,17 @@ TEST_F(SequencerTest, SpeakItemAndScroll)
     loadDocument(SCROLLABLE_SPEAK_ITEM);
 
     execute(SPEAK_ITEM, false);
-
-    loop->advanceToEnd();
-
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypePreroll, event.getType());
 
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    auto speakItem = event.getActionRef();
-
-    ASSERT_FALSE(root->hasEvent());
-
-    ASSERT_FALSE(speakItem.isTerminated());
-
     // Same resource
     execute(SCROLL_TO_POSITION, false);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    auto scroll = event.getActionRef();
+    advanceTime(1000);
+    ASSERT_EQ(Point(0,10), component->scrollPosition());
 
-    loop->advanceToEnd();
-
-    // We are on different sequencers, but on the same resource, so first will be terminated.
-    ASSERT_TRUE(speakItem.isTerminated());
-    ASSERT_TRUE(scroll.isPending());
+    // We are on different sequencers, but on the same resource, so first will be terminated and no speak will happen.
+    ASSERT_FALSE(root->hasEvent());
 }
 
 static const char *SEQUENCE = R"(
@@ -830,32 +813,10 @@ TEST_F(SequencerTest, SequenceToComponent)
 
     execute(SCROLL_TO_COMPONENT, false);
 
-    loop->advanceToEnd();
-
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    auto scrollTo = event.getActionRef();
-
-    ASSERT_FALSE(root->hasEvent());
-
-    ASSERT_FALSE(scrollTo.isTerminated());
-
     // Same resource
     execute(SCROLL_TO_POSITION, false);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    auto scroll = event.getActionRef();
-
-    loop->advanceToEnd();
-
-    ASSERT_TRUE(scroll.isPending());
-    scroll.resolve();
-
-    // We are on different sequencers, but on the same resource, so first will be terminated.
-    ASSERT_TRUE(scrollTo.isTerminated());
-    ASSERT_TRUE(scroll.isResolved());
+    advanceTime(1000);
+    ASSERT_EQ(Point(0,10), component->scrollPosition());
 }
 
 static const char *SCROLL_TO_INDEX = R"([
@@ -873,32 +834,10 @@ TEST_F(SequencerTest, SequenceToIndex)
 
     execute(SCROLL_TO_INDEX, false);
 
-    loop->advanceToEnd();
-
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    auto scrollTo = event.getActionRef();
-
-    ASSERT_FALSE(root->hasEvent());
-
-    ASSERT_FALSE(scrollTo.isTerminated());
-
     // Same resource
     execute(SCROLL_TO_POSITION, false);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeScrollTo, event.getType());
-    auto scroll = event.getActionRef();
-
-    loop->advanceToEnd();
-
-    ASSERT_TRUE(scroll.isPending());
-    scroll.resolve();
-
-    // We are on different sequencers, but on the same resource, so first will be terminated.
-    ASSERT_TRUE(scrollTo.isTerminated());
-    ASSERT_TRUE(scroll.isResolved());
+    advanceTime(1000);
+    ASSERT_EQ(Point(0,10), component->scrollPosition());
 }
 
 static const char *PAGER = R"(
@@ -947,32 +886,10 @@ TEST_F(SequencerTest, Pager)
 
     execute(AUTO_PAGE, false);
 
-    loop->advanceToEnd();
-
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeSetPage, event.getType());
-    auto autoPage = event.getActionRef();
-
-    ASSERT_FALSE(root->hasEvent());
-
-    ASSERT_FALSE(autoPage.isTerminated());
-
     // Same resource
     execute(SET_PAGE, false);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSetPage, event.getType());
-    auto pageTo = event.getActionRef();
-
-    loop->advanceToEnd();
-
-    ASSERT_TRUE(pageTo.isPending());
-    pageTo.resolve();
-
-    // We are on different sequencers, but on the same resource, so first will be terminated.
-    ASSERT_TRUE(autoPage.isTerminated());
-    ASSERT_TRUE(pageTo.isResolved());
+    advanceTime(2000);
+    ASSERT_EQ(3, component->pagePosition());
 }
 
 static const char *FRAME = R"({
@@ -1160,7 +1077,7 @@ static const char * PAGER_1_3_CMD = R"([{
       "type": "SetPage",
       "componentId": "aPager",
       "position": "absolute",
-      "value": 1
+      "value": 2
     }
   ]
 }])";
@@ -1179,26 +1096,8 @@ TEST_F(SequencerTest, Pager_1_3)
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypePreroll, event.getType());
 
-    // page change due to speak
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSetPage, event.getType());
-    auto setpage1 = event.getActionRef();
-    // in 1.4 this would be terminated
-    ASSERT_FALSE(setpage1.isTerminated());
-    ASSERT_TRUE(CheckDirty(root));
-    component->update(kUpdatePagerPosition, 1);
-    setpage1.resolve();
-
-    // page change due to setPage
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSetPage, event.getType());
-    auto setpage2 = event.getActionRef();
-    ASSERT_FALSE(setpage2.isTerminated());
-    setpage2.resolve();
-
-    loop->advanceToEnd();
+    advanceTime(600);
+    ASSERT_EQ(1, component->pagePosition());
 
     // expect speak
     ASSERT_TRUE(root->hasEvent());
@@ -1237,6 +1136,4 @@ TEST_F(SequencerTest, SequentialOnSequencer13)
     sequencer.reset();
     ASSERT_TRUE(sequencer.empty("magic"));
     ASSERT_TRUE(sequencer.empty(MAIN_SEQUENCER_NAME));
-
-
 }

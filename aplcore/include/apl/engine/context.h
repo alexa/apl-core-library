@@ -24,6 +24,7 @@
 #include <yoga/Yoga.h>
 
 #include "apl/common.h"
+#include "apl/component/componentproperties.h"
 #include "apl/engine/contextobject.h"
 #include "apl/engine/jsonresource.h"
 #include "apl/engine/recalculatesource.h"
@@ -44,14 +45,17 @@ class State;
 class Event;
 class Sequencer;
 class RootConfig;
+class DataSourceConnection;
+
 class FocusManager;
 class HoverManager;
-
 class KeyboardManager;
 class LiveDataManager;
 class ExtensionManager;
 class LayoutManager;
 class MediaManager;
+
+using DataSourceConnectionPtr = std::shared_ptr<DataSourceConnection>;
 
 /*
  * The data-binding context holds information about the local environment, metrics, and resources.
@@ -358,6 +362,16 @@ public:
     }
 
     /**
+     * Remove resource from the context.
+     * @param key The string key name
+     */
+    void remove(const std::string& key) {
+        auto it = mMap.find(key);
+        if (it != mMap.end())
+            mMap.erase(it);
+    }
+
+    /**
      * Return the provenance associated with this key.
      * @param key The string key name
      * @return The provenance path data, or an empty string if it can't be found
@@ -492,6 +506,16 @@ public:
     std::string getTheme() const;
 
     /**
+     * @return The language as a BCP-47 string (e.g., en-US)
+     */
+    std::string getLang() const;
+
+    /**
+     * @return The layout direction
+     */
+    LayoutDirection getLayoutDirection() const;
+
+    /**
      * @return The locale methods
      */
     std::shared_ptr<LocaleMethods> getLocaleMethods() const;
@@ -518,6 +542,16 @@ public:
      */
     void setDirtyVisualContext(const ComponentPtr& ptr);
     bool isVisualContextDirty(const ComponentPtr& ptr);
+
+    /**
+     * Internal routine used by dynamic datasources to mark/unmark/test when the datasource context may have changed.
+     */
+    void setDirtyDataSourceContext(const DataSourceConnectionPtr& ptr);
+
+    /**
+     * @return List of pending onMount handlers for recently inflated components.
+     */
+    WeakPtrSet<CoreComponent>& pendingOnMounts();
 
     void pushEvent(Event&& event);
 

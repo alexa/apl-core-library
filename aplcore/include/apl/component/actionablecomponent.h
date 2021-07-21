@@ -71,7 +71,7 @@ protected:
     const ComponentPropDefSet& propDefSet() const override;
     void release() override;
 
-    ActionableComponent(const ContextPtr& context, Properties&& properties, const std::string& path) :
+    ActionableComponent(const ContextPtr& context, Properties&& properties, const Path& path) :
             CoreComponent(context, std::move(properties), path), mGesturesDisabled(false) {}
 
     bool processGestures(const PointerEvent& event, apl_time_t timestamp) override;

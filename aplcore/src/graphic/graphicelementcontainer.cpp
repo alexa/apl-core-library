@@ -38,17 +38,19 @@ GraphicElementContainer::propDefSet() const
 {
     static GraphicPropDefSet sContainerProperties = GraphicPropDefSet()
         .add({
-                 {kGraphicPropertyHeightActual,           Dimension(0),      nullptr,              kPropOut},
-                 {kGraphicPropertyHeightOriginal,         Dimension(100),    asAbsoluteDimension,  kPropIn | kPropRequired},
-                 {kGraphicPropertyScaleTypeHeight,        kGraphicScaleNone, sGraphicScaleBimap,   kPropIn},
-                 {kGraphicPropertyScaleTypeWidth,         kGraphicScaleNone, sGraphicScaleBimap,   kPropIn},
-                 {kGraphicPropertyViewportHeightActual,   0.0,               nullptr,              kPropOut},
-                 {kGraphicPropertyViewportWidthActual,    0.0,               nullptr,              kPropOut},
-                 {kGraphicPropertyVersion,                kGraphicVersion12, sGraphicVersionBimap, kPropIn | kPropRequired},
-                 {kGraphicPropertyViewportHeightOriginal, 0,                 asNonNegativeNumber,  kPropIn},
-                 {kGraphicPropertyViewportWidthOriginal,  0,                 asNonNegativeNumber,  kPropIn},
-                 {kGraphicPropertyWidthActual,            Dimension(0),      nullptr,              kPropOut},
-                 {kGraphicPropertyWidthOriginal,          Dimension(100),    asAbsoluteDimension,  kPropIn | kPropRequired}
+                 {kGraphicPropertyHeightActual,           Dimension(0),                nullptr,              kPropOut},
+                 {kGraphicPropertyHeightOriginal,         Dimension(100),              asAbsoluteDimension,  kPropIn | kPropRequired},
+                 {kGraphicPropertyLang,                   "",                          asString,             kPropInOut},
+                 {kGraphicPropertyLayoutDirection,        kGraphicLayoutDirectionLTR,  sGraphicLayoutDirectionBimap, kPropInOut},
+                 {kGraphicPropertyScaleTypeHeight,        kGraphicScaleNone,           sGraphicScaleBimap,   kPropIn},
+                 {kGraphicPropertyScaleTypeWidth,         kGraphicScaleNone,           sGraphicScaleBimap,   kPropIn},
+                 {kGraphicPropertyViewportHeightActual,   0.0,                         nullptr,              kPropOut},
+                 {kGraphicPropertyViewportWidthActual,    0.0,                         nullptr,              kPropOut},
+                 {kGraphicPropertyVersion,                kGraphicVersion12,           sGraphicVersionBimap, kPropIn | kPropRequired},
+                 {kGraphicPropertyViewportHeightOriginal, 0,                           asNonNegativeNumber,  kPropIn},
+                 {kGraphicPropertyViewportWidthOriginal,  0,                           asNonNegativeNumber,  kPropIn},
+                 {kGraphicPropertyWidthActual,            Dimension(0),                nullptr,              kPropOut},
+                 {kGraphicPropertyWidthOriginal,          Dimension(100),              asAbsoluteDimension,  kPropIn | kPropRequired}
              });
 
     return sContainerProperties;

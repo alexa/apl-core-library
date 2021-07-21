@@ -11,32 +11,38 @@
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
-# Add googletest directly to our build. This defines
-# the gtest and gtest_main targets.
 cmake_minimum_required(VERSION 3.5)
 set(CMAKE_CXX_STANDARD 11)
 
-add_subdirectory(${CMAKE_BINARY_DIR}/googletest-src
-        ${CMAKE_BINARY_DIR}/googletest-build
-        EXCLUDE_FROM_ALL)
 
-add_executable(unittest-alexaext)
+# Add googletest directly to our build. This defines
+# the gtest and gtest_main targets.
+add_subdirectory(${CMAKE_BINARY_DIR}/googletest-src
+    ${CMAKE_BINARY_DIR}/googletest-build
+    EXCLUDE_FROM_ALL)
 
 find_path(RAPIDJSON_INCLUDE
         NAMES rapidjson/document.h
         REQUIRED)
 include_directories(${RAPIDJSON_INCLUDE})
 
-target_link_libraries(unittest-alexaext
+
+add_executable(alexaext-unittest)
+
+target_link_libraries(alexaext-unittest
         alexaext
         gtest
         gtest_main
         )
 
-target_sources(unittest-alexaext
+target_sources(alexaext-unittest
         PRIVATE
+        unittest_apl_audio_player.cpp
+        unittest_extension_message.cpp
         unittest_extension_provider.cpp
+        unittest_extension_schema.cpp
+        unittest_local_extensions.cpp
         )
 
-add_test(all-tests unittest-alexaext)
+add_test(all-tests alexaext-unittest)
 

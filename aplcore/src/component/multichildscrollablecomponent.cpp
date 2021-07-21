@@ -18,6 +18,11 @@
 #include "apl/component/multichildscrollablecomponent.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
+#include "apl/engine/layoutmanager.h"
+#include "apl/livedata/layoutrebuilder.h"
+#include "apl/time/sequencer.h"
+#include "apl/time/timemanager.h"
+#include "apl/utils/tracing.h"
 
 namespace apl {
 
@@ -142,12 +147,16 @@ MultiChildScrollableComponent::allowForward() const {
     auto innerBounds = mCalculated.get(kPropertyInnerBounds).getRect();
     auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
     auto vertical = isVertical();
+    bool isLTR = getCalculated(kPropertyLayoutDirection) == kLayoutDirectionLTR;
     double scrollSize = vertical
                         ? innerBounds.getBottom()
-                        : innerBounds.getRight();
+                        : (isLTR ? innerBounds.getRight() : innerBounds.getLeft());
     double innerScrollSize = vertical
                              ? lastChildBounds.getBottom()
-                             : lastChildBounds.getRight();
+                             : (isLTR ? lastChildBounds.getRight() : lastChildBounds.getLeft());
+    if (isHorizontal() && !isLTR) {
+        return currentPosition + scrollSize > innerScrollSize;
+    }
     return currentPosition + scrollSize < innerScrollSize;
 }
 
@@ -178,7 +187,7 @@ MultiChildScrollableComponent::setScrollPositionDirectlyByChild(const CoreCompon
 {
     assert(child);
 
-    child->ensureLayout(true);  // TODO: Should this set dirty?  With the initial expansion this should not be set...
+    ensureChildLayout(child, true); // TODO: Should this set dirty?  With the initial expansion this should not be set...
     const auto childBounds = child->getCalculated(kPropertyBounds).getRect();
     const auto innerBounds = mCalculated.get(kPropertyInnerBounds).getRect();
 
@@ -203,10 +212,25 @@ MultiChildScrollableComponent::setScrollPositionDirectlyByChild(const CoreCompon
     setScrollPositionDirectly(scrollPosition);
 }
 
+void
+MultiChildScrollableComponent::ensureChildLayout(const CoreComponentPtr& child, bool useDirtyFlag)
+{
+    // TODO: Search for child and if direct - attach if required.
+    auto it = std::find(mChildren.begin(), mChildren.end(), child);
+    if (it != mChildren.end()) {
+        auto index = std::distance(mChildren.begin(), it);
+        layoutChildIfRequired(child, index, true, false);
+        child->markDisplayedChildrenStale(true);
+    } else {
+        child->ensureLayoutInternal(useDirtyFlag);
+    }
+}
+
 bool
 MultiChildScrollableComponent::allowBackwards() const {
     auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
-    return (currentPosition > 0);
+    bool isRTL = getCalculated(kPropertyLayoutDirection) == kLayoutDirectionRTL;
+    return (isHorizontal() && isRTL) ? currentPosition < 0 : currentPosition > 0;
 }
 
 void
@@ -438,19 +462,46 @@ getSpacing(const CoreComponent& component) {
     return 0;
 }
 
+void
+MultiChildScrollableComponent::fixScrollPosition(const Rect& oldAnchorRect, const Rect& anchorRect)
+{
+    if (anchorRect != oldAnchorRect) {
+        auto layoutDirection = static_cast<LayoutDirection>(getCalculated(kPropertyLayoutDirection).asInt());
+        auto currentPosition = getCalculated(kPropertyScrollPosition).asNumber();
+        float offset;
+        if (isHorizontal()) {
+            offset = layoutDirection == kLayoutDirectionLTR
+                     ? anchorRect.getLeft() - oldAnchorRect.getLeft()
+                     : anchorRect.getRight() - oldAnchorRect.getRight();
+        } else {
+            offset = anchorRect.getTop() - oldAnchorRect.getTop();
+        }
+        currentPosition += offset;
+        mCalculated.set(kPropertyScrollPosition, Dimension(DimensionType::Absolute, currentPosition));
+        setDirty(kPropertyScrollPosition);
+    }
+}
+
 Point
-MultiChildScrollableComponent::trimScroll(const Point& point) const
+MultiChildScrollableComponent::trimScroll(const Point& point)
 {
     // Break out early. If there are no children - no scrolling possible
     if (shouldNotPropagateLayoutChanges() ||
         getCalculated(kPropertyBounds).empty())
         return Point();
 
+    if (mDelayLayoutAction && mDelayLayoutAction->isPending()) {
+        mDelayLayoutAction->terminate();
+        mDelayLayoutAction = nullptr;
+    }
+
     auto innerBounds = mCalculated.get(kPropertyInnerBounds).getRect();
     // We treat this component as 0 point of sequence. All calculation happens in relation to it.
-    auto zeroAnchor = mChildren.at(mEnsuredChildren.empty() ? 0 : mEnsuredChildren.lowerBound());
-    if (!zeroAnchor->isAttached()) zeroAnchor->ensureLayout(true);
-    auto zeroAnchorPos = zeroAnchor->getCalculated(kPropertyBounds).getRect().getTopLeft() - innerBounds.getTopLeft();
+    auto zeroAnchorIdx = mEnsuredChildren.empty() ? 0 : mEnsuredChildren.lowerBound();
+    auto zeroAnchor = mChildren.at(zeroAnchorIdx);
+    if (!zeroAnchor->isAttached()) layoutChildIfRequired(zeroAnchor, zeroAnchorIdx, true, false);
+    auto oldZeroAnchorPos = zeroAnchor->getCalculated(kPropertyBounds).getRect();
+    auto zeroAnchorPos = oldZeroAnchorPos.getTopLeft() - innerBounds.getTopLeft();
 
     // We should disregard spacing in limit calculation as it's not part of inner bounds really.
     auto spacing = mEnsuredChildren.lowerBound() > 0 ? getSpacing(*zeroAnchor) : 0;
@@ -462,10 +513,12 @@ MultiChildScrollableComponent::trimScroll(const Point& point) const
         auto y = point.getY();
         // Cover in back direction. Current code ensures from index 0 to requested component and any updates
         // asynchronous so no way it will happen twice.
-        while (y < zeroAnchorPos.getY() && mEnsuredChildren.lowerBound() > 0) {
-            mChildren.at(mEnsuredChildren.lowerBound() - 1)->ensureLayout(true);
+        while (y + zeroAnchorPos.getY() < 0 && mEnsuredChildren.lowerBound() > 0) {
+            auto idx = mEnsuredChildren.lowerBound() - 1;
+            layoutChildIfRequired(mChildren.at(idx), idx, true, false);
             zeroAnchorPos = zeroAnchor->getCalculated(kPropertyBounds).getRect().getTopLeft() - innerBounds.getTopLeft();
         }
+        fixScrollPosition(oldZeroAnchorPos, zeroAnchor->getCalculated(kPropertyBounds).getRect());
 
         y += zeroAnchorPos.getY() - spacing;
 
@@ -479,7 +532,7 @@ MultiChildScrollableComponent::trimScroll(const Point& point) const
         int startingChild = std::max(mEnsuredChildren.upperBound(), 0);
         for (int i = startingChild ; i<mChildren.size() ; i++) {
             const auto& child = mChildren.at(i);
-            child->ensureLayout(false);
+            layoutChildIfRequired(child, i, false, false);
             maxY = nonNegative(child->getCalculated(kPropertyBounds).getRect().getBottom() - bottom);
             if (y <= maxY)
                 return Point(0,y);
@@ -487,12 +540,14 @@ MultiChildScrollableComponent::trimScroll(const Point& point) const
 
         return Point(0, maxY);
     }
-    else {  // Horizontal
+    else if (getCalculated(kPropertyLayoutDirection) == kLayoutDirectionLTR) {  // Horizontal LTR
         auto x = point.getX();
-        while (x < zeroAnchorPos.getX() && mEnsuredChildren.lowerBound() > 0) {
-            mChildren.at(mEnsuredChildren.lowerBound() - 1)->ensureLayout(true);
+        while (x + zeroAnchorPos.getX() < 0 && mEnsuredChildren.lowerBound() > 0) {
+            auto idx = mEnsuredChildren.lowerBound() - 1;
+            layoutChildIfRequired(mChildren.at(idx), idx, true, false);
             zeroAnchorPos = zeroAnchor->getCalculated(kPropertyBounds).getRect().getTopLeft() - innerBounds.getTopLeft();
         }
+        fixScrollPosition(oldZeroAnchorPos, zeroAnchor->getCalculated(kPropertyBounds).getRect());
 
         x += zeroAnchorPos.getX() - spacing;
 
@@ -506,9 +561,39 @@ MultiChildScrollableComponent::trimScroll(const Point& point) const
         int startingChild = std::max(mEnsuredChildren.upperBound(), 0);
         for (int i = startingChild ; i<mChildren.size(); i++) {
             const auto& child = mChildren.at(i);
-            child->ensureLayout(true);
+            layoutChildIfRequired(child, i, true, false);
             maxX = nonNegative(child->getCalculated(kPropertyBounds).getRect().getRight() - right);
             if (x <= maxX)
+                return Point(x,0);
+        }
+
+        return Point(maxX, 0);
+    } else { // Horizontal RTL
+        auto x = point.getX();
+        zeroAnchorPos = zeroAnchor->getCalculated(kPropertyBounds).getRect().getTopRight() - innerBounds.getTopRight();
+
+        while (x > zeroAnchorPos.getX() && mEnsuredChildren.lowerBound() > 0) {
+            auto idx = mEnsuredChildren.lowerBound() - 1;
+            layoutChildIfRequired(mChildren.at(idx), idx, true, false);
+            zeroAnchorPos = zeroAnchor->getCalculated(kPropertyBounds).getRect().getTopRight() - innerBounds.getTopRight();
+        }
+        fixScrollPosition(oldZeroAnchorPos, zeroAnchor->getCalculated(kPropertyBounds).getRect());
+
+        x -= zeroAnchorPos.getX() - spacing;
+
+        if (x >= 0)
+            return Point();
+
+        float left = innerBounds.getLeft();
+        float maxX = 0;
+
+        // Ensure children until they cover the sequence.
+        int startingChild = std::max(mEnsuredChildren.upperBound(), 0);
+        for (int i = startingChild ; i<mChildren.size(); i++) {
+            const auto& child = mChildren.at(i);
+            layoutChildIfRequired(child, i, true, false);
+            maxX = nonPositive(child->getCalculated(kPropertyBounds).getRect().getLeft() - left);
+            if (x >= maxX)
                 return Point(x,0);
         }
 
@@ -562,6 +647,9 @@ MultiChildScrollableComponent::ensureChildAttached(const CoreComponentPtr& child
         // Ensure from upperBound to target
         for (int index = mEnsuredChildren.empty() ? 0 : mEnsuredChildren.upperBound() + 1; index <= targetIdx ; index++) {
             const auto& c = mChildren.at(index);
+            if (mRebuilder) {
+                mRebuilder->inflateIfRequired(c);
+            }
             if (attachChild(c, mEnsuredChildren.size())) {
                 mEnsuredChildren.expandTo(index);
             }
@@ -570,11 +658,17 @@ MultiChildScrollableComponent::ensureChildAttached(const CoreComponentPtr& child
         // Ensure from lowerBound down to target
         for (int index = mEnsuredChildren.lowerBound() - 1; index >= targetIdx ; index--) {
             const auto& c = mChildren.at(index);
+            if (mRebuilder) {
+                mRebuilder->inflateIfRequired(c);
+            }
             if (attachChild(c, 0)) {
                 mEnsuredChildren.expandTo(index);
             }
         }
     } else {
+        if (mRebuilder) {
+            mRebuilder->inflateIfRequired(child);
+        }
         // Just attach single one inside of ensured range if needed.
         attachChild(child, targetIdx - mEnsuredChildren.lowerBound());
     }
@@ -614,37 +708,29 @@ MultiChildScrollableComponent::attachYogaNode(const CoreComponentPtr& child)
 }
 
 void
-MultiChildScrollableComponent::layoutChildIfRequired(const CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag)
+MultiChildScrollableComponent::layoutChildIfRequired(const CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag, bool first)
 {
+    APL_TRACE_BLOCK("MultiChildScrollableComponent:layoutChildIfRequired");
     if (!child->isAttached() || child->getCalculated(kPropertyBounds).empty()) {
         ensureChildAttached(child, childIdx);
-        relayoutInPlace(useDirtyFlag);
+        relayoutInPlace(useDirtyFlag, first);
     }
 }
 
 void
-MultiChildScrollableComponent::relayoutInPlace(bool useDirtyFlag)
+MultiChildScrollableComponent::relayoutInPlace(bool useDirtyFlag, bool first)
 {
-    // First calculate the layout for this component (if dirty)
-    auto bounds = mCalculated.get(kPropertyBounds).getRect();
-    YGNodeCalculateLayout(
-            mYGNodeRef,
-            bounds.getWidth(),
-            bounds.getHeight(),
-            YGDirection::YGDirectionLTR);
-
-        // Then re-layout from the root if necessary. We don't expect any of components higher in
-        // hierarchy to change when we attach to multichild scrollable. We need to call to root
-        // here to avoid any problems with propagation of positions for "lazy" components in the
-        // chain. Assumed to be optimal from yoga side. It could happen only after initial layout
-        // so we have parent bounds.
-        auto root = getRootComponent();
-        if (root && root != shared_from_corecomponent()) {
-            auto rootBounds = root->getCalculated(kPropertyBounds).getRect();
-            YGNodeCalculateLayout(root->getNode(), rootBounds.getWidth(), rootBounds.getHeight(), YGDirection::YGDirectionLTR);
-        }
-
-    CoreComponent::processLayoutChanges(useDirtyFlag);
+    APL_TRACE_BLOCK("MultiChildScrollableComponent:relayoutInPlace");
+    auto root = getRootComponent();
+    auto rootBounds = root->getCalculated(kPropertyBounds).getRect();
+    APL_TRACE_BEGIN("MultiChildScrollableComponent:YGNodeCalculateLayout:root");
+    YGNodeCalculateLayout(root->getNode(), rootBounds.getWidth(), rootBounds.getHeight(), getLayoutDirection());
+    APL_TRACE_END("MultiChildScrollableComponent:YGNodeCalculateLayout:root");
+    auto oldBounds = getCalculated(kPropertyBounds);
+    CoreComponent::processLayoutChanges(useDirtyFlag, first);
+    if (oldBounds != getCalculated(kPropertyBounds)) {
+        mContext->layoutManager().needToReProcessLayoutChanges();
+    }
 }
 
 float
@@ -711,10 +797,10 @@ MultiChildScrollableComponent::removeChild(const CoreComponentPtr& child, size_t
  * required children).
  */
 void
-MultiChildScrollableComponent::runLayoutHeuristics(size_t anchorIdx, float childCache, float pageSize, bool useDirtyFlag)
+MultiChildScrollableComponent::runLayoutHeuristics(size_t anchorIdx, float childCache, float pageSize, bool useDirtyFlag, bool first)
 {
     // Estimate how many children is actually required based on available anchor dimensions
-    auto toCover = estimateChildrenToCover((childCache + 1) * pageSize, anchorIdx);
+    auto toCover = estimateChildrenToCover(first ? pageSize : (childCache + 1) * pageSize, anchorIdx);
     auto attached = false;
     for (int i = mEnsuredChildren.upperBound(); i < std::min(anchorIdx + toCover, mChildren.size()); i++) {
         auto child = mChildren.at(i);
@@ -727,25 +813,33 @@ MultiChildScrollableComponent::runLayoutHeuristics(size_t anchorIdx, float child
         }
     }
 
-    toCover = estimateChildrenToCover(childCache * pageSize, anchorIdx);
-    for (int i = mEnsuredChildren.lowerBound(); i >= std::max(0, static_cast<int>(anchorIdx - toCover)); i--) {
-        auto child = mChildren.at(i);
-        if (!child->isAttached() || child->getCalculated(kPropertyBounds).empty()) {
-            attached = true;
-            ensureChildAttached(child, i);
-            if (i > 0 && childrenUseSpacingProperty()) {
-                child->fixSpacing();
+    if (!first) {
+        toCover = estimateChildrenToCover(childCache * pageSize, anchorIdx);
+        for (int i = mEnsuredChildren.lowerBound(); i >= std::max(0, static_cast<int>(anchorIdx - toCover)); i--) {
+            auto child = mChildren.at(i);
+            if (!child->isAttached() || child->getCalculated(kPropertyBounds).empty()) {
+                attached = true;
+                ensureChildAttached(child, i);
+                if (i > 0 && childrenUseSpacingProperty()) {
+                    child->fixSpacing();
+                }
             }
         }
     }
-    if (attached) relayoutInPlace(useDirtyFlag);
+
+    if (attached) relayoutInPlace(useDirtyFlag, first);
 }
 
 void
-MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag) {
+MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag, bool first) {
+    APL_TRACE_BLOCK("MultiChildScrollableComponent:processLayoutChanges");
     // We need to account for padding as find function don't do that automatically.
     bool horizontal = isHorizontal();
-    auto paddedScrollPosition = scrollPosition() + getCalculated(kPropertyInnerBounds).getRect().getTopLeft();
+    auto oldLayoutDirection = static_cast<LayoutDirection>(mCalculated.get(kPropertyLayoutDirection).asInt());
+    auto startPoint = oldLayoutDirection == kLayoutDirectionLTR
+                          ? getCalculated(kPropertyInnerBounds).getRect().getTopLeft()
+                          : getCalculated(kPropertyInnerBounds).getRect().getTopRight();
+    auto paddedScrollPosition = scrollPosition() + startPoint;
     auto anchor = std::static_pointer_cast<CoreComponent>(findDirectChildAtPosition(paddedScrollPosition));
 
     Rect oldAnchorBounds;
@@ -753,23 +847,37 @@ MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag) {
         oldAnchorBounds = anchor->getCalculated(kPropertyBounds).getRect();
     }
 
-    CoreComponent::processLayoutChanges(useDirtyFlag);
+    CoreComponent::processLayoutChanges(useDirtyFlag, first);
+
+    // If starting empty ask for loading for conditional cases
+    if (mChildren.empty() && mRebuilder) {
+        mRebuilder->notifyStartEdgeReached();
+        mRebuilder->notifyEndEdgeReached();
+    }
 
     if (shouldNotPropagateLayoutChanges()) {
         // Starting with empty or invalid sequence
         return;
     }
 
+    auto layoutDirection = static_cast<LayoutDirection>(getCalculated(kPropertyLayoutDirection).asInt());
+
     // We have not laid-out anything before. Refer to first available attached child. Possible only on initial layout.
     size_t anchorIdx = 0;
     if (!anchor) {
         anchorIdx = mEnsuredChildren.empty() ? 0 : mEnsuredChildren.lowerBound();
         anchor = mChildren.at(anchorIdx);
-        layoutChildIfRequired(anchor, anchorIdx, useDirtyFlag);
+        layoutChildIfRequired(anchor, anchorIdx, useDirtyFlag, first);
         oldAnchorBounds = anchor->getCalculated(kPropertyBounds).getRect();
     } else {
         auto it = std::find(mChildren.begin(), mChildren.end(), anchor);
         anchorIdx = std::distance(mChildren.begin(), it);
+        if (oldLayoutDirection != layoutDirection) {
+            oldAnchorBounds = anchor->getCalculated(kPropertyBounds).getRect();
+            auto mirroredScrollPosition = getCalculated(kPropertyScrollPosition).asNumber() * -1.0f;
+            mCalculated.set(kPropertyScrollPosition, Dimension(DimensionType::Absolute, mirroredScrollPosition));
+            setDirty(kPropertyScrollPosition);
+        }
     }
 
     if (!mChildren.empty() && childrenUseSpacingProperty()) {
@@ -791,55 +899,92 @@ MultiChildScrollableComponent::processLayoutChanges(bool useDirtyFlag) {
     float pageSize = horizontal ? sequenceBounds.getWidth() : sequenceBounds.getHeight();
 
     // Try to figure majority of layout as a bulk
-    runLayoutHeuristics(anchorIdx, childCache, pageSize, useDirtyFlag);
+    runLayoutHeuristics(anchorIdx, childCache, pageSize, useDirtyFlag, first);
     // Anchor bounds may have shifted
     Rect anchorBounds = anchor->getCalculated(kPropertyBounds).getRect();
-    float anchorPosition = horizontal ? anchorBounds.getX() : anchorBounds.getY();
+    float anchorPosition = horizontal
+                           ? (layoutDirection == kLayoutDirectionLTR ? anchorBounds.getX() : anchorBounds.getRight())
+                           : anchorBounds.getY();
 
-    // Lay out children in positive direction until we hit cache limit.
-    float distanceToCover = (childCache + 1) * pageSize + anchorPosition;
+    // Lay out children in positive order until we hit cache limit.
+    auto distanceToCover = first ? pageSize : (childCache + 1) * pageSize;
+    float positionToCover = layoutDirection == kLayoutDirectionLTR
+                            ? anchorPosition + distanceToCover
+                            : anchorPosition - distanceToCover;
+    bool targetCovered = false;
     int lastLoaded = mEnsuredChildren.lowerBound();
     for (; lastLoaded < mChildren.size(); lastLoaded++) {
         auto child = mChildren.at(lastLoaded);
-        layoutChildIfRequired(child, lastLoaded, useDirtyFlag);
+        layoutChildIfRequired(child, lastLoaded, useDirtyFlag, first);
         auto childBounds = child->getCalculated(kPropertyBounds).getRect();
-        float distance = horizontal ? childBounds.getRight() : childBounds.getBottom();
-        if (distance > distanceToCover) {
+        float childCoveredPosition = horizontal
+                               ? (layoutDirection == kLayoutDirectionLTR ? childBounds.getRight()
+                                                                         : childBounds.getLeft())
+                               : childBounds.getBottom();
+        targetCovered = layoutDirection == kLayoutDirectionLTR ? childCoveredPosition > positionToCover
+                                                                    : childCoveredPosition < positionToCover;
+        if (targetCovered) {
             break;
         }
     }
 
-    reportLoaded(std::min(lastLoaded, mEnsuredChildren.upperBound()));
+    // In case if children of sequence highly conditional we need to ask for more data regardless of position - for
+    // cases when long distance exists between valid data indexes.
+    if ((mEnsuredChildren.upperBound() + 1 >= mChildren.size()) && !targetCovered && mRebuilder) {
+        mRebuilder->notifyEndEdgeReached();
+    } else {
+        reportLoaded(std::min(lastLoaded, mEnsuredChildren.upperBound()));
+    }
 
-    // Lay out children in negative direction until we hit cache limit.
-    distanceToCover = childCache * pageSize;
+    // Lay out children in negative order until we hit cache limit.
+    positionToCover = layoutDirection == kLayoutDirectionLTR
+        ? childCache * pageSize
+        : childCache * pageSize * -1.0f;
     int firstLoaded = mEnsuredChildren.upperBound();
+    targetCovered = false;
     for (; firstLoaded >= 0; firstLoaded--) {
         auto child = mChildren.at(firstLoaded);
-        layoutChildIfRequired(child, firstLoaded, useDirtyFlag);
+        layoutChildIfRequired(child, firstLoaded, useDirtyFlag, first);
         auto childBounds = child->getCalculated(kPropertyBounds).getRect();
         anchorBounds = anchor->getCalculated(kPropertyBounds).getRect();
         float distance = (horizontal ? anchorBounds.getLeft() : anchorBounds.getTop())
                        - (horizontal ? childBounds.getLeft() : childBounds.getTop());
-        if (distance > distanceToCover) {
+        targetCovered = layoutDirection == kLayoutDirectionLTR ? distance > positionToCover : distance < positionToCover;
+        if (targetCovered) {
             break;
         }
     }
 
-    reportLoaded(std::max(firstLoaded, mEnsuredChildren.lowerBound()));
+    if ((mEnsuredChildren.lowerBound() == 0) && !targetCovered && mRebuilder) {
+        mRebuilder->notifyStartEdgeReached();
+    } else {
+        reportLoaded(std::max(firstLoaded, mEnsuredChildren.lowerBound()));
+    }
 
     if (anchor) {
         // Adjust scroll position if changed at the beginning of sequence
-        if (anchorBounds != oldAnchorBounds) {
-            auto currentPosition = getCalculated(kPropertyScrollPosition).asNumber();
-            currentPosition += horizontal ? anchorBounds.getLeft() - oldAnchorBounds.getLeft()
-                                          : anchorBounds.getTop() - oldAnchorBounds.getTop();
-            mCalculated.set(kPropertyScrollPosition, Dimension(DimensionType::Absolute, currentPosition));
-            setDirty(kPropertyScrollPosition);
-        }
+        fixScrollPosition(oldAnchorBounds, anchorBounds);
     }
 
     ensureChildrenVisibilityUpdated();
+
+    if (first) {
+        // Avoid yoga initiated re-layout that may be caused by attaching components that were already laid-out
+        mContext->layoutManager().remove(getRootComponent());
+
+        // Postpone to the next frame, if any
+        if (mEnsuredChildren.upperBound() + 1 >= mChildren.size()) return;
+        mDelayLayoutAction = Action::makeDelayed(getRootConfig().getTimeManager(), 1);
+        auto weak_self = std::weak_ptr<MultiChildScrollableComponent>(
+                std::static_pointer_cast<MultiChildScrollableComponent>(shared_from_corecomponent()));
+        mDelayLayoutAction->then([weak_self](const ActionPtr &) {
+            auto self = weak_self.lock();
+            if (self) {
+                self->processLayoutChanges(true, false);
+                self->mDelayLayoutAction = nullptr;
+            }
+        });
+    }
 }
 
 void
@@ -856,7 +1001,7 @@ MultiChildScrollableComponent::onScrollPositionUpdated() {
     mChildrenVisibilityStale = true;
 
     // Force figuring out what is on screen.
-    processLayoutChanges(true);
+    processLayoutChanges(true, false);
 }
 
 float
@@ -869,21 +1014,22 @@ MultiChildScrollableComponent::getSnapOffsetForChild(
     float scrollTo = 0;
     float childStart, childEnd, currentPosition;
     auto childBoundsInParent = child->getCalculated(kPropertyBounds).getRect();
+    bool isLTR = getCalculated(kPropertyLayoutDirection) == kLayoutDirectionLTR;
 
     if (isVertical()) {
         childStart = childBoundsInParent.getTop();
         childEnd = childBoundsInParent.getBottom();
         currentPosition = scrollPosition().getY();
     } else {
-        childStart = childBoundsInParent.getLeft();
-        childEnd = childBoundsInParent.getRight();
+        childStart = isLTR ? childBoundsInParent.getLeft() : childBoundsInParent.getRight();
+        childEnd = isLTR ? childBoundsInParent.getRight() : childBoundsInParent.getLeft();
         currentPosition = scrollPosition().getX();
     }
 
     switch (snap) {
         case kSnapStart:
         case kSnapForceStart:
-            scrollTo = childStart;
+            scrollTo = childStart - parentStart;
             break;
 
         case kSnapCenter:
@@ -942,7 +1088,7 @@ MultiChildScrollableComponent::findChildCloseToPosition(const Point& position) c
         auto referencePosition = vertical ? bounds.getCenterY() : bounds.getCenterX();
         auto distance = std::abs(referencePosition - directionalOffset);
 
-        if (distance < bestDistance) {
+        if (distance <= bestDistance) {
             bestCandidate = child;
             bestDistance = distance;
         } else {
@@ -962,37 +1108,41 @@ MultiChildScrollableComponent::getSnapOffset() const
     // It's unidirectional on purpose, snap on multidirectional scrolling is quite unclear
     const auto vertical = isVertical();
     Rect parentInnerBounds = getCalculated(kPropertyInnerBounds).getRect();
-    auto lastChildBottom =
-        mChildren.at(mEnsuredChildren.upperBound())->getCalculated(kPropertyBounds).getRect().getBottomRight();
+    auto lastChildBounds = mChildren.at(mEnsuredChildren.upperBound())->getCalculated(kPropertyBounds).getRect();
+    bool isRTL = getCalculated(kPropertyLayoutDirection) == kLayoutDirectionRTL;
+    auto lastChildBottom = isRTL ? lastChildBounds.getBottomLeft() : lastChildBounds.getBottomRight();
 
     // Figure to which position we should snap
-    float parentStart, parentEnd, parentSize, forwardScrollLimit, scrollOffset;
+    float parentStart, parentEnd, parentOffset, forwardScrollLimit, scrollOffset;
     if (vertical) {
         parentStart = parentInnerBounds.getTop();
         parentEnd = parentInnerBounds.getBottom();
-        parentSize = parentEnd - parentStart;
-        forwardScrollLimit = lastChildBottom.getY() - parentSize;
+        parentOffset = parentEnd - parentStart;
+        forwardScrollLimit = lastChildBottom.getY() - parentOffset;
         scrollOffset = scrollPosition().getY();
     } else {
-        parentStart = parentInnerBounds.getLeft();
-        parentEnd = parentInnerBounds.getRight();
-        parentSize = parentEnd - parentStart;
-        forwardScrollLimit = lastChildBottom.getX() - parentSize;
+        parentStart = isRTL ? parentInnerBounds.getRight() : parentInnerBounds.getLeft();
+        parentEnd = isRTL ? parentInnerBounds.getLeft() : parentInnerBounds.getRight();
+        parentOffset = parentEnd - parentStart;
+        forwardScrollLimit = isRTL ? lastChildBottom.getX() : lastChildBottom.getX() - parentOffset;
         scrollOffset =  scrollPosition().getX();
     }
 
-    // If we currently at a limit - do not snap, we already snapped to limit. Unless forced to.
-    if (!shouldForceSnap() && (scrollOffset <= 0 || scrollOffset >= forwardScrollLimit)) return {};
+    // If we currently at a limit - do not snap, we already snapped to limit.
+    bool atLimit = (isHorizontal() && isRTL)
+                       ? (scrollOffset >= 0 || scrollOffset <= forwardScrollLimit)
+                       : (scrollOffset <= 0 || scrollOffset >= forwardScrollLimit);
+    if (atLimit) return {};
 
     float parentSnapOffset = 0;
     switch (snap) {
         case kSnapCenter:
         case kSnapForceCenter:
-            parentSnapOffset = parentSize / 2;
+            parentSnapOffset = parentOffset / 2;
             break;
         case kSnapEnd:
         case kSnapForceEnd:
-            parentSnapOffset = parentSize;
+            parentSnapOffset = parentOffset;
             break;
         default:
             break;
@@ -1002,7 +1152,8 @@ MultiChildScrollableComponent::getSnapOffset() const
     if (vertical) {
         referencePoint = Point(parentInnerBounds.getX(), scrollOffset + parentSnapOffset);
     } else {
-        referencePoint = Point(scrollOffset + parentSnapOffset, parentInnerBounds.getY());
+        auto startPoint = isRTL ? parentInnerBounds.getTopRight() : parentInnerBounds.getTopLeft();
+        referencePoint = Point(scrollOffset + parentSnapOffset + startPoint.getX(), parentInnerBounds.getY());
     }
 
     auto targetChild = findDirectChildAtPosition(referencePoint);
@@ -1054,11 +1205,17 @@ MultiChildScrollableComponent::getSnapOffset() const
     auto offset = getSnapOffsetForChild(targetChild, snap, parentStart, parentEnd);
 
     // Check if adjustment will overshoot us over scrolling limits. If so - clip to scroll limit.
-    if (scrollOffset + offset <= 0) {
+    bool exceededBackwardScrollLimit = (isHorizontal() && isRTL)
+                                     ? scrollOffset + offset >= 0
+                                     : scrollOffset + offset <= 0;
+    if (exceededBackwardScrollLimit) {
         offset = -scrollOffset;
     }
 
-    if (scrollOffset + offset >= forwardScrollLimit) {
+    bool exceededForwardScrollLimit = (isHorizontal() && isRTL)
+                                    ? scrollOffset + offset <= forwardScrollLimit
+                                    : scrollOffset + offset >= forwardScrollLimit;
+    if (exceededForwardScrollLimit) {
         offset = forwardScrollLimit - scrollOffset;
     }
 
@@ -1078,6 +1235,14 @@ MultiChildScrollableComponent::attachYogaNodeIfRequired(const CoreComponentPtr& 
     } else if (!mEnsuredChildren.empty() && index <= mEnsuredChildren.lowerBound()) {
         mEnsuredChildren.shift(1);
     }
+}
+
+bool
+MultiChildScrollableComponent::shouldBeFullyInflated(int index) const
+{
+    return shouldAttachChildYogaNode(index) ||
+           (mChildren.empty() && index == 0) ||
+           (mEnsuredChildren.contains(index) && index > mEnsuredChildren.lowerBound());
 }
 
 } // namespace apl

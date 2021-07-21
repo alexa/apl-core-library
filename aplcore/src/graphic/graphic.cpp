@@ -306,6 +306,11 @@ Graphic::layout(double width, double height, bool useDirtyFlag) {
 bool
 Graphic::updateStyle(const StyleInstancePtr& styledPtr)
 {
+    if (!mRootElement) {
+        LOG(LogLevel::kError) << "UpdateStyle called with null root element";
+        return false;
+    }
+
     bool changed = false;
 
     if (styledPtr) {

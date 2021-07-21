@@ -28,7 +28,6 @@ target_sources_local(unittest
         unittest_hover.cpp
         unittest_keyboard_manager.cpp
         unittest_layouts.cpp
-        unittest_media_manager.cpp
         unittest_memory.cpp
         unittest_propdef.cpp
         unittest_resources.cpp

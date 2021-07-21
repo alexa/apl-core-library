@@ -25,7 +25,7 @@ namespace apl {
 CoreComponentPtr
 ScrollViewComponent::create(const ContextPtr& context,
                             Properties&& properties,
-                            const std::string& path) {
+                            const Path& path) {
     auto ptr = std::make_shared<ScrollViewComponent>(context, std::move(properties), path);
     ptr->initialize();
     return ptr;
@@ -33,7 +33,7 @@ ScrollViewComponent::create(const ContextPtr& context,
 
 ScrollViewComponent::ScrollViewComponent(const ContextPtr& context,
                                          Properties&& properties,
-                                         const std::string& path)
+                                         const Path& path)
         : ScrollableComponent(context, std::move(properties), path) {
     YGNodeStyleSetOverflow(mYGNodeRef, YGOverflowScroll);
 }
@@ -62,7 +62,7 @@ ScrollViewComponent::scrollPosition() const
 }
 
 Point
-ScrollViewComponent::trimScroll(const Point& point) const {
+ScrollViewComponent::trimScroll(const Point& point) {
     auto y = point.getY();
     if (y <= 0 || mChildren.empty())
         return Point();
@@ -103,7 +103,7 @@ ScrollViewComponent::allowBackwards() const {
 void
 ScrollViewComponent::onScrollPositionUpdated() {
     ScrollableComponent::onScrollPositionUpdated();
-    markDisplayedChildrenStale();
+    markDisplayedChildrenStale(true);
 
     if (getChildCount() > 0) {
         auto child = getCoreChildAt(0);

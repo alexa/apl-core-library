@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -20,16 +20,16 @@ namespace apl {
 class DummyTextMeasurement : public TextMeasurement {
 public:
     LayoutSize measure( Component *component,
-                    float width,
-                    MeasureMode widthMode,
-                    float height,
-                    MeasureMode heightMode ) override {
+                        float width,
+                        MeasureMode widthMode,
+                        float height,
+                        MeasureMode heightMode ) override {
         return { 10, 10 };
     }
 
-    virtual float baseline( Component *component,
-                            float width,
-                            float height ) override {
+    float baseline( Component *component,
+                    float width,
+                    float height ) override {
         return height * 0.5;
     }
 };

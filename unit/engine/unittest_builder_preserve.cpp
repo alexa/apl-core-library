@@ -610,6 +610,8 @@ TEST_F(BuilderPreserveTest, PagerPreserveId)
     metrics.size(1000,500);
     loadDocument(PAGER_PRESERVE_ID);
     ASSERT_TRUE(component);
+    advanceTime(10);
+    root->clearDirty();
 
     ASSERT_EQ(4, component->getChildCount());
     auto currentPage = component->getCalculated(kPropertyCurrentPage).asInt();
@@ -620,7 +622,8 @@ TEST_F(BuilderPreserveTest, PagerPreserveId)
     currentPage = component->getCalculated(kPropertyCurrentPage).asInt();
     ASSERT_EQ(2, currentPage);
     ASSERT_TRUE(IsEqual("Golden Retriever=2", component->getChildAt(currentPage)->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(root));   // Not dirty because we externally changed the current page
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage)); // Update just asks to move, we control when this happens
+    ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(CheckDirtyVisualContext(root, component));  // Visual context has changed
 
     configChangeReinflate(ConfigurationChange().theme("blue"));
@@ -683,6 +686,8 @@ TEST_F(BuilderPreserveTest, PagerChangePages)
     metrics.size(1000,500);
     loadDocument(PAGER_SET_VALUE);
     ASSERT_TRUE(component);
+    advanceTime(10);
+    root->clearDirty();
 
     ASSERT_EQ(4, component->getChildCount());
     auto currentPage = component->getCalculated(kPropertyCurrentPage).asInt();
@@ -801,7 +806,7 @@ TEST_F(BuilderPreserveTest, PagerEventHandlersInRefinflate)
 const static char *PAGER_SET_VALUE_CANCELS_AUTOPAGE = R"apl(
     {
       "type": "APL",
-      "version": "1.5",
+      "version": "1.6",
       "mainTemplate": {
         "item": {
           "type": "Pager",
@@ -831,30 +836,18 @@ TEST_F(BuilderPreserveTest, PagerSetValueCancelsAutoPage)
 
     // Start an auto page command
     auto action = executeCommand("AutoPage", {{"componentId", "PAGER"}}, false);
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeSetPage, event.getType());
-    ASSERT_TRUE(IsEqual(1, event.getValue(kEventPropertyPosition)));
-    ASSERT_TRUE(action->isPending());
     ASSERT_TRUE(IsEqual(0, component->getCalculated(kPropertyCurrentPage)));
 
     // Move forward in time and resolve the first auto page
-    root->updateTime(10);
-    component->update(kUpdatePagerByEvent, 1);
-    event.getActionRef().resolve();
+    advanceTime(600);
     ASSERT_TRUE(action->isPending());
     ASSERT_TRUE(IsEqual(1, component->getCalculated(kPropertyCurrentPage)));
 
     // There should be another auto page waiting
-    root->updateTime(10);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSetPage, event.getType());
-    ASSERT_TRUE(IsEqual(2, event.getValue(kEventPropertyPosition)));
+    root->updateTime(250);
 
     // Now we set a page directly
     executeCommand("SetValue", {{"componentId", "PAGER"}, {"property", "pageIndex"}, {"value", 3}}, false);
-    ASSERT_TRUE(event.getActionRef().isTerminated());   // The outstanding event should be terminated
     ASSERT_TRUE(action->isTerminated());   // The AutoPage action should be terminated
     ASSERT_TRUE(IsEqual(3, component->getCalculated(kPropertyCurrentPage)));   // We've jumped to page #3
 }
@@ -978,6 +971,63 @@ TEST_F(BuilderPreserveTest, VideoComponentSource)
     ASSERT_EQ(2, sources.size());
     ASSERT_TRUE(IsEqual("FOO1", sources.at(0).getMediaSource().getUrl()));
     ASSERT_TRUE(IsEqual("FOO2", sources.at(1).getMediaSource().getUrl()));
+}
+
+static const char *PRESERVE_BOUND_VALUES = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "onConfigChange": [
+        {
+          "type": "SetValue",
+          "componentId": "MAIN",
+          "property": "X",
+          "value": 2
+        },
+        {
+          "type": "Reinflate"
+        }
+      ],
+      "mainTemplate": {
+        "items": {
+          "type": "Container",
+          "id": "MAIN",
+          "bind": {
+            "name": "X",
+            "value": 1
+          },
+          "preserve": "X",
+          "items": [
+            {
+              "type": "Text",
+              "when": "${X == 1}",
+              "text": "X is one"
+            },
+            {
+              "type": "Text",
+              "when": "${X == 2}",
+              "text": "X is two"
+            }
+          ]
+        }
+      }
+    }
+)apl";
+
+TEST_F(BuilderPreserveTest, PreserveBoundValues)
+{
+    loadDocument(PRESERVE_BOUND_VALUES);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(1, component->getChildCount());
+    auto child = component->getChildAt(0);
+    ASSERT_TRUE(IsEqual("X is one", child->getCalculated(kPropertyText).asString()));
+
+    // Reinflate
+    configChangeReinflate(ConfigurationChange(233,344));
+    ASSERT_TRUE(component);
+    ASSERT_EQ(1, component->getChildCount());
+    child = component->getChildAt(0);
+    ASSERT_TRUE(IsEqual("X is two", child->getCalculated(kPropertyText).asString()));
 }
 
 // TODO: Check that TransformAssigned works - this is trickier to copy and compare
