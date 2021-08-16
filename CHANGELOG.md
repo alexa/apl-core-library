@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.1]
+
+### Changed
+
+- Bug fixes
+
 ## [1.7.0]
 
 This release adds support for version 1.7 of the APL specification.

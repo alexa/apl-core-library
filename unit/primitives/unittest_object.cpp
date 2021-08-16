@@ -658,7 +658,7 @@ TEST(ObjectTest, WhenDimensionIsNotFiniteSerializeReturnsZero)
 
 class DocumentObjectTest : public CommandTest {};
 
-static const char * SEND_EVENT_NEW_NAN = R"apl({
+static const char * SEND_EVENT_DIMENSION_NAN = R"apl({
 	   "type": "APL",
 	   "version": "1.1",
 	   "resources": [
@@ -683,9 +683,50 @@ static const char * SEND_EVENT_NEW_NAN = R"apl({
 
 TEST_F(DocumentObjectTest, WithNewArguments)
 {
-    loadDocument(SEND_EVENT_NEW_NAN);
+    loadDocument(SEND_EVENT_DIMENSION_NAN);
 
     auto expectedObject = Object(0);
+
+    performClick(1, 1);
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    auto args = event.getValue(kEventPropertyArguments);
+    ASSERT_TRUE(args.isArray());
+    ASSERT_EQ(args.size(), 1);
+    ASSERT_TRUE(IsEqual(expectedObject, args.at(0)));
+}
+
+
+static const char * SEND_EVENT_NUMBER_NAN = R"apl({
+	   "type": "APL",
+	   "version": "1.1",
+	   "resources": [
+	     {
+	       "number": {
+	         "value": "${100/0}"
+	       }
+	     }
+	   ],
+	   "mainTemplate": {
+	     "item": {
+	       "type": "TouchWrapper",
+	       "onPress": {
+	         "type": "SendEvent",
+	         "arguments": [
+	           "@value"
+	         ]
+	       }
+	     }
+	   }
+	 })apl";
+
+TEST_F(DocumentObjectTest, WhenNumberIsNotFiniteSerializeReturnsNull)
+{
+    loadDocument(SEND_EVENT_NUMBER_NAN);
+
+    auto expectedObject = Object();
 
     performClick(1, 1);
     ASSERT_TRUE(root->hasEvent());

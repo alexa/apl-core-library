@@ -1410,7 +1410,7 @@ Object::serialize(rapidjson::Document::AllocatorType& allocator) const
         case kBoolType:
             return rapidjson::Value(static_cast<bool>(mU.value));
         case kNumberType:
-            return rapidjson::Value(mU.value);
+            return std::isfinite(mU.value) ? rapidjson::Value(mU.value) : rapidjson::Value();
         case kStringType:
             return rapidjson::Value(mU.string.c_str(), allocator);
         case kArrayType: {
