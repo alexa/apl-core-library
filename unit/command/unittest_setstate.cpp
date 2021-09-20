@@ -83,7 +83,8 @@ TEST_F(SetStateTest, BasicStateChange)
 
     // Pressing should change the color, karaoke non-color and the font style of the child (inheritParentState=true)
     component->setState(kStatePressed, true);
-    ASSERT_TRUE(CheckDirty(text, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke, kPropertyColor, kPropertyFontStyle));
+    ASSERT_TRUE(CheckDirty(text, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke, kPropertyColor,
+                           kPropertyFontStyle, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(CheckState(text, kStatePressed));
 
@@ -100,7 +101,8 @@ TEST_F(SetStateTest, BasicStateChange)
     // And return back to the normal state
     component->setState(kStatePressed, false);
     component->setState(kStateKaraoke, false);
-    ASSERT_TRUE(CheckDirty(text, kPropertyColor, kPropertyFontStyle, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text, kPropertyColor, kPropertyFontStyle, kPropertyColorKaraokeTarget,
+                           kPropertyColorNonKaraoke, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(CheckState(text));
     ASSERT_EQ(Object(kFontStyleNormal), text->getCalculated(kPropertyFontStyle));
@@ -118,7 +120,8 @@ TEST_F(SetStateTest, BasicStateChange)
     // Explicitly set the color and then try changing state
     std::dynamic_pointer_cast<CoreComponent>(text)->setProperty(kPropertyColor, Color(0x112233ff));
     component->setState(kStatePressed, true);
-    ASSERT_TRUE(CheckDirty(text, kPropertyFontStyle, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text, kPropertyFontStyle, kPropertyColor, kPropertyColorKaraokeTarget,
+                           kPropertyColorNonKaraoke, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(CheckState(text, kStatePressed));
     ASSERT_EQ(Object(kFontStyleItalic), text->getCalculated(kPropertyFontStyle));
@@ -137,12 +140,13 @@ TEST_F(SetStateTest, StateAndPropertyChange)
 
     // Explicitly set the color and then try changing state
     std::dynamic_pointer_cast<CoreComponent>(text)->setProperty(kPropertyColor, Color(0x112233ff));
-    ASSERT_TRUE(CheckDirty(text, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
 
     // The color was overridden, so only the font style will change
     component->setState(kStatePressed, true);
-    ASSERT_TRUE(CheckDirty(text, kPropertyFontStyle));
+    ASSERT_TRUE(CheckDirty(text, kPropertyFontStyle, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(CheckState(text, kStatePressed));
 }
@@ -164,7 +168,7 @@ TEST_F(SetStateTest, PropertyMatchesState)
 
     // Now change the state.  The color should remain the same
     component->setState(kStatePressed, true);
-    ASSERT_TRUE(CheckDirty(text, kPropertyFontStyle));
+    ASSERT_TRUE(CheckDirty(text, kPropertyFontStyle, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_EQ(Object(kFontStyleItalic), text->getCalculated(kPropertyFontStyle));
     ASSERT_EQ(origColor, text->getCalculated(kPropertyColor));
@@ -227,7 +231,7 @@ TEST_F(SetStateTest, StartingStateWithInherit)
     component->setProperty(kPropertyChecked, false);
     ASSERT_TRUE(CheckDirty(component, kPropertyChecked));
     ASSERT_TRUE(CheckDirty(text, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
-                           kPropertyFontStyle, kPropertyChecked));
+                           kPropertyFontStyle, kPropertyChecked, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, text));
     ASSERT_TRUE(CheckState(component));
     ASSERT_TRUE(CheckState(text));
@@ -236,7 +240,7 @@ TEST_F(SetStateTest, StartingStateWithInherit)
     component->setProperty(kPropertyChecked, true);
     ASSERT_TRUE(CheckDirty(component, kPropertyChecked));
     ASSERT_TRUE(CheckDirty(text, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
-                           kPropertyFontStyle, kPropertyChecked));
+                           kPropertyFontStyle, kPropertyChecked, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, text));
     ASSERT_TRUE(CheckState(component, kStateChecked));
     ASSERT_TRUE(CheckState(text, kStateChecked));
@@ -300,8 +304,8 @@ TEST_F(SetStateTest, InheritedStyles)
     ASSERT_EQ(0.0, text->getCalculated(kPropertyOpacity).asNumber());
 
     root->handlePointerEvent(PointerEvent(kPointerDown, Point(1,1)));
-    ASSERT_TRUE(CheckDirty(touch, kPropertyOpacity, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(text, kPropertyOpacity));
+    ASSERT_TRUE(CheckDirty(touch, kPropertyOpacity, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(text, kPropertyOpacity, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text, touch));
     ASSERT_TRUE(CheckState(touch, kStatePressed));
     ASSERT_TRUE(CheckState(text, kStatePressed));
@@ -374,8 +378,8 @@ TEST_F(SetStateTest, InheritedDeepStyles)
     ASSERT_EQ(0.0, text->getCalculated(kPropertyOpacity).asNumber());
 
     root->handlePointerEvent(PointerEvent(kPointerDown, Point(1,1)));
-    ASSERT_TRUE(CheckDirty(touch, kPropertyOpacity));
-    ASSERT_TRUE(CheckDirty(text, kPropertyOpacity));
+    ASSERT_TRUE(CheckDirty(touch, kPropertyOpacity, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(text, kPropertyOpacity, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, touch, text, container));
     ASSERT_TRUE(CheckState(touch, kStatePressed));
     ASSERT_TRUE(CheckState(text, kStatePressed));

@@ -108,6 +108,7 @@ enum CommandPropertyKey {
     kCommandPropertyEasing,
     kCommandPropertyExtension,
     kCommandPropertyFinally,
+    kCommandPropertyFlags,
     kCommandPropertyHighlightMode,
     kCommandPropertyIndex,
     kCommandPropertyMinimumDwellTime,

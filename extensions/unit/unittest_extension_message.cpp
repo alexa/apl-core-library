@@ -159,6 +159,39 @@ TEST_F(ExtensionMessageTest, RegistrationRequestWithSettings) {
     ASSERT_TRUE(IsEqual(lhsDoc, rhsDoc));
 }
 
+static const char* REGISTER_FLAGS_MESSAGE = R"(
+{
+    "version": "1.2.3",
+    "method": "Register",
+    "uri": "alexaext:test:10",
+    "target": "alexaext:test:10",
+    "flags": {
+        "key1": 1,
+        "key2": true,
+        "key3": "three"
+    }
+}
+)";
+
+TEST_F(ExtensionMessageTest, RegistrationRequestWithFlags) {
+
+    // Flags are opaque data passed from runtime
+    Document flags;
+    flags.Parse(TEST_MAP_VALUES);
+
+    Document rhsDoc = RegistrationRequest("1.2.3").uri(URI)
+        .flags(flags);
+
+    ASSERT_TRUE(IsValid(rhsDoc));
+
+    // creat an "expected" document for comparison
+    Document lhsDoc;
+    lhsDoc.Parse(REGISTER_FLAGS_MESSAGE);
+    ASSERT_TRUE(IsValid(lhsDoc));
+
+    ASSERT_TRUE(IsEqual(lhsDoc, rhsDoc));
+}
+
 // minimal schema for inclusion in message
 static const char* SCHEMA = R"(
 {

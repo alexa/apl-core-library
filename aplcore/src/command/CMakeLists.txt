@@ -22,6 +22,7 @@ target_sources_local(apl
     configchangecommand.cpp
     controlmediacommand.cpp
     corecommand.cpp
+    displaystatechangecommand.cpp
     documentcommand.cpp
     extensioneventcommand.cpp
     finishcommand.cpp

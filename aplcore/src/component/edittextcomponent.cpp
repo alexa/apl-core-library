@@ -41,8 +41,8 @@ EditTextComponent::EditTextComponent(const ContextPtr& context,
                                      const Path& path)
         : ActionableComponent(context, std::move(properties), path)
 {
-    YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc<EditTextComponent>);
-    YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc<EditTextComponent>);
+    YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc);
+    YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc);
     YGNodeSetNodeType(mYGNodeRef, YGNodeTypeText);
 }
 
@@ -55,9 +55,22 @@ EditTextComponent::EditTextComponent(const ContextPtr& context,
 void
 EditTextComponent::assignProperties(const ComponentPropDefSet& propDefSet)
 {
-    CoreComponent::assignProperties(propDefSet);
+    ActionableComponent::assignProperties(propDefSet);
     calculateDrawnBorder(false);
     parseValidCharactersProperty();
+
+    // Calculate initial measurement hash.
+    fixTextMeasurementHash();
+}
+
+void
+EditTextComponent::preLayoutProcessing(bool useDirtyFlag)
+{
+    ActionableComponent::preLayoutProcessing(useDirtyFlag);
+
+    // Update text measurement hash as some properties may have changed it
+    // and we actually need it on layout time
+    fixTextMeasurementHash();
 }
 
 static inline Object defaultFontColor(Component& component, const RootConfig& rootConfig)
@@ -84,21 +97,21 @@ const ComponentPropDefSet&
 EditTextComponent::propDefSet() const
 {
     static ComponentPropDefSet sEditTextComponentProperties(ActionableComponent::propDefSet(), {
-            {kPropertyBorderColor,              Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic},
-            {kPropertyBorderWidth,              Dimension(0),                   asNonNegativeAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic, yn::setBorder<YGEdgeAll>},
-            {kPropertyColor,                    Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic, defaultFontColor},
-            {kPropertyFontFamily,               "",                             asString,                       kPropInOut | kPropLayout | kPropStyled | kPropDynamic, defaultFontFamily},
-            {kPropertyFontSize,                 Dimension(40),                  asAbsoluteDimension,            kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
-            {kPropertyFontStyle,                kFontStyleNormal,               sFontStyleMap,                  kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
-            {kPropertyFontWeight,               400,                            sFontWeightMap,                 kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
-            {kPropertyHighlightColor,           Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic, defaultHighlightColor},
-            {kPropertyHint,                     "",                             asString,                       kPropInOut | kPropStyled | kPropDynamic},
-            {kPropertyHintColor,                Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic, defaultFontColor},
-            {kPropertyHintStyle,                kFontStyleNormal,               sFontStyleMap,                  kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
-            {kPropertyHintWeight,               400,                            sFontWeightMap,                 kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
+            {kPropertyBorderColor,              Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
+            {kPropertyBorderWidth,              Dimension(0),                   asNonNegativeAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic,                                yn::setBorder<YGEdgeAll>},
+            {kPropertyColor,                    Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash,                                defaultFontColor},
+            {kPropertyFontFamily,               "",                             asString,                       kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash,  defaultFontFamily},
+            {kPropertyFontSize,                 Dimension(40),                  asAbsoluteDimension,            kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
+            {kPropertyFontStyle,                kFontStyleNormal,               sFontStyleMap,                  kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
+            {kPropertyFontWeight,               400,                            sFontWeightMap,                 kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
+            {kPropertyHighlightColor,           Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash,                                defaultHighlightColor},
+            {kPropertyHint,                     "",                             asString,                       kPropInOut | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
+            {kPropertyHintColor,                Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash,                                defaultFontColor},
+            {kPropertyHintStyle,                kFontStyleNormal,               sFontStyleMap,                  kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
+            {kPropertyHintWeight,               400,                            sFontWeightMap,                 kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
             {kPropertyKeyboardType,             kKeyboardTypeNormal,            sKeyboardTypeMap,               kPropInOut | kPropStyled},
-            {kPropertyLang,                     "",                             asString,                       kPropInOut | kPropLayout | kPropStyled | kPropDynamic, inheritLang},
-            {kPropertyMaxLength,                0,                              asInteger,                      kPropInOut | kPropStyled},
+            {kPropertyLang,                     "",                             asString,                       kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash,  inheritLang},
+            {kPropertyMaxLength,                0,                              asInteger,                      kPropInOut | kPropStyled | kPropTextHash | kPropVisualHash},
             {kPropertyOnSubmit,                 Object::EMPTY_ARRAY(),          asCommand,                      kPropIn},
             {kPropertyOnTextChange,             Object::EMPTY_ARRAY(),          asCommand,                      kPropIn},
             {kPropertySecureInput,              false,                          asBoolean,                      kPropInOut | kPropStyled | kPropDynamic},
@@ -106,14 +119,13 @@ EditTextComponent::propDefSet() const
             {kPropertySelectOnFocus,            false,                          asBoolean,                      kPropInOut | kPropStyled},
             {kPropertySize,                     8,                              asPositiveInteger,              kPropInOut | kPropStyled | kPropLayout},
             {kPropertySubmitKeyType,            kSubmitKeyTypeDone,             sSubmitKeyTypeMap,              kPropInOut | kPropStyled},
-            {kPropertyText,                     "",                             asString,                       kPropInOut | kPropDynamic | kPropVisualContext},
+            {kPropertyText,                     "",                             asString,                       kPropInOut | kPropDynamic | kPropVisualContext | kPropTextHash | kPropVisualHash},
             {kPropertyValidCharacters,          "",                             asString,                       kPropIn | kPropStyled},
 
             // The width of the drawn border.  If borderStrokeWith is set, the drawn border is the min of borderWidth
             // and borderStrokeWidth.  If borderStrokeWidth is unset, the drawn border defaults to borderWidth
-            {kPropertyBorderStrokeWidth,        Object::NULL_OBJECT(),          asNonNegativeAbsoluteDimension, kPropIn | kPropStyled | kPropDynamic, resolveDrawnBorder},
-            {kPropertyDrawnBorderWidth,         Object::NULL_OBJECT(),          asNonNegativeAbsoluteDimension, kPropOut},
-
+            {kPropertyBorderStrokeWidth,        Object::NULL_OBJECT(),          asNonNegativeAbsoluteDimension, kPropIn | kPropStyled | kPropDynamic,                                                     resolveDrawnBorder},
+            {kPropertyDrawnBorderWidth,         Object::NULL_OBJECT(),          asNonNegativeAbsoluteDimension, kPropOut | kPropVisualHash},
     });
 
     return sEditTextComponentProperties;

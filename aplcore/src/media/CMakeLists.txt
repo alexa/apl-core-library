@@ -14,4 +14,6 @@
 target_sources_local(apl
         PRIVATE
         coremediamanager.cpp
+        mediaplayer.cpp
+        mediautils.cpp
         )

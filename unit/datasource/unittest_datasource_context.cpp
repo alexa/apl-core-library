@@ -437,7 +437,7 @@ TEST_F(DatasourceContextTest, LiveArrayChangeTest)
     ASSERT_TRUE(myArray->update(1, "seven"));
 
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(IsEqual("seven", component->getCalculated(kPropertyText).asString()));
 
     ASSERT_FALSE(root->isDataSourceContextDirty());

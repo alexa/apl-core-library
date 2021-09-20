@@ -15,6 +15,9 @@
 
 #include "apl/action/playmediaaction.h"
 #include "apl/command/corecommand.h"
+#include "apl/component/videocomponent.h"
+#include "apl/media/mediaplayer.h"
+#include "apl/media/mediautils.h"
 #include "apl/time/sequencer.h"
 #include "apl/utils/session.h"
 
@@ -30,7 +33,7 @@ PlayMediaAction::PlayMediaAction(const TimersPtr& timers,
 
 std::shared_ptr<PlayMediaAction>
 PlayMediaAction::make(const TimersPtr& timers,
-                         const std::shared_ptr<CoreCommand>& command)
+                      const std::shared_ptr<CoreCommand>& command)
 {
     auto ptr = std::make_shared<PlayMediaAction>(timers, command, command->target());
 
@@ -51,13 +54,31 @@ PlayMediaAction::start()
     auto audioTrack = mCommand->getValue(kCommandPropertyAudioTrack);
     auto source = mCommand->getValue(kCommandPropertySource);
 
-    EventBag bag;
-    bag.emplace(kEventPropertyAudioTrack, audioTrack);
-    bag.emplace(kEventPropertySource, source);
+    auto videoComponent = std::dynamic_pointer_cast<VideoComponent>(mTarget);
+    assert(videoComponent);
 
-    // An ActionRef is always required.  The viewhost should resolve it immediately if it is background
-    // audio and should resolve it after playing if it is foreground audio.
-    mCommand->context()->pushEvent(Event(kEventTypePlayMedia, std::move(bag), mTarget, shared_from_this()));
+    auto mediaPlayer = videoComponent->getMediaPlayer();
+    if (mediaPlayer) {
+        // Update the video component to list the new sources and audio track
+        // TODO: In the future I'd like to remove these from the video component and only store them in the player
+        videoComponent->setCalculated(kPropertySource, source);
+        videoComponent->setCalculated(kPropertyAudioTrack, audioTrack);
+
+        // Update the media player
+        mediaPlayer->setTrackList(mediaSourcesToTracks(source));
+        mediaPlayer->setAudioTrack(static_cast<AudioTrack>(audioTrack.getInteger()));
+        mediaPlayer->play(shared_from_this());
+    }
+    else {
+        EventBag bag;
+        bag.emplace(kEventPropertyAudioTrack, audioTrack);
+        bag.emplace(kEventPropertySource, source);
+
+        // An ActionRef is always required.  The viewhost should resolve it immediately if it is
+        // background audio and should resolve it after playing if it is foreground audio.
+        mCommand->context()->pushEvent(
+            Event(kEventTypePlayMedia, std::move(bag), mTarget, shared_from_this()));
+    }
 }
 
 } // namespace apl

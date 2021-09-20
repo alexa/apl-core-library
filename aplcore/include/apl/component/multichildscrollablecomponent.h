@@ -185,6 +185,8 @@ private:
     bool attachChild(const CoreComponentPtr& child, size_t index);
     void runLayoutHeuristics(size_t anchorIdx, float childCache, float pageSize, bool useDirtyFlag, bool first);
     void fixScrollPosition(const Rect& oldAnchorRect, const Rect& anchorRect);
+    Point getPaddedScrollPosition(LayoutDirection layoutDirection) const;
+    void processLayoutChangesInternal(bool useDirtyFlag, bool first, bool delayed);
 
 private:
     Range mIndexesSeen;

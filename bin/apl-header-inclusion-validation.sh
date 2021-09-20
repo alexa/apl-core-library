@@ -31,6 +31,7 @@ public_apl_headers=(
     "apl/content/configurationchange.h"
     "apl/content/content.h"
     "apl/content/extensioncommanddefinition.h"
+    "apl/content/extensioncomponentdefinition.h"
     "apl/content/extensioneventhandler.h"
     "apl/content/extensionfilterdefinition.h"
     "apl/content/extensionproperty.h"
@@ -49,6 +50,8 @@ public_apl_headers=(
     "apl/datasource/dynamicindexlistdatasourceprovider.h"
     "apl/datasource/dynamictokenlistdatasourceprovider.h"
     "apl/datasource/offsetindexdatasourceconnection.h"
+    "apl/document/displaystate.h"
+    "apl/document/documentproperties.h"
     "apl/dynamicdata.h"
     "apl/engine/binding.h"
     "apl/engine/dependant.h"
@@ -79,6 +82,8 @@ public_apl_headers=(
     "apl/livedata/livedataobjectwatcher.h"
     "apl/media/mediamanager.h"
     "apl/media/mediaobject.h"
+    "apl/media/mediaplayer.h"
+    "apl/media/mediaplayerfactory.h"
     "apl/primitives/accessibilityaction.h"
     "apl/primitives/color.h"
     "apl/primitives/dimension.h"
@@ -243,7 +248,7 @@ function validate_canonical_header() {
         for raw_header in "${included_raw_headers[@]}"; do
             canonical_header=$(resolve_canonical_header "${raw_header}" "${resolved_header_path}")
             if ! is_public "${canonical_header}" ; then
-                echo "ERROR: file ${canonical_parent_header} includes invalid header ${raw_header}"
+                echo "ERROR: file ${canonical_parent_header} includes invalid header ${raw_header} (see bin/apl-header-inclusion-validation.sh)"
                 exit 1
             fi
 

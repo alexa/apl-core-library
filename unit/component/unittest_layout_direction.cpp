@@ -71,7 +71,7 @@ TEST_F(LayoutDirectionText, ComponentLevelOverride)
     ASSERT_TRUE(root->isDirty());
 
     child = component->getChildAt(0); // First child is "inherit"
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_EQ(Object(kLayoutDirectionLTR), child->getCalculated(kPropertyLayoutDirection));
 
     child = component->getChildAt(1); // Second child is "LTR"
@@ -938,10 +938,10 @@ TEST_F(LayoutDirectionText, LayoutDirectionBadValue) {
         component->getChildAt(0)->getCalculated(kPropertyLayoutDirection).asInt());
     ASSERT_EQ(ld2, kLayoutDirectionLTR);
 
-    ASSERT_TRUE(LogMessage()); // There should be a warning "Document 'layoutDirection' property is invalid : badvalue"
+    ASSERT_TRUE(ConsoleMessage()); // There should be a warning "Document 'layoutDirection' property is invalid : badvalue"
 }
 
-static const char *DOC_LAYOUTDIRECTION_PROPERTY_BAD_INHERIT_VALUE = R"(
+static const char *DOC_LAYOUTDIRECTION_PROPERTY_INHERIT_VALUE = R"(
 {
   "type": "APL",
   "version": "1.7",
@@ -960,16 +960,52 @@ static const char *DOC_LAYOUTDIRECTION_PROPERTY_BAD_INHERIT_VALUE = R"(
 )";
 
 /**
- * Check we get an warning in the logs when we use 'inherit' at the document level
+ * Check that we get the root config layout direction when we inherit
  */
-TEST_F(LayoutDirectionText, LayoutDirectionBadInheritValue)
+TEST_F(LayoutDirectionText, LayoutDirectionInheritValue)
 {
-    loadDocument(DOC_LAYOUTDIRECTION_PROPERTY_BAD_INHERIT_VALUE);
+    config->set(kLayoutDirection, kLayoutDirectionRTL);
+    loadDocument(DOC_LAYOUTDIRECTION_PROPERTY_INHERIT_VALUE);
+    auto ld1 = static_cast<LayoutDirection>(component->getCalculated(kPropertyLayoutDirection).asInt());
+    ASSERT_EQ(ld1, kLayoutDirectionRTL);
+
+    auto ld2 = static_cast<LayoutDirection>(component->getChildAt(0)->getCalculated(kPropertyLayoutDirection).asInt());
+    ASSERT_EQ(ld2, kLayoutDirectionRTL);
+}
+
+static const char *DOC_LAYOUTDIRECTION_PROPERTY_ENVIRONMENT_VALUE = R"(
+{
+  "type": "APL",
+  "version": "1.7",
+  "environment": {
+    "parameters": "foo",
+    "layoutDirection": "${foo}"
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "items": {
+        "type": "Frame",
+        "width": 100,
+        "height": 100
+      }
+    }
+  }
+}
+)";
+
+static const char *ENV_DATA = R"({"foo": "LTR"})";
+
+/**
+ * Check that we get the root config layout direction when we inherit
+ */
+TEST_F(LayoutDirectionText, LayoutDirectionEnvironmentValue)
+{
+    config->set(kLayoutDirection, kLayoutDirectionRTL);
+    loadDocument(DOC_LAYOUTDIRECTION_PROPERTY_ENVIRONMENT_VALUE, ENV_DATA);
     auto ld1 = static_cast<LayoutDirection>(component->getCalculated(kPropertyLayoutDirection).asInt());
     ASSERT_EQ(ld1, kLayoutDirectionLTR);
 
     auto ld2 = static_cast<LayoutDirection>(component->getChildAt(0)->getCalculated(kPropertyLayoutDirection).asInt());
     ASSERT_EQ(ld2, kLayoutDirectionLTR);
-
-    ASSERT_TRUE(LogMessage());  // There should be a warning "Document 'layoutDirection' can not be 'Inherit'"
 }

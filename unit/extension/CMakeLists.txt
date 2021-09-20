@@ -15,6 +15,7 @@ target_sources_local(unittest
         PRIVATE
         unittest_extension_client.cpp
         unittest_extension_command.cpp
+        unittest_extension_component.cpp
         unittest_requested_extension.cpp
         unittest_extension_handler.cpp
         unittest_extension_mediator.cpp

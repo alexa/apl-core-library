@@ -192,17 +192,17 @@ TEST_F(ComponentDrawTest, Opacity) {
 
     // make child invisible
     touchWrapper->setProperty(kPropertyOpacity, 0.00);
-    ASSERT_TRUE(CheckDirty(touchWrapper, kPropertyOpacity));
+    ASSERT_TRUE(CheckDirty(touchWrapper, kPropertyOpacity, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
 
     ASSERT_EQ(0, component->getDisplayedChildCount());
 
     // restore to normal, make it's child gone
     touchWrapper->setProperty(kPropertyOpacity, 1.0);
-    ASSERT_TRUE(CheckDirty(touchWrapper, kPropertyOpacity));
+    ASSERT_TRUE(CheckDirty(touchWrapper, kPropertyOpacity, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
     frame->setProperty(kPropertyOpacity, 0.0);
-    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(touchWrapper, kPropertyNotifyChildrenChanged));
 
     ASSERT_EQ(1, component->getDisplayedChildCount());
@@ -212,7 +212,7 @@ TEST_F(ComponentDrawTest, Opacity) {
 
     // restore as partial opacity
     frame->setProperty(kPropertyOpacity, .5);
-    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(touchWrapper, kPropertyNotifyChildrenChanged));
 
     ASSERT_EQ(1, component->getDisplayedChildCount());
@@ -226,7 +226,7 @@ TEST_F(ComponentDrawTest, Opacity) {
 
     // slight change in opacity, but still visible, no display children change
     frame->setProperty(kPropertyOpacity, .2);
-    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity,kPropertyVisualHash));
     ASSERT_FALSE(CheckDirty(touchWrapper, kPropertyNotifyChildrenChanged));
 }
 
@@ -283,7 +283,8 @@ TEST_F(ComponentDrawTest, Bounds) {
     component->setProperty(kPropertyHeight, 100);
     root->clearPending(); // force layout changes
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_EQ(1, component->getDisplayedChildCount());
     for (int i = 0; i < 1; i++) {
         auto child = component->getDisplayedChildAt(i);
@@ -347,7 +348,7 @@ TEST_F(ComponentDrawTest, BoundsCheckWithPadding) {
 
     component->setProperty(kPropertyPadding, ObjectArray{10, 10});
     root->clearPending(); // force layout change
-    ASSERT_TRUE(CheckDirty(component, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
 
     ASSERT_EQ(5, component->getDisplayedChildCount());
     for (int i = 0; i < 5; i++) {
@@ -535,9 +536,11 @@ TEST_F(ComponentDrawTest, HorizontalSequence) {
 
 TEST_F(ComponentDrawTest, HorizontalSequenceRTL) {
     loadDocument(HORIZONTAL_SEQUENCE);
+    advanceTime(10);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyScrollPosition, kPropertyVisualHash));
 
     ASSERT_TRUE(component);
     ASSERT_EQ(5, component->getChildCount());
@@ -561,36 +564,34 @@ TEST_F(ComponentDrawTest, HorizontalSequenceRTL) {
     }
 }
 
-static const char *HORIZONTAL_SEQUENCE_PADDING =
-        R"apl({
-      "type": "APL",
-      "version": "1.4",
-      "mainTemplate": {
-        "parameters": [],
-        "item": {
-          "type": "Sequence",
-          "id": "SEQ",
-          "scrollDirection": "horizontal",
-          "width": 500,
-          "height": 200,
-          "padding": 50,
-          "items": {
-            "type": "Frame",
-            "id": "${data}",
-            "width": 200,
-            "height": 200
-          },
-          "data": [
-            0,
-            1,
-            2,
-            3,
-            4
-          ]
-        }
-      }
+static const char *HORIZONTAL_SEQUENCE_PADDING = R"apl({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "parameters": [],
+    "item": {
+      "type": "Sequence",
+      "id": "SEQ",
+      "scrollDirection": "horizontal",
+      "width": 500,
+      "height": 200,
+      "padding": 50,
+      "items": {
+        "type": "Frame",
+        "id": "${data}",
+        "width": 200,
+        "height": 200
+      },
+      "data": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
     }
-)apl";
+  }
+})apl";
 
 /**
  * Horizontal Sequence with scroll and padding clips children
@@ -625,7 +626,8 @@ TEST_F(ComponentDrawTest, HorizontalSequenceWPaddingRTL) {
     loadDocument(HORIZONTAL_SEQUENCE_PADDING);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyScrollPosition, kPropertyVisualHash));
 
     ASSERT_TRUE(component);
     ASSERT_EQ(5, component->getChildCount());

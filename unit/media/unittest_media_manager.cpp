@@ -14,30 +14,33 @@
  */
 
 #include "../testeventloop.h"
+#include "apl/component/imagecomponent.h"
+#include "apl/component/textcomponent.h"
 #include "apl/engine/event.h"
-#include "apl/media/mediamanager.h"
 #include "apl/media/coremediamanager.h"
 #include "apl/media/mediaobject.h"
 #include "apl/primitives/object.h"
 
 using namespace apl;
 
-class MediaManagerTest : public DocumentWrapper {
+class MediaManagerTest : public DocumentWrapper
+{
 public:
     MediaManagerTest() : DocumentWrapper() {
         config->enableExperimentalFeature(RootConfig::kExperimentalFeatureManageMediaRequests);
     }
 
-    template<class... Args>
-    ::testing::AssertionResult
-    MediaRequested(EventMediaType mediaType, Args... args) {
+    template <class... Args>
+    ::testing::AssertionResult MediaRequested(EventMediaType mediaType, Args... args) {
         if (!root->hasEvent())
             return ::testing::AssertionFailure() << "No event.";
 
         // Event should be fired that requests media to be loaded.
         auto event = root->popEvent();
-        if (kEventTypeMediaRequest != event.getType())
-            return ::testing::AssertionFailure() << "Wrong event type.";
+        auto type = event.getType();
+        if (kEventTypeMediaRequest != type)
+            return ::testing::AssertionFailure() << "Wrong event type. Expected: " << kEventTypeMediaRequest
+                                                 << ", actual: "  << type;
 
         if (event.getValue(kEventPropertyMediaType).asInt() != mediaType) {
             return ::testing::AssertionFailure() << "Wrong media type.";
@@ -45,7 +48,7 @@ public:
 
         auto sources = event.getValue(kEventPropertySource);
         if (!sources.isArray())
-            return ::testing::AssertionFailure() << "Not a string as expected.";
+            return ::testing::AssertionFailure() << "Not an array as expected.";
 
         std::set<std::string> expectedSources = {args...};
         std::set<std::string> actualSources;
@@ -58,9 +61,8 @@ public:
         return ::testing::AssertionSuccess();
     }
 
-    template<class... Args>
-    ::testing::AssertionResult
-    CheckLoadedMedia(const ComponentPtr& comp, Args... args) {
+    template <class... Args>
+    ::testing::AssertionResult CheckLoadedMedia(const ComponentPtr& comp, Args... args) {
         std::vector<std::string> sources = {args...};
         for (auto& source : sources) {
             root->mediaLoaded(source);
@@ -73,8 +75,7 @@ public:
         auto state = comp->getCalculated(kPropertyMediaState).getInteger();
         if (kMediaStateReady != state)
             return ::testing::AssertionFailure()
-                    << "Wrong media state, expected: " << kMediaStateReady
-                    << ", actual: " << state;
+                   << "Wrong media state, expected: " << kMediaStateReady << ", actual: " << state;
 
         return ::testing::AssertionSuccess();
     }
@@ -169,7 +170,7 @@ TEST_F(MediaManagerTest, MultipleImagesWithFiltersLoadFail) {
 
     ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe0", "universe1", "universe2", "universe3"));
     ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
-    root->mediaLoadFailed("universe0");
+    root->mediaLoadFailed("universe0", 2, "Other error");
     ASSERT_EQ(kMediaStateError, component->getCalculated(kPropertyMediaState).getInteger());
     root->mediaLoaded("universe1");
     ASSERT_EQ(kMediaStateError, component->getCalculated(kPropertyMediaState).getInteger());
@@ -184,7 +185,7 @@ TEST_F(MediaManagerTest, MultipleImagesWithFiltersLoadFailAfterOneLoad) {
     ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
     root->mediaLoaded("universe1");
     ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
-    root->mediaLoadFailed("universe0");
+    root->mediaLoadFailed("universe0", 2, "Other error");
     ASSERT_EQ(kMediaStateError, component->getCalculated(kPropertyMediaState).getInteger());
     root->mediaLoaded("universe2");
     ASSERT_EQ(kMediaStateError, component->getCalculated(kPropertyMediaState).getInteger());
@@ -199,7 +200,7 @@ TEST_F(MediaManagerTest, MultipleImagesWithFiltersLoadFailAfterAllLoadedIgnored)
     ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
     ASSERT_TRUE(CheckLoadedMedia(component, "universe0", "universe1", "universe2", "universe3"));
 
-    root->mediaLoadFailed("universe0");
+    root->mediaLoadFailed("universe0", 2, "Other error");
     ASSERT_EQ(kMediaStateReady, component->getCalculated(kPropertyMediaState).getInteger());
 }
 
@@ -239,7 +240,7 @@ TEST_F(MediaManagerTest, SingleImageUpdate) {
 
     component->setProperty(kPropertySource, "sample");
 
-    ASSERT_TRUE(CheckDirty(component, kPropertySource, kPropertyMediaState));
+    ASSERT_TRUE(CheckDirty(component, kPropertySource, kPropertyMediaState, kPropertyVisualHash));
 
     ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "sample"));
     ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
@@ -354,69 +355,6 @@ TEST_F(MediaManagerTest, ComponentClear) {
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char* SINGLE_VIDEO = R"({
-  "type": "APL",
-  "version": "1.6",
-  "mainTemplate": {
-    "item": {
-      "type": "Video",
-      "source": "universe"
-    }
-  }
-})";
-
-TEST_F(MediaManagerTest, SingleVideo) {
-    loadDocument(SINGLE_VIDEO);
-
-    ASSERT_FALSE(root->isDirty());
-
-    // Event should be fired that requests media to be loaded.
-    ASSERT_TRUE(MediaRequested(kEventMediaTypeVideo, "universe"));
-    ASSERT_TRUE(CheckLoadedMedia(component, "universe"));
-}
-
-static const char* MULTIPLE_VIDEO_SOURCES = R"({
-  "type": "APL",
-  "version": "1.6",
-  "mainTemplate": {
-    "item": {
-      "type": "Video",
-      "sources": ["universe0", "universe1", "universe2", "universe3"]
-    }
-  }
-})";
-
-TEST_F(MediaManagerTest, MultipleVideoSources) {
-    loadDocument(MULTIPLE_VIDEO_SOURCES);
-
-    ASSERT_FALSE(root->isDirty());
-
-    ASSERT_TRUE(MediaRequested(kEventMediaTypeVideo, "universe0", "universe1", "universe2", "universe3"));
-
-    // Video can be rendered with just current video loaded usually, so should be marked dirty when current index was
-    // loaded.
-    root->mediaLoaded("universe0");
-    ASSERT_TRUE(CheckDirty(component, kPropertyMediaState));
-}
-
-TEST_F(MediaManagerTest, MultipleVideoSourcesFailureAfterCurrentLoaded) {
-    loadDocument(MULTIPLE_VIDEO_SOURCES);
-
-    ASSERT_FALSE(root->isDirty());
-
-    ASSERT_TRUE(MediaRequested(kEventMediaTypeVideo, "universe0", "universe1", "universe2", "universe3"));
-
-    // Video can be rendered with just current video loaded usually, so should be marked dirty when current index was
-    // loaded.
-    root->mediaLoaded("universe0");
-    ASSERT_TRUE(CheckDirty(component, kPropertyMediaState));
-    ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
-
-    root->mediaLoadFailed("universe1");
-    ASSERT_EQ(kMediaStateError, component->getCalculated(kPropertyMediaState).getInteger());
-    root->mediaLoaded("universe2");
-    ASSERT_EQ(kMediaStateError, component->getCalculated(kPropertyMediaState).getInteger());
-}
 
 static const char* VECTOR_GRAPHIC_DOCUMENT = R"(
     {
@@ -467,7 +405,7 @@ TEST_F(MediaManagerTest, VectorGraphicFailure) {
     // Event should be fired that requests media to be loaded.
     ASSERT_TRUE(MediaRequested(kEventMediaTypeVectorGraphic, "http://myPillShape"));
 
-    root->mediaLoadFailed("http://myPillShape");
+    root->mediaLoadFailed("http://myPillShape", 2, "Other error");
 
     ASSERT_TRUE(CheckDirty(component, kPropertyMediaState));
     ASSERT_EQ(kMediaStateError, component->getCalculated(kPropertyMediaState).getInteger());
@@ -540,12 +478,6 @@ static const char* MIXED_MEDIA_DOCUMENT = R"(
                         "type": "Image",
                         "source": "http://myImage",
                         "id": "myImage"
-                    },
-
-                    {
-                        "type": "Video",
-                        "source": "http://myVideo",
-                        "id": "myVideo"
                     }
                 ]
             }
@@ -559,11 +491,9 @@ TEST_F(MediaManagerTest, MixedMediaRequests) {
     ASSERT_FALSE(root->isDirty());
 
     ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "http://myImage"));
-    ASSERT_TRUE(MediaRequested(kEventMediaTypeVideo, "http://myVideo"));
     ASSERT_TRUE(MediaRequested(kEventMediaTypeVectorGraphic, "http://myAVG"));
 
     ASSERT_TRUE(CheckLoadedMedia(root->findComponentById("myImage"), "http://myImage"));
-    ASSERT_TRUE(CheckLoadedMedia(root->findComponentById("myVideo"), "http://myVideo"));
     ASSERT_TRUE(CheckLoadedMedia(root->findComponentById("myAVG"), "http://myAVG"));
 }
 
@@ -579,7 +509,10 @@ public:
     State state() const override { return kReady; }
     EventMediaType type() const override { return mType; }
     Size size() const override { return apl::Size(20,20); }
-    bool addCallback(MediaObjectCallback callback) override { return false; }
+    CallbackID addCallback(MediaObjectCallback callback) override { return 0; }
+    void removeCallback(CallbackID callbackToken) override {}
+    int errorCode() const override { return 0; }
+    std::string errorDescription() const override { return std::string(); }
 
     std::string mURL;
     EventMediaType mType;
@@ -593,7 +526,10 @@ public:
     }
 
     void processMediaRequests(const ContextPtr& context) override {}
-    void mediaLoadComplete(const std::string& source, bool isReady) override {}
+    void mediaLoadComplete(const std::string& source,
+                           bool isReady = 0,
+                           int errorCode = 0,
+                           const std::string& errorReason = std::string()) override {}
 
     int counter = 0;
 };
@@ -604,10 +540,9 @@ TEST_F(MediaManagerTest, OverrideManager)
     config->mediaManager(testManager);
 
     loadDocument(MIXED_MEDIA_DOCUMENT);
-    ASSERT_EQ(3, testManager->counter);
+    ASSERT_EQ(2, testManager->counter);
 
     ASSERT_EQ(kMediaStateReady, root->findComponentById("myImage")->getCalculated(kPropertyMediaState).getInteger());
-    ASSERT_EQ(kMediaStateReady, root->findComponentById("myVideo")->getCalculated(kPropertyMediaState).getInteger());
     ASSERT_EQ(kMediaStateReady, root->findComponentById("myAVG")->getCalculated(kPropertyMediaState).getInteger());
 
     CheckDirty(root);   // Nothing should be dirty because we loaded them immediately
@@ -746,4 +681,982 @@ TEST_F(MediaManagerTest, CoreMemoryCheck)
     };
     for (int i = 0 ; i < EXPECTED_STATE_2.size() ; i++)
         ASSERT_EQ(EXPECTED_STATE_3.at(i), objects.at(i)->state());
+}
+
+static const char* NO_IMAGE_FAIL_LOAD = R"({
+    "type": "APL",
+    "version": "1.7",
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "items": [
+                {
+                    "type": "Image",
+                    "id": "myImage",
+                    "source": [],
+                    "onLoad": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "tango"
+                    },
+                    "onFail": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "bravo"
+                    }
+                },
+                {
+                    "type": "Text",
+                    "id": "textComp",
+                    "text": "tiger"
+                }
+            ]
+        }
+    }
+})";
+TEST_F(MediaManagerTest, NoSourceImageNoLoad)
+{
+    loadDocument(NO_IMAGE_FAIL_LOAD);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+}
+
+static const char* SINGLE_IMAGE_ON_LOAD = R"({
+    "type": "APL",
+    "version": "1.7",
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "items": [
+                {
+                    "type": "Image",
+                    "id": "myImage",
+                    "source": "universe",
+                    "onLoad": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "tango"
+                    },
+                    "onFail": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "bravo"
+                    }
+                },
+                {
+                    "type": "Text",
+                    "id": "textComp",
+                    "text": "tiger"
+                }
+            ]
+        }
+    }
+})";
+TEST_F(MediaManagerTest, SingleImageLoad)
+{
+    loadDocument(SINGLE_IMAGE_ON_LOAD);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe"));
+    ASSERT_TRUE(CheckLoadedMedia(root->findComponentById("myImage"), "universe"));
+
+    ASSERT_EQ("tango", textComponent->getCalculated(kPropertyText).asString());
+}
+
+TEST_F(MediaManagerTest, SingleImageFail)
+{
+    loadDocument(SINGLE_IMAGE_ON_LOAD);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe"));
+    root->mediaLoadFailed("universe", 2, "Other error");
+
+    ASSERT_EQ("bravo", textComponent->getCalculated(kPropertyText).asString());
+}
+
+TEST_F(MediaManagerTest, SingleImageLoadChangeSourceTriggersOnLoad)
+{
+    loadDocument(SINGLE_IMAGE_ON_LOAD);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe"));
+    root->mediaLoadFailed("universe", 2, "Other error");
+
+    ASSERT_EQ("bravo", textComponent->getCalculated(kPropertyText).asString());
+
+    auto textComponentMedia = std::dynamic_pointer_cast<TextComponent>(textComponent);
+    textComponentMedia->setProperty(kPropertyText, "torpedo");
+
+    ASSERT_EQ("torpedo", textComponent->getCalculated(kPropertyText).asString());
+
+    auto imageComponent = std::dynamic_pointer_cast<ImageComponent>(root->findComponentById("myImage"));
+    imageComponent->setProperty(kPropertySource, "universe1");
+    ASSERT_TRUE(CheckDirty(imageComponent, kPropertySource, kPropertyMediaState, kPropertyVisualHash));
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe1"));
+    ASSERT_EQ(kMediaStatePending, imageComponent->getCalculated(kPropertyMediaState).getInteger());
+    ASSERT_TRUE(CheckLoadedMedia(imageComponent, "universe1"));
+
+    ASSERT_EQ("tango", textComponent->getCalculated(kPropertyText).asString());
+}
+
+static const char* MULTIPLE_IMAGES_ON_LOAD_ON_FAIL_NO_FILTERS = R"({
+    "type": "APL",
+    "version": "1.7",
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "items": [
+                {
+                    "type": "Image",
+                    "id": "myImage",
+                    "sources": ["universe0", "universe1"],
+                    "onLoad": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "tango"
+                    },
+                    "onFail": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "bravo"
+                    }
+                },
+                {
+                    "type": "Text",
+                    "id": "textComp",
+                    "text": "tiger"
+                }
+            ]
+        }
+    }
+})";
+
+TEST_F(MediaManagerTest, MultipleImagesNoFilterLoad)
+{
+    loadDocument(MULTIPLE_IMAGES_ON_LOAD_ON_FAIL_NO_FILTERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe1"));
+    ASSERT_FALSE(MediaRequested(kEventMediaTypeImage, "universe0"));
+    ASSERT_TRUE(CheckLoadedMedia(root->findComponentById("myImage"), "universe1"));
+    ASSERT_FALSE(CheckLoadedMedia(root->findComponentById("myImage"), "universe0"));
+
+    ASSERT_EQ("tango", textComponent->getCalculated(kPropertyText).asString());
+}
+
+TEST_F(MediaManagerTest, MultipleImagesNoFilterOnFail)
+{
+    loadDocument(MULTIPLE_IMAGES_ON_LOAD_ON_FAIL_NO_FILTERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe1"));
+    ASSERT_FALSE(MediaRequested(kEventMediaTypeImage, "universe0"));
+    root->mediaLoadFailed("universe1", 2, "Other error");
+
+    ASSERT_EQ("bravo", textComponent->getCalculated(kPropertyText).asString());
+}
+
+static const char* MULTIPLE_IMAGES_ON_FAIL_ON_LOAD_FILTERS = R"({
+    "type": "APL",
+    "version": "1.7",
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "items": [
+                {
+                    "type": "Image",
+                    "id": "myImage",
+                    "sources": ["universe0", "universe1", "universe2", "universe3"],
+                    "filters": {
+                        "type": "Blend",
+                        "mode": "normal"
+                    },
+                    "onLoad": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "tango"
+                    },
+                    "onFail": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "bravo"
+                    }
+                },
+                {
+                    "type": "Text",
+                    "id": "textComp",
+                    "text": "tiger"
+                }
+            ]
+        }
+    }
+})";
+
+TEST_F(MediaManagerTest, MultipleImagesFilterOnLoad)
+{
+    loadDocument(MULTIPLE_IMAGES_ON_FAIL_ON_LOAD_FILTERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe0", "universe1", "universe2", "universe3"));
+    ASSERT_TRUE(CheckLoadedMedia(root->findComponentById("myImage"), "universe0", "universe1", "universe2", "universe3"));
+
+    ASSERT_EQ("tango", textComponent->getCalculated(kPropertyText).asString());
+}
+
+TEST_F(MediaManagerTest, MultipleImagesFilterPartialOnLoad)
+{
+    loadDocument(MULTIPLE_IMAGES_ON_FAIL_ON_LOAD_FILTERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    auto imageComponent = root->findComponentById("myImage");
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe0", "universe1", "universe2", "universe3"));
+    ASSERT_EQ(kMediaStatePending, imageComponent->getCalculated(kPropertyMediaState).getInteger());
+    root->mediaLoaded("universe0");
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+    ASSERT_EQ(kMediaStatePending, imageComponent->getCalculated(kPropertyMediaState).getInteger());
+    ASSERT_TRUE(CheckLoadedMedia(imageComponent, "universe1", "universe2", "universe3"));
+
+    ASSERT_EQ("tango", textComponent->getCalculated(kPropertyText).asString());
+}
+
+TEST_F(MediaManagerTest, MultipleImagesFilterOnFail)
+{
+    loadDocument(MULTIPLE_IMAGES_ON_FAIL_ON_LOAD_FILTERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    auto imageComponent = root->findComponentById("myImage");
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe0", "universe1", "universe2", "universe3"));
+    ASSERT_EQ(kMediaStatePending, imageComponent->getCalculated(kPropertyMediaState).getInteger());
+    root->mediaLoadFailed("universe0", 2, "Other error");
+    ASSERT_EQ(kMediaStateError, imageComponent->getCalculated(kPropertyMediaState).getInteger());
+    ASSERT_EQ("bravo", textComponent->getCalculated(kPropertyText).asString());
+}
+
+static const char* MULTIPLE_IMAGES_ON_LOAD_ON_FAIL_NO_FILTERS_SET_VALUE = R"({
+    "type": "APL",
+    "version": "1.7",
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "items": [
+                {
+                    "type": "Image",
+                    "id": "myImage",
+                    "sources": ["universe0", "universe1", "universe2"],
+                    "onLoad": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "tango"
+                    },
+                    "onFail": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "${event.value}"
+                    }
+                },
+                {
+                    "type": "Text",
+                    "id": "textComp",
+                    "text": "tiger"
+                }
+            ]
+        }
+    }
+})";
+
+TEST_F(MediaManagerTest, MultipleImagesNoFilterReadyFailSetValue)
+{
+    loadDocument(MULTIPLE_IMAGES_ON_LOAD_ON_FAIL_NO_FILTERS_SET_VALUE);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe2"));
+    ASSERT_FALSE(MediaRequested(kEventMediaTypeImage, "universe1"));
+    ASSERT_FALSE(MediaRequested(kEventMediaTypeImage, "universe0"));
+    root->mediaLoadFailed("universe1", 2, "Other error");
+    root->mediaLoadFailed("universe2", 2, "Other error");
+
+    ASSERT_EQ("universe2", textComponent->getCalculated(kPropertyText).asString());
+}
+
+static const char* MULTIPLE_IMAGES_ON_LOAD_ON_FAIL_ERROR_MESSAGE = R"({
+    "type": "APL",
+    "version": "1.7",
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "items": [
+                {
+                    "type": "Image",
+                    "id": "myImage",
+                    "sources": ["universe0", "universe1", "universe2"],
+                    "onLoad": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "tango"
+                    },
+                    "onFail": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "${event.error}"
+                    }
+                },
+                {
+                    "type": "Text",
+                    "id": "textComp",
+                    "text": "tiger"
+                }
+            ]
+        }
+    }
+})";
+
+TEST_F(MediaManagerTest, MultipleImagesNoFilterReadyFailSetErrorMessage)
+{
+    loadDocument(MULTIPLE_IMAGES_ON_LOAD_ON_FAIL_ERROR_MESSAGE);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe2"));
+    ASSERT_FALSE(MediaRequested(kEventMediaTypeImage, "universe1"));
+    ASSERT_FALSE(MediaRequested(kEventMediaTypeImage, "universe0"));
+    root->mediaLoadFailed("universe1", 2, "Other error");
+    root->mediaLoadFailed("universe2", 3, "Not found");
+
+    ASSERT_EQ("Not found", textComponent->getCalculated(kPropertyText).asString());
+}
+
+static const char* MULTIPLE_IMAGES_ON_LOAD_ON_FAIL_ERROR_CODE = R"({
+    "type": "APL",
+    "version": "1.7",
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "items": [
+                {
+                    "type": "Image",
+                    "id": "myImage",
+                    "sources": ["universe0", "universe1", "universe2"],
+                    "onLoad": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "tango"
+                    },
+                    "onFail": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "${event.errorCode}"
+                    }
+                },
+                {
+                    "type": "Text",
+                    "id": "textComp",
+                    "text": "tiger"
+                }
+            ]
+        }
+    }
+})";
+
+TEST_F(MediaManagerTest, MultipleImagesNoFilterReadyFailSetErrorCode)
+{
+    loadDocument(MULTIPLE_IMAGES_ON_LOAD_ON_FAIL_ERROR_CODE);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe2"));
+    ASSERT_FALSE(MediaRequested(kEventMediaTypeImage, "universe1"));
+    ASSERT_FALSE(MediaRequested(kEventMediaTypeImage, "universe0"));
+    root->mediaLoadFailed("universe1", 2, "Other error");
+    root->mediaLoadFailed("universe2", 3, "Not found");
+
+    ASSERT_EQ("3", textComponent->getCalculated(kPropertyText).asString());
+}
+
+static const char* MULTIPLE_IMAGES_ON_LOAD_ON_FAIL_FILTERS_SET_VALUE = R"({
+    "type": "APL",
+    "version": "1.7",
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "items": [
+                {
+                    "type": "Image",
+                    "id": "myImage",
+                    "sources": ["universe0", "universe1", "universe2"],
+                    "filters": {
+                        "type": "Blend",
+                        "mode": "normal"
+                    },
+                    "onLoad": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "tango"
+                    },
+                    "onFail": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "${event.value}"
+                    }
+                },
+                {
+                    "type": "Text",
+                    "id": "textComp",
+                    "text": "tiger"
+                }
+            ]
+        }
+    }
+})";
+
+TEST_F(MediaManagerTest, MultipleImagesFilterReadyFailSetValue)
+{
+    loadDocument(MULTIPLE_IMAGES_ON_LOAD_ON_FAIL_FILTERS_SET_VALUE);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe0", "universe1", "universe2"));
+    root->mediaLoadFailed("universe1", 2, "Other error");
+    root->mediaLoadFailed("universe2", 2, "Other error");
+
+    // We call it on the first one unless we change the sources
+    ASSERT_EQ("universe1", textComponent->getCalculated(kPropertyText).asString());
+}
+
+TEST_F(MediaManagerTest, MultipleImagesFilterReadySetValueSetSource)
+{
+    loadDocument(MULTIPLE_IMAGES_ON_LOAD_ON_FAIL_FILTERS_SET_VALUE);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe0", "universe1", "universe2"));
+    root->mediaLoadFailed("universe1", 2, "Other error");
+
+    ASSERT_EQ("universe1", textComponent->getCalculated(kPropertyText).asString());
+    auto imageComponent = std::static_pointer_cast<ImageComponent>(root->findComponentById("myImage"));
+
+    auto newSources = Object(ObjectArray{"universe3", "universe1", "universe2"});
+    imageComponent->setProperty(kPropertySource, newSources);
+
+    ASSERT_TRUE(CheckDirty(imageComponent, kPropertySource, kPropertyMediaState, kPropertyVisualHash));
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe3", "universe1", "universe2"));
+    ASSERT_TRUE(CheckLoadedMedia(imageComponent, "universe3", "universe1", "universe2"));
+
+    ASSERT_EQ("tango", textComponent->getCalculated(kPropertyText).asString());
+}
+
+TEST_F(MediaManagerTest, MultipleImagesFilterReadyFailSetValueSetSource)
+{
+    loadDocument(MULTIPLE_IMAGES_ON_LOAD_ON_FAIL_FILTERS_SET_VALUE);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe0", "universe1", "universe2"));
+    root->mediaLoadFailed("universe1", 2, "Other error");
+
+    ASSERT_EQ("universe1", textComponent->getCalculated(kPropertyText).asString());
+    auto imageComponent = std::static_pointer_cast<ImageComponent>(root->findComponentById("myImage"));
+
+    auto newSources = Object(ObjectArray{"universe3", "universe1", "universe2"});
+    imageComponent->setProperty(kPropertySource, newSources);
+
+    ASSERT_TRUE(CheckDirty(imageComponent, kPropertySource, kPropertyMediaState, kPropertyVisualHash));
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe3", "universe1", "universe2"));
+    root->mediaLoadFailed("universe3", 2, "Other error");
+
+    ASSERT_EQ("universe3", textComponent->getCalculated(kPropertyText).asString());
+}
+
+static const char* VECTOR_GRAPHIC_ON_LOAD_ON_FAIL = R"apl(
+{
+    "type": "APL",
+    "version": "1.7",
+    "graphics": {
+        "MyIcon": {
+          "type": "AVG",
+          "version": "1.0",
+          "height": 100,
+          "width": 100,
+          "items": {
+            "type": "path",
+            "pathData": "M0,0 h100 v100 h-100 z",
+            "fill": "red"
+          }
+        }
+      },
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "items": [
+                {
+                    "type": "VectorGraphic",
+                    "source": "myIcon",
+                    "width": "100%",
+                    "height": "100%",
+                    "scale": "best-fit",
+                    "align": "center",
+                    "onLoad": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "tango"
+                    },
+                    "onFail": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "bravo"
+                    }
+                },
+                {
+                    "type": "Text",
+                    "id": "textComp",
+                    "text": "tiger"
+                }
+            ]
+        }
+    }
+}
+)apl";
+
+TEST_F(MediaManagerTest, VectorGraphicOnLoadSuccess)
+{
+    loadDocument(VECTOR_GRAPHIC_ON_LOAD_ON_FAIL);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeVectorGraphic, "myIcon"));
+
+    root->mediaLoaded("myIcon");
+    ASSERT_EQ("tango", textComponent->getCalculated(kPropertyText).asString());
+}
+
+TEST_F(MediaManagerTest, VectorGraphicOnFailFailure)
+{
+    loadDocument(VECTOR_GRAPHIC_ON_LOAD_ON_FAIL);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeVectorGraphic, "myIcon"));
+
+    root->mediaLoadFailed("myIcon", 2, "Other error");
+    ASSERT_EQ("bravo", textComponent->getCalculated(kPropertyText).asString());
+}
+
+
+static const char* VECTOR_GRAPHIC_ON_FAIL_ONCE = R"apl(
+{
+    "type": "APL",
+    "version": "1.7",
+    "graphics": {
+        "MyIcon": {
+          "type": "AVG",
+          "version": "1.0",
+          "height": 100,
+          "width": 100,
+          "items": {
+            "type": "path",
+            "pathData": "M0,0 h100 v100 h-100 z",
+            "fill": "red"
+          }
+        }
+      },
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "items": [
+                {
+                    "type": "VectorGraphic",
+                    "source": "myIcon",
+                    "width": "100%",
+                    "height": "100%",
+                    "scale": "best-fit",
+                    "align": "center",
+                    "onLoad": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "tango"
+                    },
+                    "onFail": {
+                        "type": "SetValue",
+                        "componentId": "textComp",
+                        "property": "text",
+                        "value": "${event.error}"
+                    }
+                },
+                {
+                    "type": "Text",
+                    "id": "textComp",
+                    "text": "tiger"
+                }
+            ]
+        }
+    }
+}
+)apl";
+
+TEST_F(MediaManagerTest, VectorGraphicMultipleFailuresOnlyOneIsReported)
+{
+    loadDocument(VECTOR_GRAPHIC_ON_FAIL_ONCE);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto textComponent = root->findComponentById("textComp");
+    ASSERT_TRUE(textComponent);
+    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ("tiger", textComponent->getCalculated(kPropertyText).asString());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeVectorGraphic, "myIcon"));
+
+    root->mediaLoadFailed("myIcon", 2, "Other error");
+    root->mediaLoadFailed("myIcon", 3, "Tornado");
+    ASSERT_EQ("Other error", textComponent->getCalculated(kPropertyText).asString());
+}
+
+static const char* SINGLE_IMAGE_ONLOAD_REINFLATE = R"({
+    "type": "APL",
+    "version": "1.8",
+    "onConfigChange": {
+      "type": "Reinflate"
+    },
+    "mainTemplate": {
+        "items": {
+            "type": "Image",
+            "id": "myImage",
+            "sources": ["${viewport.width > viewport.height ? 'source0' : 'source1'}"],
+            "onLoad": {
+                "type": "SendEvent",
+                "sequencer": "SENDER",
+                "arguments": ["${viewport.width > viewport.height ? 'loaded0' : 'loaded1'}"]
+            },
+            "onFail": {
+                "type": "SendEvent",
+                "sequencer": "SENDER",
+                "arguments": ["${viewport.width > viewport.height ? 'failed0' : 'failed1'}"]
+            }
+        }
+    }
+})";
+
+TEST_F(MediaManagerTest, SingleImageOnLoadReinflate)
+{
+    metrics.size(1000,500);
+    loadDocument(SINGLE_IMAGE_ONLOAD_REINFLATE);
+
+    ASSERT_FALSE(root->isDirty());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "source0"));
+    advanceTime(100);
+
+    root->mediaLoaded("source0");
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckSendEvent(root, "loaded0"));
+    advanceTime(100);
+
+
+    configChangeReinflate(ConfigurationChange(500, 1000));
+
+    component = std::static_pointer_cast<CoreComponent>(root->topComponent());
+    ASSERT_TRUE(component);
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "source1"));
+    advanceTime(100);
+
+    root->mediaLoaded("source1");
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckSendEvent(root, "loaded1"));
+}
+
+static const char* SINGLE_IMAGE_REINFLATE = R"({
+    "type": "APL",
+    "version": "1.8",
+    "onConfigChange": {
+      "type": "Reinflate"
+    },
+    "mainTemplate": {
+        "items": {
+            "type": "Image",
+            "id": "myImage",
+            "sources": ["${viewport.width > viewport.height ? 'source0' : 'source1'}"]
+        }
+    }
+})";
+
+TEST_F(MediaManagerTest, SingleImageReinflate)
+{
+    metrics.size(1000,500);
+    loadDocument(SINGLE_IMAGE_REINFLATE);
+
+    ASSERT_FALSE(root->isDirty());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "source0"));
+    advanceTime(100);
+
+    root->mediaLoaded("source0");
+    advanceTime(100);
+
+    configChangeReinflate(ConfigurationChange(500, 1000));
+
+    component = std::static_pointer_cast<CoreComponent>(root->topComponent());
+    ASSERT_TRUE(component);
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "source1"));
+    advanceTime(100);
+
+    root->mediaLoaded("source1");
+    advanceTime(100);
+}
+
+static const char* SINGLE_IMAGE_ONLOAD_REINFLATE_SAME = R"({
+    "type": "APL",
+    "version": "1.8",
+    "onConfigChange": {
+      "type": "Reinflate"
+    },
+    "mainTemplate": {
+        "items": {
+            "type": "Image",
+            "id": "myImage",
+            "sources": ["source0"],
+            "onLoad": {
+                "type": "SendEvent",
+                "sequencer": "SENDER",
+                "arguments": ["loaded0"]
+            },
+            "onFail": {
+                "type": "SendEvent",
+                "sequencer": "SENDER",
+                "arguments": ["failed0"]
+            }
+        }
+    }
+})";
+
+TEST_F(MediaManagerTest, SingleImageOnLoadReinflateSame)
+{
+    metrics.size(1000,500);
+    loadDocument(SINGLE_IMAGE_ONLOAD_REINFLATE_SAME);
+
+    ASSERT_FALSE(root->isDirty());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "source0"));
+    advanceTime(100);
+
+    root->mediaLoaded("source0");
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckSendEvent(root, "loaded0"));
+    advanceTime(100);
+
+
+    configChangeReinflate(ConfigurationChange(500, 1000));
+
+    component = std::static_pointer_cast<CoreComponent>(root->topComponent());
+    ASSERT_TRUE(component);
+
+    ASSERT_TRUE(CheckSendEvent(root, "loaded0"));
+
+    // Try to load what was loaded
+    root->mediaLoaded("source0");
+    advanceTime(100);
+}
+
+static const char* SINGLE_IMAGE_REINFLATE_SAME = R"({
+  "type": "APL",
+  "version": "1.8",
+  "onConfigChange": {
+    "type": "Reinflate"
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": {
+        "type": "Image",
+        "sources": ["source0"]
+      }
+    }
+  }
+})";
+
+TEST_F(MediaManagerTest, SingleImageReinflateSame)
+{
+    metrics.size(1000,500);
+    loadDocument(SINGLE_IMAGE_REINFLATE_SAME);
+
+    ASSERT_FALSE(root->isDirty());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "source0"));
+    advanceTime(100);
+
+    root->mediaLoaded("source0");
+    advanceTime(100);
+
+    configChangeReinflate(ConfigurationChange(500, 1000));
+
+    component = std::static_pointer_cast<CoreComponent>(root->topComponent());
+    ASSERT_TRUE(component);
+
+    root->mediaLoaded("source0");
+    advanceTime(100);
+}
+
+TEST_F(MediaManagerTest, SingleImageReinflateSameHoldComponent)
+{
+    metrics.size(1000,500);
+    loadDocument(SINGLE_IMAGE_REINFLATE_SAME);
+    ASSERT_TRUE(IsEqual("initial", evaluate(*context, "${environment.reason}")));
+
+    ASSERT_FALSE(root->isDirty());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "source0"));
+    advanceTime(100);
+
+    root->mediaLoaded("source0");
+    advanceTime(100);
+
+    auto image = component->getCoreChildAt(0);
+
+    configChangeReinflate(ConfigurationChange(500, 1000));
+
+    ASSERT_TRUE(component);
+    ASSERT_TRUE(IsEqual("reinflation", evaluate(*context, "${environment.reason}")));
+
+    root->mediaLoaded("source0");
+    advanceTime(100);
+}
+
+TEST_F(MediaManagerTest, SingleImageReinflateSameNotLoadedFirstHoldComponent)
+{
+    metrics.size(1000,500);
+    loadDocument(SINGLE_IMAGE_REINFLATE_SAME);
+    ASSERT_TRUE(IsEqual("initial", evaluate(*context, "${environment.reason}")));
+
+    ASSERT_FALSE(root->isDirty());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "source0"));
+    advanceTime(100);
+
+    auto image = component->getCoreChildAt(0);
+
+    configChangeReinflate(ConfigurationChange(500, 1000));
+
+    ASSERT_TRUE(component);
+    ASSERT_TRUE(IsEqual("reinflation", evaluate(*context, "${environment.reason}")));
+
+    root->mediaLoaded("source0");
+    advanceTime(100);
 }

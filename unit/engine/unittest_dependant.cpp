@@ -175,7 +175,7 @@ TEST_F(DependantTest, Component)
     // Update the context and verify that things change
     ASSERT_TRUE(component->getContext()->userUpdateAndRecalculate("a", "fuzzy", true));
     ASSERT_TRUE(IsEqual("Is fuzzy", component->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 
     // Updating the context with the same value should not set dirty flags
@@ -187,7 +187,7 @@ TEST_F(DependantTest, Component)
     // Now assign a value - this should cancel the assignment.
     component->setProperty(kPropertyText, "hello");
     ASSERT_TRUE(IsEqual("hello", component->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 
     // Verify that the assignment is cancelled.
@@ -235,13 +235,13 @@ TEST_F(DependantTest, Counter)
     // Fire the press event
     performTap(0, 0);
     ASSERT_TRUE(IsEqual("Count: 1", text->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
 
     // Repeat
     performTap(0, 0);
     ASSERT_TRUE(IsEqual("Count: 2", text->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
 }
 
@@ -629,13 +629,13 @@ TEST_F(DependantTest, Layout)
     // Fire the press event
     performTap(0, 0);;
     ASSERT_TRUE(IsEqual("Count: 2", text->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
 
     // Repeat
     performTap(0, 0);
     ASSERT_TRUE(IsEqual("Count: 3", text->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
 }
 
@@ -682,13 +682,13 @@ TEST_F(DependantTest, LayoutMissingProperty)
     // Property should still be live and writtable.
     text->setProperty("cnt", 1);
     ASSERT_TRUE(IsEqual("Count: 1", text->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
 
     // Repeat
     text->setProperty("cnt", 3);
     ASSERT_TRUE(IsEqual("Count: 3", text->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
 }
 
@@ -736,13 +736,13 @@ TEST_F(DependantTest, LayoutBadProperty)
     // Property should still be live and writtable.
     text->setProperty("cnt", 1);
     ASSERT_TRUE(IsEqual("Count: 1", text->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
 
     // Repeat
     text->setProperty("cnt", 3);
     ASSERT_TRUE(IsEqual("Count: 3", text->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
 }
 

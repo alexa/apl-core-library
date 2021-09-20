@@ -16,6 +16,7 @@
 #include "apl/action/extensioneventaction.h"
 #include "apl/command/extensioneventcommand.h"
 #include "apl/content/extensioncommanddefinition.h"
+#include "apl/content/rootconfig.h"
 
 namespace apl {
 
@@ -43,7 +44,20 @@ ExtensionEventAction::start(bool requireResolution)
     bag.emplace(kEventPropertySource, Object(std::move(source)));
     bag.emplace(kEventPropertyExtension, mCommand->getValue(kCommandPropertyExtension));
 
+    std::string resourceID = mCommand->getResourceID();
+    if (!resourceID.empty()) {
+        bag.emplace(kEventPropertyExtensionResourceId, resourceID);
+    }
+
     auto self = requireResolution ? shared_from_this() : nullptr;
+
+#ifdef ALEXAEXTENSIONS
+    if (mCommand->context()->getRootConfig().getExtensionMediator()) {
+        mCommand->context()->pushExtensionEvent(Event(kEventTypeExtension, std::move(bag), nullptr, self));
+        return;
+    }
+#endif
+
     mCommand->context()->pushEvent(Event(kEventTypeExtension, std::move(bag), nullptr, self));
 }
 

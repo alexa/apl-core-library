@@ -319,11 +319,41 @@ enum ComponentMediaState {
 };
 
 /**
+ * State of the track or media source.
+ */
+enum TrackState {
+
+     /// Playback cannot start in this state as player still need to prepare/ load the media source.
+    kTrackNotReady = 0,
+
+    /// Track is ready for playback i.e player has loaded meta data and media information required to start the playback.
+    kTrackReady = 1,
+
+    /// An error has occurred and playback cannot start or continue in this state, this would  be case
+    /// when player fails to load the media or if media is malformed or unsupported.
+    kTrackFailed = 2
+};
+
+/**
  * Keyboard behavior when component gaining focus
  */
 enum KeyboardBehaviorOnFocus {
     kBehaviorOnFocusSystemDefault = 0,
     kBehaviorOnFocusOpenKeyboard = 1
+};
+
+/**
+ * Extension component resource state
+ */
+enum ExtensionComponentResourceState {
+    /// The resource is needed, but has not been created
+    kResourcePending,
+    /// The resource required by component is available
+    kResourceReady,
+    /// The resource has been released normally
+    kResourceReleased,
+    /// The resource has failed creation or experienced and error
+    kResourceError
 };
 
 enum PropertyKey {
@@ -504,14 +534,16 @@ enum PropertyKey {
     kPropertyOnBlur,
     /// TouchableComponent handler for cancel
     kPropertyOnCancel,
-    /// Document handler for configuration changes
-    kPropertyOnConfigChange,
     /// TouchableComponent handler for down
     kPropertyOnDown,
     /// VideoComponent handler for video end
     kPropertyOnEnd,
+    /// MediaComponent handler for failure
+    kPropertyOnFail,
     /// ActionableComponent handler when focus is gained
     kPropertyOnFocus,
+    /// MediaComponent handler for when the media loads
+    kPropertyOnLoad,
     /// Component or Document handler for first display of the component or document
     kPropertyOnMount,
     /// TouchableComponent handler for move
@@ -536,6 +568,10 @@ enum PropertyKey {
     kPropertyOnUp,
     /// VideoComponent handler for video time updates
     kPropertyOnTimeUpdate,
+    /// VideoComponent handler for media errors
+    kPropertyOnTrackFail,
+    /// VideoComponent handler for media ready events
+    kPropertyOnTrackReady,
     /// VideoComponent handler for video track updates
     kPropertyOnTrackUpdate,
     /// Component opacity (just the current opacity; not the cumulative)
@@ -570,6 +606,12 @@ enum PropertyKey {
     kPropertyPosition,
     /// Component properties to preserve over configuration changes
     kPropertyPreserve,
+    /// The unique identifier of the resource associated with extension component
+    kPropertyResourceId,
+    // ExtensionComponent handler on error
+    kPropertyResourceOnFatalError,
+    // The state of the rendered resource of an extension component
+    kPropertyResourceState,
     /// ContainerComponent child absolute right position
     kPropertyRight,
     /// Component accessibility role
@@ -640,6 +682,8 @@ enum PropertyKey {
     kPropertyTrackIndex,
     /// Boolean property.  True if the current track in the video component is not playing.
     kPropertyTrackPaused,
+    /// State of a media track for video component.
+    kPropertyTrackState,
     /// Component 2D graphics transformation
     kPropertyTransform,
     /// Calculated Component 2D graphics transformation (output-only)
@@ -658,6 +702,8 @@ enum PropertyKey {
     kPropertyLaidOut,
     /// EditTextComponent restrict the characters that can be entered
     kPropertyValidCharacters,
+    /// Visual hash
+    kPropertyVisualHash,
     /// Flexbox wrap
     kPropertyWrap
 };
@@ -666,6 +712,7 @@ enum PropertyKey {
 enum ComponentType {
     kComponentTypeContainer,
     kComponentTypeEditText,
+    kComponentTypeExtension,
     kComponentTypeFrame,
     kComponentTypeGridSequence,
     kComponentTypeImage,
@@ -716,6 +763,7 @@ extern Bimap<int, std::string> sSwipeDirectionMap;
 extern Bimap<int, std::string> sScrollAnimationMap;
 extern Bimap<int, std::string> sLayoutDirectionMap;
 extern Bimap<int, std::string> sKeyboardBehaviorOnFocusMap;
+extern Bimap<int, std::string> sTrackStateMap;
 
 }  // namespace apl
 

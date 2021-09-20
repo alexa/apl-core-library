@@ -1392,6 +1392,51 @@ Object::call(const ObjectArray& args) const
     return mU.data->call(args);
 }
 
+size_t
+Object::hash() const
+{
+    switch (mType) {
+        case kNullType:
+            return 0;
+        case kBoolType:
+            return std::hash<bool>{}(mU.value > 0);
+        case kStringType:
+            return std::hash<std::string>{}(mU.string);
+        case kNumberType: // FALL_THORUGH
+        case kAbsoluteDimensionType:
+        case kRelativeDimensionType:
+        case kColorType:
+            return std::hash<double>{}(mU.value);
+        case kAutoDimensionType:
+            return std::hash<std::string>{}("auto");
+        case kStyledTextType:
+            return std::hash<std::string>{}(getStyledText().getRawText());
+        case kArrayType: // FALL_THORUGH UNSUPPORTED
+        case kMapType:
+        case kByteCodeType:
+        case kFunctionType:
+        case kFilterType:
+        case kGraphicFilterType:
+        case kGradientType:
+        case kMediaSourceType:
+        case kRectType:
+        case kRadiiType:
+        case kEasingType:
+        case kTransform2DType:
+        case kGraphicPatternType:
+        case kGraphicType:
+        case kTransformType:
+        case kBoundSymbolType:
+        case kComponentType:
+        case kContextType:
+        case kAccessibilityActionType:
+        default:
+            return 0;
+    }
+
+    return 0;
+}
+
 // Visitor pattern
 void
 Object::accept(Visitor<Object>& visitor) const

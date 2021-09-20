@@ -133,6 +133,15 @@ public:
                                CommandSuccessCallback success, CommandFailureCallback error) = 0;
 
     /**
+     * Forward a message to the extension. May be initiated by the document or core.
+     *
+     * @param uri The extension URI.
+     * @param message Extension message.
+     * @return true, if the request can be processed.
+     */
+    virtual bool sendMessage(const std::string &uri, const rapidjson::Value &message) { return false; }
+
+    /**
      * Register a callback for extension generated "Event" messages that are sent from the extension
      * to the document. This callback is registered by the runtime and called by ExtensionBase
      * via invokeExtensionEventHandler(...).

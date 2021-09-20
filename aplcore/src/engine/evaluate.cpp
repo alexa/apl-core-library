@@ -186,6 +186,18 @@ propertyAsString(const Context& context,
     return evaluate(context, item.get(name)).asString();
 }
 
+std::string
+propertyAsString(const Context& context,
+                 const Object& item,
+                 const char *name,
+                 const std::string& defValue)
+{
+    if (!item.isMap() || !item.has(name))
+        return defValue;
+
+    return evaluate(context, item.get(name)).asString();
+}
+
 double
 propertyAsDouble(const Context& context,
                   const Object& item,

@@ -24,6 +24,7 @@ add_library(alexaext STATIC
             src/APLAudioPlayerExtension/AplAudioPlayerExtension.cpp
             src/executor.cpp
             src/extensionmessage.cpp
+            src/extensionregistrar.cpp
     )
 
 if (BUILD_SHARED OR ENABLE_PIC)

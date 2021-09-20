@@ -32,6 +32,7 @@ public:
     ComponentType getType() const override { return kComponentTypeEditText; };
 
     void assignProperties(const ComponentPropDefSet& propDefSet) override;
+    void preLayoutProcessing(bool useDirtyFlag) override;
 
     void update(UpdateType type, float value) override;
 

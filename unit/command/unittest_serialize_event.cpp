@@ -1254,6 +1254,11 @@ static const char *VIDEO_DOCUMENT = R"(
             "event": "${event}",
             "name": "playit"
           },
+          "onTrackReady": {
+            "type": "E:Validate",
+            "event": "${event}",
+            "name": "readyit"
+          },
           "onTimeUpdate": {
             "type": "E:Validate",
             "event": "${event}",
@@ -1263,6 +1268,11 @@ static const char *VIDEO_DOCUMENT = R"(
             "type": "E:Validate",
             "event": "${event}",
             "name": "trackit"
+          },
+          "onTrackFail": {
+            "type": "E:Validate",
+            "event": "${event}",
+            "name": "failit"
           }
         }
       }
@@ -1275,10 +1285,44 @@ TEST_F(SerializeEventTest, VideoDocument) {
     ASSERT_FALSE(root->hasEvent());
 
     // Start playing
-    auto state = MediaState(0, 3, 100, 1000, false, false);  // Track 0 of 3, @100 ms of 1000 ms, not paused/ended
+    auto state = MediaState(0, 3, 100, 1000, false, false)
+                     .withTrackState(kTrackReady);  // Track 0 of 3, @100 ms of 1000 ms, not paused/ended, ready
     component->updateMediaState(state);
 
-    // The first event we should get is "Play"
+    // The first event we should get is "Ready"
+    ASSERT_TRUE(CheckValidate("readyit", R"(
+            {
+              "source": {
+                "bind": {},
+                "checked": false,
+                "currentTime": 100.0,
+                "disabled": false,
+                "duration": 1000.0,
+                "ended": false,
+                "focused": false,
+                "height": 480.0,
+                "id": "",
+                "layoutDirection": "LTR",
+                "opacity": 1.0,
+                "paused": false,
+                "pressed": false,
+                "source": "Video1",
+                "trackIndex": 0.0,
+                "trackCount": 3.0,
+                "trackState": "ready",
+                "type": "Video",
+                "uid": "[EXISTS]",
+                "url": "Video1",
+                "width": 720.0,
+                "value": null,
+                "handler": "TrackReady"
+              },
+              "trackIndex": 0.0,
+              "trackState": "ready"
+            }
+        )"));
+
+    // The next event we should get is "Play"
     ASSERT_TRUE(CheckValidate("playit", R"(
         {
           "currentTime": 100.0,
@@ -1302,6 +1346,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "source": "Video1",
             "trackIndex": 0.0,
             "trackCount": 3.0,
+            "trackState": "ready",
             "type": "Video",
             "uid": "[EXISTS]",
             "url": "Video1",
@@ -1310,7 +1355,8 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "handler": "Play"
           },
           "trackCount": 3.0,
-          "trackIndex": 0.0
+          "trackIndex": 0.0,
+          "trackState": "ready"
         }
     )"));
 
@@ -1338,6 +1384,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "source": "Video1",
             "trackIndex": 0.0,
             "trackCount": 3.0,
+            "trackState": "ready",
             "type": "Video",
             "uid": "[EXISTS]",
             "url": "Video1",
@@ -1346,14 +1393,16 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "handler": "TimeUpdate"
           },
           "trackCount": 3.0,
-          "trackIndex": 0.0
+          "trackIndex": 0.0,
+          "trackState": "ready"
         }
     )"));
 
     ASSERT_FALSE(root->hasEvent());
 
     // Move forward 100 milliseconds
-    state = MediaState(0, 3, 200, 1000, false, false);  // Track 0 of 3, @200 ms of 1000 ms, not paused/ended
+    state = MediaState(0, 3, 200, 1000, false, false)
+                .withTrackState(kTrackReady);  // Track 0 of 3, @200 ms of 1000 ms, not paused/ended and ready
     component->updateMediaState(state);
 
     ASSERT_TRUE(CheckValidate("timeit", R"(
@@ -1379,6 +1428,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "source": "Video1",
             "trackCount": 3.0,
             "trackIndex": 0.0,
+            "trackState": "ready",
             "type": "Video",
             "uid": "[EXISTS]",
             "url": "Video1",
@@ -1387,12 +1437,14 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "handler": "TimeUpdate"
           },
           "trackCount": 3.0,
-          "trackIndex": 0.0
+          "trackIndex": 0.0,
+          "trackState": "ready"
         }
     )"));
 
     // Jump to the next track
-    state = MediaState(1, 3, 0, 1000, false, false);  // Track 1 of 3, @0 ms of 1000 ms, not paused/ended
+    state = MediaState(1, 3, 0, 1000, false, false)
+                .withTrackState(kTrackNotReady);  // Track 1 of 3, @0 ms of 1000 ms, not paused/ended, not ready
     component->updateMediaState(state);
 
     // The onTrackUpdate fires - note that value=1.0 (the new track)
@@ -1419,6 +1471,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "source": "Video2",
             "trackCount": 3.0,
             "trackIndex": 1.0,
+            "trackState": "notReady",
             "type": "Video",
             "uid": "[EXISTS]",
             "url": "Video2",
@@ -1427,7 +1480,8 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "handler": "TrackUpdate"
           },
           "trackCount": 3.0,
-          "trackIndex": 1.0
+          "trackIndex": 1.0,
+          "trackState": "notReady"
         }
     )"));
 
@@ -1455,6 +1509,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "source": "Video2",
             "trackCount": 3.0,
             "trackIndex": 1.0,
+            "trackState": "notReady",
             "type": "Video",
             "uid": "[EXISTS]",
             "url": "Video2",
@@ -1463,12 +1518,13 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "handler": "TimeUpdate"
           },
           "trackCount": 3.0,
-          "trackIndex": 1.0
+          "trackIndex": 1.0,
+          "trackState": "notReady"
         }
     )"));
 
     // Pause the video playback
-    state = MediaState(1, 3, 0, 1000, true, false);  // Track 1 of 3, @0 ms of 1000 ms, paused/not ended
+    state = MediaState(1, 3, 0, 1000, true, false);  // Track 1 of 3, @0 ms of 1000 ms, paused/not ended, not ready
     component->updateMediaState(state);
 
     ASSERT_TRUE(CheckValidate("pauseit", R"(
@@ -1494,6 +1550,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "source": "Video2",
             "trackCount": 3.0,
             "trackIndex": 1.0,
+            "trackState": "notReady",
             "type": "Video",
             "uid": "[EXISTS]",
             "url": "Video2",
@@ -1502,24 +1559,102 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "handler": "Pause"
           },
           "trackCount": 3.0,
-          "trackIndex": 1.0
+          "trackIndex": 1.0,
+          "trackState": "notReady"
         }
     )"));
 
+    // Track gets ready at paused state
+    state = MediaState(1, 3, 0, 1000, true, false)
+                .withTrackState(kTrackReady);  // Track 1 of 3, @0 ms of 1000 ms, paused/not ended, ready
+    component->updateMediaState(state);
+
+    ASSERT_TRUE(CheckValidate("readyit", R"(
+            {
+              "source": {
+                "bind": {},
+                "checked": false,
+                "currentTime": 0.0,
+                "disabled": false,
+                "duration": 1000.0,
+                "ended": false,
+                "focused": false,
+                "height": 480.0,
+                "id": "",
+                "layoutDirection": "LTR",
+                "opacity": 1.0,
+                "paused": true,
+                "pressed": false,
+                "source": "Video2",
+                "trackCount": 3.0,
+                "trackIndex": 1.0,
+                "trackState": "ready",
+                "type": "Video",
+                "uid": "[EXISTS]",
+                "url": "Video2",
+                "width": 720.0,
+                "value": null,
+                "handler": "TrackReady"
+              },
+              "trackIndex": 1.0,
+              "trackState": "ready"
+            }
+        )"));
+
+    // Error occurred while playing track
+    state = MediaState(1, 3, 500, 1000, false, false)
+                .withTrackState(kTrackFailed)
+                .withErrorCode(99);  // Track 1 of 3, @500 ms of 1000 ms, not paused/not ended and not ready
+    component->updateMediaState(state);
+
+    ASSERT_TRUE(CheckValidate("failit", R"(
+            {
+              "currentTime": 500.0,
+              "errorCode": 99,
+              "source": {
+                "bind": {},
+                "checked": false,
+                "currentTime": 500.0,
+                "disabled": false,
+                "duration": 1000.0,
+                "ended": false,
+                "focused": false,
+                "height": 480.0,
+                "id": "",
+                "layoutDirection": "LTR",
+                "opacity": 1.0,
+                "paused": false,
+                "pressed": false,
+                "source": "Video2",
+                "trackCount": 3.0,
+                "trackIndex": 1.0,
+                "trackState": "failed",
+                "type": "Video",
+                "uid": "[EXISTS]",
+                "url": "Video2",
+                "width": 720.0,
+                "value": null,
+                "handler": "TrackFail"
+              },
+              "trackIndex": 1.0,
+              "trackState": "failed"
+            }
+        )"));
+
     // End the video playback
-    state = MediaState(1,3,0,1000,true,true);
+    state = MediaState(1,3,500,1000,false,true);
     component->updateMediaState(state);
 
     ASSERT_TRUE(CheckValidate("endit", R"(
         {
-          "currentTime": 0.0,
+          "currentTime": 500.0,
           "duration": 1000.0,
           "ended": true,
-          "paused": true,
+          "paused": false,
           "source": {
             "bind": {},
             "checked": false,
-            "currentTime": 0.0,
+            "currentTime": 500.0,
             "disabled": false,
             "duration": 1000.0,
             "ended": true,
@@ -1528,11 +1663,12 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "id": "",
             "layoutDirection": "LTR",
             "opacity": 1.0,
-            "paused": true,
+            "paused": false,
             "pressed": false,
             "source": "Video2",
             "trackCount": 3.0,
             "trackIndex": 1.0,
+            "trackState": "notReady",
             "type": "Video",
             "uid": "[EXISTS]",
             "url": "Video2",
@@ -1541,7 +1677,8 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "handler": "End"
           },
           "trackCount": 3.0,
-          "trackIndex": 1.0
+          "trackIndex": 1.0,
+          "trackState": "notReady"
         }
     )"));
 }
@@ -2813,7 +2950,8 @@ TEST_F(SerializeEventTest, TargetVideo) {
             "currentTime": 0,
             "paused": true,
             "trackCount": 2.0,
-            "trackIndex": 0
+            "trackIndex": 0,
+            "trackState": "notReady"
           }
         }
     )"));

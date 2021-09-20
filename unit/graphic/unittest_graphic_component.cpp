@@ -541,7 +541,7 @@ TEST_F(GraphicComponentTest, StyleTestWithAlignment)
     component->setState(kStatePressed, true);
 
     ASSERT_EQ(Rect(924, 350, 100, 100), component->getCalculated(kPropertyMediaBounds).getRect());
-    ASSERT_TRUE(CheckDirty(component, kPropertyAlign, kPropertyMediaBounds));
+    ASSERT_TRUE(CheckDirty(component, kPropertyAlign, kPropertyMediaBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(path));
 }
 
@@ -642,10 +642,124 @@ TEST_F(GraphicComponentTest, StyleTestWithStretch)
 
     // The vector graphic component should have a new scale, alignment, and media bounds
     ASSERT_EQ(Rect(768, 375, 256, 50), component->getCalculated(kPropertyMediaBounds).getRect());  // Right-aligned
-    ASSERT_TRUE(CheckDirty(component, kPropertyScale, kPropertyAlign, kPropertyMediaBounds, kPropertyGraphic));
+    ASSERT_TRUE(CheckDirty(component, kPropertyScale, kPropertyAlign, kPropertyMediaBounds, kPropertyGraphic,
+                           kPropertyVisualHash));
 
     ASSERT_TRUE(CheckDirty(root, component));
 }
+
+
+static const char *SET_VALUE_TEST =R"apl(
+    {
+      "type": "APL",
+      "version": "1.7",
+      "graphics": {
+        "box": {
+          "type": "AVG",
+          "version": "1.2",
+          "height": 128,
+          "width": 256,
+          "viewportHeight": 100,
+          "viewportWidth": 100,
+          "scaleTypeHeight": "stretch",
+          "scaleTypeWidth": "stretch",
+          "items": {
+            "type": "path",
+            "pathData": "M${width},${height} L0,0"
+          }
+        }
+      },
+      "mainTemplate": {
+        "items": {
+          "type": "VectorGraphic",
+          "id": "MyVG",
+          "source": "box",
+          "width": 512,
+          "height": 512,
+          "onPress": [
+            {
+              "type": "SetValue",
+              "property": "align",
+              "value": "bottom-right"
+            },
+            {
+              "type": "SetValue",
+              "property": "scale",
+              "value": "best-fit"
+            }
+          ]
+        }
+      }
+    }
+)apl";
+
+TEST_F(GraphicComponentTest, SetValue)
+{
+    loadDocument(SET_VALUE_TEST);
+
+    ASSERT_EQ(kComponentTypeVectorGraphic, component->getType());
+    ASSERT_TRUE(IsEqual(Rect(0, 0, 512, 512), component->getGlobalBounds()));
+    ASSERT_TRUE(IsEqual(Rect(128, 192, 256, 128), component->getCalculated(kPropertyMediaBounds).getRect()));
+
+    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    ASSERT_TRUE(graphic);
+    ASSERT_EQ(100, graphic->getViewportWidth());
+    ASSERT_EQ(100, graphic->getViewportHeight());
+    ASSERT_TRUE(CheckDirty(graphic));
+
+    // The top-level container has no properties
+    auto container = graphic->getRoot();
+    ASSERT_TRUE(container);
+    ASSERT_EQ(kGraphicElementTypeContainer, container->getType());
+    ASSERT_TRUE(CheckDirty(container));
+
+    // The path should be set to the correct path data based on viewport
+    auto path = container->getChildAt(0);
+    ASSERT_EQ(kGraphicElementTypePath, path->getType());
+    ASSERT_TRUE(IsEqual(Object("M100,100 L0,0"), path->getValue(kGraphicPropertyPathData)));
+    ASSERT_TRUE(CheckDirty(path));
+
+
+    // Change the alignment.  This should only affect the media bounds
+    executeCommand("SetValue", {{"componentId", "MyVG"}, {"property", "align"}, {"value", "bottom-right"}}, true);
+
+    // Verify that there are no graphic changes (it moved, but didn't resize)
+    ASSERT_TRUE(CheckDirty(graphic));
+
+    // The vector graphic component should have a new alignment and media bounds
+    ASSERT_TRUE(IsEqual(Rect(256, 384, 256, 128), component->getCalculated(kPropertyMediaBounds).getRect()));
+    ASSERT_TRUE(CheckDirty(component, kPropertyAlign, kPropertyMediaBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(root, component));
+
+
+    // Change the scaling factor.  This will resize the graphic
+    executeCommand("SetValue", {{"componentId", "MyVG"}, {"property", "scale"}, {"value", "best-fit"}}, true);
+
+    // The 'best-fit' should have scaled up uniformly by a factor of 2
+    ASSERT_EQ(200, graphic->getViewportWidth());
+    ASSERT_EQ(200, graphic->getViewportHeight());
+
+    // The container should have four updated values
+    ASSERT_EQ(Object(Dimension(256)), container->getValue(kGraphicPropertyHeightActual));
+    ASSERT_EQ(Object(Dimension(512)), container->getValue(kGraphicPropertyWidthActual));
+    ASSERT_EQ(Object(200), container->getValue(kGraphicPropertyViewportHeightActual));
+    ASSERT_EQ(Object(200), container->getValue(kGraphicPropertyViewportWidthActual));
+    ASSERT_TRUE(CheckDirty(container, kGraphicPropertyHeightActual, kGraphicPropertyWidthActual,
+                           kGraphicPropertyViewportHeightActual, kGraphicPropertyViewportWidthActual));
+
+    // The path should have an updated path data
+    ASSERT_EQ(Object("M200,200 L0,0"), path->getValue(kGraphicPropertyPathData));
+    ASSERT_TRUE(CheckDirty(path, kGraphicPropertyPathData));
+
+    // Internal to the graphic the container and the path should be updated
+    ASSERT_TRUE(CheckDirty(graphic, container, path));
+
+    // The vector graphic component should have a new scale, alignment, and media bounds
+    ASSERT_TRUE(IsEqual(Rect(0, 256, 512, 256), component->getCalculated(kPropertyMediaBounds).getRect()));
+    ASSERT_TRUE(CheckDirty(component, kPropertyScale, kPropertyMediaBounds, kPropertyGraphic, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(root, component));
+}
+
 
 static const char *RELAYOUT_TEST = R"(
 {
@@ -739,7 +853,8 @@ TEST_F(GraphicComponentTest, RelayoutTest)
     // The border width has changed on the frame.
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyBorderWidth));
     ASSERT_EQ(Rect(100, 100, 824, 600), component->getCalculated(kPropertyInnerBounds).getRect());
-    ASSERT_TRUE(CheckDirty(component, kPropertyInnerBounds, kPropertyBorderWidth, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyInnerBounds, kPropertyBorderWidth, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
 
     // The graphic itself should have a new viewport height and width
     ASSERT_EQ(100, graphic->getViewportWidth());
@@ -747,7 +862,8 @@ TEST_F(GraphicComponentTest, RelayoutTest)
     ASSERT_TRUE(CheckDirty(graphic, container));
 
     // The root should be showing dirty for both the vector graphic component and the frame
-    ASSERT_TRUE(CheckDirty(vg, kPropertyGraphic, kPropertyMediaBounds, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(vg, kPropertyGraphic, kPropertyMediaBounds, kPropertyBounds, kPropertyInnerBounds,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, vg));
 }
 
@@ -815,7 +931,7 @@ TEST_F(GraphicComponentTest, AssignGraphicLater) {
     component->updateGraphic(json);
     root->clearPending();
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyGraphic, kPropertyMediaBounds));
+    ASSERT_TRUE(CheckDirty(component, kPropertyGraphic, kPropertyMediaBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 
     auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
@@ -999,7 +1115,7 @@ TEST_F(GraphicComponentTest, GraphicFocusAndHover) {
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(75, 75)));
     root->clearPending();
     ASSERT_TRUE(CheckDirty(path, kGraphicPropertyStroke));
-    ASSERT_TRUE(CheckDirty(gc, kPropertyGraphic));
+    ASSERT_TRUE(CheckDirty(gc, kPropertyGraphic, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, gc));
     stroke = path->getValue(kGraphicPropertyStroke).asColor();
     ASSERT_EQ(Color(0xff0000ff), stroke);
@@ -1008,7 +1124,7 @@ TEST_F(GraphicComponentTest, GraphicFocusAndHover) {
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(200, 200)));
     root->clearPending();
     ASSERT_TRUE(CheckDirty(path, kGraphicPropertyStroke));
-    ASSERT_TRUE(CheckDirty(gc, kPropertyGraphic));
+    ASSERT_TRUE(CheckDirty(gc, kPropertyGraphic, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, gc));
     stroke = path->getValue(kGraphicPropertyStroke).asColor();
     ASSERT_EQ(Color(0xffffffff), stroke);
@@ -2534,4 +2650,87 @@ TEST_F(GraphicComponentTest, DisabledMoveToSlide) {
     ASSERT_FALSE(root->isDirty());
     position = slider->getContext()->find("Position").object().value().asNumber();
     ASSERT_EQ(0.5, position);
+}
+
+
+static const char * ENUM_PARAMETER_BINDING = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "graphics": {
+        "TEST": {
+          "type": "AVG",
+          "version": "1.2",
+          "width": 100,
+          "height": 100,
+          "parameters": [
+            "LINEJOIN",
+            "LINECAP"
+          ],
+          "item": {
+            "type": "path",
+            "stroke": "green",
+            "strokeLineJoin": "${LINEJOIN}",
+            "strokeLineCap": "${LINECAP}",
+            "pathData": "M3,3 L90,5 L75,75 z"
+          }
+        }
+      },
+      "mainTemplate": {
+        "items": {
+          "type": "VectorGraphic",
+          "source": "TEST",
+          "bind": [
+            {
+              "name": "LJ",
+              "value": "bevel"
+            },
+            {
+              "name": "LC",
+              "value": "butt"
+            }
+          ],
+          "LINEJOIN": "${LJ}",
+          "LINECAP": "${LC}",
+          "onPress": [
+            {
+              "type": "SetValue",
+              "property": "LJ",
+              "value": "miter"
+            },
+            {
+              "type": "SetValue",
+              "property": "LC",
+              "value": "round"
+            }
+          ]
+        }
+      }
+    }
+)apl";
+
+/**
+ * Test case for when an enumerated parameter passed into a vector graphic is changed
+ * and propagated with data-binding.  This was causing a crash because the binding function
+ * wasn't being correctly invoked by the graphic dependency.
+ */
+TEST_F(GraphicComponentTest, EnumParameterBinding)
+{
+    loadDocument(ENUM_PARAMETER_BINDING);
+
+    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+
+    auto path = graphic->getRoot()->getChildAt(0);
+    ASSERT_EQ(kGraphicElementTypePath, path->getType());
+
+    ASSERT_EQ(kGraphicLineJoinBevel, path->getValue(kGraphicPropertyStrokeLineJoin).asInt());
+    ASSERT_EQ(kGraphicLineCapButt, path->getValue(kGraphicPropertyStrokeLineCap).asInt());
+
+    // Fire the press event (the vector graphic is of size 100 x 100)
+    root->handlePointerEvent(PointerEvent(kPointerDown, Point(75, 45)));
+    root->handlePointerEvent(PointerEvent(kPointerUp, Point(75, 45)));
+    root->clearPending();
+
+    ASSERT_EQ(kGraphicLineJoinMiter, path->getValue(kGraphicPropertyStrokeLineJoin).asInt());
+    ASSERT_EQ(kGraphicLineCapRound, path->getValue(kGraphicPropertyStrokeLineCap).asInt());
 }

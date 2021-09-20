@@ -31,6 +31,8 @@ public:
 
     void postProcessLayoutChanges() override;
 
+    void release() override;
+
 protected:
     const EventPropertyMap& eventPropertyMap() const override;
     const ComponentPropDefSet& propDefSet() const override;
@@ -40,10 +42,14 @@ protected:
     /// Media component trait overrides
     std::vector<std::string> getSources() override;
     EventMediaType mediaType() const override { return kEventMediaTypeImage; }
+    void onFail(const MediaObjectPtr&) override;
+    void onLoad() override;
 
     // Component trait overrides
     CoreComponentPtr getComponent() override { return shared_from_corecomponent(); }
 
+private:
+    bool mOnLoadOnFailReported = false;
 };
 
 } // namespace apl

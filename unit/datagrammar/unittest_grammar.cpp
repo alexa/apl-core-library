@@ -18,11 +18,13 @@
 
 #include "gtest/gtest.h"
 
+#include "apl/datagrammar/bytecode.h"
 #include "apl/engine/evaluate.h"
 #include "apl/content/metrics.h"
 #include "apl/content/content.h"
 #include "apl/engine/rootcontext.h"
 #include "apl/engine/context.h"
+#include "apl/primitives/symbolreferencemap.h"
 
 #include "apl/primitives/functions.h"
 
@@ -82,7 +84,7 @@ public:
     }
 
     Object
-    eval(const char *expression, int width, int height, int dpi)
+    eval(const char *expression, int width, int height, int dpi, bool optimize = false)
     {
         auto m = Metrics().size(width, height).dpi(dpi);
         auto ctx = Context::createTestContext(m, RootConfig());
@@ -91,19 +93,29 @@ public:
         person.AddMember("surname", rapidjson::Value("Pat").Move(), person.GetAllocator());
         person.AddMember("pet", rapidjson::Value("Cat").Move(), person.GetAllocator());
         ctx->putConstant("person", person);
+
+        if(optimize) {
+            auto result = getDataBinding(*ctx, std::string(expression));
+            if (result.isEvaluable()) {
+                SymbolReferenceMap symbols;
+                result.symbols(symbols);
+                return result.eval();
+            }
+        }
+
         return evaluate(*ctx, expression);
     }
 
     Object
-    eval(const char *expression, int width, int height)
+    eval(const char *expression, int width, int height, bool optimize = false)
     {
-        return eval(expression, width, height, 160);
+        return eval(expression, width, height, 160, optimize);
     }
 
     Object
-    eval(const char *expression)
+    eval(const char *expression, bool optimize = false)
     {
-        return eval(expression, 1024, 800);
+        return eval(expression, 1024, 800, optimize);
     }
 
     RootContextPtr root;
@@ -236,6 +248,76 @@ TEST_F(GrammarTest, Comparison)
     EXPECT_EQ(o(true), evaluate(*c, "${1 != 2}"));
 
     EXPECT_EQ(o("Pat"), evaluate(*c, "${person.name ?? person.surname ?? 'Hey, you!'}"));
+}
+
+TEST_F(GrammarTest, NaNComparison)
+{
+    auto m = Metrics().size(1024,800);
+    auto context = Context::createTestContext(m, RootConfig());
+
+    std::vector<std::pair<std::string, bool>> NaNComparisons{
+        {"${(0/0) < 0}", false},
+        {"${(0/0) >= 0}", false},
+        {"${(0/0) == 0}", false},
+
+        {"${0 > (0/0)}", false},
+        {"${0 <= (0/0)}", false},
+        {"${0 == (0/0)}", false},
+
+        {"${(0/0) > -99999}", false},
+        {"${(0/0) == -99999}", false},
+        {"${(0/0) <= 99999}", false},
+
+        {"${(0/0) < (0/0)}", false},
+        {"${(0/0) > (0/0)}", false},
+        {"${(0/0) == (0/0)}", false},
+
+        {"${(0/0) > Math.min()}", false},
+        {"${(0/0) == Math.min()}", false},
+        {"${(0/0) < Math.min()}", false},
+
+        {"${(0/0) > Math.max()}", false},
+        {"${(0/0) == Math.max()}", false},
+        {"${(0/0) < Math.max()}", false},
+
+        {"${(0/0) < false}", false},
+        {"${(0/0) > false}", false},
+        {"${(0/0) == false}", false},
+
+        {"${(0/0) < true}", false},
+        {"${(0/0) > true}", false},
+        {"${(0/0) == true}", false},
+
+        {"${(0/0) == null}", false},
+        {"${(0/0) > null}", false},
+        {"${(0/0) <= null}", false},
+
+        {"${(0/0) == ''}", false},
+        {"${(0/0) >= ''}", false},
+        {"${(0/0) < ''}", false},
+
+        {"${(0/0) == 'Hey!'}", false},
+        {"${(0/0) >= 'Hey!'}", false},
+        {"${(0/0) < 'Hey!'}", false},
+
+        {"${(0/0) != 'Hey!'}", true},
+        {"${(0/0) != ''}", true},
+        {"${(0/0) != null}", true},
+        {"${(0/0) != true}", true},
+        {"${(0/0) != false}", true},
+        {"${(0/0) != Math.max()}", true},
+        {"${(0/0) != Math.min()}", true},
+        {"${(0/0) != 99999}", true},
+        {"${0 != (0/0)}", true},
+        {"${(0/0) != 0}", true},
+        {"${(0/0) != (0/0)}", true},
+    };
+
+    for (const auto& m : NaNComparisons) {
+        EXPECT_EQ(o(m.second), eval(m.first.c_str()));
+        // Validate as optimized bytecode expression as well 
+        EXPECT_EQ(o(m.second), eval(m.first.c_str(), true));
+    }
 }
 
 TEST_F(GrammarTest, Ternary)
@@ -886,6 +968,10 @@ static auto RANGE_TESTS = std::vector<std::pair<std::string, ObjectArray>>{
     {"Array.range(0,-1,-0.249)", {0,    -0.249, -0.498, -0.747, -0.996}},
     {"Array.range(0,5,1,23,44)", {0,    1,      2,      3,      4}},
     {"Array.range(99999999995,100000000000)", {99999999995,    99999999996,      99999999997,      99999999998,      99999999999}},
+    {"Array.range(T)",           {}},
+    {"Array.range(0,T)",         {}},
+    {"Array.range(T,X)",         {}},
+    {"Array.range(0,1,T)",       {}}, 
 };
 
 TEST_F(GrammarTest, RangeFunction)

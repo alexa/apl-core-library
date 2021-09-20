@@ -33,11 +33,13 @@ public:
 
 protected:
     const ComponentPropDefSet& propDefSet() const override;
+    void handleLayoutDirectionChange(bool useDirtyFlag) override;
 
 private:
     bool multiChild() const override { return true; }
     std::map<int,int> calculateChildrenVisualLayer(const std::map<int, float>& visibleIndexes,
                                                    const Rect& visibleRect, int visualLayer) override;
+    void adjustSpacing();
 };
 
 } // namespace apl

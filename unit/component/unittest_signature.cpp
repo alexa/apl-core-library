@@ -164,9 +164,10 @@ TEST_F(SignatureTest, EditText) {
 
 TEST_F(SignatureTest, TypesAndString)
 {
-    unsigned long len = std::string("CEFMIPSQTWGV").length();
+    unsigned long len = std::string("CEXFMIPSQTWGV").length();
     for (ComponentType type : {kComponentTypeContainer,
                                kComponentTypeEditText,
+                               kComponentTypeExtension,
                                kComponentTypeFrame,
                                kComponentTypeGridSequence,
                                kComponentTypeImage,
@@ -179,4 +180,48 @@ TEST_F(SignatureTest, TypesAndString)
                                kComponentTypeVideo}) {
         ASSERT_TRUE(type < len);
     }
+}
+
+static const char *EXTENSION_COMPONENT_LAYOUT = R"({
+        "type": "APL",
+        "version": "1.7",
+        "extensions": [
+          {
+            "uri": "ext:cmp:1",
+            "name": "Ext"
+          }
+        ],
+        "mainTemplate": {
+          "item": {
+            "type": "Ext:ExtensionComponent"
+          }
+        }
+      })";
+
+TEST_F(SignatureTest, ExtensionComponent) {
+    ExtensionComponentDefinition componentDef = ExtensionComponentDefinition("ext:cmp:1", "ExtensionComponent");
+    config->registerExtensionComponent(componentDef);
+
+    loadDocument(EXTENSION_COMPONENT_LAYOUT);
+    ASSERT_EQ(kComponentTypeExtension, component->getType());
+    ASSERT_STREQ("X", component->getHierarchySignature().c_str());
+}
+
+static const char *VIDEO_LAYOUT =
+        "{"
+        "  \"type\": \"APL\","
+        "  \"version\": \"1.0\","
+        "  \"mainTemplate\": {"
+        "    \"item\": {"
+        "      \"type\": \"Video\""
+        "    }"
+        "  }"
+        "}";
+
+TEST_F(SignatureTest, Video) {
+    // video is the current last component int the list,
+    // testing it is likely to catch signature assignment issues
+    loadDocument(VIDEO_LAYOUT);
+    ASSERT_EQ(kComponentTypeVideo, component->getType());
+    ASSERT_STREQ("V", component->getHierarchySignature().c_str());
 }

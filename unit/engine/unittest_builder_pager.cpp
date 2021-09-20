@@ -425,8 +425,8 @@ TEST_F(BuilderTestPager, LazyInitialSetPagerRTL)
     root->clearPending();
     ASSERT_EQ(1, component->getCalculated(kPropertyCurrentPage).getInteger());
 
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds, kPropertyInnerBounds,
-                           kPropertyLaidOut, kPropertyLayoutDirection));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyLayoutDirection, kPropertyVisualHash));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 3}, true));
     ASSERT_TRUE(CheckChildLaidOut(component, 4, false));
     ASSERT_TRUE(CheckChild(0, "0", Rect(0, 0, 100, 200)));

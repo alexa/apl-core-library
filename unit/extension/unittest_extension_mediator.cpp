@@ -218,6 +218,16 @@ public:
             return rapidjson::Document();
         }
 
+        auto flags = RegistrationRequest::FLAGS().Get(registerRequest);
+        if (flags->IsString())
+            mFlags = flags->GetString();
+        auto settings = RegistrationRequest::SETTINGS().Get(registerRequest);
+        if (settings->IsObject()) {
+            auto find = settings->FindMember("authorizationCode");
+            if (find != settings->MemberEnd())
+                mAuthorizationCode = find->value.GetString();
+        }
+
         std::string schema = "{";
         schema += EXTENSION_DEFINITION;
         if (uri == "aplext:hello:10") { // hello extension has data binding
@@ -254,6 +264,8 @@ public:
     int lastCommandId;
     std::string lastCommandName;
     bool registered = false;
+    std::string mFlags;
+    std::string mAuthorizationCode;
 };
 
 
@@ -502,6 +514,41 @@ TEST_F(ExtensionMediatorTest, RegistrationConfig) {
     ASSERT_EQ(2, liveDataMap.size());
 }
 
+/**
+ * Test that runtime flags are passed to the extension.
+ */
+TEST_F(ExtensionMediatorTest, RegistrationFlags) {
+
+    config->registerExtensionFlags("aplext:hello:10", "--hello");
+    loadExtensions(EXT_DOC);
+
+    // direct access to extension for test inspection
+    auto hello = testExtensions["aplext:hello:10"];
+    ASSERT_TRUE(hello);
+
+    ASSERT_EQ("--hello", hello->mFlags);
+}
+
+/**
+ * Test that the document settings are passed to the extension.
+ */
+TEST_F(ExtensionMediatorTest, ParseSettings) {
+
+    config->registerExtensionFlags("aplext:hello:10", "--hello");
+    loadExtensions(EXT_DOC);
+
+    // verify the extension was registered
+    ASSERT_TRUE(extensionProvider->hasExtension("aplext:hello:10"));
+    auto ext = extensionProvider->getExtension("aplext:hello:10");
+    ASSERT_TRUE(ext);
+    // direct access to extension for test inspection
+    auto hello = testExtensions["aplext:hello:10"];
+    ASSERT_TRUE(hello);
+
+    ASSERT_EQ("MAGIC", hello->mAuthorizationCode);
+}
+
+
 
 TEST_F(ExtensionMediatorTest, ExtensionParseCommands) {
 
@@ -718,14 +765,12 @@ TEST_F(ExtensionMediatorTest, CommandResolve) {
 
     // Tap happened!
     performTap(1, 1);
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    // Runtime needs to redirect this events to the server.
-    ASSERT_TRUE(mediator->invokeCommand(event));
+    // Extension event handled here, directly.
+    root->clearPending();
 
     // verify resolve by testing next event in sequence is live
     ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
+    auto event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
 }
 
@@ -743,26 +788,24 @@ void ExtensionMediatorTest::testLifecycle() {
     inflate();
 
     ASSERT_TRUE(hello->registered);
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.Hello}")));
 
     auto text = component->findComponentById("label");
     ASSERT_EQ(kComponentTypeText, text->getType());
 
-    // Tap happened! Initiate command sequence : kEventTypeExtension, kEventTypeSendEvent
-    performTap(1, 1);
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-
-    // Redirect this events to the extension.
+    // Event should be redirected by them mediator.
     hello->lastCommandId = 0;
     hello->lastCommandName = "";
-    ASSERT_EQ(kEventTypeExtension, event.getType());
-    mediator->invokeCommand(event);
-    ASSERT_FALSE(ConsoleMessage());
+    // Tap happened! Initiate command sequence : kEventTypeExtension, kEventTypeSendEvent
+    performTap(1, 1);
+    root->clearPending();
+    ASSERT_TRUE(root->hasEvent());
+
     ASSERT_NE(0, hello->lastCommandId);
     ASSERT_EQ("freeze", hello->lastCommandName);
 
     // verify resolve by testing the next command in the sequence fired
-    event = root->popEvent();
+    auto event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
 
     // simulate an event from the extension
@@ -904,6 +947,349 @@ TEST_F(ExtensionMediatorTest, RegisterBad) {
     loadExtensions(EXT_DOC);
     ASSERT_TRUE(ConsoleMessage());
     ASSERT_EQ(0, config->getSupportedExtensions().size());
+}
+
+
+static const char* AUDIO_PLAYER = R"(
+{
+  "type": "APL",
+  "version": "1.7",
+  "extensions": [
+    {
+      "name": "AudioPlayer",
+      "uri": "aplext:audioplayer:10"
+    }
+  ],
+  "settings": {
+    "AudioPlayer": {
+      "playbackStateName": "playerStatus"
+    }
+  },
+  "AudioPlayer:OnPlayerActivityUpdated": [
+    {
+      "type": "SetValue",
+      "componentId": "ActivityTxt",
+      "property": "text",
+      "value": "${playerActivity}"
+    },
+    {
+      "type": "SetValue",
+      "componentId": "OffsetTxt",
+      "property": "text",
+      "value": "${offset}"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "Touch",
+          "width": "100%",
+          "height": "100%",
+          "onPress": [
+            {
+              "when": "${playerStatus.playerActivity == 'PLAYING'}",
+              "type": "AudioPlayer:Pause"
+            },
+            {
+              "when": "${playerStatus.playerActivity == 'PAUSED'}",
+              "type": "AudioPlayer:Play"
+            }
+          ]
+        },
+        {
+          "type": "Text",
+          "id": "ActivityTxt"
+        },
+        {
+          "type": "Text",
+          "id": "OffsetTxt"
+        }
+      ]
+    }
+  }
+}
+)";
+
+
+class AudioPlayerObserverStub : public AudioPlayer::AplAudioPlayerExtensionObserverInterface {
+public:
+    void onAudioPlayerPlay() override {}
+    void onAudioPlayerPause() override {}
+    void onAudioPlayerNext() override {}
+    void onAudioPlayerPrevious() override {}
+    void onAudioPlayerSeekToPosition(int offsetInMilliseconds) override {}
+    void onAudioPlayerToggle(const std::string &name, bool checked) override {}
+    void onAudioPlayerLyricDataFlushed(const std::string &token,
+                                       long durationInMilliseconds,
+                                       const std::string &lyricData) override {}
+    void onAudioPlayerSkipForward() override {}
+    void onAudioPlayerSkipBackward() override {}
+};
+
+TEST_F(ExtensionMediatorTest, AudioPlayerIntegration) {
+
+    createProvider();
+    auto stub = std::make_shared<AudioPlayerObserverStub>();
+    auto extension = std::make_shared<AudioPlayer::AplAudioPlayerExtension>(stub);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    loadExtensions(AUDIO_PLAYER);
+
+    // The extension was registered
+    auto uris = config->getSupportedExtensions();
+    ASSERT_EQ(1, uris.size());
+    ASSERT_EQ(1, uris.count("aplext:audioplayer:10"));
+
+   auto commands = config->getExtensionCommands();
+   ASSERT_EQ(11, commands.size());
+
+    auto events = config->getExtensionEventHandlers();
+    ASSERT_EQ(1, events.size());
+
+    auto liveDataMap = config->getLiveObjectMap();
+    ASSERT_EQ(1, liveDataMap.size());
+
+    inflate();
+    // Validate the Extension environment
+    ASSERT_TRUE(evaluate(*context, "${environment.extension.AudioPlayer}").isMap());
+    ASSERT_TRUE(IsEqual("APLAudioPlayerExtension-1.0", evaluate(*context, "${environment.extension.AudioPlayer.version}")));
+
+    // Validate Live Data
+    extension->updatePlayerActivity("PLAYING", 123);
+    ASSERT_FALSE(ConsoleMessage());
+    root->clearPending();
+
+    ASSERT_TRUE(evaluate(*context, "${playerStatus}").isTrueMap());
+    ASSERT_TRUE(IsEqual("PLAYING", evaluate(*context, "${playerStatus.playerActivity}")));
+    ASSERT_TRUE(IsEqual(123, evaluate(*context, "${playerStatus.offset}")));
+
+    auto activityText = root->findComponentById("ActivityTxt");
+    ASSERT_TRUE(activityText);
+    auto activityOffset = root->findComponentById("OffsetTxt");
+    ASSERT_TRUE(activityOffset);
+    auto touch = root->findComponentById("Touch");
+    ASSERT_TRUE(touch);
+
+    // Basic data is loaded
+    ASSERT_TRUE(IsEqual("PLAYING", activityText->getCalculated(kPropertyText).getStyledText().getText()));
+    ASSERT_TRUE(IsEqual("123", activityOffset->getCalculated(kPropertyText).getStyledText().getText()));
+}
+
+class ExtensionCommunticationTestAdapter : public ExtensionProxy {
+public:
+    ExtensionCommunticationTestAdapter(const std::string& uri, bool shouldInitialize, bool shouldRegister) :
+        mShouldInitialize(shouldInitialize), mShouldRegister(shouldRegister) {
+        mURIs.emplace(uri);
+    }
+
+    std::set<std::string> getURIs() override { return mURIs; }
+
+    bool initializeExtension(const std::string &uri) override {
+        if (mShouldInitialize) {
+            mInitialized.emplace(uri);
+        }
+        return mShouldInitialize;
+    }
+
+    bool getRegistration(const std::string &uri, const rapidjson::Value &registrationRequest,
+                         RegistrationSuccessCallback success, RegistrationFailureCallback error) override {
+        mRegistrationSuccess = success;
+        mRegistrationError = error;
+        if (mShouldRegister) {
+            auto request = AsPrettyString(registrationRequest);
+            mPendingRegistrations.emplace(uri, request);
+        }
+        return mShouldRegister;
+    }
+
+    bool invokeCommand(const std::string &uri, const rapidjson::Value &command,
+                               CommandSuccessCallback success, CommandFailureCallback error) override { return false; }
+
+    bool sendMessage(const std::string &uri, const rapidjson::Value &message) override { return false; }
+
+    void registerEventCallback(Extension::EventCallback callback) override {}
+
+    void registerLiveDataUpdateCallback(Extension::LiveDataUpdateCallback callback) override {}
+
+    void onRegistered(const std::string &uri, const std::string &token) override {
+        mRegistered.emplace(uri, token);
+    }
+
+    bool isInitialized(const std::string& uri) { return mInitialized.count(uri); }
+
+    bool isRegistered(const std::string& uri) { return mRegistered.count(uri); }
+
+    void registrationSuccess(const std::string &uri, const rapidjson::Value &registrationSuccess) {
+        mRegistrationSuccess(uri, registrationSuccess);
+    }
+
+    void registrationError(const std::string &uri, const rapidjson::Value &registrationError) {
+        mRegistrationError(uri, registrationError);
+    }
+
+private:
+    std::set<std::string> mURIs;
+    std::set<std::string> mInitialized;
+    std::map<std::string, std::string> mPendingRegistrations;
+    bool mShouldInitialize;
+    bool mShouldRegister;
+    RegistrationSuccessCallback mRegistrationSuccess;
+    RegistrationFailureCallback mRegistrationError;
+    std::map<std::string, std::string> mRegistered;
+};
+
+static const char* SIMPLE_EXT_DOC = R"({
+  "type": "APL",
+  "version": "1.8",
+  "extension": [
+      {
+        "uri": "alexaext:test:10",
+        "name": "Test"
+      }
+  ],
+  "settings": {
+    "Test": {
+      "authorizationCode": "MAGIC"
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": 500,
+      "height": 500,
+      "items": []
+    }
+  }
+})";
+
+static const char* TEST_EXTENSION_URI = "alexaext:test:10";
+
+TEST_F(ExtensionMediatorTest, FastInitialization) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunticationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    extensionProvider->registerExtension(adapter);
+
+    createContent(SIMPLE_EXT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+            .extensionProvider(extensionProvider)
+            .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+
+    ASSERT_TRUE(adapter->isInitialized(TEST_EXTENSION_URI));
+
+    auto loaded = std::make_shared<bool>(false);
+    mediator->loadExtensions(config, content, [loaded](){
+        *loaded = true;
+    });
+
+    ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
+    ASSERT_FALSE(*loaded);
+
+    rapidjson::Document schemaDoc;
+    auto schema = ExtensionSchema(&schemaDoc.GetAllocator(), "1.0").uri(TEST_EXTENSION_URI);
+    auto success = RegistrationSuccess("1.0").token("MAGIC_TOKEN").schema(schema);
+    adapter->registrationSuccess(TEST_EXTENSION_URI, success.getDocument());
+
+    ASSERT_TRUE(adapter->isRegistered(TEST_EXTENSION_URI));
+    ASSERT_TRUE(*loaded);
+}
+
+TEST_F(ExtensionMediatorTest, FastInitializationFailInitialize) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunticationTestAdapter>(TEST_EXTENSION_URI, false, false);
+    extensionProvider->registerExtension(adapter);
+
+    createContent(SIMPLE_EXT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+            .extensionProvider(extensionProvider)
+            .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+
+    ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
+
+    auto loaded = std::make_shared<bool>(false);
+    mediator->loadExtensions(config, content, [loaded](){
+        *loaded = true;
+    });
+
+    ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
+    // Still considered loaded. Extension just not available.
+    ASSERT_TRUE(*loaded);
+}
+
+TEST_F(ExtensionMediatorTest, FastInitializationFailRegistrationRequest) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunticationTestAdapter>(TEST_EXTENSION_URI, true, false);
+    extensionProvider->registerExtension(adapter);
+
+    createContent(SIMPLE_EXT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+            .extensionProvider(extensionProvider)
+            .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+
+    ASSERT_TRUE(adapter->isInitialized(TEST_EXTENSION_URI));
+
+    auto loaded = std::make_shared<bool>(false);
+    mediator->loadExtensions(config, content, [loaded](){
+        *loaded = true;
+    });
+
+    ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
+    ASSERT_TRUE(*loaded);
+}
+
+TEST_F(ExtensionMediatorTest, FastInitializationFailRegistration) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunticationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    extensionProvider->registerExtension(adapter);
+
+    createContent(SIMPLE_EXT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+            .extensionProvider(extensionProvider)
+            .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+
+    ASSERT_TRUE(adapter->isInitialized(TEST_EXTENSION_URI));
+
+    auto loaded = std::make_shared<bool>(false);
+    mediator->loadExtensions(config, content, [loaded](){
+        *loaded = true;
+    });
+
+    ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
+    ASSERT_FALSE(*loaded);
+
+    auto fail = RegistrationFailure("1.0")
+            .errorCode(alexaext::ExtensionError::kErrorException)
+            .errorMessage(sErrorMessage.at(ExtensionError::kErrorException));
+
+    adapter->registrationError(TEST_EXTENSION_URI, fail.getDocument());
+
+    ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
+    ASSERT_TRUE(*loaded);
 }
 
 #endif

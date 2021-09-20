@@ -162,8 +162,8 @@ TEST_F(PagerTest, VariableSize)
     root->clearPending();
     ASSERT_TRUE(IsEqual(Rect(0,0,100,300), pager->getCalculated(kPropertyBounds)));
     ASSERT_TRUE(IsEqual(Rect(0,0,100,300), text->getCalculated(kPropertyBounds)));
-    ASSERT_TRUE(CheckDirty(pager, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(pager, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
 
     // The removed pager has zero size.  Its children have NOT been laid out again
     ASSERT_TRUE(IsEqual(Rect(0,0,0,0), pager2->getCalculated(kPropertyBounds)));

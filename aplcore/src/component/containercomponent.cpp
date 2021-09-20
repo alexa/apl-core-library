@@ -37,14 +37,28 @@ ContainerComponent::ContainerComponent(const ContextPtr& context,
 }
 
 void
-ContainerComponent::processLayoutChanges(bool useDirtyFlag, bool first) {
-    // TODO: FIX THIS - IT CAN CHANGE THE SIZE OF THE CONTAINER
-    // Quite brute-forcy to do that, though it will handle any strange changes to layout direction in the future.
+ContainerComponent::adjustSpacing()
+{
     if (!mChildren.empty()) {
         for (int i = 0; i < mChildren.size(); i++) {
+            // Spacing is attached to "spaced out" child. First child is not spaces from anything.
             getCoreChildAt(i)->fixSpacing(i == 0);
         }
     }
+}
+
+void
+ContainerComponent::handleLayoutDirectionChange(bool useDirtyFlag)
+{
+    adjustSpacing();
+}
+
+void
+ContainerComponent::processLayoutChanges(bool useDirtyFlag, bool first)
+{
+    // TODO: FIX THIS - IT CAN CHANGE THE SIZE OF THE CONTAINER
+    // Quite brute-forcy to do that, though it will handle any strange changes to layout direction in the future.
+    adjustSpacing();
 
     CoreComponent::processLayoutChanges(useDirtyFlag, first);
 }
@@ -87,7 +101,8 @@ ContainerComponent::layoutPropDefSet() const
 
 std::map<int,int>
 ContainerComponent::calculateChildrenVisualLayer(const std::map<int, float>& visibleIndexes,
-                                                 const Rect& visibleRect, int visualLayer) {
+                                                 const Rect& visibleRect, int visualLayer)
+{
     std::map<int,int> result;
 
     if(visibleIndexes.empty()) {

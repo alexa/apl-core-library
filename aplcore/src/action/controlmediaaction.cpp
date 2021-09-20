@@ -15,6 +15,8 @@
 
 #include "apl/action/controlmediaaction.h"
 #include "apl/command/corecommand.h"
+#include "apl/component/videocomponent.h"
+#include "apl/media/mediaplayer.h"
 #include "apl/time/sequencer.h"
 #include "apl/utils/session.h"
 
@@ -70,10 +72,48 @@ ControlMediaAction::start()
     auto mediaCommand = static_cast<CommandControlMedia>(mCommand->getValue(kCommandPropertyCommand).asInt());
     auto value = mCommand->getValue(kCommandPropertyValue);
 
-    EventBag bag;
-    bag.emplace(kEventPropertyCommand, mediaCommand);
-    bag.emplace(kEventPropertyValue, value);
-    mCommand->context()->pushEvent(Event(kEventTypeControlMedia, std::move(bag), mTarget, shared_from_this()));
+    auto videoComponent = std::dynamic_pointer_cast<VideoComponent>(mTarget);
+    assert(videoComponent);
+
+    auto mediaPlayer = videoComponent->getMediaPlayer();
+    if (mediaPlayer) {
+        switch (mediaCommand) {
+            case kCommandControlMediaPlay:
+                mediaPlayer->play(shared_from_this());
+                break;
+            case kCommandControlMediaPause:
+                mediaPlayer->pause();
+                resolve();
+                break;
+            case kCommandControlMediaNext:
+                mediaPlayer->next();
+                resolve();
+                break;
+            case kCommandControlMediaPrevious:
+                mediaPlayer->previous();
+                resolve();
+                break;
+            case kCommandControlMediaRewind:
+                mediaPlayer->rewind();
+                resolve();
+                break;
+            case kCommandControlMediaSeek:
+                mediaPlayer->seek(value.getInteger());
+                resolve();
+                break;
+            case kCommandControlMediaSetTrack:
+                mediaPlayer->setTrackIndex(value.getInteger());
+                resolve();
+                break;
+        }
+    }
+    else {
+        EventBag bag;
+        bag.emplace(kEventPropertyCommand, mediaCommand);
+        bag.emplace(kEventPropertyValue, value);
+        mCommand->context()->pushEvent(
+            Event(kEventTypeControlMedia, std::move(bag), mTarget, shared_from_this()));
+    }
 }
 
 } // namespace apl

@@ -14,6 +14,7 @@
  */
 
 #include <algorithm>
+#include <iterator>
 
 #include "apl/time/coretimemanager.h"
 #include "apl/utils/log.h"

@@ -159,8 +159,8 @@ ByteCodeEvaluator::advance()
             case BC_OPCODE_COMPARE_OP: {
                 auto b = pop();
                 auto a = pop();
-                mStack.emplace_back(CompareOp(static_cast<ByteCodeComparison>(cmd.value), Compare(a, b))
-                                    ? Object::TRUE_OBJECT() : Object::FALSE_OBJECT());
+                mStack.emplace_back(CompareOp(static_cast<ByteCodeComparison>(cmd.value), a, b)
+                                        ? Object::TRUE_OBJECT() : Object::FALSE_OBJECT());
             }
                 break;
 

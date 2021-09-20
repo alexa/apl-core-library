@@ -442,29 +442,25 @@ protected:
         if (!data)
             return;
 
-        std::map<std::string, JsonData> params;
-        JsonData sourcesData(data);
-        if (sourcesData.get().IsObject()) {
-            for (auto objIt = sourcesData.get().MemberBegin(); objIt != sourcesData.get().MemberEnd(); objIt++) {
-                params.emplace(objIt->name.GetString(), objIt->value);
+        // If the content calls for a single parameter named "payload", we assign the data directly
+        if (content->getParameterCount() == 1 && content->getParameterAt(0) == "payload") {
+            content->addData("payload", data);
+        }
+        else {  // Otherwise, we require "data" to be a JSON object where the keys match the requested parameters
+            rawData = std::unique_ptr<JsonData>(new JsonData(data));
+            ASSERT_TRUE(rawData->get().IsObject());
+            for (auto it = rawData->get().MemberBegin() ;
+                      it != rawData->get().MemberEnd() ;
+                      it++) {
+                content->addData(it->name.GetString(), it->value);
             }
         }
-
-        for (size_t idx = 0; idx < content->getParameterCount(); idx++) {
-            auto parameterName = content->getParameterAt(idx);
-            if (parameterName == "payload") {
-                content->addData(parameterName, data);
-            } else if(params.find(parameterName) != params.end()) {
-                content->addData(parameterName, params.at(parameterName).toString());
-            }
-        }
-
     }
 
     // Override this in a subclass to insert processing after the content is created
     virtual void postCreateContent() {}
 
-    // Override this in a subclass to insert processing after the content is created
+    // Override this in a subclass to insert processing after the context is created
     virtual void postInflate() {}
 
     void inflate() {
@@ -519,6 +515,7 @@ public:
     rapidjson::Document command;
     std::function<void(const RootContextPtr&)> createCallback;
     ContentPtr content;
+    std::unique_ptr<JsonData> rawData;
 };
 
 
@@ -965,6 +962,7 @@ CheckMediaState(const MediaState &state, const CalculatedPropertyMap &propertyMa
     ASSERT_EQ(state.getCurrentTime(), propertyMap.get(kPropertyTrackCurrentTime).asInt());
     ASSERT_EQ(state.isPaused(), propertyMap.get(kPropertyTrackPaused).asBoolean());
     ASSERT_EQ(state.isEnded(), propertyMap.get(kPropertyTrackEnded).asBoolean());
+    ASSERT_EQ(state.getTrackState(), propertyMap.get(kPropertyTrackState).asInt());
 }
 
 inline
@@ -1011,24 +1009,27 @@ CheckChildrenLaidOut(const ComponentPtr& component, std::set<int>&& laidOutChild
     return ::testing::AssertionSuccess();
 }
 
+template<class... Args>
 inline
 ::testing::AssertionResult
-CheckChildLaidOutDirtyFlags(const ComponentPtr& component, int idx) {
-    return CheckDirty(component->getChildAt(idx), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut);
+CheckChildLaidOutDirtyFlags(const ComponentPtr& component, int idx, Args... additionalFlags) {
+    return CheckDirty(component->getChildAt(idx),
+                      kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash, kPropertyLaidOut, additionalFlags...);
 }
 
 inline
 ::testing::AssertionResult
 CheckChildLaidOutDirtyFlagsWithNotify(const ComponentPtr& component, int idx) {
     return CheckDirty(component->getChildAt(idx),
-                      kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged);
+                      kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged, kPropertyVisualHash);
 }
 
+template<class... Args>
 inline
 ::testing::AssertionResult
-CheckChildrenLaidOutDirtyFlags(const ComponentPtr& component, Range range) {
+CheckChildrenLaidOutDirtyFlags(const ComponentPtr& component, Range range, Args... additionalFlags) {
     for (int idx = range.lowerBound(); idx <= range.upperBound(); idx++) {
-        ::testing::AssertionResult result = CheckChildLaidOutDirtyFlags(component, idx);
+        ::testing::AssertionResult result = CheckChildLaidOutDirtyFlags(component, idx, additionalFlags...);
         if (!result) {
             return result << ", for component: " << idx;
         }
@@ -1036,11 +1037,12 @@ CheckChildrenLaidOutDirtyFlags(const ComponentPtr& component, Range range) {
     return ::testing::AssertionSuccess();
 }
 
+template<class... Args>
 inline
 ::testing::AssertionResult
-CheckChildrenLaidOutDirtyFlagsWithNotify(const ComponentPtr& component, Range range) {
+CheckChildrenLaidOutDirtyFlagsWithNotify(const ComponentPtr& component, Range range, Args... additionalFlags) {
     for (int idx = range.lowerBound(); idx <= range.upperBound(); idx++) {
-        ::testing::AssertionResult result = CheckChildLaidOutDirtyFlagsWithNotify(component, idx);
+        ::testing::AssertionResult result = CheckChildLaidOutDirtyFlagsWithNotify(component, idx, additionalFlags...);
         if (!result) {
             return result << ", for component: " << idx;
         }

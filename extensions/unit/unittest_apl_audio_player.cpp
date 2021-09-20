@@ -177,6 +177,16 @@ public:
         return AssertionSuccess();
     }
 
+    Value* findDataType (Value *types, const std::string& typeName) {
+        for (auto& v : types->GetArray()) {
+            auto name = GetWithDefault<const char *>(TypePropertySchema::NAME(), v, "");
+            if (typeName.compare(name) == 0) {
+                return &v;
+            }
+        }
+        return nullptr;
+    }
+
     inline
     ::testing::AssertionResult IsEqual(const Value &lhs, const Value &rhs)
     {
@@ -285,7 +295,7 @@ TEST_F(AplAudioPlayerExtensionTest, RegistrationCommands)
     for (const Value &com : commands->GetArray()) {
         ASSERT_TRUE(com.IsObject());
         auto name = GetWithDefault<const char *>(Command::NAME(), com, "MissingName");
-        ASSERT_TRUE(expectedCommandSet.count(name) == 1) << "Unknown Command:" << name << com.GetType();
+        ASSERT_TRUE(expectedCommandSet.count(name) == 1) << "Unknown Command:" << name;
         expectedCommandSet.erase(name);
     }
     ASSERT_TRUE(expectedCommandSet.empty());
@@ -318,6 +328,7 @@ TEST_F(AplAudioPlayerExtensionTest, RegistrationEvents)
         ASSERT_TRUE(expectedHandlerSet.count(name) == 1);
         expectedHandlerSet.erase(name);
     }
+    ASSERT_TRUE(expectedHandlerSet.empty());
 }
 
 /**
@@ -357,20 +368,36 @@ TEST_F(AplAudioPlayerExtensionTest, RegistrationSettingsHasLiveData)
     // live data defined
     Value *liveData = ExtensionSchema::LIVE_DATA().Get(*schema);
     ASSERT_TRUE(liveData);
+    ASSERT_TRUE(liveData->IsArray() && liveData->Size() == 1);
 
-    // FullSet live data for audio player
-    auto expectedLiveDataSet = std::set<std::string>();
-    expectedLiveDataSet.insert("MyPlayBackState");
-    ASSERT_TRUE(liveData->IsArray() && liveData->Size() == expectedLiveDataSet.size());
+    const Value& data = (*liveData)[0];
+    ASSERT_TRUE(data.IsObject());
+    auto name = GetWithDefault<const char *>(LiveDataSchema::NAME(), data, "");
+    ASSERT_STREQ("MyPlayBackState", name);
+    auto type = GetWithDefault<const char *>(LiveDataSchema::DATA_TYPE(), data, "");
+    ASSERT_STREQ("playbackState", type);
 
-    ASSERT_TRUE(liveData->IsArray() && liveData->Size() == expectedLiveDataSet.size());
-    // should have all event handlers defined
-    for (const Value &evt : liveData->GetArray()) {
-        ASSERT_TRUE(evt.IsObject());
-        auto name = GetWithDefault<const char *>(Event::NAME(), evt, "MissingName");
-        ASSERT_TRUE(expectedLiveDataSet.count(name) == 1);
-        expectedLiveDataSet.erase(name);
-    }
+    Value *types = ExtensionSchema::TYPES().Get(*schema);
+    ASSERT_TRUE(types);
+    ASSERT_TRUE(liveData->IsArray());
+
+    Value *stateType = findDataType(types, "playbackState");
+    ASSERT_NE(nullptr, stateType);
+    ASSERT_TRUE(stateType->IsObject());
+
+    rapidjson::Document expected;
+    expected.Parse(R"(
+        {
+            "name": "playbackState",
+            "properties": {
+                "playerActivity": "string",
+                "offset": "number"
+            }
+        }
+    )");
+    ASSERT_FALSE(expected.HasParseError());
+    ASSERT_TRUE(IsEqual(expected, *stateType));
+
 }
 
 /**
@@ -933,6 +960,8 @@ TEST_F(AplAudioPlayerExtensionTest, UpdatePlaybackProgressSuccess)
                 gotUpdate = true;
                 ASSERT_STREQ("LiveDataUpdate",
                              GetWithDefault<const char *>(RegistrationSuccess::METHOD(), liveDataUpdate, ""));
+              ASSERT_STREQ("aplext:audioplayer:10",
+                           GetWithDefault<const char *>(RegistrationSuccess::TARGET(), liveDataUpdate, ""));
                 const Value *ops = LiveDataUpdate::OPERATIONS().Get(liveDataUpdate);
                 ASSERT_TRUE(ops);
                 ASSERT_TRUE(ops->IsArray() && ops->Size() == 2);
@@ -947,7 +976,7 @@ TEST_F(AplAudioPlayerExtensionTest, UpdatePlaybackProgressSuccess)
 /**
  * Playback state change updates live data.
  */
-TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivitySuccess)
+TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivityLiveDataSuccess)
 {
     ASSERT_TRUE(registerExtension());
 
@@ -956,13 +985,41 @@ TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivitySuccess)
             [&](const std::string &uri, const rapidjson::Value &liveDataUpdate) {
                 gotUpdate = true;
                 ASSERT_STREQ("LiveDataUpdate",
-                             GetWithDefault<const char *>(RegistrationSuccess::METHOD(), liveDataUpdate, ""));
+                             GetWithDefault<const char *>(LiveDataUpdate::METHOD(), liveDataUpdate, ""));
+              ASSERT_STREQ("aplext:audioplayer:10",
+                           GetWithDefault<const char *>(LiveDataUpdate::TARGET(), liveDataUpdate, ""));
                 const Value *ops = LiveDataUpdate::OPERATIONS().Get(liveDataUpdate);
                 ASSERT_TRUE(ops);
                 ASSERT_TRUE(ops->IsArray() && ops->Size() == 2);
                 ASSERT_TRUE(CheckLiveData(ops->GetArray()[0], "Set", "playerActivity", "PLAYING"));
                 ASSERT_TRUE(CheckLiveData(ops->GetArray()[1], "Set", "offset", 100));
             });
+
+    mExtension->updatePlayerActivity("PLAYING", 100);
+    ASSERT_TRUE(gotUpdate);
+}
+
+/**
+ * Playback state change updates live data.
+ */
+TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivityEventSuccess)
+{
+    ASSERT_TRUE(registerExtension());
+
+    bool gotUpdate = false;
+    mExtension->registerEventCallback(
+        [&](const std::string &uri, const rapidjson::Value &event) {
+          gotUpdate = true;
+          ASSERT_STREQ("Event",
+                       GetWithDefault<const char *>(Event::METHOD(), event, ""));
+          ASSERT_STREQ("aplext:audioplayer:10",
+                       GetWithDefault<const char *>(Event::TARGET(), event, ""));
+          auto payload = Event::PAYLOAD().Get(event);
+          ASSERT_STREQ("PLAYING",
+                       GetWithDefault<const char *>("playerActivity", payload, ""));
+          ASSERT_EQ(100,
+                       GetWithDefault<int>("offset", payload, -1));
+        });
 
     mExtension->updatePlayerActivity("PLAYING", 100);
     ASSERT_TRUE(gotUpdate);

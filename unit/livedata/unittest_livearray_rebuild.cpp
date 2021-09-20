@@ -206,7 +206,7 @@ TEST_F(LiveArrayRebuildTest, ComponentUpdate)
 
     ASSERT_TRUE(CheckDirty(component));
     ASSERT_TRUE(CheckDirty(component->getChildAt(0)));
-    ASSERT_TRUE(CheckDirty(component->getChildAt(1), kPropertyText));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(1), kPropertyText, kPropertyVisualHash));
 }
 
 TEST_F(LiveArrayRebuildTest, ComponentPushBack)
@@ -224,8 +224,8 @@ TEST_F(LiveArrayRebuildTest, ComponentPushBack)
     ASSERT_EQ(3, component->getChildCount());
     ASSERT_TRUE(CheckChildOrder({"A 0 0 3", "B 1 1 3", "C 2 2 3"}));
 
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyText));
-    ASSERT_TRUE(CheckDirty(component->getChildAt(1), kPropertyText));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyText, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(1), kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 2));
 
     ASSERT_TRUE(CheckUpdatedComponentsNotification({
@@ -249,8 +249,10 @@ TEST_F(LiveArrayRebuildTest, ComponentInsert)
     ASSERT_TRUE(CheckChildOrder({"C 0 0 3", "A 1 1 3", "B 2 2 3"}));
 
     ASSERT_TRUE(CheckChildLaidOutDirtyFlags(component, 0));
-    ASSERT_TRUE(CheckDirty(component->getChildAt(1), kPropertyText, kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(component->getChildAt(2), kPropertyText, kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(1), kPropertyText, kPropertyBounds,
+                           kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(2), kPropertyText, kPropertyBounds,
+                           kPropertyVisualHash));
 
     ASSERT_TRUE(CheckUpdatedComponentsNotification({
         makeInsert(0, component->getChildAt(0)->getUniqueId())
@@ -273,7 +275,8 @@ TEST_F(LiveArrayRebuildTest, ComponentRemove)
     ASSERT_EQ(1, component->getChildCount());
     ASSERT_TRUE(CheckChildOrder({"B 0 0 1"}));
 
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyText, kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyText, kPropertyBounds,
+                           kPropertyVisualHash));
 
     ASSERT_TRUE(CheckUpdatedComponentsNotification({
         makeRemove(0, removedComponentId)
@@ -297,7 +300,7 @@ TEST_F(LiveArrayRebuildTest, ComponentRemoveFromEnd)
     ASSERT_EQ(1, component->getChildCount());
     ASSERT_TRUE(CheckChildOrder({"A 0 0 1"}));
 
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyText));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyText, kPropertyVisualHash));
 
     ASSERT_TRUE(CheckUpdatedComponentsNotification({
         makeRemove(1, removedComponentId)
@@ -449,11 +452,11 @@ TEST_F(LiveArrayRebuildTest, CacheOnSecondFrameDeep) {
         LOG(LogLevel::kError) << dp.toDebugString();
     }
     ASSERT_TRUE(CheckDirty(component->getCoreChildAt(2), kPropertyNotifyChildrenChanged, kPropertyBounds,
-                           kPropertyInnerBounds, kPropertyLaidOut));
+                           kPropertyInnerBounds, kPropertyLaidOut, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(component->getCoreChildAt(2)->getChildAt(0), kPropertyBounds,
-                           kPropertyInnerBounds, kPropertyLaidOut));
+                           kPropertyInnerBounds, kPropertyLaidOut, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(component->getCoreChildAt(3), kPropertyNotifyChildrenChanged, kPropertyBounds,
-                           kPropertyInnerBounds, kPropertyLaidOut));
+                           kPropertyInnerBounds, kPropertyLaidOut, kPropertyVisualHash));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0,3}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {4,5}, false));
 }
@@ -1603,8 +1606,9 @@ TEST_F(LiveArrayRebuildTest, DeepComponentUpdate)
     ASSERT_EQ(1, component->getChildCount());
 
     ASSERT_TRUE(CheckDirty(component));
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0)->getChildAt(0), kPropertyText));
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBackgroundColor));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0)->getChildAt(0), kPropertyText,
+                           kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBackgroundColor, kPropertyVisualHash));
 
     ASSERT_EQ("update", component->getChildAt(0)->getChildAt(0)->getCalculated(kPropertyText).asString());
     ASSERT_EQ(Color(0x0000FFFF), component->getChildAt(0)->getCalculated(kPropertyBackgroundColor).getColor());
@@ -1784,17 +1788,22 @@ TEST_F(LiveArrayRebuildTest, SpacedContainerColumnReverse) {
     config->liveData("TestArray", myArray);
 
     loadDocument(SPACED_CONTAINER);
+    auto c  = component->getChildAt(0);
+    auto c2 = component->getChildAt(1);
+    ASSERT_TRUE(expectBounds(c,    0, 0, 100, 100));
+    ASSERT_TRUE(expectBounds(c2, 110, 0, 210, 100));
+
     component->setProperty(kPropertyDirection, "columnReverse");
     myArray->insert(0, 13);
     myArray->insert(0, 14);
     root->clearPending();
 
-    auto c  = component->getChildAt(0);
-    auto c2 = component->getChildAt(1);
+    c  = component->getChildAt(0);
+    c2 = component->getChildAt(1);
     auto c3 = component->getChildAt(2);
     auto c4 = component->getChildAt(3);
     ASSERT_TRUE(expectBounds(c,  700, 0, 800, 100));
-    ASSERT_TRUE(expectBounds(c2, 590, 10, 690, 110));
+    ASSERT_TRUE(expectBounds(c2, 590, 0, 690, 100));
     ASSERT_TRUE(expectBounds(c3, 480, 0, 580, 100));
     ASSERT_TRUE(expectBounds(c4, 370, 0, 470, 100));
 }
@@ -1804,19 +1813,24 @@ TEST_F(LiveArrayRebuildTest, SpacedContainerRow) {
     config->liveData("TestArray", myArray);
 
     loadDocument(SPACED_CONTAINER);
+    auto c  = component->getChildAt(0);
+    auto c2 = component->getChildAt(1);
+    ASSERT_TRUE(expectBounds(c,    0, 0, 100, 100));
+    ASSERT_TRUE(expectBounds(c2, 110, 0, 210, 100));
+
     component->setProperty(kPropertyDirection, "row");
     myArray->insert(0, 13);
     myArray->insert(0, 14);
     root->clearPending();
 
-    auto c  = component->getChildAt(0);
-    auto c2 = component->getChildAt(1);
+    c  = component->getChildAt(0);
+    c2 = component->getChildAt(1);
     auto c3 = component->getChildAt(2);
     auto c4 = component->getChildAt(3);
-    ASSERT_TRUE(expectBounds(c,  0,    0, 100, 100));
-    ASSERT_TRUE(expectBounds(c2, 0,  110, 100, 210));
-    ASSERT_TRUE(expectBounds(c3, 0,  220, 100, 320));
-    ASSERT_TRUE(expectBounds(c4, 10, 330, 110, 430));
+    ASSERT_TRUE(expectBounds(c,  0,   0, 100, 100));
+    ASSERT_TRUE(expectBounds(c2, 0, 110, 100, 210));
+    ASSERT_TRUE(expectBounds(c3, 0, 220, 100, 320));
+    ASSERT_TRUE(expectBounds(c4, 0, 330, 100, 430));
 }
 
 TEST_F(LiveArrayRebuildTest, SpacedContainerRowReverse) {
@@ -1824,20 +1838,351 @@ TEST_F(LiveArrayRebuildTest, SpacedContainerRowReverse) {
     config->liveData("TestArray", myArray);
 
     loadDocument(SPACED_CONTAINER);
+    auto c  = component->getChildAt(0);
+    auto c2 = component->getChildAt(1);
+    ASSERT_TRUE(expectBounds(c,    0, 0, 100, 100));
+    ASSERT_TRUE(expectBounds(c2, 110, 0, 210, 100));
+
     component->setProperty(kPropertyDirection, "rowReverse");
     myArray->insert(0, 13);
     myArray->insert(0, 14);
     root->clearPending();
 
-    auto c  = component->getChildAt(0);
-    auto c2 = component->getChildAt(1);
+    c  = component->getChildAt(0);
+    c2 = component->getChildAt(1);
     auto c3 = component->getChildAt(2);
     auto c4 = component->getChildAt(3);
-    ASSERT_TRUE(expectBounds(c,  0,  924, 100, 1024));
-    ASSERT_TRUE(expectBounds(c2, 0,  814, 100,  914));
-    ASSERT_TRUE(expectBounds(c3, 0,  694, 100,  794));
-    ASSERT_TRUE(expectBounds(c4, 10, 584, 110,  684));
+    ASSERT_TRUE(expectBounds(c,  0, 924, 100, 1024));
+    ASSERT_TRUE(expectBounds(c2, 0, 814, 100,  914));
+    ASSERT_TRUE(expectBounds(c3, 0, 704, 100,  804));
+    ASSERT_TRUE(expectBounds(c4, 0, 594, 100,  694));
 }
 
+static const char * SPACED_CONTAINER_WITH_LAYOUTDIR = R"(
+{
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "parameters": [ "containerDir", "layoutDir" ],
+    "items":{
+      "layoutDirection": "${layoutDir}",
+      "type": "Frame",
+      "backgroundColor": "red",
+      "width": "1500px",
+      "items": {
+        "type": "Container",
+        "id": "container",
+        "direction": "${containerDir}",
+        "width": "1500px",
+        "items": {
+          "type": "Frame",
+          "id": "Frame+${index}",
+          "width": "100",
+          "backgroundColor": "blue",
+          "spacing": 30,
+          "items": {
+            "type": "Text",
+            "text": "* ${index}",
+            "width": "100"
+          }
+        },
+        "data": [1, 2, 3, 4]
+      }
+    }
+  }
+}
+)";
+
+/**
+ * Verify the spacing is correct for row, rowReverse, column and columnReverse work with LTR layoutDirection
+ */
+
+TEST_F(LiveArrayRebuildTest, SpacedContainerRowFull) {
+    loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"row\", \"layoutDir\": \"LTR\"}");
+    root->clearPending();
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto c  = cont->getChildAt(0);
+    auto c2 = cont->getChildAt(1);
+    auto c3 = cont->getChildAt(2);
+    auto c4 = cont->getChildAt(3);
+    EXPECT_TRUE(expectBounds(c,  0, 0,   10, 100));
+    EXPECT_TRUE(expectBounds(c2, 0, 130, 10, 230));
+    EXPECT_TRUE(expectBounds(c3, 0, 260, 10, 360));
+    EXPECT_TRUE(expectBounds(c4, 0, 390, 10, 490));
+}
+
+TEST_F(LiveArrayRebuildTest, SpacedContainerRowReverseFull) {
+    loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"rowReverse\", \"layoutDir\": \"LTR\"}");
+    root->clearPending();
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto c  = cont->getChildAt(0);
+    auto c2 = cont->getChildAt(1);
+    auto c3 = cont->getChildAt(2);
+    auto c4 = cont->getChildAt(3);
+    EXPECT_TRUE(expectBounds(c,  0, 1400, 10, 1500));
+    EXPECT_TRUE(expectBounds(c2, 0, 1270, 10, 1370));
+    EXPECT_TRUE(expectBounds(c3, 0, 1140, 10, 1240));
+    EXPECT_TRUE(expectBounds(c4, 0, 1010, 10, 1110));
+}
+
+TEST_F(LiveArrayRebuildTest, SpacedContainerColumnFull) {
+    loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"column\", \"layoutDir\": \"LTR\"}");
+    root->clearPending();
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto c  = cont->getChildAt(0);
+    auto c2 = cont->getChildAt(1);
+    auto c3 = cont->getChildAt(2);
+    auto c4 = cont->getChildAt(3);
+    EXPECT_TRUE(expectBounds(c,  0,   0, 10, 100));
+    EXPECT_TRUE(expectBounds(c2, 40,  0, 50, 100));
+    EXPECT_TRUE(expectBounds(c3, 80,  0, 90, 100));
+    EXPECT_TRUE(expectBounds(c4, 120, 0, 130, 100));
+}
+
+TEST_F(LiveArrayRebuildTest, SpacedContainerColumnReverseFull) {
+    loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"columnReverse\", \"layoutDir\": \"LTR\"}");
+    root->clearPending();
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto c  = cont->getChildAt(0);
+    auto c2 = cont->getChildAt(1);
+    auto c3 = cont->getChildAt(2);
+    auto c4 = cont->getChildAt(3);
+    EXPECT_TRUE(expectBounds(c,  120, 0, 130, 100));
+    EXPECT_TRUE(expectBounds(c2, 80,  0,  90, 100));
+    EXPECT_TRUE(expectBounds(c3, 40,  0,  50, 100));
+    EXPECT_TRUE(expectBounds(c4, 0,   0,  10, 100));
+}
+
+/**
+ * Verify the spacing is correct when we dynamically change layoutDirection and direction
+ */
+TEST_F(LiveArrayRebuildTest, SpacedContainerChangeDirection) {
+    loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"row\", \"layoutDir\": \"LTR\"}");
+    root->clearPending();
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto c  = cont->getChildAt(0);
+    auto c2 = cont->getChildAt(1);
+    auto c3 = cont->getChildAt(2);
+    auto c4 = cont->getChildAt(3);
+    EXPECT_TRUE(expectBounds(c,  0, 0,   10, 100));
+    EXPECT_TRUE(expectBounds(c2, 0, 130, 10, 230));
+    EXPECT_TRUE(expectBounds(c3, 0, 260, 10, 360));
+    EXPECT_TRUE(expectBounds(c4, 0, 390, 10, 490));
+
+    cont->setProperty(kPropertyDirection, "column");
+    root->clearPending();
+
+    EXPECT_TRUE(expectBounds(c,  0,   0, 10, 100));
+    EXPECT_TRUE(expectBounds(c2, 40,  0, 50, 100));
+    EXPECT_TRUE(expectBounds(c3, 80,  0, 90, 100));
+    EXPECT_TRUE(expectBounds(c4, 120, 0, 130, 100));
+
+    cont->setProperty(kPropertyDirection, "columnReverse");
+    root->clearPending();
+
+    EXPECT_TRUE(expectBounds(c,  120, 0, 130, 100));
+    EXPECT_TRUE(expectBounds(c2, 80,  0,  90, 100));
+    EXPECT_TRUE(expectBounds(c3, 40,  0,  50, 100));
+    EXPECT_TRUE(expectBounds(c4, 0,   0,  10, 100));
+
+
+    cont->setProperty(kPropertyDirection, "rowReverse");
+    root->clearPending();
+
+    EXPECT_TRUE(expectBounds(c,  0, 1400, 10, 1500));
+    EXPECT_TRUE(expectBounds(c2, 0, 1270, 10, 1370));
+    EXPECT_TRUE(expectBounds(c3, 0, 1140, 10, 1240));
+    EXPECT_TRUE(expectBounds(c4, 0, 1010, 10, 1110));
+
+    cont->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+    root->clearPending();
+
+    EXPECT_TRUE(expectBounds(c,  0, 0,   10, 100));
+    EXPECT_TRUE(expectBounds(c2, 0, 130, 10, 230));
+    EXPECT_TRUE(expectBounds(c3, 0, 260, 10, 360));
+    EXPECT_TRUE(expectBounds(c4, 0, 390, 10, 490));
+
+    cont->setProperty(kPropertyDirection, "row");
+    root->clearPending();
+
+    EXPECT_TRUE(expectBounds(c,  0, 1400, 10, 1500));
+    EXPECT_TRUE(expectBounds(c2, 0, 1270, 10, 1370));
+    EXPECT_TRUE(expectBounds(c3, 0, 1140, 10, 1240));
+    EXPECT_TRUE(expectBounds(c4, 0, 1010, 10, 1110));
+}
+
+/**
+ * Verify the spacing is correct for row, rowReverse, column and columnReverse work with RTL layoutDirection
+ */
+
+TEST_F(LiveArrayRebuildTest, SpacedContainerRowFullRTL) {
+    loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"row\", \"layoutDir\": \"RTL\"}");
+    root->clearPending();
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto c  = cont->getChildAt(0);
+    auto c2 = cont->getChildAt(1);
+    auto c3 = cont->getChildAt(2);
+    auto c4 = cont->getChildAt(3);
+    EXPECT_TRUE(expectBounds(c,  0, 1400, 10, 1500));
+    EXPECT_TRUE(expectBounds(c2, 0, 1270, 10, 1370));
+    EXPECT_TRUE(expectBounds(c3, 0, 1140, 10, 1240));
+    EXPECT_TRUE(expectBounds(c4, 0, 1010, 10, 1110));
+}
+
+TEST_F(LiveArrayRebuildTest, SpacedContainerRowReverseFullRTL) {
+    loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"rowReverse\", \"layoutDir\": \"RTL\"}");
+    root->clearPending();
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto c  = cont->getChildAt(0);
+    auto c2 = cont->getChildAt(1);
+    auto c3 = cont->getChildAt(2);
+    auto c4 = cont->getChildAt(3);
+    EXPECT_TRUE(expectBounds(c,  0, 0,   10, 100));
+    EXPECT_TRUE(expectBounds(c2, 0, 130, 10, 230));
+    EXPECT_TRUE(expectBounds(c3, 0, 260, 10, 360));
+    EXPECT_TRUE(expectBounds(c4, 0, 390, 10, 490));
+}
+
+TEST_F(LiveArrayRebuildTest, SpacedContainerColumnFullRTL) {
+    loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"column\", \"layoutDir\": \"RTL\"}");
+    root->clearPending();
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto c  = cont->getChildAt(0);
+    auto c2 = cont->getChildAt(1);
+    auto c3 = cont->getChildAt(2);
+    auto c4 = cont->getChildAt(3);
+    EXPECT_TRUE(expectBounds(c,  0,   1400, 10,  1500));
+    EXPECT_TRUE(expectBounds(c2, 40,  1400, 50,  1500));
+    EXPECT_TRUE(expectBounds(c3, 80,  1400, 90,  1500));
+    EXPECT_TRUE(expectBounds(c4, 120, 1400, 130, 1500));
+}
+
+TEST_F(LiveArrayRebuildTest, SpacedContainerColumnReverseFullRTL) {
+    loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"columnReverse\", \"layoutDir\": \"RTL\"}");
+    root->clearPending();
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto c  = cont->getChildAt(0);
+    auto c2 = cont->getChildAt(1);
+    auto c3 = cont->getChildAt(2);
+    auto c4 = cont->getChildAt(3);
+    EXPECT_TRUE(expectBounds(c,  120, 1400, 130, 1500));
+    EXPECT_TRUE(expectBounds(c2, 80,  1400,  90, 1500));
+    EXPECT_TRUE(expectBounds(c3, 40,  1400,  50, 1500));
+    EXPECT_TRUE(expectBounds(c4, 0,   1400,  10, 1500));
+}
+
+auto SPACED_SEQUENCE_WITH_LAYOUTDIR = R"apl(
+{
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "parameters": [ "scrollDir", "layoutDir" ],
+    "items":{
+      "layoutDirection": "LTR",
+      "type": "Frame",
+      "backgroundColor": "red",
+      "width": "1500px",
+      "items": {
+        "type": "Sequence",
+        "id": "sequence",
+        "scrollDirection": "${scrollDir}",
+        "width": "1500px",
+        "items": {
+          "type": "Frame",
+          "id": "Frame+${index}",
+          "width": "100",
+          "backgroundColor": "blue",
+          "spacing": 30,
+          "items": {
+            "type": "Text",
+            "text": "* ${index}",
+            "width": "100"
+          }
+        },
+        "data": [1, 2, 3, 4]
+      }
+    }
+  }
+}
+)apl";
+
+/**
+ * Verify spacing also works correctly on sequences with horizontal scrolling
+ */
+TEST_F(LiveArrayRebuildTest, SpacedSequenceChangeDirectionHorizontal) {
+    loadDocument(SPACED_SEQUENCE_WITH_LAYOUTDIR, "{\"scrollDir\": \"horizontal\", \"layoutDir\": \"LTR\"}");
+    root->clearPending();
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("sequence"));
+    auto c  = cont->getChildAt(0);
+    auto c2 = cont->getChildAt(1);
+    auto c3 = cont->getChildAt(2);
+    auto c4 = cont->getChildAt(3);
+    EXPECT_TRUE(expectBounds(c,  0, 0,   10, 100));
+    EXPECT_TRUE(expectBounds(c2, 0, 130, 10, 230));
+    EXPECT_TRUE(expectBounds(c3, 0, 260, 10, 360));
+    EXPECT_TRUE(expectBounds(c4, 0, 390, 10, 490));
+
+    // Verify we respond correctly to layoutDirection changes
+    cont->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+    root->clearPending();
+
+    EXPECT_TRUE(expectBounds(c,  0, 1400, 10, 1500));
+    EXPECT_TRUE(expectBounds(c2, 0, 1300, 10, 1400));
+    EXPECT_TRUE(expectBounds(c3, 0, 1170, 10, 1270));
+    EXPECT_TRUE(expectBounds(c4, 0, 1040, 10, 1140));
+
+    cont->setProperty(kPropertyLayoutDirectionAssigned, "LTR");
+    root->clearPending();
+
+    EXPECT_TRUE(expectBounds(c,  0, 0, 10, 100));
+    EXPECT_TRUE(expectBounds(c2, 0, 130, 10, 230));
+    EXPECT_TRUE(expectBounds(c3, 0, 260, 10, 360));
+    EXPECT_TRUE(expectBounds(c4, 0, 390, 10, 490));
+}
+
+/**
+ * Verify spacing also works correctly on sequences with vertical scrolling
+ */
+TEST_F(LiveArrayRebuildTest, SpacedSequenceChangeDirectionVertical) {
+    loadDocument(SPACED_SEQUENCE_WITH_LAYOUTDIR, "{\"scrollDir\": \"vertical\", \"layoutDir\": \"LTR\"}");
+    root->clearPending();
+
+    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("sequence"));
+    auto c  = cont->getChildAt(0);
+    auto c2 = cont->getChildAt(1);
+    auto c3 = cont->getChildAt(2);
+    auto c4 = cont->getChildAt(3);
+    EXPECT_TRUE(expectBounds(c,  0,   0, 10,  100));
+    EXPECT_TRUE(expectBounds(c2, 40,  0, 50,  100));
+    EXPECT_TRUE(expectBounds(c3, 80,  0, 90,  100));
+    EXPECT_TRUE(expectBounds(c4, 120, 0, 130, 100));
+
+    // Verify we respond correctly to layoutDirection changes
+    cont->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
+    root->clearPending();
+
+    EXPECT_TRUE(expectBounds(c,  0,   1400,  10, 1500));
+    EXPECT_TRUE(expectBounds(c2, 40,  1400,  50, 1500));
+    EXPECT_TRUE(expectBounds(c3, 80,  1400,  90, 1500));
+    EXPECT_TRUE(expectBounds(c4, 120, 1400, 130, 1500));
+
+    cont->setProperty(kPropertyLayoutDirectionAssigned, "LTR");
+    root->clearPending();
+
+    EXPECT_TRUE(expectBounds(c,    0, 0, 10,  100));
+    EXPECT_TRUE(expectBounds(c2,  40, 0, 50,  100));
+    EXPECT_TRUE(expectBounds(c3,  80, 0, 90,  100));
+    EXPECT_TRUE(expectBounds(c4, 120, 0, 130, 100));
+}
 
 } // namespace apl

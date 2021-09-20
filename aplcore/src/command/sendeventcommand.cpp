@@ -14,6 +14,7 @@
  */
 
 #include "apl/command/sendeventcommand.h"
+#include "apl/content/rootconfig.h"
 #include "apl/utils/log.h"
 #include "apl/utils/dump_object.h"
 #include "apl/utils/session.h"
@@ -26,7 +27,8 @@ const CommandPropDefSet&
 SendEventCommand::propDefSet() const {
     static CommandPropDefSet sSendEventCommandProperties(CoreCommand::propDefSet(), {
             {kCommandPropertyArguments,  Object::EMPTY_ARRAY(), asOldArray},
-            {kCommandPropertyComponents, Object::EMPTY_ARRAY(), asArray}
+            {kCommandPropertyComponents, Object::EMPTY_ARRAY(), asArray},
+            {kCommandPropertyFlags,      Object::EMPTY_MAP(),   asAny}
     });
 
     return sSendEventCommandProperties;
@@ -65,6 +67,21 @@ SendEventCommand::execute(const TimersPtr& timers, bool fastMode) {
     bag.emplace(kEventPropertySource, Object(std::move(sourceDoc)));
     bag.emplace(kEventPropertyArguments, Object(std::move(argumentsDoc)));
     bag.emplace(kEventPropertyComponents, componentsMap);
+
+    auto flags = std::make_shared<ObjectMap>();
+    auto definedFlags = mValues.at(kCommandPropertyFlags);
+    if (!definedFlags.empty() && definedFlags.isMap()) {
+        flags->insert(definedFlags.getMap().begin(), definedFlags.getMap().end());
+    }
+
+    auto defaultFlags = context()->getRootConfig().getProperty(RootProperty::kSendEventAdditionalFlags);
+    if (!defaultFlags.empty() && defaultFlags.isMap()) {
+        flags->insert(defaultFlags.getMap().begin(), defaultFlags.getMap().end());
+    }
+
+    if (!flags->empty()) {
+        bag.emplace(kEventPropertyFlags, flags);
+    }
 
     if (DEBUG_SEND_EVENT) {
         LOG(LogLevel::kDebug) << "SendEvent Bag";

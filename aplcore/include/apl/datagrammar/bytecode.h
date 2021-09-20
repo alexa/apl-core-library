@@ -18,7 +18,9 @@
 
 #include <vector>
 
+#include "apl/datagrammar/functions.h"
 #include "apl/primitives/objectdata.h"
+
 
 namespace apl {
 namespace datagrammar {
@@ -128,13 +130,17 @@ inline Object getConstant(ByteCodeConstant value) {
 }
 
 /**
- * Given a comparison operator and a value returned from three-way comparison operation,
- * evaluate if the comparison worked.
+ * Evaluate the comparison as per given operator for two values
  * @param comparison The comparison operator.
- * @param value Three possible values: less-than (-1), equal (0), and greater-than (1)
- * @return True if the operator/value combination is true.
+ * @param a LHS operand.
+ * @param b RHS operand.
+ * @return True if the comparison evaluates to true, false otherwise.
  */
-inline bool CompareOp(ByteCodeComparison comparison, int value) {
+inline bool CompareOp(ByteCodeComparison comparison, const Object& a, const Object& b) {
+    if(a.isNaN() || b.isNaN())
+        return comparison == BC_COMPARE_NOT_EQUAL;
+
+    int value = Compare(a, b);
     switch (comparison) {
         case BC_COMPARE_LESS_THAN:
             return value == -1;

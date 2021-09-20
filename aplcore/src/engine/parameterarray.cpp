@@ -34,6 +34,24 @@ extractMapped(const rapidjson::Value& object,
     return sBindingMap.get(it->value.GetString(), defValue);
 }
 
+std::vector<std::string> ParameterArray::parameterNames(const rapidjson::Value& object)
+{
+    std::vector<std::string> result;
+
+    if (object.IsObject()) {
+        for (const auto& param : arrayifyProperty(object, "parameters")) {
+            if (param.IsString())
+                result.emplace_back(param.GetString());
+            else if (param.IsObject()) {
+                auto it = param.FindMember("name");
+                if (it != param.MemberEnd() && it->value.IsString() && !it->value.Empty())
+                    result.emplace_back(it->value.GetString());
+            }
+        }
+    }
+
+    return result;
+}
 
 ParameterArray::ParameterArray(const rapidjson::Value& layout)
 {

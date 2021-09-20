@@ -36,10 +36,12 @@
 #include "apl/focus/focusmanager.h"
 #include "apl/livedata/livedatamanager.h"
 #include "apl/media/mediamanager.h"
+#include "apl/primitives/textmeasurerequest.h"
 #include "apl/primitives/size.h"
 #include "apl/time/sequencer.h"
 #include "apl/touch/pointermanager.h"
 #include "apl/utils/counter.h"
+#include "apl/utils/lrucache.h"
 
 namespace apl {
 
@@ -90,6 +92,7 @@ public:
     ExtensionManager& extensionManager() const { return *mExtensionManager; }
     LayoutManager& layoutManager() const { return *mLayoutManager; }
     MediaManager& mediaManager() const { return *mConfig.getMediaManager(); }
+    MediaPlayerFactory& mediaPlayerFactory() const { return *mConfig.getMediaPlayerFactory(); }
 
     const YGConfigRef& ygconfig() const { return mYGConfigRef; }
     CoreComponentPtr top() const { return mTop; }
@@ -126,6 +129,16 @@ public:
     void releaseScreenLock() { mScreenLockCount--; }
 
     /**
+     * @return internal text measurement cache.
+     */
+    LruCache<TextMeasureRequest, YGSize>& cachedMeasures() { return mCachedMeasures; }
+
+    /**
+     * @return internal text measurement baseline cache.
+     */
+    LruCache<TextMeasureRequest, float>& cachedBaselines() { return mCachedBaselines; }
+
+    /**
      * @return List of pending onMount handlers for recently inflated components.
      */
     WeakPtrSet<CoreComponent>& pendingOnMounts() { return mPendingOnMounts; }
@@ -145,6 +158,9 @@ public:
     bool getReinflationFlag() const { return mRuntimeState.getReinflation(); }
 
     std::queue<Event> events;
+#ifdef ALEXAEXTENSIONS
+    std::queue<Event> extesnionEvents;
+#endif
     std::set<ComponentPtr> dirty;
     std::set<ComponentPtr> dirtyVisualContext;
     std::set<DataSourceConnectionPtr> dirtyDatasourceContext;
@@ -173,6 +189,8 @@ private:
     SessionPtr mSession;
     std::string mLang;
     LayoutDirection mLayoutDirection;
+    LruCache<TextMeasureRequest, YGSize> mCachedMeasures;
+    LruCache<TextMeasureRequest, float> mCachedBaselines;
     WeakPtrSet<CoreComponent> mPendingOnMounts;
 };
 

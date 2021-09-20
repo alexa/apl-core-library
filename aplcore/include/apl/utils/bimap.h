@@ -51,9 +51,9 @@ template<class A, class B>
 class Bimap {
 public:
     Bimap(std::initializer_list<std::pair<A, B>> list)
-        : mOriginal(std::move(list))
+        : mAll(std::move(list))
     {
-        for (auto& m : mOriginal) {
+        for (auto& m : mAll) {
             mAtoB.emplace(m.first, m.second);
             mBtoA.emplace(m.second, m.first);
         }
@@ -67,7 +67,7 @@ public:
 
     std::vector<A> all(B x) const {
         std::vector<A> result;
-        for (const auto& m : mOriginal) {
+        for (const auto& m : mAll) {
             if (m.second == x)
                 result.push_back(m.first);
         }
@@ -76,7 +76,7 @@ public:
 
     std::vector<B> all(A x) const {
         std::vector<B> result;
-        for (const auto& m : mOriginal) {
+        for (const auto& m : mAll) {
             if (m.first == x)
                 result.push_back(m.second);
         }
@@ -115,6 +115,7 @@ public:
             return it->second;
 
         int a = maxA() + 1;
+        mAll.emplace_back(a, b);
         mAtoB.emplace(a, b);
         mBtoA.emplace(b, a);
         return a;
@@ -127,7 +128,7 @@ public:
     }
 
 private:
-    std::vector<std::pair<A, B>> mOriginal;
+    std::vector<std::pair<A, B>> mAll;
     std::map<A, B> mAtoB;
     std::map<B, A> mBtoA;
 };

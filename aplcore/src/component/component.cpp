@@ -49,6 +49,12 @@ Component::updateGraphic(const GraphicContentPtr& json) {
 }
 
 void
+Component::updateResourceState(const ExtensionComponentResourceState& state)
+{
+    LOG(LogLevel::kError) << "updateResourceState called for component that does not support it.";
+}
+
+void
 Component::clearDirty() {
     mDirty.clear();
     // Clean out changed children property.

@@ -1355,7 +1355,7 @@ TEST_F(GraphicTest, Time)
     ASSERT_EQ(18, group->getValue(kGraphicPropertyRotation).getDouble());
     ASSERT_TRUE(CheckDirty(group, kGraphicPropertyTransform));
     ASSERT_TRUE(CheckDirty(graphic, group));
-    ASSERT_TRUE(CheckDirty(box, kPropertyGraphic));
+    ASSERT_TRUE(CheckDirty(box, kPropertyGraphic, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, box));
 }
 
@@ -1429,7 +1429,7 @@ TEST_F(GraphicTest, ParameterizedTime)
     ASSERT_EQ(198, group->getValue(kGraphicPropertyRotation).getDouble());
     ASSERT_TRUE(CheckDirty(group, kGraphicPropertyTransform));
     ASSERT_TRUE(CheckDirty(graphic, group));
-    ASSERT_TRUE(CheckDirty(box, kPropertyGraphic));
+    ASSERT_TRUE(CheckDirty(box, kPropertyGraphic, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, box));
 }
 
@@ -1561,7 +1561,7 @@ TEST_F(GraphicTest, FullClock)
     ASSERT_TRUE(CheckDirty(hourHand, kGraphicPropertyTransform));
     ASSERT_TRUE(CheckDirty(secondHand, kGraphicPropertyTransform));
     ASSERT_TRUE(CheckDirty(graphic, minuteHand, hourHand, secondHand));
-    ASSERT_TRUE(CheckDirty(box, kPropertyGraphic));
+    ASSERT_TRUE(CheckDirty(box, kPropertyGraphic, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, box));
 }
 

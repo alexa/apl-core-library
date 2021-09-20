@@ -55,8 +55,9 @@ scrollIntoView(const std::shared_ptr<TimeManager>& timers, const CoreComponentPt
     while (true) {
         auto action = ScrollToAction::makeUsingSnap(timers, current, duration);
         if (!action) break;
-        actions.emplace_back(action);
+        if (action->isPending()) actions.emplace_back(action);
         current = action->getScrollableContainer();
+        action = nullptr;
     }
     if (actions.empty()) return nullptr;
     return Action::makeAll(timers, actions);

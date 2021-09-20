@@ -25,52 +25,51 @@ class CommandSendEventTest : public CommandTest {};
 /**
  * The old version of Aria (1.0) converted all arguments into strings
  */
-static const char * SEND_EVENT_OLD_ARGUMENTS =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"resources\": ["
-    "    {"
-    "      \"color\": {"
-    "        \"accent\": \"#00caff\""
-    "      },"
-    "      \"dimension\": {"
-    "        \"absDimen\": \"150dp\","
-    "        \"relDimen\": \"50%\","
-    "        \"autoDimen\": \"auto\""
-    "      }"
-    "    }"
-    "  ],"
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"TouchWrapper\","
-    "      \"onPress\": {"
-    "        \"type\": \"SendEvent\","
-    "        \"arguments\": ["
-    "          null,"
-    "          false,"
-    "          true,"
-    "          \"string\","
-    "          10,"
-    "          2.5,"
-    "          \"@accent\","
-    "          \"@absDimen\","
-    "          \"@relDimen\","
-    "          \"@autoDimen\","
-    "          ["
-    "            1,"
-    "            2,"
-    "            3"
-    "          ],"
-    "          {"
-    "            \"a\": 1,"
-    "            \"b\": 2"
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char * SEND_EVENT_OLD_ARGUMENTS = R"apl({
+  "type": "APL",
+  "version": "1.0",
+  "resources": [
+    {
+      "color": {
+        "accent": "#00caff"
+      },
+      "dimension": {
+        "absDimen": "150dp",
+        "relDimen": "50%",
+        "autoDimen": "auto"
+      }
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "SendEvent",
+        "arguments": [
+          null,
+          false,
+          true,
+          "string",
+          10,
+          2.5,
+          "@accent",
+          "@absDimen",
+          "@relDimen",
+          "@autoDimen",
+          [
+            1,
+            2,
+            3
+          ],
+          {
+            "a": 1,
+            "b": 2
+          }
+        ]
+      }
+    }
+  }
+})apl";
 
 const static std::vector<std::string> EXPECTED = {
     "",  // null
@@ -107,52 +106,51 @@ TEST_F(CommandSendEventTest, WithOldArguments)
 /**
  * The new version of APL (1.1) return JSON objects
  */
-static const char * SEND_EVENT_NEW_ARGUMENTS =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"resources\": ["
-    "    {"
-    "      \"color\": {"
-    "        \"accent\": \"#00caff\""
-    "      },"
-    "      \"dimension\": {"
-    "        \"absDimen\": \"150dp\","
-    "        \"relDimen\": \"50%\","
-    "        \"autoDimen\": \"auto\""
-    "      }"
-    "    }"
-    "  ],"
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"TouchWrapper\","
-    "      \"onPress\": {"
-    "        \"type\": \"SendEvent\","
-    "        \"arguments\": ["
-    "          null,"
-    "          false,"
-    "          true,"
-    "          \"string\","
-    "          10,"
-    "          2.5,"
-    "          \"@accent\","
-    "          \"@absDimen\","
-    "          \"@relDimen\","
-    "          \"@autoDimen\","
-    "          ["
-    "            1,"
-    "            2,"
-    "            3"
-    "          ],"
-    "          {"
-    "            \"a\": 1,"
-    "            \"b\": 2"
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";;
+static const char * SEND_EVENT_NEW_ARGUMENTS = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "resources": [
+    {
+      "color": {
+        "accent": "#00caff"
+      },
+      "dimension": {
+        "absDimen": "150dp",
+        "relDimen": "50%",
+        "autoDimen": "auto"
+      }
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "SendEvent",
+        "arguments": [
+          null,
+          false,
+          true,
+          "string",
+          10,
+          2.5,
+          "@accent",
+          "@absDimen",
+          "@relDimen",
+          "@autoDimen",
+          [
+            1,
+            2,
+            3
+          ],
+          {
+            "a": 1,
+            "b": 2
+          }
+        ]
+      }
+    }
+  }
+})apl";
 
 const static std::vector<Object> EXPECTED_NEW = {
     Object::NULL_OBJECT(),  // null
@@ -188,24 +186,23 @@ TEST_F(CommandSendEventTest, WithNewArguments)
         ASSERT_TRUE(IsEqual(EXPECTED_NEW.at(i), args.at(i))) << i << ": " << EXPECTED_NEW.at(i);
 }
 
-static const char * SEND_EVENT_CASE_INSENSITIVE =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"TouchWrapper\","
-        "      \"onPress\": {"
-        "        \"type\": \"sendEvent\","
-        "        \"arguments\": ["
-        "          1,"
-        "          \"1\","
-        "          null"
-        "        ]"
-        "      }"
-        "    }"
-        "  }"
-        "}";
+static const char * SEND_EVENT_CASE_INSENSITIVE = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "sendEvent",
+        "arguments": [
+          1,
+          "1",
+          null
+        ]
+      }
+    }
+  }
+})apl";
 
 TEST_F(CommandSendEventTest, CaSeInsEnsitIVE)
 {
@@ -216,28 +213,26 @@ TEST_F(CommandSendEventTest, CaSeInsEnsitIVE)
 }
 
 
-static const char *INTERESTING_ARGUMENTS = R"apl(
-    {
-      "type": "APL",
-      "version": "1.4",
-      "mainTemplate": {
-        "item": {
-          "type": "EditText",
-          "onSubmit": [
-            {
-              "type": "SendEvent",
-              "arguments": [
-                "submit",
-                "${Math}",
-                "${event}",
-                "${event.source.value}"
-              ]
-            }
+static const char *INTERESTING_ARGUMENTS = R"apl({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "onSubmit": [
+        {
+          "type": "SendEvent",
+          "arguments": [
+            "submit",
+            "${Math}",
+            "${event}",
+            "${event.source.value}"
           ]
         }
-      }
+      ]
     }
-)apl";
+  }
+})apl";
 
 TEST_F(CommandSendEventTest, InterestingArguments)
 {
@@ -257,36 +252,32 @@ TEST_F(CommandSendEventTest, InterestingArguments)
 }
 
 
-static const char *PAYLOAD_DOC = R"apl(
-    {
-      "type": "APL",
-      "version": "1.4",
-      "mainTemplate": {
-        "parameters": [ "payload" ],
-        "item": {
-          "type": "EditText",
-          "text": "${payload.name} the ${payload.species}",
-          "onSubmit": [
-            {
-              "type": "SendEvent",
-              "arguments": [
-                "submit",
-                "${payload}"
-              ]
-            }
+static const char *PAYLOAD_DOC = R"apl({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "parameters": [ "payload" ],
+    "item": {
+      "type": "EditText",
+      "text": "${payload.name} the ${payload.species}",
+      "onSubmit": [
+        {
+          "type": "SendEvent",
+          "arguments": [
+            "submit",
+            "${payload}"
           ]
         }
-      }
+      ]
     }
-)apl";
+  }
+})apl";
 
-static const char *PAYLOAD_CONTENT = R"apl(
-    {
-      "name": "Pepper",
-      "species": "Dog",
-      "disposition": "Happy"
-    }
-)apl";
+static const char *PAYLOAD_CONTENT = R"apl({
+  "name": "Pepper",
+  "species": "Dog",
+  "disposition": "Happy"
+})apl";
 
 TEST_F(CommandSendEventTest, Payload)
 {
@@ -305,4 +296,68 @@ TEST_F(CommandSendEventTest, Payload)
     ASSERT_TRUE(CheckSendEvent(root, Object(std::make_shared<ObjectMap>(ObjectMap{{"disposition", "Happy"},
                                                                                   {"name",        "Pepper"},
                                                                                   {"species",     "Dog"}}))));
+}
+
+static const char *SENDEVENT_WITH_FLAGS = R"apl({
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "width": "100%",
+      "height": "100%",
+      "onPress": [
+        {
+          "type": "SendEvent",
+          "arguments": ["I_AM_AN_ARGUMENT"],
+          "flags": { "one": true, "two": false, "three": 7 }
+        }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(CommandSendEventTest, SendEventWithFlags)
+{
+    loadDocument(SENDEVENT_WITH_FLAGS);
+    ASSERT_TRUE(component);
+
+    performClick(10, 10);
+    advanceTime(500);
+
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    auto arguments = event.getValue(kEventPropertyArguments).getArray();
+    ASSERT_EQ(Object("I_AM_AN_ARGUMENT"), arguments.at(0));
+    auto flags = event.getValue(kEventPropertyFlags);
+    ASSERT_TRUE(flags.isMap());
+    ASSERT_EQ(3, flags.size());
+    ASSERT_EQ(Object(true), flags.get("one"));
+    ASSERT_EQ(Object(false), flags.get("two"));
+    ASSERT_EQ(Object(7), flags.get("three"));
+}
+
+TEST_F(CommandSendEventTest, SendEventWithDefaultFlags)
+{
+    auto defaultFlags = std::make_shared<ObjectMap>();
+    defaultFlags->emplace("four", "I_AM_DEFAULT");
+    defaultFlags->emplace("three", "OVERRIDE_ME");
+    config->set(RootProperty::kSendEventAdditionalFlags, defaultFlags);
+    loadDocument(SENDEVENT_WITH_FLAGS);
+    ASSERT_TRUE(component);
+
+    performClick(10, 10);
+    advanceTime(500);
+
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    auto arguments = event.getValue(kEventPropertyArguments).getArray();
+    ASSERT_EQ(Object("I_AM_AN_ARGUMENT"), arguments.at(0));
+    auto flags = event.getValue(kEventPropertyFlags);
+    ASSERT_TRUE(flags.isMap());
+    ASSERT_EQ(4, flags.size());
+    ASSERT_EQ(Object(true), flags.get("one"));
+    ASSERT_EQ(Object(false), flags.get("two"));
+    ASSERT_EQ(Object(7), flags.get("three"));
+    ASSERT_EQ(Object("I_AM_DEFAULT"), flags.get("four"));
 }

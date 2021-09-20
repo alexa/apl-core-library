@@ -34,6 +34,9 @@ static const bool DEBUG_CONTENT = false;
 
 const char* DOCUMENT_IMPORT = "import";
 const char* DOCUMENT_MAIN_TEMPLATE = "mainTemplate";
+const char* DOCUMENT_ENVIRONMENT = "environment";
+const char* DOCUMENT_LANGUAGE = "lang";
+const char* DOCUMENT_LAYOUT_DIRECTION = "layoutDirection";
 
 ContentPtr
 Content::create(JsonData&& document) {
@@ -58,25 +61,39 @@ Content::create(JsonData&& document, const SessionPtr& session) {
         return nullptr;
     }
 
-    ParameterArray params(it->value);
-    std::vector<std::string> parameterNames;
-    for (const auto& v : params)
-        parameterNames.push_back(v.name);
-
-    return std::make_shared<Content>(session, ptr, it->value, std::move(parameterNames));
+    return std::make_shared<Content>(session, ptr, it->value);
 }
 
-Content::Content(const SessionPtr& session,
-                 const PackagePtr& mainPackagePtr,
-                 const rapidjson::Value& mainTemplate,
-                 std::vector<std::string>&& parameterNames)
-        : mSession(session),
-          mMainPackage(mainPackagePtr),
-          mMainParameters(std::move(parameterNames)),
+Content::Content(SessionPtr session,
+                 PackagePtr mainPackagePtr,
+                 const rapidjson::Value& mainTemplate)
+        : mSession(std::move(session)),
+          mMainPackage(std::move(mainPackagePtr)),
           mState(LOADING),
-          mMainTemplate(mainTemplate) {
+          mMainTemplate(mainTemplate)
+{
     addImportList(*mMainPackage);
     addExtensions(*mMainPackage);
+
+    // Extract the array of main template parameters
+    mMainParameters = ParameterArray::parameterNames(mainTemplate);
+
+    // Extract the array of environment parameters
+    const rapidjson::Value & json = mMainPackage->json();
+    auto it = json.FindMember(DOCUMENT_ENVIRONMENT);
+    if (it != json.MemberEnd())
+        mEnvironmentParameters = ParameterArray::parameterNames(it->value);
+
+    // The ordered list of parameter names starts with "main" and ends with "environmental".
+    // Duplicate entries are dropped from the mAllParameters list.
+    for (const auto& m : mMainParameters)
+        if (mPendingParameters.emplace(m).second)
+            mAllParameters.emplace_back(m);
+
+    for (const auto& m : mEnvironmentParameters)
+        if (mPendingParameters.emplace(m).second)
+            mAllParameters.emplace_back(m);
+
     updateStatus();
 }
 
@@ -159,23 +176,16 @@ void Content::addData(const std::string& name, JsonData&& raw) {
     if (mState != LOADING)
         return;
 
+    if (!mPendingParameters.erase(name)) {
+        CONSOLE_S(mSession).log("Data parameter '%s' does not exist or is already assigned",
+                                name.c_str());
+        return;
+    }
+
     // If the data is invalid, set the error state
     if (!raw) {
         CONSOLE_S(mSession).log("Data '%s' parse error offset=%u: %s",
                                 name.c_str(), raw.offset(), raw.error());
-        mState = ERROR;
-        return;
-    }
-
-    auto it = std::find(mMainParameters.begin(), mMainParameters.end(), name);
-    if (it == mMainParameters.end()) {
-        CONSOLE_S(mSession).log("Data parameter '%s' does not exist in the document", name.c_str());
-        mState = ERROR;
-        return;
-    }
-
-    if (mParameterValues.count(name)) {
-        CONSOLE_S(mSession).log("Can't reuse data parameters '%s'", name.c_str());
         mState = ERROR;
         return;
     }
@@ -288,8 +298,7 @@ Content::addExtensions(Package& package) {
 
 void
 Content::updateStatus() {
-    if (mState == LOADING && mParameterValues.size() == mMainParameters.size() &&
-        mRequested.empty() && mPending.empty()) {
+    if (mState == LOADING && mPendingParameters.empty() && mRequested.empty() && mPending.empty()) {
         // Content is ready if the dependency list is successfully ordered, otherwise there is an error.
         if (orderDependencyList()) {
             mState = READY;
@@ -387,6 +396,67 @@ Content::getBackground(const Metrics& metrics, const RootConfig& config) const {
     auto context = Context::createBackgroundEvaluationContext(metrics, config, theme);
     auto object = evaluate(*context, backgroundIter->value);
     return asFill(*context, object);
+}
+
+/**
+ * "lang": "VALUE",             // Backward Compatibility
+ * "layoutDirection": "VALUE",  // Backward Compatibility
+ * "environment": {
+ *   "parameters": [ "payload" ],
+ *   "lang": "en-US",
+ *   "layoutDirection": "${payload.foo}"
+ *  }
+ */
+Content::Environment
+Content::getEnvironment(const RootConfig& config) const
+{
+    // Use the RootConfig to initialize the default values
+    auto language = config.getProperty(RootProperty::kLang).asString();
+    auto layoutDirection = static_cast<LayoutDirection>(config.getProperty(kLayoutDirection).asInt());
+
+    // For backward compatibility with the older 1.7 specification, allow the user to specify
+    // "lang" at the document level
+    const auto& json = mMainPackage->json();
+    auto langIter = json.FindMember(DOCUMENT_LANGUAGE);
+    if (langIter != json.MemberEnd() && langIter->value.IsString())
+        language = langIter->value.GetString();
+
+    // For backward compatibility with the older 1.7 specification, allow the user to specify
+    // "layoutDirection" at the document level
+    auto ldIter = json.FindMember(DOCUMENT_LAYOUT_DIRECTION);
+    if (ldIter != json.MemberEnd() && ldIter->value.IsString()) {
+        auto s = ldIter->value.GetString();
+        auto ld = static_cast<LayoutDirection>(sLayoutDirectionMap.get(s, -1));
+        if (ld == static_cast<LayoutDirection>(-1)) {
+            CONSOLE_S(mSession)
+                << "Document 'layoutDirection' property is invalid.  Falling back to system defaults";
+        }
+        else if (ld != kLayoutDirectionInherit) {
+            // Only overwrite the layout direction if it is LTR or RTL.  If it is "inherit", use the RootConfig value
+            layoutDirection = ld;
+        }
+    }
+
+    // If the document has defined a "environment" section, we parse that
+    auto envIter = json.FindMember(DOCUMENT_ENVIRONMENT);
+    if (envIter != json.MemberEnd() && envIter->value.IsObject()) {
+        auto context = Context::createTypeEvaluationContext(config);
+        for (const auto& m : mEnvironmentParameters)
+            context->putUserWriteable(m, mParameterValues.at(m).get());
+
+        // Update the language, if it is defined
+        language = propertyAsString(*context, envIter->value, DOCUMENT_LANGUAGE, language);
+
+        // Extract the layout direction as a string.
+        auto ld = propertyAsString(*context, envIter->value, DOCUMENT_LAYOUT_DIRECTION);
+        if (!ld.empty()) {
+            auto value = sLayoutDirectionMap.get(ld, -1);
+            if (value != -1 && value != LayoutDirection::kLayoutDirectionInherit)
+                layoutDirection = static_cast<LayoutDirection>(value);
+        }
+    }
+
+    return {language, layoutDirection};
 }
 
 const SettingsPtr

@@ -162,6 +162,37 @@ TEST_F(CommandSetValueTest, Image)
     ASSERT_TRUE(CheckNoActions());
 }
 
+static const char *VECTOR_GRAPHIC_TEST = R"({
+    "type": "APL",
+    "version": "1.8",
+    "mainTemplate": {
+        "items": {
+            "type": "VectorGraphic",
+            "id": "vectorgraphic",
+            "width": 100,
+            "height": 100,
+            "source": "http://foo.com/bar.vg",
+            "scale": "fill"
+        }
+    }
+})";
+
+TEST_F(CommandSetValueTest, VectorGraphic)
+{
+    loadDocument(VECTOR_GRAPHIC_TEST);
+
+    auto vgComponent = root->findComponentById("vectorgraphic");
+    ASSERT_EQ(kComponentTypeVectorGraphic, vgComponent->getType());
+
+    ASSERT_EQ("http://foo.com/bar.vg", vgComponent->getCalculated(kPropertySource).asString());
+    executeSetValue("vectorgraphic", "source", "http://bar.com/foo2.vg");
+    ASSERT_TRUE(root->isDirty());
+    root->clearDirty();
+    ASSERT_EQ("http://bar.com/foo2.vg", vgComponent->getCalculated(kPropertySource).asString());
+
+    ASSERT_TRUE(CheckNoActions());
+}
+
 static const char *FRAME_TEST =
         "{"
         "  \"type\": \"APL\","
@@ -467,7 +498,7 @@ TEST_F(CommandSetValueTest, TextLayout)
     executeSetValue("MyText", "text", s);
     root->clearPending();  // This toggles the layout pass
 
-    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, text));
     ASSERT_TRUE(IsEqual(Rect(0, 0, s.size() * 10, 10), text->getCalculated(kPropertyBounds)));
 }

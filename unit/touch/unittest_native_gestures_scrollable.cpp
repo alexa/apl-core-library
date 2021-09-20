@@ -813,7 +813,8 @@ TEST_F(NativeGesturesScrollableTest, HorizontalScrollSnapStartRTL)
     loadDocument(HORIZONTAL_SCROLL_SNAP_START_TEST);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(Point(), component->scrollPosition());
 
@@ -840,7 +841,8 @@ TEST_F(NativeGesturesScrollableTest, HorizontalScrollSnapStartLimitRTL)
     loadDocument(HORIZONTAL_SCROLL_SNAP_START_TEST);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(Point(), component->scrollPosition());
 
@@ -1029,7 +1031,8 @@ TEST_F(NativeGesturesScrollableTest, HorizontalScrollSnapForceStartLowVelocityRT
     loadDocument(HORIZONTAL_SCROLL_SNAP_FORCE_START_TEST);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(Point(), component->scrollPosition());
 
@@ -1054,7 +1057,8 @@ TEST_F(NativeGesturesScrollableTest, HorizontalScrollSnapForceStartLimitRTL)
     loadDocument(HORIZONTAL_SCROLL_SNAP_FORCE_START_TEST);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(Point(), component->scrollPosition());
 
@@ -1255,7 +1259,8 @@ TEST_F(NativeGesturesScrollableTest, HorizontalScrollSnapCenterRTL)
     loadDocument(HORIZONTAL_SCROLL_SNAP_CENTER_TEST);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(Point(), component->scrollPosition());
 
@@ -1282,7 +1287,8 @@ TEST_F(NativeGesturesScrollableTest, HorizontalScrollSnapCenterLimitRTL)
     loadDocument(HORIZONTAL_SCROLL_SNAP_CENTER_TEST);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(Point(), component->scrollPosition());
 
@@ -1473,7 +1479,8 @@ TEST_F(NativeGesturesScrollableTest, HorizontalScrollSnapForceCenterLowVelocityR
     loadDocument(HORIZONTAL_SCROLL_SNAP_FORCE_CENTER_TEST);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(Point(), component->scrollPosition());
 
@@ -1498,7 +1505,8 @@ TEST_F(NativeGesturesScrollableTest, HorizontalScrollSnapForceCenterLimitRTL)
     loadDocument(HORIZONTAL_SCROLL_SNAP_FORCE_CENTER_TEST);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(Point(), component->scrollPosition());
 
@@ -1693,7 +1701,8 @@ TEST_F(NativeGesturesScrollableTest, HorizontalScrollSnapEndRTL)
     loadDocument(HORIZONTAL_SCROLL_SNAP_END_TEST);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(Point(), component->scrollPosition());
 
@@ -1720,7 +1729,8 @@ TEST_F(NativeGesturesScrollableTest, HorizontalScrollSnapEndLimitRTL)
     loadDocument(HORIZONTAL_SCROLL_SNAP_END_TEST);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(Point(), component->scrollPosition());
 
@@ -1816,7 +1826,8 @@ TEST_F(NativeGesturesScrollableTest, HorizontalScrollSnapForceEndLowVelocityRTL)
     loadDocument(HORIZONTAL_SCROLL_SNAP_FORCE_END_TEST);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(Point(), component->scrollPosition());
 
@@ -1841,7 +1852,8 @@ TEST_F(NativeGesturesScrollableTest, HorizontalScrollSnapForceEndLimitRTL)
     loadDocument(HORIZONTAL_SCROLL_SNAP_FORCE_END_TEST);
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(component, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged, kPropertyScrollPosition,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(Point(), component->scrollPosition());
 
@@ -2436,4 +2448,122 @@ TEST_F(NativeGesturesScrollableTest, KeyboardRequestedOnTap)
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
     ASSERT_EQ(apl::kEventTypeOpenKeyboard, event.getType());
+}
+
+static const char *DISPLAY_CONDITIONAL = R"({
+  "type": "APL",
+  "version": "1.7",
+  "layouts": {
+    "AlexaTextListItem": {
+      "parameters": [
+        { "name": "primaryText", "type": "string" },
+        { "name": "secondaryText", "type": "string" },
+        { "name": "primaryAction", "type": "any" }
+      ],
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "width": "100%",
+          "height": 150,
+          "onPress": "${primaryAction}",
+          "item": {
+            "type": "Container",
+            "width": "100%",
+            "inheritParentState": true,
+            "items": [
+              {
+                "type": "Container",
+                "grow": 1,
+                "shrink": 1,
+                "width": "100%",
+                "items": [
+                  { "type": "Text", "text": "${primaryText}", "fontSize": 80 },
+                  { "type": "Text", "text": "${secondaryText}", "fontSize": 50 }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Container",
+        "height": "100%",
+        "width": "100%",
+        "items": [
+          {
+            "type": "Text",
+            "text": "Recently Played",
+            "fontSize": "25",
+            "paddingLeft": 20,
+            "paddingBottom": 50,
+            "paddingTop": 20
+          },
+          {
+            "type": "Sequence",
+            "id": "scrollable",
+            "height": "100%",
+            "shrink": 1,
+            "data": [
+              "I am string One",
+              "I am string Two",
+              "I am string Three",
+              "I am string Four",
+              "I am string Five",
+              "I am string Six",
+              "I am string Seven",
+              "I am string Eight",
+              "I am string Nine"
+            ],
+            "scrollDirection": "vertical",
+            "items": [
+              {
+                "type": "AlexaTextListItem",
+                "display": "${index <= 5 ? 'normal' : 'none'}",
+                "primaryText": "${data}",
+                "secondaryText": "${index}",
+                "primaryAction": {
+                  "type": "SendEvent",
+                  "arguments": ["${index}"]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+TEST_F(NativeGesturesScrollableTest, DisplayConditional)
+{
+    metrics.size(1280, 800);
+    loadDocument(DISPLAY_CONDITIONAL);
+
+    auto scrollable = component->getCoreChildAt(1);
+
+    ASSERT_EQ(9, scrollable->getChildCount());
+    ASSERT_EQ(Point(0,0), scrollable->scrollPosition());
+
+    ASSERT_EQ(kDisplayNormal, scrollable->getCoreChildAt(0)->getCalculated(kPropertyDisplay).getInteger());
+    ASSERT_EQ(kDisplayNormal, scrollable->getCoreChildAt(1)->getCalculated(kPropertyDisplay).getInteger());
+    ASSERT_EQ(kDisplayNormal, scrollable->getCoreChildAt(2)->getCalculated(kPropertyDisplay).getInteger());
+    ASSERT_EQ(kDisplayNormal, scrollable->getCoreChildAt(3)->getCalculated(kPropertyDisplay).getInteger());
+    ASSERT_EQ(kDisplayNormal, scrollable->getCoreChildAt(4)->getCalculated(kPropertyDisplay).getInteger());
+    ASSERT_EQ(kDisplayNormal, scrollable->getCoreChildAt(5)->getCalculated(kPropertyDisplay).getInteger());
+    ASSERT_EQ(kDisplayNone, scrollable->getCoreChildAt(6)->getCalculated(kPropertyDisplay).getInteger());
+    ASSERT_EQ(kDisplayNone, scrollable->getCoreChildAt(7)->getCalculated(kPropertyDisplay).getInteger());
+    ASSERT_EQ(kDisplayNone, scrollable->getCoreChildAt(8)->getCalculated(kPropertyDisplay).getInteger());
+
+    ASSERT_FALSE(root->handlePointerEvent(PointerEvent(apl::kPointerDown, Point(10, 400))));
+    advanceTime(50);
+    ASSERT_TRUE(root->handlePointerEvent(PointerEvent(apl::kPointerMove, Point(10, 100))));
+    advanceTime(500);
+    ASSERT_TRUE(root->handlePointerEvent(PointerEvent(apl::kPointerUp, Point(10, 100))));
+    advanceTime(50);
+
+    ASSERT_EQ(Point(0,180), scrollable->scrollPosition());
 }

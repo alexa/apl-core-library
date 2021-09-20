@@ -133,7 +133,7 @@ public:
     /**
      * @return The number of parameters
      */
-    size_t getParameterCount() const { return mMainParameters.size(); }
+    size_t getParameterCount() const { return mAllParameters.size(); }
 
     /**
      * Retrieve the name of a parameter
@@ -141,7 +141,7 @@ public:
      * @return Name
      */
     const std::string& getParameterAt(size_t index) const {
-        return mMainParameters.at(index);
+        return mAllParameters.at(index);
     }
 
     /**
@@ -154,6 +154,22 @@ public:
      *         the transparent color if no background is defined.
      */
     Object getBackground(const Metrics& metrics, const RootConfig& config) const;
+
+    /**
+     * Returned object for the getEnvironment method.  Defined as a structure for
+     * future expansion.
+     */
+    struct Environment {
+        std::string language;
+        LayoutDirection layoutDirection;
+    };
+
+    /**
+     * Calculate environment properties
+     * @param config Configuration settings
+     * @return The environment object
+     */
+    Environment getEnvironment(const RootConfig& config) const;
 
     /**
      * @return document-wide properties.
@@ -192,10 +208,9 @@ public:
      * @param mainTemplate
      * @param parameterNames
      */
-    Content(const SessionPtr& session,
-            const PackagePtr& mainPackagePtr,
-            const rapidjson::Value& mainTemplate,
-            std::vector<std::string>&& parameterNames);
+    Content(SessionPtr session,
+            PackagePtr mainPackagePtr,
+            const rapidjson::Value& mainTemplate);
 
 private:  // Private internal methods
     void addImportList(Package& package);
@@ -216,11 +231,12 @@ private:
 private:
     SessionPtr mSession;
     PackagePtr mMainPackage;
-    std::vector<std::string> mMainParameters;
+
     std::vector<std::pair<std::string, std::string>> mExtensionRequests;  // ordered <NAME,URI>
     ObjectMapPtr mExtensionSettings; // Map Name -> <settingKey, settingValue> may be null
 
     State mState;
+    const rapidjson::Value& mMainTemplate;
 
     std::set<ImportRequest> mRequested;
     std::set<ImportRequest> mPending;
@@ -228,8 +244,10 @@ private:
     std::vector<PackagePtr> mOrderedDependencies;
 
     std::map<std::string, JsonData> mParameterValues;
-    const rapidjson::Value& mMainTemplate;
-
+    std::vector<std::string> mMainParameters;  // Requested by the main template
+    std::vector<std::string> mEnvironmentParameters;  // Requested by the environment block
+    std::set<std::string> mPendingParameters;  // Union of main and environment parameters
+    std::vector<std::string> mAllParameters;   // Ordered of mPendingParameters.  First N elements match main
 };
 
 

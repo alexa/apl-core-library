@@ -358,6 +358,9 @@ public:
     // FUNCTION & Easing objects
     Object call(const ObjectArray& args) const;
 
+    // Current object hash
+    size_t hash() const;
+
     // Visitor pattern
     void accept(Visitor<Object>& visitor) const;
 
@@ -391,5 +394,9 @@ private:
 
 
 }  // namespace apl
+
+namespace std {
+template<> struct hash<apl::Object> { std::size_t operator()(apl::Object const& s) const noexcept { return s.hash(); } };
+} // namespace std
 
 #endif // _APL_OBJECT_H

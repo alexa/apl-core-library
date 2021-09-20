@@ -212,7 +212,7 @@ ByteCodeOptimizer::simplifyOperations()
             out_constants = 0;
         } else {
             LOG_IF(DEBUG_OPTIMIZER) << "Reducing compare function at " << pc;
-            storeLoadInstruction(1, CompareOp(bcc, Compare(getValueOffsetFromEnd(-2), getValueOffsetFromEnd(-1))));
+            storeLoadInstruction(1, CompareOp(bcc, getValueOffsetFromEnd(-2), getValueOffsetFromEnd(-1)));
         }
     };
 

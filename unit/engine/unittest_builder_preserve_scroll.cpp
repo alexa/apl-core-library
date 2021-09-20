@@ -240,7 +240,7 @@ TEST_F(BuilderPreserveScrollTest, ScrollViewEventHandler)
     root->clearPending();
     ASSERT_TRUE(IsEqual(Dimension(100), component->getCalculated(kPropertyScrollPosition)));
     ASSERT_TRUE(IsEqual("Position: 0.5", text->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, text));
 
     // Trigger reinflate
@@ -258,7 +258,7 @@ TEST_F(BuilderPreserveScrollTest, ScrollViewEventHandler)
     root->clearPending();
     ASSERT_TRUE(IsEqual(Dimension(200), component->getCalculated(kPropertyScrollPosition)));
     ASSERT_TRUE(IsEqual("Position: 2", text->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, text));
 }
 

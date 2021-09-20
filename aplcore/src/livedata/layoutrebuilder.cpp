@@ -171,7 +171,7 @@ LayoutRebuilder::buildBaseChildContext(const LiveArrayObjectPtr& array, size_t d
  * Add the core children to the layout.  The first/last child is handled by the builder.
  */
 void
-LayoutRebuilder::build()
+LayoutRebuilder::build(bool useDirtyFlag)
 {
     auto layout = mLayout.lock();
     auto array = mArray.lock();
@@ -199,9 +199,10 @@ LayoutRebuilder::build()
                                                               Properties(),
                                                               layout,
                                                               mChildPath,
-                                                              layout->shouldBeFullyInflated(index));
+                                                              layout->shouldBeFullyInflated(index),
+                                                              useDirtyFlag);
         if (child && child->isValid()) {
-            layout->appendChild(child, false);
+            layout->appendChild(child, useDirtyFlag);
             index++;
 
             if (mNumbered) {
@@ -258,7 +259,8 @@ LayoutRebuilder::rebuild()
                                                                   Properties(),
                                                                   layout,
                                                                   mChildPath,
-                                                                  layout->shouldBeFullyInflated(index));
+                                                                  layout->shouldBeFullyInflated(index),
+                                                                  true);
             if (child && child->isValid()) {
                 layout->insertChild(child, index + (mHasFirstItem ? 1 : 0), true);
                 index++;
@@ -302,7 +304,7 @@ LayoutRebuilder::rebuild()
     // Allow lazy components to process new children layout (if any).
     layout->processLayoutChanges(true, false);
     // And allow for full DOM to adjust any changed relative sizes
-    layout->getRootComponent()->processLayoutChanges(true, false);
+    layout->getLayoutRoot()->processLayoutChanges(true, false);
 }
 
 void
@@ -345,9 +347,9 @@ LayoutRebuilder::inflateIfRequired(const CoreComponentPtr& child)
     auto item = ctx->opt("_item");
     if (item.isNull()) return;
     if (child->singleChild()) {
-        Builder(mOld.lock()).populateSingleChildLayout(ctx, item, child, child->getPathObject(), true);
+        Builder(mOld.lock()).populateSingleChildLayout(ctx, item, child, child->getPathObject(), true, true);
     } else if (child->multiChild()) {
-        Builder(mOld.lock()).populateLayoutComponent(ctx, item, child, child->getPathObject(), true);
+        Builder(mOld.lock()).populateLayoutComponent(ctx, item, child, child->getPathObject(), true, true);
     }
     ctx->remove("_item");
 }

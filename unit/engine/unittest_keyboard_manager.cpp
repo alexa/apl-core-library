@@ -652,7 +652,7 @@ TEST_F(KeyboardManagerTest, DefaultComponentWhenTrue)
 
     root->handleKeyboard(kKeyDown, BLUE_KEY);
 
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(IsEqual("Is Set", text->getCalculated(kPropertyText).asString()));
 }
@@ -689,7 +689,7 @@ TEST_F(KeyboardManagerTest, DefaultWhenTrue)
 
     root->handleKeyboard(kKeyDown, BLUE_KEY);
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(IsEqual("Is Set", component->getCalculated(kPropertyText).asString()));
 }
@@ -745,13 +745,13 @@ TEST_F(KeyboardManagerTest, AccessEnvironmentValuesInComponent)
 
     root->handleKeyboard(kKeyDown, BLUE_KEY);
 
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(IsEqual("KeyB is set", text->getCalculated(kPropertyText).asString()));
 
     root->handleKeyboard(kKeyUp, BLUE_KEY);
 
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(IsEqual("KeyB is not set", text->getCalculated(kPropertyText).asString()));
 }
@@ -799,13 +799,13 @@ TEST_F(KeyboardManagerTest, AccessEnvironmentValues)
 
     root->handleKeyboard(kKeyDown, BLUE_KEY);
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(IsEqual("KeyB is set", component->getCalculated(kPropertyText).asString()));
 
     root->handleKeyboard(kKeyUp, BLUE_KEY);
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(IsEqual("KeyB is not set", component->getCalculated(kPropertyText).asString()));
 }

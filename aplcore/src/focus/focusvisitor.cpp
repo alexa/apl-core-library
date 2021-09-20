@@ -29,7 +29,8 @@ FocusVisitor::visit(const CoreComponent& component)
     if (parent && !parent->scrollable()) {
         inTheViewport = !parent || parent->isDisplayedChild(component);
     }
-    if (component.isFocusable() && component.getUniqueId() != mRootId && inTheViewport) {
+    if (component.isFocusable() && component.getUniqueId() != mRootId && inTheViewport
+        && !component.getInheritParentState()) {
         mFocusables.emplace_back(std::const_pointer_cast<CoreComponent>(component.shared_from_corecomponent()));
         // Sequences will define if focus should go to the child, usually
         if (!mFullTree && (component.scrollable() || component.isTouchable())) mPruneBranch = true;

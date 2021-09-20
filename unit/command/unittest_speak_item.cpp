@@ -279,7 +279,7 @@ TEST_F(SpeakItemTest, TestStages)
     ASSERT_EQ(kEventScrollAlignFirst, event.getValue(kEventPropertyAlign).getInteger());
 
     // The item should have updated colors
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child));
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
@@ -292,7 +292,7 @@ TEST_F(SpeakItemTest, TestStages)
 
     // No more events
     ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
 }
@@ -335,7 +335,7 @@ TEST_F(SpeakItemTest, TestStagesFastSpeech)
     ASSERT_EQ(kEventScrollAlignCenter, event.getValue(kEventPropertyAlign).getInteger());
 
     // The item should have updated colors
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child));
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
@@ -352,7 +352,7 @@ TEST_F(SpeakItemTest, TestStagesFastSpeech)
 
     // No further events, but the color should have changed back
     ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
 }
@@ -405,7 +405,7 @@ TEST_F(SpeakItemTest, TestStagesNoScrollingRequired)
     ASSERT_EQ(kEventScrollAlignVisible, event.getValue(kEventPropertyAlign).getInteger());
 
     // The item should have updated colors
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
@@ -415,7 +415,7 @@ TEST_F(SpeakItemTest, TestStagesNoScrollingRequired)
 
     // No further events, but the color should have changed back
     ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
 }
@@ -490,7 +490,7 @@ TEST_F(SpeakItemTest, TestTerminationDuringSpeech)
     ASSERT_EQ(kEventScrollAlignLast, event.getValue(kEventPropertyAlign).getInteger());
 
     // The item should have updated colors
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child));
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
@@ -506,7 +506,7 @@ TEST_F(SpeakItemTest, TestTerminationDuringSpeech)
     // No events should be pending, but the color should change back to green
     ASSERT_TRUE(speechTerminated);
     ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
 }
@@ -620,14 +620,14 @@ TEST_F(SpeakItemTest, MissingSpeech)
 
     // We'll need to wait out the minimum dwell time because one was set
     ASSERT_FALSE(root->hasEvent());   // No events pending
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));  // Color change
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));  // Color change
     ASSERT_TRUE(CheckDirty(root, component, child));
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
     // Run through the minimum dwell time
     advanceTime(1000);
     ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));  // Color change
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));  // Color change
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
 }
@@ -706,14 +706,14 @@ TEST_F(SpeakItemTest, MissingSpeechAndScroll)
 
     // We'll need to wait out the minimum dwell time because one was set
     ASSERT_FALSE(root->hasEvent());   // No events pending
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));  // Color change
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));  // Color change
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
     // Run through the minimum dwell time
     advanceTime(1000);
     ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));  // Color change
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));  // Color change
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
 }
@@ -802,7 +802,7 @@ TEST_F(SpeakItemTest, MissingScroll)
     ASSERT_EQ(kEventScrollAlignFirst, event.getValue(kEventPropertyAlign).getInteger());
 
     // The item should have updated colors
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
@@ -819,7 +819,7 @@ TEST_F(SpeakItemTest, MissingScroll)
 
     // No events should be pending, but the color should change back to green
     ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
 }

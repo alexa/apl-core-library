@@ -38,4 +38,5 @@ target_sources_local(unittest
         unittest_tick.cpp
         unittest_transform.cpp
         unittest_visual_context.cpp
+        unittest_visual_hash.cpp
         )

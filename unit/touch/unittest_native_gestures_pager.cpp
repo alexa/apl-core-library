@@ -15,6 +15,7 @@
 
 #include "../testeventloop.h"
 
+#include "apl/focus/focusmanager.h"
 #include "apl/touch/pointerevent.h"
 #include "apl/animation/coreeasing.h"
 
@@ -75,7 +76,15 @@ static const char *PAGER_TEST = R"({
           "id": "${data}${index}",
           "backgroundColor": "${data}",
           "width": "100%",
-          "height": "100%"
+          "height": "100%",
+          "item": {
+            "id": "touchWrapper${index}",
+            "type": "TouchWrapper",
+            "item": {
+              "type": "Text",
+              "text": "Focusable Component ${index}"
+            }
+          }
         }
       ]
     }
@@ -145,6 +154,7 @@ TEST_F(NativeGesturesPagerTest, SetPage)
     loadDocument(PAGER_TEST);
 
     auto ptr = executeCommand("SetPage", {{"componentId", "pagers"}, {"position", "absolute"}, {"value", 8}}, false);
+
     // Takes no time per requirements.
     advanceTime(10);
 
@@ -161,11 +171,24 @@ TEST_F(NativeGesturesPagerTest, SetPage)
     ASSERT_TRUE(root->hasEvent());
     root->popEvent();
 
+    // If we don't have focus on a component in the current page then the focus should not change.
+    auto& fm = component->getContext()->focusManager();
+    auto focus = fm.getFocus();
+    ASSERT_EQ(focus, nullptr);
+
+    // Set focus to a component inside the current page. When the page changes the focus should
+    // switch to the pager component
+    executeCommand("SetFocus", {{"componentId", "touchWrapper8"}}, false);
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+
     ////////////////////////
 
     ptr = executeCommand("SetPage", {{"componentId", "pagers"}, {"position", "relative"}, {"value", -2}}, false);
     advanceTime(90);
-    ASSERT_TRUE(CheckDirty(component->getChildAt(6), kPropertyLaidOut, kPropertyInnerBounds, kPropertyTransform, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(6), kPropertyLaidOut, kPropertyInnerBounds, kPropertyTransform,
+                           kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
 
     ASSERT_EQ(2, component->getDisplayedChildCount());
     ASSERT_EQ("red6", component->getDisplayedChildAt(0)->getId());
@@ -179,9 +202,16 @@ TEST_F(NativeGesturesPagerTest, SetPage)
     ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged));
     root->clearDirty();
 
+    // Verify the focus was changed to the pager component
+    ASSERT_EQ(fm.getFocus(), component);
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+
     ASSERT_TRUE(ptr->isResolved());
     visibleChild = component->getCoreChildAt(6);
     ASSERT_EQ(1.0, visibleChild->getCalculated(kPropertyOpacity).getDouble());
+
     ASSERT_TRUE(root->hasEvent());
     root->popEvent();
 }
@@ -517,7 +547,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingLeftRTL)
     root->clearPending();
     advanceTime(1500);
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(1, component->pagePosition());
     ASSERT_TRUE(root->hasEvent());
@@ -694,7 +725,8 @@ TEST_F(NativeGesturesPagerTest, PageSequentialFlingRightRTL)
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(100,10)));
     advanceTime(100);
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
 
     ASSERT_EQ(11, component->pagePosition());
     ASSERT_TRUE(root->hasEvent());
@@ -879,6 +911,8 @@ static const char *PAGER_DEFAULT_DATA = R"apl({
 TEST_F(NativeGesturesPagerTest, PageFlingLeftDefault)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_DEFAULT_DATA);
+    ASSERT_TRUE(ConsoleMessage());  // Extra "do" data
+
     advanceTime(10);
     root->clearDirty();
 
@@ -940,6 +974,7 @@ TEST_F(NativeGesturesPagerTest, PageFlingLeftDefault)
 TEST_F(NativeGesturesPagerTest, PageFlingChangeOfNav)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_DEFAULT_DATA);
+    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
 
     // Set page to last
     component->update(kUpdatePagerPosition, 11);
@@ -1070,6 +1105,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingChangeOfNav)
 TEST_F(NativeGesturesPagerTest, PageFlingLeftDefaultRTL)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_DEFAULT_DATA);
+    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
+
     advanceTime(10);
     root->clearDirty();
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
@@ -1132,7 +1169,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingLeftDefaultRTL)
     advanceTime(1);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), currentChild));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), nextChild));
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_EQ(0, component->pagePosition());
 
     // fling complete, next page is fully on screen
@@ -1143,6 +1181,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingLeftDefaultRTL)
 TEST_F(NativeGesturesPagerTest, PageFlingRightDefault)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_DEFAULT_DATA);
+    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
+
     advanceTime(10);
     root->clearDirty();
 
@@ -1214,6 +1254,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingRightDefault)
 TEST_F(NativeGesturesPagerTest, PageFlingRightDefaultRTL)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_DEFAULT_DATA);
+    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
+
     advanceTime(10);
     root->clearDirty();
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
@@ -1272,7 +1314,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingRightDefaultRTL)
     advanceTime(1);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), currentChild));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), nextChild));
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_EQ(2, component->pagePosition());
 
     // fling complete, next page is fully on screen
@@ -1289,6 +1332,8 @@ static const char *PAGER_VERTICAL_DATA = R"apl({
 TEST_F(NativeGesturesPagerTest, PageFlingUpDefault)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_VERTICAL_DATA);
+    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
+
     advanceTime(10);
     root->clearDirty();
 
@@ -1417,6 +1462,8 @@ NativeGesturesPagerTest::pageFlingDownDefaultTest(NativeGesturesPagerTest& self)
 TEST_F(NativeGesturesPagerTest, PageFlingDownDefault)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_VERTICAL_DATA);
+    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
+
     advanceTime(10);
     root->clearDirty();
     pageFlingDownDefaultTest(*this);
@@ -1428,6 +1475,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingDownDefault)
 TEST_F(NativeGesturesPagerTest, PageFlingDownDefaultRTL)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_VERTICAL_DATA);
+    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
+
     advanceTime(10);
     root->clearDirty();
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
@@ -1732,7 +1781,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingLeftCustomRTL)
     advanceTime(1);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), currentChild));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), nextChild));
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_EQ(2, component->pagePosition());
 
     // fling complete, next page is fully on screen
@@ -1801,7 +1851,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingRightCustomRTL)
     advanceTime(1);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), currentChild));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), nextChild));
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_EQ(0, component->pagePosition());
 
     // fling complete, next page is fully on screen
@@ -1876,7 +1927,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingLeftCustomHigherBelowRTL)
     advanceTime(1);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), currentChild));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), nextChild));
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_EQ(2, component->pagePosition());
 
     // fling complete, next page is fully on screen
@@ -1945,7 +1997,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingRightCustomHigherBelowRTL)
     advanceTime(1);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), currentChild));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), nextChild));
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_EQ(0, component->pagePosition());
 
     // fling complete, next page is fully on screen
@@ -2020,7 +2073,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingLeftCustomNextAboveRTL)
     advanceTime(1);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), currentChild));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), nextChild));
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_EQ(2, component->pagePosition());
 
     // fling complete, next page is fully on screen
@@ -2089,7 +2143,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingRightCustomNextAboveRTL)
     advanceTime(1);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), currentChild));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), nextChild));
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_EQ(0, component->pagePosition());
 
     // fling complete, next page is fully on screen
@@ -2164,7 +2219,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingLeftCustomNextBelowRTL)
     advanceTime(1);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), currentChild));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), nextChild));
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_EQ(2, component->pagePosition());
 
     // fling complete, next page is fully on screen
@@ -2233,7 +2289,8 @@ TEST_F(NativeGesturesPagerTest, PageFlingRightCustomNextBelowRTL)
     advanceTime(1);
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), currentChild));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), nextChild));
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_EQ(0, component->pagePosition());
 
     // fling complete, next page is fully on screen

@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.8.0]
+
+This release adds support for version 1.8 of the APL specification.
+
+### Added
+
+- Added events to notify about readiness and failure for video tracks
+- Added events to notify success or failure loading images and vector graphics
+- Added flags to SendEvent Command to allow runtimes to modify the UserEvent behavior
+- New version of the media player for video tracks
+- Runtimes can get the display state of a document to identify if it is hidden, in the background or foreground. 
+- Support for data-binding in the document environment property
+- Alpha feature: Added extension component to allow extensions to render contents
+
+### Changed
+
+- OnMount now run for components inflated after the initial pass and on normal mode
+- Removed lang and layoutDirection from the document to environment
+- Improved focus behavior
+- Bug fixes
+- Build improvements
+
 ## [1.7.1]
 
 ### Changed

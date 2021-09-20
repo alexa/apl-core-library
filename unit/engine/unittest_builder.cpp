@@ -32,43 +32,44 @@ using namespace apl;
 
 class BuilderTest : public DocumentWrapper {};
 
-static const char *TEST_MULTIPLE_STATES =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"styles\": {"
-    "    \"testStyle\": {"
-    "      \"values\": ["
-    "        {"
-    "          \"when\": \"${state.pressed}\","
-    "          \"color\": \"blue\","
-    "          \"opacity\": 0.25"
-    "        },"
-    "        {"
-    "          \"when\": \"${state.karaoke}\","
-    "          \"color\": \"green\","
-    "          \"opacity\": 0.5"
-    "        },"
-    "        {"
-    "          \"when\": \"${state.karaokeTarget}\","
-    "          \"color\": \"olive\","
-    "          \"opacity\": 0.5"
-    "        },"
-    "        {"
-    "          \"when\": \"${state.pressed && state.karaoke}\","
-    "          \"color\": \"red\","
-    "          \"opacity\": 0.75"
-    "        }"
-    "      ]"
-    "    }"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"style\": \"testStyle\""
-    "    }"
-    "  }"
-    "}";
+static const char *TEST_MULTIPLE_STATES = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "styles": {
+         "testStyle": {
+           "values": [
+             {
+               "when": "${state.pressed}",
+               "color": "blue",
+               "opacity": 0.25
+             },
+             {
+               "when": "${state.karaoke}",
+               "color": "green",
+               "opacity": 0.5
+             },
+             {
+               "when": "${state.karaokeTarget}",
+               "color": "olive",
+               "opacity": 0.5
+             },
+             {
+               "when": "${state.pressed && state.karaoke}",
+               "color": "red",
+               "opacity": 0.75
+             }
+           ]
+         }
+       },
+       "mainTemplate": {
+         "items": {
+           "type": "Text",
+           "style": "testStyle"
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, StatesOnOff)
 {
@@ -101,24 +102,28 @@ TEST_F(BuilderTest, StatesOnOff)
     clearDirty();
 }
 
-static const char *DATA = "{"
-    "\"title\": \"Pecan Pie V\""
-    "}";
+static const char *DATA = R"(
+    {
+        "title": "Pecan Pie V"
+    }
+)";
 
-static const char *SIMPLE_IMAGE = "{"
-"  \"type\": \"APL\","
-"  \"version\": \"1.0\","
-"  \"theme\": \"dark\","
-"  \"mainTemplate\": {"
-"    \"parameters\": ["
-"      \"payload\""
-"    ],"
-"    \"item\": {"
-"      \"id\": \"abc\","
-"      \"type\": \"Image\""
-"    }"
-"  }"
-"}";
+static const char *SIMPLE_IMAGE = R"(
+    {
+           "type": "APL",
+           "version": "1.0",
+           "theme": "dark",
+           "mainTemplate": {
+             "parameters": [
+               "payload"
+             ],
+             "item": {
+               "id": "abc",
+               "type": "Image"
+             }
+           }
+    }
+)";
 
 
 TEST_F(BuilderTest, SimpleImage)
@@ -175,54 +180,56 @@ TEST_F(BuilderTest, SimpleImage)
 }
 
 
-static const char *FULL_IMAGE = "{"
-"  \"type\": \"APL\","
-"  \"version\": \"1.0\","
-"  \"theme\": \"dark\","
-"  \"mainTemplate\": {"
-"    \"parameters\": ["
-"      \"payload\""
-"    ],"
-"    \"item\": {"
-"      \"type\": \"Image\","
-"      \"accessibilityLabel\": \"Foo bar!\","
-"      \"checked\": true,"
-"      \"description\": \"My Image\","
-"      \"disabled\": true,"
-"      \"display\": \"invisible\","
-"      \"height\": 200,"
-"      \"width\": \"50vw\","
-"      \"minHeight\": 10,"
-"      \"minWidth\": 20,"
-"      \"maxHeight\": \"100vh\","
-"      \"maxWidth\": \"100vw\","
-"      \"opacity\": 0.5,"
-"      \"paddingBottom\": 1,"
-"      \"paddingLeft\": 2,"
-"      \"paddingRight\": \"3dp\","
-"      \"paddingTop\": 4,"
-"      \"role\": \"image\","
-"      \"align\": \"bottom-right\","
-"      \"scale\": \"fill\","
-"      \"borderRadius\": \"10dp\","
-"      \"overlayColor\": \"red\","
-"      \"overlayGradient\": {"
-"        \"colorRange\": ["
-"          \"blue\","
-"          \"red\""
-"        ]"
-"      },"
-"      \"shadowColor\": \"green\","
-"      \"shadowHorizontalOffset\": \"50vw\","
-"      \"shadowRadius\": 5,"
-"      \"shadowVerticalOffset\": \"20dp\","
-"      \"source\": \"http://foo.com/bar.png\","
-"      \"transform\": [{\"translateX\": 10}],"
-"      \"filters\": {\"type\": \"Blur\", \"radius\": 22},"
-"      \"random\": \"ERROR\""
-"    }"
-"  }"
-"}";
+static const char *FULL_IMAGE = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "theme": "dark",
+       "mainTemplate": {
+         "parameters": [
+           "payload"
+         ],
+         "item": {
+           "type": "Image",
+           "accessibilityLabel": "Foo bar!",
+           "checked": true,
+           "description": "My Image",
+           "disabled": true,
+           "display": "invisible",
+           "height": 200,
+           "width": "50vw",
+           "minHeight": 10,
+           "minWidth": 20,
+           "maxHeight": "100vh",
+           "maxWidth": "100vw",
+           "opacity": 0.5,
+           "paddingBottom": 1,
+           "paddingLeft": 2,
+           "paddingRight": "3dp",
+           "paddingTop": 4,
+           "role": "image",
+           "align": "bottom-right",
+           "scale": "fill",
+           "borderRadius": "10dp",
+           "overlayColor": "red",
+           "overlayGradient": {
+             "colorRange": [
+               "blue",
+               "red"
+             ]
+           },
+           "shadowColor": "green",
+           "shadowHorizontalOffset": "50vw",
+           "shadowRadius": 5,
+           "shadowVerticalOffset": "20dp",
+           "source": "http://foo.com/bar.png",
+           "transform": [{"translateX": 10}],
+           "filters": {"type": "Blur", "radius": 22},
+           "random": "ERROR"
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, FullImage)
 {
@@ -281,34 +288,35 @@ TEST_F(BuilderTest, FullImage)
     ASSERT_TRUE(CheckState(component, kStateChecked, kStateDisabled));
 }
 
-static const char *GRADIENT_IN_RESOURCE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"resources\": ["
-    "    {"
-    "      \"gradients\": {"
-    "        \"myGrad\": {"
-    "          \"colorRange\": ["
-    "            \"blue\","
-    "            \"green\","
-    "            \"red\""
-    "          ]"
-    "        }"
-    "      }"
-    "    }"
-    "  ],"
-    "  \"mainTemplate\": {"
-    "    \"parameters\": ["
-    "      \"payload\""
-    "    ],"
-    "    \"item\": {"
-    "      \"type\": \"Image\","
-    "      \"overlayGradient\": \"@myGrad\","
-    "      \"source\": \"http://foo.com/bar.png\""
-    "    }"
-    "  }"
-    "}";
+static const char *GRADIENT_IN_RESOURCE = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "resources": [
+         {
+           "gradients": {
+             "myGrad": {
+               "colorRange": [
+                 "blue",
+                 "green",
+                 "red"
+               ]
+             }
+           }
+         }
+       ],
+       "mainTemplate": {
+         "parameters": [
+           "payload"
+         ],
+         "item": {
+           "type": "Image",
+           "overlayGradient": "@myGrad",
+           "source": "http://foo.com/bar.png"
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, GradientInResource)
 {
@@ -319,19 +327,21 @@ TEST_F(BuilderTest, GradientInResource)
     ASSERT_EQ(Object(Color(0x0000ffff)), grad.getGradient().getColorRange().at(0));
 }
 
-static const char *SIMPLE_TEXT = "{"
-"  \"type\": \"APL\","
-"  \"version\": \"1.0\","
-"  \"theme\": \"dark\","
-"  \"mainTemplate\": {"
-"    \"parameters\": ["
-"      \"payload\""
-"    ],"
-"    \"item\": {"
-"      \"type\": \"Text\""
-"    }"
-"  }"
-"}";
+static const char *SIMPLE_TEXT = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "theme": "dark",
+       "mainTemplate": {
+         "parameters": [
+           "payload"
+         ],
+         "item": {
+           "type": "Text"
+         }
+       }
+    }
+)";
 
 
 TEST_F(BuilderTest, SimpleText)
@@ -376,44 +386,46 @@ TEST_F(BuilderTest, SimpleText)
     ASSERT_EQ(kTextAlignVerticalAuto, component->getCalculated(kPropertyTextAlignVertical).getInteger());
 }
 
-static const char *FULL_TEXT = "{"
-"  \"type\": \"APL\","
-"  \"version\": \"1.0\","
-"  \"theme\": \"dark\","
-"  \"mainTemplate\": {"
-"    \"parameters\": ["
-"      \"payload\""
-"    ],"
-"    \"item\": {"
-"      \"type\": \"Text\","
-"      \"accessibilityLabel\": \"Happy Text\","
-"      \"height\": \"50vh\","
-"      \"width\": \"50%\","
-"      \"maxHeight\": \"100vh\","
-"      \"maxWidth\": \"100vw\","
-"      \"minHeight\": \"10%\","
-"      \"minWidth\": \"25vw\","
-"      \"opacity\": 0.5,"
-"      \"paddingBottom\": 2,"
-"      \"paddingLeft\": 4,"
-"      \"paddingRight\": 6,"
-"      \"paddingTop\": 10,"
-"      \"role\": \"text\","
-"      \"color\": \"blue\","
-"      \"fontFamily\": \"Bookerly\","
-"      \"fontSize\": \"20dp\","
-"      \"fontStyle\": \"italic\","
-"      \"fontWeight\": 800,"
-"      \"letterSpacing\": \"2dp\","
-"      \"lineHeight\": 1.5,"
-"      \"maxLines\": 10,"
-"      \"text\": \"Once more unto the breach, dear friends, once more;\","
-"      \"textAlign\": \"right\","
-"      \"transform\": [{\"translateY\": 10}],"
-"      \"textAlignVertical\": \"bottom\""
-"    }"
-"  }"
-"}";
+static const char *FULL_TEXT = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "theme": "dark",
+       "mainTemplate": {
+         "parameters": [
+           "payload"
+         ],
+         "item": {
+           "type": "Text",
+           "accessibilityLabel": "Happy Text",
+           "height": "50vh",
+           "width": "50%",
+           "maxHeight": "100vh",
+           "maxWidth": "100vw",
+           "minHeight": "10%",
+           "minWidth": "25vw",
+           "opacity": 0.5,
+           "paddingBottom": 2,
+           "paddingLeft": 4,
+           "paddingRight": 6,
+           "paddingTop": 10,
+           "role": "text",
+           "color": "blue",
+           "fontFamily": "Bookerly",
+           "fontSize": "20dp",
+           "fontStyle": "italic",
+           "fontWeight": 800,
+           "letterSpacing": "2dp",
+           "lineHeight": 1.5,
+           "maxLines": 10,
+           "text": "Once more unto the breach, dear friends, once more;",
+           "textAlign": "right",
+           "transform": [{"translateY": 10}],
+           "textAlignVertical": "bottom"
+         }
+       }
+    }
+)";
 
 
 TEST_F(BuilderTest, FullText)
@@ -456,22 +468,24 @@ TEST_F(BuilderTest, FullText)
 }
 
 
-static const char *SIMPLE_CONTAINER = "{"
-"  \"type\": \"APL\","
-"  \"version\": \"1.0\","
-"  \"theme\": \"dark\","
-"  \"mainTemplate\": {"
-"    \"parameters\": ["
-"      \"payload\""
-"    ],"
-"    \"item\": {"
-"      \"type\": \"Container\","
-"      \"item\": {"
-"        \"type\": \"Text\""
-"      }"
-"    }"
-"  }"
-"}";
+static const char *SIMPLE_CONTAINER = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "theme": "dark",
+       "mainTemplate": {
+         "parameters": [
+           "payload"
+         ],
+         "item": {
+           "type": "Container",
+           "item": {
+             "type": "Text"
+           }
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, SimpleContainer)
 {
@@ -522,65 +536,67 @@ TEST_F(BuilderTest, SimpleContainer)
     ASSERT_EQ(Object::AUTO_OBJECT(), text["top"]);
 }
 
-static const char *FULL_CONTAINER = "{"
-"  \"type\": \"APL\","
-"  \"version\": \"1.0\","
-"  \"theme\": \"dark\","
-"  \"mainTemplate\": {"
-"    \"parameters\": ["
-"      \"payload\""
-"    ],"
-"    \"item\": {"
-"      \"type\": \"Container\","
-"      \"accessibilityLabel\": \"Happy Text\","
-"      \"height\": \"50vh\","
-"      \"width\": \"50%\","
-"      \"maxHeight\": \"100vh\","
-"      \"maxWidth\": \"100vw\","
-"      \"minHeight\": \"10%\","
-"      \"minWidth\": \"25vw\","
-"      \"opacity\": 0.5,"
-"      \"paddingBottom\": 2,"
-"      \"paddingLeft\": 4,"
-"      \"paddingRight\": 6,"
-"      \"paddingTop\": 10,"
-"      \"role\": \"alert\","
-"      \"alignItems\": \"end\","
-"      \"justifyContent\": \"center\","
-"      \"direction\": \"row\","
-"      \"numbered\": true,"
-"      \"firstItem\": {"
-"        \"type\": \"Text\","
-"        \"text\": \"First\""
-"      },"
-"      \"items\": ["
-"        {"
-"          \"type\": \"Text\","
-"          \"text\": \"Turtle\","
-"          \"position\": \"absolute\","
-"          \"top\": 10,"
-"          \"bottom\": 10,"
-"          \"left\": 20,"
-"          \"right\": 30"
-"        },"
-"        {"
-"          \"type\": \"Image\","
-"          \"source\": \"my_little_picture\","
-"          \"grow\": 1,"
-"          \"shrink\": 2,"
-"          \"left\": 10,"
-"          \"spacing\": 20,"
-"          \"numbering\": \"skip\","
-"          \"alignSelf\": \"baseline\""
-"        }"
-"      ],"
-"      \"lastItem\": {"
-"        \"type\": \"Text\","
-"        \"text\": \"Last\""
-"      }"
-"    }"
-"  }"
-"}";
+static const char *FULL_CONTAINER = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "theme": "dark",
+       "mainTemplate": {
+         "parameters": [
+           "payload"
+         ],
+         "item": {
+           "type": "Container",
+           "accessibilityLabel": "Happy Text",
+           "height": "50vh",
+           "width": "50%",
+           "maxHeight": "100vh",
+           "maxWidth": "100vw",
+           "minHeight": "10%",
+           "minWidth": "25vw",
+           "opacity": 0.5,
+           "paddingBottom": 2,
+           "paddingLeft": 4,
+           "paddingRight": 6,
+           "paddingTop": 10,
+           "role": "alert",
+           "alignItems": "end",
+           "justifyContent": "center",
+           "direction": "row",
+           "numbered": true,
+           "firstItem": {
+             "type": "Text",
+             "text": "First"
+           },
+           "items": [
+             {
+               "type": "Text",
+               "text": "Turtle",
+               "position": "absolute",
+               "top": 10,
+               "bottom": 10,
+               "left": 20,
+               "right": 30
+             },
+             {
+               "type": "Image",
+               "source": "my_little_picture",
+               "grow": 1,
+               "shrink": 2,
+               "left": 10,
+               "spacing": 20,
+               "numbering": "skip",
+               "alignSelf": "baseline"
+             }
+           ],
+           "lastItem": {
+             "type": "Text",
+             "text": "Last"
+           }
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, FullContainer)
 {
@@ -857,26 +873,27 @@ TEST_F(BuilderTest, CombinedStartEndWithOverrideOffsetWithDirectionChangeRTL)
     ASSERT_TRUE(expectBounds(text, 0, 200, 100, 300));
 }
 
-static const char *RELATIVE_POSITION =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"mainTemplate\": {"
-        "    \"items\": {"
-        "      \"type\": \"Container\","
-        "      \"width\": \"100%\","
-        "      \"height\": \"100%\","
-        "      \"items\": {"
-        "        \"type\": \"Text\","
-        "        \"left\": \"25%\","
-        "        \"top\": \"25%\","
-        "        \"bottom\": \"25%\","
-        "        \"right\": \"25%\","
-        "        \"position\": \"absolute\""
-        "      }"
-        "    }"
-        "  }"
-        "}";
+static const char *RELATIVE_POSITION = R"(
+        {
+           "type": "APL",
+           "version": "1.1",
+           "mainTemplate": {
+             "items": {
+               "type": "Container",
+               "width": "100%",
+               "height": "100%",
+               "items": {
+                 "type": "Text",
+                 "left": "25%",
+                 "top": "25%",
+                 "bottom": "25%",
+                 "right": "25%",
+                 "position": "absolute"
+               }
+             }
+           }
+        }
+)";
 
 TEST_F(BuilderTest, RelativePosition)
 {
@@ -899,26 +916,27 @@ TEST_F(BuilderTest, RelativePosition)
     ASSERT_TRUE(IsEqual(childBounds, Rect(width / 4, height / 4, width / 2, height / 2)));
 }
 
-static const char *RELATIVE_POSITION_2 =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"mainTemplate\": {"
-        "    \"items\": {"
-        "      \"type\": \"Container\","
-        "      \"width\": \"100%\","
-        "      \"height\": \"100%\","
-        "      \"items\": {"
-        "        \"type\": \"Text\","
-        "        \"left\": \"25%\","
-        "        \"top\": \"25%\","
-        "        \"width\": \"25%\","
-        "        \"height\": \"25%\","
-        "        \"position\": \"absolute\""
-        "      }"
-        "    }"
-        "  }"
-        "}";
+static const char *RELATIVE_POSITION_2 = R"(
+        {
+           "type": "APL",
+           "version": "1.1",
+           "mainTemplate": {
+             "items": {
+               "type": "Container",
+               "width": "100%",
+               "height": "100%",
+               "items": {
+                 "type": "Text",
+                 "left": "25%",
+                 "top": "25%",
+                 "width": "25%",
+                 "height": "25%",
+                 "position": "absolute"
+               }
+             }
+           }
+        }
+)";
 
 TEST_F(BuilderTest, RelativePosition2)
 {
@@ -942,31 +960,33 @@ TEST_F(BuilderTest, RelativePosition2)
 }
 
 
-const char *DATA_CONTAINER ="{"
-"  \"type\": \"APL\","
-"  \"version\": \"1.0\","
-"  \"mainTemplate\": {"
-"    \"parameters\": ["
-"      \"payload\""
-"    ],"
-"    \"item\": {"
-"      \"type\": \"Container\","
-"      \"data\": ["
-"        \"a\","
-"        \"b\","
-"        \"c\","
-"        \"d\","
-"        \"e\""
-"      ],"
-"      \"items\": ["
-"        {"
-"          \"type\": \"Text\","
-"          \"text\": \"Item ${data} index=${index}\""
-"        }"
-"      ]"
-"    }"
-"  }"
-"}";
+const char *DATA_CONTAINER = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "mainTemplate": {
+         "parameters": [
+           "payload"
+         ],
+         "item": {
+           "type": "Container",
+           "data": [
+             "a",
+             "b",
+             "c",
+             "d",
+             "e"
+           ],
+           "items": [
+             {
+               "type": "Text",
+               "text": "Item ${data} index=${index}"
+             }
+           ]
+         }
+       }
+    }
+)";
 
 
 TEST_F(BuilderTest, DataContainer)
@@ -987,36 +1007,40 @@ TEST_F(BuilderTest, DataContainer)
     }
 }
 
-const char *DATA_CONTAINER_2 = "{"
-"  \"type\": \"APL\","
-"  \"version\": \"1.0\","
-"  \"mainTemplate\": {"
-"    \"parameters\": ["
-"      \"payload\""
-"    ],"
-"    \"item\": {"
-"      \"type\": \"Container\","
-"      \"data\": \"${payload.elements}\","
-"      \"items\": ["
-"        {"
-"          \"type\": \"Text\","
-"          \"text\": \"Item ${data} index=${index}\""
-"        }"
-"      ]"
-"    }"
-"  }"
-"}";
+const char *DATA_CONTAINER_2 = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "mainTemplate": {
+         "parameters": [
+           "payload"
+         ],
+         "item": {
+           "type": "Container",
+           "data": "${payload.elements}",
+           "items": [
+             {
+               "type": "Text",
+               "text": "Item ${data} index=${index}"
+             }
+           ]
+         }
+       }
+    }
+)";
 
-const char *DATA_CONTAINER_2_DATA = "{"
-"  \"elements\": ["
-"    \"A\","
-"    \"B\","
-"    \"C\","
-"    \"D\","
-"    \"E\","
-"    \"F\""
-"  ]"
-"}";
+const char *DATA_CONTAINER_2_DATA = R"(
+    {
+       "elements": [
+         "A",
+         "B",
+         "C",
+         "D",
+         "E",
+         "F"
+       ]
+    }
+)";
 
 TEST_F(BuilderTest, DataContainer2)
 {
@@ -1036,13 +1060,14 @@ TEST_F(BuilderTest, DataContainer2)
     }
 }
 
-static const char *DATA_CONTAINER_DEEP_EVALUATION =
-    "{"
-    "  \"elements\": ["
-    "    \"${viewport.width}\","
-    "    \"${viewport.height}\""
-    "  ]"
-    "}";
+static const char *DATA_CONTAINER_DEEP_EVALUATION = R"(
+    {
+       "elements": [
+         "${viewport.width}",
+         "${viewport.height}"
+       ]
+    }
+)";
 
 TEST_F(BuilderTest, DataContainerDeepEvaluation)
 {
@@ -1060,26 +1085,28 @@ TEST_F(BuilderTest, DataContainerDeepEvaluation)
 }
 
 
-const char *SIMPLE_SCROLL_VIEW = "{"
-"  \"type\": \"APL\","
-"  \"version\": \"1.0\","
-"  \"mainTemplate\": {"
-"    \"parameters\": ["
-"      \"payload\""
-"    ],"
-"    \"item\": {"
-"      \"type\": \"ScrollView\","
-"      \"items\": ["
-"        {"
-"          \"type\": \"Text\""
-"        },"
-"        {"
-"          \"type\": \"Text\""
-"        }"
-"      ]"
-"    }"
-"  }"
-"}";
+const char *SIMPLE_SCROLL_VIEW = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "mainTemplate": {
+         "parameters": [
+           "payload"
+         ],
+         "item": {
+           "type": "ScrollView",
+           "items": [
+             {
+               "type": "Text"
+             },
+             {
+               "type": "Text"
+             }
+           ]
+         }
+       }
+    }
+)";
 
 
 TEST_F(BuilderTest, SimpleScrollView)
@@ -1112,39 +1139,41 @@ TEST_F(BuilderTest, SimpleScrollView)
     ASSERT_EQ(1, component->getChildCount());
 }
 
-const char *SIMPLE_TOUCH_WRAPPER = "{"
-"  \"type\": \"APL\","
-"  \"version\": \"1.0\","
-"  \"mainTemplate\": {"
-"    \"parameters\": ["
-"      \"payload\""
-"    ],"
-"    \"item\": {"
-"      \"type\": \"TouchWrapper\","
-"      \"items\": ["
-"        {"
-"          \"type\": \"Text\""
-"        },"
-"        {"
-"          \"type\": \"Text\""
-"        }"
-"      ],"
-"      \"onPress\": ["
-"       {"
-"          \"type\": \"PlayMedia\","
-"          \"componentId\": \"myVideoPlayer\","
-"          \"source\": \"URL\","
-"          \"audioTrack\": \"background\""
-"       },"
-"       {"
-"          \"type\": \"SendEvent\","
-"          \"description\": \"This will execute immediately\","
-"          \"arguments\": [\"Media has started, but hasn't stopped yet\"]"
-"       }"
-"      ]"
-"    }"
-"  }"
-"}";
+const char *SIMPLE_TOUCH_WRAPPER = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "mainTemplate": {
+         "parameters": [
+           "payload"
+         ],
+         "item": {
+           "type": "TouchWrapper",
+           "items": [
+             {
+               "type": "Text"
+             },
+             {
+               "type": "Text"
+             }
+           ],
+           "onPress": [
+            {
+               "type": "PlayMedia",
+               "componentId": "myVideoPlayer",
+               "source": "URL",
+               "audioTrack": "background"
+            },
+            {
+               "type": "SendEvent",
+               "description": "This will execute immediately",
+               "arguments": ["Media has started, but hasn't stopped yet"]
+            }
+           ]
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, SimpleTouchWrapper)
 {
@@ -1182,61 +1211,63 @@ TEST_F(BuilderTest, SimpleTouchWrapper)
 }
 
 
-const char *NUMBER_TEST = "{"
-                          "  \"type\": \"APL\","
-                          "  \"version\": \"1.0\","
-                          "  \"mainTemplate\": {"
-                          "    \"parameters\": ["
-                          "      \"payload\""
-                          "    ],"
-                          "    \"item\": {"
-                          "      \"type\": \"Container\","
-                          "      \"numbered\": true,"
-                          "      \"firstItem\": {"
-                          "        \"type\": \"Text\","
-                          "        \"text\": \"First\""
-                          "      },"
-                          "      \"lastItem\": {"
-                          "        \"type\": \"Text\","
-                          "        \"text\": \"Last\""
-                          "      },"
-                          "      \"items\": ["
-                          "        {"
-                          "          \"type\": \"Text\","
-                          "          \"text\": \"A ${index}-${ordinal}-${length}\","
-                          "          \"spacing\": \"${index + 10}\""
-                          "        },"
-                          "        {"
-                          "          \"type\": \"Text\","
-                          "          \"text\": \"B ${index}-${ordinal}-${length}\","
-                          "          \"numbering\": \"skip\""
-                          "        },"
-                          "        {"
-                          "          \"type\": \"Text\","
-                          "          \"text\": \"C ${index}-${ordinal}-${length}\""
-                          "        },"
-                          "        {"
-                          "          \"when\": \"${index == 10}\","
-                          "          \"type\": \"Text\","
-                          "          \"text\": \"D ${index}-${ordinal}-${length}\""
-                          "        },"
-                          "        {"
-                          "          \"type\": \"Text\","
-                          "          \"text\": \"E ${index}-${ordinal}-${length}\""
-                          "        },"
-                          "        {"
-                          "          \"type\": \"Text\","
-                          "          \"text\": \"F ${index}-${ordinal}-${length}\","
-                          "          \"numbering\": \"reset\""
-                          "        },"
-                          "        {"
-                          "          \"type\": \"Text\","
-                          "          \"text\": \"G ${index}-${ordinal}-${length}\""
-                          "        }"
-                          "      ]"
-                          "    }"
-                          "  }"
-                          "}";
+const char *NUMBER_TEST = R"(
+                            {
+                             "type": "APL",
+                             "version": "1.0",
+                             "mainTemplate": {
+                               "parameters": [
+                                 "payload"
+                               ],
+                               "item": {
+                                 "type": "Container",
+                                 "numbered": true,
+                                 "firstItem": {
+                                   "type": "Text",
+                                   "text": "First"
+                                 },
+                                 "lastItem": {
+                                   "type": "Text",
+                                   "text": "Last"
+                                 },
+                                 "items": [
+                                   {
+                                     "type": "Text",
+                                     "text": "A ${index}-${ordinal}-${length}",
+                                     "spacing": "${index + 10}"
+                                   },
+                                   {
+                                     "type": "Text",
+                                     "text": "B ${index}-${ordinal}-${length}",
+                                     "numbering": "skip"
+                                   },
+                                   {
+                                     "type": "Text",
+                                     "text": "C ${index}-${ordinal}-${length}"
+                                   },
+                                   {
+                                     "when": "${index == 10}",
+                                     "type": "Text",
+                                     "text": "D ${index}-${ordinal}-${length}"
+                                   },
+                                   {
+                                     "type": "Text",
+                                     "text": "E ${index}-${ordinal}-${length}"
+                                   },
+                                   {
+                                     "type": "Text",
+                                     "text": "F ${index}-${ordinal}-${length}",
+                                     "numbering": "reset"
+                                   },
+                                   {
+                                     "type": "Text",
+                                     "text": "G ${index}-${ordinal}-${length}"
+                                   }
+                                 ]
+                               }
+                             }
+                          }
+)";
 
 TEST_F(BuilderTest, NumberingItems)
 {
@@ -1257,44 +1288,46 @@ TEST_F(BuilderTest, NumberingItems)
     ASSERT_EQ(Object("Last"), component->getChildAt(7)->getCalculated(kPropertyText).asString());
 }
 
-const char *NUMBER_TEST_2 = "{"
-                            "  \"type\": \"APL\","
-                            "  \"version\": \"1.0\","
-                            "  \"mainTemplate\": {"
-                            "    \"parameters\": ["
-                            "      \"payload\""
-                            "    ],"
-                            "    \"item\": {"
-                            "      \"type\": \"Container\","
-                            "      \"numbered\": true,"
-                            "      \"data\": ["
-                            "        \"One\","
-                            "        \"Two\","
-                            "        \"Three\","
-                            "        \"Four\","
-                            "        \"Five\""
-                            "      ],"
-                            "      \"items\": ["
-                            "        {"
-                            "          \"when\": \"${data == 'Two'}\","
-                            "          \"type\": \"Text\","
-                            "          \"text\": \"A ${index}-${ordinal}-${length}\","
-                            "          \"numbering\": \"reset\""
-                            "        },"
-                            "        {"
-                            "          \"when\": \"${data == 'Four'}\","
-                            "          \"type\": \"Text\","
-                            "          \"text\": \"B ${index}-${ordinal}-${length}\","
-                            "          \"numbering\": \"skip\""
-                            "        },"
-                            "        {"
-                            "          \"type\": \"Text\","
-                            "          \"text\": \"C ${index}-${ordinal}-${length}\""
-                            "        }"
-                            "      ]"
-                            "    }"
-                            "  }"
-                            "}";
+const char *NUMBER_TEST_2 = R"(
+                            {
+                               "type": "APL",
+                               "version": "1.0",
+                               "mainTemplate": {
+                                 "parameters": [
+                                   "payload"
+                                 ],
+                                 "item": {
+                                   "type": "Container",
+                                   "numbered": true,
+                                   "data": [
+                                     "One",
+                                     "Two",
+                                     "Three",
+                                     "Four",
+                                     "Five"
+                                   ],
+                                   "items": [
+                                     {
+                                       "when": "${data == 'Two'}",
+                                       "type": "Text",
+                                       "text": "A ${index}-${ordinal}-${length}",
+                                       "numbering": "reset"
+                                     },
+                                     {
+                                       "when": "${data == 'Four'}",
+                                       "type": "Text",
+                                       "text": "B ${index}-${ordinal}-${length}",
+                                       "numbering": "skip"
+                                     },
+                                     {
+                                       "type": "Text",
+                                       "text": "C ${index}-${ordinal}-${length}"
+                                     }
+                                   ]
+                                 }
+                               }
+                            }
+)";
 
 TEST_F(BuilderTest, NumberingDataItems)
 {
@@ -1309,20 +1342,22 @@ TEST_F(BuilderTest, NumberingDataItems)
     ASSERT_EQ(Object("C 4-2-5"), component->getChildAt(4)->getCalculated(kPropertyText).asString());
 }
 
-static const char *SIMPLE_VIDEO = "{"
-                                  "  \"type\": \"APL\","
-                                  "  \"version\": \"1.0\","
-                                  "  \"theme\": \"dark\","
-                                  "  \"mainTemplate\": {"
-                                  "    \"parameters\": ["
-                                  "      \"payload\""
-                                  "    ],"
-                                  "    \"item\": {"
-                                  "      \"id\": \"abc\","
-                                  "      \"type\": \"Video\""
-                                  "    }"
-                                  "  }"
-                                  "}";
+static const char *SIMPLE_VIDEO = R"(
+                                    {
+                                     "type": "APL",
+                                     "version": "1.0",
+                                     "theme": "dark",
+                                     "mainTemplate": {
+                                       "parameters": [
+                                         "payload"
+                                       ],
+                                       "item": {
+                                         "id": "abc",
+                                         "type": "Video"
+                                       }
+                                     }
+                                  }
+)";
 
 TEST_F(BuilderTest, SimpleVideo)
 {
@@ -1367,17 +1402,18 @@ TEST_F(BuilderTest, SimpleVideo)
     ASSERT_EQ(false, component->getCalculated(kPropertyAutoplay).getBoolean());
 }
 
-static const char *OLD_AUTO_PLAY_VIDEO =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Video\","
-    "      \"autoplay\": \"false\""
-    "    }"
-    "  }"
-    "}";
+static const char *OLD_AUTO_PLAY_VIDEO = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "mainTemplate": {
+         "item": {
+           "type": "Video",
+           "autoplay": "false"
+         }
+       }
+    }
+)";
 
 /*
  * For backward compatibility with 1.0, the "autoplay" property treats the string "false" as
@@ -1389,17 +1425,18 @@ TEST_F(BuilderTest, OldAutoPlayVideo)
     ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyAutoplay));
 }
 
-static const char *NEW_AUTO_PLAY_VIDEO =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Video\","
-    "      \"autoplay\": \"false\""
-    "    }"
-    "  }"
-    "}";
+static const char *NEW_AUTO_PLAY_VIDEO = R"(
+    {
+       "type": "APL",
+       "version": "1.1",
+       "mainTemplate": {
+         "item": {
+           "type": "Video",
+           "autoplay": "false"
+         }
+       }
+    }
+)";
 
 /**
  * With the release of 1.1, we evaluate the "autoplay" property in the documented manner,
@@ -1411,73 +1448,112 @@ TEST_F(BuilderTest, NewAutoPlayVideo)
     ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyAutoplay));
 }
 
-static const char *FULL_VIDEO = "{"
-                                  "  \"type\": \"APL\","
-                                  "  \"version\": \"1.0\","
-                                  "  \"theme\": \"dark\","
-                                  "  \"mainTemplate\": {"
-                                  "    \"parameters\": ["
-                                  "      \"payload\""
-                                  "    ],"
-                                  "    \"item\": {"
-                                  "      \"id\": \"abc\","
-                                  "      \"type\": \"Video\","
-                                  "      \"audioTrack\": \"background\","
-                                  "      \"autoplay\": \"true\","
-                                  "      \"scale\": \"best-fill\","
-                                  "      \"source\": [ "
-                                  "        \"URL1\","
-                                  "        { \"url\": \"URL2\" },"
-                                  "        { "
-                                  "          \"description\": \"Sample video.\","
-                                  "          \"duration\": 1000,"
-                                  "          \"url\": \"URL3\","
-                                  "          \"repeatCount\": 2,"
-                                  "          \"entity\": [ \"Entity.\" ],"
-                                  "          \"offset\": 100"
-                                  "        }"
-                                  "      ],"
-                                  "      \"onEnd\": ["
-                                  "       {"
-                                  "          \"type\": \"PlayMedia\""
-                                  "       }"
-                                  "      ],"
-                                  "      \"onPause\": ["
-                                  "       {"
-                                  "          \"type\": \"PlayMedia\""
-                                  "       },"
-                                  "       {"
-                                  "          \"type\": \"SendEvent\""
-                                  "       }"
-                                  "      ],"
-                                  "      \"onPlay\": ["
-                                  "       {"
-                                  "          \"type\": \"PlayMedia\""
-                                  "       },"
-                                  "       {"
-                                  "          \"type\": \"SetValue\""
-                                  "       },"
-                                  "       {"
-                                  "          \"type\": \"SendEvent\""
-                                  "       }"
-                                  "      ],"
-                                  "      \"onTrackUpdate\": ["
-                                  "       {"
-                                  "          \"type\": \"PlayMedia\""
-                                  "       },"
-                                  "       {"
-                                  "          \"type\": \"SetValue\""
-                                  "       },"
-                                  "       {"
-                                  "          \"type\": \"SetPage\""
-                                  "       },"
-                                  "       {"
-                                  "          \"type\": \"SendEvent\""
-                                  "       }"
-                                  "      ]"
-                                  "    }"
-                                  "  }"
-                                  "}";
+static const char *FULL_VIDEO = R"(
+                                  {
+                                     "type": "APL",
+                                     "version": "1.0",
+                                     "theme": "dark",
+                                     "mainTemplate": {
+                                       "parameters": [
+                                         "payload"
+                                       ],
+                                       "item": {
+                                         "id": "abc",
+                                         "type": "Video",
+                                         "audioTrack": "background",
+                                         "autoplay": "true",
+                                         "scale": "best-fill",
+                                         "source": [ 
+                                           "URL1",
+                                           { "url": "URL2" },
+                                           { 
+                                             "description": "Sample video.",
+                                             "duration": 1000,
+                                             "url": "URL3",
+                                             "repeatCount": 2,
+                                             "entity": [ "Entity." ],
+                                             "offset": 100
+                                           }
+                                         ],
+                                         "onEnd": [
+                                          {
+                                             "type": "PlayMedia"
+                                          }
+                                         ],
+                                         "onPause": [
+                                          {
+                                             "type": "PlayMedia"
+                                          },
+                                          {
+                                             "type": "SendEvent"
+                                          }
+                                         ],
+                                         "onPlay": [
+                                          {
+                                             "type": "PlayMedia"
+                                          },
+                                          {
+                                             "type": "SetValue"
+                                          },
+                                          {
+                                             "type": "SendEvent"
+                                          }
+                                         ],
+                                         "onTrackUpdate": [
+                                          {
+                                             "type": "PlayMedia"
+                                          },
+                                          {
+                                             "type": "SetValue"
+                                          },
+                                          {
+                                             "type": "SetPage"
+                                          },
+                                          {
+                                             "type": "SendEvent"
+                                          }
+                                         ],
+                                         "onTrackFail": [
+                                          {
+                                             "type": "SetValue"
+                                          },
+                                          {
+                                             "type": "SendEvent"
+                                          },
+                                          {
+                                             "type": "SetPage"
+                                          },
+                                          {
+                                             "type": "SetValue"
+                                          },
+                                          {
+                                             "type": "SendEvent"
+                                          }
+                                         ],
+                                         "onTrackReady": [
+                                          {
+                                             "type": "SetValue"
+                                          },
+                                          {
+                                             "type": "SendEvent"
+                                          },
+                                          {
+                                             "type": "SetPage"
+                                          },
+                                          {
+                                             "type": "SetValue"
+                                          },
+                                          {
+                                             "type": "SendEvent"
+                                          },
+                                          {
+                                             "type": "SetState"
+                                          }
+                                         ]
+                                       }
+                                     }
+                                  }
+)";
 
 TEST_F(BuilderTest, FullVideo)
 {
@@ -1517,6 +1593,8 @@ TEST_F(BuilderTest, FullVideo)
     ASSERT_EQ(2, map.get(kPropertyOnPause).size());
     ASSERT_EQ(3, map.get(kPropertyOnPlay).size());
     ASSERT_EQ(4, map.get(kPropertyOnTrackUpdate).size());
+    ASSERT_EQ(5, map.get(kPropertyOnTrackFail).size());
+    ASSERT_EQ(6, map.get(kPropertyOnTrackReady).size());
     ASSERT_EQ(true, map.get(kPropertyAutoplay).getBoolean());
 
     ASSERT_EQ(3, map.get(kPropertySource).size());
@@ -1545,42 +1623,44 @@ TEST_F(BuilderTest, FullVideo)
     ASSERT_EQ(100, source3.getOffset());
 }
 
-static const char *MEDIA_SOURCE = "{"
-                                "  \"type\": \"APL\","
-                                "  \"version\": \"1.1\","
-                                "  \"mainTemplate\": {"
-                                "    \"item\": "
-                                "    {"
-                                "      \"type\": \"Container\","
-                                "      \"items\":"
-                                "      ["
-                                "        {"
-                                "          \"type\": \"Video\""
-                                "        },"
-                                "        {"
-                                "          \"type\": \"Video\","
-                                "          \"source\": \"URL1\""
-                                "        },"
-                                "        {"
-                                "          \"type\": \"Video\","
-                                "          \"source\":"
-                                "          {"
-                                "            \"description\": \"Sample video.\","
-                                "            \"duration\": 1000,"
-                                "            \"url\": \"URL1\","
-                                "            \"repeatCount\": 2,"
-                                "            \"entity\": [ \"Entity.\" ],"
-                                "            \"offset\": 100"
-                                "          }"
-                                "        },"
-                                "        {"
-                                "          \"type\": \"Video\","
-                                "          \"source\": [ \"URL1\", { \"url\": \"URL2\" } ]"
-                                "        }"
-                                "      ]"
-                                "    }"
-                                "  }"
-                                "}";
+static const char *MEDIA_SOURCE = R"(
+                                {
+                                   "type": "APL",
+                                   "version": "1.1",
+                                   "mainTemplate": {
+                                     "item": 
+                                     {
+                                       "type": "Container",
+                                       "items":
+                                       [
+                                         {
+                                           "type": "Video"
+                                         },
+                                         {
+                                           "type": "Video",
+                                           "source": "URL1"
+                                         },
+                                         {
+                                           "type": "Video",
+                                           "source":
+                                           {
+                                             "description": "Sample video.",
+                                             "duration": 1000,
+                                             "url": "URL1",
+                                             "repeatCount": 2,
+                                             "entity": [ "Entity." ],
+                                             "offset": 100
+                                           }
+                                         },
+                                         {
+                                           "type": "Video",
+                                           "source": [ "URL1", { "url": "URL2" } ]
+                                         }
+                                       ]
+                                     }
+                                   }
+                                }
+)";
 
 TEST_F(BuilderTest, MediaSource)
 {
@@ -1643,54 +1723,56 @@ TEST_F(BuilderTest, MediaSource)
     ASSERT_EQ(0, source.getOffset());
 }
 
-static const char *MEDIA_SOURCE_2 =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": ["
-    "      \"payload\""
-    "    ],"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Video\","
-    "          \"source\": \"${payload.movie.properties.single}\""
-    "        },"
-    "        {"
-    "          \"type\": \"Video\","
-    "          \"source\": ["
-    "            \"${payload.movie.properties.single}\""
-    "          ]"
-    "        },"
-    "        {"
-    "          \"type\": \"Video\","
-    "          \"source\": {"
-    "            \"url\": \"${payload.movie.properties.single}\""
-    "          }"
-    "        },"
-    "        {"
-    "          \"type\": \"Video\","
-    "          \"source\": ["
-    "            {"
-    "              \"url\": \"${payload.movie.properties.single}\""
-    "            }"
-    "          ]"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *MEDIA_SOURCE_2 = R"(
+    {
+       "type": "APL",
+       "version": "1.1",
+       "mainTemplate": {
+         "parameters": [
+           "payload"
+         ],
+         "item": {
+           "type": "Container",
+           "items": [
+             {
+               "type": "Video",
+               "source": "${payload.movie.properties.single}"
+             },
+             {
+               "type": "Video",
+               "source": [
+                 "${payload.movie.properties.single}"
+               ]
+             },
+             {
+               "type": "Video",
+               "source": {
+                 "url": "${payload.movie.properties.single}"
+               }
+             },
+             {
+               "type": "Video",
+               "source": [
+                 {
+                   "url": "${payload.movie.properties.single}"
+                 }
+               ]
+             }
+           ]
+         }
+       }
+    }
+)";
 
-static const char *MEDIA_SOURCE_2_DATA =
-    "{"
-    "  \"movie\": {"
-    "    \"properties\": {"
-    "      \"single\": \"URL1\""
-    "    }"
-    "  }"
-    "}";
+static const char *MEDIA_SOURCE_2_DATA = R"(
+    {
+       "movie": {
+         "properties": {
+           "single": "URL1"
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, MediaSource2)
 {
@@ -1711,42 +1793,43 @@ TEST_F(BuilderTest, MediaSource2)
     }
 }
 
-static const char * KARAOKE_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"styles\": {"
-    "    \"basic\": {"
-    "      \"values\": ["
-    "        {"
-    "          \"color\": \"green\""
-    "        },"
-    "        {"
-    "          \"when\": \"${state.karaoke}\","
-    "          \"color\": \"red\""
-    "        },"
-    "        {"
-    "          \"when\": \"${state.karaokeTarget}\","
-    "          \"color\": \"yellow\""
-    "        },"
-    "        {"
-    "          \"when\": \"${state.disabled}\","
-    "          \"color\": \"blue\""
-    "        },"
-    "        {"
-    "          \"when\": \"${state.karaoke && state.disabled}\","
-    "          \"color\": \"black\""
-    "        }"
-    "      ]"
-    "    }"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"style\": \"basic\""
-    "    }"
-    "  }"
-    "}";
+static const char * KARAOKE_TEST = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "styles": {
+         "basic": {
+           "values": [
+             {
+               "color": "green"
+             },
+             {
+               "when": "${state.karaoke}",
+               "color": "red"
+             },
+             {
+               "when": "${state.karaokeTarget}",
+               "color": "yellow"
+             },
+             {
+               "when": "${state.disabled}",
+               "color": "blue"
+             },
+             {
+               "when": "${state.karaoke && state.disabled}",
+               "color": "black"
+             }
+           ]
+         }
+       },
+       "mainTemplate": {
+         "items": {
+           "type": "Text",
+           "style": "basic"
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, KaraokeStyle)
 {
@@ -1762,7 +1845,7 @@ TEST_F(BuilderTest, KaraokeStyle)
     ASSERT_TRUE(IsEqual(Color(Color::RED), component->getCalculated(kPropertyColor)));
     ASSERT_TRUE(IsEqual(Color(Color::YELLOW), component->getCalculated(kPropertyColorKaraokeTarget)));
     ASSERT_TRUE(IsEqual(Color(Color::GREEN), component->getCalculated(kPropertyColorNonKaraoke)));
-    ASSERT_TRUE(CheckDirty(component, kPropertyColor, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(component, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 
     // Karaoke + disabled
@@ -1770,8 +1853,8 @@ TEST_F(BuilderTest, KaraokeStyle)
     ASSERT_TRUE(IsEqual(Color(Color::BLACK), component->getCalculated(kPropertyColor)));
     ASSERT_TRUE(IsEqual(Color(Color::BLACK), component->getCalculated(kPropertyColorKaraokeTarget)));
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), component->getCalculated(kPropertyColorNonKaraoke)));
-    ASSERT_TRUE(CheckDirty(component, kPropertyColor, kPropertyColorKaraokeTarget,
-                           kPropertyColorNonKaraoke, kPropertyDisabled));
+    ASSERT_TRUE(CheckDirty(component, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+                           kPropertyDisabled, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 
     // Disabled
@@ -1779,7 +1862,7 @@ TEST_F(BuilderTest, KaraokeStyle)
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), component->getCalculated(kPropertyColor)));
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), component->getCalculated(kPropertyColorKaraokeTarget)));
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), component->getCalculated(kPropertyColorNonKaraoke)));
-    ASSERT_TRUE(CheckDirty(component, kPropertyColor, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(component, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 
     // Back to the start
@@ -1787,26 +1870,27 @@ TEST_F(BuilderTest, KaraokeStyle)
     ASSERT_TRUE(IsEqual(Color(Color::GREEN), component->getCalculated(kPropertyColor)));
     ASSERT_TRUE(IsEqual(Color(Color::GREEN), component->getCalculated(kPropertyColorKaraokeTarget)));
     ASSERT_TRUE(IsEqual(Color(Color::GREEN), component->getCalculated(kPropertyColorNonKaraoke)));
-    ASSERT_TRUE(CheckDirty(component, kPropertyColor, kPropertyColorKaraokeTarget,
-                           kPropertyColorNonKaraoke, kPropertyDisabled));
+    ASSERT_TRUE(CheckDirty(component, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+                           kPropertyDisabled, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 }
 
-static const char * BIND_SIMPLE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.2\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"bind\": {"
-    "        \"name\": \"foo\","
-    "        \"value\": 10"
-    "      },"
-    "      \"text\": \"${foo}\""
-    "    }"
-    "  }"
-    "}";
+static const char * BIND_SIMPLE = R"(
+    {
+       "type": "APL",
+       "version": "1.2",
+       "mainTemplate": {
+         "items": {
+           "type": "Text",
+           "bind": {
+             "name": "foo",
+             "value": 10
+           },
+           "text": "${foo}"
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, BindSimple)
 {
@@ -1815,27 +1899,28 @@ TEST_F(BuilderTest, BindSimple)
     ASSERT_EQ("10", component->getCalculated(kPropertyText).asString());
 }
 
-static const char *BIND_TWO =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.2\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"bind\": ["
-    "        {"
-    "          \"name\": \"foo\","
-    "          \"value\": 10"
-    "        },"
-    "        {"
-    "          \"name\": \"bar\","
-    "          \"value\": 20"
-    "        }"
-    "      ],"
-    "      \"text\": \"${foo + bar}\""
-    "    }"
-    "  }"
-    "}";
+static const char *BIND_TWO = R"(
+    {
+       "type": "APL",
+       "version": "1.2",
+       "mainTemplate": {
+         "items": {
+           "type": "Text",
+           "bind": [
+             {
+               "name": "foo",
+               "value": 10
+             },
+             {
+               "name": "bar",
+               "value": 20
+             }
+           ],
+           "text": "${foo + bar}"
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, BindTwo)
 {
@@ -1844,27 +1929,28 @@ TEST_F(BuilderTest, BindTwo)
     ASSERT_EQ("30", component->getCalculated(kPropertyText).asString());
 }
 
-static const char *BIND_UNUSED =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.2\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"bind\": ["
-    "        {"
-    "          \"name\": \"foo\","
-    "          \"value\": 10"
-    "        },"
-    "        {"
-    "          \"name\": \"bar\","
-    "          \"value\": \"${foo + 20}\""
-    "        }"
-    "      ],"
-    "      \"text\": \"Hello 10\""
-    "    }"
-    "  }"
-    "}";
+static const char *BIND_UNUSED = R"(
+    {
+       "type": "APL",
+       "version": "1.2",
+       "mainTemplate": {
+         "items": {
+           "type": "Text",
+           "bind": [
+             {
+               "name": "foo",
+               "value": 10
+             },
+             {
+               "name": "bar",
+               "value": "${foo + 20}"
+             }
+           ],
+           "text": "Hello 10"
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, BindUnused)
 {
@@ -1873,29 +1959,30 @@ TEST_F(BuilderTest, BindUnused)
     ASSERT_EQ("Hello 10", component->getCalculated(kPropertyText).asString());
 }
 
-static const char * BIND_NUMBER =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Text\","
-    "      \"text\": \"${foo + ':' + bar}\","
-    "      \"bind\": ["
-    "        {"
-    "          \"name\": \"foo\","
-    "          \"value\": 10,"
-    "          \"type\": \"number\""
-    "        },"
-    "        {"
-    "          \"name\": \"bar\","
-    "          \"value\": \"${foo + 23}\","
-    "          \"type\": \"number\""
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char * BIND_NUMBER = R"(
+    {
+       "type": "APL",
+       "version": "1.1",
+       "mainTemplate": {
+         "item": {
+           "type": "Text",
+           "text": "${foo + ':' + bar}",
+           "bind": [
+             {
+               "name": "foo",
+               "value": 10,
+               "type": "number"
+             },
+             {
+               "name": "bar",
+               "value": "${foo + 23}",
+               "type": "number"
+             }
+           ]
+         }
+       }
+    }
+)";
 
 
 TEST_F(BuilderTest, BindNumber) {
@@ -1904,46 +1991,47 @@ TEST_F(BuilderTest, BindNumber) {
     ASSERT_EQ("10:33", component->getCalculated(kPropertyText).asString());
 }
 
-static const char *BIND_VARIOUS =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Text\","
-    "      \"text\": \"${mixedBag}\","
-    "      \"color\": \"${myTextColorName}\","
-    "      \"fontSize\": \"${myFontSize}\","
-    "      \"opacity\": \"${isHidden ? 0 : 1}\","
-    "      \"bind\": ["
-    "        {"
-    "          \"name\": \"myTextColor\","
-    "          \"value\": \"green\","
-    "          \"type\": \"color\""
-    "        },"
-    "        {"
-    "          \"name\": \"myFontSize\","
-    "          \"value\": \"20dp\","
-    "          \"type\": \"dimension\""
-    "        },"
-    "        {"
-    "          \"name\": \"isHidden\","
-    "          \"value\": \"true\","
-    "          \"type\": \"boolean\""
-    "        },"
-    "        {"
-    "          \"name\": \"myTextColorName\","
-    "          \"value\": \"green\","
-    "          \"type\": \"string\""
-    "        },"
-    "        {"
-    "          \"name\": \"mixedBag\","
-    "          \"value\": \"${myTextColorName+isHidden}\""
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *BIND_VARIOUS = R"(
+    {
+       "type": "APL",
+       "version": "1.1",
+       "mainTemplate": {
+         "item": {
+           "type": "Text",
+           "text": "${mixedBag}",
+           "color": "${myTextColorName}",
+           "fontSize": "${myFontSize}",
+           "opacity": "${isHidden ? 0 : 1}",
+           "bind": [
+             {
+               "name": "myTextColor",
+               "value": "green",
+               "type": "color"
+             },
+             {
+               "name": "myFontSize",
+               "value": "20dp",
+               "type": "dimension"
+             },
+             {
+               "name": "isHidden",
+               "value": "true",
+               "type": "boolean"
+             },
+             {
+               "name": "myTextColorName",
+               "value": "green",
+               "type": "string"
+             },
+             {
+               "name": "mixedBag",
+               "value": "${myTextColorName+isHidden}"
+             }
+           ]
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, BindVarious) {
     loadDocument(BIND_VARIOUS);
@@ -1954,37 +2042,38 @@ TEST_F(BuilderTest, BindVarious) {
     ASSERT_EQ(Object(Color(Color::GREEN)), component->getCalculated(kPropertyColor));
 }
 
-static const char *TRANSFORM_ON_PRESS =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"TouchWrapper\","
-    "      \"width\": \"100%\","
-    "      \"height\": \"100%\","
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"id\": \"myFrame\","
-    "        \"width\": 20,"
-    "        \"height\": 100"
-    "      },"
-    "      \"onPress\": {"
-    "        \"type\": \"SetValue\","
-    "        \"componentId\": \"myFrame\","
-    "        \"property\": \"transform\","
-    "        \"value\": ["
-    "          {"
-    "            \"scale\": 2"
-    "          },"
-    "          {"
-    "            \"translateX\": 30"
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *TRANSFORM_ON_PRESS = R"(
+    {
+       "type": "APL",
+       "version": "1.1",
+       "mainTemplate": {
+         "items": {
+           "type": "TouchWrapper",
+           "width": "100%",
+           "height": "100%",
+           "items": {
+             "type": "Frame",
+             "id": "myFrame",
+             "width": 20,
+             "height": 100
+           },
+           "onPress": {
+             "type": "SetValue",
+             "componentId": "myFrame",
+             "property": "transform",
+             "value": [
+               {
+                 "scale": 2
+               },
+               {
+                 "translateX": 30
+               }
+             ]
+           }
+         }
+       }
+    }
+)";
 
 
 TEST_F(BuilderTest, TransformOnPress)
@@ -2003,56 +2092,57 @@ TEST_F(BuilderTest, TransformOnPress)
     ASSERT_EQ(Point(50,-50), t * Point());
 }
 
-static const char *TRANSFORM_WITH_RESOURCES =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"resources\": ["
-    "    {"
-    "      \"numbers\": {"
-    "        \"ROTATE\": -90,"
-    "        \"SCALE\": 0.5"
-    "      },"
-    "      \"dimensions\": {"
-    "        \"ONE\": \"50vh\""
-    "      }"
-    "    }"
-    "  ],"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"TouchWrapper\","
-    "      \"width\": \"100%\","
-    "      \"height\": \"100%\","
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"id\": \"myFrame\","
-    "        \"width\": 20,"
-    "        \"height\": 100,"
-    "        \"transform\": ["
-    "          {"
-    "            \"rotate\": \"@ROTATE\""
-    "          },"
-    "          {"
-    "            \"translateY\": \"@ONE\""
-    "          }"
-    "        ]"
-    "      },"
-    "      \"onPress\": {"
-    "        \"type\": \"SetValue\","
-    "        \"componentId\": \"myFrame\","
-    "        \"property\": \"transform\","
-    "        \"value\": ["
-    "          {"
-    "            \"scale\": \"@SCALE\""
-    "          },"
-    "          {"
-    "            \"translateX\": \"25%\""
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *TRANSFORM_WITH_RESOURCES = R"(
+    {
+       "type": "APL",
+       "version": "1.1",
+       "resources": [
+         {
+           "numbers": {
+             "ROTATE": -90,
+             "SCALE": 0.5
+           },
+           "dimensions": {
+             "ONE": "50vh"
+           }
+         }
+       ],
+       "mainTemplate": {
+         "items": {
+           "type": "TouchWrapper",
+           "width": "100%",
+           "height": "100%",
+           "items": {
+             "type": "Frame",
+             "id": "myFrame",
+             "width": 20,
+             "height": 100,
+             "transform": [
+               {
+                 "rotate": "@ROTATE"
+               },
+               {
+                 "translateY": "@ONE"
+               }
+             ]
+           },
+           "onPress": {
+             "type": "SetValue",
+             "componentId": "myFrame",
+             "property": "transform",
+             "value": [
+               {
+                 "scale": "@SCALE"
+               },
+               {
+                 "translateX": "25%"
+               }
+             ]
+           }
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, TransformWithResources)
 {
@@ -2075,30 +2165,31 @@ TEST_F(BuilderTest, TransformWithResources)
     ASSERT_EQ(Point(7.5,25), t * Point());
 }
 
-static const char *DISPLAY_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Frame\","
-    "          \"id\": \"thing1\","
-    "          \"height\": 100,"
-    "          \"width\": 200"
-    "        },"
-    "        {"
-    "          \"type\": \"Frame\","
-    "          \"id\": \"thing2\","
-    "          \"height\": 200,"
-    "          \"width\": 100"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *DISPLAY_TEST = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "mainTemplate": {
+         "items": {
+           "type": "Container",
+           "items": [
+             {
+               "type": "Frame",
+               "id": "thing1",
+               "height": 100,
+               "width": 200
+             },
+             {
+               "type": "Frame",
+               "id": "thing2",
+               "height": 200,
+               "width": 100
+             }
+           ]
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, DisplayTest)
 {
@@ -2119,9 +2210,9 @@ TEST_F(BuilderTest, DisplayTest)
     ASSERT_EQ(Object(Rect(0,0,0,0)), thing1->getCalculated(kPropertyBounds));
     ASSERT_EQ(Object(Rect(0,0,100,200)), thing2->getCalculated(kPropertyBounds));  // Shifts upwards
 
-    ASSERT_TRUE(CheckDirty(thing1,
-                           kPropertyDisplay, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(thing2, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(thing1, kPropertyDisplay, kPropertyBounds, kPropertyInnerBounds,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(thing2, kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
 
     thing1->setProperty(kPropertyDisplay, "invisible");
@@ -2131,9 +2222,9 @@ TEST_F(BuilderTest, DisplayTest)
     ASSERT_EQ(Object(Rect(0,0,200,100)), thing1->getCalculated(kPropertyBounds));
     ASSERT_EQ(Object(Rect(0,100,100,200)), thing2->getCalculated(kPropertyBounds));  // Shifts downwards
 
-    ASSERT_TRUE(CheckDirty(thing1,
-                           kPropertyDisplay, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(thing2, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(thing1, kPropertyDisplay, kPropertyBounds, kPropertyInnerBounds,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(thing2, kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
 
     thing1->setProperty(kPropertyDisplay, "normal");
@@ -2148,27 +2239,28 @@ TEST_F(BuilderTest, DisplayTest)
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
 }
 
-static const char *USER_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"-user-tag\": 234,"
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"id\": \"text0\","
-    "        \"-user-note\": \"This is a note\","
-    "        \"-user-array\": ["
-    "          1,"
-    "          2,"
-    "          3"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *USER_TEST = R"(
+    {
+       "type": "APL",
+       "version": "1.1",
+       "mainTemplate": {
+         "item": {
+           "type": "Container",
+           "-user-tag": 234,
+           "items": {
+             "type": "Text",
+             "id": "text0",
+             "-user-note": "This is a note",
+             "-user-array": [
+               1,
+               2,
+               3
+             ]
+           }
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, UserTest)
 {
@@ -2191,17 +2283,18 @@ TEST_F(BuilderTest, UserTest)
     ASSERT_EQ(Object(3), user2.get("array").at(2));
 }
 
-static const char *LABEL_TEST_BASE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"id\": \": 234_abZ\""
-    "    }"
-    "  }"
-    "}";
+static const char *LABEL_TEST_BASE = R"(
+    {
+       "type": "APL",
+       "version": "1.1",
+       "mainTemplate": {
+         "item": {
+           "type": "Container",
+           "id": ": 234_abZ"
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, LabelTestBase)
 {
@@ -2209,17 +2302,18 @@ TEST_F(BuilderTest, LabelTestBase)
     ASSERT_EQ(Object("234_abZ"), component->getId());
 }
 
-static const char *LABEL_TEST_HYPHEN =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"Container\","
-        "      \"id\": \": 234-abZ\""
-        "    }"
-        "  }"
-        "}";
+static const char *LABEL_TEST_HYPHEN = R"(
+        {
+           "type": "APL",
+           "version": "1.1",
+           "mainTemplate": {
+             "item": {
+               "type": "Container",
+               "id": ": 234-abZ"
+             }
+           }
+        }
+)";
 
 TEST_F(BuilderTest, LabelTestHyphen)
 {
@@ -2228,17 +2322,18 @@ TEST_F(BuilderTest, LabelTestHyphen)
     ASSERT_EQ(Object("234-abZ"), component->getId());
 }
 
-static const char *LABEL_TEST_INVALID =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"Container\","
-        "      \"id\": \": 234-ab*&*Z@\""
-        "    }"
-        "  }"
-        "}";
+static const char *LABEL_TEST_INVALID = R"(
+        {
+           "type": "APL",
+           "version": "1.1",
+           "mainTemplate": {
+             "item": {
+               "type": "Container",
+               "id": ": 234-ab*&*Z@"
+             }
+           }
+        }
+)";
 
 TEST_F(BuilderTest, LabelTestInvalid)
 {
@@ -2247,36 +2342,37 @@ TEST_F(BuilderTest, LabelTestInvalid)
     ASSERT_EQ(Object("234-abZ"), component->getId());
 }
 
-static const char *ENTITY_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"resources\": ["
-    "    {"
-    "      \"string\": {"
-    "        \"myString\": \"23\""
-    "      },"
-    "      \"number\": {"
-    "        \"myNumber\": \"${1+2+3}\""
-    "      }"
-    "    }"
-    "  ],"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Frame\","
-    "      \"entities\": {"
-    "        \"a\": {"
-    "          \"alpha\": \"@myString\","
-    "          \"beta\": \"${2+3}\""
-    "        },"
-    "        \"b\": ["
-    "          \"@myNumber\","
-    "          92"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *ENTITY_TEST = R"(
+    {
+       "type": "APL",
+       "version": "1.1",
+       "resources": [
+         {
+           "string": {
+             "myString": "23"
+           },
+           "number": {
+             "myNumber": "${1+2+3}"
+           }
+         }
+       ],
+       "mainTemplate": {
+         "items": {
+           "type": "Frame",
+           "entities": {
+             "a": {
+               "alpha": "@myString",
+               "beta": "${2+3}"
+             },
+             "b": [
+               "@myNumber",
+               92
+             ]
+           }
+         }
+       }
+    }
+)";
 
 TEST_F(BuilderTest, EntityTest)
 {
@@ -2320,17 +2416,18 @@ TEST_F(BuilderTest, EntityTest)
 }
 
 
-static const char *CONFIG_TEXT_DEFAULT_THEME =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"text\": \"hello\""
-    "    }"
-    "  }"
-    "}";
+static const char *CONFIG_TEXT_DEFAULT_THEME = R"(
+    {
+       "type": "APL",
+       "version": "1.1",
+       "mainTemplate": {
+         "items": {
+           "type": "Text",
+           "text": "hello"
+         }
+       }
+    }
+)";
 
 // Verify that we can configure the default text color and font family
 TEST_F(BuilderTest, ConfigTextDarkTheme)
@@ -2354,18 +2451,19 @@ TEST_F(BuilderTest, ConfigTextDarkTheme)
     ASSERT_TRUE(IsEqual(Color(0x44332211), component->getCalculated(kPropertyColor)));
 }
 
-static const char *CONFIG_TEXT_LIGHT_THEME =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"theme\": \"light\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"text\": \"hello\""
-    "    }"
-    "  }"
-    "}";
+static const char *CONFIG_TEXT_LIGHT_THEME = R"(
+    {
+       "type": "APL",
+       "version": "1.1",
+       "theme": "light",
+       "mainTemplate": {
+         "items": {
+           "type": "Text",
+           "text": "hello"
+         }
+       }
+    }
+)";
 
 // Check the light theme
 TEST_F(BuilderTest, ConfigTextLightTheme)
@@ -2385,18 +2483,19 @@ TEST_F(BuilderTest, ConfigTextLightTheme)
     ASSERT_TRUE(IsEqual(Color(0x44332211), component->getCalculated(kPropertyColor)));
 }
 
-static const char *CONFIG_TEXT_FUZZY_THEME =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"theme\": \"fuzzy\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"text\": \"hello\""
-    "    }"
-    "  }"
-    "}";
+static const char *CONFIG_TEXT_FUZZY_THEME = R"(
+    {
+       "type": "APL",
+       "version": "1.1",
+       "theme": "fuzzy",
+       "mainTemplate": {
+         "items": {
+           "type": "Text",
+           "text": "hello"
+         }
+       }
+    }
+)";
 
 // Check the use of a custom theme
 TEST_F(BuilderTest, ConfigTextFuzzyTheme)
@@ -2416,35 +2515,37 @@ TEST_F(BuilderTest, ConfigTextFuzzyTheme)
     ASSERT_TRUE(IsEqual(Color(0x44332211), component->getCalculated(kPropertyColor)));
 }
 
-static const char *TEST_NULL_PAYLOAD =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": ["
-    "      \"payload\""
-    "    ],"
-    "    \"items\": ["
-    "      {"
-    "        \"when\": \"${payload.data.quantity == null}\","
-    "        \"type\": \"Text\","
-    "        \"text\": \"Null worked\""
-    "      },"
-    "      {"
-    "        \"type\": \"Text\","
-    "        \"text\": \"Null did not work\""
-    "      }"
-    "    ]"
-    "  }"
-    "}";
+static const char *TEST_NULL_PAYLOAD = R"(
+    {
+       "type": "APL",
+       "version": "1.1",
+       "mainTemplate": {
+         "parameters": [
+           "payload"
+         ],
+         "items": [
+           {
+             "when": "${payload.data.quantity == null}",
+             "type": "Text",
+             "text": "Null worked"
+           },
+           {
+             "type": "Text",
+             "text": "Null did not work"
+           }
+         ]
+       }
+    }
+)";
 
-static const char *NULL_PAYLOAD =
-    "{"
-    "  \"data\": {"
-    "    \"quantity\": null,"
-    "    \"price\": 14.99"
-    "  }"
-    "}";
+static const char *NULL_PAYLOAD = R"(
+    {
+       "data": {
+         "quantity": null,
+         "price": 14.99
+       }
+    }
+)";
 
 TEST_F(BuilderTest, NullPayload)
 {

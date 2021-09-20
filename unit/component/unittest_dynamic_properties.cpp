@@ -175,9 +175,9 @@ TEST_F(DynamicPropertiesTest, HeightWidthDynamic)
     // Set height property of frame1, it will impact frame2 and 3 also
     frame1->setProperty(kPropertyHeight, 400);
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, frame1, frame2, frame3));
     root->clearDirty();
 
@@ -189,7 +189,7 @@ TEST_F(DynamicPropertiesTest, HeightWidthDynamic)
     // Set width property of frame1, it will impact only frame1
     frame1->setProperty(kPropertyWidth, 150);
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, frame1));
     root->clearDirty();
 
@@ -246,9 +246,9 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     // Set maxHeight property of frame1, it will impact frame2 and 3 also
     frame1->setProperty(kPropertyMaxHeight, 90);
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, frame1, frame2, frame3));
     ASSERT_EQ(Object(Dimension(90)), frame1->getCalculated(kPropertyMaxHeight));
     root->clearDirty();
@@ -276,7 +276,7 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     frame1->setProperty(kPropertyMaxWidth, 90);
 
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, frame1));
     ASSERT_EQ(Object(Dimension(90)), frame1->getCalculated(kPropertyMaxWidth));
     root->clearDirty();
@@ -290,8 +290,8 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     frame2->setProperty(kPropertyMinHeight, 125);
 
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, frame2, frame3));
     ASSERT_EQ(Object(Dimension(125)), frame2->getCalculated(kPropertyMinHeight));
     root->clearDirty();
@@ -319,7 +319,7 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     frame2->setProperty(kPropertyMinWidth, 125);
 
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, frame2));
     ASSERT_EQ(Object(Dimension(125)), frame2->getCalculated(kPropertyMinWidth));
     root->clearDirty();
@@ -345,7 +345,7 @@ TEST_F(DynamicPropertiesTest, ShadowProperties)
     frame2->setProperty(kPropertyShadowColor, Color::BLUE);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyShadowColor));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyShadowColor, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame2));
     ASSERT_EQ(Object(Color(Color::BLUE)), frame2->getCalculated(kPropertyShadowColor));
     root->clearDirty();
@@ -355,7 +355,7 @@ TEST_F(DynamicPropertiesTest, ShadowProperties)
     frame2->setProperty(kPropertyShadowHorizontalOffset, 5);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyShadowHorizontalOffset));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyShadowHorizontalOffset, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame2));
     ASSERT_EQ(Object(Dimension(5)), frame2->getCalculated(kPropertyShadowHorizontalOffset));
     root->clearDirty();
@@ -365,7 +365,7 @@ TEST_F(DynamicPropertiesTest, ShadowProperties)
     frame2->setProperty(kPropertyShadowRadius, 10);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyShadowRadius));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyShadowRadius, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame2));
     ASSERT_EQ(Object(Dimension(10)), frame2->getCalculated(kPropertyShadowRadius));
     root->clearDirty();
@@ -375,7 +375,7 @@ TEST_F(DynamicPropertiesTest, ShadowProperties)
     frame2->setProperty(kPropertyShadowVerticalOffset, 4);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyShadowVerticalOffset));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyShadowVerticalOffset, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame2));
     ASSERT_EQ(Object(Dimension(4)), frame2->getCalculated(kPropertyShadowVerticalOffset));
     root->clearDirty();
@@ -472,10 +472,14 @@ TEST_F(DynamicPropertiesTest, LayoutDirectionPropertyStyled)
                                 {"property", "disabled"},
                                 {"value", true}}, true);
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(container, kPropertyDisabled, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(container, kPropertyDisabled, kPropertyLayoutDirection,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
 
     // Then calculated layoutDirection is RTL.
     ASSERT_EQ(Object(kLayoutDirectionRTL), container->getCalculated(kPropertyLayoutDirection));
@@ -545,10 +549,14 @@ TEST_F(DynamicPropertiesTest, LayoutDirectionPropertyDynamic)
                                 {"property", "layoutDirection"},
                                 {"value", "RTL"}}, true);
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(container, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(container, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame3, kPropertyBounds, kPropertyLayoutDirection, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
 
     // Then calculated layoutDirection is RTL.
     ASSERT_EQ(Object(kLayoutDirectionRTL), container->getCalculated(kPropertyLayoutDirection));
@@ -722,7 +730,7 @@ TEST_F(DynamicPropertiesTest, PaddingDynamic) {
     frame1->setProperty(kPropertyPadding, Object(ObjectArray{15, 5}));
 
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame1));
     root->clearDirty();
 
@@ -735,7 +743,7 @@ TEST_F(DynamicPropertiesTest, PaddingDynamic) {
     frame2->setProperty(kPropertyPaddingBottom, 10);
 
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame2));
     root->clearDirty();
 
@@ -748,7 +756,7 @@ TEST_F(DynamicPropertiesTest, PaddingDynamic) {
     frame2->setProperty(kPropertyPaddingLeft, 10);
 
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame2));
     root->clearDirty();
 
@@ -761,7 +769,7 @@ TEST_F(DynamicPropertiesTest, PaddingDynamic) {
     frame2->setProperty(kPropertyPaddingRight, 10);
 
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame2));
     root->clearDirty();
 
@@ -774,7 +782,7 @@ TEST_F(DynamicPropertiesTest, PaddingDynamic) {
     frame2->setProperty(kPropertyPaddingTop, 10);
 
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame2));
     root->clearDirty();
 
@@ -802,7 +810,7 @@ TEST_F(DynamicPropertiesTest, BorderWidth) {
     frame1->setProperty(kPropertyBorderWidth, 10);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderWidth, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderWidth, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame1));
     root->clearDirty();
 
@@ -830,7 +838,7 @@ TEST_F(DynamicPropertiesTest, BorderRadius) {
     frame1->setProperty(kPropertyBorderRadius, 10);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderRadii));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderRadii, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame1));
     root->clearDirty();
 
@@ -860,7 +868,7 @@ TEST_F(DynamicPropertiesTest, BorderAnyRadius) {
     frame1->setProperty(kPropertyBorderBottomLeftRadius, 10);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderRadii));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderRadii, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame1));
     root->clearDirty();
 
@@ -873,7 +881,7 @@ TEST_F(DynamicPropertiesTest, BorderAnyRadius) {
     frame1->setProperty(kPropertyBorderBottomRightRadius, 10);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderRadii));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderRadii, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame1));
     root->clearDirty();
 
@@ -886,7 +894,7 @@ TEST_F(DynamicPropertiesTest, BorderAnyRadius) {
     frame1->setProperty(kPropertyBorderTopLeftRadius, 10);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderRadii));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderRadii, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame1));
     root->clearDirty();
 
@@ -899,7 +907,7 @@ TEST_F(DynamicPropertiesTest, BorderAnyRadius) {
     frame1->setProperty(kPropertyBorderTopRightRadius, 10);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderRadii));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderRadii, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame1));
     root->clearDirty();
 
@@ -972,7 +980,7 @@ TEST_F(DynamicPropertiesTest, ImageProperties) {
     img1->setProperty(kPropertyAlign, "left");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(img1, kPropertyAlign));
+    ASSERT_TRUE(CheckDirty(img1, kPropertyAlign, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, img1));
     root->clearDirty();
 
@@ -982,7 +990,7 @@ TEST_F(DynamicPropertiesTest, ImageProperties) {
     img1->setProperty(kPropertyBorderRadius, 10);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(img1, kPropertyBorderRadius));
+    ASSERT_TRUE(CheckDirty(img1, kPropertyBorderRadius, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, img1));
     root->clearDirty();
 
@@ -992,7 +1000,7 @@ TEST_F(DynamicPropertiesTest, ImageProperties) {
     img1->setProperty(kPropertyScale, "best-fill");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(img1, kPropertyScale));
+    ASSERT_TRUE(CheckDirty(img1, kPropertyScale, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, img1));
     root->clearDirty();
 
@@ -1005,7 +1013,7 @@ TEST_F(DynamicPropertiesTest, ImageProperties) {
     img1->setProperty(kPropertyOverlayGradient, Object(grad2));
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(img1, kPropertyOverlayGradient));
+    ASSERT_TRUE(CheckDirty(img1, kPropertyOverlayGradient, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, img1));
     root->clearDirty();
 
@@ -1058,9 +1066,10 @@ TEST_F(DynamicPropertiesTest, VectorGraphicProperties) {
 
     // Set aline property of vg
     vg->setProperty(kPropertyAlign, "center");
+    root->clearPending();
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(vg, kPropertyAlign));
+    ASSERT_TRUE(CheckDirty(vg, kPropertyAlign, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, vg));
     root->clearDirty();
 
@@ -1068,9 +1077,10 @@ TEST_F(DynamicPropertiesTest, VectorGraphicProperties) {
 
     // Set scale property of vg
     vg->setProperty(kPropertyScale, "best-fill");
+    root->clearPending();
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(vg, kPropertyScale));
+    ASSERT_TRUE(CheckDirty(vg, kPropertyScale, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, vg));
     root->clearDirty();
 
@@ -1116,7 +1126,7 @@ TEST_F(DynamicPropertiesTest, TextProperties) {
     txt->setProperty(kPropertyFontFamily, "amazon-ember");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyFontFamily));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyFontFamily, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ("amazon-ember", txt->getCalculated(kPropertyFontFamily).getString());
@@ -1125,7 +1135,7 @@ TEST_F(DynamicPropertiesTest, TextProperties) {
     txt->setProperty(kPropertyLang, "ja-JP");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyLang));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyLang, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ("ja-JP", txt->getCalculated(kPropertyLang).getString());
@@ -1134,7 +1144,7 @@ TEST_F(DynamicPropertiesTest, TextProperties) {
     txt->setProperty(kPropertyFontSize, "60dp");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyFontSize));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyFontSize, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ(Dimension(60), txt->getCalculated(kPropertyFontSize).getAbsoluteDimension());
@@ -1143,7 +1153,7 @@ TEST_F(DynamicPropertiesTest, TextProperties) {
     txt->setProperty(kPropertyFontStyle, "normal");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyFontStyle));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyFontStyle, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ(kFontStyleNormal, txt->getCalculated(kPropertyFontStyle).getInteger());
@@ -1152,7 +1162,7 @@ TEST_F(DynamicPropertiesTest, TextProperties) {
     txt->setProperty(kPropertyFontWeight, 700);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyFontWeight));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyFontWeight, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ(700, txt->getCalculated(kPropertyFontWeight).getInteger());
@@ -1207,7 +1217,7 @@ TEST_F(DynamicPropertiesTest, EditTextFontProperties) {
     txt->setProperty(kPropertyFontFamily, "amazon-ember");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyFontFamily));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyFontFamily, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ("amazon-ember", txt->getCalculated(kPropertyFontFamily).getString());
@@ -1216,7 +1226,7 @@ TEST_F(DynamicPropertiesTest, EditTextFontProperties) {
     txt->setProperty(kPropertyLang, "ja-JP");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyLang));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyLang, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ("ja-JP", txt->getCalculated(kPropertyLang).getString());
@@ -1225,7 +1235,7 @@ TEST_F(DynamicPropertiesTest, EditTextFontProperties) {
     txt->setProperty(kPropertyFontSize, "60dp");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyFontSize));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyFontSize, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ(Dimension(60), txt->getCalculated(kPropertyFontSize).getAbsoluteDimension());
@@ -1234,7 +1244,7 @@ TEST_F(DynamicPropertiesTest, EditTextFontProperties) {
     txt->setProperty(kPropertyFontStyle, "normal");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyFontStyle));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyFontStyle, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ(kFontStyleNormal, txt->getCalculated(kPropertyFontStyle).getInteger());
@@ -1243,7 +1253,7 @@ TEST_F(DynamicPropertiesTest, EditTextFontProperties) {
     txt->setProperty(kPropertyFontWeight, 700);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyFontWeight));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyFontWeight, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ(700, txt->getCalculated(kPropertyFontWeight).getInteger());
@@ -1268,7 +1278,7 @@ TEST_F(DynamicPropertiesTest, EditTextProperties) {
     txt->setProperty(kPropertyBorderWidth, 5);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyBorderWidth, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyBorderWidth, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_TRUE(CheckProperties(txt, {
@@ -1280,7 +1290,7 @@ TEST_F(DynamicPropertiesTest, EditTextProperties) {
     txt->setProperty(kPropertyColor, "black");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyColor));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyColor, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ(Color::BLACK, txt->getCalculated(kPropertyColor).getColor());
@@ -1289,7 +1299,7 @@ TEST_F(DynamicPropertiesTest, EditTextProperties) {
     txt->setProperty(kPropertyHighlightColor, "gray");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyHighlightColor));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyHighlightColor, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ(Color::GRAY, txt->getCalculated(kPropertyHighlightColor).getColor());
@@ -1314,7 +1324,7 @@ TEST_F(DynamicPropertiesTest, EditTextHintProperties) {
     txt->setProperty(kPropertyHint, "new hint");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyHint));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyHint, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ("new hint", txt->getCalculated(kPropertyHint).getString());
@@ -1323,7 +1333,7 @@ TEST_F(DynamicPropertiesTest, EditTextHintProperties) {
     txt->setProperty(kPropertyHintColor, "gray");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyHintColor));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyHintColor, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ(Color::GRAY, txt->getCalculated(kPropertyHintColor).getColor());
@@ -1332,7 +1342,7 @@ TEST_F(DynamicPropertiesTest, EditTextHintProperties) {
     txt->setProperty(kPropertyHintStyle, "normal");
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyHintStyle));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyHintStyle, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ(kFontStyleNormal, txt->getCalculated(kPropertyHintStyle).getInteger());
@@ -1341,7 +1351,7 @@ TEST_F(DynamicPropertiesTest, EditTextHintProperties) {
     txt->setProperty(kPropertyHintWeight, 700);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyHintWeight));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyHintWeight, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_EQ(700, txt->getCalculated(kPropertyHintWeight).getInteger());
@@ -1464,8 +1474,8 @@ TEST_F(DynamicPropertiesTest, SequenceDynamic) {
     child1->setProperty(kPropertySpacing, 20);
 
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(child1, kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(child2, kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(child1, kPropertyBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(child2, kPropertyBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child1, child2));
     root->clearDirty();
     ASSERT_EQ(Object(Dimension(20)), child1 ->getCalculated(kPropertySpacing));

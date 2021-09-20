@@ -51,6 +51,8 @@
 #include "apl/livedata/livemap.h"
 #include "apl/media/mediamanager.h"
 #include "apl/media/mediaobject.h"
+#include "apl/media/mediaplayer.h"
+#include "apl/media/mediaplayerfactory.h"
 #include "apl/primitives/accessibilityaction.h"
 #include "apl/primitives/dimension.h"
 #include "apl/primitives/filter.h"

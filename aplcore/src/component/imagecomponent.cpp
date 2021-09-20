@@ -19,6 +19,8 @@
 #include "apl/content/rootconfig.h"
 #include "apl/engine/event.h"
 #include "apl/media/mediamanager.h"
+#include "apl/media/mediaobject.h"
+#include "apl/time/sequencer.h"
 
 namespace apl {
 
@@ -39,23 +41,33 @@ ImageComponent::ImageComponent(const ContextPtr& context,
 {
 }
 
+void
+ImageComponent::release()
+{
+    CoreComponent::release();
+    MediaComponentTrait::release();
+}
+
 const ComponentPropDefSet&
 ImageComponent::propDefSet() const
 {
     static auto resetMediaState = [](Component& component) {
         auto& comp = dynamic_cast<ImageComponent&>(component);
+        comp.mOnLoadOnFailReported = false;
         comp.resetMediaFetchState();
     };
 
     static ComponentPropDefSet sImageComponentProperties = ComponentPropDefSet(
         CoreComponent::propDefSet(), MediaComponentTrait::propDefList()).add({
-        {kPropertyAlign,           kImageAlignCenter,        sAlignMap,           kPropInOut | kPropStyled | kPropDynamic}, // Doesn't match 1.0 spec
-        {kPropertyBorderRadius,    Object::ZERO_ABS_DIMEN(), asAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic},
-        {kPropertyFilters,         Object::EMPTY_ARRAY(),    asFilterArray,       kPropInOut },
-        {kPropertyOverlayColor,    Color(),                  asColor,             kPropInOut | kPropStyled | kPropDynamic},
-        {kPropertyOverlayGradient, Object::NULL_OBJECT(),    asGradient,          kPropInOut | kPropStyled | kPropDynamic},
-        {kPropertyScale,           kImageScaleBestFit,       sScaleMap,           kPropInOut | kPropStyled | kPropDynamic},
-        {kPropertySource,          "",                       asStringOrArray,     kPropInOut | kPropDynamic, resetMediaState}
+        {kPropertyAlign,           kImageAlignCenter,        sAlignMap,           kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash}, // Doesn't match 1.0 spec
+        {kPropertyBorderRadius,    Object::ZERO_ABS_DIMEN(), asAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
+        {kPropertyFilters,         Object::EMPTY_ARRAY(),    asFilterArray,       kPropInOut | kPropVisualHash}, // Takes part in hash even though it's not dynamic.
+        {kPropertyOnFail,          Object::EMPTY_ARRAY(),    asCommand,           kPropIn},
+        {kPropertyOnLoad,          Object::EMPTY_ARRAY(),    asCommand,           kPropIn},
+        {kPropertyOverlayColor,    Color(),                  asColor,             kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
+        {kPropertyOverlayGradient, Object::NULL_OBJECT(),    asGradient,          kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
+        {kPropertyScale,           kImageScaleBestFit,       sScaleMap,           kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
+        {kPropertySource,          "",                       asStringOrArray,     kPropInOut | kPropDynamic | kPropVisualHash,                resetMediaState},
     });
 
     return sImageComponentProperties;
@@ -111,6 +123,41 @@ ImageComponent::postProcessLayoutChanges()
 {
     CoreComponent::postProcessLayoutChanges();
     MediaComponentTrait::postProcessLayoutChanges();
+}
+
+void
+ImageComponent::onFail(const MediaObjectPtr& mediaObject)
+{
+    if (mOnLoadOnFailReported)
+        return;
+    auto component = getComponent();
+    auto errorData = std::make_shared<ObjectMap>();
+    errorData->emplace("value", mediaObject->url());
+    errorData->emplace("error", mediaObject->errorDescription());
+    errorData->emplace("errorCode", mediaObject->errorCode());
+    auto& commands = component->getCalculated(kPropertyOnFail);
+    auto eventContext = component->createEventContext("Fail", errorData);
+    component->getContext()->sequencer().executeCommands(
+        commands,
+        eventContext,
+        component->shared_from_corecomponent(),
+        true);
+    mOnLoadOnFailReported = true;
+}
+
+void
+ImageComponent::onLoad()
+{
+    if (mOnLoadOnFailReported)
+        return;
+    auto component = getComponent();
+    auto& commands = component->getCalculated(kPropertyOnLoad);
+    component->getContext()->sequencer().executeCommands(
+        commands,
+        component->createEventContext("Load"),
+        component->shared_from_corecomponent(),
+        true);
+    mOnLoadOnFailReported = true;
 }
 
 } // namespace apl

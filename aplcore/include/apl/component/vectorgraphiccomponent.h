@@ -52,9 +52,14 @@ protected:
     // Media component trait overrides
     std::vector<std::string> getSources() override;
     EventMediaType mediaType() const override { return kEventMediaTypeVectorGraphic; }
+    void onFail(const MediaObjectPtr&) override;
+    void onLoad() override;
 
     // Component trait overrides
     CoreComponentPtr getComponent() override { return shared_from_corecomponent(); }
+
+private:
+    bool mOnLoadOnFailReported = false;
 };
 
 

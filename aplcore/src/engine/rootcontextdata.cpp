@@ -93,7 +93,9 @@ RootContextData::RootContextData(const Metrics& metrics,
       mScreenLockCount(0),
       mSettings(settings),
       mSession(session),
-      mLayoutDirection(kLayoutDirectionInherit)
+      mLayoutDirection(kLayoutDirectionInherit),
+      mCachedMeasures(config.getProperty(RootProperty::kTextMeasurementCacheLimit).getInteger()),
+      mCachedBaselines(config.getProperty(RootProperty::kTextMeasurementCacheLimit).getInteger())
 {
     YGConfigSetPrintTreeFlag(mYGConfigRef, DEBUG_YG_PRINT_TREE);
     YGConfigSetLogger(mYGConfigRef, ygLogger);

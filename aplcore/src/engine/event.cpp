@@ -38,22 +38,24 @@ Bimap<int, std::string> sEventTypeBimap = {
 };
 
 Bimap<int, std::string> sEventPropertyBimap = {
-    {kEventPropertyAlign,         "align"},
-    {kEventPropertyArguments,     "arguments"},
-    {kEventPropertyAudioTrack,    "audioTrack"},
-    {kEventPropertyCommand,       "command"},
-    {kEventPropertyComponent,     "component"},
-    {kEventPropertyComponents,    "components"},
-    {kEventPropertyDirection,     "direction"},
-    {kEventPropertyExtension,     "extension"},
-    {kEventPropertyExtensionURI,  "extensionURI"},
-    {kEventPropertyHighlightMode, "highlightMode"},
-    {kEventPropertyMediaType,     "mediaType"},
-    {kEventPropertyName,          "name"},
-    {kEventPropertyPosition,      "position"},
-    {kEventPropertyReason,        "reason"},
-    {kEventPropertySource,        "source"},
-    {kEventPropertyValue,         "value"}
+    {kEventPropertyAlign,                    "align"},
+    {kEventPropertyArguments,                "arguments"},
+    {kEventPropertyAudioTrack,               "audioTrack"},
+    {kEventPropertyCommand,                  "command"},
+    {kEventPropertyComponent,                "component"},
+    {kEventPropertyComponents,               "components"},
+    {kEventPropertyDirection,                "direction"},
+    {kEventPropertyExtension,                "extension"},
+    {kEventPropertyExtensionURI,             "extensionURI"},
+    {kEventPropertyExtensionResourceId,      "resourceId"},
+    {kEventPropertyFlags,                    "flags"},
+    {kEventPropertyHighlightMode,            "highlightMode"},
+    {kEventPropertyMediaType,                "mediaType"},
+    {kEventPropertyName,                     "name"},
+    {kEventPropertyPosition,                 "position"},
+    {kEventPropertyReason,                   "reason"},
+    {kEventPropertySource,                   "source"},
+    {kEventPropertyValue,                    "value"}
 };
 
 class EventData {

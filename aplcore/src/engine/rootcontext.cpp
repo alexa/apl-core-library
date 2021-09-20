@@ -23,6 +23,7 @@
 #include "apl/action/scrolltoaction.h"
 #include "apl/command/arraycommand.h"
 #include "apl/command/configchangecommand.h"
+#include "apl/command/displaystatechangecommand.h"
 #include "apl/command/documentcommand.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/content/content.h"
@@ -45,10 +46,14 @@
 
 namespace apl {
 
+static const char *DISPLAY_STATE = "displayState";
 static const char *ELAPSED_TIME = "elapsedTime";
 static const char *LOCAL_TIME = "localTime";
 static const char *UTC_TIME = "utcTime";
 static const char *ON_MOUNT_HANDLER_NAME = "Mount";
+
+static const std::string MOUNT_SEQUENCER = "__MOUNT_SEQUENCER";
+static const std::string SCROLL_TO_RECT_SEQUENCER = "__SCROLL_TO_RECT_SEQUENCE";
 
 RootContextPtr
 RootContext::create(const Metrics& metrics, const ContentPtr& content)
@@ -92,13 +97,15 @@ RootContext::create(const Metrics& metrics, const ContentPtr& content,
 
 RootContext::RootContext(const Metrics& metrics, const ContentPtr& content, const RootConfig& config)
     : mContent(content),
-      mTimeManager(config.getTimeManager()) {
+      mTimeManager(config.getTimeManager()),
+      mDisplayState(static_cast<DisplayState>(config.getProperty(RootProperty::kInitialDisplayState).getInteger())) {
     init(metrics, config, false);
 }
 
 RootContext::~RootContext() {
     assert(mCore);
     mCore->sequencer().terminateSequencer(ConfigChangeCommand::SEQUENCER);
+    mCore->sequencer().terminateSequencer(DisplayStateChangeCommand::SEQUENCER);
     clearDirty();
     mCore->dirtyVisualContext.clear();
     mTimeManager->terminate();
@@ -119,6 +126,33 @@ RootContext::configurationChange(const ConfigurationChange& change)
                                            mActiveConfigurationChanges.asEventProperties(mCore->mConfig,
                                                                                          mCore->mMetrics));
     mContext->sequencer().executeOnSequencer(cmd, ConfigChangeCommand::SEQUENCER);
+}
+
+void
+RootContext::updateDisplayState(DisplayState displayState)
+{
+    if (!sDisplayStateMap.has(displayState)) {
+        LOG(LogLevel::kWarn) << "View specified an invalid display state, ignoring it";
+        return;
+    }
+
+    if (displayState == mDisplayState) {
+        return;
+    }
+
+    // If we're in the middle of a display state change, drop it
+    mCore->sequencer().terminateSequencer(DisplayStateChangeCommand::SEQUENCER);
+
+    mDisplayState = displayState;
+
+    const std::string displayStateString = sDisplayStateMap.at(displayState);
+    mContext->systemUpdateAndRecalculate(DISPLAY_STATE, displayStateString, true);
+
+    ObjectMap properties;
+    properties.emplace("displayState", displayStateString);
+
+    auto cmd = DisplayStateChangeCommand::create(shared_from_this(), std::move(properties));
+    mContext->sequencer().executeOnSequencer(cmd, DisplayStateChangeCommand::SEQUENCER);
 }
 
 void
@@ -163,23 +197,6 @@ RootContext::resize()
     // Note: we do not clear the configuration changes - there may be a reinflate() coming in the future.
 }
 
-static LayoutDirection
-getLayoutDirection(const rapidjson::Value& json, const RootConfig& config) {
-    LayoutDirection layoutDirection = static_cast<LayoutDirection>(config.getProperty(RootProperty::kLayoutDirection).asInt());
-    auto layoutDirectionIter = json.FindMember("layoutDirection");
-    if (layoutDirectionIter != json.MemberEnd() && layoutDirectionIter->value.IsString()) {
-        auto s = layoutDirectionIter->value.GetString();
-        layoutDirection = static_cast<LayoutDirection>(sLayoutDirectionMap.get(s, kLayoutDirectionLTR));
-        if (sLayoutDirectionMap.find(s) == sLayoutDirectionMap.endBtoA()) {
-            LOG(LogLevel::kWarn) << "Document 'layoutDirection' property is invalid. Falling back to 'LTR' instead of : " << s;
-        }
-    }
-    if (layoutDirection == kLayoutDirectionInherit) {
-        LOG(LogLevel::kWarn) << "Document 'layoutDirection' can not be 'Inherit', falling back to 'LTR' instead";
-        layoutDirection = kLayoutDirectionLTR;
-    }
-    return layoutDirection;
-}
 
 void
 RootContext::init(const Metrics& metrics, const RootConfig& config, bool reinflation)
@@ -190,13 +207,6 @@ RootContext::init(const Metrics& metrics, const RootConfig& config, bool reinfla
     auto themeIter = json.FindMember("theme");
     if (themeIter != json.MemberEnd() && themeIter->value.IsString())
         theme = themeIter->value.GetString();
-
-    std::string lang = config.getProperty(RootProperty::kLang).asString();
-    auto langIter = json.FindMember("lang");
-    if (langIter != json.MemberEnd() && langIter->value.IsString())
-        lang = langIter->value.GetString();
-
-    auto layoutDirection = getLayoutDirection(json, config);
 
     auto session = config.getSession();
     if (!session)
@@ -210,11 +220,16 @@ RootContext::init(const Metrics& metrics, const RootConfig& config, bool reinfla
                                               mContent->getDocumentSettings(),
                                               session,
                                               mContent->mExtensionRequests);
-    mCore->lang(lang)
-          .layoutDirection(layoutDirection);
+
+    auto env = mContent->getEnvironment(config);
+    mCore->lang(env.language)
+           .layoutDirection(env.layoutDirection);
+
     mContext = Context::createRootEvaluationContext(metrics, mCore);
 
     mContext->putSystemWriteable(ELAPSED_TIME, mTimeManager->currentTime());
+
+    mContext->putSystemWriteable(DISPLAY_STATE, sDisplayStateMap.at(mDisplayState));
 
     mUTCTime = config.getUTCTime();
     mLocalTimeAdjustment = config.getLocalTimeAdjustment();
@@ -279,8 +294,20 @@ RootContext::clearPendingInternal(bool first) const
         onMounts.clear();
 
         auto mountAction = Action::makeAll(tm, parallelCommands);
-        mCore->sequencer().attachToSequencer(mountAction, "__MOUNT_SEQUENCER");
+        mCore->sequencer().attachToSequencer(mountAction, MOUNT_SEQUENCER);
     }
+
+#ifdef ALEXAEXTENSIONS
+    // Process any extension events. There are no need to expose those externally.
+    auto extensionMediator = mCore->rootConfig().getExtensionMediator();
+    if (extensionMediator) {
+        while (!mCore->extesnionEvents.empty()) {
+            Event event = mCore->extesnionEvents.front();
+            mCore->extesnionEvents.pop();
+            extensionMediator->invokeCommand(event);
+        }
+    }
+#endif
 }
 
 bool
@@ -313,7 +340,7 @@ RootContext::isDirty() const
 {
     assert(mCore);
     clearPending();
-    return mCore->dirty.size() > 0;
+    return !mCore->dirty.empty();
 }
 
 
@@ -434,10 +461,11 @@ RootContext::executeCommands(const apl::Object& commands, bool fastMode)
 }
 
 ActionPtr
-RootContext::invokeExtensionEventHandler(const std::string& uri, const std::string& name, const ObjectMap& data,
-                                         bool fastMode)
-{
-    auto handler = mCore->extensionManager().findHandler(ExtensionEventHandler{uri, name});
+RootContext::invokeExtensionEventHandler(const std::string& uri, const std::string& name,
+                                         const ObjectMap& data, bool fastMode,
+                                         std::string resourceId) {
+    auto handler = mCore->extensionManager().findHandler(ExtensionEventHandler{uri, name}, resourceId);
+
     if (handler.isNull())
         return nullptr;
 
@@ -511,7 +539,11 @@ RootContext::updateTime(apl_time_t elapsedTime, apl_time_t utcTime)
 void
 RootContext::scrollToRectInComponent(const ComponentPtr& component, const Rect &bounds,
                                      CommandScrollAlign align) {
-    ScrollToAction::make(mTimeManager, align, bounds, mContext, std::static_pointer_cast<CoreComponent>(component));
+    auto scrollToAction = ScrollToAction::make(
+            mTimeManager, align, bounds, mContext, std::static_pointer_cast<CoreComponent>(component));
+    if (scrollToAction && scrollToAction->isPending()) {
+        mCore->sequencer().attachToSequencer(scrollToAction, SCROLL_TO_RECT_SEQUENCER);
+    }
 }
 
 
@@ -898,14 +930,14 @@ void
 RootContext::mediaLoaded(const std::string& source)
 {
     assert(mCore);
-    mCore->mediaManager().mediaLoadComplete(source, true);
+    mCore->mediaManager().mediaLoadComplete(source, true, -1, std::string());
 }
 
 void
-RootContext::mediaLoadFailed(const std::string &source)
+RootContext::mediaLoadFailed(const std::string& source, int errorCode, const std::string& error)
 {
     assert(mCore);
-    mCore->mediaManager().mediaLoadComplete(source, false);
+    mCore->mediaManager().mediaLoadComplete(source, false, errorCode, error);
 }
 
 } // namespace apl

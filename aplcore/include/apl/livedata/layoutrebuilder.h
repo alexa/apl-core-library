@@ -74,8 +74,9 @@ public:
 
     /**
      * Populate the layout with the initial set of children
+     * @param useDirtyFlag true to notify runtime about changes with dirty properties
      */
-    void build();
+    void build(bool useDirtyFlag);
 
     /**
      * Repopulate the layout with children based on changes in the LiveArray

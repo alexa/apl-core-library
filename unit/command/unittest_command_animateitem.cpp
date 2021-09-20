@@ -76,7 +76,7 @@ TEST_F(AnimateItemTest, Basic)
     for (int i = 1; i <= 10; i++) {
         advanceTime(100);
         ASSERT_NEAR(0.5 * (1 - i * 0.1), frame->getCalculated(kPropertyOpacity).asNumber(), 0.00001);
-        ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));
+        ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyVisualHash));
     }
     ASSERT_TRUE(CheckDirty(root, component, frame));
 
@@ -157,13 +157,13 @@ TEST_F(AnimateItemTest, BasicDelay)
     // Advance past the delay
     loop->advanceToTime(1000);
     ASSERT_EQ(Object(0.5), frame->getCalculated(kPropertyOpacity));
-    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyVisualHash));
 
     auto startTime = loop->currentTime();
     for (int i = 1; i <= 10; i++) {
         loop->advanceToTime(startTime + i * 100);
         ASSERT_NEAR(0.5 * (1 - i * 0.1), frame->getCalculated(kPropertyOpacity).asNumber(), 0.00001);
-        ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));
+        ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyVisualHash));
     }
 
     ASSERT_EQ(0, loop->size());
@@ -222,7 +222,7 @@ TEST_F(AnimateItemTest, ImplicitOpacity)
     for (int i = 1; i <= 10; i++) {
         loop->advanceToTime(startTime + i * 100);
         ASSERT_NEAR(1 - i * 0.1, frame->getCalculated(kPropertyOpacity).asNumber(), 0.00001);
-        ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));
+        ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyVisualHash));
     }
 
     ASSERT_EQ(0, loop->size());
@@ -288,7 +288,7 @@ TEST_F(AnimateItemTest, Repeat)
                 expectedOpacity = 1.0;
             ASSERT_NEAR(expectedOpacity, frame->getCalculated(kPropertyOpacity).asNumber(), 0.00001)
                                 << " i=" << i << " j=" << j;
-            ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));
+            ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyVisualHash));
         }
     }
 
@@ -359,7 +359,7 @@ TEST_F(AnimateItemTest, RepeatReverse)
 
             ASSERT_NEAR(expectedOpacity, frame->getCalculated(kPropertyOpacity).asNumber(), 0.00001)
                                 << " i=" << i << " j=" << j << " time=" << loop->currentTime();
-            ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));
+            ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyVisualHash));
         }
     }
 
@@ -434,7 +434,7 @@ TEST_F(AnimateItemTest, RepeatReverseEasing)
                                 << " i=" << i << " j=" << j << " time=" << loop->currentTime();
 
             if (expectedOpacity != lastOpacity)
-                ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));
+                ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyVisualHash));
             else
                 ASSERT_TRUE(CheckDirty(frame));
             lastOpacity = expectedOpacity;
@@ -496,7 +496,7 @@ TEST_F(AnimateItemTest, NoDuration)
 
     ASSERT_EQ(Object(0.75), frame->getCalculated(kPropertyOpacity));
     ASSERT_EQ(0, loop->size());
-    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));  // Should have been set exactly once
+    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyVisualHash));  // Should have been set exactly once
 }
 
 
@@ -550,7 +550,7 @@ TEST_F(AnimateItemTest, NoDurationReversed)
 
     ASSERT_EQ(Object(0.25), frame->getCalculated(kPropertyOpacity));
     ASSERT_EQ(0, loop->size());
-    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyVisualHash));
 }
 
 
@@ -615,7 +615,7 @@ TEST_F(AnimateItemTest, OpacityAndTransform)
 
     ASSERT_EQ(Object(0), frame->getCalculated(kPropertyOpacity));
     ASSERT_EQ(Transform2D::translateX(metrics.getWidth()), frame->getCalculated(kPropertyTransform).getTransform2D());
-    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform, kPropertyVisualHash));
 
     for (int repeat = 0 ; repeat <= 3 ; repeat++) {
         auto startTime = loop->currentTime();
@@ -631,7 +631,7 @@ TEST_F(AnimateItemTest, OpacityAndTransform)
             ASSERT_EQ(Object(expectedOpacity), frame->getCalculated(kPropertyOpacity));
             ASSERT_TRUE(IsEqual(Transform2D::translateX(expectedX),
                         frame->getCalculated(kPropertyTransform).getTransform2D()));
-            ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform));
+            ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform, kPropertyVisualHash));
         }
     }
 
@@ -656,7 +656,7 @@ TEST_F(AnimateItemTest, OpacityAndTransformTerminate)
 
     ASSERT_EQ(Object(0), frame->getCalculated(kPropertyOpacity));
     ASSERT_EQ(Transform2D::translateX(metrics.getWidth()), frame->getCalculated(kPropertyTransform).getTransform2D());
-    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform, kPropertyVisualHash));
 
     auto startTime = loop->currentTime();
     for (int i = 100; i <= 700; i += 100) {
@@ -666,7 +666,7 @@ TEST_F(AnimateItemTest, OpacityAndTransformTerminate)
         ASSERT_EQ(Object(expectedOpacity), frame->getCalculated(kPropertyOpacity));
         ASSERT_TRUE(IsEqual(Transform2D::translateX(expectedX),
                             frame->getCalculated(kPropertyTransform).getTransform2D()));
-        ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform));
+        ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform, kPropertyVisualHash));
     }
 
     // Cancel execution. This should clear the animation AND set everything to the end value.
@@ -675,7 +675,7 @@ TEST_F(AnimateItemTest, OpacityAndTransformTerminate)
 
     ASSERT_EQ(Object(1), frame->getCalculated(kPropertyOpacity));
     ASSERT_EQ(Object::IDENTITY_2D(), frame->getCalculated(kPropertyTransform));
-    ASSERT_TRUE(CheckDirty(frame, kPropertyTransform,  kPropertyOpacity));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyTransform,  kPropertyOpacity, kPropertyVisualHash));
 }
 
 
@@ -770,7 +770,7 @@ TEST_F(AnimateItemTest, OpacityAndRichTransform)
         ASSERT_EQ(Object(expectedOpacity), frame->getCalculated(kPropertyOpacity));
         ASSERT_TRUE(IsEqual(expectedTransform, frame->getCalculated(kPropertyTransform).getTransform2D()))
             << " time=" << i << " tx=" << expectedX << " scale=" << expectedScale << " rotate=" << expectedAngle;
-        ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform));
+        ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform, kPropertyVisualHash));
     }
 
     ASSERT_EQ(0, loop->size());
@@ -854,7 +854,7 @@ TEST_F(AnimateItemTest, ResourceTest)
 
         ASSERT_NEAR(expectedOpacity, frame->getCalculated(kPropertyOpacity).asNumber(), 0.0001);
         ASSERT_TRUE(IsEqual(expectedTransform, frame->getCalculated(kPropertyTransform).getTransform2D()));
-        ASSERT_TRUE(CheckDirty(frame, kPropertyTransform, kPropertyOpacity));
+        ASSERT_TRUE(CheckDirty(frame, kPropertyTransform, kPropertyOpacity, kPropertyVisualHash));
     }
 
     ASSERT_EQ(0, loop->size());
@@ -1049,7 +1049,7 @@ TEST_F(AnimateItemTest, ScrollTest)
         ASSERT_NEAR(expectedOpacity, frame->getCalculated(kPropertyOpacity).asNumber(), .0001);
 
         if (lastOpacity != expectedOpacity)
-            ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity));
+            ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyVisualHash));
         else
             ASSERT_TRUE(CheckDirty(frame));
         lastOpacity = expectedOpacity;

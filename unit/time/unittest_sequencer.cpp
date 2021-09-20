@@ -938,7 +938,7 @@ TEST_F(SequencerTest, Animate)
 
     loop->advanceToTime(500);
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyOpacity));
+    ASSERT_TRUE(CheckDirty(component, kPropertyOpacity, kPropertyVisualHash));
 
     ASSERT_EQ(0.25, component->getCalculated(kPropertyOpacity).asNumber());
 
@@ -946,7 +946,7 @@ TEST_F(SequencerTest, Animate)
 
     loop->advanceToEnd();
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyOpacity));
+    ASSERT_TRUE(CheckDirty(component, kPropertyOpacity, kPropertyVisualHash));
 
     ASSERT_EQ(0.75, component->getCalculated(kPropertyOpacity).asNumber());
 }
@@ -985,7 +985,7 @@ TEST_F(SequencerTest, AnimateInParalell)
 
     loop->advanceToEnd();
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyOpacity, kPropertyTransform));
+    ASSERT_TRUE(CheckDirty(component, kPropertyOpacity, kPropertyTransform, kPropertyVisualHash));
 
     ASSERT_EQ(Transform2D::translateX(0), component->getCalculated(kPropertyTransform).getTransform2D());
     ASSERT_EQ(0.75, component->getCalculated(kPropertyOpacity).asNumber());

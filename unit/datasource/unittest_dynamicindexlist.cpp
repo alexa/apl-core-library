@@ -3283,7 +3283,7 @@ TEST_F(DynamicIndexListTest, SwipeToDelete)
     root->clearPending();
     ASSERT_EQ(4, component->getChildCount());
     ASSERT_EQ(4, component->getDisplayedChildCount());
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     root->clearDirty();
 
 
@@ -3310,7 +3310,7 @@ TEST_F(DynamicIndexListTest, SwipeToDelete)
     root->clearPending();
     ASSERT_EQ(3, component->getChildCount());
     ASSERT_EQ(3, component->getDisplayedChildCount());
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds,kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds,kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     root->clearDirty();
 
 
@@ -3363,7 +3363,7 @@ TEST_F(DynamicIndexListTest, SwipeToDelete)
     root->clearPending();
     ASSERT_EQ(1, component->getChildCount());
     ASSERT_EQ(1, component->getDisplayedChildCount());
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds,kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds,kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     root->clearDirty();
 
     // empty the list

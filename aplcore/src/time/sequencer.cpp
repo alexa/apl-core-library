@@ -169,6 +169,32 @@ Sequencer::executeCommands(const Object& commands,
     return execute(commandPtr, fastMode);
 }
 
+
+ActionPtr
+Sequencer::executeCommandsOnSequencer(const Object& commands,
+                                      const ContextPtr& context,
+                                      const CoreComponentPtr& baseComponent,
+                                      const std::string& sequencer)
+{
+    if (mTerminated)
+        return nullptr;
+
+    if (!commands.isArray()) {
+        LOG(LogLevel::kError) << "executeCommands: invalid command list";
+        return nullptr;
+    }
+
+    if (commands.empty())
+        return nullptr;
+
+    if (!context->has("event"))
+        LOG(LogLevel::kWarn) << "missing event in context";
+
+    Properties props;
+    auto commandPtr = ArrayCommand::create(context, commands, baseComponent, props, "");
+    return executeOnSequencer(commandPtr, sequencer);
+}
+
 void
 Sequencer::terminate()
 {
@@ -233,11 +259,20 @@ Sequencer::releaseResource(const ExecutionResource& resource)
     if (mTerminated)
         return;
 
-    auto it = mResourcesByAction.find(resource);
+    auto it = mResourcesByAction.begin();
+    while (it != mResourcesByAction.end()) {
+        if (!it->second.lock())
+            it = mResourcesByAction.erase(it);
+        else
+            it++;
+    }
+
+    it = mResourcesByAction.find(resource);
     if (it != mResourcesByAction.end()) {
+        auto actionPtr = it->second.lock();
         if (mFeatureSupportResources)
-            it->second->terminate();
-        releaseRelatedResources(it->second);
+            actionPtr->terminate();
+        releaseRelatedResources(actionPtr);
     }
 
     auto it2 = mResourcesByHolder.find(resource);
@@ -256,7 +291,8 @@ Sequencer::releaseRelatedResources(const ActionPtr& action)
 
     auto it = mResourcesByAction.begin();
     while (it != mResourcesByAction.end()) {
-        if (it->second == action)
+        auto actionPtr = it->second.lock();
+        if (!actionPtr || actionPtr == action)
             it = mResourcesByAction.erase(it);
         else
             it++;

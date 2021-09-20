@@ -47,7 +47,7 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ("1.0", env.get("agentVersion").asString());
     EXPECT_EQ("normal", env.get("animation").asString());
     EXPECT_FALSE(env.get("allowOpenURL").asBoolean());
-    EXPECT_EQ("1.7", env.get("aplVersion").asString());
+    EXPECT_EQ("1.8", env.get("aplVersion").asString());
     EXPECT_FALSE(env.get("disallowVideo").asBoolean());
     EXPECT_EQ("23.2", env.get("testEnvironment").asString());
     EXPECT_EQ(1.0, env.get("fontScale").asNumber());
@@ -211,7 +211,7 @@ TEST_F(ContextTest, Time)
     const long long deltaNew = -10 * 3600 * 1000;
     root->setLocalTimeAdjustment(deltaNew);
     root->updateTime(100);
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 
     ASSERT_EQ(utcTime + 100, root->context().opt("utcTime").asNumber());
@@ -228,6 +228,30 @@ TEST_F(ContextTest, Time)
     component = nullptr;
     root = nullptr;
 }
+
+static const char * DEFAULT_ENV_DOC = R"apl(
+{
+   "type": "APL",
+   "version": "1.7",
+   "mainTemplate": {
+     "item": {
+       "type": "Text",
+       "text": "Document Lang: ${environment.lang} LayoutDirection: ${environment.layoutDirection}"
+     }
+   }
+ }
+)apl";
+
+TEST_F(ContextTest, DefaultEnv)
+{
+    auto rootConfig = RootConfig();
+    auto content = Content::create(DEFAULT_ENV_DOC);
+    auto root = RootContext::create(Metrics(), content, rootConfig);
+    auto component = root->topComponent();
+
+    ASSERT_EQ("Document Lang:  LayoutDirection: LTR", component->getCalculated(kPropertyText).asString());
+}
+
 
 static const char * BASIC_ENV_DOC = R"apl(
 {
@@ -257,7 +281,8 @@ TEST_F(ContextTest, LangAndLayoutDirectionCheck)
 }
 
 /*
- * Verify standard functions are not calculated for free-standing non test context.
+ * Verify standard functions are included for type-evaluation contexts, but not for
+ * the background evaluation context.
  */
 TEST_F(ContextTest, NoStandardFunction)
 {
@@ -268,13 +293,121 @@ TEST_F(ContextTest, NoStandardFunction)
     auto ctx1 = Context::createTypeEvaluationContext(rootConfig);
     auto ctx2 = Context::createBackgroundEvaluationContext(metrics, rootConfig, metrics.getTheme());
 
-    ASSERT_TRUE(ctx1->opt("Array").empty());
-    ASSERT_TRUE(ctx1->opt("Math").empty());
-    ASSERT_TRUE(ctx1->opt("String").empty());
-    ASSERT_TRUE(ctx1->opt("Time").empty());
+    ASSERT_FALSE(ctx1->opt("Array").empty());
+    ASSERT_FALSE(ctx1->opt("Math").empty());
+    ASSERT_FALSE(ctx1->opt("String").empty());
+    ASSERT_FALSE(ctx1->opt("Time").empty());
 
     ASSERT_TRUE(ctx2->opt("Array").empty());
     ASSERT_TRUE(ctx2->opt("Math").empty());
     ASSERT_TRUE(ctx2->opt("String").empty());
     ASSERT_TRUE(ctx2->opt("Time").empty());
+}
+
+TEST_F(ContextTest, TrivialMethodChecks)
+{
+    auto rootConfig = RootConfig().set(RootProperty::kLang, "de-DE");
+    auto content = Content::create(BASIC_ENV_DOC);
+    auto root = RootContext::create(Metrics().theme("dark"), content, rootConfig);
+
+    ASSERT_EQ(std::string("de-DE"), root->getRootConfig().getProperty(RootProperty::kLang).asString());
+    ASSERT_EQ(std::string("dark"), root->getTheme());
+    ASSERT_EQ(rootConfig.getMeasure(), root->measure());
+    ASSERT_EQ(rootConfig.getTimeManager()->nextTimeout(), root->nextTime());
+    ASSERT_EQ(0, root->getFocusableAreas().size());
+    ASSERT_TRUE(root->nextFocus(kFocusDirectionForward, Rect(0, 0, 0, 0)));
+    ASSERT_FALSE(root->setFocus(kFocusDirectionForward, Rect(0, 0, 0, 0), "TargetDoesNotExist"));
+}
+
+
+static const char * OVERRIDE_ENV_DOC = R"apl(
+{
+   "type": "APL",
+   "version": "1.7",
+   "lang": "en-US",
+   "layoutDirection": "RTL",
+   "environment": {
+     "lang": "fi-FI",
+     "layoutDirection": "LTR"
+   },
+   "mainTemplate": {
+     "item": {
+       "type": "Text",
+       "text": "Document Lang: ${environment.lang} LayoutDirection: ${environment.layoutDirection}"
+     }
+   }
+ }
+)apl";
+
+
+TEST_F(ContextTest, OverrideCheck)
+{
+    auto rootConfig = RootConfig();
+    auto content = Content::create(OVERRIDE_ENV_DOC);
+    auto root = RootContext::create(Metrics(), content, rootConfig);
+    auto component = root->topComponent();
+
+    ASSERT_EQ("Document Lang: fi-FI LayoutDirection: LTR", component->getCalculated(kPropertyText).asString());
+}
+
+
+// The built-in environment values are "" and "LTR" for lang and layoutDirection
+static const char * CANCEL_OVERRIDE_ENV_DOC = R"apl(
+{
+   "type": "APL",
+   "version": "1.7",
+   "lang": "en-US",
+   "layoutDirection": "RTL",
+   "environment": {
+     "lang": "${environment.lang}",
+     "layoutDirection": "${environment.layoutDirection}"
+   },
+   "mainTemplate": {
+     "item": {
+       "type": "Text",
+       "text": "Document Lang: ${environment.lang} LayoutDirection: ${environment.layoutDirection}"
+     }
+   }
+ }
+)apl";
+
+TEST_F(ContextTest, CancelOverrideCheck)
+{
+    auto rootConfig = RootConfig();
+    auto content = Content::create(CANCEL_OVERRIDE_ENV_DOC);
+    auto root = RootContext::create(Metrics(), content, rootConfig);
+    auto component = root->topComponent();
+
+    ASSERT_EQ("Document Lang:  LayoutDirection: LTR", component->getCalculated(kPropertyText).asString());
+}
+
+
+static const char *ENVIRONMENT_PAYLOAD = R"apl(
+ {
+   "type": "APL",
+   "version": "1.7",
+   "environment": {
+     "parameters": "payload",
+     "lang": "${payload.lang}",
+     "layoutDirection": "${payload.layoutDirection}"
+   },
+   "mainTemplate": {
+     "parameters": "payload",
+     "item": {
+       "type": "Text",
+       "text": "Document Lang: ${environment.lang} LayoutDirection: ${environment.layoutDirection}"
+     }
+   }
+ }
+)apl";
+
+TEST_F(ContextTest, EnvironmentPayload)
+{
+    auto rootConfig = RootConfig();
+    auto content = Content::create(ENVIRONMENT_PAYLOAD); //, );
+    content->addData("payload", R"({"lang": "en-ES", "layoutDirection": "RTL"})" );
+    auto root = RootContext::create(Metrics(), content, rootConfig);
+    auto component = root->topComponent();
+
+    ASSERT_EQ("Document Lang: en-ES LayoutDirection: RTL", component->getCalculated(kPropertyText).asString());
 }

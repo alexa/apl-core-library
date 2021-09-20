@@ -19,12 +19,14 @@
 namespace apl {
 class MediaState {
 public:
+
     MediaState() :
-            mTrackIndex(0), mTrackCount(0), mCurrentTime(0),
-            mDuration(0), mPaused(true), mEnded(false) {}
+            mTrackIndex(0), mTrackCount(0), mCurrentTime(0), mDuration(0),
+          mPaused(true), mEnded(false), mTrackState(kTrackNotReady), mErrorCode(0) {}
     MediaState(int trackIndex, int trackCount, int currentTime, int duration, bool paused,  bool ended) :
             mTrackIndex(trackIndex), mTrackCount(trackCount), mCurrentTime(currentTime),
-            mDuration(duration), mPaused(paused), mEnded(ended) {}
+            mDuration(duration), mPaused(paused), mEnded(ended), mTrackState(kTrackNotReady),
+            mErrorCode(0) {}
 
     int getTrackIndex() const { return mTrackIndex; }
     int getTrackCount() const { return mTrackCount; }
@@ -32,6 +34,20 @@ public:
     int getDuration() const { return mDuration; }
     bool isPaused() const { return mPaused; }
     bool isEnded() const { return mEnded; }
+    TrackState getTrackState() const { return mTrackState; }
+    int getErrorCode() const { return mErrorCode; }
+    bool isError() const { return mTrackState == kTrackFailed; }
+    bool isReady() const { return mTrackState == kTrackReady; }
+
+    MediaState& withTrackState(const TrackState trackState) {
+        mTrackState = trackState;
+        return *this;
+    }
+
+    MediaState& withErrorCode(const int errorCode) {
+        mErrorCode = errorCode;
+        return *this;
+    }
 
 private:
     int mTrackIndex;
@@ -40,7 +56,10 @@ private:
     int mDuration;
     bool mPaused;
     bool mEnded;
+    TrackState mTrackState;
+    int mErrorCode;
+
 };
-};
+}
 
 #endif // _APL_MEDIA_STATE_H

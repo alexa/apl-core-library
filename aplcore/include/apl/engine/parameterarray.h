@@ -43,6 +43,8 @@ struct Parameter {
 
 class ParameterArray {
 public:
+    static std::vector<std::string> parameterNames(const rapidjson::Value& object);
+
     ParameterArray(const rapidjson::Value& layout);
 
     size_t size() const { return mArray.size(); }

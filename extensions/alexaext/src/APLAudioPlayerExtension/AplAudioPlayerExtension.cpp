@@ -117,9 +117,7 @@ AplAudioPlayerExtension::createRegistration(const std::string &uri,
                                             const rapidjson::Value &registrationRequest)
 {
     if (uri != URI) {
-        return RegistrationFailure("1.0").uri(uri)
-                                         .errorCode(kErrorUnknownURI)
-                                         .errorMessage(sErrorMessage[kErrorUnknownURI] + uri);
+        return  RegistrationFailure::forUnknownURI(uri);
     }
 
     // extract document assigned settings
@@ -141,7 +139,9 @@ AplAudioPlayerExtension::createRegistration(const std::string &uri,
             .schema("1.0", [&](ExtensionSchema &schema) {
                 schema.uri(URI)
                       .dataType(DATA_TYPE_PLAYBACK_STATE, [](TypeSchema &dataTypeSchema) {
-                          dataTypeSchema.property(PROPERTY_PLAYER_ACTIVITY, "string");
+                          dataTypeSchema
+                            .property(PROPERTY_PLAYER_ACTIVITY, "string")
+                            .property(PROPERTY_OFFSET, "number");
                       })
                       .dataType(DATA_TYPE_SEEK_POSITION, [](TypeSchema &dataTypeSchema) {
                           dataTypeSchema.property(PROPERTY_OFFSET, [](TypePropertySchema &propertySchema) {
@@ -229,6 +229,7 @@ AplAudioPlayerExtension::createRegistration(const std::string &uri,
                 // live data is not used if it has not been named
                 if (!mPlaybackStateName.empty()) {
                     schema.liveDataMap(mPlaybackStateName, [](LiveDataSchema &liveDataSchema) {
+                        liveDataSchema.dataType(DATA_TYPE_PLAYBACK_STATE);
                     });
                 }
             });
@@ -394,9 +395,10 @@ AplAudioPlayerExtension::updatePlayerActivity(const std::string &state, int offs
     mPlaybackStateActivity = state;
     mPlaybackStateOffset = offset;
 
-    auto event = Event("1.0").uri(URI).target(mActiveClientToken)
+    auto event = Event("1.0").uri(URI).target(URI)
                              .name(EVENTHANDLER_ON_PLAYER_ACTIVITY_UPDATED_NAME)
-                             .property(PROPERTY_PLAYER_ACTIVITY, state);
+                             .property(PROPERTY_PLAYER_ACTIVITY, state)
+                             .property(PROPERTY_OFFSET, offset);
     publishLiveData();
     invokeExtensionEventHandler(URI, event);
 }
@@ -429,7 +431,7 @@ AplAudioPlayerExtension::publishLiveData()
     auto liveDataUpdate = LiveDataUpdate("1.0")
             .uri(URI)
             .objectName(mPlaybackStateName)
-            .target(mActiveClientToken)
+            .target(URI)
             .liveDataMapUpdate([&](LiveDataMapOperation &operation) {
                 operation
                         .type("Set")

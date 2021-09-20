@@ -27,30 +27,31 @@ class ComponentEventsTest : public CommandTest {};
 
 static const char *DATA = "{}";
 
-static const char *TOUCH_WRAPPER_PRESSED =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": ["
-        "      \"payload\""
-        "    ],"
-        "    \"items\": {"
-        "      \"type\": \"TouchWrapper\","
-        "      \"onPress\": {"
-        "        \"type\": \"SetValue\","
-        "        \"componentId\": \"textComp\","
-        "        \"property\": \"text\","
-        "        \"value\": \"Two\""
-        "      },"
-        "      \"items\": {"
-        "        \"type\": \"Text\","
-        "        \"id\": \"textComp\","
-        "        \"text\": \"One\""
-        "      }"
-        "    }"
-        "  }"
-        "}";
+static const char *TOUCH_WRAPPER_PRESSED = R"(
+         {  
+           "type": "APL",  
+           "version": "1.0",  
+           "mainTemplate": {  
+             "parameters": [  
+               "payload"  
+             ],  
+             "items": {  
+               "type": "TouchWrapper",  
+               "onPress": {  
+                 "type": "SetValue",  
+                 "componentId": "textComp",  
+                 "property": "text",  
+                 "value": "Two"  
+               },  
+               "items": {  
+                 "type": "Text",  
+                 "id": "textComp",  
+                 "text": "One"  
+               }  
+             }  
+           }  
+         }
+)";
 
 TEST_F(ComponentEventsTest, TouchWrapperPressed)
 {
@@ -70,29 +71,30 @@ TEST_F(ComponentEventsTest, TouchWrapperPressed)
     ASSERT_EQ("Two", text->getCalculated(kPropertyText).asString());
 }
 
-static const char *TOUCH_WRAPPER_PRESSED_NO_ID_CHILD =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": ["
-        "      \"payload\""
-        "    ],"
-        "    \"items\": {"
-        "      \"type\": \"TouchWrapper\","
-        "      \"onPress\": {"
-        "        \"type\": \"SetValue\","
-        "        \"property\": \"text\","
-        "        \"value\": \"Two\""
-        "      },"
-        "      \"items\": {"
-        "        \"type\": \"Text\","
-        "        \"id\": \"textComp\","
-        "        \"text\": \"One\""
-        "      }"
-        "    }"
-        "  }"
-        "}";
+static const char *TOUCH_WRAPPER_PRESSED_NO_ID_CHILD = R"(
+        {
+           "type": "APL",
+           "version": "1.0",
+           "mainTemplate": {
+             "parameters": [
+               "payload"
+             ],
+             "items": {
+               "type": "TouchWrapper",
+               "onPress": {
+                 "type": "SetValue",
+                 "property": "text",
+                 "value": "Two"
+               },
+               "items": {
+                 "type": "Text",
+                 "id": "textComp",
+                 "text": "One"
+               }
+             }
+           }
+        }
+)";
 
 /**
  * Verify that a missing componentId prevents the SetValue command from succeeding.
@@ -117,36 +119,37 @@ TEST_F(ComponentEventsTest, TouchWrapperPressedNoIdChild)
     ASSERT_TRUE(ConsoleMessage());  // We should be warned about the missing componentId/invalid property
 }
 
-static const char *TOUCH_WRAPPER_PRESSED_NO_ID_NOT_CHILD =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": ["
-        "      \"payload\""
-        "    ],"
-        "    \"items\": {"
-        "      \"type\": \"Container\","
-        "      \"items\": ["
-        "        {"
-        "          \"type\": \"TouchWrapper\","
-        "          \"id\": \"touch\","
-        "          \"height\": 10,"
-        "          \"onPress\": {"
-        "            \"type\": \"SetValue\","
-        "            \"property\": \"text\","
-        "            \"value\": \"Two\""
-        "          }"
-        "        },"
-        "        {"
-        "          \"type\": \"Text\","
-        "          \"id\": \"textComp\","
-        "          \"text\": \"One\""
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
+static const char *TOUCH_WRAPPER_PRESSED_NO_ID_NOT_CHILD = R"(
+        {
+           "type": "APL",
+           "version": "1.0",
+           "mainTemplate": {
+             "parameters": [
+               "payload"
+             ],
+             "items": {
+               "type": "Container",
+               "items": [
+                 {
+                   "type": "TouchWrapper",
+                   "id": "touch",
+                   "height": 10,
+                   "onPress": {
+                     "type": "SetValue",
+                     "property": "text",
+                     "value": "Two"
+                   }
+                 },
+                 {
+                   "type": "Text",
+                   "id": "textComp",
+                   "text": "One"
+                 }
+               ]
+             }
+           }
+        }
+)";
 
 /**
  * If no ID provided for command in case of event handler it should not be executed if target component
@@ -175,32 +178,33 @@ TEST_F(ComponentEventsTest, TouchWrapperPressedNoIdNotChild)
     ASSERT_TRUE(ConsoleMessage());
 }
 
-static const char *COMPONENT_SCROLLED =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": ["
-        "      \"payload\""
-        "    ],"
-        "    \"items\": {"
-        "      \"type\": \"ScrollView\","
-        "      \"height\": 10,"
-        "      \"onScroll\": {"
-        "        \"type\": \"SetValue\","
-        "        \"componentId\": \"textComp\","
-        "        \"property\": \"text\","
-        "        \"value\": \"Two\""
-        "      },"
-        "      \"item\": {"
-        "        \"type\": \"Text\","
-        "        \"height\": 50,"
-        "        \"id\": \"textComp\","
-        "        \"text\": \"One\""
-        "      }"
-        "    }"
-        "  }"
-        "}";
+static const char *COMPONENT_SCROLLED = R"(
+        {
+           "type": "APL",
+           "version": "1.0",
+           "mainTemplate": {
+             "parameters": [
+               "payload"
+             ],
+             "items": {
+               "type": "ScrollView",
+               "height": 10,
+               "onScroll": {
+                 "type": "SetValue",
+                 "componentId": "textComp",
+                 "property": "text",
+                 "value": "Two"
+               },
+               "item": {
+                 "type": "Text",
+                 "height": 50,
+                 "id": "textComp",
+                 "text": "One"
+               }
+             }
+           }
+        }"
+)";
 
 TEST_F(ComponentEventsTest, ComponentScrolled)
 {
@@ -224,43 +228,44 @@ TEST_F(ComponentEventsTest, ComponentScrolled)
     component->update(kUpdateScrollPosition, 10);
     ASSERT_EQ(Point(0, 10), component->scrollPosition());
     loop->advanceToEnd();
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
     ASSERT_TRUE(CheckDirty(root, component, text));
     ASSERT_EQ("Two", text->getCalculated(kPropertyText).asString());
 }
 
-static const char *PAGER_CHANGED =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": ["
-        "      \"payload\""
-        "    ],"
-        "    \"items\": {"
-        "      \"type\": \"Pager\","
-        "      \"initialPage\": 1,"
-        "      \"onPageChanged\": {"
-        "        \"type\": \"SetValue\","
-        "        \"componentId\": \"textComp\","
-        "        \"property\": \"text\","
-        "        \"value\": \"Two\""
-        "      },"
-        "      \"items\": ["
-        "        {"
-        "          \"type\": \"Text\","
-        "          \"id\": \"textComp\","
-        "          \"text\": \"One\""
-        "        },"
-        "        {"
-        "          \"type\": \"Text\","
-        "          \"text\": \"Not one\""
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
+static const char *PAGER_CHANGED = R"(
+        {
+           "type": "APL",
+           "version": "1.0",
+           "mainTemplate": {
+             "parameters": [
+               "payload"
+             ],
+             "items": {
+               "type": "Pager",
+               "initialPage": 1,
+               "onPageChanged": {
+                 "type": "SetValue",
+                 "componentId": "textComp",
+                 "property": "text",
+                 "value": "Two"
+               },
+               "items": [
+                 {
+                   "type": "Text",
+                   "id": "textComp",
+                   "text": "One"
+                 },
+                 {
+                   "type": "Text",
+                   "text": "Not one"
+                 }
+               ]
+             }
+           }
+        }
+)";
 
 TEST_F(ComponentEventsTest, PagerChanged)
 {
@@ -299,56 +304,63 @@ TEST_F(ComponentEventsTest, PagerChanged)
     ASSERT_EQ(1, component->getCalculated(kPropertyCurrentPage).getInteger());
 }
 
-static const char *MEDIA_STATE_CHANGES =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": ["
-        "      \"payload\""
-        "    ],"
-        "    \"items\": {"
-        "      \"type\": \"Container\","
-        "      \"items\": ["
-        "        {"
-        "          \"type\": \"Video\","
-        "          \"id\": \"video\","
-        "          \"scale\": \"best-fill\","
-        "          \"source\": \"URL1\","
-        "          \"onEnd\": {"
-        "            \"type\": \"SetValue\","
-        "            \"componentId\": \"textComp\","
-        "            \"property\": \"text\","
-        "            \"value\": \"END\""
-        "          },"
-        "          \"onPlay\": {"
-        "            \"type\": \"SetValue\","
-        "            \"componentId\": \"textComp\","
-        "            \"property\": \"text\","
-        "            \"value\": \"PLAY\""
-        "          },"
-        "          \"onPause\": {"
-        "            \"type\": \"SetValue\","
-        "            \"componentId\": \"textComp\","
-        "            \"property\": \"text\","
-        "            \"value\": \"PAUSE\""
-        "          },"
-        "          \"onTrackUpdate\": {"
-        "            \"type\": \"SetValue\","
-        "            \"componentId\": \"textComp\","
-        "            \"property\": \"text\","
-        "            \"value\": \"TRACK_UPDATE\""
-        "          }"
-        "        },"
-        "        {"
-        "          \"type\": \"Text\","
-        "          \"id\": \"textComp\","
-        "          \"text\": \"One\""
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
+static const char *MEDIA_STATE_CHANGES = R"(
+        {
+           "type": "APL",
+           "version": "1.0",
+           "mainTemplate": {
+             "parameters": [
+               "payload"
+             ],
+             "items": {
+               "type": "Container",
+               "items": [
+                 {
+                   "type": "Video",
+                   "id": "video",
+                   "scale": "best-fill",
+                   "source": "URL1",
+                   "onEnd": {
+                     "type": "SetValue",
+                     "componentId": "textComp",
+                     "property": "text",
+                     "value": "END"
+                   },
+                   "onPlay": {
+                     "type": "SetValue",
+                     "componentId": "textComp",
+                     "property": "text",
+                     "value": "PLAY"
+                   },
+                   "onPause": {
+                     "type": "SetValue",
+                     "componentId": "textComp",
+                     "property": "text",
+                     "value": "PAUSE"
+                   },
+                   "onTrackUpdate": {
+                     "type": "SetValue",
+                     "componentId": "textComp",
+                     "property": "text",
+                     "value": "TRACK_UPDATE"
+                   },
+                   "onTrackFail": {
+                     "type": "SetValue",
+                     "componentId": "textComp",
+                     "property": "text",
+                     "value": "${event.errorCode}"
+                   }
+                 },
+                 {
+                   "type": "Text",
+                   "id": "textComp",
+                   "text": "One"
+                 }
+               ]
+             }
+           }
+        }
+)";
 
 TEST_F(ComponentEventsTest, MediaStateChanges)
 {
@@ -405,33 +417,99 @@ TEST_F(ComponentEventsTest, MediaStateChanges)
     ASSERT_EQ("END", text->getCalculated(kPropertyText).asString());
 }
 
-static const char *TOUCH_WRAPPER_SEND_EVENT =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": ["
-        "      \"payload\""
-        "    ],"
-        "    \"items\": {"
-        "      \"type\": \"TouchWrapper\","
-        "      \"onPress\": {"
-        "        \"type\": \"SendEvent\","
-        "        \"arguments\": [ "
-        "          \"${event.source.handler}\","
-        "          \"${event.source.value}\","
-        "          \"${event.target.opacity}\" "
-        "        ],"
-        "        \"components\": [ \"textComp\" ]"
-        "      },"
-        "      \"items\": {"
-        "        \"type\": \"Text\","
-        "        \"id\": \"textComp\","
-        "        \"text\": \"<b>One</b>\""
-        "      }"
-        "    }"
-        "  }"
-        "}";
+TEST_F(ComponentEventsTest, MediaErrorStateChanges)
+{
+    loadDocument(MEDIA_STATE_CHANGES, DATA);
+    ASSERT_TRUE(component);
+
+    auto video = context->findComponentById("video");
+    ASSERT_TRUE(video);
+    ASSERT_EQ(kComponentTypeVideo, video->getType());
+
+    auto text = context->findComponentById("textComp");
+    ASSERT_TRUE(text);
+    ASSERT_EQ("One", text->getCalculated(kPropertyText).asString());
+
+    MediaState state;
+
+    // Simulate playback error while trying to start first track
+    state = MediaState(0, 3, 0, 0, true, false)
+        .withTrackState(kTrackFailed)
+        .withErrorCode(99);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
+    loop->advanceToEnd();
+    ASSERT_EQ(std::to_string(state.getErrorCode()), text->getCalculated(kPropertyText).asString());
+
+    /*
+     * Simulate playback error while playing
+     */
+    state = MediaState(0, 3, 7, 10, false, false);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
+    loop->advanceToEnd();
+    ASSERT_EQ("PLAY", text->getCalculated(kPropertyText).asString()); // Track is now playing
+    // Update state as error
+    state = MediaState(0, 3, 7, 10, false, false)
+        .withTrackState(kTrackFailed)
+        .withErrorCode(99);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
+    loop->advanceToEnd();
+    ASSERT_EQ(std::to_string(state.getErrorCode()), text->getCalculated(kPropertyText).asString());
+    // Advance to next track from error state
+    state = MediaState(1, 3, 0, 10, false, false);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
+    loop->advanceToEnd();
+    ASSERT_EQ("TRACK_UPDATE", text->getCalculated(kPropertyText).asString());
+    // Update state as error when playing second track
+    state = MediaState(1, 3, 5, 10, false, false)
+        .withTrackState(kTrackFailed)
+        .withErrorCode(100);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
+    loop->advanceToEnd();
+    ASSERT_EQ(std::to_string(state.getErrorCode()), text->getCalculated(kPropertyText).asString());
+    // Update state as error when moving to third track
+    state = MediaState(2, 3, 0, 0, false, false)
+        .withTrackState(kTrackFailed)
+        .withErrorCode(101);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
+    loop->advanceToEnd();
+    ASSERT_EQ(std::to_string(state.getErrorCode()), text->getCalculated(kPropertyText).asString());
+
+}
+
+static const char *TOUCH_WRAPPER_SEND_EVENT = R"(
+        {
+           "type": "APL",
+           "version": "1.1",
+           "mainTemplate": {
+             "parameters": [
+               "payload"
+             ],
+             "items": {
+               "type": "TouchWrapper",
+               "onPress": {
+                 "type": "SendEvent",
+                 "arguments": [ 
+                   "${event.source.handler}",
+                   "${event.source.value}",
+                   "${event.target.opacity}" 
+                 ],
+                 "components": [ "textComp" ]
+               },
+               "items": {
+                 "type": "Text",
+                 "id": "textComp",
+                 "text": "<b>One</b>"
+               }
+             }
+           }
+        }
+)";
 
 TEST_F(ComponentEventsTest, TouchWrapperSendEvent)
 {
@@ -472,46 +550,47 @@ TEST_F(ComponentEventsTest, TouchWrapperSendEvent)
     ASSERT_EQ("<b>One</b>", components.get("textComp").asString());
 }
 
-static const char *PAGER_SEND_EVENT =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": ["
-        "      \"payload\""
-        "    ],"
-        "    \"items\": {"
-        "      \"type\": \"Pager\","
-        "      \"initialPage\": 1,"
-        "      \"onPageChanged\": {"
-        "        \"type\": \"SendEvent\","
-        "        \"arguments\": [ "
-        "          \"${event.source.handler}\","
-        "          \"${event.source.value}\","
-        "          \"${event.target.opacity}\" "
-        "        ],"
-        "        \"components\": [ \"text1\", \"text2\", \"text3\" ]"
-        "      },"
-        "      \"items\": ["
-        "        {"
-        "          \"type\": \"Text\","
-        "          \"id\": \"text1\","
-        "          \"text\": \"One\""
-        "        },"
-        "        {"
-        "          \"type\": \"Text\","
-        "          \"id\": \"text2\","
-        "          \"text\": \"Two\""
-        "        },"
-        "        {"
-        "          \"type\": \"Text\","
-        "          \"id\": \"text3\","
-        "          \"text\": \"Three\""
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
+static const char *PAGER_SEND_EVENT = R"(
+        {
+           "type": "APL",
+           "version": "1.0",
+           "mainTemplate": {
+             "parameters": [
+               "payload"
+             ],
+             "items": {
+               "type": "Pager",
+               "initialPage": 1,
+               "onPageChanged": {
+                 "type": "SendEvent",
+                 "arguments": [ 
+                   "${event.source.handler}",
+                   "${event.source.value}",
+                   "${event.target.opacity}" 
+                 ],
+                 "components": [ "text1", "text2", "text3" ]
+               },
+               "items": [
+                 {
+                   "type": "Text",
+                   "id": "text1",
+                   "text": "One"
+                 },
+                 {
+                   "type": "Text",
+                   "id": "text2",
+                   "text": "Two"
+                 },
+                 {
+                   "type": "Text",
+                   "id": "text3",
+                   "text": "Three"
+                 }
+               ]
+             }
+           }
+        }
+)";
 
 TEST_F(ComponentEventsTest, PagerSendEvent)
 {
@@ -555,35 +634,36 @@ TEST_F(ComponentEventsTest, PagerSendEvent)
     ASSERT_EQ("Three", components.get(text3->getId()).asString());
 }
 
-static const char *SCROLLABLE_SEND_EVENT =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": ["
-        "      \"payload\""
-        "    ],"
-        "    \"items\": {"
-        "      \"type\": \"ScrollView\","
-        "      \"height\": 10,"
-        "      \"onScroll\": {"
-        "        \"type\": \"Custom\","
-        "        \"arguments\": [ "
-        "          \"${event.source.handler}\","
-        "          \"${event.source.value}\","
-        "          \"${event.target.opacity}\" "
-        "        ],"
-        "        \"components\": [ \"textComp\" ]"
-        "      },"
-        "      \"item\": {"
-        "        \"type\": \"Text\","
-        "        \"id\": \"textComp\","
-        "        \"height\": 50,"
-        "        \"text\": \"One\""
-        "      }"
-        "    }"
-        "  }"
-        "}";
+static const char *SCROLLABLE_SEND_EVENT = R"(
+        {
+           "type": "APL",
+           "version": "1.0",
+           "mainTemplate": {
+             "parameters": [
+               "payload"
+             ],
+             "items": {
+               "type": "ScrollView",
+               "height": 10,
+               "onScroll": {
+                 "type": "Custom",
+                 "arguments": [ 
+                   "${event.source.handler}",
+                   "${event.source.value}",
+                   "${event.target.opacity}" 
+                 ],
+                 "components": [ "textComp" ]
+               },
+               "item": {
+                 "type": "Text",
+                 "id": "textComp",
+                 "height": 50,
+                 "text": "One"
+               }
+             }
+           }
+        }"
+)";
 
 TEST_F(ComponentEventsTest, ScrollableSendCustomEvent)
 {
@@ -616,96 +696,136 @@ TEST_F(ComponentEventsTest, ScrollableSendCustomEvent)
     ASSERT_EQ(Object(1.5), source.get("value"));
 }
 
-static const char *MEDIA_SEND_EVENT =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": ["
-        "      \"payload\""
-        "    ],"
-        "    \"items\": {"
-        "      \"type\": \"Container\","
-        "      \"items\": ["
-        "        {"
-        "          \"type\": \"Video\","
-        "          \"id\": \"video\","
-        "          \"scale\": \"best-fill\","
-        "          \"source\": [\"URL1\",\"URL2\"],"
-        "          \"onEnd\": {"
-        "            \"type\": \"Custom\","
-        "            \"arguments\": [ "
-        "              \"${event.source.handler}\","
-        "              \"${event.source.value}\","
-        "              \"${event.target.opacity}\","
-        "              \"${event.target.source}\","
-        "              \"${event.trackIndex}\","
-        "              \"${event.trackCount}\","
-        "              \"${event.currentTime}\","
-        "              \"${event.duration}\","
-        "              \"${event.paused}\","
-        "              \"${event.ended}\""
-        "            ],"
-        "            \"components\": [ \"textComp\" ]"
-        "          },"
-        "          \"onPlay\": {"
-        "            \"type\": \"Custom\","
-        "            \"arguments\": [ "
-        "              \"${event.source.handler}\","
-        "              \"${event.source.value}\","
-        "              \"${event.target.opacity}\","
-        "              \"${event.target.source}\","
-        "              \"${event.trackIndex}\","
-        "              \"${event.trackCount}\","
-        "              \"${event.currentTime}\","
-        "              \"${event.duration}\","
-        "              \"${event.paused}\","
-        "              \"${event.ended}\""
-        "            ],"
-        "            \"components\": [ \"textComp\" ]"
-        "          },"
-        "          \"onPause\": {"
-        "            \"type\": \"Custom\","
-        "            \"arguments\": [ "
-        "              \"${event.source.handler}\","
-        "              \"${event.source.value}\","
-        "              \"${event.target.opacity}\","
-        "              \"${event.target.source}\","
-        "              \"${event.trackIndex}\","
-        "              \"${event.trackCount}\","
-        "              \"${event.currentTime}\","
-        "              \"${event.duration}\","
-        "              \"${event.paused}\","
-        "              \"${event.ended}\""
-        "            ],"
-        "            \"components\": [ \"textComp\" ]"
-        "          },"
-        "          \"onTrackUpdate\": {"
-        "            \"type\": \"Custom\","
-        "            \"arguments\": [ "
-        "              \"${event.source.handler}\","
-        "              \"${event.source.value}\","
-        "              \"${event.target.opacity}\","
-        "              \"${event.target.source}\","
-        "              \"${event.trackIndex}\","
-        "              \"${event.trackCount}\","
-        "              \"${event.currentTime}\","
-        "              \"${event.duration}\","
-        "              \"${event.paused}\","
-        "              \"${event.ended}\""
-        "            ],"
-        "            \"components\": [ \"textComp\" ]"
-        "          }"
-        "        },"
-        "        {"
-        "          \"type\": \"Text\","
-        "          \"id\": \"textComp\","
-        "          \"text\": \"One\""
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
+static const char *MEDIA_SEND_EVENT = R"(
+         {  
+           "type": "APL",  
+           "version": "1.0",  
+           "mainTemplate": {  
+             "parameters": [  
+               "payload"  
+             ],  
+             "items": {  
+               "type": "Container",  
+               "items": [  
+                 {  
+                   "type": "Video",  
+                   "id": "video",  
+                   "scale": "best-fill",  
+                   "source": ["URL1","URL2"],  
+                   "onEnd": {  
+                     "type": "Custom",  
+                     "arguments": [  
+                       "${event.source.handler}",  
+                       "${event.source.value}",  
+                       "${event.target.opacity}",  
+                       "${event.target.source}",  
+                       "${event.trackIndex}",  
+                       "${event.trackCount}",  
+                       "${event.currentTime}",  
+                       "${event.duration}",  
+                       "${event.paused}",  
+                       "${event.ended}",  
+                       "${event.trackState}"  
+                     ],  
+                     "components": [ "textComp" ]  
+                   },  
+                   "onPlay": {  
+                     "type": "Custom",  
+                     "arguments": [  
+                       "${event.source.handler}",  
+                       "${event.source.value}",  
+                       "${event.target.opacity}",  
+                       "${event.target.source}",  
+                       "${event.trackIndex}",  
+                       "${event.trackCount}",  
+                       "${event.currentTime}",  
+                       "${event.duration}",  
+                       "${event.paused}",  
+                       "${event.ended}",  
+                       "${event.trackState}"  
+                     ],  
+                     "components": [ "textComp" ]  
+                   },  
+                   "onPause": {  
+                     "type": "Custom",  
+                     "arguments": [  
+                       "${event.source.handler}",  
+                       "${event.source.value}",  
+                       "${event.target.opacity}",  
+                       "${event.target.source}",  
+                       "${event.trackIndex}",  
+                       "${event.trackCount}",  
+                       "${event.currentTime}",  
+                       "${event.duration}",  
+                       "${event.paused}",  
+                       "${event.ended}",  
+                       "${event.trackState}"  
+                     ],  
+                     "components": [ "textComp" ]  
+                   },  
+                   "onTrackUpdate": {  
+                     "type": "Custom",  
+                     "arguments": [  
+                       "${event.source.handler}",  
+                       "${event.source.value}",  
+                       "${event.target.opacity}",  
+                       "${event.target.source}",  
+                       "${event.trackIndex}",  
+                       "${event.trackCount}",  
+                       "${event.currentTime}",  
+                       "${event.duration}",  
+                       "${event.paused}",  
+                       "${event.ended}",  
+                       "${event.trackState}"  
+                     ],  
+                     "components": [ "textComp" ]  
+                   },  
+                   "onTrackReady": {  
+                     "type": "Custom",  
+                     "arguments": [  
+                       "${event.source.handler}",  
+                       "${event.source.value}",  
+                       "${event.target.opacity}",  
+                       "${event.target.source}",  
+                       "${event.trackIndex}",  
+                       "${event.source.trackCount}",  
+                       "${event.source.currentTime}",  
+                       "${event.source.duration}",  
+                       "${event.source.paused}",  
+                       "${event.source.ended}",  
+                       "${event.trackState}"  
+                     ],  
+                     "components": [ "textComp" ]  
+                   },  
+                   "onTrackFail": {  
+                     "type": "Custom",  
+                     "arguments": [  
+                       "${event.source.handler}",  
+                       "${event.source.value}",  
+                       "${event.target.opacity}",  
+                       "${event.target.source}",  
+                       "${event.trackIndex}",  
+                       "${event.source.trackCount}",  
+                       "${event.currentTime}",  
+                       "${event.source.duration}",  
+                       "${event.source.paused}",  
+                       "${event.source.ended}",  
+                       "${event.trackState}",  
+                       "${event.errorCode}"  
+                     ],  
+                     "components": [ "textComp" ]  
+                   }  
+                 },  
+                 {  
+                   "type": "Text",  
+                   "id": "textComp",  
+                   "text": "One"  
+                 }  
+               ]  
+             }  
+           }  
+         }
+)";
 
 void
 validateMediaEvent(RootContextPtr root,
@@ -714,6 +834,8 @@ validateMediaEvent(RootContextPtr root,
                    const std::string& paused,
                    const std::string& ended,
                    const std::string& url,
+                   const std::string& trackState,
+                   const std::string& errorCode,
                    const Object& value)
 {
     ASSERT_TRUE(root->hasEvent());
@@ -732,6 +854,10 @@ validateMediaEvent(RootContextPtr root,
     ASSERT_EQ("10", arguments.at(7).asString()); // duration
     ASSERT_EQ(paused, arguments.at(8).asString()); // paused
     ASSERT_EQ(ended, arguments.at(9).asString()); // ended
+    ASSERT_EQ(trackState, arguments.at(10).asString()); // error code
+    if(!errorCode.empty()) {
+        ASSERT_EQ(errorCode, arguments.at(11).asString()); // error code
+    }
 
     auto video = root->context().findComponentById("video");
 
@@ -768,81 +894,108 @@ TEST_F(ComponentEventsTest, MediaSendEvent)
 
     ASSERT_FALSE(root->hasEvent());
 
-    // Simulate playback start
-    state = MediaState(0, 2, 7, 10, false, false);
+    // Simulate track ready
+    state = MediaState(0, 2, 7, 10, true, false).withTrackState(kTrackReady);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
 
-    validateMediaEvent(root, "Play", "0", "false", "false", "URL1", Object::NULL_OBJECT());
+    validateMediaEvent(root, "TrackReady", "0", "true", "false", "URL1", "ready", "", Object::NULL_OBJECT());
+
+    // Simulate playback start
+    state = MediaState(0, 2, 7, 10, false, false).withTrackState(kTrackReady);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
+    loop->advanceToEnd();
+
+    validateMediaEvent(root, "Play", "0", "false", "false", "URL1", "ready", "", Object::NULL_OBJECT());
 
     // Simulate playback pause
-    state = MediaState(0, 2, 7, 10, true, false);
+    state = MediaState(0, 2, 7, 10, true, false).withTrackState(kTrackReady);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
 
-    validateMediaEvent(root, "Pause", "0", "true", "false", "URL1", Object::NULL_OBJECT());
+    validateMediaEvent(root, "Pause", "0", "true", "false", "URL1", "ready", "", Object::NULL_OBJECT());
 
     // Simulate track change
-    state = MediaState(1, 2, 7, 10, true, false);
+    state = MediaState(1, 2, 7, 10, true, false).withTrackState(kTrackNotReady);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();//
 
-    validateMediaEvent(root, "TrackUpdate", "1", "true", "false", "URL2", Object(1));
+    validateMediaEvent(root, "TrackUpdate", "1", "true", "false", "URL2", "notReady", "", Object(1));
+
+    // Simulate next track ready
+    state = MediaState(1, 2, 7, 10, true, false).withTrackState(kTrackReady);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
+    loop->advanceToEnd();//
+
+    validateMediaEvent(root, "TrackReady", "1", "true", "false", "URL2", "ready", "", Object::NULL_OBJECT());
 
     // Simulate playback end
-    state = MediaState(1, 2, 7, 10, true, true);
+    state = MediaState(1, 2, 7, 10, true, true).withTrackState(kTrackReady);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
 
-    validateMediaEvent(root, "End", "1", "true", "true", "URL2", Object::NULL_OBJECT());
+    validateMediaEvent(root, "End", "1", "true", "true", "URL2", "ready", "", Object::NULL_OBJECT());
+
+    // Simulate playback error
+    state = MediaState(1, 2, 7, 10, true, true)
+                .withTrackState(kTrackFailed)
+                .withErrorCode(99);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
+    loop->advanceToEnd();
+
+    validateMediaEvent(root, "TrackFail", "1", "true", "true", "URL2", "failed", "99", Object::NULL_OBJECT());
 }
 
-static const char *MEDIA_SEND_EVENT_TIME_UPDATE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": ["
-    "      \"payload\""
-    "    ],"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Video\","
-    "          \"id\": \"video\","
-    "          \"scale\": \"best-fill\","
-    "          \"source\": [\"URL1\",\"URL2\"],"
-    "          \"onTimeUpdate\": {"
-    "            \"type\": \"Custom\","
-    "            \"arguments\": [ "
-    "              \"${event.source.handler}\","
-    "              \"${event.source.value}\","
-    "              \"${event.target.opacity}\","
-    "              \"${event.target.source}\","
-    "              \"${event.trackIndex}\","
-    "              \"${event.trackCount}\","
-    "              \"${event.currentTime}\","
-    "              \"${event.duration}\","
-    "              \"${event.paused}\","
-    "              \"${event.ended}\""
-    "            ],"
-    "            \"components\": [ \"textComp\" ]"
-    "          }"
-    "        },"
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"textComp\","
-    "          \"text\": \"One\""
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *MEDIA_SEND_EVENT_TIME_UPDATE = R"(
+    {
+       "type": "APL",
+       "version": "1.0",
+       "mainTemplate": {
+         "parameters": [
+           "payload"
+         ],
+         "items": {
+           "type": "Container",
+           "items": [
+             {
+               "type": "Video",
+               "id": "video",
+               "scale": "best-fill",
+               "source": ["URL1","URL2"],
+               "onTimeUpdate": {
+                 "type": "Custom",
+                 "arguments": [ 
+                   "${event.source.handler}",
+                   "${event.source.value}",
+                   "${event.target.opacity}",
+                   "${event.target.source}",
+                   "${event.trackIndex}",
+                   "${event.trackCount}",
+                   "${event.currentTime}",
+                   "${event.duration}",
+                   "${event.paused}",
+                   "${event.ended}"
+                 ],
+                 "components": [ "textComp" ]
+               }
+             },
+             {
+               "type": "Text",
+               "id": "textComp",
+               "text": "One"
+             }
+           ]
+         }
+       }
+    }
+)";
 
 TEST_F(ComponentEventsTest, MediaOnTimeUpdate)
 {
@@ -885,62 +1038,63 @@ TEST_F(ComponentEventsTest, MediaOnTimeUpdate)
     ASSERT_EQ(Object(false), arguments.at(9)); // ended
 }
 
-static const char *MEDIA_FAST_NORMAL =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"mainTemplate\": {"
-        "    \"items\": {"
-        "      \"type\": \"Container\","
-        "      \"items\": ["
-        "        {"
-        "          \"type\": \"Video\","
-        "          \"id\": \"video\","
-        "          \"source\": \"URL1\","
-        "          \"onTimeUpdate\": {"
-        "            \"type\": \"Parallel\","
-        "            \"commands\": ["
-        "              {"
-        "                \"type\": \"SendEvent\""
-        "              },"
-        "              {"
-        "                \"type\": \"SetValue\","
-        "                \"componentId\": \"textComp\","
-        "                \"property\": \"text\","
-        "                \"value\": \"Two\""
-        "              }"
-        "            ]"
-        "          },"
-        "          \"onPause\": {"
-        "            \"type\": \"Parallel\","
-        "            \"commands\": ["
-        "              {"
-        "                \"type\": \"SendEvent\""
-        "              },"
-        "              {"
-        "                \"type\": \"SetValue\","
-        "                \"componentId\": \"textComp\","
-        "                \"property\": \"text\","
-        "                \"value\": \"Three\""
-        "              }"
-        "            ]"
-        "          },"
-        "          \"onPlay\": {"
-        "            \"type\": \"SetValue\","
-        "            \"componentId\": \"textComp\","
-        "            \"property\": \"text\","
-        "            \"value\": \"One\""
-        "          }"
-        "        },"
-        "        {"
-        "          \"type\": \"Text\","
-        "          \"id\": \"textComp\","
-        "          \"text\": \"One\""
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
+static const char *MEDIA_FAST_NORMAL = R"(
+        {
+           "type": "APL",
+           "version": "1.0",
+           "mainTemplate": {
+             "items": {
+               "type": "Container",
+               "items": [
+                 {
+                   "type": "Video",
+                   "id": "video",
+                   "source": "URL1",
+                   "onTimeUpdate": {
+                     "type": "Parallel",
+                     "commands": [
+                       {
+                         "type": "SendEvent"
+                       },
+                       {
+                         "type": "SetValue",
+                         "componentId": "textComp",
+                         "property": "text",
+                         "value": "Two"
+                       }
+                     ]
+                   },
+                   "onPause": {
+                     "type": "Parallel",
+                     "commands": [
+                       {
+                         "type": "SendEvent"
+                       },
+                       {
+                         "type": "SetValue",
+                         "componentId": "textComp",
+                         "property": "text",
+                         "value": "Three"
+                       }
+                     ]
+                   },
+                   "onPlay": {
+                     "type": "SetValue",
+                     "componentId": "textComp",
+                     "property": "text",
+                     "value": "One"
+                   }
+                 },
+                 {
+                   "type": "Text",
+                   "id": "textComp",
+                   "text": "One"
+                 }
+               ]
+             }
+           }
+        }
+)";
 
 TEST_F(ComponentEventsTest, MediaFastNormal)
 {

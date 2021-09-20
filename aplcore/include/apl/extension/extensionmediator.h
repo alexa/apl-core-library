@@ -29,6 +29,8 @@ namespace apl {
 
 class RootContext;
 
+using ExtensionsLoadedCallback = std::function<void()>;
+
 /**
  * This class mediates message passing between "local" alexaext::Extension and the APL engine.  It
  * is intended for internal use by the viewhost. Remote extensions are not supported.
@@ -79,9 +81,20 @@ public:
      * messages.
      * @param rootConfig The RootConfig receiving the registered extensions.
      * @param content The document content, contains requested extensions and extension settings.
-     * @param uris The URIs requested by the APL document.
      */
     void loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content);
+
+    /**
+     * Register the extensions found in the associated  alexaext::ExtensionProvider.  Must be called before
+     * RootContext::create();
+     *
+     * This experimental method will be eliminated when the APL engine can directly process registration
+     * messages.
+     * @param rootConfig The RootConfig receiving the registered extensions.
+     * @param content The document content, contains requested extensions and extension settings.
+     * @param loaded Callback to be called when all extensions required by the doc are loaded.
+     */
+    void loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content, ExtensionsLoadedCallback loaded);
 
     /**
      * Process an extension event. The extension must be registered in the associated alexaext::ExtensionProvider.
@@ -92,6 +105,14 @@ public:
      * @return true if the command was invoked.
      */
     bool invokeCommand(const Event& even);
+
+    /**
+     * Notify the extension that the component has changed.  Changes may be a result of document
+     * command, or runtime change in the resource state.
+     *
+     * @param component ExtensionComponent reference.
+     */
+    void notifyComponentUpdate(ExtensionComponent& component);
 
     /**
      * Use create(...)
@@ -114,8 +135,8 @@ public:
     bool isEnabled() const { return mEnabled; }
 
     /**
-     * Enables or disables this mediator. Disabled mediators will not process incoming messages. This is usefule when
-     * the document associated with the mediator is being backgrounded.
+     * Enables or disables this mediator. Disabled mediators will not process incoming messages.
+     * This is useful when the document associated with the mediator is being backgrounded.
      *
      * Mediators are enabled when first created.
      *
@@ -123,8 +144,27 @@ public:
      */
     void enable(bool enabled) { mEnabled = enabled; }
 
+    /**
+     * Get Proxy corresponding to requested uri.
+     * @param uri extension URI.
+     * @return Proxy, if exists, null otherwise.
+     */
+    alexaext::ExtensionProxyPtr getProxy(const std::string& uri);
+
+    /**
+     * Initialize extensions available in provided content.
+     * @param rootConfig The RootConfig receiving the registered extensions.
+     * @param content The document content, contains requested extensions
+     */
+    void initializeExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content);
+
 private:
     friend class RootContext;
+
+    /**
+     * Perform extension registration requests.
+     */
+    void loadExtensionsInternal(const RootConfigPtr& rootConfig, const ContentPtr& content);
 
     /**
      * Associate a RootContext to the mediator for event and live data updates.
@@ -158,6 +198,10 @@ private:
     alexaext::ExecutorPtr mMessageExecutor;
     // Determines whether incoming messages from extensions should be processed.
     bool mEnabled = true;
+    // Pending Extensions to register.
+    std::set<std::string> mPendingRegistrations;
+    // Extensions loaded callback
+    ExtensionsLoadedCallback mLoadedCallback;
 };
 
 } //namespace apl

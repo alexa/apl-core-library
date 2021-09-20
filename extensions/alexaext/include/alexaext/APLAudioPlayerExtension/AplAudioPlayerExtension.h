@@ -35,9 +35,6 @@ static const std::string ENVIRONMENT_VERSION = "APLAudioPlayerExtension-1.0";
 /**
  * An APL Extension designed for bi-directional communication between an @c AudioPlayer and APL document
  * to allow for control and command of audio stream and APL UI.
- *
- * TODO : Add link to public spec when available -
- * https://aplspec.aka.corp.amazon.com/apl-extensions-release/html/extensions/audioplayer/audioplayer_extension_10.html
  */
 class AplAudioPlayerExtension
         : public alexaext::ExtensionBase, public std::enable_shared_from_this<AplAudioPlayerExtension> {

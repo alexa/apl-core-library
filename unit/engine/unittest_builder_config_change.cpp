@@ -106,6 +106,14 @@ TEST_F(BuilderConfigChange, CheckEnvironment)
     ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "auto", 3.0, "high-contrast", true, false, false));
 }
 
+TEST_F(BuilderConfigChange, NoopConfigurationChangeDoesNotCreateEvent)
+{
+    loadDocument(CHECK_ENVIRONMENT);
+    ASSERT_TRUE(component);
+
+    configChange(ConfigurationChange());
+    ASSERT_FALSE(root->hasEvent());
+}
 
 static const char *BASIC_REINFLATE = R"apl(
     {
@@ -508,7 +516,8 @@ TEST_F(BuilderConfigChange, DefaultResizeBehavior)
     configChange(ConfigurationChange(600,200));
     root->clearPending();
     ASSERT_TRUE(IsEqual(Rect({0,0,300,100}), component->getCalculated(kPropertyBounds).getRect()));
-    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 }
 
@@ -544,7 +553,8 @@ TEST_F(BuilderConfigChange, OnConfigChangeNoRelayout)
     configChange(ConfigurationChange(300,100));
     root->clearPending();
     ASSERT_EQ(Rect({0,0,300,100}), component->getCalculated(kPropertyBounds).getRect());
-    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(CheckSendEvent(root, "normal"));  // The normal event has fired
 }
@@ -659,7 +669,8 @@ TEST_F(BuilderConfigChange, ResizeQueue)
     event2.getActionRef().resolve();
     root->clearPending();
     ASSERT_EQ(Rect({0,0,400,500}), component->getCalculated(kPropertyBounds).getRect());
-    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(event.getActionRef().isTerminated());
     ASSERT_TRUE(event2.getActionRef().isResolved());

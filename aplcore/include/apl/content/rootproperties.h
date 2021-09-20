@@ -124,6 +124,12 @@ enum RootProperty {
     kUEScrollerMaxDuration,
     /// UnidirectionalEasingScroller deceleration
     kUEScrollerDeceleration,
+    /// SendEvent additional flags
+    kSendEventAdditionalFlags,
+    /// Limit of cache records for TextMeasurements
+    kTextMeasurementCacheLimit,
+    /// Initial display state of the document, used by core prior to any display state updates
+    kInitialDisplayState,
 };
 
 extern Bimap<int, std::string> sRootPropertyBimap;

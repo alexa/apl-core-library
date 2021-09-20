@@ -362,7 +362,7 @@ TEST_F(HoverTest, Basic)
     ASSERT_TRUE(CheckState(frame, kStateHover));
     ASSERT_FALSE(CheckState(text, kStateHover));
     // validate frame changes
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyVisualHash));
     ASSERT_TRUE(IsEqual(Color(session, FRAME_BORDERCOLOR_HOVER), frame->getCalculated(kPropertyBorderColor)));
     // validate text string
     ASSERT_FALSE(CheckDirty(text, kPropertyText));
@@ -380,11 +380,11 @@ TEST_F(HoverTest, Basic)
     ASSERT_FALSE(CheckState(frame, kStateHover));
     ASSERT_TRUE(CheckState(text, kStateHover));
     // validate frame changes
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(IsEqual(Color(session, FRAME_BORDERCOLOR), frame->getCalculated(kPropertyBorderColor)));
     // validate text string
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
-        kPropertyInnerBounds, kPropertyBounds));
+        kPropertyInnerBounds, kPropertyBounds, kPropertyVisualHash));
     ASSERT_TRUE(IsEqual(ON_CURSOR_ENTER_TEXT, text->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(IsEqual(Color(session, TEXT_COLOR_HOVER), text->getCalculated(kPropertyColor)));
     // Frame and text were dirty
@@ -400,11 +400,11 @@ TEST_F(HoverTest, Basic)
     ASSERT_FALSE(CheckState(text, kStateHover));
     // validate frame changes
     // validate frame changes
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(IsEqual(Color(session, FRAME_BORDERCOLOR_HOVER), frame->getCalculated(kPropertyBorderColor)));
     // validate text string
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
-        kPropertyInnerBounds, kPropertyBounds));
+        kPropertyInnerBounds, kPropertyBounds, kPropertyVisualHash));
     ASSERT_TRUE(IsEqual(ON_CURSOR_EXIT_TEXT, text->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(IsEqual(Color(session, TEXT_COLOR), text->getCalculated(kPropertyColor)));
     // Frame and text were dirty
@@ -422,10 +422,10 @@ TEST_F(HoverTest, Basic)
     ASSERT_FALSE(CheckState(frame, kStateHover));
     ASSERT_FALSE(CheckState(text, kStateHover));
     // validate frame changes
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(IsEqual(Color(session, FRAME_BORDERCOLOR), frame->getCalculated(kPropertyBorderColor)));
     // validate text string
-    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(IsEqual(TEXT_TEXT, text->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(IsEqual(Color(session, TEXT_COLOR), text->getCalculated(kPropertyColor)));
     // The frame and the text were dirty
@@ -446,7 +446,7 @@ TEST_F(HoverTest, FrameInherit)
     validateHoverStates(true, true, false);
     validateFrame();
     validateTextString();
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame));
 
     // Simulate cursor entering in the text
@@ -457,9 +457,9 @@ TEST_F(HoverTest, FrameInherit)
     validateFrame();
     validateText();
     validateTextString(ON_CURSOR_ENTER_TEXT);
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyBounds, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
-        kPropertyInnerBounds, kPropertyColor));
+        kPropertyInnerBounds, kPropertyColor, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame, text));
 
     // Simulate cursor exiting in the text
@@ -470,9 +470,9 @@ TEST_F(HoverTest, FrameInherit)
     validateFrame();
     validateText();
     validateTextString(ON_CURSOR_EXIT_TEXT);
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyColor, kPropertyColorNonKaraoke, kPropertyColorKaraokeTarget,
-        kPropertyInnerBounds, kPropertyBounds));
+        kPropertyInnerBounds, kPropertyBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame, text));
 
     // Reset text
@@ -485,8 +485,8 @@ TEST_F(HoverTest, FrameInherit)
     validateHoverStates(false, false, false);
     validateFrame();
     validateTextString();
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame, text));
 }
 
@@ -506,7 +506,7 @@ TEST_F(HoverTest, FrameDisabled)
     ASSERT_TRUE(CheckState(frame, kStateHover));
     ASSERT_TRUE(CheckState(text));
     validateTextString();
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame));
 
     // Disable the touch wrapper
@@ -519,7 +519,7 @@ TEST_F(HoverTest, FrameDisabled)
     validateFrame();
     validateFrameDisabledState(true);
     validateTextString();
-    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyDisabled));
+    ASSERT_TRUE(CheckDirty(frame, kPropertyBorderColor, kPropertyDisabled, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame));
 
     // Simulate cursor entering in the text
@@ -531,7 +531,7 @@ TEST_F(HoverTest, FrameDisabled)
     validateText();
     validateTextString(ON_CURSOR_ENTER_TEXT);
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyBounds, kPropertyInnerBounds, kPropertyColorKaraokeTarget,
-        kPropertyColorNonKaraoke, kPropertyColor));
+        kPropertyColorNonKaraoke, kPropertyColor, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame, text));
 
     // Reset text
@@ -544,7 +544,7 @@ TEST_F(HoverTest, FrameDisabled)
     validateFrameDisabledState(false);
     validateTextString();
     ASSERT_TRUE(CheckDirty(frame, kPropertyDisabled, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame, text));
 }
 
@@ -1168,7 +1168,8 @@ TEST_F(HoverTest, LOCAL_TEST)
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, {50,50}));
     root->clearPending();
 
-    ASSERT_TRUE(CheckDirty(text1, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text1, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text1));
 
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), text1->getCalculated(kPropertyColor)));
@@ -1178,8 +1179,10 @@ TEST_F(HoverTest, LOCAL_TEST)
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, {50,150}));
     root->clearPending();
 
-    ASSERT_TRUE(CheckDirty(text1, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
-    ASSERT_TRUE(CheckDirty(text2, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text1, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+                           kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(text2, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text1, text2));
 
     ASSERT_TRUE(IsEqual(Color(Color::GREEN), text1->getCalculated(kPropertyColor)));
@@ -1191,7 +1194,8 @@ TEST_F(HoverTest, LOCAL_TEST)
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, {300, 300}));
     root->clearPending();
 
-    ASSERT_TRUE(CheckDirty(text2, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text2, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text2));
 
     ASSERT_TRUE(IsEqual(Color(Color::GREEN), text2->getCalculated(kPropertyColor)));
@@ -1220,7 +1224,8 @@ TEST_F(HoverTest, OnCursor_DisableState_Change)
     // verify state when hover = true
     ASSERT_EQ(fm.getHover(), text1);
     ASSERT_TRUE(CheckState(text1, kStateHover));
-    ASSERT_TRUE(CheckDirty(text1, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text1, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text1));
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), text1->getCalculated(kPropertyColor)));
     ASSERT_TRUE(IsEqual("Blue Text 1", text1->getCalculated(kPropertyText).asString()));
@@ -1232,7 +1237,8 @@ TEST_F(HoverTest, OnCursor_DisableState_Change)
     // verify onCursorExit handler was executed
     ASSERT_EQ(fm.getHover(), text1);
     ASSERT_TRUE(CheckState(text1, kStateDisabled));
-    ASSERT_TRUE(CheckDirty(text1, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text1, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text1));
     ASSERT_TRUE(IsEqual(Color(Color::GREEN), text1->getCalculated(kPropertyColor)));
     ASSERT_TRUE(IsEqual("Green Text 1", text1->getCalculated(kPropertyText).asString()));
@@ -1244,7 +1250,8 @@ TEST_F(HoverTest, OnCursor_DisableState_Change)
     // verify onCursorEnter handler was executed
     ASSERT_EQ(fm.getHover(), text1);
     ASSERT_TRUE(CheckState(text1, kStateHover));
-    ASSERT_TRUE(CheckDirty(text1, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text1, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text1));
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), text1->getCalculated(kPropertyColor)));
     ASSERT_TRUE(IsEqual("Blue Text 1", text1->getCalculated(kPropertyText).asString()));

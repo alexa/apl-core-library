@@ -31,6 +31,7 @@ public:
     void checkKaraokeTargetColor();
 
     Object getValue() const override;
+    void preLayoutProcessing(bool useDirtyFlag) override;
 
     rapidjson::Value serializeMeasure(rapidjson::Document::AllocatorType& allocator) const;
 

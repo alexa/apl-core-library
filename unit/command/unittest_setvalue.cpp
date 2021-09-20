@@ -52,7 +52,7 @@ TEST_F(SetValueTest, SimpleText)
     component->setProperty(kPropertyText, "Bear");
 
     // The text component should be dirty
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(IsEqual("Bear", component->getCalculated(kPropertyText).asString()));
 
@@ -61,7 +61,8 @@ TEST_F(SetValueTest, SimpleText)
     component->setProperty(kPropertyText, "Fozzie");
     component->setProperty(kPropertyColor, "green");
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyColor, kPropertyColorNonKaraoke, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyColor, kPropertyColorNonKaraoke,
+                           kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(IsEqual("Fozzie", component->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(IsEqual(Color(Color::GREEN), component->getCalculated(kPropertyColor)));
@@ -129,17 +130,13 @@ TEST_F(SetValueTest, StyledProperty)
     // Set a dynamic property that was already set
     component->setProperty(kPropertyText, "Two");
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_EQ(1, component->getDirty().size());
-
-    for (auto m : component->getDirty()) {
-        ASSERT_EQ(kPropertyText, m);
-        ASSERT_EQ("Two", component->getCalculated(kPropertyText).asString());
-    }
-    root->clearDirty();
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
+    ASSERT_EQ("Two", component->getCalculated(kPropertyText).asString());
 
     // Now set a dynamic property that was set by a style
     component->setProperty(kPropertyColor, "#1234");
-    ASSERT_TRUE(CheckDirty(component, kPropertyColor, kPropertyColorNonKaraoke, kPropertyColorKaraokeTarget));
+    ASSERT_TRUE(CheckDirty(component, kPropertyColor, kPropertyColorNonKaraoke, kPropertyColorKaraokeTarget,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(IsEqual(Color(0x11223344), component->getCalculated(kPropertyColor)));
     ASSERT_TRUE(IsEqual(Color(0x11223344), component->getCalculated(kPropertyColorKaraokeTarget)));
@@ -270,7 +267,8 @@ TEST_F(SetValueTest, SimulateCheckedEvent)
     ASSERT_TRUE(CheckState(text, kStateChecked));
 
     performTap(1,1);
-    ASSERT_TRUE(CheckDirty(text, kPropertyColor, kPropertyChecked, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text, kPropertyColor, kPropertyChecked, kPropertyColorKaraokeTarget,
+                           kPropertyColorNonKaraoke, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(component, kPropertyChecked));
     ASSERT_TRUE(CheckDirty(root, text, component));
     ASSERT_EQ(Object(Color(Color::RED)), text->getCalculated(kPropertyColor));
@@ -279,7 +277,8 @@ TEST_F(SetValueTest, SimulateCheckedEvent)
 
     // This should toggle it again
     performTap(1,1);
-    ASSERT_TRUE(CheckDirty(text, kPropertyColor, kPropertyChecked, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text, kPropertyColor, kPropertyChecked, kPropertyColorKaraokeTarget,
+                           kPropertyColorNonKaraoke, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(component, kPropertyChecked));
     ASSERT_TRUE(CheckDirty(root, text, component));
     ASSERT_EQ(Object(Color(Color::BLUE)), text->getCalculated(kPropertyColor));

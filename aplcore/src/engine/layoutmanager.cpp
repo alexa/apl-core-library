@@ -197,6 +197,7 @@ LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyF
 
     // Layout the component if it has a dirty Yoga node OR if the cached size doesn't match the target size
     if (YGNodeIsDirty(node) || size != component->getLayoutSize()) {
+        component->preLayoutProcessing(useDirtyFlag);
         APL_TRACE_BEGIN("LayoutManager:YGNodeCalculateLayout");
         YGNodeCalculateLayout(node, size.getWidth(), size.getHeight(), component->getLayoutDirection());
         APL_TRACE_END("LayoutManager:YGNodeCalculateLayout");

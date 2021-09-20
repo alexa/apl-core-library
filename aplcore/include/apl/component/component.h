@@ -149,7 +149,7 @@ public:
     /**
      * @return The common name of the component
      */
-    std::string name() const;
+    virtual std::string name() const;
 
     /**
      * @return The number of children.
@@ -199,7 +199,7 @@ public:
      * @return The set of properties that have changed in this component
      *         since the last time the component was marked as clean.
      */
-    const std::set<PropertyKey>& getDirty() { return mDirty; }
+    virtual const std::set<PropertyKey>& getDirty() { return mDirty; }
 
     /**
      * Clear the set of properties that have been changed.
@@ -287,6 +287,12 @@ public:
      * @param json graphic content
      */
     virtual bool updateGraphic(const GraphicContentPtr& json);
+
+    /**
+      * Updates state of resource associated with extension component
+      * @param state resource state enum.
+      */
+    virtual void updateResourceState(const ExtensionComponentResourceState& state);
 
     /*
     * @return The number of children displayed.

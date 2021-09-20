@@ -14,7 +14,9 @@
 target_sources_local(unittest
         PRIVATE
         unittest_encoding.cpp
+        unittest_hash.cpp
         unittest_log.cpp
+        unittest_lrucache.cpp
         unittest_path.cpp
         unittest_range.cpp
         unittest_ringbuffer.cpp

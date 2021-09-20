@@ -38,7 +38,10 @@ public:
 
     void processMediaRequests(const ContextPtr& context) override;
 
-    void mediaLoadComplete(const std::string& source, bool isReady) override;
+    void mediaLoadComplete(const std::string& source,
+                           bool isReady,
+                           int errorCode = 0,
+                           const std::string& errorReason = std::string()) override;
 
     /**
      * Remove a URL from the map of media objects.  Note that this does not release any MediaObjects using that

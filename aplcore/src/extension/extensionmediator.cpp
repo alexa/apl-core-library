@@ -21,9 +21,9 @@
 #include <rapidjson/document.h>
 
 #include <alexaext/alexaext.h>
-#include <apl/primitives/objectdata.h>
-
+#include "apl/extension/extensioncomponent.h"
 #include "apl/extension/extensionmediator.h"
+#include "apl/primitives/objectdata.h"
 
 using namespace alexaext;
 
@@ -37,32 +37,36 @@ static const bool DEBUG_EXTENSION_MEDIATOR = false;
 // TODO
 
 void
-ExtensionMediator::bindContext(const RootContextPtr& context) {
+ExtensionMediator::bindContext(const RootContextPtr& context)
+{
     // Called by RootContext on create to create an association for event and data updates.
     // This goes away when ExtensionManager registers callbacks directly.
     mRootContext = context;
 }
 
 void
-ExtensionMediator::loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content) {
-
+ExtensionMediator::initializeExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content)
+{
     auto uris = content->getExtensionRequests();
-
-    // No extensions to load
     auto extensionProvider = mProvider.lock();
-    if (rootConfig == nullptr || uris.empty() || extensionProvider == nullptr)
+    if (rootConfig == nullptr || uris.empty() || extensionProvider == nullptr) {
         return;
+    }
 
     auto session = rootConfig->getSession();
+    for (const auto& uri : uris) {
+        if (mPendingRegistrations.count(uri)) continue;
 
-    for (const auto& uri: uris) {
-
-        LOG_IF(DEBUG_EXTENSION_MEDIATOR) << "load extension: " << uri
+        LOG_IF(DEBUG_EXTENSION_MEDIATOR) << "initialize extension: " << uri
                                          << " has extension: " << extensionProvider->hasExtension(uri);
 
-        // Get the extension from the registration
         if (extensionProvider->hasExtension(uri)) {
+            // First get will call initialize.
             auto proxy = extensionProvider->getExtension(uri);
+            if (!proxy) {
+                CONSOLE_S(session) << "Failed to retrieve proxy for extension: " << uri;
+                continue;
+            }
 
             // create a client for message processing
             auto client = ExtensionClient::create(rootConfig, uri);
@@ -71,11 +75,45 @@ ExtensionMediator::loadExtensions(const RootConfigPtr& rootConfig, const Content
                 continue;
             }
             mClients.emplace(uri, client);
+            mPendingRegistrations.insert(uri);
+        }
+    }
+}
+
+void
+ExtensionMediator::loadExtensionsInternal(const RootConfigPtr& rootConfig, const ContentPtr& content)
+{
+    // No extensions to load
+    auto extensionProvider = mProvider.lock();
+    if (rootConfig == nullptr || mPendingRegistrations.empty() || extensionProvider == nullptr) {
+        if (mLoadedCallback) {
+            mLoadedCallback();
+        }
+        return;
+    }
+
+    auto session = rootConfig->getSession();
+    auto pendingRegistrations = mPendingRegistrations;
+    for (const auto& uri : pendingRegistrations) {
+        LOG_IF(DEBUG_EXTENSION_MEDIATOR) << "load extension: " << uri
+                                         << " has extension: " << extensionProvider->hasExtension(uri);
+        // Get the extension from the registration
+        if (extensionProvider->hasExtension(uri)) {
+            auto proxy = extensionProvider->getExtension(uri);
+            if (!proxy) {
+                CONSOLE_S(session) << "Failed to retrieve proxy for extension: " << uri;
+                mPendingRegistrations.erase(uri);
+                continue;
+            }
 
             //  Send a registration request to the extension.
+            rapidjson::Document settingsDoc;
+            auto settings = content->getExtensionSettings(uri).serialize(settingsDoc.GetAllocator());
+            rapidjson::Document flagsDoc;
+            auto flags = rootConfig->getExtensionFlags(uri).serialize(flagsDoc.GetAllocator());
             rapidjson::Document regReq;
-            auto settings = content->getExtensionSettings(uri).serialize(regReq.GetAllocator());
-            regReq.Swap(RegistrationRequest(uri).settings(settings).getDocument());
+            // TODO: It was uri instead of the version here. Funny. We need to figure if it's schema or interface here.
+            regReq.Swap(RegistrationRequest("1.0").settings(settings).flags(flags).getDocument());
             std::weak_ptr<ExtensionMediator> weak_this(shared_from_this());
 
             auto success = proxy->getRegistration(uri, regReq,
@@ -90,9 +128,8 @@ ExtensionMediator::loadExtensions(const RootConfigPtr& rootConfig, const Content
                                                           mediator->enqueueResponse(uri, registrationFailure);
                                                   });
 
-            if (success) {
-                proxy->onRegistered(uri, client->getConnectionToken());
-            } else {
+            if (!success) {
+                mPendingRegistrations.erase(uri);
                 // call to extension failed without failure callback
                 CONSOLE_S(session) << "Extension registration failure - code: " << kErrorInvalidMessage
                                    << " message: " << sErrorMessage[kErrorInvalidMessage] + uri;
@@ -100,11 +137,29 @@ ExtensionMediator::loadExtensions(const RootConfigPtr& rootConfig, const Content
         }
     }
 
+    if (mPendingRegistrations.empty() && mLoadedCallback) mLoadedCallback();
+}
+
+void
+ExtensionMediator::loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content)
+{
+    initializeExtensions(rootConfig, content);
+    loadExtensionsInternal(rootConfig, content);
+}
+
+void
+ExtensionMediator::loadExtensions(
+        const RootConfigPtr& rootConfig,
+        const ContentPtr& content,
+        ExtensionsLoadedCallback loaded)
+{
+    mLoadedCallback = std::move(loaded);
+    loadExtensionsInternal(rootConfig, content);
 }
 
 bool
-ExtensionMediator::invokeCommand(const apl::Event& event) {
-
+ExtensionMediator::invokeCommand(const apl::Event& event)
+{
     auto root = mRootContext.lock();
 
     if (event.getType() != kEventTypeExtension || !root)
@@ -154,9 +209,52 @@ ExtensionMediator::invokeCommand(const apl::Event& event) {
     return invoke;
 }
 
+ExtensionProxyPtr
+ExtensionMediator::getProxy(const std::string &uri)
+{
+    auto root = mRootContext.lock();
+    auto extPro = mProvider.lock();
+    if (root == nullptr || extPro == nullptr || !extPro->hasExtension(uri)) {
+        CONSOLE_S(root->getSession()) << "Proxy does not exist for uri: " << uri;
+        return nullptr;
+    }
+
+    return extPro->getExtension(uri);
+}
+
+void
+ExtensionMediator::notifyComponentUpdate(ExtensionComponent& component)
+{
+    auto root = mRootContext.lock();
+    auto uri = component.getUri();
+    auto itr = mClients.find(uri);
+    auto extPro = mProvider.lock();
+    if (itr == mClients.end() || extPro == nullptr || !extPro->hasExtension(uri)) {
+        CONSOLE_S(root->getSession()) << "Attempt to execute component operation on unavailable extension - uri: " << uri;
+        return;
+    }
+    auto client = itr->second;
+    auto proxy = extPro->getExtension(uri);
+    if (!proxy) {
+        CONSOLE_S(root->getSession()) << "Attempt to execute component operation on unavailable extension - uri: " << uri;
+        return;
+    }
+
+    rapidjson::Document document;
+    rapidjson::Value message;
+    message = client->createComponentChange(document.GetAllocator(), component);
+
+    auto sent = proxy->sendMessage(uri, message);
+    if (!sent) {
+        CONSOLE_S(root->getSession()) << "Extension message failure - code: " << kErrorInvalidMessage
+                                      << " message: " << sErrorMessage[kErrorInvalidMessage] + uri;
+    }
+}
+
 void
 ExtensionMediator::registerExtension(const std::string& uri, const ExtensionProxyPtr& extension,
-                                     const ExtensionClientPtr& client) {
+                                     const ExtensionClientPtr& client)
+{
 
     //  set up callbacks for extension messages
     std::weak_ptr<ExtensionMediator> weak_this = shared_from_this();
@@ -181,11 +279,13 @@ ExtensionMediator::registerExtension(const std::string& uri, const ExtensionProx
             });
 
     mClients.emplace(uri, client);
+    extension->onRegistered(uri, client->getConnectionToken());
     LOG_IF(DEBUG_EXTENSION_MEDIATOR) << "registered: " << uri << " clients: " << mClients.size();
 }
 
 void
-ExtensionMediator::enqueueResponse(const std::string& uri, const rapidjson::Value& message) {
+ExtensionMediator::enqueueResponse(const std::string& uri, const rapidjson::Value& message)
+{
     std::weak_ptr<ExtensionMediator> weak_this = shared_from_this();
     // TODO optimize
     auto copy = std::make_shared<rapidjson::Document>();
@@ -200,24 +300,32 @@ ExtensionMediator::enqueueResponse(const std::string& uri, const rapidjson::Valu
 }
 
 void
-ExtensionMediator::processMessage(const std::string& uri, JsonData&& processMessage) {
-
+ExtensionMediator::processMessage(const std::string& uri, JsonData&& processMessage)
+{
     auto client = mClients.find(uri);
     if (client == mClients.end())
         return;
 
     // capture the current registration state
-    bool needsRegistration = !client->second->registered();
+    bool needsRegistration = !client->second->registered() && !client->second->registrationMessageProcessed();
 
     // client handles null root
     auto root = mRootContext.lock();
     client->second->processMessage(root, std::move(processMessage));
 
     // register handlers if registered for first time
-    if (needsRegistration && client->second->registered()) {
-        if (auto provider = mProvider.lock()) {
-            auto proxy = provider->getExtension(uri);
-            registerExtension(uri, proxy, client->second);
+    if (needsRegistration) {
+        if (client->second->registered()) {
+            if (auto provider = mProvider.lock()) {
+                auto proxy = provider->getExtension(uri);
+                registerExtension(uri, proxy, client->second);
+            }
+        }
+
+        if (mPendingRegistrations.count(uri)) {
+            mPendingRegistrations.erase(uri);
+            if (mPendingRegistrations.empty() && mLoadedCallback)
+                mLoadedCallback();
         }
     }
 }

@@ -75,7 +75,7 @@ GraphicElement::initialize(const GraphicPtr& graphic, const Object& json)
                     // Can be standalone without parent -> no dependency in such case.
                     if (mGraphic.lock() && tmp.isEvaluable()) {
                         auto self = std::static_pointer_cast<GraphicElement>(shared_from_this());
-                        GraphicDependant::create(self, pd.key, tmp, mContext, pd.func);
+                        GraphicDependant::create(self, pd.key, tmp, mContext, pd.getBindingFunction());
                     }
                     value = pd.calculate(*mContext, evaluate(*mContext, tmp));
                 } else if (mGraphic.lock() && (pd.flags & kPropEvaluated) != 0) {

@@ -33,6 +33,7 @@ struct ExtensionProperty {
     bool required;
 };
 
+using ExtensionPropertiesPtr = std::shared_ptr<std::map<id_type, ExtensionProperty>>;
 } // namespace apl
 
 #endif // _APL_EXTENSION_PROPERTY_H

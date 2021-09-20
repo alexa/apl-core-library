@@ -47,7 +47,7 @@ TEST_F(CurrentTimeTest, Basic)
     // Move forward one second
     root->updateTime(1000);
     ASSERT_TRUE(IsEqual("1000 1567685740476", component->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 
     // Now we'll adjust elapsed time AND local time

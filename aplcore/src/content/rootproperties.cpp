@@ -67,6 +67,7 @@ Bimap<int, std::string> sRootPropertyBimap = {
         { RootProperty::kUEScrollerDurationEasing,                    "scroller.ue.durationEasing" },
         { RootProperty::kUEScrollerMaxDuration,                       "scroller.ue.maxDuration" },
         { RootProperty::kUEScrollerDeceleration,                      "scroller.ue.deceleration" },
+        { RootProperty::kSendEventAdditionalFlags,                    "sendEvent.flags" },
 };
 
 }

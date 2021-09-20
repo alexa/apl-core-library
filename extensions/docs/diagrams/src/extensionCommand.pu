@@ -59,7 +59,7 @@ else invoke failure - immediate failure callback
 ' Extension -> Extension: isValid:bool\n<font color=gray>(Command:json)
 ' Extension --> Proxy: success:bool
 Proxy -> ExeEnv: failureCB:void\n<font color=gray>(CommandFailure:json)
-deactivate proxy
+deactivate Proxy
 end
 
 

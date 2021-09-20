@@ -38,14 +38,7 @@ public:
      * @param proxy The extension proxy.
      * @return This object for chaining.
      */
-    ExtensionRegistrar& registerExtension(const ExtensionProxyPtr& proxy) {
-        if (proxy) {
-            for (auto uri : proxy->getURIs()) {
-                mExtensions.emplace(uri, proxy);
-            }
-        }
-        return *this;
-    }
+    ExtensionRegistrar& registerExtension(const ExtensionProxyPtr& proxy);
 
     /**
      * Identifies the presence of an extension.  Called when a document has
@@ -55,9 +48,7 @@ public:
      * @param uri The requsted extension URI.
      * @return true if the extension is registered.
      */
-    bool hasExtension(const std::string& uri) override {
-        return (mExtensions.find(uri) != mExtensions.end());
-    }
+    bool hasExtension(const std::string& uri) override;
 
     /**
      * Get a proxy to the extension.  Called when a document has requested
@@ -67,16 +58,11 @@ public:
      * @return An extension proxy of a registered extension, nullptr if the extension
      *    was not registered.
      */
-    ExtensionProxyPtr getExtension(const std::string& uri) override {
-        auto proxy = mExtensions.find(uri);
-        if (proxy == mExtensions.end())
-            return nullptr;
-        proxy->second->initializeExtension(uri);
-        return proxy->second;
-    }
+    ExtensionProxyPtr getExtension(const std::string& uri) override;
 
 private:
     std::map<std::string, ExtensionProxyPtr> mExtensions;
+    std::set<std::string> mInitialized;
 };
 
 using ExtensionRegistrarPtr = std::shared_ptr<ExtensionRegistrar>;

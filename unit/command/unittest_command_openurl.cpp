@@ -326,7 +326,7 @@ TEST_F(CommandOpenURLTest, OpenURLArrayFail)
     loop->advanceToEnd();
     ASSERT_TRUE(actionResolved);
 
-    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_EQ(text->getCalculated(kPropertyText).asString(), "Open URL Failed");
     ASSERT_EQ(text->getCalculated(kPropertyColor).getColor(), 0xff0000ff);

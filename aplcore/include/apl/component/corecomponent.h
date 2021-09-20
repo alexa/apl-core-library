@@ -264,6 +264,9 @@ public:
      */
     void setDirty(PropertyKey key);
 
+    const std::set<PropertyKey>& getDirty() override;
+    void clearDirty() override;
+
     /**
      * @return The current parent of this component.  May be nullptr.
      */
@@ -507,6 +510,12 @@ public:
      * @param propDefSet The property definitions for this component.
      */
     virtual void assignProperties(const ComponentPropDefSet& propDefSet);
+
+    /**
+     * Before layout even started we may need to process some of the property fixes/etc
+     * @param useDirtyFlag true to notify runtime about changes with dirty properties
+     */
+    virtual void preLayoutProcessing(bool useDirtyFlag);
 
     /**
      * Walk the hierarchy updating child boundaries.
@@ -753,20 +762,7 @@ public:
      * @param YGMeasureMode heightMode
      * @return YGSize
      */
-    template <class T>
-    static inline YGSize
-    textMeasureFunc( YGNodeRef node,
-                     float width,
-                     YGMeasureMode widthMode,
-                     float height,
-                     YGMeasureMode heightMode )
-    {
-        T *component = static_cast<T*>(node->getContext());
-        assert(component);
-
-        LayoutSize layoutSize = component->getContext()->measure()->measure(component, width, toMeasureMode(widthMode), height, toMeasureMode(heightMode));
-        return YGSize({layoutSize.width, layoutSize.height});
-    }
+    static YGSize textMeasureFunc(YGNodeRef node, float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode);
 
     /**
      * This inline function used in TextComponent and EditTextComponent class for TextMeasurement.
@@ -775,15 +771,7 @@ public:
      * @param float height
      * @return float
      */
-    template <class T>
-    static inline float
-    textBaselineFunc( YGNodeRef node, float width, float height )
-    {
-        T *component = static_cast<T*>(node->getContext());
-        assert(component);
-
-        return component->getContext()->measure()->baseline(component, width, height);
-    }
+    static float textBaselineFunc(YGNodeRef node, float width, float height);
 
     /**
      * Executes a given handler by name with a specific position.
@@ -907,12 +895,7 @@ protected:
 
     virtual void handlePropertyChange(const ComponentPropDef& def, const Object& value);
 
-    CoreComponentPtr getRootComponent() {
-        auto c = shared_from_corecomponent();
-        while (c->mParent)
-            c = c->mParent;
-        return c;
-    }
+    CoreComponentPtr getLayoutRoot();
 
     /**
      * Allow derived classes to react to layout direction change
@@ -950,6 +933,21 @@ protected:
      * when component itself is not taking part in the layout tree.
      */
     bool shouldNotPropagateLayoutChanges() const;
+
+    /**
+     * @return hash of properties that could affect TextMeasurement.
+     */
+    std::string textMeasurementHash() const;
+
+    /**
+     * Update text measurement hash
+     */
+    void fixTextMeasurementHash();
+
+    /**
+     * Update visual hash
+     */
+    void fixVisualHash(bool useDirtyFlag);
 
 private:
     friend streamer& operator<<(streamer&, const Component&);
@@ -1008,6 +1006,8 @@ private:
      */
     void ensureGlobalToLocalTransform();
 
+    YGSize textMeasureInternal(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode);
+    float textBaselineInternal(float width, float height);
 
 protected:
     bool                             mInheritParentState;
@@ -1030,6 +1030,9 @@ private:
     Transform2D                      mGlobalToLocal;
     bool                             mGlobalToLocalIsStale;
     Point                            mStickyOffset;
+    bool                             mTextMeasurementHashStale;
+    bool                             mVisualHashStale;
+    std::string                      mTextMeasurementHash;
 };
 
 }  // namespace apl

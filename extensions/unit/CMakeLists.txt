@@ -14,29 +14,14 @@
 cmake_minimum_required(VERSION 3.5)
 set(CMAKE_CXX_STANDARD 11)
 
-
-# Add googletest directly to our build. This defines
-# the gtest and gtest_main targets.
-add_subdirectory(${CMAKE_BINARY_DIR}/googletest-src
-    ${CMAKE_BINARY_DIR}/googletest-build
-    EXCLUDE_FROM_ALL)
+## It is expected that the enclosing project provides GTest dependency.
 
 find_path(RAPIDJSON_INCLUDE
         NAMES rapidjson/document.h
         REQUIRED)
 include_directories(${RAPIDJSON_INCLUDE})
 
-
-add_executable(alexaext-unittest)
-
-target_link_libraries(alexaext-unittest
-        alexaext
-        gtest
-        gtest_main
-        )
-
-target_sources(alexaext-unittest
-        PRIVATE
+add_executable(alexaext-unittest
         unittest_apl_audio_player.cpp
         unittest_extension_message.cpp
         unittest_extension_provider.cpp
@@ -44,5 +29,19 @@ target_sources(alexaext-unittest
         unittest_local_extensions.cpp
         )
 
-add_test(all-tests alexaext-unittest)
+target_link_libraries(alexaext-unittest
+        alexaext
+        gtest
+        gtest_main
+        )
+
+if(CTEST_INDIVIDUALLY)
+    # Individual test execution.
+    # NOTE: discovered tests are slow to run
+    gtest_discover_tests(alexaext-unittest)
+else()
+    # Batch test execution.
+    # Adds the entire unittest executable as a single ctest.  Great for speed.
+    add_test(all-extension-tests alexaext-unittest)
+endif()
 

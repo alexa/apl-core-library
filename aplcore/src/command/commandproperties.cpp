@@ -60,6 +60,7 @@ Bimap<int, std::string> sCommandPropertyBimap = {
     {kCommandPropertyEasing,           "easing"},
     {kCommandPropertyExtension,        "extension"},
     {kCommandPropertyFinally,          "finally"},
+    {kCommandPropertyFlags,            "flags"},
     {kCommandPropertyHighlightMode,    "highlightMode"},
     {kCommandPropertyIndex,            "index"},
     {kCommandPropertyMinimumDwellTime, "minimumDwellTime"},

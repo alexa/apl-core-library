@@ -111,7 +111,7 @@ TEST_F(MountTest, Animation)
     auto endTime = startTime + 1000;
     while (root->currentTime() < endTime) {
         advanceTime(100);
-        ASSERT_TRUE(CheckDirty(component, kPropertyOpacity));
+        ASSERT_TRUE(CheckDirty(component, kPropertyOpacity, kPropertyVisualHash));
         ASSERT_TRUE(CheckDirty(root, component));
         ASSERT_NEAR((root->currentTime() - startTime)/1000.0,
                     component->getCalculated(kPropertyOpacity).asNumber(),
@@ -197,10 +197,11 @@ TEST_F(MountTest, AnimateMultiple)
         advanceTime(100);
         auto delta = (root->currentTime() - startTime) / 1000.0;
 
-        ASSERT_TRUE(CheckDirty(component, kPropertyOpacity, kPropertyNotifyChildrenChanged));
+        ASSERT_TRUE(CheckDirty(component, kPropertyOpacity, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
         ASSERT_TRUE(CheckDirty(thing2, kPropertyTransform));
         if (delta >= 0.5 && delta < 0.55) {
-            ASSERT_TRUE(CheckDirty(thing1, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke));
+            ASSERT_TRUE(CheckDirty(thing1, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
+                                   kPropertyVisualHash));
             ASSERT_TRUE(CheckDirty(root, component, thing1, thing2));
         }
         else {

@@ -53,6 +53,33 @@ TEST_F(RequestedExtensionTest, Basic) {
     ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${environment.extension.XXX}")));
 }
 
+static const char* FALSEYENVIRONMENT = R"({
+  "type": "APL",
+  "version": "1.2",
+  "extensions": [{
+    "uri": "_URI1",
+    "name": "foo"
+  },
+  {
+    "uri": "_URI2",
+    "name": "foo2"
+  }],
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})";
+
+TEST_F(RequestedExtensionTest, FALSEYENVIRONMENT) {
+    config->registerExtensionEnvironment("_URI1", Object::NULL_OBJECT());
+    config->registerExtensionEnvironment("_URI2", Object::FALSE_OBJECT());
+    loadDocument(FALSEYENVIRONMENT);
+
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.foo}")));
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.foo2}")));
+}
+
 static const char* FANCY = R"({
   "type": "APL",
   "version": "1.2",
@@ -230,6 +257,40 @@ TEST_F(RequestedExtensionTest, MissingURI) {
     ASSERT_TRUE(ConsoleMessage());
 }
 
+/**
+ * Configure extension flags.
+ */
+TEST_F(RequestedExtensionTest, ExtensionWithFlags) {
+
+    // single value
+    config->registerExtensionFlags("URI1", Object::TRUE_OBJECT());
+    auto f1 = config->getExtensionFlags("URI1");
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), f1));
+
+    // array
+    auto array = std::make_shared<ObjectArray>();
+    array->push_back("-debug");
+    config->registerExtensionFlags("URI2", array);
+    auto f2 = config->getExtensionFlags("URI2");
+    ASSERT_TRUE(f2.isArray());
+    ASSERT_EQ(1, f2.size());
+    ASSERT_TRUE(IsEqual("-debug", f2.at(0)));
+
+    // map
+   auto map = std::make_shared<ObjectMap>();
+   map->emplace("-size", 64);
+   map->emplace("-style", "dark");
+   config->registerExtensionFlags("URI3", map);
+   auto f3 = config->getExtensionFlags("URI3");
+   ASSERT_TRUE(f3.isMap());
+   ASSERT_EQ(2, f3.size());
+   ASSERT_TRUE(IsEqual(64, f3.get("-size")));
+   ASSERT_TRUE(IsEqual("dark", f3.get("-style")));
+
+   // does not exist
+   auto dne = config->getExtensionFlags("nope");
+   ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), dne));
+}
 
 /**
  * Register and extension without configurable settings.
@@ -729,4 +790,3 @@ TEST_F(RequestedExtensionTest, SettingsWithMultiPackage) {
     ASSERT_TRUE(IsEqual("package1-D", es.get("keyD")));
     ASSERT_TRUE(IsEqual("package2-E", es.get("keyE")));
 }
-

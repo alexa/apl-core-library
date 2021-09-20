@@ -129,7 +129,7 @@ TEST_F(LiveArrayChangeTest, SmallChanges)
                                                       {1, true, "seven"},
                                                       {2, false, "c"}}));
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(IsEqual("seven", component->getCalculated(kPropertyText).asString()));
 
     // Update one item, by reference
@@ -139,7 +139,7 @@ TEST_F(LiveArrayChangeTest, SmallChanges)
                                                       {1, true, "eight"},
                                                       {2, false, "c"}}));
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(IsEqual("eight", component->getCalculated(kPropertyText).asString()));
 
     // Insert one item, by reference

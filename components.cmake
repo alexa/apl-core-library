@@ -85,8 +85,11 @@ endif (BUILD_TESTS)
 
 # Build with dependency on the Alexa Extensions library.
 if (BUILD_ALEXAEXTENSIONS)
-    add_subdirectory(extensions/alexaext)
-    target_compile_definitions(alexaext PUBLIC ALEXAEXTENSIONS)
+    add_subdirectory(extensions)
+    target_compile_definitions(alexaext PUBLIC ALEXAEXTENSIONS BUILD_UNIT_TESTS=${BUILD_UNIT_TESTS})
+    if (NOT USE_SYSTEM_RAPIDJSON)
+        add_dependencies(alexaext rapidjson-build)
+    endif()
 endif(BUILD_ALEXAEXTENSIONS)
 
 # Test cases are built conditionally. Only affect core do not build them for everything else.

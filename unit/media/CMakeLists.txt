@@ -13,5 +13,9 @@
 
 target_sources_local(unittest
         PRIVATE
+        fakeplayer.cpp
+        testmediaplayer.cpp
+        unittest_fake_player.cpp
         unittest_media_manager.cpp
+        unittest_media_player.cpp
         )

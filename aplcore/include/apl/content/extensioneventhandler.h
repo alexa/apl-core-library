@@ -30,7 +30,7 @@ public:
      * @param uri The URI of the extension.
      * @param name The name of the event handler.
      */
-    ExtensionEventHandler(const std::string& uri, const std::string& name) : mURI(uri), mName(name) {}
+    ExtensionEventHandler(std::string  uri, std::string name) : mURI(uri), mName(name) {}
 
     /**
      * @return The extension URI associated with this event handler

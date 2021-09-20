@@ -19,7 +19,9 @@
 
 #include "apl/animation/coreeasing.h"
 #include "apl/component/textmeasurement.h"
+#include "apl/document/displaystate.h"
 #include "apl/media/coremediamanager.h"
+#include "apl/media/mediaplayerfactory.h"
 #include "apl/time/coretimemanager.h"
 #include "apl/utils/corelocalemethods.h"
 #include "apl/content/rootpropdef.h"
@@ -41,9 +43,21 @@ Bimap<int, std::string> sAnimationQualityBimap = {
     { RootConfig::kAnimationQualitySlow,   "slow" },
 };
 
+/**
+ * Default media player factory installed in RootConfig.
+ * This media player factory does nothing.
+ */
+class DefaultMediaPlayerFactory : public MediaPlayerFactory {
+public:
+    MediaPlayerPtr createPlayer(MediaPlayerCallback callback) override {
+        return nullptr;
+    }
+};
+
 RootConfig::RootConfig()
     : mTextMeasurement( TextMeasurement::instance() ),
       mMediaManager(std::static_pointer_cast<MediaManager>(std::make_shared<CoreMediaManager>())),
+      mMediaPlayerFactory(std::static_pointer_cast<MediaPlayerFactory>(std::make_shared<DefaultMediaPlayerFactory>())),
       mTimeManager(std::static_pointer_cast<TimeManager>(std::make_shared<CoreTimeManager>(0))),
       mLocaleMethods(std::static_pointer_cast<LocaleMethods>(std::make_shared<CoreLocaleMethods>())),
       mDefaultComponentSize({
@@ -132,6 +146,9 @@ RootConfig::propDefSet() const
             {RootProperty::kUEScrollerDurationEasing,                    CoreEasing::bezier(.65,0,.35,1),               asEasing},
             {RootProperty::kUEScrollerMaxDuration,                       3000,                                          asNumber},
             {RootProperty::kUEScrollerDeceleration,                      0.175,                                         asNumber},
+            {RootProperty::kSendEventAdditionalFlags,                    Object::EMPTY_MAP(),                           asAny},
+            {RootProperty::kTextMeasurementCacheLimit,                   500,                                           asInteger},
+            {RootProperty::kInitialDisplayState,                         DEFAULT_DISPLAY_STATE,                         sDisplayStateMap},
         });
     return sRootProperties;
 }

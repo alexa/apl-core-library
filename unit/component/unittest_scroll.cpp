@@ -221,6 +221,49 @@ TEST_F(ScrollTest, ScrollTextWithAlignment)
     ASSERT_EQ(Point(0,125), scroll->scrollPosition());
 }
 
+static const char *SCROLL_TO_RECT_IN_NO_SCROLLABLE_TEST = R"({
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "width": 200,
+      "height": 300,
+      "items": [
+        {
+          "type": "Frame",
+          "id": "myFrame",
+          "width": 200,
+          "height": 1000
+        },
+        {
+          "type": "TouchWrapper",
+          "id": "myTouch",
+          "height": 10,
+          "onPress": {
+            "type": "Scroll",
+            "componentId": "myScrollView",
+            "distance": 0.5
+          }
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(ScrollTest, ScrollTextWithAlignmentNoScrolling)
+{
+    loadDocument(SCROLL_TO_RECT_IN_NO_SCROLLABLE_TEST);
+    auto touch = context->findComponentById("myTouch");
+    auto frame = context->findComponentById("myFrame");
+    ASSERT_TRUE(touch);
+    ASSERT_TRUE(frame);
+
+    ASSERT_EQ(Rect(0, 0, 200, 1000), frame->getGlobalBounds());
+    root->scrollToRectInComponent(frame, Rect(0, 200, 1000, 50), kCommandScrollAlignCenter);
+    advanceTime(1000);
+}
+
 static const char *SCROLLVIEW_WITH_PADDING =
     "{"
     "  \"type\": \"APL\","

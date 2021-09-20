@@ -5326,10 +5326,19 @@ TEST_F(NativeFocusTest, ComplexPagerRight)
     loadDocument(COMPLEX_PAGER);
     auto& fm = root->context().focusManager();
 
+    // Verify that if we have focus on a component outside the pager the focus doesn't change when
+    // we change page.
+    executeCommand("SetFocus", {{"componentId", "LF"}}, false);
+    ASSERT_TRUE(verifyFocusSwitchEvent(root->findComponentById("LF"), root->popEvent()));
+    ASSERT_EQ(root->findComponentById("LF"), fm.getFocus());
+
     auto pager = root->findComponentById("pager");
     executeCommand("SetPage", {{"componentId", "pager"}, {"value", "1"}}, false);
     advanceTime(1000);
     ASSERT_EQ(1, pager->pagePosition());
+
+    // Make sure the focus hasn't changed
+    ASSERT_EQ(root->findComponentById("LF"), fm.getFocus());
 
     auto child = root->findComponentById("41");
     ASSERT_TRUE(child);
@@ -6052,12 +6061,15 @@ TEST_F(NativeFocusTest, WrappedEditTextTap)
 
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(400,50), false, "onDown"));
     advanceTime(20);
-    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(400,50), true, "onUp"));
+
+    ASSERT_TRUE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(400,50))));
 
     auto editText = root->findComponentById("targetEdit");
     ASSERT_TRUE(editText);
     ASSERT_EQ(editText, fm.getFocus());
     verifyFocusSwitchEvent(editText, root->popEvent());
+
+    ASSERT_TRUE(CheckSendEvent(root, "onUp"));
 }
 
 static const char *EDIT_TEXT_IN_UP_TOUCHABLE = R"apl({
@@ -6118,12 +6130,15 @@ TEST_F(NativeFocusTest, WrappedEditTextUp)
 
     ASSERT_FALSE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400,50))));
     advanceTime(20);
-    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(400,50), true, "onUp"));
+
+    ASSERT_TRUE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(400,50))));
 
     auto editText = root->findComponentById("targetEdit");
     ASSERT_TRUE(editText);
     ASSERT_EQ(editText, fm.getFocus());
     verifyFocusSwitchEvent(editText, root->popEvent());
+
+    ASSERT_TRUE(CheckSendEvent(root, "onUp"));
 }
 
 static const char *GRID_SEQUENCE = R"({
@@ -6622,4 +6637,178 @@ TEST_F(NativeFocusTest, JumpBetweenTheRows)
     child = component->findComponentById("row4");
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
+}
+
+
+static const char *PAGE_WEB_VH = R"({
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Pager",
+        "id": "1000",
+        "items": [
+          {
+            "type": "TouchWrapper",
+            "id": "1001",
+            "inheritParentState": true,
+            "items": [
+              {
+                "type": "Text",
+                "text":"page1"
+              }
+            ]
+          },
+          {
+            "type": "TouchWrapper",
+            "id": "1002",
+            "inheritParentState": true,
+            "items": [
+              {
+                "type": "Text",
+                "text":"page2"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "theme": "dark",
+  "type": "APL",
+  "version": "1.6"
+})";
+
+TEST_F(NativeFocusTest, JustATest) {
+    loadDocument(PAGE_WEB_VH);
+    advanceTime(10);
+
+    auto& fm = root->context().focusManager();
+    // Simulate the following message
+    // "type":"setFocus","payload":{"direction":1,"origin":{"top":0,"left":0,"width":100,"height":100},"targetId":"1000"}
+    auto direction = 1;
+    auto top = 0;
+    auto left = 0;
+    auto width = 100;
+    auto height = 100;
+    auto targetId = "1000";
+    auto origin = apl::Rect(top, left, width, height);
+    ASSERT_TRUE(root->setFocus(static_cast<apl::FocusDirection>(direction), origin, targetId));
+    auto child = component->findComponentById("1000");
+    ASSERT_EQ(child, fm.getFocus());
+    ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
+}
+
+static const char* PAGERED_SCROLL_VIEW = R"({
+  "type": "APL",
+  "version": "1.8",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Pager",
+        "id": "root",
+        "height": 200,
+        "width": 200,
+        "navigation": "none",
+        "items": [
+          {
+            "type": "ScrollView",
+            "id": "scroller",
+            "width": "100%",
+            "height": "100%",
+            "onMount": {
+              "type": "SetFocus"
+            },
+            "item": {
+              "type": "Container",
+              "height": 600,
+              "width": "100%",
+              "items": [
+                {
+                  "type": "TouchWrapper",
+                  "id": "redTW",
+                  "width": "100%",
+                  "height": 100,
+                  "item": {
+                    "type": "Frame",
+                    "height": "100%",
+                    "width": "100%",
+                    "borderColor": "red",
+                    "borderWidth": 2
+                  }
+                },
+                {
+                  "type": "Text",
+                  "width": "100%",
+                  "height": 100,
+                  "text": "Am I text?"
+                },
+                {
+                  "type": "TouchWrapper",
+                  "id": "greenTW",
+                  "width": "100%",
+                  "height": 100,
+                  "item": {
+                    "type": "Frame",
+                    "height": "100%",
+                    "width": "100%",
+                    "borderColor": "green",
+                    "borderWidth": 2
+                  }
+                },
+                {
+                  "type": "Text",
+                  "position": "absolute",
+                  "bottom": 0,
+                  "height": 100,
+                  "width": "100%",
+                  "text": "I am text No, really."
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+TEST_F(NativeFocusTest, PageredScrollView)
+{
+    loadDocument(PAGERED_SCROLL_VIEW);
+    auto& fm = root->context().focusManager();
+
+    ASSERT_TRUE(component);
+    auto scroller = root->findComponentById("scroller");
+    ASSERT_TRUE(scroller);
+    auto redTW = root->findComponentById("redTW");
+    ASSERT_TRUE(redTW);
+    auto greenTW = root->findComponentById("greenTW");
+    ASSERT_TRUE(greenTW);
+
+    root->clearPending();
+
+    ASSERT_EQ(scroller->getId(), fm.getFocus()->getId());
+    ASSERT_TRUE(verifyFocusSwitchEvent(scroller, root->popEvent()));
+
+    root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
+    root->clearPending();
+    ASSERT_EQ(0, scroller->scrollPosition().getY());
+
+    ASSERT_EQ(redTW->getId(), fm.getFocus()->getId());
+    ASSERT_TRUE(verifyFocusSwitchEvent(redTW, root->popEvent()));
+
+    root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
+    advanceTime(1000);
+    ASSERT_EQ(100, scroller->scrollPosition().getY());
+
+    ASSERT_EQ(greenTW->getId(), fm.getFocus()->getId());
+    ASSERT_TRUE(verifyFocusSwitchEvent(greenTW, root->popEvent()));
+
+    root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY());
+    advanceTime(1000);
+    //ASSERT_EQ(300, scroller->scrollPosition().getY());
+
+    ASSERT_EQ(scroller->getId(), fm.getFocus()->getId());
+    ASSERT_TRUE(verifyFocusSwitchEvent(scroller, root->popEvent()));
 }

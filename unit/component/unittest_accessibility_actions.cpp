@@ -60,7 +60,7 @@ TEST_F(AccessibilityActionTest, Basic)
 
     // Invoke the action and verify that it changes the background color
     component->update(kUpdateAccessibilityAction, "MakeRed");
-    ASSERT_TRUE(CheckDirty(component, kPropertyBackgroundColor));
+    ASSERT_TRUE(CheckDirty(component, kPropertyBackgroundColor, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(IsEqual(Color(Color::RED), component->getCalculated(kPropertyBackgroundColor)));
 
@@ -253,14 +253,14 @@ TEST_F(AccessibilityActionTest, Activate)
 
     // Verify that the "onPress" command runs normally when the component is pressed
     component->update(kUpdatePressed, 0);  // Toggle the pressed button
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(IsEqual("X=1", text->getCalculated(kPropertyText).asString()));
 
     // Verify that the action fires
     component->update(kUpdateAccessibilityAction, "activate");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(IsEqual("X=2", text->getCalculated(kPropertyText).asString()));
 }
@@ -337,19 +337,19 @@ TEST_F(AccessibilityActionTest, Gestures)
 
     component->update(kUpdateAccessibilityAction, "doubletap");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(IsEqual("DPress", text->getCalculated(kPropertyText).asString()));
 
     component->update(kUpdateAccessibilityAction, "longpress");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(IsEqual("LPress", text->getCalculated(kPropertyText).asString()));
 
     component->update(kUpdateAccessibilityAction, "swipeaway");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(IsEqual("SDone", text->getCalculated(kPropertyText).asString()));
 }
@@ -424,21 +424,21 @@ TEST_F(AccessibilityActionTest, ActionsWithCommands)
     // The double tap gesture should run internal commands
     component->update(kUpdateAccessibilityAction, "doubletap");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(IsEqual("Defined DPress", text->getCalculated(kPropertyText).asString()));
 
     // The activate action should run its own commands
     component->update(kUpdateAccessibilityAction, "activate");
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(IsEqual("Defined Activate", text->getCalculated(kPropertyText).asString()));
 
     // Pressing on the component will run the built-in command
     component->update(kUpdatePressed, 0);
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(IsEqual("OnPress", text->getCalculated(kPropertyText).asString()));
 }
@@ -509,7 +509,7 @@ TEST_F(AccessibilityActionTest, Enabled)
     root->clearPending();
     ASSERT_TRUE(IsEqual("1", text->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(component->getCalculated(kPropertyAccessibilityActions).at(0).getAccessibilityAction()->enabled());
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(component, kPropertyAccessibilityActions));
     ASSERT_TRUE(CheckDirty(root, text, component));
 
@@ -518,7 +518,7 @@ TEST_F(AccessibilityActionTest, Enabled)
     root->clearPending();
     ASSERT_TRUE(IsEqual("10", text->getCalculated(kPropertyText).asString()));
     ASSERT_FALSE(component->getCalculated(kPropertyAccessibilityActions).at(0).getAccessibilityAction()->enabled());
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(component, kPropertyAccessibilityActions));
     ASSERT_TRUE(CheckDirty(root, text, component));
 

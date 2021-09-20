@@ -49,15 +49,21 @@ public:
      * to be called frequently.
      * @param context The local data-binding context
      */
-    virtual void processMediaRequests(const ContextPtr& context) {};
+    virtual void processMediaRequests(const ContextPtr& context) {}
 
     /**
      * Notify the manager about a media object which either loaded or failed to load.  This method
      * is not required.  It is called by RootContext::mediaLoaded() and RootContext::mediaLoadFailed().
      * @param source The URL of the media object
      * @param isReady True if success, false if failure
+     * @param errorCode The integer value with the error code in case of failure.
+     * @param errorReason The reason in case of failure.
      */
-    virtual void mediaLoadComplete(const std::string& source, bool isReady) {};
+    virtual void mediaLoadComplete(
+        const std::string& source,
+        bool isReady,
+        int errorCode,
+        const std::string& errorReason) {}
 };
 
 } // namespace apl

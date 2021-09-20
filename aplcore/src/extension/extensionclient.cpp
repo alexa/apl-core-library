@@ -17,18 +17,23 @@
 #include <rapidjson/writer.h>
 
 #include "apl/content/rootconfig.h"
+#include "apl/component/componentpropdef.h"
+#include "apl/component/componentproperties.h"
+#include "apl/component/corecomponent.h"
 #include "apl/content/content.h"
 #include "apl/extension/extensionclient.h"
+#include "apl/extension/extensionmanager.h"
 #include "apl/engine/evaluate.h"
 #include "apl/engine/arrayify.h"
 #include "apl/engine/binding.h"
+#include "apl/engine/evaluate.h"
+#include "apl/engine/rootcontext.h"
 #include "apl/livedata/livearray.h"
 #include "apl/livedata/livearrayobject.h"
 #include "apl/livedata/livemap.h"
 #include "apl/livedata/livemapobject.h"
-#include "apl/engine/rootcontext.h"
-#include "apl/utils/streamer.h"
 #include "apl/utils/random.h"
+#include "apl/utils/streamer.h"
 
 namespace apl {
 
@@ -36,7 +41,7 @@ namespace apl {
 id_type ExtensionClient::sCommandIdGenerator = 1000;
 
 static const std::string IMPLEMENTED_INTERFACE_VERSION = "1.0";
-static const std::string IMPLEMENTED_SCHEMA_VERSION = "1.0";
+static const std::string MAX_SUPPORTED_SCHEMA_VERSION = "1.1";
 
 static const Bimap<ExtensionLiveDataUpdateType, std::string> sExtensionLiveDataUpdateTypeBimap = {
     {kExtensionLiveDataUpdateTypeInsert, "Insert"},
@@ -47,14 +52,18 @@ static const Bimap<ExtensionLiveDataUpdateType, std::string> sExtensionLiveDataU
 };
 
 static const Bimap<ExtensionMethod, std::string> sExtensionMethodBimap = {
-    {kExtensionMethodRegister,        "Register"},
-    {kExtensionMethodRegisterSuccess, "RegisterSuccess"},
-    {kExtensionMethodRegisterFailure, "RegisterFailure"},
-    {kExtensionMethodCommand,         "Command"},
-    {kExtensionMethodCommandSuccess,  "CommandSuccess"},
-    {kExtensionMethodCommandFailure,  "CommandFailure"},
-    {kExtensionMethodEvent,           "Event"},
-    {kExtensionMethodLiveDataUpdate,  "LiveDataUpdate"},
+    {kExtensionMethodRegister,         "Register"},
+    {kExtensionMethodRegisterSuccess,  "RegisterSuccess"},
+    {kExtensionMethodRegisterFailure,  "RegisterFailure"},
+    {kExtensionMethodCommand,          "Command"},
+    {kExtensionMethodCommandSuccess,   "CommandSuccess"},
+    {kExtensionMethodCommandFailure,   "CommandFailure"},
+    {kExtensionMethodEvent,            "Event"},
+    {kExtensionMethodLiveDataUpdate,   "LiveDataUpdate"},
+    {kExtensionMethodComponent,        "Component"},
+    {kExtensionMethodComponentSuccess, "ComponentSuccess"},
+    {kExtensionMethodComponentFailure, "ComponentFailure"},
+    {kExtensionMethodComponentUpdate,  "ComponentUpdate"},
 };
 
 static const Bimap<ExtensionEventExecutionMode, std::string> sExtensionEventExecutionModeBimap = {
@@ -62,8 +71,16 @@ static const Bimap<ExtensionEventExecutionMode, std::string> sExtensionEventExec
     {kExtensionEventExecutionModeFast,   "FAST"},
 };
 
+static const Bimap<ExtensionComponentResourceState, std::string> sExtensionComponentStateBimap = {
+    {kResourcePending,  "Pending"},
+    {kResourceReady,    "Ready"},
+    {kResourceError,    "Error"},
+    {kResourceReleased, "Released"}
+};
+
 ExtensionClientPtr
-ExtensionClient::create(const RootConfigPtr& rootConfig, const std::string& uri) {
+ExtensionClient::create(const RootConfigPtr& rootConfig, const std::string& uri)
+{
     return std::make_shared<ExtensionClient>(rootConfig, uri);
 }
 
@@ -73,39 +90,45 @@ ExtensionClient::ExtensionClient(const RootConfigPtr& rootConfig, const std::str
 
 rapidjson::Value
 ExtensionClient::createRegistrationRequest(rapidjson::Document::AllocatorType& allocator, Content& content) {
-    auto settings = content.getExtensionSettings(mUri);
-    return createRegistrationRequest(allocator, mUri, settings);
+    const auto& settings = content.getExtensionSettings(mUri);
+    const auto& flags = mRootConfig->getExtensionFlags(mUri);
+    return createRegistrationRequest(allocator, mUri, settings, flags);
 }
 
 rapidjson::Value
 ExtensionClient::createRegistrationRequest(rapidjson::Document::AllocatorType& allocator,
-        const std::string& uri, const Object& settings) {
+        const std::string& uri, const Object& settings, const Object& flags) {
     auto request = std::make_shared<ObjectMap>();
     request->emplace("method", sExtensionMethodBimap.at(kExtensionMethodRegister));
     request->emplace("version", IMPLEMENTED_INTERFACE_VERSION);
     request->emplace("uri", uri);
     request->emplace("settings", settings);
+    request->emplace("flags", flags);
 
     return Object(request).serialize(allocator);
 }
 
 bool
-ExtensionClient::registrationMessageProcessed() {
+ExtensionClient::registrationMessageProcessed()
+{
     return mRegistrationProcessed;
 }
 
 bool
-ExtensionClient::registered() {
+ExtensionClient::registered()
+{
     return mRegistered;
 }
 
 std::string
-ExtensionClient::getConnectionToken() const {
+ExtensionClient::getConnectionToken() const
+{
     return mConnectionToken;
 }
 
 bool
-ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& message) {
+ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& message)
+{
     if (!message) {
         CONSOLE_S(mSession).log("Malformed offset=%u: %s.", message.offset(), message.error());
         return false;
@@ -155,6 +178,11 @@ ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& me
             break;
 //        case kExtensionMethodRegister: // Outgoing commands should not be processed here.
 //        case kExtensionMethodCommand:
+        case kExtensionMethodComponentSuccess:
+        case kExtensionMethodComponentFailure:
+        case kExtensionMethodComponentUpdate:
+            result = processComponentResponse(context, evaluated);
+            break;
         default:
             CONSOLE_S(mSession).log("Unknown method");
             result = false;
@@ -164,29 +192,9 @@ ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& me
     return result;
 }
 
-static std::string
-generateToken(const std::string& uri)  {
-
-    static auto gen = Random::mt32Generator();
-    static std::uniform_int_distribution<> dis(11, 42);
-    static std::uniform_int_distribution<> dis2(42, 64);
-
-    streamer ss;
-    int i;
-    ss << uri << "-" ;
-    for (i = 0; i < 8; i++) {
-        ss << dis(gen);
-    }
-    ss << "-";
-    ss << dis2(gen);
-    for (i = 0; i < 8; i++) {
-        ss << dis(gen);
-    }
-    return ss.str();
-}
-
 bool
-ExtensionClient::processRegistrationResponse(const Context& context, const Object& connectionResponse) {
+ExtensionClient::processRegistrationResponse(const Context& context, const Object& connectionResponse)
+{
     if (mRegistered) {
         CONSOLE_S(mRootConfig->getSession()).log("Can't register extension twice.");
         return false;
@@ -206,7 +214,7 @@ ExtensionClient::processRegistrationResponse(const Context& context, const Objec
 
     const auto& assignedToken = connectionToken.getString();
     if (assignedToken == "<AUTO_TOKEN>") {
-        mConnectionToken = generateToken(mUri);
+        mConnectionToken = Random::generateToken(mUri);
     } else {
         mConnectionToken = assignedToken;
     }
@@ -223,7 +231,8 @@ ExtensionClient::processRegistrationResponse(const Context& context, const Objec
 }
 
 bool
-ExtensionClient::processEvent(const Context& context, const Object& event) {
+ExtensionClient::processEvent(const Context& context, const Object& event)
+{
     auto rootContext = mCachedContext.lock();
     if (!rootContext) {
         CONSOLE_S(mSession).log("Can't process message without RootContext.");
@@ -249,15 +258,18 @@ ExtensionClient::processEvent(const Context& context, const Object& event) {
         return false;
     }
 
-    rootContext->invokeExtensionEventHandler(mUri, name.getString(), payload.isNull()
-            ? Object::EMPTY_MAP().getMap() : payload.getMap(),
-            mEventModes.at(name.getString()) == kExtensionEventExecutionModeFast);
-
+    auto resourceId = propertyAsString(context, event, "resourceId");
+    rootContext->invokeExtensionEventHandler(mUri,
+                                             name.getString(),
+                                             payload.isNull() ? Object::EMPTY_MAP().getMap() : payload.getMap(),
+                                             mEventModes.at(name.getString()) == kExtensionEventExecutionModeFast,
+                                             resourceId);
     return true;
 }
 
 rapidjson::Value
-ExtensionClient::processCommand(rapidjson::Document::AllocatorType& allocator, const Event& event) {
+ExtensionClient::processCommand(rapidjson::Document::AllocatorType& allocator, const Event& event)
+{
     if (kEventTypeExtension != event.getType()) {
         CONSOLE_S(mSession) << "Invalid extension command type for extension=" << mUri;
         return rapidjson::Value(rapidjson::kNullType);
@@ -271,14 +283,24 @@ ExtensionClient::processCommand(rapidjson::Document::AllocatorType& allocator, c
 
     auto commandName = event.getValue(kEventPropertyName);
     if (!commandName.isString() || commandName.empty()) {
-        CONSOLE_S(mSession) << "Invalid extension command name for extension=" << mUri;
+        CONSOLE_S(mSession) << "Invalid extension command name for extension=" << mUri
+            << " command:" << commandName;
         return rapidjson::Value(rapidjson::kNullType);
+    }
+
+    auto resourceId = event.getValue(kEventPropertyExtensionResourceId);
+    if (!resourceId.empty() && !resourceId.isString()) {
+        CONSOLE_S(mSession) << "Invalid extension component handle for extension=" << mUri;
+        return rapidjson::Value (rapidjson::kNullType);
     }
 
     auto result = std::make_shared<ObjectMap>();
     result->emplace("version", IMPLEMENTED_INTERFACE_VERSION);
     result->emplace("method", sExtensionMethodBimap.at(kExtensionMethodCommand));
     result->emplace("token", mConnectionToken);
+    if (!resourceId.empty()) {
+        result->emplace("resourceId", resourceId);
+    }
     auto id = sCommandIdGenerator++;
     result->emplace("id", id  );
 
@@ -299,7 +321,8 @@ ExtensionClient::processCommand(rapidjson::Document::AllocatorType& allocator, c
 }
 
 bool
-ExtensionClient::processCommandResponse(const Context& context, const Object& response) {
+ExtensionClient::processCommandResponse(const Context& context, const Object& response)
+{
     // Resolve any Action associated with a command response.  The action is resolved independent
     // of a Success or Failure in command execution
 
@@ -328,7 +351,8 @@ ExtensionClient::processCommandResponse(const Context& context, const Object& re
 }
 
 void
-ExtensionClient::liveDataObjectFlushed(const std::string& key, LiveDataObject& liveDataObject) {
+ExtensionClient::liveDataObjectFlushed(const std::string& key, LiveDataObject& liveDataObject)
+{
     if (!mLiveData.count(key)) {
         LOG(LogLevel::kWarn) << "Received update for unhandled LiveData " << key;
         return;
@@ -353,7 +377,8 @@ ExtensionClient::liveDataObjectFlushed(const std::string& key, LiveDataObject& l
 
 void
 ExtensionClient::sendLiveDataEvent(const RootContextPtr& rootContext, const std::string& event,
-        const Object& current, const Object& changed) {
+        const Object& current, const Object& changed)
+{
     ObjectMap parameters;
     parameters.emplace("current", current);
     if (!changed.isNull()) {
@@ -364,7 +389,8 @@ ExtensionClient::sendLiveDataEvent(const RootContextPtr& rootContext, const std:
 
 void
 ExtensionClient::reportLiveMapChanges(const RootContextPtr& rootContext, const LiveDataRef& ref,
-        LiveDataObject& liveDataObject) {
+        LiveDataObject& liveDataObject)
+{
     std::set<std::string> updatedCollapsed;
     std::set<std::string> removedCollapsed;
     std::string updateTriggerEvent = ref.updateEvent.name;
@@ -422,7 +448,8 @@ ExtensionClient::reportLiveMapChanges(const RootContextPtr& rootContext, const L
 
 void
 ExtensionClient::reportLiveArrayChanges(const RootContextPtr& rootContext, const LiveDataRef& ref,
-        LiveDataObject& liveDataObject) {
+        LiveDataObject& liveDataObject)
+{
     std::string addTriggerEvent;
     std::string updateTriggerEvent;
     std::string removeTriggerEvent;
@@ -462,7 +489,8 @@ ExtensionClient::reportLiveArrayChanges(const RootContextPtr& rootContext, const
 }
 
 bool
-ExtensionClient::processLiveDataUpdate(const Context& context, const Object& update) {
+ExtensionClient::processLiveDataUpdate(const Context& context, const Object& update)
+{
     auto name = propertyAsObject(context, update, "name");
     if (!name.isString() || name.empty() || (mLiveData.find(name.getString()) == mLiveData.end())) {
         CONSOLE_S(mSession) << "Invalid LiveData name for extension=" << mUri;
@@ -513,7 +541,8 @@ ExtensionClient::processLiveDataUpdate(const Context& context, const Object& upd
 }
 
 bool
-ExtensionClient::updateLiveMap(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation) {
+ExtensionClient::updateLiveMap(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation)
+{
     std::string triggerEvent;
     auto keyObj = operation.opt("key", "");
     if (keyObj.empty()) {
@@ -543,7 +572,8 @@ ExtensionClient::updateLiveMap(ExtensionLiveDataUpdateType type, const LiveDataR
 }
 
 bool
-ExtensionClient::updateLiveArray(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation) {
+ExtensionClient::updateLiveArray(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation)
+{
     std::string triggerEvent;
 
     auto item = operation.get("item");
@@ -592,12 +622,13 @@ ExtensionClient::updateLiveArray(ExtensionLiveDataUpdateType type, const LiveDat
 }
 
 bool
-ExtensionClient::readExtension(const Context& context, const Object& extension) {
+ExtensionClient::readExtension(const Context& context, const Object& extension)
+{
     // verify extension schema
     auto schema = propertyAsString(context, extension, "type");
     auto version = propertyAsString(context, extension, "version");
-    if (schema != "Schema" || version != IMPLEMENTED_SCHEMA_VERSION) {
-        CONSOLE_S(mSession).log("Unsupported extension schema version.");
+    if (schema != "Schema" || version.compare(MAX_SUPPORTED_SCHEMA_VERSION) > 0) {
+        CONSOLE_S(mSession) << "Unsupported extension schema version:" << version;
         return false;
     }
 
@@ -618,7 +649,7 @@ ExtensionClient::readExtension(const Context& context, const Object& extension) 
 
     // register extension commands
     auto commands = arrayifyPropertyAsObject(context, extension, "commands");
-    if (!readExtensionCommands(context, commands)) {
+    if (!readExtensionCommandDefinitions(context, commands)) {
         return false;
     }
 
@@ -630,11 +661,21 @@ ExtensionClient::readExtension(const Context& context, const Object& extension) 
 
     // register extension live data
     auto liveData = arrayifyPropertyAsObject(context, extension, "liveData");
-    return readExtensionLiveData(context, liveData);
+    if(!readExtensionLiveData(context, liveData)) {
+        return false;
+    }
+
+    auto components = arrayifyPropertyAsObject(context, extension, "components");
+    if (!readExtensionComponentDefinitions(context, components)) {
+        return false;
+    }
+
+    return true;
 }
 
 bool
-ExtensionClient::readExtensionTypes(const Context& context, const Object& types) {
+ExtensionClient::readExtensionTypes(const Context& context, const Object& types)
+{
     if (!types.isArray()) {
         CONSOLE_S(mSession).log("The extension name=%s has a malformed 'commands' block", mUri.c_str());
         return false;
@@ -696,14 +737,10 @@ ExtensionClient::readExtensionTypes(const Context& context, const Object& types)
     return true;
 }
 
-bool
-ExtensionClient::readExtensionCommands(const Context& context, const Object& commands) {
-    if (!commands.isArray()) {
-        CONSOLE_S(mSession).log("The extension name=%s has a malformed 'commands' block", mUri.c_str());
-        return false;
-    }
-
-    for (const auto& command : commands.getArray()) {
+std::vector<ExtensionCommandDefinition>
+ExtensionClient::readCommandDefinitionsInternal(const Context& context,const ObjectArray& commands) {
+    std::vector<ExtensionCommandDefinition> commandDefs;
+    for (const auto& command : commands) {
         // create a command
         auto name = propertyAsObject(context, command, "name");
         if (!name.isString() || name.empty()) {
@@ -711,8 +748,8 @@ ExtensionClient::readExtensionCommands(const Context& context, const Object& com
             continue;
         }
         auto commandName = name.asString();
-        auto commandDef = ExtensionCommandDefinition(mUri, commandName);
-
+        commandDefs.emplace_back(mUri, commandName);
+        auto& commandDef = commandDefs.back();
         // set required response
         auto req = propertyAsBoolean(context, command, "requireResponse", false);
         commandDef.requireResolution(req);
@@ -746,13 +783,33 @@ ExtensionClient::readExtensionCommands(const Context& context, const Object& com
         // register the command
         mRootConfig->registerExtensionCommand(commandDef);
     }
+    return commandDefs;
+}
 
+bool
+ExtensionClient::readExtensionCommandDefinitions(const Context& context, const Object& commands) {
+    if (!commands.isArray()) {
+        CONSOLE_S(mSession).log("The extension name=%s has a malformed 'commands' block", mUri.c_str());
+        return false;
+    }
+    readCommandDefinitionsInternal(context, commands.getArray());
     return true;
 }
 
+void
+ExtensionClient::readExtensionComponentCommandDefinitions(const Context& context, const Object& commands,
+                                                          ExtensionComponentDefinition& def) {
+    if (!commands.isArray()) {
+        CONSOLE_S(mSession).log("The extension component name=%s has a malformed 'commands' block", mUri.c_str());
+        return;
+    }
+    auto commandDefs = readCommandDefinitionsInternal(context, commands.getArray());
+    def.commands(commandDefs);
+}
 
 bool
-ExtensionClient::readExtensionEventHandlers(const Context& context, const Object& handlers) {
+ExtensionClient::readExtensionEventHandlers(const Context& context, const Object& handlers)
+{
     if (!handlers.isArray()) {
         CONSOLE_S(mSession).log("The extension name=%s has a malformed 'events' block", mUri.c_str());
         return false;
@@ -775,7 +832,8 @@ ExtensionClient::readExtensionEventHandlers(const Context& context, const Object
 }
 
 bool
-ExtensionClient::readExtensionLiveData(const Context& context, const Object& liveData) {
+ExtensionClient::readExtensionLiveData(const Context& context, const Object& liveData)
+{
     if (!liveData.isArray()) {
         CONSOLE_S(mSession).log("The extension name=%s has a malformed 'dataBindings' block", mUri.c_str());
         return false;
@@ -802,7 +860,9 @@ ExtensionClient::readExtensionLiveData(const Context& context, const Object& liv
             type = type.substr(0, arrayDefinition);
         }
 
-        if (!mTypes.count(type)) {
+        if (!(mTypes.count(type) // Any LiveData may use defined complex types
+          || (isArray && sBindingMap.has(type)))) { // Arrays also may use primitive types
+            CONSOLE_S(mSession).log("Data type=%s, for LiveData=%s is invalid", type.c_str(), name.getString().c_str());
             continue;
         }
 
@@ -820,9 +880,9 @@ ExtensionClient::readExtensionLiveData(const Context& context, const Object& liv
             live = LiveMap::create();
         }
 
-        auto typeProps = mTypes.at(type);
         auto events = propertyAsObject(context, binding, "events");
         if (events.isMap()) {
+            auto typeProps = mTypes.at(type);
             auto event = propertyAsObject(context, events, "add");
             if (event.isMap()) {
                 auto propTriggers = propertyAsObject(context, event, "properties");
@@ -861,7 +921,8 @@ ExtensionClient::readExtensionLiveData(const Context& context, const Object& liv
 }
 
 std::map<std::string, bool>
-ExtensionClient::readPropertyTriggers(const Context& context, const TypePropertiesPtr& type, const Object& triggers) {
+ExtensionClient::readPropertyTriggers(const Context& context, const TypePropertiesPtr& type, const Object& triggers)
+{
     auto result = std::map<std::string, bool>();
 
     if (triggers.isNull()) {
@@ -898,6 +959,207 @@ ExtensionClient::readPropertyTriggers(const Context& context, const TypeProperti
     }
 
     return result;
+}
+
+bool
+ExtensionClient::readExtensionComponentEventHandlers(const Context& context,
+                                                     const Object& handlers,
+                                                     ExtensionComponentDefinition& def)
+{
+    if (!handlers.isNull()) {
+        if (!handlers.isArray()) {
+            CONSOLE_S(mSession).log("The extension name=%s has a malformed 'events' block",
+                                    mUri.c_str());
+            return false;
+        }
+
+        for (const auto& handler : handlers.getArray()) {
+            auto name = propertyAsObject(context, handler, "name");
+            if (!name.isString() || name.empty()) {
+                CONSOLE_S(mSession).log("Invalid extension event handler for extension=%s",
+                                        mUri.c_str());
+                return false;
+            }
+            else {
+                auto mode = propertyAsMapped<ExtensionEventExecutionMode>(
+                    context, handler, "mode", kExtensionEventExecutionModeFast,
+                    sExtensionEventExecutionModeBimap);
+                mEventModes.emplace(name.asString(), mode);
+                auto eventKey = sComponentPropertyBimap.append(name.asString());
+                def.addEventHandler(eventKey, ExtensionEventHandler(mUri, name.asString()));
+            }
+        }
+    }
+    return true;
+}
+
+bool
+ExtensionClient::readExtensionComponentDefinitions(const Context& context, const Object& components) {
+    if (!components.isArray()) {
+        CONSOLE_S(mSession).log("The extension name=%s has a malformed 'components' block", mUri.c_str());
+        return false;
+    }
+
+    for (const auto& component : components.getArray()) {
+        auto name = propertyAsObject(context, component, "name");
+        if (!name.isString() || name.empty()) {
+            CONSOLE_S(mSession).log("Invalid extension component name for extension=%s", mUri.c_str());
+            continue;
+        }
+        auto componentName = name.asString();
+        auto componentDef = ExtensionComponentDefinition(mUri, componentName);
+
+        auto visualContext = propertyAsString(context, component, "context");
+        componentDef.visualContextType(visualContext);
+
+        auto commands = propertyAsObject(context, component, "commands");
+        if(!commands.isNull()) {
+            readExtensionComponentCommandDefinitions(context, commands, componentDef);
+        }
+
+        auto events = propertyAsObject(context, component, "events");
+        if (!readExtensionComponentEventHandlers(context, events, componentDef)) {
+            return false;
+        }
+
+        auto props = propertyAsObject(context, component, "properties");
+        if (!props.empty() && props.isMap()) {
+            auto properties = std::make_shared<std::map<id_type, ExtensionProperty>>();
+            for (const auto &p : props.getMap()) {
+                auto pname = p.first;
+                auto ps = p.second;
+                Object defValue = Object::NULL_OBJECT();
+                BindingType ptype;
+                auto preq = true;
+
+                if (ps.isString()) {
+                    ptype = sBindingMap.get(ps.getString(), kBindingTypeAny);
+                } else if (!ps.has("type")) {
+                    CONSOLE_S(mSession).log("Invalid extension property extension=%s", mUri.c_str());
+                    continue;
+                } else {
+                    defValue = propertyAsObject(context, ps, "default");
+                    ptype = propertyAsMapped<BindingType>(context, ps, "type", kBindingTypeAny, sBindingMap);
+                    if (!sBindingMap.has(ptype)) {
+                        ptype = kBindingTypeAny;
+                    }
+                    preq = propertyAsBoolean(context, ps, "required", false);
+                }
+
+                const auto& pfunc = sBindingFunctions.at(ptype);
+                auto value = pfunc(context, defValue);
+
+                // returned property key is an incremented integer
+                auto propertyKey = sComponentPropertyBimap.append(pname);
+                properties->emplace(propertyKey, ExtensionProperty{ptype, std::move(value), preq});
+            }
+            componentDef.properties(properties);
+        }
+
+        mRootConfig->registerExtensionComponent(componentDef);
+    }
+
+    return true;
+}
+
+rapidjson::Value
+ExtensionClient::createComponentChange(rapidjson::MemoryPoolAllocator<>& allocator,
+                                        ExtensionComponent& component) {
+    auto extensionURI = component.getUri();
+    if (extensionURI != mUri) {
+        CONSOLE_S(mSession) << "Invalid extension command target for extension=" << mUri;
+        return rapidjson::Value(rapidjson::kNullType);
+    }
+
+    auto result = std::make_shared<ObjectMap>();
+    result->emplace("method", sExtensionMethodBimap.at(kExtensionMethodComponent));
+    result->emplace("version", IMPLEMENTED_INTERFACE_VERSION);
+    result->emplace("target", extensionURI);
+    result->emplace("token", mConnectionToken);
+    result->emplace("resourceId", component.getResourceID());
+    auto state = static_cast<ExtensionComponentResourceState>(component.getCalculated(kPropertyResourceState).asInt());
+    result->emplace("state", sExtensionComponentStateBimap.at(state));
+
+    // State specific message content
+    if (state == kResourceReady || state == kResourcePending) {
+
+        // include the viewport
+        const auto& contextref = component.getContext()->find("viewport");
+        if (!contextref.empty()) {
+            result->emplace("viewport", contextref.object().value());
+        }
+
+        // Fill the payload with all the dirty dynamic properties that are also kPropOut
+        // on first message, this will be all properties
+        auto payload = std::make_shared<ObjectMap>();
+        auto& corePDS = component.propDefSet().dynamic();
+        for (auto& m : component.getDirty()) {
+            auto pd = corePDS.find(m);
+            if (pd != corePDS.end() && (pd->second.flags & kPropOut) != 0) {
+                payload->emplace(pd->second.names[0], component.getCalculated(m));
+            }
+        }
+        result->emplace("payload", payload);
+    }
+
+    return Object(result).serialize(allocator);
+}
+
+
+bool
+ExtensionClient::processComponentResponse(const Context& context, const Object& response) {
+    auto method = propertyAsString(context, response, "method");
+
+    auto componentId = propertyAsString(context, response, "resourceId");
+    auto extensionComp = context.extensionManager().findExtensionComponent(componentId);
+
+    if (extensionComp != nullptr) {
+        if (method == sExtensionMethodBimap.at(kExtensionMethodComponentFailure)) {
+            auto message = propertyAsString(context, response, "message");
+            auto code = propertyAsInt(context, response, "code", -1);
+            extensionComp->extensionComponentFail(code, message);
+        } else if (method == sExtensionMethodBimap.at(kExtensionMethodComponentUpdate)) {
+           // TODO apply component properties
+        }
+    } else {
+        CONSOLE_S(mSession) << "Unable to find component associated with :" << componentId;
+    }
+    return true;
+}
+
+bool ExtensionClient::handleDisconnection(const RootContextPtr& rootContext,
+                                          int errorCode,
+                                          const std::string& message) {
+    const auto& context = rootContext ? rootContext->context() : mRootConfig->evaluationContext();
+
+    if (errorCode != 0) {
+        for (const auto& componentEntry : context.extensionManager().getExtensionComponents()) {
+            auto extensionComponent = componentEntry.second;
+
+            if (mUri == extensionComponent->getUri()) {
+                extensionComponent->extensionComponentFail(errorCode, message);
+            }
+        }
+    }
+    return true;
+}
+
+rapidjson::Value
+ExtensionClient::processComponentRequest(rapidjson::MemoryPoolAllocator<>& allocator,
+                                         ExtensionComponent& component) {
+    return createComponentChange(allocator, component);
+}
+
+rapidjson::Value
+ExtensionClient::processComponentRelease(rapidjson::MemoryPoolAllocator<>& allocator,
+                                         ExtensionComponent& component) {
+    return createComponentChange(allocator, component);
+}
+
+rapidjson::Value
+ExtensionClient::processComponentUpdate(rapidjson::MemoryPoolAllocator<>& allocator,
+                                        ExtensionComponent& component) {
+    return createComponentChange(allocator, component);
 }
 
 } // namespace apl

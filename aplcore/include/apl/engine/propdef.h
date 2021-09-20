@@ -277,6 +277,10 @@ enum PropertyDefFlags : uint32_t {
     kPropVisualContext = 0x1000,
     /// This property can only be set once the children of this component have been laid out
     kPropSetAfterLayout = 0x2000,
+    /// This property takes part in text measurement request hash
+    kPropTextHash = 0x4000,
+    /// This property takes part in visual hash
+    kPropVisualHash = 0x8000,
 };
 
 /**

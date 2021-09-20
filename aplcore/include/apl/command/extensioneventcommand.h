@@ -45,12 +45,20 @@ public:
         : CoreCommand(context, std::move(properties), base, parentSequencer),
           mDefinition(def) {}
 
+    const CommandPropDefSet& propDefSet() const override;
+
     CommandType type() const override { return kCommandTypeCustomEvent; }
 
     ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
 
     std::string getCommandName() const { return mDefinition.getName(); }
     std::string getCommandURI() const { return mDefinition.getURI(); }
+
+    /**
+     * Returns the resource ID associated with extension command.
+     * @return resourceId if extension component command, else empty string
+     */
+    std::string getResourceID() const;
 
 private:
     const ExtensionCommandDefinition& mDefinition;

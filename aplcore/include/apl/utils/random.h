@@ -38,6 +38,29 @@ public:
         return generator;
     }
 
+    static std::string
+    generateToken(const std::string& base = "")
+    {
+        static auto gen = Random::mt32Generator();
+        static std::uniform_int_distribution<> dis(11, 42);
+        static std::uniform_int_distribution<> dis2(42, 64);
+
+        streamer ss;
+        if (!base.empty())
+            ss << base << "-" ;
+
+        int i;
+        for (i = 0; i < 8; i++) {
+            ss << dis(gen);
+        }
+        ss << "-";
+        ss << dis2(gen);
+        for (i = 0; i < 8; i++) {
+            ss << dis(gen);
+        }
+        return ss.str();
+    }
+
 };
 
 } // namespace apl

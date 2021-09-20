@@ -193,17 +193,24 @@ static Object
 arrayRange(const ObjectArray& args)
 {
     if (args.size() < 1)
-        return RangeGenerator::create(0,0,0);
+        return RangeGenerator::create(0, 0, 0);
 
     auto a = args.at(0).asNumber();
+    if (!std::isfinite(a))
+        return RangeGenerator::create(0, 0, 0);
     if (args.size() == 1)
         return RangeGenerator::create(0, a, 1);
 
     auto b = args.at(1).asNumber();
+    if (!std::isfinite(b))
+        return RangeGenerator::create(0, 0, 0);
     if (args.size() == 2)
-        return RangeGenerator::create(a,b,1);
+        return RangeGenerator::create(a, b, 1);
 
-    return RangeGenerator::create(a,b,args.at(2).asNumber());
+    auto c = args.at(2).asNumber();
+    if (!std::isfinite(c))
+        return RangeGenerator::create(0, 0, 0);
+    return RangeGenerator::create(a, b, c);
 }
 
 static Object

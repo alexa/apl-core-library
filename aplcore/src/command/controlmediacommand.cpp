@@ -35,6 +35,11 @@ ControlMediaCommand::execute(const TimersPtr& timers, bool fastMode) {
     if (!calculateProperties())
         return nullptr;
 
+    if (mTarget->getType() != ComponentType::kComponentTypeVideo) {
+        CONSOLE_CTP(mContext) << "Target of ControlMedia must be a video component";
+        return nullptr;
+    }
+
     // All commands except "Play" are allowed in fast mode
     auto command = getValue(kCommandPropertyCommand);
     if (fastMode && command.getInteger() == kCommandControlMediaPlay) {

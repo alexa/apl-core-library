@@ -16,6 +16,7 @@
 #include "apl/command/arraycommand.h"
 #include "apl/command/configchangecommand.h"
 #include "apl/content/content.h"
+#include "apl/document/documentproperties.h"
 #include "apl/engine/evaluate.h"
 #include "apl/engine/propdef.h"
 #include "apl/engine/rootcontext.h"
@@ -33,7 +34,7 @@ ConfigChangeCommand::execute(const TimersPtr& timers, bool fastMode)
 
     // Extract the event handler commands.  If none exist, we immediately execute the resize and return.
     auto& json = root->content()->getDocument()->json();
-    auto it = json.FindMember(sComponentPropertyBimap.at(kPropertyOnConfigChange).c_str());
+    auto it = json.FindMember(sDocumentPropertyBimap.at(kDocumentPropertyOnConfigChange).c_str());
     if (it == json.MemberEnd()) {
         root->resize();
         return nullptr;

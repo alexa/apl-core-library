@@ -19,6 +19,7 @@
 #include "apl/common.h"
 #include "apl/content/jsondata.h"
 #include "apl/content/extensionproperty.h"
+#include "apl/content/extensioncomponentdefinition.h"
 #include "apl/engine/event.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/noncopyable.h"
@@ -60,6 +61,14 @@ enum ExtensionMethod {
     kExtensionMethodCommandFailure,
     kExtensionMethodEvent,
     kExtensionMethodLiveDataUpdate,
+    // Component state/update message from the execution environment to the extension
+    kExtensionMethodComponent,
+    // Component success messages from the extension to the execution environment
+    kExtensionMethodComponentSuccess,
+    // Component creation/operation failure message from the extension to the execution environment
+    kExtensionMethodComponentFailure,
+    // Component creation success messages from the extension to the execution environment
+    kExtensionMethodComponentUpdate,
 };
 
 /**
@@ -124,17 +133,33 @@ public:
      * @param content APL content that has appropriate extension settings.
      * @return JSON representing registration request.
      */
-    rapidjson::Value createRegistrationRequest(rapidjson::Document::AllocatorType& allocator, Content& content);
+    rapidjson::Value createRegistrationRequest(rapidjson::Document::AllocatorType& allocator,
+                                               Content& content);
 
     /**
      * Form a registration request for an extension. Static utility method that could be used outside of connection context.
      * @param allocator JSON allocator.
      * @param uri extension URI.
      * @param settings Settings object to use.
+     * @param flags Opaque data passed to the extension from the execution environment.
      * @return JSON representing registration request.
      */
     static rapidjson::Value createRegistrationRequest(rapidjson::Document::AllocatorType& allocator,
-            const std::string& uri, const Object& settings);
+                                                      const std::string& uri,
+                                                      const Object& settings,
+                                                      const Object& flags = Object::NULL_OBJECT());
+
+    /**
+     * Form a component change message to be sent to the extension.  Changes may be a result of the
+     * document updating the component properties via command, or the runtime changing the
+     * kPropertyResource state when the system resource changes.
+     *
+     * @param allocator JSON allocator
+     * @param component Extension component
+     * @return JSON representing component update
+     */
+    rapidjson::Value createComponentChange(rapidjson::Document::AllocatorType& allocator,
+                                            ExtensionComponent& component);
 
     /**
      * @return True if RegisterSuccess or RegisterFailure was processed. False otherwise.
@@ -167,6 +192,33 @@ public:
      */
     rapidjson::Value processCommand(rapidjson::Document::AllocatorType& allocator, const Event& event);
 
+    /**
+     * @deprecated @c createComponentChange
+     */
+    rapidjson::Value processComponentRequest(rapidjson::Document::AllocatorType& allocator,
+                                             ExtensionComponent& component);
+
+    /**
+     * @deprecated @c createComponentChange
+     */
+    rapidjson::Value processComponentUpdate(rapidjson::Document::AllocatorType& allocator,
+                                            ExtensionComponent& component);
+
+    /**
+     * @deprecated @c createComponentChange
+     */
+    rapidjson::Value processComponentRelease(rapidjson::Document::AllocatorType& allocator,
+                                             ExtensionComponent& component);
+
+    /**
+     * Handle disconnection from an extension. It could either be a graceful disconnection or
+     * connection failure.
+     * @param errorCode Error code associated with disconnection
+     * @param message Disconnection message.
+     * @return true if processed successfully, false otherwise.
+     */
+    bool handleDisconnection(const RootContextPtr& rootContext, int errorCode, const std::string& message);
+
 protected:
     /// LiveDataObjectWatcher methods
     void liveDataObjectFlushed(const std::string& key, LiveDataObject& liveDataObject) override;
@@ -175,14 +227,19 @@ private:
     // Parse an extension from json
     bool readExtension(const Context& context, const Object& extension);
     bool readExtensionTypes(const Context& context, const Object& types);
-    bool readExtensionCommands(const Context& context, const Object& commands);
+    bool readExtensionCommandDefinitions(const Context& context, const Object& commands);
+    void readExtensionComponentCommandDefinitions(const Context& context, const Object& commands, ExtensionComponentDefinition& def);
+    std::vector<ExtensionCommandDefinition> readCommandDefinitionsInternal(const Context& context,const ObjectArray& commands);
     bool readExtensionEventHandlers(const Context& context, const Object& handlers);
     bool readExtensionLiveData(const Context& context, const Object& liveData);
+    bool readExtensionComponentDefinitions(const Context& context, const Object& components);
+    bool readExtensionComponentEventHandlers(const Context& context, const Object& handlers, ExtensionComponentDefinition& def);
 
     bool processRegistrationResponse(const Context& context, const Object& connectionResponse);
     bool processEvent(const Context& context, const Object& event);
     bool processCommandResponse(const Context& context, const Object& response);
     bool processLiveDataUpdate(const Context& context, const Object& update);
+    bool processComponentResponse(const Context& context, const Object& response);
 
     bool updateLiveMap(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation);
     bool updateLiveArray(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation);

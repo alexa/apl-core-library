@@ -22,10 +22,12 @@
 #include "apl/content/configurationchange.h"
 #include "apl/content/settings.h"
 #include "apl/common.h"
+#include "apl/document/displaystate.h"
 #include "apl/engine/event.h"
 #include "apl/engine/info.h"
 #include "apl/content/rootconfig.h"
 #include "apl/focus/focusdirection.h"
+#include "apl/media/mediaobject.h"
 #include "apl/utils/noncopyable.h"
 #include "apl/utils/userdata.h"
 #include "apl/primitives/keyboard.h"
@@ -119,13 +121,21 @@ public:
                                  std::function<void(const RootContextPtr&)> callback);
 
     /**
-     * Inform the view host of a configuration change. Internally this method will trigger the "onConfigChange"
+     * Notify core of a configuration change. Internally this method will trigger the "onConfigChange"
      * event handler in the APL document.  A common behavior in the onConfigChange event handler is to
      * send a Reinflate (kEventTypeReinflate) event.
      *
      * @param change Configuration change information
      */
     void configurationChange(const ConfigurationChange& change);
+    
+    /**
+     * Update the display state of the document. Internally this method will trigger the
+     * "onDisplayStateChange" event handler in the APL document, if the display state changed.
+     *
+     * @param displayState The new display state
+     */
+    void updateDisplayState(DisplayState displayState);
 
     /**
      * Reinflate this context using the internally cached configuration changes.  This will terminate any
@@ -258,10 +268,12 @@ public:
      * @param name The name of the handler to invoke
      * @param data The data to associate with the handler
      * @param fastMode If true, this handler will be invoked in fast mode
+     * @param resourceId handle associated with extension component if present
      * @return An ActionPtr
      */
     ActionPtr invokeExtensionEventHandler(const std::string& uri, const std::string& name,
-        const ObjectMap& data, bool fastMode);
+                                          const ObjectMap& data, bool fastMode,
+                                          std::string resourceId = "");
 
     /**
      * Cancel any current commands in execution.  This is typically called
@@ -464,8 +476,10 @@ public:
     /**
      * Notify core about requested media fail to load.
      * @param source requested source.
+     * @param errorCode integer with the errorValue, to determine by the runtime.
+     * @param error string with the error description.
      */
-    void mediaLoadFailed(const std::string& source);
+    void mediaLoadFailed(const std::string& source, int errorCode = -1, const std::string& error = std::string());
 
     friend streamer& operator<<(streamer& os, const RootContext& root);
 
@@ -488,6 +502,7 @@ private:
     apl_time_t mUTCTime;  // Track the system UTC time
     apl_duration_t mLocalTimeAdjustment;
     ConfigurationChange mActiveConfigurationChanges;
+    DisplayState mDisplayState;
 };
 
 } // namespace apl

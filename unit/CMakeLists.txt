@@ -74,8 +74,5 @@ if(CTEST_INDIVIDUALLY)
 else()
     # Adds the entire unittest executable as a single ctest.  Great for speed.
     add_test(all-tests unittest)
-    if (BUILD_ALEXAEXTENSIONS)
-        add_test(all-tests alexaext-unittest)
-    endif(BUILD_ALEXAEXTENSIONS)
 endif()
 

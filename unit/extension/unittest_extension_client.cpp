@@ -14,6 +14,7 @@
  */
 
 #include "../testeventloop.h"
+#include "apl/extension/extensioncomponent.h"
 
 using namespace apl;
 
@@ -343,6 +344,20 @@ static const char* EXTENSION_TYPES = R"(
   }
 ],)";
 
+static const char* EXTENSION_TYPES_INVALID = R"(
+"types": [
+  {
+    "name": "FreezePayload",
+    "properties": {
+      "foo": {
+        "type": "SOME_INVALID_TYPE",
+        "required": true,
+        "default": 64
+      }
+    }
+  }
+],)";
+
 static const char* EXTENSION_COMMANDS = R"(
   "commands": [
     {
@@ -395,6 +410,30 @@ static const char* EXTENSION_EVENTS = R"(
     {"name": "onEntityAdded"},
     {"name": "onEntityChanged"},
     {"name": "onEntityLost"}
+  ]
+)";
+
+static const char* EXTENSION_COMPONENTS = R"(
+"components": [
+    {
+        "name": "MyComponent",
+        "commands" : [
+            {
+              "name": "componentCommand",
+              "requireResponse": true,
+              "allowFastMode":  false
+            }
+        ]
+    }
+  ]
+)";
+
+static const char* EXTENSION_COMPONENTS_INVALID_COMMANDS = R"(
+"components": [
+    {
+        "name": "MyComponent",
+        "commands" : 999
+    }
   ]
 )";
 
@@ -536,6 +575,42 @@ TEST_F(ExtensionClientTest, ExtensionParseCommands) {
     ASSERT_TRUE(IsEqual(true, props.at("baz").defvalue));
 }
 
+/**
+ * Verify that invalid types fall back to kBindingTypeAny
+ */
+TEST_F(ExtensionClientTest, ExtensionParseCommandsInvalidType) {
+    createConfigAndClient(EXT_DOC);
+
+    std::string doc = "{";
+    doc += EXTENSION_DEFINITION;
+    doc += EXTENSION_TYPES_INVALID;
+    doc += EXTENSION_COMMANDS;
+    doc += "}}";
+
+    ASSERT_TRUE(client->processMessage(nullptr, doc));
+    ASSERT_FALSE(ConsoleMessage());
+    auto commands = configPtr->getExtensionCommands();
+    ASSERT_EQ(4, commands.size());
+    auto invalidTypeCommand = commands[2];
+    auto fooValue = invalidTypeCommand.getPropertyMap().find("foo")->second;
+    ASSERT_EQ(fooValue.btype, kBindingTypeAny);
+}
+
+/**
+ * Verify console message when commands block is invalid
+ */
+TEST_F(ExtensionClientTest, ExtensionParseCommandsInvalidBlock) {
+    createConfigAndClient(EXT_DOC);
+
+    std::string doc = "{";
+    doc += EXTENSION_DEFINITION;
+    doc += EXTENSION_TYPES;
+    doc += R"("commands": 999)";
+    doc += "}}";
+
+    ASSERT_TRUE(client->processMessage(nullptr, doc));
+    ASSERT_TRUE(ConsoleMessage());
+}
 
 TEST_F(ExtensionClientTest, ExtensionParseEventHandlersMalformed) {
     createConfigAndClient(EXT_DOC);
@@ -638,6 +713,148 @@ TEST_F(ExtensionClientTest, ExtensionParseEventDataBindings) {
     ASSERT_EQ(Object::ObjectType::kArrayType, arr->getType());
     ASSERT_EQ(Object::ObjectType::kMapType, map->getType());
 }
+
+
+TEST_F(ExtensionClientTest, ExtensionParseComponent) {
+    createConfigAndClient(EXT_DOC);
+
+    std::string doc = "{";
+    doc += EXTENSION_DEFINITION;
+    doc += EXTENSION_TYPES;
+    doc += EXTENSION_COMPONENTS;
+    doc += "}}";
+
+    ASSERT_TRUE(client->processMessage(nullptr, doc));
+    ASSERT_FALSE(ConsoleMessage());
+
+    auto ext = configPtr->getSupportedExtensions();
+    ASSERT_EQ(1, ext.size());
+    auto ex = ext.find("aplext:hello:10");
+    ASSERT_NE(ext.end(), ex);
+
+    auto components = configPtr->getExtensionComponentDefinitions();
+    ASSERT_EQ(1, components.size());
+    auto def = components.at(0);
+    ASSERT_EQ("aplext:hello:10", def.getURI());
+    ASSERT_EQ("MyComponent", def.getName());
+
+    auto commands = configPtr->getExtensionCommands();
+    ASSERT_EQ(1, commands.size());
+    auto command = commands.at(0);
+    ASSERT_STREQ(command.getName().c_str(), "componentCommand");
+}
+
+/**
+ * Verify console message when component commands block is invalid
+ */
+TEST_F(ExtensionClientTest, ExtensionParseComponentInvalidCommands) {
+    createConfigAndClient(EXT_DOC);
+
+    std::string doc = "{";
+    doc += EXTENSION_DEFINITION;
+    doc += EXTENSION_TYPES;
+    doc += EXTENSION_COMPONENTS_INVALID_COMMANDS;
+    doc += "}}";
+
+    ASSERT_TRUE(client->processMessage(nullptr, doc));
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+/**
+ * Verify console message when component block is invalid
+ */
+TEST_F(ExtensionClientTest, ExtensionParseComponentInvalid) {
+    createConfigAndClient(EXT_DOC);
+
+    std::string doc = "{";
+    doc += EXTENSION_DEFINITION;
+    doc += EXTENSION_TYPES;
+    doc += R"("components": 999)";
+    doc += "}}";
+
+    ASSERT_TRUE(client->processMessage(nullptr, doc));
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+
+TEST_F(ExtensionClientTest, ExtensionParseComponentInvalidComponentSchemaInvalidName) {
+    createConfigAndClient(EXT_DOC);
+
+    std::string doc = "{";
+    doc += EXTENSION_DEFINITION;
+    doc += EXTENSION_TYPES;
+    doc += R"("components":
+    [{
+        "name": 12345,
+        "commands" : [
+            {
+              "name": "componentCommand",
+              "requireResponse": true,
+              "allowFastMode":  false
+            }
+        ]
+    }]
+   )";
+    doc += "}}";
+
+    ASSERT_TRUE(client->processMessage(nullptr, doc));
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(ExtensionClientTest, ExtensionParseComponentInvalidComponentSchemaInvalidEventSchema) {
+    createConfigAndClient(EXT_DOC);
+
+    std::string doc = "{";
+    doc += EXTENSION_DEFINITION;
+    doc += EXTENSION_TYPES;
+    doc += R"("components":
+    [{
+        "name": "MyComponent",
+        "commands" : [
+            {
+              "name": "componentCommand",
+              "requireResponse": true,
+              "allowFastMode":  false
+            }
+        ],
+        "events": {
+            "name": "componentEvent"
+        }
+    }]
+   )";
+    doc += "}}";
+
+    ASSERT_FALSE(client->processMessage(nullptr, doc));
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(ExtensionClientTest, ExtensionParseComponentInvalidComponentSchemaInvalidEventName) {
+    createConfigAndClient(EXT_DOC);
+
+    std::string doc = "{";
+    doc += EXTENSION_DEFINITION;
+    doc += EXTENSION_TYPES;
+    doc += R"("components":
+    [{
+        "name": "MyComponent",
+        "commands" : [
+            {
+              "name": "componentCommand",
+              "requireResponse": true,
+              "allowFastMode":  false
+            }
+        ],
+        "events": [{
+            "name": 12345
+        }]
+    }]
+   )";
+    doc += "}}";
+
+    ASSERT_FALSE(client->processMessage(nullptr, doc));
+    ASSERT_TRUE(ConsoleMessage());
+}
+
 
 static const char* EXT_REGISTER_SUCCESS = R"({
   "method": "RegisterSuccess",
@@ -805,6 +1022,16 @@ static const char* EXT_COMMAND_SUCCESS_HEADER = R"({
 static const char* EXT_COMMAND_FAILURE_HEADER = R"({
     "version": "1.0",
     "method": "CommandFailure",
+)";
+
+static const char* EXT_COMPONENT_SUCCESS_HEADER = R"({
+    "version": "1.0",
+    "method": "ComponentSuccess",
+)";
+
+static const char* EXT_COMPONENT_FAILURE_HEADER = R"({
+    "version": "1.0",
+    "method": "ComponentFailure",
 )";
 
 static const char* ENTITY_LIST_INSERT = R"({
@@ -986,6 +1213,8 @@ TEST_F(ExtensionClientTest, ExtensionLifecycle) {
 
     // We have all we need. Inflate.
     initializeContext();
+    ASSERT_TRUE(evaluate(*context, "${environment.extension.Hello}").isMap());
+    ASSERT_TRUE(IsEqual("additional", evaluate(*context, "${environment.extension.Hello.something}")));
 
     auto text = component->findComponentById("label");
     ASSERT_EQ(kComponentTypeText, text->getType());
@@ -1124,14 +1353,38 @@ TEST_F(ExtensionClientTest, CommandInterruptedResolve) {
     ASSERT_FALSE(root->hasEvent());
 }
 
-TEST_F(ExtensionClientTest, RegistrationRequest) {
-    createConfigAndClient(EXT_DOC);
+/**
+ * Create a RegistrationRequest using an instance of ExtensionClient.
+ */
+TEST_F(ExtensionClientTest, RegistrationRequestInstance) {
+    createConfig(EXT_DOC);
+    configPtr->registerExtensionFlags("aplext:hello:10", "--hello");
+    client = createClient("aplext:hello:10");
 
     // Pass request and settings to connection request creation.
     auto connectionRequest = client->createRegistrationRequest(doc.GetAllocator(), *content);
     ASSERT_STREQ("1.0", connectionRequest["version"].GetString());
     ASSERT_STREQ("Register", connectionRequest["method"].GetString());
     ASSERT_STREQ("aplext:hello:10", connectionRequest["uri"].GetString());
+    ASSERT_STREQ("--hello", connectionRequest["flags"].GetString());
+    auto& connRequestSettings = connectionRequest["settings"];
+    ASSERT_TRUE(connRequestSettings.HasMember("authorizationCode"));
+}
+
+/**
+ * Create a RegistrationRequest using a static method of ExtensionClient.
+ */
+TEST_F(ExtensionClientTest, RegistrationRequestStatic) {
+    createConfigAndClient(EXT_DOC);
+    const auto& settings = content->getExtensionSettings("aplext:hello:10");
+
+    // Pass request and settings to connection request creation.
+    auto connectionRequest = ExtensionClient::createRegistrationRequest(doc.GetAllocator(),
+                                                                    "aplext:hello:10", settings, "--hello");
+    ASSERT_STREQ("1.0", connectionRequest["version"].GetString());
+    ASSERT_STREQ("Register", connectionRequest["method"].GetString());
+    ASSERT_STREQ("aplext:hello:10", connectionRequest["uri"].GetString());
+    ASSERT_STREQ("--hello", connectionRequest["flags"].GetString());
     auto& connRequestSettings = connectionRequest["settings"];
     ASSERT_TRUE(connRequestSettings.HasMember("authorizationCode"));
 }
@@ -1415,7 +1668,7 @@ TEST_F(ExtensionClientTest, Command) {
     auto event = root->popEvent();
     // Runtime needs to redirect this events to the server.
     auto processedCommand = client->processCommand(doc.GetAllocator(), event);
-    ASSERT_STREQ("1.0", processedCommand["version"].GetString());
+    ASSERT_TRUE(std::string("1.0").compare(processedCommand["version"].GetString()) <= 0);
     ASSERT_STREQ("Command", processedCommand["method"].GetString());
     ASSERT_STREQ("TOKEN", processedCommand["token"].GetString());
     ASSERT_TRUE(processedCommand.HasMember("id"));
@@ -1466,7 +1719,7 @@ TEST_F(ExtensionClientTest, CommandMissingNonRequired) {
     auto event = root->popEvent();
     // Runtime needs to redirect this events to the server.
     auto processedCommand = client->processCommand(doc.GetAllocator(), event);
-    ASSERT_STREQ("1.0", processedCommand["version"].GetString());
+    ASSERT_TRUE(std::string("1.0").compare(processedCommand["version"].GetString()) <= 0);
     ASSERT_STREQ("Command", processedCommand["method"].GetString());
     ASSERT_STREQ("TOKEN", processedCommand["token"].GetString());
     ASSERT_TRUE(processedCommand.HasMember("id"));
@@ -1988,6 +2241,7 @@ static const char* WEATHER_MAP_SET_PROP = R"(
     }
   ]
 })";
+
 TEST_F(ExtensionClientTest, TypeWithoutPropertis) {
     createConfigAndClient(EXT_DOC);
 
@@ -2028,5 +2282,753 @@ TEST_F(ExtensionClientTest, TypeWithoutPropertis) {
     ASSERT_TRUE(IsEqual("Boston", evaluate(*context, "${MyWeather.location}")));
     ASSERT_TRUE(IsEqual("64", evaluate(*context, "${MyWeather.temperature}")));
     ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${MyWeather.propNull}")));
+}
 
+static const char* EXT_DOC_EXTCOMP = R"({
+  "type": "APL",
+  "version": "1.7",
+  "extensions": [
+    {
+      "uri": "aplext:hello:10",
+      "name": "Ext"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Ext:ExtensionComponent",
+      "width": 500,
+      "height": 500
+    }
+  }
+})";
+
+static const char* EXT_REGISTER_EXTCOMP = R"({
+  "method": "RegisterSuccess",
+  "version": "1.0",
+  "token": "TOKEN",
+  "environment": {
+    "something": "additional"
+  },
+  "schema": {
+    "type": "Schema",
+    "version": "1.1",
+    "uri": "aplext:hello:10",
+    "components": [
+        {
+            "name": "ExtensionComponent",
+            "properties": {
+                "componentProperty": {
+                    "type": "string",
+                    "default": "myproperty"
+                }
+            }
+        }
+    ]
+  }
+})";
+
+TEST_F(ExtensionClientTest, ComponentRequestWithSuccessResponse) {
+    createConfigAndClient(EXT_DOC_EXTCOMP);
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_EXTCOMP));
+    ASSERT_FALSE(ConsoleMessage());
+
+    initializeContext();
+
+    ASSERT_EQ(component->getType(), kComponentTypeExtension);
+
+    auto extensionComponent = std::dynamic_pointer_cast<ExtensionComponent>(component);
+    auto componentRequest = client->createComponentChange(doc.GetAllocator(), *extensionComponent);
+
+    ASSERT_TRUE(std::string("1.0").compare(componentRequest["version"].GetString()) <= 0);
+    ASSERT_STREQ("Component", componentRequest["method"].GetString());
+    ASSERT_STREQ("TOKEN", componentRequest["token"].GetString());
+    ASSERT_STREQ(extensionComponent->getUri().c_str(), componentRequest["target"].GetString());
+    std::string resId = componentRequest["resourceId"].GetString();
+    ASSERT_STREQ("Pending", componentRequest["state"].GetString());
+    ASSERT_EQ(extensionComponent->getResourceID(), resId);
+    ASSERT_EQ(0, resId.rfind("aplext:hello:10-", 0));
+    ASSERT_EQ(35, resId.length()-strlen("aplext:hello:10-"));
+
+    ASSERT_EQ(extensionComponent->getCalculated(kPropertyResourceState).asInt(), kResourcePending);
+    ASSERT_TRUE(componentRequest.HasMember("payload"));
+    ASSERT_TRUE(componentRequest.HasMember("viewport"));
+
+    std::string componentResponse = EXT_COMPONENT_SUCCESS_HEADER;
+    componentResponse += R"("resourceId": ")" + extensionComponent->getResourceID() + R"(" })";
+
+    ASSERT_TRUE(client->processMessage(root, componentResponse));
+    // TODO should verify prop updates from component
+}
+
+/**
+ * Verify we get a console message when the client URI and extension component URI don't match
+ */
+TEST_F(ExtensionClientTest, ComponentRequestOnWrongClient) {
+    createConfigAndClient(EXT_DOC_EXTCOMP);
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_EXTCOMP));
+    ASSERT_FALSE(ConsoleMessage());
+
+    initializeContext();
+
+    auto client2 = createClient("aplext:hello2:10");
+
+    ASSERT_EQ(component->getType(), kComponentTypeExtension);
+
+    auto extensionComponent = std::dynamic_pointer_cast<ExtensionComponent>(component);
+    auto componentRequest = client2->createComponentChange(doc.GetAllocator(), *extensionComponent);
+    ASSERT_TRUE(ConsoleMessage());
+    ASSERT_EQ(rapidjson::Value(rapidjson::kNullType), componentRequest);
+}
+
+TEST_F(ExtensionClientTest, ComponentRequestWithSuccessResponseButInvalidID) {
+    createConfigAndClient(EXT_DOC_EXTCOMP);
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_EXTCOMP));
+    ASSERT_FALSE(ConsoleMessage());
+
+    initializeContext();
+
+    ASSERT_EQ(component->getType(), kComponentTypeExtension);
+
+    auto extensionComponent = std::dynamic_pointer_cast<ExtensionComponent>(component);
+    auto componentRequest = client->createComponentChange(doc.GetAllocator(), *extensionComponent);
+
+    ASSERT_TRUE(std::string("1.0").compare(componentRequest["version"].GetString()) <= 0);
+    ASSERT_STREQ("Component", componentRequest["method"].GetString());
+    ASSERT_STREQ("TOKEN", componentRequest["token"].GetString());
+    ASSERT_STREQ(extensionComponent->getUri().c_str(), componentRequest["target"].GetString());
+    ASSERT_STREQ(extensionComponent->getResourceID().c_str(), componentRequest["resourceId"].GetString());
+    ASSERT_STREQ("Pending", componentRequest["state"].GetString());
+    ASSERT_EQ(extensionComponent->getCalculated(kPropertyResourceState).asInt(), kResourcePending);
+
+    std::string componentResponse = EXT_COMPONENT_SUCCESS_HEADER;
+    componentResponse += R"("resourceId": "invalidSurfaceId" })";
+
+    ASSERT_TRUE(client->processMessage(root, componentResponse));
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(ExtensionClientTest, ComponentRequestWithFailedResponse) {
+    createConfigAndClient(EXT_DOC_EXTCOMP);
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_EXTCOMP));
+    ASSERT_FALSE(ConsoleMessage());
+
+    initializeContext();
+
+    ASSERT_EQ(component->getType(), kComponentTypeExtension);
+
+    auto extensionComponent = std::dynamic_pointer_cast<ExtensionComponent>(component);
+    auto componentRequest = client->createComponentChange(doc.GetAllocator(), *extensionComponent);
+
+    ASSERT_TRUE(std::string("1.0").compare(componentRequest["version"].GetString()) <= 0);
+    ASSERT_STREQ("Component", componentRequest["method"].GetString());
+    ASSERT_STREQ("TOKEN", componentRequest["token"].GetString());
+    ASSERT_STREQ(extensionComponent->getUri().c_str(), componentRequest["target"].GetString());
+    ASSERT_STREQ(extensionComponent->getResourceID().c_str(), componentRequest["resourceId"].GetString());
+    ASSERT_STREQ("Pending", componentRequest["state"].GetString());
+    ASSERT_EQ(extensionComponent->getCalculated(kPropertyResourceState).asInt(), kResourcePending);
+
+    std::string componentResponse = EXT_COMPONENT_FAILURE_HEADER;
+    componentResponse += R"("resourceId": ")" + extensionComponent->getResourceID() + R"(",)";
+    componentResponse += R"("code": 500,
+                            "message": "Service Not Available" }")";
+
+    ASSERT_TRUE(client->processMessage(root, componentResponse));
+    ASSERT_EQ(extensionComponent->getCalculated(kPropertyResourceState).asInt(), kResourceError);
+}
+
+TEST_F(ExtensionClientTest, ComponentRelease) {
+    createConfigAndClient(EXT_DOC_EXTCOMP);
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_EXTCOMP));
+    ASSERT_FALSE(ConsoleMessage());
+
+    initializeContext();
+
+    ASSERT_EQ(component->getType(), kComponentTypeExtension);
+
+    auto extensionComponent = std::dynamic_pointer_cast<ExtensionComponent>(component);
+    extensionComponent->updateResourceState(kResourceReleased);
+    auto componentRelease = client->createComponentChange(doc.GetAllocator(), *extensionComponent);
+
+    ASSERT_TRUE(std::string("1.0").compare(componentRelease["version"].GetString()) <= 0);
+    ASSERT_STREQ("Component", componentRelease["method"].GetString());
+    ASSERT_STREQ("TOKEN", componentRelease["token"].GetString());
+    ASSERT_STREQ(extensionComponent->getUri().c_str(), componentRelease["target"].GetString());
+    ASSERT_STREQ(extensionComponent->getResourceID().c_str(),
+                 componentRelease["resourceId"].GetString());
+    ASSERT_STREQ("Released", componentRelease["state"].GetString());
+    ASSERT_EQ(extensionComponent->getCalculated(kPropertyResourceState).asInt(), kResourceReleased);
+}
+
+static const char* EXT_DOC_EXTCOMP_EXTENDED = R"({
+  "type": "APL",
+  "version": "1.7",
+  "extensions": [
+    {
+      "uri": "aplext:hello:10",
+      "name": "Draw"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "AlexaButton",
+          "width": "100%",
+          "height": "100%",
+          "onPress": [
+            {
+              "type": "Draw:Clear",
+              "componentId": "DrawArea"
+            }
+          ],
+          "item": {
+            "type": "Draw:Canvas",
+            "id": "DrawArea",
+            "width": "100%",
+            "height": "100%",
+            "backgroundColor": "red",
+            "OnCanvasUpdated": {
+              "type": "SetValue",
+              "componentId": "AlexaButton",
+              "property": "shadowColor",
+              "value": "blue"
+            },
+            "onFatalError": [
+              {
+                "type": "SetValue",
+                "componentId": "AlexaButton",
+                "property": "shadowColor",
+                "value": "black"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+})";
+
+static const char* EXT_DOC_EXTCOMP_SETPROPERTY = R"({
+  "type": "APL",
+  "version": "1.7",
+  "extensions": [
+    {
+      "uri": "aplext:hello:10",
+      "name": "Draw"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "AlexaButton",
+          "width": "100%",
+          "height": "100%",
+          "onPress": [
+            {
+              "type": "SetValue",
+              "componentId": "DrawArea",
+              "property": "canvasColor",
+              "value": "superlative"
+            }
+          ],
+          "item": {
+            "type": "Draw:Canvas",
+            "id": "DrawArea"
+          }
+        }
+      ]
+    }
+  }
+})";
+
+static const char* EXT_DOC_EXTCOMP_SET_INVALID_PROPERTY = R"({
+  "type": "APL",
+  "version": "1.7",
+  "extensions": [
+    {
+      "uri": "aplext:hello:10",
+      "name": "Draw"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "AlexaButton",
+          "width": "100%",
+          "height": "100%",
+          "onPress": [
+            {
+              "type": "SetValue",
+              "componentId": "DrawArea",
+              "property": "invalidProperty",
+              "value": "superlative"
+            }
+          ],
+          "item": {
+            "type": "Draw:Canvas",
+            "id": "DrawArea"
+          }
+        }
+      ]
+    }
+  }
+})";
+
+static const char* EXT_REGISTER_EXTCOMP_EXTENDED = R"({
+  "method": "RegisterSuccess",
+  "version": "1.0",
+  "token": "TOKEN",
+  "environment": {
+    "something": "additional"
+  },
+  "schema": {
+    "type": "Schema",
+    "version": "1.1",
+    "uri": "aplext:hello:10",
+    "components": [
+      {
+        "name": "Canvas",
+        "properties": {
+          "canvasColor": "string"
+        },
+        "commands": [
+          {
+            "name": "Clear",
+            "allowFastMode": "true"
+          }
+        ],
+        "events": [
+          {
+            "name": "OnCanvasUpdated"
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+static const char* EXT_COMPONENT_EVENT_HEADER = R"({
+    "version": "1.0",
+    "method": "Event",
+    "target": "aplext:hello:10",
+    "name": "OnCanvasUpdated",)";
+
+static const char* EXT_COMPONENT_EVENT_PAYLOAD = R"(
+    "payload": {
+        "extensionData": "some data"
+    }
+)";
+
+TEST_F(ExtensionClientTest, ExtensionComponentCommandAndEvent) {
+    createConfigAndClient(EXT_DOC_EXTCOMP_EXTENDED);
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_EXTCOMP_EXTENDED));
+    ASSERT_FALSE(ConsoleMessage());
+
+    initializeContext();
+    ASSERT_EQ(component->getType(), kComponentTypeContainer);
+
+    auto touchwrapper = component->findComponentById("AlexaButton");
+    ASSERT_EQ(touchwrapper->getType(), kComponentTypeTouchWrapper);
+
+    // Perform a touch to trigger an extension Component command.
+    performTap(100,100);
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+
+    ASSERT_EQ(event.getType(), kEventTypeExtension);
+    auto extensionComponent = component->findComponentById("DrawArea");
+    ASSERT_EQ(extensionComponent->getType(), kComponentTypeExtension);
+
+    auto extnComp = std::dynamic_pointer_cast<ExtensionComponent>(extensionComponent);
+    ASSERT_NE(extnComp, nullptr);
+
+    // Runtime needs to redirect this events to the server.
+    auto processedCommand = client->processCommand(doc.GetAllocator(), event);
+    ASSERT_STREQ("Command", processedCommand["method"].GetString());
+    ASSERT_STREQ("Clear", processedCommand["name"].GetString());
+    ASSERT_STREQ(extnComp->getResourceID().c_str(), processedCommand["resourceId"].GetString());
+
+    std::string extensionEvent = EXT_COMPONENT_EVENT_HEADER;
+    extensionEvent += R"("resourceId": ")" + extnComp->getResourceID() + R"(",)"
+                      + EXT_COMPONENT_EVENT_PAYLOAD + R"(})";
+
+    ASSERT_TRUE(client->processMessage(root, extensionEvent));
+    ASSERT_TRUE(CheckDirty(touchwrapper, kPropertyShadowColor, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(root, touchwrapper));
+    ASSERT_EQ(touchwrapper->getCalculated(kPropertyShadowColor).asColor().get(), Color::ColorConstants::BLUE);
+}
+
+TEST_F(ExtensionClientTest, ExtensionComponentProperty) {
+    createConfigAndClient(EXT_DOC_EXTCOMP_SETPROPERTY);
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_EXTCOMP_EXTENDED));
+    ASSERT_FALSE(ConsoleMessage());
+
+    initializeContext();
+
+    auto extensionComponent = component->findComponentById("DrawArea");
+    ASSERT_EQ(extensionComponent->getType(), kComponentTypeExtension);
+
+    // Perform a touch to trigger a change in extension property
+    performTap(1,1);
+
+    auto extnComp = std::dynamic_pointer_cast<ExtensionComponent>(extensionComponent);
+    extensionComponent->updateResourceState(kResourceReady);
+    ASSERT_NE(extnComp, nullptr);
+
+    // A dirty property in the extension component should trigger a componentUpdate
+    auto componentUpdate = client->createComponentChange(doc.GetAllocator(), *extnComp);
+    ASSERT_TRUE(componentUpdate.HasMember("payload"));
+
+    ASSERT_TRUE(std::string("1.0").compare(componentUpdate["version"].GetString()) <= 0);
+    ASSERT_STREQ("Component", componentUpdate["method"].GetString());
+    ASSERT_STREQ("TOKEN", componentUpdate["token"].GetString());
+    ASSERT_STREQ(extnComp->getUri().c_str(), componentUpdate["target"].GetString());
+    ASSERT_STREQ(extnComp->getResourceID().c_str(), componentUpdate["resourceId"].GetString());
+    ASSERT_STREQ("Ready", componentUpdate["state"].GetString());
+
+    auto payload = componentUpdate["payload"].GetObject();
+    ASSERT_STREQ(payload["canvasColor"].GetString(), "superlative");
+
+    // Changing custom extension component properties doesn't set the component as dirty
+    ASSERT_TRUE(CheckDirty(root, extensionComponent));
+}
+
+TEST_F(ExtensionClientTest, ExtensionComponentKPropOutProperty) {
+    createConfigAndClient(EXT_DOC_EXTCOMP_SETPROPERTY);
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_EXTCOMP_EXTENDED));
+    ASSERT_FALSE(ConsoleMessage());
+
+    initializeContext();
+
+    auto alexaButton = component->findComponentById("AlexaButton");
+    auto extensionComponent = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("DrawArea"));
+    ASSERT_EQ(extensionComponent->getType(), kComponentTypeExtension);
+
+    extensionComponent->setProperty(kPropertyDisplay, "none");
+    extensionComponent->updateResourceState(kResourceReady);
+
+    auto extnComp = dynamic_cast<ExtensionComponent*>(extensionComponent.get());
+    ASSERT_NE(extnComp, nullptr);
+
+    // A dirty property in the extension component should trigger a componentUpdate
+    auto componentUpdate = client->createComponentChange(doc.GetAllocator(), *extnComp);
+
+    ASSERT_TRUE(componentUpdate.HasMember("payload"));
+
+    // Check to make sure the component is dirty
+    ASSERT_TRUE(CheckDirty(root, extensionComponent, alexaButton));
+
+    ASSERT_TRUE(std::string("1.0").compare(componentUpdate["version"].GetString()) <= 0);
+    ASSERT_STREQ("Component", componentUpdate["method"].GetString());
+    ASSERT_STREQ("TOKEN", componentUpdate["token"].GetString());
+    ASSERT_STREQ(extnComp->getUri().c_str(), componentUpdate["target"].GetString());
+    ASSERT_STREQ(extnComp->getResourceID().c_str(), componentUpdate["resourceId"].GetString());
+    ASSERT_STREQ("Ready", componentUpdate["state"].GetString());
+
+    auto payload = componentUpdate["payload"].GetObject();
+    for (auto itr = payload.MemberBegin(); itr != payload.MemberEnd(); ++itr)
+    {
+        printf("Type of member %s is %s\n",
+               itr->name.GetString(), "...");
+    }
+    ASSERT_EQ(payload["display"].GetDouble(), 2);
+}
+
+TEST_F(ExtensionClientTest, ExtensionComponentInvalidProperty) {
+    createConfigAndClient(EXT_DOC_EXTCOMP_SET_INVALID_PROPERTY);
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_EXTCOMP_EXTENDED));
+    ASSERT_FALSE(ConsoleMessage());
+
+    initializeContext();
+
+    auto extensionComponent = component->findComponentById("DrawArea");
+    ASSERT_EQ(extensionComponent->getType(), kComponentTypeExtension);
+
+    // Perform a touch to trigger a change in extension property
+    performTap(1, 1);
+    // The component would not be marked dirty.
+    ASSERT_EQ(root->getDirty().size(), 0);
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(ExtensionClientTest, ExtensionComponentInvalidEventHandlerInvoke) {
+    createConfigAndClient(EXT_DOC_EXTCOMP);
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_EXTCOMP));
+    ASSERT_FALSE(ConsoleMessage());
+
+    initializeContext();
+
+    ASSERT_EQ(component->getType(), kComponentTypeExtension);
+
+    auto extnComp = std::dynamic_pointer_cast<ExtensionComponent>(component);
+    ASSERT_NE(extnComp, nullptr);
+
+    std::string extensionEvent = EXT_COMPONENT_EVENT_HEADER;
+    extensionEvent += R"("resourceId": ")" + extnComp->getResourceID() + R"(" })";
+
+    // This tries to invoke an extension event handler which is not present
+    ASSERT_FALSE(client->processMessage(root, extensionEvent));
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(ExtensionClientTest, ExtensionComponentInvalidComponentInvoke) {
+    createConfigAndClient(EXT_DOC_EXTCOMP_EXTENDED);
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_EXTCOMP_EXTENDED));
+    ASSERT_FALSE(ConsoleMessage());
+
+    initializeContext();
+
+    auto extensionComponent = component->findComponentById("DrawArea");
+    ASSERT_EQ(extensionComponent->getType(), kComponentTypeExtension);
+
+    auto extnComp = std::dynamic_pointer_cast<ExtensionComponent>(extensionComponent);
+    ASSERT_NE(extnComp, nullptr);
+
+    std::string extensionEvent = EXT_COMPONENT_EVENT_HEADER;
+    extensionEvent += R"("resourceId": "invalidcomponent"})";
+
+    // This tries to invoke an extension event handler which is not present
+    ASSERT_TRUE(client->processMessage(root, extensionEvent));
+}
+
+TEST_F(ExtensionClientTest, ExtensionClientDisconnection) {
+    createConfigAndClient(EXT_DOC_EXTCOMP_EXTENDED);
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_EXTCOMP_EXTENDED));
+    ASSERT_FALSE(ConsoleMessage());
+
+    initializeContext();
+
+    auto extensionComponent = component->findComponentById("DrawArea");
+    ASSERT_EQ(extensionComponent->getType(), kComponentTypeExtension);
+
+    auto extnComp = std::dynamic_pointer_cast<ExtensionComponent>(extensionComponent);
+    ASSERT_NE(extnComp, nullptr);
+
+    ASSERT_TRUE(client->handleDisconnection(root, 500, "Service not available"));
+    ASSERT_EQ(extnComp->getCalculated(kPropertyResourceState).asInt(), kResourceError);
+
+    auto alexaButton = component->findComponentById("AlexaButton");
+    ASSERT_EQ(alexaButton->getType(), kComponentTypeTouchWrapper);
+    // Verifies that onFatalError was called.
+    ASSERT_EQ(alexaButton->getCalculated(kPropertyShadowColor).asColor().get(), Color::ColorConstants::BLACK);
+}
+
+static const char* EXT_DOC_EXTCOMP_INVALID_COMPONENT_ID = R"({
+  "type": "APL",
+  "version": "1.7",
+  "extensions": [
+    {
+      "uri": "aplext:hello:10",
+      "name": "Draw"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "AlexaButton",
+          "width": "100%",
+          "height": "100%",
+          "onPress": [
+            {
+              "type": "Draw:Clear",
+              "componentId": "AlexaButton"
+            }
+          ],
+          "item": {
+            "type": "Draw:Canvas",
+            "id": "DrawArea",
+            "width": "100%",
+            "height": "100%",
+            "backgroundColor": "red",
+            "OnCanvasUpdated": {
+              "type": "SetValue",
+              "componentId": "AlexaButton",
+              "property": "shadowColor",
+              "value": "blue"
+            },
+            "onFatalError": [
+              {
+                "type": "SetValue",
+                "componentId": "AlexaButton",
+                "property": "shadowColor",
+                "value": "black"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(ExtensionClientTest, ExtensionComponentCommandInvalidComponentId) {
+    createConfigAndClient(EXT_DOC_EXTCOMP_INVALID_COMPONENT_ID);
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_EXTCOMP_EXTENDED));
+    ASSERT_FALSE(ConsoleMessage());
+
+    initializeContext();
+    ASSERT_EQ(component->getType(), kComponentTypeContainer);
+
+    auto touchwrapper = component->findComponentById("AlexaButton");
+    ASSERT_EQ(touchwrapper->getType(), kComponentTypeTouchWrapper);
+
+    // Perform a touch to trigger an extension Component command.
+    performTap(100,100);
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+
+    // Runtime needs to redirect this events to the server.
+    auto processedCommand = client->processCommand(doc.GetAllocator(), event);
+    ASSERT_FALSE(processedCommand.HasMember("resourceId"));
+}
+
+static const char* LIVE_ARRAY_EXT_DOC = R"({
+  "type": "APL",
+  "version": "1.8",
+  "extension": {
+    "uri": "aplext:hello:10",
+    "name": "Hello"
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Text",
+      "id": "root",
+      "width": 500,
+      "height": 500,
+      "text": "${stringList.length}"
+    }
+  }
+})";
+
+static const char* LIVE_ARRAY_EXT_REGISTER_SUCCESS = R"({
+  "method": "RegisterSuccess",
+  "version": "1.0",
+  "token": "TOKEN",
+  "schema": {
+    "type": "Schema",
+    "version": "1.0",
+    "uri": "aplext:hello:10",
+    "liveData": [
+      {
+        "name": "stringList",
+        "type": "string[]"
+      }
+    ]
+  }
+})";
+
+static const char* LIVE_ARRAY_WRONG_EXT_REGISTER_SUCCESS = R"({
+  "method": "RegisterSuccess",
+  "version": "1.0",
+  "token": "TOKEN",
+  "schema": {
+    "type": "Schema",
+    "version": "1.0",
+    "uri": "aplext:hello:10",
+    "liveData": [
+      {
+        "name": "stringList",
+        "type": "Potato[]"
+      }
+    ]
+  }
+})";
+
+static const char* STRING_LIST_INSERT = R"({
+  "version": "1.0",
+  "method": "LiveDataUpdate",
+  "name": "stringList",
+  "target": "aplext:hello:10",
+  "operations": [
+    {
+      "type": "Insert",
+      "index": 0,
+      "item": "new"
+    },
+    {
+      "type": "Insert",
+      "index": 0,
+      "item": "moreNew"
+    }
+  ]
+})";
+
+TEST_F(ExtensionClientTest, PrimitiveLiveArray) {
+    createConfigAndClient(LIVE_ARRAY_EXT_DOC);
+
+    // Check what document wants.
+    auto extRequests = content->getExtensionRequests();
+    ASSERT_EQ(1, extRequests.size());
+    auto extRequest = *extRequests.begin();
+    ASSERT_EQ("aplext:hello:10", extRequest);
+
+    // Pass request and settings to connection request creation.
+    auto connectionRequest = client->createRegistrationRequest(doc.GetAllocator(), *content);
+    ASSERT_STREQ("aplext:hello:10", connectionRequest["uri"].GetString());
+
+    // We assume that connection request will return Schema affected with passed settings and will contain all rules
+    // required including liveData updates. We don't really need to verify this settings per se.
+
+    // Runtime asked for connection. Process Schema message
+    ASSERT_TRUE(client->processMessage(nullptr, LIVE_ARRAY_EXT_REGISTER_SUCCESS));
+    ASSERT_FALSE(ConsoleMessage());
+
+    // We have all we need. Inflate.
+    initializeContext();
+
+    auto text = component->findComponentById("root");
+    ASSERT_EQ(kComponentTypeText, text->getType());
+    ASSERT_EQ("0", text->getCalculated(kPropertyText).asString());
+
+    // Live data updates
+    ASSERT_TRUE(client->processMessage(root, STRING_LIST_INSERT));
+    root->clearPending();
+    ASSERT_EQ("2", text->getCalculated(kPropertyText).asString());
+}
+
+TEST_F(ExtensionClientTest, WrongLiveArray) {
+    createConfigAndClient(LIVE_ARRAY_EXT_DOC);
+
+    // Check what document wants.
+    auto extRequests = content->getExtensionRequests();
+    ASSERT_EQ(1, extRequests.size());
+    auto extRequest = *extRequests.begin();
+    ASSERT_EQ("aplext:hello:10", extRequest);
+
+    // Pass request and settings to connection request creation.
+    auto connectionRequest = client->createRegistrationRequest(doc.GetAllocator(), *content);
+    ASSERT_STREQ("aplext:hello:10", connectionRequest["uri"].GetString());
+
+    // We assume that connection request will return Schema affected with passed settings and will contain all rules
+    // required including liveData updates. We don't really need to verify this settings per se.
+
+    // Runtime asked for connection. Process Schema message
+    ASSERT_TRUE(client->processMessage(nullptr, LIVE_ARRAY_WRONG_EXT_REGISTER_SUCCESS));
+    ASSERT_TRUE(ConsoleMessage());
+
+    // We have all we need. Inflate.
+    initializeContext();
+
+    auto text = component->findComponentById("root");
+    ASSERT_EQ(kComponentTypeText, text->getType());
+    ASSERT_EQ("", text->getCalculated(kPropertyText).asString());
 }

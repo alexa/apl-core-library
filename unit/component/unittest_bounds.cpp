@@ -27,39 +27,26 @@ using namespace apl;
 
 class BoundsTest : public DocumentWrapper {};
 
-static const char *SCROLL_VIEW =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": [],"
-    "    \"item\": {"
-    "      \"type\": \"ScrollView\","
-    "      \"width\": \"100vw\","
-    "      \"height\": \"100vh\","
-    "      \"items\": {"
-    "        \"type\": \"Container\","
-    "        \"items\": {"
-    "          \"type\": \"Frame\","
-    "          \"width\": 200,"
-    "          \"height\": 200"
-    "        },"
-    "        \"data\": ["
-    "          1,"
-    "          2,"
-    "          3,"
-    "          4,"
-    "          5,"
-    "          6,"
-    "          7,"
-    "          8,"
-    "          9,"
-    "          10"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *SCROLL_VIEW = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "ScrollView",
+      "width": "100vw",
+      "height": "100vh",
+      "items": {
+        "type": "Container",
+        "items": {
+          "type": "Frame",
+          "width": 200,
+          "height": 200
+        },
+        "data": [1,2,3,4,5,6,7,8,9,10]
+      }
+    }
+  }
+})";
 
 TEST_F(BoundsTest, ScrollView)
 {
@@ -96,32 +83,24 @@ TEST_F(BoundsTest, ScrollView)
     }
 }
 
-static const char *VERTICAL_SEQUENCE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": [],"
-    "    \"item\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"vertical\","
-    "      \"width\": 200,"
-    "      \"height\": 500,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"width\": 200,"
-    "        \"height\": 200"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *VERTICAL_SEQUENCE = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "scrollDirection": "vertical",
+      "width": 200,
+      "height": 500,
+      "items": {
+        "type": "Frame",
+        "width": 200,
+        "height": 200
+      },
+      "data": [1,2,3,4,5]
+    }
+  }
+})";
 
 TEST_F(BoundsTest, VerticalSequence)
 {
@@ -162,32 +141,24 @@ TEST_F(BoundsTest, VerticalSequence)
     ASSERT_EQ(500, component->getCalculated(kPropertyScrollPosition).asNumber());
 }
 
-static const char *HORIZONTAL_SEQUENCE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": [],"
-    "    \"item\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"horizontal\","
-    "      \"width\": 500,"
-    "      \"height\": 200,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"width\": 200,"
-    "        \"height\": 200"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *HORIZONTAL_SEQUENCE = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "scrollDirection": "horizontal",
+      "width": 500,
+      "height": 200,
+      "items": {
+        "type": "Frame",
+        "width": 200,
+        "height": 200
+      },
+      "data": [1,2,3,4,5]
+    }
+  }
+})";
 
 TEST_F(BoundsTest, HorizontalSequence)
 {
@@ -268,70 +239,68 @@ TEST_F(BoundsTest, HorizontalSequenceRTL)
     ASSERT_EQ(-500, component->getCalculated(kPropertyScrollPosition).asNumber());
 }
 
-static const char *CHILD_IN_PARENT =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": [],"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"width\": \"100%\","
-    "      \"height\": \"100%\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"width\": \"100%\","
-    "          \"height\": \"150dp\","
-    "          \"text\": \"Title goes here\""
-    "        },"
-    "        {"
-    "          \"type\": \"Sequence\","
-    "          \"scrollDirection\": \"vertical\","
-    "          \"width\": \"100%\","
-    "          \"grow\": 1,"
-    "          \"items\": {"
-    "            \"type\": \"Container\","
-    "            \"width\": \"100%\","
-    "            \"direction\": \"row\","
-    "            \"bind\": ["
-    "              {"
-    "                \"name\": \"childIndex\","
-    "                \"value\": \"${index}\""
-    "              }"
-    "            ],"
-    "            \"items\": ["
-    "              {"
-    "                \"type\": \"Text\","
-    "                \"text\": \"${childIndex + 1}\","
-    "                \"width\": \"100dp\","
-    "                \"height\": \"100dp\""
-    "              },"
-    "              {"
-    "                \"type\": \"Text\","
-    "                \"text\": \"${data}\","
-    "                \"grow\": 1,"
-    "                \"width\": \"100dp\","
-    "                \"height\": \"100dp\""
-    "              }"
-    "            ]"
-    "          },"
-    "          \"data\": ["
-    "            \"Frog\","
-    "            \"Puppy\","
-    "            \"Turtle\","
-    "            \"Chili\","
-    "            \"Dandelion\","
-    "            \"Couch\","
-    "            \"Duck\","
-    "            \"Snitch\","
-    "            \"Tweedledum\""
-    "          ]"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *CHILD_IN_PARENT = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "items": [
+        {
+          "type": "Text",
+          "width": "100%",
+          "height": "150dp",
+          "text": "Title goes here"
+        },
+        {
+          "type": "Sequence",
+          "scrollDirection": "vertical",
+          "width": "100%",
+          "grow": 1,
+          "items": {
+            "type": "Container",
+            "width": "100%",
+            "direction": "row",
+            "bind": [
+              {
+                "name": "childIndex",
+                "value": "${index}"
+              }
+            ],
+            "items": [
+              {
+                "type": "Text",
+                "text": "${childIndex + 1}",
+                "width": "100dp",
+                "height": "100dp"
+              },
+              {
+                "type": "Text",
+                "text": "${data}",
+                "grow": 1,
+                "width": "100dp",
+                "height": "100dp"
+              }
+            ]
+          },
+          "data": [
+            "Frog",
+            "Puppy",
+            "Turtle",
+            "Chili",
+            "Dandelion",
+            "Couch",
+            "Duck",
+            "Snitch",
+            "Tweedledum"
+          ]
+        }
+      ]
+    }
+  }
+})";
 
 
 TEST_F(BoundsTest, ChildInParent)
@@ -396,43 +365,43 @@ TEST_F(BoundsTest, ChildInParent)
     ASSERT_EQ(StyledText::create(*context, "Turtle"), sequence->getChildAt(2)->getChildAt(1)->getCalculated(kPropertyText));
 }
 
-static const char *NESTED_CHILD = "{"
-                                  "  \"type\": \"APL\","
-                                  "  \"version\": \"1.1\","
-                                  "  \"mainTemplate\": {"
-                                  "    \"item\": {"
-                                  "      \"type\": \"Container\","
-                                  "      \"id\": \"ctr\","
-                                  "      \"width\": \"1000dp\","
-                                  "      \"height\": \"500dp\","
-                                  "      \"items\": ["
-                                  "        {"
-                                  "          \"type\": \"Text\","
-                                  "          \"id\": \"text1\","
-                                  "          \"height\": \"100dp\","
-                                  "          \"width\": \"100dp\","
-                                  "          \"text\": \"Background.\""
-                                  "        },"
-                                  "        {"
-                                  "          \"type\": \"Container\","
-                                  "          \"id\": \"ctr2\","
-                                  "          \"height\": \"100dp\","
-                                  "          \"width\": \"100dp\","
-                                  "          \"items\":"
-                                  "          ["
-                                  "            {"
-                                  "              \"type\": \"Text\","
-                                  "              \"id\": \"text2\","
-                                  "              \"height\": \"50dp\","
-                                  "              \"width\": \"50dp\","
-                                  "              \"text\": \"Foreground.\""
-                                  "            }"
-                                  "          ]"
-                                  "        }"
-                                  "      ]"
-                                  "    }"
-                                  "  }"
-                                  "}";
+static const char *NESTED_CHILD = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "id": "ctr",
+      "width": "1000dp",
+      "height": "500dp",
+      "items": [
+        {
+          "type": "Text",
+          "id": "text1",
+          "height": "100dp",
+          "width": "100dp",
+          "text": "Background."
+        },
+        {
+          "type": "Container",
+          "id": "ctr2",
+          "height": "100dp",
+          "width": "100dp",
+          "items":
+          [
+            {
+              "type": "Text",
+              "id": "text2",
+              "height": "50dp",
+              "width": "50dp",
+              "text": "Foreground."
+            }
+          ]
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(BoundsTest, NestedChild)
 {
@@ -457,52 +426,52 @@ TEST_F(BoundsTest, NestedChild)
 
 
 
-static const char *ABSOLUTE_POSITIONING = "{"
-                                          "  \"type\": \"APL\","
-                                          "  \"version\": \"1.1\","
-                                          "  \"mainTemplate\": {"
-                                          "    \"item\": {"
-                                          "      \"type\": \"Container\","
-                                          "      \"id\": \"ctr\","
-                                          "      \"width\": \"1000dp\","
-                                          "      \"height\": \"500dp\","
-                                          "      \"items\": ["
-                                          "        {"
-                                          "          \"type\": \"Text\","
-                                          "          \"id\": \"text1\","
-                                          "          \"height\": \"100dp\","
-                                          "          \"width\": \"100dp\","
-                                          "          \"position\": \"absolute\","
-                                          "          \"left\": \"100dp\","
-                                          "          \"top\": \"100dp\","
-                                          "          \"text\": \"Background.\""
-                                          "        },"
-                                          "        {"
-                                          "          \"type\": \"Container\","
-                                          "          \"id\": \"ctr2\","
-                                          "          \"height\": \"100dp\","
-                                          "          \"width\": \"100dp\","
-                                          "          \"position\": \"absolute\","
-                                          "          \"right\": \"100dp\","
-                                          "          \"bottom\": \"100dp\","
-                                          "          \"items\":"
-                                          "          ["
-                                          "            {"
-                                          "              \"type\": \"Text\","
-                                          "              \"id\": \"text2\","
-                                          "              \"height\": \"50dp\","
-                                          "              \"width\": \"50dp\","
-                                          "              \"position\": \"absolute\","
-                                          "              \"left\": \"10dp\","
-                                          "              \"bottom\": \"10dp\","
-                                          "              \"text\": \"Foreground.\""
-                                          "            }"
-                                          "          ]"
-                                          "        }"
-                                          "      ]"
-                                          "    }"
-                                          "  }"
-                                          "}";
+static const char *ABSOLUTE_POSITIONING = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "id": "ctr",
+      "width": "1000dp",
+      "height": "500dp",
+      "items": [
+        {
+          "type": "Text",
+          "id": "text1",
+          "height": "100dp",
+          "width": "100dp",
+          "position": "absolute",
+          "left": "100dp",
+          "top": "100dp",
+          "text": "Background."
+        },
+        {
+          "type": "Container",
+          "id": "ctr2",
+          "height": "100dp",
+          "width": "100dp",
+          "position": "absolute",
+          "right": "100dp",
+          "bottom": "100dp",
+          "items":
+          [
+            {
+              "type": "Text",
+              "id": "text2",
+              "height": "50dp",
+              "width": "50dp",
+              "position": "absolute",
+              "left": "10dp",
+              "bottom": "10dp",
+              "text": "Foreground."
+            }
+          ]
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(BoundsTest, AbsolutePositioning)
 {

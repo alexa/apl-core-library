@@ -471,7 +471,7 @@ TEST_F(FrameComponentTest, BordersStyle)
     component->setState(kStatePressed, true);
 
     // We should get four dirty properties: the four corners
-    ASSERT_TRUE(CheckDirty(component, kPropertyBorderRadii));
+    ASSERT_TRUE(CheckDirty(component, kPropertyBorderRadii, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 
     // Check the assignments.  The main border radius should go to 100.
@@ -492,7 +492,7 @@ TEST_F(FrameComponentTest, BordersStyle)
     component->setState(kStateKaraoke, true);
 
     // We should get four dirty properties: the four corners
-    ASSERT_TRUE(CheckDirty(component, kPropertyBorderRadii));
+    ASSERT_TRUE(CheckDirty(component, kPropertyBorderRadii, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 
     // Check the assignments.  The main border radius should still be 100.

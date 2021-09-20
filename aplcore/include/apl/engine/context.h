@@ -31,8 +31,10 @@
 #include "apl/engine/recalculatetarget.h"
 #include "apl/engine/styleinstance.h"
 #include "apl/primitives/object.h"
+#include "apl/primitives/textmeasurerequest.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/localemethods.h"
+#include "apl/utils/lrucache.h"
 #include "apl/utils/noncopyable.h"
 #include "apl/utils/path.h"
 
@@ -53,7 +55,6 @@ class KeyboardManager;
 class LiveDataManager;
 class ExtensionManager;
 class LayoutManager;
-class MediaManager;
 
 using DataSourceConnectionPtr = std::shared_ptr<DataSourceConnection>;
 
@@ -549,11 +550,25 @@ public:
     void setDirtyDataSourceContext(const DataSourceConnectionPtr& ptr);
 
     /**
+     * @return internal text measurement cache.
+     */
+    LruCache<TextMeasureRequest, YGSize>& cachedMeasures();
+
+    /**
+     * @return internal text measurement baseline cache.
+     */
+    LruCache<TextMeasureRequest, float>& cachedBaselines();
+
+    /**
      * @return List of pending onMount handlers for recently inflated components.
      */
     WeakPtrSet<CoreComponent>& pendingOnMounts();
 
     void pushEvent(Event&& event);
+
+#ifdef ALEXAEXTENSIONS
+    void pushExtensionEvent(Event&& event);
+#endif
 
     Sequencer& sequencer() const;
     FocusManager& focusManager() const;
@@ -564,6 +579,7 @@ public:
     ExtensionManager& extensionManager() const;
     LayoutManager& layoutManager() const;
     MediaManager& mediaManager() const;
+    MediaPlayerFactory& mediaPlayerFactory() const;
 
     std::shared_ptr<Styles> styles() const;
 

@@ -247,7 +247,7 @@ TEST_F(DependantGraphicTest, ManyBindings)
     ASSERT_TRUE(IsEqual(Color(0xee0000ff), path->getValue(kGraphicPropertyFill)));
     ASSERT_TRUE(CheckDirty(path, kGraphicPropertyFill));
     ASSERT_TRUE(CheckDirty(graphic, path));
-    ASSERT_TRUE(CheckDirty(vg, kPropertyGraphic));
+    ASSERT_TRUE(CheckDirty(vg, kPropertyGraphic, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, vg));
 
     // Change CompanyRed.  This will disconnect from HappyRed
@@ -258,7 +258,7 @@ TEST_F(DependantGraphicTest, ManyBindings)
     ASSERT_TRUE(IsEqual(Color(0xdd0000ff), path->getValue(kGraphicPropertyFill)));
     ASSERT_TRUE(CheckDirty(path, kGraphicPropertyFill));
     ASSERT_TRUE(CheckDirty(graphic, path));
-    ASSERT_TRUE(CheckDirty(vg, kPropertyGraphic));
+    ASSERT_TRUE(CheckDirty(vg, kPropertyGraphic, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, vg));
 
     // HappyRed is no longer attached.

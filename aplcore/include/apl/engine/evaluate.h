@@ -92,6 +92,7 @@ Object reevaluate(const Context& context, const Object& equation);
 Object evaluateRecursive(const Context& context, const Object& object);
 
 std::string propertyAsString(const Context& context, const Object& object, const char *name);
+std::string propertyAsString(const Context& context, const Object& object, const char *name, const std::string& defValue);
 bool propertyAsBoolean(const Context& context, const Object& object, const char *name, bool defValue);
 double propertyAsDouble(const Context& context, const Object& object, const char *name, double defValue);
 int propertyAsInt(const Context& context, const Object& object, const char *name, int defValue);

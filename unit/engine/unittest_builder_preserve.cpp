@@ -961,7 +961,7 @@ TEST_F(BuilderPreserveTest, VideoComponentSource)
     executeCommand("SetValue", {{"componentId", "MY_VIDEO"},
                                 {"property", "source"},
                                 {"value", ObjectArray{"FOO1", "FOO2"}}}, true);
-    ASSERT_TRUE(CheckDirty(component, kPropertySource));
+    ASSERT_TRUE(CheckDirty(component, kPropertySource, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
     
     // Reinflate

@@ -81,7 +81,7 @@ TEST_F(BuilderBindTest, LayoutBind)
 
     executeCommand("SetValue", {{"componentId", "TEXTER"}, {"property", "COUNT"}, {"value", 23}}, false);
     ASSERT_TRUE(IsEqual("Spot-23", component->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 }
 
@@ -126,7 +126,7 @@ TEST_F(BuilderBindTest, LayoutBindInnerBind)
     // The inner binding is attached to the component, so it gets hit
     executeCommand("SetValue", {{"componentId", "TEXTER"}, {"property", "COUNT"}, {"value", 23}}, false);
     ASSERT_TRUE(IsEqual("Spot-23", component->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 }
 
@@ -175,7 +175,7 @@ TEST_F(BuilderBindTest, ManyBinds)
     // The inner binding is attached to the component, so it gets hit
     executeCommand("SetValue", {{"componentId", "TEXTER"}, {"property", "COUNT"}, {"value", 23}}, false);
     ASSERT_TRUE(IsEqual("Spot-23", component->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(component, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 }
 

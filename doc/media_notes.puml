@@ -1,0 +1,127 @@
+@startuml
+
+abstract MediaObject #BED2E8 {
+    size() : Size
+    state() : Pending/Ready/Error
+    type() : Bitmap/Video/AVG
+    url() : String
+}
+
+interface MediaComponentTrait {
+    mMediaObjects : MediaObjectPtr[]
+    getSources() : string[]
+    pendingMediaReturned( MediaObjectPtr )
+    mediaType() : Bitmap/Video/AVG
+}
+
+MediaComponentTrait "1" *- "N" MediaObject :  >
+
+abstract MediaManager #BED2E8 {
+    request( URL, type ) : MediaObjectPtr
+    makePlayer() : MediaPlayerPtr
+}
+
+MediaComponentTrait <|- VectorGraphicComponent
+MediaComponentTrait <|-- ImageComponent
+MediaComponentTrait <|-- VideoComponent
+
+object MediaObjectFilter #F8B395 {
+    mediaObject : MediaObjectPtr
+}
+
+MediaObjectFilter "1" *-- "1" MediaObject :  >
+
+object MediaSource {
+    object : MediaObjectPtr
+    url : string
+    description : string
+    duration : int
+    repeatCount : int
+    entities : Object
+    offset : int
+}
+
+MediaSource *-- MediaObject : >
+
+abstract MediaPlayer #BED2E8 {
+    tracks : MediaTrack[]
+    setTracks( MediaTrack[] )
+    controlMedia( CommandControlMedia )
+    playMedia( foreground/background/mute, Source )
+    hasEvents() : bool
+    popEvent() : Event
+    release()
+}
+
+note right of MediaPlayer
+    Changes here must be thread-safe.
+    setTracks can be called by Core
+    controlMedia/playMedia are connected
+    to Events.  The "Callback" object is
+    used to queue up changes in core.
+end note
+
+object MediaTrack #BED2E8 {
+    object : MediaObject
+    duration : int
+    repeatCount : int
+    offset : int
+}
+
+MediaPlayer "1" *-- "N" MediaTrack : >
+MediaTrack "1" *-- "1" MediaObject : >
+
+
+MediaManager ..> MediaObject
+MediaManager ..> MediaPlayer
+
+
+object VideoNode #F8B395 {
+    player : MediaPlayerPtr
+    bounds : Rect
+    align : top/left/etc.
+    scale : none/fit/fill/etc.
+}
+
+VideoNode "1" *-- "1" MediaPlayer : >
+
+
+class ImageComponent
+class VectorGraphicComponent
+class VideoComponent {
+    sources : MediaSource[]
+    player : MediaPlayerPtr
+}
+
+VideoComponent "1" *-- "N" MediaSource : >
+VideoComponent "1" *-- "1" MediaPlayer : >
+VideoComponent ..> VideoNode
+ImageComponent ..> MediaObjectFilter
+
+
+class ViewHostMediaManager #A5CC7E
+note right: Installed by RootConfig
+ViewHostMediaManager --|> MediaManager
+'MediaManager <|-- ViewHostMediaManager
+
+class ViewHostMediaObject #A5CC7E
+note right of ViewHostMediaObject
+  Concrete implementation provided
+  by the view host. This references
+  the actual bitmap data.
+end note
+
+MediaObject <|-- ViewHostMediaObject
+
+class ViewHostMediaPlayer #A5CC7E
+note right of ViewHostMediaPlayer
+  Concrete implementation provided
+  by the view host.  This references the
+  OS resources for playing video.
+end note
+
+MediaPlayer <|-- ViewHostMediaPlayer
+
+hide empty members
+
+@enduml

@@ -19,16 +19,17 @@ project(Extensions
         CXX C)
 
 option(WERROR "Build with -Werror enabled." OFF)
-option(BUILD_UNIT_TESTS "Build unit tests" ON)
+option(BUILD_UNIT_TESTS "Build unit tests" OFF)
 
 if (WERROR)
-    message("Paranoid build (-Werror) enabled.")
+    message("alexaext - Paranoid build (-Werror) enabled.")
     add_compile_options(-Wall -Werror -Wendif-labels -Wno-sign-compare -Wno-shadow -Wno-missing-braces )
 endif(WERROR)
 
 add_subdirectory(alexaext)
-add_subdirectory(thirdparty)
+
 if (BUILD_UNIT_TESTS)
+    message("alexaext - Unit test build enabled.")
     enable_testing()
     add_subdirectory(unit)
 endif()

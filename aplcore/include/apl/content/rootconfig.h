@@ -20,16 +20,17 @@
 #include <string>
 
 #include "apl/common.h"
+#include "apl/component/componentproperties.h"
 #include "apl/content/aplversion.h"
 #include "apl/content/extensioncommanddefinition.h"
+#include "apl/content/extensioncomponentdefinition.h"
 #include "apl/content/extensioneventhandler.h"
 #include "apl/content/extensionfilterdefinition.h"
 #include "apl/content/rootproperties.h"
+#include "apl/engine/propertymap.h"
 #include "apl/livedata/liveobject.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
-#include "apl/component/componentproperties.h"
-#include "apl/engine/propertymap.h"
 
 #ifdef ALEXAEXTENSIONS
 #include <alexaext/alexaext.h>
@@ -163,6 +164,16 @@ public:
      */
     RootConfig& mediaManager(const MediaManagerPtr& mediaManager) {
         mMediaManager = mediaManager;
+        return *this;
+    }
+
+    /**
+     * Specify the media player factory used for creating media players for video
+     * @param mediaPlayerFactory The media player factory object.
+     * @return This object for chaining
+     */
+    RootConfig& mediaPlayerFactory(const MediaPlayerFactoryPtr& mediaPlayerFactory) {
+        mMediaPlayerFactory = mediaPlayerFactory;
         return *this;
     }
 
@@ -494,6 +505,22 @@ public:
     }
 
     /**
+     * Register an extension component that can be inflated in the document.  The name should be something
+     * like 'DomainCanvas'.
+     * This method will also register the extension as a supported extension.
+     * @param componentDef The definition of the custom component (includes the name, URI, etc).
+     * @return This object for chaining
+     */
+    RootConfig& registerExtensionComponent(ExtensionComponentDefinition componentDef) {
+        auto uri = componentDef.getURI();
+        if (mSupportedExtensions.find(uri) == mSupportedExtensions.end()) {
+            registerExtension(uri);
+        }
+        mExtensionComponentDefinitions.emplace_back(std::move(componentDef));
+        return *this;
+    }
+
+    /**
      * Register an environment for an extension.  The document may access the extension environment by
      * the extension name in the “environment.extension” environment property.
      * Any previously registered environment is overwritten.
@@ -509,13 +536,33 @@ public:
     }
 
     /**
-     * Report a supported extension. Any previously registered configuration is overwritten.
+     * Register a supported extension. Any previously registered configuration is overwritten.
      * @param uri The URI of the extension
      * @param optional configuration value(s) supported by this extension.
      * @return This object for chaining
      */
     RootConfig& registerExtension(const std::string& uri, const Object& config = Object::TRUE_OBJECT()) {
-        mSupportedExtensions[uri] = config;
+        if (!config.truthy()) {
+            mSupportedExtensions[uri] = Object::TRUE_OBJECT();
+        } else {
+            mSupportedExtensions[uri] = config;
+        }
+        return *this;
+    }
+
+    /**
+     * Register a flags for an extension.  Flags are opaque data provided by the execution environment
+     * (not the document) and passed to the extension at the beginning of the document session.
+     * Flags may be a single non-null value, array, or key-value bag.
+     * @param uri The URI of the extension
+     * @param flags The extension flags
+     * @return This object for chaining
+     */
+    RootConfig& registerExtensionFlags(const std::string& uri, const Object& flags) {
+        if (mSupportedExtensions.find(uri) == mSupportedExtensions.end()) {
+            registerExtension(uri);
+        }
+        mExtensionFlags[uri] = flags;
         return *this;
     }
 
@@ -794,6 +841,11 @@ public:
      */
      MediaManagerPtr getMediaManager() const { return mMediaManager; }
 
+     /**
+      * @return The configured media player factory
+      */
+     MediaPlayerFactoryPtr getMediaPlayerFactory() const { return mMediaPlayerFactory; }
+
     /**
      * @return The time manager object
      */
@@ -1024,6 +1076,13 @@ public:
     }
 
     /**
+     * @return The registered extension components
+     */
+    const std::vector<ExtensionComponentDefinition>& getExtensionComponentDefinitions() const {
+        return mExtensionComponentDefinitions;
+    }
+
+    /**
      * @return The collection of supported extensions and their config values. These are the extensions that have
      *         been marked in the root config as "supported".
      */
@@ -1035,9 +1094,20 @@ public:
      * @param uri The URI of the extension.
      * @return The environment Object for a supported extensions, Object::NULL_OBJECT if no environment exists.
      */
-    Object getExtensionEnvironment(const std::string& uri) const {
+    const Object& getExtensionEnvironment(const std::string& uri) const {
         auto it = mSupportedExtensions.find(uri);
         if (it != mSupportedExtensions.end())
+            return it->second;
+        return Object::NULL_OBJECT();
+    }
+
+    /**
+     * @param uri The URI of the extension.
+     * @return The registered extension flags, NULL_OBJECT if no flags are registered.
+     */
+    const Object& getExtensionFlags(const std::string& uri) const {
+        auto it = mExtensionFlags.find(uri);
+        if (it != mExtensionFlags.end())
             return it->second;
         return Object::NULL_OBJECT();
     }
@@ -1232,6 +1302,7 @@ private:
 
     TextMeasurementPtr mTextMeasurement;
     MediaManagerPtr mMediaManager;
+    MediaPlayerFactoryPtr mMediaPlayerFactory;
     std::shared_ptr<TimeManager> mTimeManager;
     std::shared_ptr<LocaleMethods> mLocaleMethods;
     std::map<std::pair<ComponentType, bool>, std::pair<Dimension, Dimension>> mDefaultComponentSize;
@@ -1250,9 +1321,11 @@ private:
     ExtensionMediatorPtr mExtensionMediator;
 #endif
     ObjectMap mSupportedExtensions; // URI -> config
+    ObjectMap mExtensionFlags; // URI -> opaque flags
     std::vector<ExtensionEventHandler> mExtensionHandlers;
     std::vector<ExtensionCommandDefinition> mExtensionCommands;
     std::vector<ExtensionFilterDefinition> mExtensionFilters;
+    std::vector<ExtensionComponentDefinition> mExtensionComponentDefinitions;
 
     std::map<std::string, Color> mDefaultThemeFontColor = {{"light", 0x1e2222ff}, {"dark", 0xfafafaff}};
     std::map<std::string, Color> mDefaultThemeHighlightColor = {{"light", 0x0070ba4d}, {"dark",  0x00caff4d}};

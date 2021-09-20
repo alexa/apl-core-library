@@ -14,6 +14,8 @@
  */
 
 #include "apl/command/extensioneventcommand.h"
+#include "apl/extension/extensioncomponent.h"
+#include "apl/extension/extensionmanager.h"
 
 namespace apl {
 
@@ -54,6 +56,32 @@ ExtensionEventCommand::execute(const TimersPtr& timers, bool fastMode)
     return ExtensionEventAction::make(timers,
                                       std::static_pointer_cast<ExtensionEventCommand>(shared_from_this()),
                                       requireResolution);
+}
+
+const CommandPropDefSet&
+ExtensionEventCommand::propDefSet() const
+{
+    auto commandUriName = mDefinition.getURI() + ":" + mDefinition.getName();
+    if (context()->extensionManager().isComponentCommand(commandUriName)) {
+        static CommandPropDefSet sExtensionEventCommandProperties(
+            CoreCommand::propDefSet(), {{kCommandPropertyComponentId, "", asString, kPropRequiredId}});
+
+        return sExtensionEventCommandProperties;
+    } else {
+        return CoreCommand::propDefSet();
+    }
+}
+
+std::string
+ExtensionEventCommand::getResourceID() const
+{
+    auto extensionComponent = std::dynamic_pointer_cast<ExtensionComponent>(mTarget);
+
+    if (extensionComponent) {
+        return extensionComponent->getResourceID();
+    }
+
+    return "";
 }
 
 }  // namespace apl

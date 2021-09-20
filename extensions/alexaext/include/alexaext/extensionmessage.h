@@ -345,6 +345,23 @@ public:
         static const rapidjson::Pointer ptr("/settings");
         return ptr;
     }
+
+    // uses Copy semantics
+    RegistrationRequest& flags(const rapidjson::Value& flags) {
+        FLAGS().Set(*mMessage, flags);
+        return *this;
+    }
+
+    // uses Move semantics
+    RegistrationRequest& flags(rapidjson::Value& flags) {
+        FLAGS().Set(*mMessage, flags);
+        return *this;
+    }
+
+    static const rapidjson::Pointer& FLAGS() {
+        static const rapidjson::Pointer ptr("/flags");
+        return ptr;
+    }
 };
 
 

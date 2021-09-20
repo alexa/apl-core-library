@@ -43,6 +43,8 @@ using MediaObjectCallback = std::function<void(const MediaObjectPtr&)>;
 class MediaObject : NonCopyable,
                     public Counter<MediaObject> {
 public:
+    using CallbackID = int;
+
     enum State {
         kPending,  /// The media object has not yet loaded.
         kReady,    /// The media object is loaded and may be displayed.
@@ -73,19 +75,61 @@ public:
     virtual Size size() const = 0;
 
     /**
+     * @return The error code. To use in case state is MediaObject::State::kError.
+     */
+    virtual int errorCode() const = 0;
+
+    /**
+     * @return The description of the error. To use in case state is MediaObject::State::kError, otherwise
+     * value is empty string.
+     */
+    virtual std::string errorDescription() const = 0;
+
+    /**
      * Add a callback to be executed when the MediaObject changes state from kPending to
      * either kReady or kError.  Multiple callbacks may be added, but the order in which
      * the callbacks are executed is not guaranteed.  Callbacks will be invoked on the
      * main core engine thread.
      *
-     * The callback will not be added if the MediaObject is not in the kPending state.
+     * The callback will not be added if the MediaObject is not in the kPending state.  A zero
+     * value will be returned in this case.
      *
      * @param callback The callback to be executed.
-     * @return True if the callback has been added (the MediaObject is in the kPending state).
+     * @return Callback token if the callback has been added (the MediaObject is in the kPending state) zero otherwise.
      */
-    virtual bool addCallback(MediaObjectCallback callback) = 0;
+    virtual CallbackID addCallback(MediaObjectCallback callback) = 0;
+
+    /**
+     * Remove callback corresponding to provided token.
+     * @param callbackToken token received from @see MediaObject::addCallback()
+     */
+    virtual void removeCallback(CallbackID callbackToken) = 0;
 };
 
+/**
+ * Static MediaObject holder class that holds onto a single media object and de-registers
+ * the callback when the object is released.  Set the callbackToken to 0 to indicate no callback.
+ */
+class MediaObjectHolder {
+public:
+    MediaObjectHolder(MediaObjectPtr mediaObject, MediaObject::CallbackID callbackToken)
+        : mMediaObject(std::move(mediaObject)), mCallbackToken(callbackToken) {}
+
+    // Remove the copy constructor and define a move constructor so these can be stored in std::vector
+    MediaObjectHolder(const MediaObjectHolder&) = delete;
+    MediaObjectHolder(MediaObjectHolder&&) = default;
+
+    ~MediaObjectHolder() {
+        if (mMediaObject)
+            mMediaObject->removeCallback(mCallbackToken);
+    }
+
+    MediaObjectPtr getMediaObject() const { return mMediaObject; }
+
+private:
+    MediaObjectPtr mMediaObject;
+    MediaObject::CallbackID mCallbackToken;
+};
 
 } // namespace apl
 

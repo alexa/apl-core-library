@@ -18,6 +18,7 @@
 
 #include "apl/component/componenttrait.h"
 #include "apl/engine/event.h"
+#include "apl/media/mediaobject.h"
 
 namespace apl {
 
@@ -41,6 +42,22 @@ public:
     static const std::vector<ComponentPropDef>& propDefList();
 
 protected:
+
+    /**
+     * Method called when a media object fails to load. This method will be called only once
+     * for a full list of media objects.
+     *
+     *
+     * @param mediaObject object that failed to load
+     */
+    virtual void onFail(const MediaObjectPtr& mediaObject) {};
+
+    /**
+     * Method called when all media objects are ready.
+     *
+     */
+    virtual void onLoad() {};
+
     /**
      * @return vector of source URI's required by component.  Note that order matters.
      */
@@ -49,7 +66,8 @@ protected:
     /**
      * Override this method in your subclass if you need a callback when a pending media object is returned.
      * This will not be called if the media object was not pending.  The override must call the superclass method.
-     * @param object The ready or failed media object
+     *
+     * @param object The ready or failed media object.
      */
     virtual void pendingMediaReturned(const MediaObjectPtr& object);
 
@@ -59,11 +77,16 @@ protected:
      */
     virtual EventMediaType mediaType() const = 0;
 
+    /**
+     * Clear any component-connected state from used MediaObjects.
+     */
+    void release();
+
 private:
     void updateMediaState();
 
 protected:
-    std::vector<MediaObjectPtr> mMediaObjects;
+    std::vector<MediaObjectHolder> mMediaObjectHolders;
 };
 
 } // namespace apl

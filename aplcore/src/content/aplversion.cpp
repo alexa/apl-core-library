@@ -28,7 +28,8 @@ static Bimap<APLVersion::Value, std::string> sVersionMap = {
         { APLVersion::kAPLVersion14, "1.4" },
         { APLVersion::kAPLVersion15, "1.5" },
         { APLVersion::kAPLVersion16, "1.6" },
-        { APLVersion::kAPLVersion17, "1.7" }
+        { APLVersion::kAPLVersion17, "1.7" },
+        { APLVersion::kAPLVersion18, "1.8" }
 };
 
 bool

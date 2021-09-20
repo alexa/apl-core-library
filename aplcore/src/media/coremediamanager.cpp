@@ -31,6 +31,7 @@ public:
     CoreMediaObject(std::string url, EventMediaType type, std::weak_ptr<CoreMediaManager> manager)
         : mUrl(std::move(url)),
           mMediaType(type),
+          mMediaErrorCode(-1),
           mMediaManager(std::move(manager))
     {}
 
@@ -44,21 +45,36 @@ public:
     State state() const override { return mState; }
     EventMediaType type() const override { return mMediaType; }
     Size size() const override { return {}; }   // Note: Size is not supported
+    int errorCode() const override { return mMediaErrorCode; }
+    std::string errorDescription() const override { return mMediaErrorText; }
 
-    bool addCallback(MediaObjectCallback callback) override {
+    CallbackID addCallback(MediaObjectCallback callback) override {
         if (mState != kPending)
-            return false;
+            return 0;
 
-        mCallbacks.emplace_front(std::move(callback));
-        return true;
+        mCallbackToken++;
+        mCallbacks.emplace(mCallbackToken, std::move(callback));
+        return mCallbackToken;
+    }
+
+    void removeCallback(MediaObject::CallbackID token) override {
+        if (token != 0) {
+            auto it = mCallbacks.find(token);
+            if (it != mCallbacks.end()) {
+                mCallbacks.erase(it);
+            }
+        }
     }
 
 private:
     State mState = kPending;
     std::string mUrl;
     EventMediaType mMediaType;
-    std::forward_list<MediaObjectCallback> mCallbacks;
+    int mMediaErrorCode;
+    std::string mMediaErrorText;
+    std::map<MediaObject::CallbackID , MediaObjectCallback> mCallbacks;
     std::weak_ptr<CoreMediaManager> mMediaManager;
+    MediaObject::CallbackID mCallbackToken = 0;
 };
 
 // ********************** CoreMediaManager implementation ********************
@@ -93,7 +109,6 @@ CoreMediaManager::processMediaRequests(const ContextPtr& context)
     // that expect events to be generated in this order
     static std::vector<EventMediaType> sRequestTypes = {
         kEventMediaTypeImage,
-        kEventMediaTypeVideo,
         kEventMediaTypeVectorGraphic,
     };
 
@@ -119,7 +134,11 @@ CoreMediaManager::processMediaRequests(const ContextPtr& context)
 }
 
 void
-CoreMediaManager::mediaLoadComplete(const std::string& source, bool isReady)
+CoreMediaManager::mediaLoadComplete(
+    const std::string& source,
+    bool isReady,
+    int errorCode,
+    const std::string& errorReason)
 {
     auto it = mObjectMap.find(source);
     if (it == mObjectMap.end())
@@ -140,8 +159,11 @@ CoreMediaManager::mediaLoadComplete(const std::string& source, bool isReady)
 
     // Update the media object state and execute all callbacks
     mediaObject->mState = isReady ? MediaObject::kReady : MediaObject::kError;
+    mediaObject->mMediaErrorCode = isReady ? 0 : errorCode;
+    mediaObject->mMediaErrorText = isReady ? std::string() : errorReason;
     for (const auto& m : mediaObject->mCallbacks)
-        m(ptr);
+        m.second(ptr);
+    mediaObject->mCallbacks.clear();
 }
 
 void

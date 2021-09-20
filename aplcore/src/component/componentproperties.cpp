@@ -347,6 +347,7 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyGrow,                    "grow"},
     {kPropertyHandleKeyDown,           "handleKeyDown"},
     {kPropertyHandleKeyUp,             "handleKeyUp"},
+    {kPropertyHandlePageMove,          "handlePageMove"},
     {kPropertyHeight,                  "height"},
     {kPropertyId,                      "id"},
     {kPropertyInitialPage,             "initialPage"},
@@ -355,6 +356,7 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyJustifyContent,          "justifyContent"},
     {kPropertyKeyboardBehaviorOnFocus, "-keyboardBehaviorOnFocus"},
     {kPropertyKeyboardType,            "keyboardType"},
+    {kPropertyLaidOut,                 "_laidOut"},
     {kPropertyLang,                    "lang"},
     {kPropertyLayoutDirection,         "_layoutDirection"},
     {kPropertyLayoutDirectionAssigned, "layoutDirection"},
@@ -380,17 +382,22 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyNumbering,               "numbering"},
     {kPropertyOnBlur,                  "onBlur"},
     {kPropertyOnCancel,                "onCancel"},
-    {kPropertyOnConfigChange,          "onConfigChange"},
+    {kPropertyOnCursorEnter,           "onCursorEnter"},
+    {kPropertyOnCursorExit,            "onCursorExit"},
     {kPropertyOnDown,                  "onDown"},
     {kPropertyOnEnd,                   "onEnd"},
+    {kPropertyOnFail,                  "onFail"},
+    {kPropertyResourceOnFatalError,    "onFatalError"},
     {kPropertyOnFocus,                 "onFocus"},
+    {kPropertyOnLoad,                  "onLoad"},
     {kPropertyOnMount,                 "onMount"},
     {kPropertyOnMove,                  "onMove"},
     {kPropertyOnScroll,                "onScroll"},
-    {kPropertyHandlePageMove,          "handlePageMove"},
     {kPropertyOnPageChanged,           "onPageChanged"},
     {kPropertyOnPause,                 "onPause"},
     {kPropertyOnPlay,                  "onPlay"},
+    {kPropertyOnTrackFail,             "onTrackFail"},
+    {kPropertyOnTrackReady,            "onTrackReady"},
     {kPropertyOnPress,                 "onPress"},
     {kPropertyOnSubmit,                "onSubmit"},
     {kPropertyOnTextChange,            "onTextChange"},
@@ -413,6 +420,8 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyPlayingState,            "playingState"},
     {kPropertyPosition,                "position"},
     {kPropertyPreserve,                "preserve"},
+    {kPropertyResourceId,              "resourceId"},
+    {kPropertyResourceState,           "_resourceState"},
     {kPropertyRight,                   "right"},
     {kPropertyRole,                    "role"},
     {kPropertyScale,                   "scale"},
@@ -447,20 +456,21 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyTrackEnded,              "_trackEnded"},
     {kPropertyTrackIndex,              "_trackIndex"},
     {kPropertyTrackPaused,             "_trackPaused"},
+    {kPropertyTrackState,              "_trackState"},
     {kPropertyTransformAssigned,       "transform"},
     {kPropertyTransform,               "_transform"},
     {kPropertyUser,                    "_user"},
-    {kPropertyWidth,                   "width"},
-    {kPropertyOnCursorEnter,           "onCursorEnter"},
-    {kPropertyOnCursorExit,            "onCursorExit"},
-    {kPropertyLaidOut,                 "_laidOut"},
     {kPropertyValidCharacters,         "validCharacters"},
-    {kPropertyWrap,                    "wrap"}
+    {kPropertyVisualHash,              "_visualHash"},
+    {kPropertyWidth,                   "width"},
+    {kPropertyWrap,                    "wrap"},
 };
 
 Bimap<int, std::string> sComponentTypeBimap = {
     {kComponentTypeContainer,     "Container"},
     {kComponentTypeEditText,      "EditText"},
+    // Extension components define the component type name, this value a placeholder
+    {kComponentTypeExtension,     "_ExtensionComponent"},
     {kComponentTypeFrame,         "Frame"},
     {kComponentTypeGridSequence,  "GridSequence"},
     {kComponentTypeImage,         "Image"},
@@ -473,5 +483,10 @@ Bimap<int, std::string> sComponentTypeBimap = {
     {kComponentTypeVideo,         "Video"}
 };
 
+Bimap<int, std::string> sTrackStateMap = {
+    {kTrackNotReady, "notReady"},
+    {kTrackReady, "ready"},
+    {kTrackFailed, "failed"}
+};
 
 }  // namespace apl

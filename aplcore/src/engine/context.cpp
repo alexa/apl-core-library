@@ -14,14 +14,13 @@
  */
 
 #include <queue>
-#include <apl/utils/log.h>
-#include <apl/engine/builder.h>
 
 #include "apl/buildTimeConstants.h"
 #include "apl/component/textmeasurement.h"
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
 #include "apl/content/viewport.h"
+#include "apl/engine/builder.h"
 #include "apl/engine/context.h"
 #include "apl/engine/event.h"
 #include "apl/engine/resources.h"
@@ -29,6 +28,8 @@
 #include "apl/engine/styles.h"
 #include "apl/primitives/functions.h"
 #include "apl/primitives/object.h"
+#include "apl/utils/log.h"
+#include "apl/utils/lrucache.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -57,7 +58,9 @@ ContextPtr
 Context::createTypeEvaluationContext(const RootConfig& config)
 {
     auto metrics = Metrics();
-    return std::make_shared<Context>(metrics, config, metrics.getTheme());
+    auto contextPtr = std::make_shared<Context>(metrics, config, metrics.getTheme());
+    createStandardFunctions(*contextPtr);
+    return contextPtr;
 }
 
 // Use this to create a free-standing context.  Only used for background extraction
@@ -285,6 +288,15 @@ Context::pushEvent(Event&& event) {
     mCore->events.push(event);
 }
 
+#ifdef ALEXAEXTENSIONS
+void
+Context::pushExtensionEvent(Event&& event)
+{
+    assert(mCore);
+    mCore->extesnionEvents.push(event);
+}
+#endif
+
 void
 Context::setDirty(const ComponentPtr& ptr) {
     assert(mCore);
@@ -358,6 +370,11 @@ Context::mediaManager() const {
     return mCore->mediaManager();
 }
 
+MediaPlayerFactory&
+Context::mediaPlayerFactory() const {
+    return mCore->mediaPlayerFactory();
+}
+
 const SessionPtr&
 Context::session() const {
     return mCore->session();
@@ -383,6 +400,18 @@ void Context::takeScreenLock() const
 void Context::releaseScreenLock() const
 {
     mCore->releaseScreenLock();
+}
+
+LruCache<TextMeasureRequest, YGSize>&
+Context::cachedMeasures()
+{
+    return mCore->cachedMeasures();
+}
+
+LruCache<TextMeasureRequest, float>&
+Context::cachedBaselines()
+{
+    return mCore->cachedBaselines();
 }
 
 WeakPtrSet<CoreComponent>&

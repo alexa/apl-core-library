@@ -198,13 +198,27 @@ setFlexDirection(YGNodeRef nodeRef, const Object& value, const Context&) {
 void
 setSpacing(YGNodeRef nodeRef, const Object& value, const Context& context) {
     LOG_IF(DEBUG_FLEXBOX) << value << " [" << nodeRef << "]";
+
+    CoreComponent *component = static_cast<CoreComponent*>(nodeRef->getContext());
     auto spacing = value.asDimension(context);
     if (spacing.isAbsolute()) {
         YGNodeRef parent = YGNodeGetParent(nodeRef);
         if (!parent || YGNodeGetChild(parent, 0) == nodeRef)
             return;
 
-        YGEdge edge = YGNodeStyleGetFlexDirection(parent) == YGFlexDirectionColumn ? YGEdgeTop : YGEdgeLeft;
+        auto parentLayoutDirection = component->getParent()->getCalculated(kPropertyLayoutDirection);
+        auto dir = YGNodeStyleGetFlexDirection(parent);
+        YGEdge edge = YGEdgeLeft;
+        switch (dir) {
+            case YGFlexDirectionColumn:        edge = YGEdgeTop;    break;
+            case YGFlexDirectionColumnReverse: edge = YGEdgeBottom; break;
+            case YGFlexDirectionRow:
+                edge = (parentLayoutDirection == kLayoutDirectionLTR) ? YGEdgeLeft : YGEdgeRight;
+                break;
+            case YGFlexDirectionRowReverse:
+                edge = (parentLayoutDirection == kLayoutDirectionLTR) ? YGEdgeRight : YGEdgeLeft;
+                break;
+        }
         YGNodeStyleSetMargin(nodeRef, edge, spacing.getValue());
     }
 }

@@ -1131,3 +1131,81 @@ TEST(DocumentTest, ExternalCommandTest)
     ASSERT_STREQ("Is Set", doc->topComponent()->getCalculated(kPropertyText).asString().c_str());
 }
 
+
+static const char *ENVIRONMENT_TEST = R"apl(
+    {
+      "type": "APL",
+      "version": "1.8",
+      "environment": {
+        "parameters": [ "a", "b" ]
+      },
+      "mainTemplate": {
+        "parameters": [ "b", "c" ]
+      }
+    }
+)apl";
+
+/**
+ * Check parameter handling from the environment and mainTemplate
+ */
+TEST(DocumentTest, EnvironmentTest)
+{
+    auto content = Content::create(ENVIRONMENT_TEST, makeDefaultSession());
+
+    ASSERT_TRUE(content);
+    ASSERT_FALSE(content->isReady());
+    ASSERT_FALSE(content->isReady());
+    ASSERT_FALSE(content->isWaiting());
+    ASSERT_FALSE(content->isError());
+
+    ASSERT_EQ(3, content->getParameterCount());
+    auto expected = std::vector<std::string>{"b", "c", "a"};
+    for (int i = 0 ; i < 3 ; i++)
+        ASSERT_EQ(expected.at(i), content->getParameterAt(i));
+
+    content->addData("a", R"({"name": "fizz"})");
+    content->addData("b", R"({"name": "buzz"})");
+    ASSERT_FALSE(content->isReady());
+    content->addData("c", R"({"name": "fizz-buzz"})");
+    ASSERT_TRUE(content->isReady());
+}
+
+
+static const char *REDUNDANT_ENVIRONMENT_TEST = R"apl(
+    {
+      "type": "APL",
+      "version": "1.8",
+      "environment": {
+        "parameters": [ "a", "b", "a", "b" ]
+      },
+      "mainTemplate": {
+        "parameters": [ "b", "c", "b", "c" ]
+      }
+    }
+)apl";
+
+/**
+ * Check parameter handling from the environment and mainTemplate
+ */
+TEST(DocumentTest, RedundantEnvironmentTest)
+{
+    auto content = Content::create(REDUNDANT_ENVIRONMENT_TEST, makeDefaultSession());
+
+    ASSERT_TRUE(content);
+    ASSERT_FALSE(content->isReady());
+    ASSERT_FALSE(content->isReady());
+    ASSERT_FALSE(content->isWaiting());
+    ASSERT_FALSE(content->isError());
+
+    ASSERT_EQ(3, content->getParameterCount());
+    auto expected = std::vector<std::string>{"b", "c", "a"};
+    for (int i = 0 ; i < 3 ; i++)
+        ASSERT_EQ(expected.at(i), content->getParameterAt(i));
+
+    content->addData("a", R"({"name": "fizz"})");
+    content->addData("b", R"({"name": "buzz"})");
+    ASSERT_FALSE(content->isReady());
+    content->addData("c", R"({"name": "fizz-buzz"})");
+    ASSERT_TRUE(content->isReady());
+}
+

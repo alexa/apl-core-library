@@ -1726,12 +1726,12 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
 
     root->clearPending();
     ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root,
             gridSeq,
             gridSeq->getChildAt(0),
@@ -1758,11 +1758,11 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
     root->clearPending();
     ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2)));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4)));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root,
             gridSeq,
             gridSeq->getChildAt(1),
@@ -1785,11 +1785,11 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
     root->clearPending();
     ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root,
             gridSeq,
             gridSeq->getChildAt(1),
@@ -1815,12 +1815,12 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
 
     root->clearPending();
     ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root,
             gridSeq,
             gridSeq->getChildAt(0),
@@ -1869,13 +1869,13 @@ TEST_F(GridSequenceComponentTest, HeightWidthVertical) {
     gridSeq->setProperty(kPropertyHeight, "200dp");
 
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, gridSeq,
             gridSeq->getChildAt(0),
             gridSeq->getChildAt(1),
@@ -1900,13 +1900,13 @@ TEST_F(GridSequenceComponentTest, HeightWidthVertical) {
     gridSeq->setProperty(kPropertyWidth, "200dp");
 
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2)));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4)));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, gridSeq,
             gridSeq->getChildAt(1),
             gridSeq->getChildAt(3),
@@ -1973,12 +1973,12 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
 
     root->clearPending();
     ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root,
             gridSeq,
             gridSeq->getChildAt(0),
@@ -2005,11 +2005,11 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
     root->clearPending();
     ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2)));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4)));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root,
             gridSeq,
             gridSeq->getChildAt(1),
@@ -2031,12 +2031,12 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
 
     root->clearPending();
     ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root,
             gridSeq,
             gridSeq->getChildAt(0),
@@ -2063,12 +2063,12 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
 
     root->clearPending();
     ASSERT_TRUE(CheckDirty(gridSeq, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root,
                            gridSeq,
                            gridSeq->getChildAt(0),
@@ -2117,13 +2117,13 @@ TEST_F(GridSequenceComponentTest, HeightWidthHorizontal) {
     gridSeq->setProperty(kPropertyWidth, "160dp");
 
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, gridSeq,
                            gridSeq->getChildAt(0),
                            gridSeq->getChildAt(1),
@@ -2148,13 +2148,13 @@ TEST_F(GridSequenceComponentTest, HeightWidthHorizontal) {
     gridSeq->setProperty(kPropertyHeight, "200dp");
 
     ASSERT_EQ(4, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(gridSeq, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(0)));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(1), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(2)));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(3), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(4)));
-    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(gridSeq->getChildAt(5), kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, gridSeq,
                            gridSeq->getChildAt(1),
                            gridSeq->getChildAt(3),
@@ -2238,4 +2238,58 @@ TEST_F(GridSequenceComponentTest, TestSnappingWithMultipleComponentsPerLine) {
 
     // Verify we snap to the top of the component
     ASSERT_EQ(0, grid->getCalculated(kPropertyScrollPosition).asNumber());
+}
+
+static const char *GRID_SEQUENCE_SCROLL_OFFSET = R"({
+  "type": "APL",
+  "version": "1.7",
+  "onConfigChange": {
+    "type": "Reinflate"
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "id": "testSequence",
+      "width": 100,
+      "height": 100,
+      "preserve": [
+         "scrollOffset"
+      ],
+      "data": "${TestArray}",
+      "item": {
+        "type": "Frame",
+        "width": "100%",
+        "height": 60
+      }
+    }
+  }
+})";
+
+TEST_F(GridSequenceComponentTest, ScrollOffsetReinflate) {
+    auto myArray = LiveArray::create(ObjectArray{0, 1, 2, 3, 4, 5});
+    config->liveData("TestArray", myArray);
+
+    metrics.size(200,200);
+    loadDocument(GRID_SEQUENCE_SCROLL_OFFSET);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(6, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,1}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {2,3}, false));
+    root->clearDirty();
+
+    advanceTime(10);
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,3}, true));
+
+    // Trigger reinflate
+    configChangeReinflate(ConfigurationChange(200,200));
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ(6, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,1}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {2,3}, false));
+    root->clearDirty();
+
+    // Validate second layout pass when scroll position need not to be adjusted after re-inflation
+    advanceTime(10);
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,3}, true));
 }

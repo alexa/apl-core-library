@@ -19,6 +19,9 @@
 #include "apl/component/vectorgraphiccomponent.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/graphic/graphic.h"
+#include "apl/media/mediamanager.h"
+#include "apl/media/mediaobject.h"
+#include "apl/time/sequencer.h"
 
 namespace apl {
 
@@ -48,18 +51,32 @@ VectorGraphicComponent::release()
         graphic.getGraphic()->release();
 
     ActionableComponent::release();
+    MediaComponentTrait::release();
 }
 
 const ComponentPropDefSet&
 VectorGraphicComponent::propDefSet() const
 {
+    static auto checkLayout = [](Component& component)
+    {
+        auto& vg = static_cast<VectorGraphicComponent&>(component);
+        vg.processLayoutChanges(true, false);
+    };
+
+    static auto resetOnLoadOnFailFlag = [](Component& component) {
+        auto& comp = dynamic_cast<VectorGraphicComponent&>(component);
+        comp.mOnLoadOnFailReported = false;
+    };
+
     static auto sVectorGraphicComponentProperties = ComponentPropDefSet(TouchableComponent::propDefSet(), MediaComponentTrait::propDefList())
         .add({
-            {kPropertyAlign,       kVectorGraphicAlignCenter, sVectorGraphicAlignMap, kPropInOut | kPropStyled | kPropDynamic},
-            {kPropertyGraphic,     Object::NULL_OBJECT(),     nullptr,                kPropOut},
-            {kPropertyMediaBounds, Object::NULL_OBJECT(),     nullptr,                kPropOut},
-            {kPropertyScale,       kVectorGraphicScaleNone,   sVectorGraphicScaleMap, kPropInOut | kPropStyled | kPropDynamic},
-            {kPropertySource,      "",                        asString,               kPropInOut},
+            {kPropertyAlign,       kVectorGraphicAlignCenter, sVectorGraphicAlignMap, kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash, checkLayout},
+            {kPropertyGraphic,     Object::NULL_OBJECT(),     nullptr,                kPropOut | kPropVisualHash},
+            {kPropertyMediaBounds, Object::NULL_OBJECT(),     nullptr,                kPropOut | kPropVisualHash},
+            {kPropertyOnFail,      Object::EMPTY_ARRAY(),     asCommand,              kPropIn},
+            {kPropertyOnLoad,      Object::EMPTY_ARRAY(),     asCommand,              kPropIn},
+            {kPropertyScale,       kVectorGraphicScaleNone,   sVectorGraphicScaleMap, kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash,   checkLayout},
+            {kPropertySource,      "",                        asString,               kPropInOut | kPropDynamic | kPropVisualHash,               resetOnLoadOnFailFlag},
     });
 
     return sVectorGraphicComponentProperties;
@@ -375,6 +392,41 @@ void
 VectorGraphicComponent::postProcessLayoutChanges() {
     CoreComponent::postProcessLayoutChanges();
     MediaComponentTrait::postProcessLayoutChanges();
+}
+
+void
+VectorGraphicComponent::onFail(const MediaObjectPtr& mediaObject)
+{
+    if (mOnLoadOnFailReported)
+        return;
+    auto component = getComponent();
+    auto errorData = std::make_shared<ObjectMap>();
+    errorData->emplace("value",  mediaObject->url());
+    errorData->emplace("error", mediaObject->errorDescription());
+    errorData->emplace("errorCode", mediaObject->errorCode());
+    auto& commands = component->getCalculated(kPropertyOnFail);
+    auto eventContext = component->createEventContext("Fail", errorData);
+    component->getContext()->sequencer().executeCommands(
+        commands,
+        eventContext,
+        component->shared_from_corecomponent(),
+        true);
+    mOnLoadOnFailReported = true;
+}
+
+void
+VectorGraphicComponent::onLoad()
+{
+    if (mOnLoadOnFailReported)
+        return;
+    auto component = getComponent();
+    auto& commands = component->getCalculated(kPropertyOnLoad);
+    component->getContext()->sequencer().executeCommands(
+        commands,
+        component->createEventContext("Load"),
+        component->shared_from_corecomponent(),
+        true);
+    mOnLoadOnFailReported = true;
 }
 
 } // namespace apl

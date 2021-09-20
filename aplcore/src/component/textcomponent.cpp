@@ -35,8 +35,8 @@ TextComponent::TextComponent(const ContextPtr& context,
                              const Path& path)
     : CoreComponent(context, std::move(properties), path)
 {
-    YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc<TextComponent>);
-    YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc<TextComponent>);
+    YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc);
+    YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc);
     YGNodeSetNodeType(mYGNodeRef, YGNodeTypeText);
 }
 
@@ -71,22 +71,21 @@ TextComponent::propDefSet() const
     };
 
     static ComponentPropDefSet sTextComponentProperties(CoreComponent::propDefSet(), {
-        {kPropertyColor,              Color(),                asColor,               kPropInOut | kPropStyled | kPropDynamic,
-                                                                                                  internalCheckKaraokeTargetColor, defaultFontColor},
-        {kPropertyColorKaraokeTarget, Color(),                asColor,               kPropOut,    defaultFontColor},
-        {kPropertyColorNonKaraoke,    Color(),                asColor,               kPropOut,    defaultFontColor},
-        {kPropertyFontFamily,         "",                     asString,              kPropInOut | kPropLayout | kPropStyled | kPropDynamic, defaultFontFamily},
-        {kPropertyFontSize,           Dimension(40),          asAbsoluteDimension,   kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
-        {kPropertyFontStyle,          kFontStyleNormal,       sFontStyleMap,         kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
-        {kPropertyFontWeight,         400,                    sFontWeightMap,        kPropInOut | kPropLayout | kPropStyled | kPropDynamic},
-        {kPropertyLang,               "",                     asString,              kPropInOut | kPropLayout | kPropStyled | kPropDynamic, inheritLang},
-        {kPropertyLetterSpacing,      Dimension(0),           asAbsoluteDimension,   kPropInOut | kPropLayout | kPropStyled},
-        {kPropertyLineHeight,         1.25,                   asNonNegativeNumber,   kPropInOut | kPropLayout | kPropStyled},
-        {kPropertyMaxLines,           0,                      asInteger,             kPropInOut | kPropLayout | kPropStyled},
-        {kPropertyText,               StyledText::EMPTY(),    asStyledText,          kPropInOut | kPropLayout | kPropDynamic | kPropVisualContext } ,
-        {kPropertyTextAlign,          kTextAlignAuto,         sTextAlignMap,         kPropOut},
-        {kPropertyTextAlignAssigned,  kTextAlignAuto,         sTextAlignMap,         kPropIn    | kPropLayout | kPropStyled | kPropDynamic, fixTextAlign},
-        {kPropertyTextAlignVertical,  kTextAlignVerticalAuto, sTextAlignVerticalMap, kPropInOut | kPropLayout | kPropStyled}
+        {kPropertyColor,               Color(),                asColor,               kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash, internalCheckKaraokeTargetColor, defaultFontColor},
+        {kPropertyColorKaraokeTarget,  Color(),                asColor,               kPropOut | kPropVisualHash,                                                                 defaultFontColor},
+        {kPropertyColorNonKaraoke,     Color(),                asColor,               kPropOut | kPropVisualHash,                                                                 defaultFontColor},
+        {kPropertyFontFamily,          "",                     asString,              kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash,    defaultFontFamily},
+        {kPropertyFontSize,            Dimension(40),          asAbsoluteDimension,   kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
+        {kPropertyFontStyle,           kFontStyleNormal,       sFontStyleMap,         kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
+        {kPropertyFontWeight,          400,                    sFontWeightMap,        kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
+        {kPropertyLang,                "",                     asString,              kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash,    inheritLang},
+        {kPropertyLetterSpacing,       Dimension(0),           asAbsoluteDimension,   kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash},
+        {kPropertyLineHeight,          1.25,                   asNonNegativeNumber,   kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash},
+        {kPropertyMaxLines,            0,                      asInteger,             kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash},
+        {kPropertyText,                StyledText::EMPTY(),    asStyledText,          kPropInOut | kPropLayout | kPropDynamic | kPropVisualContext | kPropTextHash | kPropVisualHash},
+        {kPropertyTextAlign,           kTextAlignAuto,         sTextAlignMap,         kPropOut | kPropTextHash | kPropVisualHash},
+        {kPropertyTextAlignAssigned,   kTextAlignAuto,         sTextAlignMap,         kPropIn  | kPropLayout | kPropStyled | kPropDynamic,                                       fixTextAlign},
+        {kPropertyTextAlignVertical,   kTextAlignVerticalAuto, sTextAlignVerticalMap, kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash},
     });
 
     return sTextComponentProperties;
@@ -109,6 +108,16 @@ Object
 TextComponent::getValue() const
 {
     return mCalculated.get(kPropertyText).asString();
+}
+
+void
+TextComponent::preLayoutProcessing(bool useDirtyFlag)
+{
+    CoreComponent::preLayoutProcessing(useDirtyFlag);
+
+    // Update text measurement hash as some properties may have changed it
+    // and we actually need it on layout time
+    fixTextMeasurementHash();
 }
 
 /*
@@ -218,6 +227,9 @@ TextComponent::assignProperties(const ComponentPropDefSet& propDefSet)
     mCalculated.set(kPropertyColorKaraokeTarget, mCalculated.get(kPropertyColor));
     mCalculated.set(kPropertyColorNonKaraoke, mCalculated.get(kPropertyColor));
     updateTextAlign(false);
+
+    // Calculate initial measurement hash.
+    fixTextMeasurementHash();
 }
 
 rapidjson::Value

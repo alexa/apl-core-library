@@ -859,8 +859,8 @@ TEST_F(GesturesTest, SwipeAwayLeftReveal)
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-10), tw->getChildAt(1)));
 
@@ -936,8 +936,8 @@ TEST_F(GesturesTest, SwipeAwayLeftCover)
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
     ASSERT_EQ("swipy", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
-                           kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform, kPropertyBounds, kPropertyInnerBounds,
+                           kPropertyLaidOut, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(90), tw->getChildAt(1)));
 
     advanceTime(500);
@@ -988,7 +988,7 @@ GesturesTest::swipeAwayLeftSlide()
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
                            kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
-                           kPropertyNotifyChildrenChanged));
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-10), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(90), tw->getChildAt(1)));
 
@@ -1054,7 +1054,7 @@ TEST_F(GesturesTest, SwipeAwayLeftRightLeftSlide)
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
                            kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
-                           kPropertyNotifyChildrenChanged));
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-80), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(20), tw->getChildAt(1)));
 
@@ -1110,7 +1110,7 @@ TEST_F(GesturesTest, SwipeAwayLeftRightLeftSlideUnfinished)
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
                            kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
-                           kPropertyNotifyChildrenChanged));
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-55), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(45), tw->getChildAt(1)));
 
@@ -1167,7 +1167,7 @@ TEST_F(GesturesTest, SwipeAwayFlickLeftSlide)
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
                            kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
-                           kPropertyNotifyChildrenChanged));
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-30), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(70), tw->getChildAt(1)));
 
@@ -1213,7 +1213,7 @@ TEST_F(GesturesTest, SwipeAwayUnfinishedFlickLeftSlide)
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
                            kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
-                           kPropertyNotifyChildrenChanged));
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-20), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(80), tw->getChildAt(1)));
 
@@ -1306,7 +1306,7 @@ GesturesTest::swipeAwayRightSlide() {
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
                            kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
-                           kPropertyNotifyChildrenChanged));
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(10), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-90), tw->getChildAt(1)));
 
@@ -1375,7 +1375,7 @@ TEST_F(GesturesTest, SwipeAwayUpSlide)
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
                            kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
-                           kPropertyNotifyChildrenChanged));
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(-10), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(90), tw->getChildAt(1)));
 
@@ -1431,7 +1431,7 @@ TEST_F(GesturesTest, SwipeAwayDownSlide)
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
                            kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
-                           kPropertyNotifyChildrenChanged));
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(10), tw->getChildAt(0)));
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(-90), tw->getChildAt(1)));
 
@@ -1485,7 +1485,7 @@ TEST_F(GesturesTest, SwipeAwayOverSwipe)
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1),
                            kPropertyTransform, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
-                           kPropertyNotifyChildrenChanged));
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(40), tw->getChildAt(1)));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(90,100), "onSwipeMove", 1.0, "left"));
 
@@ -1604,8 +1604,8 @@ TEST_F(GesturesTest, SwipeAwayMaxDurationEnforced)
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-40), tw->getChildAt(1)));
 
@@ -1678,8 +1678,8 @@ TEST_F(GesturesTest, SwipeAwayContext)
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-10), tw->getChildAt(1)));
 
@@ -2514,7 +2514,7 @@ TEST_F(GesturesTest, SwipeToDelete)
 
     myArray->remove(indexToDelete);
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     root->clearDirty();
 
     ASSERT_EQ(4, component->getChildCount());
@@ -2540,7 +2540,7 @@ TEST_F(GesturesTest, SwipeToDelete)
 
     myArray->remove(indexToDelete);
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     root->clearDirty();
 
     ASSERT_EQ(3, component->getChildCount());
@@ -2998,8 +2998,8 @@ TEST_F(GesturesTest, SwipeAwayScaled)
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-20), tw->getChildAt(1)));
 
@@ -3050,8 +3050,8 @@ TEST_F(GesturesTest, SwipeAwayRotated)
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-20), tw->getChildAt(1)));
 
@@ -3092,8 +3092,8 @@ TEST_F(GesturesTest, SwipeAwayTransformedDuringSwipe) {
     ASSERT_TRUE(CheckEvent("onSwipeMove", 0.1, "left"));
     ASSERT_TRUE(CheckDirty(tw, kPropertyNotifyChildrenChanged));
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-10), tw->getChildAt(1)));
 
@@ -3138,8 +3138,8 @@ TEST_F(GesturesTest, SwipeAwaySingularTransformDuringSwipe) {
     ASSERT_EQ("swipy", tw->getChildAt(0)->getId());
     ASSERT_EQ("texty", tw->getChildAt(1)->getId());
 
-    ASSERT_TRUE(CheckDirty(tw->getChildAt(0),
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(tw->getChildAt(1), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(-10), tw->getChildAt(1)));
 

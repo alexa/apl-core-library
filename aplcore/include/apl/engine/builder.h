@@ -22,6 +22,8 @@ namespace apl {
 
 class Path;
 
+using MakeComponentFunc = std::function<CoreComponentPtr(const ContextPtr&, Properties&&, const Path&)>;
+
 /**
  * Static methods for inflating component view hierarchies.  These methods are used when constructing a
  * RootContext or when calling Component::inflate().  Do not call them directly.
@@ -63,20 +65,23 @@ private:
                                    const Object& item,
                                    const CoreComponentPtr& layout,
                                    const Path& path,
-                                   bool fullBuild);
+                                   bool fullBuild,
+                                   bool useDirtyFlag);
 
     void populateLayoutComponent(const ContextPtr& context,
                                  const Object& item,
                                  const CoreComponentPtr& layout,
                                  const Path& path,
-                                 bool fullBuild);
+                                 bool fullBuild,
+                                 bool useDirtyFlag);
 
     CoreComponentPtr expandLayout(const ContextPtr& context,
                                   Properties& properties,
                                   const rapidjson::Value& layout,
                                   const CoreComponentPtr& parent,
                                   const Path& path,
-                                  bool fullBuild);
+                                  bool fullBuild,
+                                  bool useDirtyFlag);
 
     void copyPreservedBindings(const CoreComponentPtr& newComponent, const CoreComponentPtr& originalComponent);
 
@@ -87,17 +92,21 @@ private:
                                                     Properties&& properties,
                                                     const CoreComponentPtr& parent,
                                                     const Path& path,
-                                                    bool fullBuild);
+                                                    bool fullBuild,
+                                                    bool useDirtyFlag);
 
     CoreComponentPtr expandSingleComponent(const ContextPtr& context,
                                            const Object& item,
                                            Properties&& properties,
                                            const CoreComponentPtr& parent,
                                            const Path& path,
-                                           bool fullBuild);
+                                           bool fullBuild,
+                                           bool useDirtyFlag);
 
     static void attachBindings(const ContextPtr& context, const Object& item);
 private:
+
+    MakeComponentFunc findComponentBuilderFunc(const ContextPtr& context, const std::string &type);
     CoreComponentPtr mOld;
 };
 

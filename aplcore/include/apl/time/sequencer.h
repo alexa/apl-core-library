@@ -71,6 +71,22 @@ public:
     ActionPtr executeOnSequencer(const CommandPtr& commandPtr, const std::string& sequencerName);
 
     /**
+     * Convenience routine that takes an array object of commands and a data-binding context,
+     * inflates an ArrayCommand, and then executes it on the named sequencer.
+     *
+     * @param commands An array of commands to execute.
+     * @param context The data-binding context.
+     * @param baseComponent The base component that these commands execute from.
+     * @param sequencer Name of the sequencer to use.
+     * @return The action pointer of the command or nullptr if there is nothing to execute.
+     *         A nullptr will be returned in fast mode.
+     */
+    ActionPtr executeCommandsOnSequencer(const Object& commands,
+                                         const ContextPtr& context,
+                                         const CoreComponentPtr& baseComponent,
+                                         const std::string& sequencer);
+
+    /**
      * Attach action to existing or new sequencer. Requests to attach to main sequencer will be ignored.
      * @param actionPtr action to attach.
      * @param sequencerName target sequencer name.
@@ -151,7 +167,7 @@ private:
     std::set<ActionPtr> mOneShotSet;
     std::set<std::string> mResetInExecute;
     std::map<std::string, ActionPtr> mSequencers;
-    std::map<ExecutionResource, ActionPtr> mResourcesByAction;
+    std::map<ExecutionResource, std::weak_ptr<Action>> mResourcesByAction;
     std::map<ExecutionResource, ExecutionResourceHolderPtr> mResourcesByHolder;
     bool mFeatureSupportResources = true;
     bool mFeatureSupportMultiSequencer = true;

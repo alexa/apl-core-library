@@ -213,71 +213,104 @@ private:
 
 /**
  * The ActionRef is passed into the user function; the user is expected to
- * call resolve() eventually.
+ * call resolve() eventually.  An ActionRef may be empty.  An empty ActionRef
+ * should not be used.
  */
 class ActionRef  {
 public:
     ActionRef(const ActionPtr& ptr) : mPtr(ptr) {}
-    ActionRef(const ActionRef& ref) = default;
 
     /**
      * Resolve the action
      */
-    void resolve() const { mPtr->resolve(); }
+    void resolve() const {
+        if (mPtr)
+            mPtr->resolve();
+    }
 
     /**
      * Resolve the action with a union
      * @param argument
      */
-    void resolve(const Rect& argument) const { mPtr->resolve(argument); }
+    void resolve(const Rect& argument) const {
+        if (mPtr)
+            mPtr->resolve(argument);
+    }
 
     /**
      * Resolve the action with an argument
      * @param argument The argument
      */
-    void resolve(int argument) const { mPtr->resolve(argument); }
+    void resolve(int argument) const {
+        if (mPtr)
+            mPtr->resolve(argument);
+    }
 
     /**
      * Attach a terminate callback to the action.
      * @param terminateFunc The termination callback
      */
-    void addTerminateCallback(TerminateFunc terminateFunc) const { mPtr->addTerminateCallback(std::move(terminateFunc)); }
+    void addTerminateCallback(TerminateFunc terminateFunc) const {
+        if (mPtr)
+            mPtr->addTerminateCallback(std::move(terminateFunc));
+    }
 
     /**
      * @return True if this action is still pending and has not resolved or terminated.
      */
-    bool isPending() const { return mPtr->isPending(); }
+    bool isPending() const {
+        return mPtr ? mPtr->isPending() : false;
+    }
 
     /**
      * @return True if this action was terminated.
      */
-    bool isTerminated() const { return mPtr->isTerminated(); }
+    bool isTerminated() const {
+        return mPtr ? mPtr->isTerminated() : false;   // Null actions are considered resolved, not terminated
+    }
 
     /**
      * @return True if this action has resolved.
      */
-    bool isResolved() const { return mPtr->isResolved(); }
+    bool isResolved() const {
+        return mPtr ? mPtr->isResolved() : true;
+    }
 
     /**
      * @return The common timers object for scheduling timeouts.
      */
-    const TimersPtr& timers() const { return mPtr->timers(); }
+    const TimersPtr& timers() const {
+        assert(mPtr);
+        return mPtr->timers();
+    }
 
     /**
+     * @return True if there is no action associated with this action ref
+     */
+    bool empty() const { return mPtr == nullptr; }
+
+    /**
+     * @deprecated
      * @return True if there is no action associated with this action ref.
      */
-    bool isEmpty() const { return mPtr == nullptr; }
+    bool isEmpty() const { return empty(); }
 
     /**
      * Attach a chunk of user data to this action
      * @param userData The user data to attach
      */
-    void setUserData(void *userData) { mPtr->setUserData(userData); }
+    void setUserData(void *userData) {
+        assert(mPtr);
+        mPtr->setUserData(userData);
+    }
 
     /**
      * @return The user data attached to the action
      */
-    void * getUserData() const { return mPtr->getUserData(); }
+    void * getUserData() const {
+        assert(mPtr);
+        return mPtr->getUserData();
+    }
 
 protected:
     ActionPtr mPtr;

@@ -478,7 +478,8 @@ const static char *SERIALIZE_ALL_RESULT = R"({
   "width": "100%",
   "onCursorEnter": [],
   "onCursorExit": [],
-  "_laidOut": true
+  "_laidOut": true,
+  "_visualHash": "[HASH]"
 })";
 
 TEST_F(SerializeTest, SerializeAll)
@@ -486,6 +487,8 @@ TEST_F(SerializeTest, SerializeAll)
     metrics.size(1280, 800);
     loadDocument(SERIALIZE_ALL);
     ASSERT_TRUE(component);
+
+    auto visualHash = component->getCalculated(kPropertyVisualHash).getString();
 
     rapidjson::Document doc;
     auto json = component->serializeAll(doc.GetAllocator());
@@ -497,6 +500,8 @@ TEST_F(SerializeTest, SerializeAll)
     rapidjson::Document result;
     rapidjson::ParseResult ok = result.Parse(SERIALIZE_ALL_RESULT);
     ASSERT_TRUE(ok);
+
+    result["_visualHash"].SetString(visualHash.c_str(), doc.GetAllocator());
 
     // Compare the output - they should be the same
     ASSERT_TRUE(json == result);

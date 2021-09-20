@@ -251,7 +251,7 @@ TEST_F(FocusManagerTest, BlurFocus)
     ASSERT_TRUE(CheckState(thing1, kStateFocused));
     ASSERT_TRUE(CheckState(thing2));
     ASSERT_TRUE(IsEqual(Color(Color::RED), frame1->getCalculated(kPropertyBorderColor)));
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderColor, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame1));
 
     // Switch focus to thing2
@@ -265,8 +265,8 @@ TEST_F(FocusManagerTest, BlurFocus)
     ASSERT_TRUE(CheckState(thing2, kStateFocused));
     ASSERT_TRUE(IsEqual(Color(Color::BLACK), frame1->getCalculated(kPropertyBorderColor)));
     ASSERT_TRUE(IsEqual(Color(Color::RED), frame2->getCalculated(kPropertyBorderColor)));
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderColor));
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderColor, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyBorderColor, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame1, frame2));
 
     // Now remove the focus
@@ -280,7 +280,7 @@ TEST_F(FocusManagerTest, BlurFocus)
     ASSERT_TRUE(CheckState(thing2));
     ASSERT_TRUE(IsEqual(Color(Color::BLACK), frame1->getCalculated(kPropertyBorderColor)));
     ASSERT_TRUE(IsEqual(Color(Color::BLACK), frame2->getCalculated(kPropertyBorderColor)));
-    ASSERT_TRUE(CheckDirty(frame2, kPropertyBorderColor));
+    ASSERT_TRUE(CheckDirty(frame2, kPropertyBorderColor, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, frame2));
 }
 
@@ -334,7 +334,7 @@ TEST_F(FocusManagerTest, FocusEvent)
     ASSERT_TRUE(CheckState(component, kStateFocused));
     ASSERT_TRUE(IsEqual("Focus:true", text->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(IsEqual(Rect(0,0,1024,10), text->getCalculated(kPropertyBounds)));
-    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyBounds, kPropertyInnerBounds));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, text));
 
     // Drop focus.  This does not change the text size, so the bounds do not change
@@ -345,7 +345,7 @@ TEST_F(FocusManagerTest, FocusEvent)
 
     ASSERT_TRUE(CheckState(component));
     ASSERT_TRUE(IsEqual("Blur:false", text->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
 }
 

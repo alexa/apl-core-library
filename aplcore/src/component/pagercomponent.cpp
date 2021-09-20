@@ -286,6 +286,20 @@ PagerComponent::executePageMove(float amount)
         mPageMoveHandler->execute(shared_from_corecomponent(), amount);
 }
 
+/*
+ * Check if we have focus on the given page
+ */
+static bool
+isOnPage(const CoreComponentPtr& pager, int page, const CoreComponentPtr& targetComponent) {
+    auto comp = targetComponent;
+    const auto& child = pager->getCoreChildAt(page);
+    while (comp && comp != pager) {
+        if (comp == child) return true;
+        comp = std::static_pointer_cast<CoreComponent>(comp->getParent());
+    }
+    return false;
+}
+
 void
 PagerComponent::endPageMove(bool fulfilled, const ActionRef& ref, bool fast)
 {
@@ -297,6 +311,11 @@ PagerComponent::endPageMove(bool fulfilled, const ActionRef& ref, bool fast)
     if (fulfilled) {
         // Ensure internal state for lazy loading.
         setPage(targetPage);
+
+        // Check if we are focusing on something in the previous page
+        auto& fm = mContext->focusManager();
+        if (isOnPage(shared_from_corecomponent(), mPageMoveHandler->getCurrentPage(), fm.getFocus()))
+            fm.setFocus(shared_from_corecomponent(), true);
 
         auto event = executePageChangeEvent(fast);
         if (!ref.isEmpty()) {

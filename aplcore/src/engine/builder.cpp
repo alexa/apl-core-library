@@ -19,12 +19,6 @@
 #include <stdexcept>
 #include <cmath>
 
-#include "apl/engine/binding.h"
-#include "apl/engine/builder.h"
-#include "apl/engine/context.h"
-#include "apl/engine/contextdependant.h"
-#include "apl/engine/arrayify.h"
-#include "apl/engine/evaluate.h"
 #include "apl/component/containercomponent.h"
 #include "apl/component/edittextcomponent.h"
 #include "apl/component/framecomponent.h"
@@ -38,25 +32,30 @@
 #include "apl/component/vectorgraphiccomponent.h"
 #include "apl/component/videocomponent.h"
 #include "apl/content/rootconfig.h"
-#include "apl/engine/properties.h"
+#include "apl/engine/arrayify.h"
+#include "apl/engine/binding.h"
+#include "apl/engine/builder.h"
+#include "apl/engine/context.h"
+#include "apl/engine/contextdependant.h"
+#include "apl/engine/evaluate.h"
 #include "apl/engine/parameterarray.h"
 #include "apl/livedata/livearray.h"
 #include "apl/livedata/livearrayobject.h"
+#include "apl/engine/properties.h"
+#include "apl/extension/extensioncomponent.h"
+#include "apl/extension/extensionmanager.h"
 #include "apl/livedata/layoutrebuilder.h"
+#include "apl/primitives/object.h"
 #include "apl/utils/log.h"
 #include "apl/utils/path.h"
 #include "apl/utils/session.h"
 #include "apl/utils/tracing.h"
-#include "apl/primitives/object.h"
 
 namespace apl {
 
 const bool DEBUG_BUILDER = false;
 
-
-using MakeComponentFunc = CoreComponentPtr (*)(const ContextPtr&, Properties&&, const Path&);
-
-static const std::map<std::string, MakeComponentFunc> sComponentMap = {
+static std::map<std::string, MakeComponentFunc> sComponentMap = {
     {"Container",     ContainerComponent::create},
     {"Text",          TextComponent::create},
     {"Image",         ImageComponent::create},
@@ -76,7 +75,8 @@ Builder::populateSingleChildLayout(const ContextPtr& context,
                                    const Object& item,
                                    const CoreComponentPtr& layout,
                                    const Path& path,
-                                   bool fullBuild)
+                                   bool fullBuild,
+                                   bool useDirtyFlag)
 {
     LOG_IF(DEBUG_BUILDER) << "call";
     APL_TRACE_BLOCK("Builder:populateSingleChildLayout");
@@ -85,8 +85,9 @@ Builder::populateSingleChildLayout(const ContextPtr& context,
                                                 Properties(),
                                                 layout,
                                                 path.addProperty(item, "item", "items"),
-                                                fullBuild);
-    layout->appendChild(child, true);
+                                                fullBuild,
+                                                useDirtyFlag);
+    layout->appendChild(child, useDirtyFlag);
 }
 
 void
@@ -94,7 +95,8 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                                  const Object& item,
                                  const CoreComponentPtr& layout,
                                  const Path& path,
-                                 bool fullBuild)
+                                 bool fullBuild,
+                                 bool useDirtyFlag)
 {
     LOG_IF(DEBUG_BUILDER) << path;
     APL_TRACE_BLOCK("Builder:populateLayoutComponent");
@@ -104,11 +106,12 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                                                 Properties(),
                                                 layout,
                                                 path.addProperty(item, "firstItem"),
-                                                true);
+                                                fullBuild,
+                                                useDirtyFlag);
     bool hasFirstItem = false;
     if (child && child->isValid()) {
         hasFirstItem = true;
-        layout->appendChild(child, true);
+        layout->appendChild(child, useDirtyFlag);
     }
 
     bool numbered = layout->getCalculated(kPropertyNumbered).asBoolean();
@@ -125,7 +128,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
         auto liveData = data.getLiveDataObject();
         if (liveData && liveData->asArray()) {
             layoutBuilder = LayoutRebuilder::create(context, layout, mOld, liveData->asArray(), items, childPath, numbered);
-            layoutBuilder->build();
+            layoutBuilder->build(useDirtyFlag);
         }
         else {
             auto dataItems = evaluateRecursive(*context, data);
@@ -143,7 +146,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                         "__data" + layout->getUniqueId());
 
                 layoutBuilder = LayoutRebuilder::create(context, layout, mOld, liveData->asArray(), items, childPath, numbered);
-                layoutBuilder->build();
+                layoutBuilder->build(useDirtyFlag);
             }
             else {
                 LOG_IF(DEBUG_BUILDER) << "items size=" << items.size();
@@ -162,10 +165,11 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                                                            Properties(),
                                                            layout,
                                                            childPath.addIndex(i),
-                                                           fullBuild);
+                                                           fullBuild,
+                                                           useDirtyFlag);
                     // TODO: Full or not full here?
                     if (child && child->isValid()) {
-                        layout->appendChild(child, true);
+                        layout->appendChild(child, useDirtyFlag);
                         index++;
 
                         if (numbered) {
@@ -184,12 +188,13 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                                            Properties(),
                                            layout,
                                            path.addProperty(item, "lastItem"),
-                                           true);
+                                           fullBuild,
+                                           useDirtyFlag);
 
     bool hasLastItem = false;
     if (child && child->isValid()) {
         hasLastItem = true;
-        layout->appendChild(child, true);
+        layout->appendChild(child, useDirtyFlag);
     }
 
     // Chance to get final child dependent set-up before actual layout happened.
@@ -197,6 +202,16 @@ Builder::populateLayoutComponent(const ContextPtr& context,
 
     if (layoutBuilder)
         layoutBuilder->setFirstLast(hasFirstItem, hasLastItem);
+}
+
+MakeComponentFunc
+Builder::findComponentBuilderFunc(const ContextPtr& context, const std::string &type) {
+    auto method = sComponentMap.find(type);
+    if (method != sComponentMap.end()) {
+        return method->second;
+    }
+
+    return context->extensionManager().findAndCreateExtensionComponent(type);
 }
 
 /**
@@ -207,6 +222,8 @@ Builder::populateLayoutComponent(const ContextPtr& context,
  * @param properties The user-specified properties for this component
  * @param parent The parent component of this component
  * @param path The path of this component
+ * @param fullBuild Build full tree.
+ * @param useDirtyFlag true to notify runtime about changes with dirty properties
  */
 CoreComponentPtr
 Builder::expandSingleComponent(const ContextPtr& context,
@@ -214,7 +231,8 @@ Builder::expandSingleComponent(const ContextPtr& context,
                                Properties&& properties,
                                const CoreComponentPtr& parent,
                                const Path& path,
-                               bool fullBuild)
+                               bool fullBuild,
+                               bool useDirtyFlag)
 {
     LOG_IF(DEBUG_BUILDER) << path.toString();
     APL_TRACE_BLOCK("Builder:expandSingleComponent");
@@ -225,8 +243,7 @@ Builder::expandSingleComponent(const ContextPtr& context,
         return nullptr;
     }
 
-    auto method = sComponentMap.find(type);
-    if (method != sComponentMap.end()) {
+    if (auto method = findComponentBuilderFunc(context, type)) {
         LOG_IF(DEBUG_BUILDER) << "Expanding primitive " << type;
 
         // Copy the items into the properties map.
@@ -237,7 +254,7 @@ Builder::expandSingleComponent(const ContextPtr& context,
         attachBindings(expanded, item);
 
         // Construct the component
-        CoreComponentPtr component = CoreComponentPtr(method->second(expanded, std::move(properties), path));
+        CoreComponentPtr component = CoreComponentPtr(method(expanded, std::move(properties), path));
         if (!component || !component->isValid()) {
             CONSOLE_CTP(context) << "Unable to inflate component";
             if (component)
@@ -254,9 +271,9 @@ Builder::expandSingleComponent(const ContextPtr& context,
 
         if (fullBuild) {
             if (component->singleChild()) {
-                populateSingleChildLayout(expanded, item, component, path, true);
+                populateSingleChildLayout(expanded, item, component, path, true, useDirtyFlag);
             } else if (component->multiChild()) {
-                populateLayoutComponent(expanded, item, component, path, true);
+                populateLayoutComponent(expanded, item, component, path, true, useDirtyFlag);
             }
         } else {
             expanded->putConstant("_item", item);
@@ -275,7 +292,7 @@ Builder::expandSingleComponent(const ContextPtr& context,
     auto resource = context->getLayout(type);
     if (!resource.empty()) {
         properties.emplace(item);
-        return expandLayout(context, properties, resource.json(), parent, resource.path(), fullBuild);
+        return expandLayout(context, properties, resource.json(), parent, resource.path(), fullBuild, useDirtyFlag);
     }
 
     CONSOLE_CTP(context) << "Unable to find layout or component '" << type << "'";
@@ -325,7 +342,8 @@ Builder::attachBindings(const apl::ContextPtr& context, const apl::Object& item)
  * @param properties The user-specified properties for this component
  * @param parent The parent component of this component
  * @param path The path description of this component
- * @param fullBuild Build whole hierarchy.
+ * @param fullBuild Build full tree.
+ * @param useDirtyFlag true to notify runtime about changes with dirty properties
  */
 CoreComponentPtr
 Builder::expandSingleComponentFromArray(const ContextPtr& context,
@@ -333,7 +351,8 @@ Builder::expandSingleComponentFromArray(const ContextPtr& context,
                                         Properties&& properties,
                                         const CoreComponentPtr& parent,
                                         const Path& path,
-                                        bool fullBuild)
+                                        bool fullBuild,
+                                        bool useDirtyFlag)
 {
     LOG_IF(DEBUG_BUILDER) << path;
     for (int index = 0; index < items.size(); index++) {
@@ -342,7 +361,7 @@ Builder::expandSingleComponentFromArray(const ContextPtr& context,
             continue;
 
         if (propertyAsBoolean(*context, item, "when", true)) {
-            return expandSingleComponent(context, item, std::move(properties), parent, path.addIndex(index), fullBuild);
+            return expandSingleComponent(context, item, std::move(properties), parent, path.addIndex(index), fullBuild, useDirtyFlag);
         }
     }
 
@@ -357,6 +376,8 @@ Builder::expandSingleComponentFromArray(const ContextPtr& context,
  * @param properties The user-specified properties for this layout.
  * @param layout The JSON definition of the layout object.
  * @param parent The parent component of this layout.
+ * @param fullBuild Build full tree.
+ * @param useDirtyFlag true to notify runtime about changes with dirty properties
  */
 CoreComponentPtr
 Builder::expandLayout(const ContextPtr& context,
@@ -364,7 +385,8 @@ Builder::expandLayout(const ContextPtr& context,
                       const rapidjson::Value& layout,
                       const CoreComponentPtr& parent,
                       const Path& path,
-                      bool fullBuild)
+                      bool fullBuild,
+                      bool useDirtyFlag)
 {
     LOG_IF(DEBUG_BUILDER) << path;
     if (!layout.IsObject()) {
@@ -399,7 +421,8 @@ Builder::expandLayout(const ContextPtr& context,
                                           std::move(properties),
                                           parent,
                                           path.addProperty(layout, "item", "items"),
-                                          fullBuild);
+                                          fullBuild,
+                                          useDirtyFlag);
 }
 
 /**
@@ -473,7 +496,7 @@ Builder::inflate(const ContextPtr& context,
 {
     APL_TRACE_BLOCK("Builder:inflate");
     return expandLayout(context, mainProperties, mainDocument, nullptr,
-        Path(context->getRootConfig().getTrackProvenance() ? std::string(Path::MAIN) + "/mainTemplate" : ""), true);
+        Path(context->getRootConfig().getTrackProvenance() ? std::string(Path::MAIN) + "/mainTemplate" : ""), true, false);
 }
 
 CoreComponentPtr
@@ -483,10 +506,10 @@ Builder::inflate(const ContextPtr& context,
     assert(component.isMap() || component.isArray());
     if (component.isMap())
         return expandSingleComponent(context, component, Properties(), nullptr,
-            Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""), true);
+            Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""), true, false);
     else if (component.isArray())
         return expandSingleComponentFromArray(context, component.getArray(), Properties(), nullptr,
-            Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""), true);
+            Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""), true, false);
     else
         return nullptr;
 }

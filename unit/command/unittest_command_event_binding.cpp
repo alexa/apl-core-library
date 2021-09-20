@@ -281,7 +281,7 @@ TEST_F(CommandEventBinding, VideoComponentEventInterpolation)
                                            true,
                                            false));
     root->clearPending();
-    ASSERT_TRUE(CheckDirty(component, kPropertySource));
+    ASSERT_TRUE(CheckDirty(component, kPropertySource, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 
     array = component->getCalculated(kPropertySource).getArray();

@@ -154,34 +154,34 @@ TEST_F(TextComponentTest, TextAlignParseCheck) {
 
     auto et = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
 
-    EXPECT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignLeft,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignLeft,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignRight,  et->getCoreChildAt(2)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignRight,  et->getCoreChildAt(2)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignCenter, et->getCoreChildAt(3)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignCenter, et->getCoreChildAt(3)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignLeft,   et->getCoreChildAt(4)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignStart,  et->getCoreChildAt(4)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignRight,  et->getCoreChildAt(5)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignEnd,    et->getCoreChildAt(5)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignLeft,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignLeft,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignRight,  et->getCoreChildAt(2)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignRight,  et->getCoreChildAt(2)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignCenter, et->getCoreChildAt(3)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignCenter, et->getCoreChildAt(3)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignLeft,   et->getCoreChildAt(4)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignStart,  et->getCoreChildAt(4)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignRight,  et->getCoreChildAt(5)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignEnd,    et->getCoreChildAt(5)->getCalculated(kPropertyTextAlignAssigned).asInt());
 
     et->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending(); // force layout changes
 
-    EXPECT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignLeft,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignLeft,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignRight,  et->getCoreChildAt(2)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignRight,  et->getCoreChildAt(2)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignCenter, et->getCoreChildAt(3)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignCenter, et->getCoreChildAt(3)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignRight,  et->getCoreChildAt(4)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignStart,  et->getCoreChildAt(4)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignLeft,   et->getCoreChildAt(5)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignEnd,    et->getCoreChildAt(5)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignLeft,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignLeft,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignRight,  et->getCoreChildAt(2)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignRight,  et->getCoreChildAt(2)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignCenter, et->getCoreChildAt(3)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignCenter, et->getCoreChildAt(3)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignRight,  et->getCoreChildAt(4)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignStart,  et->getCoreChildAt(4)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignLeft,   et->getCoreChildAt(5)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignEnd,    et->getCoreChildAt(5)->getCalculated(kPropertyTextAlignAssigned).asInt());
 }
 
 static const char* TEXT_ALIGN_DEFAULT_RTL = R"({
@@ -214,18 +214,18 @@ TEST_F(TextComponentTest, TextAlignParseCheckRTL) {
 
     auto et = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
 
-    EXPECT_EQ(kTextAlignRight, et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignStart, et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignLeft,  et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignEnd,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignRight, et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignStart, et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignLeft,  et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignEnd,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
 
     et->setProperty(kPropertyLayoutDirectionAssigned, "LTR");
     root->clearPending(); // force layout changes
 
-    EXPECT_EQ(kTextAlignLeft,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignStart,  et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignRight,  et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignEnd,    et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignLeft,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignStart,  et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignRight,  et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignEnd,    et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
 }
 
 /**
@@ -236,19 +236,19 @@ TEST_F(TextComponentTest, TextAlignDynCheckRTL) {
 
     auto et = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
 
-    EXPECT_EQ(kTextAlignRight, et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignStart, et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignLeft,  et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignEnd,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignRight, et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignStart, et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignLeft,  et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignEnd,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
 
     et->getCoreChildAt(0)->setProperty(kPropertyTextAlignAssigned, "end");
     et->getCoreChildAt(1)->setProperty(kPropertyTextAlignAssigned, "start");
     root->clearPending(); // force layout changes
 
-    EXPECT_EQ(kTextAlignLeft,  et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignEnd,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
-    EXPECT_EQ(kTextAlignRight, et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
-    EXPECT_EQ(kTextAlignStart, et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignLeft,  et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignEnd,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
+    ASSERT_EQ(kTextAlignRight, et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignStart, et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
 }
 
 /**
@@ -259,41 +259,36 @@ TEST_F(TextComponentTest, TextAlignDirtyFlag) {
 
     auto et = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
 
-    EXPECT_TRUE(CheckDirty(root));
+    ASSERT_TRUE(CheckDirty(root));
 
     // Basic check
     et->getCoreChildAt(0)->setProperty(kPropertyTextAlignAssigned, "left");
     et->getCoreChildAt(1)->setProperty(kPropertyTextAlignAssigned, "right");
 
-    EXPECT_TRUE(CheckDirty(et->getCoreChildAt(0), kPropertyTextAlign));
-    EXPECT_TRUE(CheckDirty(et->getCoreChildAt(1), kPropertyTextAlign));
-
-    root->clearPending(); // force layout changes
-
-    EXPECT_TRUE(CheckDirty(et->getCoreChildAt(0)));
-    EXPECT_TRUE(CheckDirty(et->getCoreChildAt(1)));
+    ASSERT_TRUE(CheckDirty(et->getCoreChildAt(0), kPropertyTextAlign, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(et->getCoreChildAt(1), kPropertyTextAlign, kPropertyVisualHash));
 
     // layout change WITHOUT start/end text align should not change text align
 
     et->setProperty(kPropertyLayoutDirectionAssigned, "LTR");
     root->clearPending(); // force layout changes
 
-    EXPECT_TRUE(CheckDirty(et->getCoreChildAt(0), kPropertyLayoutDirection));
-    EXPECT_TRUE(CheckDirty(et->getCoreChildAt(1), kPropertyLayoutDirection));
+    ASSERT_TRUE(CheckDirty(et->getCoreChildAt(0), kPropertyLayoutDirection, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(et->getCoreChildAt(1), kPropertyLayoutDirection, kPropertyVisualHash));
 
     // start and end is the same as left and right in this layout direction so this shouldn't set the dirty flag
 
     et->getCoreChildAt(0)->setProperty(kPropertyTextAlignAssigned, "start");
     et->getCoreChildAt(1)->setProperty(kPropertyTextAlignAssigned, "end");
 
-    EXPECT_TRUE(CheckDirty(et->getCoreChildAt(0)));
-    EXPECT_TRUE(CheckDirty(et->getCoreChildAt(1)));
+    ASSERT_TRUE(CheckDirty(et->getCoreChildAt(0)));
+    ASSERT_TRUE(CheckDirty(et->getCoreChildAt(1)));
 
     et->getCoreChildAt(0)->setProperty(kPropertyTextAlignAssigned, "end");
     et->getCoreChildAt(1)->setProperty(kPropertyTextAlignAssigned, "start");
 
-    EXPECT_TRUE(CheckDirty(et->getCoreChildAt(0), kPropertyTextAlign));
-    EXPECT_TRUE(CheckDirty(et->getCoreChildAt(1), kPropertyTextAlign));
+    ASSERT_TRUE(CheckDirty(et->getCoreChildAt(0), kPropertyTextAlign, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(et->getCoreChildAt(1), kPropertyTextAlign, kPropertyVisualHash));
 
     root->clearPending(); // force layout changes
 
@@ -302,8 +297,8 @@ TEST_F(TextComponentTest, TextAlignDirtyFlag) {
     et->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending(); // force layout changes
 
-    EXPECT_TRUE(CheckDirty(et->getCoreChildAt(0), kPropertyTextAlign, kPropertyLayoutDirection));
-    EXPECT_TRUE(CheckDirty(et->getCoreChildAt(1), kPropertyTextAlign, kPropertyLayoutDirection));
+    ASSERT_TRUE(CheckDirty(et->getCoreChildAt(0), kPropertyTextAlign, kPropertyLayoutDirection, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(et->getCoreChildAt(1), kPropertyTextAlign, kPropertyLayoutDirection, kPropertyVisualHash));
 }
 
 const char *AUTO_SEQUENCED_TEXT = R"({
@@ -338,4 +333,90 @@ TEST_F(TextComponentTest, AutoSequencedText)
     // Should have not more than 5 measurements == number of text fields.
     ASSERT_EQ(5, ctm->measures);
     ASSERT_EQ(0, ctm->baselines);
+}
+
+const char *AUTO_SEQUENCED_SAME_TEXT = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": {
+        "type": "Sequence",
+        "direction": "horizontal",
+        "width": "100%",
+        "height": "auto",
+        "items": {
+          "type": "Text",
+          "text": "sample"
+        },
+        "data": "${Array.range(5)}"
+      }
+    }
+  }
+})";
+
+TEST_F(TextComponentTest, AutoSequencedSameText)
+{
+    auto ctm = std::make_shared<CountingTextMeasurement>();
+    config->measure(ctm);
+    loadDocument(AUTO_SEQUENCED_SAME_TEXT);
+    advanceTime(10);
+
+
+    // Should have not more than 1 measurements == all text are the same.
+    ASSERT_EQ(1, ctm->measures);
+    ASSERT_EQ(0, ctm->baselines);
+}
+
+const char *SINGLE_TEXT_MEASUREMENT_GALORE = R"({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+	  "width": "100%",
+      "height": "100%",
+      "items": {
+        "type": "Text",
+        "id": "auto1",
+        "text": "Some text",
+        "width": "auto"
+      }
+    }
+  }
+})";
+
+TEST_F(TextComponentTest, ParametersChangeMeasurement)
+{
+    auto ctm = std::make_shared<CountingTextMeasurement>();
+    config->measure(ctm);
+    loadDocument(SINGLE_TEXT_MEASUREMENT_GALORE);
+    advanceTime(10);
+
+    ASSERT_EQ(1, ctm->measures);
+    ASSERT_EQ(0, ctm->baselines);
+
+    auto text = component->getCoreChildAt(0);
+
+    text->setProperty(kPropertyOpacity, 0.9);
+    root->clearPending();
+    root->clearDirty();
+
+    // No change expected
+    ASSERT_EQ(1, ctm->measures);
+
+    // Change one of the text style props
+    text->setProperty(kPropertyFontWeight, 800);
+    root->clearPending();
+    root->clearDirty();
+
+    ASSERT_EQ(2, ctm->measures);
+
+    // Change text itself
+    text->setProperty(kPropertyText, "Bananas");
+    root->clearPending();
+
+    ASSERT_EQ(3, ctm->measures);
 }

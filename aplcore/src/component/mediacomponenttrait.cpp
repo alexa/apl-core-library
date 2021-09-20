@@ -16,9 +16,7 @@
 #include "apl/component/mediacomponenttrait.h"
 #include "apl/component/componentpropdef.h"
 #include "apl/content/rootconfig.h"
-#include "apl/engine/event.h"
 #include "apl/media/mediamanager.h"
-#include "apl/media/mediaobject.h"
 
 namespace apl {
 
@@ -37,7 +35,7 @@ MediaComponentTrait::resetMediaFetchState()
 {
     auto component = getComponent();
     component->setCalculated(kPropertyMediaState, kMediaStateNotRequested);
-    mMediaObjects.clear();
+    mMediaObjectHolders.clear();
 
     if (component->getCalculated(kPropertyLaidOut).truthy())
         ensureMediaRequested();
@@ -70,19 +68,27 @@ MediaComponentTrait::ensureMediaRequested()
     component->setDirty(kPropertyMediaState);
 
     for (const auto& m : sources) {
-        mMediaObjects.push_back(context->mediaManager().request(m, mediaType()));
-        if (mMediaObjects.back()->state() == MediaObject::kPending) {
+        auto mediaObject = context->mediaManager().request(m, mediaType());
+        MediaObject::CallbackID callbackToken = 0;
+        if (mediaObject->state() == MediaObject::kPending) {
             auto weak = std::weak_ptr<CoreComponent>(component);
-            mMediaObjects.back()->addCallback([weak](const MediaObjectPtr& mediaObjectPtr) {
+            callbackToken = mediaObject->addCallback([weak](const MediaObjectPtr& mediaObjectPtr) {
                 auto self = weak.lock();
                 if (self)
                     std::dynamic_pointer_cast<MediaComponentTrait>(self)->pendingMediaReturned(mediaObjectPtr);
             });
         }
+        mMediaObjectHolders.emplace_back(MediaObjectHolder{mediaObject, callbackToken});
     }
 
     // Some of the media objects may have been ready or in error state
     updateMediaState();
+}
+
+void
+MediaComponentTrait::release()
+{
+    mMediaObjectHolders.clear();
 }
 
 void
@@ -98,26 +104,29 @@ MediaComponentTrait::updateMediaState()
     auto state = static_cast<ComponentMediaState>(component->getCalculated(kPropertyMediaState).getInteger());
     if (state != kMediaStatePending)
         return;
-
-    // Check for error conditions first
-    if (std::any_of(mMediaObjects.begin(),
-                    mMediaObjects.end(),
-                    [](const MediaObjectPtr& ptr) { return ptr->state() == MediaObject::kError; })) {
+    // Check for error conditions first, any_of stops the first time the condition is met
+    MediaObjectPtr onFailObject;
+    if (std::any_of(mMediaObjectHolders.begin(),
+                    mMediaObjectHolders.end(),
+                    [&onFailObject](const MediaObjectHolder& holder) {
+                        bool isError = holder.getMediaObject()->state() == MediaObject::kError;
+                        if (isError)
+                            onFailObject = holder.getMediaObject();
+                        return isError;
+                    })) {
         component->setCalculated(kPropertyMediaState, kMediaStateError);
         component->setDirty(kPropertyMediaState);
+        onFail(onFailObject);
         return;
-    }
-
-    // Check if all media objects are ready
-    if (std::all_of(mMediaObjects.begin(),
-                    mMediaObjects.end(),
-                    [](const MediaObjectPtr& ptr) {
-                        return ptr->state() == MediaObject::kReady;
+    } else if (std::all_of(mMediaObjectHolders.begin(), // Check if all media objects are ready
+                           mMediaObjectHolders.end(),
+                    [](const MediaObjectHolder& holder) {
+                        return holder.getMediaObject()->state() == MediaObject::kReady;
                     })) {
         component->setCalculated(kPropertyMediaState, kMediaStateReady);
         component->setDirty(kPropertyMediaState);
+        onLoad();
     }
 }
-
 
 } // namespace apl

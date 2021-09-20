@@ -22,38 +22,36 @@
 namespace apl {
 
 
-class VideoComponent : public CoreComponent,
-                       public MediaComponentTrait {
+class VideoComponent : public CoreComponent {
 public:
     static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const Path& path);
     VideoComponent(const ContextPtr& context, Properties&& properties, const Path& path);
+    virtual ~VideoComponent() noexcept;
 
     ComponentType getType() const override { return kComponentTypeVideo; };
-    void updateMediaState(const MediaState& state, bool fromEvent) override;
+    bool remove() override;
 
+    void updateMediaState(const MediaState& state, bool fromEvent) override;
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
 
     std::string getCurrentUrl() const;
 
-    void postProcessLayoutChanges() override;
+    MediaPlayerPtr getMediaPlayer() const { return mMediaPlayer; }
 
 protected:
     const EventPropertyMap & eventPropertyMap() const override;
     const ComponentPropDefSet& propDefSet() const override;
-    void addEventProperties(ObjectMap &event) const override;
     std::string getVisualContextType() const override;
     void assignProperties(const ComponentPropDefSet &propDefSet) override;
 
-    /// Media component trait overrides
-    std::vector<std::string> getSources() override;
-    EventMediaType mediaType() const override { return kEventMediaTypeVideo; }
-    void pendingMediaReturned(const MediaObjectPtr& source) override;
-
-    // Component trait overrides
-    CoreComponentPtr getComponent() override { return shared_from_corecomponent(); }
-
 private:
     void saveMediaState(const MediaState& state);
+    std::shared_ptr<ObjectMap> createDefaultEventProperties();
+    std::shared_ptr<ObjectMap> createErrorEventProperties(int errorCode);
+    std::shared_ptr<ObjectMap> createReadyEventProperties();
+
+    MediaPlayerPtr mMediaPlayer;
+    const std::string mMediaSequencer;  // Internal sequencer used for onEnd/onPause/onPlay
 };
 
 

@@ -16,4 +16,5 @@ target_sources_local(apl
     extensionclient.cpp
     extensionmanager.cpp
     extensionmediator.cpp
+    extensioncomponent.cpp
 )

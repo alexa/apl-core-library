@@ -102,11 +102,11 @@ TEST_F(DynamicComponentTestSimple, AddOnly)
     ASSERT_TRUE(IsEqual(Rect(0,400,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child,
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child,frame[0], frame[1], frame[2]));
 }
 
@@ -129,11 +129,11 @@ TEST_F(DynamicComponentTestSimple, InsertInMiddle)
     ASSERT_TRUE(IsEqual(Rect(0,400,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child,
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(frame[0]));
     ASSERT_TRUE(CheckDirty(frame[1]));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child, frame[2]));
 }
 
@@ -156,8 +156,8 @@ TEST_F(DynamicComponentTestSimple, InsertAtEnd)
     ASSERT_TRUE(IsEqual(Rect(0,200,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child,
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(frame[0]));
     ASSERT_TRUE(CheckDirty(frame[1]));
     ASSERT_TRUE(CheckDirty(frame[2]));
@@ -177,8 +177,8 @@ TEST_F(DynamicComponentTestSimple, RemoveFront)
     ASSERT_TRUE(IsEqual(Rect(0,100,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, frame[1], frame[2]));
 }
 
@@ -195,7 +195,7 @@ TEST_F(DynamicComponentTestSimple, RemoveMiddle)
     ASSERT_TRUE(IsEqual(Rect(0,100,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, frame[2]));
 }
 
@@ -211,7 +211,7 @@ TEST_F(DynamicComponentTestSimple, RemoveEnd)
     ASSERT_TRUE(IsEqual(Rect(0,0,100,100), frame[0]->getCalculated(kPropertyBounds)));
     ASSERT_TRUE(IsEqual(Rect(0,100,100,100), frame[1]->getCalculated(kPropertyBounds)));
 
-    ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component));
 }
 
@@ -237,10 +237,11 @@ TEST_F(DynamicComponentTestSimple, AddAndRemove)
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(child,
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child,frame[0], frame[1], frame[2]));
 
     // Remove the child
@@ -255,9 +256,9 @@ TEST_F(DynamicComponentTestSimple, AddAndRemove)
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(child));
-    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, frame[0], frame[1], frame[2]));
 }
 
@@ -279,12 +280,13 @@ TEST_F(DynamicComponentTestSimple, AddAndMove)
     ASSERT_TRUE(IsEqual(Rect(0,300,100,100), frame[1]->getCalculated(kPropertyBounds)));
     ASSERT_TRUE(IsEqual(Rect(0,400,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
-    ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(child,
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child,frame[0], frame[1], frame[2]));
 
     // Move the child to a new location
@@ -300,9 +302,9 @@ TEST_F(DynamicComponentTestSimple, AddAndMove)
     ASSERT_TRUE(IsEqual(Rect(0,400,100,100), frame[2]->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[0], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(frame[2]));  // It didn't move
     ASSERT_TRUE(CheckDirty(root, component, child, frame[0], frame[1]));
 }
@@ -338,9 +340,10 @@ TEST_F(DynamicComponentTestSimple, LayoutProperties)
 
     ASSERT_TRUE(CheckDirty(component,kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(child,
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child, frame[1], frame[2]));  // frame[0] didn't move
 
     // Move the child to a new location
@@ -357,8 +360,8 @@ TEST_F(DynamicComponentTestSimple, LayoutProperties)
 
     // frame[1] and child swapped places
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child, frame[1]));
 }
 
@@ -391,8 +394,10 @@ TEST_F(DynamicComponentTestSimple, AddHierarchy)
     // Running layout updates the bounds of the attached children
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(child,
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut));
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(child->getChildAt(0), kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child, child->getChildAt(0), frame[1], frame[2]));
 
     // Move the hierarchy to a new spot
@@ -404,7 +409,7 @@ TEST_F(DynamicComponentTestSimple, AddHierarchy)
     ASSERT_TRUE(IsEqual(Rect(0,300,200,200), child->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child, frame[1], frame[2]));  // frame[0] and the embedded Text don't change
 
     ASSERT_TRUE(child->remove());
@@ -429,7 +434,7 @@ TEST_F(DynamicComponentTestSimple, MoveDirty)
 
     // Now change the text. This should mark it as dirty
     executeCommand("SetValue", {{"componentId", "myText"}, {"property", "text"}, {"value", "foobar"}}, false);
-    ASSERT_TRUE(CheckDirtyDoNotClear(text, kPropertyText));
+    ASSERT_TRUE(CheckDirtyDoNotClear(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirtyDoNotClear(root, text));
 
     // Without clearing the dirty flags, remove the component
@@ -446,7 +451,7 @@ TEST_F(DynamicComponentTestSimple, MoveDirty)
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(child));   // Nothing changed for the child; not even the property bounds
-    ASSERT_TRUE(CheckDirty(text, kPropertyText));
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, text));
 }
 
@@ -586,8 +591,9 @@ TEST_F(DynamicComponentTestSimple, AddHierarchyInherit)
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(child,
                            kPropertyBounds, kPropertyInnerBounds, kPropertyChecked, kPropertyLaidOut,
-                           kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyChecked, kPropertyLaidOut));
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyChecked, kPropertyLaidOut,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child, text, frame[1], frame[2]));
 
     // Disconnect the hierarchy and attach elsewhere
@@ -602,7 +608,8 @@ TEST_F(DynamicComponentTestSimple, AddHierarchyInherit)
     ASSERT_TRUE(IsEqual(true, text->getCalculated(kPropertyChecked)));
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyChecked, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyChecked, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(text, kPropertyChecked));
     ASSERT_TRUE(CheckDirty(root, component, child, text));
 }
@@ -691,18 +698,18 @@ TEST_F(DynamicComponentTest, Sequence)
 
     ASSERT_TRUE(IsEqual(Rect(0,340,200,200), child->getCalculated(kPropertyBounds)));
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child,
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirtyAtLeast(root, component, child, frame[1], frame[2], frame[3]));  // frame[0] was skipped over
 
     child->remove();
     root->clearPending();
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(child));
-    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(frame[1], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame[2], kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirtyAtLeast(root, component, frame[1], frame[2], frame[3]));  // frame[0] was skipped over
 }
 
@@ -817,10 +824,10 @@ TEST_F(DynamicComponentTest, MoveBetween)
     ASSERT_TRUE(IsEqual(Rect(140,height/2-200,200,200), child->getCalculated(kPropertyBounds)));
 
     ASSERT_TRUE(CheckDirty(container, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(child,
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(container->getChildAt(2), kPropertyBounds, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckDirty(container->getChildAt(3), kPropertyBounds, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(container->getChildAt(2), kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(container->getChildAt(3), kPropertyBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, container, child, container->getChildAt(2), container->getChildAt(3)));
 
     // Now move it to the sequence
@@ -889,8 +896,8 @@ TEST_F(DynamicComponentTest, Pager)
     component->update(kUpdatePagerByEvent, 1);
     root->clearPending();
     ASSERT_TRUE(IsEqual(Rect(0,0,600,500), child->getCalculated(kPropertyBounds)));
-    ASSERT_TRUE(CheckDirty(child,
-                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(CheckDirty(child, kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut,
+                           kPropertyNotifyChildrenChanged, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child));
 
     // Now move it to the first item

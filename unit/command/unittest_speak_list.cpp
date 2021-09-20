@@ -153,7 +153,7 @@ TEST_F(SpeakListTest, TestStages)
         ASSERT_EQ(Object(kCommandHighlightModeBlock), event.getValue(kEventPropertyHighlightMode)) << msg;
 
         // The item should have updated colors
-        ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget)) << msg;
+        ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash)) << msg;
         ASSERT_EQ(Object(Color(Color::BLUE)), target->getCalculated(kPropertyColor)) << msg;
 
         // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
@@ -164,7 +164,7 @@ TEST_F(SpeakListTest, TestStages)
         root->clearPending();
 
         // Karaoke clears
-        ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget)) << msg;
+        ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash)) << msg;
         ASSERT_EQ(Object(Color(Color::GREEN)), target->getCalculated(kPropertyColor)) << msg;
     }
 
@@ -219,7 +219,7 @@ TEST_F(SpeakListTest, TestStagesStartOffset)
         ASSERT_EQ(Object(kCommandHighlightModeBlock), event.getValue(kEventPropertyHighlightMode)) << msg;
 
         // The item should have updated colors
-        ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget)) << msg;
+        ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash)) << msg;
         ASSERT_EQ(Object(Color(Color::BLUE)), target->getCalculated(kPropertyColor)) << msg;
 
         // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
@@ -230,7 +230,7 @@ TEST_F(SpeakListTest, TestStagesStartOffset)
         root->clearPending();
 
         // Karaoke clears
-        ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget)) << msg;
+        ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash)) << msg;
         ASSERT_EQ(Object(Color(Color::GREEN)), target->getCalculated(kPropertyColor)) << msg;
     }
 

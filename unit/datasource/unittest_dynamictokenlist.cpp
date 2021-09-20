@@ -1406,3 +1406,439 @@ TEST_F(DynamicTokenListTest, Reinflate) {
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(10, component->getChildCount());
 }
+
+static const char * BIT_BY_A_BIT_DEEP = R"({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": ["dynamicSource"],
+    "items": [
+      {
+        "onMount": [
+          {
+            "type": "Sequential",
+            "commands": [
+              {"componentId": "dynamicSequence", "minimumDwellTime": "200", "type": "SpeakItem"},
+              {"delay": 500, "type": "Idle"},
+              {"type": "ScrollToIndex", "componentId": "dynamicSequence", "index": 0, "align": "center"}
+            ]
+          }
+        ],
+        "type": "Container",
+        "width": "100%",
+        "height": "100%",
+        "id": "root",
+        "direction": "row",
+        "items": [
+          {
+            "type": "Container",
+            "grow": 1,
+            "item": [
+              {
+                "type": "Pager",
+                "id": "viewPager",
+                "navigation": "none",
+                "width": "100%",
+                "grow": 1,
+                "item": [
+                  {
+                    "type": "Sequence",
+                    "id": "dynamicSequence",
+                    "speech": "https://example.com/test.mp3",
+                    "navigation": "none",
+                    "scrollDirection": "vertical",
+                    "numbered": true,
+                    "data": "${dynamicSource}",
+                    "item": [
+                      {
+                        "type": "Container",
+                        "id": "container${data}",
+                        "height": 150,
+                        "width": "100%",
+                        "data": "${data}",
+                        "items": [
+                          {
+                            "type": "Container",
+                            "paddingTop": "50dp",
+                            "paddingBottom": "50dp",
+                            "item": [{"type": "Text", "text": "${data}"}]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+static const char* BIT_BY_A_BIT_DATA = R"({
+  "dynamicSource": {
+    "listId": "vQdpOESlok",
+    "pageToken": "currentPageToken",
+    "backwardPageToken": "backwardsPageToken1",
+    "type": "testList",
+    "forwardPageToken": "forwardPageToken1",
+    "items": [100]
+  }
+})";
+
+TEST_F(DynamicTokenListTest, DeepProgressive) {
+    // Set different source, just to avoid config overrides
+    auto source = std::make_shared<DynamicTokenListDataSourceProvider>();
+    metrics.size(750, 750);
+    config->dataSourceProvider("testList", source);
+
+    loadDocument(BIT_BY_A_BIT_DEEP, BIT_BY_A_BIT_DATA);
+    auto sequence = std::static_pointer_cast<CoreComponent>(root->findComponentById("dynamicSequence"));
+    ASSERT_TRUE(sequence);
+    ASSERT_EQ(1, sequence->getChildCount());
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", "forwardPageToken1"));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", "backwardsPageToken1"));
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypePreroll, event.getType());
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeSpeak, event.getType());
+
+    auto checker = [sequence](int sIdx, int eIdx) {
+        int shift = 0;
+        for (int i = sIdx; i <= eIdx; i++) {
+            auto c = sequence->getCoreChildAt(i);
+            if (!c->getCalculated(kPropertyLaidOut).getBoolean()) return false;
+            if (Object(Rect(0,shift*150,750,150)) !=c->getCalculated(kPropertyBounds)) return false;
+            auto cc = c->getCoreChildAt(0);
+            if (!cc->getCalculated(kPropertyLaidOut).getBoolean()) return false;
+            if (Object(Rect(0,0,750,110)) != cc->getCalculated(kPropertyBounds)) return false;
+            auto ccc = cc->getCoreChildAt(0);
+            if (!ccc->getCalculated(kPropertyLaidOut).getBoolean()) return false;
+            if (Object(Rect(0,50,750,10)) !=ccc->getCalculated(kPropertyBounds)) return false;
+            shift++;
+        }
+        return true;
+    };
+
+    advanceTime(600);
+    ASSERT_TRUE(source->processUpdate(createLazyLoad(101, "forwardPageToken1", "forwardPageToken2", "101, 102, 103")));
+    advanceTime(50);
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", "forwardPageToken2"));
+    advanceTime(50);
+    ASSERT_TRUE(source->processUpdate(createLazyLoad(102, "backwardsPageToken1", "backwardsPageToken2", "97, 98, 99")));
+    advanceTime(50);
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "104", "backwardsPageToken2"));
+
+    ASSERT_EQ(7, sequence->getChildCount());
+    ASSERT_EQ(Point(0, 450), sequence->scrollPosition());
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 6}, true));
+    ASSERT_TRUE(checker(0, 6));
+
+    advanceTime(600);
+    ASSERT_TRUE(source->processUpdate(createLazyLoad(103, "forwardPageToken2", "forwardPageToken3", "104, 105, 106")));
+    advanceTime(50);
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "105", "forwardPageToken3"));
+    advanceTime(50);
+    ASSERT_TRUE(source->processUpdate(createLazyLoad(104, "backwardsPageToken2", "backwardsPageToken3", "94, 95, 96")));
+    advanceTime(50);
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "106", "backwardsPageToken3"));
+
+    ASSERT_EQ(13, sequence->getChildCount());
+    ASSERT_EQ(Point(0, 900), sequence->scrollPosition());
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 12}, true));
+    ASSERT_TRUE(checker(0, 12));
+
+    advanceTime(600);
+    ASSERT_TRUE(source->processUpdate(createLazyLoad(105, "forwardPageToken3", "forwardPageToken4", "107, 108, 109")));
+    advanceTime(50);
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "107", "forwardPageToken4"));
+    advanceTime(50);
+    ASSERT_TRUE(source->processUpdate(createLazyLoad(106, "backwardsPageToken3", "backwardsPageToken4", "91, 92, 93")));
+    advanceTime(50);
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "108", "backwardsPageToken4"));
+
+    ASSERT_EQ(19, sequence->getChildCount());
+    ASSERT_EQ(Point(0, 900), sequence->scrollPosition());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 2}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {3, 18}, true));
+    ASSERT_TRUE(checker(3, 18));
+
+    advanceTime(600);
+    ASSERT_TRUE(source->processUpdate(createLazyLoad(107, "forwardPageToken4", "forwardPageToken5", "110, 111, 112")));
+    advanceTime(50);
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "109", "forwardPageToken5"));
+    advanceTime(50);
+    ASSERT_TRUE(source->processUpdate(createLazyLoad(108, "backwardsPageToken4", "backwardsPageToken5", "88, 89, 90")));
+    advanceTime(26);
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "110", "backwardsPageToken5"));
+
+    ASSERT_EQ(25, sequence->getChildCount());
+    ASSERT_EQ(Point(0, 900), sequence->scrollPosition());
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 5}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {6, 22}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {23, 24}, false));
+    ASSERT_TRUE(checker(6, 22));
+
+    event.getActionRef().resolve();
+    ASSERT_EQ(Point(0, 900), sequence->scrollPosition());
+
+    advanceTime(500);
+
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 22}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {23, 24}, false));
+
+    ASSERT_EQ(Point(0, 1800), sequence->scrollPosition());
+    ASSERT_TRUE(checker(0, 22));
+
+    advanceTime(1000);
+
+    ASSERT_EQ(Point(0, 0), sequence->scrollPosition()); // Current 0 index effectively
+    ASSERT_TRUE(source->processUpdate(createLazyLoad(109, "forwardPageToken5", "", "113, 114, 115")));
+    ASSERT_TRUE(source->processUpdate(createLazyLoad(110, "backwardsPageToken5", "", "85, 86, 87")));
+
+    advanceTime(16);
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 25}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {26, 28}, false));
+    ASSERT_TRUE(checker(0, 25));
+}
+
+static const char *DOUBLE_PAGER_GALORE = R"({
+  "type": "APL",
+  "version": "1.7",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": ["dynamicSource"],
+    "bind": [
+      {
+        "name": "CurrentItem",
+        "value": "${dynamicSource[0]}"
+      }
+    ],
+    "items": [
+      {
+        "type": "Container",
+        "width": "100%",
+        "height": "100%",
+        "id": "document",
+        "direction": "column",
+        "items": [
+          {
+            "type": "Container",
+            "width": "100%",
+            "justifyContent": "center",
+            "grow": 1,
+            "items": [
+              {
+                "type": "Pager",
+                "id": "topPager",
+                "data": "${dynamicSource}",
+                "navigation": "none",
+                "grow": 1,
+                "items": [
+                  {
+                    "type": "Container",
+                    "id": "TopId_${data.id}",
+                    "data": "${data.topItems}",
+                    "width": "100%",
+                    "paddingLeft": "1vw",
+                    "direction": "row",
+                    "items": [
+                      {
+                        "type": "Text",
+                        "text": "Page${data}"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "Pager",
+                "id": "bottomPager",
+                "height": "100%",
+                "width": "100%",
+                "grow": 1,
+                "navigation": "normal",
+                "data": "${dynamicSource}",
+                "onPageChanged": [
+                  {
+                    "type": "SetValue",
+                    "property": "CurrentItem",
+                    "value": "${dynamicSource[event.source.page]}"
+                  },
+                  {
+                    "type": "Sequential",
+                    "sequencer": "LoadDayColumnSequencer",
+                    "commands": [
+                      {
+                        "type": "ScrollToComponent",
+                        "componentId": "TopId_${CurrentItem.id}"
+                      }
+                    ]
+                  }
+                ],
+                "items": [
+                  {
+                    "type": "Text",
+                    "height": "100dp",
+                    "text": "${data.id}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+static const char *DOUBLE_PAGER_GALORE_DATA = R"({
+  "dynamicSource": {
+    "listId": "vQdpOESlok",
+    "pageToken": "currentPageToken",
+    "backwardPageToken": "tokenBack",
+    "forwardPageToken": "tokenForward",
+    "type": "testList",
+    "items": [
+      {
+        "id": "2021_08_04",
+        "topItems": [1]
+      }
+    ]
+  }
+})";
+
+static const char *PAGE_FORWARD_UPDATE = R"({
+  "listId": "vQdpOESlok",
+  "pageToken": "tokenForward",
+  "correlationToken": "101",
+  "type": "testList",
+  "items": [
+    {
+      "id": "2021_08_05",
+      "topItems": [2]
+    }
+  ]
+})";
+
+static const char *PAGE_BACKWARD_UPDATE = R"({
+  "listId": "vQdpOESlok",
+  "pageToken": "tokenBack",
+  "correlationToken": "102",
+  "type": "testList",
+  "items": [
+    {
+      "id": "2021_08_03",
+      "topItems": [0]
+    }
+  ]
+})";
+
+TEST_F(DynamicTokenListTest, DoublePager) {
+    // Set different source, just to avoid config overrides
+    auto source = std::make_shared<DynamicTokenListDataSourceProvider>();
+    metrics.size(750, 750);
+    config->set(RootProperty::kPagerChildCache, 0);
+    config->dataSourceProvider("testList", source);
+
+    loadDocument(DOUBLE_PAGER_GALORE, DOUBLE_PAGER_GALORE_DATA);
+    auto topPager = std::static_pointer_cast<CoreComponent>(root->findComponentById("topPager"));
+    ASSERT_TRUE(topPager);
+    ASSERT_EQ(1, topPager->getChildCount());
+    ASSERT_EQ(Object(Rect(0,-50,100,100)), topPager->getCalculated(kPropertyBounds));
+
+    auto bottomPager = std::static_pointer_cast<CoreComponent>(root->findComponentById("bottomPager"));
+    ASSERT_TRUE(bottomPager);
+    ASSERT_EQ(1, bottomPager->getChildCount());
+    ASSERT_EQ(Object(Rect(0,50,750,850)), bottomPager->getCalculated(kPropertyBounds));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", "tokenForward"));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", "tokenBack"));
+
+    auto checker = [topPager, bottomPager](const std::string& topText, const std::string& bottomText) {
+        auto c = topPager->getCoreChildAt(topPager->pagePosition());
+        if (kComponentTypeContainer != c->getType()) return false;
+        if (!c->getCalculated(kPropertyLaidOut).getBoolean()) return false;
+        if (Object(Rect(0,0,100,100)) != c->getCalculated(kPropertyBounds)) return false;
+        auto cc = c->getCoreChildAt(0);
+        if (kComponentTypeText != cc->getType()) return false;
+        if (!cc->getCalculated(kPropertyLaidOut).getBoolean()) return false;
+        if (Object(Rect(7,0,50,100)) != cc->getCalculated(kPropertyBounds)) return false;
+        if (topText != cc->getCalculated(kPropertyText).asString()) return false;
+
+        c = bottomPager->getCoreChildAt(bottomPager->pagePosition());
+        if (kComponentTypeText != c->getType()) return false;
+        if (!c->getCalculated(kPropertyLaidOut).getBoolean()) return false;
+        if (Object(Rect(0,0,750,850)) != c->getCalculated(kPropertyBounds)) return false;
+        if (bottomText != c->getCalculated(kPropertyText).asString()) return false;
+        return true;
+    };
+
+    advanceTime(600);
+    ASSERT_TRUE(source->processUpdate(PAGE_FORWARD_UPDATE));
+    advanceTime(50);
+    ASSERT_TRUE(source->processUpdate(PAGE_BACKWARD_UPDATE));
+    advanceTime(50);
+
+    ASSERT_EQ(1, bottomPager->pagePosition());
+    ASSERT_EQ(1, topPager->pagePosition());
+
+    ASSERT_EQ(3, topPager->getChildCount());
+    ASSERT_EQ(3, bottomPager->getChildCount());
+
+    ASSERT_TRUE(checker("Page1", "2021_08_04"));
+
+    auto c = topPager->getCoreChildAt(2);
+    ASSERT_FALSE(c->getCalculated(kPropertyLaidOut).getBoolean());
+    ASSERT_EQ(0, c->getChildCount());
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400,300)));
+    advanceTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(100,300)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(100,300)));
+    advanceTime(600);
+    ASSERT_EQ(2, bottomPager->pagePosition());
+    advanceTime(600);
+    ASSERT_EQ(2, topPager->pagePosition());
+
+    ASSERT_TRUE(c->getCalculated(kPropertyNotifyChildrenChanged).size() > 0);
+    root->clearDirty();
+
+    ASSERT_TRUE(checker("Page2", "2021_08_05"));
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(100,300)));
+    advanceTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(400,300)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(400,300)));
+    advanceTime(600);
+    ASSERT_EQ(1, bottomPager->pagePosition());
+    advanceTime(600);
+    ASSERT_EQ(1, topPager->pagePosition());
+
+    c = topPager->getCoreChildAt(0);
+    ASSERT_FALSE(c->getCalculated(kPropertyLaidOut).getBoolean());
+    ASSERT_EQ(0, c->getChildCount());
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(100,300)));
+    advanceTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(400,300)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(400,300)));
+    advanceTime(600);
+    ASSERT_EQ(0, bottomPager->pagePosition());
+    advanceTime(600);
+    ASSERT_EQ(0, topPager->pagePosition());
+
+    ASSERT_TRUE(c->getCalculated(kPropertyNotifyChildrenChanged).size() > 0);
+    root->clearDirty();
+
+    ASSERT_TRUE(checker("Page0", "2021_08_03"));
+}

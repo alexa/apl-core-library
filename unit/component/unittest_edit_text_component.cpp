@@ -800,7 +800,7 @@ TEST_F(EditTextComponentTest, UpdateMarksDirty) {
     ASSERT_EQ(kComponentTypeEditText, et->getType());
 
     et->update(kUpdateTextChange, "test");
-    ASSERT_TRUE(CheckDirty(et, kPropertyText));
+    ASSERT_TRUE(CheckDirty(et, kPropertyText, kPropertyVisualHash));
 }
 
 static const char* OPEN_KEYBOARD_EVENT_DOC = R"(
