@@ -79,6 +79,8 @@ public:
 
     SessionMessage(const Context& context, const char *filename, const char *function);
 
+    SessionMessage(const RootConfigPtr& config, const char *filename, const char *function);
+
     ~SessionMessage();
 
     template<class T> friend SessionMessage& operator<<(SessionMessage&& sm, T&& value)
@@ -128,6 +130,8 @@ private:
 /// Report content errors using a context object (which contains a session)
 #define CONSOLE_CTX(CONTEXT) SessionMessage(CONTEXT,__FILENAME__,__func__)
 
+/// Report content errors using a config object pointer (which contains a session)
+#define CONSOLE_CFGP(CONFIG_PTR) SessionMessage(CONFIG_PTR,__FILENAME__,__func__)
 
 } // namespace apl
 

@@ -42,6 +42,7 @@ public:
     int pagePosition() const override { return getCalculated(kPropertyCurrentPage).asInt(); }
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
     void processLayoutChanges(bool useDirtyFlag) override;
+    void release() override;
 
     /// Actionable overrides
     bool isHorizontal() const override { return scrollType() == kScrollTypeHorizontalPager; }

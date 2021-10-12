@@ -45,6 +45,13 @@ PagerComponent::PagerComponent(const ContextPtr& context,
         : ActionableComponent(context, std::move(properties), path)
 {}
 
+void
+PagerComponent::release()
+{
+    mCurrentAnimation = nullptr;
+    ActionableComponent::release();
+}
+
 inline Object
 defaultWidth(Component& component, const RootConfig& rootConfig) {
     return rootConfig.getDefaultComponentWidth(component.getType());
@@ -295,7 +302,10 @@ PagerComponent::endPageMove(bool fulfilled, const ActionRef& ref, bool fast)
     }
     markDisplayedChildrenStale();
     mPageMoveHandler = nullptr;
-    mCurrentAnimation = nullptr;
+    if (mCurrentAnimation) {
+        mCurrentAnimation->terminate();
+        mCurrentAnimation = nullptr;
+    }
 }
 
 const ComponentPropDefSet*
