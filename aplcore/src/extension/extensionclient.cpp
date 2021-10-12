@@ -38,6 +38,8 @@ id_type ExtensionClient::sCommandIdGenerator = 1000;
 static const std::string IMPLEMENTED_INTERFACE_VERSION = "1.0";
 static const std::string IMPLEMENTED_SCHEMA_VERSION = "1.0";
 
+static const std::string ROOT_CONFIG_MISSING = "RootConfig unavailable. Should not happen.";
+
 static const Bimap<ExtensionLiveDataUpdateType, std::string> sExtensionLiveDataUpdateTypeBimap = {
     {kExtensionLiveDataUpdateTypeInsert, "Insert"},
     {kExtensionLiveDataUpdateTypeUpdate, "Update"},
@@ -68,8 +70,8 @@ ExtensionClient::create(const RootConfigPtr& rootConfig, const std::string& uri)
 }
 
 ExtensionClient::ExtensionClient(const RootConfigPtr& rootConfig, const std::string& uri)
-    :  mRegistrationProcessed(false), mRegistered(false), mUri(uri), mRootConfig(rootConfig),
-       mSession(rootConfig->getSession()) {}
+    :  mRegistrationProcessed(false), mRegistered(false), mUri(uri), mRootConfig(rootConfig)
+{}
 
 rapidjson::Value
 ExtensionClient::createRegistrationRequest(rapidjson::Document::AllocatorType& allocator, Content& content) {
@@ -90,12 +92,14 @@ ExtensionClient::createRegistrationRequest(rapidjson::Document::AllocatorType& a
 }
 
 bool
-ExtensionClient::registrationMessageProcessed() {
+ExtensionClient::registrationMessageProcessed()
+{
     return mRegistrationProcessed;
 }
 
 bool
-ExtensionClient::registered() {
+ExtensionClient::registered()
+{
     return mRegistered;
 }
 
@@ -105,22 +109,29 @@ ExtensionClient::getConnectionToken() const {
 }
 
 bool
-ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& message) {
-    if (!message) {
-        CONSOLE_S(mSession).log("Malformed offset=%u: %s.", message.offset(), message.error());
+ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& message)
+{
+    auto rootConfig = mRootConfig.lock();
+    if (!rootConfig) {
+        LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
         return false;
     }
 
-    const auto& context = rootContext ? rootContext->context() : mRootConfig->evaluationContext();
+    if (!message) {
+        CONSOLE_CFGP(rootConfig).log("Malformed offset=%u: %s.", message.offset(), message.error());
+        return false;
+    }
+
+    const auto& context = rootContext ? rootContext->context() : rootConfig->evaluationContext();
     auto evaluated = Object(std::move(message).get());
     auto method = propertyAsMapped<ExtensionMethod>(context, evaluated, "method", static_cast<ExtensionMethod>(-1), sExtensionMethodBimap);
 
     if (!mRegistered) {
         if (mRegistrationProcessed) {
-            CONSOLE_S(mSession).log("Can't process message after failed registration.");
+            CONSOLE_CFGP(rootConfig).log("Can't process message after failed registration.");
             return false;
         } else if (method != kExtensionMethodRegisterSuccess && method != kExtensionMethodRegisterFailure) {
-            CONSOLE_S(mSession).log("Can't process message before registration.");
+            CONSOLE_CFGP(rootConfig).log("Can't process message before registration.");
             return false;
         }
     }
@@ -131,7 +142,7 @@ ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& me
 
     auto version = propertyAsObject(context, evaluated, "version");
     if (version.isNull() || version.getString() != IMPLEMENTED_INTERFACE_VERSION) {
-        CONSOLE_S(mSession) << "Interface version is wrong. Expected=" << IMPLEMENTED_INTERFACE_VERSION
+        CONSOLE_CFGP(rootConfig) << "Interface version is wrong. Expected=" << IMPLEMENTED_INTERFACE_VERSION
                             << "; Actual=" << version.toDebugString();
         return false;
     }
@@ -156,7 +167,7 @@ ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& me
 //        case kExtensionMethodRegister: // Outgoing commands should not be processed here.
 //        case kExtensionMethodCommand:
         default:
-            CONSOLE_S(mSession).log("Unknown method");
+            CONSOLE_CFGP(rootConfig).log("Unknown method");
             result = false;
             break;
     }
@@ -186,21 +197,28 @@ generateToken(const std::string& uri)  {
 }
 
 bool
-ExtensionClient::processRegistrationResponse(const Context& context, const Object& connectionResponse) {
+ExtensionClient::processRegistrationResponse(const Context& context, const Object& connectionResponse)
+{
+    auto rootConfig = mRootConfig.lock();
+    if (!rootConfig) {
+        LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
+        return false;
+    }
+
     if (mRegistered) {
-        CONSOLE_S(mRootConfig->getSession()).log("Can't register extension twice.");
+        CONSOLE_CFGP(rootConfig).log("Can't register extension twice.");
         return false;
     }
 
     auto connectionToken = propertyAsObject(context, connectionResponse, "token");
     auto schema = propertyAsObject(context, connectionResponse, "schema");
     if (connectionToken.isNull() || connectionToken.empty() || schema.isNull()) {
-        CONSOLE_S(mRootConfig->getSession()).log("Malformed connection response message.");
+        CONSOLE_CFGP(rootConfig).log("Malformed connection response message.");
         return false;
     }
 
     if (!readExtension(context, schema)) {
-        CONSOLE_S(mRootConfig->getSession()).log("Malformed schema.");
+        CONSOLE_CFGP(rootConfig).log("Malformed schema.");
         return false;
     }
 
@@ -215,7 +233,7 @@ ExtensionClient::processRegistrationResponse(const Context& context, const Objec
     if(environment.isMap()) {
         // Override environment to one that is provided in response as we set it to nothing when initially register
         // extension.
-        mRootConfig->registerExtensionEnvironment(mUri, environment);
+        rootConfig->registerExtensionEnvironment(mUri, environment);
     }
 
     mRegistered = true;
@@ -223,29 +241,36 @@ ExtensionClient::processRegistrationResponse(const Context& context, const Objec
 }
 
 bool
-ExtensionClient::processEvent(const Context& context, const Object& event) {
+ExtensionClient::processEvent(const Context& context, const Object& event)
+{
+    auto rootConfig = mRootConfig.lock();
+    if (!rootConfig) {
+        LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
+        return false;
+    }
+
     auto rootContext = mCachedContext.lock();
     if (!rootContext) {
-        CONSOLE_S(mSession).log("Can't process message without RootContext.");
+        CONSOLE_CFGP(rootConfig).log("Can't process message without RootContext.");
         return false;
     }
 
     auto name = propertyAsObject(context, event, "name");
     if (!name.isString() || name.empty() || (mEventModes.find(name.getString()) == mEventModes.end())) {
-        CONSOLE_S(mSession) << "Invalid extension event name for extension=" << mUri
+        CONSOLE_CFGP(rootConfig) << "Invalid extension event name for extension=" << mUri
                 << " name:" << name.toDebugString();
         return false;
     }
 
     auto target = propertyAsObject(context, event, "target");
     if (!target.isString() || target.empty() || target.getString() != mUri) {
-        CONSOLE_S(mSession) << "Invalid extension event target for extension=" << mUri;
+        CONSOLE_CFGP(rootConfig) << "Invalid extension event target for extension=" << mUri;
         return false;
     }
 
     auto payload = propertyAsRecursive(context, event, "payload");
     if (!payload.isNull() && !payload.isMap()) {
-        CONSOLE_S(mSession) << "Invalid extension event data for extension=" << mUri;
+        CONSOLE_CFGP(rootConfig) << "Invalid extension event data for extension=" << mUri;
         return false;
     }
 
@@ -257,21 +282,28 @@ ExtensionClient::processEvent(const Context& context, const Object& event) {
 }
 
 rapidjson::Value
-ExtensionClient::processCommand(rapidjson::Document::AllocatorType& allocator, const Event& event) {
+ExtensionClient::processCommand(rapidjson::Document::AllocatorType& allocator, const Event& event)
+{
+    auto rootConfig = mRootConfig.lock();
+    if (!rootConfig) {
+        LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
+        return rapidjson::Value(rapidjson::kNullType);
+    }
+
     if (kEventTypeExtension != event.getType()) {
-        CONSOLE_S(mSession) << "Invalid extension command type for extension=" << mUri;
+        CONSOLE_CFGP(rootConfig) << "Invalid extension command type for extension=" << mUri;
         return rapidjson::Value(rapidjson::kNullType);
     }
 
     auto extensionURI = event.getValue(kEventPropertyExtensionURI);
     if (!extensionURI.isString() || extensionURI.getString() != mUri) {
-        CONSOLE_S(mSession) << "Invalid extension command target for extension=" << mUri;
+        CONSOLE_CFGP(rootConfig) << "Invalid extension command target for extension=" << mUri;
         return rapidjson::Value(rapidjson::kNullType);
     }
 
     auto commandName = event.getValue(kEventPropertyName);
     if (!commandName.isString() || commandName.empty()) {
-        CONSOLE_S(mSession) << "Invalid extension command name for extension=" << mUri;
+        CONSOLE_CFGP(rootConfig) << "Invalid extension command name for extension=" << mUri;
         return rapidjson::Value(rapidjson::kNullType);
     }
 
@@ -299,13 +331,19 @@ ExtensionClient::processCommand(rapidjson::Document::AllocatorType& allocator, c
 }
 
 bool
-ExtensionClient::processCommandResponse(const Context& context, const Object& response) {
+ExtensionClient::processCommandResponse(const Context& context, const Object& response)
+{
     // Resolve any Action associated with a command response.  The action is resolved independent
     // of a Success or Failure in command execution
+    auto rootConfig = mRootConfig.lock();
+    if (!rootConfig) {
+        LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
+        return false;
+    }
 
     auto id = propertyAsObject(context, response, "id");
     if (!id.isNumber() || id.getInteger() > sCommandIdGenerator) {
-        CONSOLE_S(mSession) << "Invalid extension command response for extension=" << mUri << " id="
+        CONSOLE_CFGP(rootConfig) << "Invalid extension command response for extension=" << mUri << " id="
             << id.toDebugString() << " total pending=" << mActionRefs.size();
         return false;
     }
@@ -328,7 +366,8 @@ ExtensionClient::processCommandResponse(const Context& context, const Object& re
 }
 
 void
-ExtensionClient::liveDataObjectFlushed(const std::string& key, LiveDataObject& liveDataObject) {
+ExtensionClient::liveDataObjectFlushed(const std::string& key, LiveDataObject& liveDataObject)
+{
     if (!mLiveData.count(key)) {
         LOG(LogLevel::kWarn) << "Received update for unhandled LiveData " << key;
         return;
@@ -353,7 +392,8 @@ ExtensionClient::liveDataObjectFlushed(const std::string& key, LiveDataObject& l
 
 void
 ExtensionClient::sendLiveDataEvent(const RootContextPtr& rootContext, const std::string& event,
-        const Object& current, const Object& changed) {
+        const Object& current, const Object& changed)
+{
     ObjectMap parameters;
     parameters.emplace("current", current);
     if (!changed.isNull()) {
@@ -364,7 +404,8 @@ ExtensionClient::sendLiveDataEvent(const RootContextPtr& rootContext, const std:
 
 void
 ExtensionClient::reportLiveMapChanges(const RootContextPtr& rootContext, const LiveDataRef& ref,
-        LiveDataObject& liveDataObject) {
+        LiveDataObject& liveDataObject)
+{
     std::set<std::string> updatedCollapsed;
     std::set<std::string> removedCollapsed;
     std::string updateTriggerEvent = ref.updateEvent.name;
@@ -422,7 +463,8 @@ ExtensionClient::reportLiveMapChanges(const RootContextPtr& rootContext, const L
 
 void
 ExtensionClient::reportLiveArrayChanges(const RootContextPtr& rootContext, const LiveDataRef& ref,
-        LiveDataObject& liveDataObject) {
+        LiveDataObject& liveDataObject)
+{
     std::string addTriggerEvent;
     std::string updateTriggerEvent;
     std::string removeTriggerEvent;
@@ -462,22 +504,29 @@ ExtensionClient::reportLiveArrayChanges(const RootContextPtr& rootContext, const
 }
 
 bool
-ExtensionClient::processLiveDataUpdate(const Context& context, const Object& update) {
+ExtensionClient::processLiveDataUpdate(const Context& context, const Object& update)
+{
+    auto rootConfig = mRootConfig.lock();
+    if (!rootConfig) {
+        LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
+        return false;
+    }
+
     auto name = propertyAsObject(context, update, "name");
     if (!name.isString() || name.empty() || (mLiveData.find(name.getString()) == mLiveData.end())) {
-        CONSOLE_S(mSession) << "Invalid LiveData name for extension=" << mUri;
+        CONSOLE_CFGP(rootConfig) << "Invalid LiveData name for extension=" << mUri;
         return false;
     }
 
     auto target = propertyAsObject(context, update, "target");
     if (!target.isString() || target.empty() || target.getString() != mUri) {
-        CONSOLE_S(mSession) << "Invalid LiveData target for extension=" << mUri;
+        CONSOLE_CFGP(rootConfig) << "Invalid LiveData target for extension=" << mUri;
         return false;
     }
 
     auto operations = propertyAsRecursive(context, update, "operations");
     if (!operations.isArray()) {
-        CONSOLE_S(mSession) << "Invalid LiveData operations for extension=" << mUri;
+        CONSOLE_CFGP(rootConfig) << "Invalid LiveData operations for extension=" << mUri;
         return false;
     }
 
@@ -486,7 +535,7 @@ ExtensionClient::processLiveDataUpdate(const Context& context, const Object& upd
         auto type = propertyAsMapped<ExtensionLiveDataUpdateType>(context, operation, "type",
                 static_cast<ExtensionLiveDataUpdateType>(-1), sExtensionLiveDataUpdateTypeBimap);
         if (type == static_cast<ExtensionLiveDataUpdateType>(-1)) {
-            CONSOLE_S(mSession) << "Wrong operation type for=" << name;
+            CONSOLE_CFGP(rootConfig) << "Wrong operation type for=" << name;
             return false;
         }
 
@@ -500,12 +549,12 @@ ExtensionClient::processLiveDataUpdate(const Context& context, const Object& upd
                 break;
             default:
                 result = false;
-                CONSOLE_S(mSession) << "Unknown LiveObject type=" << dataRef.objectType << " for " << dataRef.name;
+                CONSOLE_CFGP(rootConfig) << "Unknown LiveObject type=" << dataRef.objectType << " for " << dataRef.name;
                 break;
         }
 
         if (!result) {
-            CONSOLE_S(mSession) << "LiveMap operation failed=" << dataRef.name << " operation="
+            CONSOLE_CFGP(rootConfig) << "LiveMap operation failed=" << dataRef.name << " operation="
                                 << sExtensionLiveDataUpdateTypeBimap.at(type);
         }
     }
@@ -513,11 +562,18 @@ ExtensionClient::processLiveDataUpdate(const Context& context, const Object& upd
 }
 
 bool
-ExtensionClient::updateLiveMap(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation) {
+ExtensionClient::updateLiveMap(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation)
+{
+    auto rootConfig = mRootConfig.lock();
+    if (!rootConfig) {
+        LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
+        return false;
+    }
+
     std::string triggerEvent;
     auto keyObj = operation.opt("key", "");
     if (keyObj.empty()) {
-        CONSOLE_S(mSession) << "Invalid LiveData key for=" << dataRef.name;
+        CONSOLE_CFGP(rootConfig) << "Invalid LiveData key for=" << dataRef.name;
         return false;
     }
     const auto& key = keyObj.getString();
@@ -535,7 +591,7 @@ ExtensionClient::updateLiveMap(ExtensionLiveDataUpdateType type, const LiveDataR
             result = liveMap->remove(key);
             break;
         default:
-            CONSOLE_S(mSession) << "Unknown operation for=" << dataRef.name;
+            CONSOLE_CFGP(rootConfig) << "Unknown operation for=" << dataRef.name;
             return false;
     }
 
@@ -543,18 +599,25 @@ ExtensionClient::updateLiveMap(ExtensionLiveDataUpdateType type, const LiveDataR
 }
 
 bool
-ExtensionClient::updateLiveArray(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation) {
+ExtensionClient::updateLiveArray(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation)
+{
+    auto rootConfig = mRootConfig.lock();
+    if (!rootConfig) {
+        LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
+        return false;
+    }
+
     std::string triggerEvent;
 
     auto item = operation.get("item");
     if (item.isNull() && (type != kExtensionLiveDataUpdateTypeRemove && type != kExtensionLiveDataUpdateTypeClear)) {
-        CONSOLE_S(mSession) << "Malformed items on LiveData update for=" << dataRef.name;
+        CONSOLE_CFGP(rootConfig) << "Malformed items on LiveData update for=" << dataRef.name;
         return false;
     }
 
     auto indexObj = operation.opt("index", -1);
     if (!indexObj.isNumber() && type != kExtensionLiveDataUpdateTypeClear) {
-        CONSOLE_S(mSession) << "Invalid LiveData index for=" << dataRef.name;
+        CONSOLE_CFGP(rootConfig) << "Invalid LiveData index for=" << dataRef.name;
         return false;
     }
     auto index = indexObj.getInteger();
@@ -584,7 +647,7 @@ ExtensionClient::updateLiveArray(ExtensionLiveDataUpdateType type, const LiveDat
             liveArray->clear();
             break;
         default:
-            CONSOLE_S(mSession) << "Unknown operation for=" << dataRef.name;
+            CONSOLE_CFGP(rootConfig) << "Unknown operation for=" << dataRef.name;
             return false;
     }
 
@@ -592,23 +655,30 @@ ExtensionClient::updateLiveArray(ExtensionLiveDataUpdateType type, const LiveDat
 }
 
 bool
-ExtensionClient::readExtension(const Context& context, const Object& extension) {
+ExtensionClient::readExtension(const Context& context, const Object& extension)
+{
+    auto rootConfig = mRootConfig.lock();
+    if (!rootConfig) {
+        LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
+        return false;
+    }
+
     // verify extension schema
     auto schema = propertyAsString(context, extension, "type");
     auto version = propertyAsString(context, extension, "version");
     if (schema != "Schema" || version != IMPLEMENTED_SCHEMA_VERSION) {
-        CONSOLE_S(mSession).log("Unsupported extension schema version.");
+        CONSOLE_CFGP(rootConfig).log("Unsupported extension schema version.");
         return false;
     }
 
     // register extension based on URI
     auto uriObj = propertyAsObject(context, extension, "uri");
     if (!uriObj.isString() || uriObj.empty()) {
-        CONSOLE_S(mSession).log("Missing or invalid extension URI.");
+        CONSOLE_CFGP(rootConfig).log("Missing or invalid extension URI.");
         return false;
     }
     const auto& uri = uriObj.getString();
-    mRootConfig->registerExtension(uri);
+    rootConfig->registerExtension(uri);
     mUri = uri;
 
     auto types = arrayifyPropertyAsObject(context, extension, "types");
@@ -634,9 +704,16 @@ ExtensionClient::readExtension(const Context& context, const Object& extension) 
 }
 
 bool
-ExtensionClient::readExtensionTypes(const Context& context, const Object& types) {
+ExtensionClient::readExtensionTypes(const Context& context, const Object& types)
+{
+    auto rootConfig = mRootConfig.lock();
+    if (!rootConfig) {
+        LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
+        return false;
+    }
+
     if (!types.isArray()) {
-        CONSOLE_S(mSession).log("The extension name=%s has a malformed 'commands' block", mUri.c_str());
+        CONSOLE_CFGP(rootConfig).log("The extension name=%s has a malformed 'commands' block", mUri.c_str());
         return false;
     }
 
@@ -644,7 +721,7 @@ ExtensionClient::readExtensionTypes(const Context& context, const Object& types)
         auto name = propertyAsObject(context, t, "name");
         auto props = propertyAsObject(context, t, "properties");
         if (!name.isString() || !props.isMap()) {
-            CONSOLE_S(mSession).log("Invalid extension type for extension=%s",
+            CONSOLE_CFGP(rootConfig).log("Invalid extension type for extension=%s",
                                     mUri.c_str());
             continue;
         }
@@ -657,7 +734,7 @@ ExtensionClient::readExtensionTypes(const Context& context, const Object& types)
             if (extendedType != mTypes.end()) {
                 properties->insert(extendedType->second->begin(), extendedType->second->end());
             } else {
-                CONSOLE_S(mSession) << "Unknown type to extend=" << extended
+                CONSOLE_CFGP(rootConfig) << "Unknown type to extend=" << extended
                                     << " for type=" << name.getString()
                                     << " for extension=" << mUri.c_str();
             }
@@ -674,7 +751,7 @@ ExtensionClient::readExtensionTypes(const Context& context, const Object& types)
             if (ps.isString()) {
                 ptype = sBindingMap.get(ps.getString(), kBindingTypeAny);
             } else if (!ps.has("type")) {
-                CONSOLE_S(mSession).log("Invalid extension property for type=%s extension=%s",
+                CONSOLE_CFGP(rootConfig).log("Invalid extension property for type=%s extension=%s",
                         name.getString().c_str(), mUri.c_str());
                 continue;
             } else {
@@ -697,9 +774,16 @@ ExtensionClient::readExtensionTypes(const Context& context, const Object& types)
 }
 
 bool
-ExtensionClient::readExtensionCommands(const Context& context, const Object& commands) {
+ExtensionClient::readExtensionCommands(const Context& context, const Object& commands)
+{
+    auto rootConfig = mRootConfig.lock();
+    if (!rootConfig) {
+        LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
+        return false;
+    }
+
     if (!commands.isArray()) {
-        CONSOLE_S(mSession).log("The extension name=%s has a malformed 'commands' block", mUri.c_str());
+        CONSOLE_CFGP(rootConfig).log("The extension name=%s has a malformed 'commands' block", mUri.c_str());
         return false;
     }
 
@@ -707,7 +791,7 @@ ExtensionClient::readExtensionCommands(const Context& context, const Object& com
         // create a command
         auto name = propertyAsObject(context, command, "name");
         if (!name.isString() || name.empty()) {
-            CONSOLE_S(mSession).log("Invalid extension command for extension=%s", mUri.c_str());
+            CONSOLE_CFGP(rootConfig).log("Invalid extension command for extension=%s", mUri.c_str());
             continue;
         }
         auto commandName = name.asString();
@@ -731,7 +815,7 @@ ExtensionClient::readExtensionCommands(const Context& context, const Object& com
             }
 
             if (!mTypes.count(type)) {
-                CONSOLE_S(mSession).log("The extension name=%s has a malformed `payload` block for command=%s",
+                CONSOLE_CFGP(rootConfig).log("The extension name=%s has a malformed `payload` block for command=%s",
                                         mUri.c_str(), commandName.c_str());
                 continue;
             }
@@ -744,7 +828,7 @@ ExtensionClient::readExtensionCommands(const Context& context, const Object& com
         } // properties
 
         // register the command
-        mRootConfig->registerExtensionCommand(commandDef);
+        rootConfig->registerExtensionCommand(commandDef);
     }
 
     return true;
@@ -752,22 +836,29 @@ ExtensionClient::readExtensionCommands(const Context& context, const Object& com
 
 
 bool
-ExtensionClient::readExtensionEventHandlers(const Context& context, const Object& handlers) {
+ExtensionClient::readExtensionEventHandlers(const Context& context, const Object& handlers)
+{
+    auto rootConfig = mRootConfig.lock();
+    if (!rootConfig) {
+        LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
+        return false;
+    }
+
     if (!handlers.isArray()) {
-        CONSOLE_S(mSession).log("The extension name=%s has a malformed 'events' block", mUri.c_str());
+        CONSOLE_CFGP(rootConfig).log("The extension name=%s has a malformed 'events' block", mUri.c_str());
         return false;
     }
 
     for (const auto& handler : handlers.getArray()) {
         auto name = propertyAsObject(context, handler, "name");
         if (!name.isString() || name.empty()) {
-            CONSOLE_S(mSession).log("Invalid extension event handler for extension=%s", mUri.c_str());
+            CONSOLE_CFGP(rootConfig).log("Invalid extension event handler for extension=%s", mUri.c_str());
             return false;
         } else {
             auto mode = propertyAsMapped<ExtensionEventExecutionMode>(context, handler, "mode",
                     kExtensionEventExecutionModeFast, sExtensionEventExecutionModeBimap);
             mEventModes.emplace(name.asString(), mode);
-            mRootConfig->registerExtensionEventHandler(ExtensionEventHandler(mUri, name.asString()));
+            rootConfig->registerExtensionEventHandler(ExtensionEventHandler(mUri, name.asString()));
         }
     }
 
@@ -775,22 +866,29 @@ ExtensionClient::readExtensionEventHandlers(const Context& context, const Object
 }
 
 bool
-ExtensionClient::readExtensionLiveData(const Context& context, const Object& liveData) {
+ExtensionClient::readExtensionLiveData(const Context& context, const Object& liveData)
+{
+    auto rootConfig = mRootConfig.lock();
+    if (!rootConfig) {
+        LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
+        return false;
+    }
+
     if (!liveData.isArray()) {
-        CONSOLE_S(mSession).log("The extension name=%s has a malformed 'dataBindings' block", mUri.c_str());
+        CONSOLE_CFGP(rootConfig).log("The extension name=%s has a malformed 'dataBindings' block", mUri.c_str());
         return false;
     }
 
     for (const auto& binding : liveData.getArray()) {
         auto name = propertyAsObject(context, binding, "name");
         if (!name.isString() || name.empty()) {
-            CONSOLE_S(mSession).log("Invalid extension data binding for extension=%s", mUri.c_str());
+            CONSOLE_CFGP(rootConfig).log("Invalid extension data binding for extension=%s", mUri.c_str());
             return false;
         }
 
         auto typeDef = propertyAsObject(context, binding, "type");
         if (!typeDef.isString()) {
-            CONSOLE_S(mSession).log("Invalid extension data binding type for extension=%s", mUri.c_str());
+            CONSOLE_CFGP(rootConfig).log("Invalid extension data binding type for extension=%s", mUri.c_str());
             return false;
         }
 
@@ -852,16 +950,17 @@ ExtensionClient::readExtensionLiveData(const Context& context, const Object& liv
         LiveDataRef ldf = {name.getString(), ltype, type, live, addEvent, updateEvent, removeEvent};
 
         mLiveData.emplace(name.getString(), ldf);
-        mRootConfig->liveData(name.getString(), live);
+        rootConfig->liveData(name.getString(), live);
         auto liveObjectWatcher = std::shared_ptr<LiveDataObjectWatcher>(shared_from_this());
-        mRootConfig->liveDataWatcher(name.getString(), liveObjectWatcher);
+        rootConfig->liveDataWatcher(name.getString(), liveObjectWatcher);
     }
 
     return true;
 }
 
 std::map<std::string, bool>
-ExtensionClient::readPropertyTriggers(const Context& context, const TypePropertiesPtr& type, const Object& triggers) {
+ExtensionClient::readPropertyTriggers(const Context& context, const TypePropertiesPtr& type, const Object& triggers)
+{
     auto result = std::map<std::string, bool>();
 
     if (triggers.isNull()) {

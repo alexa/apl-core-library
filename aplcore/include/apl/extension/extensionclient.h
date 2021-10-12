@@ -199,8 +199,7 @@ private:
     bool mRegistrationProcessed;
     bool mRegistered;
     std::string mUri;
-    RootConfigPtr mRootConfig;
-    SessionPtr mSession;
+    std::weak_ptr<RootConfig> mRootConfig;
     std::string mConnectionToken;
     std::map<std::string, LiveDataRef> mLiveData;
     std::map<id_type, ActionRef> mActionRefs;

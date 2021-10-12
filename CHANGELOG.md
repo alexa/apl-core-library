@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.2]
+
+### Changed
+
+- Bug fixes
+
 ## [1.7.1]
 
 ### Changed

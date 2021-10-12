@@ -38,11 +38,6 @@ public:
         visualContext = root->serializeVisualContext(vcDoc.GetAllocator());
     }
 
-
-    void TearDown() override {
-        DocumentWrapper::TearDown();
-    }
-
 protected:
     rapidjson::Document vcDoc;
     rapidjson::Value visualContext;

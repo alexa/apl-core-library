@@ -317,7 +317,10 @@ PagerComponent::endPageMove(bool fulfilled, const ActionRef& ref, bool fast)
         mPageMoveHandler->reset(*this);
         mPageMoveHandler = nullptr;
     }
-    mCurrentAnimation = nullptr;
+    if (mCurrentAnimation) {
+        mCurrentAnimation->terminate();
+        mCurrentAnimation = nullptr;
+    }
 }
 
 const ComponentPropDefSet*

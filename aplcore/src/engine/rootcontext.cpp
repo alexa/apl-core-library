@@ -97,12 +97,10 @@ RootContext::RootContext(const Metrics& metrics, const ContentPtr& content, cons
 }
 
 RootContext::~RootContext() {
-    assert(mCore);
-    mCore->sequencer().terminateSequencer(ConfigChangeCommand::SEQUENCER);
-    clearDirty();
+    mCore->terminate();
     mCore->dirtyVisualContext.clear();
     mTimeManager->terminate();
-    mCore->terminate();
+    clearDirty();
 }
 
 void
