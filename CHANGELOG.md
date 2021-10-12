@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.8.1]
+
+### Changed
+
+- Bug fixes
+
 ## [1.8.0]
 
 This release adds support for version 1.8 of the APL specification.

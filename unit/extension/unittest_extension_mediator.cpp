@@ -310,13 +310,15 @@ public:
         extensionProvider = nullptr;
         mediator = nullptr;
         testExtensions.clear();
+
+        DocumentWrapper::TearDown();
     }
 
     void testLifecycle();
 
     ExtensionRegistrarPtr extensionProvider;                 // provider instance for tests
     ExtensionMediatorPtr mediator;
-    std::map<std::string, std::shared_ptr<TestExtension>> testExtensions; // direct access to extensions for test
+    std::map<std::string, std::weak_ptr<TestExtension>> testExtensions; // direct access to extensions for test
 };
 
 static const char* EXT_DOC = R"({
@@ -782,7 +784,7 @@ void ExtensionMediatorTest::testLifecycle() {
     auto ext = extensionProvider->getExtension("aplext:hello:10");
     ASSERT_TRUE(ext);
     // direct access to extension for test inspection
-    auto hello = testExtensions["aplext:hello:10"];
+    auto hello = testExtensions["aplext:hello:10"].lock();
 
     // We have all we need. Inflate.
     inflate();
@@ -896,7 +898,7 @@ TEST_F(ExtensionMediatorTest, EventBad) {
     auto ext = extensionProvider->getExtension("aplext:hello:10");
     ASSERT_TRUE(ext);
     // direct access to extension for test inspection
-    auto hello = testExtensions["aplext:hello:10"];
+    auto hello = testExtensions["aplext:hello:10"].lock();
 
     inflate();
 
@@ -929,7 +931,7 @@ TEST_F(ExtensionMediatorTest, DataUpdateBad) {
     auto ext = extensionProvider->getExtension("aplext:hello:10");
     ASSERT_TRUE(ext);
     // direct access to extension for test inspection
-    auto hello = testExtensions["aplext:hello:10"];
+    auto hello = testExtensions["aplext:hello:10"].lock();
 
     inflate();
 
