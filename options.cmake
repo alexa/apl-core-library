@@ -23,7 +23,8 @@ option(ENABLE_PIC "Build position independent code (i.e. -fPIC)" OFF)
 
 option(USE_SYSTEM_RAPIDJSON "Use the system-provided RapidJSON instead of the bundled one." OFF)
 option(USE_SYSTEM_YOGA "Use the system-provided Yoga library instead of the bundled one." OFF)
-option(BUILD_ALEXAEXTENSIONS "Use the Alexa Extensions library." OFF)
+option(ENABLE_ALEXAEXTENSIONS "Use the Alexa Extensions library." OFF)
+option(BUILD_ALEXAEXTENSIONS "Build Alexa Extensions library as part of the project." OFF)
 
 # Test options
 option(BUILD_TESTS "Build unit tests and test programs." OFF)
@@ -34,6 +35,16 @@ option(INSTALL_GTEST "Install googletest as library." OFF)
 
 # Doxygen build
 option(BUILD_DOC "Build documentation." ON)
+
+# Extension options set-up.
+if(BUILD_ALEXAEXTENSIONS)
+    # Backwards compatibility
+    set(ENABLE_ALEXAEXTENSIONS ON)
+endif(BUILD_ALEXAEXTENSIONS)
+
+if(ENABLE_ALEXAEXTENSIONS)
+    set(ALEXAEXTENSIONS ON)
+endif(ENABLE_ALEXAEXTENSIONS)
 
 # Capture the compile-time options to apl_config.h so that headers can be distributed
 configure_file(${APL_CORE_DIR}/aplcore/include/apl/apl_config.h.in aplcore/include/apl/apl_config.h @ONLY)

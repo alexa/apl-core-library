@@ -15,10 +15,11 @@
 
 #include <functional>
 
-#include "apl/primitives/transform.h"
-#include "apl/utils/session.h"
 #include "apl/engine/evaluate.h"
 #include "apl/primitives/dimension.h"
+#include "apl/primitives/transform.h"
+#include "apl/utils/make_unique.h"
+#include "apl/utils/session.h"
 
 namespace apl {
 
@@ -129,7 +130,7 @@ static std::unique_ptr<Transform> transformFromElement(const Context& context, c
 
     auto rotate = propertyAsObject(context, element, "rotate");
     if (rotate != Object::NULL_OBJECT())
-        return std::unique_ptr<Transform>(new ScalarTransform(Transform2D::rotate, Transform::ROTATE, rotate.asNumber()));
+        return std::make_unique<ScalarTransform>(Transform2D::rotate, Transform::ROTATE, rotate.asNumber());
 
     auto scaleX = propertyAsObject(context, element, "scaleX");
     auto scaleY = propertyAsObject(context, element, "scaleY");
@@ -143,16 +144,16 @@ static std::unique_ptr<Transform> transformFromElement(const Context& context, c
             sx = scaleX.asNumber();
         if (scaleY != Object::NULL_OBJECT())
             sy = scaleY.asNumber();
-        return std::unique_ptr<Transform>(new ScaleTransform(sx, sy));
+        return std::make_unique<ScaleTransform>(sx, sy);
     }
 
     auto skewX = propertyAsObject(context, element, "skewX");
     if (skewX != Object::NULL_OBJECT())
-        return std::unique_ptr<Transform>(new ScalarTransform(Transform2D::skewX, Transform::SKEW_X, skewX.asNumber()));
+        return std::make_unique<ScalarTransform>(Transform2D::skewX, Transform::SKEW_X, skewX.asNumber());
 
     auto skewY = propertyAsObject(context, element, "skewY");
     if (skewY != Object::NULL_OBJECT())
-        return std::unique_ptr<Transform>(new ScalarTransform(Transform2D::skewY, Transform::SKEW_Y, skewY.asNumber()));
+        return std::make_unique<ScalarTransform>(Transform2D::skewY, Transform::SKEW_Y, skewY.asNumber());
 
     auto translateX = propertyAsObject(context, element, "translateX");
     auto translateY = propertyAsObject(context, element, "translateY");
@@ -163,7 +164,7 @@ static std::unique_ptr<Transform> transformFromElement(const Context& context, c
             tx = translateX.asNonAutoDimension(context);
         if (translateY != Object::NULL_OBJECT())
             ty = translateY.asNonAutoDimension(context);
-        return std::unique_ptr<Transform>(new TranslateTransform(tx, ty));
+        return std::make_unique<TranslateTransform>(tx, ty);
     }
 
     CONSOLE_CTX(context) << "Transform element doesn't have a valid property" << element;

@@ -171,6 +171,30 @@ TEST_F(SpeakListTest, TestStages)
     ASSERT_FALSE(root->hasEvent());
 }
 
+TEST_F(SpeakListTest, DisallowedCommandPreventsEffects)
+{
+    config->set(RootProperty::kDisallowDialog, true);
+
+    loadDocument(TEST_STAGES);
+
+    auto container = component->getChildAt(0);
+    executeSpeakList(container, kCommandScrollAlignFirst, kCommandHighlightModeBlock, 0, 100000, 1000, 500);
+
+    loop->advanceToEnd();
+
+    // command is issued but ignored
+    ASSERT_EQ(1, mIssuedCommands.size());
+
+    // no pre-roll or speak event
+    ASSERT_FALSE(root->hasEvent());
+    
+    // complaint about ignored command logged
+    ASSERT_TRUE(ConsoleMessage());
+
+    // time elapsed still reflects the base command delay 
+    ASSERT_EQ(500, loop->currentTime());
+}
+
 /**
  * Start at item #2, last-align
  */

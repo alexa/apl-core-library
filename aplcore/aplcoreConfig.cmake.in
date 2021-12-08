@@ -13,6 +13,12 @@ else()
 
 endif()
 
+set(USE_INTERNAL_ALEXAEXT @BUILD_ALEXAEXTENSIONS@)
+
+if(NOT USE_INTERNAL_ALEXAEXT)
+    find_package(alexaext REQUIRED)
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/aplcoreTargets.cmake")
 
 set_target_properties(apl::core

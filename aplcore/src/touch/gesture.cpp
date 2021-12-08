@@ -22,6 +22,7 @@
 #include "apl/touch/gestures/doublepressgesture.h"
 #include "apl/touch/gestures/longpressgesture.h"
 #include "apl/touch/gestures/swipeawaygesture.h"
+#include "apl/touch/gestures/tapgesture.h"
 
 namespace apl {
 
@@ -37,6 +38,7 @@ Bimap<GestureType, std::string> sGestureTypeBimap = {
         {kGestureTypeDoublePress, "DoublePress"},
         {kGestureTypeLongPress,   "LongPress"},
         {kGestureTypeSwipeAway,   "SwipeAway"},
+        {kGestureTypeTap,         "Tap"}
 };
 
 static std::map<GestureType, GestureFunc> sGestureFunctions =
@@ -44,6 +46,7 @@ static std::map<GestureType, GestureFunc> sGestureFunctions =
         {kGestureTypeDoublePress, DoublePressGesture::create},
         {kGestureTypeLongPress,   LongPressGesture::create},
         {kGestureTypeSwipeAway,   SwipeAwayGesture::create},
+        {kGestureTypeTap,         TapGesture::create},
     };
 
 std::shared_ptr<Gesture>

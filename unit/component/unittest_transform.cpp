@@ -418,3 +418,139 @@ TEST_F(ComponentTransformTest, StalenessPropagation)
         }
     }
 }
+
+static const char *SCROLL_VIEW_WITH_PAGER = R"apl(
+{
+  "type": "APL",
+  "version": "1.7",
+  "theme": "dark",
+  "styles": {
+    "base": {
+      "values": [
+        {
+          "backgroundColor": "red"
+        },
+        {
+          "when": "${state.pressed}",
+          "backgroundColor": "blue"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "width": 300,
+      "height": 600,
+      "item": {
+        "type": "Container",
+        "direction": "column",
+        "alignItems": "center",
+        "data": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "item": {
+          "type": "Pager",
+          "width": 300,
+          "height": 200,
+          "id": "pager${data}",
+          "item": {
+            "type": "TouchWrapper",
+            "paddingTop": 25,
+            "paddingBottom": 25,
+            "id": "touch${data}",
+            "onPress": {
+              "type": "SetValue",
+              "componentId": "frame${data}",
+              "property": "backgroundColor",
+              "value": "green"
+            },
+            "item": {
+              "type": "Frame",
+              "id": "frame${data}",
+              "style": "base",
+              "width": "100%",
+              "height": "100%"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+)apl";
+
+TEST_F(ComponentTransformTest, ScrollViewWithPager)
+{
+    loadDocument(SCROLL_VIEW_WITH_PAGER);
+
+    // The ScrollView is 600 tall and has a 1000 tall child Container
+    auto container = as<CoreComponent>(component->getChildAt(0));
+    ASSERT_TRUE(expectBounds(component, 0, 0, 600, 300));
+    ASSERT_TRUE(expectBounds(container, 0, 0, 1000, 300));
+
+    // The parent components have a no-op transform because they're at (0, 0)
+    ASSERT_EQ(Transform2D(), component->getGlobalToLocalTransform());
+    ASSERT_EQ(Transform2D(), container->getGlobalToLocalTransform());
+
+    // Assert expected initial state of all the children
+    for (auto i = 0 ; i < container->getChildCount() ; i++) {
+        // Each pager is cumulatively offset by its height (200)
+        auto pager = as<CoreComponent>(container->getChildAt(i));
+        ASSERT_EQ("pager" + std::to_string(i + 1), pager->getId());
+        ASSERT_EQ(Transform2D::translateY(-200 * i), pager->getGlobalToLocalTransform());
+
+        // The TouchWrapper has the same transform as the pager
+        auto touch = as<CoreComponent>(pager->getChildAt(0));
+        ASSERT_EQ("touch" + std::to_string(i + 1), touch->getId());
+        ASSERT_EQ(pager->getGlobalToLocalTransform(), touch->getGlobalToLocalTransform());
+
+        // The Frame's transform is offset by the parent's padding
+        auto frame = as<CoreComponent>(touch->getChildAt(0));
+        ASSERT_EQ("frame" + std::to_string(i + 1), frame->getId());
+        ASSERT_EQ(touch->getGlobalToLocalTransform() * Transform2D::translateY(-25), frame->getGlobalToLocalTransform());
+
+        // And the Frames are all initially red
+        ASSERT_EQ(Object(Color(Color::RED)), frame->getCalculated(kPropertyBackgroundColor));
+    }
+
+    // The point (100, 500) is within the bounds of the third TouchWrapper
+    auto touch3 = as<CoreComponent>(context->findComponentById("touch3"));
+    ASSERT_TRUE(touch3->containsLocalPosition(touch3->toLocalPoint(Point(100, 500))));
+
+    // Scroll down 400 by grabbing (100, 500)
+    ASSERT_EQ(Point(), component->scrollPosition());
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(100, 500), false));
+    advanceTime(200);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(100, 100), true));
+    advanceTime(200);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(100, 100), true));
+    advanceTime(200);
+    ASSERT_EQ(Point(0, 400), component->scrollPosition());
+
+    // Now the point (100, 100) is within the bounds of the third TouchWrapper
+    ASSERT_TRUE(touch3->containsLocalPosition(touch3->toLocalPoint(Point(100, 100))));
+
+    // Tap the third touch wrapper
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(100, 100), false));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(100, 100), true));
+    advanceTime(200);
+
+    // Look at all the frames
+    auto frame1 = as<CoreComponent>(context->findComponentById("frame1"));
+    auto frame2 = as<CoreComponent>(context->findComponentById("frame2"));
+    auto frame3 = as<CoreComponent>(context->findComponentById("frame3"));
+    auto frame4 = as<CoreComponent>(context->findComponentById("frame4"));
+    auto frame5 = as<CoreComponent>(context->findComponentById("frame5"));
+
+    // The third frame has turned to green
+    ASSERT_EQ(Object(Color(Color::RED)), frame1->getCalculated(kPropertyBackgroundColor));
+    ASSERT_EQ(Object(Color(Color::RED)), frame2->getCalculated(kPropertyBackgroundColor));
+    ASSERT_EQ(Object(Color(Color::GREEN)), frame3->getCalculated(kPropertyBackgroundColor));
+    ASSERT_EQ(Object(Color(Color::RED)), frame4->getCalculated(kPropertyBackgroundColor));
+    ASSERT_EQ(Object(Color(Color::RED)), frame5->getCalculated(kPropertyBackgroundColor));
+}

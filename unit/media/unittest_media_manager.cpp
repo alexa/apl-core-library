@@ -503,10 +503,13 @@ TEST_F(MediaManagerTest, MixedMediaRequests) {
  */
 class TestMediaObject : public MediaObject {
 public:
-    TestMediaObject(std::string url, EventMediaType type) : mURL(std::move(url)), mType(type) {}
+    TestMediaObject(std::string url,
+                    EventMediaType type, HeaderArray headers = HeaderArray())
+        : mURL(std::move(url)), mType(type), mHeaders(std::move(headers)) {}
 
     std::string url() const override { return mURL; }
     State state() const override { return kReady; }
+    const HeaderArray& headers() const override { return mHeaders; }
     EventMediaType type() const override { return mType; }
     Size size() const override { return apl::Size(20,20); }
     CallbackID addCallback(MediaObjectCallback callback) override { return 0; }
@@ -516,13 +519,21 @@ public:
 
     std::string mURL;
     EventMediaType mType;
+    HeaderArray mHeaders;
 };
 
 class TestManager : public MediaManager {
 public:
-    MediaObjectPtr request(const std::string& url, EventMediaType type) override {
+    MediaObjectPtr request(
+        const std::string& url,
+        EventMediaType type,
+        const HeaderArray& headers) override {
         counter++;
-        return std::make_shared<TestMediaObject>(url, type);
+        return std::make_shared<TestMediaObject>(url, type, headers);
+    }
+
+    MediaObjectPtr request(const std::string& url, EventMediaType type) override {
+        return std::make_shared<TestMediaObject>(url, type, HeaderArray());
     }
 
     void processMediaRequests(const ContextPtr& context) override {}
@@ -583,7 +594,7 @@ TEST_F(MediaManagerTest, CoreMemoryCheck)
     std::map<std::string, MediaObject::State> callbackState;
 
     for (const auto& m : URL_LIST) {
-        objects.emplace_back(manager->request(m, kEventMediaTypeImage));
+        objects.emplace_back(manager->request(m, kEventMediaTypeImage, HeaderArray()));
         objects.back()->addCallback([&callbackState](const MediaObjectPtr& mediaObject) {
             callbackState[mediaObject->url()] = mediaObject->state();
         });
@@ -629,7 +640,7 @@ TEST_F(MediaManagerTest, CoreMemoryCheck)
 
     // STEP #5: Ask for all five objects again.  Three of them are already known to the media manager
     for (const auto& m : URL_LIST) {
-        objects.emplace_back(manager->request(m, kEventMediaTypeImage));
+        objects.emplace_back(manager->request(m, kEventMediaTypeImage, HeaderArray()));
         objects.back()->addCallback([&callbackState](const MediaObjectPtr& mediaObject) {
             callbackState[mediaObject->url()] = mediaObject->state();
         });
@@ -1659,4 +1670,659 @@ TEST_F(MediaManagerTest, SingleImageReinflateSameNotLoadedFirstHoldComponent)
 
     root->mediaLoaded("source0");
     advanceTime(100);
+}
+
+static const char* IMAGE_SOURCES_ARRAY_WITH_HEADERS = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": {
+      "type": "Image",
+      "sources": [
+        {
+          "url": "universe0",
+          "description": "milky way",
+          "headers": [
+              "A: header"
+          ]
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(MediaManagerTest, ImageWithSourcesAsArraryWithHeaders) {
+    loadDocument(IMAGE_SOURCES_ARRAY_WITH_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe0"));
+    ASSERT_TRUE(CheckLoadedMedia(component, "universe0"));
+
+    auto sources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(sources.size(), 1);
+    auto asSource = sources.at(0).getURLRequest();
+    auto headers = asSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "A: header");
+}
+
+static const char* IMAGE_SOURCES_ARRAY_WITH_HEADERS_AS_STRING = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": {
+      "type": "Image",
+      "sources": [
+        {
+          "url": "universe0",
+          "description": "milky way",
+          "headers": "A: Let me in"
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(MediaManagerTest, ImageWithSourcesAsArraryWithHeadersAsString) {
+    loadDocument(IMAGE_SOURCES_ARRAY_WITH_HEADERS_AS_STRING);
+
+    ASSERT_FALSE(root->isDirty());
+
+    ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe0"));
+    ASSERT_TRUE(CheckLoadedMedia(component, "universe0"));
+
+    auto sources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(sources.size(), 1);
+    auto asSource = sources.at(0).getURLRequest();
+    auto headers = asSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "A: Let me in");
+}
+
+static const char* IMAGE_SOURCES_OBJECT_WITH_HEADERS = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": {
+      "type": "Image",
+      "sources":
+        {
+          "url": "universe0",
+          "description": "Andromeda",
+          "headers": [
+              "A: Let me in please"
+          ]
+        }
+    }
+  }
+})";
+
+TEST_F(MediaManagerTest, ImageSourceAsObjectWithHeaders) {
+    loadDocument(IMAGE_SOURCES_OBJECT_WITH_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe0"));
+    ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
+    ASSERT_TRUE(CheckLoadedMedia(component, "universe0"));
+
+    // Based on the spec, we will "array-fy" the property
+    auto sources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(sources.size(), 1);
+    auto asSource = sources.at(0).getURLRequest();
+    auto headers = asSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "A: Let me in please");
+}
+
+static const char* IMAGE_SOURCES_ARRAY_WITH_MULTIPLE_IMAGES_AND_HEADERS = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": {
+      "type": "Image",
+      "sources": [
+        {
+          "url": "universe0",
+          "description": "milky way",
+          "headers": [
+              "A: Let me in"
+          ]
+        },
+        "universe1",
+        {
+          "url": "universe2"
+        },
+        {
+          "url": "universe3",
+          "description": "IC 1101",
+          "headers": [
+              "A: Did you know?",
+              "B: I'm the largest galaxy!"
+          ]
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(MediaManagerTest, MultipleImagesWithHeaders) {
+    loadDocument(IMAGE_SOURCES_ARRAY_WITH_MULTIPLE_IMAGES_AND_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // No filters, we only load the last source
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe3"));
+    ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
+    ASSERT_TRUE(CheckLoadedMedia(component, "universe3"));
+
+    // Check each of the sources
+    auto sources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(sources.size(), 4);
+
+    ASSERT_TRUE(sources.at(0).isURLRequest());
+    auto asSource0 = sources.at(0).getURLRequest();
+    ASSERT_EQ(asSource0.getUrl(), "universe0");
+    auto headers0 = asSource0.getHeaders();
+    ASSERT_EQ(headers0.size(), 1);
+    ASSERT_EQ(headers0.at(0), "A: Let me in");
+
+    ASSERT_TRUE(sources.at(1).isString());
+    auto asSource1 = sources.at(1).getString();
+    ASSERT_EQ(asSource1, "universe1");
+
+    auto asSource2 = sources.at(2).getURLRequest();
+    ASSERT_EQ(asSource2.getUrl(), "universe2");
+    auto headers2 = asSource2.getHeaders();
+    ASSERT_EQ(headers2.size(), 0);
+
+    auto asSource3 = sources.at(3).getURLRequest();
+    ASSERT_EQ(asSource3.getUrl(), "universe3");
+    auto headers3 = asSource3.getHeaders();
+    ASSERT_EQ(headers3.size(), 2);
+    ASSERT_EQ(headers3.at(0), "A: Did you know?");
+    ASSERT_EQ(headers3.at(1), "B: I'm the largest galaxy!");
+}
+
+static const char* MULTIPLE_IMAGES_WITH_FILTERS_AND_HEADERS = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": {
+      "type": "Image",
+      "sources": [
+        {
+          "url": "universe0",
+          "description": "milky way",
+          "headers": [
+              "A: Let me in"
+          ]
+        },
+        "universe1",
+        {
+          "url": "universe2"
+        },
+        {
+          "url": "universe3",
+          "description": "IC 1101",
+          "headers": [
+              "A: Did you know?",
+              "B: I'm the largest galaxy!"
+          ]
+        }
+      ],
+      "filters": {
+        "type": "Blend",
+        "mode": "normal"
+      }
+    }
+  }
+})";
+
+TEST_F(MediaManagerTest, MultipleImagesWithFiltersAndHeaders) {
+    loadDocument(MULTIPLE_IMAGES_WITH_FILTERS_AND_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe0", "universe1", "universe2", "universe3"));
+    ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
+    ASSERT_TRUE(CheckLoadedMedia(component, "universe0", "universe1", "universe2", "universe3"));
+
+    // Check each of the sources
+    auto sources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(sources.size(), 4);
+
+    ASSERT_TRUE(sources.at(0).isURLRequest());
+    auto asSoource0 = sources.at(0).getURLRequest();
+    ASSERT_EQ(asSoource0.getUrl(), "universe0");
+    auto headers0 = asSoource0.getHeaders();
+    ASSERT_EQ(headers0.size(), 1);
+    ASSERT_EQ(headers0.at(0), "A: Let me in");
+
+    ASSERT_TRUE(sources.at(1).isString());
+    auto asSource1 = sources.at(1).getString();
+    ASSERT_EQ(asSource1, "universe1");
+
+    auto asSource2 = sources.at(2).getURLRequest();
+    ASSERT_EQ(asSource2.getUrl(), "universe2");
+    auto headers2 = asSource2.getHeaders();
+    ASSERT_EQ(headers2.size(), 0);
+
+    auto asSource3 = sources.at(3).getURLRequest();
+    ASSERT_EQ(asSource3.getUrl(), "universe3");
+    auto headers3 = asSource3.getHeaders();
+    ASSERT_EQ(headers3.size(), 2);
+    ASSERT_EQ(headers3.at(0), "A: Did you know?");
+    ASSERT_EQ(headers3.at(1), "B: I'm the largest galaxy!");
+}
+
+static const char* VECTOR_GRAPHIC_MEDIA_OBJECT = R"({
+    "type": "APL",
+    "version": "1.6",
+    "mainTemplate": {
+        "item": {
+            "type": "VectorGraphic",
+            "source": {
+                "url": "universe0",
+                "description": "milky way",
+                "headers": [
+                    "A: Let me in"
+                ]
+            }
+        }
+    }
+})";
+
+TEST_F(MediaManagerTest, VectorGraphicWithHeaders) {
+    loadDocument(VECTOR_GRAPHIC_MEDIA_OBJECT);
+
+    ASSERT_FALSE(root->isDirty());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeVectorGraphic, "universe0"));
+    ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
+    ASSERT_TRUE(CheckLoadedMedia(component, "universe0"));
+
+    auto sourceProp = component->getCalculated(kPropertySource);
+    ASSERT_TRUE(sourceProp.isURLRequest());
+    auto asSource = sourceProp.getURLRequest();
+    auto headers = asSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "A: Let me in");
+}
+
+static const char* SINGLE_VIDEO_WITH_WRONG_HEADER = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": {
+      "type": "Video",
+      "source": {
+        "url": "universe",
+        "description": "milky way",
+        "headers": [ " A Let me in" ]
+      }
+    }
+  }
+})";
+TEST_F(MediaManagerTest, VideoWithWrongHeaders) {
+    loadDocument(SINGLE_VIDEO_WITH_WRONG_HEADER);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 0);
+}
+
+static const char* SINGLE_VIDEO_WITH_HEADERS = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": {
+      "type": "Video",
+      "source": {
+        "url": "universe",
+        "description": "milky way",
+        "headers": [ " A: Let me in" ]
+      }
+    }
+  }
+})";
+
+TEST_F(MediaManagerTest, VideoWithHeaders) {
+    loadDocument(SINGLE_VIDEO_WITH_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "A: Let me in");
+}
+
+TEST_F(MediaManagerTest, VideoWithHeadersDenyUppercase) {
+    config->filterHeaders(std::vector<std::pair<std::regex, bool>>{{std::regex("A", std::regex_constants::icase), false}});
+    loadDocument(SINGLE_VIDEO_WITH_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 0);
+}
+
+TEST_F(MediaManagerTest, VideoWithHeadersDenyLowercase) {
+    config->filterHeaders(std::vector<std::pair<std::regex, bool>>{{std::regex("a", std::regex_constants::icase), false}});
+    loadDocument(SINGLE_VIDEO_WITH_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 0);
+}
+
+TEST_F(MediaManagerTest, VideoWithHeadersAllowListUppercase) {
+    config->filterHeaders(std::vector<std::pair<std::regex, bool>>{{std::regex("A", std::regex_constants::icase), true}});
+    loadDocument(SINGLE_VIDEO_WITH_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "A: Let me in");
+}
+
+TEST_F(MediaManagerTest, VideoWithHeadersAllowListLowercase) {
+    config->filterHeaders(std::vector<std::pair<std::regex, bool>>{{std::regex("a", std::regex_constants::icase), true}});
+    loadDocument(SINGLE_VIDEO_WITH_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "A: Let me in");
+}
+
+TEST_F(MediaManagerTest, VideoWithHeadersAllowListNotPresent) {
+    config->filterHeaders(std::vector<std::pair<std::regex, bool>>{{std::regex("B", std::regex_constants::icase), true}});
+    loadDocument(SINGLE_VIDEO_WITH_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "A: Let me in");
+}
+
+static const char* SINGLE_VIDEO_WITH_AMAZON_HEADERS = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": {
+      "type": "Video",
+      "source": {
+        "url": "universe",
+        "description": "milky way",
+        "headers": [ "X-amzn-test: Let me in",  "X-amzn-test2: Let me in2", "C: other"]
+      }
+    }
+  }
+})";
+
+TEST_F(MediaManagerTest, VideoWithHeadersAllowRegex) {
+    config->filterHeaders(std::vector<std::pair<std::regex, bool>>{
+        {std::regex("(x-amzn-)(.*)", std::regex_constants::icase), true},
+        {std::regex("(x-amz-)(.*)", std::regex_constants::icase), true},
+        {std::regex("C", std::regex_constants::icase), false}
+    });
+
+    loadDocument(SINGLE_VIDEO_WITH_AMAZON_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 2);
+    ASSERT_EQ(headers.at(0), "X-amzn-test: Let me in");
+    ASSERT_EQ(headers.at(1), "X-amzn-test2: Let me in2");
+}
+
+TEST_F(MediaManagerTest, VideoWithHeadersDenyRegex) {
+    config->filterHeaders(std::vector<std::pair<std::regex, bool>>{
+        {std::regex("(x-amzn-)(.*)", std::regex_constants::icase), false},
+        {std::regex("(x-amz-)(.*)", std::regex_constants::icase), false}
+    });
+
+    loadDocument(SINGLE_VIDEO_WITH_AMAZON_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "C: other");
+}
+
+TEST_F(MediaManagerTest, VideoWithHeadersDenyAllRegex) {
+    config->filterHeaders(std::vector<std::pair<std::regex, bool>>{
+        {std::regex("(X-)(.*)", std::regex_constants::icase), false}
+    });
+
+    loadDocument(SINGLE_VIDEO_WITH_AMAZON_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "C: other");
+}
+
+static const char* SINGLE_VIDEO_WITH_CONTENT_TYPE = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": {
+      "type": "Video",
+      "source": {
+        "url": "universe",
+        "description": "milky way",
+        "headers": [ "X-amzn-test: Let me in",  "X-amzn-test2: Let me in2", "Content-Type: other"]
+      }
+    }
+  }
+})";
+
+TEST_F(MediaManagerTest, VideoWithHeadersAcceptContentTypeDenyAllRegex) {
+    config->filterHeaders(std::vector<std::pair<std::regex, bool>>{
+        {std::regex("Content-Type", std::regex_constants::icase), true},
+        {std::regex(".*"), false}
+    });
+
+    loadDocument(SINGLE_VIDEO_WITH_CONTENT_TYPE);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "Content-Type: other");
+}
+
+static const char* DUPLICATED_HEADERS = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": {
+      "type": "Video",
+      "source": {
+        "url": "universe",
+        "description": "milky way",
+        "headers": [
+            "Cache-Control: no-cache",
+            "Cache-Control: no-store"
+        ]
+      }
+    }
+  }
+})";
+
+TEST_F(MediaManagerTest, VideoWithDuplicatedHeaders) {
+    config->filterHeaders(std::vector<std::pair<std::regex, bool>>{
+        {std::regex("Cache-Control", std::regex_constants::icase), true},
+        {std::regex(".*"), false}
+    });
+
+    loadDocument(DUPLICATED_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 2);
+    ASSERT_EQ(headers.at(0), "Cache-Control: no-cache");
+    ASSERT_EQ(headers.at(1), "Cache-Control: no-store");
+}
+
+static const char* MULTIPLE_IMAGES_WITH_ERRORS = R"({
+  "type": "APL",
+  "version": "1.8",
+  "mainTemplate": {
+    "item": {
+      "type": "Image",
+      "sources": [
+        [],
+        {
+          "url": ""
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(MediaManagerTest, SourceWithErrorsAreNullObject) {
+    loadDocument(MULTIPLE_IMAGES_WITH_ERRORS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    auto sourceProp = component->getCalculated(kPropertySource);
+    ASSERT_TRUE(sourceProp.isArray());
+    ASSERT_EQ(sourceProp.size(), 0);
+    // We don't care about the session messages on this test, clean it
+    session->clear();
+}
+
+static const char* SINGLE_VIDEO_WITH_MULTIPLE_HEADERS = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": {
+      "type": "Video",
+      "source": {
+        "url": "universe",
+        "description": "milky way",
+        "headers": [ " A: Let me in", "B: A ", " C: A ", "   D:A     ", "   E: F   " ]
+      }
+    }
+  }
+})";
+
+TEST_F(MediaManagerTest, VideoWithMultipleHeaders) {
+    loadDocument(SINGLE_VIDEO_WITH_MULTIPLE_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 5);
+    ASSERT_EQ(headers.at(0), "A: Let me in");
+    ASSERT_EQ(headers.at(1), "B: A");
+    ASSERT_EQ(headers.at(2), "C: A");
+    ASSERT_EQ(headers.at(3), "D: A");
+    ASSERT_EQ(headers.at(4), "E: F");
 }

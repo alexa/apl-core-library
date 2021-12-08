@@ -22,6 +22,7 @@
 #include "apl/common.h"
 #include "apl/engine/event.h"
 #include "apl/primitives/size.h"
+#include "apl/primitives/urlrequest.h"
 #include "apl/utils/noncopyable.h"
 
 namespace apl {
@@ -84,6 +85,11 @@ public:
      * value is empty string.
      */
     virtual std::string errorDescription() const = 0;
+
+    /**
+     * @return The headers of the media object.
+     */
+    virtual const HeaderArray& headers() const = 0;
 
     /**
      * Add a callback to be executed when the MediaObject changes state from kPending to

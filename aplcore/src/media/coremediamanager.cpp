@@ -28,11 +28,12 @@ class CoreMediaObject : public MediaObject {
 public:
     friend class CoreMediaManager;
 
-    CoreMediaObject(std::string url, EventMediaType type, std::weak_ptr<CoreMediaManager> manager)
+    CoreMediaObject(std::string url, EventMediaType type, std::weak_ptr<CoreMediaManager> manager, HeaderArray headers)
         : mUrl(std::move(url)),
           mMediaType(type),
           mMediaErrorCode(-1),
-          mMediaManager(std::move(manager))
+          mMediaManager(std::move(manager)),
+          mHeaders(std::move(headers))
     {}
 
     ~CoreMediaObject() override {
@@ -42,6 +43,7 @@ public:
     };
 
     std::string url() const override { return mUrl; }
+    const HeaderArray& headers() const override { return mHeaders; }
     State state() const override { return mState; }
     EventMediaType type() const override { return mMediaType; }
     Size size() const override { return {}; }   // Note: Size is not supported
@@ -75,12 +77,20 @@ private:
     std::map<MediaObject::CallbackID , MediaObjectCallback> mCallbacks;
     std::weak_ptr<CoreMediaManager> mMediaManager;
     MediaObject::CallbackID mCallbackToken = 0;
+    HeaderArray mHeaders;
 };
 
 // ********************** CoreMediaManager implementation ********************
 
+
 MediaObjectPtr
 CoreMediaManager::request(const std::string& url, EventMediaType type)
+{
+    return this->request(url, type, HeaderArray());
+}
+
+MediaObjectPtr
+CoreMediaManager::request(const std::string& url, EventMediaType type, const HeaderArray& headers)
 {
     // Check if the URL is in our loaded map
     auto it = mObjectMap.find(url);
@@ -92,7 +102,7 @@ CoreMediaManager::request(const std::string& url, EventMediaType type)
     }
 
     // Unrecognized URL; create a new media object and add it to the pending pool
-    auto ptr = std::make_shared<CoreMediaObject>(url, type, shared_from_this());
+    auto ptr = std::make_shared<CoreMediaObject>(url, type, shared_from_this(), headers);
     mObjectMap.emplace(url, ptr);
     mPending.emplace(ptr);
 
@@ -116,15 +126,23 @@ CoreMediaManager::processMediaRequests(const ContextPtr& context)
     // This could be done more efficiently, but it should be replaced with a single request in the future.
     for (const auto& type : sRequestTypes) {
         auto sources = std::make_shared<ObjectArray>();
+        auto headers = std::make_shared<ObjectArray>();
         for (const auto& m : mPending) {
             auto ptr = m.lock();
-            if (ptr && ptr->type() == type)
+            if (ptr && ptr->type() == type) {
                 sources->emplace_back(ptr->url());
+                auto urlHeaders = std::make_shared<ObjectArray>();
+                for (const auto& moHeader : ptr->headers()) {
+                    urlHeaders->emplace_back(moHeader);
+                }
+                headers->emplace_back(urlHeaders);
+            }
         }
 
         if (!sources->empty()) {
             EventBag bag;
             bag.emplace(kEventPropertySource, sources);
+            bag.emplace(kEventPropertyHeaders, headers);
             bag.emplace(kEventPropertyMediaType, type);
             context->pushEvent(Event(kEventTypeMediaRequest, std::move(bag)));
         }

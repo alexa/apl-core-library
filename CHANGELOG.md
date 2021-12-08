@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.9.0]
+
+This release adds support for version 1.9 of the APL specification.
+
+### Added
+
+- Added new flag to disallow video player.
+- Added new gesture, Tap.
+- Added support for animating bound values and vector graphic parameters.
+- Added support for source http headers on images, vector graphics and video tracks.
+- Allow config change objects to contain custom environment property values.
+
+### Changed
+
+- Alpha feature: APL Extension logic is no longer interleaved with APL
+- Bug fixes.
+- Build improvements.
+
 ## [1.8.1]
 
 ### Changed
@@ -27,6 +45,12 @@ This release adds support for version 1.8 of the APL specification.
 - Improved focus behavior
 - Bug fixes
 - Build improvements
+
+## [1.7.2]
+
+### Changed
+
+- Bug fixes
 
 ## [1.7.1]
 
@@ -60,6 +84,12 @@ This release adds support for version 1.7 of the APL specification.
 - Updated reported APL version to 1.7
 - Other bug fixes
 - Build improvements
+
+## [1.6.3]
+
+### Changed
+
+- Bug fixes
 
 ## [1.6.2]
 

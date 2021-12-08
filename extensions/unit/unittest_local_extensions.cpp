@@ -52,12 +52,21 @@ public:
         registered = true;
     }
 
+    void onUnregistered(const std::string& uri, const std::string& token) override {
+        registered = false;
+    }
+
+    void onResourceReady(const std::string& uri, const ResourceHolderPtr& resource) override {
+        resourceId = resource->resourceId();
+    }
+
+    std::string resourceId;
     bool registered = false;
 };
 
 }
 
-class LocalExtensionTest : public ::testing::Test {
+class ResouceProviderTest : public ::testing::Test {
 public:
     void SetUp() override {
         extension = std::make_shared<LocalExtension>();
@@ -68,7 +77,7 @@ public:
     LocalExtensionProxyPtr proxy;
 };
 
-TEST_F(LocalExtensionTest, SuccessfulRegistration) {
+TEST_F(ResouceProviderTest, SuccessfulRegistration) {
     Document settings;
     settings.Parse(R"(
         {
@@ -93,9 +102,13 @@ TEST_F(LocalExtensionTest, SuccessfulRegistration) {
     ASSERT_TRUE(registered);
     ASSERT_TRUE(successCallbackWasCalled);
     ASSERT_TRUE(extension->registered);
+
+    // Unregister now
+    proxy->onUnregistered(URI, "<token>");
+    ASSERT_FALSE(extension->registered);
 }
 
-TEST_F(LocalExtensionTest, FailedRegistration) {
+TEST_F(ResouceProviderTest, FailedRegistration) {
     Document settings;
     settings.Parse(R"(
         {
@@ -119,4 +132,12 @@ TEST_F(LocalExtensionTest, FailedRegistration) {
     ASSERT_TRUE(registered);
     ASSERT_TRUE(errorCallbackWasCalled);
     ASSERT_FALSE(extension->registered);
+}
+
+TEST_F(ResouceProviderTest, ResourceReady) {
+
+    auto resource = std::make_shared<ResourceHolder>("SURFACE42");
+    proxy->onResourceReady(URI, resource);
+
+    ASSERT_EQ(extension->resourceId, "SURFACE42");
 }

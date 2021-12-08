@@ -82,16 +82,6 @@ RootContext::create(const Metrics& metrics, const ContentPtr& content,
     if (!root->setup(nullptr))
         return nullptr;
 
-#ifdef ALEXAEXTENSIONS
-    // Bind to the extension mediator
-    // TODO ExtensionMediator is an experimental class facilitating message passing to and from extensions.
-    // TODO The mediator class will be replaced by direct messaging between extensions and ExtensionManager
-    auto extensionMediator = config.getExtensionMediator();
-    if (extensionMediator) {
-        extensionMediator->bindContext(root);
-    }
-#endif
-
     return root;
 }
 
@@ -462,17 +452,36 @@ ActionPtr
 RootContext::invokeExtensionEventHandler(const std::string& uri, const std::string& name,
                                          const ObjectMap& data, bool fastMode,
                                          std::string resourceId) {
-    auto handler = mCore->extensionManager().findHandler(ExtensionEventHandler{uri, name}, resourceId);
+    auto handlerDefinition = ExtensionEventHandler{uri, name};
+    auto handler = Object::NULL_OBJECT();
+    ContextPtr ctx = nullptr;
+    auto comp = mCore->extensionManager().findExtensionComponent(resourceId);
+    if (comp) {
+        handler = comp->findHandler(handlerDefinition);
+        if (handler.isNull()) {
+            CONSOLE_S(getSession()) << "Extension Component " << comp->name()
+                                            << " can't execute event handler " << handlerDefinition.getName();
+            return nullptr;
+        }
 
-    if (handler.isNull())
-        return nullptr;
+        // Create component context. Data is attached on event level.
+        auto dataPtr = std::make_shared<ObjectMap>(data);
+        ctx = comp->createEventContext(name, dataPtr);
+    } else {
+        handler = mCore->extensionManager().findHandler(handlerDefinition);
+        if (handler.isNull()) {
+            CONSOLE_S(getSession()) << "Extension Handler " << handlerDefinition.getName() << " don't exist.";
+            return nullptr;
+        }
 
-    // Create a document-level context and copy the provided data in
-    ContextPtr ctx = createDocumentContext(name, data);
+        // Create a document-level context. Data is attached on event level.
+        ctx = createDocumentContext(name, data);
+    }
+
     for (const auto& m : data)
         ctx->putConstant(m.first, m.second);
 
-    return mContext->sequencer().executeCommands(handler, ctx, nullptr, fastMode);
+    return mContext->sequencer().executeCommands(handler, ctx, comp, fastMode);
 }
 
 void
@@ -509,6 +518,9 @@ RootContext::payloadContext() const
 void
 RootContext::updateTime(apl_time_t elapsedTime)
 {
+    // Flush any dynamic data changes
+    mCore->dataManager().flushDirty();
+
     auto lastTime = mTimeManager->currentTime();
     mTimeManager->updateTime(elapsedTime);
     mContext->systemUpdateAndRecalculate(ELAPSED_TIME, mTimeManager->currentTime(), true); // Read back in case it gets changed
@@ -524,6 +536,9 @@ RootContext::updateTime(apl_time_t elapsedTime)
 void
 RootContext::updateTime(apl_time_t elapsedTime, apl_time_t utcTime)
 {
+    // Flush any dynamic data changes
+    mCore->dataManager().flushDirty();
+
     mTimeManager->updateTime(elapsedTime);
     mContext->systemUpdateAndRecalculate(ELAPSED_TIME, mTimeManager->currentTime(), true); // Read back in case it gets changed
 
@@ -705,6 +720,16 @@ RootContext::setup(const CoreComponentPtr& top)
 
     mCore->mTop->markGlobalToLocalTransformStale();
     mCore->layoutManager().firstLayout();
+
+#ifdef ALEXAEXTENSIONS
+    // Bind to the extension mediator
+    // TODO ExtensionMediator is an experimental class facilitating message passing to and from extensions.
+    // TODO The mediator class will be replaced by direct messaging between extensions and ExtensionManager
+    auto extensionMediator = mCore->rootConfig().getExtensionMediator();
+    if (extensionMediator) {
+        extensionMediator->bindContext(shared_from_this());
+    }
+#endif
 
     // Execute the "onMount" document command
     APL_TRACE_BEGIN("RootContext:executeOnMount");

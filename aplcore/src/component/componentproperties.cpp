@@ -422,6 +422,7 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyPreserve,                "preserve"},
     {kPropertyResourceId,              "resourceId"},
     {kPropertyResourceState,           "_resourceState"},
+    {kPropertyResourceType,           "_resourceType"},
     {kPropertyRight,                   "right"},
     {kPropertyRole,                    "role"},
     {kPropertyScale,                   "scale"},

@@ -19,6 +19,8 @@
 #include <memory>
 #include <cassert>
 
+#include "apl/utils/make_unique.h"
+
 namespace apl {
 
 /**
@@ -36,7 +38,7 @@ public:
     typedef const T&  const_reference;
     typedef size_t    size_type;
 
-    explicit RingBuffer(size_t size) : mBuf(std::unique_ptr<T[]>(new T[size])), mHead(0), mTail(0),
+    explicit RingBuffer(size_t size) : mBuf(std::make_unique<T[]>(size)), mHead(0), mTail(0),
         mMaxSize(size), mFull(false) {}
 
     /// Simple control functionality

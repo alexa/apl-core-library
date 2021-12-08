@@ -219,6 +219,17 @@ Graphic::setProperty(const std::string& key, const apl::Object& value)
     return false;
 }
 
+std::pair<Object, bool>
+Graphic::getProperty(const std::string& key) const
+{
+    for (const auto& param : mParameterArray) {
+        if (param.name == key)
+            return { mInternalContext->opt(key), true };
+    }
+
+    return { Object::NULL_OBJECT(), false };
+}
+
 static double calculateScale(double scale, GraphicScale scaleType) {
     switch (scaleType) {
         case kGraphicScaleGrow:

@@ -54,6 +54,8 @@ Context::createTestContext(const Metrics& metrics, const RootConfig& config)
 }
 
 // Use this to create a free-standing context.  Used for type conversion and basic environment access.
+// This method should never add custom enviroment properties to the newly created context as it is
+// also used to detect collisions with the built-in variables.
 ContextPtr
 Context::createTypeEvaluationContext(const RootConfig& config)
 {
@@ -95,6 +97,8 @@ Context::init(const Metrics& metrics, const std::shared_ptr<RootContextData>& co
     env->emplace("allowOpenURL", config.getAllowOpenUrl());
     env->emplace("animation", config.getAnimationQualityString());
     env->emplace("aplVersion", config.getReportedAPLVersion());
+    env->emplace("disallowDialog", config.getProperty(RootProperty::kDisallowDialog).getBoolean());
+    env->emplace("disallowEditText", config.getProperty(RootProperty::kDisallowEditText).getBoolean());
     env->emplace("disallowVideo", config.getDisallowVideo());
     env->emplace("extension", core->extensionManager().getEnvironment());
     env->emplace("fontScale", config.getFontScale());
@@ -110,6 +114,7 @@ Context::init(const Metrics& metrics, const std::shared_ptr<RootContextData>& co
     timing->emplace("minimumFlingVelocity", config.getMinimumFlingVelocity());
     timing->emplace("pressedDuration", config.getPressedDuration());
     timing->emplace("tapOrScrollTimeout", config.getTapOrScrollTimeout());
+    timing->emplace("maximumTapVelocity", config.getProperty(RootProperty::kMaximumTapVelocity).getInteger());
     env->emplace("timing", timing);
 
     env->emplace("_coreRepositoryVersion", sCoreRepositoryVersion);

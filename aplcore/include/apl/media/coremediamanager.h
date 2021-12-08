@@ -36,6 +36,8 @@ public:
 
     MediaObjectPtr request(const std::string& url, EventMediaType type) override;
 
+    MediaObjectPtr request(const std::string& url, EventMediaType type, const HeaderArray& headers) override;
+
     void processMediaRequests(const ContextPtr& context) override;
 
     void mediaLoadComplete(const std::string& source,

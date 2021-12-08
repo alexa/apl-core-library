@@ -27,6 +27,7 @@ add_executable(alexaext-unittest
         unittest_extension_provider.cpp
         unittest_extension_schema.cpp
         unittest_local_extensions.cpp
+        unittest_resource_provider.cpp
         )
 
 target_link_libraries(alexaext-unittest

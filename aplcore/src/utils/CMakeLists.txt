@@ -20,6 +20,7 @@ target_sources_local(apl
     session.cpp
     stickychildrentree.cpp
     stickyfunctions.cpp
+    stringfunctions.cpp
     tracing.cpp
     url.cpp
 )

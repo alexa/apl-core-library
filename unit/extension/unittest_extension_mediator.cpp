@@ -16,6 +16,7 @@
 #ifdef ALEXAEXTENSIONS
 
 #include "../testeventloop.h"
+#include "apl/extension/extensioncomponent.h"
 
 using namespace apl;
 using namespace alexaext;
@@ -117,6 +118,14 @@ static const char* EXTENSION_EVENTS = R"(
       { "name": "onDeviceRemove" },
       { "name": "onGenericExternallyComingEvent", "mode": "NORMAL" }
     ]
+)";
+
+static const char* EXTENSION_COMPONENTS = R"(
+    ,"components": [
+    {
+        "name": "Canvas"
+    }
+  ]
 )";
 
 static const char* EXTENSION_DATA_BINDINGS = R"(
@@ -234,6 +243,7 @@ public:
             schema += EXTENSION_TYPES;
             schema += EXTENSION_COMMANDS;
             schema += EXTENSION_EVENTS;
+            schema += EXTENSION_COMPONENTS;
             schema += EXTENSION_DATA_BINDINGS;
         }
         schema += "}";
@@ -261,13 +271,35 @@ public:
         registered = true;
     }
 
+    bool updateComponent(const std::string &uri, const rapidjson::Value &command) override {
+        return true;
+    };
+
+    void onResourceReady(const std::string&uri, const ResourceHolderPtr& resource) override {
+        mResource = resource;
+    }
+
     int lastCommandId;
     std::string lastCommandName;
     bool registered = false;
     std::string mFlags;
     std::string mAuthorizationCode;
+    ResourceHolderPtr mResource;
 };
 
+
+class TestResourceProvider final: public ExtensionResourceProvider {
+public:
+    bool requestResource(const std::string& uri, const std::string& resourceId,
+                         ExtensionResourceSuccessCallback success,
+                         ExtensionResourceFailureCallback error) override {
+
+        // success callback if resource supported
+        auto resource = std::make_shared<ResourceHolder>(resourceId);
+        success(uri, resource);
+        return true;
+    };
+};
 
 class ExtensionMediatorTest : public DocumentWrapper {
 public:
@@ -277,7 +309,9 @@ public:
 
     void createProvider() {
         extensionProvider = std::make_shared<alexaext::ExtensionRegistrar>();
-        mediator = ExtensionMediator::create(extensionProvider);
+        resourceProvider = std::make_shared<TestResourceProvider>();
+        mediator = ExtensionMediator::create(extensionProvider, resourceProvider,
+                                             alexaext::Executor::getSynchronousExecutor());
     }
 
     void loadExtensions(const char* document) {
@@ -309,6 +343,7 @@ public:
     void TearDown() override {
         extensionProvider = nullptr;
         mediator = nullptr;
+        resourceProvider = nullptr;
         testExtensions.clear();
 
         DocumentWrapper::TearDown();
@@ -317,6 +352,7 @@ public:
     void testLifecycle();
 
     ExtensionRegistrarPtr extensionProvider;                 // provider instance for tests
+    ExtensionResourceProviderPtr resourceProvider;    // provider for test resources
     ExtensionMediatorPtr mediator;
     std::map<std::string, std::weak_ptr<TestExtension>> testExtensions; // direct access to extensions for test
 };
@@ -419,6 +455,12 @@ static const char* EXT_DOC = R"({
           "width": 100,
           "height": 100,
           "text": "Empty"
+        },
+        {
+          "type": "Hello:Canvas",
+          "id": "MyCanvas",
+          "width": 100,
+          "height": 100
         }
       ]
     }
@@ -525,7 +567,7 @@ TEST_F(ExtensionMediatorTest, RegistrationFlags) {
     loadExtensions(EXT_DOC);
 
     // direct access to extension for test inspection
-    auto hello = testExtensions["aplext:hello:10"];
+    auto hello = testExtensions["aplext:hello:10"].lock();
     ASSERT_TRUE(hello);
 
     ASSERT_EQ("--hello", hello->mFlags);
@@ -544,7 +586,7 @@ TEST_F(ExtensionMediatorTest, ParseSettings) {
     auto ext = extensionProvider->getExtension("aplext:hello:10");
     ASSERT_TRUE(ext);
     // direct access to extension for test inspection
-    auto hello = testExtensions["aplext:hello:10"];
+    auto hello = testExtensions["aplext:hello:10"].lock();
     ASSERT_TRUE(hello);
 
     ASSERT_EQ("MAGIC", hello->mAuthorizationCode);
@@ -795,6 +837,9 @@ void ExtensionMediatorTest::testLifecycle() {
     auto text = component->findComponentById("label");
     ASSERT_EQ(kComponentTypeText, text->getType());
 
+    auto canvas = root->findComponentById("MyCanvas");
+    ASSERT_TRUE(canvas);
+
     // Event should be redirected by them mediator.
     hello->lastCommandId = 0;
     hello->lastCommandName = "";
@@ -942,6 +987,9 @@ TEST_F(ExtensionMediatorTest, DataUpdateBad) {
     // send a good update
     hello->generateLiveDataUpdate("aplext:hello:10", ENTITY_LIST_INSERT);
     ASSERT_FALSE(ConsoleMessage());
+
+    auto event = root->popEvent();
+    ASSERT_EQ(event.getType(), kEventTypeSendEvent);
 }
 
 TEST_F(ExtensionMediatorTest, RegisterBad) {
@@ -949,6 +997,32 @@ TEST_F(ExtensionMediatorTest, RegisterBad) {
     loadExtensions(EXT_DOC);
     ASSERT_TRUE(ConsoleMessage());
     ASSERT_EQ(0, config->getSupportedExtensions().size());
+    sForceFail = false;
+}
+
+TEST_F(ExtensionMediatorTest, ComponentReady) {
+    loadExtensions(EXT_DOC);
+
+    // verify the extension was registered
+    ASSERT_TRUE(extensionProvider->hasExtension("aplext:hello:10"));
+    auto ext = extensionProvider->getExtension("aplext:hello:10");
+    ASSERT_TRUE(ext);
+    // direct access to extension for test inspection
+    auto hello = testExtensions["aplext:hello:10"].lock();
+
+    inflate();
+
+    ASSERT_FALSE(hello->mResource);
+
+    auto canvas = root->findComponentById("MyCanvas");
+    ASSERT_TRUE(canvas);
+    ASSERT_TRUE(IsEqual(kResourcePending, canvas->getCalculated(kPropertyResourceState)));
+
+    canvas->updateResourceState(kResourceReady);
+    ASSERT_TRUE(IsEqual(kResourceReady, canvas->getCalculated(kPropertyResourceState)));
+
+    ASSERT_TRUE(hello->mResource);
+    ASSERT_TRUE(IsEqual(hello->mResource->resourceId(), canvas->getCalculated(kPropertyResourceId).asString()));
 }
 
 
@@ -1015,7 +1089,6 @@ static const char* AUDIO_PLAYER = R"(
 }
 )";
 
-
 class AudioPlayerObserverStub : public AudioPlayer::AplAudioPlayerExtensionObserverInterface {
 public:
     void onAudioPlayerPlay() override {}
@@ -1079,20 +1152,79 @@ TEST_F(ExtensionMediatorTest, AudioPlayerIntegration) {
     ASSERT_TRUE(IsEqual("123", activityOffset->getCalculated(kPropertyText).getStyledText().getText()));
 }
 
-class ExtensionCommunticationTestAdapter : public ExtensionProxy {
+class SimpleExtensionTestAdapter : public ExtensionBase {
 public:
-    ExtensionCommunticationTestAdapter(const std::string& uri, bool shouldInitialize, bool shouldRegister) :
+    SimpleExtensionTestAdapter(const std::string& uri, const std::string& registrationMessage)
+        : ExtensionBase(uri), registrationString(registrationMessage) {}
+
+    std::string registrationString;
+
+    std::map<std::string, std::string> commands;
+
+    rapidjson::Document createRegistration(const std::string& uri, const rapidjson::Value& registrationRequest) override {
+        rapidjson::Document doc;
+        doc.Parse(registrationString.c_str());
+        return doc;
+    }
+
+    bool invokeCommand(const std::string& uri, const rapidjson::Value& command) override {
+        rapidjson::StringBuffer buffer;
+        buffer.Clear();
+        rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+        command.Accept(writer);
+
+        std::string commandString(buffer.GetString());
+        LOG(LogLevel::kInfo) << "uri: " << uri << ", command: " << commandString;
+        commands.emplace(command["name"].GetString(), commandString);
+        return false;
+    }
+
+    void onRegistered(const std::string& uri, const std::string& token) override {
+        LOG(LogLevel::kInfo) << "uri: " << uri << ", token: " << token;
+    }
+
+    void onUnregistered(const std::string& uri, const std::string& token) override {
+        LOG(LogLevel::kInfo) << "uri: " << uri << ", token: " << token;
+    }
+
+    bool updateComponent(const std::string& uri, const rapidjson::Value& command) override {
+        rapidjson::StringBuffer buffer;
+        buffer.Clear();
+        rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+        command.Accept(writer);
+
+        LOG(LogLevel::kInfo) << "uri: " << uri << ", command: " << buffer.GetString();
+        return true;
+    }
+
+    void onResourceReady(const std::string& uri, const ResourceHolderPtr& resourceHolder) override {
+        LOG(LogLevel::kInfo) << "uri: " << uri << ", resource: " << resourceHolder->resourceId();
+    }
+
+    void sendEvent(const std::string& uri, const rapidjson::Value& event) {
+        invokeExtensionEventHandler(uri, event);
+    }
+
+};
+
+class ExtensionCommunicationTestAdapter : public ExtensionProxy {
+public:
+    ExtensionCommunicationTestAdapter(const std::string& uri, bool shouldInitialize, bool shouldRegister) :
         mShouldInitialize(shouldInitialize), mShouldRegister(shouldRegister) {
         mURIs.emplace(uri);
     }
 
-    std::set<std::string> getURIs() override { return mURIs; }
+    std::set<std::string> getURIs() const override { return mURIs; }
 
     bool initializeExtension(const std::string &uri) override {
         if (mShouldInitialize) {
             mInitialized.emplace(uri);
         }
         return mShouldInitialize;
+    }
+
+    bool isInitialized(const std::string &uri) const override {
+        return mInitialized.count(uri);
     }
 
     bool getRegistration(const std::string &uri, const rapidjson::Value &registrationRequest,
@@ -1119,6 +1251,13 @@ public:
         mRegistered.emplace(uri, token);
     }
 
+    void onUnregistered(const std::string &uri, const std::string &token) override {
+        mRegistered.erase(uri);
+    }
+
+    void onResourceReady( const std::string& uri,
+                                  const ResourceHolderPtr& resource) override {}
+
     bool isInitialized(const std::string& uri) { return mInitialized.count(uri); }
 
     bool isRegistered(const std::string& uri) { return mRegistered.count(uri); }
@@ -1131,15 +1270,23 @@ public:
         mRegistrationError(uri, registrationError);
     }
 
+    bool hasPendingRequest(const std::string &uri) {
+        return mPendingRegistrations.count(uri);
+    }
+
+    std::string getPendingRequest(const std::string &uri) {
+        return mPendingRegistrations.find(uri)->second;
+    }
+
 private:
     std::set<std::string> mURIs;
     std::set<std::string> mInitialized;
-    std::map<std::string, std::string> mPendingRegistrations;
     bool mShouldInitialize;
     bool mShouldRegister;
     RegistrationSuccessCallback mRegistrationSuccess;
     RegistrationFailureCallback mRegistrationError;
     std::map<std::string, std::string> mRegistered;
+    std::map<std::string, std::string> mPendingRegistrations;
 };
 
 static const char* SIMPLE_EXT_DOC = R"({
@@ -1168,10 +1315,44 @@ static const char* SIMPLE_EXT_DOC = R"({
 
 static const char* TEST_EXTENSION_URI = "alexaext:test:10";
 
+TEST_F(ExtensionMediatorTest, TestRegistrationSchema) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    extensionProvider->registerExtension(adapter);
+
+    createContent(SIMPLE_EXT_DOC, nullptr);
+    mediator->initializeExtensions(config, content);
+    config->registerExtensionFlags(TEST_EXTENSION_URI, "--testflag");
+    mediator->loadExtensions(config, content, [](){});
+
+    ASSERT_TRUE(adapter->hasPendingRequest(TEST_EXTENSION_URI));
+    auto registerRequest = adapter->getPendingRequest(TEST_EXTENSION_URI);
+
+    rapidjson::Document requestJson;
+    requestJson.Parse(registerRequest.c_str());
+
+    //mandatory fields
+    ASSERT_TRUE(requestJson.HasMember("uri"));
+    ASSERT_STREQ(TEST_EXTENSION_URI, requestJson["uri"].GetString());
+    ASSERT_TRUE(requestJson.HasMember("method"));
+    ASSERT_STREQ("Register", requestJson["method"].GetString());
+    ASSERT_TRUE(requestJson.HasMember("version"));
+    ASSERT_STREQ("1.0", requestJson["version"].GetString());
+
+    //optional fields
+    ASSERT_TRUE(requestJson.HasMember("settings"));
+    rapidjson::Value& settings = requestJson["settings"];
+    ASSERT_TRUE(settings.HasMember("authorizationCode"));
+    ASSERT_STREQ("MAGIC", settings["authorizationCode"].GetString());
+    ASSERT_TRUE(requestJson.HasMember("flags"));
+    ASSERT_STREQ("--testflag", requestJson["flags"].GetString());
+}
+
 TEST_F(ExtensionMediatorTest, FastInitialization) {
     createProvider();
 
-    auto adapter = std::make_shared<ExtensionCommunticationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, true);
     extensionProvider->registerExtension(adapter);
 
     createContent(SIMPLE_EXT_DOC, nullptr);
@@ -1201,12 +1382,16 @@ TEST_F(ExtensionMediatorTest, FastInitialization) {
 
     ASSERT_TRUE(adapter->isRegistered(TEST_EXTENSION_URI));
     ASSERT_TRUE(*loaded);
+
+    // Finalize now
+    mediator->finish();
+    ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
 }
 
 TEST_F(ExtensionMediatorTest, FastInitializationFailInitialize) {
     createProvider();
 
-    auto adapter = std::make_shared<ExtensionCommunticationTestAdapter>(TEST_EXTENSION_URI, false, false);
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, false, false);
     extensionProvider->registerExtension(adapter);
 
     createContent(SIMPLE_EXT_DOC, nullptr);
@@ -1229,12 +1414,13 @@ TEST_F(ExtensionMediatorTest, FastInitializationFailInitialize) {
     ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
     // Still considered loaded. Extension just not available.
     ASSERT_TRUE(*loaded);
+    ASSERT_TRUE(ConsoleMessage());
 }
 
 TEST_F(ExtensionMediatorTest, FastInitializationFailRegistrationRequest) {
     createProvider();
 
-    auto adapter = std::make_shared<ExtensionCommunticationTestAdapter>(TEST_EXTENSION_URI, true, false);
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, false);
     extensionProvider->registerExtension(adapter);
 
     createContent(SIMPLE_EXT_DOC, nullptr);
@@ -1256,12 +1442,13 @@ TEST_F(ExtensionMediatorTest, FastInitializationFailRegistrationRequest) {
 
     ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
     ASSERT_TRUE(*loaded);
+    ASSERT_TRUE(ConsoleMessage());
 }
 
 TEST_F(ExtensionMediatorTest, FastInitializationFailRegistration) {
     createProvider();
 
-    auto adapter = std::make_shared<ExtensionCommunticationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, true);
     extensionProvider->registerExtension(adapter);
 
     createContent(SIMPLE_EXT_DOC, nullptr);
@@ -1292,6 +1479,850 @@ TEST_F(ExtensionMediatorTest, FastInitializationFailRegistration) {
 
     ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
     ASSERT_TRUE(*loaded);
+}
+
+
+TEST_F(ExtensionMediatorTest, FastInitializationGranted) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    extensionProvider->registerExtension(adapter);
+
+    createContent(SIMPLE_EXT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+
+    // grant extension access
+    mediator->initializeExtensions(config, content,
+        [](const std::string& uri, ExtensionMediator::ExtensionGrantResult grant,
+           ExtensionMediator::ExtensionGrantResult deny) {
+          grant(uri);
+        });
+
+    ASSERT_TRUE(adapter->isInitialized(TEST_EXTENSION_URI));
+
+    auto loaded = std::make_shared<bool>(false);
+    mediator->loadExtensions(config, content, [loaded](){
+      *loaded = true;
+    });
+
+    ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
+    ASSERT_FALSE(*loaded);
+
+    rapidjson::Document schemaDoc;
+    auto schema = ExtensionSchema(&schemaDoc.GetAllocator(), "1.0").uri(TEST_EXTENSION_URI);
+    auto success = RegistrationSuccess("1.0").token("MAGIC_TOKEN").schema(schema);
+    adapter->registrationSuccess(TEST_EXTENSION_URI, success.getDocument());
+
+    ASSERT_TRUE(adapter->isRegistered(TEST_EXTENSION_URI));
+    ASSERT_TRUE(*loaded);
+
+}
+
+
+TEST_F(ExtensionMediatorTest, FastInitializationDenied) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    extensionProvider->registerExtension(adapter);
+
+    createContent(SIMPLE_EXT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+
+    // deny extension access
+    mediator->initializeExtensions(config, content,
+        [](const std::string& uri, ExtensionMediator::ExtensionGrantResult grant,
+           ExtensionMediator::ExtensionGrantResult deny) {
+          deny(uri);
+        });
+
+    ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
+}
+
+
+TEST_F(ExtensionMediatorTest, FastInitializationMissingGrant) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    extensionProvider->registerExtension(adapter);
+
+    createContent(SIMPLE_EXT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+
+    // grant extension access
+    auto grantRequest = std::make_shared<bool>(false);
+    mediator->initializeExtensions(config, content,
+                                   [grantRequest](const std::string& uri, ExtensionMediator::ExtensionGrantResult grant,
+                                      ExtensionMediator::ExtensionGrantResult deny) {
+                                      //neither grant nor deny
+                                      *grantRequest = true;
+                                   });
+    ASSERT_TRUE(grantRequest);
+    ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
+
+    auto loaded = std::make_shared<bool>(false);
+    mediator->loadExtensions(config, content, [loaded](){
+      *loaded = true;
+    });
+    ASSERT_TRUE(LogMessage());
+
+    ASSERT_TRUE(*loaded);
+    ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
+}
+
+TEST_F(ExtensionMediatorTest, RootConfigNull) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    extensionProvider->registerExtension(adapter);
+
+    createContent(SIMPLE_EXT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+
+    // grant extension access
+    auto grantRequest = std::make_shared<bool>(false);
+    mediator->initializeExtensions(config, content,
+                                   [grantRequest](const std::string& uri, ExtensionMediator::ExtensionGrantResult grant,
+                                      ExtensionMediator::ExtensionGrantResult deny) {
+                                      //neither grant nor deny
+                                      *grantRequest = true;
+                                   });
+    ASSERT_TRUE(grantRequest);
+    ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
+
+    auto loaded = std::make_shared<bool>(false);
+    mediator->loadExtensions(nullptr, content, [loaded](){
+      *loaded = true;
+    });
+    ASSERT_TRUE(LogMessage());
+
+    ASSERT_TRUE(*loaded);
+    ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
+}
+
+TEST_F(ExtensionMediatorTest, LoadGranted) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    extensionProvider->registerExtension(adapter);
+
+    createContent(SIMPLE_EXT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+
+    // explicit grant of test extensions
+    auto granted = adapter->getURIs();
+    mediator->loadExtensions(config, content, &granted);
+
+    ASSERT_TRUE(adapter->isInitialized(TEST_EXTENSION_URI));
+
+    rapidjson::Document schemaDoc;
+    auto schema = ExtensionSchema(&schemaDoc.GetAllocator(), "1.0").uri(TEST_EXTENSION_URI);
+    auto success = RegistrationSuccess("1.0").token("MAGIC_TOKEN").schema(schema);
+    adapter->registrationSuccess(TEST_EXTENSION_URI, success.getDocument());
+
+    ASSERT_TRUE(adapter->isRegistered(TEST_EXTENSION_URI));
+
+}
+
+TEST_F(ExtensionMediatorTest, LoadDenied) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    extensionProvider->registerExtension(adapter);
+
+    createContent(SIMPLE_EXT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+
+    // empty set results in all extension denied
+    std::set<std::string> granted;
+    mediator->loadExtensions(config, content, &granted);
+
+    ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
+}
+
+TEST_F(ExtensionMediatorTest, LoadAllGranted) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    extensionProvider->registerExtension(adapter);
+
+    createContent(SIMPLE_EXT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+
+    // when content ready, unspecified grant list means all extensions granted
+    mediator->loadExtensions(config, content);
+
+    ASSERT_TRUE(adapter->isInitialized(TEST_EXTENSION_URI));
+
+    rapidjson::Document schemaDoc;
+    auto schema = ExtensionSchema(&schemaDoc.GetAllocator(), "1.0").uri(TEST_EXTENSION_URI);
+    auto success = RegistrationSuccess("1.0").token("MAGIC_TOKEN").schema(schema);
+    adapter->registrationSuccess(TEST_EXTENSION_URI, success.getDocument());
+
+    ASSERT_TRUE(adapter->isRegistered(TEST_EXTENSION_URI));
+}
+
+
+TEST_F(ExtensionMediatorTest, LoadContentNotReady) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    extensionProvider->registerExtension(adapter);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    const char* DOC = R"(
+        {
+          "type": "APL",
+          "version": "1.1",
+          "mainTemplate": {
+            "parameters": [
+              "payload"
+            ],
+            "item": {
+              "type": "Text"
+            }
+          }
+        }
+    )";
+
+    createContent(DOC, nullptr);
+    ASSERT_FALSE(content->isReady());
+
+    // when content ready, unspecified grant list means all extensions granted
+    // without ready content load not attempted
+    mediator->loadExtensions(config, content);
+
+    ASSERT_TRUE(ConsoleMessage());
+    ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
+}
+
+
+
+static const char* SIMPLE_COMPONENT_DOC = R"({
+  "type": "APL",
+  "version": "1.9",
+  "theme": "dark",
+  "extensions": [
+    {
+      "uri": "alexaext:example:10",
+      "name": "Example"
+    }
+  ],
+  "settings": {
+    "Example": {
+      "some": "setting"
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "width": "100vw",
+      "height": "100vh",
+      "items": [
+        {
+          "when": "${environment.extension.Example}",
+          "type": "Example:Example",
+          "id": "ExampleComp",
+          "width": "100%",
+          "height": "100%",
+          "onMount": [
+            {
+              "type": "Example:Hello"
+            }
+          ],
+          "ComponentEvent": {
+            "type": "SendEvent"
+          }
+        }
+      ]
+    }
+  }
+})";
+
+static const char* SIMPLE_COMPONENT_SCHEMA = R"({
+  "version": "1.0",
+  "method": "RegisterSuccess",
+  "token": "<AUTO_TOKEN>",
+  "environment": {
+    "version": "1.0"
+  },
+  "schema": {
+    "type": "Schema",
+    "version": "1.0",
+    "uri": "alexaext:example:10",
+    "components": [
+      {
+        "name": "Example",
+        "resourceType": "Custom",
+        "commands": [
+          {
+            "name": "Hello"
+          }
+        ],
+        "events": [
+          { "name": "ComponentEvent", "mode": "NORMAL" }
+        ]
+      },
+      {
+        "name": "AnotherExample",
+        "resourceType": "Custom",
+        "commands": [
+          {
+            "name": "Goodbye"
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+static const char* COMPONENT_TARGET_EVENT = R"({
+  "version": "1.0",
+  "method": "Event",
+  "target": "alexaext:example:10",
+  "name": "ComponentEvent",
+  "resourceId": "[RESOURCE_ID]"
+})";
+
+TEST_F(ExtensionMediatorTest, ComponentInteractions) {
+    extensionProvider = std::make_shared<alexaext::ExtensionRegistrar>();
+    mediator = ExtensionMediator::create(extensionProvider, alexaext::Executor::getSynchronousExecutor());
+
+    auto extension = std::make_shared<SimpleExtensionTestAdapter>("alexaext:example:10", SIMPLE_COMPONENT_SCHEMA);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+
+    createContent(SIMPLE_COMPONENT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+            .extensionProvider(extensionProvider)
+            .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+
+    auto loaded = std::make_shared<bool>(false);
+    mediator->loadExtensions(config, content, [loaded](){
+        *loaded = true;
+    });
+
+    ASSERT_TRUE(*loaded);
+
+    inflate();
+    ASSERT_TRUE(root);
+    advanceTime(10);
+
+    // On mount
+    ASSERT_EQ(1, extension->commands.size());
+    ASSERT_EQ("Hello", extension->commands.begin()->first);
+
+    // Invoke component event
+    rapidjson::Document componentEvent;
+    componentEvent.Parse(COMPONENT_TARGET_EVENT);
+    componentEvent["resourceId"].SetString(component->getCoreChildAt(0)->getCalculated(kPropertyResourceId).asString().c_str(), componentEvent.GetAllocator());;
+    extension->sendEvent("alexaext:example:10", componentEvent);
+
+    advanceTime(10);
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+static const char* SIMPLE_COMPONENT_COMMANDS = R"({
+  "type": "APL",
+  "version": "1.9",
+  "theme": "dark",
+  "extensions": [
+    {
+      "uri": "alexaext:example:10",
+      "name": "Example"
+    }
+  ],
+  "settings": {
+    "Example": {
+      "some": "setting"
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100vw",
+      "height": "100vh",
+      "items": [
+        {
+          "type": "Container",
+          "width": "100vw",
+          "height": "100vh",
+          "items": [
+            {
+              "type": "TouchWrapper",
+              "width": "100%",
+              "height": 100,
+              "onPress": {
+                "type": "Example:Hello"
+              }
+            },
+            {
+              "type": "TouchWrapper",
+              "width": "100%",
+              "height": 100,
+              "onPress": {
+                "type": "Example:Hello",
+                "componentId": "ExampleComp"
+              }
+            },
+            {
+              "type": "TouchWrapper",
+              "width": "100%",
+              "height": 100,
+              "onPress": {
+                "type": "Example:Hello",
+                "componentId": "AnotherExampleComp"
+              }
+            }
+          ]
+        },
+        {
+          "when": "${environment.extension.Example}",
+          "type": "Example:Example",
+          "id": "ExampleComp",
+          "width": "100%",
+          "height": 100
+        },
+        {
+          "when": "${environment.extension.Example}",
+          "type": "Example:AnotherExample",
+          "id": "AnotherExampleComp",
+          "width": "100%",
+          "height": 100
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(ExtensionMediatorTest, ComponentCommands) {
+    extensionProvider = std::make_shared<alexaext::ExtensionRegistrar>();
+    mediator = ExtensionMediator::create(extensionProvider, alexaext::Executor::getSynchronousExecutor());
+
+    auto extension = std::make_shared<SimpleExtensionTestAdapter>("alexaext:example:10", SIMPLE_COMPONENT_SCHEMA);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+
+    createContent(SIMPLE_COMPONENT_COMMANDS, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+            .extensionProvider(extensionProvider)
+            .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+
+    auto loaded = std::make_shared<bool>(false);
+    auto callCount = std::make_shared<int>(0);
+    mediator->loadExtensions(config, content, [loaded, callCount](){
+        *loaded = true;
+        (*callCount)++;
+    });
+
+    ASSERT_TRUE(*loaded);
+    // The ExtensionsLoadedCallback should be called only once for synchronous task executor.
+    ASSERT_EQ(1, *callCount);
+
+    inflate();
+    ASSERT_TRUE(root);
+    advanceTime(10);
+
+    // Component command without component should work, but will not include anything component specific.
+    performTap(10, 10);
+    advanceTime(10);
+
+    ASSERT_EQ(1, extension->commands.size());
+    auto entry = extension->commands.begin();
+    ASSERT_EQ("Hello", entry->first);
+    ASSERT_TRUE(entry->second.find("resourceId") == std::string::npos);
+    extension->commands.erase("Hello");
+
+    // Component command targetting wrong component should still work.
+    performTap(10, 210);
+    advanceTime(10);
+
+    ASSERT_EQ(1, extension->commands.size());
+    entry = extension->commands.begin();
+    ASSERT_EQ("Hello", entry->first);
+    ASSERT_TRUE(entry->second.find("resourceId") != std::string::npos);
+    extension->commands.erase("Hello");
+
+    // Component command targetting it's own component should work.
+    performTap(10, 110);
+    advanceTime(10);
+
+    ASSERT_EQ(1, extension->commands.size());
+    entry = extension->commands.begin();
+    ASSERT_EQ("Hello", entry->first);
+    ASSERT_TRUE(entry->second.find("resourceId") != std::string::npos);
+    extension->commands.erase("Hello");
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+static const char* COMPONENT_EVENT_DOC = R"({
+  "type": "APL",
+  "version": "1.9",
+  "theme": "dark",
+  "extensions": [
+    {
+      "uri": "alexaext:example:10",
+      "name": "Example"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Example:Example",
+      "id": "ExampleComp",
+      "width": "100%",
+      "height": "100%",
+      "ComponentEvent": {
+        "type": "SendEvent",
+        "arguments": ["${event.potato}"]
+      }
+    }
+  },
+  "Example:DocumentEvent": {
+    "type": "SendEvent",
+    "arguments": ["${event.potato}"]
+  }
+})";
+
+static const char* COMPONENT_EVENT_SCHEMA = R"({
+  "version": "1.0",
+  "method": "RegisterSuccess",
+  "token": "<AUTO_TOKEN>",
+  "environment": {
+    "version": "1.0"
+  },
+  "schema": {
+    "type": "Schema",
+    "version": "1.0",
+    "uri": "alexaext:example:10",
+    "events": [
+      { "name": "DocumentEvent", "mode": "NORMAL" }
+    ],
+    "components": [
+      {
+        "name": "Example",
+        "resourceType": "Custom",
+        "events": [
+          { "name": "ComponentEvent", "mode": "NORMAL" }
+        ]
+      }
+    ]
+  }
+})";
+
+static const char* COMPONENT_TARGET_EVENT_WITH_ARGUMENTS = R"({
+  "version": "1.0",
+  "method": "Event",
+  "target": "alexaext:example:10",
+  "name": "ComponentEvent",
+  "resourceId": "[RESOURCE_ID]",
+  "payload": {
+    "potato": "tasty"
+  }
+})";
+
+TEST_F(ExtensionMediatorTest, ComponentEventCorrect) {
+    extensionProvider = std::make_shared<alexaext::ExtensionRegistrar>();
+    mediator = ExtensionMediator::create(extensionProvider, alexaext::Executor::getSynchronousExecutor());
+
+    auto extension = std::make_shared<SimpleExtensionTestAdapter>("alexaext:example:10", COMPONENT_EVENT_SCHEMA);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+
+    createContent(COMPONENT_EVENT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+            .extensionProvider(extensionProvider)
+            .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+
+    auto loaded = std::make_shared<bool>(false);
+    mediator->loadExtensions(config, content, [loaded](){
+        *loaded = true;
+    });
+
+    ASSERT_TRUE(*loaded);
+
+    inflate();
+    ASSERT_TRUE(root);
+    advanceTime(10);
+
+    // Invoke component event
+    rapidjson::Document componentEvent;
+    componentEvent.Parse(COMPONENT_TARGET_EVENT_WITH_ARGUMENTS);
+    auto resourceId = component->getCalculated(kPropertyResourceId).asString();
+    componentEvent["resourceId"].SetString(resourceId.c_str(), componentEvent.GetAllocator());
+    extension->sendEvent("alexaext:example:10", componentEvent);
+
+    advanceTime(10);
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    auto& map = event.getValue(kEventPropertySource).getMap();
+    ASSERT_EQ("Example", map.at("type").getString());
+    ASSERT_EQ("ComponentEvent", map.at("handler").getString());
+    ASSERT_EQ(resourceId, map.at("resourceId").getString());
+
+    auto& array = event.getValue(kEventPropertyArguments).getArray();
+    ASSERT_EQ("tasty", array.at(0).getString());
+}
+
+static const char* COMPONENT_TARGET_EVENT_TARGETLESS = R"({
+  "version": "1.0",
+  "method": "Event",
+  "target": "alexaext:example:10",
+  "name": "ComponentEvent"
+})";
+
+TEST_F(ExtensionMediatorTest, ComponentEventWithoutResource) {
+    extensionProvider = std::make_shared<alexaext::ExtensionRegistrar>();
+    mediator = ExtensionMediator::create(extensionProvider, alexaext::Executor::getSynchronousExecutor());
+
+    auto extension = std::make_shared<SimpleExtensionTestAdapter>("alexaext:example:10", COMPONENT_EVENT_SCHEMA);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+
+    createContent(COMPONENT_EVENT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+            .extensionProvider(extensionProvider)
+            .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+
+    auto loaded = std::make_shared<bool>(false);
+    mediator->loadExtensions(config, content, [loaded](){
+        *loaded = true;
+    });
+
+    ASSERT_TRUE(*loaded);
+
+    inflate();
+    ASSERT_TRUE(root);
+    advanceTime(10);
+
+    // Invoke component event
+    rapidjson::Document componentEvent;
+    componentEvent.Parse(COMPONENT_TARGET_EVENT_TARGETLESS);
+    extension->sendEvent("alexaext:example:10", componentEvent);
+
+    advanceTime(10);
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+static const char* DOCUMENT_TARGET_EVENT_WITH_ARGUMENTS = R"({
+  "version": "1.0",
+  "method": "Event",
+  "target": "alexaext:example:10",
+  "name": "DocumentEvent",
+  "payload": {
+    "potato": "tasty"
+  }
+})";
+
+TEST_F(ExtensionMediatorTest, DocumentEventCorrect) {
+    extensionProvider = std::make_shared<alexaext::ExtensionRegistrar>();
+    mediator = ExtensionMediator::create(extensionProvider, alexaext::Executor::getSynchronousExecutor());
+
+    auto extension = std::make_shared<SimpleExtensionTestAdapter>("alexaext:example:10", COMPONENT_EVENT_SCHEMA);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+
+    createContent(COMPONENT_EVENT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+            .extensionProvider(extensionProvider)
+            .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+
+    auto loaded = std::make_shared<bool>(false);
+    mediator->loadExtensions(config, content, [loaded](){
+        *loaded = true;
+    });
+
+    ASSERT_TRUE(*loaded);
+
+    inflate();
+    ASSERT_TRUE(root);
+    advanceTime(10);
+
+    // Invoke component event
+    rapidjson::Document documentEvent;
+    documentEvent.Parse(DOCUMENT_TARGET_EVENT_WITH_ARGUMENTS);
+    extension->sendEvent("alexaext:example:10", documentEvent);
+
+    advanceTime(10);
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    auto& map = event.getValue(kEventPropertySource).getMap();
+    ASSERT_EQ("Document", map.at("type").getString());
+    ASSERT_EQ("DocumentEvent", map.at("handler").getString());
+
+    auto& array = event.getValue(kEventPropertyArguments).getArray();
+    ASSERT_EQ("tasty", array.at(0).getString());
+}
+
+static const char* DOCUMENT_TARGET_EVENT_WITH_RESOURCE_ID = R"({
+  "version": "1.0",
+  "method": "Event",
+  "target": "alexaext:example:10",
+  "name": "DocumentEvent",
+  "resourceId": "[RESOURCE_ID]"
+})";
+
+TEST_F(ExtensionMediatorTest, DocumentEventWithResourceId) {
+    extensionProvider = std::make_shared<alexaext::ExtensionRegistrar>();
+    mediator = ExtensionMediator::create(extensionProvider, alexaext::Executor::getSynchronousExecutor());
+
+    auto extension = std::make_shared<SimpleExtensionTestAdapter>("alexaext:example:10", COMPONENT_EVENT_SCHEMA);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+
+    createContent(COMPONENT_EVENT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+            .extensionProvider(extensionProvider)
+            .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+
+    auto loaded = std::make_shared<bool>(false);
+    mediator->loadExtensions(config, content, [loaded](){
+        *loaded = true;
+    });
+
+    ASSERT_TRUE(*loaded);
+
+    inflate();
+    ASSERT_TRUE(root);
+    advanceTime(10);
+
+    // Invoke document event
+    rapidjson::Document documentEvent;
+    documentEvent.Parse(DOCUMENT_TARGET_EVENT_WITH_RESOURCE_ID);
+    auto resourceId = component->getCalculated(kPropertyResourceId).asString();
+    documentEvent["resourceId"].SetString(resourceId.c_str(), documentEvent.GetAllocator());
+    extension->sendEvent("alexaext:example:10", documentEvent);
+
+    advanceTime(10);
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+class FastEventExtensionTestAdapter : public SimpleExtensionTestAdapter {
+public:
+    FastEventExtensionTestAdapter(const std::string& uri,
+                                  const std::string& registrationMessage,
+                                  const std::string& eventMessage)
+            : SimpleExtensionTestAdapter(uri, registrationMessage), eventString(eventMessage) {}
+
+    std::string eventString;
+
+    void onRegistered(const std::string& uri, const std::string& token) override {
+        SimpleExtensionTestAdapter::onRegistered(uri, token);
+        rapidjson::Document doc;
+        doc.Parse(eventString.c_str());
+        sendEvent(uri, doc);
+    }
+};
+
+TEST_F(ExtensionMediatorTest, DocumentEventBeforeRegistrationFinished) {
+    extensionProvider = std::make_shared<alexaext::ExtensionRegistrar>();
+    mediator = ExtensionMediator::create(extensionProvider, alexaext::Executor::getSynchronousExecutor());
+
+    auto extension = std::make_shared<FastEventExtensionTestAdapter>("alexaext:example:10", COMPONENT_EVENT_SCHEMA, DOCUMENT_TARGET_EVENT_WITH_ARGUMENTS);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+
+    createContent(COMPONENT_EVENT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+            .extensionProvider(extensionProvider)
+            .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+
+    auto loaded = std::make_shared<bool>(false);
+    mediator->loadExtensions(config, content, [loaded](){
+        *loaded = true;
+    });
+
+    ASSERT_TRUE(*loaded);
+
+    inflate();
+    ASSERT_TRUE(root);
+
+    // Event should have invoked about now.
+    advanceTime(10);
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    auto& map = event.getValue(kEventPropertySource).getMap();
+    ASSERT_EQ("Document", map.at("type").getString());
+    ASSERT_EQ("DocumentEvent", map.at("handler").getString());
+
+    auto& array = event.getValue(kEventPropertyArguments).getArray();
+    ASSERT_EQ("tasty", array.at(0).getString());
 }
 
 #endif

@@ -612,6 +612,8 @@ enum PropertyKey {
     kPropertyResourceOnFatalError,
     // The state of the rendered resource of an extension component
     kPropertyResourceState,
+    /// The type of the system resource for an extension component
+    kPropertyResourceType,
     /// ContainerComponent child absolute right position
     kPropertyRight,
     /// Component accessibility role

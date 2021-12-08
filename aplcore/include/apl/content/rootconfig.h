@@ -17,6 +17,7 @@
 #define _APL_ROOT_CONFIG_H
 
 #include <memory>
+#include <regex>
 #include <string>
 
 #include "apl/common.h"
@@ -31,6 +32,7 @@
 #include "apl/livedata/liveobject.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
+#include "apl/utils/stringfunctions.h"
 
 #ifdef ALEXAEXTENSIONS
 #include <alexaext/alexaext.h>
@@ -424,6 +426,33 @@ public:
         return *this;
     }
 
+    /**
+     * Register an ordered list of regular expressions for allowing/denying URL headers.
+     * Each rules is pattern to match and a boolean value (true=accept, false=deny).
+     * The first rule to match a header is used. If no rules match, the header is accepted.
+     *
+     * For example, to deny all "X-*" rules and accept everything else:
+     *
+     *     rootConfig.filterHeaders( {{"(X-)(.*)", false}} );
+     *
+     * To accept a subset of "Accept-*" rules, deny the others, and accept anything else:
+     *
+     *     rootConfig.filterHeaders( {{"Accept-Language", true},
+     *                                {"Accept-Charset": true},
+     *                                {"(Accept-)(.*)", false}} );
+     *
+     * To deny all headers except "Content-Type":
+     *
+     *    rootConfig.filterHeaders( {{"Content-Type", true}, {".*", false}} );
+     *
+     * @param filters list of rules to apply to apply to the headers
+     * @return This object for chaining
+     */
+    RootConfig& filterHeaders(std::vector<std::pair<std::regex, bool>> filters) {
+        mHeaderFilters = std::move(filters);
+        return *this;
+    }
+
 #ifdef ALEXAEXTENSIONS
     /**
      * Assign a Alexa Extension provider.
@@ -567,15 +596,14 @@ public:
     }
 
     /**
-     * Register a value to be reported in the data-binding "environment" context.
+     * Register a value to be reported in the data-binding "environment" context. If this the specified property name
+     * would shadow a built-in environment, viewport, or ConfigurationChange event property, this method has no effect.
+     *
      * @param name The name of the value
      * @param value The value to report.  This will be read-only.
      * @return This object for chaining
      */
-    RootConfig& setEnvironmentValue(const std::string& name, const Object& value) {
-        mEnvironmentValues[name] = value;
-        return *this;
-    }
+    RootConfig& setEnvironmentValue(const std::string& name, const Object& value);
 
     /**
      * Set double press timeout.
@@ -1028,6 +1056,10 @@ public:
         return nullptr;
     }
 
+    const std::vector<std::pair<std::regex, bool>> & getHttpHeadersFilterRules() const {
+        return mHeaderFilters;
+    }
+
     /**
      * @param type DataSource type.
      * @return true if registered, false otherwise.
@@ -1298,6 +1330,7 @@ public:
 private:
     const RootPropDefSet& propDefSet() const;
 
+private:
     ContextPtr mContext;
 
     TextMeasurementPtr mTextMeasurement;
@@ -1331,6 +1364,9 @@ private:
     std::map<std::string, Color> mDefaultThemeHighlightColor = {{"light", 0x0070ba4d}, {"dark",  0x00caff4d}};
 
     APLVersion mEnforcedAPLVersion = APLVersion::kAPLVersionIgnore;
+
+    // Http headers - deny/allow
+    std::vector<std::pair<std::regex, bool>> mHeaderFilters;
 
     // Set of enabled experimental features
     std::set<ExperimentalFeature> mEnabledExperimentalFeatures;

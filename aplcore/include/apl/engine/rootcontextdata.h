@@ -149,7 +149,7 @@ public:
     double getWidth() const { return mMetrics.getWidth(); }
     double getHeight() const { return mMetrics.getHeight(); }
     Size getSize() const { return { static_cast<float>(mMetrics.getWidth()), static_cast<float>(mMetrics.getHeight())}; }
-    double getPxToDp() const { return 160.0 / mMetrics.getDpi(); }
+    double getPxToDp() const { return Metrics::CORE_DPI / mMetrics.getDpi(); }
 
     std::string getTheme() const { return mRuntimeState.getTheme(); }
     std::string getRequestedAPLVersion() const { return mRuntimeState.getRequestedAPLVersion(); }

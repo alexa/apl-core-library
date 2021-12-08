@@ -12,8 +12,8 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-#ifndef ALEXAEXT_EXTENSIONMESSAGE_H
-#define ALEXAEXT_EXTENSIONMESSAGE_H
+#ifndef ALEXAEXT_EXTENSION_MESSAGE_H
+#define ALEXAEXT_EXTENSION_MESSAGE_H
 
 
 #include <atomic>
@@ -222,7 +222,7 @@ public:
 
     /**
      * Set a property of type T. Supports primitive types:
-    * tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float
+    * @tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float
     */
     template<typename T,
              typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
@@ -252,7 +252,7 @@ protected:
 
 /**
  * Get a value of type T, or return the provided default. Supports primitive types:
- * tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float
+ * @tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float
 */
 template<typename T>
 T GetWithDefault(const rapidjson::Pointer& path, const rapidjson::Value& root, T defaultValue) {
@@ -280,7 +280,7 @@ std::string GetWithDefault<std::string>(const rapidjson::Pointer& path,
 
 /**
  * Get a value of type T, or return the provided default. Supports primitive types:
- * tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float, const char*
+ * @tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float, const char*
 */
 template<typename T>
 T GetWithDefault(const std::string& path, const rapidjson::Value& root, T defaultValue) {
@@ -291,7 +291,7 @@ T GetWithDefault(const std::string& path, const rapidjson::Value& root, T defaul
 
 /**
  * Get a value of type T, or return the provided default. Supports primitive types:
- * tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float, const char*
+ * @tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float, const char*
 */
 template<typename T>
 T GetWithDefault(const std::string& path, const rapidjson::Value* root, T defaultValue) {
@@ -615,7 +615,7 @@ public:
 };
 
 /**
-* Command Failure builder. A respose to Command messages indicating execution failure.
+* Command Failure builder. A response to Command messages indicating execution failure.
 */
 class CommandFailure :
         public BaseMessage<CommandFailure>,
@@ -727,7 +727,7 @@ public:
 
     /**
     * Add an Item of type T. Supports primitive types:
-    * tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float, const char*
+    * @tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float, const char*
     */
     template<typename T>
     Operation& item(const T value) {
@@ -854,6 +854,6 @@ public:
 
 } // namespace alexaext
 
-#endif // ALEXAEXT_EXTENSIONMESSAGE_H
+#endif // ALEXAEXT_EXTENSION_MESSAGE_H
 
 

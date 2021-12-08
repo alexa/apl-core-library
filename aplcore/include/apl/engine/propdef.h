@@ -20,14 +20,15 @@
 #include "apl/engine/properties.h"
 
 #include "apl/animation/easing.h"
-#include "apl/primitives/object.h"
-#include "apl/primitives/filter.h"
-#include "apl/primitives/gradient.h"
-#include "apl/primitives/transform.h"
-#include "apl/primitives/mediasource.h"
-#include "apl/primitives/styledtext.h"
 #include "apl/graphic/graphicfilter.h"
 #include "apl/graphic/graphicpattern.h"
+#include "apl/primitives/filter.h"
+#include "apl/primitives/gradient.h"
+#include "apl/primitives/mediasource.h"
+#include "apl/primitives/object.h"
+#include "apl/primitives/styledtext.h"
+#include "apl/primitives/transform.h"
+#include "apl/primitives/urlrequest.h"
 
 #include "apl/utils/bimap.h"
 
@@ -180,6 +181,24 @@ inline Object asGradient(const Context& context, const Object& object) {
 inline Object asFill(const Context& context, const Object& object) {
     auto gradient = asGradient(context, object);
     return gradient.isGradient() ? gradient : asColor(context, object);
+}
+
+inline Object asVectorGraphicSource(const Context& context, const Object& object) {
+    return object.isString() ? object : URLRequest::create(context, object);
+}
+
+inline Object asImageSourceArray(const Context& context, const Object& object) {
+    // We don't want to break current runtimes
+    if (object.isString())
+        return object;
+
+    std::vector<Object> data;
+    for (auto& m : arrayify(context, object)) {
+        auto request = m.isString() ? m : URLRequest::create(context, m);
+        if (!request.isNull())
+            data.emplace_back(std::move(request));
+    }
+    return Object(std::move(data));
 }
 
 inline Object asMediaSourceArray(const Context& context, const Object& object) {
@@ -397,9 +416,9 @@ public:
         add(list);
     }
 
-    const typename std::map<K, PDef>::const_iterator begin() const { return mOrdered.begin(); }
-    const typename std::map<K, PDef>::const_iterator end() const { return mOrdered.end(); }
-    const typename std::map<K, PDef>::const_iterator find(K key) const { return mOrdered.find(key); }
+    typename std::map<K, PDef>::const_iterator begin() const { return mOrdered.begin(); }
+    typename std::map<K, PDef>::const_iterator end() const { return mOrdered.end(); }
+    typename std::map<K, PDef>::const_iterator find(K key) const { return mOrdered.find(key); }
 
 protected:
     void addInternal(const PVec& list) {

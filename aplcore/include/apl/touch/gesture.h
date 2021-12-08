@@ -37,6 +37,7 @@ enum GestureType {
     kGestureTypeDoublePress,
     kGestureTypeLongPress,
     kGestureTypeSwipeAway,
+    kGestureTypeTap
 };
 
 extern Bimap<GestureType, std::string> sGestureTypeBimap;

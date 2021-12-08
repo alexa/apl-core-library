@@ -110,7 +110,7 @@ public:
 
     void testRanges(const std::vector<SizeRange>& ranges, int expectedWidth,
                       int expectedHeight, double expectedScale, ViewportMode mode, bool isRound, ScreenShape shape) {
-        // density shouldm't effect which viewport is chosen, so test a number of denisties here.
+        // density shouldn't affect which viewport is chosen, so test a number of densities here.
         std::vector<int> dpis = {80, 160, 320, 400, 500, 600, 1000};
         for(auto dpi : dpis) {
             int pixelWidth = Vw * dpi / 160;
@@ -127,8 +127,9 @@ public:
             ASSERT_NEAR(expectedScale, transform.getScaleToViewhost(), 0.1);
             ASSERT_NEAR(expectedWidth, m.getWidth(), 2);
             ASSERT_NEAR(expectedHeight, m.getHeight(), 2);
-            ASSERT_NEAR(m.getWidth() * transform.getScaleToViewhost() * dpi / MetricsTransform::CORE_DPI, transform.getViewhostWidth(), 2);
-            ASSERT_NEAR(m.getHeight() * transform.getScaleToViewhost() * dpi / MetricsTransform::CORE_DPI, transform.getViewhostHeight(), 2);
+            ASSERT_NEAR(expectedHeight, transform.toCore(transform.toViewhost(expectedHeight)), 2); // sanitycheck
+            ASSERT_NEAR(m.getWidth() * transform.getScaleToViewhost() * dpi / Metrics::CORE_DPI, transform.getViewhostWidth(), 2);
+            ASSERT_NEAR(m.getHeight() * transform.getScaleToViewhost() * dpi / Metrics::CORE_DPI, transform.getViewhostHeight(), 2);
         }
     }
 };

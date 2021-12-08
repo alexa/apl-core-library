@@ -13,6 +13,15 @@
  * permissions and limitations under the License.
  */
 
+#ifndef _APL_GENERATED_CONFIG_H
+#define _APL_GENERATED_CONFIG_H
+
 /* Build time configuration options */
 
 #cmakedefine USER_DATA_RELEASE_CALLBACKS
+
+#ifndef ALEXAEXTENSIONS
+#cmakedefine ALEXAEXTENSIONS
+#endif //ALEXAEXTENSIONS
+
+#endif //_APL_GENERATED_CONFIG_H

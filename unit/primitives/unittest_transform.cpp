@@ -39,7 +39,7 @@ public:
     {
         metrics = Metrics().size(1024,800).dpi(dpi);
         context = Context::createTestContext(metrics, session);
-        json = std::unique_ptr<JsonData>(new JsonData(data));
+        json = std::make_unique<JsonData>(data);
 
         array = Transformation::create(*context, arrayify(*context, json->get()));
     }
@@ -48,7 +48,7 @@ public:
     {
         metrics = Metrics().size(1024,800).dpi(dpi);
         context = Context::createTestContext(metrics, session);
-        json = std::unique_ptr<JsonData>(new JsonData(data));
+        json = std::make_unique<JsonData>(data);
 
         array = InterpolatedTransformation::create(*context,
                                                    arrayify(*context, json->get()["from"]),
@@ -61,7 +61,7 @@ public:
         context = Context::createTestContext(metrics, session);
         for (auto it : values)
             context->putConstant(it.first, it.second);
-        json = std::unique_ptr<JsonData>(new JsonData(data));
+        json = std::make_unique<JsonData>(data);
         array = Transformation::create(*context, arrayify(*context, json->get()));
     }
 

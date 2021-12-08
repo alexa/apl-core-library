@@ -39,9 +39,8 @@ ExtensionRegistrar::getExtension(const std::string& uri)
     auto proxy = mExtensions.find(uri);
     if (proxy == mExtensions.end())
         return nullptr;
-    if (!mInitialized.count(uri)) {
+    if (!proxy->second->isInitialized(uri)) {
         if (!proxy->second->initializeExtension(uri)) return nullptr;
-        mInitialized.insert(uri);
     }
     return proxy->second;
 }

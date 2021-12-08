@@ -59,6 +59,8 @@ extern Bimap<int, std::string> sViewportModeBimap;
 class Metrics : public UserData<Metrics> {
 public:
 
+    static constexpr float CORE_DPI = 160.0f;
+
     /**
      * Construct default metrics.
      */
@@ -66,7 +68,7 @@ public:
         mTheme("dark"),
         mPixelWidth(1024),
         mPixelHeight(800),
-        mDpi(160),
+        mDpi(CORE_DPI),
         mShape(RECTANGLE),
         mMode(kViewportModeHub)
     {
@@ -145,14 +147,14 @@ public:
      * @param dp Display Pixels
      * @return Pixels
      */
-    float dpToPx(float dp) const { return dp * mDpi / 160.0f; }
+    float dpToPx(float dp) const { return dp * mDpi / CORE_DPI; }
 
     /**
      * Convert Pixels to Display Pixels
      * @param px Pixels
      * @return Display Pixels
      */
-    float pxToDp(float px) const { return px * 160.0f / mDpi; }
+    float pxToDp(float px) const { return px * CORE_DPI / mDpi; }
 
     /**
      * @return The human-readable shape of the screen (either "rectangle" or "round")

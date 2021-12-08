@@ -73,11 +73,6 @@ public:
     ExtensionCommandDefinition* findCommandDefinition(const std::string& qualifiedName);
 
     /**
-     * @return True if this command is associated with an extension component
-     */
-    bool isComponentCommand(const std::string& qualifiedName) const;
-
-    /**
      * Search the extension component definitions for one with the given name.
      * @param qualifiedName The name of the custom component in the form EXT_NAME:COMPONENT_NAME
      * @return The component definition or nullptr if it is not found
@@ -100,12 +95,11 @@ public:
     ExtensionComponentPtr findExtensionComponent(const std::string& resourceId);
 
     /**
-     * Finds an appropriate custom handler to invoke.  Returns NULL if no such handler exists
+     * Finds an appropriate custom handler to invoke. Returns NULL if no such handler exists
      * @param handler The extension event handler to invoke
-     * @param resourceId Resource ID (if present) associated with ExtensionComponent
      * @return The Object attached to this handler or NULL.
      */
-    Object findHandler(const ExtensionEventHandler& handler, std::string resourceId = "");
+    Object findHandler(const ExtensionEventHandler& handler);
 
     /**
      * @return A mapping of URI or NAME to boolean values suitable for including in the
@@ -136,8 +130,9 @@ public:
      * Notify extensions that the component has changed state or has a property update.
      *
     * @param component ExtensionComponent reference.
+    * @param resourceNeeded The component needs a rendering resource.
     */
-    void notifyComponentUpdate(const ExtensionComponentPtr& component);
+    void notifyComponentUpdate(const ExtensionComponentPtr& component, bool resourceNeeded);
 
 private:
     std::map<std::string, ExtensionEventHandler> mQualifiedEventHandlerMap;  // Qualified name to extension event handler
@@ -146,7 +141,6 @@ private:
     std::map<std::string, ExtensionFilterDefinition> mExtensionFilters;  // Qualified name to extension filter definition
     std::map<ExtensionEventHandler, Object> mExtensionEventHandlers;
     std::map<std::string, ExtensionComponentPtr> mExtensionComponents; // ResourceId to extension component
-    std::set<std::string> mComponentCommands;
     ObjectMapPtr mEnvironment;
     // mediator processes extension messages
     std::weak_ptr<ExtensionMediator> mMediator;

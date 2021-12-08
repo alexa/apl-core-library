@@ -40,6 +40,11 @@ if(COVERAGE)
     message("Coverage instrumentation enabled.")
 endif(COVERAGE)
 
+if(ENABLE_ALEXAEXTENSIONS)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DALEXAEXTENSIONS=1")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DALEXAEXTENSIONS=1")
+endif(ENABLE_ALEXAEXTENSIONS)
+
 # Enforce clang linking if it's used. Useful when building on Pi/etc.
 if(APPLE)
     function(append value)

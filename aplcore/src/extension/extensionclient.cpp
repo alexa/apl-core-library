@@ -14,19 +14,16 @@
  */
 
 #include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
 
 #include "apl/content/rootconfig.h"
 #include "apl/component/componentpropdef.h"
 #include "apl/component/componentproperties.h"
-#include "apl/component/corecomponent.h"
 #include "apl/content/content.h"
 #include "apl/extension/extensionclient.h"
 #include "apl/extension/extensionmanager.h"
 #include "apl/engine/evaluate.h"
 #include "apl/engine/arrayify.h"
 #include "apl/engine/binding.h"
-#include "apl/engine/evaluate.h"
 #include "apl/engine/rootcontext.h"
 #include "apl/livedata/livearray.h"
 #include "apl/livedata/livearrayobject.h"
@@ -36,6 +33,8 @@
 #include "apl/utils/streamer.h"
 
 namespace apl {
+
+static const bool DEBUG_EXTENSION_CLIENT = false;
 
 /// Simple "semi-unique" generator for command IDs.
 id_type ExtensionClient::sCommandIdGenerator = 1000;
@@ -134,9 +133,23 @@ ExtensionClient::getConnectionToken() const
     return mConnectionToken;
 }
 
+void
+ExtensionClient::bindContext(const RootContextPtr& rootContext) {
+    LOG_IF(DEBUG_EXTENSION_CLIENT) << "connection: " << mConnectionToken;
+    if (rootContext) {
+        mCachedContext = rootContext;
+        flushPendingEvents(rootContext);
+    } else {
+        LOG(LogLevel::kError) << "Can't bind Client to non-existent RootContext.";
+        return;
+    }
+}
+
 bool
 ExtensionClient::processMessage(const RootContextPtr& rootContext, JsonData&& message)
 {
+    LOG_IF(DEBUG_EXTENSION_CLIENT) << "Connection: " << mConnectionToken << " message: " << message.toString();
+
     auto rootConfig = mRootConfig.lock();
     if (!rootConfig) {
         LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
@@ -259,12 +272,6 @@ ExtensionClient::processEvent(const Context& context, const Object& event)
         return false;
     }
 
-    auto rootContext = mCachedContext.lock();
-    if (!rootContext) {
-        CONSOLE_CFGP(rootConfig).log("Can't process message without RootContext.");
-        return false;
-    }
-
     auto name = propertyAsObject(context, event, "name");
     if (!name.isString() || name.empty() || (mEventModes.find(name.getString()) == mEventModes.end())) {
         CONSOLE_CFGP(rootConfig) << "Invalid extension event name for extension=" << mUri
@@ -285,11 +292,11 @@ ExtensionClient::processEvent(const Context& context, const Object& event)
     }
 
     auto resourceId = propertyAsString(context, event, "resourceId");
-    rootContext->invokeExtensionEventHandler(mUri,
-                                             name.getString(),
-                                             payload.isNull() ? Object::EMPTY_MAP().getMap() : payload.getMap(),
-                                             mEventModes.at(name.getString()) == kExtensionEventExecutionModeFast,
-                                             resourceId);
+    invokeExtensionHandler(mUri,
+                           name.getString(),
+                           payload.isNull() ? Object::EMPTY_MAP().getMap() : payload.getMap(),
+                           mEventModes.at(name.getString()) == kExtensionEventExecutionModeFast,
+                           resourceId);
     return true;
 }
 
@@ -315,7 +322,8 @@ ExtensionClient::processCommand(rapidjson::Document::AllocatorType& allocator, c
 
     auto commandName = event.getValue(kEventPropertyName);
     if (!commandName.isString() || commandName.empty()) {
-        CONSOLE_CFGP(rootConfig) << "Invalid extension command name for extension=" << mUri;
+        CONSOLE_CFGP(rootConfig) << "Invalid extension command name for extension=" << mUri
+            << " command:" << commandName;
         return rapidjson::Value(rapidjson::kNullType);
     }
 
@@ -394,25 +402,25 @@ ExtensionClient::liveDataObjectFlushed(const std::string& key, LiveDataObject& l
         return;
     }
 
-    auto rootContext = mCachedContext.lock();
-    if (!rootContext) {
-        LOG(LogLevel::kWarn) << "RootContext not available";
-        return;
-    }
-
     auto ref = mLiveData.at(key);
+    LOG_IF(DEBUG_EXTENSION_CLIENT) << " connection: " << mConnectionToken
+                                   << ", key: " << key
+                                   << ", ref.name: " << ref.name
+                                   << ", type: " << ref.type;
+
     switch (ref.objectType) {
         case kExtensionLiveDataTypeArray:
-            reportLiveArrayChanges(rootContext, ref, liveDataObject);
+            reportLiveArrayChanges(ref, LiveArrayObject::cast(liveDataObject).getChanges());
             break;
         case kExtensionLiveDataTypeObject:
-            reportLiveMapChanges(rootContext, ref, liveDataObject);
+            reportLiveMapChanges(ref, LiveMapObject::cast(liveDataObject).getChanges());
             break;
     }
+    ref.hasPendingUpdate = false;
 }
 
 void
-ExtensionClient::sendLiveDataEvent(const RootContextPtr& rootContext, const std::string& event,
+ExtensionClient::sendLiveDataEvent(const std::string& event,
         const Object& current, const Object& changed)
 {
     ObjectMap parameters;
@@ -420,21 +428,19 @@ ExtensionClient::sendLiveDataEvent(const RootContextPtr& rootContext, const std:
     if (!changed.isNull()) {
         parameters.emplace("changed", changed);
     }
-    rootContext->invokeExtensionEventHandler(mUri, event, parameters, true);
+    invokeExtensionHandler(mUri, event, parameters, true);
 }
 
 void
-ExtensionClient::reportLiveMapChanges(const RootContextPtr& rootContext, const LiveDataRef& ref,
-        LiveDataObject& liveDataObject)
+ExtensionClient::reportLiveMapChanges(const LiveDataRef& ref, const std::vector<LiveMapChange>& changes)
 {
     std::set<std::string> updatedCollapsed;
     std::set<std::string> removedCollapsed;
     std::string updateTriggerEvent = ref.updateEvent.name;
     std::string removeTriggerEvent = ref.removeEvent.name;
 
-    auto mapPtr = std::make_shared<ObjectMap>(std::dynamic_pointer_cast<LiveMap>(ref.objectPtr)->getMap());
-    auto changes = dynamic_cast<LiveMapObject&>(liveDataObject).getChanges();
-
+    auto liveMap = std::dynamic_pointer_cast<LiveMap>(ref.objectPtr);
+    auto mapPtr = std::make_shared<ObjectMap>(liveMap->getMap());
     for (auto& change : changes) {
         auto key = change.key();
         auto changed = std::make_shared<ObjectMap>();
@@ -444,8 +450,8 @@ ExtensionClient::reportLiveMapChanges(const RootContextPtr& rootContext, const L
                     if (ref.updateEvent.params.at(key)) {
                         updatedCollapsed.emplace(key);
                     } else {
-                        changed->emplace(key, liveDataObject.get(key));
-                        sendLiveDataEvent(rootContext, updateTriggerEvent, mapPtr, changed);
+                        changed->emplace(key, liveMap->get(key));
+                        sendLiveDataEvent(updateTriggerEvent, mapPtr, changed);
                     }
                 }
                 break;
@@ -455,7 +461,7 @@ ExtensionClient::reportLiveMapChanges(const RootContextPtr& rootContext, const L
                         removedCollapsed.emplace(key);
                     } else {
                         changed->emplace(key, Object::NULL_OBJECT());
-                        sendLiveDataEvent(rootContext, removeTriggerEvent, mapPtr, changed);
+                        sendLiveDataEvent(removeTriggerEvent, mapPtr, changed);
                     }
                 }
                 break;
@@ -468,34 +474,29 @@ ExtensionClient::reportLiveMapChanges(const RootContextPtr& rootContext, const L
 
     if (!updatedCollapsed.empty()) {
         auto changed = std::make_shared<ObjectMap>();
-        for (auto c : updatedCollapsed) {
-            changed->emplace(c, liveDataObject.get(c));
+        for (auto& c : updatedCollapsed) {
+            changed->emplace(c, liveMap->get(c));
         }
-        sendLiveDataEvent(rootContext, updateTriggerEvent, mapPtr, changed);
+        sendLiveDataEvent(updateTriggerEvent, mapPtr, changed);
     }
     if (!removedCollapsed.empty()) {
         auto changed = std::make_shared<ObjectMap>();
-        for (auto c : removedCollapsed) {
-            changed->emplace(c, liveDataObject.get(c));
+        for (auto& c : removedCollapsed) {
+            changed->emplace(c, liveMap->get(c));
         }
-        sendLiveDataEvent(rootContext, removeTriggerEvent, mapPtr, changed);
+        sendLiveDataEvent(removeTriggerEvent, mapPtr, changed);
     }
 }
 
 void
-ExtensionClient::reportLiveArrayChanges(const RootContextPtr& rootContext, const LiveDataRef& ref,
-        LiveDataObject& liveDataObject)
+ExtensionClient::reportLiveArrayChanges(const LiveDataRef& ref, const std::vector<LiveArrayChange>& changes)
 {
     std::string addTriggerEvent;
     std::string updateTriggerEvent;
     std::string removeTriggerEvent;
 
     auto arrayPtr = std::make_shared<ObjectArray>(std::dynamic_pointer_cast<LiveArray>(ref.objectPtr)->getArray());
-    auto changes = dynamic_cast<LiveArrayObject&>(liveDataObject).getChanges();
-
     for (auto& change : changes) {
-        std::string triggerEvent;
-
         switch (change.command()) {
             case LiveArrayChange::Command::INSERT :
                 addTriggerEvent = ref.addEvent.name;
@@ -514,13 +515,13 @@ ExtensionClient::reportLiveArrayChanges(const RootContextPtr& rootContext, const
     }
 
     if (!addTriggerEvent.empty()) {
-        sendLiveDataEvent(rootContext, addTriggerEvent, arrayPtr, Object::NULL_OBJECT());
+        sendLiveDataEvent(addTriggerEvent, arrayPtr, Object::NULL_OBJECT());
     }
     if (!updateTriggerEvent.empty()) {
-        sendLiveDataEvent(rootContext, updateTriggerEvent, arrayPtr, Object::NULL_OBJECT());
+        sendLiveDataEvent(updateTriggerEvent, arrayPtr, Object::NULL_OBJECT());
     }
     if (!removeTriggerEvent.empty()) {
-        sendLiveDataEvent(rootContext, removeTriggerEvent, arrayPtr, Object::NULL_OBJECT());
+        sendLiveDataEvent(removeTriggerEvent, arrayPtr, Object::NULL_OBJECT());
     }
 }
 
@@ -551,7 +552,7 @@ ExtensionClient::processLiveDataUpdate(const Context& context, const Object& upd
         return false;
     }
 
-    auto dataRef = mLiveData.at(name.getString());
+    auto& dataRef = mLiveData.at(name.getString());
     for (const auto& operation : operations.getArray()) {
         auto type = propertyAsMapped<ExtensionLiveDataUpdateType>(context, operation, "type",
                 static_cast<ExtensionLiveDataUpdateType>(-1), sExtensionLiveDataUpdateTypeBimap);
@@ -577,6 +578,8 @@ ExtensionClient::processLiveDataUpdate(const Context& context, const Object& upd
         if (!result) {
             CONSOLE_CFGP(rootConfig) << "LiveMap operation failed=" << dataRef.name << " operation="
                                 << sExtensionLiveDataUpdateTypeBimap.at(type);
+        } else {
+            dataRef.hasPendingUpdate = true;
         }
     }
     return true;
@@ -804,7 +807,8 @@ ExtensionClient::readExtensionTypes(const Context& context, const Object& types)
 }
 
 std::vector<ExtensionCommandDefinition>
-ExtensionClient::readCommandDefinitionsInternal(const Context& context,const ObjectArray& commands) {
+ExtensionClient::readCommandDefinitionsInternal(const Context& context,const ObjectArray& commands)
+{
     std::vector<ExtensionCommandDefinition> commandDefs;
     auto rootConfig = mRootConfig.lock();
     if (!rootConfig) {
@@ -859,7 +863,8 @@ ExtensionClient::readCommandDefinitionsInternal(const Context& context,const Obj
 }
 
 bool
-ExtensionClient::readExtensionCommandDefinitions(const Context& context, const Object& commands) {
+ExtensionClient::readExtensionCommandDefinitions(const Context& context, const Object& commands)
+{
     auto rootConfig = mRootConfig.lock();
     if (!rootConfig) {
         LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
@@ -876,7 +881,8 @@ ExtensionClient::readExtensionCommandDefinitions(const Context& context, const O
 
 void
 ExtensionClient::readExtensionComponentCommandDefinitions(const Context& context, const Object& commands,
-                                                          ExtensionComponentDefinition& def) {
+                                                          ExtensionComponentDefinition& def)
+{
     auto rootConfig = mRootConfig.lock();
     if (!rootConfig) {
         LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
@@ -887,8 +893,8 @@ ExtensionClient::readExtensionComponentCommandDefinitions(const Context& context
         CONSOLE_CFGP(rootConfig).log("The extension component name=%s has a malformed 'commands' block", mUri.c_str());
         return;
     }
-    auto commandDefs = readCommandDefinitionsInternal(context, commands.getArray());
-    def.commands(commandDefs);
+    // TODO: Remove when customers stopped using it.
+    readCommandDefinitionsInternal(context, commands.getArray());
 }
 
 bool
@@ -1005,7 +1011,7 @@ ExtensionClient::readExtensionLiveData(const Context& context, const Object& liv
             }
         }
 
-        LiveDataRef ldf = {name.getString(), ltype, type, live, addEvent, updateEvent, removeEvent};
+        LiveDataRef ldf = {name.getString(), ltype, type, live, false, addEvent, updateEvent, removeEvent};
 
         mLiveData.emplace(name.getString(), ldf);
         rootConfig->liveData(name.getString(), live);
@@ -1096,7 +1102,8 @@ ExtensionClient::readExtensionComponentEventHandlers(const Context& context,
 }
 
 bool
-ExtensionClient::readExtensionComponentDefinitions(const Context& context, const Object& components) {
+ExtensionClient::readExtensionComponentDefinitions(const Context& context, const Object& components)
+{
     auto rootConfig = mRootConfig.lock();
     if (!rootConfig) {
         LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
@@ -1115,7 +1122,12 @@ ExtensionClient::readExtensionComponentDefinitions(const Context& context, const
             continue;
         }
         auto componentName = name.asString();
+
         auto componentDef = ExtensionComponentDefinition(mUri, componentName);
+        auto rType = propertyAsObject(context, component, "resourceType");
+        if(rType.isString()) {
+            componentDef.resourceType(rType.asString());
+        }
 
         auto visualContext = propertyAsString(context, component, "context");
         componentDef.visualContextType(visualContext);
@@ -1171,8 +1183,8 @@ ExtensionClient::readExtensionComponentDefinitions(const Context& context, const
 }
 
 rapidjson::Value
-ExtensionClient::createComponentChange(rapidjson::MemoryPoolAllocator<>& allocator,
-                                        ExtensionComponent& component) {
+ExtensionClient::createComponentChange(rapidjson::MemoryPoolAllocator<>& allocator, ExtensionComponent& component)
+{
     auto rootConfig = mRootConfig.lock();
     if (!rootConfig) {
         LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
@@ -1221,7 +1233,8 @@ ExtensionClient::createComponentChange(rapidjson::MemoryPoolAllocator<>& allocat
 
 
 bool
-ExtensionClient::processComponentResponse(const Context& context, const Object& response) {
+ExtensionClient::processComponentResponse(const Context& context, const Object& response)
+{
     auto method = propertyAsString(context, response, "method");
 
     auto componentId = propertyAsString(context, response, "resourceId");
@@ -1246,9 +1259,11 @@ ExtensionClient::processComponentResponse(const Context& context, const Object& 
     return true;
 }
 
-bool ExtensionClient::handleDisconnection(const RootContextPtr& rootContext,
-                                          int errorCode,
-                                          const std::string& message) {
+bool
+ExtensionClient::handleDisconnection(const RootContextPtr& rootContext,
+                                     int errorCode,
+                                     const std::string& message)
+{
     auto rootConfig = mRootConfig.lock();
     if (!rootConfig) {
         LOG(LogLevel::kError) << ROOT_CONFIG_MISSING;
@@ -1271,20 +1286,76 @@ bool ExtensionClient::handleDisconnection(const RootContextPtr& rootContext,
 
 rapidjson::Value
 ExtensionClient::processComponentRequest(rapidjson::MemoryPoolAllocator<>& allocator,
-                                         ExtensionComponent& component) {
+                                         ExtensionComponent& component)
+{
     return createComponentChange(allocator, component);
 }
 
 rapidjson::Value
 ExtensionClient::processComponentRelease(rapidjson::MemoryPoolAllocator<>& allocator,
-                                         ExtensionComponent& component) {
+                                         ExtensionComponent& component)
+{
     return createComponentChange(allocator, component);
 }
 
 rapidjson::Value
 ExtensionClient::processComponentUpdate(rapidjson::MemoryPoolAllocator<>& allocator,
-                                        ExtensionComponent& component) {
+                                        ExtensionComponent& component)
+{
     return createComponentChange(allocator, component);
+}
+
+void
+ExtensionClient::invokeExtensionHandler(const std::string& uri, const std::string& name,
+                            const ObjectMap& data, bool fastMode,
+                            std::string resourceId)
+{
+    auto rootContext = mCachedContext.lock();
+    if (rootContext) {
+        rootContext->invokeExtensionEventHandler(uri, name, data, fastMode, resourceId);
+    } else {
+        LOG(LogLevel::kWarn) << "RootContext not available";
+        ExtensionEvent event = {uri, name, data, fastMode, resourceId};
+        mPendingEvents.emplace_back(std::move(event));
+    }
+}
+
+void
+ExtensionClient::flushPendingEvents(const RootContextPtr& rootContext)
+{
+    LOG_IF(DEBUG_EXTENSION_CLIENT && (mPendingEvents.size() > 0)) << "Flushing " << mPendingEvents.size()
+                                                                  << " pending events for " << mConnectionToken;
+
+    for (auto& event : mPendingEvents) {
+        invokeExtensionHandler(event.uri, event.name, event.data, event.fastMode, event.resourceId);
+    }
+
+    // So if data was sent on a specific time before objects created it will still miss flush (changes not stored).
+    // Go through data list and simulate those.
+    for (auto& kv : mLiveData) {
+        auto& ref = kv.second;
+        if (!ref.hasPendingUpdate) continue;
+
+        LOG_IF(DEBUG_EXTENSION_CLIENT) << "Simulate changes for " << ref.name << " in: " << mConnectionToken;
+
+        // Generate changelist based on notion of nothing been there initially
+        if (ref.objectType == kExtensionLiveDataTypeArray) {
+            std::vector<LiveArrayChange> changes;
+            auto& array = std::dynamic_pointer_cast<LiveArray>(ref.objectPtr)->getArray();
+            changes.emplace_back(LiveArrayChange::insert(0, array.size()));
+            reportLiveArrayChanges(ref, changes);
+        } else {
+            std::vector<LiveMapChange> changes;
+            auto& map = std::dynamic_pointer_cast<LiveMap>(ref.objectPtr)->getMap();
+            for (auto& item : map) {
+                changes.emplace_back(LiveMapChange::set(item.first));
+            }
+            reportLiveMapChanges(ref, changes);
+        }
+        ref.hasPendingUpdate = false;
+    }
+
+    mPendingEvents.clear();
 }
 
 } // namespace apl

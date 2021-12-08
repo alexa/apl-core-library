@@ -61,15 +61,10 @@ ExtensionEventCommand::execute(const TimersPtr& timers, bool fastMode)
 const CommandPropDefSet&
 ExtensionEventCommand::propDefSet() const
 {
-    auto commandUriName = mDefinition.getURI() + ":" + mDefinition.getName();
-    if (context()->extensionManager().isComponentCommand(commandUriName)) {
-        static CommandPropDefSet sExtensionEventCommandProperties(
-            CoreCommand::propDefSet(), {{kCommandPropertyComponentId, "", asString, kPropRequiredId}});
+    static CommandPropDefSet sExtensionEventCommandProperties(
+        CoreCommand::propDefSet(), {{kCommandPropertyComponentId, "", asString, kPropId}});
 
-        return sExtensionEventCommandProperties;
-    } else {
-        return CoreCommand::propDefSet();
-    }
+    return sExtensionEventCommandProperties;
 }
 
 std::string

@@ -66,9 +66,10 @@ TouchableComponent::processPointerEvent(const PointerEvent& event, apl_time_t ti
 void
 TouchableComponent::invokeStandardAccessibilityAction(const std::string& name)
 {
-    if (name == "activate")
+    auto onPressHandler = getCalculated(kPropertyOnPress);
+    if (name == "activate" && !onPressHandler.empty())
         executeEventHandler(sPropertyHandlers.at(kPropertyOnPress),
-                            getCalculated(kPropertyOnPress), false, createTouchEventProperties(Point()));
+                            onPressHandler, false, createTouchEventProperties(Point()));
     else
         ActionableComponent::invokeStandardAccessibilityAction(name);
 }

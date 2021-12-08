@@ -75,6 +75,7 @@ class Transformation;
 class MediaSource;
 class LiveDataObject;
 class RangeGenerator;
+class URLRequest;
 class SliceGenerator;
 class StyledText;
 class SymbolReferenceMap;
@@ -119,6 +120,7 @@ using SharedVectorPtr = ObjectArrayPtr;
  * - Media sources
  * - Rectangles
  * - Radii
+ * - Sources
  * - Styled Text
  * - 2D Transformations
  * - Bound Symbol
@@ -155,6 +157,7 @@ public:
         kGraphicType,
         kTransformType,
         kTransform2DType,
+        kURLRequestType,
         kEasingType,
         kBoundSymbolType,
         kComponentType,
@@ -197,6 +200,7 @@ public:
     Object(const GraphicPatternPtr& graphicPattern);
     Object(const std::shared_ptr<Transformation>& transform);
     Object(Transform2D&& transform2d);
+    Object(URLRequest&& urlRequest);
     Object(const EasingPtr& easing);
     Object(const std::shared_ptr<datagrammar::BoundSymbol>& b);
     Object(const std::shared_ptr<LiveDataObject>& d);
@@ -264,6 +268,7 @@ public:
     bool isMediaSource() const { return mType == kMediaSourceType; }
     bool isRect() const { return mType == kRectType; }
     bool isRadii() const { return mType == kRadiiType; }
+    bool isURLRequest() const { return mType == kURLRequestType; }
     bool isStyledText() const { return mType == kStyledTextType; }
     bool isGraphic() const { return mType == kGraphicType; }
     bool isGraphicPattern() const { return mType == kGraphicPatternType; }
@@ -286,6 +291,7 @@ public:
     Dimension asAbsoluteDimension(const Context&) const;
     Dimension asNonAutoDimension(const Context&) const;
     Dimension asNonAutoRelativeDimension(const Context&) const;
+    URLRequest asURLRequest() const;
     /// @deprecated This method will be removed soon.
     Color asColor() const;
     Color asColor(const SessionPtr&) const;
@@ -319,6 +325,7 @@ public:
     GraphicPatternPtr getGraphicPattern() const;
     Rect getRect() const;
     Radii getRadii() const;
+    const URLRequest& getURLRequest() const;
     const StyledText& getStyledText() const;
     std::shared_ptr<Transformation> getTransformation() const;
     Transform2D getTransform2D() const;

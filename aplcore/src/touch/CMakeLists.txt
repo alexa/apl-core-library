@@ -21,6 +21,7 @@ target_sources_local(apl
     gestures/pagerflinggesture.cpp
     gestures/scrollgesture.cpp
     gestures/swipeawaygesture.cpp
+    gestures/tapgesture.cpp
     utils/autoscroller.cpp
     utils/pagemovehandler.cpp
     utils/unidirectionaleasingscroller.cpp

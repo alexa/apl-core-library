@@ -14,7 +14,7 @@
  */
 
 #include "fakeplayer.h"
-
+#include "apl/utils/make_unique.h"
 
 namespace apl {
 
@@ -101,14 +101,14 @@ FakePlayer::create(const MediaTrack& mediaTrack,
                   int initialDelay,
                   int failAfter)
 {
-    int offset = std::max(0, mediaTrack.offset);     // Ensure the offset is non-negative
+    int offset = std::max(0, mediaTrack.offset); // Ensure the offset is non-negative
 
     // Clip the start position to the actual duration
     int start = min(offset, InfiniteInt(actualDuration));
     int duration = calculateDuration(start, std::max(0, mediaTrack.duration), actualDuration);
 
-    return std::unique_ptr<FakePlayer>(new FakePlayer(mediaTrack.duration, mediaTrack.repeatCount,
-                                                      failAfter, start, duration, initialDelay));
+    return std::make_unique<FakePlayer>(mediaTrack.duration, mediaTrack.repeatCount, failAfter,
+                                        start, duration, initialDelay);
 }
 
 FakePlayer::FakePlayer(int requestedDuration,

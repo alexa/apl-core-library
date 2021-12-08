@@ -20,6 +20,7 @@
 
 #include "apl/common.h"
 #include "apl/engine/event.h"
+#include "apl/media/mediaobject.h"
 
 namespace apl {
 
@@ -42,6 +43,15 @@ public:
      * @return the media object
      */
     virtual MediaObjectPtr request(const std::string& url, EventMediaType type) = 0;
+
+    /**
+     * Request a media object
+     * @param url The source required
+     * @param type The type of media requested.  This should be removed in the future.
+     * @param headers HeaderArray required to request the source.
+     * @return the media object
+     */
+    virtual MediaObjectPtr request(const std::string& url, EventMediaType type, const HeaderArray& headers) = 0;
 
     /**
      * Go though current list of registered components and generate requests to load all required sources.

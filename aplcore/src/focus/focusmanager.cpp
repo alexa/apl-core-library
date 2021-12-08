@@ -20,6 +20,7 @@
 #include "apl/engine/rootcontextdata.h"
 #include "apl/primitives/rect.h"
 #include "apl/time/timemanager.h"
+#include "apl/utils/make_unique.h"
 
 namespace apl {
 
@@ -27,7 +28,7 @@ static const bool DEBUG_FOCUS = false;
 static const std::string FOCUS_RELEASE_SEQUENCER = "__FOCUS_RELEASE_SEQUENCER";
 
 FocusManager::FocusManager(const RootContextData& core) :
-    mCore(core), mFinder(std::unique_ptr<FocusFinder>(new FocusFinder()))
+    mCore(core), mFinder(std::make_unique<FocusFinder>())
 {}
 
 void

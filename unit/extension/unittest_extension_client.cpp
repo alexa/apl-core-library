@@ -416,14 +416,19 @@ static const char* EXTENSION_EVENTS = R"(
 static const char* EXTENSION_COMPONENTS = R"(
 "components": [
     {
-        "name": "MyComponent",
-        "commands" : [
-            {
-              "name": "componentCommand",
-              "requireResponse": true,
-              "allowFastMode":  false
-            }
-        ]
+      "name": "MyComponent",
+      "resourceType": "Surface",
+      "commands" : [
+          {
+            "name": "componentCommand",
+            "requireResponse": true,
+            "allowFastMode":  false
+          }
+      ],
+      "events": [
+        { "name": "Fast", "mode": "FAST" },
+        { "name": "Normal", "mode": "NORMAL" }
+      ]
     }
   ]
 )";
@@ -737,11 +742,15 @@ TEST_F(ExtensionClientTest, ExtensionParseComponent) {
     auto def = components.at(0);
     ASSERT_EQ("aplext:hello:10", def.getURI());
     ASSERT_EQ("MyComponent", def.getName());
+    ASSERT_EQ("Surface", def.getResourceType());
 
     auto commands = configPtr->getExtensionCommands();
     ASSERT_EQ(1, commands.size());
     auto command = commands.at(0);
     ASSERT_STREQ(command.getName().c_str(), "componentCommand");
+
+    auto handlers = configPtr->getExtensionComponentDefinitions().at(0).getEventHandlers();
+    ASSERT_EQ(2, handlers.size());
 }
 
 /**
@@ -1481,9 +1490,9 @@ TEST_F(ExtensionClientTest, OrderOfOperation) {
 
     initializeContext();
 
-    // Requires root config
-    ASSERT_FALSE(client->processMessage(nullptr, EXT_EVENT));
-    ASSERT_TRUE(ConsoleMessage());
+    // Requires root config to execute, but will get to queue when such not available.
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_EVENT));
+    ASSERT_FALSE(ConsoleMessage());
 }
 
 static const char* LIVE_DATA_INIT = R"({
@@ -2063,6 +2072,48 @@ TEST_F(ExtensionClientTest, LiveDataCollapse) {
     ASSERT_EQ(true, changed.get("collapsed2").isNull());
 }
 
+TEST_F(ExtensionClientTest, InitialMapEvent) {
+    createConfigAndClient(COLLAPSED_EXT_DOC);
+
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_SUCCESS));
+    ASSERT_FALSE(ConsoleMessage());
+
+    ASSERT_TRUE(client->processMessage(nullptr, ENTITY_MAP_SET_UNCOLLAPSED));
+
+    initializeContext();
+
+    client->bindContext(root);
+
+    root->clearPending();
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    auto arguments = event.getValue(kEventPropertyArguments);
+    auto changed = arguments.at(3);
+    ASSERT_EQ(true, changed.get("uncollapsed").getBoolean());
+}
+
+TEST_F(ExtensionClientTest, InitialArrayEvent) {
+    createConfigAndClient(EXT_DOC);
+
+    ASSERT_TRUE(client->processMessage(nullptr, EXT_REGISTER_SUCCESS));
+    ASSERT_FALSE(ConsoleMessage());
+
+    ASSERT_TRUE(client->processMessage(nullptr, ENTITY_LIST_INSERT));
+
+    initializeContext();
+
+    client->bindContext(root);
+
+    auto text = component->findComponentById("label");
+    ASSERT_EQ(kComponentTypeText, text->getType());
+
+    root->clearPending();
+    root->popEvent();
+    ASSERT_EQ("onEntityAdded:3", text->getCalculated(kPropertyText).asString());
+}
+
 static const char* EXT_REGISTER_SUCCESS_EXTENDED_TYPE = R"({
   "method": "RegisterSuccess",
   "version": "1.0",
@@ -2316,6 +2367,7 @@ static const char* EXT_REGISTER_EXTCOMP = R"({
     "components": [
         {
             "name": "ExtensionComponent",
+            "resourceType": "Surface",
             "properties": {
                 "componentProperty": {
                     "type": "string",
@@ -2346,10 +2398,11 @@ TEST_F(ExtensionClientTest, ComponentRequestWithSuccessResponse) {
     std::string resId = componentRequest["resourceId"].GetString();
     ASSERT_STREQ("Pending", componentRequest["state"].GetString());
     ASSERT_EQ(extensionComponent->getResourceID(), resId);
+    ASSERT_EQ("Surface", extensionComponent->getCalculated(kPropertyResourceType).asString());
     ASSERT_EQ(0, resId.rfind("aplext:hello:10-", 0));
     ASSERT_EQ(35, resId.length()-strlen("aplext:hello:10-"));
 
-    ASSERT_EQ(extensionComponent->getCalculated(kPropertyResourceState).asInt(), kResourcePending);
+    ASSERT_EQ(kResourcePending,extensionComponent->getCalculated(kPropertyResourceState).asInt());
     ASSERT_TRUE(componentRequest.HasMember("payload"));
     ASSERT_TRUE(componentRequest.HasMember("viewport"));
 
@@ -2803,6 +2856,7 @@ TEST_F(ExtensionClientTest, ExtensionComponentInvalidComponentInvoke) {
 
     // This tries to invoke an extension event handler which is not present
     ASSERT_TRUE(client->processMessage(root, extensionEvent));
+    ASSERT_TRUE(ConsoleMessage());
 }
 
 TEST_F(ExtensionClientTest, ExtensionClientDisconnection) {

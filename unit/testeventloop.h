@@ -33,8 +33,9 @@
 #include "apl/command/corecommand.h"
 #include "apl/time/coretimemanager.h"
 
-#include "apl/utils/searchvisitor.h"
+#include "apl/utils/make_unique.h"
 #include "apl/utils/range.h"
+#include "apl/utils/searchvisitor.h"
 
 namespace apl {
 
@@ -447,7 +448,7 @@ protected:
             content->addData("payload", data);
         }
         else {  // Otherwise, we require "data" to be a JSON object where the keys match the requested parameters
-            rawData = std::unique_ptr<JsonData>(new JsonData(data));
+            rawData = std::make_unique<JsonData>(data);
             ASSERT_TRUE(rawData->get().IsObject());
             for (auto it = rawData->get().MemberBegin() ;
                       it != rawData->get().MemberEnd() ;

@@ -13,7 +13,7 @@
  * permissions and limitations under the License.
  */
 #include "apl/content/jsondata.h"
-#include "rapidjson/prettywriter.h"
+#include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
 namespace apl {
@@ -27,7 +27,7 @@ std::string
 JsonData::toString() const {
     rapidjson::StringBuffer buffer;
     buffer.Clear();
-    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     mValue.Accept(writer);
     return buffer.GetString();
 }

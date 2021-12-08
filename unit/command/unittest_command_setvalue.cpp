@@ -153,11 +153,13 @@ TEST_F(CommandSetValueTest, Image)
     root->clearDirty();
     ASSERT_EQ(Color(session, "red"), component->getCalculated(kPropertyOverlayColor).getColor());
 
-    ASSERT_EQ("http://foo.com/bar.png", component->getCalculated(kPropertySource).asString());
+    auto source = component->getCalculated(kPropertySource);
+    ASSERT_EQ("http://foo.com/bar.png", source.getString());
     executeSetValue("image", "source", "http://bar.com/foo.png");
     ASSERT_TRUE(root->isDirty());
     root->clearDirty();
-    ASSERT_EQ("http://bar.com/foo.png", component->getCalculated(kPropertySource).asString());
+    source = component->getCalculated(kPropertySource);
+    ASSERT_EQ("http://bar.com/foo.png", source.getString());
 
     ASSERT_TRUE(CheckNoActions());
 }

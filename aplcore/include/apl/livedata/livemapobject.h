@@ -35,6 +35,11 @@ namespace apl {
  */
 class LiveMapObject : public LiveDataObject, Counter<LiveMapObject> {
 public:
+    static LiveMapObject& cast(LiveDataObject& object) {
+        assert(object.getType() == Object::kMapType);
+        return reinterpret_cast<LiveMapObject&>(object);
+    }
+
     /**
      * Constructor. Do not call this directly; use the LiveDataObject::create() method instead
      */

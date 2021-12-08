@@ -27,6 +27,7 @@
 #include "apl/primitives/timefunctions.h"
 #include "apl/touch/utils/autoscroller.h"
 #include "apl/touch/utils/velocitytracker.h"
+#include "apl/utils/make_unique.h"
 #include "apl/utils/session.h"
 #include "apl/time/sequencer.h"
 
@@ -79,6 +80,18 @@ ScrollGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
         return false;
     }
 
+    auto scrollPosition = scrollable->scrollPosition();
+
+    // Lazy-calculate new scroll position because it is expensive
+    std::unique_ptr<Point> maybeNewScrollPosition;
+    auto getOrCalculateNewScrollPosition = [&]() {
+        if (!maybeNewScrollPosition) {
+            auto rawScrollPosition = scrollPosition - (position - mLastLocalPosition);
+            maybeNewScrollPosition = std::make_unique<Point>(scrollable->trimScroll(rawScrollPosition));
+        }
+        return *maybeNewScrollPosition;
+    };
+
     if (!isTriggered()) {
         auto triggerDistance = scrollable->isHorizontal() ? delta.getX() : delta.getY();
         auto flingTriggerDistanceThreshold = toLocalThreshold(scrollable->getRootConfig().getPointerSlopThreshold());
@@ -87,18 +100,20 @@ ScrollGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
                 reset();
                 return false;
             }
-            LOG_IF(DEBUG_SCROLL_GESTURE) << "Triggering";
-            mTriggered = true;
-            mResourceHolder->takeResource();
+
+            bool hasPositionChanged = scrollPosition != getOrCalculateNewScrollPosition();
+            if (hasPositionChanged) {
+                LOG_IF(DEBUG_SCROLL_GESTURE) << "Triggering";
+                mTriggered = true;
+                mResourceHolder->takeResource();
+            }
         }
     }
 
     if (isTriggered()) {
-        auto scrollPosition = scrollable->scrollPosition();
-        scrollPosition = scrollable->trimScroll(scrollPosition - (position - mLastLocalPosition));
-
-        scrollable->update(UpdateType::kUpdateScrollPosition, scrollable->isHorizontal() ? scrollPosition.getX()
-                                                                                          : scrollPosition.getY());
+        auto newScrollPosition = getOrCalculateNewScrollPosition();
+        scrollable->update(UpdateType::kUpdateScrollPosition, scrollable->isHorizontal() ? newScrollPosition.getX()
+                                                                                          : newScrollPosition.getY());
     }
 
     mLastLocalPosition = position;

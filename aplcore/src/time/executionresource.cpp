@@ -25,28 +25,21 @@ Bimap<int, std::string> sExecutionResourceMap = {
     {kExecutionResourceProperty,        "property"},
 };
 
-std::string
-ExecutionResource::constructResourceId(ExecutionResourceKey key, const ComponentPtr& component, PropertyKey propKey)
-{
-    std::string resourceId;
-    auto resourceString = sExecutionResourceMap.get(key, "");
-    if (resourceString.empty()) {
-        // Should not happen
-        assert(false);
-        return resourceId;
-    }
-
-    if (component) {
-        resourceId += component->getUniqueId();
-        resourceId += (":" + std::to_string(propKey));
-    }
-
-    return resourceId;
-}
-
 ExecutionResource::ExecutionResource(ExecutionResourceKey key, const ComponentPtr& component, PropertyKey propKey)
 {
-    mResourceId = constructResourceId(key, component, propKey);
+    mResourceId = sExecutionResourceMap.get(key, "");
+    if (component) {
+        mResourceId += component->getUniqueId();
+        mResourceId += ":" + sComponentPropertyBimap.at(propKey);
+    }
+}
+
+ExecutionResource::ExecutionResource(ExecutionResourceKey key, const ComponentPtr& component, const std::string& propertyName)
+{
+    mResourceId = sExecutionResourceMap.get(key, "");
+    if (component)
+        mResourceId += component->getUniqueId();
+    mResourceId += ":" + propertyName;
 }
 
 } // namespace apl

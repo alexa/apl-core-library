@@ -75,7 +75,7 @@ TEST_F(VelocityTrackingTest, Inherit) {
     ASSERT_EQ(16.0f, velocities.getY());
 }
 
-TEST_F(VelocityTrackingTest, DirectionChange) {
+TEST_F(VelocityTrackingTest, SingleDirectionChange) {
     auto config = RootConfig();
     auto vt = std::make_shared<VelocityTracker>(config);
     vt->addPointerEvent(PointerEvent(kPointerDown, Point(0, 0)), 0);
@@ -83,7 +83,22 @@ TEST_F(VelocityTrackingTest, DirectionChange) {
     vt->addPointerEvent(PointerEvent(kPointerUp, Point(5, 50)), 20);
 
     auto velocities = vt->getEstimatedVelocity();
-    // Change in direction overrides to v2
+    // A single move in opposite direction doesn't overrides only reduces velocities.
+    ASSERT_EQ(0.5f, velocities.getX());
+    ASSERT_EQ(5.0f, velocities.getY());
+}
+
+TEST_F(VelocityTrackingTest, ContinuousDirectionChange) {
+    auto config = RootConfig();
+    auto vt = std::make_shared<VelocityTracker>(config);
+    vt->addPointerEvent(PointerEvent(kPointerDown, Point(0, 0)), 0);
+    vt->addPointerEvent(PointerEvent(kPointerMove, Point(10, 100)), 10);
+    // Change direction
+    vt->addPointerEvent(PointerEvent(kPointerMove, Point(5, 50)), 20);
+    // Continue in changed direction
+    vt->addPointerEvent(PointerEvent(kPointerUp, Point(0, 0)), 30);
+
+    auto velocities = vt->getEstimatedVelocity();
     ASSERT_EQ(-0.5f, velocities.getX());
     ASSERT_EQ(-5.0f, velocities.getY());
 }

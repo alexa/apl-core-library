@@ -77,6 +77,7 @@ Bimap<int, std::string> sCommandPropertyBimap = {
     {kCommandPropertyStart,            "start"},
     {kCommandPropertyState,            "state"},
     {kCommandPropertyValue,            "value"},
+    {kCommandPropertyValue,            "values"},
 };
 
 Bimap<int, std::string> sCommandAlignMap = {

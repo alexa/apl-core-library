@@ -24,6 +24,7 @@
 #include <rapidjson/document.h>
 
 #include "extensionmessage.h"
+#include "extensionresourceholder.h"
 
 namespace alexaext {
 
@@ -45,25 +46,26 @@ public:
     virtual const std::set<std::string>& getURIs() = 0;
 
     /**
-     * Create a registration for the extension. The registration is returned in a "RegistrationSuccess" or
-     * "RegistrationFailure" message. The extension is defined by a unique token per registration, an environment of
-     * static properties, and the extension schema.
+     * Create a registration for the extension. The registration is returned in a
+     * "RegistrationSuccess" or "RegistrationFailure" message. The extension is defined by a unique
+     * token per registration, an environment of static properties, and the extension schema.
      *
-     * The schema defines the extension api, including commands, events and live data.  The "RegistrationRequest"
-     * parameter contains a schema version, which matches the schema versions supported by the runtime, and extension
-     * settings defined by the requesting document.
+     * The schema defines the extension api, including commands, events and live data.  The
+     * "RegistrationRequest" parameter contains a schema version, which matches the schema versions
+     * supported by the runtime, and extension settings defined by the requesting document.
      *
-     * std::exception or ExtensionException thrown from this method are converted to "RegistrationFailure"
-     * messages and returned to the caller.
+     * std::exception or ExtensionException thrown from this method are converted to
+     * "RegistrationFailure" messages and returned to the caller.
      *
-     * This method is called by the extension framework when the extension is requested by a document.
+     * This method is called by the extension framework when the extension is requested by a
+     * document.
      *
      * @param uri The extension URI.
      * @param registrationRequest A "RegistrationRequest" message, includes extension settings.
      * @return A extension "RegistrationSuccess" or "RegistrationFailure"  message.
      */
-    virtual rapidjson::Document createRegistration(const std::string &uri,
-            const rapidjson::Value& registrationRequest) = 0;
+    virtual rapidjson::Document createRegistration(const std::string& uri,
+                                                   const rapidjson::Value& registrationRequest) = 0;
 
     /**
      * Callback definition for extension "Event" messages. The extension will call back to
@@ -73,11 +75,11 @@ public:
      * @param event A extension "Event" message.
      */
     using EventCallback =
-    std::function<void(const std::string& uri, const rapidjson::Value &event)>;
+        std::function<void(const std::string& uri, const rapidjson::Value& event)>;
 
     /**
-     * Callback registration for extension "Event" messages. Guaranteed to be called before the document is mounted.
-     * The callback forwards events to the document event handlers.
+     * Callback registration for extension "Event" messages. Guaranteed to be called before the
+     * document is mounted. The callback forwards events to the document event handlers.
      *
      * @param callback The callback for events generating from the extension.
      */
@@ -91,11 +93,12 @@ public:
      * @param liveDataUpdate The "LiveDataUpdate" message.
      */
     using LiveDataUpdateCallback =
-    std::function<void(const std::string &uri, const rapidjson::Value &liveDataUpdate)>;
+        std::function<void(const std::string& uri, const rapidjson::Value& liveDataUpdate)>;
 
     /**
-     * Callback for extension "LiveDataUpdate" messages. Guaranteed to be called before the document is mounted.
-     * The callback forwards live data changes to the document data binding and live data handlers.
+     * Callback for extension "LiveDataUpdate" messages. Guaranteed to be called before the document
+     * is mounted. The callback forwards live data changes to the document data binding and live
+     * data handlers.
      *
      * @param callback The callback for live data updates generating from the extension.
      */
@@ -104,14 +107,14 @@ public:
     /**
      * Execute a Command that was initiated by the document.
      *
-     * std::exception or ExtensionException thrown from this method are converted to "CommandFailure"
-     * messages and returned to the caller.
+     * std::exception or ExtensionException thrown from this method are converted to
+     * "CommandFailure" messages and returned to the caller.
      *
      * @param uri The extension URI.
      * @param command The requested Command message.
      * @return true if the command succeeded.
      */
-    virtual bool invokeCommand(const std::string& uri, const rapidjson::Value &command) = 0;
+    virtual bool invokeCommand(const std::string& uri, const rapidjson::Value& command) = 0;
 
     /**
      * Invoked after registration has been completed successfully. This is useful for
@@ -120,7 +123,37 @@ public:
      * @param uri The extension URI used during registration.
      * @param token The client token issued during registration.
      */
-    virtual void onRegistered(const std::string &uri, const std::string &token) {}
+    virtual void onRegistered(const std::string& uri, const std::string& token) {}
+
+    /**
+     * Invoked after extension unregistered. This is useful for stateful extensions that require clearing up
+     * session data.
+     *
+     * @param uri The extension URI used during registration.
+     * @param token The client token issued during registration.
+     */
+    virtual void onUnregistered(const std::string& uri, const std::string& token) {}
+
+    /**
+     * Update an Extension Component.  A "Component" message is received when the extension
+     * component changes state, or has a property updated.
+     *
+     * @param uri The extension URI.
+     * @param command The Component message.
+     * @return true if the update succeeded.
+     */
+    virtual bool updateComponent(const std::string& uri, const rapidjson::Value& command) = 0;
+
+    /**
+     * Invoked when a system resource, such as display surface, is ready for use. This method
+     * will be called after the extension receives a message indicating the resource is "Ready".
+     * Messages supporting shared resources: "Component"
+     * Not all execution environments support shared resources.
+     *
+     * @param uri The extension URI.
+     * @param resourceHolder Access to the resource.
+     */
+    virtual void onResourceReady(const std::string& uri, const ResourceHolderPtr& resourceHolder) {}
 };
 
 using ExtensionPtr = std::shared_ptr<Extension>;

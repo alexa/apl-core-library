@@ -62,7 +62,6 @@ public:
 
 private:
     std::map<std::string, ExtensionProxyPtr> mExtensions;
-    std::set<std::string> mInitialized;
 };
 
 using ExtensionRegistrarPtr = std::shared_ptr<ExtensionRegistrar>;

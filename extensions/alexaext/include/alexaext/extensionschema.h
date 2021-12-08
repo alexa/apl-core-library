@@ -12,8 +12,8 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-#ifndef ALEXAEXT_EXTENSIONSCHEMA_H
-#define ALEXAEXT_EXTENSIONSCHEMA_H
+#ifndef ALEXAEXT_EXTENSION_SCHEMA_H
+#define ALEXAEXT_EXTENSION_SCHEMA_H
 
 #include <functional>
 #include <map>
@@ -351,7 +351,7 @@ public:
 
     /**
     * Set a property default value of type T. Supports primitive types:
-    * tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float, const char*
+    * @tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float, const char*
     */
     template<typename T>
     TypePropertySchema& defaultValue(const T value) {
@@ -584,6 +584,6 @@ public:
 
 } // namespace alexaext
 
-#endif // ALEXAEXT_EXTENSIONSCHEMA_H
+#endif // ALEXAEXT_EXTENSION_SCHEMA_H
 
 

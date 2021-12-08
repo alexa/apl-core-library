@@ -14,7 +14,6 @@
  */
 
 #include <iostream>
-#include <sstream>
 
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
@@ -192,7 +191,6 @@ static const char *SERIALIZE_COMPONENTS = R"({
     }
   }
 })";
-
 TEST_F(SerializeTest, Components)
 {
     loadDocument(SERIALIZE_COMPONENTS);
@@ -995,4 +993,84 @@ TEST_F(SerializeTest, SingularTransform) {
     ASSERT_EQ(0.0f, transformJson[3].GetFloat());
     ASSERT_EQ(0.0f, transformJson[4].GetFloat());
     ASSERT_EQ(0.0f, transformJson[5].GetFloat());
+}
+
+static const char* VIDEO_IMAGE_WITH_HEADERS = R"({
+    "type": "APL",
+    "version": "1.6",
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "width": "100%",
+            "height": "100%",
+            "numbered": true,
+            "items": [
+                {
+                    "type": "Video",
+                    "id": "video1",
+                    "source": {
+                        "url": "universe",
+                        "description": "milky way",
+                        "headers": [
+                            "X-amzn-test: Let me in",
+                            "X-amzn-test2: Let me in2",
+                            "C: other"
+                        ]
+                    }
+                },
+                {
+                    "type": "Image",
+                    "id": "image1",
+                    "source": {
+                        "url": "image1",
+                        "description": "milky way",
+                        "headers": [
+                            "X-amzn-test: Let me in",
+                            "X-amzn-test2: Let me in2",
+                            "C: other"
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+})";
+
+TEST_F(SerializeTest, SerializeHeaders) {
+    loadDocument(VIDEO_IMAGE_WITH_HEADERS);
+    ASSERT_TRUE(component);
+
+    rapidjson::Document doc;
+    auto json = component->serialize(doc.GetAllocator());
+
+    auto video = context->findComponentById("video1");
+    ASSERT_TRUE(video);
+    auto& videoJson = json["children"][0];
+    checkCommonProperties(video, videoJson);
+    auto videoSource = video->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(1, videoSource.size());
+    ASSERT_TRUE(videoSource.at(0).isMediaSource());
+    ASSERT_EQ(videoSource.at(0).getMediaSource().getUrl(), videoJson["source"][0]["url"].GetString());
+    ASSERT_EQ(videoSource.at(0).getMediaSource().getDescription(), videoJson["source"][0]["description"].GetString());
+    auto videoSerializedHeaders = videoJson["source"][0]["headers"].GetArray();
+    auto videoHeaders = videoSource.at(0).getMediaSource().getHeaders();
+    ASSERT_EQ(videoSerializedHeaders.Size(), videoHeaders.size());
+    for(auto i = 0; i < videoHeaders.size(); ++i) {
+        ASSERT_EQ(videoHeaders[i], videoSerializedHeaders[i].GetString());
+    }
+
+    auto image = context->findComponentById("image1");
+    ASSERT_TRUE(image);
+    auto& imageJson = json["children"][1];
+    checkCommonProperties(image, imageJson);
+    auto imageSource = image->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(1, imageSource.size());
+    ASSERT_TRUE(imageSource.at(0).isURLRequest());
+    ASSERT_EQ(imageSource.at(0).getURLRequest().getUrl(), imageJson["source"][0]["url"].GetString());
+    auto serializedHeaders = imageJson["source"][0]["headers"].GetArray();
+    auto imageHeaders = imageSource.at(0).getURLRequest().getHeaders();
+    ASSERT_EQ(serializedHeaders.Size(), imageHeaders.size());
+    for(auto i = 0; i < imageHeaders.size(); ++i) {
+        ASSERT_EQ(imageHeaders[i], serializedHeaders[i].GetString());
+    }
 }

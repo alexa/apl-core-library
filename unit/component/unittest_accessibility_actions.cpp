@@ -265,7 +265,6 @@ TEST_F(AccessibilityActionTest, Activate)
     ASSERT_TRUE(IsEqual("X=2", text->getCalculated(kPropertyText).asString()));
 }
 
-
 static const char *GESTURE_TEST = R"apl(
     {
       "type": "APL",
@@ -306,6 +305,14 @@ static const char *GESTURE_TEST = R"apl(
                 "property": "X",
                 "value": "SDone"
               }
+            },
+            {
+              "type": "Tap",
+              "onTap": {
+                "type": "SetValue",
+                "property": "X",
+                "value": "Tap"
+              }
             }
           ],
           "actions": [
@@ -320,6 +327,10 @@ static const char *GESTURE_TEST = R"apl(
             {
               "name": "swipeaway",
               "label": "SwipeAway Test"
+            },
+            {
+              "name": "activate",
+              "label": "Tap Test"
             }
           ]
         }
@@ -352,8 +363,62 @@ TEST_F(AccessibilityActionTest, Gestures)
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
     ASSERT_TRUE(IsEqual("SDone", text->getCalculated(kPropertyText).asString()));
+
+    // The tap gesture is special because it gets triggered by activate
+    component->update(kUpdateAccessibilityAction, "activate");
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(root, text));
+    ASSERT_TRUE(IsEqual("Tap", text->getCalculated(kPropertyText).asString()));
 }
 
+static const char *ACTIVATE_PREFERS_ON_PRESS_OVER_TAP_TEST = R"apl(
+    {
+      "type": "APL",
+      "version": "1.9",
+      "mainTemplate": {
+        "items": {
+          "type": "TouchWrapper",
+          "items": {
+            "type": "Text",
+            "text": "Some text here"
+          },
+          "onPress": {
+            "type": "SendEvent",
+            "arguments": [ "onPress" ]
+          },
+          "gestures": [
+            {
+              "type": "Tap",
+              "onTap": {
+                "type": "SendEvent",
+                "arguments": [ "onTap" ]
+              }
+            }
+          ],
+          "actions": {
+            "name": "activate",
+            "label": "Activate Test"
+          }
+        }
+      }
+    }
+)apl";
+
+/*
+ * The "activate" accessibility action will use the "onPress" command of a touch wrapper if it does not have
+ * any attached commands, even if "onTap" gesture is also defined.
+ */
+TEST_F(AccessibilityActionTest, ActivatePrefersOnPressOverOnTap)
+{
+    loadDocument(ACTIVATE_PREFERS_ON_PRESS_OVER_TAP_TEST);
+    ASSERT_TRUE(component);
+
+    component->update(kUpdateAccessibilityAction, "activate");
+    root->clearPending();
+    ASSERT_TRUE(CheckSendEvent(root, "onPress"));
+    ASSERT_FALSE(root->hasEvent());
+}
 
 static const char *ACTIONS_WITH_COMMANDS = R"apl(
     {

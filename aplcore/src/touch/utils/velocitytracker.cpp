@@ -47,6 +47,7 @@ class FilterVelocityEstimationStrategy : public VelocityEstimationStrategy {
 public:
     Point getEstimatedVelocity() override {
         if (mHistory.size() >= 2) {
+            std::pair<float, float> preVelocity{0.0f, 0.0f};
             auto prevMove = mHistory.dequeue();
 
             while (!mHistory.empty()) {
@@ -54,8 +55,10 @@ public:
                 auto currVelocity = getVelocityBetweenMovements(prevMove, move);
                 prevMove = move;
 
-                mXVelocity = accumulate(mXVelocity, currVelocity.first);
-                mYVelocity = accumulate(mYVelocity, currVelocity.second);
+                mXVelocity = accumulate(preVelocity.first, mXVelocity, currVelocity.first);
+                mYVelocity = accumulate(preVelocity.second, mYVelocity, currVelocity.second);
+
+                preVelocity = currVelocity;
             }
         }
 
@@ -71,21 +74,24 @@ private:
         return {xdiff/timeDiff, ydiff/timeDiff};
     }
 
-    float accumulate(float v1, float v2) {
-        auto result = v1;
+    float accumulate(float preVelocity, float accumulatedVelocity, float currentVelocity) {
+        if (accumulatedVelocity == 0)
+            return currentVelocity;
 
-        // Reset the on move direction change
-        if (result * v2 < 0.0f) {
-            result = 0;
+        // If there is a direction change
+        if (accumulatedVelocity * currentVelocity < 0.0f) {
+            // If move is continuing in opposite direction, reset and calculate for current direction
+            if(preVelocity * currentVelocity > 0.0f)
+                return ALPHA_FILTER_WEIGHT * preVelocity + BETA_FILTER_WEIGHT * currentVelocity;
+            else
+                // Don't apply filter immediately on direction change but wait for next movement
+                // velocity. Just reduce the velocity here, applying filter here can significantly
+                // reduce the velocity if direction change is because of faulty/ misplaced pointer
+                // event in opposite direction of the gesture.
+                return accumulatedVelocity + currentVelocity;
         }
 
-        if (result == 0) {
-            result = v2;
-        } else {
-            result = ALPHA_FILTER_WEIGHT * result + BETA_FILTER_WEIGHT * v2;
-        }
-
-        return result;
+        return ALPHA_FILTER_WEIGHT * accumulatedVelocity + BETA_FILTER_WEIGHT * currentVelocity;
     }
 };
 

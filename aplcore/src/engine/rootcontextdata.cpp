@@ -99,7 +99,7 @@ RootContextData::RootContextData(const Metrics& metrics,
 {
     YGConfigSetPrintTreeFlag(mYGConfigRef, DEBUG_YG_PRINT_TREE);
     YGConfigSetLogger(mYGConfigRef, ygLogger);
-    YGConfigSetPointScaleFactor(mYGConfigRef, metrics.getDpi() / 160.0);
+    YGConfigSetPointScaleFactor(mYGConfigRef, metrics.getDpi() / Metrics::CORE_DPI);
 }
 
 void

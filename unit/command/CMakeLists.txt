@@ -14,6 +14,7 @@
 target_sources_local(unittest
         PRIVATE
         unittest_command_animateitem.cpp
+        unittest_command_animateitem_values.cpp
         unittest_command_array.cpp
         unittest_command_document.cpp
         unittest_command_event_binding.cpp

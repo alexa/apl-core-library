@@ -23,7 +23,7 @@
 #include "apl/primitives/unicode.h"
 #include "apl/primitives/styledtext.h"
 #include "apl/primitives/styledtextstate.h"
-
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -71,15 +71,6 @@ static inline std::string stripControl(const std::string& str)
         else output += ' ';
     }
 
-    return output;
-}
-
-static inline std::string rtrim(const std::string &str) {
-    std::string output(str);
-    output.erase(std::find_if(output.rbegin(), output.rend(), [](unsigned char ch) {
-                     return !std::isspace(ch);
-                 }).base(),
-                 output.end());
     return output;
 }
 
@@ -242,7 +233,7 @@ StyledText::create(const Context& context, const Object& object) {
 
 StyledText::StyledText(const Context& context, const std::string& raw) {
     mRawText = raw;
-    auto filtered = rtrim(stripControl(raw));
+    auto filtered = apl::rtrim(stripControl(raw));
 
     auto state = StyledTextState(context);
     pegtl::string_input<> in(filtered, "");

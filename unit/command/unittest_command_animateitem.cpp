@@ -13,8 +13,6 @@
  * permissions and limitations under the License.
  */
 
-// #include <algorithm>
-
 #include "../testeventloop.h"
 #include "apl/time/sequencer.h"
 

@@ -67,32 +67,32 @@ ImageComponent::propDefSet() const
         {kPropertyOverlayColor,    Color(),                  asColor,             kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
         {kPropertyOverlayGradient, Object::NULL_OBJECT(),    asGradient,          kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
         {kPropertyScale,           kImageScaleBestFit,       sScaleMap,           kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
-        {kPropertySource,          "",                       asStringOrArray,     kPropInOut | kPropDynamic | kPropVisualHash,                resetMediaState},
+        {kPropertySource,          "",                       asImageSourceArray,  kPropInOut | kPropDynamic | kPropVisualHash,                resetMediaState},
     });
 
     return sImageComponentProperties;
 }
 
-std::vector<std::string>
+std::vector<URLRequest>
 ImageComponent::getSources()
 {
-    std::vector<std::string> sources;
+    std::vector<URLRequest> sources;
 
     auto& sourceProp = getCalculated(kPropertySource);
-    // Check if there anything to fetch
+    // Check if there is anything to fetch
     if (sourceProp.empty()) {
         return sources;
     }
 
     if (sourceProp.isString()) { // Single source
-        sources.emplace_back(sourceProp.getString());
+        sources.emplace_back(sourceProp.asURLRequest());
     } else if (sourceProp.isArray()) {
         auto& filters = getCalculated(kPropertyFilters);
         if (filters.empty()) { // If no filters use last
-            sources.emplace_back(sourceProp.at(sourceProp.size() - 1).getString());
+            sources.emplace_back(sourceProp.at(sourceProp.size() - 1).asURLRequest());
         } else { // Else request everything
             for (auto& source : sourceProp.getArray()) {
-                sources.emplace_back(source.getString());
+                sources.emplace_back(source.asURLRequest());
             }
         }
     }

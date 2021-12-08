@@ -235,8 +235,9 @@ public:
     /**
      * Core's virtual pixel density per inch. 
      * Equates a viewhost dpi of 160.0f as a 1:1 dpi scaling ratio.
+     * @deprecated use Metrics::CORE_DPI direclty
      */
-    static constexpr float CORE_DPI = 160.0f;
+    static constexpr float CORE_DPI = Metrics::CORE_DPI;
 
 private:
     void init();

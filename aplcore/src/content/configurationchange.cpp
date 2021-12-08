@@ -14,7 +14,9 @@
  */
 
 #include "apl/content/configurationchange.h"
+
 #include "apl/content/metrics.h"
+#include "apl/engine/context.h"
 
 namespace apl {
 
@@ -49,11 +51,21 @@ ConfigurationChange::mergeRootConfig(const RootConfig& oldRootConfig) const
     if ((mFlags & kConfigurationChangeScreenReader) != 0)
         rootConfig.screenReader(mScreenReaderEnabled);
 
+    if ((mFlags & kConfigurationChangeDisallowVideo) != 0)
+        rootConfig.set(RootProperty::kDisallowVideo, mDisallowVideo);
+
+    if ((mFlags & kConfigurationChangeEnvironment) != 0) {
+        for (const auto &prop : mEnvironment) {
+            if (rootConfig.getEnvironmentValues().count(prop.first) > 0)
+                rootConfig.setEnvironmentValue(prop.first, prop.second);
+        }
+    }
+
     return rootConfig;
 }
 
 void
-ConfigurationChange::mergeConfigurationChange(const apl::ConfigurationChange& other)
+ConfigurationChange::mergeConfigurationChange(const ConfigurationChange& other)
 {
     mFlags |= other.mFlags;
 
@@ -76,6 +88,14 @@ ConfigurationChange::mergeConfigurationChange(const apl::ConfigurationChange& ot
 
     if ((other.mFlags & kConfigurationChangeScreenReader) != 0)
         mScreenReaderEnabled = other.mScreenReaderEnabled;
+
+    if ((other.mFlags & kConfigurationChangeDisallowVideo) != 0)
+        mDisallowVideo = other.mDisallowVideo;
+
+    if ((other.mFlags & kConfigurationChangeEnvironment) != 0) {
+        for (const auto &prop : other.mEnvironment)
+            mEnvironment[prop.first] = prop.second;
+    }
 }
 
 Size
@@ -89,25 +109,55 @@ ConfigurationChange::mergeSize(const Size& oldSize) const
     return size;
 }
 
+ConfigurationChange&
+ConfigurationChange::environmentValue(const std::string &name, const Object &newValue) {
+    mFlags |= kConfigurationChangeEnvironment;
+    mEnvironment[name] = newValue;
+    return *this;
+}
+
 ObjectMap
 ConfigurationChange::asEventProperties(const RootConfig& rootConfig, const Metrics& metrics) const
 {
     auto sizeChanged = mPixelHeight != metrics.getPixelHeight() || mPixelWidth != metrics.getPixelWidth();
     auto rotated = sizeChanged && mPixelWidth == metrics.getPixelHeight() && mPixelHeight == metrics.getPixelWidth();
 
+    // Populate the event with any custom env properties from the root config. If a property
+    // was overridden in this config change instance, use the new value.
+    auto env = std::make_shared<ObjectMap>();
+    for (const auto &prop : rootConfig.getEnvironmentValues()) {
+        const auto &propName = prop.first;
+        const auto it = mEnvironment.find(propName);
+        if (it != mEnvironment.end()) {
+            env->emplace(propName, it->second);
+        } else {
+            env->emplace(propName, prop.second);
+        }
+    }
+
     return {
-        {"height",       mPixelHeight},
-        {"width",        mPixelWidth},
-        {"theme",        mTheme},
-        {"viewportMode", sViewportModeBimap.at(mViewportMode)},
-        {"fontScale",    mFontScale},
-        {"screenMode",   sScreenModeBimap.at(mScreenMode)},
-        {"screenReader", mScreenReaderEnabled},
-        {"sizeChanged",  sizeChanged},
-        {"rotated",      rotated}
+        {"height",        mPixelHeight},
+        {"width",         mPixelWidth},
+        {"theme",         mTheme},
+        {"viewportMode",  sViewportModeBimap.at(mViewportMode)},
+        {"disallowVideo", mDisallowVideo},
+        {"fontScale",     mFontScale},
+        {"screenMode",    sScreenModeBimap.at(mScreenMode)},
+        {"screenReader",  mScreenReaderEnabled},
+        {"environment",   env},
+        // Synthesized properties - update getSynthesizedPropertyNames when adding a new one
+        {"sizeChanged",   sizeChanged},
+        {"rotated",       rotated},
     };
 }
 
-
+const std::set<std::string> &
+ConfigurationChange::getSynthesizedPropertyNames() {
+    static std::set<std::string> sNames = {
+        "rotated",
+        "sizeChanged"
+    };
+    return sNames;
+}
 
 } // namespace apl

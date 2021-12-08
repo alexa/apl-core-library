@@ -27,6 +27,50 @@ using namespace apl;
 
 class PagerTest : public DocumentWrapper {};
 
+static const char *UPDATE_PAGER_POSITION = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "mainTemplate": {
+        "items": {
+          "type": "Container",
+          "items": {
+            "type": "Pager",
+            "id": "pager",
+            "width": 100,
+            "height": 100,
+            "grow": 1,
+            "items": [
+              {
+                "type": "Text",
+                "text": "child1"
+              },
+              {
+                "type": "Text",
+                "text": "child2"
+              }
+            ]
+          }
+        }
+      }
+    }
+)apl";
+
+TEST_F(PagerTest, UpdatePagerPosition)
+{
+    loadDocument(UPDATE_PAGER_POSITION);
+    auto pager = root->findComponentById("pager");
+
+    pager->update(apl::kUpdatePagerPosition, 1);
+
+    ASSERT_TRUE(CheckDirty(pager, kPropertyCurrentPage, kPropertyNotifyChildrenChanged));
+
+    pager->clearDirty();
+    pager->update(kUpdatePagerPosition, 0);
+
+    ASSERT_TRUE(CheckDirty(pager, kPropertyCurrentPage, kPropertyNotifyChildrenChanged));
+}
+
 static const char *PAGE_CACHE_BY_NAVIGATION = R"apl(
     {
       "type": "APL",

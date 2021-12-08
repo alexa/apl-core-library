@@ -15,6 +15,7 @@
 
 #include "apl/command/speaklistcommand.h"
 #include "apl/action/speaklistaction.h"
+#include "apl/content/rootconfig.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -42,6 +43,11 @@ SpeakListCommand::execute(const TimersPtr& timers, bool fastMode) {
 
     if (!calculateProperties())
         return nullptr;
+
+    if (mContext->getRootConfig().getProperty(RootProperty::kDisallowDialog).getBoolean()) {
+        CONSOLE_CTP(mContext) << "Ignoring SpeakList command because disallowDialog is true";
+        return nullptr;
+    }
 
     return SpeakListAction::make(timers, std::static_pointer_cast<CoreCommand>(shared_from_this()));
 }

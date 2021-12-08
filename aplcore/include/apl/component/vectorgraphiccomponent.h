@@ -48,9 +48,10 @@ protected:
 protected:
     std::string getVisualContextType() const override;
     bool setPropertyInternal(const std::string& key, const Object& value) override;
+    std::pair<Object, bool> getPropertyInternal(const std::string& key) const override;
 
     // Media component trait overrides
-    std::vector<std::string> getSources() override;
+    std::vector<URLRequest> getSources() override;
     EventMediaType mediaType() const override { return kEventMediaTypeVectorGraphic; }
     void onFail(const MediaObjectPtr&) override;
     void onLoad() override;

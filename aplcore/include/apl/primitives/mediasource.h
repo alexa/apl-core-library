@@ -18,7 +18,9 @@
 
 #include <string>
 
+#include "apl/media/mediaobject.h"
 #include "apl/primitives/object.h"
+#include "apl/primitives/urlrequest.h"
 
 namespace apl {
 
@@ -38,7 +40,7 @@ public:
     /**
      * @return Get source url.
      */
-    std::string getUrl() const { return mUrl; }
+    std::string getUrl() const { return mUrlRequest.getUrl(); }
 
     /**
      * @return Optional source description.
@@ -65,6 +67,11 @@ public:
      */
     int getOffset() const { return mOffset; }
 
+    /**
+     * @return headers to append to the request to obtain access to the source
+     */
+     const HeaderArray& getHeaders() const { return mUrlRequest.getHeaders(); }
+
     /* Standard Object methods */
     bool operator==(const MediaSource& other) const;
 
@@ -75,11 +82,15 @@ public:
     bool truthy() const { return true; }
 
 private:
-    MediaSource(std::string url, std::string description, int duration, int repeatCount,
-                Object entities, int offset);
+    MediaSource(URLRequest urlRequest,
+                std::string description,
+                int duration,
+                int repeatCount,
+                Object entities,
+                int offset);
 
 private:
-    std::string mUrl;
+    URLRequest mUrlRequest;
     std::string mDescription;
     int mDuration;
     int mRepeatCount;

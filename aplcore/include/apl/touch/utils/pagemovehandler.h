@@ -42,7 +42,7 @@ enum PageMoveDrawOrder {
 class PageMoveHandler {
 public:
     /**
-     * Create PageMooveHandler.
+     * Create PageMoveHandler.
      * @param component parent pager component.
      * @param array aray containing handlers definition. If null or empty - default handler will be
      * created.
@@ -68,13 +68,13 @@ public:
             PageMoveDrawOrder drawOrder,
             SwipeDirection swipeDirection,
             PageDirection pageDirection,
-            int currentPage,
-            int targetPage);
+            const CoreComponentPtr& currentPage,
+            const CoreComponentPtr& targetPage);
     PageMoveHandler(
             SwipeDirection swipeDirection,
             PageDirection pageDirection,
-            int currentPage,
-            int targetPage,
+            const CoreComponentPtr& currentPage,
+            const CoreComponentPtr& targetPage,
             ITPtr&& mCurrentPageTransform,
             ITPtr&& mTargetPageTransform);
 
@@ -92,15 +92,23 @@ public:
 
     /**
      * Reset state of affected pages.
-     * @param component parent pager component.
      */
-    void reset(const CoreComponent& component);
+    void reset();
 
     PageMoveDrawOrder getDrawOrder() const { return mDrawOrder; }
-    int getCurrentPage() const { return mCurrentPage; }
-    int getTargetPage() const { return mTargetPage; }
+    std::weak_ptr<CoreComponent> getCurrentPage() const { return mCurrentPage; }
+    std::weak_ptr<CoreComponent> getTargetPage() const { return mTargetPage; }
     SwipeDirection getSwipeDirection() const { return mSwipeDirection; }
 
+    /**
+     * Get the index of the target page within the supplied parent or -1 on failure. 
+     *
+     * @param component parent pager component
+     *
+     * @return the index in the parent component of -1 if the target page
+     *         component is gone or not a direct child of the supplied parent
+     */
+    int getTargetPageIndex(const CoreComponentPtr& component) const;
 
 private:
     static ContextPtr createPageMoveContext(
@@ -123,8 +131,9 @@ private:
     PageMoveDrawOrder mDrawOrder;
     SwipeDirection mSwipeDirection;
     PageDirection  mPageDirection;
-    int mCurrentPage;
-    int mTargetPage;
+
+    std::weak_ptr<CoreComponent> mCurrentPage;
+    std::weak_ptr<CoreComponent> mTargetPage;
 
     // Transforms for default animation handling
     ITPtr mCurrentPageTransform;

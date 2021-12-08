@@ -891,23 +891,51 @@ CoreComponent::updateMixedStateProperty(apl::PropertyKey key, bool value)
         child->updateMixedStateProperty(key, value);
 }
 
+
+/**
+ * Find a component property in the current component.  This could be a built-in component
+ * property or it could be a layout property.
+ * @param key The property to retrieve.
+ * @return A pair of true if the property was found and the iterator pointing to the property definition.
+ */
+std::pair<bool, ConstComponentPropIterator>
+CoreComponent::find(PropertyKey key) const
+{
+    // Check the main set of properties first
+    const auto& pds = propDefSet();
+    auto it = pds.find(key);
+    if (it != pds.end())
+        return {true, it};
+
+    // Check layout properties second
+    if (mParent) {
+        const auto& layoutPDS = getLayoutPropDefSet();
+        if (layoutPDS) {
+            it = layoutPDS->find(key);
+            if (it != layoutPDS->end())
+                return {true, it};
+        }
+    }
+
+    return {false, it};
+}
+
 /**
  * A property has been set on the component.
- * @param pds The property definition set.
- * @param key The key of the property that is being changed.
+ * @param id The property iterator.  Contains the key of the property being changed and the definition.
  * @param value The new value of the property.
- * @return True if the property was found in this set (used for chaining property definition sets).
+ * @return True if the property could be set (it must be dynamic).
  */
 bool
-CoreComponent::setPropertyInternal( const ComponentPropDefSet& pds, PropertyKey key, const Object& value ) {
+CoreComponent::setPropertyInternal(ConstComponentPropIterator it, const Object& value)
+{
     // Verify that this property is a valid dynamic property
-    auto it = pds.dynamic().find(key);
-    if (it == pds.dynamic().end())
+    if ((it->second.flags & kPropDynamic) == 0)
         return false;
 
     // Some properties can only be set correctly if the component has been laid out
     if ((it->second.flags & kPropSetAfterLayout) != 0 && !isLaidOut()) {
-        mContext->layoutManager().addPostProcess(shared_from_corecomponent(), key, value);
+        mContext->layoutManager().addPostProcess(shared_from_corecomponent(), it->first, value);
         return true;
     }
 
@@ -918,12 +946,12 @@ CoreComponent::setPropertyInternal( const ComponentPropDefSet& pds, PropertyKey 
     }
 
     // If this property was previously assigned we need to clear any dependants
-    auto assigned = mAssigned.find(key);
+    auto assigned = mAssigned.find(it->first);
     if (assigned != mAssigned.end()) // Erase all upstream dependants that drive this key
-        removeUpstream(key);
+        removeUpstream(it->first);
 
     // Mark this property in the "assigned" set of properties.
-    mAssigned.emplace(key);
+    mAssigned.emplace(it->first);
 
     // Check to see if the actual value of the property changed and update appropriately
     const ComponentPropDef& def = it->second;
@@ -932,19 +960,26 @@ CoreComponent::setPropertyInternal( const ComponentPropDefSet& pds, PropertyKey 
     return true;
 }
 
+std::pair<Object, bool>
+CoreComponent::getPropertyInternal(ConstComponentPropIterator it) const
+{
+    auto dynamic = (it->second.flags & kPropDynamic) != 0;
+    if (it->second.getterFunc)
+        return { it->second.getterFunc(*this), dynamic };
+
+    auto v = mCalculated.get(it->first);
+    // If it is a map we need to convert it back into a string
+    if (it->second.map)
+        return { it->second.map->get(v.asInt(), "<ERROR>"), dynamic };
+    return { v, dynamic };
+}
+
 bool
 CoreComponent::setProperty(PropertyKey key, const Object& value)
 {
-    // Try setting this as a base property
-    if (setPropertyInternal(propDefSet(), key, value))
+    auto findRef = find(key);
+    if (findRef.first && setPropertyInternal(findRef.second, value))
         return true;
-
-    // Try setting this as a layout property
-    if (mParent) {
-        auto layoutPDS = getLayoutPropDefSet();
-        if (layoutPDS && setPropertyInternal(*layoutPDS, key, value))
-            return true;
-    }
 
     CONSOLE_CTP(mContext) << "Invalid property key '" << sComponentPropertyBimap.at(key) << "' for this component";
     return false;
@@ -968,33 +1003,28 @@ CoreComponent::setProperty( const std::string& key, const Object& value )
     CONSOLE_CTP(mContext) << "Unknown property name " << key;
 }
 
-Object
-CoreComponent::getProperty(const std::string& key)
+std::pair<Object, bool>
+CoreComponent::getPropertyAndWriteableState(const std::string& key) const
 {
     // Check for a standard component property
     if (sComponentPropertyBimap.has(key)) {
-        auto propertyKey = static_cast<PropertyKey>(sComponentPropertyBimap.at(key));
-        const auto& pds = propDefSet();
-        auto it = pds.find(propertyKey);
-        if (it != pds.end()) {
-            if (it->second.getterFunc)
-                return it->second.getterFunc(*this);
-
-            auto v = mCalculated.get(propertyKey);
-            // If it is a map we need to convert it back into a string
-            if (it->second.map)
-                return it->second.map->get(v.asInt(), "<ERROR>");
-            return v;
-        }
+        auto findRef = find(static_cast<PropertyKey>(sComponentPropertyBimap.at(key)));
+        if (findRef.first)
+            return getPropertyInternal(findRef.second);
     }
 
     // Check for a data binding
     auto ref = mContext->find(key);
     if (!ref.empty())
-        return ref.object().value();
+        return { ref.object().value(), ref.object().isUserWriteable() };
+
+    // It may be an internal component property
+    auto internal = getPropertyInternal(key);
+    if (internal.second)
+        return internal;
 
     CONSOLE_CTP(mContext) << "Unknown property name " << key;
-    return Object::NULL_OBJECT();
+    return { Object::NULL_OBJECT(), false };
 }
 
 bool
@@ -2415,7 +2445,7 @@ CoreComponent::ensureGlobalToLocalTransform() {
 
         for (auto i = 0; i < getChildCount(); i++) {
             auto child = getCoreChildAt(i);
-            if (child->isAttached()) {
+            if (child->getCalculated(kPropertyLaidOut).truthy()) {
                 child->markGlobalToLocalTransformStale();
             }
         }

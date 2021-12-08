@@ -101,6 +101,7 @@ public_apl_headers=(
     "apl/primitives/size.h"
     "apl/primitives/styledtext.h"
     "apl/primitives/transform2d.h"
+    "apl/primitives/urlrequest.h"
     "apl/scaling/metricstransform.h"
     "apl/time/timers.h"
     "apl/touch/pointerevent.h"
@@ -112,6 +113,7 @@ public_apl_headers=(
     "apl/utils/path.h"
     "apl/utils/session.h"
     "apl/utils/streamer.h"
+    "apl/utils/stringfunctions.h"
     "apl/utils/userdata.h"
     "apl/utils/visitor.h"
 )

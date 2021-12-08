@@ -55,6 +55,7 @@ TEST_F(ExtensionHandlerTest, BasicMissingHandler)
     root->invokeExtensionEventHandler("aplext:Test", "onSetArguments", {}, false);
     loop->runPending();
     ASSERT_TRUE(IsEqual("", component->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(ConsoleMessage());
 }
 
 /**

@@ -26,10 +26,11 @@ namespace apl {
  * A description of a media track to be played by the media player.
  */
 struct MediaTrack {
-    std::string url;  // Source of the video clip
-    int offset;       // Starting offset within the media object, in milliseconds
-    int duration;     // Duration from the starting offset to play.  Set this to a large number to play the whole track.
-    int repeatCount;  // Number of times to repeat this track before moving to the next. Negative numbers repeat forever.
+    std::string url;      // Source of the video clip
+    HeaderArray headers;  // HeaderArray required for the track
+    int offset;           // Starting offset within the media object, in milliseconds
+    int duration;         // Duration from the starting offset to play.  Set this to a large number to play the whole track.
+    int repeatCount;      // Number of times to repeat this track before moving to the next. Negative numbers repeat forever.
 };
 
 enum MediaPlayerEventType {

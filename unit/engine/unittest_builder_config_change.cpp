@@ -60,6 +60,7 @@ static const char *CHECK_ENVIRONMENT = R"apl(
             "${event.height}",
             "${event.theme}",
             "${event.viewportMode}",
+            "${event.disallowVideo}",
             "${event.fontScale}",
             "${event.screenMode}",
             "${event.screenReader}",
@@ -78,32 +79,35 @@ TEST_F(BuilderConfigChange, CheckEnvironment)
 {
     // Note: explicitly set these properties although most of them are the default values
     metrics.size(100,200).theme("dark").mode(kViewportModeHub);
-    config->fontScale(1.0).screenMode(RootConfig::kScreenModeNormal).screenReader(false);
+    config->disallowVideo(false).fontScale(1.0).screenMode(RootConfig::kScreenModeNormal).screenReader(false);
 
     loadDocument(CHECK_ENVIRONMENT);
     ASSERT_TRUE(component);
 
     // Rotate the screen
     configChange(ConfigurationChange(200,100));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 200, 100, "dark", "hub", 1.0, "normal", false, true, true));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 200, 100, "dark", "hub", false, 1.0, "normal", false, true, true));
 
     // Resize the screen
     configChange(ConfigurationChange(400,400));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 400, 400, "dark", "hub", 1.0, "normal", false, true, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 400, 400, "dark", "hub", false, 1.0, "normal", false, true, false));
 
     // Rotate back. Since we never re-inflated, the sizeChanged and rotated flags should be false now
     configChange(ConfigurationChange(100,200));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "dark", "hub", 1.0, "normal", false, false, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "dark", "hub", false, 1.0, "normal", false, false, false));
 
     // Modify other properties
     configChange(ConfigurationChange().theme("purple").screenReader(true));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "hub", 1.0, "normal", true, false, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "hub", false, 1.0, "normal", true, false, false));
 
     configChange(ConfigurationChange().mode(kViewportModeAuto).fontScale(3.0));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "auto", 3.0, "normal", true, false, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "auto", false, 3.0, "normal", true, false, false));
 
     configChange(ConfigurationChange().screenMode(RootConfig::kScreenModeHighContrast));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "auto", 3.0, "high-contrast", true, false, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "auto", false, 3.0, "high-contrast", true, false, false));
+
+    configChange(ConfigurationChange().disallowVideo(true));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "auto", true, 3.0, "high-contrast", true, false, false));
 }
 
 TEST_F(BuilderConfigChange, NoopConfigurationChangeDoesNotCreateEvent)
@@ -113,6 +117,70 @@ TEST_F(BuilderConfigChange, NoopConfigurationChangeDoesNotCreateEvent)
 
     configChange(ConfigurationChange());
     ASSERT_FALSE(root->hasEvent());
+}
+
+static const char *CHECK_CUSTOM_ENVIRONMENT = R"apl(
+    {
+      "type": "APL",
+      "version": "1.5",
+      "mainTemplate": {
+        "item": {
+          "type": "Text",
+          "text": ""
+        }
+      },
+      "onConfigChange": [
+        {
+          "type": "SendEvent",
+          "sequencer": "DUMMY",
+          "arguments": [
+            "${event.source.type}",
+            "${event.source.handler}",
+            "${event.reason ?? environment.reason}",
+            "${event.sizeChanged}",
+            "${event.theme}",
+            "${event.environment.vehicleState}",
+            "${event.environment.navigationSupported}",
+            "${event.environment.notDeclared ?? environment.notDeclared}"
+          ]
+        }
+      ]
+    }
+)apl";
+
+TEST_F(BuilderConfigChange, CheckCustomEnvironmentProperties) {
+    metrics.size(100,200).theme("dark").mode(kViewportModeHub);
+    config->setEnvironmentValue("vehicleState", "parked")
+        .setEnvironmentValue("navigationSupported", false);
+
+    loadDocument(CHECK_CUSTOM_ENVIRONMENT);
+    ASSERT_TRUE(component);
+
+    // Rotate the screen
+    configChange(ConfigurationChange(200, 100));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", "initial", true, "dark", "parked", false, Object::NULL_OBJECT()));
+
+    configChange(ConfigurationChange().environmentValue("vehicleState", "driving"));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", "initial", true, "dark", "driving", false, Object::NULL_OBJECT()));
+
+    configChange(ConfigurationChange().environmentValue("navigationSupported", true));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", "initial", true, "dark", "driving", true, Object::NULL_OBJECT()));
+
+    configChange(ConfigurationChange().environmentValue("vehicleState", "reversing").environmentValue("navigationSupported", false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", "initial", true, "dark", "reversing", false, Object::NULL_OBJECT()));
+
+    configChange(ConfigurationChange().environmentValue("reason", "should_be_ignored"));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", "initial", true, "dark", "reversing", false, Object::NULL_OBJECT()));
+
+    configChange(ConfigurationChange().environmentValue("theme", "should_be_ignored"));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", "initial", true, "dark", "reversing", false, Object::NULL_OBJECT()));
+
+    configChange(ConfigurationChange().environmentValue("sizeChanged", false)); // should be ignored
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", "initial", true, "dark", "reversing", false, Object::NULL_OBJECT()));
+
+    // Check that an attempt to define a new property via ConfigurationChange is not allowed
+    configChange(ConfigurationChange().environmentValue("notDeclared", 42)); // should be ignored
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", "initial", true, "dark", "reversing", false, Object::NULL_OBJECT()));
 }
 
 static const char *BASIC_REINFLATE = R"apl(
@@ -178,6 +246,7 @@ static const char *ALL_SETTINGS = R"apl(
             "Height: ${viewport.height}",
             "ViewportMode: ${viewport.mode}",
             "Theme: ${viewport.theme}",
+            "DisallowVideo: ${environment.disallowVideo}",
             "FontScale: ${environment.fontScale}",
             "ScreenMode: ${environment.screenMode}",
             "ScreenReader: ${environment.screenReader}"
@@ -193,7 +262,7 @@ static const char *ALL_SETTINGS = R"apl(
  */
 TEST_F(BuilderConfigChange, AllSettings) {
     metrics.size(400, 600).theme("light").mode(kViewportModeAuto);
-    config->fontScale(2.0).screenMode(RootConfig::kScreenModeNormal).screenReader(true);
+    config->disallowVideo(false).fontScale(2.0).screenMode(RootConfig::kScreenModeNormal).screenReader(true);
 
     loadDocument(ALL_SETTINGS);
     ASSERT_TRUE(component);
@@ -203,6 +272,7 @@ TEST_F(BuilderConfigChange, AllSettings) {
         "Height: 600",
         "ViewportMode: auto",
         "Theme: light",
+        "DisallowVideo: false",
         "FontScale: 2",
         "ScreenMode: normal",
         "ScreenReader: true"
@@ -216,6 +286,7 @@ TEST_F(BuilderConfigChange, AllSettings) {
         "Height: 600",
         "ViewportMode: auto",
         "Theme: light",
+        "DisallowVideo: false",
         "FontScale: 1.5",
         "ScreenMode: normal",
         "ScreenReader: true"
@@ -226,6 +297,7 @@ TEST_F(BuilderConfigChange, AllSettings) {
                   .size(1000, 1200)
                   .mode(kViewportModeTV)
                   .theme("blue")
+                  .disallowVideo(true)
                   .screenMode(RootConfig::kScreenModeHighContrast)
                   .screenReader(false));
 
@@ -234,12 +306,63 @@ TEST_F(BuilderConfigChange, AllSettings) {
         "Height: 1200",
         "ViewportMode: tv",
         "Theme: blue",
+        "DisallowVideo: true",
         "FontScale: 1.5",
         "ScreenMode: high-contrast",
         "ScreenReader: false"
     })) << "All elements changed";
 }
 
+static const char *REINFLATE_CUSTOM_ENV_PROPERTIES = R"apl(
+    {
+      "type": "APL",
+      "version": "1.5",
+      "mainTemplate": {
+        "item": {
+          "type": "Container",
+          "items": {
+            "type": "Text",
+            "text": "${data}"
+          },
+          "data": [
+            "VehicleState: ${environment.vehicleState}",
+            "NavSupported: ${environment.navigationSupported}"
+          ]
+        }
+      },
+      "onConfigChange": { "type": "Reinflate" }
+    }
+)apl";
+
+
+TEST_F(BuilderConfigChange, ReinflateCustomEnvProperties) {
+    config->setEnvironmentValue("vehicleState", "parked")
+        .setEnvironmentValue("navigationSupported", false);
+
+    loadDocument(REINFLATE_CUSTOM_ENV_PROPERTIES);
+    ASSERT_TRUE(component);
+
+    ASSERT_TRUE(CheckChildStrings({
+                                      "VehicleState: parked",
+                                      "NavSupported: false"
+                                  })) << "Starting condition";
+
+    // Verify that changing a single property doesn't reset the other
+    configChangeReinflate(ConfigurationChange().environmentValue("vehicleState", "driving"));
+
+    ASSERT_TRUE(CheckChildStrings({
+                                      "VehicleState: driving",
+                                      "NavSupported: false"
+                                  })) << "One element changed";
+
+    // Change another property and verify that the first one is unaffected
+    configChangeReinflate(ConfigurationChange().environmentValue("navigationSupported", true));
+
+    ASSERT_TRUE(CheckChildStrings({
+                                      "VehicleState: driving",
+                                      "NavSupported: true"
+                                  })) << "All elements changed";
+}
 
 static const char *REINFLATE_FAIL = R"apl(
     {

@@ -622,7 +622,7 @@ TEST_F(BuilderPreserveTest, PagerPreserveId)
     currentPage = component->getCalculated(kPropertyCurrentPage).asInt();
     ASSERT_EQ(2, currentPage);
     ASSERT_TRUE(IsEqual("Golden Retriever=2", component->getChildAt(currentPage)->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage)); // Update just asks to move, we control when this happens
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged)); // Update just asks to move, we control when this happens
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(CheckDirtyVisualContext(root, component));  // Visual context has changed
 

@@ -60,7 +60,19 @@ public:
                                                      << " expected=" << sComponentTypeBimap.at(v.first)
                                                      << " actual=" << sComponentTypeBimap.at(childType);
 
-            auto s = child->getCalculated(childType == kComponentTypeText ? kPropertyText : kPropertySource).asString();
+            std::string s;
+            if (childType == kComponentTypeText)
+                s = child->getCalculated(kPropertyText).asString();
+            else if (childType == kComponentTypeImage) {
+                if (child->getCalculated(kPropertySource).isArray()) {
+                    s = child->getCalculated(kPropertySource)
+                            .getArray()
+                            .at(0)
+                            .getURLRequest().getUrl();
+                } else if (child->getCalculated(kPropertySource).isString()) {
+                    s = child->getCalculated(kPropertySource).getString();
+                }
+            }
 
             if (v.second != s)
                 return ::testing::AssertionFailure() << "Mismatch at index=" << i

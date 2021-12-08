@@ -21,12 +21,12 @@ namespace apl {
 
 float
 MetricsTransform::toViewhost(float value) const {
-    return value * getScaleToViewhost() * getDpi() / CORE_DPI;
+    return value * getScaleToViewhost() * getDpi() / Metrics::CORE_DPI;
 }
 
 float
 MetricsTransform::toCore(float value) const {
-    return value * getScaleToCore() * CORE_DPI / getDpi();
+    return value * getScaleToCore() * Metrics::CORE_DPI / getDpi();
 }
 
 float

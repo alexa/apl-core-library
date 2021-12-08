@@ -29,6 +29,10 @@ enum RootProperty {
     kAgentVersion,
     /// If the OpenURL command is supported
     kAllowOpenUrl,
+    /// If dialog (and speech) related commands are supported
+    kDisallowDialog,
+    /// If edit text component supported
+    kDisallowEditText,
     /// If video is supported
     kDisallowVideo,
     /// Quality of animation expected. If set to kAnimationQualityNone, all animation commands are disabled (include onMount).
@@ -96,6 +100,8 @@ enum RootProperty {
     kPointerInactivityTimeout,
     /// Fling gestures velocity limit
     kMaximumFlingVelocity,
+    /// Maximum velocity to be considered a tap gesture (dp/second)
+    kMaximumTapVelocity,
     /// Gesture distance threshold in dp. Initial movement below this threshold does not trigger gestures.
     kPointerSlopThreshold,
     /// Scroll commands duration

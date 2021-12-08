@@ -289,10 +289,16 @@ public:
     virtual bool updateGraphic(const GraphicContentPtr& json);
 
     /**
-      * Updates state of resource associated with extension component
-      * @param state resource state enum.
-      */
-    virtual void updateResourceState(const ExtensionComponentResourceState& state);
+     * Updates state of resource associated with extension component. The extension
+     * is notified of the change.
+     *
+     * @param state resource state enum.
+     * @param errorCode Error code used when the state is kResourceError
+     * @param error Error message used when the state is kResourceError
+     */
+    virtual void updateResourceState(const ExtensionComponentResourceState& state,
+                             int errorCode = 0,
+                             const std::string& error = "");
 
     /*
     * @return The number of children displayed.

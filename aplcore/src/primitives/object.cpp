@@ -19,24 +19,25 @@
 #include "rapidjson/writer.h"
 
 #include "apl/animation/easing.h"
+#include "apl/component/componenteventwrapper.h"
 #include "apl/datagrammar/boundsymbol.h"
 #include "apl/datagrammar/bytecode.h"
+#include "apl/engine/contextwrapper.h"
 #include "apl/graphic/graphic.h"
 #include "apl/graphic/graphicfilter.h"
 #include "apl/graphic/graphicpattern.h"
+#include "apl/livedata/livedataobject.h"
 #include "apl/primitives/accessibilityaction.h"
 #include "apl/primitives/filter.h"
 #include "apl/primitives/functions.h"
 #include "apl/primitives/gradient.h"
-#include "apl/livedata/livedataobject.h"
+#include "apl/primitives/mediasource.h"
 #include "apl/primitives/object.h"
 #include "apl/primitives/objectdata.h"
-#include "apl/primitives/mediasource.h"
-#include "apl/primitives/transform.h"
 #include "apl/primitives/rangegenerator.h"
 #include "apl/primitives/slicegenerator.h"
-#include "apl/component/componenteventwrapper.h"
-#include "apl/engine/contextwrapper.h"
+#include "apl/primitives/transform.h"
+#include "apl/primitives/urlrequest.h"
 #include "apl/utils/log.h"
 
 namespace apl {
@@ -567,6 +568,13 @@ Object::Object(Radii&& radii)
     LOG_IF(OBJECT_DEBUG) << "Object Radii constructor " << this;
 }
 
+Object::Object(URLRequest&& urlRequest)
+    : mType(DirectObjectData<URLRequest>::sType),
+      mU(DirectObjectData<URLRequest>::create(std::move(urlRequest)))
+{
+    LOG_IF(OBJECT_DEBUG) << "Object Source constructor " << this;
+}
+
 Object::Object(StyledText&& styledText)
     : mType(DirectObjectData<StyledText>::sType),
       mU(DirectObjectData<StyledText>::create(std::move(styledText)))
@@ -695,6 +703,7 @@ Object::operator==(const Object& rhs) const
         case kMediaSourceType:
         case kRectType:
         case kRadiiType:
+        case kURLRequestType:
         case kTransform2DType:
         case kStyledTextType:
             return *(mU.data.get()) == *(rhs.mU.data.get());
@@ -801,6 +810,7 @@ Object::asString() const
         case kMediaSourceType: return "";
         case kRectType: return "";
         case kRadiiType: return "";
+        case kURLRequestType: return "";
         case kStyledTextType: return as<StyledText>().asString();
         case kGraphicType: return "";
         case kGraphicPatternType: return "";
@@ -1016,6 +1026,19 @@ Object::asNonAutoRelativeDimension(const Context& context) const
     }
 }
 
+URLRequest
+Object::asURLRequest() const
+{
+    switch (mType) {
+        case kStringType:
+            return { mU.string, HeaderArray() };
+        case kURLRequestType:
+            return as<URLRequest>();
+        default:
+            return { "", HeaderArray() };
+    }
+}
+
 std::shared_ptr<Function>
 Object::getFunction() const
 {
@@ -1111,6 +1134,11 @@ Object::getRadii() const {
     return as<Radii>();
 }
 
+const URLRequest&
+Object::getURLRequest() const {
+    return as<URLRequest>();
+}
+
 const StyledText&
 Object::getStyledText() const {
     return as<StyledText>();
@@ -1170,6 +1198,7 @@ Object::truthy() const
         case kRectType:
         case kRadiiType:
         case kTransform2DType:
+        case kURLRequestType:
         case kStyledTextType:
         case kGraphicPatternType:
             return mU.data->truthy();
@@ -1421,6 +1450,7 @@ Object::hash() const
         case kMediaSourceType:
         case kRectType:
         case kRadiiType:
+        case kURLRequestType:
         case kEasingType:
         case kTransform2DType:
         case kGraphicPatternType:
@@ -1488,6 +1518,7 @@ Object::serialize(rapidjson::Document::AllocatorType& allocator) const
         case kMediaSourceType:
         case kRectType:
         case kRadiiType:
+        case kURLRequestType:
         case kEasingType:
         case kTransform2DType:
         case kStyledTextType:
@@ -1558,6 +1589,7 @@ Object::toDebugString() const
         case Object::kMediaSourceType:
         case Object::kRectType:
         case Object::kRadiiType:
+        case Object::kURLRequestType:
         case Object::kStyledTextType:
         case Object::kGraphicType:
         case Object::kGraphicPatternType:

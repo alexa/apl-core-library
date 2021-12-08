@@ -25,6 +25,7 @@ add_library(alexaext STATIC
             src/executor.cpp
             src/extensionmessage.cpp
             src/extensionregistrar.cpp
+            src/localextensionproxy.cpp
     )
 
 if (BUILD_SHARED OR ENABLE_PIC)

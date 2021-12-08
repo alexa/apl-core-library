@@ -39,6 +39,8 @@ class Pointer;
 struct PointerEvent;
 class StickyChildrenTree;
 
+using ConstComponentPropIterator = std::map<PropertyKey, ComponentPropDef>::const_iterator;
+
 extern const std::string VISUAL_CONTEXT_TYPE_MIXED;
 extern const std::string VISUAL_CONTEXT_TYPE_GRAPHIC;
 extern const std::string VISUAL_CONTEXT_TYPE_TEXT;
@@ -224,11 +226,29 @@ public:
     bool hasProperty(PropertyKey key) const { return mAssigned.count(key) != 0; }
 
     /**
-     * The opposite of setProperty(), this method retrieves the property value.
+     * Return the value and writeable state of a component property.  This is the opposite of the
+     * setProperty(const std::string& key, const Object& value) method.  It checks for (a) intrinsic
+     * component properties [such as "width"], (b) data-bindings accessible to the component, and
+     * (c) internal component properties that are exposed (currently just the parameters passed
+     * to a vector graphic).  This method is used by animators to read the current value of a
+     * property and to verify that the property can be written with setProperty().
+     * @param key The name of the property
+     * @return The current value of the property and true if the property is writeable.  If the
+     *         property does not exist, returns null and false.
+     */
+    std::pair<Object, bool> getPropertyAndWriteableState(const std::string& key) const;
+
+    /**
+     * Return the value of a component property.  This is the opposite of the
+     * setProperty(const std::string& key, const Object& value) method.  It checks for (a) intrinsic
+     * component properties [such as "width"], (b) data-bindings accessible to the component, and
+     * (c) internal component properties that are exposed (currently just the parameters passed
+     * to a vector graphic). This method is used by the "preserve" property to save existing
+     * property values.
      * @param key The property or data-binding to retrieve
      * @return The value or null if the property does not exist
      */
-    Object getProperty(const std::string& key);
+    Object getProperty(const std::string& key) { return getPropertyAndWriteableState(key).first; }
 
     /**
      * Mark a property as being changed.  This only applies to properties set to
@@ -657,7 +677,16 @@ public:
     CoreComponentPtr findStateOwner();
 
     /**
-     * Check if component attached to yoga hierarchy.
+     * Check if this component is attached to a yoga hierarchy.
+     *
+     * Note that depending on the components used, an APL document may be laid
+     * out using multiple independent yoga trees, which can introduce
+     * discontinuities in the overall hierarchy. For example, a component may
+     * choose to treat each child as a top-level yoga node for layout purposes
+     * (e.g. Pager). This has the effect that a child may not be "attached" to
+     * its parent component (i.e. isAttached() will return false).
+     *
+     * @return true if the component's yoga node has a parent
      */
     bool isAttached() const;
 
@@ -949,6 +978,26 @@ protected:
      */
     void fixVisualHash(bool useDirtyFlag);
 
+    /**
+     * Set an internal property that is component-specific and not part of the component definition.
+     * This should be overridden in a subclass that supports internal properties.
+     * @param key The name of the property.
+     * @param value The value to set it to.
+     * @return True if the property was found and changed.
+     */
+    virtual bool setPropertyInternal(const std::string& key, const Object& value) { return false; }
+
+    /**
+     * Retrieve an internal property that is component-specific and not part of the component
+     * definition.  This should be overridden in a subclass that supports internal properties.
+     * @param key The name of the property
+     * @return A Object-Boolean pair.  Returns true and the value of the property if it exists and
+     *         can be read.  Returns { NULL, false } if the property is not found.
+     */
+    virtual std::pair<Object, bool> getPropertyInternal(const std::string& key) const {
+        return { Object::NULL_OBJECT(), false };
+    }
+
 private:
     friend streamer& operator<<(streamer&, const Component&);
 
@@ -971,10 +1020,10 @@ private:
 
     void updateInheritedState();
 
-    bool setPropertyInternal(const ComponentPropDefSet& propDefSet,
-                             PropertyKey key, const Object& value);
+    std::pair<bool, ConstComponentPropIterator> find(PropertyKey key) const;
 
-    virtual bool setPropertyInternal(const std::string& key, const Object& value) { return false; }
+    bool setPropertyInternal(ConstComponentPropIterator it, const Object& value);
+    std::pair<Object, bool> getPropertyInternal(ConstComponentPropIterator it) const;
 
     bool markPropertyInternal(const ComponentPropDefSet& propDefSet, PropertyKey key);
 

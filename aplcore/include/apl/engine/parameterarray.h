@@ -52,6 +52,8 @@ public:
 
     std::vector<Parameter>::iterator begin() { return mArray.begin(); }
     std::vector<Parameter>::iterator end() { return mArray.end(); }
+    std::vector<Parameter>::const_iterator begin() const { return mArray.cbegin(); }
+    std::vector<Parameter>::const_iterator end() const { return mArray.cend(); }
 
 private:
     std::vector<Parameter> mArray;

@@ -33,13 +33,12 @@ extern Bimap<int, std::string> sExecutionResourceMap;
 class ExecutionResource {
 public:
     ExecutionResource(ExecutionResourceKey key, const ComponentPtr& component = nullptr, PropertyKey propKey = kPropertyId);
+    ExecutionResource(ExecutionResourceKey key, const ComponentPtr& component, const std::string& propertyName);
 
     bool operator<(const ExecutionResource& other) const { return mResourceId < other.mResourceId; }
     std::string toString() const { return mResourceId; }
 
 private:
-    static std::string constructResourceId(ExecutionResourceKey key, const ComponentPtr& component, PropertyKey propKey);
-
     std::string mResourceId;
 };
 

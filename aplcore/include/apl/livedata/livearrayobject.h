@@ -40,6 +40,11 @@ class LiveArrayObject : public LiveDataObject, Counter<LiveArrayObject> {
 public:
     using size_type = ObjectArray::size_type;
 
+    static LiveArrayObject& cast(LiveDataObject& object) {
+        assert(object.getType() == Object::kArrayType);
+        return reinterpret_cast<LiveArrayObject&>(object);
+    }
+
     /**
      * Constructor.  Do not call this directly; use the create() method instead.
      */

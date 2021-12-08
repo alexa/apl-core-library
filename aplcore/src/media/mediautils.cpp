@@ -26,6 +26,7 @@ mediaSourcesToTracks(const Object& mediaSources)
         const auto& ms = mediaSources.at(i).getMediaSource();
         result.emplace_back(MediaTrack{
             ms.getUrl(),        // URL
+            ms.getHeaders(),    // HTTP HeaderArray
             ms.getOffset(),     // Offset
             ms.getDuration(),   // Duration
             ms.getRepeatCount() // Repeat count

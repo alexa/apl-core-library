@@ -13,7 +13,6 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/engine/resources.h"
 #include "apl/utils/url.h"
 #include "apl/component/componentpropdef.h"
 #include "apl/component/vectorgraphiccomponent.h"
@@ -75,8 +74,8 @@ VectorGraphicComponent::propDefSet() const
             {kPropertyMediaBounds, Object::NULL_OBJECT(),     nullptr,                kPropOut | kPropVisualHash},
             {kPropertyOnFail,      Object::EMPTY_ARRAY(),     asCommand,              kPropIn},
             {kPropertyOnLoad,      Object::EMPTY_ARRAY(),     asCommand,              kPropIn},
-            {kPropertyScale,       kVectorGraphicScaleNone,   sVectorGraphicScaleMap, kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash,   checkLayout},
-            {kPropertySource,      "",                        asString,               kPropInOut | kPropDynamic | kPropVisualHash,               resetOnLoadOnFailFlag},
+            {kPropertyScale,       kVectorGraphicScaleNone,   sVectorGraphicScaleMap, kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash, checkLayout},
+            {kPropertySource,      "",                        asVectorGraphicSource,  kPropInOut | kPropDynamic | kPropVisualHash,               resetOnLoadOnFailFlag},
     });
 
     return sVectorGraphicComponentProperties;
@@ -300,6 +299,16 @@ VectorGraphicComponent::setPropertyInternal(const std::string& key, const apl::O
     return false;
 }
 
+std::pair<Object, bool>
+VectorGraphicComponent::getPropertyInternal(const std::string& key) const
+{
+    auto graphic = mCalculated.get(kPropertyGraphic);
+    if (graphic.isGraphic())
+        return graphic.getGraphic()->getProperty(key);
+
+    return { Object::NULL_OBJECT(), false };
+}
+
 
 void VectorGraphicComponent::clearDirty() {
     // order is important.  clear the component before the graphic
@@ -366,9 +375,9 @@ VectorGraphicComponent::isTouchable() const
     return isFocusable();
 }
 
-std::vector<std::string>
+std::vector<URLRequest>
 VectorGraphicComponent::getSources() {
-    std::vector<std::string> sources;
+    std::vector<URLRequest> sources;
 
     auto graphic = mCalculated.get(kPropertyGraphic);
     if (graphic.isGraphic()) {
@@ -381,8 +390,10 @@ VectorGraphicComponent::getSources() {
         auto graphicResource = mContext->getGraphic(source.getString());
         if (graphicResource.empty()) {
             // Graphic is not a local resource, treat as URI
-            sources.emplace_back(source.getString());
+            sources.emplace_back(source.asURLRequest());
         }
+    } else if (source.isURLRequest()) {
+        sources.emplace_back(source.getURLRequest());
     }
 
     return sources;

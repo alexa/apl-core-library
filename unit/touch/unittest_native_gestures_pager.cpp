@@ -451,6 +451,28 @@ TEST_F(NativeGesturesPagerTest, PageFlingRight)
     root->popEvent();
 }
 
+TEST_F(NativeGesturesPagerTest, PageFlingGestureWithUpEventFault)
+{
+    loadDocument(PAGER_TEST);
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400,10)));
+    advanceTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(100,10)));
+    advanceTime(1);
+    // The up-event coordinates may deviate couple of points in opposite direction of gesture,
+    // but that should not impact the scroll behaviour for the gesture. This can happen quite often
+    // for quick fling gestures on touch screen devices.
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(102,10)));
+    root->clearPending();
+    advanceTime(1500);
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged));
+
+    ASSERT_EQ(1, component->pagePosition());
+    ASSERT_TRUE(root->hasEvent());
+    root->popEvent();
+}
+
 /*
  * Test with RTL layout
  */

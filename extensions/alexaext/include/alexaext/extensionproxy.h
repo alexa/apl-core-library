@@ -42,15 +42,23 @@ public:
      *
      * @return The extension URIs.
      */
-    virtual std::set<std::string> getURIs() = 0;
+    virtual std::set<std::string> getURIs() const = 0;
 
     /**
      * Initialize the extension. This extension should load resources or configure state associated
      * with the given uri.
      *
+     * @param uri The extension URI.
      * @return true if the extension is initialized successfully.
      */
     virtual bool initializeExtension(const std::string &uri) = 0;
+
+    /**
+     * Check if extension was initialized.
+     * @param uri The extension URI.
+     * @return true if the extension initialized, false otherwise.
+     */
+    virtual bool isInitialized(const std::string &uri) const = 0;
 
     /**
      * Callback supplied by the runtime for successful execution of getRegistration(...). This
@@ -139,7 +147,7 @@ public:
      * @param message Extension message.
      * @return true, if the request can be processed.
      */
-    virtual bool sendMessage(const std::string &uri, const rapidjson::Value &message) { return false; }
+    virtual bool sendMessage(const std::string &uri, const rapidjson::Value &message) = 0;
 
     /**
      * Register a callback for extension generated "Event" messages that are sent from the extension
@@ -163,13 +171,33 @@ public:
      */
     virtual void registerLiveDataUpdateCallback(Extension::LiveDataUpdateCallback callback) = 0;
 
-    /**
-     * Invoked when an extension behind this proxy is successfully registered.
-     *
-     * @param uri The extension URI
-     * @param token The client token issued during registration
-     */
+     /**
+      * Invoked when an extension behind this proxy is successfully registered.
+      *
+      * @param uri The extension URI
+      * @param token The client token issued during registration
+      */
      virtual void onRegistered(const std::string &uri, const std::string &token) = 0;
+
+     /**
+      * Invoked when an extension is unregistered. Session represented by the provided token is no longer valid.
+      *
+      * @param uri The extension URI
+      * @param token The client token issued during registration
+      */
+     virtual void onUnregistered(const std::string &uri, const std::string &token) {}
+
+    /**
+     * Invoked when a system rendering resource, such as display surface, is ready for use. This method
+     * will be called after the viewhost receives a "Component" message with a resource state of
+     * "Ready".  Not all execution environments support shared rendering resources.
+     *
+     * @param uri The extension URI.
+     * @param resourceHolder Access to the rendering resource.
+     */
+    virtual void onResourceReady( const std::string& uri,
+                                  const ResourceHolderPtr& resourceHolder) = 0;
+
 };
 
 using ExtensionProxyPtr = std::shared_ptr<ExtensionProxy>;

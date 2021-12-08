@@ -61,7 +61,7 @@ protected:
     /**
      * @return vector of source URI's required by component.  Note that order matters.
      */
-    virtual std::vector<std::string> getSources() = 0;
+    virtual std::vector<URLRequest> getSources() = 0;
 
     /**
      * Override this method in your subclass if you need a callback when a pending media object is returned.

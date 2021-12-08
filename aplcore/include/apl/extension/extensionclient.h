@@ -29,6 +29,8 @@
 namespace apl {
 
 class RootConfig;
+class LiveArrayChange;
+class LiveMapChange;
 
 /**
  * Live data types that can be processed by extension.
@@ -97,9 +99,19 @@ public:
     ExtensionLiveDataType objectType;
     std::string type;
     LiveObjectPtr objectPtr;
+    bool hasPendingUpdate;
     PropertyTriggerEvent addEvent;
     PropertyTriggerEvent updateEvent;
     PropertyTriggerEvent removeEvent;
+};
+
+class ExtensionEvent {
+public:
+    std::string uri;
+    std::string name;
+    ObjectMap data;
+    bool fastMode;
+    std::string resourceId;
 };
 
 /**
@@ -185,6 +197,12 @@ public:
     bool processMessage(const RootContextPtr& rootContext, JsonData&& message);
 
     /**
+     * Associate a RootContext to the mediator for events and live data triggers.
+     * @param rootContext ctx to bind.
+     */
+    void bindContext(const RootContextPtr& rootContext);
+
+    /**
      * Process extension command into serialized command request.
      * @param allocator JSON allocator.
      * @param event Extension event.
@@ -243,13 +261,17 @@ private:
 
     bool updateLiveMap(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation);
     bool updateLiveArray(ExtensionLiveDataUpdateType type, const LiveDataRef& dataRef, const Object& operation);
-    void reportLiveMapChanges(const RootContextPtr& rootContext, const LiveDataRef& ref, LiveDataObject& liveDataObject);
-    void reportLiveArrayChanges(const RootContextPtr& rootContext, const LiveDataRef& ref, LiveDataObject& liveDataObject);
+    void reportLiveMapChanges(const LiveDataRef& ref, const std::vector<LiveMapChange>& changes);
+    void reportLiveArrayChanges(const LiveDataRef& ref, const std::vector<LiveArrayChange>& changes);
 
-    void sendLiveDataEvent(const RootContextPtr& rootContext, const std::string& event,
-            const Object& current, const Object& changed);
+    void sendLiveDataEvent(const std::string& event, const Object& current, const Object& changed);
+    void flushPendingEvents(const RootContextPtr& rootContext);
 
     std::map<std::string, bool> readPropertyTriggers(const Context& context, const TypePropertiesPtr& type, const Object& triggers);
+
+    void invokeExtensionHandler(const std::string& uri, const std::string& name,
+                                const ObjectMap& data, bool fastMode,
+                                std::string resourceId = "");
 
     static id_type sCommandIdGenerator;
 
@@ -263,6 +285,7 @@ private:
     std::map<std::string, TypePropertiesPtr> mTypes;
     std::map<std::string, bool> mEventModes;
     std::weak_ptr<RootContext> mCachedContext;
+    std::vector<ExtensionEvent> mPendingEvents;
 };
 
 } // namespace apl

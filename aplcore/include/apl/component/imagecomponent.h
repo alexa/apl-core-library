@@ -40,7 +40,7 @@ protected:
     std::string getVisualContextType() const override;
 
     /// Media component trait overrides
-    std::vector<std::string> getSources() override;
+    std::vector<URLRequest> getSources() override;
     EventMediaType mediaType() const override { return kEventMediaTypeImage; }
     void onFail(const MediaObjectPtr&) override;
     void onLoad() override;

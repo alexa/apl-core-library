@@ -47,7 +47,9 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ("1.0", env.get("agentVersion").asString());
     EXPECT_EQ("normal", env.get("animation").asString());
     EXPECT_FALSE(env.get("allowOpenURL").asBoolean());
-    EXPECT_EQ("1.8", env.get("aplVersion").asString());
+    EXPECT_EQ("1.9", env.get("aplVersion").asString());
+    EXPECT_FALSE(env.get("disallowDialog").asBoolean());
+    EXPECT_FALSE(env.get("disallowEditText").asBoolean());
     EXPECT_FALSE(env.get("disallowVideo").asBoolean());
     EXPECT_EQ("23.2", env.get("testEnvironment").asString());
     EXPECT_EQ(1.0, env.get("fontScale").asNumber());
@@ -62,6 +64,7 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ(50, timing.get("minimumFlingVelocity").asNumber());
     EXPECT_EQ(64, timing.get("pressedDuration").asNumber());
     EXPECT_EQ(100, timing.get("tapOrScrollTimeout").asNumber());
+    EXPECT_EQ(50, timing.get("maximumTapVelocity").asNumber());
 
     auto viewport = c->opt("viewport");
     EXPECT_EQ(2048, viewport.get("pixelWidth").asNumber());
@@ -89,6 +92,8 @@ TEST_F(ContextTest, Basic)
 TEST_F(ContextTest, AlternativeConfig)
 {
     auto root = RootConfig().agent("MyTest", "0.2")
+        .set(RootProperty::kDisallowDialog, true)
+        .set(RootProperty::kDisallowEditText, true)
         .disallowVideo(true)
         .reportedAPLVersion("1.2")
         .allowOpenUrl(true)
@@ -113,6 +118,8 @@ TEST_F(ContextTest, AlternativeConfig)
     EXPECT_EQ("slow", env.get("animation").asString());
     EXPECT_TRUE(env.get("allowOpenURL").asBoolean());
     EXPECT_EQ("1.2", env.get("aplVersion").asString());
+    EXPECT_TRUE(env.get("disallowDialog").asBoolean());
+    EXPECT_TRUE(env.get("disallowEditText").asBoolean());
     EXPECT_TRUE(env.get("disallowVideo").asBoolean());
     EXPECT_EQ(122, env.get("testEnvironment").asNumber());
     EXPECT_EQ(2.0, env.get("fontScale").asNumber());

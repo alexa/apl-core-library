@@ -38,6 +38,8 @@
 #include "extensionmessage.h"
 #include "extensionprovider.h"
 #include "extensionproxy.h"
+#include "extensionresourceprovider.h"
+#include "extensionresourceholder.h"
 #include "extensionschema.h"
 #include "extensionregistrar.h"
 #include "localextensionproxy.h"

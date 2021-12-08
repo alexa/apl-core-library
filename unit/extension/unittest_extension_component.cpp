@@ -49,6 +49,7 @@ TEST_F(ExtensionComponentTest, ComponentDefaults) {
 
     loadDocument(DEFAULT_DOC);
     ASSERT_EQ(kComponentTypeExtension, component->getType());
+    ASSERT_EQ("", component->getCalculated(kPropertyResourceType).asString());
 }
 
 // Use extension component definition with context
@@ -116,13 +117,15 @@ static const char* NON_DEFAULT_DOC = R"({
  * Test the setting of all properties to non default values.
  */
 TEST_F(ExtensionComponentTest, NonDefaults) {
-    ExtensionComponentDefinition componentDef = ExtensionComponentDefinition("ext:cmp:1", "ExtensionComponent");
+    ExtensionComponentDefinition componentDef = ExtensionComponentDefinition("ext:cmp:1", "ExtensionComponent")
+        .resourceType("Surface");
     config->registerExtensionComponent(componentDef);
 
     loadDocument(NON_DEFAULT_DOC);
 
     ASSERT_TRUE(component);
     ASSERT_EQ(kComponentTypeExtension, component->getType());
+    ASSERT_EQ("Surface", component->getCalculated(kPropertyResourceType).asString());
 }
 
 // use "ExtensionComponent" to test the component independent of extension definition
@@ -228,6 +231,9 @@ TEST_F(ExtensionComponentTest, NamedExtensionComponent) {
 
     ASSERT_TRUE(component);
     ASSERT_EQ(kComponentTypeExtension, component->getType());
+    auto extensionComponent = dynamic_cast<ExtensionComponent*>(component.get());
+    auto resId = extensionComponent->getResourceID();
+    ASSERT_EQ(resId, component->getCalculated(kPropertyResourceId).asString());
 }
 
 // Use extension component definition with command definition
@@ -264,7 +270,6 @@ TEST_F(ExtensionComponentTest, ComponentCommand) {
 
     ExtensionCommandDefinition componentCommand("ext:cmp:1", "StartPaint");
     componentCommand.property("value", -1, false);
-    componentDef.commands({componentCommand});
 
     config->registerExtensionCommand(componentCommand);
     config->registerExtensionComponent(componentDef);
@@ -320,7 +325,6 @@ TEST_F(ExtensionComponentTest, ComponentCommandParameter) {
 
     ExtensionCommandDefinition componentCommand("ext:cmp:1", "StartPaint");
     componentCommand.property("value", -1, false);
-    componentDef.commands({componentCommand});
 
     config->registerExtensionCommand(componentCommand);
     config->registerExtensionComponent(componentDef);

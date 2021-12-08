@@ -50,12 +50,17 @@ public:
     }
 
     /**
-     * Sets the commands associated with the extension component.
-     * @param commands The parsed commands associated with the extension component
+     * Set the resource type of the component.  The resource type specifies how the system
+     * resources are allocated to render the component.  An example resource type may be "Surface".
+     * Execution environments define the the supported resource types.  The execution environment
+     * uses a default when no value is set.  Unsupported resourceTypes result in undefined behavior.
+     * See the execution environment documentation for supported types.
+     *
+     * @param resourceType The rendering resource type.
      * @return reference to current ExtensionComponentDefinition
      */
-    ExtensionComponentDefinition& commands(const std::vector<ExtensionCommandDefinition>& commands) {
-        mCommands = commands;
+    ExtensionComponentDefinition& resourceType(const std::string& resourceType) {
+        mResourceType = resourceType;
         return *this;
     }
 
@@ -75,9 +80,9 @@ public:
     std::string getVisualContextType() const { return mVisualContextType; }
 
     /**
-     * @return The commands associated with the extension component
+     * @return The type of resource used for rendering the component.
      */
-    const std::vector<ExtensionCommandDefinition>& getCommands() const { return mCommands; }
+    std::string getResourceType() const { return mResourceType; }
 
     /**
      * @return EventHandlers associated with ExtensionComponentDefinition
@@ -109,7 +114,7 @@ private:
     std::string mURI;
     std::string mName;
     std::string mVisualContextType;
-    std::vector<ExtensionCommandDefinition> mCommands;
+    std::string mResourceType;
     std::map<id_type, ExtensionEventHandler> mEventHandlers;
     ExtensionPropertiesPtr mExtensionComponentProperties;
 };

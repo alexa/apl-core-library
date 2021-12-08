@@ -136,6 +136,7 @@ PagerComponent::update(UpdateType type, float value) {
         int currentPage = pagePosition();
         if (value != currentPage) {
             setPage(value);
+            markDisplayedChildrenStale(true);
             executePageChangeEvent(type == kUpdatePagerByEvent);
         }
     } else
@@ -195,7 +196,10 @@ PagerComponent::handleSetPage(int index, PageDirection direction, const ActionRe
     // We have current animation in progress, do what it asks and finish it up preemptively.
     // Only ever can happen on <= 1.3 as resources will prevent it otherwise.
     if (mPageMoveHandler && mCurrentAnimation) {
-        setPage(mPageMoveHandler->getTargetPage());
+        int targetPageIndex = mPageMoveHandler->getTargetPageIndex(shared_from_corecomponent());
+        if (targetPageIndex >= 0) {
+            setPage(targetPageIndex);
+        }
         mCurrentAnimation->resolve();
         if (!ref.isEmpty() && ref.isPending()) ref.resolve();
         return;
@@ -230,6 +234,13 @@ PagerComponent::handleSetPage(int index, PageDirection direction, const ActionRe
       }
     });
 
+    mCurrentAnimation->addTerminateCallback([weak_ptr](const TimersPtr&) {
+      auto self = weak_ptr.lock();
+      if (self) {
+          self->enableGestures();
+      }
+    });
+
     if (!ref.isEmpty() && ref.isPending()) {
         ref.addTerminateCallback([weak_ptr](const TimersPtr&) {
             auto self = weak_ptr.lock();
@@ -239,7 +250,7 @@ PagerComponent::handleSetPage(int index, PageDirection direction, const ActionRe
                     self->mCurrentAnimation = nullptr;
                 }
                 if (self->mPageMoveHandler) {
-                    self->mPageMoveHandler->reset(*self);
+                    self->mPageMoveHandler->reset();
                     self->mPageMoveHandler = nullptr;
                 }
             }
@@ -272,6 +283,11 @@ PagerComponent::startPageMove(PageDirection direction, int currentPage, int targ
 
     auto handlerObject = getCalculated(kPropertyHandlePageMove);
 
+    // Reset state of pages involved in any previous move, so that transforms are not left over
+    if (mPageMoveHandler) {
+       mPageMoveHandler->reset();
+    }
+
     // We cache it here. It makes no sense to change handler while it's in animation .
     mPageMoveHandler = PageMoveHandler::create(shared_from_corecomponent(), handlerObject,
         swipeDirection, direction, currentPage, targetPage);
@@ -290,9 +306,8 @@ PagerComponent::executePageMove(float amount)
  * Check if we have focus on the given page
  */
 static bool
-isOnPage(const CoreComponentPtr& pager, int page, const CoreComponentPtr& targetComponent) {
+isOnPage(const CoreComponentPtr& pager, const CoreComponentPtr& child, const CoreComponentPtr& targetComponent) {
     auto comp = targetComponent;
-    const auto& child = pager->getCoreChildAt(page);
     while (comp && comp != pager) {
         if (comp == child) return true;
         comp = std::static_pointer_cast<CoreComponent>(comp->getParent());
@@ -306,16 +321,19 @@ PagerComponent::endPageMove(bool fulfilled, const ActionRef& ref, bool fast)
     // If no handler exist - ignore it. Called out of order.
     if (!mPageMoveHandler) return;
 
-    auto targetPage = mPageMoveHandler->getTargetPage();
-
     if (fulfilled) {
-        // Ensure internal state for lazy loading.
-        setPage(targetPage);
+        int targetPageIndex = mPageMoveHandler->getTargetPageIndex(shared_from_corecomponent());
+        if (targetPageIndex >= 0) {
+            // Ensure internal state for lazy loading.
+            setPage(targetPageIndex);
+        }
 
         // Check if we are focusing on something in the previous page
-        auto& fm = mContext->focusManager();
-        if (isOnPage(shared_from_corecomponent(), mPageMoveHandler->getCurrentPage(), fm.getFocus()))
-            fm.setFocus(shared_from_corecomponent(), true);
+        if (auto currentPage = mPageMoveHandler->getCurrentPage().lock()) {
+            auto& fm = mContext->focusManager();
+            if (isOnPage(shared_from_corecomponent(), currentPage, fm.getFocus()))
+                fm.setFocus(shared_from_corecomponent(), true);
+        }
 
         auto event = executePageChangeEvent(fast);
         if (!ref.isEmpty()) {
@@ -333,7 +351,7 @@ PagerComponent::endPageMove(bool fulfilled, const ActionRef& ref, bool fast)
 
     markDisplayedChildrenStale(true);
     if (mPageMoveHandler) {
-        mPageMoveHandler->reset(*this);
+        mPageMoveHandler->reset();
         mPageMoveHandler = nullptr;
     }
     if (mCurrentAnimation) {
@@ -434,17 +452,21 @@ PagerComponent::ensureDisplayedChildren() {
     mDisplayedChildren.clear();
 
     // current page is in the viewport
-    auto currentPageIndex = mPageMoveHandler ? mPageMoveHandler->getCurrentPage() : pagePosition();
-    auto currentPage = mChildren.at(currentPageIndex);
-    if (currentPage->isDisplayable()) {
+    CoreComponentPtr currentPage = nullptr;
+    if (mPageMoveHandler) { 
+        currentPage = mPageMoveHandler->getCurrentPage().lock();
+    } else {
+        currentPage = mChildren.at(pagePosition());
+    }
+    if (currentPage && currentPage->isDisplayable()) {
         mDisplayedChildren.emplace_back(currentPage);
     }
 
     // when in a page move transition, add the target next page
     if (mPageMoveHandler) {
         // current page
-        auto nextPage = mChildren.at(mPageMoveHandler->getTargetPage());
-        if (nextPage->isDisplayable()) {
+        auto nextPage = mPageMoveHandler->getTargetPage().lock();
+        if (nextPage && nextPage->isDisplayable()) {
 
             // get the gesture direction by working backwards from swipe direction
             // see startPageMove() for inverse

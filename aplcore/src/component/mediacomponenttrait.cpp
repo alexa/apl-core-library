@@ -68,7 +68,7 @@ MediaComponentTrait::ensureMediaRequested()
     component->setDirty(kPropertyMediaState);
 
     for (const auto& m : sources) {
-        auto mediaObject = context->mediaManager().request(m, mediaType());
+        auto mediaObject = context->mediaManager().request(m.getUrl(), mediaType(), m.getHeaders());
         MediaObject::CallbackID callbackToken = 0;
         if (mediaObject->state() == MediaObject::kPending) {
             auto weak = std::weak_ptr<CoreComponent>(component);

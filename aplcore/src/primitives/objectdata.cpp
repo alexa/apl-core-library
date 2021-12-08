@@ -35,6 +35,7 @@ template<> const Object::ObjectType DirectObjectData<Gradient>::sType = Object::
 template<> const Object::ObjectType DirectObjectData<MediaSource>::sType = Object::kMediaSourceType;
 template<> const Object::ObjectType DirectObjectData<Rect>::sType = Object::kRectType;
 template<> const Object::ObjectType DirectObjectData<Radii>::sType = Object::kRadiiType;
+template<> const Object::ObjectType DirectObjectData<URLRequest>::sType = Object::kURLRequestType;
 template<> const Object::ObjectType DirectObjectData<Transform2D>::sType = Object::kTransform2DType;
 template<> const Object::ObjectType DirectObjectData<StyledText>::sType = Object::kStyledTextType;
 

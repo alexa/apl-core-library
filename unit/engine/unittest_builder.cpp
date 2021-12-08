@@ -173,7 +173,7 @@ TEST_F(BuilderTest, SimpleImage)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyBorderRadius));
     ASSERT_EQ(0x00000000, component->getCalculated(kPropertyOverlayColor).getColor());
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyOverlayGradient));
-    ASSERT_EQ("", component->getCalculated(kPropertySource).getString());
+    ASSERT_EQ(Object(""), component->getCalculated(kPropertySource));
     ASSERT_EQ(0, component->getCalculated(kPropertyFilters).size());
 
     ASSERT_TRUE(CheckState(component));

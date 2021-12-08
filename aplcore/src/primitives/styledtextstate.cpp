@@ -15,6 +15,7 @@
 
 #include "apl/engine/evaluate.h"
 #include "apl/primitives/styledtextstate.h"
+#include "apl/utils/stringfunctions.h"
 
 #include <codecvt>
 #include <locale>
@@ -73,23 +74,6 @@ static std::wstring_convert<std::codecvt_utf8<wchar_t>> wchar_converter;
 static std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> wchar_converter;
 #endif
 
-/**
- * Internal utility to convert string to lowercase.
- * Not using transform as it does it inplace.
- * Applicable only to latin characters.
- * @param str string to process.
- * @return lowercase version of str.
- */
-static inline std::string tolower(const std::string& str) {
-    std::string output = str;
-
-    std::transform(output.begin(), output.end(), output.begin(), [](unsigned char ch) {
-      return std::tolower(ch);
-    });
-
-    return output;
-}
-
 void
 StyledTextState::append(const std::string& val) {
     wchar_converter.to_bytes(wchar_converter.from_bytes(val.c_str()));
@@ -140,7 +124,7 @@ StyledTextState::attributeValue(const std::string& attributeValue) {
 
 void
 StyledTextState::tag(const std::string& tag) {
-    mCurrentTag = tolower(tag);
+    mCurrentTag = apl::tolower(tag);
 }
 
 void

@@ -15,20 +15,25 @@
 
 #include "apl/engine/evaluate.h"
 #include "apl/engine/arrayify.h"
+#include "apl/content/rootconfig.h"
 #include "apl/primitives/mediasource.h"
 #include "apl/utils/log.h"
 #include "apl/utils/session.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
-MediaSource::MediaSource(std::string url, std::string description, int duration, int repeatCount,
-        Object entities, int offset) :
-    mUrl(std::move(url)),
+MediaSource::MediaSource(URLRequest urlRequest,
+        std::string description,
+        int duration,
+        int repeatCount,
+        Object entities,
+        int offset) : mUrlRequest(std::move(urlRequest)),
     mDescription(std::move(description)),
-    mDuration(std::move(duration)),
-    mRepeatCount(std::move(repeatCount)),
+    mDuration(duration),
+    mRepeatCount(repeatCount),
     mEntities(std::move(entities)),
-    mOffset(std::move(offset))
+    mOffset(offset)
 {}
 
 Object
@@ -43,7 +48,12 @@ MediaSource::create(const Context& context, const Object& object)
             CONSOLE_CTX(context) << "Empty string for media source";
             return Object::NULL_OBJECT();
         }
-        return Object(MediaSource(url, "", 0, 0, std::vector<Object>(), 0));
+        return Object(MediaSource(URLRequest::create(context, object).getURLRequest(),
+                                  "",
+                                  0,
+                                  0,
+                                  std::vector<Object>(),
+                                  0));
     }
 
     if (!object.isMap())
@@ -61,7 +71,12 @@ MediaSource::create(const Context& context, const Object& object)
     int offset = propertyAsInt(context, object, "offset", 0);
     auto entities = Object(arrayifyProperty(context, object, "entities", "entity"));
 
-    return Object(MediaSource(url, description, duration, repeatCount, entities, offset));
+    return Object(MediaSource(URLRequest::create(context, object).getURLRequest(),
+                              description,
+                              duration,
+                              repeatCount,
+                              entities,
+                              offset));
 }
 
 std::string
@@ -82,12 +97,16 @@ MediaSource::serialize(rapidjson::Document::AllocatorType& allocator) const {
     v.AddMember("duration", getDuration(), allocator);
     v.AddMember("repeatCount", getRepeatCount(), allocator);
     v.AddMember("offset", getOffset(), allocator);
+    rapidjson::Value vHeaders(rapidjson::kArrayType);
+    for(const auto& header : getHeaders())
+        vHeaders.PushBack(Value(header.c_str(), allocator).Move(), allocator);
+    v.AddMember("headers", vHeaders, allocator);
     return v;
 }
 
 bool
 MediaSource::operator==(const apl::MediaSource &other) const {
-    return mUrl == other.mUrl &&
+    return mUrlRequest == other.mUrlRequest &&
            mDuration == other.mDuration &&
            mRepeatCount == other.mRepeatCount &&
            mEntities == other.mEntities &&

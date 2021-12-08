@@ -18,6 +18,7 @@
 #include "../testeventloop.h"
 
 #include "apl/component/component.h"
+#include "apl/primitives/mediasource.h"
 
 using namespace apl;
 
@@ -960,7 +961,7 @@ static const char *IMAGE_SETVALUE = R"apl(
 TEST_F(DynamicPropertiesTest, ImageProperties) {
     loadDocument(IMAGE_SETVALUE);
     ASSERT_TRUE(component);
-
+    auto mediaSourceUrl = Object("https://images.amazon.com/image/foo.png");
     auto img1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("img1"));
     ASSERT_TRUE(img1);
     ASSERT_EQ(kComponentTypeImage, img1->getType());
@@ -968,7 +969,7 @@ TEST_F(DynamicPropertiesTest, ImageProperties) {
             {kPropertyAlign, kImageAlignCenter },
             {kPropertyScale, kImageScaleFill },
             {kPropertyBorderRadius, Dimension(5) },
-            {kPropertySource, "https://images.amazon.com/image/foo.png" },
+            {kPropertySource, mediaSourceUrl },
     }));
 
     auto grad1 = img1->getCalculated(kPropertyOverlayGradient);

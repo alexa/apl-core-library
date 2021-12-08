@@ -16,6 +16,8 @@
 #ifndef _APL_CONFIGURATION_CHANGE_H
 #define _APL_CONFIGURATION_CHANGE_H
 
+#include <set>
+
 #include "apl/content/rootconfig.h"
 #include "apl/content/metrics.h"
 #include "apl/primitives/size.h"
@@ -92,6 +94,17 @@ public:
     }
 
     /**
+     * Set if video is supported
+     * @param disallowed True if video is disallowed
+     * @return This object for chaining
+     */
+    ConfigurationChange& disallowVideo(bool disallowed) {
+        mFlags |= kConfigurationChangeDisallowVideo;
+        mDisallowVideo = disallowed;
+        return *this;
+    }
+
+    /**
      * Set the screen display mode for accessibility (normal or high-contrast)
      * @param screenMode The screen display mode
      * @return This object for chaining
@@ -112,6 +125,21 @@ public:
         mScreenReaderEnabled = enabled;
         return *this;
     }
+
+    /**
+     * Inform that a custom environment property has been modified.
+     * Only additional properties not present in the initial data-binding context can be modified
+     * with this method. These properties are typically provided by APL runtimes for their specific
+     * platform.
+     *
+     * This method can be invoked multiple times to set different properties. Calling this
+     * method for a property that was previously set overwrites the previous value.
+     *
+     * @param name The environment property name
+     * @param value The updated property value
+     * @return This object for chaining
+     */
+    ConfigurationChange& environmentValue(const std::string &name, const Object &value);
 
     /**
      * Merge this configuration change into a metrics object.
@@ -158,6 +186,11 @@ public:
      */
     void clear() { mFlags = 0; }
 
+    /**
+     * @return the full set of synthesized property names that can be added to events (e.g. "rotated").
+     */
+    static const std::set<std::string>& getSynthesizedPropertyNames();
+
 private:
     enum SetFlags : unsigned int {
         kConfigurationChangeSize = 1u << 0,
@@ -165,7 +198,9 @@ private:
         kConfigurationChangeViewportMode = 1u << 2,
         kConfigurationChangeScreenMode = 1u << 3,
         kConfigurationChangeFontScale = 1u << 4,
-        kConfigurationChangeScreenReader = 1u << 5
+        kConfigurationChangeScreenReader = 1u << 5,
+        kConfigurationChangeDisallowVideo = 1u << 6,
+        kConfigurationChangeEnvironment = 1u << 7,
     };
 
     unsigned int mFlags = 0;
@@ -177,9 +212,11 @@ private:
     ViewportMode mViewportMode = kViewportModeHub;
 
     // RootConfig properties
+    bool mDisallowVideo = false;
     RootConfig::ScreenMode mScreenMode = RootConfig::kScreenModeNormal;
     float mFontScale = 1.0;
     bool mScreenReaderEnabled = false;
+    ObjectMap mEnvironment;
 };
 
 } // namespace apl

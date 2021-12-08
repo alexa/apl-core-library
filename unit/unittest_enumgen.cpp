@@ -377,14 +377,15 @@ public enum MyTest implements APLEnum {
 
     private static SparseArray<MyTest> values = null;
 
-    public static MyTest valueOf(int idx) {
-        if(MyTest.values == null) {
-            MyTest.values = new SparseArray<>();
-            MyTest[] values = MyTest.values();
-            for(MyTest value : values) {
-                MyTest.values.put(value.getIndex(), value);
-            }
+    static {
+        MyTest.values = new SparseArray<>();
+        MyTest[] values = MyTest.values();
+        for (MyTest value : values) {
+            MyTest.values.put(value.getIndex(), value);
         }
+    }
+
+    public static MyTest valueOf(int idx) {
         return MyTest.values.get(idx);
     }
 

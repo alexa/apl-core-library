@@ -89,6 +89,17 @@ protected:
         return false;
     }
 
+    /**
+     * Component update ignored by default.
+     *
+     * @param uri The extension URI.
+     * @param command The Component message.
+     * @return true if the update succeeded.
+     */
+    bool updateComponent(const std::string &uri, const rapidjson::Value &command) override {
+        return false;
+    };
+
 private:
     EventCallback mEventCallback;
     LiveDataUpdateCallback mLiveDataCallback;

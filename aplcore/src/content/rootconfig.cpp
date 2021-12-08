@@ -16,20 +16,58 @@
 #include "apl/content/rootconfig.h"
 
 #include <cmath>
+#include <set>
 
 #include "apl/animation/coreeasing.h"
 #include "apl/component/textmeasurement.h"
+#include "apl/content/configurationchange.h"
+#include "apl/content/rootpropdef.h"
 #include "apl/document/displaystate.h"
+#include "apl/engine/context.h"
 #include "apl/media/coremediamanager.h"
 #include "apl/media/mediaplayerfactory.h"
 #include "apl/time/coretimemanager.h"
 #include "apl/utils/corelocalemethods.h"
-#include "apl/content/rootpropdef.h"
 
 namespace apl {
 
 static float angleToSlope(float degrees) {
     return std::tan(degrees * M_PI / 180);
+}
+
+static bool isAllowedEnvironmentName(const std::string &name) {
+    static std::set<std::string> sReserved;
+    if (sReserved.empty()) {
+        // Don't allow custom env properties to shadow synthesized configuration change event props
+        for (const auto &synthesizedName : ConfigurationChange::getSynthesizedPropertyNames()) {
+            sReserved.emplace(synthesizedName);
+        }
+
+        // Check the name against a clean envaluation context
+        auto context = Context::createTypeEvaluationContext(RootConfig());
+        assert(context);
+
+        // Don't allow custom env properties to shadow top-level names (e.g. "environment")
+        for (const auto &entry : *context) {
+            sReserved.emplace(entry.first);
+        }
+
+        // Don't allow custom env properties to shadow built-in environment properties
+        auto env = context->opt("environment");
+        assert(env.isMap());
+        for (const auto &entry : env.getMap()) {
+            sReserved.emplace(entry.first);
+        }
+
+        // Don't allow custom env properties to shadow built-in viewport properties
+        auto viewport = context->opt("viewport");
+        assert(viewport.isMap());
+        for (const auto &entry : viewport.getMap()) {
+            sReserved.emplace(entry.first);
+        }
+    }
+
+    return sReserved.find(name) == sReserved.end();
 }
 
 Bimap<int, std::string> sScreenModeBimap = {
@@ -99,6 +137,8 @@ RootConfig::propDefSet() const
             {RootProperty::kAgentName,                                   "Default agent",                               asString},
             {RootProperty::kAgentVersion,                                "1.0",                                         asString},
             {RootProperty::kAllowOpenUrl,                                false,                                         asBoolean},
+            {RootProperty::kDisallowDialog,                              false,                                         asBoolean},
+            {RootProperty::kDisallowEditText,                            false,                                         asBoolean},
             {RootProperty::kDisallowVideo,                               false,                                         asBoolean},
             {RootProperty::kAnimationQuality,                            kAnimationQualityNormal,                       sAnimationQualityBimap},
             {RootProperty::kDefaultIdleTimeout,                          30000,                                         asNumber},
@@ -127,6 +167,7 @@ RootConfig::propDefSet() const
             {RootProperty::kMaxSwipeAnimationDuration,                   400,                                           asNumber},
             {RootProperty::kMinimumFlingVelocity,                        50,                                            asNumber},
             {RootProperty::kMaximumFlingVelocity,                        1200,                                          asNumber},
+            {RootProperty::kMaximumTapVelocity,                          50,                                            asNumber},
             {RootProperty::kTickHandlerUpdateLimit,                      16,                                            asPositiveInteger},
             {RootProperty::kFontScale,                                   1.0,                                           asNumber},
             {RootProperty::kScreenMode,                                  kScreenModeNormal,                             sScreenModeBimap},
@@ -221,6 +262,16 @@ RootConfig::getAnimationQualityString() const {
         return it->second.c_str();
     }
     return "none";
+}
+
+RootConfig&
+RootConfig::setEnvironmentValue(const std::string& name, const Object& value) {
+    if (isAllowedEnvironmentName(name)) {
+        mEnvironmentValues[name] = value;
+    } else {
+        LOG(LogLevel::kWarn) << "Ignoring attempt to set environment value: " << name;
+    }
+    return *this;
 }
 
 } // namespace apl

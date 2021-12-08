@@ -64,7 +64,8 @@ ExtensionComponent::ExtensionComponent(const ExtensionComponentDefinition& defin
     mPropDefSet.add({
         {kPropertyResourceId,           "",                    asString,  kPropOut},
         {kPropertyResourceOnFatalError, Object::EMPTY_ARRAY(), asCommand, kPropIn},
-        {kPropertyResourceState,        kResourcePending, asInteger, kPropRuntimeState},
+        {kPropertyResourceState,        kResourcePending,      asInteger, kPropRuntimeState},
+        {kPropertyResourceType,         "",                    asString,  kPropOut},
     }).add(customPropDefs);
 }
 
@@ -113,6 +114,7 @@ ExtensionComponent::initialize()
     CoreComponent::initialize();
     mResourceID = Random::generateToken(getUri());
     setCalculated(kPropertyResourceId, mResourceID);
+    setCalculated(kPropertyResourceType, mDefinition.getResourceType());
 }
 
 std::string
@@ -155,13 +157,19 @@ ExtensionComponent::extensionComponentFail(int errorCode, const std::string& mes
 }
 
 void
-ExtensionComponent::updateResourceState(const ExtensionComponentResourceState& state)
+ExtensionComponent::updateResourceState(const ExtensionComponentResourceState& state,
+                                        int errorCode, const std::string& error)
 {
+    auto previousState = getCalculated(kPropertyResourceState);
     setCalculated(kPropertyResourceState, state);
-    // TODO allow for viewhost error/errorCode update
-    if (state == kResourceError)
-        onFatalError(1, "Resource not available");
-    notifyExtension();
+    if (state == kResourceError) {
+        onFatalError(errorCode, error);
+    }
+    // notify the extension of the resource update
+    // a change from pending to ready signals the need to acquire the resource and
+    // send it to the extension
+    auto acquireResource = (previousState == kResourcePending && state == kResourceReady);
+    notifyExtension(acquireResource);
 }
 
 void
@@ -169,14 +177,15 @@ ExtensionComponent::handlePropertyChange(const ComponentPropDef& def, const Obje
 {
     // default behavior
     CoreComponent::handlePropertyChange(def, value);
-    notifyExtension();
+    // notify the extension of the change
+    notifyExtension(false);
 }
 
 void
-ExtensionComponent::notifyExtension() {
+ExtensionComponent::notifyExtension(bool acquireResource) {
     // Notify the extension the component has changed
     auto extManager = getContext()->extensionManager();
-    extManager.notifyComponentUpdate(std::static_pointer_cast<ExtensionComponent>(shared_from_this()));
+    extManager.notifyComponentUpdate(std::static_pointer_cast<ExtensionComponent>(shared_from_this()), acquireResource);
 }
 
 

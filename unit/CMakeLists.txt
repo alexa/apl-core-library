@@ -56,9 +56,14 @@ if(COVERAGE)
     target_add_code_coverage(unittest apl)
 endif()
 target_link_libraries(unittest apl gtest gtest_main)
-if (BUILD_ALEXAEXTENSIONS)
-    target_link_libraries(unittest alexaext)
-endif(BUILD_ALEXAEXTENSIONS)
+
+if (ENABLE_ALEXAEXTENSIONS)
+    if (NOT BUILD_ALEXAEXTENSIONS)
+        # Check to see if it's available from the system.
+        find_package(alexaext REQUIRED)
+    endif (NOT BUILD_ALEXAEXTENSIONS)
+    target_link_libraries(unittest alexa::extensions)
+endif(ENABLE_ALEXAEXTENSIONS)
 
 if (ANDROID)
     target_link_libraries(unittest log)

@@ -90,10 +90,6 @@ ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std:
             mExtensionComponentDefs.emplace(qualifiedName, m);
             LOG_IF(DEBUG_EXTENSION_MANAGER) << "extension component: " << qualifiedName << "->" + m.toDebugString();
         }
-        for (const auto& c : m.getCommands()) {
-            auto commandUriName = m.getURI() + ":" + c.getName();
-            mComponentCommands.insert(commandUriName);
-        }
     }
 }
 
@@ -121,11 +117,6 @@ ExtensionManager::findCommandDefinition(const std::string& qualifiedName) {
     return nullptr;
 }
 
-bool
-ExtensionManager::isComponentCommand(const std::string& qualifiedName) const {
-    return mComponentCommands.find(qualifiedName) != mComponentCommands.end();
-}
-
 ExtensionComponentDefinition*
 ExtensionManager::findComponentDefinition(const std::string& qualifiedName) {
     // If the custom handler doesn't exist
@@ -146,17 +137,12 @@ ExtensionManager::findFilterDefinition(const std::string& qualifiedName) {
 }
 
 Object
-ExtensionManager::findHandler(const ExtensionEventHandler& handler, std::string resourceId) {
-    if (!resourceId.empty()) {
-        auto it = mExtensionComponents.find(resourceId);
-        if (it != mExtensionComponents.end()) {
-            return it->second->findHandler(handler);
-        }
-    } else {
-        auto it = mExtensionEventHandlers.find(handler);
-        if (it != mExtensionEventHandlers.end())
-            return it->second;
-    }
+ExtensionManager::findHandler(const ExtensionEventHandler& handler) {
+
+    auto it = mExtensionEventHandlers.find(handler);
+    if (it != mExtensionEventHandlers.end())
+        return it->second;
+
     return Object::NULL_OBJECT();
 }
 
@@ -182,12 +168,13 @@ ExtensionManager::findAndCreateExtensionComponent(const std::string& componentTy
 }
 
 void
-ExtensionManager::notifyComponentUpdate(const ExtensionComponentPtr& component) {
+ExtensionManager::notifyComponentUpdate(const ExtensionComponentPtr& component, bool resourceNeeded) {
 #ifdef ALEXAEXTENSIONS
-    if (auto mediator = mMediator.lock())
-        mediator->notifyComponentUpdate(*component);
-    else
+    if (auto mediator = mMediator.lock()) {
+        mediator->notifyComponentUpdate(component, resourceNeeded);
+    } else {
         LOG(LogLevel::kWarn) << "Extension Component updated but not supported.";
+    }
 #endif
 }
 

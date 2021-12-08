@@ -3300,3 +3300,112 @@ TEST_F(GesturesTest, SwipeAwayWrongDirectionRTL) {
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(-100,140)));
 }
 
+static const char *TAP = R"(
+{
+  "type": "APL",
+  "version": "1.9",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "id": "myTouchWrapper",
+      "item": {
+        "type": "Text",
+        "id": "myText",
+        "text": "Not tapped",
+        "fontSize": "50"
+      },
+      "gestures": [
+        {
+          "type": "Tap",
+          "onTap": [
+            {
+              "type": "SetValue",
+              "componentId": "myText",
+              "property": "text",
+              "value": "Tapped"
+            },
+            {
+              "type": "SendEvent",
+              "arguments": [
+                "onTap",
+                "${event.source.id}",
+                "${event.component.x}",
+                "${event.component.y}"
+              ]
+            }
+          ]
+        }
+      ],
+      "onDown": {
+        "type": "SendEvent",
+        "sequencer": "MAIN",
+        "arguments": [ "onDown" ]
+      },
+      "onMove": {
+        "type": "SendEvent",
+        "sequencer": "MAIN",
+        "arguments": [ "onMove" ]
+      },
+      "onUp": {
+        "type": "SendEvent",
+        "sequencer": "MAIN",
+        "arguments": [ "onUp" ]
+      },
+      "onCancel": {
+        "type": "SendEvent",
+        "sequencer": "MAIN",
+        "arguments": [ "onCancel" ]
+      },
+      "onPress": {
+        "type": "SendEvent",
+        "arguments": [ "onPress" ]
+      }
+    }
+  }
+})";
+
+TEST_F(GesturesTest, Tap)
+{
+    loadDocument(TAP);
+
+    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component);
+    auto text = tw->getChildAt(0);
+    ASSERT_EQ(kComponentTypeText, text->getType());
+    ASSERT_EQ("Not tapped", text->getCalculated(kPropertyText).asString());
+
+    // Trigger onPress rather than onTap due to high velocity
+    ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(10,0), "onDown"));
+    advanceTime(1);
+    ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(14,3), "onUp"));
+    ASSERT_TRUE(CheckEvent("onPress"));
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_EQ("Not tapped", text->getCalculated(kPropertyText).asString());
+
+    // Trigger onPress rather than onTap due to excessive travel
+    ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(10,0), "onDown"));
+    advanceTime(300);
+    ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(100,0), "onUp"));
+    ASSERT_TRUE(CheckEvent("onPress"));
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_EQ("Not tapped", text->getCalculated(kPropertyText).asString());
+
+    // Trigger onTap finally
+    ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(10,0), "onDown"));
+    advanceTime(300);
+    ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(14,3), "onCancel"));
+    ASSERT_TRUE(CheckEvent("onTap", "myTouchWrapper", 14, 3));
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_EQ("Tapped", text->getCalculated(kPropertyText).asString());
+
+    // Do not disqualify based on velocity if both the down and up events arrive in the same frame (no time elapses)
+    ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(10,0), "onDown"));
+    ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(14,3), "onCancel"));
+    ASSERT_TRUE(CheckEvent("onTap", "myTouchWrapper", 14, 3));
+    ASSERT_FALSE(root->hasEvent());
+
+    // Make sure you can tap with down/up in the exact same location
+    ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(10,0), "onDown"));
+    ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerUp, Point(10,0), "onCancel"));
+    ASSERT_TRUE(CheckEvent("onTap", "myTouchWrapper", 10, 0));
+    ASSERT_FALSE(root->hasEvent());
+}

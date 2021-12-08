@@ -19,6 +19,7 @@
 #include "apl/common.h"
 #include "apl/component/componentproperties.h"
 #include "apl/primitives/transform.h"
+#include "apl/utils/make_unique.h"
 #include "apl/utils/noncopyable.h"
 
 namespace apl {
@@ -34,31 +35,36 @@ public:
                                                     const Object& object);
 
     virtual void update(const CoreComponentPtr& component, float alpha) = 0;
-
-    virtual PropertyKey key() const = 0;
+    virtual std::string key() const = 0;
 };
 
 class AnimatedDouble : public AnimatedProperty {
 public:
-    AnimatedDouble(PropertyKey key, double from, double to);
-    AnimatedDouble(PropertyKey key, const CoreComponentPtr& component, double to);
+    static std::unique_ptr<AnimatedDouble> create(PropertyKey key, std::string property, double from, double to) {
+        return std::make_unique<AnimatedDouble>(key, std::move(property), from, to);
+    }
 
+    AnimatedDouble(PropertyKey key, std::string property, double from, double to)
+        : mKey(key), mProperty(std::move(property)), mFrom(from), mTo(to) {}
+
+private:
     void update(const CoreComponentPtr& component, float alpha) override;
-
-    PropertyKey key() const override { return mKey; }
+    std::string key() const override { return mProperty; }
 
 private:
     PropertyKey mKey;  // The component property we're animating
+    std::string mProperty;
     double mFrom;  // The from value
     double mTo;    // The to value
 };
 
 class AnimatedTransform : public AnimatedProperty {
 public:
-    AnimatedTransform(const std::shared_ptr<InterpolatedTransformation>& transformation);
-    void update(const CoreComponentPtr& component, float alpha) override;
+    explicit AnimatedTransform(std::shared_ptr<InterpolatedTransformation> transformation);
 
-    PropertyKey key() const override { return kPropertyTransform; }
+    void update(const CoreComponentPtr& component, float alpha) override;
+    std::string key() const override { return "transform"; }
+
 private:
     std::shared_ptr<InterpolatedTransformation> mTransformation;
 };

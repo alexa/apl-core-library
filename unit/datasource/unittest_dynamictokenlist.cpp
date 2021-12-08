@@ -1842,3 +1842,232 @@ TEST_F(DynamicTokenListTest, DoublePager) {
 
     ASSERT_TRUE(checker("Page0", "2021_08_03"));
 }
+
+static const char* BASIC_WITH_SCROLL_HANDLER = R"(
+{
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "height": 300,
+      "data": "${dynamicSource}",
+      "onScroll": {
+        "type": "SendEvent",
+        "sequencer": "ON_SCROLL",
+        "arguments": [
+          "${event.source.firstVisibleChild}",
+          "${event.source.firstFullyVisibleChild}",
+          "${event.source.lastFullyVisibleChild}",
+          "${event.source.lastVisibleChild}",
+          "${dynamicSource[event.source.firstVisibleChild]}",
+          "${dynamicSource[event.source.firstFullyVisibleChild]}",
+          "${dynamicSource[event.source.lastFullyVisibleChild]}",
+          "${dynamicSource[event.source.lastVisibleChild]}"
+        ]
+      },
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "width": 100,
+        "height": 100,
+        "text": "${data}"
+      }
+    }
+  }
+}
+)";
+
+TEST_F(DynamicTokenListTest, DataCanChangeDuringScrollToComponent) {
+    loadDocument(BASIC_WITH_SCROLL_HANDLER, DATA);
+    advanceTime(10);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+    ASSERT_EQ(5, component->getChildCount());
+
+    // All 5 initial items are laid out
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 4}, true));
+
+    // Data source makes two requests for more data
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", "forwardPageToken"));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", "backwardPageToken"));
+    ASSERT_FALSE(root->hasEvent());
+
+    // Scroll down by 50, which is half the height of one of our elements
+    component->update(kUpdateScrollPosition, 50);
+    root->clearPending();
+
+    // The first element is item 10
+    ASSERT_EQ("id10", component->getChildAt(0)->getId());
+
+    // The onScroll event emitter is triggered
+    //
+    // firstVisibleChild      = 0: The first child (id10) is half visible
+    // firstFullyVisibleChild = 1: The second child (id11) is first one that's fully visible
+    // lastFullyVisibleChild  = 2: The third child (id12) is the last one that's fully visible
+    // lastVisibleChild       = 3: The fourth element (id13) is half visible
+    // indexes [0, 1, 2, 3]   = items [10, 11, 12, 13]
+    ASSERT_TRUE(CheckSendEvent(root, 0, 1, 2, 3, 10, 11, 12, 13));
+
+    // Start scroll back to first element using a ScrollToComponent command (takes a non-zero amount of animation time)
+    executeCommand("ScrollToComponent", {{"componentId", "id10"}, {"align", "first"}}, false);
+
+    // Get the scrolling started, we don't care by how much right now, the point is that scrolling is happening
+    advanceTime(10);
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    ASSERT_FALSE(root->hasEvent());
+
+    // Before the next frame, load all the numbers between 1 and 20
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(101, "forwardPageToken", "", "15, 16, 17, 18, 19, 20")));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(102, "backwardPageToken", "", "1, 2, 3, 4, 5, 6, 7, 8, 9")));
+
+    // In the next frame, we're going to complete scrolling to a new position
+    // AND in the same frame, we are flushing the dynamic data changes
+    advanceTime(1000);
+    ASSERT_TRUE(root->hasEvent());
+
+    // The sequence component now has all 20 item
+    ASSERT_EQ(20, component->getChildCount());
+
+    // The first child is now the "1" element and the target element is at index 9
+    ASSERT_EQ("id1", component->getChildAt(0)->getId());
+    ASSERT_EQ("id10", component->getChildAt(9)->getId());
+    
+    // Scroll is in the final position
+    // firstVisibleChild      = 9: The original first child (id10) is fully visible
+    // firstFullyVisibleChild = 9
+    // lastFullyVisibleChild  = 11: The original third child (id12) is fully visible
+    // lastVisibleChild       = 11
+    // indexes [9, 9, 11, 11] = items [10, 10, 12, 12]
+    ASSERT_TRUE(CheckSendEvent(root, 9, 9, 11, 11, 10, 10, 12, 12));
+
+    // No further scrolling
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char* BASIC_PAGER_WITH_PAGE_CHANGE_HANDLER = R"({
+  "type": "APL",
+  "version": "1.8",
+  "theme": "light",
+  "layouts": {
+    "square": {
+      "parameters": [
+        "color",
+        "text"
+      ],
+      "item": {
+        "type": "Frame",
+        "width": 200,
+        "height": 200,
+        "id": "frame-${text}",
+        "backgroundColor": "${color}",
+        "item": {
+          "type": "Text",
+          "text": "${text}",
+          "color": "black",
+          "width": 200,
+          "height": 200
+        }
+      }
+    }
+  },
+  "mainTemplate": {
+    "parameters": [
+      "dynamicSource"
+    ],
+    "bind": [
+      {
+        "name": "CurrentItem",
+        "value": "${dynamicSource[0]}"
+      }
+    ],
+    "item": {
+      "type": "Container",
+      "id": "container",
+      "items": [
+        {
+          "type": "Text",
+          "text": "${CurrentItem.text}"
+        },
+        {
+          "type": "Pager",
+          "id": "pager",
+          "data": "${dynamicSource}",
+          "width": "100%",
+          "height": "100%",
+          "navigation": "normal",
+          "onPageChanged": [
+            {
+              "type": "SetValue",
+              "property": "CurrentItem",
+              "value": "${dynamicSource[event.source.page]}"
+            }
+          ],
+          "items": {
+            "id": "page-${data.text}",
+            "type": "square",
+            "index": "${index}",
+            "color": "${data.color}",
+            "text": "${data.text}"
+          }
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(DynamicTokenListTest, DataCanChangeDuringPageTransition) {
+    loadDocument(BASIC_PAGER_WITH_PAGE_CHANGE_HANDLER, BASIC_PAGER_DATA);
+    advanceTime(10);
+
+    // The document's Container has a Text component and a Pager component
+    ASSERT_EQ(kComponentTypeContainer, component->getType());
+    auto text = component->getChildAt(0);
+    ASSERT_EQ(kComponentTypeText, text->getType());
+    auto pager = component->getChildAt(1);
+    ASSERT_EQ(kComponentTypePager, pager->getType());
+
+    // The Text shows the current item
+    ASSERT_EQ(0, pager->getCalculated(kPropertyCurrentPage).asNumber());
+    ASSERT_EQ("10", text->getCalculated(kPropertyText).asString());
+
+    // Now jump to second page
+    pager->update(UpdateType::kUpdatePagerByEvent, 1);
+    advanceTime(10);
+    root->clearPending();
+
+    // The Text shows the second item, due to the action of the onPageChanged handler
+    ASSERT_EQ(1, pager->getCalculated(kPropertyCurrentPage).asNumber());
+    ASSERT_EQ("11", text->getCalculated(kPropertyText).asString());
+
+    // Fling to the left to back to the first page (index = 0)
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(100, 10)));
+    advanceTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(400, 10)));
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(400, 10)));
+    root->clearPending();
+
+    // Now an update arrives while the page change is in progress
+    ASSERT_TRUE(ds->processUpdate(FIVE_TO_NINE_FOLLOWUP_PAGER));
+    advanceTime(10);
+    root->clearPending();
+
+    advanceTime(1500);
+
+    // We're back to the previous page, which has "10"
+    ASSERT_EQ("10", text->getCalculated(kPropertyText).asString());
+
+    // But this is no longer page 0
+    ASSERT_EQ(5, pager->getCalculated(kPropertyCurrentPage).asNumber());
+
+    // We have only fulfilled on request, so there will be some errors
+    ASSERT_TRUE(ds->getPendingErrors().size() > 0);
+}

@@ -171,9 +171,10 @@ CoreCommand::validate()
 bool
 CoreCommand::calculateProperties()
 {
+    const auto& pds = propDefSet();
     // Check for a valid target component. Not all commands need one.
-    auto cpd = propDefSet().find(kCommandPropertyComponentId);
-    if (cpd != propDefSet().end()) {
+    auto cpd = pds.find(kCommandPropertyComponentId);
+    if (cpd != pds.end()) {
         auto p = mProperties.find(cpd->second.names);
         std::string id;
         if (p != mProperties.end()) {
@@ -181,19 +182,19 @@ CoreCommand::calculateProperties()
             mTarget = std::dynamic_pointer_cast<CoreComponent>(mContext->findComponentById(id));
         }
 
-        if (mTarget == nullptr) {
+        if (mTarget == nullptr && (cpd->second.flags & kPropRequired)) {
             // TODO: Try full inflation, we may be missing deep component inflated. Quite inefficient, especially if done
             //  in onMount, revisit.
             auto& lm = mContext->layoutManager();
             lm.flushLazyInflation();
             mTarget = std::dynamic_pointer_cast<CoreComponent>(mContext->findComponentById(id));
             if (mTarget == nullptr) {
-                CONSOLE_CTP(mContext) << "Illegal command - need to specify a target componentId";
+                CONSOLE_CTP(mContext) << "Illegal command " << name() << " - need to specify a target componentId";
                 return false;
             }
         }
 
-        mValues.emplace(kCommandPropertyComponentId, mTarget->getUniqueId());
+        if (mTarget != nullptr) mValues.emplace(kCommandPropertyComponentId, mTarget->getUniqueId());
     }
 
     // When we have a target component, we need to update the context "event" property to include
@@ -211,7 +212,7 @@ CoreCommand::calculateProperties()
     }
 
     // Evaluate all of the properties, including componentId (we store it for the debugger)
-    for (const auto& it : propDefSet()) {
+    for (const auto& it : pds) {
         if (it.second.key != kCommandPropertyComponentId) {
             auto result = calculate(it.second, context, mProperties);
 

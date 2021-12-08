@@ -24,6 +24,7 @@ target_sources_local(apl
     mediasource.cpp
     radii.cpp
     rect.cpp
+    urlrequest.cpp
     symbolreferencemap.cpp
     styledtext.cpp
     styledtextstate.cpp

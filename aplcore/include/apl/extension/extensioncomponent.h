@@ -81,9 +81,14 @@ public:
     /**
      * Updates state of resource associated with extension component. The extension
      * is notified of the change.
+     *
      * @param state resource state enum.
+     * @param errorCode Error code used when the state is kResourceError
+     * @param error Error message used when the state is kResourceError
      */
-    void updateResourceState(const ExtensionComponentResourceState& state) override;
+    void updateResourceState(const ExtensionComponentResourceState& state,
+                             int errorCode = 0,
+                             const std::string& error = "") override;
 
 protected:
     /**
@@ -106,8 +111,9 @@ protected:
 private:
     /**
      * Notify the extension the component has changed state or property.
+     * @param acquireResource The resource should be acquired and sent to the extension.
      */
-    void notifyExtension();
+    void notifyExtension(bool acquireResource);
 
     const ExtensionComponentDefinition& mDefinition;
     ComponentPropDefSet mPropDefSet;

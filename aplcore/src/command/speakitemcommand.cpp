@@ -15,6 +15,7 @@
 
 #include "apl/command/speakitemcommand.h"
 #include "apl/action/speakitemaction.h"
+#include "apl/content/rootconfig.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -40,6 +41,11 @@ SpeakItemCommand::execute(const TimersPtr& timers, bool fastMode) {
 
     if (!calculateProperties())
         return nullptr;
+
+    if (mContext->getRootConfig().getProperty(RootProperty::kDisallowDialog).getBoolean()) {
+        CONSOLE_CTP(mContext) << "Ignoring SpeakItem command because disallowDialog is true";
+        return nullptr;
+    }
 
     return SpeakItemAction::make(timers, std::static_pointer_cast<CoreCommand>(shared_from_this()));
 }

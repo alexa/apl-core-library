@@ -73,9 +73,6 @@ TEST_F(SpeakItemTest, SpeakItemTest)
 {
     loadDocument(SPEAK_ITEM_TEST, DATA);
 
-    auto map = component->getCalculated();
-    auto onPress = map["onPress"];
-
     performTap(1,1);
 
     ASSERT_EQ(1, mIssuedCommands.size());
@@ -90,6 +87,23 @@ TEST_F(SpeakItemTest, SpeakItemTest)
     ASSERT_EQ(330, loop->currentTime());  // The command delayed by 100 first and then had a minimum dwell time of 230
 }
 
+TEST_F(SpeakItemTest, DisallowedCommandStillRespectsDelay)
+{
+    config->set(RootProperty::kDisallowDialog, true);
+    loadDocument(SPEAK_ITEM_TEST, DATA);
+
+    performTap(1,1);
+
+    ASSERT_EQ(1, mIssuedCommands.size());
+
+    ASSERT_FALSE(root->hasEvent());
+    loop->advanceToEnd();
+
+    ASSERT_EQ(100, loop->currentTime());
+
+    // complaint about ignored command logged
+    ASSERT_TRUE(ConsoleMessage());
+}
 
 static const char *SPEAK_ITEM_INVALID = "{"
                                  "  \"type\": \"APL\","
@@ -127,7 +141,6 @@ TEST_F(SpeakItemTest, SpeakItemInvalid)
     ASSERT_FALSE(root->hasEvent());
     ASSERT_TRUE(ConsoleMessage());
 }
-
 
 static const char *SPEAK_ITEM_THEN_SEND = "{"
                                    "  \"type\": \"APL\","
@@ -295,6 +308,26 @@ TEST_F(SpeakItemTest, TestStages)
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
+}
+
+TEST_F(SpeakItemTest, DisallowedCommandPreventsEffects)
+{
+    config->set(RootProperty::kDisallowDialog, true);
+    loadDocument(TEST_STAGES);
+    auto container = component->getChildAt(0);
+    auto child = container->getChildAt(1);
+
+    executeSpeakItem(child, kCommandScrollAlignFirst, kCommandHighlightModeBlock, 1000);
+    loop->advanceToEnd();
+
+    // no pre-roll or speak event
+    ASSERT_FALSE(root->hasEvent());
+    
+    // complaint about ignored command logged
+    ASSERT_TRUE(ConsoleMessage());
+
+    // actual time
+    ASSERT_EQ(0, loop->currentTime());
 }
 
 /**

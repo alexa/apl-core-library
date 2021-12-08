@@ -115,11 +115,15 @@ target_link_libraries(apl
             libyoga)
 
 # include the alexa extensions library
-if (BUILD_ALEXAEXTENSIONS)
+if (ENABLE_ALEXAEXTENSIONS)
+    if (NOT BUILD_ALEXAEXTENSIONS)
+        # Check to see if it's available from the system.
+        find_package(alexaext REQUIRED)
+    endif (NOT BUILD_ALEXAEXTENSIONS)
     target_link_libraries(apl
         PUBLIC
             alexa::extensions)
-endif(BUILD_ALEXAEXTENSIONS)
+endif(ENABLE_ALEXAEXTENSIONS)
 
 # Log dependencies for Android
 

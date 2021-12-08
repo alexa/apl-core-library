@@ -150,6 +150,13 @@ public:
     bool setProperty(const std::string& key, const Object& value);
 
     /**
+     * Return the value of one of the parameters.
+     * @param key The name of the parameter
+     * @return A pair with true if this was a valid parameter and the value of the parameter
+     */
+    std::pair<Object, bool> getProperty(const std::string& key) const;
+
+    /**
      * @return The internal data-binding context used by this graphic
      */
     const ContextPtr& getContext() const { return mInternalContext; }

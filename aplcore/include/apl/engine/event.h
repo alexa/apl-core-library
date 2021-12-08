@@ -192,6 +192,7 @@ enum EventProperty {
     kEventPropertyExtensionURI,
     kEventPropertyExtensionResourceId,
     kEventPropertyFlags,
+    kEventPropertyHeaders,
     kEventPropertyHighlightMode,
     kEventPropertyMediaType,
     kEventPropertyName,

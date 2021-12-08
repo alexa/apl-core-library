@@ -14,6 +14,7 @@
  */
 
 #include "../testeventloop.h"
+#include "apl/component/pagercomponent.h"
 
 /**
  * The purpose of this include statement is to verify that apl/dataprovider.h includes
@@ -148,6 +149,42 @@ public:
             }
         }
 
+        return ::testing::AssertionSuccess();
+    }
+
+    struct ExpectedPage {
+        std::string id;
+        bool isTransforming;
+        ExpectedPage(std::string _id, bool _isTransforming = false) : id(_id), isTransforming(_isTransforming) {}
+    };
+
+    ::testing::AssertionResult
+    CheckPager(int expectedCurrentPage, std::vector<ExpectedPage> expectedPages) {
+        if (expectedPages.size() != component->getChildCount()) {
+            return ::testing::AssertionFailure() << "Expected " << expectedPages.size() << " page(s), "
+                                                 << "found " << component->getChildCount();
+        }
+        if (expectedCurrentPage != component->getCalculated(kPropertyCurrentPage).asNumber()) {
+            return ::testing::AssertionFailure() << "Expected the current page to be "
+                                                 << expectedCurrentPage << " but was "
+                                                 << component->getCalculated(kPropertyCurrentPage).asNumber();
+        }
+        for (int i = 0; i < expectedPages.size(); i++) {
+            auto child = component->getChildAt(i);
+            auto expectedPage = expectedPages[i];
+            if (expectedPage.id != child->getId()) {
+                return ::testing::AssertionFailure() << "Expected page " << i
+                                                     << " to have an id of " << expectedPage.id
+                                                     << " but was " << child->getId();
+            }
+            if (expectedPage.isTransforming == CheckTransform(Transform2D(), child)) {
+                return ::testing::AssertionFailure() << "Expected page " << i << " (id="
+                                                     << expectedPage.id << ") to be"
+                                                     << (expectedPage.isTransforming ? "" : " NOT")
+                                                     << " transforming, but it was"
+                                                     << (expectedPage.isTransforming ? " NOT" : "");
+            }
+        }
         return ::testing::AssertionSuccess();
     }
 
@@ -3967,4 +4004,139 @@ TEST_F(DynamicIndexListTest, ShrinkWithoutItems)
 
     advanceTime(10000);
     ASSERT_FALSE(root->hasEvent());
+}
+
+TEST_F(DynamicIndexListTest, NewDataCanArriveDuringPageTransitions)
+{
+    auto swipeToNextPage = [&]() {
+        root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(150, 10)));
+        advanceTime(100);
+        root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(50, 10)));
+        root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(50, 10)));
+        root->clearPending();
+    };
+
+    loadDocument(BASIC_PAGER, BASIC_PAGER_DATA);
+
+    // Start with a pager that has 5 children and is on the first page (frame-10)
+    ASSERT_EQ(kComponentTypePager, component->getType());
+    ASSERT_EQ(5, component->getChildCount());
+    ASSERT_EQ(0, component->getCalculated(kPropertyCurrentPage).asNumber());
+    ASSERT_EQ("frame-10", component->getChildAt(0)->getId());
+
+    // Swipe! There's an animation involved, so it's not instantaneous, but we get to the next page
+    swipeToNextPage();
+    ASSERT_EQ(0, component->getCalculated(kPropertyCurrentPage).asNumber());
+    advanceTime(1000);
+    ASSERT_EQ(1, component->getCalculated(kPropertyCurrentPage).asNumber());
+    ASSERT_EQ("frame-11", component->getChildAt(1)->getId());
+
+    // Swipe! But quickly load 5 pages to the left, before the swipe completes
+    swipeToNextPage();
+    ASSERT_TRUE(ds->processUpdate(FIVE_TO_NINE_FOLLOWUP_PAGER));
+    root->clearPending();
+    ASSERT_EQ(10, component->getChildCount());
+    ASSERT_EQ("frame-5", component->getChildAt(0)->getId());
+    ASSERT_EQ("frame-14", component->getChildAt(9)->getId());
+
+    // After the swipe completes, we're at page 1 (original) + 1 (swipe) + 5 (new items) = 7
+    advanceTime(1000);
+    ASSERT_EQ(7, component->getCalculated(kPropertyCurrentPage).asNumber());
+    ASSERT_EQ("frame-12", component->getChildAt(7)->getId());
+
+    // Some errors are expected from unfulfilled requests
+    ASSERT_TRUE(ds->getPendingErrors().size() > 0);
+}
+
+TEST_F(DynamicIndexListTest, CurrentOrTargetPageCanBeDeleted)
+{
+    auto swipeToNextPage = [&]() {
+        root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(150, 10)));
+        advanceTime(100);
+        root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(50, 10)));
+        root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(50, 10)));
+        root->clearPending();
+    };
+
+    int listVersion = 0;
+    auto createInsertItem = [&](int index, std::string text = "") {
+        if (text.empty()) text = std::to_string(index);
+        return "{"
+                "  \"presentationToken\": \"presentationToken\","
+                "  \"listId\": \"vQdpOESlok\","
+                "  \"listVersion\": " + std::to_string(++listVersion) + ","
+                "  \"operations\": ["
+                "    {"
+                "      \"type\": \"InsertItem\","
+                "      \"index\": " + std::to_string(index) + ","
+                "      \"item\": { \"color\": \"green\", \"text\": \"" + text + "\" }" +
+                "    }"
+                "  ]"
+                "}";
+    };
+
+    loadDocument(BASIC_PAGER, EMPTY_PAGER_DATA);
+
+    // Insert a few items
+    for (int i = 10; i <= 15; i++) {
+        ASSERT_TRUE(ds->processUpdate(createInsertItem(i)));
+    }
+    root->clearPending();
+
+    // We start on the first page
+    ASSERT_TRUE(CheckPager(0, {{"frame-10"}, {"frame-11"}, {"frame-12"}, {"frame-13"}, {"frame-14"}, {"frame-15"}}));
+
+    // Swipe! But before you reach the next page, delete it
+    swipeToNextPage();
+    ASSERT_TRUE(ds->processUpdate(createDelete(++listVersion, 11)));
+    advanceTime(1000);
+    
+    // We remain on the first page
+    ASSERT_TRUE(CheckPager(0, {{"frame-10"}, {"frame-12"}, {"frame-13"}, {"frame-14"}, {"frame-15"}}));
+
+    // Swipe! Now we reach the next page
+    swipeToNextPage();
+    advanceTime(1000);
+    ASSERT_TRUE(CheckPager(1, {{"frame-10"}, {"frame-12"}, {"frame-13"}, {"frame-14"}, {"frame-15"}}));
+
+    // Swipe! Now delete the source page, but the swipe still succeeds in moving to the next page
+    swipeToNextPage();
+    ASSERT_TRUE(ds->processUpdate(createDelete(++listVersion, 11)));
+    advanceTime(1000);
+    ASSERT_TRUE(CheckPager(1, {{"frame-10"}, {"frame-13"}, {"frame-14"}, {"frame-15"}}));
+
+    // Swipe! Again, delete target page, but also try to jump to page 3
+    swipeToNextPage();
+    advanceTime(10);
+    // The animation has progressed a bit
+    ASSERT_TRUE(CheckPager(1, {{"frame-10"}, {"frame-13", true}, {"frame-14", true}, {"frame-15"}}));
+    // Now delete the target page
+    ASSERT_TRUE(ds->processUpdate(createDelete(++listVersion, 12)));
+    // And also manually try to go to page 3
+    PagerComponent::setPageUtil(context, component, 3, kPageDirectionForward, ActionRef(nullptr));
+    advanceTime(1000);
+    // We succeed in reaching what was formally page 3 (now page 2)
+    ASSERT_TRUE(CheckPager(2, {{"frame-10"}, {"frame-13"}, {"frame-15"}}));
+
+    // Need to insert a couple of items
+    ASSERT_TRUE(ds->processUpdate(createInsertItem(13, "88")));
+    ASSERT_TRUE(ds->processUpdate(createInsertItem(14, "99")));
+    root->clearPending();
+    ASSERT_TRUE(CheckPager(2, {{"frame-10"}, {"frame-13"}, {"frame-15"}, {"frame-88"}, {"frame-99"}}));
+
+    // Swipe! This time, delete the source page and jump to page 4
+    swipeToNextPage();
+    advanceTime(10);
+    // The animation has progressed a bit
+    ASSERT_TRUE(CheckPager(2, {{"frame-10"}, {"frame-13"}, {"frame-15", true}, {"frame-88", true}, {"frame-99"}}));
+    // Now delete the source page
+    ASSERT_TRUE(ds->processUpdate(createDelete(++listVersion, 12)));
+    // And also manually try to go to the last page
+    PagerComponent::setPageUtil(context, component, 4, kPageDirectionForward, ActionRef(nullptr));
+    advanceTime(1000);
+    // We succeed in reaching the last page
+    ASSERT_TRUE(CheckPager(3, {{"frame-10"}, {"frame-13"}, {"frame-88"}, {"frame-99"}}));
+
+    // Some errors are expected from unfulfilled requests
+    ASSERT_TRUE(ds->getPendingErrors().size() > 0);
 }

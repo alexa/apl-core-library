@@ -32,74 +32,68 @@ AnimatedProperty::create(const ContextPtr& context,
     }
 
     auto property = propertyAsString(*context, object, "property");
-    int key = sComponentPropertyBimap.get(property, -1);
-    if (key == -1) {
-        CONSOLE_CTP(context) << "Unrecognized animation property '" << property << "'";
-        return nullptr;
-    }
 
     if (!object.has("to")) {
         CONSOLE_CTP(context) << "Animation property has no 'to' value '" << property << "'";
         return nullptr;
     }
 
-    // TODO: Generalize this.  We should pull the animation type from the component itself
-    switch(key) {
-        case kPropertyOpacity:
-            if (object.has("from"))
-                return std::unique_ptr<AnimatedDouble>(
-                    new AnimatedDouble(static_cast<PropertyKey>(key),
-                                       propertyAsDouble(*context, object, "from", 1),
-                                       propertyAsDouble(*context, object, "to", 1)));
-            else
-                return std::unique_ptr<AnimatedDouble>(
-                        new AnimatedDouble(static_cast<PropertyKey>(key),
-                                           component,
-                                           propertyAsDouble(*context, object, "to", 1))
-                    );
-            break;
-
-        case kPropertyTransformAssigned:
-            if (!object.has("from")) {
-                CONSOLE_CTP(context) << "Animated transforms need a 'from' property";
-                return nullptr;
-            }
-
-            return std::unique_ptr<AnimatedTransform>(
-                new AnimatedTransform(
-                    InterpolatedTransformation::create(*context,
-                                                       arrayifyProperty(*context, object, "from"),
-                                                       arrayifyProperty(*context, object, "to"))));
-
-            break;
+    auto propRef = component->getPropertyAndWriteableState(property);
+    if (!propRef.second) {
+        CONSOLE_CTP(context) << "Unusable animation property '" << property << "'";
+        return nullptr;
     }
 
-    CONSOLE_CTP(context) << "Unable to animate property '" << property << "'";
-    return nullptr;
+    // If we find a key, we can speed up the animation process
+    auto key = static_cast<PropertyKey>(sComponentPropertyBimap.get(property, -1));
+    if (key == kPropertyTransformAssigned) {
+        if (!object.has("from")) {
+            CONSOLE_CTP(context) << "Animated transforms need a 'from' property";
+            return nullptr;
+        }
 
-}
+        return std::make_unique<AnimatedTransform>(
+            InterpolatedTransformation::create(*context, arrayifyProperty(*context, object, "from"),
+                                               arrayifyProperty(*context, object, "to")));
+    }
 
-AnimatedDouble::AnimatedDouble(PropertyKey key, double from, double to)
-    : mKey(key), mFrom(from), mTo(to) {
-}
+    // The only other assigned key we can animate is opacity
+    if (key != static_cast<PropertyKey>(-1) && key != kPropertyOpacity) {
+        CONSOLE_CTP(context) << "Unable to animate property '" << property << "'";
+        return nullptr;
+    }
 
-AnimatedDouble::AnimatedDouble(PropertyKey key, const CoreComponentPtr& component, double to)
-    : mKey(key), mFrom(component->getCalculated(key).asNumber()), mTo(to) {
+    if (!propRef.first.isNumber()) {
+        CONSOLE_CTP(context) << "Only numbers and transforms can be animated '" << property << "'";
+        return nullptr;
+    }
+
+    auto to = propertyAsDouble(*context, object, "to", 0);
+    auto from = object.has("from") ? propertyAsDouble(*context, object, "from", 0)
+                                   : propRef.first.asNumber();
+
+    return AnimatedDouble::create(key, property, from, to);
 }
 
 void
-AnimatedDouble::update(const CoreComponentPtr& component, float alpha) {
+AnimatedDouble::update(const CoreComponentPtr& component, float alpha)
+{
     double value = mFrom * (1 - alpha) + mTo * alpha;
-    component->setProperty(mKey, value);
+    if (mKey != static_cast<PropertyKey>(-1))
+        component->setProperty(mKey, value);
+    else
+        component->setProperty(mProperty, value);
 }
 
-AnimatedTransform::AnimatedTransform(const std::shared_ptr<InterpolatedTransformation>& transformation)
-    : mTransformation(transformation)
+
+AnimatedTransform::AnimatedTransform(std::shared_ptr<InterpolatedTransformation> transformation)
+    : mTransformation(std::move(transformation))
 {
 }
 
 void
-AnimatedTransform::update(const CoreComponentPtr& component, float alpha) {
+AnimatedTransform::update(const CoreComponentPtr& component, float alpha)
+{
     bool changed = mTransformation->interpolate(alpha);
     auto assigned = component->getCalculated(kPropertyTransformAssigned);
     if (!assigned.isTransform() || assigned.getTransformation() != mTransformation)

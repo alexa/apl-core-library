@@ -1134,8 +1134,8 @@ struct PaddedScrollableTest {
 
 TEST_F(VisualContextTest, PaddedScrollableTests) {
     const int len = strlen(PADDED_SEQUENCE) * 2;
-    std::unique_ptr<char[]> horizontalSeq(new char[len]);
-    std::unique_ptr<char[]> verticalSeq(new char[len]);
+    auto horizontalSeq = std::make_unique<char []>(len);
+    auto verticalSeq = std::make_unique<char []>(len);
     snprintf(horizontalSeq.get(), len, PADDED_SEQUENCE, "horizontal");
     snprintf(verticalSeq.get(), len, PADDED_SEQUENCE, "vertical");
 

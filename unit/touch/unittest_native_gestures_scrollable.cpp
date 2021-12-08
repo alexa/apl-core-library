@@ -350,6 +350,55 @@ TEST_F(NativeGesturesScrollableTest, ScrollTapOrScrollTimeout)
     ASSERT_EQ(Point(0, 900), component->scrollPosition());
 }
 
+TEST_F(NativeGesturesScrollableTest, ScrollFlingGestureUpEventWithoutFault) {
+    loadDocument(SCROLL_TEST);
+
+    ASSERT_EQ(Point(), component->scrollPosition());
+
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(0, 100), false,
+                                   "onDown:green1"));
+    advanceTime(5);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0, 50), true,
+                                   "onMove:green1"));
+    ASSERT_TRUE(CheckSendEvent(root, "onCancel:green1"));
+    ASSERT_EQ(Point(0, 50), component->scrollPosition());
+    advanceTime(5);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0, 0), true));
+    advanceTime(1);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(0, 0), true));
+
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
+
+    advanceTime(2900);
+    ASSERT_EQ(Point(0, 900), component->scrollPosition());
+}
+
+TEST_F(NativeGesturesScrollableTest, ScrollFlingGestureUpEventFault) {
+    loadDocument(SCROLL_TEST);
+
+    ASSERT_EQ(Point(), component->scrollPosition());
+
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(0, 100), false,
+                                   "onDown:green1"));
+    advanceTime(5);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0, 50), true,
+                                   "onMove:green1"));
+    ASSERT_TRUE(CheckSendEvent(root, "onCancel:green1"));
+    ASSERT_EQ(Point(0, 50), component->scrollPosition());
+    advanceTime(5);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0, 0), true));
+    advanceTime(1);
+    // The up-event coordinates may deviate couple of points in opposite direction of gesture,
+    // but that should not impact the scroll behaviour for the gesture. This can happen quite often
+    // for quick fling gestures on touch screen devices.
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(0, 2), true));
+
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
+
+    advanceTime(2900);
+    ASSERT_EQ(Point(0, 900), component->scrollPosition());
+}
+
 TEST_F(NativeGesturesScrollableTest, ScrollCommand)
 {
     loadDocument(SCROLL_TEST);
@@ -421,7 +470,7 @@ TEST_F(NativeGesturesScrollableTest, LiveScroll)
 
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(0,250), false));
     advanceTime(100);
-    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,200), true));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,200), false));
     // No update happened as not enough children to scroll
     ASSERT_EQ(Point(0, 0), component->scrollPosition());
     advanceTime(100);
@@ -452,7 +501,7 @@ TEST_F(NativeGesturesScrollableTest, LiveScrollBackwards)
 
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(0,150), false));
     advanceTime(100);
-    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,200), true));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,200), false));
     // No update happened as not enough children to scroll
     ASSERT_EQ(Point(0, 0), component->scrollPosition());
     advanceTime(100);
@@ -474,15 +523,23 @@ TEST_F(NativeGesturesScrollableTest, LiveScrollBackwards)
     ASSERT_EQ(Point(0, 400), component->scrollPosition());
 }
 
-TEST_F(NativeGesturesScrollableTest, LiveFling)
+TEST_F(NativeGesturesScrollableTest, LiveFlingForwards)
 {
     auto myArray = LiveArray::create(ObjectArray{"red", "green", "yellow", "blue", "purple"});
     config->liveData("TestArray", myArray);
     loadDocument(LIVE_SCROLL_TEST);
-    advanceTime(10);
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 4}, true));
 
+    // Give ability to scroll forward
+    auto extender = ObjectArray{"red", "green", "yellow", "blue", "purple"};
+    myArray->insert(myArray->size(), extender.begin(), extender.end());
+    root->clearPending();
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 9}, true));
+
+    // Initial scroll position is at the top
     ASSERT_EQ(Point(), component->scrollPosition());
 
+    // Scroll 50 + 50 = 100 downward
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(0,200), false));
     advanceTime(200);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,150), true));
@@ -490,16 +547,18 @@ TEST_F(NativeGesturesScrollableTest, LiveFling)
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,100), true));
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(0,100), true));
 
-    ASSERT_EQ(Point(), component->scrollPosition());
+    // No time has passed since completion of the gesture, so only actual scrolling has an effect
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
 
-    // LiveArray got more items here.
-    auto extender = ObjectArray{"red", "green", "yellow", "blue", "purple"};
+    // Add more live items to the beginning and end
     myArray->insert(0, extender.begin(), extender.end());
     myArray->insert(myArray->size(), extender.begin(), extender.end());
-    myArray->insert(myArray->size(), extender.begin(), extender.end());
     root->clearPending();
-    ASSERT_EQ(Point(0, 500), component->scrollPosition());
 
+    // Still, no time has passed, but the position has bumped due to the 5 pre-pended new items
+    ASSERT_EQ(Point(0, 600), component->scrollPosition());
+
+    // Now let some time pass, so that the fling can happen, meanwhile insert more items
     advanceTime(100);
     myArray->insert(0, extender.begin(), extender.end());
     root->clearPending();
@@ -2566,4 +2625,97 @@ TEST_F(NativeGesturesScrollableTest, DisplayConditional)
     advanceTime(50);
 
     ASSERT_EQ(Point(0,180), scrollable->scrollPosition());
+}
+
+static const char *NESTED_SCROLL_VIEWS = R"({
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "ScrollView",
+        "width": 200,
+        "height": 1000,
+        "item": {
+          "type": "Container",
+          "direction": "column",
+          "alignItems": "center",
+          "data": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6"
+          ],
+          "item": {
+            "type": "ScrollView",
+            "width": 200,
+            "height": 200,
+            "item": {
+              "type": "Container",
+              "direction": "column",
+              "alignItems": "center",
+              "data": [
+                "green",
+                "red"
+              ],
+              "item": {
+                "type": "Frame",
+                "width": 200,
+                "height": 200,
+                "borderWidth": 5,
+                "borderColor": "white",
+                "alignSelf": "center",
+                "backgroundColor": "${data}"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+)";
+
+TEST_F(NativeGesturesScrollableTest, ParentScrollsWhenChildScrollingExhausted)
+{
+    loadDocument(NESTED_SCROLL_VIEWS);
+
+    // The parent is the top ScrollView
+    auto parent = component;
+    ASSERT_EQ(Point(0, 0), parent->scrollPosition());
+
+    // The container has 6 small ScrollView components, one more than can be shown in the parent
+    auto container = parent->getCoreChildAt(0);
+    ASSERT_EQ(6, container->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(container, {0, 5}, true));
+
+    // Get the second child ScrollView
+    auto child = container->getCoreChildAt(1);
+
+    // Fully scroll the child
+    ASSERT_EQ(Point(0, 0), child->scrollPosition());
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(100, 300), false));
+    advanceTime(200);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(100, 100), true));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(100, 100), true));
+    advanceTime(500);
+
+    // Child has scrolled but parent has not
+    ASSERT_EQ(Point(0, 200), child->scrollPosition());
+    ASSERT_EQ(Point(0, 0), parent->scrollPosition());
+
+    // Try to scroll child again...
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(100, 300), false));
+    advanceTime(200);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(100, 100), true));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(100, 100), true));
+    advanceTime(500);
+
+    // ...child has NOT scrolled further
+    ASSERT_EQ(Point(0, 200), child->scrollPosition());
+
+    // ...but the parent has
+    ASSERT_EQ(Point(0, 200), parent->scrollPosition());
 }

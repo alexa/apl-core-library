@@ -17,4 +17,5 @@ target_sources_local(unittest
         unittest_directive.cpp
         unittest_document.cpp
         unittest_document_background.cpp
+        unittest_rootconfig.cpp
         )
