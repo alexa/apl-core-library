@@ -79,9 +79,10 @@ ScrollableComponent::setScrollPositionInternal(float value)
 
     // Only run the onScroll event handler once the component has been fully laid out.  This prevents the handler
     // from being run if the component was created with a scroll offset.
-    if (allowEventHandlers()) {
+    auto onScrollHandler = getCalculated(kPropertyOnScroll);
+    if (allowEventHandlers() && !onScrollHandler.empty()) {
         ContextPtr eventContext = createEventContext("Scroll");
-        mContext->sequencer().executeCommands(getCalculated(kPropertyOnScroll),
+        mContext->sequencer().executeCommands(onScrollHandler,
                                               eventContext,
                                               shared_from_corecomponent(),
                                               true);
@@ -118,7 +119,8 @@ ScrollableComponent::eventPropertyMap() const
 }
 
 bool
-ScrollableComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) {
+ScrollableComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator)
+{
     bool actionable = CoreComponent::getTags(outMap, allocator);
 
     std::string direction = scrollType() == kScrollTypeHorizontal ? "horizontal" : "vertical";
@@ -139,7 +141,8 @@ ScrollableComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::Allo
 }
 
 void
-ScrollableComponent::initialize() {
+ScrollableComponent::initialize()
+{
     ActionableComponent::initialize();
     mGestureHandlers.emplace_back(ScrollGesture::create(std::static_pointer_cast<ScrollableComponent>(shared_from_this())));
 }

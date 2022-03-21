@@ -2015,6 +2015,68 @@ TEST_F(MediaManagerTest, VideoWithHeaders) {
     ASSERT_EQ(headers.at(0), "A: Let me in");
 }
 
+TEST_F(MediaManagerTest, VideoWithHeadersSetsDirtyAfterHeaderChange) {
+    loadDocument(SINGLE_VIDEO_WITH_HEADERS);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Based on the spec, sources get transformed into an array
+    auto mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+
+    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    auto headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "A: Let me in");
+
+    // Change only the headers
+    ObjectArrayPtr newHeaders = std::make_shared<ObjectArray>();
+    newHeaders->emplace_back("A: Let me out");
+    ObjectMapPtr newSource = std::make_shared<ObjectMap>();
+    newSource->emplace("url", "universe");
+    newSource->emplace("description", "milky way");
+    newSource->emplace("headers", newHeaders);
+    ObjectArrayPtr newMedia = std::make_shared<ObjectArray>();
+    newMedia->emplace_back(MediaSource::create(*context, newSource));
+
+    component->setProperty(kPropertySource, newMedia);
+
+    ASSERT_TRUE(CheckDirty(component, kPropertySource, kPropertyVisualHash));
+
+    mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "A: Let me out");
+
+    // Update again
+    ObjectArrayPtr newHeaders2 = std::make_shared<ObjectArray>();
+    newHeaders2->emplace_back("D: Let me in");
+    ObjectMapPtr newSource2 = std::make_shared<ObjectMap>();
+    newSource2->emplace("url", "universe");
+    newSource2->emplace("description", "milky way");
+    newSource2->emplace("headers", newHeaders2);
+    ObjectArrayPtr newMedia2 = std::make_shared<ObjectArray>();
+    newMedia2->emplace_back(MediaSource::create(*context, newSource2));
+
+    component->setProperty(kPropertySource, newMedia2);
+
+    ASSERT_TRUE(CheckDirty(component, kPropertySource, kPropertyVisualHash));
+    mediaSources = component->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(mediaSources.size(), 1);
+    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_EQ(asMediaSource.getDescription(), "milky way");
+    headers = asMediaSource.getHeaders();
+    ASSERT_EQ(headers.size(), 1);
+    ASSERT_EQ(headers.at(0), "D: Let me in");
+}
+
 TEST_F(MediaManagerTest, VideoWithHeadersDenyUppercase) {
     config->filterHeaders(std::vector<std::pair<std::regex, bool>>{{std::regex("A", std::regex_constants::icase), false}});
     loadDocument(SINGLE_VIDEO_WITH_HEADERS);
@@ -2279,14 +2341,14 @@ static const char* MULTIPLE_IMAGES_WITH_ERRORS = R"({
   }
 })";
 
-TEST_F(MediaManagerTest, SourceWithErrorsAreNullObject) {
+TEST_F(MediaManagerTest, SourceWithErrorsAreEmptyString) {
     loadDocument(MULTIPLE_IMAGES_WITH_ERRORS);
 
     ASSERT_FALSE(root->isDirty());
 
     auto sourceProp = component->getCalculated(kPropertySource);
-    ASSERT_TRUE(sourceProp.isArray());
-    ASSERT_EQ(sourceProp.size(), 0);
+    ASSERT_TRUE(sourceProp.isString());
+    ASSERT_EQ(sourceProp.asString().length(), 0);
     // We don't care about the session messages on this test, clean it
     session->clear();
 }
@@ -2325,4 +2387,96 @@ TEST_F(MediaManagerTest, VideoWithMultipleHeaders) {
     ASSERT_EQ(headers.at(2), "C: A");
     ASSERT_EQ(headers.at(3), "D: A");
     ASSERT_EQ(headers.at(4), "E: F");
+}
+
+static const char* DEEP_EVALUATE_SOURCE = R"apl({
+  "type": "APL",
+  "version": "1.5",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "items": [
+      {
+        "type": "Container",
+        "items": [
+          {
+            "type": "AlexaMusicAttributionLogoImage",
+            "imageMap": {
+              "largeUrl": "${payload.url}"
+            },
+            "largeUrl": "${payload.url}"
+          }
+        ]
+      }
+    ]
+  },
+  "layouts": {
+    "AlexaMusicAttributionLogoImage": {
+      "parameters": [
+        {
+          "name": "imageMap",
+          "type": "map"
+        },
+        {
+          "name": "largeUrl"
+        }
+      ],
+      "item": [
+        {
+          "type": "Container",
+          "items": [
+            {
+              "type": "Text",
+              "id": "text1",
+              "text": "${imageMap.largeUrl}"
+            },
+            {
+              "type": "Text",
+              "id": "text2",
+              "text": "${largeUrl}"
+            },
+            {
+              "type": "Image",
+              "id": "image1",
+              "source": "${imageMap.largeUrl}"
+            },
+            {
+              "type": "Image",
+              "id": "image2",
+              "source": "https://image.png"
+            }
+          ]
+        }
+      ]
+    }
+  }
+})apl";
+
+static const char* DEEP_EVALUATE_SOURCE_DATA = R"apl({
+  "url": "https://image.png"
+})apl";
+
+TEST_F(MediaManagerTest, DeepEvaluationSource) {
+    loadDocument(DEEP_EVALUATE_SOURCE, DEEP_EVALUATE_SOURCE_DATA);
+
+    auto text1 = root->findComponentById("text1");
+    auto text2 = root->findComponentById("text2");
+    auto image1 = root->findComponentById("image1");
+    auto image2 = root->findComponentById("image2");
+
+    root->clearPending();
+
+    auto text1Content = text1->getCalculated(kPropertyText).asString();
+    ASSERT_EQ(text1Content, "${payload.url}");
+    auto text2Content = text2->getCalculated(kPropertyText).asString();
+    ASSERT_EQ(text2Content, "https://image.png");
+    auto image1content = image1->getCalculated(apl::kPropertySource).asString();
+    ASSERT_EQ(image1content, "https://image.png");
+    auto image2content = image2->getCalculated(apl::kPropertySource).asString();
+    ASSERT_EQ(image1content, "https://image.png");
+
+    // We don't care about events on this test
+    root.reset();
 }

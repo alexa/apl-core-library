@@ -211,8 +211,11 @@ EditTextComponent::processPointerEvent(const PointerEvent& event, apl_time_t tim
 
     if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureFocusEditTextOnTap) &&
             event.pointerEventType == kPointerUp) {
-        getContext()->focusManager().setFocus(shared_from_corecomponent(), true);
-        return kPointerStatusPendingCapture;
+        auto self = shared_from_corecomponent();
+        if (self != getContext()->focusManager().getFocus()) {
+            getContext()->focusManager().setFocus(self, true);
+            return kPointerStatusPendingCapture;
+        }
     }
     if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureRequestKeyboard) &&
             event.pointerEventType == kPointerUp) {

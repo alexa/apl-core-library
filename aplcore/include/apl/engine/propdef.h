@@ -188,16 +188,22 @@ inline Object asVectorGraphicSource(const Context& context, const Object& object
 }
 
 inline Object asImageSourceArray(const Context& context, const Object& object) {
-    // We don't want to break current runtimes
-    if (object.isString())
-        return object;
-
     std::vector<Object> data;
     for (auto& m : arrayify(context, object)) {
         auto request = m.isString() ? m : URLRequest::create(context, m);
         if (!request.isNull())
             data.emplace_back(std::move(request));
     }
+
+    if (data.empty())
+        return "";
+
+    // In case of URLs the spec enforces an array of elements.
+    // We don't want to break runtimes that are not using urls and depend
+    // on the old logic that evaluates the strings via arrayify
+    if (data.size() == 1 && data.front().isString())
+        return data.front();
+
     return Object(std::move(data));
 }
 

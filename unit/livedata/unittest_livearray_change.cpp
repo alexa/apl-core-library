@@ -100,17 +100,16 @@ LiveArrayTrack(const std::string& key, const ContextPtr& context, const std::vec
 
 class LiveArrayChangeTest : public DocumentWrapper {};
 
-static const char *ARRAY_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.2\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"text\": \"${TestArray[1]}\""
-    "    }"
-    "  }"
-    "}";
+static const char* ARRAY_TEST = R"({
+  "type": "APL",
+  "version": "1.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Text",
+      "text": "${TestArray[1]}"
+    }
+  }
+})";
 
 TEST_F(LiveArrayChangeTest, SmallChanges)
 {
@@ -385,4 +384,89 @@ TEST_F(LiveArrayChangeTest, CombinedIteratorChanges)
                                                       {-1, false, "e"},
     }));
     root->clearPending();
+}
+
+static const char* NESTED_LIVE_DATA_DOC = R"({
+  "type": "APL",
+  "version": "1.9",
+  "theme": "dark",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "data": "${outerItems}",
+      "item": {
+        "type": "Container",
+        "items": [
+          {
+            "type": "Text",
+            "text": "${data}"
+          },
+          {
+            "type": "Container",
+            "data": "${innerItems}",
+            "item": {
+              "type": "Text",
+              "text": "${data}"
+            }
+          }
+        ]
+      }
+    }
+  }
+})";
+
+TEST_F(LiveArrayChangeTest, NestedChangeAreNotLaidOutTwice)
+{
+    auto outerArray = LiveArray::create({});
+    auto innerArray = LiveArray::create({});
+    config->liveData("outerItems", outerArray);
+    config->liveData("innerItems", innerArray);
+
+    // initial document loads with empty data
+    loadDocument(NESTED_LIVE_DATA_DOC);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(0, component->getChildCount());
+
+    // update live arrays
+    ASSERT_EQ(0, context->dataManager().dirty().size());
+    outerArray->insert(0, "a");
+    outerArray->insert(1, "b");
+    ASSERT_EQ(1, context->dataManager().dirty().size());
+    innerArray->insert(0, "c");
+    innerArray->insert(1, "d");
+    ASSERT_EQ(2, context->dataManager().dirty().size());
+
+    // needs flush
+    ASSERT_EQ(0, component->getChildCount());
+    ASSERT_EQ(0, component->getCalculated(kPropertyNotifyChildrenChanged).size());
+    root->clearPending();
+
+    // now, all the components are inflated
+    // * a
+    //   - c
+    //   - d
+    // * b
+    //   - c
+    //   - d
+    ASSERT_EQ(2, component->getChildCount());
+
+    auto outerA = component->getCoreChildAt(0);
+    auto outerB = component->getCoreChildAt(1);
+    ASSERT_EQ(2, outerA->getChildCount());
+    ASSERT_EQ(2, outerB->getChildCount());
+    ASSERT_TRUE(IsEqual("a", outerA->getCoreChildAt(0)->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(IsEqual("b", outerB->getCoreChildAt(0)->getCalculated(kPropertyText).asString()));
+
+    auto innerA = outerA->getCoreChildAt(1);
+    auto innerB = outerB->getCoreChildAt(1);
+    ASSERT_EQ(2, innerA->getChildCount());
+    ASSERT_EQ(2, innerB->getChildCount());
+    ASSERT_TRUE(IsEqual("c", innerA->getCoreChildAt(0)->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(IsEqual("d", innerA->getCoreChildAt(1)->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(IsEqual("c", innerB->getCoreChildAt(0)->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(IsEqual("d", innerB->getCoreChildAt(1)->getCalculated(kPropertyText).asString()));
+
+    ASSERT_EQ(2, component->getCalculated(kPropertyNotifyChildrenChanged).size());
+    ASSERT_EQ(2, innerA->getCalculated(kPropertyNotifyChildrenChanged).size());
+    ASSERT_EQ(2, innerB->getCalculated(kPropertyNotifyChildrenChanged).size());
 }

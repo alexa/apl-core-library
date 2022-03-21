@@ -738,3 +738,80 @@ TEST_F(DocumentObjectTest, WhenNumberIsNotFiniteSerializeReturnsNull)
     ASSERT_EQ(args.size(), 1);
     ASSERT_TRUE(IsEqual(expectedObject, args.at(0)));
 }
+
+TEST_F(DocumentObjectTest, ArrayComparison)
+{
+    rapidjson::Document jsonArrays;
+    jsonArrays.Parse(R"({"array1": [0,1,2,3], "array2": [0,1,2,3], "array3": [1,1,2,3]})");
+
+    auto& jsonArray1 = jsonArrays["array1"];
+    auto& jsonArray2 = jsonArrays["array2"];
+    auto& jsonArray3 = jsonArrays["array3"];
+
+    ASSERT_TRUE(jsonArray1 == jsonArray2);
+    ASSERT_TRUE(jsonArray3 != jsonArray2);
+
+    ASSERT_TRUE(Object(jsonArray1) == Object(jsonArray2));
+    ASSERT_TRUE(Object(jsonArray3) != Object(jsonArray2));
+
+    auto objectArray1 = std::make_shared<ObjectArray>(std::vector<Object>({0,1,2,3}));
+    auto objectArray2 = std::make_shared<ObjectArray>(std::vector<Object>({0,1,2,3}));
+    auto objectArray3 = std::make_shared<ObjectArray>(std::vector<Object>({1,1,2,3}));
+
+    ASSERT_TRUE(*objectArray1 == *objectArray2);
+    ASSERT_TRUE(*objectArray3 != *objectArray2);
+
+    ASSERT_TRUE(Object(objectArray1) == Object(objectArray2));
+    ASSERT_TRUE(Object(objectArray3) != Object(objectArray2));
+
+    ASSERT_TRUE(Object(jsonArray1) == Object(objectArray1));
+    ASSERT_TRUE(Object(objectArray2) == Object(jsonArray2));
+    ASSERT_TRUE(Object(jsonArray1) != Object(objectArray3));
+    ASSERT_TRUE(Object(objectArray1) != Object(jsonArray3));
+
+    auto fixedObjectArray1 = Object(std::vector<Object>({0,1,2,3}));
+    auto fixedObjectArray2 = Object(std::vector<Object>({0,1,2,3}));
+    auto fixedObjectArray3 = Object(std::vector<Object>({1,1,2,3}));
+
+    ASSERT_TRUE(fixedObjectArray1 == fixedObjectArray2);
+    ASSERT_TRUE(fixedObjectArray3 != fixedObjectArray2);
+
+    ASSERT_TRUE(Object(fixedObjectArray1) == Object(objectArray1));
+    ASSERT_TRUE(Object(fixedObjectArray1) == Object(jsonArray1));
+    ASSERT_TRUE(Object(fixedObjectArray1) == Object(fixedObjectArray1));
+
+    ASSERT_TRUE(Object(fixedObjectArray1) != Object(objectArray3));
+    ASSERT_TRUE(Object(fixedObjectArray1) != Object(jsonArray3));
+    ASSERT_TRUE(Object(fixedObjectArray1) != Object(fixedObjectArray3));
+}
+
+TEST_F(DocumentObjectTest, MapComparison)
+{
+    rapidjson::Document jsonMaps;
+    jsonMaps.Parse(R"({"map1": {"one": 1, "two": 2}, "map2": {"one": 1, "two": 2}, "map3": {"one": 2, "two": 1}})");
+
+    auto& jsonMap1 = jsonMaps["map1"];
+    auto& jsonMap2 = jsonMaps["map2"];
+    auto& jsonMap3 = jsonMaps["map3"];
+
+    ASSERT_TRUE(jsonMap1 == jsonMap2);
+    ASSERT_TRUE(jsonMap3 != jsonMap2);
+
+    ASSERT_TRUE(Object(jsonMap1) == Object(jsonMap2));
+    ASSERT_TRUE(Object(jsonMap3) != Object(jsonMap2));
+
+    auto objectMap1 = std::make_shared<ObjectMap>(std::map<std::string, Object>({{"one", 1}, {"two", 2}}));
+    auto objectMap2 = std::make_shared<ObjectMap>(std::map<std::string, Object>({{"one", 1}, {"two", 2}}));
+    auto objectMap3 = std::make_shared<ObjectMap>(std::map<std::string, Object>({{"one", 2}, {"two", 1}}));
+
+    ASSERT_TRUE(*objectMap1 == *objectMap2);
+    ASSERT_TRUE(*objectMap3 != *objectMap2);
+
+    ASSERT_TRUE(Object(objectMap1) == Object(objectMap2));
+    ASSERT_TRUE(Object(objectMap3) != Object(objectMap2));
+
+    ASSERT_TRUE(Object(jsonMap1) == Object(objectMap1));
+    ASSERT_TRUE(Object(objectMap2) == Object(jsonMap2));
+    ASSERT_TRUE(Object(jsonMap1) != Object(objectMap3));
+    ASSERT_TRUE(Object(objectMap1) != Object(jsonMap3));
+}

@@ -212,7 +212,7 @@ VideoComponent::propDefSet() const
         { kPropertyAudioTrack,      kAudioTrackForeground,  sAudioTrackMap,     kPropInOut },
         { kPropertyAutoplay,        false,                  asOldBoolean,       kPropInOut },
         { kPropertyScale,           kVideoScaleBestFit,     sVideoScaleMap,     kPropInOut },
-        { kPropertySource,          Object::EMPTY_ARRAY(),  asMediaSourceArray, kPropDynamic | kPropInOut | kPropVisualContext | kPropVisualHash, resetMediaState },
+        { kPropertySource,          Object::EMPTY_ARRAY(),  asMediaSourceArray, kPropDynamic | kPropInOut | kPropVisualContext | kPropVisualHash | kPropEvaluated, resetMediaState },
         { kPropertyOnEnd,           Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
         { kPropertyOnPause,         Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
         { kPropertyOnPlay,          Object::EMPTY_ARRAY(),  asCommand,          kPropIn },

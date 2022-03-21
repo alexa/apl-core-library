@@ -2163,6 +2163,9 @@ YGSize
 CoreComponent::textMeasureInternal(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)
 {
     APL_TRACE_BLOCK("CoreComponent:textMeasureInternal");
+    // Recalculate visual hash if marked as stale
+    fixVisualHash(true);
+
     auto componentHash = textMeasurementHash();
     LOG_IF(DEBUG_MEASUREMENT)
         << "Measuring: " << getUniqueId()

@@ -145,4 +145,22 @@ SimpleTextMeasurement::baseline(Component *component,
     return 8;
 }
 
+LayoutSize
+SpyTextMeasure::measure(Component *component,
+                               float width,
+                               MeasureMode widthMode,
+                               float height,
+                               MeasureMode heightMode)
+{
+    visualHashes.emplace_back(component->getCalculated(kPropertyVisualHash));
+    return LayoutSize({ 90.0, 30.0 });
+}
+
+float
+SpyTextMeasure::baseline(Component *component,
+                                float width,
+                                float height) {
+    return 0;
+}
+
 } // namespace apl

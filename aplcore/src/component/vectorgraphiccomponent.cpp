@@ -75,7 +75,7 @@ VectorGraphicComponent::propDefSet() const
             {kPropertyOnFail,      Object::EMPTY_ARRAY(),     asCommand,              kPropIn},
             {kPropertyOnLoad,      Object::EMPTY_ARRAY(),     asCommand,              kPropIn},
             {kPropertyScale,       kVectorGraphicScaleNone,   sVectorGraphicScaleMap, kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash, checkLayout},
-            {kPropertySource,      "",                        asVectorGraphicSource,  kPropInOut | kPropDynamic | kPropVisualHash,               resetOnLoadOnFailFlag},
+            {kPropertySource,      "",                        asVectorGraphicSource,  kPropInOut | kPropDynamic | kPropVisualHash | kPropEvaluated, resetOnLoadOnFailFlag},
     });
 
     return sVectorGraphicComponentProperties;

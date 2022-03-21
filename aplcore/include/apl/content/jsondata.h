@@ -32,17 +32,18 @@ namespace apl {
  * JSON data with a consistent surface area.
  */
 class JsonData {
+private:
+    enum Type { kDocument, kValue, kNullPtr };
+
 public:
     /**
      * Initialize by moving an existing JSON document.
      * @param document
      */
     JsonData(rapidjson::Document&& document)
-        : mHasDocument(true),
-          mDocument(std::move(document)),
-          mValue(mDocument)
-    {
-    }
+        : mDocument(std::move(document)),
+          mType(kDocument)
+    {}
 
     /**
      * Initialize by reference to an existing JSON document.  The document
@@ -51,8 +52,8 @@ public:
      * @param value
      */
     JsonData(const rapidjson::Value& value)
-        : mHasDocument(false),
-          mValue(value)
+        : mValuePtr(&value),
+          mType(kValue)
     {}
 
     /**
@@ -60,11 +61,11 @@ public:
      * @param raw
      */
     JsonData(const std::string& raw)
-        : mHasDocument(true),
-          mDocument(),
-          mOk(mDocument.Parse<rapidjson::kParseValidateEncodingFlag | rapidjson::kParseStopWhenDoneFlag>(raw.c_str())),
-          mValue(mDocument)
-    {}
+        : mType(kDocument)
+    {
+        mDocument.Parse<rapidjson::kParseValidateEncodingFlag |
+                        rapidjson::kParseStopWhenDoneFlag>(raw.c_str());
+    }
 
     /**
      * Initialize by parsing a raw string.  The string may be released
@@ -72,11 +73,12 @@ public:
      * @param raw
      */
     JsonData(const char *raw)
-        : mHasDocument(true),
-          mDocument(),
-          mOk(mDocument.Parse<rapidjson::kParseValidateEncodingFlag | rapidjson::kParseStopWhenDoneFlag>(raw)),
-          mValue(mDocument)
-    {}
+        : mType(raw ? kDocument : kNullPtr)
+    {
+        if (raw != nullptr)
+            mDocument.Parse<rapidjson::kParseValidateEncodingFlag |
+                            rapidjson::kParseStopWhenDoneFlag>(raw);
+    }
 
     /**
      * Initialize by parsing a raw string in situ.  The string may be
@@ -85,39 +87,54 @@ public:
      * @param raw
      */
     JsonData(char *raw)
-        : mHasDocument(true),
-          mDocument(),
-          mOk(mDocument.Parse<rapidjson::kParseValidateEncodingFlag | rapidjson::kParseStopWhenDoneFlag>(raw)),
-          mValue(mDocument)
-    {}
+        : mType(raw ? kDocument : kNullPtr)
+    {
+        if (raw != nullptr)
+            mDocument.ParseInsitu<rapidjson::kParseValidateEncodingFlag |
+                                  rapidjson::kParseStopWhenDoneFlag>(raw);
+    }
 
     /**
      * @return True if this appears to be a valid JSON object.
      */
     operator bool() const {
-        return !mOk.IsError();
+        switch (mType) {
+            case kDocument:
+                return !mDocument.HasParseError();
+            case kValue:
+                return true;
+            case kNullPtr:
+            default:
+                return false;
+        }
     }
 
     /**
      * @return The offset of the first parse error.
      */
     unsigned int offset() const {
-        return mOk.Offset();
+        return mType == kDocument ? mDocument.GetErrorOffset() : 0;
     }
 
     /**
      * @return The human-readable error state of the parser.
      */
     const char * error() const {
-        return rapidjson::GetParseError_En(mOk.Code());
+        switch (mType) {
+            case kDocument:
+                return rapidjson::GetParseError_En(mDocument.GetParseError());
+            case kValue:
+                return "Value-constructed; no error";
+            case kNullPtr:
+            default:
+                return "Nullptr";
+        }
     }
 
     /**
      * @return A reference to the top-level rapidjson Value.
      */
-    const rapidjson::Value& get() const {
-        return mHasDocument ? mDocument : mValue;
-    }
+    const rapidjson::Value& get() const { return mType == kValue ? *mValuePtr : mDocument; }
 
     /**
      * @return JSON serialized to a string.
@@ -130,10 +147,9 @@ public:
     std::string toDebugString() const;
 
 private:
-    bool mHasDocument;
     rapidjson::Document mDocument;
-    rapidjson::ParseResult mOk;
-    const rapidjson::Value& mValue;
+    const rapidjson::Value *mValuePtr = nullptr;
+    Type mType;
 };
 
 } // namespace APL

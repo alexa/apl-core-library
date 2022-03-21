@@ -38,7 +38,7 @@ class CoreComponent;
 class ComponentDependant : public Dependant {
 public:
     /**
-     *
+     * Construct a downstream component dependency
      * @param downstreamComponent The downstream or target component
      * @param downstreamKey The property that will be modified
      * @param equation The expression which will be evaluated to recalculate downstream.
@@ -54,11 +54,11 @@ public:
     /**
      * Internal constructor: do not call.  Use ComponentDependant::create instead.
      *
-     * @param downstreamComponent
-     * @param downstreamKey
-     * @param equation
-     * @param bindingContext
-     * @param bindingFunction
+     * @param downstreamComponent The downstream or target component
+     * @param downstreamKey The property that will be modified
+     * @param equation The expression which will be evaluated to recalculate downstream.
+     * @param bindingContext The context where the equation will be bound
+     * @param bindingFunction The binding function that will be applied after evaluating the equation
      */
     ComponentDependant(const CoreComponentPtr& downstreamComponent,
                        PropertyKey downstreamKey,

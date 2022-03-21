@@ -31,7 +31,8 @@ static const char* PAGE_TOKEN = "pageToken";
 
 class DynamicTokenListTest : public DocumentWrapper {
 protected:
-    ::testing::AssertionResult CheckFetchRequest(const std::string& listId,
+    ::testing::AssertionResult CheckFetchRequest(const std::string& sourceType,
+                                                 const std::string& listId,
                                                  const std::string& correlationToken,
                                                  const std::string& pageToken) {
         bool fetchCalled = root->hasEvent();
@@ -42,9 +43,9 @@ protected:
             return ::testing::AssertionFailure() << "Fetch was not called.";
 
         auto incomingType = event.getValue(kEventPropertyName).getString();
-        if (SOURCE_TYPE != incomingType)
+        if (sourceType != incomingType)
             return ::testing::AssertionFailure()
-                   << "DataSource type is wrong. Expected: " << SOURCE_TYPE
+                   << "DataSource type is wrong. Expected: " << sourceType
                    << ", actual: " << incomingType;
 
         auto request = event.getValue(kEventPropertyValue);
@@ -66,6 +67,12 @@ protected:
                                                  << ", actual: " << incomingPageToken;
 
         return ::testing::AssertionSuccess();
+    }
+
+    ::testing::AssertionResult CheckFetchRequest(const std::string& listId,
+                                                 const std::string& correlationToken,
+                                                 const std::string& pageToken) {
+        return CheckFetchRequest(SOURCE_TYPE, listId, correlationToken, pageToken);
     }
 
     ::testing::AssertionResult
@@ -234,6 +241,178 @@ TEST_F(DynamicTokenListTest, Basic) {
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(12, 22), true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(23, 25), false));
 
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char* SPACING_ANCHOR_CONFIG_VERTICAL = R"({
+  "config": {
+    "sd": "vertical",
+    "ld": "LTR"
+  },
+)";
+
+static const char* SPACING_ANCHOR_DATA = R"(
+  "dynamicSource": {
+    "type": "testList",
+    "listId": "vQdpOESlok",
+    "pageToken": "pageToken",
+    "backwardPageToken": "backwardPageToken",
+    "forwardPageToken": "forwardPageToken",
+    "items": [ 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ]
+  }
+})";
+
+static const char* SPACING_ANCHOR = R"({
+  "type": "APL",
+  "version": "1.6",
+  "theme": "dark",
+  "mainTemplate": {
+    "parameters": ["dynamicSource", "config"],
+    "item": {
+      "type": "Sequence",
+      "id": "sequence",
+      "scrollDirection": "${config.sd}",
+      "layoutDirection": "${config.ld}",
+      "height": 300,
+      "width": 300,
+      "data": "${dynamicSource}",
+      "items": {
+        "spacing": 50,
+        "type": "Text",
+        "id": "id${data}",
+        "width": 100,
+        "height": 100,
+        "text": "${data}"
+      }
+    }
+  }
+})";
+
+TEST_F(DynamicTokenListTest, SpacingAnchorVertical) {
+    auto cnf = DynamicListConfiguration("testList");
+    cnf.cacheChunkSize = 2;
+
+    auto source = std::make_shared<DynamicTokenListDataSourceProvider>(cnf);
+    config->dataSourceProvider("testList", source);
+    config->set(RootProperty::kSequenceChildCache, 1);
+    loadDocument(SPACING_ANCHOR, (std::string(SPACING_ANCHOR_CONFIG_VERTICAL) + std::string(SPACING_ANCHOR_DATA)).c_str());
+    advanceTime(10);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(10, component->getChildCount());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 2}, true));
+
+    ASSERT_TRUE(CheckFetchRequest("testList", "vQdpOESlok", "101", "backwardPageToken"));
+
+    ASSERT_TRUE(source->processUpdate(
+            StringToMapObject(createLazyLoad(101, "backwardPageToken", "backwardPageToken1",
+                                             "3, 4, 5, 6, 7, 8, 9"))));
+    advanceTime(100);
+
+    // Move a bit and see what happens
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(10, 20)));
+    advanceTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(10, 150)));
+    advanceTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(10, 175)));
+    advanceTime(1000);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(10, 175)));
+
+    root->clearPending();
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char* SPACING_ANCHOR_CONFIG_LTR = R"({
+  "config": {
+    "sd": "horizontal",
+    "ld": "LTR"
+  },
+)";
+
+TEST_F(DynamicTokenListTest, SpacingAnchorHorizontalLTR) {
+    auto cnf = DynamicListConfiguration("testList");
+    cnf.cacheChunkSize = 2;
+
+    auto source = std::make_shared<DynamicTokenListDataSourceProvider>(cnf);
+    config->dataSourceProvider("testList", source);
+    config->set(RootProperty::kSequenceChildCache, 1);
+    loadDocument(SPACING_ANCHOR, (std::string(SPACING_ANCHOR_CONFIG_LTR) + std::string(SPACING_ANCHOR_DATA)).c_str());
+    advanceTime(10);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(10, component->getChildCount());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 2}, true));
+
+    ASSERT_TRUE(CheckFetchRequest("testList", "vQdpOESlok", "101", "backwardPageToken"));
+
+    ASSERT_TRUE(source->processUpdate(
+            StringToMapObject(createLazyLoad(101, "backwardPageToken", "backwardPageToken1",
+                                             "3, 4, 5, 6, 7, 8, 9"))));
+    advanceTime(100);
+
+    // Move a bit and see what happens
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(20, 10)));
+    advanceTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(150, 10)));
+    advanceTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(175, 10)));
+    advanceTime(1000);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(175, 10)));
+
+    root->clearPending();
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char* SPACING_ANCHOR_CONFIG_RTL = R"({
+  "config": {
+    "sd": "horizontal",
+    "ld": "RTL"
+  },
+)";
+
+TEST_F(DynamicTokenListTest, SpacingAnchorHorizontalRTL) {
+    auto cnf = DynamicListConfiguration("testList");
+    cnf.cacheChunkSize = 2;
+
+    auto source = std::make_shared<DynamicTokenListDataSourceProvider>(cnf);
+    config->dataSourceProvider("testList", source);
+    config->set(RootProperty::kSequenceChildCache, 1);
+    loadDocument(SPACING_ANCHOR, (std::string(SPACING_ANCHOR_CONFIG_RTL) + std::string(SPACING_ANCHOR_DATA)).c_str());
+    advanceTime(10);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(10, component->getChildCount());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 2}, true));
+
+    ASSERT_TRUE(CheckFetchRequest("testList", "vQdpOESlok", "101", "backwardPageToken"));
+
+    ASSERT_TRUE(source->processUpdate(
+            StringToMapObject(createLazyLoad(101, "backwardPageToken", "backwardPageToken1",
+                                             "3, 4, 5, 6, 7, 8, 9"))));
+    advanceTime(100);
+
+    // Move a bit and see what happens
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(175, 10)));
+    advanceTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(45, 10)));
+    advanceTime(100);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(20, 10)));
+    advanceTime(1000);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(20, 10)));
+
+    root->clearPending();
     // Check that timeout is not there
     loop->advanceToEnd();
     ASSERT_FALSE(root->hasEvent());

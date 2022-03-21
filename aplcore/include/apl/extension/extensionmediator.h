@@ -267,18 +267,24 @@ private:
     /**
      * Get the extension client corresponding to requested uri.
      * @param uri extension URI.
-     * @return Proxy, if exists, null otherwise.
+     * @return ExtensionClient, if exists, null otherwise.
      */
     ExtensionClientPtr getClient(const std::string& uri);
 
     /**
      * Send a resource to an extension.
+     * @param component ExtensionComponent reference.
+     * @param uri Extension URI.
+     * @param resourceHolder ResourceHolder reference.
      */
     void sendResourceReady(const std::string& uri,
                            const alexaext::ResourceHolderPtr& resourceHolder);
 
     /**
      * Component resource could not be acquired.
+     * @param component ExtensionComponent reference.
+     * @param errorCode Failure error code.
+     * @param error Message associated with error code.
      */
      void resourceFail(const ExtensionComponentPtr& component, int errorCode, const std::string& error);
 
@@ -286,8 +292,10 @@ private:
     std::weak_ptr<alexaext::ExtensionProvider> mProvider;
     // access to the extension resources
     std::weak_ptr<alexaext::ExtensionResourceProvider> mResourceProvider;
-    // context the context that events and data updates are forwarded to
+    // the context that events and data updates are forwarded to
     std::weak_ptr<RootContext> mRootContext;
+    // reference to associated config
+    std::weak_ptr<RootConfig> mRootConfig;
     // retro extension wrapper used for message passing
     std::map<std::string, std::shared_ptr<ExtensionClient>> mClients;
     // executor to enqueue/sequence message processing

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1]
+
+### Changed
+
+- Performance improvements.
+- Bug fixes.
+
 ## [1.9.0]
 
 This release adds support for version 1.9 of the APL specification.

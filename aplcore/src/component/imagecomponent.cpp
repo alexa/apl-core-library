@@ -67,7 +67,7 @@ ImageComponent::propDefSet() const
         {kPropertyOverlayColor,    Color(),                  asColor,             kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
         {kPropertyOverlayGradient, Object::NULL_OBJECT(),    asGradient,          kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
         {kPropertyScale,           kImageScaleBestFit,       sScaleMap,           kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
-        {kPropertySource,          "",                       asImageSourceArray,  kPropInOut | kPropDynamic | kPropVisualHash,                resetMediaState},
+        {kPropertySource,          "",                       asImageSourceArray,  kPropInOut | kPropDynamic | kPropVisualHash | kPropEvaluated, resetMediaState},
     });
 
     return sImageComponentProperties;

@@ -19,16 +19,21 @@
 namespace apl {
 
 std::string
-JsonData::toDebugString() const {
+JsonData::toDebugString() const
+{
     return "JsonData<" + toString() + ">";
 }
 
 std::string
-JsonData::toString() const {
+JsonData::toString() const
+{
+    if (!*this)
+        return "INVALID";
+
     rapidjson::StringBuffer buffer;
     buffer.Clear();
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    mValue.Accept(writer);
+    get().Accept(writer);
     return buffer.GetString();
 }
 

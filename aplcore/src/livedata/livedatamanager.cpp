@@ -22,6 +22,9 @@ void
 LiveDataManager::flushDirty()
 {
     for (const auto& m : mDirty)
+        m->preFlush();
+
+    for (const auto& m : mDirty)
         m->flush();
 
     mDirty.clear();

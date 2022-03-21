@@ -21,31 +21,30 @@ using namespace apl;
 
 class DependantTest : public DocumentWrapper {};
 
-static const char *CONTEXT_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"bind\": ["
-    "        {"
-    "          \"name\": \"a\","
-    "          \"value\": 22"
-    "        }"
-    "      ],"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"bind\": ["
-    "          {"
-    "            \"name\": \"b\","
-    "            \"value\": \"${a}\""
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *CONTEXT_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "bind": [
+        {
+          "name": "a",
+          "value": 22
+        }
+      ],
+      "items": {
+        "type": "Frame",
+        "bind": [
+          {
+            "name": "b",
+            "value": "${a}"
+          }
+        ]
+      }
+    }
+  }
+})";
 
 TEST_F(DependantTest, Context)
 {
@@ -65,53 +64,52 @@ TEST_F(DependantTest, Context)
     ASSERT_TRUE(IsEqual("fuzzy", frame->getContext()->opt("b")));
 }
 
-static const char *CONTEXT_TEST_2 =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"bind\": ["
-    "        {"
-    "          \"name\": \"a\","
-    "          \"value\": 22"
-    "        },"
-    "        {"
-    "          \"name\": \"b\","
-    "          \"value\": \"red\","
-    "          \"type\": \"color\""
-    "        },"
-    "        {"
-    "          \"name\": \"c\","
-    "          \"value\": \"${a+10}\""
-    "        }"
-    "      ],"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"bind\": ["
-    "          {"
-    "            \"name\": \"x\","
-    "            \"value\": \"${Math.min(a, 100)}\""
-    "          },"
-    "          {"
-    "            \"name\": \"y\","
-    "            \"value\": \"${b}\""
-    "          }"
-    "        ],"
-    "        \"items\": {"
-    "          \"type\": \"Text\","
-    "          \"bind\": ["
-    "            {"
-    "              \"name\": \"z\","
-    "              \"value\": \"${a*c}\""
-    "            }"
-    "          ]"
-    "        }"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *CONTEXT_TEST_2 = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "bind": [
+        {
+          "name": "a",
+          "value": 22
+        },
+        {
+          "name": "b",
+          "value": "red",
+          "type": "color"
+        },
+        {
+          "name": "c",
+          "value": "${a+10}"
+        }
+      ],
+      "items": {
+        "type": "Frame",
+        "bind": [
+          {
+            "name": "x",
+            "value": "${Math.min(a, 100)}"
+          },
+          {
+            "name": "y",
+            "value": "${b}"
+          }
+        ],
+        "items": {
+          "type": "Text",
+          "bind": [
+            {
+              "name": "z",
+              "value": "${a*c}"
+            }
+          ]
+        }
+      }
+    }
+  }
+})";
 
 TEST_F(DependantTest, Context2)
 {
@@ -147,23 +145,22 @@ TEST_F(DependantTest, Context2)
     ASSERT_TRUE(text->getContext()->opt("z").isNaN());  // Neither does multiplication
 }
 
-const static char * COMPONENT_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"bind\": ["
-    "        {"
-    "          \"name\": \"a\","
-    "          \"value\": 22"
-    "        }"
-    "      ],"
-    "      \"text\": \"Is ${a}\""
-    "    }"
-    "  }"
-    "}";
+const static char * COMPONENT_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Text",
+      "bind": [
+        {
+          "name": "a",
+          "value": 22
+        }
+      ],
+      "text": "Is ${a}"
+    }
+  }
+})";
 
 TEST_F(DependantTest, Component)
 {
@@ -197,32 +194,31 @@ TEST_F(DependantTest, Component)
     ASSERT_TRUE(CheckDirty(root));
 }
 
-static const char *COUNTER_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"TouchWrapper\","
-    "      \"bind\": ["
-    "        {"
-    "          \"name\": \"myCount\","
-    "          \"value\": 0,"
-    "          \"type\": \"number\""
-    "        }"
-    "      ],"
-    "      \"onPress\": {"
-    "        \"type\": \"SetValue\","
-    "        \"property\": \"myCount\","
-    "        \"value\": \"${myCount + 1}\""
-    "      },"
-    "      \"item\": {"
-    "        \"type\": \"Text\","
-    "        \"text\": \"Count: ${myCount}\""
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *COUNTER_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "TouchWrapper",
+      "bind": [
+        {
+          "name": "myCount",
+          "value": 0,
+          "type": "number"
+        }
+      ],
+      "onPress": {
+        "type": "SetValue",
+        "property": "myCount",
+        "value": "${myCount + 1}"
+      },
+      "item": {
+        "type": "Text",
+        "text": "Count: ${myCount}"
+      }
+    }
+  }
+})";
 
 TEST_F(DependantTest, Counter)
 {
@@ -279,23 +275,22 @@ TEST_F(DependantTest, FreeContext)
     ASSERT_EQ(0, first->countDownstream("source"));
 }
 
-static const char *FREE_COMPONENT =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"bind\": ["
-    "        {"
-    "          \"name\": \"a\","
-    "          \"value\": 22"
-    "        }"
-    "      ],"
-    "      \"text\": \"Is ${a}\""
-    "    }"
-    "  }"
-    "}";
+static const char *FREE_COMPONENT = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Text",
+      "bind": [
+        {
+          "name": "a",
+          "value": 22
+        }
+      ],
+      "text": "Is ${a}"
+    }
+  }
+})";
 
 TEST_F(DependantTest, FreeComponent)
 {
@@ -323,27 +318,26 @@ TEST_F(DependantTest, FreeComponent)
     ASSERT_STREQ("Hello", component->getCalculated(kPropertyText).asString().c_str());
 }
 
-static const char *BREAK_CHAIN =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"bind\": ["
-    "        {"
-    "          \"name\": \"a\","
-    "          \"value\": 22"
-    "        },"
-    "        {"
-    "          \"name\": \"b\","
-    "          \"value\": \"${a*a}\""
-    "        }"
-    "      ],"
-    "      \"text\": \"Is ${b}\""
-    "    }"
-    "  }"
-    "}";
+static const char *BREAK_CHAIN = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Text",
+      "bind": [
+        {
+          "name": "a",
+          "value": 22
+        },
+        {
+          "name": "b",
+          "value": "${a*a}"
+        }
+      ],
+      "text": "Is ${b}"
+    }
+  }
+})";
 
 TEST_F(DependantTest, BreakChain)
 {
@@ -376,23 +370,22 @@ TEST_F(DependantTest, BreakChain)
     ASSERT_EQ(1, component->countUpstream(kPropertyText));
 }
 
-static const char *STATIC_PROPERTY =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"bind\": ["
-    "        {"
-    "          \"name\": \"a\","
-    "          \"value\": 5"
-    "        }"
-    "      ],"
-    "      \"letterSpacing\": \"${a}\""
-    "    }"
-    "  }"
-    "}";
+static const char *STATIC_PROPERTY = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Text",
+      "bind": [
+        {
+          "name": "a",
+          "value": 5
+        }
+      ],
+      "letterSpacing": "${a}"
+    }
+  }
+})";
 
 TEST_F(DependantTest, StaticProperty)
 {
@@ -405,28 +398,27 @@ TEST_F(DependantTest, StaticProperty)
     ASSERT_FALSE(IsEqual(Dimension(10), component->getCalculated(kPropertyLetterSpacing)));
 }
 
-static const char *MUTABLE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"id\": \"textId\","
-    "      \"bind\": ["
-    "        {"
-    "          \"name\": \"a\","
-    "          \"value\": \"${TestMutable}\""
-    "        },"
-    "        {"
-    "          \"name\": \"b\","
-    "          \"value\": \"${TestImmutable}\""
-    "        }"
-    "      ],"
-    "      \"text\": \"${a} ${b} ${viewport.width}\""
-    "    }"
-    "  }"
-    "}";
+static const char *MUTABLE = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Text",
+      "id": "textId",
+      "bind": [
+        {
+          "name": "a",
+          "value": "${TestMutable}"
+        },
+        {
+          "name": "b",
+          "value": "${TestImmutable}"
+        }
+      ],
+      "text": "${a} ${b} ${viewport.width}"
+    }
+  }
+})";
 
 static const std::string KEY_MUTABLE = "TestMutable";
 static const std::string KEY_IMMUTABLE = "TestImmutable";
@@ -500,47 +492,46 @@ TEST_F(DependantTest, Mutable)
     ASSERT_EQ(0, context->countDownstream());
 }
 
-static const char *NESTED =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"layouts\": {"
-    "    \"TestLayout\": {"
-    "      \"parameters\": ["
-    "        \"Name\""
-    "      ],"
-    "      \"items\": {"
-    "        \"type\": \"Container\","
-    "        \"bind\": ["
-    "          {"
-    "            \"name\": \"InnerName\","
-    "            \"value\": \"${Name} the great\""
-    "          }"
-    "        ],"
-    "        \"items\": {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"TouchId\","
-    "          \"onPress\": {"
-    "            \"type\": \"SetValue\","
-    "            \"property\": \"InnerName\","
-    "            \"value\": \"${Name} the not so great\""
-    "          },"
-    "          \"items\": {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"TextId\","
-    "            \"text\": \"${InnerName} of Mesopotamia\""
-    "          }"
-    "        }"
-    "      }"
-    "    }"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"TestLayout\","
-    "      \"Name\": \"Pat\""
-    "    }"
-    "  }"
-    "}";
+static const char *NESTED = R"({
+  "type": "APL",
+  "version": "1.1",
+  "layouts": {
+    "TestLayout": {
+      "parameters": [
+        "Name"
+      ],
+      "items": {
+        "type": "Container",
+        "bind": [
+          {
+            "name": "InnerName",
+            "value": "${Name} the great"
+          }
+        ],
+        "items": {
+          "type": "TouchWrapper",
+          "id": "TouchId",
+          "onPress": {
+            "type": "SetValue",
+            "property": "InnerName",
+            "value": "${Name} the not so great"
+          },
+          "items": {
+            "type": "Text",
+            "id": "TextId",
+            "text": "${InnerName} of Mesopotamia"
+          }
+        }
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "TestLayout",
+      "Name": "Pat"
+    }
+  }
+})";
 
 /**
  * Test changing properties from internal press events and reaching upwards.  In this case the TouchWrapper
@@ -580,43 +571,42 @@ TEST_F(DependantTest, Nested)
     ASSERT_TRUE(IsEqual("Sam the not so great of Mesopotamia", text->getCalculated(kPropertyText).asString()));
 }
 
-static const char *LAYOUT_TEST =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"layouts\": {"
-        "    \"square\": {"
-        "      \"parameters\": ["
-        "        \"cnt\""
-        "      ],"
-        "      \"item\": {"
-        "        \"type\": \"Text\","
-        "        \"text\": \"Count: ${cnt}\""
-        "      }"
-        "    }"
-        "  },"
-        "  \"mainTemplate\": {"
-        "    \"items\": {"
-        "      \"type\": \"TouchWrapper\","
-        "      \"bind\": ["
-        "        {"
-        "          \"name\": \"myCount\","
-        "          \"value\": 1,"
-        "          \"type\": \"number\""
-        "        }"
-        "      ],"
-        "      \"onPress\": {"
-        "        \"type\": \"SetValue\","
-        "        \"property\": \"myCount\","
-        "        \"value\": \"${myCount + 1}\""
-        "      },"
-        "      \"item\": {"
-        "        \"type\": \"square\","
-        "        \"cnt\": \"${myCount}\""
-        "      }"
-        "    }"
-        "  }"
-        "}";
+static const char *LAYOUT_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "layouts": {
+    "square": {
+      "parameters": [
+        "cnt"
+      ],
+      "item": {
+        "type": "Text",
+        "text": "Count: ${cnt}"
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "TouchWrapper",
+      "bind": [
+        {
+          "name": "myCount",
+          "value": 1,
+          "type": "number"
+        }
+      ],
+      "onPress": {
+        "type": "SetValue",
+        "property": "myCount",
+        "value": "${myCount + 1}"
+      },
+      "item": {
+        "type": "square",
+        "cnt": "${myCount}"
+      }
+    }
+  }
+})";
 
 TEST_F(DependantTest, Layout)
 {
@@ -639,37 +629,36 @@ TEST_F(DependantTest, Layout)
     ASSERT_TRUE(CheckDirty(root, text));
 }
 
-static const char *LAYOUT_MISSING_PROPERTY_TEST =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"layouts\": {"
-        "    \"square\": {"
-        "      \"parameters\": ["
-        "        \"cnt\""
-        "      ],"
-        "      \"item\": {"
-        "        \"type\": \"Text\","
-        "        \"text\": \"Count: ${cnt}\""
-        "      }"
-        "    }"
-        "  },"
-        "  \"mainTemplate\": {"
-        "    \"items\": {"
-        "      \"type\": \"TouchWrapper\","
-        "      \"bind\": ["
-        "        {"
-        "          \"name\": \"myCount\","
-        "          \"value\": 1,"
-        "          \"type\": \"number\""
-        "        }"
-        "      ],"
-        "      \"item\": {"
-        "        \"type\": \"square\""
-        "      }"
-        "    }"
-        "  }"
-        "}";
+static const char *LAYOUT_MISSING_PROPERTY_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "layouts": {
+    "square": {
+      "parameters": [
+        "cnt"
+      ],
+      "item": {
+        "type": "Text",
+        "text": "Count: ${cnt}"
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "TouchWrapper",
+      "bind": [
+        {
+          "name": "myCount",
+          "value": 1,
+          "type": "number"
+        }
+      ],
+      "item": {
+        "type": "square"
+      }
+    }
+  }
+})";
 
 TEST_F(DependantTest, LayoutMissingProperty)
 {
@@ -692,38 +681,37 @@ TEST_F(DependantTest, LayoutMissingProperty)
     ASSERT_TRUE(CheckDirty(root, text));
 }
 
-static const char *LAYOUT_BAD_PROPERTY_TEST =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"layouts\": {"
-        "    \"square\": {"
-        "      \"parameters\": ["
-        "        \"cnt\""
-        "      ],"
-        "      \"item\": {"
-        "        \"type\": \"Text\","
-        "        \"text\": \"Count: ${cnt}\""
-        "      }"
-        "    }"
-        "  },"
-        "  \"mainTemplate\": {"
-        "    \"items\": {"
-        "      \"type\": \"TouchWrapper\","
-        "      \"bind\": ["
-        "        {"
-        "          \"name\": \"myCount\","
-        "          \"value\": 1,"
-        "          \"type\": \"number\""
-        "        }"
-        "      ],"
-        "      \"item\": {"
-        "        \"type\": \"square\","
-        "        \"cnt\": \"${myCount7}\""
-        "      }"
-        "    }"
-        "  }"
-        "}";
+static const char *LAYOUT_BAD_PROPERTY_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "layouts": {
+    "square": {
+      "parameters": [
+        "cnt"
+      ],
+      "item": {
+        "type": "Text",
+        "text": "Count: ${cnt}"
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "TouchWrapper",
+      "bind": [
+        {
+          "name": "myCount",
+          "value": 1,
+          "type": "number"
+        }
+      ],
+      "item": {
+        "type": "square",
+        "cnt": "${myCount7}"
+      }
+    }
+  }
+})";
 
 TEST_F(DependantTest, LayoutBadProperty)
 {
@@ -747,57 +735,55 @@ TEST_F(DependantTest, LayoutBadProperty)
 }
 
 
-static const char *RESOURCE_LOOKUP = R"apl(
+static const char *RESOURCE_LOOKUP = R"apl({
+  "type": "APL",
+  "version": "1.4",
+  "resources": [
     {
-      "type": "APL",
-      "version": "1.4",
-      "resources": [
-        {
-          "string": {
-            "SUN": "Sunday",
-            "MON": "Monday",
-            "TUE": "Tuesday",
-            "WED": "Wednesday",
-            "THU": "Thursday",
-            "FRI": "Friday",
-            "SAT": "Saturday"
-          }
-        }
-      ],
-      "mainTemplate": {
-        "items": {
-          "type": "TouchWrapper",
-          "bind": [
-            {
-              "name": "DayOfWeek",
-              "value": 0
-            },
-            {
-              "name": "DayNames",
-              "value": [
-                "@SUN",
-                "@MON",
-                "@TUE",
-                "@WED",
-                "@THU",
-                "@FRI",
-                "@SAT"
-              ]
-            }
-          ],
-          "items": {
-            "type": "Text",
-            "text": "${DayNames[DayOfWeek]}"
-          },
-          "onPress": {
-            "type": "SetValue",
-            "property": "DayOfWeek",
-            "value": "${(DayOfWeek + 1) % 7}"
-          }
-        }
+      "string": {
+        "SUN": "Sunday",
+        "MON": "Monday",
+        "TUE": "Tuesday",
+        "WED": "Wednesday",
+        "THU": "Thursday",
+        "FRI": "Friday",
+        "SAT": "Saturday"
       }
     }
-)apl";
+  ],
+  "mainTemplate": {
+    "items": {
+      "type": "TouchWrapper",
+      "bind": [
+        {
+          "name": "DayOfWeek",
+          "value": 0
+        },
+        {
+          "name": "DayNames",
+          "value": [
+            "@SUN",
+            "@MON",
+            "@TUE",
+            "@WED",
+            "@THU",
+            "@FRI",
+            "@SAT"
+          ]
+        }
+      ],
+      "items": {
+        "type": "Text",
+        "text": "${DayNames[DayOfWeek]}"
+      },
+      "onPress": {
+        "type": "SetValue",
+        "property": "DayOfWeek",
+        "value": "${(DayOfWeek + 1) % 7}"
+      }
+    }
+  }
+})apl";
 
 TEST_F(DependantTest, ResourceLookup)
 {
@@ -1032,4 +1018,75 @@ TEST_F(DependantTest, AVGDependency)
 
     // Release graphic element last.
     graphic = nullptr;
+}
+
+static const char *LAYOUT_LIVE_ARRAY = R"({
+  "type": "APL",
+  "version": "1.10",
+  "theme": "dark",
+  "layouts": {
+    "MyLayout": {
+      "parameters": [
+        "things",
+        "stuff"
+      ],
+      "item": {
+        "type": "Container",
+        "height": "100%",
+        "width": "100%",
+        "direction": "column",
+        "items": [
+          {
+            "type": "Text",
+            "id": "calculatedThings",
+            "text": "${things.length}"
+          },
+          {
+            "type": "Text",
+            "id": "calculatedStuff",
+            "text": "${stuff.potato}"
+          }
+        ]
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "MyLayout",
+      "things": "${ExampleArray}",
+      "stuff": "${ExampleMap}"
+    }
+  }
+})";
+
+TEST_F(DependantTest, LayoutLiveArray)
+{
+    auto la = LiveArray::create();
+    config->liveData("ExampleArray", la);
+    auto lm = LiveMap::create();
+    lm->set("potato", 0);
+    config->liveData("ExampleMap", lm);
+    loadDocument(LAYOUT_LIVE_ARRAY);
+    ASSERT_TRUE(component);
+
+    auto calculatedThings = component->findComponentById("calculatedThings");
+    auto calculatedStuff = component->findComponentById("calculatedStuff");
+
+    ASSERT_EQ("0", calculatedThings->getCalculated(kPropertyText).asString());
+
+    la->push_back(0);
+    la->push_back(1);
+    la->push_back(2);
+    la->push_back(3);
+    la->push_back(4);
+    advanceTime(10);
+
+    ASSERT_EQ("5", calculatedThings->getCalculated(kPropertyText).asString());
+
+    ASSERT_EQ("0", calculatedStuff->getCalculated(kPropertyText).asString());
+
+    lm->set("potato", 5);
+    advanceTime(10);
+
+    ASSERT_EQ("5", calculatedStuff->getCalculated(kPropertyText).asString());
 }

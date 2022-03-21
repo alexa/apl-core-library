@@ -301,6 +301,19 @@ public:
     };
 };
 
+class TestResourceProviderError final: public ExtensionResourceProvider {
+public:
+    bool requestResource(const std::string& uri, const std::string& resourceId,
+                         ExtensionResourceSuccessCallback success,
+                         ExtensionResourceFailureCallback error) override {
+
+        // success callback if resource supported
+        auto resource = std::make_shared<ResourceHolder>(resourceId);
+        error(uri, resourceId, 0, "");
+        return false;
+    };
+};
+
 class ExtensionMediatorTest : public DocumentWrapper {
 public:
 
@@ -2323,6 +2336,119 @@ TEST_F(ExtensionMediatorTest, DocumentEventBeforeRegistrationFinished) {
 
     auto& array = event.getValue(kEventPropertyArguments).getArray();
     ASSERT_EQ("tasty", array.at(0).getString());
+}
+
+TEST_F(ExtensionMediatorTest, ExtensionComponentWithoutProxy) {
+    extensionProvider = std::make_shared<alexaext::ExtensionRegistrar>();
+    mediator = ExtensionMediator::create(extensionProvider, alexaext::Executor::getSynchronousExecutor());
+
+    // Skip registering extension
+
+    createContent(COMPONENT_EVENT_DOC, nullptr);
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+    mediator->loadExtensions(config, content);
+
+    // Provide component definition without registering extension
+    ExtensionComponentDefinition componentDef = ExtensionComponentDefinition("alexaext:example:10", "Example");
+    config->registerExtensionComponent(componentDef);
+
+    inflate();
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+class ExtensionComponentUpdateTestAdapter : public SimpleExtensionTestAdapter {
+public :
+    ExtensionComponentUpdateTestAdapter(const std::string& uri, const std::string& registrationMessage)
+        : SimpleExtensionTestAdapter(uri, registrationMessage) {}
+
+    bool updateComponent(const std::string& uri, const rapidjson::Value& command) override {
+        return false;
+    }
+};
+
+TEST_F(ExtensionMediatorTest, ExtensionComponentNotifyFailed) {
+    extensionProvider = std::make_shared<alexaext::ExtensionRegistrar>();
+    mediator = ExtensionMediator::create(extensionProvider, alexaext::Executor::getSynchronousExecutor());
+
+    auto extension = std::make_shared<ExtensionComponentUpdateTestAdapter>("alexaext:example:10", COMPONENT_EVENT_SCHEMA);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+
+    createContent(COMPONENT_EVENT_DOC, nullptr);
+
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+    mediator->loadExtensions(config, content);
+
+    inflate();
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(ExtensionMediatorTest, ExtensionComponentResourceProviderError) {
+    extensionProvider = std::make_shared<alexaext::ExtensionRegistrar>();
+    resourceProvider = std::make_shared<TestResourceProviderError>();
+    mediator = ExtensionMediator::create(extensionProvider, resourceProvider,
+                                         alexaext::Executor::getSynchronousExecutor());
+
+    auto extension = std::make_shared<SimpleExtensionTestAdapter>("alexaext:example:10", COMPONENT_EVENT_SCHEMA);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+
+    createContent(COMPONENT_EVENT_DOC, nullptr);
+
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+    mediator->loadExtensions(config, content);
+
+    inflate();
+    ASSERT_TRUE(root);
+    auto extensionComp = root->findComponentById("ExampleComp");
+    ASSERT_TRUE(extensionComp);
+    ASSERT_TRUE(IsEqual(kResourcePending, extensionComp->getCalculated(kPropertyResourceState)));
+    extensionComp->updateResourceState(kResourceReady);
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+class TestExtensionProvider : public alexaext::ExtensionRegistrar {
+public :
+    bool returnNullExtensionProxy = false;
+
+    ExtensionProxyPtr getExtension(const std::string& uri) {
+        if(returnNullExtensionProxy)
+            return nullptr;
+        else
+            return ExtensionRegistrar::getExtension(uri);
+    }
+
+};
+
+TEST_F(ExtensionMediatorTest, ExtensionProviderFaultTest) {
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider, alexaext::Executor::getSynchronousExecutor());
+
+    auto extension = std::make_shared<SimpleExtensionTestAdapter>("alexaext:example:10", COMPONENT_EVENT_SCHEMA);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+
+    createContent(COMPONENT_EVENT_DOC, nullptr);
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+
+    // To mock a faulty provider that returns null proxy for an initialized extension
+    std::static_pointer_cast<TestExtensionProvider>(extensionProvider)->returnNullExtensionProxy = true;
+    mediator->loadExtensions(config, content, [](){});
+
+    inflate();
+    ASSERT_TRUE(ConsoleMessage());
 }
 
 #endif

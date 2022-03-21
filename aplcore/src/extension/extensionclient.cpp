@@ -1218,16 +1218,17 @@ ExtensionClient::createComponentChange(rapidjson::MemoryPoolAllocator<>& allocat
         // Fill the payload with all the dirty dynamic properties that are also kPropOut
         // on first message, this will be all properties
         auto payload = std::make_shared<ObjectMap>();
-        auto& corePDS = component.propDefSet().dynamic();
-        for (auto& m : component.getDirty()) {
-            auto pd = corePDS.find(m);
-            if (pd != corePDS.end() && (pd->second.flags & kPropOut) != 0) {
-                payload->emplace(pd->second.names[0], component.getCalculated(m));
+        auto& dirty = component.getDirty();
+        for (auto& pd : component.propDefSet().dynamic()) {
+            if (((pd.second.flags & kPropOut) != 0 ) &&
+                    (state == kResourcePending || dirty.find(pd.first) != dirty.end())) {
+                    payload->emplace(pd.second.names[0], component.getCalculated(pd.first));
             }
         }
         result->emplace("payload", payload);
     }
 
+    LOG_IF(DEBUG_EXTENSION_CLIENT) << "Component: " << Object(result);
     return Object(result).serialize(allocator);
 }
 

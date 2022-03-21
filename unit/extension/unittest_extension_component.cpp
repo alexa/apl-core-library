@@ -232,8 +232,57 @@ TEST_F(ExtensionComponentTest, NamedExtensionComponent) {
     ASSERT_TRUE(component);
     ASSERT_EQ(kComponentTypeExtension, component->getType());
     auto extensionComponent = dynamic_cast<ExtensionComponent*>(component.get());
+    ASSERT_STREQ(extensionComponent->getUri().c_str(), "aplext:hello:10");
+    ASSERT_STREQ(extensionComponent->name().c_str(), "Display");
     auto resId = extensionComponent->getResourceID();
     ASSERT_EQ(resId, component->getCalculated(kPropertyResourceId).asString());
+}
+
+
+static const char* EXTENSION_COMPONENT_PROPERTY_DOC = R"({
+  "type": "APL",
+  "version": "1.7",
+  "extension": {
+    "uri": "aplext:hello:10",
+    "name": "Hello"
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Hello:Display",
+      "propStr": "hello",
+      "onMount" : [
+        {
+          "type": "SetValue",
+          "property": "propBool",
+          "value": true
+        }
+      ]
+    }
+  }
+})";
+TEST_F(ExtensionComponentTest, ComponentProperties) {
+    auto properties = std::make_shared<std::map<id_type , ExtensionProperty>>();
+    properties->emplace(sComponentPropertyBimap.append("propStr"),
+                        ExtensionProperty{kBindingTypeString, Object::NULL_OBJECT(), false});
+    properties->emplace(sComponentPropertyBimap.append("propInt"),
+                        ExtensionProperty{kBindingTypeInteger, 64, false});
+    properties->emplace(sComponentPropertyBimap.append("propBool"),
+                        ExtensionProperty{kBindingTypeBoolean, false, false});
+    ExtensionComponentDefinition definition("aplext:hello:10", "Display");
+    definition.properties(properties);
+    config->registerExtensionComponent(definition);
+
+    loadDocument(EXTENSION_COMPONENT_PROPERTY_DOC);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeExtension, component->getType());
+    auto extensionComponent = dynamic_cast<ExtensionComponent*>(component.get());
+
+    ASSERT_STREQ(extensionComponent->getUri().c_str(), "aplext:hello:10");
+    ASSERT_STREQ(extensionComponent->name().c_str(), "Display");
+    ASSERT_TRUE(IsEqual("hello", extensionComponent->getProperty("propStr")));
+    ASSERT_TRUE(IsEqual(64, extensionComponent->getProperty("propInt")));
+    ASSERT_TRUE(IsEqual(true, extensionComponent->getProperty("propBool")));
 }
 
 // Use extension component definition with command definition
@@ -340,17 +389,6 @@ TEST_F(ExtensionComponentTest, ComponentCommandParameter) {
     ASSERT_TRUE(IsEqual(99, ext.get("value")));
 }
 
-TEST_F(ExtensionComponentTest, GetURIAndName) {
-    config->registerExtensionComponent(ExtensionComponentDefinition("aplext:hello:10", "Display"));
-
-    loadDocument(EXTENSION_DOC);
-
-    ASSERT_TRUE(component);
-    ASSERT_EQ(kComponentTypeExtension, component->getType());
-    auto extensionComponent = dynamic_cast<ExtensionComponent*>(component.get());
-    ASSERT_STREQ(extensionComponent->getUri().c_str(), "aplext:hello:10");
-    ASSERT_STREQ(extensionComponent->name().c_str(), "Display");
-}
 
 TEST_F(ExtensionComponentTest, AddEventHandler) {
     ExtensionComponentDefinition componentDefinition = ExtensionComponentDefinition("ext:cmp:1", "DrawCanvas");

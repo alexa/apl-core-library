@@ -89,7 +89,7 @@ public:
         kExperimentalFeatureExtensionProvider,
         /// Focus EditText component on tap
         kExperimentalFeatureFocusEditTextOnTap,
-        /// Send even when core assumes keyboard input is required
+        /// Send event when core assumes keyboard input is required
         kExperimentalFeatureRequestKeyboard,
     };
 

@@ -195,8 +195,9 @@ void
 ExtensionMediator::loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content,
                                   const std::set<std::string>* grantedExtensions)
 {
+    mRootConfig = rootConfig;
     if (!content->isReady()) {
-        CONSOLE_S(rootConfig->getSession()) << "Cannot load extensions when Content is not ready";
+        CONSOLE_CFGP(rootConfig) << "Cannot load extensions when Content is not ready";
         return;
     }
 
@@ -224,6 +225,7 @@ ExtensionMediator::loadExtensions(
         const ContentPtr& content,
         ExtensionsLoadedCallback loaded)
 {
+    mRootConfig = rootConfig;
     mLoadedCallback = std::move(loaded);
     loadExtensionsInternal(rootConfig, content);
 }
@@ -285,8 +287,8 @@ ExtensionMediator::getProxy(const std::string &uri)
 {
     auto extPro = mProvider.lock();
     if (extPro == nullptr || !extPro->hasExtension(uri)) {
-        auto root = mRootContext.lock();
-        CONSOLE_S(root->getSession()) << "Proxy does not exist for uri: " << uri;
+        auto config = mRootConfig.lock();
+        CONSOLE_CFGP(config) << "Proxy does not exist for uri: " << uri;
         return nullptr;
     }
     return extPro->getExtension(uri);
@@ -297,8 +299,8 @@ ExtensionMediator::getClient(const std::string &uri)
 {
     auto itr = mClients.find(uri);
     if (itr == mClients.end()) {
-        auto root = mRootContext.lock();
-        CONSOLE_S(root->getSession()) << "Attempt to use an unavailable extension - uri: " << uri;
+        auto config = mRootConfig.lock();
+        CONSOLE_CFGP(config) << "Attempt to use an unavailable extension - uri: " << uri;
         return nullptr;
     }
     return  itr->second;
@@ -321,8 +323,8 @@ ExtensionMediator::notifyComponentUpdate(const ExtensionComponentPtr& component,
     // Notify the extension of the component change
     auto sent = proxy->sendMessage(uri, message);
     if (!sent) {
-        auto root = mRootContext.lock();
-        CONSOLE_S(root->getSession()) << "Extension message failure - code: " << kErrorInvalidMessage
+        auto config = mRootConfig.lock();
+        CONSOLE_CFGP(config) << "Extension message failure - code: " << kErrorInvalidMessage
                                       << " message: " << sErrorMessage[kErrorInvalidMessage] + uri;
         return;
     }

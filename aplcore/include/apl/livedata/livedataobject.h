@@ -34,7 +34,7 @@ class LiveMapObject;
  *
  * This is an abstract base class.  Do not create instances of this object.
  */
-class LiveDataObject : public ObjectData,
+class LiveDataObject : public BaseArrayData,
                        public std::enable_shared_from_this<LiveDataObject> {
 public:
     using FlushCallback = std::function<void(const std::string, LiveDataObject&)>;
@@ -76,19 +76,22 @@ public:
     virtual DataSourceConnectionPtr getDataSourceConnection() const { return nullptr; }
 
     /**
+     * Called on all live data objects before any are flushed.
+     *
+     * This is done to give an opportunity to freeze any information that should not change during the course of the
+     * overall live data flush. For example, we do not want to call new flush callback listeners that are added during
+     * the course of flushing data, since they already have access to the latest data. Note that this assumes that live
+     * data con only change outside of the data flushing stage. If we add a feature that allows the data flushing
+     * pathway to modify the data in some way, we'll have to revisit this assumption.
+     */
+    void preFlush() {
+        mMaxWatcherTokenBeforeFlush = mWatcherToken;
+    }
+
+    /**
      * Flush tracking changes
      */
-    virtual void flush()
-    {
-        auto context = mContext.lock();
-        if (context)
-            context->recalculateDownstream(mKey, true);
-
-        for (const auto& m : mFlushCallbacks)
-            m.second(mKey, *this);
-
-        mReplaced = false;
-    }
+    virtual void flush();
 
     /**
      * @return The data-binding context that the object is defined within.
@@ -105,18 +108,19 @@ public:
      * @param callback The callback to be executed.
      * @return An opaque token for the removeFlushCallback(int) routine.
      */
-    int addFlushCallback(FlushCallback&& callback) {
-        int token = mWatcherToken++;
-        mFlushCallbacks.emplace(token, std::move(callback));
-        return token;
-    }
+    int addFlushCallback(FlushCallback&& callback);
 
     /**
      * Remove a watcher
      * @param token The opaque token returned when the watcher was registered.
      */
-    void removeFlushCallback(int token) {
-        mFlushCallbacks.erase(mFlushCallbacks.find(token));
+    void removeFlushCallback(int token);
+
+    // ObjectData overrides.
+    bool operator==(const ObjectData& rhs) const override {
+        // In progress of changes propagation. Considered not-equal for comparisons.
+        if (mIsFlushing) return false;
+        return BaseArrayData::operator==(rhs);
     }
 
 protected:
@@ -128,8 +132,10 @@ protected:
     std::string mKey;
     std::map<int, FlushCallback> mFlushCallbacks;
     int mWatcherToken = 100;
+    int mMaxWatcherTokenBeforeFlush = -1;
     bool mReplaced = false;
     int mToken = -1;
+    bool mIsFlushing = false;
 };
 
 } // namespace apl

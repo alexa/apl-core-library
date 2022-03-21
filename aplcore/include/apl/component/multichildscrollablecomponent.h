@@ -100,13 +100,6 @@ public:
     void ensureChildLayout(const CoreComponentPtr& child, bool useDirtyFlag) override;
 
 protected:
-    /**
-     * Finds the immediate child, if any, at the given position.
-     *
-     * @param position Point to test for a child.
-     * @return Component Pointer to an immediate child, or null.
-     */
-    ComponentPtr findDirectChildAtPosition(const Point& position) const;
 
     /**
      * Some components may need to apply adjustment logic to child spacing.
@@ -176,21 +169,23 @@ private:
 
     /**
      * Find child which center is closest to provided position. Search reduced to the current scrolling direction.
-     * @param position position to measure from.
+     * @param position position to search.
+     * @param byDistance account for distance, uses order otherwise.
      * @return child pointer.
      */
-    ComponentPtr findChildCloseToPosition(const Point& position) const;
+    ComponentPtr findChildCloseToPosition(const Point& position, bool byDistance = false) const;
 
     void attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index) override;
     bool attachChild(const CoreComponentPtr& child, size_t index);
     void runLayoutHeuristics(size_t anchorIdx, float childCache, float pageSize, bool useDirtyFlag, bool first);
     void fixScrollPosition(const Rect& oldAnchorRect, const Rect& anchorRect);
     Point getPaddedScrollPosition(LayoutDirection layoutDirection) const;
-    void processLayoutChangesInternal(bool useDirtyFlag, bool first, bool delayed);
+    void processLayoutChangesInternal(bool useDirtyFlag, bool first, bool delayed, bool needsFullReProcess);
 
 private:
     Range mIndexesSeen;
     Range mEnsuredChildren;
+    Range mAvailableRange;
     bool mChildrenVisibilityStale = false;
 
     // These cache variables are being used for event property calculation (lazy calculation)

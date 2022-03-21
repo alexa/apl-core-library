@@ -185,6 +185,7 @@ CoreCommand::calculateProperties()
         if (mTarget == nullptr && (cpd->second.flags & kPropRequired)) {
             // TODO: Try full inflation, we may be missing deep component inflated. Quite inefficient, especially if done
             //  in onMount, revisit.
+            LOG(LogLevel::kWarn) << "Trying to scroll to uninflated component. Flushing pending layouts.";
             auto& lm = mContext->layoutManager();
             lm.flushLazyInflation();
             mTarget = std::dynamic_pointer_cast<CoreComponent>(mContext->findComponentById(id));

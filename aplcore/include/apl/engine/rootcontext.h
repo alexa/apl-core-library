@@ -493,6 +493,7 @@ private:
     void scheduleTickHandler(const Object& handler, double delay);
     void processTickHandlers();
     void clearPendingInternal(bool first) const;
+    void updateTimeInternal(apl_time_t elapsedTime, apl_time_t utcTime);
 
 private:
     ContentPtr mContent;

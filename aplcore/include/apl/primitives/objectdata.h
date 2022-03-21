@@ -153,11 +153,51 @@ public:
     virtual std::string toDebugString() const {
         return "Unknown type";
     }
+
+protected:
+    bool arrayCompare(const ObjectData& rhs) const {
+        const auto len = size();
+        if (len != rhs.size())
+            return false;
+
+        for (size_t i = 0 ; i < len ; i++)
+            if (at(i) != rhs.at(i))
+                return false;
+
+        return true;
+    }
+
+    bool mapCompare(const ObjectData& rhs) const {
+        if (size() != rhs.size())
+            return false;
+
+        auto left = getMap();
+        auto right = rhs.getMap();
+        for (auto &m : left) {
+            auto it = right.find(m.first);
+            if (it == right.end())
+                return false;
+            if (m.second != it->second)
+                return false;
+        }
+        return true;
+    }
 };
 
 /****************************************************************************/
 
-class ArrayData : public ObjectData {
+class BaseArrayData : public ObjectData {
+public:
+    virtual ~BaseArrayData() = default;
+
+    bool operator==(const ObjectData& rhs) const override {
+        return arrayCompare(rhs);
+    }
+};
+
+/****************************************************************************/
+
+class ArrayData : public BaseArrayData {
 public:
     ArrayData(const ObjectArrayPtr& array, bool isMutable) : mArray(array), mIsMutable(isMutable) {
         assert(array);
@@ -215,7 +255,7 @@ private:
 
 /****************************************************************************/
 
-class FixedArrayData : public ObjectData {
+class FixedArrayData : public BaseArrayData {
 public:
     FixedArrayData(ObjectArray&& array, bool isMutable) : mArray(std::move(array)), mIsMutable(isMutable) {}
 
@@ -340,15 +380,35 @@ public:
         result += "]";
         return result;
     }
+
+    bool operator==(const ObjectData& rhs) const override {
+        return mapCompare(rhs);
+    }
+
 private:
     ObjectMapPtr mMap;
     bool mIsMutable;
 };
 
+/****************************************************************************/
+
+class JSONBaseData : public ObjectData {
+public:
+    virtual ~JSONBaseData() = default;
+
+    bool operator==(const ObjectData& rhs) const override {
+        if (getJson()->IsObject()) {
+            return mapCompare(rhs);
+        } else if (getJson()->IsArray()) {
+            return arrayCompare(rhs);
+        }
+        return false;
+    }
+};
 
 /****************************************************************************/
 
-class JSONData : public ObjectData {
+class JSONData : public JSONBaseData {
 public:
     JSONData(const rapidjson::Value *value) : mValue(value) { assert(value); }
 
@@ -445,7 +505,7 @@ private:
 
 /****************************************************************************/
 
-class JSONDocumentData : public ObjectData {
+class JSONDocumentData : public JSONBaseData {
 public:
     JSONDocumentData(rapidjson::Document&& doc) : mDoc(std::move(doc)) {}
 

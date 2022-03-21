@@ -33,8 +33,6 @@ ExtensionComponent::create(const ExtensionComponentDefinition& definition,
 {
     auto component = std::make_shared<ExtensionComponent>(definition, context, std::move(properties), path);
     component->initialize();
-    context->extensionManager().addExtensionComponent(component->getResourceID(), component);
-
     return component;
 }
 
@@ -115,6 +113,7 @@ ExtensionComponent::initialize()
     mResourceID = Random::generateToken(getUri());
     setCalculated(kPropertyResourceId, mResourceID);
     setCalculated(kPropertyResourceType, mDefinition.getResourceType());
+    notifyExtension(false);
 }
 
 std::string

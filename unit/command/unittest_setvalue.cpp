@@ -286,6 +286,139 @@ TEST_F(SetValueTest, SimulateCheckedEvent)
     ASSERT_TRUE(CheckState(component, kStateChecked));
 }
 
+const char * CHECK_DIRTY_SUBPROPERTIES_VIDEO = R"({
+    "type": "APL",
+    "version": "1.9",
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "bind": {
+                "name": "iamaauthtoken",
+                "type": "string",
+                "value": ""
+            },
+            "items": [
+                {
+                    "type": "TouchWrapper",
+                    "id": "touchW",
+                    "items": {
+                        "type": "Video",
+                        "id": "testVideo",
+                        "width": "100%",
+                        "height": "80%",
+                        "source": {
+                            "url": "testurl",
+                            "headers": [
+                                "x-amz-access-token: ${iamaauthtoken}"
+                            ]
+                        }
+                    },
+                    "onPress": {
+                        "type": "SetValue",
+                        "property": "iamaauthtoken",
+                        "value": "OnPress"
+                    }
+                }, {
+                    "type": "Text",
+                    "id": "testTest",
+                    "text": "${iamaauthtoken}"
+                }
+            ]
+        }
+    }
+})";
+
+TEST_F(SetValueTest, SimulatePressEventSetDirtyComponentVideo)
+{
+    loadDocument(CHECK_DIRTY_SUBPROPERTIES_VIDEO, DATA);
+    ASSERT_TRUE(component);
+
+    auto tw = root->findComponentById("touchW");
+    auto video = root->findComponentById("testVideo");
+    auto text = root->findComponentById("testTest");
+
+    tw->update(kUpdatePressed, 0);
+
+    root->clearPending();
+
+    // Test the text content
+    auto textContent = text->getCalculated(kPropertyText).asString();
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyInnerBounds, kPropertyBounds, kPropertyVisualHash));
+    ASSERT_EQ(textContent, "OnPress");
+
+    // Test the video source
+    auto videoSources = video->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(videoSources.size(), 1);
+
+    ASSERT_TRUE(CheckDirty(video, kPropertySource, kPropertyVisualHash));
+}
+
+const char * CHECK_DIRTY_SUBPROPERTIES_IMAGE = R"({
+    "type": "APL",
+    "version": "1.9",
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "bind": {
+                "name": "iamaauthtoken",
+                "type": "string",
+                "value": ""
+            },
+            "items": [
+                {
+                    "type": "TouchWrapper",
+                    "id": "touchW",
+                    "items": {
+                        "type": "Image",
+                        "id": "testImage",
+                        "width": "100%",
+                        "height": "80%",
+                        "source": {
+                            "url": "testurl",
+                            "headers": [
+                                "x-amz-access-token: ${iamaauthtoken}"
+                            ]
+                        }
+                    },
+                    "onPress": {
+                        "type": "SetValue",
+                        "property": "iamaauthtoken",
+                        "value": "OnPress"
+                    }
+                }, {
+                    "type": "Text",
+                    "id": "testTest",
+                    "text": "${iamaauthtoken}"
+                }
+            ]
+        }
+    }
+})";
+
+TEST_F(SetValueTest, SimulatePressEventSetDirtyComponentImage)
+{
+    loadDocument(CHECK_DIRTY_SUBPROPERTIES_IMAGE, DATA);
+    ASSERT_TRUE(component);
+
+    auto tw = root->findComponentById("touchW");
+    auto video = root->findComponentById("testImage");
+    auto text = root->findComponentById("testTest");
+
+    tw->update(kUpdatePressed, 0);
+
+    root->clearPending();
+
+    // Test the text content
+    auto textContent = text->getCalculated(kPropertyText).asString();
+    ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyInnerBounds, kPropertyBounds, kPropertyVisualHash));
+    ASSERT_EQ(textContent, "OnPress");
+
+    // Test the Image source
+    auto videoSources = video->getCalculated(kPropertySource).getArray();
+    ASSERT_EQ(videoSources.size(), 1);
+
+    ASSERT_TRUE(CheckDirty(video, kPropertySource, kPropertyVisualHash));
+}
 
 // TODO: Check the Yoga layout properties
 

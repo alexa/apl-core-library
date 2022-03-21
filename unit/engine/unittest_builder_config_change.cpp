@@ -873,3 +873,44 @@ TEST_F(BuilderConfigChange, ReinflateWithHandleTick)
     advanceTime(1100);
     ASSERT_EQ(1.0, text->getCalculated(kPropertyOpacity).getDouble());
 }
+
+
+static const char *CHECK_SCALED_WIDTH_HEIGHT = R"apl(
+    {
+      "type": "APL",
+      "version": "1.9",
+      "mainTemplate": {
+        "item": {
+          "type": "Frame"
+        }
+      },
+      "onConfigChange": [
+        {
+          "type": "SendEvent",
+          "sequencer": "DUMMY",
+          "arguments": [
+            "${event.width}",
+            "${event.height}"
+          ]
+        }
+      ]
+    }
+)apl";
+
+/**
+ * Verify that the "event.width" and "event.height" values reported are in DP, not Pixels.
+ * This configuration change only causes a layout pass which resizes the component to exactly
+ * fill the view host.
+ */
+TEST_F(BuilderConfigChange, ScaledWidthHeight)
+{
+    metrics.size(1000,600).dpi(320);
+    loadDocument(CHECK_SCALED_WIDTH_HEIGHT);
+    ASSERT_TRUE(component);
+    ASSERT_TRUE(IsEqual(Rect({0,0,500,300}), component->getCalculated(kPropertyBounds).getRect()));
+
+    // Change the size of the view host
+    configChange(ConfigurationChange(600,1000));
+    ASSERT_TRUE(CheckSendEvent(root, 300, 500));
+    ASSERT_TRUE(IsEqual(Rect({0,0,300,500}), component->getCalculated(kPropertyBounds).getRect()));
+}

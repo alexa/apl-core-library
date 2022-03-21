@@ -136,8 +136,8 @@ ConfigurationChange::asEventProperties(const RootConfig& rootConfig, const Metri
     }
 
     return {
-        {"height",        mPixelHeight},
-        {"width",         mPixelWidth},
+        {"height",        metrics.pxToDp(mPixelHeight)},
+        {"width",         metrics.pxToDp(mPixelWidth)},
         {"theme",         mTheme},
         {"viewportMode",  sViewportModeBimap.at(mViewportMode)},
         {"disallowVideo", mDisallowVideo},

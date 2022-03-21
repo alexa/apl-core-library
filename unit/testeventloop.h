@@ -46,6 +46,14 @@ public:
     float baseline(Component *component, float width, float height) override;
 };
 
+class SpyTextMeasure : public TextMeasurement {
+public:
+    LayoutSize measure(Component *component, float width, MeasureMode widthMode,
+                       float height, MeasureMode heightMode) override;
+    float baseline(Component *component, float width, float height) override;
+    std::vector<Object> visualHashes;
+};
+
 class CountingTextMeasurement : public SimpleTextMeasurement {
 public:
     LayoutSize measure(Component *component, float width, MeasureMode widthMode,

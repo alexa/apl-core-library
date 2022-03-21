@@ -2369,9 +2369,13 @@ static const char* EXT_REGISTER_EXTCOMP = R"({
             "name": "ExtensionComponent",
             "resourceType": "Surface",
             "properties": {
-                "componentProperty": {
+                "propStr": {
                     "type": "string",
-                    "default": "myproperty"
+                    "default": "propDefault"
+                },
+                "propInt": {
+                    "type": "integer",
+                    "default": 11
                 }
             }
         }
@@ -2404,6 +2408,13 @@ TEST_F(ExtensionClientTest, ComponentRequestWithSuccessResponse) {
 
     ASSERT_EQ(kResourcePending,extensionComponent->getCalculated(kPropertyResourceState).asInt());
     ASSERT_TRUE(componentRequest.HasMember("payload"));
+    // Extension defined dynamic properties are added to the payload
+    auto payload = componentRequest["payload"].GetObject();
+    ASSERT_TRUE(payload.HasMember("propStr"));
+    ASSERT_STREQ(payload["propStr"].GetString(), "propDefault");
+    ASSERT_TRUE(payload.HasMember("propInt"));
+    ASSERT_EQ(payload["propInt"].GetDouble(), 11);
+
     ASSERT_TRUE(componentRequest.HasMember("viewport"));
 
     std::string componentResponse = EXT_COMPONENT_SUCCESS_HEADER;
@@ -2590,12 +2601,13 @@ static const char* EXT_DOC_EXTCOMP_SETPROPERTY = R"({
               "type": "SetValue",
               "componentId": "DrawArea",
               "property": "canvasColor",
-              "value": "superlative"
+              "value": "orange"
             }
           ],
           "item": {
             "type": "Draw:Canvas",
-            "id": "DrawArea"
+            "id": "DrawArea",
+            "penSize": 1
           }
         }
       ]
@@ -2656,7 +2668,8 @@ static const char* EXT_REGISTER_EXTCOMP_EXTENDED = R"({
       {
         "name": "Canvas",
         "properties": {
-          "canvasColor": "string"
+          "canvasColor": "string",
+          "penSize": "number"
         },
         "commands": [
           {
@@ -2734,13 +2747,30 @@ TEST_F(ExtensionClientTest, ExtensionComponentProperty) {
 
     auto extensionComponent = component->findComponentById("DrawArea");
     ASSERT_EQ(extensionComponent->getType(), kComponentTypeExtension);
+    auto extnComp = std::dynamic_pointer_cast<ExtensionComponent>(extensionComponent);
+    ASSERT_NE(extnComp, nullptr);
+
+    // The pending message should trigger a componentUpdate
+    auto pendingUpdate = client->createComponentChange(doc.GetAllocator(), *extnComp);
+    ASSERT_TRUE(pendingUpdate.HasMember("payload"));
+
+    ASSERT_TRUE(std::string("1.0").compare(pendingUpdate["version"].GetString()) <= 0);
+    ASSERT_STREQ("Component", pendingUpdate["method"].GetString());
+    ASSERT_STREQ("TOKEN", pendingUpdate["token"].GetString());
+    ASSERT_STREQ(extnComp->getUri().c_str(), pendingUpdate["target"].GetString());
+    ASSERT_STREQ(extnComp->getResourceID().c_str(), pendingUpdate["resourceId"].GetString());
+    ASSERT_STREQ("Pending", pendingUpdate["state"].GetString());
+
+    // all dynamic properties are included in the payload
+    auto payload = pendingUpdate["payload"].GetObject();
+    ASSERT_TRUE(payload.HasMember("canvasColor"));
+    ASSERT_STREQ(payload["canvasColor"].GetString(), "");
+    ASSERT_TRUE(payload.HasMember("penSize"));
+    ASSERT_EQ(payload["penSize"].GetDouble(), 1);
 
     // Perform a touch to trigger a change in extension property
     performTap(1,1);
-
-    auto extnComp = std::dynamic_pointer_cast<ExtensionComponent>(extensionComponent);
     extensionComponent->updateResourceState(kResourceReady);
-    ASSERT_NE(extnComp, nullptr);
 
     // A dirty property in the extension component should trigger a componentUpdate
     auto componentUpdate = client->createComponentChange(doc.GetAllocator(), *extnComp);
@@ -2753,8 +2783,12 @@ TEST_F(ExtensionClientTest, ExtensionComponentProperty) {
     ASSERT_STREQ(extnComp->getResourceID().c_str(), componentUpdate["resourceId"].GetString());
     ASSERT_STREQ("Ready", componentUpdate["state"].GetString());
 
-    auto payload = componentUpdate["payload"].GetObject();
-    ASSERT_STREQ(payload["canvasColor"].GetString(), "superlative");
+    // Dirty properties are included in the payload
+    payload = componentUpdate["payload"].GetObject();
+    ASSERT_TRUE(payload.HasMember("canvasColor"));
+    ASSERT_STREQ(payload["canvasColor"].GetString(), "orange");
+    // Non-dirty properties are not included
+    ASSERT_FALSE(payload.HasMember("penSize"));
 
     // Changing custom extension component properties doesn't set the component as dirty
     ASSERT_TRUE(CheckDirty(root, extensionComponent));

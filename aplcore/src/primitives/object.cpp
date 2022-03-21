@@ -647,57 +647,24 @@ Object::operator==(const Object& rhs) const
         return false;
 
     switch (mType) {
-        case kNullType:
+        case kNullType: // FALL_THROUGH
         case kAutoDimensionType:
             return true;
-
-        case kBoolType:
+        case kBoolType: // FALL_THROUGH
         case kNumberType:
         case kAbsoluteDimensionType:
         case kRelativeDimensionType:
         case kColorType:
             return mU.value == rhs.mU.value;
-
         case kStringType:
             return mU.string == rhs.mU.string;
-
-        case kMapType: {
-            if (mU.data->size() != rhs.mU.data->size())
-                return false;
-
-            auto left = mU.data->getMap();
-            auto right = rhs.mU.data->getMap();
-            for (auto &m : left) {
-                auto it = right.find(m.first);
-                if (it == right.end())
-                    return false;
-                if (m.second != it->second)
-                    return false;
-            }
-            return true;
-        }
-
-        case kArrayType: {
-            const auto len = mU.data->size();
-            if (len != rhs.mU.data->size())
-                return false;
-
-            for (size_t i = 0 ; i < len ; i++)
-                if (mU.data->at(i) != rhs.mU.data->at(i))
-                    return false;
-
-            return true;
-        }
-
-        case kByteCodeType:
+        case kByteCodeType: // FALL_THROUGH
         case kFunctionType:
+        case kGraphicType:
+        case kGraphicPatternType:
+        case kTransformType:
             return mU.data == rhs.mU.data;
-
-        case kEasingType:
-            return *std::static_pointer_cast<Easing>(mU.data) ==
-                   *std::static_pointer_cast<Easing>(rhs.mU.data);
-
-        case kGradientType:
+        case kGradientType: // FALL_THROUGH
         case kFilterType:
         case kGraphicFilterType:
         case kMediaSourceType:
@@ -706,18 +673,15 @@ Object::operator==(const Object& rhs) const
         case kURLRequestType:
         case kTransform2DType:
         case kStyledTextType:
+        case kArrayType:
+        case kMapType:
             return *(mU.data.get()) == *(rhs.mU.data.get());
-
+        case kEasingType:
+            return *std::static_pointer_cast<Easing>(mU.data) ==
+                   *std::static_pointer_cast<Easing>(rhs.mU.data);
         case kAccessibilityActionType:
             return *std::static_pointer_cast<AccessibilityAction>(mU.data) ==
                    *std::static_pointer_cast<AccessibilityAction>(rhs.mU.data);
-
-        case kGraphicType:
-            return mU.data == rhs.mU.data;
-        case kGraphicPatternType:
-            return mU.data == rhs.mU.data;
-        case kTransformType:
-            return mU.data == rhs.mU.data;
         case kBoundSymbolType:
             return *std::static_pointer_cast<datagrammar::BoundSymbol>(mU.data) ==
                    *std::static_pointer_cast<datagrammar::BoundSymbol>(rhs.mU.data);

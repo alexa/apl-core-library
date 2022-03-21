@@ -45,11 +45,50 @@ LiveDataObject::create(const LiveObjectPtr& data,
     return element;
 }
 
-void LiveDataObject::markDirty()
+void
+LiveDataObject::markDirty()
 {
     auto context = mContext.lock();
     if (context)
         context->dataManager().markDirty(shared_from_this());
+}
+
+void
+LiveDataObject::flush()
+{
+    auto context = mContext.lock();
+    mIsFlushing = true;
+    if (context)
+        context->recalculateDownstream(mKey, true);
+
+    // Make a copy to ensure sane iteration because it's possible that calling a callback will add more callbacks
+    std::map<int, FlushCallback> flushCallbacksCopy{mFlushCallbacks};
+    for (const auto& m : flushCallbacksCopy) {
+        // Enforce the rule that we should not call any callbacks that have been added during this overall flush cycle.
+        // See LiveDataObject::preFlush() for more details.
+        //
+        // Note that this rule is still necessary despite making a copy of this object's flush callbacks because other
+        // live data object flushes can also result in adding callbacks to this object's map.
+        if (m.first < mMaxWatcherTokenBeforeFlush)
+            m.second(mKey, *this);
+    }
+
+    mReplaced = false;
+    mIsFlushing = false;
+}
+
+int
+LiveDataObject::addFlushCallback(FlushCallback&& callback)
+{
+    int token = mWatcherToken++;
+    mFlushCallbacks.emplace(token, std::move(callback));
+    return token;
+}
+
+void
+LiveDataObject::removeFlushCallback(int token)
+{
+    mFlushCallbacks.erase(mFlushCallbacks.find(token));
 }
 
 } // namespace apl

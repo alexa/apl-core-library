@@ -88,7 +88,8 @@ RootContext::create(const Metrics& metrics, const ContentPtr& content,
 RootContext::RootContext(const Metrics& metrics, const ContentPtr& content, const RootConfig& config)
     : mContent(content),
       mTimeManager(config.getTimeManager()),
-      mDisplayState(static_cast<DisplayState>(config.getProperty(RootProperty::kInitialDisplayState).getInteger())) {
+      mDisplayState(static_cast<DisplayState>(config.getProperty(RootProperty::kInitialDisplayState).getInteger()))
+{
     init(metrics, config, false);
 }
 
@@ -406,7 +407,8 @@ RootContext::serializeDataSourceContext(rapidjson::Document::AllocatorType& allo
 }
 
 std::shared_ptr<ObjectMap>
-RootContext::createDocumentEventProperties(const std::string& handler) const {
+RootContext::createDocumentEventProperties(const std::string& handler) const
+{
     auto source = std::make_shared<ObjectMap>();
     source->emplace("source", "Document");
     source->emplace("type", "Document");
@@ -451,7 +453,8 @@ RootContext::executeCommands(const apl::Object& commands, bool fastMode)
 ActionPtr
 RootContext::invokeExtensionEventHandler(const std::string& uri, const std::string& name,
                                          const ObjectMap& data, bool fastMode,
-                                         std::string resourceId) {
+                                         std::string resourceId)
+{
     auto handlerDefinition = ExtensionEventHandler{uri, name};
     auto handler = Object::NULL_OBJECT();
     ContextPtr ctx = nullptr;
@@ -516,42 +519,56 @@ RootContext::payloadContext() const
 }
 
 void
-RootContext::updateTime(apl_time_t elapsedTime)
+RootContext::updateTimeInternal(apl_time_t elapsedTime, apl_time_t utcTime)
 {
+    APL_TRACE_BLOCK("RootContext:updateTime");
+    auto lastTime = mTimeManager->currentTime();
+
+    APL_TRACE_BEGIN("RootContext:flushDirtyData");
     // Flush any dynamic data changes
     mCore->dataManager().flushDirty();
+    APL_TRACE_END("RootContext:flushDirtyData");
 
-    auto lastTime = mTimeManager->currentTime();
+    APL_TRACE_BEGIN("RootContext:timeManagerUpdateTime");
     mTimeManager->updateTime(elapsedTime);
-    mContext->systemUpdateAndRecalculate(ELAPSED_TIME, mTimeManager->currentTime(), true); // Read back in case it gets changed
+    APL_TRACE_END("RootContext:timeManagerUpdateTime");
 
-    // Update the local time by how much time passed on the "elapsed" timer
-    mUTCTime += mTimeManager->currentTime() - lastTime;
+    APL_TRACE_BEGIN("RootContext:systemUpdateAndRecalculateElapsed");
+    mContext->systemUpdateAndRecalculate(ELAPSED_TIME, mTimeManager->currentTime(), true); // Read back in case it gets changed
+    APL_TRACE_END("RootContext:systemUpdateAndRecalculateElapsed");
+
+    if (utcTime > 0) {
+        mUTCTime = utcTime;
+    } else {
+        // Update the local time by how much time passed on the "elapsed" timer
+        mUTCTime += mTimeManager->currentTime() - lastTime;
+    }
+
+    APL_TRACE_BEGIN("RootContext:systemUpdateAndRecalculateTime");
     mContext->systemUpdateAndRecalculate(UTC_TIME, mUTCTime, true);
     mContext->systemUpdateAndRecalculate(LOCAL_TIME, mUTCTime + mLocalTimeAdjustment, true);
+    APL_TRACE_END("RootContext:systemUpdateAndRecalculateTime");
 
+    APL_TRACE_BEGIN("RootContext:pointerHandleTimeUpdate");
     mCore->pointerManager().handleTimeUpdate(elapsedTime);
+    APL_TRACE_END("RootContext:pointerHandleTimeUpdate");
+}
+
+void
+RootContext::updateTime(apl_time_t elapsedTime)
+{
+    updateTimeInternal(elapsedTime, 0);
 }
 
 void
 RootContext::updateTime(apl_time_t elapsedTime, apl_time_t utcTime)
 {
-    // Flush any dynamic data changes
-    mCore->dataManager().flushDirty();
-
-    mTimeManager->updateTime(elapsedTime);
-    mContext->systemUpdateAndRecalculate(ELAPSED_TIME, mTimeManager->currentTime(), true); // Read back in case it gets changed
-
-    mUTCTime = utcTime;
-    mContext->systemUpdateAndRecalculate(UTC_TIME, mUTCTime, true);
-    mContext->systemUpdateAndRecalculate(LOCAL_TIME, mUTCTime + mLocalTimeAdjustment, true);
-
-    mCore->pointerManager().handleTimeUpdate(elapsedTime);
+    updateTimeInternal(elapsedTime, utcTime);
 }
 
 void
-RootContext::scrollToRectInComponent(const ComponentPtr& component, const Rect &bounds,
-                                     CommandScrollAlign align) {
+RootContext::scrollToRectInComponent(const ComponentPtr& component, const Rect &bounds, CommandScrollAlign align)
+{
     auto scrollToAction = ScrollToAction::make(
             mTimeManager, align, bounds, mContext, std::static_pointer_cast<CoreComponent>(component));
     if (scrollToAction && scrollToAction->isPending()) {
@@ -584,12 +601,14 @@ RootContext::screenLock()
  * @deprecated Use Content->getDocumentSettings()
  */
 const Settings&
-RootContext::settings() {
+RootContext::settings()
+{
     return *(mCore->mSettings);
 }
 
 const RootConfig&
-RootContext::rootConfig() {
+RootContext::rootConfig()
+{
     return mCore->rootConfig();
 }
 
@@ -755,7 +774,8 @@ RootContext::setup(const CoreComponentPtr& top)
 }
 
 void
-RootContext::scheduleTickHandler(const Object& handler, double delay) {
+RootContext::scheduleTickHandler(const Object& handler, double delay)
+{
     auto weak_ptr = std::weak_ptr<RootContext>(shared_from_this());
 
     // Lambda capture takes care of handler here as it's a copy.
@@ -777,7 +797,8 @@ RootContext::scheduleTickHandler(const Object& handler, double delay) {
 }
 
 void
-RootContext::processTickHandlers() {
+RootContext::processTickHandlers()
+{
     auto& json = content()->getDocument()->json();
     auto it = json.FindMember("handleTick");
     if (it == json.MemberEnd())
@@ -809,8 +830,7 @@ RootContext::verifyAPLVersionCompatibility(const std::vector<PackagePtr>& ordere
 }
 
 bool
-RootContext::verifyTypeField(const std::vector<std::shared_ptr<Package>>& ordered,
-                             bool enforce)
+RootContext::verifyTypeField(const std::vector<std::shared_ptr<Package>>& ordered, bool enforce)
 {
     for(auto& child : ordered) {
         auto type = child->type();
@@ -837,12 +857,14 @@ operator<<(streamer& os, const RootContext& root)
 
 /* Remove when migrated to handlePointerEvent */
 void
-RootContext::updateCursorPosition(Point cursorPosition) {
+RootContext::updateCursorPosition(Point cursorPosition)
+{
     handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, cursorPosition));
 }
 
 bool
-RootContext::handleKeyboard(KeyHandlerType type, const Keyboard &keyboard) {
+RootContext::handleKeyboard(KeyHandlerType type, const Keyboard &keyboard)
+{
 
     assert(mCore);
     auto &km = mCore->keyboardManager();
@@ -857,7 +879,8 @@ RootContext::getSession() const
 }
 
 bool
-RootContext::handlePointerEvent(const PointerEvent& pointerEvent) {
+RootContext::handlePointerEvent(const PointerEvent& pointerEvent)
+{
     assert(mCore);
     return mCore->pointerManager().handlePointerEvent(pointerEvent, mTimeManager->currentTime());
 }

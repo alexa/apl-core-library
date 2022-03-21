@@ -393,21 +393,6 @@ TEST_F(VisualHashTest, HashRemainsStableWhenLayoutAlignmentNeedsFixing)
     ASSERT_EQ(originalVisualHash, textComponent->getCalculated(kPropertyVisualHash));
 }
 
-class SpyTextMeasure : public TextMeasurement {
-public:
-    LayoutSize measure(Component *component, float width, MeasureMode widthMode, float height,
-                   MeasureMode heightMode) override {
-        visualHashes.emplace_back(component->getCalculated(kPropertyVisualHash));
-        return LayoutSize({ 90.0, 30.0 });
-    }
-
-    float baseline(Component *component, float width, float height) override {
-        return 0;
-    }
-
-    std::vector<Object> visualHashes;
-};
-
 static const char *REMEASURE_TEXT = R"(
 {
   "type": "APL",

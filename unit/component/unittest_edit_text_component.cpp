@@ -16,6 +16,7 @@
 #include "../testeventloop.h"
 #include "apl/component/edittextcomponent.h"
 #include "apl/engine/event.h"
+#include "apl/focus/focusmanager.h"
 #include "apl/primitives/object.h"
 
 using namespace apl;
@@ -866,4 +867,24 @@ TEST_F(EditTextComponentTest, OpenKeyboardEventOnFocus) {
     event = root->popEvent();
     ASSERT_EQ(kEventTypeFocus, event.getType());
     ASSERT_EQ(edittext, event.getComponent());
+}
+
+TEST_F(EditTextComponentTest, NoOpWhenAlreadyInFocus) {
+
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureFocusEditTextOnTap);
+    loadDocument(DEFAULT_DOC);
+
+    performClick(0, 0);
+    loop->advanceToEnd();
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(component, event.getComponent());
+
+    ASSERT_EQ(component, context->focusManager().getFocus());
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(0, 0), false));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(0, 0), false));
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
 }
