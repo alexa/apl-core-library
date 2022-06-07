@@ -154,7 +154,7 @@ Sequencer::executeCommands(const Object& commands,
         return nullptr;
 
     if (!commands.isArray()) {
-        LOG(LogLevel::kError) << "executeCommands: invalid command list";
+        LOG(LogLevel::kError).session(context) << "executeCommands: invalid command list";
         return nullptr;
     }
 
@@ -162,7 +162,7 @@ Sequencer::executeCommands(const Object& commands,
         return nullptr;
 
     if (!context->has("event") && !fastMode)
-        LOG(LogLevel::kWarn) << "missing event in context";
+        LOG(LogLevel::kWarn).session(context) << "missing event in context";
 
     Properties props;
     auto commandPtr = ArrayCommand::create(context, commands, baseComponent, props, "");
@@ -180,7 +180,7 @@ Sequencer::executeCommandsOnSequencer(const Object& commands,
         return nullptr;
 
     if (!commands.isArray()) {
-        LOG(LogLevel::kError) << "executeCommands: invalid command list";
+        LOG(LogLevel::kError).session(context) << "executeCommands: invalid command list";
         return nullptr;
     }
 
@@ -188,7 +188,7 @@ Sequencer::executeCommandsOnSequencer(const Object& commands,
         return nullptr;
 
     if (!context->has("event"))
-        LOG(LogLevel::kWarn) << "missing event in context";
+        LOG(LogLevel::kWarn).session(context) << "missing event in context";
 
     Properties props;
     auto commandPtr = ArrayCommand::create(context, commands, baseComponent, props, "");

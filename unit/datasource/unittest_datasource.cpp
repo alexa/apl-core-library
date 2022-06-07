@@ -422,7 +422,7 @@ static const char *DATA_OFFSET =
 
 TEST_F(DynamicSourceTest, Offset)
 {
-    config->sequenceChildCache(5);
+    config->set(RootProperty::kSequenceChildCache, 5);
     auto ds = std::make_shared<TestDataSourceProvider>(ITEMS);
     config->dataSourceProvider("GenericList", ds);
 

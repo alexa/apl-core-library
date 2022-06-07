@@ -87,7 +87,7 @@ Object reevaluate(const Context& context, const Object& equation);
  * be evaluated for data-binding.
  * @param context The data-binding context.
  * @param object The object to evaluate.
- * @return
+ * @return The result of recursive evaluation.
  */
 Object evaluateRecursive(const Context& context, const Object& object);
 

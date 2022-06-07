@@ -13,8 +13,8 @@
  * permissions and limitations under the License.
  */
 
-#ifndef _ALEXAEXT_EXTENSIONPROVIDER_H
-#define _ALEXAEXT_EXTENSIONPROVIDER_H
+#ifndef _ALEXAEXT_EXTENSION_PROVIDER_H
+#define _ALEXAEXT_EXTENSION_PROVIDER_H
 
 #include <memory>
 #include <set>
@@ -57,4 +57,4 @@ using ExtensionProviderPtr = std::shared_ptr<ExtensionProvider>;
 
 } // namespace alexaext
 
-#endif // _ALEXAEXT_EXTENSIONPROVIDER_H
+#endif // _ALEXAEXT_EXTENSION_PROVIDER_H

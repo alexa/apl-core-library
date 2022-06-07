@@ -60,7 +60,7 @@ public:
     /**
      * Create a transformation from a context and an array of transformation items
      * @param context The context to evaluate the transformation in.
-     * @param object The transformations
+     * @param array An array of transformation items
      * @return The calculated transformation
      */
     static std::shared_ptr<Transformation> create(const Context& context, const std::vector<Object>& array);

@@ -278,7 +278,7 @@ TEST_F(BuilderTest, FullImage)
     auto grad = component->getCalculated(kPropertyOverlayGradient);
     ASSERT_TRUE(grad.isGradient());
     ASSERT_EQ(Gradient::LINEAR, grad.getGradient().getType());
-    ASSERT_EQ(Object(Color(0x0000ffff)), grad.getGradient().getColorRange().at(0));
+    ASSERT_EQ(Object(Color(0x0000ffff)), grad.getGradient().getProperty(kGradientPropertyColorRange).at(0));
 
     auto filters = component->getCalculated(kPropertyFilters);
     ASSERT_EQ(1, filters.size());
@@ -324,7 +324,7 @@ TEST_F(BuilderTest, GradientInResource)
     auto grad = component->getCalculated(kPropertyOverlayGradient);
     ASSERT_TRUE(grad.isGradient());
     ASSERT_EQ(Gradient::LINEAR, grad.getGradient().getType());
-    ASSERT_EQ(Object(Color(0x0000ffff)), grad.getGradient().getColorRange().at(0));
+    ASSERT_EQ(Object(Color(0x0000ffff)), grad.getGradient().getProperty(kGradientPropertyColorRange).at(0));
 }
 
 static const char *SIMPLE_TEXT = R"(
@@ -1400,6 +1400,7 @@ TEST_F(BuilderTest, SimpleVideo)
     ASSERT_EQ(Object::EMPTY_ARRAY(), component->getCalculated(kPropertyOnPlay));
     ASSERT_EQ(Object::EMPTY_ARRAY(), component->getCalculated(kPropertyOnTrackUpdate));
     ASSERT_EQ(false, component->getCalculated(kPropertyAutoplay).getBoolean());
+    ASSERT_EQ(false, component->getCalculated(kPropertyMuted).getBoolean());
 }
 
 static const char *OLD_AUTO_PLAY_VIDEO = R"(
@@ -1462,6 +1463,7 @@ static const char *FULL_VIDEO = R"(
                                          "type": "Video",
                                          "audioTrack": "background",
                                          "autoplay": "true",
+                                         "muted": "true",
                                          "scale": "best-fill",
                                          "source": [ 
                                            "URL1",
@@ -1596,6 +1598,7 @@ TEST_F(BuilderTest, FullVideo)
     ASSERT_EQ(5, map.get(kPropertyOnTrackFail).size());
     ASSERT_EQ(6, map.get(kPropertyOnTrackReady).size());
     ASSERT_EQ(true, map.get(kPropertyAutoplay).getBoolean());
+    ASSERT_EQ(true, map.get(kPropertyMuted).getBoolean());
 
     ASSERT_EQ(3, map.get(kPropertySource).size());
     auto source1 = map.get(kPropertySource).at(0).getMediaSource();
@@ -2432,7 +2435,7 @@ static const char *CONFIG_TEXT_DEFAULT_THEME = R"(
 // Verify that we can configure the default text color and font family
 TEST_F(BuilderTest, ConfigTextDarkTheme)
 {
-    config->defaultFontFamily("Helvetica");
+    config->set(RootProperty::kDefaultFontFamily, "Helvetica");
 
     // The default theme is "dark", which has a color of 0xFAFAFAFF
     loadDocument(CONFIG_TEXT_DEFAULT_THEME);
@@ -2441,7 +2444,7 @@ TEST_F(BuilderTest, ConfigTextDarkTheme)
     ASSERT_TRUE(IsEqual("Helvetica", component->getCalculated(kPropertyFontFamily)));
 
     // Override the generic theme color.  The document defaults to dark theme, so this is ignored
-    config->defaultFontColor(0x11223344);
+    config->set(RootProperty::kDefaultFontColor, 0x11223344);
     loadDocument(CONFIG_TEXT_DEFAULT_THEME);
     ASSERT_TRUE(IsEqual(Color(0xFAFAFAFF), component->getCalculated(kPropertyColor)));
 
@@ -2473,7 +2476,7 @@ TEST_F(BuilderTest, ConfigTextLightTheme)
     ASSERT_TRUE(IsEqual(Color(0x1E2222FF), component->getCalculated(kPropertyColor)));
 
     // Override the generic theme color.  The document has a theme, so this is ignored
-    config->defaultFontColor(0x11223344);
+    config->set(RootProperty::kDefaultFontColor, 0x11223344);
     loadDocument(CONFIG_TEXT_LIGHT_THEME);
     ASSERT_TRUE(IsEqual(Color(0x1E2222FF), component->getCalculated(kPropertyColor)));
 
@@ -2505,7 +2508,7 @@ TEST_F(BuilderTest, ConfigTextFuzzyTheme)
     ASSERT_TRUE(IsEqual(Color(0xfafafaff), component->getCalculated(kPropertyColor)));
 
     // Override the generic theme color.  Because 'fuzzy' isn't light or dark, this should happen
-    config->defaultFontColor(0x11223344);
+    config->set(RootProperty::kDefaultFontColor, 0x11223344);
     loadDocument(CONFIG_TEXT_FUZZY_THEME);
     ASSERT_TRUE(IsEqual(Color(0x11223344), component->getCalculated(kPropertyColor)));
 

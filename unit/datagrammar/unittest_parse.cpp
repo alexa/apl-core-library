@@ -15,6 +15,8 @@
 
 #include "../testeventloop.h"
 
+#include <clocale>
+
 #include "apl/primitives/symbolreferencemap.h"
 
 using namespace apl;
@@ -65,6 +67,20 @@ TEST_F(ParseTest, Simple)
     foo = foo.eval();
     ASSERT_TRUE(foo.isNumber());
     ASSERT_EQ(82, foo.asNumber());
+}
+
+TEST_F(ParseTest, DataBindingIgnoresCLocale)
+{
+    std::string previousLocale = std::setlocale(LC_NUMERIC, nullptr);
+    std::setlocale(LC_NUMERIC, "fr_FR.UTF-8");
+
+    auto binding = parseDataBinding(*context, " ${12.4}");
+    EXPECT_EQ(12.4, binding.asNumber());
+
+    binding = parseDataBinding(*context, " ${12.4 + 5}");
+    EXPECT_EQ(17.4, binding.asNumber());
+
+    std::setlocale(LC_NUMERIC, previousLocale.c_str());
 }
 
 static const std::vector<std::pair<std::string, std::set<std::string>>> SYMBOL_TESTS = {

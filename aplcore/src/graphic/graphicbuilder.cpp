@@ -80,9 +80,9 @@ GraphicBuilder::GraphicBuilder(const GraphicPtr& graphic)
 void
 GraphicBuilder::addChildren(GraphicElement& element, const Object& json)
 {
-    LOG_IF(DEBUG_GRAPHIC_BUILDER) << element.toDebugString();
-
     const auto& context = *element.mContext;
+    LOG_IF(DEBUG_GRAPHIC_BUILDER).session(context) << element.toDebugString();
+
     const auto items = arrayifyProperty(context, json, "item", "items");
     if (items.empty())
         return;
@@ -94,7 +94,7 @@ GraphicBuilder::addChildren(GraphicElement& element, const Object& json)
         const auto data = arrayifyPropertyAsObject(context, json, "data");
         const auto dataItems = evaluateRecursive(context, data);
         if (!dataItems.empty()) {
-            LOG_IF(DEBUG_GRAPHIC_BUILDER) << "Data child inflation: " << dataItems;
+            LOG_IF(DEBUG_GRAPHIC_BUILDER).session(context) << "Data child inflation: " << dataItems;
             const auto length = dataItems.size();
             for (size_t dataIndex = 0; dataIndex < length; dataIndex++) {
                 const auto& dataItem = dataItems.at(dataIndex);
@@ -113,7 +113,7 @@ GraphicBuilder::addChildren(GraphicElement& element, const Object& json)
     }
 
     // If we get to this point, we are not doing multi-child inflation
-    LOG_IF(DEBUG_GRAPHIC_BUILDER) << "Normal child inflation";
+    LOG_IF(DEBUG_GRAPHIC_BUILDER).session(context) << "Normal child inflation";
     const auto length = items.size();
     for (size_t i = 0; i < length; i++) {
         const auto& item = items.at(i);
@@ -124,7 +124,7 @@ GraphicBuilder::addChildren(GraphicElement& element, const Object& json)
         }
         auto child = createChildFromArray(childContext, arrayify(context, item));
         if (child) {
-            LOG_IF(DEBUG_GRAPHIC_BUILDER) << "child [" << i << "]";
+            LOG_IF(DEBUG_GRAPHIC_BUILDER).session(context) << "child [" << i << "]";
             element.mChildren.push_back(child);
             index++;
         }
@@ -135,13 +135,13 @@ GraphicBuilder::addChildren(GraphicElement& element, const Object& json)
 GraphicElementPtr
 GraphicBuilder::createChild(const ContextPtr& context, const Object& json)
 {
-    LOG_IF(DEBUG_GRAPHIC_BUILDER) << "";
+    LOG_IF(DEBUG_GRAPHIC_BUILDER).session(context) << "";
 
     // Check for a valid child type
     auto type = propertyAsString(*context, json, "type");
     auto it = sGraphicElementMap.find(type);
     if (it == sGraphicElementMap.end()) {
-        CONSOLE_CTP(context) << "Invalid graphic child type '" << type << "'";
+        CONSOLE(context) << "Invalid graphic child type '" << type << "'";
         return nullptr;
     }
 
@@ -179,7 +179,7 @@ GraphicElementPtr
 GraphicBuilder::createChildFromArray(const ContextPtr& context,
                                      const std::vector<Object>& items)
 {
-    LOG_IF(DEBUG_GRAPHIC_BUILDER) << items.size();
+    LOG_IF(DEBUG_GRAPHIC_BUILDER).session(context) << items.size();
 
     const auto length = items.size();
     for (size_t i = 0; i < length; i++) {

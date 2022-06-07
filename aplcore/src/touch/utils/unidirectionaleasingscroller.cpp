@@ -35,7 +35,7 @@ UnidirectionalEasingScroller::make(
                                velocity.getY() : velocity.getX();
 
     if (directionalVelocity == 0) {
-        LOG(LogLevel::kWarn) << "Can't create a scroller with 0 velocity";
+        LOG(LogLevel::kWarn).session(scrollable) << "Can't create a scroller with 0 velocity";
         return nullptr;
     }
 
@@ -43,7 +43,7 @@ UnidirectionalEasingScroller::make(
     auto decelerationRate = rootConfig.getProperty(RootProperty::kUEScrollerDeceleration).getDouble();
     auto deceleration = -directionalVelocity * decelerationRate;
 
-    LOG_IF(DEBUG_SCROLLER)
+    LOG_IF(DEBUG_SCROLLER).session(scrollable)
         << "Velocity: " << velocity.toString()
         << ", Deceleration" << decelerationRate;
 
@@ -81,7 +81,7 @@ UnidirectionalEasingScroller::UnidirectionalEasingScroller(
           mEndTarget(target),
           mDuration(duration)
 {
-    LOG_IF(DEBUG_SCROLLER)
+    LOG_IF(DEBUG_SCROLLER).session(scrollable)
         << "StartPos: " << mScrollStartPosition.toString()
         << ", LastPos: " << mLastScrollPosition.toString()
         << ", TargetDistance: " << mEndTarget.toString();
@@ -131,8 +131,8 @@ UnidirectionalEasingScroller::update(
     if (offset <= 0)
         return;
     bool isFinished = (horizontal && isRTL)
-                          ? (target >= 0 || (endTarget < target && availableTarget >= target) || offset == mDuration)
-                          : (target <= 0 || (endTarget > target && availableTarget <= target) || offset == mDuration);
+            ? (target >= 0 || (endTarget < target && availableTarget > target) || offset == mDuration)
+            : (target <= 0 || (endTarget > target && availableTarget < target) || offset == mDuration);
     if (isFinished) {
        finish();
     }
@@ -149,7 +149,7 @@ UnidirectionalEasingScroller::fixFlingStartPosition(const std::shared_ptr<Scroll
         auto diff = currentPosition - mLastScrollPosition;
         mScrollStartPosition += diff;
         mLastScrollPosition = currentPosition;
-        LOG_IF(DEBUG_SCROLLER) << "Diff: " << diff.toString();
+        LOG_IF(DEBUG_SCROLLER).session(scrollable) << "Diff: " << diff.toString();
     }
 }
 

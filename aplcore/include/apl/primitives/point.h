@@ -16,10 +16,11 @@
 #ifndef _APL_POINT_H
 #define _APL_POINT_H
 
-#include "apl/utils/streamer.h"
-
 #include <algorithm>
 #include <cmath>
+
+#include "apl/utils/streamer.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -79,7 +80,7 @@ public:
     }
 
     std::string toString() const {
-        return std::to_string(mX) + "," + std::to_string(mY);
+        return sutil::to_string(mX) + "," + sutil::to_string(mY);
     }
 
     bool isFinite() { return std::isfinite(mX) && std::isfinite(mY); }

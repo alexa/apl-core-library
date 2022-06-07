@@ -25,9 +25,10 @@
 #include "rapidjson/document.h"
 
 #include "apl/apl_config.h"
+#include "apl/common.h"
+
 #include "apl/action/action.h"
 #include "apl/buildTimeConstants.h"
-#include "apl/common.h"
 #include "apl/component/component.h"
 #include "apl/component/textmeasurement.h"
 #include "apl/content/configurationchange.h"
@@ -60,6 +61,8 @@
 #include "apl/primitives/mediasource.h"
 #include "apl/primitives/mediastate.h"
 #include "apl/primitives/object.h"
+#include "apl/primitives/range.h"
+#include "apl/primitives/roundedrect.h"
 #include "apl/primitives/styledtext.h"
 #include "apl/scaling/metricstransform.h"
 #include "apl/touch/pointerevent.h"
@@ -69,6 +72,7 @@
 
 #ifdef ALEXAEXTENSIONS
 #include "apl/extension/extensionmediator.h"
+#include "apl/extension/extensionsession.h"
 #endif
 
 #endif // _APL_H

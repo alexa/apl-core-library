@@ -37,7 +37,7 @@ SpeakListCommand::propDefSet() const {
 ActionPtr
 SpeakListCommand::execute(const TimersPtr& timers, bool fastMode) {
     if (fastMode) {
-        CONSOLE_CTP(mContext) << "Ignoring SpeakList command in fast mode";
+        CONSOLE(mContext) << "Ignoring SpeakList command in fast mode";
         return nullptr;
     }
 
@@ -45,7 +45,7 @@ SpeakListCommand::execute(const TimersPtr& timers, bool fastMode) {
         return nullptr;
 
     if (mContext->getRootConfig().getProperty(RootProperty::kDisallowDialog).getBoolean()) {
-        CONSOLE_CTP(mContext) << "Ignoring SpeakList command because disallowDialog is true";
+        CONSOLE(mContext) << "Ignoring SpeakList command because disallowDialog is true";
         return nullptr;
     }
 

@@ -636,7 +636,7 @@ private:
  *   bool empty() const;
  *   rapidjson::Value serialize(rapidjson::document::AllocatorType& allocator) const;
  *
- * @tparam T
+ * @tparam T The type of the stored object.
  */
 template<typename T>
 class DirectObjectData : public ObjectData {
@@ -650,7 +650,7 @@ public:
     /**
      * Internal method for accessing the inner object stored here.
      * Eventually we will shift this to return const T&
-     * @return
+     * @return a pointer to the raw data stored in this object
      */
     const void *inner() const override { return &mData; }
 

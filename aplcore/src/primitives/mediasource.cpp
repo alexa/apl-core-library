@@ -45,7 +45,7 @@ MediaSource::create(const Context& context, const Object& object)
     if (object.isString()) {
         std::string url = object.asString();
         if (url.empty()) {
-            CONSOLE_CTX(context) << "Empty string for media source";
+            CONSOLE(context) << "Empty string for media source";
             return Object::NULL_OBJECT();
         }
         return Object(MediaSource(URLRequest::create(context, object).getURLRequest(),
@@ -61,7 +61,7 @@ MediaSource::create(const Context& context, const Object& object)
 
     std::string url = propertyAsString(context, object, "url");
     if(url.empty()) {
-        CONSOLE_CTX(context) << "Media Source has no URL defined.";
+        CONSOLE(context) << "Media Source has no URL defined.";
         return Object::NULL_OBJECT();
     }
 

@@ -58,7 +58,7 @@ FocusFinder::findNext(const CoreComponentPtr& focused, FocusDirection direction)
     }
 
     if (root != focused && root->isFocusable()) {
-        LOG_IF(DEBUG_FOCUS_FINDER) << "going with root";
+        LOG_IF(DEBUG_FOCUS_FINDER).session(root) << "going with root";
         return root->takeFocusFromChild(direction, focusedRect);
     }
     return nullptr;
@@ -84,7 +84,7 @@ FocusFinder::findNext(
     }
 
     if (root != focused && root->isFocusable()) {
-        LOG_IF(DEBUG_FOCUS_FINDER) << "going with root";
+        LOG_IF(DEBUG_FOCUS_FINDER).session(root) << "going with root";
         return root->takeFocusFromChild(direction, focusedRect);
     }
     return nullptr;
@@ -93,7 +93,7 @@ FocusFinder::findNext(
 CoreComponentPtr
 FocusFinder::findNextInternal(const CoreComponentPtr& root, const Rect& focusedRect, FocusDirection direction)
 {
-    LOG_IF(DEBUG_FOCUS_FINDER) << "Root:" << root->toDebugSimpleString() << " focusedRect:" <<
+    LOG_IF(DEBUG_FOCUS_FINDER).session(root) << "Root:" << root->toDebugSimpleString() << " focusedRect:" <<
         focusedRect.toDebugString() << " direction:" << direction;
     auto focusables = getFocusables(root, false);
     CoreComponentPtr bestCandidate;
@@ -105,7 +105,7 @@ FocusFinder::findNextInternal(const CoreComponentPtr& root, const Rect& focusedR
         focusable->getBoundsInParent(root, candidateRect);
         if (isValidCandidate(root, focusedRect, focusable, candidateRect, direction)) {
             auto candidateIntersect = BeamIntersect::build(focusedRect, candidateRect, direction);
-            LOG_IF(DEBUG_FOCUS_FINDER) << "Candidate: " << focusable->toDebugSimpleString()
+            LOG_IF(DEBUG_FOCUS_FINDER).session(root) << "Candidate: " << focusable->toDebugSimpleString()
                                        << " intersect: " << candidateIntersect;
             if (bestIntersect.empty() || candidateIntersect > bestIntersect) {
                 bestIntersect = candidateIntersect;
@@ -115,7 +115,7 @@ FocusFinder::findNextInternal(const CoreComponentPtr& root, const Rect& focusedR
     }
 
     if (bestCandidate) {
-        LOG_IF(DEBUG_FOCUS_FINDER) << "Best: " << bestCandidate->toDebugSimpleString()
+        LOG_IF(DEBUG_FOCUS_FINDER).session(root) << "Best: " << bestCandidate->toDebugSimpleString()
                                    << " intersect: " << bestIntersect;
         auto offsetFocusRect = focusedRect;
         offsetFocusRect.offset(-bestIntersect.getCandidate().getTopLeft());
@@ -129,7 +129,7 @@ FocusFinder::findNextInternal(const CoreComponentPtr& root, const Rect& focusedR
         return bestCandidate;
     }
 
-    LOG_IF(DEBUG_FOCUS_FINDER) << "Nothing to focus.";
+    LOG_IF(DEBUG_FOCUS_FINDER).session(root) << "Nothing to focus.";
 
     return nullptr;
 }
@@ -137,7 +137,7 @@ FocusFinder::findNextInternal(const CoreComponentPtr& root, const Rect& focusedR
 CoreComponentPtr
 FocusFinder::findNextByTabOrder(const CoreComponentPtr& focused, const CoreComponentPtr& root, FocusDirection direction)
 {
-    LOG_IF(DEBUG_FOCUS_FINDER) << "Root:" << root->getUniqueId() << " focused:"
+    LOG_IF(DEBUG_FOCUS_FINDER).session(root) << "Root:" << root->getUniqueId() << " focused:"
                                << (focused ?  focused->getUniqueId() : "N/A");
     auto walkRoot = root;
     auto current = focused;

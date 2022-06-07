@@ -172,7 +172,7 @@ public:
     /**
      * Public constructor.  Use the ::create method instead.
      * @param metrics Display metrics
-     * @param json Processed APL document file
+     * @param content Processed APL content data
      * @param config Configuration information
      */
     RootContext(const Metrics& metrics, const ContentPtr& content, const RootConfig& config);
@@ -257,8 +257,8 @@ public:
 
     /**
      * Execute an externally-driven command
-     * @param commands
-     * @param fastMode
+     * @param commands The commands to execute
+     * @param fastMode If true this handler will be invoked in fast mode
      */
     ActionPtr executeCommands(const Object& commands, bool fastMode);
 
@@ -339,7 +339,7 @@ public:
      * @deprecated Use Content->getDocumentSettings()
      * @return document-wide properties.
      */
-    const Settings& settings();
+    APL_DEPRECATED const Settings& settings();
 
     /**
      * @return The content
@@ -371,10 +371,10 @@ public:
 
     /**
      * Update cursor position.
-     * @param cursor Cursor positon.
+     * @param cursorPosition Cursor positon.
      * @deprecated use handlePointerEvent instead
      */
-    void updateCursorPosition(Point cursorPosition);
+    APL_DEPRECATED void updateCursorPosition(Point cursorPosition);
 
     /**
      * Handle a given PointerEvent with coordinates relative to the viewport.
@@ -484,6 +484,16 @@ public:
     friend streamer& operator<<(streamer& os, const RootContext& root);
 
 private:
+    #ifdef ALEXAEXTENSIONS
+        friend class ExtensionMediator;
+    #endif
+
+    /**
+     * @return The current display state for this root context. Only exposed internally to friend
+     *         classes.
+     */
+    DisplayState getDisplayState() const { return mDisplayState; }
+
     void init(const Metrics& metrics, const RootConfig& config, bool reinflation);
     bool setup(const CoreComponentPtr& top);
     bool verifyAPLVersionCompatibility(const std::vector<std::shared_ptr<Package>>& ordered,

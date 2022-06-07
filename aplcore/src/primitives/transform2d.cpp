@@ -15,8 +15,9 @@
 
 #include <tao/pegtl.hpp>
 
-#include "apl/utils/session.h"
 #include "apl/primitives/transform2d.h"
+#include "apl/utils/session.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -100,7 +101,7 @@ struct transform_state {
         for (int i = 0 ; i < arg_count ; i++) {
             if (i > 0)
                 result += " ";
-            result += std::to_string(args[i]);
+            result += sutil::to_string(args[i]);
         }
         return result;
     }
@@ -161,7 +162,7 @@ template<> struct action< number >
     template< typename Input >
     static void apply( const Input& in, transform_state& state) {
         std::string s(in.string());
-        double value = stod(s);
+        double value = sutil::stod(s);
 
         LOGF_IF(DEBUG_GRAMMAR, "Number: '%s' -> %lf", in.string().c_str(), value);
         state.push(value);
@@ -235,9 +236,9 @@ operator<<(streamer& os, const Transform2D& transform)
 std::string
 Transform2D::toDebugString() const
 {
-    auto result = "Transform2D<" + std::to_string(mData[0]);
+    auto result = "Transform2D<" + sutil::to_string(mData[0]);
     for (int i = 1 ; i < 6 ; i++)
-        result += ", " + std::to_string(mData[i]);
+        result += ", " + sutil::to_string(mData[i]);
     return result + ">";
 }
 
@@ -253,7 +254,7 @@ Transform2D::parse(const SessionPtr& session, const std::string& transform)
         return state.transform;
     }
     catch (pegtl::parse_error error) {
-        CONSOLE_S(session) << "Error parsing transform '" << transform << "'" << error.what();
+        CONSOLE(session) << "Error parsing transform '" << transform << "'" << error.what();
     }
 
     return Transform2D();

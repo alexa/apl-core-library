@@ -232,7 +232,7 @@ inline Object asStyledText(const Context& context, const Object& object) {
 }
 
 inline Object asFilteredText(const Context& context, const Object& object) {
-    return StyledText::create(context, object).getStyledText().getText();
+    return StyledText::create(context, object).getText();
 }
 
 inline Object asTransformOrArray(const Context& context, const Object& object) {
@@ -323,7 +323,6 @@ public:
      * @param defvalue The default value for the property. This will be used if it is not specified by the end user.
      * @param func A conversion function that takes an Object and converts it into the correct type for this property.
      * @param flags A collection of flags specifying how to handle this property.
-     * @param trigger An optional trigger function to execute whenever this property changes value.
      */
     PropDef(K key, const Object& defvalue, BindingFunction func, int flags=0)
         : key(key),
@@ -340,7 +339,6 @@ public:
      * @param defvalue The default value for the property. This will be used if it is not specified by the end user.
      * @param map A bi-map between the property value (which is a string) and the integer value to store.
      * @param flags A collection of flags specifying how to handle this property.
-     * @param trigger An optional trigger function to execute whenever this property changes value.
      */
     PropDef(K key, int defvalue, Bimap<int, std::string>& map, int flags=0)
         : key(key),

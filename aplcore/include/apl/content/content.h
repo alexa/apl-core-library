@@ -118,7 +118,7 @@ public:
 
     /**
      * Add a requested package to the document.
-     * @param info The requested package import structure.
+     * @param request The requested package import structure.
      * @param raw Parsed data for the package.
      */
     void addPackage(const ImportRequest& request, JsonData&& raw);
@@ -203,10 +203,9 @@ private:  // Non-public methods used by other classes
 public:
     /**
      * Internal constructor. Do not call this directly.
-     * @param session
-     * @param mainPackagePtr
-     * @param mainTemplate
-     * @param parameterNames
+     * @param session The APL session
+     * @param mainPackagePtr The main package
+     * @param mainTemplate The RapidJSON main template object
      */
     Content(SessionPtr session,
             PackagePtr mainPackagePtr,

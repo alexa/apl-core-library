@@ -26,7 +26,7 @@ namespace apl {
  * As strong pointers are released the entries in the cache become invalid.
  * Periodically running the "clean()" method will remove those invalid entries.
  *
- * @tparam T
+ * @tparam T The templated type stored in the cache
  */
 template<class T>
 class WeakCache {
@@ -40,8 +40,8 @@ public:
 
     /**
      * Find an item in the cache and return it, if it exists.
-     * @param key
-     * @return
+     * @param key The key to look up in the cache
+     * @return The value if it exists or nullptr
      */
     std::shared_ptr<T> find(const std::string& key) {
         auto it = mCache.find(key);
@@ -56,8 +56,8 @@ public:
 
     /**
      * Insert a new item in the weak cache
-     * @param key
-     * @param value
+     * @param key The key to add to the cache.
+     * @param value The value to add
      */
     void insert(std::string key, const std::shared_ptr<T>& value) {
         mCache.emplace(key, value);

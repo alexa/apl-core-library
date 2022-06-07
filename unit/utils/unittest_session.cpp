@@ -67,13 +67,13 @@ public:
 
 TEST_F(ConsoleTest, Stream)
 {
-    CONSOLE_S(session) << "Test1";
+    CONSOLE(session) << "Test1";
     ASSERT_STREQ("Test1", console().c_str());
 }
 
 TEST_F(ConsoleTest, Formatted)
 {
-    CONSOLE_S(session).log("%s: %d", "Test1", 26);
+    CONSOLE(session).log("%s: %d", "Test1", 26);
     ASSERT_STREQ("Test1: 26", console().c_str());
 }
 
@@ -98,10 +98,10 @@ TEST(DefaultConsole, VerifyLog)
 
     auto session = makeDefaultSession();
 
-    CONSOLE_S(session) << "TestVerifyLog";
+    CONSOLE(session) << "TestVerifyLog";
     ASSERT_EQ(1, bridge->mCount);
     ASSERT_EQ(LogLevel::kWarn, bridge->mLevel);
-    ASSERT_STREQ("unittest_session.cpp:TestBody : TestVerifyLog", bridge->mLog.c_str());
+    ASSERT_STREQ((session->getLogId() + ":unittest_session.cpp:TestBody : TestVerifyLog").c_str(), bridge->mLog.c_str());
 }
 
 /**
@@ -115,8 +115,50 @@ TEST(DefaultConsole, UserDataInjection)
 
     auto session = makeDefaultSession();
     // if this entry expands, it will crash
-    CONSOLE_S(session) << "cce   %s";
+    CONSOLE(session) << "cce   %s";
     ASSERT_EQ(1, bridge->mCount);
     ASSERT_EQ(LogLevel::kWarn, bridge->mLevel);
-    ASSERT_STREQ("unittest_session.cpp:TestBody : cce   %s", bridge->mLog.c_str());
+    ASSERT_STREQ((session->getLogId() + ":unittest_session.cpp:TestBody : cce   %s").c_str(), bridge->mLog.c_str());
+}
+
+TEST(DefaultConsole, SameSessionId)
+{
+    auto session = makeDefaultSession();
+    session->setLogIdPrefix("ABCDEF");
+    auto idWithPrefix1 = session->getLogId();
+    session->setLogIdPrefix("ABCDEF");
+    auto idWithPrefix2 = session->getLogId();
+
+    ASSERT_EQ(idWithPrefix1, idWithPrefix2);
+
+    ASSERT_TRUE(idWithPrefix1.rfind("ABCDEF-", 0) == 0);
+}
+
+TEST(DefaultConsole, ShortSessionId)
+{
+    auto session = makeDefaultSession();
+    session->setLogIdPrefix("ABC");
+    ASSERT_TRUE(session->getLogId().rfind("ABC___-", 0) == 0);
+}
+
+TEST(DefaultConsole, LongSessionId)
+{
+    auto session = makeDefaultSession();
+    session->setLogIdPrefix("ABCDEFGH");
+    ASSERT_TRUE(session->getLogId().rfind("ABCDEF-", 0) == 0);
+}
+
+TEST(DefaultConsole, InvalidCharsSessionId)
+{
+    auto session = makeDefaultSession();
+    session->setLogIdPrefix("A- +1k");
+    ASSERT_TRUE(session->getLogId().rfind("A_____-", 0) == 0);
+}
+
+TEST(DefaultConsole, InvalidSessionId)
+{
+    auto session = makeDefaultSession();
+    auto currentId = session->getLogId();
+    session->setLogIdPrefix("1- +1k");
+    ASSERT_EQ(currentId, session->getLogId());
 }

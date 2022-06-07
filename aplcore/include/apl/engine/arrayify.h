@@ -132,8 +132,8 @@ arrayifyProperty(const rapidjson::Value& value)
  *
  * This function does NOT perform any data-binding.
  *
- * @tparam T
- * @tparam Types
+ * @tparam T The type of the first argument.  Normally std::string
+ * @tparam Types The type of additional arguments.
  * @param value The object to extract the named property from.
  * @param name The name of the first child property to look for
  * @param other The names of the other child properties to look or
@@ -215,8 +215,8 @@ arrayifyProperty(const Context& context, const Object& value)
  * This function performs data-binding and interpolates arrays as per the function
  * arrayify(const Context&, const Object&).
  *
- * @tparam T
- * @tparam Types
+ * @tparam T The type of the first property. Normally a std::string.
+ * @tparam Types The type of the additional properties.
  * @param context The data-binding context
  * @param value The object to extract the named property from.
  * @param name The name of the property to extract and array-ify.
@@ -234,11 +234,10 @@ arrayifyProperty(const Context& context, const Object& value, T name, Types... o
 
 /**
  * These routines do arrayification, but they return the result as a single Object that contains an array.
- * @param context
- * @param value
- * @return
+ * @param context The data-binding context.
+ * @param value The value to arrayify.
+ * @return The result of arrayification, stored in a single Object
  */
-
 extern Object arrayifyAsObject(const Context& context, const Object& value);
 
 inline Object

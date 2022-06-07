@@ -124,7 +124,7 @@ private:
 static std::unique_ptr<Transform> transformFromElement(const Context& context, const Object& element)
 {
     if (!element.isMap()) {
-        CONSOLE_CTX(context) << "Illegal transform element " << element;
+        CONSOLE(context) << "Illegal transform element " << element;
         return nullptr;
     }
 
@@ -167,7 +167,7 @@ static std::unique_ptr<Transform> transformFromElement(const Context& context, c
         return std::make_unique<TranslateTransform>(tx, ty);
     }
 
-    CONSOLE_CTX(context) << "Transform element doesn't have a valid property" << element;
+    CONSOLE(context) << "Transform element doesn't have a valid property" << element;
     return nullptr;
 }
 
@@ -237,7 +237,7 @@ public:
     {
         auto len = std::min(from.size(), to.size());
         if (len != from.size() || len != to.size())
-            CONSOLE_CTX(context) << "Mismatched transformation lengths";
+            CONSOLE(context) << "Mismatched transformation lengths";
 
         for (int i = 0 ; i < len ; i++) {
             auto fromTransform = transformFromElement(context, from.at(i));
@@ -251,7 +251,7 @@ public:
             auto fromType = fromTransform->getType();
             auto toType = toTransform->getType();
             if (fromType != toType) {
-                CONSOLE_CTX(context) << "Type mismatch between animation elements " << i << " from:" << fromType << " to:" << toType;
+                CONSOLE(context) << "Type mismatch between animation elements " << i << " from:" << fromType << " to:" << toType;
                 continue;
             }
 

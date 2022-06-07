@@ -79,19 +79,19 @@ AccessibilityAction::create(const CoreComponentPtr& component, const Object& obj
         return object.getAccessibilityAction();
 
     if (!object.isMap()) {
-        CONSOLE_CTP(context) << "Invalid accessibility action";
+        CONSOLE(context) << "Invalid accessibility action";
         return nullptr;
     }
 
     auto name = propertyAsString(*context, object, "name");
     if (name.empty()) {
-        CONSOLE_CTP(context) << "Accessibility action missing name";
+        CONSOLE(context) << "Accessibility action missing name";
         return nullptr;
     }
 
     auto label = propertyAsString(*context, object, "label");
     if (label.empty()) {
-        CONSOLE_CTP(context) << "Accessibility action name='" << name << "' missing label";
+        CONSOLE(context) << "Accessibility action name='" << name << "' missing label";
         return nullptr;
     }
 

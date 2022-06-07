@@ -55,12 +55,11 @@ public:
 
     /**
      * Internal constructor - do not call. Use ContextDependant::create instead.
-     * @param downstreamContext
-     *
-     * @param evaluationContext
-     * @param name
-     * @param node
-     * @param func
+     * @param downstreamContext The downstream or target context.
+     * @param downstreamName The name of the symbol in the downstream context which will be recalculated.
+     * @param equation The expression which will be evaluated to recalculate downstream.
+     * @param bindingContext The context where the equation will be bound
+     * @param bindingFunction The binding function that will be applied after evaluating the equation
      */
     ContextDependant(const ContextPtr& downstreamContext,
                      const std::string& downstreamName,

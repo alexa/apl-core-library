@@ -52,7 +52,8 @@ endif()
 if (TARGET yoga)
     add_dependencies(apl yoga)
 endif()
-    add_dependencies(apl pegtl-build)
+
+add_dependencies(apl pegtl-build)
 
 # When not using the system rapidjson build the library, add a dependency on the build step
 if (NOT USE_SYSTEM_RAPIDJSON)
@@ -110,9 +111,13 @@ target_include_directories(apl
         $<BUILD_INTERFACE:${YOGA_INCLUDE}>
 )
 
-target_link_libraries(apl
+if (USE_PROVIDED_YOGA_INLINE)
+    target_sources(apl PRIVATE ${YOGA_SRC})
+else()
+    target_link_libraries(apl
         PRIVATE
             libyoga)
+endif()
 
 # include the alexa extensions library
 if (ENABLE_ALEXAEXTENSIONS)
@@ -158,12 +163,13 @@ install(DIRECTORY ${RAPIDJSON_INCLUDE}/rapidjson
         FILES_MATCHING PATTERN "*.h")
 endif()
 
-if (NOT YOGA_EXTERNAL_LIB AND NOT USE_SYSTEM_YOGA)
+if (USE_PROVIDED_YOGA_AS_LIB)
     # We built the bundled yoga lib, install it
     install(FILES ${YOGA_LIB}
         DESTINATION lib)
 endif()
 
+if (NOT USE_PROVIDED_YOGA_INLINE)
 set_target_properties(apl PROPERTIES
     EXPORT_NAME
         core
@@ -171,6 +177,7 @@ set_target_properties(apl PROPERTIES
         # Only set this for builds, the find module will handle the other cases
         $<BUILD_INTERFACE:${YOGA_LIB}>
 )
+endif()
 
 export(
     EXPORT

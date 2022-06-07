@@ -11,6 +11,10 @@
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
+# Use the FetchContent cmake module to unpack Yoga.  This may not be available
+# on older systems
+include(FetchContent OPTIONAL RESULT_VARIABLE HAS_FETCH_CONTENT)
+
 cmake_minimum_required(VERSION 3.5)
 
 project(APLCoreEngine

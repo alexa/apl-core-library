@@ -484,7 +484,7 @@ TEST_F(SequencerTest, SelectOnDifferentSequencer)
 
 TEST_F(SequencerTest, SelectOnDifferentSequencerTerminate)
 {
-    config->agent("Unit tests", "1.1");
+    config->set({{RootProperty::kAgentName, "Unit tests"}, {RootProperty::kAgentVersion, "1.1"}});
     loadDocument(BASIC);
 
     // Should schedule send event
@@ -529,7 +529,7 @@ static const char *SELECT_OTHERWISE = R"([
 
 TEST_F(SequencerTest, SelectOtherwise)
 {
-    config->agent("Unit tests", "1.2");
+    config->set({{RootProperty::kAgentName, "Unit tests"}, {RootProperty::kAgentVersion, "1.2"}});
     loadDocument(BASIC);
 
     // Should schedule send event

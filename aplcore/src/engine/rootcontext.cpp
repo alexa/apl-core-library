@@ -72,7 +72,7 @@ RootContext::create(const Metrics& metrics, const ContentPtr& content,
                     const RootConfig& config, std::function<void(const RootContextPtr&)> callback)
 {
     if (!content->isReady()) {
-        LOG(LogLevel::kError) << "Attempting to create root context with illegal content";
+        LOG(LogLevel::kError).session(content->getSession()) << "Attempting to create root context with illegal content";
         return nullptr;
     }
 
@@ -121,7 +121,7 @@ void
 RootContext::updateDisplayState(DisplayState displayState)
 {
     if (!sDisplayStateMap.has(displayState)) {
-        LOG(LogLevel::kWarn) << "View specified an invalid display state, ignoring it";
+        LOG(LogLevel::kWarn).session(getSession()) << "View specified an invalid display state, ignoring it";
         return;
     }
 
@@ -142,6 +142,13 @@ RootContext::updateDisplayState(DisplayState displayState)
 
     auto cmd = DisplayStateChangeCommand::create(shared_from_this(), std::move(properties));
     mContext->sequencer().executeOnSequencer(cmd, DisplayStateChangeCommand::SEQUENCER);
+
+#ifdef ALEXAEXTENSIONS
+    auto mediator = getRootConfig().getExtensionMediator();
+    if (mediator) {
+        mediator->onDisplayStateChanged(mDisplayState);
+    }
+#endif
 }
 
 void
@@ -157,8 +164,8 @@ RootContext::reinflate()
     auto config = mActiveConfigurationChanges.mergeRootConfig(mCore->mConfig);
 
     // Update the configuration with the current UTC time and time adjustment
-    config.utcTime(mUTCTime);
-    config.localTimeAdjustment(mLocalTimeAdjustment);
+    config.set(RootProperty::kUTCTime, mUTCTime);
+    config.set(RootProperty::kLocalTimeAdjustment, mLocalTimeAdjustment);
 
     // Stop any execution on the old core
     auto oldTop = mCore->halt();
@@ -320,7 +327,7 @@ RootContext::popEvent()
     }
 
     // This should never be reached.
-    LOG(LogLevel::kError) << "No events available";
+    LOG(LogLevel::kError).session(getSession()) << "No events available";
     std::exit(EXIT_FAILURE);
 }
 
@@ -371,7 +378,7 @@ rapidjson::Value
 RootContext::serializeVisualContext(rapidjson::Document::AllocatorType& allocator)
 {
     clearVisualContextDirty();
-    return topComponent()->serializeVisualContext(allocator);
+    return mCore->mTop->serializeVisualContext(allocator);
 }
 
 bool
@@ -462,7 +469,7 @@ RootContext::invokeExtensionEventHandler(const std::string& uri, const std::stri
     if (comp) {
         handler = comp->findHandler(handlerDefinition);
         if (handler.isNull()) {
-            CONSOLE_S(getSession()) << "Extension Component " << comp->name()
+            CONSOLE(getSession()) << "Extension Component " << comp->name()
                                             << " can't execute event handler " << handlerDefinition.getName();
             return nullptr;
         }
@@ -473,7 +480,7 @@ RootContext::invokeExtensionEventHandler(const std::string& uri, const std::stri
     } else {
         handler = mCore->extensionManager().findHandler(handlerDefinition);
         if (handler.isNull()) {
-            CONSOLE_S(getSession()) << "Extension Handler " << handlerDefinition.getName() << " don't exist.";
+            CONSOLE(getSession()) << "Extension Handler " << handlerDefinition.getName() << " don't exist.";
             return nullptr;
         }
 
@@ -718,7 +725,7 @@ RootContext::setup(const CoreComponentPtr& top)
             if (h != json.MemberEnd()) {
                 auto oldHandler = em.findHandler(handler.second);
                 if (!oldHandler.isNull())
-                    CONSOLE_CTP(mContext) << "Overwriting existing command handler " << handler.first;
+                    CONSOLE(mContext) << "Overwriting existing command handler " << handler.first;
                 em.addEventHandler(handler.second, asCommand(*mContext, evaluate(*mContext, h->value)));
             }
         }
@@ -822,7 +829,7 @@ RootContext::verifyAPLVersionCompatibility(const std::vector<PackagePtr>& ordere
 {
     for(const auto& child : ordered) {
         if(!compatibilityVersion.isValid(child->version())) {
-            CONSOLE_CTP(mContext) << child->name() << " has invalid version: " << child->version();
+            CONSOLE(mContext) << child->name() << " has invalid version: " << child->version();
             return false;
         }
     }
@@ -834,10 +841,10 @@ RootContext::verifyTypeField(const std::vector<std::shared_ptr<Package>>& ordere
 {
     for(auto& child : ordered) {
         auto type = child->type();
-        if (type.compare("APML") == 0) CONSOLE_CTP(mContext)
+        if (type.compare("APML") == 0) CONSOLE(mContext)
                     << child->name() << ": Stop using the APML document format!";
         else if (type.compare("APL") != 0) {
-            CONSOLE_CTP(mContext) << child->name() << ": Document type field should be \"APL\"!";
+            CONSOLE(mContext) << child->name() << ": Document type field should be \"APL\"!";
             if(enforce) {
                 return false;
             }
@@ -929,7 +936,7 @@ RootContext::setFocus(FocusDirection direction, const Rect& origin, const std::s
     auto target = std::dynamic_pointer_cast<CoreComponent>(findComponentById(targetId));
 
     if (!target) {
-        LOG(LogLevel::kWarn) << "Don't have component: " << targetId;
+        LOG(LogLevel::kWarn).session(getSession()) << "Don't have component: " << targetId;
         return false;
     }
 

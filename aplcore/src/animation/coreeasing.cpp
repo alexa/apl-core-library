@@ -18,6 +18,7 @@
 
 #include "apl/animation/coreeasing.h"
 #include "apl/animation/easingapproximation.h"
+#include "apl/utils/stringfunctions.h"
 #include "apl/utils/weakcache.h"
 
 namespace apl {
@@ -26,9 +27,9 @@ static WeakCache<EasingApproximation> sEasingAppoxCache;
 
 std::string
 dofSig(int dof, const float* array) {
-    std::string result = "x" + std::to_string(array[0]);
+    std::string result = "x" + sutil::to_string(array[0]);
     for (int i = 1; i < dof; i++)
-        result += "," + std::to_string(array[i]);
+        result += "," + sutil::to_string(array[i]);
     return result;
 }
 
@@ -54,10 +55,7 @@ f(float a, float b, float t) {
  * For a given value of x find the matching value of y.  We restrict ourselves
  * to the case where a1=b1=0 and a4=b4=1.
  *
- * @param a The first x-control point parameter (a2)
- * @param b The first y-control point parameter (b2)
- * @param c The second x-control point parameter (a3)
- * @param d The second y-control point parameter (b3)
+ * @param a An array ofthe four control points [a2,b2,a3,b3]
  * @param x The target value
  * @return The calculated value y
  */
@@ -92,8 +90,8 @@ CoreEasing::bezier(float a, float b, float c, float d) noexcept
     return create(
         std::vector<EasingSegment>{EasingSegment(kCurveSegment, 0), EasingSegment(kEndSegment, 6)},
         std::vector<float>{0, 0, a, b, c, d, 1, 1},
-        "cubic-bezier(" + std::to_string(a) + "," + std::to_string(b) + "," + std::to_string(c) +
-            "," + std::to_string(d) + ")");
+        "cubic-bezier(" + sutil::to_string(a) + "," + sutil::to_string(b) + ","
+            + sutil::to_string(c) + "," + sutil::to_string(d) + ")");
 }
 
 EasingPtr

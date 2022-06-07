@@ -21,34 +21,32 @@ using namespace apl;
 
 class FocusManagerTest : public DocumentWrapper {};
 
-static const char *FOCUS_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": [],"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"width\": \"100%\","
-    "      \"height\": \"100%\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"thing1\","
-    "          \"width\": 20,"
-    "          \"height\": 20"
-    "        },"
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"thing2\","
-    "          \"width\": 20,"
-    "          \"height\": 20"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
-
+static const char *FOCUS_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "parameters": [],
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "thing1",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "type": "TouchWrapper",
+          "id": "thing2",
+          "width": 20,
+          "height": 20
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(FocusManagerTest, ManualControl)
 {
@@ -178,48 +176,45 @@ TEST_F(FocusManagerTest, ClearCheck)
     ASSERT_TRUE(CheckState(thing2));
 }
 
-static const char *BLUR_FOCUS =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"width\": \"100%\","
-    "      \"height\": \"100%\","
-    "      \"data\": ["
-    "        1,"
-    "        2"
-    "      ],"
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"thing${data}\","
-    "          \"onFocus\": {"
-    "            \"type\": \"SetValue\","
-    "            \"componentId\": \"frame${data}\","
-    "            \"property\": \"borderColor\","
-    "            \"value\": \"red\""
-    "          },"
-    "          \"onBlur\": {"
-    "            \"type\": \"SetValue\","
-    "            \"componentId\": \"frame${data}\","
-    "            \"property\": \"borderColor\","
-    "            \"value\": \"black\""
-    "          },"
-    "          \"item\": {"
-    "            \"type\": \"Frame\","
-    "            \"id\": \"frame${data}\","
-    "            \"borderColor\": \"black\","
-    "            \"borderWidth\": 1"
-    "          }"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}"
-;
-
+static const char *BLUR_FOCUS = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "data": [
+        1,
+        2
+      ],
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "thing${data}",
+          "onFocus": {
+            "type": "SetValue",
+            "componentId": "frame${data}",
+            "property": "borderColor",
+            "value": "red"
+          },
+          "onBlur": {
+            "type": "SetValue",
+            "componentId": "frame${data}",
+            "property": "borderColor",
+            "value": "black"
+          },
+          "item": {
+            "type": "Frame",
+            "id": "frame${data}",
+            "borderColor": "black",
+            "borderWidth": 1
+          }
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(FocusManagerTest, BlurFocus)
 {
@@ -285,32 +280,31 @@ TEST_F(FocusManagerTest, BlurFocus)
 }
 
 
-static const char *FOCUS_EVENT =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"TouchWrapper\","
-    "      \"onFocus\": {"
-    "        \"type\": \"SetValue\","
-    "        \"componentId\": \"frame\","
-    "        \"property\": \"text\","
-    "        \"value\": \"${event.source.handler}:${event.source.focused}\""
-    "      },"
-    "      \"onBlur\": {"
-    "        \"type\": \"SetValue\","
-    "        \"componentId\": \"frame\","
-    "        \"property\": \"text\","
-    "        \"value\": \"${event.source.handler}:${event.source.focused}\""
-    "      },"
-    "      \"item\": {"
-    "        \"type\": \"Text\","
-    "        \"id\": \"frame\""
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *FOCUS_EVENT = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "onFocus": {
+        "type": "SetValue",
+        "componentId": "frame",
+        "property": "text",
+        "value": "${event.source.handler}:${event.source.focused}"
+      },
+      "onBlur": {
+        "type": "SetValue",
+        "componentId": "frame",
+        "property": "text",
+        "value": "${event.source.handler}:${event.source.focused}"
+      },
+      "item": {
+        "type": "Text",
+        "id": "frame"
+      }
+    }
+  }
+})";
 
 /**
  * Check that the event.source.handler and event.source.focused properties are set
@@ -349,108 +343,107 @@ TEST_F(FocusManagerTest, FocusEvent)
     ASSERT_TRUE(CheckDirty(root, text));
 }
 
-static const char *FOCUS_COMPONENT_TYPES =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.3\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Container\","
-    "          \"id\": \"ContainerID\""
-    "        },"
-    "        {"
-    "          \"type\": \"Image\","
-    "          \"id\": \"ImageID\""
-    "        },"
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"TextID\""
-    "        },"
-    "        {"
-    "          \"type\": \"Sequence\","
-    "          \"id\": \"SequenceID\""
-    "        },"
-    "        {"
-    "          \"type\": \"Frame\","
-    "          \"id\": \"FrameID\""
-    "        },"
-    "        {"
-    "          \"type\": \"Pager\","
-    "          \"id\": \"PagerID\""
-    "        },"
-    "        {"
-    "          \"type\": \"ScrollView\","
-    "          \"id\": \"ScrollViewID\""
-    "        },"
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"TouchWrapperID\""
-    "        },"
-    "        {"
-    "          \"type\": \"VectorGraphic\","
-    "          \"id\": \"VectorGraphicWithNoHandlerID\""
-    "        },"
-    "        {"
-    "          \"type\": \"VectorGraphic\","
-    "          \"id\": \"VectorGraphicWithFocusHandlerID\","
-    "          \"onFocus\": \"[]\""
-    "        },"
-    "        {"
-    "          \"type\": \"VectorGraphic\","
-    "          \"id\": \"VectorGraphicWithBlurHandlerID\","
-    "          \"onBlur\": \"[]\""
-    "        },"
-    "        {"
-    "          \"type\": \"VectorGraphic\","
-    "          \"id\": \"VectorGraphicWithPressHandlerID\","
-    "          \"onPress\": \"[]\""
-    "        },"
-    "        {"
-    "          \"type\": \"VectorGraphic\","
-    "          \"id\": \"VectorGraphicWithKDownHandlerID\","
-    "          \"handleKeyDown\": \"[]\""
-    "        },"
-    "        {"
-    "          \"type\": \"VectorGraphic\","
-    "          \"id\": \"VectorGraphicWithKUpHandlerID\","
-    "          \"handleKeyUp\": \"[]\""
-    "        },"
-    "        {"
-    "          \"type\": \"VectorGraphic\","
-    "          \"id\": \"VectorGraphicWithUpHandlerID\","
-    "          \"onUp\": \"[]\""
-    "        },"
-    "        {"
-    "          \"type\": \"VectorGraphic\","
-    "          \"id\": \"VectorGraphicWithDownHandlerID\","
-    "          \"onDown\": \"[]\""
-    "        },"
-    "        {"
-    "          \"type\": \"VectorGraphic\","
-    "          \"id\": \"VectorGraphicWithGesturesID\","
-    "          \"gestures\": \"[]\""
-    "        },"
-    "        {"
-    "          \"type\": \"VectorGraphic\","
-    "          \"id\": \"VectorGraphicWithCancelHandlerID\","
-    "          \"onCancel\": \"[]\""
-    "        },"
-    "        {"
-    "          \"type\": \"VectorGraphic\","
-    "          \"id\": \"VectorGraphicWithMoveHandlerID\","
-    "          \"onMove\": \"[]\""
-    "        },"
-    "        {"
-    "          \"type\": \"Video\","
-    "          \"id\": \"VideoID\""
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *FOCUS_COMPONENT_TYPES = R"({
+  "type": "APL",
+  "version": "1.3",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "Container",
+          "id": "ContainerID"
+        },
+        {
+          "type": "Image",
+          "id": "ImageID"
+        },
+        {
+          "type": "Text",
+          "id": "TextID"
+        },
+        {
+          "type": "Sequence",
+          "id": "SequenceID"
+        },
+        {
+          "type": "Frame",
+          "id": "FrameID"
+        },
+        {
+          "type": "Pager",
+          "id": "PagerID"
+        },
+        {
+          "type": "ScrollView",
+          "id": "ScrollViewID"
+        },
+        {
+          "type": "TouchWrapper",
+          "id": "TouchWrapperID"
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "VectorGraphicWithNoHandlerID"
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "VectorGraphicWithFocusHandlerID",
+          "onFocus": "[]"
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "VectorGraphicWithBlurHandlerID",
+          "onBlur": "[]"
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "VectorGraphicWithPressHandlerID",
+          "onPress": "[]"
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "VectorGraphicWithKDownHandlerID",
+          "handleKeyDown": "[]"
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "VectorGraphicWithKUpHandlerID",
+          "handleKeyUp": "[]"
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "VectorGraphicWithUpHandlerID",
+          "onUp": "[]"
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "VectorGraphicWithDownHandlerID",
+          "onDown": "[]"
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "VectorGraphicWithGesturesID",
+          "gestures": "[]"
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "VectorGraphicWithCancelHandlerID",
+          "onCancel": "[]"
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "VectorGraphicWithMoveHandlerID",
+          "onMove": "[]"
+        },
+        {
+          "type": "Video",
+          "id": "VideoID"
+        }
+      ]
+    }
+  }
+})";
 
 static std::map<std::string, bool> sCanFocus = {
     {"ContainerID",                     false},
@@ -538,61 +531,60 @@ TEST_F(FocusManagerTest, FocusOnComponentType)
     }
 }
 
-static const char * INHERIT_PARENT_STATE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.3\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"TouchWrapper\","
-    "      \"items\": {"
-    "        \"type\": \"Container\","
-    "        \"inheritParentState\": true,"
-    "        \"items\": ["
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"MyText\","
-    "            \"text\": \"Nothing\""
-    "          },"
-    "          {"
-    "            \"type\": \"TouchWrapper\","
-    "            \"id\": \"TouchWrapperA\","
-    "            \"inheritParentState\": true,"
-    "            \"onFocus\": {"
-    "              \"type\": \"SetValue\","
-    "              \"componentId\": \"MyText\","
-    "              \"property\": \"text\","
-    "              \"value\": \"A in focus\""
-    "            },"
-    "            \"onBlur\": {"
-    "              \"type\": \"SetValue\","
-    "              \"componentId\": \"MyText\","
-    "              \"property\": \"text\","
-    "              \"value\": \"A not in focus\""
-    "            }"
-    "          },"
-    "          {"
-    "            \"type\": \"TouchWrapper\","
-    "            \"id\": \"TouchWrapperB\","
-    "            \"inheritParentState\": false,"
-    "            \"onFocus\": {"
-    "              \"type\": \"SetValue\","
-    "              \"componentId\": \"MyText\","
-    "              \"property\": \"text\","
-    "              \"value\": \"B in focus\""
-    "            },"
-    "            \"onBlur\": {"
-    "              \"type\": \"SetValue\","
-    "              \"componentId\": \"MyText\","
-    "              \"property\": \"text\","
-    "              \"value\": \"B not in focus\""
-    "            }"
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char * INHERIT_PARENT_STATE = R"({
+  "type": "APL",
+  "version": "1.3",
+  "mainTemplate": {
+    "items": {
+      "type": "TouchWrapper",
+      "items": {
+        "type": "Container",
+        "inheritParentState": true,
+        "items": [
+          {
+            "type": "Text",
+            "id": "MyText",
+            "text": "Nothing"
+          },
+          {
+            "type": "TouchWrapper",
+            "id": "TouchWrapperA",
+            "inheritParentState": true,
+            "onFocus": {
+              "type": "SetValue",
+              "componentId": "MyText",
+              "property": "text",
+              "value": "A in focus"
+            },
+            "onBlur": {
+              "type": "SetValue",
+              "componentId": "MyText",
+              "property": "text",
+              "value": "A not in focus"
+            }
+          },
+          {
+            "type": "TouchWrapper",
+            "id": "TouchWrapperB",
+            "inheritParentState": false,
+            "onFocus": {
+              "type": "SetValue",
+              "componentId": "MyText",
+              "property": "text",
+              "value": "B in focus"
+            },
+            "onBlur": {
+              "type": "SetValue",
+              "componentId": "MyText",
+              "property": "text",
+              "value": "B not in focus"
+            }
+          }
+        ]
+      }
+    }
+  }
+})";
 
 /**
  * Verify that a component with "inheritParentState=true" does not respond to a SetFocus command
@@ -659,7 +651,7 @@ TEST_F(FocusManagerTest, FocusWithInheritParentState)
     event = root->popEvent();
     ASSERT_EQ(kEventTypeFocus, event.getType());
     ASSERT_FALSE(event.getComponent());
-    ASSERT_TRUE(event.getActionRef().isEmpty());
+    ASSERT_TRUE(event.getActionRef().empty());
     root->clearPending();
     ASSERT_FALSE(component->getState().get(kStateFocused));
     ASSERT_FALSE(a->getState().get(kStateFocused));

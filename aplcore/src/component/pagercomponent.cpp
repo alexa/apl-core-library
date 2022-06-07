@@ -155,7 +155,7 @@ PagerComponent::setPage(int page)
 
 /**
  * Immediately change the current page in the pager.  This method can be invoked using "SetValue" on pageIndex or pageId.
- * @param page The index of the page to change to
+ * @param pageIndex The index of the page to change to
  */
 void
 PagerComponent::setPageImmediate(int pageIndex)
@@ -201,7 +201,7 @@ PagerComponent::handleSetPage(int index, PageDirection direction, const ActionRe
             setPage(targetPageIndex);
         }
         mCurrentAnimation->resolve();
-        if (!ref.isEmpty() && ref.isPending()) ref.resolve();
+        if (!ref.empty() && ref.isPending()) ref.resolve();
         return;
     }
 
@@ -241,7 +241,7 @@ PagerComponent::handleSetPage(int index, PageDirection direction, const ActionRe
       }
     });
 
-    if (!ref.isEmpty() && ref.isPending()) {
+    if (!ref.empty() && ref.isPending()) {
         ref.addTerminateCallback([weak_ptr](const TimersPtr&) {
             auto self = weak_ptr.lock();
             if (self) {
@@ -336,7 +336,7 @@ PagerComponent::endPageMove(bool fulfilled, const ActionRef& ref, bool fast)
         }
 
         auto event = executePageChangeEvent(fast);
-        if (!ref.isEmpty()) {
+        if (!ref.empty()) {
             if (event && event->isPending()) {
                 event->then([ref](const ActionPtr& ptr) { ref.resolve(); });
             } else {
@@ -344,7 +344,7 @@ PagerComponent::endPageMove(bool fulfilled, const ActionRef& ref, bool fast)
             }
         }
     } else {
-        if (!ref.isEmpty()) {
+        if (!ref.empty()) {
             ref.resolve();
         }
     }
@@ -674,7 +674,7 @@ PagerComponent::finalizePopulate()
 
 void
 PagerComponent::attachPageAndReportLoaded(int page) {
-    LOG_IF(DEBUG_PAGER) << this->toDebugSimpleString();
+    LOG_IF(DEBUG_PAGER).session(getContext()) << this->toDebugSimpleString();
     if (mChildren.empty() && mRebuilder) {
         // Force loading if possible
         mRebuilder->notifyStartEdgeReached();
@@ -715,7 +715,7 @@ PagerComponent::attachPageAndReportLoaded(int page) {
             break;
     }
 
-    LOG_IF(DEBUG_PAGER) << "   start=" << start << " count=" << count;
+    LOG_IF(DEBUG_PAGER).session(getContext()) << "   start=" << start << " count=" << count;
     auto& lm = mContext->layoutManager();
     for (int i = 0 ; i < count ; i++) {
         auto index = (start + i) % childCount;

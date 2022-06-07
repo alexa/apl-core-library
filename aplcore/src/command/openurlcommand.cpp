@@ -33,7 +33,7 @@ OpenURLCommand::propDefSet() const {
 ActionPtr
 OpenURLCommand::execute(const TimersPtr& timers, bool fastMode) {
     if (fastMode) {
-        CONSOLE_CTP(mContext) << "Ignoring OpenURL in fast mode";
+        CONSOLE(mContext) << "Ignoring OpenURL in fast mode";
         return nullptr;
     }
 

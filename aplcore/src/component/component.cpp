@@ -39,19 +39,19 @@ Component::name() const
 void
 Component::updateMediaState(const MediaState& state, bool fromEvent)
 {
-    LOG(LogLevel::kError) << "updateMediaState called for component that does not support it.";
+    LOG(LogLevel::kError).session(mContext) << "updateMediaState called for component that does not support it.";
 }
 
 bool
 Component::updateGraphic(const GraphicContentPtr& json) {
-    LOG(LogLevel::kError) << "updateGraphic called for component that does not support it.";
+    LOG(LogLevel::kError).session(mContext) << "updateGraphic called for component that does not support it.";
     return false;
 }
 
 void
 Component::updateResourceState(const ExtensionComponentResourceState& state, int errorCode, const std::string& error)
 {
-    LOG(LogLevel::kError) << "updateResourceState called for component that does not support it.";
+    LOG(LogLevel::kError).session(mContext) << "updateResourceState called for component that does not support it.";
 }
 
 void
@@ -106,7 +106,7 @@ Component::toDebugSimpleString() const
 
 bool
 Component::isCharacterValid(const wchar_t wc) const {
-    LOG(LogLevel::kError) << "isCharacterValid called for component that does not support it.";
+    LOG(LogLevel::kError).session(mContext) << "isCharacterValid called for component that does not support it.";
     return false;
 }
 

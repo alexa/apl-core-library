@@ -44,7 +44,7 @@ public:
 
     /**
      * Internal constructor - don't use this
-     * @param graphic
+     * @param graphic The container graphic
      */
     explicit GraphicBuilder(const GraphicPtr& graphic);
 

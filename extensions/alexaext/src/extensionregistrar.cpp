@@ -15,10 +15,22 @@
 
 #include "alexaext/extensionregistrar.h"
 
+#include <algorithm>
+
 namespace alexaext {
 
 ExtensionRegistrar&
-ExtensionRegistrar::registerExtension(const ExtensionProxyPtr& proxy) {
+ExtensionRegistrar::addProvider(const ExtensionProviderPtr& provider)
+{
+    if (provider) {
+        mProviders.emplace(provider);
+    }
+    return *this;
+}
+
+ExtensionRegistrar&
+ExtensionRegistrar::registerExtension(const ExtensionProxyPtr& proxy)
+{
     if (proxy) {
         for (const auto& uri : proxy->getURIs()) {
             mExtensions.emplace(uri, proxy);
@@ -30,19 +42,39 @@ ExtensionRegistrar::registerExtension(const ExtensionProxyPtr& proxy) {
 bool
 ExtensionRegistrar::hasExtension(const std::string& uri)
 {
-    return (mExtensions.find(uri) != mExtensions.end());
+    if (mExtensions.find(uri) != mExtensions.end()) return true;
+    return std::any_of(
+            mProviders.begin(),
+            mProviders.end(),
+            [uri](const ExtensionProviderPtr& provider) {
+                return provider->hasExtension(uri);
+            });
 }
 
 ExtensionProxyPtr
 ExtensionRegistrar::getExtension(const std::string& uri)
 {
-    auto proxy = mExtensions.find(uri);
-    if (proxy == mExtensions.end())
-        return nullptr;
-    if (!proxy->second->isInitialized(uri)) {
-        if (!proxy->second->initializeExtension(uri)) return nullptr;
+    ExtensionProxyPtr proxy;
+    auto it = mExtensions.find(uri);
+
+    if (it == mExtensions.end()) {
+        for (auto& provider : mProviders) {
+            proxy = provider->getExtension(uri);
+            if (proxy) {
+                mExtensions.emplace(uri, proxy);
+                break;
+            }
+        }
+    } else {
+        proxy = it->second;
     }
-    return proxy->second;
+
+    if (!proxy) return nullptr;
+
+    if (!proxy->isInitialized(uri)) {
+        if (!proxy->initializeExtension(uri)) return nullptr;
+    }
+    return proxy;
 }
 
 } // namespace alexaext

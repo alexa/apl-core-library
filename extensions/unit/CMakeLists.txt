@@ -23,11 +23,19 @@ include_directories(${RAPIDJSON_INCLUDE})
 
 add_executable(alexaext-unittest
         unittest_apl_audio_player.cpp
+        unittest_apl_e2e_encryption.cpp
+        unittest_apl_webflow.cpp
+        unittest_apl_music_alarm.cpp
+        unittest_activity_descriptor.cpp
+        unittest_extension_lifecycle.cpp
         unittest_extension_message.cpp
         unittest_extension_provider.cpp
+        unittest_extension_registrar.cpp
         unittest_extension_schema.cpp
         unittest_local_extensions.cpp
+        unittest_random.cpp
         unittest_resource_provider.cpp
+        unittest_session_descriptor.cpp
         )
 
 target_link_libraries(alexaext-unittest

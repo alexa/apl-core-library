@@ -32,6 +32,10 @@ public:
     virtual ~MediaPlayerFactory() = default;
 
     /**
+     * Construct a media player.  This media player occupies space on the screen and may be
+     * used to play audio or video files.
+     *
+     * @param callback Invoked as the media player changes state.
      * @return A new media player
      */
     virtual MediaPlayerPtr createPlayer( MediaPlayerCallback callback ) = 0;

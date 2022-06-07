@@ -106,7 +106,7 @@ public:
      * that the user can see/interact with.  Overrides that have knowledge about which children are off screen or otherwise
      * invalid/unattached should use that knowledge to reduce the number of nodes walked or avoid walking otherwise invalid
      * components they may have stashed in their children.
-     * @param visitor
+     * @param visitor The component visitor
      */
     virtual void accept(Visitor<CoreComponent>& visitor) const;
 
@@ -115,7 +115,7 @@ public:
      * that the user can see/interact with.  Overrides that have knowledge about which children are off screen or otherwise
      * invalid/unattached should use that knowledge to reduce the number of nodes walked or avoid walking otherwise invalid
      * components they may have stashed in their children.
-     * @param visitor
+     * @param visitor The component visitor
      */
     virtual void raccept(Visitor<CoreComponent>& visitor) const;
 
@@ -389,21 +389,21 @@ public:
 
     /**
      * Convert this component into a JSON object
-     * @param allocator
+     * @param allocator RapidJSON memory allocator
      * @return The object.
      */
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override;
 
     /**
      * Convert this component and all of its properties into a human-readable JSON object
-     * @param allocator
+     * @param allocator RapidJSON memory allocator
      * @return The object
      */
     rapidjson::Value serializeAll(rapidjson::Document::AllocatorType& allocator) const override;
 
     /**
      * Convert the dirty properties of this component into a JSON object.
-     * @param allocator
+     * @param allocator RapidJSON memory allocator
      * @return The obje
      */
     rapidjson::Value serializeDirty(rapidjson::Document::AllocatorType& allocator) override;
@@ -571,7 +571,7 @@ public:
      * Attach Component's visual context tags to provided Json object.
      * NOTE: Required to be called explicitly from overriding methods.
      * @param outMap object to add tags to.
-     * @param allocator
+     * @param allocator RapidJSON memory allocator
      * @return true if actionable, false otherwise
      */
     virtual bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator);
@@ -766,8 +766,8 @@ public:
 
     /**
      * This inline function casts YGMeasureMode enum to MeasureMode enum.
-     * @param YGMeasureMode
-     * @return MeasureMode
+     * @param ygMeasureMode Yoga definition of the measuring mode
+     * @return APL definition of the measuring mode
      */
     static inline MeasureMode toMeasureMode(YGMeasureMode ygMeasureMode)
     {
@@ -784,21 +784,21 @@ public:
 
     /**
      * This inline function used in TextComponent and EditTextComponent class for TextMeasurement.
-     * @param YGNodeRef node
-     * @param float width
-     * @param YGMeasureMode widthMode
-     * @param float height
-     * @param YGMeasureMode heightMode
-     * @return YGSize
+     * @param node The yoga node
+     * @param width Width in dp
+     * @param widthMode Width measuring mode - at most, exactly, or undefined
+     * @param height Height in dp
+     * @param heightMode Height measuring mode - at most, exactly, or undefined
+     * @return Size of measured text, in dp
      */
     static YGSize textMeasureFunc(YGNodeRef node, float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode);
 
     /**
      * This inline function used in TextComponent and EditTextComponent class for TextMeasurement.
-     * @param YGNodeRef node
-     * @param float width
-     * @param float height
-     * @return float
+     * @param node The yoga node
+     * @param width The width
+     * @param height The height
+     * @return The baseline of the text in dp
      */
     static float textBaselineFunc(YGNodeRef node, float width, float height);
 

@@ -37,8 +37,8 @@ public:
 
     /**
      * Convenience constructor that sets the pixel width and height immediately.
-     * @param pixelWidth
-     * @param pixelHeight
+     * @param pixelWidth The pixel width of the screen
+     * @param pixelHeight The pixel height of the screen
      */
     ConfigurationChange(int pixelWidth, int pixelHeight)
         : mFlags(kConfigurationChangeSize),
@@ -48,8 +48,8 @@ public:
 
     /**
      * Update the size
-     * @param pixelWidth
-     * @param pixelHeight
+     * @param pixelWidth The pixel width of the screen
+     * @param pixelHeight The pixel height of the screen
      * @return This object for chaining
      */
     ConfigurationChange& size(int pixelWidth, int pixelHeight) {
@@ -143,28 +143,28 @@ public:
 
     /**
      * Merge this configuration change into a metrics object.
-     * @param oldMetrics
+     * @param oldMetrics The old metrics to merge with this change
      * @return An new metrics object with these changes
      */
     Metrics mergeMetrics(const Metrics& oldMetrics) const;
 
     /**
      * Merge this configuration change into a root config object
-     * @param oldRootConfig
+     * @param oldRootConfig The old root config to merge with this change
      * @return A new root config with these changes
      */
     RootConfig mergeRootConfig(const RootConfig& oldRootConfig) const;
 
     /**
      * Merge this configuration change into a new size object
-     * @param oldSize
+     * @param oldSize The old size to merge with this change
      * @return A new size object with these changes
      */
     Size mergeSize(const Size& oldSize) const;
 
     /**
      * Merge a new configuration change into this one.
-     * @param other
+     * @param other The old configuration change to merge with this change
      */
     void mergeConfigurationChange(const ConfigurationChange& other);
 

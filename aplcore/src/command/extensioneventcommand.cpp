@@ -23,7 +23,7 @@ ActionPtr
 ExtensionEventCommand::execute(const TimersPtr& timers, bool fastMode)
 {
     if (fastMode && !mDefinition.getAllowFastMode()) {
-        CONSOLE_CTP(mContext) << "Ignoring extension " << mDefinition.getName() << " command in fast mode";
+        CONSOLE(mContext) << "Ignoring extension " << mDefinition.getName() << " command in fast mode";
         return nullptr;
     }
 
@@ -37,7 +37,7 @@ ExtensionEventCommand::execute(const TimersPtr& timers, bool fastMode)
         auto it = mProperties.find(m.first);
         if (it == mProperties.end()) {
             if (m.second.required) {
-                CONSOLE_CTP(mContext) << "Missing required property '" << m.first << "' for extension command '"
+                CONSOLE(mContext) << "Missing required property '" << m.first << "' for extension command '"
                                       << mDefinition.getName() << "': dropping command";
                 return nullptr;
             }

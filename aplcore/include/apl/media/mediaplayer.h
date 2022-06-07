@@ -29,7 +29,7 @@ struct MediaTrack {
     std::string url;      // Source of the video clip
     HeaderArray headers;  // HeaderArray required for the track
     int offset;           // Starting offset within the media object, in milliseconds
-    int duration;         // Duration from the starting offset to play.  Set this to a large number to play the whole track.
+    int duration;         // Duration from the starting offset to play.  If non-positive, play the entire track
     int repeatCount;      // Number of times to repeat this track before moving to the next. Negative numbers repeat forever.
 };
 
@@ -47,7 +47,7 @@ extern std::map<MediaPlayerEventType, std::string> sMediaPlayerEventTypeMap;
 
 /**
  * The media player callback should be executed by the view host in a thread-safe manner.
- * Pass in the event type, the current state of the media object, and a fast mode flag.
+ * Pass in the event type and the current state of the media object.
  */
 using MediaPlayerCallback = std::function<void(MediaPlayerEventType, const MediaState&)>;
 
@@ -84,7 +84,7 @@ public:
      *
      * @param tracks An array of media tracks
      */
-    virtual void setTrackList(std::vector<MediaTrack>) = 0;
+    virtual void setTrackList(std::vector<MediaTrack> tracks) = 0;
 
     /**
      * Start or resume playing at the current track and offset
@@ -92,8 +92,8 @@ public:
      * player is at the end of the final track and has no repeats or the player has been released.
      *
      * Events: onPlay
-     * @param action An optional action reference to resolve when finished.  Resolve this immediately
-     *               if not using foreground audio.
+     * @param actionRef An optional action reference to resolve when finished.  Resolve this immediately
+     *                  if not using foreground audio.
      */
     virtual void play(ActionRef actionRef) = 0;
 
@@ -154,7 +154,7 @@ public:
      *
      * Events: onPause, onTrackUpdate, onTimeUpdate(?)
      *
-     * @param trackIndex
+     * @param trackIndex The index of the track to change to.
      */
     virtual void setTrackIndex( int trackIndex ) = 0;
 

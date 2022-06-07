@@ -699,6 +699,7 @@ R"({
 TEST_F(DynamicIndexListTest, WithFirstAndLast)
 {
     loadDocument(FIRST_AND_LAST, FIRST_AND_LAST_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -727,6 +728,7 @@ TEST_F(DynamicIndexListTest, WithFirstAndLast)
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
 
     component->update(kUpdateScrollPosition, 600);
+    advanceTime(10);
     root->clearPending();
 
 
@@ -794,6 +796,7 @@ static const char *FIRST_AND_LAST_HORIZONTAL_RTL = R"({
 TEST_F(DynamicIndexListTest, WithFirstAndLastHorizontalRTL)
 {
     loadDocument(FIRST_AND_LAST_HORIZONTAL_RTL, FIRST_AND_LAST_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -822,6 +825,7 @@ TEST_F(DynamicIndexListTest, WithFirstAndLastHorizontalRTL)
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
 
     component->update(kUpdateScrollPosition, -600);
+    advanceTime(10);
     root->clearPending();
 
 
@@ -880,6 +884,7 @@ static const char *FIRST = R"({
 TEST_F(DynamicIndexListTest, WithFirst)
 {
     loadDocument(FIRST, FIRST_AND_LAST_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -908,6 +913,7 @@ TEST_F(DynamicIndexListTest, WithFirst)
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
 
     component->update(kUpdateScrollPosition, 600);
+    advanceTime(10);
     root->clearPending();
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 0, 5));
@@ -990,6 +996,7 @@ TEST_F(DynamicIndexListTest, WithLast)
     ASSERT_EQ(400, component->getCalculated(kPropertyScrollPosition).asNumber());
 
     component->update(kUpdateScrollPosition, 600);
+    advanceTime(10);
     root->clearPending();
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 16, 4));
@@ -1023,6 +1030,7 @@ static const char *LAST_DATA = R"({
 TEST_F(DynamicIndexListTest, WithLastOneWay)
 {
     loadDocument(LAST, LAST_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -1061,6 +1069,7 @@ TEST_F(DynamicIndexListTest, WithLastOneWay)
 
     ASSERT_EQ(0, component->getCalculated(kPropertyScrollPosition).asNumber());
     component->update(kUpdateScrollPosition, 600);
+    advanceTime(10);
     root->clearPending();
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 11, 5));
@@ -1116,6 +1125,7 @@ static const char *EMPTY_DATA = R"({
 TEST_F(DynamicIndexListTest, EmptySequence)
 {
     loadDocument(BASIC, EMPTY_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -1199,6 +1209,7 @@ static const char *MULTI_DATA = R"({
 
 TEST_F(DynamicIndexListTest, Multi) {
     loadDocument(MULTI, MULTI_DATA);
+    advanceTime(10);
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok1", "101", 15, 5));
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok2", "102", 5, 5));
@@ -1282,6 +1293,58 @@ TEST_F(DynamicIndexListTest,MultiCloneData) {
     ASSERT_TRUE(session->checkAndClear());
     ASSERT_TRUE(CheckErrors({ "INTERNAL_ERROR" }));
     ASSERT_EQ(component->getChildCount(), 2);
+}
+
+TEST_F(DynamicIndexListTest, DuplicateListVersionErrorForRemovedComponent)
+{
+    loadDocument(BASIC, DATA);
+    advanceTime(10);
+
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(1, 101, 15, "15, 16, 17, 18, 19")));
+
+    component = nullptr;
+    root = nullptr;
+    ASSERT_FALSE(ds->processUpdate(createLazyLoad(1, 101, 15, "15, 16, 17, 18, 19")));
+}
+
+TEST_F(DynamicIndexListTest, MissingListVersionErrorForRemovedComponent)
+{
+    loadDocument(BASIC, DATA);
+    advanceTime(10);
+
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(1, 101, 15, "15, 16, 17, 18, 19")));
+
+    component = nullptr;
+    root = nullptr;
+    ASSERT_FALSE(ds->processUpdate(createLazyLoad(-1, 101, 15, "15, 16, 17, 18, 19")));
+}
+
+TEST_F(DynamicIndexListTest, ConnectionInFailedStateForRemovedComponent)
+{
+    loadDocument(BASIC, DATA);
+    advanceTime(10);
+
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(1, 101, 15, "15, 16, 17, 18, 19")));
+    // put connection into failed state with invalid update
+    ASSERT_FALSE(ds->processUpdate(createLazyLoad(-1, 101, 15, "15, 16, 17, 18, 19")));
+
+    component = nullptr;
+    root = nullptr;
+    ASSERT_FALSE(ds->processUpdate(createLazyLoad(1, 101, 15, "15, 16, 17, 18, 19")));
+    ASSERT_FALSE(ds->getPendingErrors().empty());
+}
+
+TEST_F(DynamicIndexListTest, InvalidUpdatePayloadForRemovedComponent)
+{
+    loadDocument(BASIC, DATA);
+    advanceTime(10);
+
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(1, 101, 15, "15, 16, 17, 18, 19")));
+
+    component = nullptr;
+    root = nullptr;
+    auto invalidPayload =  "{\"presentationToken\": \"presentationToken\", \"listId\": \"vQdpOESlok\"}";
+    ASSERT_FALSE(ds->processUpdate(invalidPayload));
 }
 
 static const char *BASIC_CONTAINER = R"({
@@ -3525,6 +3588,8 @@ static const char *BASIC_CONFIG_CHANGE = R"({
 })";
 
 TEST_F(DynamicIndexListTest, Reinflate) {
+    config->set(RootProperty::kSequenceChildCache, 0);
+
     loadDocument(BASIC_CONFIG_CHANGE, DATA);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -3532,26 +3597,28 @@ TEST_F(DynamicIndexListTest, Reinflate) {
     ASSERT_TRUE(CheckChildren({10, 11, 12, 13, 14}));
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", 15, 5));
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 5, 5));
-    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, 15, "15, 16, 17, 18, 19")));
-    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 102, 5, "5, 6, 7, 8, 9")));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(1, 101, 15, "15, 16, 17, 18, 19")));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(2, 102, 5, "5, 6, 7, 8, 9")));
     root->clearPending();
     ASSERT_EQ(15, component->getChildCount());
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 0, 5));
-    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 103, 0, "0, 1, 2, 3, 4")));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(3, 103, 0, "0, 1, 2, 3, 4")));
     root->clearPending();
     ASSERT_EQ(20, component->getChildCount());
     ASSERT_FALSE(root->hasEvent());
 
     // re-inflate should get same result.
-    auto oldComponent = component;
+    auto oldComponentId = component->getId();
     configChangeReinflate(ConfigurationChange(100, 100));
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_TRUE(component);
-    ASSERT_EQ(component->getId(), oldComponent->getId());
+    ASSERT_EQ(component->getId(), oldComponentId);
     ASSERT_EQ(20, component->getChildCount());
     ASSERT_TRUE(CheckBounds(0, 20));
     ASSERT_FALSE(root->hasEvent());
+
+    ASSERT_TRUE(ds->processUpdate(createReplace(4, 10, 110)));
 }
 
 static const char *TYPED_DATA = R"({

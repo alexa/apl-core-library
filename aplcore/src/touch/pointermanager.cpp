@@ -133,7 +133,7 @@ PointerManager::handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t 
             break;
         case kPointerTargetChanged:
         default:
-            LOG(LogLevel::kWarn) << "Unknown pointer event type ignored"
+            LOG(LogLevel::kWarn).session(mCore.session()) << "Unknown pointer event type ignored"
                                 << pointerEvent.pointerEventType;
             return false;
     }

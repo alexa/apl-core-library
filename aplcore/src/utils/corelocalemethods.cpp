@@ -16,6 +16,7 @@
 #include <algorithm>
 
 #include "apl/utils/corelocalemethods.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -25,7 +26,9 @@ CoreLocaleMethods::toUpperCase(const std::string& value, const std::string& loca
     result.resize(value.size());
 
     std::transform(value.begin(), value.end(), result.begin(),
-                            [](unsigned char c) -> unsigned char { return std::toupper(c); });
+                            [](char c) -> char {
+                                return sutil::toupper(c);
+                            });
 
     return result;
 }
@@ -36,7 +39,9 @@ CoreLocaleMethods::toLowerCase(const std::string& value, const std::string& loca
     result.resize(value.size());
 
     std::transform(value.begin(), value.end(), result.begin(),
-                            [](unsigned char c) -> unsigned char { return std::tolower(c); });
+                            [](char c) -> char {
+                                return sutil::tolower(c);
+                            });
 
     return result;
 }

@@ -54,7 +54,7 @@ KeyboardManager::getHandlerPropertyKey(KeyHandlerType type) {
 bool
 KeyboardManager::handleKeyboard(KeyHandlerType type, const CoreComponentPtr& component,
                                 const Keyboard& keyboard, const RootContextPtr& rootContext) {
-    LOG_IF(DEBUG_KEYBOARD_MANAGER) << "type:" << type << ", keyboard:" << keyboard.toDebugString();
+    LOG_IF(DEBUG_KEYBOARD_MANAGER).session(rootContext) << "type:" << type << ", keyboard:" << keyboard.toDebugString();
 
     if (keyboard.isReservedKey()) {
         // do not process handlers when is key reserved for future use by APL
@@ -68,7 +68,7 @@ KeyboardManager::handleKeyboard(KeyHandlerType type, const CoreComponentPtr& com
     while (!consumed && target) {
         consumed = target->processKeyPress(type, keyboard);
         if (consumed) {
-            LOG_IF(DEBUG_KEYBOARD_MANAGER) << target->getUniqueId() << " " << type << " consumed.";
+            LOG_IF(DEBUG_KEYBOARD_MANAGER).session(rootContext) << target->getUniqueId() << " " << type << " consumed.";
         } else {
             // propagate
             target = std::static_pointer_cast<CoreComponent>(target->getParent());

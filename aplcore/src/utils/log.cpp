@@ -14,10 +14,20 @@
  */
 
 #include "apl/utils/log.h"
+#include "apl/utils/session.h"
+#include "apl/component/corecomponent.h"
+#include "apl/command/corecommand.h"
+#include "apl/engine/context.h"
+#include "apl/engine/rootcontext.h"
+#include "apl/content/rootconfig.h"
 
 namespace apl {
 
-Logger::Logger(std::shared_ptr<LogBridge> bridge, LogLevel level, const std::string& file, const std::string& function):
+Logger::Logger(
+        const std::shared_ptr<LogBridge>& bridge,
+        LogLevel level,
+        const std::string& file,
+        const std::string& function):
     mUncaught{std::uncaught_exception()},
     mBridge{bridge},
     mLevel{level}
@@ -28,8 +38,78 @@ Logger::Logger(std::shared_ptr<LogBridge> bridge, LogLevel level, const std::str
 Logger::~Logger()
 {
     if(mLevel > LogLevel::kNone) {
-        mBridge->transport(mLevel, (mUncaught != std::uncaught_exception()) ? "***" : "" + mStringStream.str());
+        mBridge->transport(mLevel,
+                           (mLogId.empty() ? "" : (mLogId + ":")) +
+                           ((mUncaught != std::uncaught_exception()) ? "***" : "" + mStringStream.str()));
     }
+}
+
+Logger&
+Logger::session(const Session& session)
+{
+    mLogId = session.getLogId();
+    return *this;
+}
+
+Logger&
+Logger::session(const SessionPtr& session)
+{
+    if (session) mLogId = session->getLogId();
+    return *this;
+}
+
+Logger&
+Logger::session(const Context& context)
+{
+    return session(context.session());
+}
+
+Logger&
+Logger::session(const ConstContextPtr& context)
+{
+    return context ? session(context->session()) : *this;
+}
+
+Logger&
+Logger::session(const ContextPtr& context)
+{
+    return context ? session(context->session()) : *this;
+}
+
+Logger&
+Logger::session(const RootConfigPtr& config)
+{
+    return config ? session(config->getSession()) : *this;
+}
+
+Logger&
+Logger::session(const RootConfig& config)
+{
+    return session(config.getSession());
+}
+
+Logger&
+Logger::session(const RootContextPtr& root)
+{
+    return root ? session(root->getSession()) : *this;
+}
+
+Logger&
+Logger::session(const Component& component)
+{
+    return session(component.getContext()->session());
+}
+
+Logger&
+Logger::session(const ComponentPtr& component)
+{
+    return component ? session(component->getContext()->session()) : *this;
+}
+
+Logger&
+Logger::session(const ConstCommandPtr& command)
+{
+    return command ? session(std::dynamic_pointer_cast<const CoreCommand>(command)->context()->session()) : *this;
 }
 
 void
@@ -64,26 +144,31 @@ Logger::log(const char *format, va_list args)
 }
 
 LoggerFactory&
-LoggerFactory::instance() {
+LoggerFactory::instance()
+{
     static LoggerFactory instance;
     return instance;
 }
 
 void
-LoggerFactory::initialize(std::shared_ptr<LogBridge> bridge) {
+LoggerFactory::initialize(const std::shared_ptr<LogBridge>& bridge)
+{
     mLogBridge = bridge;
     mInitialized = true;
+    mWarned = false;
 }
 
 void
-LoggerFactory::reset() {
+LoggerFactory::reset()
+{
     mLogBridge = std::make_shared<DefaultLogBridge>();
     mInitialized = false;
     mWarned = false;
 }
 
 Logger
-LoggerFactory::getLogger(LogLevel level, const std::string& file, const std::string& function) {
+LoggerFactory::getLogger(LogLevel level, const std::string& file, const std::string& function)
+{
     if(!mInitialized && !mWarned) {
         Logger(mLogBridge, LogLevel::kWarn, __FILE__, __func__) << "Logs not initialized. Using default bridge.";
         mWarned = true;

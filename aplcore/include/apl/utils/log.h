@@ -26,6 +26,7 @@
 #include <string>
 #include <map>
 
+#include "apl/common.h"
 #include "apl/utils/streamer.h"
 
 namespace apl {
@@ -66,8 +67,7 @@ public:
 class Logger
 {
 public:
-    Logger(std::shared_ptr<LogBridge> bridge, LogLevel level, const std::string& file, const std::string& function);
-
+    Logger(const std::shared_ptr<LogBridge>& bridge, LogLevel level, const std::string& file, const std::string& function);
     ~Logger();
 
     /**
@@ -81,6 +81,20 @@ public:
      * @param args Variable arguments.
      */
     void log(const char *format, va_list args);
+
+    // Session binding
+    Logger& session(const Session& session);
+    Logger& session(const SessionPtr& session);
+    Logger& session(const Context& context);
+    Logger& session(const ConstContextPtr& context);
+    Logger& session(const ContextPtr& context);
+    Logger& session(const RootConfig& config);
+    Logger& session(const RootConfigPtr& config);
+    Logger& session(const RootContextPtr& root);
+    Logger& session(const Component& component);
+    Logger& session(const ComponentPtr& component);
+    Logger& session(const CommandPtr& command);
+    Logger& session(const ConstCommandPtr& command);
 
     template<class T>
     friend Logger& operator<<(Logger& os, T&& value)
@@ -100,6 +114,7 @@ private:
     const bool mUncaught;
     const std::shared_ptr<LogBridge> mBridge;
     const LogLevel mLevel;
+    std::string mLogId;
 
     apl::streamer mStringStream;
 };
@@ -123,7 +138,7 @@ public:
      * Set consumer specific logger configuration.
      * @param bridge Consumer logging bridge.
      */
-    void initialize(std::shared_ptr<LogBridge> bridge);
+    void initialize(const std::shared_ptr<LogBridge>& bridge);
 
     /**
      * Reset Loggers state. Logging to reset to console.
@@ -175,8 +190,7 @@ private:
 #define LOG(LEVEL) apl::LoggerFactory::instance().getLogger(LEVEL,__FILENAME__,__func__)
 #define LOGF(LEVEL,FORMAT,...) apl::LoggerFactory::instance().getLogger(LEVEL,__FILENAME__,__func__).log(FORMAT,__VA_ARGS__)
 #define LOG_IF(CONDITION) !(CONDITION) ? (void)0 : apl::LogVoidify() & LOG(apl::LogLevel::kDebug)
-#define LOGF_IF(CONDITION,FORMAT,...) \
-        !(CONDITION) ? (void) 0 : LOGF(apl::LogLevel::kDebug,FORMAT,__VA_ARGS__)
+#define LOGF_IF(CONDITION,FORMAT,...) !(CONDITION) ? (void) 0 : LOGF(apl::LogLevel::kDebug,FORMAT,__VA_ARGS__)
 } // namespace apl
 
 #endif // _APL_LOG_H

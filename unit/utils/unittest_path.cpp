@@ -32,32 +32,31 @@ public:
                 ASSERT_FALSE(component) << kv.first;
             } else {
                 ASSERT_TRUE(component) << kv.first;
-                ASSERT_EQ(kv.second, component->getPath()) << kv.first;
+                ASSERT_EQ(kv.second, component->provenance()) << kv.first;
             }
         }
     }
 };
 
-static const char * BASIC_USING_ITEMS =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text1\""
-    "        },"
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text2\""
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char * BASIC_USING_ITEMS = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "Text",
+          "id": "text1"
+        },
+        {
+          "type": "Text",
+          "id": "text2"
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(PathTest, BasicUsingItems)
 {
@@ -69,34 +68,33 @@ TEST_F(PathTest, BasicUsingItems)
     auto text2 = context->findComponentById("text2");
     ASSERT_TRUE(text2);
 
-    ASSERT_STREQ("_main/mainTemplate/items", component->getPath().c_str());
-    ASSERT_STREQ("_main/mainTemplate/items/items/0", text1->getPath().c_str());
-    ASSERT_STREQ("_main/mainTemplate/items/items/1", text2->getPath().c_str());
+    ASSERT_STREQ("_main/mainTemplate/items", component->provenance().c_str());
+    ASSERT_STREQ("_main/mainTemplate/items/items/0", text1->provenance().c_str());
+    ASSERT_STREQ("_main/mainTemplate/items/items/1", text2->provenance().c_str());
 
     // Sanity check that path actually matches rapidjson Pointer implementation
-    ASSERT_STREQ(followPath(text1->getPath())->GetObject()["id"].GetString(), "text1");
+    ASSERT_STREQ(followPath(text1->provenance())->GetObject()["id"].GetString(), "text1");
 }
 
-static const char * BASIC_USING_ITEM =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"item\": ["
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text1\""
-    "        },"
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text2\""
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char * BASIC_USING_ITEM = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "item": [
+        {
+          "type": "Text",
+          "id": "text1"
+        },
+        {
+          "type": "Text",
+          "id": "text2"
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(PathTest, BasicUsingItem)
 {
@@ -108,36 +106,35 @@ TEST_F(PathTest, BasicUsingItem)
     auto text2 = context->findComponentById("text2");
     ASSERT_TRUE(text2);
 
-    ASSERT_STREQ("_main/mainTemplate/item", component->getPath().c_str());
-    ASSERT_STREQ("_main/mainTemplate/item/item/0", text1->getPath().c_str());
-    ASSERT_STREQ("_main/mainTemplate/item/item/1", text2->getPath().c_str());
+    ASSERT_STREQ("_main/mainTemplate/item", component->provenance().c_str());
+    ASSERT_STREQ("_main/mainTemplate/item/item/0", text1->provenance().c_str());
+    ASSERT_STREQ("_main/mainTemplate/item/item/1", text2->provenance().c_str());
 }
 
-static const char * CONDITIONAL_LIST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text1\""
-    "        },"
-    "        {"
-    "          \"when\": false,"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text2\""
-    "        },"
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text3\""
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char * CONDITIONAL_LIST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "Text",
+          "id": "text1"
+        },
+        {
+          "when": false,
+          "type": "Text",
+          "id": "text2"
+        },
+        {
+          "type": "Text",
+          "id": "text3"
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(PathTest, ConditionalList)
 {
@@ -152,55 +149,54 @@ TEST_F(PathTest, ConditionalList)
     auto text3 = context->findComponentById("text3");
     ASSERT_TRUE(text3);
 
-    ASSERT_STREQ("_main/mainTemplate/items", component->getPath().c_str());
-    ASSERT_STREQ("_main/mainTemplate/items/items/0", text1->getPath().c_str());
-    ASSERT_STREQ("_main/mainTemplate/items/items/2", text3->getPath().c_str());
+    ASSERT_STREQ("_main/mainTemplate/items", component->provenance().c_str());
+    ASSERT_STREQ("_main/mainTemplate/items/items/0", text1->provenance().c_str());
+    ASSERT_STREQ("_main/mainTemplate/items/items/2", text3->provenance().c_str());
 }
 
-static const char *NESTING =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": ["
-    "      {"
-    "        \"type\": \"Container\","
-    "        \"id\": \"container1\","
-    "        \"when\": false"
-    "      },"
-    "      {"
-    "        \"type\": \"Container\","
-    "        \"id\": \"container2\","
-    "        \"items\": ["
-    "          {"
-    "            \"type\": \"Frame\","
-    "            \"id\": \"frame1\","
-    "            \"items\": ["
-    "              {"
-    "                \"type\": \"Text\","
-    "                \"id\": \"text1\","
-    "                \"when\": false"
-    "              },"
-    "              {"
-    "                \"type\": \"Text\","
-    "                \"id\": \"text2\""
-    "              }"
-    "            ]"
-    "          },"
-    "          {"
-    "            \"when\": false,"
-    "            \"type\": \"Text\","
-    "            \"id\": \"text3\""
-    "          },"
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"text4\""
-    "          }"
-    "        ]"
-    "      }"
-    "    ]"
-    "  }"
-    "}";
+static const char *NESTING = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Container",
+        "id": "container1",
+        "when": false
+      },
+      {
+        "type": "Container",
+        "id": "container2",
+        "items": [
+          {
+            "type": "Frame",
+            "id": "frame1",
+            "items": [
+              {
+                "type": "Text",
+                "id": "text1",
+                "when": false
+              },
+              {
+                "type": "Text",
+                "id": "text2"
+              }
+            ]
+          },
+          {
+            "when": false,
+            "type": "Text",
+            "id": "text3"
+          },
+          {
+            "type": "Text",
+            "id": "text4"
+          }
+        ]
+      }
+    ]
+  }
+})";
 
 TEST_F(PathTest, Nesting)
 {
@@ -215,36 +211,35 @@ TEST_F(PathTest, Nesting)
     });
 }
 
-static const char *FIRST_LAST_ITEM =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": ["
-    "      {"
-    "        \"type\": \"Container\","
-    "        \"firstItem\": {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text1\""
-    "        },"
-    "        \"lastItem\": {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text2\""
-    "        },"
-    "        \"items\": ["
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"text3\""
-    "          },"
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"text4\""
-    "          }"
-    "        ]"
-    "      }"
-    "    ]"
-    "  }"
-    "}";
+static const char *FIRST_LAST_ITEM = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Container",
+        "firstItem": {
+          "type": "Text",
+          "id": "text1"
+        },
+        "lastItem": {
+          "type": "Text",
+          "id": "text2"
+        },
+        "items": [
+          {
+            "type": "Text",
+            "id": "text3"
+          },
+          {
+            "type": "Text",
+            "id": "text4"
+          }
+        ]
+      }
+    ]
+  }
+})";
 
 TEST_F(PathTest, FirstLast)
 {
@@ -256,45 +251,37 @@ TEST_F(PathTest, FirstLast)
     });
 }
 
-static const char *DATA_SEQUENCE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": ["
-    "      {"
-    "        \"type\": \"Container\","
-    "        \"firstItem\": {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text1\""
-    "        },"
-    "        \"lastItem\": {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text2\""
-    "        },"
-    "        \"items\": ["
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"text3_${data}\","
-    "            \"when\": \"${data%2}\""
-    "          },"
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"text4_${data}\""
-    "          }"
-    "        ],"
-    "        \"data\": ["
-    "          1,"
-    "          2,"
-    "          3,"
-    "          4,"
-    "          5,"
-    "          6"
-    "        ]"
-    "      }"
-    "    ]"
-    "  }"
-    "}";
+static const char *DATA_SEQUENCE = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Container",
+        "firstItem": {
+          "type": "Text",
+          "id": "text1"
+        },
+        "lastItem": {
+          "type": "Text",
+          "id": "text2"
+        },
+        "items": [
+          {
+            "type": "Text",
+            "id": "text3_${data}",
+            "when": "${data%2}"
+          },
+          {
+            "type": "Text",
+            "id": "text4_${data}"
+          }
+        ],
+        "data": [1,2,3,4,5,6]
+      }
+    ]
+  }
+})";
 
 TEST_F(PathTest, DataSequence)
 {
@@ -316,29 +303,28 @@ TEST_F(PathTest, DataSequence)
     });
 }
 
-static const char *CONDITIONAL_FRAME =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": ["
-    "      {"
-    "        \"type\": \"Frame\","
-    "        \"item\": ["
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"text1\","
-    "            \"when\": false"
-    "          },"
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"text2\""
-    "          }"
-    "        ]"
-    "      }"
-    "    ]"
-    "  }"
-    "}";
+static const char *CONDITIONAL_FRAME = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Frame",
+        "item": [
+          {
+            "type": "Text",
+            "id": "text1",
+            "when": false
+          },
+          {
+            "type": "Text",
+            "id": "text2"
+          }
+        ]
+      }
+    ]
+  }
+})";
 
 TEST_F(PathTest, ConditionalFrame)
 {
@@ -348,55 +334,54 @@ TEST_F(PathTest, ConditionalFrame)
     });
 }
 
-static const char *LAYOUT =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"layouts\": {"
-    "    \"header\": {"
-    "      \"description\": \"Fake header\","
-    "      \"parameters\": ["
-    "        \"title\","
-    "        \"subtitle\""
-    "      ],"
-    "      \"items\": {"
-    "        \"type\": \"Container\","
-    "        \"items\": ["
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"title\","
-    "            \"text\": \"${title}\""
-    "          },"
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"subtitle\","
-    "            \"text\": \"${subtitle}\""
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"items\": ["
-    "      {"
-    "        \"type\": \"Container\","
-    "        \"id\": \"container1\","
-    "        \"items\": ["
-    "          {"
-    "            \"type\": \"header\","
-    "            \"id\": \"headerId\","
-    "            \"title\": \"Dogs\","
-    "            \"subtitle\": \"Our canine friends\""
-    "          },"
-    "          {"
-    "            \"type\": \"Image\","
-    "            \"id\": \"dogPicture\""
-    "          }"
-    "        ]"
-    "      }"
-    "    ]"
-    "  }"
-    "}";
+static const char *LAYOUT = R"({
+  "type": "APL",
+  "version": "1.1",
+  "layouts": {
+    "header": {
+      "description": "Fake header",
+      "parameters": [
+        "title",
+        "subtitle"
+      ],
+      "items": {
+        "type": "Container",
+        "items": [
+          {
+            "type": "Text",
+            "id": "title",
+            "text": "${title}"
+          },
+          {
+            "type": "Text",
+            "id": "subtitle",
+            "text": "${subtitle}"
+          }
+        ]
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Container",
+        "id": "container1",
+        "items": [
+          {
+            "type": "header",
+            "id": "headerId",
+            "title": "Dogs",
+            "subtitle": "Our canine friends"
+          },
+          {
+            "type": "Image",
+            "id": "dogPicture"
+          }
+        ]
+      }
+    ]
+  }
+})";
 
 TEST_F(PathTest, Layout)
 {
@@ -409,54 +394,53 @@ TEST_F(PathTest, Layout)
     });
 }
 
-static const char *LAYOUT_WITH_DATA =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.3\","
-    "  \"layouts\": {"
-    "    \"ListItem\": {"
-    "      \"parameters\": ["
-    "        \"title\","
-    "        \"subtitle\""
-    "      ],"
-    "      \"items\": {"
-    "        \"type\": \"Container\","
-    "        \"id\": \"Container${index}\","
-    "        \"bind\": {"
-    "          \"name\": \"cindex\","
-    "          \"value\": \"${index}\""
-    "        },"
-    "        \"items\": ["
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"text\": \"${title}\","
-    "            \"id\": \"Title${cindex}\""
-    "          },"
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"test\": \"${subtitle}\","
-    "            \"id\": \"Subtitle${cindex}\""
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"id\": \"Sequence1\","
-    "      \"items\": {"
-    "        \"type\": \"ListItem\","
-    "        \"title\": \"Title for ${data}\","
-    "        \"subtitle\": \"Subtitle for ${data}\""
-    "      },"
-    "      \"data\": ["
-    "        \"alpha\","
-    "        \"bravo\""
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *LAYOUT_WITH_DATA = R"({
+  "type": "APL",
+  "version": "1.3",
+  "layouts": {
+    "ListItem": {
+      "parameters": [
+        "title",
+        "subtitle"
+      ],
+      "items": {
+        "type": "Container",
+        "id": "Container${index}",
+        "bind": {
+          "name": "cindex",
+          "value": "${index}"
+        },
+        "items": [
+          {
+            "type": "Text",
+            "text": "${title}",
+            "id": "Title${cindex}"
+          },
+          {
+            "type": "Text",
+            "test": "${subtitle}",
+            "id": "Subtitle${cindex}"
+          }
+        ]
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "id": "Sequence1",
+      "items": {
+        "type": "ListItem",
+        "title": "Title for ${data}",
+        "subtitle": "Subtitle for ${data}"
+      },
+      "data": [
+        "alpha",
+        "bravo"
+      ]
+    }
+  }
+})";
 
 
 TEST_F(PathTest, LayoutWithData)
@@ -472,93 +456,92 @@ TEST_F(PathTest, LayoutWithData)
     });
 }
 
-static const char *LAYOUT_WITH_DATA_2 =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"layouts\": {"
-    "    \"HorizontalListItem\": {"
-    "      \"item\": ["
-    "        {"
-    "          \"type\": \"Container\","
-    "          \"id\": \"ItemContainer${index}\","
-    "          \"bind\": {"
-    "            \"name\": \"cindex\","
-    "            \"value\": \"${index}\""
-    "          },"
-    "          \"items\": ["
-    "            {"
-    "              \"type\": \"Image\","
-    "              \"id\": \"ItemImage${cindex}\","
-    "              \"source\": \"${data.image}\""
-    "            },"
-    "            {"
-    "              \"type\": \"Text\","
-    "              \"id\": \"ItemPrimaryText${cindex}\","
-    "              \"text\": \"<b>${ordinal}.</b> ${data.primaryText}\""
-    "            },"
-    "            {"
-    "              \"type\": \"Text\","
-    "              \"id\": \"ItemSecondaryText${cindex}\","
-    "              \"text\": \"${data.secondaryText}\""
-    "            }"
-    "          ]"
-    "        }"
-    "      ]"
-    "    },"
-    "    \"ListTemplate2\": {"
-    "      \"parameters\": ["
-    "        \"backgroundImage\","
-    "        \"listData\""
-    "      ],"
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Container\","
-    "          \"id\": \"TopContainer\","
-    "          \"items\": ["
-    "            {"
-    "              \"type\": \"Image\","
-    "              \"id\": \"BackgroundImage\","
-    "              \"source\": \"${backgroundImage}\""
-    "            },"
-    "            {"
-    "              \"type\": \"Sequence\","
-    "              \"id\": \"MasterSequence\","
-    "              \"scrollDirection\": \"horizontal\","
-    "              \"data\": \"${listData}\","
-    "              \"numbered\": true,"
-    "              \"item\": ["
-    "                {"
-    "                  \"type\": \"HorizontalListItem\""
-    "                }"
-    "              ]"
-    "            }"
-    "          ]"
-    "        }"
-    "      ]"
-    "    }"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"item\": ["
-    "      {"
-    "        \"type\": \"ListTemplate2\","
-    "        \"backgroundImage\": \"foo\","
-    "        \"listData\": ["
-    "          {"
-    "            \"image\": \"IMAGE1\","
-    "            \"primaryText\": \"PRIMARY1\","
-    "            \"secondaryText\": \"SECONDARY1\""
-    "          },"
-    "          {"
-    "            \"image\": \"IMAGE1\","
-    "            \"primaryText\": \"PRIMARY1\","
-    "            \"secondaryText\": \"SECONDARY1\""
-    "          }"
-    "        ]"
-    "      }"
-    "    ]"
-    "  }"
-    "}";
+static const char *LAYOUT_WITH_DATA_2 = R"({
+  "type": "APL",
+  "version": "1.1",
+  "layouts": {
+    "HorizontalListItem": {
+      "item": [
+        {
+          "type": "Container",
+          "id": "ItemContainer${index}",
+          "bind": {
+            "name": "cindex",
+            "value": "${index}"
+          },
+          "items": [
+            {
+              "type": "Image",
+              "id": "ItemImage${cindex}",
+              "source": "${data.image}"
+            },
+            {
+              "type": "Text",
+              "id": "ItemPrimaryText${cindex}",
+              "text": "<b>${ordinal}.</b> ${data.primaryText}"
+            },
+            {
+              "type": "Text",
+              "id": "ItemSecondaryText${cindex}",
+              "text": "${data.secondaryText}"
+            }
+          ]
+        }
+      ]
+    },
+    "ListTemplate2": {
+      "parameters": [
+        "backgroundImage",
+        "listData"
+      ],
+      "items": [
+        {
+          "type": "Container",
+          "id": "TopContainer",
+          "items": [
+            {
+              "type": "Image",
+              "id": "BackgroundImage",
+              "source": "${backgroundImage}"
+            },
+            {
+              "type": "Sequence",
+              "id": "MasterSequence",
+              "scrollDirection": "horizontal",
+              "data": "${listData}",
+              "numbered": true,
+              "item": [
+                {
+                  "type": "HorizontalListItem"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "item": [
+      {
+        "type": "ListTemplate2",
+        "backgroundImage": "foo",
+        "listData": [
+          {
+            "image": "IMAGE1",
+            "primaryText": "PRIMARY1",
+            "secondaryText": "SECONDARY1"
+          },
+          {
+            "image": "IMAGE1",
+            "primaryText": "PRIMARY1",
+            "secondaryText": "SECONDARY1"
+          }
+        ]
+      }
+    ]
+  }
+})";
 
 
 TEST_F(PathTest, LayoutWithData2)
@@ -578,80 +561,78 @@ TEST_F(PathTest, LayoutWithData2)
     });
 }
 
-static const char *DOCUMENT_WITH_IMPORT =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"import\": ["
-    "    {"
-    "      \"name\": \"base\","
-    "      \"version\": \"1.2\""
-    "    }"
-    "  ],"
-    "  \"resources\": ["
-    "    {"
-    "      \"strings\": {"
-    "        \"firstname\": \"Pebbles\""
-    "      }"
-    "    }"
-    "  ],"
-    "  \"mainTemplate\": {"
-    "    \"items\": ["
-    "      {"
-    "        \"type\": \"Container\","
-    "        \"items\": ["
-    "          {"
-    "            \"type\": \"Header\","
-    "            \"id\": \"headerId\","
-    "            \"title\": \"Dogs\","
-    "            \"subtitle\": \"Our canine friends\""
-    "          },"
-    "          {"
-    "            \"type\": \"Image\","
-    "            \"id\": \"dogPicture\""
-    "          }"
-    "        ]"
-    "      }"
-    "    ]"
-    "  }"
-    "}";
+static const char *DOCUMENT_WITH_IMPORT = R"({
+  "type": "APL",
+  "version": "1.1",
+  "import": [
+    {
+      "name": "base",
+      "version": "1.2"
+    }
+  ],
+  "resources": [
+    {
+      "strings": {
+        "firstname": "Pebbles"
+      }
+    }
+  ],
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Container",
+        "items": [
+          {
+            "type": "Header",
+            "id": "headerId",
+            "title": "Dogs",
+            "subtitle": "Our canine friends"
+          },
+          {
+            "type": "Image",
+            "id": "dogPicture"
+          }
+        ]
+      }
+    ]
+  }
+})";
 
-static const char *BASE_PACKAGE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"resources\": ["
-    "    {"
-    "      \"strings\": {"
-    "        \"firstname\": \"Fred\","
-    "        \"lastname\": \"Flintstone\""
-    "      }"
-    "    }"
-    "  ],"
-    "  \"layouts\": {"
-    "    \"Header\": {"
-    "      \"parameters\": ["
-    "        \"title\","
-    "        \"subtitle\""
-    "      ],"
-    "      \"item\": {"
-    "        \"type\": \"Container\","
-    "        \"items\": ["
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"title\","
-    "            \"text\": \"${title}\""
-    "          },"
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"subtitle\","
-    "            \"text\": \"${subtitle}\""
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *BASE_PACKAGE = R"({
+  "type": "APL",
+  "version": "1.1",
+  "resources": [
+    {
+      "strings": {
+        "firstname": "Fred",
+        "lastname": "Flintstone"
+      }
+    }
+  ],
+  "layouts": {
+    "Header": {
+      "parameters": [
+        "title",
+        "subtitle"
+      ],
+      "item": {
+        "type": "Container",
+        "items": [
+          {
+            "type": "Text",
+            "id": "title",
+            "text": "${title}"
+          },
+          {
+            "type": "Text",
+            "id": "subtitle",
+            "text": "${subtitle}"
+          }
+        ]
+      }
+    }
+  }
+})";
 
 TEST_F(PathTest, DocumentWithImport)
 {
@@ -674,32 +655,31 @@ TEST_F(PathTest, DocumentWithImport)
     ASSERT_STREQ("base:1.2/resources/0/strings/lastname", context->provenance("@lastname").c_str());
 }
 
-static const char *HIDDEN_COMPONENT =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"imports\": ["
-    "    {"
-    "      \"name\": \"base\","
-    "      \"version\": \"1.2\""
-    "    }"
-    "  ],"
-    "  \"mainTemplate\": {"
-    "    \"items\": ["
-    "      {"
-    "        \"type\": \"Frame\","
-    "        \"bind\": {"
-    "          \"name\": \"foo\","
-    "          \"value\": {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"hiddenText\""
-    "          }"
-    "        },"
-    "        \"items\": \"${foo}\""
-    "      }"
-    "    ]"
-    "  }"
-    "}";
+static const char *HIDDEN_COMPONENT = R"({
+  "type": "APL",
+  "version": "1.1",
+  "imports": [
+    {
+      "name": "base",
+      "version": "1.2"
+    }
+  ],
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Frame",
+        "bind": {
+          "name": "foo",
+          "value": {
+            "type": "Text",
+            "id": "hiddenText"
+          }
+        },
+        "items": "${foo}"
+      }
+    ]
+  }
+})";
 
 TEST_F(PathTest, HiddenComponent)
 {
@@ -711,8 +691,8 @@ TEST_F(PathTest, HiddenComponent)
     ASSERT_EQ(kComponentTypeText, child->getType());
     ASSERT_EQ(child, context->findComponentById("hiddenText"));
 
-    ASSERT_EQ(std::string("_main/mainTemplate/items/0"), component->getPath());
+    ASSERT_EQ(std::string("_main/mainTemplate/items/0"), component->provenance());
 
     // TODO: This is not a real path because of the data-bound component definition.  Fix this.
-    ASSERT_EQ(std::string("_main/mainTemplate/items/0/items"), child->getPath());
+    ASSERT_EQ(std::string("_main/mainTemplate/items/0/items"), child->provenance());
 }

@@ -105,6 +105,16 @@ public:
     virtual GraphicElementType getType() const = 0;
 
     /**
+     * @return The language as a BCP-47 string (e.g., en-US)
+     */
+    virtual std::string getLang() const;
+
+    /**
+     * @return The layoutDirection of the AVG (either LTR or RTL)
+     */
+    virtual GraphicLayoutDirection getLayoutDirection() const;
+
+    /**
      * Update any assigned style state.
      */
     void updateStyle(const GraphicPtr& graphic);

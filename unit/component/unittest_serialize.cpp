@@ -214,9 +214,9 @@ TEST_F(SerializeTest, Components)
     ASSERT_EQ(image->getCalculated(kPropertyOverlayColor).getColor(), Color(session, imageJson["overlayColor"].GetString()));
     auto gradient = image->getCalculated(kPropertyOverlayGradient).getGradient();
     ASSERT_EQ(gradient.getType(), imageJson["overlayGradient"]["type"].GetDouble());
-    ASSERT_EQ(gradient.getAngle(), imageJson["overlayGradient"]["angle"].GetDouble());
-    ASSERT_EQ(gradient.getColorRange().size(), imageJson["overlayGradient"]["colorRange"].Size());
-    ASSERT_EQ(gradient.getInputRange().size(), imageJson["overlayGradient"]["inputRange"].Size());
+    ASSERT_EQ(gradient.getProperty(kGradientPropertyAngle), imageJson["overlayGradient"]["angle"].GetDouble());
+    ASSERT_EQ(gradient.getProperty(kGradientPropertyColorRange).size(), imageJson["overlayGradient"]["colorRange"].Size());
+    ASSERT_EQ(gradient.getProperty(kGradientPropertyInputRange).size(), imageJson["overlayGradient"]["inputRange"].Size());
     ASSERT_EQ(image->getCalculated(kPropertyScale), imageJson["scale"].GetDouble());
     ASSERT_EQ(image->getCalculated(kPropertySource), imageJson["source"].GetString());
 
@@ -235,8 +235,10 @@ TEST_F(SerializeTest, Components)
     ASSERT_EQ(text->getCalculated(kPropertyMaxLines), textJson["maxLines"].GetDouble());
     auto styledText = text->getCalculated(kPropertyText).getStyledText();
     ASSERT_EQ(styledText.getText(), textJson["text"]["text"].GetString());
-    ASSERT_EQ(styledText.getSpans().size(), textJson["text"]["spans"].Size());
-    ASSERT_EQ(styledText.getSpans()[0].attributes.size(), textJson["text"]["spans"][0][3].Size());
+    auto styledTextIt = StyledText::Iterator(styledText);
+    styledTextIt.next();
+    ASSERT_EQ(styledTextIt.spanCount(), textJson["text"]["spans"].Size());
+    ASSERT_EQ(styledTextIt.getSpanAttributes().size(), textJson["text"]["spans"][0][3].Size());
     ASSERT_EQ(text->getCalculated(kPropertyTextAlignAssigned), textJson["_textAlign"].GetDouble());
     ASSERT_EQ(text->getCalculated(kPropertyTextAlignVertical), textJson["textAlignVertical"].GetDouble());
 
@@ -299,6 +301,7 @@ TEST_F(SerializeTest, Components)
     checkCommonProperties(video, videoJson);
     ASSERT_EQ(video->getCalculated(kPropertyAudioTrack), videoJson["audioTrack"].GetDouble());
     ASSERT_EQ(video->getCalculated(kPropertyAutoplay), videoJson["autoplay"].GetBool());
+    ASSERT_EQ(video->getCalculated(kPropertyMuted), videoJson["muted"].GetBool());
     ASSERT_EQ(video->getCalculated(kPropertyScale), videoJson["scale"].GetDouble());
     auto videoSource = video->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(3, videoSource.size());

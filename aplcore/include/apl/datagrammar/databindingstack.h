@@ -351,7 +351,7 @@ public:
 
     void dump()
     {
-        LOG(LogLevel::kDebug) << "Stacks=" << mStack.size();
+        LOG(LogLevel::kDebug).session(mContext) << "Stacks=" << mStack.size();
         for (auto& m : mStack)
             m.dump();
     }

@@ -42,16 +42,11 @@ public:
 
     bool isCharacterValid(const wchar_t wc) const override;
 
-    void parseValidCharactersProperty();
-
 protected:
     const ComponentPropDefSet& propDefSet() const override;
     const EventPropertyMap& eventPropertyMap() const override;
     PointerCaptureStatus processPointerEvent(const PointerEvent& event, apl_time_t timestamp) override;
     void executeOnFocus() override;
-
-private:
-    CharacterRangesPtr mCharacterRangesPtr;
 };
 
 } // namespace apl

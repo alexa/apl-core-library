@@ -17,12 +17,15 @@
 #define _APL_GRADIENT_H
 
 #include <vector>
+#include <map>
 
-#include "color.h"
+#include "rapidjson/document.h"
+
+#include "apl/primitives/color.h"
+#include "apl/primitives/object.h"
 
 namespace apl {
 
-class Object;
 class Context;
 
 enum GradientProperty {
@@ -97,7 +100,7 @@ public:
      *         to linear gradients.  0 is up, 90 is to the right, 180 is down
      *         and 270 is to the left.
      */
-    double getAngle() const {
+    APL_DEPRECATED double getAngle() const {
         if (getType() != LINEAR) {
             return 0;
         }
@@ -105,13 +108,11 @@ public:
     }
 
     /**
-     * @deprecated use getProperty(kGradientPropertyColorRange) instead.
      * @return The vector of color stops.
      */
     const std::vector<Color> getColorRange() const { return mColorRange; }
 
     /**
-     * @deprecated use getProperty(kGradientPropertyInputRange) instead.
      * @return The vector of input stops.  These are the values of the color
      *         stops. They are guaranteed to be in ascending numerical order in
      *         the range [0,1].
@@ -140,7 +141,7 @@ public:
     bool truthy() const { return true; }
 
 private:
-    Gradient(std::map<GradientProperty, Object>&& properties);
+    Gradient(const Context& context, std::map<GradientProperty, Object>&& properties);
 
     static Object create(const Context& context, const Object& object, bool avg);
 

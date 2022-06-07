@@ -22,11 +22,12 @@ public:
 
     MediaState() :
             mTrackIndex(0), mTrackCount(0), mCurrentTime(0), mDuration(0),
-          mPaused(true), mEnded(false), mTrackState(kTrackNotReady), mErrorCode(0) {}
-    MediaState(int trackIndex, int trackCount, int currentTime, int duration, bool paused,  bool ended) :
+          mPaused(true), mEnded(false), mMuted(false), mTrackState(kTrackNotReady),
+          mErrorCode(0) {}
+    MediaState(int trackIndex, int trackCount, int currentTime, int duration, bool paused,  bool ended, bool muted = false) :
             mTrackIndex(trackIndex), mTrackCount(trackCount), mCurrentTime(currentTime),
-            mDuration(duration), mPaused(paused), mEnded(ended), mTrackState(kTrackNotReady),
-            mErrorCode(0) {}
+            mDuration(duration), mPaused(paused), mEnded(ended), mMuted(muted),
+            mTrackState(kTrackNotReady), mErrorCode(0) {}
 
     int getTrackIndex() const { return mTrackIndex; }
     int getTrackCount() const { return mTrackCount; }
@@ -34,6 +35,7 @@ public:
     int getDuration() const { return mDuration; }
     bool isPaused() const { return mPaused; }
     bool isEnded() const { return mEnded; }
+    bool isMuted() const { return mMuted; }
     TrackState getTrackState() const { return mTrackState; }
     int getErrorCode() const { return mErrorCode; }
     bool isError() const { return mTrackState == kTrackFailed; }
@@ -56,6 +58,7 @@ private:
     int mDuration;
     bool mPaused;
     bool mEnded;
+    bool mMuted;
     TrackState mTrackState;
     int mErrorCode;
 

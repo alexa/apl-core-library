@@ -81,7 +81,6 @@ public:
 
     /**
      * End style span on current text position. In case if tag was not opened it will close current one and move up to "parent". This implementation effectively replicates html behavior.
-     * @param tag style tag.
      */
     void end();
 
@@ -93,7 +92,6 @@ public:
 
     /**
      * Record non-parameterized tag, for example line break.
-     * @param type style type.
      */
     void single();
 

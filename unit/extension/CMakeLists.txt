@@ -19,4 +19,5 @@ target_sources_local(unittest
         unittest_requested_extension.cpp
         unittest_extension_handler.cpp
         unittest_extension_mediator.cpp
+        unittest_extension_session.cpp
         )

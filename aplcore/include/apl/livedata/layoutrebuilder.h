@@ -91,7 +91,7 @@ public:
 
     /**
      * Notify rebuilder that particular data index is on screen.
-     * @param idx
+     * @param idx The index of the item that is on screen.
      */
     void notifyItemOnScreen(int idx);
 

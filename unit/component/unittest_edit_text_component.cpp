@@ -44,11 +44,11 @@ TEST_F(EditTextComponentTest, ComponentDefaults) {
     ASSERT_EQ(kComponentTypeEditText, et->getType());
 
     ASSERT_TRUE(IsEqual(Color(Color::TRANSPARENT), et->getCalculated(kPropertyBorderColor)));
-    // when not set kPropertyBorderStrokeWidth is initialized from kPropertyBorderWidth
-    ASSERT_TRUE(IsEqual(et->getCalculated(kPropertyBorderWidth), et->getCalculated(kPropertyBorderStrokeWidth)));
+
+    ASSERT_TRUE(et->getCalculated(kPropertyBorderStrokeWidth).isNull());
     ASSERT_TRUE(IsEqual(Dimension(0), et->getCalculated(kPropertyBorderWidth)));
-    // kPropertyDrawnBorderWidth is calculated from kPropertyBorderStrokeWidth (inputOnly) and (kPropertyBorderWidth)
     ASSERT_TRUE(IsEqual(Dimension(0), et->getCalculated(kPropertyDrawnBorderWidth)));
+
     ASSERT_TRUE(IsEqual(Color(0xfafafaff), et->getCalculated(kPropertyColor)));
     ASSERT_TRUE(IsEqual("sans-serif", et->getCalculated(kPropertyFontFamily)));
     ASSERT_TRUE(IsEqual(Dimension(40), et->getCalculated(kPropertyFontSize)));
@@ -369,6 +369,8 @@ static const char* INVALID_CHARACTER_RANGES_DOC = R"({
   }
 })";
 
+// The range "Q--" is U+0051 through U+002D
+// Since the range is reversed, we accept the Q, but ignore everything else
 TEST_F(EditTextComponentTest, InvalidCharacterRanges) {
 
     loadDocument(INVALID_CHARACTER_RANGES_DOC);
@@ -377,10 +379,11 @@ TEST_F(EditTextComponentTest, InvalidCharacterRanges) {
     ASSERT_EQ(kComponentTypeEditText, pEditText->getType());
 
     // everything should be valid
-    ASSERT_TRUE(pEditText->isCharacterValid(L'\u2192'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'-'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'A'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'0'));
+    ASSERT_FALSE(pEditText->isCharacterValid(L'\u2192'));
+    ASSERT_FALSE(pEditText->isCharacterValid(L'-'));
+    ASSERT_TRUE(pEditText->isCharacterValid(L'Q'));
+    ASSERT_FALSE(pEditText->isCharacterValid(L'A'));
+    ASSERT_FALSE(pEditText->isCharacterValid(L'0'));
 
     session->clear();
 }
@@ -396,6 +399,7 @@ static const char* INVALID_DASH_CHARACTER_RANGES_DOC = R"({
   }
 })";
 
+// The range is 0-9, a-y, A-Y, '-' to '@' (that's U+002D through U+0040)
 TEST_F(EditTextComponentTest, InvalidDashCharacterRanges) {
 
     loadDocument(INVALID_DASH_CHARACTER_RANGES_DOC);
@@ -404,11 +408,14 @@ TEST_F(EditTextComponentTest, InvalidDashCharacterRanges) {
     ASSERT_EQ(kComponentTypeEditText, pEditText->getType());
 
     // everything should be valid
-    ASSERT_TRUE(pEditText->isCharacterValid(L'\u2192'));
+    ASSERT_FALSE(pEditText->isCharacterValid(L'\u2192'));
     ASSERT_TRUE(pEditText->isCharacterValid(L'-'));
     ASSERT_TRUE(pEditText->isCharacterValid(L'A'));
+    ASSERT_FALSE(pEditText->isCharacterValid(L'Z'));
     ASSERT_TRUE(pEditText->isCharacterValid(L'0'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'}'));
+    ASSERT_TRUE(pEditText->isCharacterValid(L'?'));  // U+003F
+    ASSERT_TRUE(pEditText->isCharacterValid(L'@'));  // U+0040
+    ASSERT_FALSE(pEditText->isCharacterValid(L'}'));  // U+007D
 
     session->clear();
 }
@@ -525,15 +532,6 @@ static const char* BORDER_STROKE_CLAMP_DOC = R"({
   }
 })";
 
-static const char * SET_VALUE_STROKEWIDTH_COMMAND = R"([
-  {
-    "type": "SetValue",
-    "componentId": "myEditText",
-    "property": "borderStrokeWidth",
-    "value": "17"
-  }
-])";
-
 /**
  * Test the setting of all properties to non default values.
  */
@@ -553,11 +551,15 @@ TEST_F(EditTextComponentTest, ClampDrawnBorder) {
 
     // execute command to set kPropertyBorderStrokeWidth within border bounds,
     // the drawn border should update
-    auto doc = rapidjson::Document();
-    doc.Parse(SET_VALUE_STROKEWIDTH_COMMAND);
-    auto action = root->executeCommands(apl::Object(std::move(doc)), false);
+    executeCommand("SetValue", {{"componentId", "myEditText"}, {"property", "borderStrokeWidth"}, {"value", 17}}, false);
     ASSERT_TRUE(IsEqual(Dimension(17), et->getCalculated(kPropertyBorderStrokeWidth)));
     ASSERT_TRUE(IsEqual(Dimension(17), et->getCalculated(kPropertyDrawnBorderWidth)));
+
+    // execute command to set kPropertyBorderWidth to something smaller.  Drawn border width should update
+    executeCommand("SetValue", {{"componentId", "myEditText"}, {"property", "borderWidth"}, {"value", 5}}, false);
+    ASSERT_TRUE(IsEqual(Dimension(5), et->getCalculated(kPropertyBorderWidth)));
+    ASSERT_TRUE(IsEqual(Dimension(17), et->getCalculated(kPropertyBorderStrokeWidth)));
+    ASSERT_TRUE(IsEqual(Dimension(5), et->getCalculated(kPropertyDrawnBorderWidth)));
 }
 
 static const char* HANDLERS_DOC = R"({
@@ -867,6 +869,66 @@ TEST_F(EditTextComponentTest, OpenKeyboardEventOnFocus) {
     event = root->popEvent();
     ASSERT_EQ(kEventTypeFocus, event.getType());
     ASSERT_EQ(edittext, event.getComponent());
+}
+
+static const char *VALID_CHARACTERS = R"apl(
+{
+  "type": "APL",
+  "version": "1.8",
+  "styles": {
+    "base": {
+      "values": [
+        {
+          "validCharacters": " 0-9a-z"
+        },
+        {
+          "when": "${state.checked}",
+          "validCharacters": " 0-9a-nA-Z"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "EditText",
+      "style": "base",
+      "id": "TEST",
+      "text": "ab43,5%"
+    }
+  }
+}
+)apl";
+
+TEST_F(EditTextComponentTest, ValidCharacters) {
+    loadDocument(VALID_CHARACTERS);
+
+    ASSERT_TRUE(component);
+    ASSERT_TRUE(IsEqual("ab435", component->getCalculated(kPropertyText)));
+
+    executeCommand("SetValue", {{"componentId", "TEST"}, {"property", "text"}, {"value", "##4"}},
+                   false);
+    ASSERT_TRUE(IsEqual("4", component->getCalculated(kPropertyText)));
+
+    executeCommand(
+        "SetValue",
+        {{"componentId", "TEST"}, {"property", "text"}, {"value", "Now it is 12:00 O'Clock"}},
+        false);
+    ASSERT_TRUE(IsEqual("ow it is 1200 lock", component->getCalculated(kPropertyText)));
+
+    // Change the state - that will switch the valid characters
+    component->setState(apl::kStateChecked, true);
+    ASSERT_TRUE(IsEqual(" i i 1200 lck", component->getCalculated(kPropertyText)));
+
+    // Set the same string again; a new set results
+    executeCommand(
+        "SetValue",
+        {{"componentId", "TEST"}, {"property", "text"}, {"value", "Now it is 12:00 O'Clock"}},
+        false);
+    ASSERT_TRUE(IsEqual("N i i 1200 OClck", component->getCalculated(kPropertyText)));
+
+    // Unset the state
+    component->setState(kStateChecked, false);
+    ASSERT_TRUE(IsEqual(" i i 1200 lck", component->getCalculated(kPropertyText)));
 }
 
 TEST_F(EditTextComponentTest, NoOpWhenAlreadyInFocus) {

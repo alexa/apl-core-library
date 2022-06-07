@@ -1163,7 +1163,7 @@ const static char *SPACED_SEQUENCE =
 
 TEST_F(FlexboxTest, SequenceWithSpacingTest)
 {
-    config->sequenceChildCache(2);
+    config->set(RootProperty::kSequenceChildCache, 2);
     loadDocument(SPACED_SEQUENCE);
     advanceTime(10);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
@@ -1181,7 +1181,7 @@ TEST_F(FlexboxTest, SequenceWithSpacingTest)
 
 TEST_F(FlexboxTest, SequenceWithSpacingTestEnsureJump)
 {
-    config->sequenceChildCache(2);
+    config->set(RootProperty::kSequenceChildCache, 2);
     loadDocument(SPACED_SEQUENCE);
     advanceTime(10);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());

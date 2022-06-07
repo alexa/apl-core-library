@@ -23,6 +23,7 @@
 #include "apl/engine/evaluate.h"
 #include "apl/primitives/dimension.h"
 #include "apl/datasource/datasource.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -38,7 +39,9 @@ Properties::asLabel(const Context& context, const char *name)
 
     auto result = evaluate(context, s->second).asString();
     result.erase(std::remove_if(result.begin(), result.end(),
-        [](unsigned char c) { return !std::isalnum(c) && (c != '_') && (c != '-'); }), result.end());
+        [](unsigned char c) {
+            return !sutil::isalnum(c) && (c != '_') && (c != '-');
+        }), result.end());
     return result;
 }
 

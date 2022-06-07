@@ -49,6 +49,7 @@ Bimap<int, std::string> sEventPropertyBimap = {
     {kEventPropertyExtensionURI,             "extensionURI"},
     {kEventPropertyExtensionResourceId,      "resourceId"},
     {kEventPropertyFlags,                    "flags"},
+    {kEventPropertyHeaders,                  "headers"},
     {kEventPropertyHighlightMode,            "highlightMode"},
     {kEventPropertyMediaType,                "mediaType"},
     {kEventPropertyName,                     "name"},
@@ -138,7 +139,7 @@ Event::serialize(rapidjson::Document::AllocatorType& allocator) const
 
     for (auto& m : mData->bag) {
         if (!sEventPropertyBimap.has(m.first)) {
-            LOG(LogLevel::kError) << "Unknown property enum: " << m.first;
+            LOG(LogLevel::kError).session(getComponent()) << "Unknown property enum: " << m.first;
             continue;
         }
         const std::string& prop = sEventPropertyBimap.at(m.first);

@@ -271,6 +271,7 @@ TEST_F(CommandEventBinding, VideoComponentEventInterpolation)
                                            0,
                                            12000,
                                            false,
+                                           false,
                                            false));
 
     // Pause the video
@@ -279,6 +280,7 @@ TEST_F(CommandEventBinding, VideoComponentEventInterpolation)
                                            230,
                                            12000,
                                            true,
+                                           false,
                                            false));
     root->clearPending();
     ASSERT_TRUE(CheckDirty(component, kPropertySource, kPropertyVisualHash));

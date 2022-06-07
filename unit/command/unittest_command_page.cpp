@@ -618,7 +618,7 @@ TEST_F(CommandPageTest, SpeakItemCombination)
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypePreroll, event.getType());
-    if (!event.getActionRef().isEmpty() && event.getActionRef().isPending()) event.getActionRef().resolve();
+    if (!event.getActionRef().empty() && event.getActionRef().isPending()) event.getActionRef().resolve();
 
     // And page should have switched - command is in parallel
     ASSERT_EQ(1, component->pagePosition());
@@ -626,7 +626,7 @@ TEST_F(CommandPageTest, SpeakItemCombination)
     ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
     ASSERT_EQ(kEventTypeSpeak, event.getType());
-    if (!event.getActionRef().isEmpty() && event.getActionRef().isPending()) event.getActionRef().resolve();
+    if (!event.getActionRef().empty() && event.getActionRef().isPending()) event.getActionRef().resolve();
 
     root->clearPending();
 
@@ -634,12 +634,12 @@ TEST_F(CommandPageTest, SpeakItemCombination)
     ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
     ASSERT_EQ(kEventTypePreroll, event.getType());
-    if (!event.getActionRef().isEmpty() && event.getActionRef().isPending()) event.getActionRef().resolve();
+    if (!event.getActionRef().empty() && event.getActionRef().isPending()) event.getActionRef().resolve();
 
     ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
     ASSERT_EQ(kEventTypeSpeak, event.getType());
-    if (!event.getActionRef().isEmpty() && event.getActionRef().isPending()) event.getActionRef().resolve();
+    if (!event.getActionRef().empty() && event.getActionRef().isPending()) event.getActionRef().resolve();
 }
 
 static const char *AUTO_PAGER_ON_MOUNT_WITH_DELAY = R"apl(

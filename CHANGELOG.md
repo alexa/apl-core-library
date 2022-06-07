@@ -1,5 +1,25 @@
 # Changelog
 
+## [2022.1.0]
+
+This release adds support for version 2022.1 of the APL specification.
+
+### Added
+
+- Alpha feature: New APL Extensions lifecycle.
+- Alpha feature: Added new encryption and webflow interfaces into the extension library.
+- Added log id to help to track logs between multiple experiences.
+- Video now can be muted and unmuted dynamically.
+
+### Changed
+
+- Bug fixes.
+- Build improvements.
+- Fixed typos and cleanup formatting.
+- Improved localization handling within core.
+- Performance improvements.
+- Update Yoga dependency to 1.19.
+
 ## [1.9.1]
 
 ### Changed

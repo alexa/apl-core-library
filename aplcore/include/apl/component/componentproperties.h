@@ -374,6 +374,8 @@ enum PropertyKey {
     kPropertyAudioTrack,
     /// VideoComponent autoplay
     kPropertyAutoplay,
+    /// VideoComponent muted
+    kPropertyMuted,
     /// FrameComponent background color
     kPropertyBackgroundColor,
     /// FrameComponent border bottom-left radius (input only)

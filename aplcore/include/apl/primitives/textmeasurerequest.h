@@ -22,6 +22,7 @@
 
 #include "apl/utils/hash.h"
 #include "apl/utils/streamer.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -62,9 +63,9 @@ struct TextMeasureRequest {
 
     std::string toString() const {
         std::string result = "TextMeasureRequest<";
-        result += "width=" + std::to_string(width) + ",";
+        result += "width=" + sutil::to_string(width) + ",";
         result += "widthMode=" + std::to_string(widthMode) + ",";
-        result += "height=" + std::to_string(height) + ",";
+        result += "height=" + sutil::to_string(height) + ",";
         result += "heightMode=" + std::to_string(heightMode) + ",";
         result += "paramHash=" + paramHash + ">";
         return result;

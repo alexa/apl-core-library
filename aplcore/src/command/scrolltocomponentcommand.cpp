@@ -31,7 +31,7 @@ ScrollToComponentCommand::propDefSet() const {
 ActionPtr
 ScrollToComponentCommand::execute(const TimersPtr& timers, bool fastMode) {
     if (fastMode) {
-        CONSOLE_CTP(mContext) << "Ignoring ScrollTo command in fast mode";
+        CONSOLE(mContext) << "Ignoring ScrollTo command in fast mode";
         return nullptr;
     }
 

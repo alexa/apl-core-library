@@ -17,7 +17,12 @@
 #define _APL_RADII_H
 
 #include <array>
+#include <string>
+#include <utility>
+
 #include "rapidjson/document.h"
+
+#include "apl/utils/deprecated.h"
 
 namespace apl {
 
@@ -44,7 +49,10 @@ public:
      * Assign the same radius to each corner
      * @param radius The radius to assign
      */
-    Radii(float radius) : mData{radius, radius, radius, radius} {}
+    Radii(float radius) : mData{radius, radius, radius, radius} {
+        sanitize();
+    }
+
 
     /**
      * Define specific values for each corner
@@ -55,14 +63,18 @@ public:
      */
     Radii(float topLeft, float topRight, float bottomLeft, float bottomRight)
         : mData{topLeft, topRight, bottomLeft, bottomRight}
-    {}
+    {
+        sanitize();
+    }
 
     /**
      * Construct from a fixed set of values.  The order is top-left, top-right,
      * bottom-left, bottom-right.
      * @param values The radius values to assign.
      */
-    Radii(std::array<float,4>&& values) : mData(std::move(values)) {}
+    Radii(std::array<float,4>&& values) : mData(std::move(values)) {
+        sanitize();
+    }
 
     Radii(const Radii& rhs) = default;
     Radii& operator=(const Radii& rhs) = default;
@@ -107,7 +119,23 @@ public:
      * @deprecated Use "empty()" instead
      * @return True if all of the corners have been set to zero
      */
-    bool isEmpty() const { return empty(); }
+    APL_DEPRECATED bool isEmpty() const { return empty(); }
+
+    /**
+     * @return True if all the corners have the same radius
+     */
+    bool isRegular() const {
+        return mData[0] == mData[1] &&
+               mData[0] == mData[2] &&
+               mData[0] == mData[3];
+    }
+
+    /**
+     * Subtract a value from each radius and return a new Radii.
+     * @param value The amount to subtract.
+     * @return The new, shrunken Radii.
+     */
+    Radii subtract(float value) const;
 
     /**
      * @return The array of radii.  These are guaranteed to be in the order
@@ -132,6 +160,8 @@ public:
     bool truthy() const { return !empty(); }
 
 private:
+    void sanitize();
+
     std::array<float, 4> mData;
 };
 

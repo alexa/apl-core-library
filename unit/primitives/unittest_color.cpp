@@ -15,6 +15,8 @@
 
 #include "../testeventloop.h"
 
+#include <clocale>
+
 #include "apl/common.h"
 
 using namespace apl;
@@ -112,4 +114,37 @@ TEST_F(ColorTest, BadEnumConversionTest)
     // since we force the enum to be stored in a uint32_t,
     // it should be able to convert back to a color
     ASSERT_EQ(Color::RED, Color(d_color));
+}
+
+TEST_F(ColorTest, LocaleIndependentLiterals)
+{
+    std::string previousLocale = std::setlocale(LC_NUMERIC, nullptr);
+    std::setlocale(LC_NUMERIC, "fr_FR.UTF-8");
+
+    EXPECT_EQ( 0xff0000ff, Color(session, "red") );
+    EXPECT_EQ( 0x008000ff, Color(session, "green") );
+    EXPECT_EQ( 0xeeddbbff, Color(session, "#edb"));
+    EXPECT_EQ( 0x11223344, Color(session, "#1234"));
+    EXPECT_EQ( 0x123456ff, Color(session, "#123456"));
+    EXPECT_EQ( 0xfedcba98, Color(session, "#fedcba98"));
+
+    EXPECT_EQ( 0x0000ff7f, Color(session, "rgba(blue, 50%)"));
+    EXPECT_EQ( 0x0080003f, Color(session, "rgb(rgba(green, 50%), 50%)"));
+
+    EXPECT_EQ( 0x8040c0ff, Color(session, "rgb(128, 64, 192)"));
+    EXPECT_EQ( 0xff072040, Color(session, "rgba(255, 7, 32, 25%)"));
+    EXPECT_EQ( 0xff072040, Color(session, "rgba(255, 7, 32, 0.25)"));
+    EXPECT_EQ( 0xff072040, Color(session, "rgba(255, 7, 32, .25)"));
+
+    EXPECT_EQ( 0xb8860bff, Color(session, "darkgoldenrod"));
+
+    std::setlocale(LC_NUMERIC, previousLocale.c_str());
+}
+
+TEST_F(ColorTest, Transparent)
+{
+    ASSERT_TRUE(Color(Color::TRANSPARENT).transparent());
+    ASSERT_FALSE(Color(Color::RED).transparent());
+    ASSERT_FALSE(Color(session, "rgb(0,0,0)").transparent());
+    ASSERT_TRUE(Color(session, "rgb(0,0,0,0)").transparent());
 }

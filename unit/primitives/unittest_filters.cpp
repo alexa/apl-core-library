@@ -160,16 +160,16 @@ namespace {
 struct GradientFilterTest {
     std::string json;
     Gradient::GradientType type;
-    std::vector<Color> colorRange;
-    std::vector<double> inputRange;
+    std::vector<Object> colorRange;
+    std::vector<Object> inputRange;
 };
 
 std::vector<GradientFilterTest> GRADIENT_TESTS = {
     { // Minimal gradient
         R"({"type":"Gradient", "gradient": {"type": "linear", "colorRange":["blue", "red"]}})",
         Gradient::GradientType::LINEAR,
-        std::vector<Color>{Color(Color::BLUE), Color(Color::RED)},
-        std::vector<double>{0, 1},
+        std::vector<Object>{Color(Color::BLUE), Color(Color::RED)},
+        std::vector<Object>{0, 1},
     },
     { // Bad gradient - need to specify an actual gradient
         R"({"type": "Gradient"})",
@@ -180,8 +180,8 @@ std::vector<GradientFilterTest> GRADIENT_TESTS = {
     {
         R"({"type":"Gradient", "gradient": {"type": "radial", "colorRange":["green", "red"]}})",
         Gradient::GradientType::RADIAL,
-        std::vector<Color>{Color(Color::GREEN), Color(Color::RED)},
-        std::vector<double>{0, 1},
+        std::vector<Object>{Color(Color::GREEN), Color(Color::RED)},
+        std::vector<Object>{0, 1},
     },
     {  // Invalid gradient - one that does not have a type
         R"({"type":"Gradient", "gradient": {"type": "odd", "colorRange":["green", "red"]}})",
@@ -208,8 +208,8 @@ TEST(FilterTest, GradientFilter) {
         } else {
             const auto& g = gradient.getGradient();
             ASSERT_EQ(m.type, g.getType()) << m.json;
-            ASSERT_EQ(m.colorRange, g.getColorRange()) << m.json;
-            ASSERT_EQ(m.inputRange, g.getInputRange()) << m.json;
+            ASSERT_EQ(m.colorRange, g.getProperty(kGradientPropertyColorRange).getArray()) << m.json;
+            ASSERT_EQ(m.inputRange, g.getProperty(kGradientPropertyInputRange).getArray()) << m.json;
         }
     }
 }

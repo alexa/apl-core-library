@@ -105,7 +105,7 @@ static const char *PAGE_CACHE_BY_NAVIGATION = R"apl(
 
 TEST_F(PagerTest, PageCacheByNavigation)
 {
-    config->pagerChildCache(2);  // Two pages around starting place
+    config->set(RootProperty::kPagerChildCache, 2);  // Two pages around starting place
     loadDocument(PAGE_CACHE_BY_NAVIGATION);
     ASSERT_TRUE(component);
     ASSERT_EQ(4, component->getChildCount());

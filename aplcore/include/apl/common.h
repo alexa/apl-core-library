@@ -47,7 +47,6 @@ using apl_duration_t = double;
 // here so they can be conveniently used from any source file.
 
 class Action;
-class CharacterRanges;
 class Command;
 class Component;
 class Content;
@@ -83,9 +82,11 @@ class Timers;
 
 using ActionPtr = std::shared_ptr<Action>;
 using CommandPtr = std::shared_ptr<Command>;
+using ConstCommandPtr = std::shared_ptr<const Command>;
 using ComponentPtr = std::shared_ptr<Component>;
 using ContentPtr = std::shared_ptr<Content>;
 using ContextPtr = std::shared_ptr<Context>;
+using ConstContextPtr = std::shared_ptr<const Context>;
 using CoreComponentPtr = std::shared_ptr<CoreComponent>;
 using DataSourcePtr = std::shared_ptr<DataSource>;
 using DataSourceProviderPtr = std::shared_ptr<DataSourceProvider>;
@@ -114,7 +115,6 @@ using StyleDefinitionPtr = std::shared_ptr<StyleDefinition>;
 using StyleInstancePtr = std::shared_ptr<StyleInstance>;
 using TextMeasurementPtr = std::shared_ptr<TextMeasurement>;
 using TimersPtr = std::shared_ptr<Timers>;
-using CharacterRangesPtr = std::shared_ptr<CharacterRanges>;
 
 
 // Convenience templates for creating sets of weak and strong pointers

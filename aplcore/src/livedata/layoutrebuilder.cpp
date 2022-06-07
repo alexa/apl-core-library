@@ -30,19 +30,20 @@ class ChildWalker {
 public:
     /**
      * Construct the walker and step over a "firstItem".
-     * @param layout
+     * @param layout The layout
+     * @param hasFirstItem True if a "firstItem" property was specified that needs to be skipped.
      */
     ChildWalker(const CoreComponentPtr& layout, bool hasFirstItem)
         : mLayout(layout), mIndex(hasFirstItem ? 1 : 0)
     {
-        LOG_IF(DEBUG_WALKER) << "mIndex=" << mIndex << " total=" << mLayout->getChildCount();
+        LOG_IF(DEBUG_WALKER).session(layout) << "mIndex=" << mIndex << " total=" << mLayout->getChildCount();
     }
 
     /**
      * Throw away any remaining children, but save the "lastItem" child if it exists
      */
     void finish(bool hasLastItem) {
-        LOG_IF(DEBUG_WALKER) << "mIndex=" << mIndex << " total=" << mLayout->getChildCount() << " hasLast=" << hasLastItem;
+        LOG_IF(DEBUG_WALKER).session(mLayout) << "mIndex=" << mIndex << " total=" << mLayout->getChildCount() << " hasLast=" << hasLastItem;
 
         int lastIndex = mLayout->getChildCount();
         if (hasLastItem)
@@ -55,32 +56,32 @@ public:
     /**
      * Throw away children until we reach one with "dataIndex" equal to oldIndex
      * If we pass it, that means it didn't inflate last time, so we can stop.
-     * @param oldIndex
+     * @param oldIndex The old index to search for
      * @return True if we found it; false if we've gone beyond
      */
     bool advanceUntil(int oldIndex) {
-        LOG_IF(DEBUG_WALKER) << " oldIndex=" << oldIndex << " mIndex=" << mIndex << " total=" << mLayout->getChildCount();
+        LOG_IF(DEBUG_WALKER).session(mLayout) << " oldIndex=" << oldIndex << " mIndex=" << mIndex << " total=" << mLayout->getChildCount();
         while (mIndex < mLayout->getChildCount()) {
             auto child = mLayout->getCoreChildAt(mIndex);
             auto dataIndex = child->getContext()->opt("dataIndex");
             if (dataIndex.isNumber()) {
                 auto index = dataIndex.getInteger();
                 if (index >= oldIndex) {
-                    LOG_IF(DEBUG_WALKER) << " matched index " << index;
+                    LOG_IF(DEBUG_WALKER).session(mLayout) << " matched index " << index;
                     return index == oldIndex;
                 }
-                LOG_IF(DEBUG_WALKER) << " found data index of " << index << " but it didn't match";
+                LOG_IF(DEBUG_WALKER).session(mLayout) << " found data index of " << index << " but it didn't match";
             }
-            LOG_IF(DEBUG_WALKER) << " removing child at index " << mIndex;
+            LOG_IF(DEBUG_WALKER).session(mLayout) << " removing child at index " << mIndex;
             mLayout->removeChildAt(mIndex, true);
         }
 
-        LOG(LogLevel::kError) << "Failed to find child with dataIndex of " << oldIndex;
+        LOG(LogLevel::kError).session(mLayout) << "Failed to find child with dataIndex of " << oldIndex;
         return false;
     }
 
     void advance() {
-        LOG_IF(DEBUG_WALKER) << "mIndex=" << mIndex << " total=" << mLayout->getChildCount();
+        LOG_IF(DEBUG_WALKER).session(mLayout) << "mIndex=" << mIndex << " total=" << mLayout->getChildCount();
         mIndex++;
     }
 
@@ -104,7 +105,7 @@ inline ContextPtr findToken(const CoreComponentPtr& component, int token)
     if (value.isNumber() && value.getInteger() == token)
         return p.context();
 
-    LOG(LogLevel::kWarn) << "Unable to find token parent of context. Token=" << token;
+    LOG(LogLevel::kWarn).session(component) << "Unable to find token parent of context. Token=" << token;
     return nullptr;
 }
 
@@ -177,7 +178,7 @@ LayoutRebuilder::build(bool useDirtyFlag)
     auto array = mArray.lock();
 
     if (!layout || !array) {
-        LOG(LogLevel::kError) << "Attempting to build a layout without a layout or data array";
+        LOG(LogLevel::kError).session(layout) << "Attempting to build a layout without a layout or data array";
         return;
     }
 
@@ -227,7 +228,7 @@ LayoutRebuilder::rebuild()
     auto array = mArray.lock();
 
     if (!layout || !array) {
-        LOG(LogLevel::kError) << "Attempting to rebuild a layout without a layout or data array";
+        LOG(LogLevel::kError).session(layout) << "Attempting to rebuild a layout without a layout or data array";
         return;
     }
 

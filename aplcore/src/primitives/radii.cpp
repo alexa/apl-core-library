@@ -13,20 +13,32 @@
  * permissions and limitations under the License.
  */
 
-#include <string>
+#include <algorithm>
 
 #include "apl/primitives/radii.h"
 #include "apl/utils/streamer.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
+
+Radii
+Radii::subtract(float value) const
+{
+    return {
+        std::max(0.0f, mData[0] - value),
+        std::max(0.0f, mData[1] - value),
+        std::max(0.0f, mData[2] - value),
+        std::max(0.0f, mData[3] - value)
+    };
+}
 
 std::string
 Radii::toString() const
 {
     std::string result;
-    for (int i = 0 ; i < mData.size() ; i++) {
+    for (size_t i = 0 ; i < mData.size() ; i++) {
         if (i != 0) result += ", ";
-        result += std::to_string(mData[i]);
+        result += sutil::to_string(mData[i]);
     }
     return result;
 }
@@ -42,9 +54,9 @@ std::string
 Radii::toDebugString() const
 {
     std::string result = "Radii<";
-    for (int i = 0 ; i < mData.size() ; i++) {
+    for (size_t i = 0 ; i < mData.size() ; i++) {
         if (i != 0) result += ", ";
-        result += std::to_string(mData[i]);
+        result += sutil::to_string(mData[i]);
     }
     return result + ">";
 }
@@ -56,6 +68,13 @@ Radii::serialize(rapidjson::Document::AllocatorType& allocator) const {
         v.PushBack(val, allocator);
     }
     return v;
+}
+
+void
+Radii::sanitize()
+{
+    for (size_t i = 0 ; i < mData.size() ; i++)
+        mData[i] = std::max(0.0f, mData[i]);
 }
 
 }  // namespace apl

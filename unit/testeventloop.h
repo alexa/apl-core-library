@@ -31,10 +31,9 @@
 #include "apl/apl.h"
 #include "apl/command/commandfactory.h"
 #include "apl/command/corecommand.h"
+#include "apl/primitives/range.h"
 #include "apl/time/coretimemanager.h"
-
 #include "apl/utils/make_unique.h"
-#include "apl/utils/range.h"
 #include "apl/utils/searchvisitor.h"
 
 namespace apl {
@@ -200,17 +199,6 @@ public:
         logBridge->clear();
     }
 
-    void TearDown() override
-    {
-        Test::TearDown();
-
-#ifdef DEBUG_MEMORY_USE
-        for (const auto& m : getMemoryCounterMap())
-            EXPECT_TRUE(MemoryMatch(mMemoryCounters.at(m.first), m.second())) << "for class " << m.first;
-#endif
-
-        ASSERT_FALSE(session->getCount()) << "Extra console message left behind: " << session->getLast();
-    }
 
     bool CheckNoActions()
     {
@@ -229,6 +217,19 @@ public:
     bool LogMessage()
     {
         return logBridge->checkAndClear();
+    }
+
+protected:
+    void TearDown() override
+    {
+        Test::TearDown();
+
+#ifdef DEBUG_MEMORY_USE
+        for (const auto& m : getMemoryCounterMap())
+            EXPECT_TRUE(MemoryMatch(mMemoryCounters.at(m.first), m.second())) << "for class " << m.first;
+#endif
+
+        ASSERT_FALSE(session->getCount()) << "Extra console message left behind: " << session->getLast();
     }
 
 private:
@@ -305,8 +306,10 @@ public:
     {
         config = RootConfig::create();
         metrics.size(1024,800).dpi(160).theme("dark");
-        config->agent("Unit tests", "1.0").timeManager(loop).session(session);
-        config->measure(std::make_shared<SimpleTextMeasurement>());
+        config->set(RootProperty::kAgentName, "Unit tests")
+            .timeManager(loop)
+            .session(session)
+            .measure(std::make_shared<SimpleTextMeasurement>());
     }
 
     void loadDocument(const char *docName, const char *dataName = nullptr) {
@@ -1271,8 +1274,8 @@ compareTransformApprox(const Transform2D& left, const Transform2D& right, float 
         auto diff = std::abs(leftComponents.at(i) - rightComponents.at(i));
         if (diff > delta) {
             return ::testing::AssertionFailure()
-                    << "transorms is not equal: "
-                    << " Expected: " << left.toDebugString()
+                    << "transforms are not equal: "
+                    << " expected: " << left.toDebugString()
                     << ", actual: " << right.toDebugString();
         }
     }

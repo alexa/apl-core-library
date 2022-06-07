@@ -1009,3 +1009,65 @@ TEST_F(LayoutDirectionText, LayoutDirectionEnvironmentValue)
     auto ld2 = static_cast<LayoutDirection>(component->getChildAt(0)->getCalculated(kPropertyLayoutDirection).asInt());
     ASSERT_EQ(ld2, kLayoutDirectionLTR);
 }
+
+static const char *CHILD_RTL_IN_PARENT_LTR = R"(
+{
+  "version": "1.8",
+  "type": "APL",
+  "mainTemplate": {
+    "item": {
+      "type": "GridSequence",
+      "scrollDirection": "horizontal",
+      "childWidth": 120,
+      "childHeight": 120,
+      "height": "100%",
+      "width": "100%",
+      "items": [
+        {
+          "type": "Frame",
+          "borderColor": "red",
+          "borderWidth": 2,
+          "item": {
+            "type": "Container",
+            "height": "100%",
+            "width": "100%",
+            "item": {
+              "type": "Sequence",
+              "layoutDirection": "RTL",
+              "height": "100%",
+              "width": 120,
+              "items": [
+                {
+                  "type": "Text",
+                  "text": "text"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+)";
+
+TEST_F(LayoutDirectionText, ChildLayoutDirectionShouldNotAffectParentLayoutDirection)
+{
+    loadDocument(CHILD_RTL_IN_PARENT_LTR);
+    ASSERT_EQ(Object(kLayoutDirectionLTR), component->getCalculated(kPropertyLayoutDirection));
+    ASSERT_EQ(1, component->getChildCount());
+
+    auto frame = component->getChildAt(0);
+    ASSERT_EQ(Object(kLayoutDirectionLTR), frame->getCalculated(kPropertyLayoutDirection));
+    ASSERT_EQ(1, frame->getChildCount());
+
+    auto container = frame->getChildAt(0);
+    ASSERT_EQ(Object(kLayoutDirectionLTR), container->getCalculated(kPropertyLayoutDirection));
+    ASSERT_EQ(1, container->getChildCount());
+
+    auto sequence = container->getChildAt(0);
+    ASSERT_EQ(Object(kLayoutDirectionRTL), sequence->getCalculated(kPropertyLayoutDirection));
+    ASSERT_EQ(1, sequence->getChildCount());
+
+    ASSERT_TRUE(IsEqual(Rect(0, 0, 120, 120), frame->getCalculated(kPropertyBounds)));
+}

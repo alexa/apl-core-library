@@ -56,15 +56,14 @@ public:
 
     /**
      * Construct a state object.  All properties are set to false.
-     * @param disabled The setting for the disabled property.
      */
     State() : mStateMap(kStatePropertyCount, false) {}
 
     /**
      * Constructor that takes a variable number of arguments.
      * Used to initialize the state to a random set of
-     * @tparam Args
-     * @param args
+     * @tparam Args The type of the arguments
+     * @param args The set of arguments
      */
     template<class... Args>
     State(Args... args) : mStateMap(kStatePropertyCount, false) {

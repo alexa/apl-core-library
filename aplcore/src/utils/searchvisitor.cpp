@@ -35,7 +35,7 @@ SearchVisitor::visit(const CoreComponent& component) {
         return;
     }
 
-    LOG_IF(DEBUG_SEARCH) << "Checking " << component.toDebugSimpleString()
+    LOG_IF(DEBUG_SEARCH).session(component) << "Checking " << component.toDebugSimpleString()
                                    << " bounds=" << component.getCalculated(kPropertyBounds).toDebugString()
                                    << " point=" << pointInCurrent.toString()
                                    << " scrollPosition=" << component.scrollPosition();
@@ -49,7 +49,7 @@ SearchVisitor::visit(const CoreComponent& component) {
         // if the component satisfies the spot condition, cache it as a potential result so we can avoid a stack
         mPotentialResult =
             std::const_pointer_cast<CoreComponent>(component.shared_from_corecomponent());
-        LOG_IF(DEBUG_SEARCH) << "Found potential result " << component.toDebugSimpleString();
+        LOG_IF(DEBUG_SEARCH).session(component) << "Found potential result " << component.toDebugSimpleString();
     }
 
     // If we reached the a leaf node, then keep the best result encountered so far. We specifically

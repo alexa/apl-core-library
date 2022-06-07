@@ -55,10 +55,10 @@ public:
     }
 
     StyleDefinitionPtr addOne(const std::string& name) {
-        LOG_IF(DEBUG_STYLES) << "Styles::addOne " << name;
+        LOG_IF(DEBUG_STYLES).session(mSession) << "Styles::addOne " << name;
 
         if (mInProcess.find(name) != mInProcess.end()) {
-            CONSOLE_S(mSession) << "Loop in style specification with " << name;
+            CONSOLE(mSession) << "Loop in style specification with " << name;
             return nullptr;
         }
 
@@ -78,12 +78,12 @@ public:
     }
 
     StyleDefinitionPtr buildStyle(const std::string& name) {
-        LOG_IF(DEBUG_STYLES) << name;
+        LOG_IF(DEBUG_STYLES).session(mSession) << name;
 
         const rapidjson::Value& value = mJson->GetObject()[name.c_str()];
         StyleDefinitionPtr styledef = std::make_shared<StyleDefinition>(value, mPath.addObject(name));
 
-        LOG_IF(DEBUG_STYLES) << "  extend, extends";
+        LOG_IF(DEBUG_STYLES).session(mSession) << "  extend, extends";
         for (auto&& m : arrayifyProperty(value, "extend", "extends")) {
             if (!m.IsString())
                 continue;
@@ -108,13 +108,13 @@ private:
 const StyleInstancePtr
 Styles::get(const ContextPtr& context, const std::string& name, const State& state)
 {
-    LOG_IF(DEBUG_STYLES) << "Styles::get " << name << " " << state;
+    LOG_IF(DEBUG_STYLES).session(context) << "Styles::get " << name << " " << state;
 
     auto definition = getStyleDefinition(name);
     if (definition)
         return definition->get(context, state);
 
-    LOG_IF(DEBUG_STYLES) << "Didn't find anything";
+    LOG_IF(DEBUG_STYLES).session(context) << "Didn't find anything";
     return nullptr;
 }
 

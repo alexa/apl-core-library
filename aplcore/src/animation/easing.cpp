@@ -61,7 +61,7 @@ Easing::parse(const SessionPtr& session, const std::string& easing)
                                               std::move(state.args),
                                               s);
         if (!easingCurve) {
-            CONSOLE_S(session) << "Unable to create easing curve " << easing;
+            CONSOLE(session) << "Unable to create easing curve " << easing;
         } else {
             if (sEasingCacheDirty) {
                 sEasingCache.clean();
@@ -73,7 +73,7 @@ Easing::parse(const SessionPtr& session, const std::string& easing)
         }
     }
     catch (pegtl::parse_error& e) {
-        CONSOLE_S(session) << "Parse error in " << easing << " - " << e.what();
+        CONSOLE(session) << "Parse error in " << easing << " - " << e.what();
     }
 
     return Easing::linear();

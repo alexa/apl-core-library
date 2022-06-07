@@ -63,7 +63,7 @@ Rect::toString() const {
 }
 
 bool
-Rect::isEmpty() const {
+Rect::empty() const {
     return (mWidth == 0 && mHeight == 0) || std::isnan(mWidth) || std::isnan(mHeight);
 }
 
@@ -73,12 +73,26 @@ Rect::intersect(const Rect &other) const {
         getTop() >= other.getBottom() || other.getTop() >= getBottom())
         return {};
 
-    float x = std::max(other.getX(), getX());
-    float y = std::max(other.getY(), getY());
-    return {x,
-            y,
-            std::min(other.getRight(), getRight()) - x,
-            std::min(other.getBottom(), getBottom()) - y};
+    auto left = std::max(getLeft(), other.getLeft());
+    auto top = std::max(getTop(), other.getTop());
+    auto right = std::min(getRight(), other.getRight());
+    auto bottom = std::min(getBottom(), other.getBottom());
+
+    return { left, top, right - left, bottom - top };
+}
+
+Rect
+Rect::extend(const Rect& other) const
+{
+    if (empty()) return other;
+    if (other.empty()) return *this;
+
+    auto left = std::min(getLeft(), other.getLeft());
+    auto top = std::min(getTop(), other.getTop());
+    auto right = std::max(getRight(), other.getRight());
+    auto bottom = std::max(getBottom(), other.getBottom());
+
+    return { left, top, right - left, bottom - top };
 }
 
 bool
@@ -86,7 +100,7 @@ Rect::contains(const Point& point) const {
     auto x = point.getX();
     auto y = point.getY();
 
-    return !isEmpty() && x >= mX && x <= mX + mWidth && y >= mY && y <= mY + mHeight;
+    return !empty() && x >= mX && x <= mX + mWidth && y >= mY && y <= mY + mHeight;
 }
 
 float
@@ -98,6 +112,15 @@ Rect::distanceTo(const Point& point) const {
     if (dx == 0) return dy;
     if (dy == 0) return dx;
     return std::sqrt(dx*dx + dy*dy);
+}
+
+Rect
+Rect::inset(float dx, float dy) const {
+    auto w = std::max(0.0f, mWidth - 2 * dx);
+    auto h = std::max(0.0f, mHeight - 2 * dy);
+    auto x = w <= 0 ? mX + mWidth / 2 : mX + dx;
+    auto y = h <= 0 ? mY + mHeight / 2 : mY + dy;
+    return {x, y, w, h};
 }
 
 rapidjson::Value

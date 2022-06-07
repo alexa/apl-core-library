@@ -46,7 +46,7 @@ TEST_F(MemoryTest, Basic)
     ASSERT_FALSE(content->isError());
 
     auto m = Metrics().size(1024,800).theme("dark");
-    auto config = RootConfig().defaultIdleTimeout(15000);
+    auto config = RootConfig().set(RootProperty::kDefaultIdleTimeout, 15000);
     root = RootContext::create(m, content, config);
 
     ASSERT_TRUE(root);
@@ -91,7 +91,9 @@ TEST_F(MemoryTest, Text)
     ASSERT_FALSE(content->isError());
 
     auto m = Metrics().size(1024,800).theme("dark");
-    auto config = RootConfig().defaultIdleTimeout(15000).measure(std::make_shared<MemTextMeasure>());
+    auto config = RootConfig()
+            .set(RootProperty::kDefaultIdleTimeout, 15000)
+            .measure(std::make_shared<MemTextMeasure>());
     root = RootContext::create(m, content, config);
 
     ASSERT_TRUE(root);

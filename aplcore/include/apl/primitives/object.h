@@ -74,6 +74,7 @@ class GraphicPattern;
 class Transformation;
 class MediaSource;
 class LiveDataObject;
+class Range;
 class RangeGenerator;
 class URLRequest;
 class SliceGenerator;
@@ -118,6 +119,7 @@ using SharedVectorPtr = ObjectArrayPtr;
  * - Filters
  * - Gradients
  * - Media sources
+ * - Range
  * - Rectangles
  * - Radii
  * - Sources
@@ -154,6 +156,7 @@ public:
         kRectType,
         kRadiiType,
         kStyledTextType,
+        kRangeType,
         kGraphicType,
         kTransformType,
         kTransform2DType,
@@ -196,6 +199,7 @@ public:
     Object(Rect&& rect);
     Object(Radii&& radii);
     Object(StyledText&& styledText);
+    Object(Range range);
     Object(const GraphicPtr& graphic);
     Object(const GraphicPatternPtr& graphicPattern);
     Object(const std::shared_ptr<Transformation>& transform);
@@ -270,6 +274,7 @@ public:
     bool isRadii() const { return mType == kRadiiType; }
     bool isURLRequest() const { return mType == kURLRequestType; }
     bool isStyledText() const { return mType == kStyledTextType; }
+    bool isRange() const { return mType == kRangeType; }
     bool isGraphic() const { return mType == kGraphicType; }
     bool isGraphicPattern() const { return mType == kGraphicPatternType; }
     bool isTransform() const { return mType == kTransformType; }
@@ -285,6 +290,7 @@ public:
     std::string asString() const;
     bool asBoolean() const { return truthy(); }
     double asNumber() const;
+    float asFloat() const;
     int asInt(int base=10) const;
     int64_t asInt64(int base = 10) const;
     Dimension asDimension(const Context& ) const;
@@ -293,7 +299,7 @@ public:
     Dimension asNonAutoRelativeDimension(const Context&) const;
     URLRequest asURLRequest() const;
     /// @deprecated This method will be removed soon.
-    Color asColor() const;
+    APL_DEPRECATED Color asColor() const;
     Color asColor(const SessionPtr&) const;
     Color asColor(const Context&) const;
 
@@ -327,6 +333,7 @@ public:
     Radii getRadii() const;
     const URLRequest& getURLRequest() const;
     const StyledText& getStyledText() const;
+    const Range& getRange() const;
     std::shared_ptr<Transformation> getTransformation() const;
     Transform2D getTransform2D() const;
     EasingPtr getEasing() const;
@@ -383,6 +390,7 @@ public:
     rapidjson::Value serializeDirty(rapidjson::Document::AllocatorType& allocator) const;
 
     template<typename T> const T& as() const;
+    template<typename T> T asEnum() const { return static_cast<T>(getInteger()); }
 
 private:
     ObjectType mType;

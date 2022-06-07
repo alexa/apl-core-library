@@ -208,7 +208,7 @@ TEST_F(ResourceTest, BasicInfo)
 TEST_F(ResourceTest, DisabledProvenance)
 {
     metrics.size(1024,800);
-    config->trackProvenance(false);
+    config->set(RootProperty::kTrackProvenance, false);
     loadDocument(BASIC_TEST);
 
     ASSERT_STREQ("", context->provenance("@one").c_str());
@@ -360,19 +360,19 @@ TEST_F(ResourceTest, LinearGradient)
     auto object = context->opt("@myLinear");
     ASSERT_TRUE(object.isGradient());
 
-    auto grad = object.getGradient();
+    auto& grad = object.getGradient();
     ASSERT_EQ(Gradient::LINEAR, grad.getType());
-    ASSERT_EQ(0, grad.getAngle());
+    ASSERT_EQ(Object(0), grad.getProperty(kGradientPropertyAngle));
 
-    auto colorRange = grad.getColorRange();
+    auto colorRange = grad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::BLUE), colorRange.at(0));
-    ASSERT_EQ(Color(Color::RED), colorRange.at(1));
+    ASSERT_EQ(Object(Color(Color::BLUE)), colorRange.at(0));
+    ASSERT_EQ(Object(Color(Color::RED)), colorRange.at(1));
 
-    auto inputRange = grad.getInputRange();
+    auto inputRange = grad.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
-    ASSERT_EQ(0, inputRange.at(0));
-    ASSERT_EQ(1, inputRange.at(1));
+    ASSERT_EQ(Object(0), inputRange.at(0));
+    ASSERT_EQ(Object(1), inputRange.at(1));
 }
 
 static const char *RADIAL_GRADIENT = R"({
@@ -412,18 +412,18 @@ TEST_F(ResourceTest, RadialGradient)
     auto object = context->opt("@myRadial");
     ASSERT_TRUE(object.isGradient());
 
-    auto grad = object.getGradient();
+    auto& grad = object.getGradient();
     ASSERT_EQ(Gradient::RADIAL, grad.getType());
 
-    auto colorRange = grad.getColorRange();
+    auto colorRange = grad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::BLUE), colorRange.at(0));
-    ASSERT_EQ(Color(Color::RED), colorRange.at(1));
+    ASSERT_EQ(Object(Color(Color::BLUE)), colorRange.at(0));
+    ASSERT_EQ(Object(Color(Color::RED)), colorRange.at(1));
 
-    auto inputRange = grad.getInputRange();
+    auto inputRange = grad.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
-    ASSERT_EQ(0.2, inputRange.at(0));
-    ASSERT_EQ(0.5, inputRange.at(1));
+    ASSERT_EQ(Object(0.2), inputRange.at(0));
+    ASSERT_EQ(Object(0.5), inputRange.at(1));
 }
 
 static const char *RICH_LINEAR = R"({
@@ -474,21 +474,21 @@ TEST_F(ResourceTest, RichLinearGradient)
     auto object = context->opt("@myLinear");
     ASSERT_TRUE(object.isGradient());
 
-    auto grad = object.getGradient();
+    auto& grad = object.getGradient();
     ASSERT_EQ(Gradient::LINEAR, grad.getType());
-    ASSERT_EQ(45, grad.getAngle());
+    ASSERT_EQ(Object(45), grad.getProperty(kGradientPropertyAngle));
 
-    auto colorRange = grad.getColorRange();
+    auto colorRange = grad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(3, colorRange.size());
-    ASSERT_EQ(Color(0xff00007f), colorRange.at(0));
-    ASSERT_EQ(Color(0x0000ffff), colorRange.at(1));
-    ASSERT_EQ(Color(0x0000ff7f), colorRange.at(2));
+    ASSERT_EQ(Object(Color(0xff00007f)), colorRange.at(0));
+    ASSERT_EQ(Object(Color(0x0000ffff)), colorRange.at(1));
+    ASSERT_EQ(Object(Color(0x0000ff7f)), colorRange.at(2));
 
-    auto inputRange = grad.getInputRange();
+    auto inputRange = grad.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(3, inputRange.size());
-    ASSERT_EQ(0.25, inputRange.at(0));
-    ASSERT_EQ(0.8, inputRange.at(1));
-    ASSERT_EQ(1, inputRange.at(2));
+    ASSERT_EQ(Object(0.25), inputRange.at(0));
+    ASSERT_EQ(Object(0.8), inputRange.at(1));
+    ASSERT_EQ(Object(1), inputRange.at(2));
 }
 
 static const char *GRADIENT_ANGLE = R"({
@@ -616,8 +616,8 @@ TEST_F(ResourceTest, GradientAngle)
 
         auto colorRange = grad.getProperty(kGradientPropertyColorRange);
         ASSERT_EQ(2, colorRange.size());
-        ASSERT_EQ(Color(Color::RED), colorRange.at(0).asColor());
-        ASSERT_EQ(Color(Color::GREEN), colorRange.at(1).asColor());
+        ASSERT_EQ(Color(Color::RED), colorRange.at(0).getColor());
+        ASSERT_EQ(Color(Color::GREEN), colorRange.at(1).getColor());
 
         auto inputRange = grad.getProperty(kGradientPropertyInputRange);
         ASSERT_EQ(2, inputRange.size());
@@ -670,8 +670,8 @@ TEST_F(ResourceTest, GradientRadialFull)
 
     auto colorRange = grad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::RED), colorRange.at(0).asColor());
-    ASSERT_EQ(Color(Color::GREEN), colorRange.at(1).asColor());
+    ASSERT_EQ(Color(Color::RED), colorRange.at(0).getColor());
+    ASSERT_EQ(Color(Color::GREEN), colorRange.at(1).getColor());
 
     auto inputRange = grad.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
@@ -683,25 +683,23 @@ TEST_F(ResourceTest, GradientRadialFull)
     ASSERT_EQ(0.7071, grad.getProperty(kGradientPropertyRadius).asNumber());
 }
 
-static const char *EASING = R"(
-    {
-      "type": "APL",
-      "version": "1.4",
-      "mainTemplate": {
-        "items": {
-          "type": "Text",
-          "text": "${@jagged(0.25)}"
-        }
-      },
-      "resources": [
-        {
-          "easings": {
-            "jagged": "line(0.25,0.75) end(1,1) "
-          }
-        }
-      ]
+static const char *EASING = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "items": {
+      "type": "Text",
+      "text": "${@jagged(0.25)}"
     }
-)";
+  },
+  "resources": [
+    {
+      "easings": {
+        "jagged": "line(0.25,0.75) end(1,1) "
+      }
+    }
+  ]
+})";
 
 TEST_F(ResourceTest, Easing)
 {

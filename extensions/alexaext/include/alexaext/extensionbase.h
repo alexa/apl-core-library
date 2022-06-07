@@ -13,8 +13,8 @@
  * permissions and limitations under the License.
  */
 
-#ifndef _ALEXAEXT_BASEEXTENSION_H
-#define _ALEXAEXT_BASEEXTENSION_H
+#ifndef _ALEXAEXT_EXTENSION_BASE_H
+#define _ALEXAEXT_EXTENSION_BASE_H
 
 
 #include <rapidjson/document.h>
@@ -44,24 +44,46 @@ public:
      * to the document. This callback is registered by the runtime and called by the extension
      * via invokeExtensionEventHandler(...).
      *
+     * @deprecated use the activity descriptor variant
      * @param callback The extension event callback.
      */
     void registerEventCallback(EventCallback callback) override { mEventCallback = callback; }
+
+    /**
+     * Register a callback for extension generated "Event" messages that are sent from the extension
+     * to the document. This callback is registered by the runtime and called by the extension
+     * via invokeExtensionEventHandler(...).
+     *
+     * @param callback The extension event callback.
+     */
+    void registerEventCallback(EventActivityCallback&& callback) override { mEventActivityCallback = callback; }
 
     /**
      * Register a callback for extension "LiveDataUpdate" messages that are sent from the extension
      * to the document. This callback is registered by the runtime and called by the extension
      * via invokeLiveDataUpdate(...).
      *
+     * @deprecated use the activity descriptor variant
      * @param callback The extension event callback.
     */
     void registerLiveDataUpdateCallback(LiveDataUpdateCallback callback) override { mLiveDataCallback = callback; }
+
+    /**
+     * Register a callback for extension "LiveDataUpdate" messages that are sent from the extension
+     * to the document. This callback is registered by the runtime and called by the extension
+     * via invokeLiveDataUpdate(...).
+     *
+     * @deprecated use the activity descriptor variant
+     * @param callback The extension event callback.
+    */
+    void registerLiveDataUpdateCallback(LiveDataUpdateActivityCallback&& callback) override { mLiveDataActivityCallback = callback; }
 
 protected:
 
     /**
      * Invoke an extension event handler in the document.
      *
+     * @deprecated Use the activity descriptor variant
      * @param uri The extension URI.
      * @param event The extension generated event.
      * @return true if the event is delivered, false if there is no callback registered.
@@ -75,8 +97,30 @@ protected:
     }
 
     /**
+     * Invoke an extension event handler in the document.
+     *
+     * @param activity The activity using this extension's functionality.
+     * @param event The extension generated event.
+     * @return true if the event is delivered, false if there is no callback registered.
+     */
+    bool invokeExtensionEventHandler(const ActivityDescriptor& activity, const rapidjson::Value& event) {
+        if (mEventActivityCallback) {
+            mEventActivityCallback(activity, event);
+            return true;
+        }
+
+        // For backwards compatibility
+        if (mEventCallback) {
+            mEventCallback(activity.getURI(), event);
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Invoke an live data binding change, or data update handler in the document.
      *
+     * @deprecated Use the activity descriptor variant
      * @param uri The extension URI.
      * @param event The extension generated event.
      * @return true if the event is delivered, false if there is no callback registered.
@@ -86,6 +130,27 @@ protected:
             mLiveDataCallback(uri, liveDataUpdate);
             return true;
         }
+        return false;
+    }
+
+    /**
+     * Invoke an live data binding change, or data update handler in the document.
+     *
+     * @param activity The activity using this extension's functionality.
+     * @param event The extension generated event.
+     * @return true if the event is delivered, false if there is no callback registered.
+     */
+    bool invokeLiveDataUpdate(const ActivityDescriptor& activity, const rapidjson::Value& liveDataUpdate) {
+        if (mLiveDataActivityCallback) {
+            mLiveDataActivityCallback(activity, liveDataUpdate);
+            return true;
+        }
+        // For backwards compatibility
+        if (mLiveDataCallback) {
+            mLiveDataCallback(activity.getURI(), liveDataUpdate);
+            return true;
+        }
+
         return false;
     }
 
@@ -100,12 +165,25 @@ protected:
         return false;
     };
 
+    /**
+     * Component update ignored by default.
+     *
+     * @param activity The activity using this extension's functionality.
+     * @param command The Component message.
+     * @return true if the update succeeded.
+     */
+    bool updateComponent(const ActivityDescriptor& activity, const rapidjson::Value &command) override {
+        return updateComponent(activity.getURI(), command);
+    };
+
 private:
-    EventCallback mEventCallback;
-    LiveDataUpdateCallback mLiveDataCallback;
+    EventCallback mEventCallback; // deprecated
+    EventActivityCallback mEventActivityCallback;
+    LiveDataUpdateCallback mLiveDataCallback; // deprecated
+    LiveDataUpdateActivityCallback mLiveDataActivityCallback;
     std::set<std::string> mURIs;
 };
 
 } // namespace alexaext
 
-#endif //_ALEXAEXT_BASEEXTENSION_H
+#endif //_ALEXAEXT_EXTENSION_BASE_H

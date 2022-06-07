@@ -79,7 +79,10 @@ TEST_F(BuilderConfigChange, CheckEnvironment)
 {
     // Note: explicitly set these properties although most of them are the default values
     metrics.size(100,200).theme("dark").mode(kViewportModeHub);
-    config->disallowVideo(false).fontScale(1.0).screenMode(RootConfig::kScreenModeNormal).screenReader(false);
+    config->set(RootProperty::kDisallowVideo, false)
+        .set(RootProperty::kFontScale, 1.0)
+        .set(RootProperty::kScreenMode, RootConfig::kScreenModeNormal)
+        .set(RootProperty::kScreenReader, false);
 
     loadDocument(CHECK_ENVIRONMENT);
     ASSERT_TRUE(component);
@@ -262,7 +265,10 @@ static const char *ALL_SETTINGS = R"apl(
  */
 TEST_F(BuilderConfigChange, AllSettings) {
     metrics.size(400, 600).theme("light").mode(kViewportModeAuto);
-    config->disallowVideo(false).fontScale(2.0).screenMode(RootConfig::kScreenModeNormal).screenReader(true);
+    config->set(RootProperty::kDisallowVideo, false)
+        .set(RootProperty::kFontScale, 2.0)
+        .set(RootProperty::kScreenMode, RootConfig::kScreenModeNormal)
+        .set(RootProperty::kScreenReader, true);
 
     loadDocument(ALL_SETTINGS);
     ASSERT_TRUE(component);

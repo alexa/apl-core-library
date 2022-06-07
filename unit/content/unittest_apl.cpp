@@ -153,7 +153,8 @@ TEST(APLTest, Basic)
     ASSERT_EQ(Object(Color()), frame->getCalculated(kPropertyBorderColor));
     auto text = frame->getChildAt(0);
     ASSERT_EQ(Rect(2, 2, 120, 60), text->getCalculated(kPropertyBounds).getRect());  // Frame has a 2 dp border
-    ASSERT_EQ(StyledText::create(root->context(), "Your text inserted here"), text->getCalculated(kPropertyText));
+    ASSERT_EQ(StyledText::create(root->context(), "Your text inserted here"),
+              text->getCalculated(kPropertyText).getStyledText());
     ASSERT_EQ(Object(Color(root->getSession(), "#ff1020")), text->getCalculated(kPropertyColor));
 
     // Simulate a user touching on the screen
@@ -178,5 +179,5 @@ TEST(APLTest, Basic)
     auto args = event.getValue(kEventPropertyArguments);
     ASSERT_EQ(1, args.size());
     ASSERT_EQ(Object("test"), args.at(0));
-    ASSERT_TRUE(event.getActionRef().isEmpty());
+    ASSERT_TRUE(event.getActionRef().empty());
 }

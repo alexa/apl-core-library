@@ -34,7 +34,7 @@ public:
 
     /**
      * Move forward in time
-     * @param updatedTime
+     * @param updatedTime The new time value (absolute, not relative)
      */
     virtual void updateTime(apl_time_t updatedTime) = 0;
 

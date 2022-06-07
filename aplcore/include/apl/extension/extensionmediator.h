@@ -17,20 +17,23 @@
 #ifndef _APL_EXTENSION_MEDIATOR_H
 #define _APL_EXTENSION_MEDIATOR_H
 
+#include <functional>
+#include <set>
+#include <string>
+#include <unordered_map>
+
 #include <alexaext/alexaext.h>
 
 #include "apl/content/content.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/rootcontext.h"
-#include "extensionclient.h"
-
-#include <functional>
-#include <set>
-#include <string>
+#include "apl/extension/extensionclient.h"
+#include "apl/extension/extensionsession.h"
 
 namespace apl {
 
 class RootContext;
+class ExtensionSessionState;
 
 using ExtensionsLoadedCallback = std::function<void()>;
 
@@ -61,7 +64,7 @@ public:
      * alexaext::ExtensionProvider.
      * @param provider The extension provider.
      */
-    static ExtensionMediatorPtr create(const alexaext::ExtensionProviderPtr& provider) {
+    APL_DEPRECATED static ExtensionMediatorPtr create(const alexaext::ExtensionProviderPtr& provider) {
         return std::make_shared<ExtensionMediator>(provider, nullptr,
                                                    alexaext::Executor::getSynchronousExecutor());
     }
@@ -93,6 +96,24 @@ public:
            const alexaext::ExtensionResourceProviderPtr& resourceProvider,
            const alexaext::ExecutorPtr& messageExecutor) {
         return std::make_shared<ExtensionMediator>(provider, resourceProvider, messageExecutor);
+    }
+
+    /**
+     * Create a message mediator for the alexaext:Extensions registered with given
+     * alexaext::ExtensionProvider.
+     *
+     * @param provider The extension provider.
+     * @param resourceProvider The provider for resources shared with the extension.
+     * @param messageExecutor Process an extension message in a manner consistent with the APL
+     *        execution model.
+     * @param extensionSession Extension session for this mediator
+     */
+    static ExtensionMediatorPtr
+    create(const alexaext::ExtensionProviderPtr& provider,
+           const alexaext::ExtensionResourceProviderPtr& resourceProvider,
+           const alexaext::ExecutorPtr& messageExecutor,
+           const ExtensionSessionPtr extensionSession) {
+        return std::make_shared<ExtensionMediator>(provider, resourceProvider, messageExecutor, extensionSession);
     }
 
 
@@ -181,13 +202,20 @@ public:
 
     /**
      * Use create(...)
+     *
+     * @deprecated Use the extension session variant
      */
     explicit ExtensionMediator(const alexaext::ExtensionProviderPtr& provider,
                                const alexaext::ExtensionResourceProviderPtr& resourceProvider,
-                               const alexaext::ExecutorPtr& messageExecutor)
-        : mProvider(provider),
-          mResourceProvider(resourceProvider),
-          mMessageExecutor(messageExecutor) {}
+                               const alexaext::ExecutorPtr& messageExecutor);
+
+    /**
+     * Use create(...)
+     */
+    explicit ExtensionMediator(const alexaext::ExtensionProviderPtr& provider,
+                               const alexaext::ExtensionResourceProviderPtr& resourceProvider,
+                               const alexaext::ExecutorPtr& messageExecutor,
+                               const ExtensionSessionPtr& extensionSession);
 
     /**
      * Destructor.
@@ -210,11 +238,23 @@ public:
      */
     void enable(bool enabled) { mEnabled = enabled; }
 
-
     /**
      * Clear the internal state and unregister all extensions.
      */
     void finish();
+
+    /**
+     * Invoked by a viewhost when the session associated with this mediator (if it has been
+     * previously set) has ended.
+     */
+    void onSessionEnded();
+
+    /**
+     * Invoked when the display state associated with the current APL document changes.
+     *
+     * @param displayState The new display state.
+     */
+    void onDisplayStateChanged(DisplayState displayState);
 
 private:
     friend class RootContext;
@@ -227,7 +267,7 @@ private:
     /**
      * Stop initialization on a denied extension.
      */
-    void denyExtension(const std::string& uri);
+    void denyExtension(const RootConfigPtr& rootConfig, const std::string& uri);
 
     /**
      * Perform extension registration requests.
@@ -243,19 +283,20 @@ private:
      * Registers the extensions found in the ExtensionProvider by calling
      * RootConfig::registerExtensionXXX().
      */
-    void registerExtension(const std::string& uri, const alexaext::ExtensionProxyPtr& extension,
+    void registerExtension(const std::string& uri,
+                           const alexaext::ExtensionProxyPtr& extension,
                            const ExtensionClientPtr& client);
 
     /**
      * Enqueue a message with the executor in response to an extension callback.
      */
-    void enqueueResponse(const std::string& uri, const rapidjson::Value& message);
+    void enqueueResponse(const alexaext::ActivityDescriptorPtr& activity, const rapidjson::Value& message);
 
     /**
      * Delegate a message to the extension client for processing.
      * @return true if the message was processed.
      */
-    void processMessage(const std::string& uri, JsonData&& message);
+    void processMessage(const alexaext::ActivityDescriptorPtr& activity, JsonData&& message);
 
     /**
      * Get Proxy corresponding to requested uri.
@@ -286,20 +327,52 @@ private:
      * @param errorCode Failure error code.
      * @param error Message associated with error code.
      */
-     void resourceFail(const ExtensionComponentPtr& component, int errorCode, const std::string& error);
+    void resourceFail(const ExtensionComponentPtr& component, int errorCode, const std::string& error);
 
+    /**
+     * @return The current session state object, if a session is present
+     */
+    std::shared_ptr<ExtensionSessionState> getExtensionSessionState() const;
+
+    /**
+     * Returns the activity associated with the specified extension URI. If no activity was
+     * previously associated with the URI, one is created and returned.
+     *
+     * @param uri The extension URI
+     * @return The activity descriptor for the specified URI
+     */
+    alexaext::ActivityDescriptorPtr getActivity(const std::string& uri);
+
+    /**
+     * Updates the display state for the given activity.
+     *
+     * @param activity The activity to update
+     * @param displayState The new display state
+     */
+    void updateDisplayState(const alexaext::ActivityDescriptorPtr& activity, DisplayState displayState);
+
+    /**
+     * Causes the specified activity to be unregistered.
+     *
+     * @param activity The extension activity
+     */
+    void unregister(const alexaext::ActivityDescriptorPtr& activity);
+
+ private:
     // access to the extensions
     std::weak_ptr<alexaext::ExtensionProvider> mProvider;
     // access to the extension resources
     std::weak_ptr<alexaext::ExtensionResourceProvider> mResourceProvider;
+    // executor to enqueue/sequence message processing
+    alexaext::ExecutorPtr mMessageExecutor;
+    // Extension session, if provided (nullptr otherwise)
+    ExtensionSessionPtr mExtensionSession;
     // the context that events and data updates are forwarded to
     std::weak_ptr<RootContext> mRootContext;
     // reference to associated config
     std::weak_ptr<RootConfig> mRootConfig;
     // retro extension wrapper used for message passing
     std::map<std::string, std::shared_ptr<ExtensionClient>> mClients;
-    // executor to enqueue/sequence message processing
-    alexaext::ExecutorPtr mMessageExecutor;
     // Determines whether incoming messages from extensions should be processed.
     bool mEnabled = true;
     // Pending Extension grants
@@ -308,6 +381,7 @@ private:
     std::set<std::string> mPendingRegistrations;
     // Extensions loaded callback
     ExtensionsLoadedCallback mLoadedCallback;
+    std::unordered_map<std::string, alexaext::ActivityDescriptorPtr> mActivitiesByURI;
 };
 
 } // namespace apl

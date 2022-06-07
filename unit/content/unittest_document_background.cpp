@@ -22,7 +22,7 @@ public:
     DocumentBackgroundTest() : Test()
     {
         metrics.theme("black").size(1000, 1000).dpi(160).mode(kViewportModeHub);
-        config.agent("backgroundTest", "0.1");
+        config.set({{RootProperty::kAgentName, "backgroundTest"}, {RootProperty::kAgentVersion, "0.1"}});
     }
 
     Object load(const char *document) {
@@ -40,16 +40,15 @@ public:
  * a color or a gradient.  If it is poorly defined, it will be returned as the TRANSPARENT color.
  */
 
-static const char *NO_BACKGROUND =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\""
-    "    }"
-    "  }"
-    "}";
+static const char *NO_BACKGROUND = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Text"
+    }
+  }
+})";
 
 TEST_F(DocumentBackgroundTest, NoBackground)
 {
@@ -59,17 +58,16 @@ TEST_F(DocumentBackgroundTest, NoBackground)
     ASSERT_TRUE(IsEqual(Color(Color::TRANSPARENT), background));
 }
 
-static const char *COLOR_BACKGROUND =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"background\": \"blue\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\""
-    "    }"
-    "  }"
-    "}";
+static const char *COLOR_BACKGROUND = R"({
+  "type": "APL",
+  "version": "1.1",
+  "background": "blue",
+  "mainTemplate": {
+    "items": {
+      "type": "Text"
+    }
+  }
+})";
 
 TEST_F(DocumentBackgroundTest, ColorBackground)
 {
@@ -79,28 +77,27 @@ TEST_F(DocumentBackgroundTest, ColorBackground)
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), background));
 }
 
-static const char *GRADIENT_BACKGROUND =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"background\": {"
-    "    \"type\": \"linear\","
-    "    \"colorRange\": ["
-    "      \"darkgreen\","
-    "      \"white\""
-    "    ],"
-    "    \"inputRange\": ["
-    "      0,"
-    "      0.25"
-    "    ],"
-    "    \"angle\": 90"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\""
-    "    }"
-    "  }"
-    "}";
+static const char *GRADIENT_BACKGROUND = R"({
+  "type": "APL",
+  "version": "1.1",
+  "background": {
+    "type": "linear",
+    "colorRange": [
+      "darkgreen",
+      "white"
+    ],
+    "inputRange": [
+      0,
+      0.25
+    ],
+    "angle": 90
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Text"
+    }
+  }
+})";
 
 TEST_F(DocumentBackgroundTest, GradientBackground)
 {
@@ -110,24 +107,23 @@ TEST_F(DocumentBackgroundTest, GradientBackground)
 
     auto gradient = background.getGradient();
     ASSERT_EQ(Gradient::GradientType::LINEAR, gradient.getType());
-    ASSERT_EQ(90, gradient.getAngle());
-    ASSERT_EQ(std::vector<Color>({0x006400ff, 0xffffffff}), gradient.getColorRange());
-    ASSERT_EQ(std::vector<double>({0, 0.25}), gradient.getInputRange());
+    ASSERT_EQ(90, gradient.getProperty(kGradientPropertyAngle).getInteger());
+    ASSERT_EQ(std::vector<Object>({Color(0x006400ff), Color(0xffffffff)}), gradient.getProperty(kGradientPropertyColorRange).getArray());
+    ASSERT_EQ(std::vector<Object>({0.0, 0.25}), gradient.getProperty(kGradientPropertyInputRange).getArray());
 }
 
-static const char *BAD_BACKGROUND_MAP =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"background\": {"
-    "    \"type\": \"Foo\""
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\""
-    "    }"
-    "  }"
-    "}";
+static const char *BAD_BACKGROUND_MAP = R"({
+  "type": "APL",
+  "version": "1.1",
+  "background": {
+    "type": "Foo"
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Text"
+    }
+  }
+})";
 
 TEST_F(DocumentBackgroundTest, BadBackgroundMap)
 {
@@ -137,17 +133,16 @@ TEST_F(DocumentBackgroundTest, BadBackgroundMap)
     ASSERT_TRUE(IsEqual(Color(Color::TRANSPARENT), background));
 }
 
-static const char *BAD_BACKGROUND_COLOR =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"background\": \"bluish\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\""
-    "    }"
-    "  }"
-    "}";
+static const char *BAD_BACKGROUND_COLOR = R"({
+  "type": "APL",
+  "version": "1.1",
+  "background": "bluish",
+  "mainTemplate": {
+    "items": {
+      "type": "Text"
+    }
+  }
+})";
 
 TEST_F(DocumentBackgroundTest, BadBackgroundColor)
 {
@@ -157,17 +152,16 @@ TEST_F(DocumentBackgroundTest, BadBackgroundColor)
     ASSERT_TRUE(IsEqual(Color(Color::TRANSPARENT), background));
 }
 
-static const char *DATA_BINDING_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"background\": \"${viewport.width > 500 ? 'blue' : 'red'}\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\""
-    "    }"
-    "  }"
-    "}";
+static const char *DATA_BINDING_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "background": "${viewport.width > 500 ? 'blue' : 'red'}",
+  "mainTemplate": {
+    "items": {
+      "type": "Text"
+    }
+  }
+})";
 
 TEST_F(DocumentBackgroundTest, DataBindingTest)
 {
@@ -187,17 +181,16 @@ TEST_F(DocumentBackgroundTest, DataBindingTest)
 /*
  * Check to see that a data-binding expression can use the system theme
  */
-static const char *DATA_BOUND_THEME =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"background\": \"${viewport.theme == 'dark' ? 'rgb(16,32,64)' : 'rgb(224, 224, 192)'}\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\""
-    "    }"
-    "  }"
-    "}";
+static const char *DATA_BOUND_THEME = R"({
+  "type": "APL",
+  "version": "1.1",
+  "background": "${viewport.theme == 'dark' ? 'rgb(16,32,64)' : 'rgb(224, 224, 192)'}",
+  "mainTemplate": {
+    "items": {
+      "type": "Text"
+    }
+  }
+})";
 
 TEST_F(DocumentBackgroundTest, DataBoundTheme)
 {
@@ -215,18 +208,17 @@ TEST_F(DocumentBackgroundTest, DataBoundTheme)
 /*
  * Check that a data-binding expression using a theme can be overridden by the document-supplied theme
  */
-static const char *DATA_BOUND_THEME_OVERRIDE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"theme\": \"light\","
-    "  \"background\": \"${viewport.theme == 'dark' ? 'rgb(16,32,64)' : 'rgb(224, 224, 192)'}\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Text\""
-    "    }"
-    "  }"
-    "}";
+static const char *DATA_BOUND_THEME_OVERRIDE = R"({
+  "type": "APL",
+  "version": "1.1",
+  "theme": "light",
+  "background": "${viewport.theme == 'dark' ? 'rgb(16,32,64)' : 'rgb(224, 224, 192)'}",
+  "mainTemplate": {
+    "items": {
+      "type": "Text"
+    }
+  }
+})";
 
 TEST_F(DocumentBackgroundTest, DataBoundThemeOverride)
 {

@@ -94,7 +94,7 @@ TEST(GraphicFilterTest, DropShadowGraphicFilter)
         ASSERT_TRUE(filterObject.isGraphicFilter()) << m.json;
         const auto& filter = filterObject.getGraphicFilter();
         ASSERT_EQ(kGraphicFilterTypeDropShadow, filter.getType()) << m.json;
-        ASSERT_TRUE(IsEqual(m.color, filter.getValue(kGraphicPropertyFilterColor).asColor())) << m.json;
+        ASSERT_TRUE(IsEqual(m.color, filter.getValue(kGraphicPropertyFilterColor).asColor(*context))) << m.json;
         ASSERT_TRUE(IsEqual(m.horizontalOffset, filter.getValue(kGraphicPropertyFilterHorizontalOffset))) << m.json;
         ASSERT_TRUE(IsEqual(m.radius, filter.getValue(kGraphicPropertyFilterRadius))) << m.json;
         ASSERT_TRUE(IsEqual(m.verticalOffset, filter.getValue(kGraphicPropertyFilterVerticalOffset))) << m.json;

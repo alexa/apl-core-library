@@ -34,7 +34,7 @@ ActionPtr
 PlayMediaCommand::execute(const TimersPtr& timers, bool fastMode)
 {
     if (fastMode) {
-        CONSOLE_CTP(mContext) << "Ignoring PlayMedia command in fast mode";
+        CONSOLE(mContext) << "Ignoring PlayMedia command in fast mode";
         return nullptr;
     }
 
@@ -42,7 +42,7 @@ PlayMediaCommand::execute(const TimersPtr& timers, bool fastMode)
         return nullptr;
 
     if (mTarget->getType() != ComponentType::kComponentTypeVideo) {
-        CONSOLE_CTP(mContext) << "Target of PlayMedia must be a video component";
+        CONSOLE(mContext) << "Target of PlayMedia must be a video component";
         return nullptr;
     }
 

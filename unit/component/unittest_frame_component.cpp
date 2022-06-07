@@ -54,10 +54,8 @@ TEST_F(FrameComponentTest, ComponentDefaults) {
     // kpropertyBorderRadii is calculated from all kpropertyBorderXXXRadius values
     ASSERT_TRUE(IsEqual(Object::EMPTY_RADII(), frame->getCalculated(kPropertyBorderRadii)));
 
-    // when not set kPropertyBorderStrokeWidth is initialized from kPropertyBorderWidth
     ASSERT_TRUE(IsEqual(Dimension(0), frame->getCalculated(kPropertyBorderWidth)));
-    ASSERT_TRUE(IsEqual(frame->getCalculated(kPropertyBorderWidth), frame->getCalculated(kPropertyBorderStrokeWidth)));
-    // kPropertyDrawnBorderWidth is calculated from kPropertyBorderStrokeWidth (inputOnly) and (kPropertyBorderWidth)
+    ASSERT_TRUE(frame->getCalculated(kPropertyBorderStrokeWidth).isNull());
     ASSERT_TRUE(IsEqual(Dimension(0), frame->getCalculated(kPropertyDrawnBorderWidth)));
 
     // Should not have scrollable moves
@@ -159,15 +157,6 @@ static const char* BORDER_STROKE_CLAMP_DOC = R"({
   }
 })";
 
-static const char* SET_VALUE_STROKEWIDTH_COMMAND = R"([
-  {
-    "type": "SetValue",
-    "componentId": "myFrame",
-    "property": "borderStrokeWidth",
-    "value": "17"
-  }
-])";
-
 /**
  * Test the drawn border is clamped to the min of borderWidth and borderStrokeWidth.
  */
@@ -187,11 +176,15 @@ TEST_F(FrameComponentTest, ClampDrawnBorder) {
 
     // execute command to set kPropertyBorderStrokeWidth within border bounds,
     // the drawn border should update
-    auto doc = rapidjson::Document();
-    doc.Parse(SET_VALUE_STROKEWIDTH_COMMAND);
-    auto action = root->executeCommands(apl::Object(std::move(doc)), false);
+    executeCommand("SetValue", {{"componentId", "myFrame"}, {"property", "borderStrokeWidth"}, {"value", 17}}, false);
     ASSERT_TRUE(IsEqual(Dimension(17), frame->getCalculated(kPropertyBorderStrokeWidth)));
     ASSERT_TRUE(IsEqual(Dimension(17), frame->getCalculated(kPropertyDrawnBorderWidth)));
+
+    // execute command to set kPropertyBorderWidth to something smaller.  Drawn border width should update
+    executeCommand("SetValue", {{"componentId", "myFrame"}, {"property", "borderWidth"}, {"value", 5}}, false);
+    ASSERT_TRUE(IsEqual(Dimension(5), frame->getCalculated(kPropertyBorderWidth)));
+    ASSERT_TRUE(IsEqual(Dimension(17), frame->getCalculated(kPropertyBorderStrokeWidth)));
+    ASSERT_TRUE(IsEqual(Dimension(5), frame->getCalculated(kPropertyDrawnBorderWidth)));
 }
 
 

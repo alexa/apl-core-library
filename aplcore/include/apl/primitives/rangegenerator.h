@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "apl/primitives/generator.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -60,7 +61,9 @@ public:
     }
 
     std::string toDebugString() const override {
-        return "RangeGenerator<"+std::to_string(mMinimum)+","+std::to_string(mStep)+","+std::to_string(mSize)+">";
+        return "RangeGenerator<" + sutil::to_string(mMinimum) +
+                                "," + sutil::to_string(mStep) +
+                                "," + std::to_string(mSize) + ">";
     }
 
 private:

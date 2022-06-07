@@ -58,8 +58,8 @@ public:
     /**
      * Make a generic action.  The StartFunc runs immediately.  If you don't pass a starting function,
      * the action is resolved immediately.
-     * @param timers
-     * @param func
+     * @param timers Timer reference
+     * @param func The starting function to execute immediately.
      * @return The action
      */
     static ActionPtr make(const TimersPtr& timers, StartFunc func = nullptr);
@@ -67,16 +67,16 @@ public:
     /**
      * Make an action that fires after a delay.  If you don't pass a starting function,
      * the action resolves after the delay.
-     * @param timers
-     * @param delay
-     * @param func
+     * @param timers Timer reference
+     * @param delay Delay in milliseconds to wait before running the starting function.
+     * @param func The starting function to execute.
      * @return The action
      */
     static ActionPtr makeDelayed(const TimersPtr& timers, apl_duration_t delay, StartFunc func = nullptr);
 
     /**
      * Make an action that resolves after all of the child actions resolve.
-     * @param timers
+     * @param timers Timer reference
      * @param actionList A list of actions.
      * @return The tail of this action
      */
@@ -85,7 +85,7 @@ public:
     /**
      * Make an action that resolves after any of the child actions resolve.
      * The other child actions are terminated.
-     * @param timers
+     * @param timers Timer reference
      * @param actionList A list of actions
      * @return The tail of this action.
      */
@@ -94,7 +94,7 @@ public:
     /**
      * Make an action that runs an animation.  The animator function is called as time is advanced
      * up to and including when the duration is reached.  It is _not_ called for a time of zero.
-     * @param timers
+     * @param timers Timer reference
      * @param duration The duration of the animation.
      * @param animator The function to call up to and including when the duration time is reached.
      * @return The animation action
@@ -106,7 +106,7 @@ public:
     /**
      * Wrap provided action with another one that will call a callback when provided resolved. If
      * provided action is terminated wrap action will also be terminated.
-     * @param timers
+     * @param timers Timer reference
      * @param action action to wrap.
      * @param callback Callback to call.
      * @return Wrap action.
@@ -151,7 +151,7 @@ public:
     /**
      * Resolve with a rect. Used to pass back a bounds for the first line of a text component
      * during line karaoke.
-     * @param argument
+     * @param argument A rectangle
      */
     void resolve(const Rect& argument);
 
@@ -230,7 +230,7 @@ public:
 
     /**
      * Resolve the action with a union
-     * @param argument
+     * @param argument A rectangle
      */
     void resolve(const Rect& argument) const {
         if (mPtr)
@@ -293,7 +293,7 @@ public:
      * @deprecated
      * @return True if there is no action associated with this action ref.
      */
-    bool isEmpty() const { return empty(); }
+    APL_DEPRECATED bool isEmpty() const { return empty(); }
 
     /**
      * Attach a chunk of user data to this action

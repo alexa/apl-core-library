@@ -77,7 +77,7 @@ URLRequest::create(const Context& context, const Object& object) {
 
     auto url = propertyAsString(context, object, "url");
     if(url.empty()) {
-        CONSOLE_CTX(context) << "Source has no URL defined.";
+        CONSOLE(context) << "Source has no URL defined.";
         return Object::NULL_OBJECT();
     }
     return URLRequest{ url,

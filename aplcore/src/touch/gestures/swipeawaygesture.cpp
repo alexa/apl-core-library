@@ -50,13 +50,13 @@ SwipeAwayGesture::create(const ActionablePtr& actionable, const Context& context
     auto action = propertyAsMapped<SwipeAwayActionType>(context, object, "action", kSwipeAwayActionSlide,
                                                         sSwipeAwayActionTypeBimap);
     if (action == static_cast<SwipeAwayActionType>(-1)) {
-        CONSOLE_CTX(context) << "Unrecognized action field in SwipeAway gesture handler";
+        CONSOLE(context) << "Unrecognized action field in SwipeAway gesture handler";
         return nullptr;
     }
 
     auto direction = propertyAsMapped<int>(context, object, "direction", -1, sSwipeDirectionMap);
     if (direction < 0) {
-        CONSOLE_CTX(context) << "Unrecognized direction field in SwipeAway gesture handler";
+        CONSOLE(context) << "Unrecognized direction field in SwipeAway gesture handler";
         return nullptr;
     }
 
@@ -414,7 +414,7 @@ SwipeAwayGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
 
     auto velocity = getCurrentVelocity();
     if (std::isnan(velocity)) {
-        CONSOLE_CTP(mActionable->getContext()) << "Singular transform encountered during "
+        CONSOLE(mActionable->getContext()) << "Singular transform encountered during "
                                                   "SwipeAway, aborting swipe";
         animateRemainder(false, 0);
     } else {

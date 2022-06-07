@@ -35,7 +35,7 @@ ControlMediaAction::make(const TimersPtr& timers,
                          const std::shared_ptr<CoreCommand>& command)
 {
     if (kComponentTypeVideo != command->target()->getType()) {
-        CONSOLE_CTP(command->context()) << "ControlMedia targeting non-Video component";
+        CONSOLE(command->context()) << "ControlMedia targeting non-Video component";
         // TODO: Check if we actually sanitize commands for target component type.
         return nullptr;
     }
@@ -48,7 +48,7 @@ ControlMediaAction::make(const TimersPtr& timers,
         int maxIndex = mediaSource.isArray() ? mediaSource.size() - 1 : 0;
 
         if (value.asInt() > maxIndex) {
-            CONSOLE_CTP(command->context()) << "ControlMedia track index out of bounds";
+            CONSOLE(command->context()) << "ControlMedia track index out of bounds";
             return nullptr;
         }
     }

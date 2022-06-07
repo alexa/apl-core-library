@@ -32,6 +32,7 @@
 #include "apl/livedata/liveobject.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
+#include "apl/utils/deprecated.h"
 #include "apl/utils/stringfunctions.h"
 
 #ifdef ALEXAEXTENSIONS
@@ -132,23 +133,6 @@ public:
     const Context& evaluationContext();
 
     /**
-     * Configure the agent name and version
-     * @deprecated Use  set({
-            {RootProperty::kAgentName, agentName},
-            {RootProperty::kAgentVersion, agentVersion}
-        }) instead
-     * @param agentName
-     * @param agentVersion
-     * @return This object for chaining
-     */
-    RootConfig& agent(const std::string& agentName, const std::string& agentVersion) {
-        return set({
-            {RootProperty::kAgentName, agentName},
-            {RootProperty::kAgentVersion, agentVersion}
-        });
-    }
-
-    /**
      * Add a text measurement object for calculating the size of blocks
      * of text and calculating the baseline of text.
      * @param textMeasurementPtr The text measurement object.
@@ -200,121 +184,13 @@ public:
     }
 
     /**
-     * Set if the OpenURL command is supported
-     * @deprecated Use set(RootProperty::kAllowOpenUrl, allowed) instead
-     * @param allowed If true, the OpenURL command is supported.
-     * @return This object for chaining
-     */
-    RootConfig& allowOpenUrl(bool allowed) {
-        return set(RootProperty::kAllowOpenUrl, allowed);
-    }
-
-    /**
-     * Set if video is supported
-     * @deprecated Use set(RootProperty::kDisallowVideo, disallowed) instead
-     * @param disallowed If true, the Video component is disabled
-     * @return This object for chaining
-     */
-    RootConfig& disallowVideo(bool disallowed) {
-        return set(RootProperty::kDisallowVideo, disallowed);
-    }
-
-    /**
-     * Set the quality of animation expected.  If set to kAnimationQualityNone,
-     * all animation commands are disabled (include onMount).
-     * @deprecated Use set(RootProperty::kAnimationQuality, quality) instead
-     * @param quality The expected quality of animation playback.
-     * @return This object for chaining
-     */
-    RootConfig& animationQuality(AnimationQuality quality) {
-        return set(RootProperty::kAnimationQuality, quality);
-    }
-
-    /**
-     * Set the default idle timeout.
-     * @deprecated Use set(RootProperty::kDefaultIdleTimeout, idleTimeout) instead
-     * @param idleTimeout Device wide idle timeout.
-     * @return This object for chaining
-     */
-    RootConfig& defaultIdleTimeout(int idleTimeout) {
-        return set(RootProperty::kDefaultIdleTimeout, idleTimeout);
-    }
-
-    /**
      * Set how APL spec version check should be enforced.
-     * @param version @see APLVersion::Value.
+     * @param version The require APL version. @see APLVersion::Value.
      * @return This object for chaining
      */
     RootConfig& enforceAPLVersion(APLVersion::Value version) {
         mEnforcedAPLVersion = version;
         return *this;
-    }
-
-    /**
-     * Set the reported APL version of the specification that is supported
-     * by this application.  This value will be reported in the data-binding
-     * context under "environment.aplVersion".
-     * @deprecated Use set(RootProperty::kReportedVersion, version) instead
-     * @param version The version string to report.
-     * @return This object for chaining.
-     */
-    RootConfig& reportedAPLVersion(const std::string& version) {
-        return set(RootProperty::kReportedVersion, version);
-    }
-
-    /**
-     * Sets whether the "type" field of an APL document should be enforced.
-     * Type should always be "APL", but for backwards compatibility, this is
-     * optionally ignored.
-     * @deprecated Use set(RootProperty::kEnforceTypeField, enforce) instead
-     * @param enforce `true` to enforce that the "type" field is set to "APL"
-     * @return This object for chaining
-     */
-    RootConfig& enforceTypeField(bool enforce) {
-        return set(RootProperty::kEnforceTypeField, enforce);
-    }
-
-    /**
-     * Set the default font color. This is the fallback color for all themes.
-     * This color will only be applied if there is not a theme-defined default color.
-     * @deprecated Use set(RootProperty::kDefaultFontColor, color) instead
-     * @param color The font color
-     * @return This object for chaining
-     */
-    RootConfig& defaultFontColor(Color color) {
-        return set(RootProperty::kDefaultFontColor, color);
-    }
-
-    /**
-     * Set the default font color for a particular theme.
-     * @deprecated Use set(RootProperty::kAllowOpenUrl, allowed) instead
-     * @param theme The named theme (must match exactly)
-     * @param color The font color
-     * @return This object for chaining
-     */
-    RootConfig& defaultFontColor(const std::string& theme, Color color) {
-        mDefaultThemeFontColor[theme] = color;
-        return *this;
-    }
-
-    /**
-     * Set the default font family. This is usually locale-based.
-     * @deprecated Use set(RootProperty::kDefaultFontFamily, fontFamily) instead
-     * @param fontFamily The font family.
-     * @return This object for chaining.
-     */
-    RootConfig& defaultFontFamily(const std::string& fontFamily) {
-        return set(RootProperty::kDefaultFontFamily, fontFamily);
-    }
-
-    /**
-     * Enable or disable tracking of resource, style, and component provenance
-     * @deprecated Use set(RootProperty::kTrackProvenance, trackProvenance) instead
-     * @param trackProvenance True if provenance should be tracked.
-     * @return This object for chaining.
-     */
-    RootConfig& trackProvenance(bool trackProvenance) {
-        return set(RootProperty::kTrackProvenance, trackProvenance);
     }
 
     /**
@@ -344,28 +220,6 @@ public:
     }
 
     /**
-     * Set pager layout cache in both directions. 1 is default and results in 1 page ensured before and one after
-     * current one.
-     * @deprecated Use set(RootProperty::kPagerChildCache, cache) instead
-     * @param cache Number of pages to ensure before and after current one.
-     * @return This object for chaining.
-     */
-    RootConfig& pagerChildCache(int cache) {
-        return set(RootProperty::kPagerChildCache, cache);
-    }
-
-    /**
-     * Set sequence layout cache in both directions. 1 is default and results in 1 page of children ensured before and
-     * one after current one.
-     * @deprecated Use set(RootProperty::kSequenceChildCache, cache) instead
-     * @param cache Number of pages to ensure before and after current one.
-     * @return This object for chaining.
-     */
-    RootConfig& sequenceChildCache(int cache) {
-        return set(RootProperty::kSequenceChildCache, cache);
-    }
-
-    /**
      * Add DataSource provider implementation.
      * @param type Type name of DataSource.
      * @param dataSourceProvider provider implementation.
@@ -382,27 +236,6 @@ public:
      * @return This object for chaining.
      */
     RootConfig& session(const SessionPtr& session);
-
-    /**
-     * Set the current UTC time in milliseconds since the epoch.
-     * @deprecated Use set(RootProperty::kUTCTime, time) instead
-     * @param time Milliseconds.
-     * @return This object for chaining.
-     */
-    RootConfig& utcTime(apl_time_t time) {
-        return set(RootProperty::kUTCTime, time);
-    }
-
-    /**
-     * Set the local time zone adjustment in milliseconds.  When added to the current UTC time,
-     * this will give the local time. This includes any daylight saving time adjustment.
-     * @deprecated Use set(RootProperty::kLocalTimeAdjustment, adjustment) instead
-     * @param adjustment Milliseconds
-     * @return This object for chaining
-     */
-    RootConfig& localTimeAdjustment(apl_duration_t adjustment) {
-        return set(RootProperty::kLocalTimeAdjustment, adjustment);
-    }
 
     /**
      * Assign a LiveObject to the top-level context
@@ -491,8 +324,7 @@ public:
     /**
      * Register an extension event handler.  The name should be something like 'onDomainAction'.
      * This method will also register the extension as a supported extension.
-     * @param uri The extension URI this handler is registered to
-     * @param name The name of the handler to support.
+     * @param handler The name of the handler to support.
      * @return This object for chaining.
      */
     RootConfig& registerExtensionEventHandler(ExtensionEventHandler handler) {
@@ -567,7 +399,7 @@ public:
     /**
      * Register a supported extension. Any previously registered configuration is overwritten.
      * @param uri The URI of the extension
-     * @param optional configuration value(s) supported by this extension.
+     * @param config Configuration value(s) supported by this extension.
      * @return This object for chaining
      */
     RootConfig& registerExtension(const std::string& uri, const Object& config = Object::TRUE_OBJECT()) {
@@ -606,241 +438,6 @@ public:
     RootConfig& setEnvironmentValue(const std::string& name, const Object& value);
 
     /**
-     * Set double press timeout.
-     * @deprecated Use set(RootProperty::kDoublePressTimeout, timeout) instead
-     * @param timeout new double press timeout. Default is 500 ms.
-     * @return This object for chaining
-     */
-    RootConfig& doublePressTimeout(apl_duration_t timeout) {
-        return set(RootProperty::kDoublePressTimeout, timeout);
-    }
-
-    /**
-     * Set long press timeout.
-     * @deprecated Use set(RootProperty::kLongPressTimeout, timeout) instead
-     * @param timeout new long press timeout. Default is 1000 ms.
-     * @return This object for chaining
-     */
-    RootConfig& longPressTimeout(apl_duration_t timeout) {
-        return set(RootProperty::kLongPressTimeout, timeout);
-    }
-
-    /**
-     * Set pressed duration timeout.  This is the duration to show the "pressed" state of a component
-     * when programmatically invoked.
-     * @deprecated Use set(RootProperty::kPressedDuration, timeout) instead
-     * @param timeout Duration in milliseconds.  Default is 64 ms.
-     * @return This object for chaining
-     */
-    RootConfig& pressedDuration(apl_duration_t timeout) {
-        return set(RootProperty::kPressedDuration, timeout);
-    }
-
-    /**
-     * Set the tap or scroll timeout.  This is the maximum amount of time that can pass before the
-     * system has to commit to this being a touch event instead of a scroll event.
-     * @deprecated Use set(RootProperty::kTapOrScrollTimeout, timeout) instead
-     * @param timeout Duration in milliseconds.  Default is 100 ms.
-     * @return This object for chaining
-     */
-    RootConfig& tapOrScrollTimeout(apl_duration_t timeout) {
-        return set(RootProperty::kTapOrScrollTimeout, timeout);
-    }
-
-    /**
-     * Set SwipeAway gesture trigger distance threshold in dp. Initial movement below this threshold does not trigger the
-     * gesture.
-     * @deprecated see RootConfig::pointerSlopThreshold. Swiping is not that different from scrolling.
-     * @param distance threshold distance.
-     * @return This object for chaining
-     */
-    RootConfig& swipeAwayTriggerDistanceThreshold(float distance) {
-        return set(RootProperty::kPointerSlopThreshold, distance);
-    }
-
-    /**
-     * Set SwipeAway gesture fulfill distance threshold in percents. Gesture requires swipe to be performed above this
-     * threshold for it to be considered complete.
-     * @deprecated Use set(RootProperty::kSwipeAwayFulfillDistancePercentageThreshold, distance) instead
-     * @param distance threshold distance.
-     * @return This object for chaining
-     */
-    RootConfig& swipeAwayFulfillDistancePercentageThreshold(float distance) {
-        return set(RootProperty::kSwipeAwayFulfillDistancePercentageThreshold, distance);
-    }
-
-    /**
-     * Set SwipeAway gesture animation easing.
-     * @deprecated Use set(RootProperty::kSwipeAwayAnimationEasing, easing) instead
-     * @param easing Easing string to use for gesture animation. Should be according to current APL spec.
-     * @return This object for chaining
-     */
-    RootConfig& swipeAwayAnimationEasing(const std::string& easing) {
-        return set(RootProperty::kSwipeAwayAnimationEasing, easing);
-    }
-
-    /**
-     * Set SwipeAway (and any related gesture) gesture swipe speed threshold.
-     * @deprecated Use set(RootProperty::kSwipeVelocityThreshold, velocity) instead
-     * @param velocity swipe velocity threshold in dp per second.
-     * @return This object for chaining
-     */
-    RootConfig& swipeVelocityThreshold(float velocity) {
-        return set(RootProperty::kSwipeVelocityThreshold, velocity);
-    }
-
-    /**
-     * Set maximum SwipeAway (and any related gesture) gesture swipe speed.
-     * @deprecated Use set(RootProperty::kSwipeMaxVelocity, velocity) instead
-     * @param velocity max swipe velocity in dp per second.
-     * @return This object for chaining
-     */
-    RootConfig& swipeMaxVelocity(float velocity) {
-        return set(RootProperty::kSwipeMaxVelocity, velocity);
-    }
-
-    /**
-     * Set SwipeAway gesture tolerance in degrees when determining whether a swipe was triggered.
-     * @deprecated Use set(RootProperty::kSwipeAngleTolerance, degrees) instead
-     * @param degrees swipe direction tolerance, in degrees.
-     * @return This object for chaining
-     */
-    RootConfig& swipeAngleTolerance(float degrees) {
-        return set(RootProperty::kSwipeAngleTolerance, degrees);
-    }
-
-    /**
-     * Set default animation duration, in ms, for SwipeAway animations.
-     * @deprecated Use set(RootProperty::kDefaultSwipeAnimationDuration, duration) instead
-     * @param duration the default duration for animations, in ms.
-     * @return This object for chaining
-     */
-    RootConfig& defaultSwipeAnimationDuration(apl_duration_t duration) {
-        return set(RootProperty::kDefaultSwipeAnimationDuration, duration);
-    }
-
-    /**
-     * Set max animation duration, in ms, for SwipeAway animations.
-     * @deprecated Use set(RootProperty::kMaxSwipeAnimationDuration, duration) instead
-     * @param duration the maximum duration for animations, in ms.
-     * @return This object for chaining
-     */
-    RootConfig& maxSwipeAnimationDuration(apl_duration_t duration) {
-        return set(RootProperty::kMaxSwipeAnimationDuration, duration);
-    }
-
-    /**
-     * Set the fling velocity threshold.  The user must fling at least this fast to start a fling action.
-     * @deprecated Use set(RootProperty::kMinimumFlingVelocity, velocity) instead
-     * @param velocity Fling velocity in dp per second.
-     * @return This object for chaining
-     */
-    RootConfig& minimumFlingVelocity(float velocity) {
-        return set(RootProperty::kMinimumFlingVelocity, velocity);
-    }
-
-    /**
-     * Set a tick handler update limit in ms. Default is 16ms (60 FPS).
-     * @deprecated Use set(RootProperty::kTickHandlerUpdateLimit, updateLimit) instead
-     * @param updateLimit update limit in ms. Should be > 0.
-     * @return  This object for chaining
-     */
-    RootConfig& tickHandlerUpdateLimit(apl_duration_t updateLimit) {
-        return set(RootProperty::kTickHandlerUpdateLimit, updateLimit);
-    }
-
-    /**
-     * Set the requested font scaling factor for the document.
-     * @deprecated Use set(RootProperty::kFontScale, scale) instead
-     * @param scale The scaling factor.  Default is 1.0
-     * @return This object for chaining
-     */
-    RootConfig& fontScale(float scale) {
-        return set(RootProperty::kFontScale, scale);
-    }
-
-    /**
-     * Set the screen display mode for accessibility (normal or high-contrast)
-     * @deprecated Use set(RootProperty::kScreenMode, screenMode) instead
-     * @param screenMode The screen display mode
-     * @return This object for chaining
-     */
-    RootConfig& screenMode(ScreenMode screenMode) {
-        return set(RootProperty::kScreenMode, screenMode);
-    }
-
-    /**
-     * Inform that a screen reader is turned on.
-     * @deprecated Use set(RootProperty::kScreenReader, enabled) instead
-     * @param enabled True if the screen reader is enabled
-     * @return This object for chaining
-     */
-    RootConfig& screenReader(bool enabled) {
-        return set(RootProperty::kScreenReader, enabled);
-    }
-
-    /**
-     * Set pointer inactivity timeout. Pointer considered stale after pointer was not updated for this time.
-     * @deprecated Use set(RootProperty::kPointerInactivityTimeout, timeout) instead
-     * @param timeout inactivity timeout in ms.
-     * @return This object for chaining
-     */
-    RootConfig& pointerInactivityTimeout(apl_duration_t timeout) {
-        return set(RootProperty::kPointerInactivityTimeout, timeout);
-    }
-
-    /**
-     * Set fling gestures velocity limit.
-     * @deprecated Use set(RootProperty::kMaximumFlingVelocity, velocity) instead
-     * @param velocity fling gesture velocity in dp per second.
-     * @return This object for chaining
-     */
-    RootConfig& maximumFlingVelocity(float velocity) {
-        return set(RootProperty::kMaximumFlingVelocity, velocity);
-    }
-
-    /**
-     * Set the gesture distance threshold in dp. Initial movement below this threshold does not trigger
-     * gestures.
-     * @deprecated Use set(RootProperty::kPointerSlopThreshold, distance) instead
-     * @param distance threshold distance.
-     * @return This object for chaining
-     */
-    RootConfig& pointerSlopThreshold(float distance) {
-        return set(RootProperty::kPointerSlopThreshold, distance);
-    }
-
-    /**
-     * Set scroll commands duration.
-     * @deprecated Use set(RootProperty::kScrollCommandDuration, duration) instead
-     * @param duration duration in ms.
-     * @return This object for chaining
-     */
-    RootConfig& scrollCommandDuration(apl_duration_t duration) {
-        return set(RootProperty::kScrollCommandDuration, duration);
-    }
-
-    /**
-     * Set scroll snap duration.
-     * @deprecated Use set(RootProperty::kScrollSnapDuration, duration) instead
-     * @param duration duration in ms.
-     * @return This object for chaining
-     */
-    RootConfig& scrollSnapDuration(apl_duration_t duration) {
-        return set(RootProperty::kScrollSnapDuration, duration);
-    }
-
-    /**
-     * Set default pager page switch animation duration.
-     * @deprecated Use set(RootProperty::kDefaultPagerAnimationDuration, duration) instead
-     * @param duration duration in ms.
-     * @return This object for chaining
-     */
-    RootConfig& defaultPagerAnimationDuration(apl_duration_t duration) {
-        return set(RootProperty::kDefaultPagerAnimationDuration, duration);
-    }
-
-    /**
      * Enable experimental feature. @see enum ExperimentalFeatures for available set.
      * None of the features enabled by default.
      * @experimental Not guaranteed to work for any of available features and can change Engine behaviors drastically.
@@ -851,6 +448,412 @@ public:
         mEnabledExperimentalFeatures.emplace(feature);
         return *this;
     }
+
+    /**
+     * Set the default font color for a particular theme.
+     * @param theme The named theme (must match exactly)
+     * @param color The font color
+     * @return This object for chaining
+     */
+    RootConfig& defaultFontColor(const std::string& theme, Color color) {
+        mDefaultThemeFontColor[theme] = color;
+        return *this;
+    }
+
+    /////////////////////////////////////////////////
+
+    /**
+     * Configure the agent name and version
+     * @deprecated Use  set({
+            {RootProperty::kAgentName, agentName},
+            {RootProperty::kAgentVersion, agentVersion}
+        }) instead
+     * @param agentName The name of the APL agent
+     * @param agentVersion The version of the APL agent
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& agent(const std::string& agentName, const std::string& agentVersion) {
+        return set({
+                           {RootProperty::kAgentName, agentName},
+                           {RootProperty::kAgentVersion, agentVersion}
+                   });
+    }
+
+    /**
+     * Set if the OpenURL command is supported
+     * @deprecated Use set(RootProperty::kAllowOpenUrl, allowed) instead
+     * @param allowed If true, the OpenURL command is supported.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& allowOpenUrl(bool allowed) {
+        return set(RootProperty::kAllowOpenUrl, allowed);
+    }
+
+    /**
+     * Set if video is supported
+     * @deprecated Use set(RootProperty::kDisallowVideo, disallowed) instead
+     * @param disallowed If true, the Video component is disabled
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& disallowVideo(bool disallowed) {
+        return set(RootProperty::kDisallowVideo, disallowed);
+    }
+
+    /**
+     * Set the quality of animation expected.  If set to kAnimationQualityNone,
+     * all animation commands are disabled (include onMount).
+     * @deprecated Use set(RootProperty::kAnimationQuality, quality) instead
+     * @param quality The expected quality of animation playback.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& animationQuality(AnimationQuality quality) {
+        return set(RootProperty::kAnimationQuality, quality);
+    }
+
+    /**
+     * Set the default idle timeout.
+     * @deprecated Use set(RootProperty::kDefaultIdleTimeout, idleTimeout) instead
+     * @param idleTimeout Device wide idle timeout.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& defaultIdleTimeout(int idleTimeout) {
+        return set(RootProperty::kDefaultIdleTimeout, idleTimeout);
+    }
+
+    /**
+     * Set the reported APL version of the specification that is supported
+     * by this application.  This value will be reported in the data-binding
+     * context under "environment.aplVersion".
+     * @deprecated Use set(RootProperty::kReportedVersion, version) instead
+     * @param version The version string to report.
+     * @return This object for chaining.
+     */
+    APL_DEPRECATED RootConfig& reportedAPLVersion(const std::string& version) {
+        return set(RootProperty::kReportedVersion, version);
+    }
+
+    /**
+     * Sets whether the "type" field of an APL document should be enforced.
+     * Type should always be "APL", but for backwards compatibility, this is
+     * optionally ignored.
+     * @deprecated Use set(RootProperty::kEnforceTypeField, enforce) instead
+     * @param enforce `true` to enforce that the "type" field is set to "APL"
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& enforceTypeField(bool enforce) {
+        return set(RootProperty::kEnforceTypeField, enforce);
+    }
+
+    /**
+     * Set the default font color. This is the fallback color for all themes.
+     * This color will only be applied if there is not a theme-defined default color.
+     * @deprecated Use set(RootProperty::kDefaultFontColor, color) instead
+     * @param color The font color
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& defaultFontColor(Color color) {
+        return set(RootProperty::kDefaultFontColor, color);
+    }
+
+    /**
+     * Set the default font family. This is usually locale-based.
+     * @deprecated Use set(RootProperty::kDefaultFontFamily, fontFamily) instead
+     * @param fontFamily The font family.
+     * @return This object for chaining.
+     */
+    APL_DEPRECATED RootConfig& defaultFontFamily(const std::string& fontFamily) {
+        return set(RootProperty::kDefaultFontFamily, fontFamily);
+    }
+
+    /**
+     * Enable or disable tracking of resource, style, and component provenance
+     * @deprecated Use set(RootProperty::kTrackProvenance, trackProvenance) instead
+     * @param trackProvenance True if provenance should be tracked.
+     * @return This object for chaining.
+     */
+    APL_DEPRECATED RootConfig& trackProvenance(bool trackProvenance) {
+        return set(RootProperty::kTrackProvenance, trackProvenance);
+    }
+
+    /**
+     * Set pager layout cache in both directions. 1 is default and results in 1 page ensured before and one after
+     * current one.
+     * @deprecated Use set(RootProperty::kPagerChildCache, cache) instead
+     * @param cache Number of pages to ensure before and after current one.
+     * @return This object for chaining.
+     */
+    APL_DEPRECATED RootConfig& pagerChildCache(int cache) {
+        return set(RootProperty::kPagerChildCache, cache);
+    }
+
+    /**
+     * Set sequence layout cache in both directions. 1 is default and results in 1 page of children ensured before and
+     * one after current one.
+     * @deprecated Use set(RootProperty::kSequenceChildCache, cache) instead
+     * @param cache Number of pages to ensure before and after current one.
+     * @return This object for chaining.
+     */
+    APL_DEPRECATED RootConfig& sequenceChildCache(int cache) {
+        return set(RootProperty::kSequenceChildCache, cache);
+    }
+
+    /**
+     * Set the current UTC time in milliseconds since the epoch.
+     * @deprecated Use set(RootProperty::kUTCTime, time) instead
+     * @param time Milliseconds.
+     * @return This object for chaining.
+     */
+    APL_DEPRECATED RootConfig& utcTime(apl_time_t time) {
+        return set(RootProperty::kUTCTime, time);
+    }
+
+    /**
+     * Set the local time zone adjustment in milliseconds.  When added to the current UTC time,
+     * this will give the local time. This includes any daylight saving time adjustment.
+     * @deprecated Use set(RootProperty::kLocalTimeAdjustment, adjustment) instead
+     * @param adjustment Milliseconds
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& localTimeAdjustment(apl_duration_t adjustment) {
+        return set(RootProperty::kLocalTimeAdjustment, adjustment);
+    }
+
+    /**
+     * Set double press timeout.
+     * @deprecated Use set(RootProperty::kDoublePressTimeout, timeout) instead
+     * @param timeout new double press timeout. Default is 500 ms.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& doublePressTimeout(apl_duration_t timeout) {
+        return set(RootProperty::kDoublePressTimeout, timeout);
+    }
+
+    /**
+     * Set long press timeout.
+     * @deprecated Use set(RootProperty::kLongPressTimeout, timeout) instead
+     * @param timeout new long press timeout. Default is 1000 ms.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& longPressTimeout(apl_duration_t timeout) {
+        return set(RootProperty::kLongPressTimeout, timeout);
+    }
+
+    /**
+     * Set pressed duration timeout.  This is the duration to show the "pressed" state of a component
+     * when programmatically invoked.
+     * @deprecated Use set(RootProperty::kPressedDuration, timeout) instead
+     * @param timeout Duration in milliseconds.  Default is 64 ms.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& pressedDuration(apl_duration_t timeout) {
+        return set(RootProperty::kPressedDuration, timeout);
+    }
+
+    /**
+     * Set the tap or scroll timeout.  This is the maximum amount of time that can pass before the
+     * system has to commit to this being a touch event instead of a scroll event.
+     * @deprecated Use set(RootProperty::kTapOrScrollTimeout, timeout) instead
+     * @param timeout Duration in milliseconds.  Default is 100 ms.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& tapOrScrollTimeout(apl_duration_t timeout) {
+        return set(RootProperty::kTapOrScrollTimeout, timeout);
+    }
+
+    /**
+     * Set SwipeAway gesture trigger distance threshold in dp. Initial movement below this threshold does not trigger the
+     * gesture.
+     * @deprecated see RootConfig::pointerSlopThreshold. Swiping is not that different from scrolling.
+     * @param distance threshold distance.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& swipeAwayTriggerDistanceThreshold(float distance) {
+        return set(RootProperty::kPointerSlopThreshold, distance);
+    }
+
+    /**
+     * Set SwipeAway gesture fulfill distance threshold in percents. Gesture requires swipe to be performed above this
+     * threshold for it to be considered complete.
+     * @deprecated Use set(RootProperty::kSwipeAwayFulfillDistancePercentageThreshold, distance) instead
+     * @param distance threshold distance.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& swipeAwayFulfillDistancePercentageThreshold(float distance) {
+        return set(RootProperty::kSwipeAwayFulfillDistancePercentageThreshold, distance);
+    }
+
+    /**
+     * Set SwipeAway gesture animation easing.
+     * @deprecated Use set(RootProperty::kSwipeAwayAnimationEasing, easing) instead
+     * @param easing Easing string to use for gesture animation. Should be according to current APL spec.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& swipeAwayAnimationEasing(const std::string& easing) {
+        return set(RootProperty::kSwipeAwayAnimationEasing, easing);
+    }
+
+    /**
+     * Set SwipeAway (and any related gesture) gesture swipe speed threshold.
+     * @deprecated Use set(RootProperty::kSwipeVelocityThreshold, velocity) instead
+     * @param velocity swipe velocity threshold in dp per second.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& swipeVelocityThreshold(float velocity) {
+        return set(RootProperty::kSwipeVelocityThreshold, velocity);
+    }
+
+    /**
+     * Set maximum SwipeAway (and any related gesture) gesture swipe speed.
+     * @deprecated Use set(RootProperty::kSwipeMaxVelocity, velocity) instead
+     * @param velocity max swipe velocity in dp per second.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& swipeMaxVelocity(float velocity) {
+        return set(RootProperty::kSwipeMaxVelocity, velocity);
+    }
+
+    /**
+     * Set SwipeAway gesture tolerance in degrees when determining whether a swipe was triggered.
+     * @deprecated Use set(RootProperty::kSwipeAngleTolerance, degrees) instead
+     * @param degrees swipe direction tolerance, in degrees.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& swipeAngleTolerance(float degrees) {
+        return set(RootProperty::kSwipeAngleTolerance, degrees);
+    }
+
+    /**
+     * Set default animation duration, in ms, for SwipeAway animations.
+     * @deprecated Use set(RootProperty::kDefaultSwipeAnimationDuration, duration) instead
+     * @param duration the default duration for animations, in ms.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& defaultSwipeAnimationDuration(apl_duration_t duration) {
+        return set(RootProperty::kDefaultSwipeAnimationDuration, duration);
+    }
+
+    /**
+     * Set max animation duration, in ms, for SwipeAway animations.
+     * @deprecated Use set(RootProperty::kMaxSwipeAnimationDuration, duration) instead
+     * @param duration the maximum duration for animations, in ms.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& maxSwipeAnimationDuration(apl_duration_t duration) {
+        return set(RootProperty::kMaxSwipeAnimationDuration, duration);
+    }
+
+    /**
+     * Set the fling velocity threshold.  The user must fling at least this fast to start a fling action.
+     * @deprecated Use set(RootProperty::kMinimumFlingVelocity, velocity) instead
+     * @param velocity Fling velocity in dp per second.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& minimumFlingVelocity(float velocity) {
+        return set(RootProperty::kMinimumFlingVelocity, velocity);
+    }
+
+    /**
+     * Set a tick handler update limit in ms. Default is 16ms (60 FPS).
+     * @deprecated Use set(RootProperty::kTickHandlerUpdateLimit, updateLimit) instead
+     * @param updateLimit update limit in ms. Should be > 0.
+     * @return  This object for chaining
+     */
+    APL_DEPRECATED RootConfig& tickHandlerUpdateLimit(apl_duration_t updateLimit) {
+        return set(RootProperty::kTickHandlerUpdateLimit, updateLimit);
+    }
+
+    /**
+     * Set the requested font scaling factor for the document.
+     * @deprecated Use set(RootProperty::kFontScale, scale) instead
+     * @param scale The scaling factor.  Default is 1.0
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& fontScale(float scale) {
+        return set(RootProperty::kFontScale, scale);
+    }
+
+    /**
+     * Set the screen display mode for accessibility (normal or high-contrast)
+     * @deprecated Use set(RootProperty::kScreenMode, screenMode) instead
+     * @param screenMode The screen display mode
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& screenMode(ScreenMode screenMode) {
+        return set(RootProperty::kScreenMode, screenMode);
+    }
+
+    /**
+     * Inform that a screen reader is turned on.
+     * @deprecated Use set(RootProperty::kScreenReader, enabled) instead
+     * @param enabled True if the screen reader is enabled
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& screenReader(bool enabled) {
+        return set(RootProperty::kScreenReader, enabled);
+    }
+
+    /**
+     * Set pointer inactivity timeout. Pointer considered stale after pointer was not updated for this time.
+     * @deprecated Use set(RootProperty::kPointerInactivityTimeout, timeout) instead
+     * @param timeout inactivity timeout in ms.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& pointerInactivityTimeout(apl_duration_t timeout) {
+        return set(RootProperty::kPointerInactivityTimeout, timeout);
+    }
+
+    /**
+     * Set fling gestures velocity limit.
+     * @deprecated Use set(RootProperty::kMaximumFlingVelocity, velocity) instead
+     * @param velocity fling gesture velocity in dp per second.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& maximumFlingVelocity(float velocity) {
+        return set(RootProperty::kMaximumFlingVelocity, velocity);
+    }
+
+    /**
+     * Set the gesture distance threshold in dp. Initial movement below this threshold does not trigger
+     * gestures.
+     * @deprecated Use set(RootProperty::kPointerSlopThreshold, distance) instead
+     * @param distance threshold distance.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& pointerSlopThreshold(float distance) {
+        return set(RootProperty::kPointerSlopThreshold, distance);
+    }
+
+    /**
+     * Set scroll commands duration.
+     * @deprecated Use set(RootProperty::kScrollCommandDuration, duration) instead
+     * @param duration duration in ms.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& scrollCommandDuration(apl_duration_t duration) {
+        return set(RootProperty::kScrollCommandDuration, duration);
+    }
+
+    /**
+     * Set scroll snap duration.
+     * @deprecated Use set(RootProperty::kScrollSnapDuration, duration) instead
+     * @param duration duration in ms.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& scrollSnapDuration(apl_duration_t duration) {
+        return set(RootProperty::kScrollSnapDuration, duration);
+    }
+
+    /**
+     * Set default pager page switch animation duration.
+     * @deprecated Use set(RootProperty::kDefaultPagerAnimationDuration, duration) instead
+     * @param duration duration in ms.
+     * @return This object for chaining
+     */
+    APL_DEPRECATED RootConfig& defaultPagerAnimationDuration(apl_duration_t duration) {
+        return set(RootProperty::kDefaultPagerAnimationDuration, duration);
+    }
+
+    /// Specific getters
 
     /**
      * Get RootConfig property
@@ -1029,7 +1032,8 @@ public:
     const std::map<std::string, LiveObjectPtr>& getLiveObjectMap() const { return mLiveObjectMap; }
 
     /**
-     * @param LiveData name.
+     * Retrieve all registered LiveDataWatches for a provided name.
+     * @param name The name to look up
      * @return Registered LiveDataWatcher for provided name.
      */
     const std::vector<LiveDataObjectWatcherPtr> getLiveDataWatchers(const std::string& name) const {

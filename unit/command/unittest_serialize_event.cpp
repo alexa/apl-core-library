@@ -13,6 +13,9 @@
  * permissions and limitations under the License.
  */
 
+#include <set>
+#include <vector>
+
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/prettywriter.h"
 #include "apl/component/componenteventsourcewrapper.h"
@@ -24,10 +27,11 @@
 using namespace apl;
 
 
-inline void dump(const Object& object)
+template <typename T>
+inline void dump(const T& serializable)
 {
     rapidjson::Document doc;
-    auto json = object.serialize(doc.GetAllocator());
+    auto json = serializable.serialize(doc.GetAllocator());
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -1122,6 +1126,7 @@ static const char* GRIDSEQ_MULTI_CHILD_DOC = R"({
 
 TEST_F(SerializeEventTest, GridSequenceMultiChildEvent) {
     loadDocument(GRIDSEQ_MULTI_CHILD_DOC);
+    advanceTime(10);
     ASSERT_TRUE(component);
 
     ASSERT_EQ(kComponentTypeGridSequence, component->getType());
@@ -1129,6 +1134,7 @@ TEST_F(SerializeEventTest, GridSequenceMultiChildEvent) {
 
     // scroll to 10
     component->update(kUpdateScrollPosition, 10);
+    advanceTime(10);
     ASSERT_TRUE(CheckValidate("gridScroll", R"(
         {
           "source":{
@@ -1285,7 +1291,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
     ASSERT_FALSE(root->hasEvent());
 
     // Start playing
-    auto state = MediaState(0, 3, 100, 1000, false, false)
+    auto state = MediaState(0, 3, 100, 1000, false, false, false)
                      .withTrackState(kTrackReady);  // Track 0 of 3, @100 ms of 1000 ms, not paused/ended, ready
     component->updateMediaState(state);
 
@@ -1299,6 +1305,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
                 "disabled": false,
                 "duration": 1000.0,
                 "ended": false,
+                "muted": false,
                 "focused": false,
                 "height": 480.0,
                 "id": "",
@@ -1328,6 +1335,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
           "currentTime": 100.0,
           "duration": 1000.0,
           "ended": false,
+          "muted": false,
           "paused": false,
           "source": {
             "bind": {},
@@ -1336,6 +1344,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "disabled": false,
             "duration": 1000.0,
             "ended": false,
+            "muted": false,
             "focused": false,
             "height": 480.0,
             "id": "",
@@ -1366,6 +1375,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
           "currentTime": 100.0,
           "duration": 1000.0,
           "ended": false,
+          "muted": false,
           "paused": false,
           "source": {
             "bind": {},
@@ -1374,6 +1384,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "disabled": false,
             "duration": 1000.0,
             "ended": false,
+            "muted": false,
             "focused": false,
             "height": 480.0,
             "layoutDirection": "LTR",
@@ -1401,7 +1412,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
     ASSERT_FALSE(root->hasEvent());
 
     // Move forward 100 milliseconds
-    state = MediaState(0, 3, 200, 1000, false, false)
+    state = MediaState(0, 3, 200, 1000, false, false, false)
                 .withTrackState(kTrackReady);  // Track 0 of 3, @200 ms of 1000 ms, not paused/ended and ready
     component->updateMediaState(state);
 
@@ -1410,6 +1421,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
           "currentTime": 200.0,
           "duration": 1000.0,
           "ended": false,
+          "muted": false,
           "paused": false,
           "source": {
             "bind": {},
@@ -1418,6 +1430,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "disabled": false,
             "duration": 1000.0,
             "ended": false,
+            "muted": false,
             "focused": false,
             "height": 480.0,
             "id": "",
@@ -1442,8 +1455,13 @@ TEST_F(SerializeEventTest, VideoDocument) {
         }
     )"));
 
+    // Mute the audio
+    state = MediaState(0, 3, 200, 1000, false, false, true)
+                .withTrackState(kTrackReady);  // Track 0 of 3, @200 ms of 1000 ms, not paused/ended and ready
+    component->updateMediaState(state);
+
     // Jump to the next track
-    state = MediaState(1, 3, 0, 1000, false, false)
+    state = MediaState(1, 3, 0, 1000, false, false, true)
                 .withTrackState(kTrackNotReady);  // Track 1 of 3, @0 ms of 1000 ms, not paused/ended, not ready
     component->updateMediaState(state);
 
@@ -1453,6 +1471,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
           "currentTime": 0.0,
           "duration": 1000.0,
           "ended": false,
+          "muted": true,
           "paused": false,
           "source": {
             "bind": {},
@@ -1461,6 +1480,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "disabled": false,
             "duration": 1000.0,
             "ended": false,
+            "muted": true,
             "focused": false,
             "height": 480.0,
             "id": "",
@@ -1491,6 +1511,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
           "currentTime": 0.0,
           "duration": 1000.0,
           "ended": false,
+          "muted": true,
           "paused": false,
           "source": {
             "bind": {},
@@ -1499,6 +1520,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "disabled": false,
             "duration": 1000.0,
             "ended": false,
+            "muted": true,
             "focused": false,
             "height": 480.0,
             "id": "",
@@ -1524,7 +1546,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
     )"));
 
     // Pause the video playback
-    state = MediaState(1, 3, 0, 1000, true, false);  // Track 1 of 3, @0 ms of 1000 ms, paused/not ended, not ready
+    state = MediaState(1, 3, 0, 1000, true, false, false);  // Track 1 of 3, @0 ms of 1000 ms, paused/not ended, not ready
     component->updateMediaState(state);
 
     ASSERT_TRUE(CheckValidate("pauseit", R"(
@@ -1532,6 +1554,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
           "currentTime": 0.0,
           "duration": 1000.0,
           "ended": false,
+          "muted": false,
           "paused": true,
           "source": {
             "bind": {},
@@ -1540,6 +1563,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "disabled": false,
             "duration": 1000.0,
             "ended": false,
+            "muted": false,
             "focused": false,
             "height": 480.0,
             "id": "",
@@ -1565,7 +1589,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
     )"));
 
     // Track gets ready at paused state
-    state = MediaState(1, 3, 0, 1000, true, false)
+    state = MediaState(1, 3, 0, 1000, true, false, false)
                 .withTrackState(kTrackReady);  // Track 1 of 3, @0 ms of 1000 ms, paused/not ended, ready
     component->updateMediaState(state);
 
@@ -1578,6 +1602,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
                 "disabled": false,
                 "duration": 1000.0,
                 "ended": false,
+                "muted": false,
                 "focused": false,
                 "height": 480.0,
                 "id": "",
@@ -1602,7 +1627,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
         )"));
 
     // Error occurred while playing track
-    state = MediaState(1, 3, 500, 1000, false, false)
+    state = MediaState(1, 3, 500, 1000, false, false, false)
                 .withTrackState(kTrackFailed)
                 .withErrorCode(99);  // Track 1 of 3, @500 ms of 1000 ms, not paused/not ended and not ready
     component->updateMediaState(state);
@@ -1618,6 +1643,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
                 "disabled": false,
                 "duration": 1000.0,
                 "ended": false,
+                "muted": false,
                 "focused": false,
                 "height": 480.0,
                 "id": "",
@@ -1642,7 +1668,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
         )"));
 
     // End the video playback
-    state = MediaState(1,3,500,1000,false,true);
+    state = MediaState(1,3,500,1000,false,true,false);
     component->updateMediaState(state);
 
     ASSERT_TRUE(CheckValidate("endit", R"(
@@ -1650,6 +1676,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
           "currentTime": 500.0,
           "duration": 1000.0,
           "ended": true,
+          "muted": false,
           "paused": false,
           "source": {
             "bind": {},
@@ -1658,6 +1685,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "disabled": false,
             "duration": 1000.0,
             "ended": true,
+            "muted": false,
             "focused": false,
             "height": 480.0,
             "id": "",
@@ -2936,6 +2964,7 @@ TEST_F(SerializeEventTest, TargetVideo) {
             "disabled": false,
             "duration": 0.0,
             "ended": false,
+            "muted": false,
             "focused": false,
             "height": 100.0,
             "id": "MyTarget",
@@ -3114,7 +3143,7 @@ static const char * OPEN_URL_EVENT = R"(
  * still need to test it.
  */
 TEST_F(SerializeEventTest, OpenURL) {
-    config->allowOpenUrl(true);
+    config->set(RootProperty::kAllowOpenUrl, true);
 
     loadDocument(OPEN_URL_EVENT);
     ASSERT_TRUE(component);
@@ -3185,7 +3214,7 @@ static const char * BIND_REFERENCES = R"(
 )";
 
 TEST_F(SerializeEventTest, BindReferences) {
-    config->allowOpenUrl(true);
+    config->set(RootProperty::kAllowOpenUrl, true);
 
     loadDocument(BIND_REFERENCES);
     ASSERT_TRUE(component);
@@ -3414,4 +3443,100 @@ TEST_F(SerializeEventTest, EditTextRTL) {
           }
         }
     )"));
+}
+
+static const char * IMAGES = R"(
+    {
+      "type": "APL",
+      "version": "2022.1",
+      "mainTemplate": {
+        "items": {
+          "type": "Container",
+          "height": "100%",
+          "width": "100%",
+          "items": [
+            {
+               "type": "Image",
+               "width": "25%",
+               "height": "25%",
+               "source": "source0"
+            },
+            {
+               "type": "Image",
+               "width": "25%",
+               "height": "25%",
+               "source": {
+                 "url": "source1",
+                 "headers": ["a: header1"]
+               }
+            },
+            {
+               "type": "Image",
+               "width": "25%",
+               "height": "25%",
+               "sources": [
+                 {
+                   "url": "source2",
+                   "headers": ["a: header2"]
+                 },
+                 {
+                   "url": "source3",
+                   "headers": ["a: header3.1", "a: header3.2"]
+                 }
+               ]
+            }
+          ]
+        }
+      }
+    }
+)";
+
+TEST_F(SerializeEventTest, MediaRequest) {
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureManageMediaRequests);
+
+    loadDocument(IMAGES);
+    ASSERT_TRUE(component);
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+
+    rapidjson::Document doc;
+    auto serialized = event.serialize(doc.GetAllocator());
+    dump(event);
+    ASSERT_TRUE(serialized.HasMember("type"));
+    ASSERT_TRUE(serialized.HasMember("headers"));
+    ASSERT_TRUE(serialized.HasMember("source"));
+
+    ASSERT_EQ((int) apl::kEventTypeMediaRequest, serialized["type"].GetInt());
+
+    // Check that the source array contains ["source0", "source1", "source3"] (in any order)
+    const auto& source = serialized["source"];
+    ASSERT_TRUE(source.IsArray());
+    ASSERT_EQ(3, source.GetArray().Size());
+
+    std::set<std::string> expectedSources = {"source0", "source1", "source3"};
+    std::vector<std::string> expectedHeaders;
+    for (const auto& url : source.GetArray()) {
+        ASSERT_TRUE(url.IsString());
+        const auto* urlString = url.GetString();
+        if (expectedSources.count(urlString) > 0) {
+            expectedSources.erase(urlString);
+            if (std::strcmp(urlString, "source0") == 0) {
+                expectedHeaders.emplace_back("[]");
+            } else if (std::strcmp(urlString, "source1") == 0) {
+                expectedHeaders.emplace_back(R"(["a: header1"])");
+            } else {
+                expectedHeaders.emplace_back(R"(["a: header3.1", "a: header3.2"])");
+            }
+        }
+    }
+    ASSERT_TRUE(expectedSources.empty());
+
+    // Check that the headers match the source array
+    const auto& headers = serialized["headers"];
+    ASSERT_EQ(3, headers.GetArray().Size());
+    int headerIndex = 0;
+    for (const auto& header : headers.GetArray()) {
+        ASSERT_TRUE(CompareValue(header, expectedHeaders[headerIndex++].c_str()));
+    }
 }

@@ -223,7 +223,7 @@ public:
 
     /**
      * Get the metrics
-     * @return
+     * @return A copy of the Metrics
      */
     Metrics getMetrics() const { return mMetrics; }
 

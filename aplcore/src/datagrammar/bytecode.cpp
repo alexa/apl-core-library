@@ -43,7 +43,7 @@ ByteCode::eval() const
                 return cmd.value;
 
             default:
-                CONSOLE_CTP(mContext) << "Unexpected trivial instruction " << cmd.type;
+                CONSOLE(mContext) << "Unexpected trivial instruction " << cmd.type;
                 return Object::NULL_OBJECT();
         }
     }
@@ -54,7 +54,7 @@ ByteCode::eval() const
     if (evaluator.isDone())
         return evaluator.getResult();
 
-    CONSOLE_CTP(mContext) << "Unable to evaluate byte code data";
+    CONSOLE(mContext) << "Unable to evaluate byte code data";
     return Object::NULL_OBJECT();
 }
 
@@ -145,13 +145,13 @@ ByteCode::getContext() const
 void
 ByteCode::dump() const
 {
-    LOG(LogLevel::kDebug) << "Data";
+    LOG(LogLevel::kDebug).session(getContext()) << "Data";
     for (int i = 0; i < mData.size(); i++)
-        LOG(LogLevel::kDebug) << "  [" << i << "] " << mData.at(i).toDebugString();
+        LOG(LogLevel::kDebug).session(getContext()) << "  [" << i << "] " << mData.at(i).toDebugString();
 
-    LOG(LogLevel::kDebug) << "Instructions";
+    LOG(LogLevel::kDebug).session(getContext()) << "Instructions";
     for (int pc = 0; pc < mInstructions.size(); pc++)
-        LOG(LogLevel::kDebug) << instructionAsString(pc);
+        LOG(LogLevel::kDebug).session(getContext()) << instructionAsString(pc);
 }
 
 

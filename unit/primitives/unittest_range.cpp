@@ -15,7 +15,7 @@
 
 #include "gtest/gtest.h"
 
-#include "apl/utils/range.h"
+#include "apl/primitives/range.h"
 
 using namespace apl;
 
@@ -134,4 +134,66 @@ TEST_F(RangeTest, ExtendTowards)
 
     ASSERT_EQ(0, r1.lowerBound());
     ASSERT_EQ(5, r1.upperBound());
+}
+
+TEST_F(RangeTest, Iterator)
+{
+    Range r1{2,4};
+
+    auto it = r1.begin();
+    ASSERT_EQ(2, *it);
+    ASSERT_EQ(2, *it++);
+    ASSERT_EQ(3, *it++);
+    ASSERT_EQ(4, *it++);
+    ASSERT_EQ(r1.end(), it);
+
+    Range r2;
+    ASSERT_EQ(r2.begin(), r2.end());
+}
+
+TEST_F(RangeTest, Serialize)
+{
+    rapidjson::Document doc;
+    Range r1{1,10};
+
+    auto result = r1.serialize(doc.GetAllocator());
+    ASSERT_TRUE(result.IsObject());
+    ASSERT_EQ(1, result["lowerBound"].GetInt());
+    ASSERT_EQ(10, result["upperBound"].GetInt());
+}
+
+TEST_F(RangeTest, Intersect)
+{
+    ASSERT_EQ( Range(5,6), Range(2, 10).intersectWith(Range(5, 6)));
+    ASSERT_EQ( Range(5,10), Range(2, 10).intersectWith(Range(5, 15)));
+    ASSERT_EQ( Range(2,5), Range(2, 10).intersectWith(Range(0, 5)));
+    ASSERT_EQ( Range(2,10), Range(2, 10).intersectWith(Range(0, 15)));
+
+    ASSERT_EQ( Range(), Range().intersectWith(Range()));
+    ASSERT_EQ( Range(), Range(2, 10).intersectWith(Range()));
+    ASSERT_EQ( Range(), Range().intersectWith(Range(-10, 10)));
+    ASSERT_EQ( Range(), Range(2, 10).intersectWith(Range(11, 20)));
+    ASSERT_EQ( Range(), Range(2, 10).intersectWith(Range(-10, 1)));
+}
+
+TEST_F(RangeTest, SubsetBelow)
+{
+    ASSERT_EQ( Range(2,4), Range(2,10).subsetBelow(5));
+    ASSERT_EQ( Range(2,9), Range(2,10).subsetBelow(10));
+    ASSERT_EQ( Range(2,10), Range(2,10).subsetBelow(20));
+    ASSERT_EQ( Range(2,2), Range(2,10).subsetBelow(3));
+    ASSERT_EQ( Range(), Range(2,10).subsetBelow(2));
+
+    ASSERT_EQ( Range(), Range().subsetBelow(2));
+}
+
+TEST_F(RangeTest, SubsetAbove)
+{
+    ASSERT_EQ( Range(6,10), Range(2,10).subsetAbove(5));
+    ASSERT_EQ( Range(), Range(2,10).subsetAbove(10));
+    ASSERT_EQ( Range(2,10), Range(2,10).subsetAbove(1));
+    ASSERT_EQ( Range(10,10), Range(2,10).subsetAbove(9));
+    ASSERT_EQ( Range(3,10), Range(2,10).subsetAbove(2));
+
+    ASSERT_EQ( Range(), Range().subsetAbove(2));
 }

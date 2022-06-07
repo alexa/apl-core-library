@@ -99,7 +99,7 @@ CommandFactory::expandMacro(const ContextPtr& context,
                             const std::string& parentSequencer) {
     assert(definition.IsObject());
 
-    LOG_IF(DEBUG_COMMAND_FACTORY) << "Expanding macro";
+    LOG_IF(DEBUG_COMMAND_FACTORY).session(context) << "Expanding macro";
 
     // Build a new context for this command macro
     ContextPtr cptr = Context::createFromParent(context);
@@ -108,7 +108,7 @@ CommandFactory::expandMacro(const ContextPtr& context,
     // the matching named property that was passed in.
     ParameterArray params(definition);
     for (const auto& param : params) {
-        LOG_IF(DEBUG_COMMAND_FACTORY) << "Parsing parameter: " << param.name;
+        LOG_IF(DEBUG_COMMAND_FACTORY).session(context) << "Parsing parameter: " << param.name;
         properties.addToContext(cptr, param, false);
     }
 
@@ -140,7 +140,7 @@ CommandFactory::inflate(const ContextPtr& context,
 
     auto type = propertyAsString(*context, command, "type");
     if (type.empty()) {
-        CONSOLE_CTP(context) << "No type defined for command";
+        CONSOLE(context) << "No type defined for command";
         return nullptr;
     }
 
@@ -167,7 +167,7 @@ CommandFactory::inflate(const ContextPtr& context,
     if (!resource.empty())
         return expandMacro(context, props, resource.json(), base, parentSequencer);
 
-    CONSOLE_CTP(context) << "Unable to find command '" << type << "'";
+    CONSOLE(context) << "Unable to find command '" << type << "'";
     return nullptr;
 }
 
@@ -176,7 +176,6 @@ CommandFactory::inflate(const ContextPtr& context,
  * @param context The context in which the command should be expanded.
  * @param command The command definition.  Should be a map.
  * @param base The base component in which the command was defined.
- * @param fastMode True if the command is executing in fast mode.
  * @return The inflated command or nullptr if it is invalid.
  */
 CommandPtr

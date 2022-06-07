@@ -24,6 +24,7 @@
 
 
 #include "apl/primitives/object.h"
+#include "apl/utils/stringfunctions.h"
 
 #ifdef APL_CORE_UWP
     #undef TRUE
@@ -53,7 +54,7 @@ template<> struct action< number >
 {
     template< typename Input >
     static void apply(const Input& in, ByteCodeAssembler& assembler) {
-        double value = std::stod(in.string());
+        double value = sutil::stod(in.string());
         if (fitsInBCI(value))
             assembler.loadImmediate(asBCI(value));
         else

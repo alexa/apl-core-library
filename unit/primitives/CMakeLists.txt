@@ -18,7 +18,10 @@ target_sources_local(unittest
         unittest_filters.cpp
         unittest_keyboard.cpp
         unittest_object.cpp
+        unittest_radii.cpp
+        unittest_range.cpp
         unittest_rect.cpp
+        unittest_roundedrect.cpp
         unittest_styledtext.cpp
         unittest_symbols.cpp
         unittest_time_grammar.cpp

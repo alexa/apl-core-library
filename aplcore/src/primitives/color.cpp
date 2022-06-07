@@ -34,7 +34,7 @@ uint32_t Color::parse(const SessionPtr& session, const char *color) {
         return state.getColor();
     }
     catch (pegtl::parse_error e) {
-        CONSOLE_S(session) << "Error parsing color '" << color << "', " << e.what();
+        CONSOLE(session) << "Error parsing color '" << color << "', " << e.what();
     }
 
     return TRANSPARENT;

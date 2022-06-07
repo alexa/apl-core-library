@@ -21,6 +21,7 @@
 
 #include "apl/animation/coreeasing.h"
 #include "apl/utils/log.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -28,6 +29,10 @@ namespace easinggrammar {
 
 namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 using namespace pegtl;
+
+/**
+ * \cond ShowColorGrammar
+ */
 
 /**
  * This grammar assumes that all space characters have been removed.
@@ -93,7 +98,7 @@ template<> struct action<floatnum>
 {
     template< typename Input >
     static void apply(const Input& in, easing_state& state) {
-        state.args.push_back(std::stof(in.string()));
+        state.args.push_back(sutil::stof(in.string()));
     }
 };
 
@@ -309,6 +314,9 @@ template<> struct action< scurve >
         state.segments.emplace_back(EasingSegment(kSCurveSegment, state.startIndex));
     }
 };
-}
+/**
+ * \endcond
+ */
+} // namespace easinggrammar
 } // namespace apl
 #endif //_APL_EASING_GRAMMAR_H

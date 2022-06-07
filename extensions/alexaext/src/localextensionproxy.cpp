@@ -15,6 +15,8 @@
 
 #include "alexaext/localextensionproxy.h"
 
+#include <cstring>
+
 namespace alexaext {
 
 LocalExtensionProxy::LocalExtensionProxy(const ExtensionPtr& extension)
@@ -43,10 +45,11 @@ std::set<std::string> LocalExtensionProxy::getURIs() const
 }
 
 bool
-LocalExtensionProxy::getRegistration(const std::string& uri,
-                                     const rapidjson::Value& registrationRequest,
-                                     RegistrationSuccessCallback success,
-                                     RegistrationFailureCallback error)
+LocalExtensionProxy::getRegistrationInternal(const std::string& uri,
+                                             const rapidjson::Value& registrationRequest,
+                                             RegistrationSuccessCallback&& success,
+                                             RegistrationFailureCallback&& error,
+                                             ProcessRegistrationCallback&& processRegistration)
 {
     int errorCode = kErrorNone;
     std::string errorMsg;
@@ -66,7 +69,7 @@ LocalExtensionProxy::getRegistration(const std::string& uri,
     // request the schema from the extension
     rapidjson::Document registration;
     try {
-        registration = mExtension->createRegistration(uri, registrationRequest);
+        registration = processRegistration(registrationRequest);
     } catch (const std::exception& e) {
         errorCode = kErrorExtensionException;
         errorMsg = e.what();
@@ -109,6 +112,39 @@ LocalExtensionProxy::getRegistration(const std::string& uri,
 }
 
 bool
+LocalExtensionProxy::getRegistration(const std::string& uri,
+                                     const rapidjson::Value& registrationRequest,
+                                     ExtensionProxy::RegistrationSuccessCallback success,
+                                     ExtensionProxy::RegistrationFailureCallback error) {
+    return getRegistrationInternal(uri,
+                                   registrationRequest,
+                                   std::move(success),
+                                   std::move(error),
+                                   [&](const rapidjson::Value &registrationRequest) {
+                                       return mExtension->createRegistration(uri, registrationRequest);
+                                   });
+}
+
+bool
+LocalExtensionProxy::getRegistration(const ActivityDescriptor& activity,
+                                     const rapidjson::Value& registrationRequest,
+                                     RegistrationSuccessActivityCallback&& success,
+                                     RegistrationFailureActivityCallback&& error)
+{
+    return getRegistrationInternal(activity.getURI(),
+                                   registrationRequest,
+                                   [activity, success](const std::string& uri, const rapidjson::Value &registrationSuccess) {
+                                       success(activity, registrationSuccess);
+                                   },
+                                   [activity, error](const std::string& uri, const rapidjson::Value &registrationFailure) {
+                                       error(activity, registrationFailure);
+                                   },
+                                   [&](const rapidjson::Value &registrationRequest) {
+                                        return mExtension->createRegistration(activity, registrationRequest);
+                                   });
+}
+
+bool
 LocalExtensionProxy::initializeExtension(const std::string& uri)
 {
     if (!mExtension && mFactory) {
@@ -119,22 +155,58 @@ LocalExtensionProxy::initializeExtension(const std::string& uri)
     if (!mExtension || mInitialized.count(uri)) return false;
 
     std::weak_ptr<LocalExtensionProxy> weakSelf = shared_from_this();
-    mExtension->registerEventCallback([weakSelf](const std::string& uri, const rapidjson::Value &event) {
-        if (auto self = weakSelf.lock()) {
-            for (const auto &callback : self->mEventCallbacks) {
-                callback(uri, event);
-            }
-        }
-    });
+    mExtension->registerEventCallback(
+            [weakSelf](const alexaext::ActivityDescriptor& activity, const rapidjson::Value &event) {
+                if (auto self = weakSelf.lock()) {
+                    auto it = self->mEventActivityCallbacks.find(activity);
+                    if (it != self->mEventActivityCallbacks.end()) {
+                        for (const auto& callback : *it->second) {
+                            callback(activity, event);
+                        }
+                    } else {
+                        // Fall back to legacy callbacks, but only if we don't have activity
+                        // callbacks. Otherwise, we could end up double reporting events.
+                        for (const auto& callback : self->mEventCallbacks) {
+                            callback(activity.getURI(), event);
+                        }
+                    }
+                }
+            });
+    // For backwards compatibility
+    mExtension->registerEventCallback(
+        [weakSelf](const std::string& uri, const rapidjson::Value &event) {
+          if (auto self = weakSelf.lock()) {
+              for (const auto &callback : self->mEventCallbacks) {
+                  callback(uri, event);
+              }
+          }
+        });
 
     mExtension->registerLiveDataUpdateCallback(
-    [weakSelf](const std::string& uri, const rapidjson::Value &liveDataUpdate) {
-        if (auto self = weakSelf.lock()) {
-            for (const auto &callback : self->mLiveDataCallbacks) {
-                callback(uri, liveDataUpdate);
-            }
-        }
-    });
+            [weakSelf](const alexaext::ActivityDescriptor& activity, const rapidjson::Value &liveDataUpdate) {
+                if (auto self = weakSelf.lock()) {
+                    auto it = self->mLiveDataActivityCallbacks.find(activity);
+                    if (it != self->mLiveDataActivityCallbacks.end()) {
+                        for (const auto& callback : *it->second) {
+                            callback(activity, liveDataUpdate);
+                        }
+                    } else {
+                        // Fall back to legacy callbacks, but only if we don't have activity
+                        // callbacks. Otherwise, we could end up double reporting events.
+                        for (const auto& callback : self->mLiveDataCallbacks) {
+                            callback(activity.getURI(), liveDataUpdate);
+                        }
+                    }
+                }
+            });
+    mExtension->registerLiveDataUpdateCallback(
+        [weakSelf](const std::string& uri, const rapidjson::Value &liveDataUpdate) {
+          if (auto self = weakSelf.lock()) {
+              for (const auto &callback : self->mLiveDataCallbacks) {
+                  callback(uri, liveDataUpdate);
+              }
+          }
+        });
 
     mInitialized.emplace(uri);
 
@@ -148,10 +220,11 @@ LocalExtensionProxy::isInitialized(const std::string& uri) const
 }
 
 bool
-LocalExtensionProxy::invokeCommand(const std::string& uri,
-                                   const rapidjson::Value& command,
-                                   CommandSuccessCallback success,
-                                   CommandFailureCallback error)
+LocalExtensionProxy::invokeCommandInternal(const std::string& uri,
+                                           const rapidjson::Value& command,
+                                           CommandSuccessCallback&& success,
+                                           CommandFailureCallback&& error,
+                                           ProcessCommandCallback&& processCommand)
 {
     // verify the command has an ID
     const rapidjson::Value* commandValue = Command::ID().Get(command);
@@ -185,7 +258,7 @@ LocalExtensionProxy::invokeCommand(const std::string& uri,
     std::string errorMsg;
     bool result = false;
     try {
-        result = mExtension->invokeCommand(uri, command);
+        result = processCommand(command);
     } catch (const std::exception& e) {
         errorCode = kErrorExtensionException;
         errorMsg = e.what();
@@ -222,6 +295,38 @@ LocalExtensionProxy::invokeCommand(const std::string& uri,
     return true;
 }
 
+bool
+LocalExtensionProxy::invokeCommand(const std::string& uri, const rapidjson::Value& command,
+                                   ExtensionProxy::CommandSuccessCallback success,
+                                   ExtensionProxy::CommandFailureCallback error) {
+    return invokeCommandInternal(uri,
+                                 command,
+                                 std::move(success),
+                                 std::move(error),
+                                 [&](const rapidjson::Value& command) {
+                                     return mExtension->invokeCommand(uri, command);
+                                 });
+}
+
+bool
+LocalExtensionProxy::invokeCommand(const ActivityDescriptor& activity,
+                                   const rapidjson::Value& command,
+                                   CommandSuccessActivityCallback&& success,
+                                   CommandFailureActivityCallback&& error)
+{
+    return invokeCommandInternal(activity.getURI(),
+                                 command,
+                                 [activity, success](const std::string& uri, const rapidjson::Value &commandSuccess) {
+                                     success(activity, commandSuccess);
+                                 },
+                                 [activity, error](const std::string& uri, const rapidjson::Value &commandFailure) {
+                                     error(activity, commandFailure);
+                                 },
+                                 [&](const rapidjson::Value& command) {
+                                    return mExtension->invokeCommand(activity, command);
+                                 });
+}
+
 void
 LocalExtensionProxy::registerEventCallback(Extension::EventCallback callback)
 {
@@ -235,15 +340,129 @@ LocalExtensionProxy::registerLiveDataUpdateCallback(Extension::LiveDataUpdateCal
 }
 
 void
-LocalExtensionProxy::onRegistered(const std::string &uri, const std::string &token)
+LocalExtensionProxy::registerEventCallback(const ActivityDescriptor& activity, Extension::EventActivityCallback&& callback)
+{
+    if (!callback) return;
+
+    auto it = mEventActivityCallbacks.find(activity);
+    if (it != mEventActivityCallbacks.end()) {
+        it->second->emplace_back(callback);
+    } else {
+        auto callbacks = std::make_shared<std::vector<Extension::LiveDataUpdateActivityCallback>>();
+        callbacks->emplace_back(callback);
+        mEventActivityCallbacks.emplace(activity, callbacks);
+    }
+}
+
+void
+LocalExtensionProxy::registerLiveDataUpdateCallback(const ActivityDescriptor& activity, Extension::LiveDataUpdateActivityCallback&& callback)
+{
+    if (!callback) return;
+
+    auto it = mLiveDataActivityCallbacks.find(activity);
+    if (it != mLiveDataActivityCallbacks.end()) {
+        it->second->emplace_back(callback);
+    } else {
+        auto callbacks = std::make_shared<std::vector<Extension::LiveDataUpdateActivityCallback>>();
+        callbacks->emplace_back(callback);
+        mLiveDataActivityCallbacks.emplace(activity, callbacks);
+    }
+}
+
+void
+LocalExtensionProxy::onRegistered(const std::string& uri, const std::string& token)
 {
     if (mExtension) mExtension->onRegistered(uri, token);
 }
 
 void
-LocalExtensionProxy::onUnregistered(const std::string &uri, const std::string &token)
+LocalExtensionProxy::onRegistered(const ActivityDescriptor& activity)
+{
+    if (mExtension) mExtension->onActivityRegistered(activity);
+}
+
+void
+LocalExtensionProxy::onUnregistered(const std::string& uri, const std::string& token)
 {
     if (mExtension) mExtension->onUnregistered(uri, token);
+}
+
+void
+LocalExtensionProxy::onUnregistered(const ActivityDescriptor& activity)
+{
+    if (mExtension) {
+        mExtension->onActivityUnregistered(activity);
+    }
+
+    mEventActivityCallbacks.erase(activity);
+    mLiveDataActivityCallbacks.erase(activity);
+}
+
+void
+LocalExtensionProxy::onSessionStarted(const SessionDescriptor& session) {
+    if (mExtension) mExtension->onSessionStarted(session);
+}
+
+void
+LocalExtensionProxy::onSessionEnded(const SessionDescriptor& session) {
+    if (mExtension) mExtension->onSessionEnded(session);
+}
+
+bool
+LocalExtensionProxy::sendComponentMessage(const std::string& uri, const rapidjson::Value& message) {
+    if (!mExtension) return false;
+
+    const auto* method = GetWithDefault("method", message, "");
+    if (std::strcmp(method, "Component") == 0) {
+        return mExtension->updateComponent(uri, message);
+    }
+
+    return false;
+}
+
+bool
+LocalExtensionProxy::sendComponentMessage(const ActivityDescriptor& activity,
+                                 const rapidjson::Value& message) {
+    if (!mExtension) return false;
+
+    const auto* method = GetWithDefault("method", message, "");
+    if (std::strcmp(method, "Component") == 0) {
+        return mExtension->updateComponent(activity, message);
+    }
+
+    return false;
+}
+
+void
+LocalExtensionProxy::onResourceReady(const std::string& uri,
+                                     const ResourceHolderPtr& resourceHolder) {
+    if (mExtension)
+        mExtension->onResourceReady(uri, resourceHolder);
+}
+
+void
+LocalExtensionProxy::onResourceReady(const ActivityDescriptor& activity,
+                                     const ResourceHolderPtr& resourceHolder) {
+    if (mExtension)
+        mExtension->onResourceReady(activity, resourceHolder);
+}
+
+void
+LocalExtensionProxy::onForeground(const ActivityDescriptor& activity) {
+    if (mExtension)
+        mExtension->onForeground(activity);
+}
+
+void
+LocalExtensionProxy::onBackground(const ActivityDescriptor& activity) {
+    if (mExtension)
+        mExtension->onBackground(activity);
+}
+
+void
+LocalExtensionProxy::onHidden(const ActivityDescriptor& activity) {
+    if (mExtension)
+        mExtension->onHidden(activity);
 }
 
 } // namespace alexaext

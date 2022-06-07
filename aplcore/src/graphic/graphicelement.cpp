@@ -100,7 +100,7 @@ GraphicElement::initialize(const GraphicPtr& graphic, const Object& json)
 
                 // If this was a required property, and not in style, abort
                 if ((pd.flags & kPropRequired) != 0 && (value == defValue)) {
-                    CONSOLE_CTP(mContext) << "Missing required graphic property: " << pd.names;
+                    CONSOLE(mContext) << "Missing required graphic property: " << pd.names;
                     return false;
                 }
 
@@ -112,6 +112,23 @@ GraphicElement::initialize(const GraphicPtr& graphic, const Object& json)
     }
 
     return true;
+}
+
+std::string
+GraphicElement::getLang() const {
+    auto graphic = mGraphic.lock();
+    if (!graphic) { return ""; }
+
+    return graphic->getRoot()->getValue(kGraphicPropertyLang).asString();
+}
+
+GraphicLayoutDirection
+GraphicElement::getLayoutDirection() const {
+    auto graphic = mGraphic.lock();
+    if (!graphic) { return kGraphicLayoutDirectionLTR; }
+
+    return static_cast<GraphicLayoutDirection>(
+        graphic->getRoot()->getValue(kGraphicPropertyLayoutDirection).asInt());
 }
 
 bool

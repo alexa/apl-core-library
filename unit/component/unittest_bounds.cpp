@@ -361,8 +361,8 @@ TEST_F(BoundsTest, ChildInParent)
 
     // Sanity test some binding logic
     auto context = Context::createTestContext(Metrics(), makeDefaultSession());
-    ASSERT_EQ(StyledText::create(*context, "3"), sequence->getChildAt(2)->getChildAt(0)->getCalculated(kPropertyText));
-    ASSERT_EQ(StyledText::create(*context, "Turtle"), sequence->getChildAt(2)->getChildAt(1)->getCalculated(kPropertyText));
+    ASSERT_TRUE(IsEqual(StyledText::create(*context, "3"), sequence->getChildAt(2)->getChildAt(0)->getCalculated(kPropertyText)));
+    ASSERT_TRUE(IsEqual(StyledText::create(*context, "Turtle"), sequence->getChildAt(2)->getChildAt(1)->getCalculated(kPropertyText)));
 }
 
 static const char *NESTED_CHILD = R"({

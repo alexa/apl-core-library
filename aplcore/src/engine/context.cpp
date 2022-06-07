@@ -456,7 +456,7 @@ bool Context::userUpdateAndRecalculate(const std::string& key, const Object& val
             if (it->second.set(value))  // If the value changes, recalculate downstream values
                 recalculateDownstream(key, useDirtyFlag);
         } else {
-            CONSOLE_S(mCore->session()) << "Data-binding field '" << key << "' is read-only";
+            CONSOLE(mCore->session()) << "Data-binding field '" << key << "' is read-only";
         }
 
         return true;

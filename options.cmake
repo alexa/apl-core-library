@@ -17,12 +17,17 @@ option(TRACING "Enable tracing." OFF)
 option(COVERAGE "Coverage instrumentation" OFF)
 option(WERROR "Build with -Werror enabled." OFF)
 option(VALIDATE_HEADERS "Validate that only external headers are (transitively) included from apl.h" ON)
+option(VALIDATE_FORBIDDEN_FUNCTIONS "Validate that there are no calls to forbidden functions" ON)
 option(USER_DATA_RELEASE_CALLBACKS "Enable release callbacks in UserData" ON)
 option(BUILD_SHARED "Build as shared library." OFF)
 option(ENABLE_PIC "Build position independent code (i.e. -fPIC)" OFF)
 
 option(USE_SYSTEM_RAPIDJSON "Use the system-provided RapidJSON instead of the bundled one." OFF)
+
 option(USE_SYSTEM_YOGA "Use the system-provided Yoga library instead of the bundled one." OFF)
+option(USE_PROVIDED_YOGA_INLINE "Use the provided yoga and build it directly into the library." OFF)
+# Not listed: YOGA_EXTERNAL_INSTALL_DIR used for an externally provided Yoga library
+
 option(ENABLE_ALEXAEXTENSIONS "Use the Alexa Extensions library." OFF)
 option(BUILD_ALEXAEXTENSIONS "Build Alexa Extensions library as part of the project." OFF)
 
@@ -45,6 +50,28 @@ endif(BUILD_ALEXAEXTENSIONS)
 if(ENABLE_ALEXAEXTENSIONS)
     set(ALEXAEXTENSIONS ON)
 endif(ENABLE_ALEXAEXTENSIONS)
+
+# Building Yoga inline depends on having the FetchContent module
+if(USE_PROVIDED_YOGA_INLINE AND NOT HAS_FETCH_CONTENT)
+    message(FATAL_ERROR "The FetchContent module is needed to build yoga inline")
+endif()
+
+# Clean up Yoga based on settings.  Throw a fatal error if more than one Yoga option is set
+# The default before is to use the provided Yoga.  Start with it off; turn it on if no other option is set
+set(USE_PROVIDED_YOGA_AS_LIB OFF)
+
+if(YOGA_EXTERNAL_INSTALL_DIR)
+    if (USE_SYSTEM_YOGA OR USE_PROVIDED_YOGA_INLINE)
+        message(FATAL_ERROR "An external yoga directory is incompatible with specifying the system or provided yoga")
+    endif()
+elseif(USE_SYSTEM_YOGA)
+    if (USE_PROVIDED_YOGA_INLINE)
+        message(FATAL_ERROR "Using the system yoga is incompatible with using the provided yoga")
+    endif()
+elseif(NOT USE_PROVIDED_YOGA_INLINE)
+    set(USE_PROVIDED_YOGA_AS_LIB ON)
+endif()
+
 
 # Capture the compile-time options to apl_config.h so that headers can be distributed
 configure_file(${APL_CORE_DIR}/aplcore/include/apl/apl_config.h.in aplcore/include/apl/apl_config.h @ONLY)

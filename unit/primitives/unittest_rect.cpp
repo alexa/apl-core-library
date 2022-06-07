@@ -140,11 +140,11 @@ TEST_F(RectTest, EqualityNaN) {
 
 TEST_F(RectTest, Empty) {
     Rect rect(0, 0, 0, 0);
-    ASSERT_TRUE(rect.isEmpty());
+    ASSERT_TRUE(rect.empty());
     rect = Rect(0, 0, NAN, 100);
-    ASSERT_TRUE(rect.isEmpty());
+    ASSERT_TRUE(rect.empty());
     rect = Rect(0, 0, 100, NAN);
-    ASSERT_TRUE(rect.isEmpty());
+    ASSERT_TRUE(rect.empty());
 }
 
 TEST_F(RectTest, Contains) {
@@ -175,7 +175,7 @@ TEST_F(RectTest, DistanceTo) {
 
 TEST_F(RectTest, Serialize) {
     Rect rect(10, 20, 30, 40);
-    ASSERT_FALSE(rect.isEmpty());
+    ASSERT_FALSE(rect.empty());
 
     rapidjson::Document doc;
 
@@ -195,4 +195,28 @@ TEST_F(RectTest, Serialize) {
     ASSERT_EQ(0, serialized[1]);
     ASSERT_EQ(0, serialized[2]);
     ASSERT_EQ(0, serialized[3]);
+}
+
+TEST_F(RectTest, Extend) {
+    // Extending with an empty rect doesn't do anything
+    ASSERT_EQ(Rect(), Rect().extend(Rect()));
+    ASSERT_EQ(Rect(1,2,3,4), Rect().extend(Rect(1,2,3,4)));
+    ASSERT_EQ(Rect(1,2,3,4), Rect(1,2,3,4).extend(Rect()));
+
+    ASSERT_EQ(Rect(0,0,30,40), Rect(0,0,10,10).extend(Rect(20,30,10,10)));
+    ASSERT_EQ(Rect(10,15,15,15), Rect(10,15,10,10).extend(Rect(15,20,10,10)));
+    ASSERT_EQ(Rect(-10,-20,230,300), Rect(-10,-20,100,120).extend(Rect(20,30,200,250)));
+    ASSERT_EQ(Rect(-25,-25,200,200), Rect(25,-25,100,200).extend(Rect(-25,25,200,100)));
+}
+
+TEST_F(RectTest, Inset) {
+    ASSERT_EQ(Rect(3,4,3,4), Rect(2,3,5,6).inset(1));
+    ASSERT_EQ(Rect(0,1,5,6), Rect(1,2,3,4).inset(-1));  // Grow outwards
+
+    ASSERT_EQ(Rect(16,10,8,20), Rect(10,10,20,20).inset(6, 0));
+    ASSERT_EQ(Rect(10,15,20,10), Rect(10,10,20,20).inset(0,5));
+
+    // Test going to zero width/height
+    ASSERT_EQ(Rect(0,0,0,20), Rect(-10, -20, 20, 60).inset(10, 20));
+    ASSERT_EQ(Rect(25,40,0,0), Rect(10,20,30,40).inset(100));
 }

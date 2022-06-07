@@ -351,7 +351,6 @@ public:
      * @param key The string key name
      * @param value The value to store
      * @param path The path data to associate with this key
-     * @return True if the key already exists in this context.
      */
     void putResource(const std::string& key, const Object& value, const Path& path) {
         // Toss away a resource if it already exists (we overwrite it)
@@ -418,13 +417,13 @@ public:
     /**
      * @return The parent of this context or nullptr if there is no parent
      */
-    std::shared_ptr<const Context> parent() const { return mParent; }
+    ConstContextPtr parent() const { return mParent; }
     ContextPtr parent() { return mParent; }
 
     /**
      * @return The top context for data evaluation
      */
-    std::shared_ptr<const Context> top() const { return mTop ? mTop : shared_from_this(); }
+    ConstContextPtr top() const { return mTop ? mTop : shared_from_this(); }
     ContextPtr top() { return mTop ? mTop : shared_from_this(); }
 
     /**
@@ -533,19 +532,31 @@ public:
 
     /**
      * Internal routine used by components to mark themselves as changed.
-     * @param id The id of the component.
+     * @param ptr The component to mark
      */
     void setDirty(const ComponentPtr& ptr);
+
+    /**
+     * Internal routine used by components to mark themselves as no longer dirty
+     * @param ptr The component to unmark
+     */
     void clearDirty(const ComponentPtr& ptr);
 
     /**
-     * Internal routine used by components to mark/unmark/test when the visual context may have changed.
+     * Internal routine used by components to mark when the visual context may have changed.
+     * @param ptr The component to mark
      */
     void setDirtyVisualContext(const ComponentPtr& ptr);
+
+    /**
+     * Internal routine used by components to check the dirty state of the visual context
+     * @param ptr The component to check
+     */
     bool isVisualContextDirty(const ComponentPtr& ptr);
 
     /**
      * Internal routine used by dynamic datasources to mark/unmark/test when the datasource context may have changed.
+     * @param ptr The data source connection to mark
      */
     void setDirtyDataSourceContext(const DataSourceConnectionPtr& ptr);
 

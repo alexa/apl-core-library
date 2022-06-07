@@ -210,7 +210,7 @@ RootConfig::set(const std::string& name, const Object& object)
         auto propertyKey = static_cast<RootProperty>(it->second);
         return set(propertyKey, object);
     } else {
-        LOG(LogLevel::kInfo) << "Unable to find property " << name;
+        LOG(LogLevel::kInfo).session(mSession) << "Unable to find property " << name;
     }
 
     return *this;
@@ -269,7 +269,7 @@ RootConfig::setEnvironmentValue(const std::string& name, const Object& value) {
     if (isAllowedEnvironmentName(name)) {
         mEnvironmentValues[name] = value;
     } else {
-        LOG(LogLevel::kWarn) << "Ignoring attempt to set environment value: " << name;
+        LOG(LogLevel::kWarn).session(mSession) << "Ignoring attempt to set environment value: " << name;
     }
     return *this;
 }

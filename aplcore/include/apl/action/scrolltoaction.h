@@ -40,7 +40,7 @@ public:
      * @param timers Timer reference.
      * @param command Command that spawned this action.
      * @param target Component to scroll to.
-     * @return
+     * @return The scroll to action or null if it is not needed.
      */
     static std::shared_ptr<ScrollToAction> make(const TimersPtr& timers,
                                                 const std::shared_ptr<CoreCommand>& command,
@@ -51,7 +51,7 @@ public:
      * @param command Command that spawned this action.
      * @param subBounds Bounds within the target to scroll to.
      * @param target Component to scroll to.
-     * @return
+     * @return The scroll to action or null if it is not needed.
      */
     static std::shared_ptr<ScrollToAction> make(const TimersPtr& timers,
                                                 const std::shared_ptr<CoreCommand>& command,
@@ -66,7 +66,7 @@ public:
      * @param subBounds Bounds within the target to scroll to.
      * @param context Target context.
      * @param target Component to scroll to.
-     * @return
+     * @return The scroll to action or null if it is not needed.
      */
     static std::shared_ptr<ScrollToAction> make(const TimersPtr& timers,
                                                 const CommandScrollAlign& align,
@@ -79,7 +79,7 @@ public:
      * @param timers Timer reference.
      * @param target Component to scroll to.
      * @param duration scrolling duration.
-     * @return
+     * @return The scroll to action or null if it is not needed.
      */
     static std::shared_ptr<ScrollToAction> makeUsingSnap(const TimersPtr& timers,
                                                          const CoreComponentPtr& target,

@@ -15,9 +15,31 @@
 
 #include "apl/content/rootconfig.h"
 #include "apl/engine/context.h"
+#include "apl/utils/random.h"
 #include "apl/utils/session.h"
 
 namespace apl {
+
+static const size_t LOG_PREFIX_SIZE = 6;
+static const size_t LOG_ID_SIZE = 10;
+
+Session::Session() : mLogId(Random::generateSimpleToken(LOG_ID_SIZE)) {}
+
+void
+Session::setLogIdPrefix(const std::string& prefix) {
+    mLogId = mLogId.substr(mLogId.size() - LOG_ID_SIZE);
+    auto resultPrefix = prefix;
+    if (!resultPrefix.empty()) {
+        resultPrefix.erase(std::remove_if(resultPrefix.begin(), resultPrefix.end(),
+                                             [](unsigned char c) {
+                                                 return !sutil::isupper(c);
+                                             }), resultPrefix.end());
+        if (!resultPrefix.empty()) {
+            resultPrefix.resize(LOG_PREFIX_SIZE, '_');
+            mLogId = resultPrefix + "-" + mLogId;
+        }
+    }
+}
 
 SessionMessage::SessionMessage(const SessionPtr& session, const char *filename, const char *function)
     : mSession(session),
@@ -86,7 +108,7 @@ SessionMessage& SessionMessage::log(const char *format, ...)
 class DefaultSession : public Session {
 public:
     void write(const char *filename, const char *func, const char *value) override {
-        LoggerFactory::instance().getLogger(LogLevel::kWarn, filename, func).log("%s", value);
+        LoggerFactory::instance().getLogger(LogLevel::kWarn, filename, func).session(*this).log("%s", value);
     }
 };
 

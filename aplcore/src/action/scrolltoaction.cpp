@@ -104,7 +104,7 @@ ScrollToAction::make(const TimersPtr& timers,
     auto resultingAlign = align;
 
     if (useSnap) {
-        LOG_IF(DEBUG_SCROLL_TO) << "Ignoring provided align and using component defined snap.";
+        LOG_IF(DEBUG_SCROLL_TO).session(context) << "Ignoring provided align and using component defined snap.";
         auto snapObject = container->getCalculated(kPropertySnap);
         if (!snapObject.isNull()) {
             auto snap = static_cast<Snap>(snapObject.getInteger());
@@ -169,7 +169,7 @@ ScrollToAction::start() {
 void
 ScrollToAction::scrollTo()
 {
-    LOG_IF(DEBUG_SCROLL_TO) << "Constructing scroll to action";
+    LOG_IF(DEBUG_SCROLL_TO).session(mTarget) << "Constructing scroll to action";
 
     // Calculate how far we need to scroll
     Rect childBoundsInParent;
@@ -223,9 +223,9 @@ ScrollToAction::scrollTo()
         afterParentEnd = childEnd - scrollTo < parentEnd;
     }
 
-    LOG_IF(DEBUG_SCROLL_TO) << "parent start=" << parentStart << " end=" << parentEnd;
-    LOG_IF(DEBUG_SCROLL_TO) << "child start=" << childStart << " end=" << childEnd;
-    LOG_IF(DEBUG_SCROLL_TO) << "scrollPosition=" << scrollTo;
+    LOG_IF(DEBUG_SCROLL_TO).session(mTarget) << "parent start=" << parentStart << " end=" << parentEnd;
+    LOG_IF(DEBUG_SCROLL_TO).session(mTarget) << "child start=" << childStart << " end=" << childEnd;
+    LOG_IF(DEBUG_SCROLL_TO).session(mTarget) << "scrollPosition=" << scrollTo;
 
     switch (mAlign) {
         case kCommandScrollAlignFirst:
@@ -251,7 +251,7 @@ ScrollToAction::scrollTo()
     // Calculate the new position by trimming the old position plus the distance
     auto p = mContainer->trimScroll(Point(scrollTo, scrollTo));
 
-    LOG_IF(DEBUG_SCROLL_TO) << "...distance=" << scrollTo << " position=" << p;
+    LOG_IF(DEBUG_SCROLL_TO).session(mTarget) << "...distance=" << scrollTo << " position=" << p;
 
     scroll(vertical, p);
 }
@@ -259,7 +259,7 @@ ScrollToAction::scrollTo()
 void
 ScrollToAction::pageTo()
 {
-    LOG_IF(DEBUG_SCROLL_TO) << mContainer;
+    LOG_IF(DEBUG_SCROLL_TO).session(mContainer) << mContainer;
 
     // We have a target component to show and a pager component that (eventually) holds the target.
     // First, we need to figure out which page the target component is on.  This requires finding
@@ -277,7 +277,7 @@ ScrollToAction::pageTo()
     }
 
     if (targetPage == -1) {
-        LOG(LogLevel::kError) << "Unrecoverable error in pageTo";
+        LOG(LogLevel::kError).session(mTarget) << "Unrecoverable error in pageTo";
         resolve();
         return;
     }

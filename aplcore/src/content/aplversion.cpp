@@ -21,16 +21,17 @@
 namespace apl {
 
 static Bimap<APLVersion::Value, std::string> sVersionMap = {
-        { APLVersion::kAPLVersion10, "1.0" },
-        { APLVersion::kAPLVersion11, "1.1" },
-        { APLVersion::kAPLVersion12, "1.2" },
-        { APLVersion::kAPLVersion13, "1.3" },
-        { APLVersion::kAPLVersion14, "1.4" },
-        { APLVersion::kAPLVersion15, "1.5" },
-        { APLVersion::kAPLVersion16, "1.6" },
-        { APLVersion::kAPLVersion17, "1.7" },
-        { APLVersion::kAPLVersion18, "1.8" },
-        { APLVersion::kAPLVersion19, "1.9" }
+        { APLVersion::kAPLVersion10,  "1.0" },
+        { APLVersion::kAPLVersion11,  "1.1" },
+        { APLVersion::kAPLVersion12,  "1.2" },
+        { APLVersion::kAPLVersion13,  "1.3" },
+        { APLVersion::kAPLVersion14,  "1.4" },
+        { APLVersion::kAPLVersion15,  "1.5" },
+        { APLVersion::kAPLVersion16,  "1.6" },
+        { APLVersion::kAPLVersion17,  "1.7" },
+        { APLVersion::kAPLVersion18,  "1.8" },
+        { APLVersion::kAPLVersion19,  "1.9" },
+        { APLVersion::kAPLVersion20221, "2022.1" },
 };
 
 bool

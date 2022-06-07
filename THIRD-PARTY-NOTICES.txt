@@ -145,7 +145,7 @@ SOFTWARE
 
 ------
 
-** yoga 1.16; version 1.16.0 -- https://yogalayout.com/
+** yoga 1.19; version 1.19.0 -- https://yogalayout.com/
 Copyright (c) Facebook, Inc. and its affiliates.
 
 MIT License

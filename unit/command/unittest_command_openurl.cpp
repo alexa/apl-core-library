@@ -26,7 +26,7 @@ class CommandOpenURLTest : public CommandTest {
 protected:
     void SetUp() override
     {
-        config->allowOpenUrl(true);
+        config->set(RootProperty::kAllowOpenUrl, true);
     }
 };
 
@@ -88,7 +88,7 @@ TEST_F(CommandOpenURLTest, OpenURLFail)
 
 TEST_F(CommandOpenURLTest, OpenURLNotAllowed)
 {
-    config->allowOpenUrl(false);
+    config->set(RootProperty::kAllowOpenUrl, false);
     loadDocument(OPEN_URL);
     performClick(1, 1);
 

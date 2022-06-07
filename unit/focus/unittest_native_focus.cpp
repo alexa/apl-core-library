@@ -107,7 +107,7 @@ public:
         if (boundsResult != ::testing::AssertionSuccess()) {
             return boundsResult;
         }
-        if (!event.getActionRef().isEmpty() && event.getActionRef().isPending()) {
+        if (!event.getActionRef().empty() && event.getActionRef().isPending()) {
             event.getActionRef().resolve(true);
         }
         root->clearPending();
@@ -285,7 +285,7 @@ TEST_F(NativeFocusTest, SimpleGridClear)
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeFocus, event.getType());
     ASSERT_EQ(nullptr, event.getComponent().get());
-    ASSERT_TRUE(event.getActionRef().isEmpty());
+    ASSERT_TRUE(event.getActionRef().empty());
     ASSERT_EQ(nullptr, fm.getFocus());
 }
 
@@ -5962,7 +5962,7 @@ TEST_F(NativeFocusTest, RemoveWhileFocused)
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeFocus, event.getType());
     ASSERT_EQ(event.getComponent(), nullptr);
-    ASSERT_TRUE(event.getActionRef().isEmpty());
+    ASSERT_TRUE(event.getActionRef().empty());
 
     // Releases as component dissapeared. It's up to a viewhost to figure what to do in that case
     ASSERT_EQ(nullptr, fm.getFocus());

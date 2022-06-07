@@ -52,15 +52,15 @@ addResourceBlock(
         const ResourceOperators& resourceOperators)
 {
     if (DEBUG_RESOURCES) {
-        LOG(LogLevel::kDebug) << path;
+        LOG(LogLevel::kDebug).session(context) << path;
         auto description = block.FindMember("description");
         if (description != block.MemberEnd() && description->value.IsString())
-            LOG(LogLevel::kDebug) << "Evaluating resource block: " << description->value.GetString();
+            LOG(LogLevel::kDebug).session(context) << "Evaluating resource block: " << description->value.GetString();
     }
 
     auto when = block.FindMember("when");
     if (when != block.MemberEnd() && !evaluate(context, when->value).asBoolean()) {
-        LOG_IF(DEBUG_RESOURCES) << "...skipping";
+        LOG_IF(DEBUG_RESOURCES).session(context) << "...skipping";
         return;
     }
 
@@ -82,7 +82,7 @@ addResourceBlock(
             auto resourceName = itemIter->name.GetString();
             auto result = conversionFunc(context, evaluate(context, itemIter->value));
             context.putResource(std::string("@")+resourceName, result, memberPath.addObject(resourceName));
-            LOG_IF(DEBUG_RESOURCES) << " @" << resourceName << ": " << result
+            LOG_IF(DEBUG_RESOURCES).session(context) << " @" << resourceName << ": " << result
                 << " [" << memberPath.addObject(resourceName).toString() << "]";
         }
     }
@@ -96,13 +96,13 @@ addOrderedResources(
         const ResourceOperators& resourceOperators)
 {
     if (value.IsArray()) {
-        LOG_IF(DEBUG_RESOURCES) << "addOrderedResources: " << value.GetArray().Size();
+        LOG_IF(DEBUG_RESOURCES).session(context) << "addOrderedResources: " << value.GetArray().Size();
 
         auto arraySize = value.Size();
         for (rapidjson::SizeType i = 0; i < arraySize; i++) {
             const auto &item = value[i];
             if (!item.IsObject()) {
-                LOG_IF(DEBUG_RESOURCES) << "addOrderedResources - item is not an object: " << path << i;
+                LOG_IF(DEBUG_RESOURCES).session(context) << "addOrderedResources - item is not an object: " << path << i;
                 continue;
             }
 

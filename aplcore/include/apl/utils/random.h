@@ -61,6 +61,20 @@ public:
         return ss.str();
     }
 
+    static std::string
+    generateSimpleToken(size_t length = 10)
+    {
+        static auto gen = Random::mt32Generator();
+        static std::uniform_int_distribution<> dis('A', 'Z');
+
+        streamer ss;
+        int i;
+        for (i = 0; i < length; i++) {
+            ss << (char)dis(gen);
+        }
+
+        return ss.str();
+    }
 };
 
 } // namespace apl

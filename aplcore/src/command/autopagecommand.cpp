@@ -33,7 +33,7 @@ AutoPageCommand::propDefSet() const {
 ActionPtr
 AutoPageCommand::execute(const TimersPtr& timers, bool fastMode) {
     if (fastMode) {
-        CONSOLE_CTP(mContext) << "Ignoring AutoPage in fast mode";
+        CONSOLE(mContext) << "Ignoring AutoPage in fast mode";
         return nullptr;
     }
 

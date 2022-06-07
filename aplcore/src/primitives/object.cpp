@@ -13,8 +13,6 @@
  * permissions and limitations under the License.
  */
 
-#include <clocale>
-
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
@@ -34,11 +32,13 @@
 #include "apl/primitives/mediasource.h"
 #include "apl/primitives/object.h"
 #include "apl/primitives/objectdata.h"
+#include "apl/primitives/range.h"
 #include "apl/primitives/rangegenerator.h"
 #include "apl/primitives/slicegenerator.h"
 #include "apl/primitives/transform.h"
 #include "apl/primitives/urlrequest.h"
 #include "apl/utils/log.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -582,6 +582,13 @@ Object::Object(StyledText&& styledText)
     LOG_IF(OBJECT_DEBUG) << "Object StyledText constructor " << this;
 }
 
+Object::Object(Range range)
+    : mType(DirectObjectData<Range>::sType),
+      mU(DirectObjectData<Range>::create(std::move(range)))
+{
+    LOG_IF(OBJECT_DEBUG) << "Object Range constructor " << this;
+}
+
 Object::Object(const GraphicPtr& graphic)
     : mType(kGraphicType),
       mU(std::make_shared<GraphicData>(graphic))
@@ -673,6 +680,7 @@ Object::operator==(const Object& rhs) const
         case kURLRequestType:
         case kTransform2DType:
         case kStyledTextType:
+        case kRangeType:
         case kArrayType:
         case kMapType:
             return *(mU.data.get()) == *(rhs.mU.data.get());
@@ -715,10 +723,11 @@ Object::isJson() const
 }
 
 /**
- * Return an attractively formatted double for display.
- * We drop trailing zeros for decimal numbers.  If the number is an integer or rounds
- * to an integer, we drop the decimal point as well.
+ * Return a formatted double for display. The formatted double follows the APL syntax for
+ * floating-point numbers. Additionally, we drop trailing zeros for decimal numbers.  If the number
+ * is an integer or rounds to an integer, we drop the decimal point as well.
  * Scientific notation numbers are not handled attractively.
+ *
  * @param value The value to format
  * @return A suitable string
  */
@@ -732,13 +741,9 @@ doubleToString(double value)
             return std::to_string(iValue);
     }
 
-    // TODO: Is this cheap enough to run each time?
-    //       If so, we could unit test other languages more easily
-    static char *separator = std::localeconv()->decimal_point;
-
-    auto s = std::to_string(value);
+    auto s = sutil::to_string(value);
     auto it = s.find_last_not_of('0');
-    if (it != s.find(separator))   // Remove a trailing decimal point
+    if (it != s.find(sutil::DECIMAL_POINT))   // Remove a trailing decimal point
         it++;
     s.erase(it, std::string::npos);
     return s;
@@ -776,6 +781,7 @@ Object::asString() const
         case kRadiiType: return "";
         case kURLRequestType: return "";
         case kStyledTextType: return as<StyledText>().asString();
+        case kRangeType: return "";
         case kGraphicType: return "";
         case kGraphicPatternType: return "";
         case kTransformType: return "";
@@ -796,7 +802,7 @@ stringToDouble(const std::string& string)
     try {
         auto len = string.size();
         auto idx = len;
-        double result = std::stod(string, &idx);
+        double result = sutil::stod(string, &idx);
         // Handle percentages.  We skip over whitespace and stop on any other character
         while (idx < len) {
             auto c = string[idx];
@@ -804,7 +810,7 @@ stringToDouble(const std::string& string)
                 result *= 0.01;
                 break;
             }
-            if (!std::isspace(c))
+            if (!sutil::isspace(c))
                 break;
             idx++;
         }
@@ -829,6 +835,12 @@ Object::asNumber() const
         default:
             return std::numeric_limits<double>::quiet_NaN();
     }
+}
+
+float
+Object::asFloat() const
+{
+    return static_cast<float>(asNumber());
 }
 
 int
@@ -1108,6 +1120,11 @@ Object::getStyledText() const {
     return as<StyledText>();
 }
 
+const Range&
+Object::getRange() const {
+    return as<Range>();
+}
+
 std::shared_ptr<Transformation>
 Object::getTransformation() const {
     assert(mType == kTransformType); return mU.data->getTransform();
@@ -1164,6 +1181,7 @@ Object::truthy() const
         case kTransform2DType:
         case kURLRequestType:
         case kStyledTextType:
+        case kRangeType:
         case kGraphicPatternType:
             return mU.data->truthy();
 
@@ -1486,6 +1504,7 @@ Object::serialize(rapidjson::Document::AllocatorType& allocator) const
         case kEasingType:
         case kTransform2DType:
         case kStyledTextType:
+        case kRangeType:
         case kGraphicPatternType:
             return mU.data->serialize(allocator);
         case kGraphicType:
@@ -1531,7 +1550,7 @@ Object::toDebugString() const
         case Object::kBoolType:
             return (mU.value ? "true" : "false");
         case Object::kNumberType:
-            return std::to_string(mU.value);
+            return sutil::to_string(mU.value);
         case Object::kStringType:
             return "'" + mU.string + "'";
         case Object::kMapType:
@@ -1540,9 +1559,9 @@ Object::toDebugString() const
         case Object::kFunctionType:
             return mU.data->toDebugString();
         case Object::kAbsoluteDimensionType:
-            return "AbsDim<" + std::to_string(mU.value) + ">";
+            return "AbsDim<" + sutil::to_string(mU.value) + ">";
         case Object::kRelativeDimensionType:
-            return "RelDim<" + std::to_string(mU.value) + ">";
+            return "RelDim<" + sutil::to_string(mU.value) + ">";
         case Object::kAutoDimensionType:
             return "AutoDim";
         case Object::kColorType:
@@ -1555,6 +1574,7 @@ Object::toDebugString() const
         case Object::kRadiiType:
         case Object::kURLRequestType:
         case Object::kStyledTextType:
+        case Object::kRangeType:
         case Object::kGraphicType:
         case Object::kGraphicPatternType:
         case Object::kTransformType:

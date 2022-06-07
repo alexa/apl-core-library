@@ -15,6 +15,7 @@
 
 #include <algorithm>
 
+#include "apl/buildTimeConstants.h"
 #include "apl/engine/arrayify.h"
 #include "apl/engine/parameterarray.h"
 #include "apl/content/package.h"
@@ -46,7 +47,7 @@ Content::create(JsonData&& document) {
 ContentPtr
 Content::create(JsonData&& document, const SessionPtr& session) {
     if (!document) {
-        CONSOLE_S(session).log("Document parse error offset=%u: %s.", document.offset(), document.error());
+        CONSOLE(session).log("Document parse error offset=%u: %s.", document.offset(), document.error());
         return nullptr;
     }
 
@@ -57,7 +58,7 @@ Content::create(JsonData&& document, const SessionPtr& session) {
     const rapidjson::Value& json = ptr->json();
     auto it = json.FindMember(DOCUMENT_MAIN_TEMPLATE);
     if (it == json.MemberEnd()) {
-        CONSOLE_S(session) << "Document does not contain a mainTemplate property";
+        CONSOLE(session) << "Document does not contain a mainTemplate property";
         return nullptr;
     }
 
@@ -72,6 +73,11 @@ Content::Content(SessionPtr session,
           mState(LOADING),
           mMainTemplate(mainTemplate)
 {
+    // First chance where we can extract settings. Set up the session.
+    auto diagnosticLabel = getDocumentSettings()->getValue("-diagnosticLabel").asString();
+    mSession->setLogIdPrefix(diagnosticLabel);
+    LOG(LogLevel::kInfo).session(mSession) << "Initializing experience using " << std::string(sCoreRepositoryVersion);
+
     addImportList(*mMainPackage);
     addExtensions(*mMainPackage);
 
@@ -124,7 +130,7 @@ Content::addPackage(const ImportRequest& request, JsonData&& raw) {
 
     // If the package data is invalid, set the error state
     if (!raw) {
-        CONSOLE_S(mSession).log("Package %s (%s) parse error offset=%u: %s",
+        CONSOLE(mSession).log("Package %s (%s) parse error offset=%u: %s",
                                 request.reference().name().c_str(),
                                 request.reference().version().c_str(),
                                 raw.offset(), raw.error());
@@ -134,7 +140,7 @@ Content::addPackage(const ImportRequest& request, JsonData&& raw) {
 
     // We expect packages to be objects, erase from the requested set
     if (!raw.get().IsObject()) {
-        CONSOLE_S(mSession).log("Package %s (%s) is not a JSON object",
+        CONSOLE(mSession).log("Package %s (%s) is not a JSON object",
                                 request.reference().name().c_str(),
                                 request.reference().version().c_str());
         mState = ERROR;
@@ -158,9 +164,8 @@ Content::addPackage(const ImportRequest& request, JsonData&& raw) {
     // Insert into the mLoaded list.  Note that json has been moved
     auto ptr = Package::create(mSession, request.reference().toString(), std::move(raw));
     if (!ptr) {
-        LOGF(LogLevel::kError, "Package %s (%s) could not be moved to the loaded list.",
-             request.reference().name().c_str(),
-             request.reference().version().c_str());
+        LOG(LogLevel::kError).session(mSession) << "Package " << request.reference().name()
+            << " (" << request.reference().version() << ") could not be moved to the loaded list.";
         mState = ERROR;
         return;
     }
@@ -177,14 +182,14 @@ void Content::addData(const std::string& name, JsonData&& raw) {
         return;
 
     if (!mPendingParameters.erase(name)) {
-        CONSOLE_S(mSession).log("Data parameter '%s' does not exist or is already assigned",
+        CONSOLE(mSession).log("Data parameter '%s' does not exist or is already assigned",
                                 name.c_str());
         return;
     }
 
     // If the data is invalid, set the error state
     if (!raw) {
-        CONSOLE_S(mSession).log("Data '%s' parse error offset=%u: %s",
+        CONSOLE(mSession).log("Data '%s' parse error offset=%u: %s",
                                 name.c_str(), raw.offset(), raw.error());
         mState = ERROR;
         return;
@@ -204,9 +209,9 @@ Content::getMainProperties(Properties& out) const {
         out.emplace(m.name, mParameterValues.at(m.name).get());
 
     if (DEBUG_CONTENT) {
-        LOG(LogLevel::kDebug) << "Main Properties:";
+        LOG(LogLevel::kDebug).session(mSession) << "Main Properties:";
         for (const auto& m : out)
-            LOG(LogLevel::kDebug) << " " << m.first << ": " << m.second.toDebugString();
+            LOG(LogLevel::kDebug).session(mSession) << " " << m.first << ": " << m.second.toDebugString();
     }
 
     return true;
@@ -214,14 +219,14 @@ Content::getMainProperties(Properties& out) const {
 
 void
 Content::addImportList(Package& package) {
-    LOG_IF(DEBUG_CONTENT) << "addImportList " << &package;
+    LOG_IF(DEBUG_CONTENT).session(mSession) << "addImportList " << &package;
 
     const rapidjson::Value& value = package.json();
 
     auto it = value.FindMember(DOCUMENT_IMPORT);
     if (it != value.MemberEnd()) {
         if (!it->value.IsArray()) {
-            CONSOLE_S(mSession).log("%s: Document import property should be an array", package.name().c_str());
+            CONSOLE(mSession).log("%s: Document import property should be an array", package.name().c_str());
             mState = ERROR;
             return;
         }
@@ -232,17 +237,17 @@ Content::addImportList(Package& package) {
 
 void
 Content::addImport(Package& package, const rapidjson::Value& value) {
-    LOG_IF(DEBUG_CONTENT) << "addImport " << &package;
+    LOG_IF(DEBUG_CONTENT).session(mSession) << "addImport " << &package;
 
     if (!value.IsObject()) {
-        CONSOLE_S(mSession).log("Invalid import record in document");
+        CONSOLE(mSession).log("Invalid import record in document");
         mState = ERROR;
         return;
     }
 
     ImportRequest request(value);
     if (!request.isValid()) {
-        CONSOLE_S(mSession).log("Malformed import record");
+        CONSOLE(mSession).log("Malformed import record");
         mState = ERROR;
         return;
     }
@@ -277,7 +282,7 @@ Content::addExtensions(Package& package) {
 
         // The properties are required
         if (uri.empty() || name.empty()) {
-            CONSOLE_S(mSession).log("Illegal extension request in package '%s'", package.name().c_str());
+            CONSOLE(mSession).log("Illegal extension request in package '%s'", package.name().c_str());
             continue;
         }
 
@@ -287,7 +292,7 @@ Content::addExtensions(Package& package) {
             if (eit->second == uri)  // The same NAME->URI mapping is ignored
                 continue;
 
-            CONSOLE_S(mSession).log("The extension name='%s' is referencing different URI values", name.c_str());
+            CONSOLE(mSession).log("The extension name='%s' is referencing different URI values", name.c_str());
             mState = ERROR;
             return;
         } else {
@@ -349,7 +354,7 @@ Content::loadExtensionSettings() {
                     continue; // no Settings in this package
                 settings = std::make_shared<Settings>(Settings(settingsValue));
                 sMap.emplace(pkg->name(), settings);
-                LOG_IF(DEBUG_CONTENT) << "created settings for pkg: " << pkg->name();
+                LOG_IF(DEBUG_CONTENT).session(mSession) << "created settings for pkg: " << pkg->name();
             } else {
                 settings = sItr->second;
             }
@@ -362,7 +367,7 @@ Content::loadExtensionSettings() {
             // override / augment existing settings
             for (auto v: val.getMap())
                 (*esMap)[v.first] = v.second;
-            LOG_IF(DEBUG_CONTENT) << "extension:" << name << " pkg:" << pkg << " inserting: " << val;
+            LOG_IF(DEBUG_CONTENT).session(mSession) << "extension:" << name << " pkg:" << pkg << " inserting: " << val;
         }
 
     }
@@ -373,7 +378,7 @@ Content::loadExtensionSettings() {
     for (auto tm : tmpMap) {
         auto obj = (!tm.second->empty()) ? Object(tm.second) : Object::NULL_OBJECT();
         mExtensionSettings->emplace(tm.first, obj);
-        LOG_IF(DEBUG_CONTENT) << "extension result: " << obj.toDebugString();
+        LOG_IF(DEBUG_CONTENT).session(mSession) << "extension result: " << obj.toDebugString();
     }
 }
 
@@ -428,7 +433,7 @@ Content::getEnvironment(const RootConfig& config) const
         auto s = ldIter->value.GetString();
         auto ld = static_cast<LayoutDirection>(sLayoutDirectionMap.get(s, -1));
         if (ld == static_cast<LayoutDirection>(-1)) {
-            CONSOLE_S(mSession)
+            CONSOLE(mSession)
                 << "Document 'layoutDirection' property is invalid.  Falling back to system defaults";
         }
         else if (ld != kLayoutDirectionInherit) {
@@ -477,7 +482,7 @@ Content::getExtensionRequests() const {
 Object
 Content::getExtensionSettings(const std::string& uri) {
     if (!isReady()) {
-        CONSOLE_S(mSession).log("Settings for extension name='%s' cannot be returned.  The document is not Ready.",
+        CONSOLE(mSession).log("Settings for extension name='%s' cannot be returned.  The document is not Ready.",
                                 uri.c_str());
         return Object::NULL_OBJECT();
     }
@@ -488,7 +493,7 @@ Content::getExtensionSettings(const std::string& uri) {
 
     const std::map<std::string, Object>::const_iterator& es = mExtensionSettings->find(uri);
     if (es != mExtensionSettings->end()) {
-        LOG_IF(DEBUG_CONTENT) << "getExtensionSettings " << uri << ":" << es->second.toDebugString()
+        LOG_IF(DEBUG_CONTENT).session(mSession) << "getExtensionSettings " << uri << ":" << es->second.toDebugString()
                               << " mapaddr:" << &es->second;
         return es->second;
     }
@@ -504,7 +509,7 @@ Content::orderDependencyList() {
     std::set<PackagePtr> inProgress;
     bool isOrdered = addToDependencyList(mOrderedDependencies, inProgress, mMainPackage);
     if (!isOrdered)
-        CONSOLE_S(mSession).log("Failure to order packages");
+        CONSOLE(mSession).log("Failure to order packages");
     return isOrdered;
 }
 
@@ -516,19 +521,19 @@ bool
 Content::addToDependencyList(std::vector<PackagePtr>& ordered,
                              std::set<PackagePtr>& inProgress,
                              const PackagePtr& package) {
-    LOG_IF(DEBUG_CONTENT) << "addToDependencyList " << package << " dependency count="
+    LOG_IF(DEBUG_CONTENT).session(mSession) << "addToDependencyList " << package << " dependency count="
                           << package->getDependencies().size();
 
     inProgress.insert(package);  // For dependency loop detection
 
     // Start with the package dependencies
     for (const auto& ref : package->getDependencies()) {
-        LOG_IF(DEBUG_CONTENT) << "checking child " << ref.toString();
+        LOG_IF(DEBUG_CONTENT).session(mSession) << "checking child " << ref.toString();
 
         // Convert the reference into a loaded PackagePtr
         const auto& pkg = mLoaded.find(ref);
         if (pkg == mLoaded.end()) {
-            LOGF(LogLevel::kError, "Missing package '%s' in the loaded set", ref.name().c_str());
+            LOG(LogLevel::kError).session(mSession) << "Missing package '" << ref.name() << "' in the loaded set";
             return false;
         }
 
@@ -537,23 +542,23 @@ Content::addToDependencyList(std::vector<PackagePtr>& ordered,
         // Check if it is already in the dependency list (someone else included it first)
         auto it = std::find(ordered.begin(), ordered.end(), child);
         if (it != ordered.end()) {
-            LOG_IF(DEBUG_CONTENT) << "child package " << ref.toString() << " already in dependency list";
+            LOG_IF(DEBUG_CONTENT).session(mSession) << "child package " << ref.toString() << " already in dependency list";
             continue;
         }
 
         // Check for a circular dependency
         if (inProgress.count(child)) {
-            CONSOLE_S(mSession).log("Circular package dependency '%s'", ref.name().c_str());
+            CONSOLE(mSession).log("Circular package dependency '%s'", ref.name().c_str());
             return false;
         }
 
         if (!addToDependencyList(ordered, inProgress, child)) {
-            LOG_IF(DEBUG_CONTENT) << "returning false with child package " << child->name();
+            LOG_IF(DEBUG_CONTENT).session(mSession) << "returning false with child package " << child->name();
             return false;
         }
     }
 
-    LOG_IF(DEBUG_CONTENT) << "Pushing package " << package << " onto ordered list";
+    LOG_IF(DEBUG_CONTENT).session(mSession) << "Pushing package " << package << " onto ordered list";
     ordered.push_back(package);
     inProgress.erase(package);
     return true;

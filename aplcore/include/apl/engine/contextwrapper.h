@@ -32,17 +32,17 @@ namespace apl {
  */
 class ContextWrapper : public ObjectData {
 public:
-    static std::shared_ptr<ContextWrapper> create(const std::shared_ptr<const Context>& context) {
+    static std::shared_ptr<ContextWrapper> create(const ConstContextPtr& context) {
         return std::make_shared<ContextWrapper>(context);
     }
 
-    ContextWrapper(const std::shared_ptr<const Context> &context) : mContext(context) {}
+    ContextWrapper(const ConstContextPtr& context) : mContext(context) {}
 
     std::string toDebugString() const override {
         return "Context<>";
     }
 
-    Object get(const std::string &key) const override {
+    Object get(const std::string& key) const override {
         auto context = mContext.lock();
         if (context)
             return context->opt(key);
@@ -50,7 +50,7 @@ public:
         return Object::NULL_OBJECT();
     }
 
-    bool has(const std::string &key) const override {
+    bool has(const std::string& key) const override {
         auto context = mContext.lock();
         if (context)
             return context->has(key);
@@ -58,7 +58,7 @@ public:
         return false;
     }
 
-    Object opt(const std::string &key, const Object &def) const override {
+    Object opt(const std::string& key, const Object& def) const override {
         auto context = mContext.lock();
         if (context) {
             auto cr = context->find(key);
@@ -79,12 +79,12 @@ public:
 
     bool empty() const override { return mContext.expired(); }
 
-    bool operator==(const ContextWrapper &rhs) const {
+    bool operator==(const ContextWrapper& rhs) const {
         return !mContext.owner_before(rhs.mContext) && !rhs.mContext.owner_before(mContext);
     }
 
     // Context wrappers intentionally return an empty object
-    rapidjson::Value serialize(rapidjson::Document::AllocatorType &allocator) const override {
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override {
         return rapidjson::Value(rapidjson::kObjectType);
     }
 

@@ -16,15 +16,15 @@
 #include <string>
 
 #include "apl/utils/url.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
 // See https://tools.ietf.org/html/rfc3986#section-2.3
 bool
-isUsableRaw(unsigned char c) {
-    return std::isalnum(c) || c == '-' || c == '.' || c == '_' || c == '~';
+isUsableRaw(char c) {
+    return sutil::isalnum(c) || c == '-' || c == '.' || c == '_' || c == '~';
 }
-
 
 std::string
 encodeUrl(const std::string& url) {
@@ -32,7 +32,7 @@ encodeUrl(const std::string& url) {
     encodedUrl.reserve(url.length() * 3);
     char hexChar[4]; // "%20" type escapes are 4 characters with null termination
     for (char c : url) {
-        if (isUsableRaw(static_cast<unsigned char>(c))) {
+        if (isUsableRaw(c)) {
             encodedUrl.append(1, c);
         } else {
             // format string decoding: %% -> '%'

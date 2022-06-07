@@ -23,6 +23,7 @@
 #include "apl/primitives/object.h"
 #include "apl/content/rootconfig.h"
 #include "apl/content/package.h"
+#include "apl/utils/deprecated.h"
 
 namespace apl {
 
@@ -59,7 +60,7 @@ public:
      * @return  Recommended time in milliseconds that the document should be kept on the screen
      * before closing due to inactivity.
      */
-    int idleTimeout() const {
+    APL_DEPRECATED int idleTimeout() const {
         Object value = getValue("idleTimeout");
         if (value.isNumber()) {
             auto idle =  value.getInteger();

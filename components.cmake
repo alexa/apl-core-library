@@ -114,10 +114,24 @@ if (BUILD_TEST_PROGRAMS)
     add_subdirectory(test)
 endif (BUILD_TEST_PROGRAMS)
 
+if (VALIDATE_HEADERS OR VALIDATE_FORBIDDEN_FUNCTIONS)
+    add_custom_target(validation ALL)
+endif ()
+
 if (VALIDATE_HEADERS)
     add_custom_command(OUTPUT include_validation
             COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/bin/apl-header-inclusion-validation.sh
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/)
-    add_custom_target(validation ALL
-            DEPENDS include_validation)
+    add_custom_target(target_validate_includes ALL DEPENDS include_validation)
+    add_dependencies(validation target_validate_includes)
 endif (VALIDATE_HEADERS)
+
+if (VALIDATE_FORBIDDEN_FUNCTIONS)
+    add_custom_command(OUTPUT forbidden_function_validation
+            COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/bin/find-forbidden-functions
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/)
+    add_custom_target(target_validate_forbidden_functions ALL DEPENDS forbidden_function_validation)
+    add_dependencies(validation target_validate_forbidden_functions)
+endif (VALIDATE_FORBIDDEN_FUNCTIONS)
+
+

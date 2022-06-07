@@ -575,6 +575,7 @@ TEST_F(VisualContextTest, HorizontalSequence) {
 
 TEST_F(VisualContextTest, RevertedSequence) {
     loadDocument(SEQUENCE, DATA);
+    advanceTime(10);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
     // Check parent
@@ -641,10 +642,12 @@ TEST_F(VisualContextTest, RevertedSequence) {
     ASSERT_EQ(2, c3t["listItem"]["index"]);
 
     component->update(kUpdateScrollPosition, 100);
+    advanceTime(10);
     root->clearPending();
 
     // Roll back.
     component->update(kUpdateScrollPosition, 0);
+    advanceTime(10);
     root->clearPending();
 
     ASSERT_TRUE(CheckDirtyVisualContext(root, component));
@@ -1316,7 +1319,7 @@ TEST_F(VisualContextTest, Media) {
     auto video = component->getChildAt(0);
     ASSERT_EQ(kComponentTypeVideo, video->getType());
 
-    video->updateMediaState(MediaState(1, 2, 1000, 38000, true, false));
+    video->updateMediaState(MediaState(1, 2, 1000, 38000, true, false, false));
     ASSERT_TRUE(CheckDirtyVisualContext(root, video));
     serializeVisualContext();
     ASSERT_FALSE(CheckDirtyVisualContext(root, video));

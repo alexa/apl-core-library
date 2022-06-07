@@ -86,7 +86,8 @@ public:
 
     /**
      * Basic constructor.  Use the create(JsonData&&) function instead.
-     * @param directive
+     * @param session The APL session
+     * @param directive The JsonData of the directive to parse
      */
     Directive(const SessionPtr& session, JsonData&& directive);
 

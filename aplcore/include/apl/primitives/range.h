@@ -16,6 +16,11 @@
 #ifndef _APL_RANGE_H
 #define _APL_RANGE_H
 
+#include <algorithm>
+#include <iterator>
+#include <string>
+#include <rapidjson/document.h>
+
 namespace apl {
 
 /**
@@ -37,14 +42,23 @@ public:
         assert(mLowerBound <= mUpperBound);
     }
 
-    bool operator==(const Range& rhs) const {
-        return mLowerBound == rhs.mLowerBound && mUpperBound == rhs.mUpperBound;
+    friend bool operator==(const Range& lhs, const Range& rhs) {
+        return lhs.mLowerBound == rhs.mLowerBound && lhs.mUpperBound == rhs.mUpperBound;
+    }
+
+    friend bool operator!=(const Range& lhs, const Range& rhs) {
+        return lhs.mLowerBound != rhs.mLowerBound || lhs.mUpperBound != rhs.mUpperBound;
     }
 
     /**
      * @return true if empty, false otherwise.
      */
     bool empty() const { return mUpperBound < mLowerBound; }
+
+    /**
+     * @return true if there is at least one item in this range
+     */
+    bool truthy() const { return !empty(); }
 
     /**
      * @return number of elements contained in the range.
@@ -209,6 +223,75 @@ public:
         else
             return to;
     }
+
+    /**
+     * Calculate the intersection of two ranges
+     * @param other The other range
+     * @return The range that is contained in each of the other ranges
+     */
+    Range intersectWith(const Range& other) const {
+        if (empty() || other.empty() || mLowerBound > other.mUpperBound || mUpperBound < other.mLowerBound)
+            return {};
+
+        return Range{ std::max(mLowerBound, other.mLowerBound),
+                      std::min(mUpperBound, other.mUpperBound) };
+    }
+
+    /**
+     * Calculate what part of this range is strictly below a value
+     * @param value The value
+     * @return The range that is strictly below the value
+     */
+    Range subsetBelow(int value) const {
+        if (empty() || mLowerBound >= value)
+            return {};
+
+        return { mLowerBound, std::min(mUpperBound, value - 1) };
+    }
+
+    /**
+     * Calculate the part of this range that is strictly above a value.
+     * @param value The value
+     * @return The subset of this range strictly above the value
+     */
+    Range subsetAbove(int value) const {
+        if (empty() || mUpperBound <= value)
+            return {};
+        return { std::max(mLowerBound, value + 1), mUpperBound };
+    }
+
+    /*
+     * Construct an iterator.  Ranges can't be modified once constructed, so we don't need
+     * to write a complicated iterator.
+     */
+    class iterator {
+    public:
+        using iterator_category = std::input_iterator_tag;
+        using difference_type = int;
+        using value_type = int;
+        using pointer = value_type*;
+        using reference = value_type&;
+
+        explicit iterator(int value) : mValue(value) {}
+
+        int operator*() const { return mValue; }
+
+        iterator& operator++() { mValue++; return *this; }
+        iterator operator++(int) { iterator result = *this; mValue++; return result; }
+
+        friend bool operator==(const iterator& lhs, const iterator& rhs) { return lhs.mValue == rhs.mValue; }
+        friend bool operator!=(const iterator& lhs, const iterator& rhs) { return lhs.mValue != rhs.mValue; }
+
+    private:
+        int mValue;
+    };
+
+    iterator begin() const { return iterator(mLowerBound); }
+    iterator end() const { return iterator(mUpperBound + 1); }
+
+    std::string toDebugString() const;
+
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
 private:
     int mLowerBound;

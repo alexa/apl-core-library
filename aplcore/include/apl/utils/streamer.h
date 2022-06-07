@@ -21,6 +21,8 @@
 #include <string>
 #include <vector>
 
+#include "apl/utils/stringfunctions.h"
+
 namespace apl {
 class streamer {
 public:
@@ -116,17 +118,17 @@ public:
     }
 
     streamer& operator<<(float __f) {
-        mString += std::to_string(__f);
+        mString += sutil::to_string(__f);
         return *this;
     }
 
     streamer& operator<<(double __f) {
-        mString += std::to_string(__f);
+        mString += sutil::to_string(__f);
         return *this;
     }
 
     streamer& operator<<(long double __f) {
-        mString += std::to_string(__f);
+        mString += sutil::to_string(__f);
         return *this;
     }
 

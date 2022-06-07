@@ -281,7 +281,11 @@ public:
         auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch());
 
-        auto rootConfig = apl::RootConfig().agent("APL", "1.3").utcTime(now.count());
+        auto rootConfig = apl::RootConfig()
+                .set({
+                    {apl::RootProperty::kAgentName, "APL"},
+                    {apl::RootProperty::kAgentVersion, "1.3"}})
+                .set(apl::RootProperty::kUTCTime, now.count());
         auto context = apl::Context::createTestContext(metrics(), rootConfig);
         for (const auto& m : mVariables)
             context->putUserWriteable(m.first, m.second);

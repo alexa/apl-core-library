@@ -97,7 +97,7 @@ LiveArrayObject::flush() {
  * Return the index of the old item and a flag if that item has changed value.
  * The index is -1 if the item is completely new.
  * @param index The index in the new array.
- * @return
+ * @return A pair containing the index of the old item and a boolean "true" if the item has changed value.
  */
 std::pair<int, bool>
 LiveArrayObject::newToOld(ObjectArray::size_type index)

@@ -66,7 +66,7 @@ public:
 
     /**
      * Create a LiveMap with an initial Object
-     * @param object The initial Object
+     * @param map The initial object map
      * @return The LiveMap
      */
     static LiveMapPtr create(ObjectMap&& map) {
@@ -75,7 +75,7 @@ public:
 
     /**
      * Default constructor. Do not call this; use the create() method.
-     * @param object
+     * @param map The initial object map
      */
     explicit LiveMap(ObjectMap&& map) : mMap(std::move(map)) {}
 

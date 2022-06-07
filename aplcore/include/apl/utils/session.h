@@ -35,6 +35,7 @@ namespace apl {
  */
 class Session {
 public:
+    Session();
     virtual ~Session() = default;
 
     /**
@@ -53,18 +54,35 @@ public:
      * Write a string in the session log, including the filename and function where
      * the log was generated.  This is a convenience method for std::string
      *
-     * @param filename
-     * @param func
-     * @param value
+     * @param filename The filename where the log entry was generated.
+     * @param func The function mame where the log entry was generated.
+     * @param value The message to write
      */
     void write(const char *filename, const char *func, const std::string& value) {
         write(filename, func, value.c_str());
     }
+
+    /**
+     * Set log prefix to be used.
+     * @param prefix [A-Z], truncated to 6 characters. Padded with '_'
+     */
+    void setLogIdPrefix(const std::string& prefix);
+
+    /**
+     * @return Generated Log ID.
+     */
+    std::string getLogId() const {
+        return mLogId;
+    }
+
+private:
+    std::string mLogId;
 };
 
 /**
- * Construct a default session which passes console messages to the log
- * @return
+ * Construct a default session which passes console messages to the log.  The default session
+ * writes session messages to the log as warnings.
+ * @return A default session pointer.
  */
 extern SessionPtr makeDefaultSession();
 
@@ -123,17 +141,7 @@ private:
     streamer mStringStream;
 };
 
-/// Report content errors using a session object
-#define CONSOLE_S(SESSION)   SessionMessage(SESSION,__FILENAME__,__func__)
-
-/// Report content errors using a context object pointer (which contains a session)
-#define CONSOLE_CTP(CONTEXT_PTR) SessionMessage(CONTEXT_PTR,__FILENAME__,__func__)
-
-/// Report content errors using a context object (which contains a session)
-#define CONSOLE_CTX(CONTEXT) SessionMessage(CONTEXT,__FILENAME__,__func__)
-
-/// Report content errors using a config object pointer (which contains a session)
-#define CONSOLE_CFGP(CONFIG_PTR) SessionMessage(CONFIG_PTR,__FILENAME__,__func__)
+#define CONSOLE(SESSION_HODER) SessionMessage(SESSION_HODER,__FILENAME__,__func__)
 
 } // namespace apl
 

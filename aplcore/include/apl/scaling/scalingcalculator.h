@@ -48,8 +48,8 @@ public:
 
     /**
      * Calculates the scale factor at the given size
-     * @param size
-     * @return The scale
+     * @param size The size
+     * @return The scale factor
      */
     double scaleFactor(const Size& size) { return scaleFactor(size.w, size.h); }
     double scaleFactor(double w, double h) {

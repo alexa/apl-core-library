@@ -78,7 +78,7 @@ Builder::populateSingleChildLayout(const ContextPtr& context,
                                    bool fullBuild,
                                    bool useDirtyFlag)
 {
-    LOG_IF(DEBUG_BUILDER) << "call";
+    LOG_IF(DEBUG_BUILDER).session(context) << "call";
     APL_TRACE_BLOCK("Builder:populateSingleChildLayout");
     auto child = expandSingleComponentFromArray(context,
                                                 arrayifyProperty(*context, item, "item", "items"),
@@ -98,7 +98,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                                  bool fullBuild,
                                  bool useDirtyFlag)
 {
-    LOG_IF(DEBUG_BUILDER) << path;
+    LOG_IF(DEBUG_BUILDER).session(context) << path;
     APL_TRACE_BLOCK("Builder:populateLayoutComponent");
 
     auto child = expandSingleComponentFromArray(context,
@@ -133,7 +133,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
         else {
             auto dataItems = evaluateRecursive(*context, data);
             if (!dataItems.empty()) {
-                LOG_IF(DEBUG_BUILDER) << "data size=" << dataItems.size();
+                LOG_IF(DEBUG_BUILDER).session(context) << "data size=" << dataItems.size();
 
                 // Transform data into LiveData and use rebuilder to have more control over its content.
                 auto rawArray = ObjectArray();
@@ -149,7 +149,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                 layoutBuilder->build(useDirtyFlag);
             }
             else {
-                LOG_IF(DEBUG_BUILDER) << "items size=" << items.size();
+                LOG_IF(DEBUG_BUILDER).session(context) << "items size=" << items.size();
                 auto length = items.size();
                 for (int i = 0; i < length; i++) {
                     const auto& element = items.at(i);
@@ -234,17 +234,17 @@ Builder::expandSingleComponent(const ContextPtr& context,
                                bool fullBuild,
                                bool useDirtyFlag)
 {
-    LOG_IF(DEBUG_BUILDER) << path.toString();
+    LOG_IF(DEBUG_BUILDER).session(context) << path.toString();
     APL_TRACE_BLOCK("Builder:expandSingleComponent");
 
     std::string type = propertyAsString(*context, item, "type");
     if (type.empty()) {
-        CONSOLE_CTP(context) << "Invalid type in component";
+        CONSOLE(context) << "Invalid type in component";
         return nullptr;
     }
 
     if (auto method = findComponentBuilderFunc(context, type)) {
-        LOG_IF(DEBUG_BUILDER) << "Expanding primitive " << type;
+        LOG_IF(DEBUG_BUILDER).session(context) << "Expanding primitive " << type;
 
         // Copy the items into the properties map.
         properties.emplace(item);
@@ -256,7 +256,7 @@ Builder::expandSingleComponent(const ContextPtr& context,
         // Construct the component
         CoreComponentPtr component = CoreComponentPtr(method(expanded, std::move(properties), path));
         if (!component || !component->isValid()) {
-            CONSOLE_CTP(context) << "Unable to inflate component";
+            CONSOLE(context) << "Unable to inflate component";
             if (component)
                 component->release();
             return nullptr;
@@ -284,25 +284,25 @@ Builder::expandSingleComponent(const ContextPtr& context,
             copyPreservedProperties(component, oldComponent);
         }
 
-        LOG_IF(DEBUG_BUILDER) << "Returning component " << *component;
+        LOG_IF(DEBUG_BUILDER).session(context) << "Returning component " << *component;
         return component;
     }
 
-    LOG_IF(DEBUG_BUILDER) << "Expanding layout '" << type << "'";
+    LOG_IF(DEBUG_BUILDER).session(context) << "Expanding layout '" << type << "'";
     auto resource = context->getLayout(type);
     if (!resource.empty()) {
         properties.emplace(item);
         return expandLayout(context, properties, resource.json(), parent, resource.path(), fullBuild, useDirtyFlag);
     }
 
-    CONSOLE_CTP(context) << "Unable to find layout or component '" << type << "'";
+    CONSOLE(context) << "Unable to find layout or component '" << type << "'";
     return nullptr;
 }
 
 /**
  * Process data bindings
- * @param context
- * @param item
+ * @param context The data-binding context in which to evaluate the item.
+ * @param item The item that contains a "bind" property.
  */
 void
 Builder::attachBindings(const apl::ContextPtr& context, const apl::Object& item)
@@ -315,7 +315,7 @@ Builder::attachBindings(const apl::ContextPtr& context, const apl::Object& item)
             continue;
 
         if (context->hasLocal(name)) {
-            CONSOLE_CTP(context) << "Attempted to bind to pre-existing property '" << name << "'";
+            CONSOLE(context) << "Attempted to bind to pre-existing property '" << name << "'";
             continue;
         }
 
@@ -354,7 +354,7 @@ Builder::expandSingleComponentFromArray(const ContextPtr& context,
                                         bool fullBuild,
                                         bool useDirtyFlag)
 {
-    LOG_IF(DEBUG_BUILDER) << path;
+    LOG_IF(DEBUG_BUILDER).session(context) << path;
     for (int index = 0; index < items.size(); index++) {
         const auto& item = items.at(index);
         if (!item.isMap())
@@ -388,10 +388,10 @@ Builder::expandLayout(const ContextPtr& context,
                       bool fullBuild,
                       bool useDirtyFlag)
 {
-    LOG_IF(DEBUG_BUILDER) << path;
+    LOG_IF(DEBUG_BUILDER).session(context) << path;
     if (!layout.IsObject()) {
         std::string errorMessage = "Layout inflation for one of the components failed. Path: " + path.toString();
-        CONSOLE_CTP(context) << errorMessage;
+        CONSOLE(context) << errorMessage;
         return nullptr;
     }
     APL_TRACE_BLOCK("Builder:expandLayout");
@@ -404,16 +404,16 @@ Builder::expandLayout(const ContextPtr& context,
     // the property map.
     ParameterArray params(layout);
     for (const auto& param : params) {
-        LOG_IF(DEBUG_BUILDER) << "Parsing parameter: " << param.name;
+        LOG_IF(DEBUG_BUILDER).session(context) << "Parsing parameter: " << param.name;
         properties.addToContext(cptr, param, true);
     }
 
     Builder::attachBindings(cptr, layout);
 
     if (DEBUG_BUILDER) {
-        for (std::shared_ptr<const Context> p = cptr; p; p = p->parent()) {
+        for (ConstContextPtr p = cptr; p; p = p->parent()) {
             for (const auto& m : *p)
-                LOG(LogLevel::kDebug) << m.first << ": " << m.second;
+                LOG(LogLevel::kDebug).session(context) << m.first << ": " << m.second;
         }
     }
     return expandSingleComponentFromArray(cptr,
@@ -471,7 +471,7 @@ void
 Builder::copyPreservedBindings(const CoreComponentPtr& newComponent, const CoreComponentPtr& originalComponent)
 {
     APL_TRACE_BLOCK("Builder:copyPreservedBindings");
-    LOG_IF(DEBUG_BUILDER) << newComponent << " old=" << mOld;
+    LOG_IF(DEBUG_BUILDER).session(newComponent) << newComponent << " old=" << mOld;
     copyPreserved(newComponent, originalComponent, true, false);
 }
 
@@ -485,7 +485,7 @@ void
 Builder::copyPreservedProperties(const CoreComponentPtr& newComponent, const CoreComponentPtr& originalComponent)
 {
     APL_TRACE_BLOCK("Builder:copyPreservedProperties");
-    LOG_IF(DEBUG_BUILDER) << newComponent << " old=" << mOld;
+    LOG_IF(DEBUG_BUILDER).session(newComponent) << newComponent << " old=" << mOld;
     copyPreserved(newComponent, originalComponent, false, true);
 }
 

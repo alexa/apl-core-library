@@ -43,7 +43,7 @@ public:
     /**
      * Install a TextMeasurement object.  This will be used for all future
      * layout calculations.
-     * @param textMeasurement
+     * @param textMeasurement The TextMeasurement object
      */
     static void install(const TextMeasurementPtr& textMeasurement);
     static const TextMeasurementPtr& instance();

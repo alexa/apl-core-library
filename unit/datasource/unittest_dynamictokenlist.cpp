@@ -816,6 +816,7 @@ static const char* LAST_DATA = R"({
 
 TEST_F(DynamicTokenListTest, WithLastOneWay) {
     loadDocument(LAST, LAST_DATA);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -854,6 +855,7 @@ TEST_F(DynamicTokenListTest, WithLastOneWay) {
 
     ASSERT_EQ(0, component->getCalculated(kPropertyScrollPosition).asNumber());
     component->update(kUpdateScrollPosition, 600);
+    advanceTime(10);
     root->clearPending();
 
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", "forwardPageToken2"));

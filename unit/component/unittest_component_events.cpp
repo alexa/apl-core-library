@@ -385,7 +385,7 @@ TEST_F(ComponentEventsTest, MediaStateChanges)
     ASSERT_EQ("One", text->getCalculated(kPropertyText).asString());
 
     // Simulate playback start
-    state = MediaState(0, 2, 7, 10, false, false);
+    state = MediaState(0, 2, 7, 10, false, false, false);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
@@ -393,7 +393,7 @@ TEST_F(ComponentEventsTest, MediaStateChanges)
     ASSERT_EQ("PLAY", text->getCalculated(kPropertyText).asString());
 
     // Simulate playback pause
-    state = MediaState(0, 2, 7, 10, true, false);
+    state = MediaState(0, 2, 7, 10, true, false, false);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
@@ -401,7 +401,7 @@ TEST_F(ComponentEventsTest, MediaStateChanges)
     ASSERT_EQ("PAUSE", text->getCalculated(kPropertyText).asString());
 
     // Simulate track change
-    state = MediaState(1, 2, 7, 10, true, false);
+    state = MediaState(1, 2, 7, 10, true, false, false);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
@@ -409,7 +409,7 @@ TEST_F(ComponentEventsTest, MediaStateChanges)
     ASSERT_EQ("TRACK_UPDATE", text->getCalculated(kPropertyText).asString());
 
     // Simulate playback end
-    state = MediaState(1, 2, 7, 10, true, true);
+    state = MediaState(1, 2, 7, 10, true, true, false);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
@@ -433,7 +433,7 @@ TEST_F(ComponentEventsTest, MediaErrorStateChanges)
     MediaState state;
 
     // Simulate playback error while trying to start first track
-    state = MediaState(0, 3, 0, 0, true, false)
+    state = MediaState(0, 3, 0, 0, true, false, false)
         .withTrackState(kTrackFailed)
         .withErrorCode(99);
     video->updateMediaState(state);
@@ -444,13 +444,13 @@ TEST_F(ComponentEventsTest, MediaErrorStateChanges)
     /*
      * Simulate playback error while playing
      */
-    state = MediaState(0, 3, 7, 10, false, false);
+    state = MediaState(0, 3, 7, 10, false, false, false);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
     ASSERT_EQ("PLAY", text->getCalculated(kPropertyText).asString()); // Track is now playing
     // Update state as error
-    state = MediaState(0, 3, 7, 10, false, false)
+    state = MediaState(0, 3, 7, 10, false, false, false)
         .withTrackState(kTrackFailed)
         .withErrorCode(99);
     video->updateMediaState(state);
@@ -458,13 +458,13 @@ TEST_F(ComponentEventsTest, MediaErrorStateChanges)
     loop->advanceToEnd();
     ASSERT_EQ(std::to_string(state.getErrorCode()), text->getCalculated(kPropertyText).asString());
     // Advance to next track from error state
-    state = MediaState(1, 3, 0, 10, false, false);
+    state = MediaState(1, 3, 0, 10, false, false, false);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
     ASSERT_EQ("TRACK_UPDATE", text->getCalculated(kPropertyText).asString());
     // Update state as error when playing second track
-    state = MediaState(1, 3, 5, 10, false, false)
+    state = MediaState(1, 3, 5, 10, false, false, false)
         .withTrackState(kTrackFailed)
         .withErrorCode(100);
     video->updateMediaState(state);
@@ -472,7 +472,7 @@ TEST_F(ComponentEventsTest, MediaErrorStateChanges)
     loop->advanceToEnd();
     ASSERT_EQ(std::to_string(state.getErrorCode()), text->getCalculated(kPropertyText).asString());
     // Update state as error when moving to third track
-    state = MediaState(2, 3, 0, 0, false, false)
+    state = MediaState(2, 3, 0, 0, false, false, false)
         .withTrackState(kTrackFailed)
         .withErrorCode(101);
     video->updateMediaState(state);
@@ -895,7 +895,7 @@ TEST_F(ComponentEventsTest, MediaSendEvent)
     ASSERT_FALSE(root->hasEvent());
 
     // Simulate track ready
-    state = MediaState(0, 2, 7, 10, true, false).withTrackState(kTrackReady);
+    state = MediaState(0, 2, 7, 10, true, false, false).withTrackState(kTrackReady);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
@@ -903,7 +903,7 @@ TEST_F(ComponentEventsTest, MediaSendEvent)
     validateMediaEvent(root, "TrackReady", "0", "true", "false", "URL1", "ready", "", Object::NULL_OBJECT());
 
     // Simulate playback start
-    state = MediaState(0, 2, 7, 10, false, false).withTrackState(kTrackReady);
+    state = MediaState(0, 2, 7, 10, false, false, false).withTrackState(kTrackReady);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
@@ -911,7 +911,7 @@ TEST_F(ComponentEventsTest, MediaSendEvent)
     validateMediaEvent(root, "Play", "0", "false", "false", "URL1", "ready", "", Object::NULL_OBJECT());
 
     // Simulate playback pause
-    state = MediaState(0, 2, 7, 10, true, false).withTrackState(kTrackReady);
+    state = MediaState(0, 2, 7, 10, true, false, false).withTrackState(kTrackReady);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
@@ -919,7 +919,7 @@ TEST_F(ComponentEventsTest, MediaSendEvent)
     validateMediaEvent(root, "Pause", "0", "true", "false", "URL1", "ready", "", Object::NULL_OBJECT());
 
     // Simulate track change
-    state = MediaState(1, 2, 7, 10, true, false).withTrackState(kTrackNotReady);
+    state = MediaState(1, 2, 7, 10, true, false, false).withTrackState(kTrackNotReady);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();//
@@ -927,7 +927,7 @@ TEST_F(ComponentEventsTest, MediaSendEvent)
     validateMediaEvent(root, "TrackUpdate", "1", "true", "false", "URL2", "notReady", "", Object(1));
 
     // Simulate next track ready
-    state = MediaState(1, 2, 7, 10, true, false).withTrackState(kTrackReady);
+    state = MediaState(1, 2, 7, 10, true, false, false).withTrackState(kTrackReady);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();//
@@ -935,7 +935,7 @@ TEST_F(ComponentEventsTest, MediaSendEvent)
     validateMediaEvent(root, "TrackReady", "1", "true", "false", "URL2", "ready", "", Object::NULL_OBJECT());
 
     // Simulate playback end
-    state = MediaState(1, 2, 7, 10, true, true).withTrackState(kTrackReady);
+    state = MediaState(1, 2, 7, 10, true, true, false).withTrackState(kTrackReady);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
@@ -943,7 +943,7 @@ TEST_F(ComponentEventsTest, MediaSendEvent)
     validateMediaEvent(root, "End", "1", "true", "true", "URL2", "ready", "", Object::NULL_OBJECT());
 
     // Simulate playback error
-    state = MediaState(1, 2, 7, 10, true, true)
+    state = MediaState(1, 2, 7, 10, true, true, false)
                 .withTrackState(kTrackFailed)
                 .withErrorCode(99);
     video->updateMediaState(state);
@@ -1015,7 +1015,7 @@ TEST_F(ComponentEventsTest, MediaOnTimeUpdate)
     ASSERT_FALSE(root->hasEvent());
 
     // Simulate time update
-    state = MediaState(0, 1, 5, 10, false, false);
+    state = MediaState(0, 1, 5, 10, false, false, false);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
 
@@ -1113,7 +1113,7 @@ TEST_F(ComponentEventsTest, MediaFastNormal)
 
     // Simulate time update
     ASSERT_FALSE(ConsoleMessage());
-    MediaState state(0, 1, 5, 10, false, false);
+    MediaState state(0, 1, 5, 10, false, false, false);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
 
@@ -1126,7 +1126,7 @@ TEST_F(ComponentEventsTest, MediaFastNormal)
     ASSERT_EQ("Two", text->getCalculated(kPropertyText).asString());
 
     // Simulate pause from event
-    state = MediaState(0, 1, 5, 10, true, false);
+    state = MediaState(0, 1, 5, 10, true, false, false);
     video->updateMediaState(state, true);
     CheckMediaState(state, video->getCalculated());
 
@@ -1138,7 +1138,7 @@ TEST_F(ComponentEventsTest, MediaFastNormal)
     ASSERT_EQ("Three", text->getCalculated(kPropertyText).asString());
 
     // Switch back to play state
-    state = MediaState(0, 1, 5, 10, false, false);
+    state = MediaState(0, 1, 5, 10, false, false, false);
     video->updateMediaState(state, true);
     CheckMediaState(state, video->getCalculated());
 
@@ -1150,7 +1150,7 @@ TEST_F(ComponentEventsTest, MediaFastNormal)
     ASSERT_EQ("One", text->getCalculated(kPropertyText).asString());
 
     // Pause by user event
-    state = MediaState(0, 1, 5, 10, true, false);
+    state = MediaState(0, 1, 5, 10, true, false, false);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
 

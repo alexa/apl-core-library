@@ -32,7 +32,7 @@ SequentialAction::SequentialAction(const TimersPtr& timers,
       mRepeatCounter(0)
 {
     addTerminateCallback([this](const TimersPtr&) {
-        LOG_IF(DEBUG_SEQUENTIAL) << "terminating " << *this;
+        LOG_IF(DEBUG_SEQUENTIAL).session(mCommand) << "terminating " << *this;
         if (mCurrentAction) {
             mCurrentAction->terminate();
             mCurrentAction = nullptr;
@@ -66,7 +66,7 @@ SequentialAction::SequentialAction(const TimersPtr& timers,
  */
 void
 SequentialAction::advance() {
-    LOG_IF(DEBUG_SEQUENTIAL) << *this << " state=" << mStateFinally;
+    LOG_IF(DEBUG_SEQUENTIAL).session(mCommand) << *this << " state=" << mStateFinally;
 
     if (isTerminated())
         return;

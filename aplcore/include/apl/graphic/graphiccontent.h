@@ -20,6 +20,7 @@
 
 #include "apl/common.h"
 #include "apl/content/jsondata.h"
+#include "apl/utils/deprecated.h"
 
 namespace apl {
 
@@ -37,7 +38,7 @@ public:
      * @param data The raw data
      * @return Null if the graphic data is invalid
      */
-    static GraphicContentPtr create(JsonData&& data);
+    APL_DEPRECATED static GraphicContentPtr create(JsonData&& data);
 
     /**
      * Construct a shared pointer for this JSON data.

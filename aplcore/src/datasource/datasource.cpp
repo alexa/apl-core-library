@@ -48,13 +48,13 @@ DataSource::create(const ContextPtr& context, const Object& object, const std::s
 
     std::string type = propertyAsString(*context, object, "type");
     if (type.empty()) {
-        CONSOLE_CTP(context) << "Unrecognized type field in DataSource";
+        CONSOLE(context) << "Unrecognized type field in DataSource";
         return Object::NULL_OBJECT();
     }
 
     auto dataSourceProvider = context->getRootConfig().getDataSourceProvider(type);
     if(!dataSourceProvider) {
-        CONSOLE_CTP(context) << "Unrecognized DataSource type";
+        CONSOLE(context) << "Unrecognized DataSource type";
         return Object::NULL_OBJECT();
     }
 
@@ -64,7 +64,7 @@ DataSource::create(const ContextPtr& context, const Object& object, const std::s
     auto liveDataSourceArray = items.isNull() ? LiveArray::create() : LiveArray::create(arrayify(*context, items));
     auto dataSourceConnection = dataSourceProvider->create(object, context, liveDataSourceArray);
     if (!dataSourceConnection) {
-        CONSOLE_CTP(context) << "DataSourceConnection failed to initialize.";
+        CONSOLE(context) << "DataSourceConnection failed to initialize.";
         return Object::NULL_OBJECT();
     }
     liveDataSourceArray = dataSourceConnection->getLiveArray();

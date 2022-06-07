@@ -62,7 +62,7 @@ DynamicTokenListDataSourceConnection::processLazyLoad(
         result = updateLiveArray(dataArray, pageToken, nextPageToken);
     }
     else {
-        constructAndReportError(ERROR_REASON_MISSING_LIST_ITEMS, Object::NULL_OBJECT(),
+        constructAndReportError(getContext()->session(), ERROR_REASON_MISSING_LIST_ITEMS, Object::NULL_OBJECT(),
                                           "No items provided to load.");
         retryFetchRequest(correlationToken.asString());
         return result;
@@ -131,9 +131,12 @@ DynamicTokenListDataSourceProvider::createConnection(
     const std::string& listId) {
     auto sourceMap = sourceDefinition.getMap();
 
+    auto ctx = context.lock();
+    if (!ctx) return nullptr;
+
     if (!sourceDefinition.has(LIST_ID) || !sourceDefinition.get(LIST_ID).isString()||
         !sourceDefinition.has(PAGE_TOKEN) || !sourceDefinition.get(PAGE_TOKEN).isString()) {
-        constructAndReportError(ERROR_REASON_INTERNAL_ERROR, "N/A", "Missing required fields.");
+        constructAndReportError(ctx->session(), ERROR_REASON_INTERNAL_ERROR, "N/A", "Missing required fields.");
         return nullptr;
     }
 
@@ -155,7 +158,7 @@ DynamicTokenListDataSourceProvider::processLazyLoadInternal(
         return false;
 
     if (!responseMap.has(ITEMS)) {
-        constructAndReportError(ERROR_REASON_INTERNAL_ERROR, connection->getListId(),
+        constructAndReportError(connection->getContext()->session(), ERROR_REASON_INTERNAL_ERROR, connection->getListId(),
                                 "Missing required fields.");
         return true;
     }
@@ -169,7 +172,7 @@ DynamicTokenListDataSourceProvider::processLazyLoadInternal(
 bool
 DynamicTokenListDataSourceProvider::process(const Object& responseMap) {
     if (!responseMap.has(LIST_ID) || !responseMap.get(LIST_ID).isString()) {
-        constructAndReportError(ERROR_REASON_INVALID_LIST_ID, "N/A", "Missing listId.");
+        constructAndReportError(nullptr, ERROR_REASON_INVALID_LIST_ID, "N/A", "Missing listId.");
         return false;
     }
 

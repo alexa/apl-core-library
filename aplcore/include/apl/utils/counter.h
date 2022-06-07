@@ -93,4 +93,4 @@ CounterPair::size_type Counter<T>::sItemsCreated = 0;
 
 } // namespace apl
 
-#endif //_APL_CORE_MEMORY_TRACKER_H
+#endif //_APL_CORE_COUNTER_H

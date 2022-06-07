@@ -38,7 +38,7 @@ private:
 public:
     /**
      * Initialize by moving an existing JSON document.
-     * @param document
+     * @param document A RapidJSON document
      */
     JsonData(rapidjson::Document&& document)
         : mDocument(std::move(document)),
@@ -49,7 +49,7 @@ public:
      * Initialize by reference to an existing JSON document.  The document
      * is not copied, so another agent must keep it alive during the
      * lifespan of this object.
-     * @param value
+     * @param value A RapidJSON value
      */
     JsonData(const rapidjson::Value& value)
         : mValuePtr(&value),
@@ -58,7 +58,7 @@ public:
 
     /**
      * Initialize by parsing a std::string.
-     * @param raw
+     * @param raw The string
      */
     JsonData(const std::string& raw)
         : mType(kDocument)
@@ -70,7 +70,7 @@ public:
     /**
      * Initialize by parsing a raw string.  The string may be released
      * immediately.
-     * @param raw
+     * @param raw The string
      */
     JsonData(const char *raw)
         : mType(raw ? kDocument : kNullPtr)
@@ -84,7 +84,7 @@ public:
      * Initialize by parsing a raw string in situ.  The string may be
      * modified. Another agent must keep the raw string in memory until
      * this object is destroyed.
-     * @param raw
+     * @param raw The string
      */
     JsonData(char *raw)
         : mType(raw ? kDocument : kNullPtr)

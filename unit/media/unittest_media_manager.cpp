@@ -55,8 +55,30 @@ public:
         for (const auto& m : sources.getArray())
             actualSources.emplace(m.getString());
 
+        if (expectedSources.size() != actualSources.size())
+            return ::testing::AssertionFailure()
+                << "Source list size mismatch. Expected: " << expectedSources.size()
+                << ", actual: " << actualSources.size();
+
+        std::string es;
+        std::string as;
+
+        auto first = true;
+        for (auto const& s : expectedSources) {
+            if (!first) es += ',';
+            first = false;
+            es += s;
+        }
+
+        first = true;
+        for (auto const& s : actualSources) {
+            if (!first) as += ',';
+            first = false;
+            as += s;
+        }
+
         if (expectedSources != actualSources)
-            return ::testing::AssertionFailure() << "Source mismatch";
+            return ::testing::AssertionFailure() << "Source mismatch. Expected: [" << es << "], actual: [" << as << "]";
 
         return ::testing::AssertionSuccess();
     }
@@ -278,6 +300,7 @@ TEST_F(MediaManagerTest, SimpleSequence) {
     ASSERT_FALSE(root->hasEvent());
 
     component->update(kUpdateScrollPosition, 100);
+    advanceTime(10);
     root->clearPending();
 
     ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe5"));
@@ -2388,6 +2411,92 @@ TEST_F(MediaManagerTest, VideoWithMultipleHeaders) {
     ASSERT_EQ(headers.at(3), "D: A");
     ASSERT_EQ(headers.at(4), "E: F");
 }
+
+static const char* CHANGING_IMAGES = R"({
+  "type": "APL",
+  "version": "1.8",
+  "mainTemplate": {
+    "item": {
+      "type": "Image",
+      "id": "IMAGE",
+      "source": "duck.png"
+    }
+  }
+})";
+
+TEST_F(MediaManagerTest, ChangingImages) {
+    loadDocument(CHANGING_IMAGES);
+    ASSERT_FALSE(root->isDirty());
+
+    // Event should be fired that requests media to be loaded.
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "duck.png"));
+    ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
+    ASSERT_TRUE(CheckLoadedMedia(component, "duck.png"));
+
+    executeCommand("SetValue",
+                   {{"componentId", "IMAGE"}, {"property", "source"}, {"value", "duck2.png"}},
+                   true);
+    ASSERT_TRUE(CheckDirty(component, kPropertySource, kPropertyMediaState, kPropertyVisualHash));
+
+    // Event should be fired that requests media to be loaded.
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "duck2.png"));
+    ASSERT_EQ(kMediaStatePending, component->getCalculated(kPropertyMediaState).getInteger());
+    ASSERT_TRUE(CheckLoadedMedia(component, "duck2.png"));
+}
+
+
+static const char* FIRST_LAST_SEQUENCE = R"apl({
+  "type": "APL",
+  "version": "1.10",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Sequence",
+        "width": 500,
+        "height": 500,
+        "data": [0,1,2,3,4,5,6,7,8,9],
+        "firstItem": {
+          "type": "Image",
+          "width": 200,
+          "height": 100,
+          "source": "universe_first"
+        },
+        "items": [
+          {
+            "type": "Image",
+            "width": 200,
+            "height": 200,
+            "source": "universe_${data}"
+          }
+        ],
+        "lastItem": {
+          "type": "Image",
+          "width": 200,
+          "height": 100,
+          "source": "universe_last"
+        }
+      }
+    ]
+  }
+})apl";
+
+TEST_F(MediaManagerTest, FirstLastSequence) {
+    config->set(RootProperty::kSequenceChildCache, 1);
+    loadDocument(FIRST_LAST_SEQUENCE);
+
+    ASSERT_FALSE(root->isDirty());
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe_first", "universe_0", "universe_1", "universe_2"));
+
+    // Two more will be requested to cover cache position here.
+    advanceTime(10);
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe_3", "universe_4"));
+
+    ASSERT_FALSE(root->hasEvent());
+}
+
 
 static const char* DEEP_EVALUATE_SOURCE = R"apl({
   "type": "APL",

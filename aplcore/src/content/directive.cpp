@@ -31,7 +31,7 @@ std::shared_ptr<Directive>
 Directive::create(JsonData&& directive, const SessionPtr& session)
 {
     if (!directive) {
-        CONSOLE_S(session).log("Directive parse error offset=%u: %s", directive.offset(), directive.error());
+        CONSOLE(session).log("Directive parse error offset=%u: %s", directive.offset(), directive.error());
         return nullptr;
     }
 
@@ -56,14 +56,14 @@ Directive::Directive(const SessionPtr& session, JsonData &&directive)
 
     const auto& doc = payload->FindMember("document");
         if (doc == payload->MemberEnd()) {
-            CONSOLE_S(session).log("Directive payload does not contain a document");
+            CONSOLE(session).log("Directive payload does not contain a document");
             return;
         }
 
     // Find the main template and count the parameters
     auto mainTemplate = doc->value.FindMember("mainTemplate");
     if (mainTemplate == doc->value.MemberEnd()) {
-        CONSOLE_S(session).log("Directive document does not contain a mainTemplate");
+        CONSOLE(session).log("Directive document does not contain a mainTemplate");
         return;
     }
 
@@ -71,13 +71,13 @@ Directive::Directive(const SessionPtr& session, JsonData &&directive)
     auto parameters = mainTemplate->value.FindMember("parameters");
     if (parameters != mainTemplate->value.MemberEnd()) {
         if (!parameters->value.IsArray()) {
-            CONSOLE_S(session).log("Main template parameters is not an array");
+            CONSOLE(session).log("Main template parameters is not an array");
             return;
         }
 
         paramCount = parameters->value.Size();
         if (paramCount > 1) {
-            CONSOLE_S(session).log("Main template can have at most one parameter");
+            CONSOLE(session).log("Main template can have at most one parameter");
             return;
         }
     }
@@ -87,7 +87,7 @@ Directive::Directive(const SessionPtr& session, JsonData &&directive)
     auto hasDataSource = datasources != payload->MemberEnd();
 
     if (paramCount == 1 && !hasDataSource) {
-        CONSOLE_S(session).log("Document missing datasources");
+        CONSOLE(session).log("Document missing datasources");
         return;
     }
 

@@ -33,7 +33,7 @@ ScrollToIndexCommand::propDefSet() const {
 ActionPtr
 ScrollToIndexCommand::execute(const TimersPtr& timers, bool fastMode) {
     if (fastMode) {
-        CONSOLE_CTP(mContext) << "Ignoring ScrollToIndex in fast mode";
+        CONSOLE(mContext) << "Ignoring ScrollToIndex in fast mode";
         return nullptr;
     }
 
@@ -45,7 +45,7 @@ ScrollToIndexCommand::execute(const TimersPtr& timers, bool fastMode) {
     auto childCount = mTarget->getChildCount();
     childIndex = childIndex < 0 ? childIndex + childCount : childIndex;
     if (childIndex >= childCount || childIndex < 0) {
-        CONSOLE_CTP(mContext) << "ScrollToIndex invalid child index=" << childIndex;
+        CONSOLE(mContext) << "ScrollToIndex invalid child index=" << childIndex;
         return nullptr;
     }
 

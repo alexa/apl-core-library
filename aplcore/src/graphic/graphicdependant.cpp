@@ -31,7 +31,7 @@ GraphicDependant::create(const GraphicElementPtr& downstreamGraphicElement,
                          const ContextPtr& bindingContext,
                          BindingFunction bindingFunction)
 {
-    LOG_IF(DEBUG_GRAPHIC_DEP) << " to " << sGraphicPropertyBimap.at(downstreamKey)
+    LOG_IF(DEBUG_GRAPHIC_DEP).session(bindingContext) << " to " << sGraphicPropertyBimap.at(downstreamKey)
                               << "(" << downstreamGraphicElement.get() << ")";
 
     SymbolReferenceMap symbols;
@@ -55,7 +55,7 @@ GraphicDependant::recalculate(bool useDirtyFlag) const
     auto bindingContext = mBindingContext.lock();
     if (downstream && bindingContext) {
         auto value = mBindingFunction(*bindingContext, reevaluate(*bindingContext, mEquation));
-        LOG_IF(DEBUG_GRAPHIC_DEP) << " new value " << value.toDebugString();
+        LOG_IF(DEBUG_GRAPHIC_DEP).session(bindingContext) << " new value " << value.toDebugString();
         downstream->setValue(mDownstreamKey, value, useDirtyFlag);
     }
 }

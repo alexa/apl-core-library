@@ -190,7 +190,7 @@ public:
      * @param type DataSource type.
      * @param cacheChunkSize size of cache chunk. Effectively means how many items around ensured one should be available.
      */
-    DynamicIndexListDataSourceProvider(const std::string& type, size_t cacheChunkSize);
+    APL_DEPRECATED DynamicIndexListDataSourceProvider(const std::string& type, size_t cacheChunkSize);
 
     /**
      * @param config Full configuration object.

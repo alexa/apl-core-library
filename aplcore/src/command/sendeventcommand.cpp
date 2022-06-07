@@ -37,7 +37,7 @@ SendEventCommand::propDefSet() const {
 ActionPtr
 SendEventCommand::execute(const TimersPtr& timers, bool fastMode) {
     if (fastMode) {
-        CONSOLE_CTP(mContext) << "Ignoring SendEvent command in fast mode";
+        CONSOLE(mContext) << "Ignoring SendEvent command in fast mode";
         return nullptr;
     }
 
@@ -84,9 +84,9 @@ SendEventCommand::execute(const TimersPtr& timers, bool fastMode) {
     }
 
     if (DEBUG_SEND_EVENT) {
-        LOG(LogLevel::kDebug) << "SendEvent Bag";
-        for (auto m : bag) {
-            LOG(LogLevel::kDebug) << "Property: " << sEventPropertyBimap.at(m.first) << "("
+        LOG(LogLevel::kDebug).session(mContext) << "SendEvent Bag";
+        for (auto& m : bag) {
+            LOG(LogLevel::kDebug).session(mContext) << "Property: " << sEventPropertyBimap.at(m.first) << "("
                                  << m.first << ")";
             DumpVisitor::dump(m.second);
         }

@@ -146,7 +146,7 @@ TEST_F(ExtensionCommandTest, BasicCommand)
     ASSERT_TRUE(ext.isMap());
     ASSERT_TRUE(IsEqual(7, ext.get("value")));
 
-    ASSERT_TRUE(event.getActionRef().isEmpty());
+    ASSERT_TRUE(event.getActionRef().empty());
 
     // The SetValue command should also have run by now
     ASSERT_TRUE(IsEqual(Color(Color::BLACK), frame->getCalculated(kPropertyBackgroundColor)));
@@ -186,7 +186,7 @@ TEST_F(ExtensionCommandTest, BasicCommandWithActionRef)
     ASSERT_TRUE(ext.isMap());
     ASSERT_TRUE(IsEqual(7, ext.get("value")));
 
-    ASSERT_FALSE(event.getActionRef().isEmpty());
+    ASSERT_FALSE(event.getActionRef().empty());
 
     // The SetValue command should NOT have run
     ASSERT_TRUE(IsEqual(Color(Color::WHITE), frame->getCalculated(kPropertyBackgroundColor)));
@@ -450,7 +450,7 @@ TEST_F(ExtensionCommandTest, FastModeAllowed)
     ASSERT_TRUE(IsEqual(0.5, ext.get("value")));  // Scroll position of 50%
     ASSERT_TRUE(IsEqual("MyScrollView", ext.get("id")));
 
-    ASSERT_TRUE(event.getActionRef().isEmpty());  // No action ref is generated in fast mode
+    ASSERT_TRUE(event.getActionRef().empty());  // No action ref is generated in fast mode
 
     // The SetValue command should have run
     ASSERT_TRUE(IsEqual(Color(Color::RED), frame->getCalculated(kPropertyBackgroundColor)));
@@ -556,7 +556,7 @@ TEST_F(ExtensionCommandTest, OptionalProperties)
     ASSERT_TRUE(IsEqual(-1001, ext.get("value")));  // Expect the default value
     ASSERT_TRUE(IsEqual("NO_ID", ext.get("id")));   // Expect the default value
 
-    ASSERT_TRUE(event.getActionRef().isEmpty());  // No action ref is generated in fast mode
+    ASSERT_TRUE(event.getActionRef().empty());  // No action ref is generated in fast mode
 
     // The SetValue command should have run
     ASSERT_TRUE(IsEqual(Color(Color::RED), frame->getCalculated(kPropertyBackgroundColor)));

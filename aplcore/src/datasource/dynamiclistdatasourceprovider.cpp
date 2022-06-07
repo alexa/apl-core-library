@@ -101,7 +101,7 @@ DynamicListDataSourceConnection::scheduleTimeout(const std::string& correlationT
           return;
 
       if (self->retryFetchRequest(correlationToken)) {
-          self->constructAndReportError(ERROR_REASON_LOAD_TIMEOUT, Object::NULL_OBJECT(),
+          self->constructAndReportError(ctx->session(), ERROR_REASON_LOAD_TIMEOUT, Object::NULL_OBJECT(),
                                         "Retrying timed out request: " + correlationToken);
       }
     }, mConfiguration.fetchTimeout);
@@ -193,7 +193,7 @@ DynamicListDataSourceConnection::reportUpdateExpired(int version) {
     auto it = mUpdatesCache.find(version);
     if (it != mUpdatesCache.end()) {
         context->getRootConfig().getTimeManager()->clearTimeout(it->second.expiryTimeout);
-        constructAndReportError(ERROR_REASON_MISSING_LIST_VERSION, Object::NULL_OBJECT(),
+        constructAndReportError(context->session(), ERROR_REASON_MISSING_LIST_VERSION, Object::NULL_OBJECT(),
                                 "Update to version " + std::to_string(version + 1) + " buffered longer than expected.");
     }
 }
@@ -201,16 +201,17 @@ DynamicListDataSourceConnection::reportUpdateExpired(int version) {
 void
 DynamicListDataSourceConnection::putCacheUpdate(int version, const Object& payload) {
     auto provider = mProvider.lock();
-    if (!provider) {
+    auto context = mContext.lock();
+    if (!provider || !context) {
         // Provider dead. Should not happen.
-        LOG(LogLevel::kError) << "DataSource provider for " << mConfiguration.type
+        LOG(LogLevel::kError).session(context) << "DataSource provider for " << mConfiguration.type
                              << " is dead while trying to process update cache.";
         return;
     }
 
     if (mUpdatesCache.size() >= mConfiguration.listUpdateBufferSize) {
         // Remove highest or discard current one if it's one.
-        constructAndReportError(ERROR_REASON_MISSING_LIST_VERSION, Object::NULL_OBJECT(),
+        constructAndReportError(context->session(), ERROR_REASON_MISSING_LIST_VERSION, Object::NULL_OBJECT(),
                                 "Too many updates buffered. Discarding highest version.");
         auto it = mUpdatesCache.rbegin();
         if (it->first > version) {
@@ -225,7 +226,7 @@ DynamicListDataSourceConnection::putCacheUpdate(int version, const Object& paylo
         Update update = {payload, timeoutId};
         mUpdatesCache.emplace(version, update);
     } else {
-        constructAndReportError(ERROR_REASON_DUPLICATE_LIST_VERSION, Object::NULL_OBJECT(),
+        constructAndReportError(context->session(), ERROR_REASON_DUPLICATE_LIST_VERSION, Object::NULL_OBJECT(),
                                 "Trying to cache existing list version.");
     }
 }
@@ -249,18 +250,19 @@ DynamicListDataSourceConnection::retrieveCachedUpdate(int version) {
 
 void
 DynamicListDataSourceConnection::constructAndReportError(
+    const SessionPtr& session,
     const std::string& reason,
     const Object& operationIndex,
     const std::string& message) {
     auto provider = mProvider.lock();
     if (!provider) {
         // Provider dead. Should not happen.
-        LOG(LogLevel::kError) << "DataSource provider for " << mConfiguration.type
+        LOG(LogLevel::kError).session(mContext.lock()) << "DataSource provider for " << mConfiguration.type
                              << " is dead while trying to report error.";
         return;
     }
 
-    provider->constructAndReportError(reason, shared_from_this(), operationIndex, message);
+    provider->constructAndReportError(session, reason, shared_from_this(), operationIndex, message);
 }
 
 DynamicListDataSourceProvider::DynamicListDataSourceProvider(const DynamicListConfiguration& config)
@@ -272,8 +274,10 @@ DynamicListDataSourceProvider::create(
     std::weak_ptr<Context> context,
     std::weak_ptr<LiveArray> liveArray) {
     clearStaleConnections();
+    auto ctx = context.lock();
+    if (!ctx) return nullptr;
     if (!sourceDefinition.has(LIST_ID) || !sourceDefinition.get(LIST_ID).isString()) {
-        constructAndReportError(ERROR_REASON_INTERNAL_ERROR, "N/A", "Missing required fields.");
+        constructAndReportError(ctx->session(), ERROR_REASON_INTERNAL_ERROR, "N/A", "Missing required fields.");
         return nullptr;
     }
 
@@ -283,10 +287,13 @@ DynamicListDataSourceProvider::create(
         // this datasource allows for data reuse on reinflate.
         auto contextPtr = context.lock();
         if (contextPtr && contextPtr->getReinflationFlag()) {
+            // If no valid context attached - we are likely reinflating.
+            existingConnection->setContext(ctx);
             return existingConnection;
         }
         // Trying to reuse existing listId/DataSource. Should not happen.
-        constructAndReportError(ERROR_REASON_INTERNAL_ERROR, listId, "Trying to reuse existing listId.");
+        constructAndReportError(existingConnection->getContext()->session(), ERROR_REASON_INTERNAL_ERROR, listId,
+                                "Trying to reuse existing listId.");
         return nullptr;
     }
 
@@ -316,7 +323,7 @@ DynamicListDataSourceProvider::processUpdate(const Object &payload) {
     } else if (payload.isMap()) {
         result = process(payload);
     } else {
-        constructAndReportError(ERROR_REASON_INTERNAL_ERROR, "N/A", "Can't process payload.");
+        constructAndReportError(nullptr, ERROR_REASON_INTERNAL_ERROR, "N/A", "Can't process payload.");
     }
 
     return result;
@@ -370,9 +377,9 @@ DynamicListDataSourceProvider::getConnection(const std::string& listId, const Ob
     }
 
     if (!hasValidListId && connectionIter != mConnections.end()) {
-        constructAndReportError(ERROR_REASON_INCONSISTENT_LIST_ID, listId, "Non-existing listId.");
+        constructAndReportError(nullptr, ERROR_REASON_INCONSISTENT_LIST_ID, listId, "Non-existing listId.");
     } else if (connectionIter == mConnections.end()) {
-        constructAndReportError(ERROR_REASON_INVALID_LIST_ID, listId, "Unexpected response.");
+        constructAndReportError(nullptr, ERROR_REASON_INVALID_LIST_ID, listId, "Unexpected response.");
         return nullptr;
     }
 
@@ -380,7 +387,7 @@ DynamicListDataSourceProvider::getConnection(const std::string& listId, const Ob
     if (!connection) {
         // Link is dead. Clean it up. Unlikely to happen but clean anyway.
         mConnections.erase(connectionIter);
-        constructAndReportError(ERROR_REASON_INTERNAL_ERROR, listId, "DataSource context lost.");
+        constructAndReportError(nullptr, ERROR_REASON_INTERNAL_ERROR, listId, "DataSource context lost.");
         return nullptr;
     }
 
@@ -396,6 +403,7 @@ DynamicListDataSourceProvider::getPendingErrors() {
 
 void
 DynamicListDataSourceProvider::constructAndReportError(
+    const SessionPtr& session,
     const std::string& reason,
     const std::string& listId,
     const Object& listVersion,
@@ -416,24 +424,26 @@ DynamicListDataSourceProvider::constructAndReportError(
 
     mPendingErrors.emplace_back(std::move(error));
     // Throw errors into log to help debugging on device
-    LOG(LogLevel::kWarn) << "Datasource " << listId << "; Error: " << message;
+    LOG(LogLevel::kWarn).session(session) << "Datasource " << listId << "; Error: " << message;
 }
 
 void
 DynamicListDataSourceProvider::constructAndReportError(
+    const SessionPtr& session,
     const std::string& reason,
     const std::string& listId,
     const std::string& message) {
-    constructAndReportError(reason, listId, Object::NULL_OBJECT(), Object::NULL_OBJECT(), message);
+    constructAndReportError(session, reason, listId, Object::NULL_OBJECT(), Object::NULL_OBJECT(), message);
 }
 
 void
 DynamicListDataSourceProvider::constructAndReportError(
+    const SessionPtr& session,
     const std::string& reason,
     const DLConnectionPtr& connection,
     const Object& operationIndex,
     const std::string& message) {
-    constructAndReportError(reason, connection->getListId(), connection->getListVersion(), operationIndex, message);
+    constructAndReportError(session, reason, connection->getListId(), connection->getListVersion(), operationIndex, message);
 }
 
 bool
@@ -447,6 +457,7 @@ DynamicListDataSourceProvider::canFetch(const Object& correlationToken, const DL
         return false;
     }
 
-    constructAndReportError(ERROR_REASON_INTERNAL_ERROR, connection, Object::NULL_OBJECT(), "Wrong correlation token.");
+    constructAndReportError(connection->getContext()->session(), ERROR_REASON_INTERNAL_ERROR, connection,
+                            Object::NULL_OBJECT(), "Wrong correlation token.");
     return false;
 }

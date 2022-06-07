@@ -28,6 +28,7 @@
 #include "colorfunctions.h"
 
 #include "apl/utils/log.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 namespace colorgrammar {
@@ -115,9 +116,9 @@ namespace colorgrammar {
             double value;
             if (s.back() == '%') {
                 size_t len = s.length();
-                value = stod(s.substr(0, len - 1)) * 0.01;
+                value = sutil::stod(s.substr(0, len - 1)) * 0.01;
             } else {
-                value = stod(s);
+                value = sutil::stod(s);
             }
 
             LOGF_IF(DEBUG_GRAMMAR, "Number: '%s' -> %lf", in.string().c_str(), value);

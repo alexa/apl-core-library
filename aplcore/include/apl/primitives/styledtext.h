@@ -24,6 +24,10 @@
 #include <stack>
 #include <string>
 
+#include <rapidjson/document.h>
+
+#include "apl/primitives/object.h"
+
 namespace apl {
 
 /**
@@ -96,7 +100,7 @@ public:
         /**
           * @param start style span starting index.
           * @param type style type.
-          * @param attributes style attributes.
+          * @param attributeMap style attributes.
           */
         Span(size_t start, SpanType type, const std::map<SpanAttributeName, Object>&  attributeMap) :
               type(type),
@@ -183,6 +187,8 @@ public:
 
         std::string getString() const { return mString; };
 
+        size_t spanCount();
+
     private:
         const int START = -1;
 
@@ -200,15 +206,29 @@ public:
      * Build StyledText from object.
      * @param context The data-binding context.
      * @param object The source of the text.
-     * @return An object containing a StyledText or null.
+     * @return An existing StyledText from the object or a new StyledText object.
      */
-    static Object create(const Context& context, const Object& object);
+    static StyledText create(const Context& context, const Object& object);
+
+    /**
+     * Build StyledText from a string which should *not* be parsed
+     * @param raw The raw string to display
+     * @return The StyledText object
+     */
+    static StyledText createRaw(const std::string& raw);
 
     /**
      * Empty styled text object. Useful as default value.
      * @return empty StyledText.
      */
-    static Object EMPTY() { return Object(StyledText()); }
+    static StyledText EMPTY() { return StyledText(); }
+
+    /**
+     * Assignment constructor
+     * @param other Styled text object
+     * @return This object
+     */
+    StyledText& operator=(const StyledText& other);
 
     /**
      * @return Raw text filtered of not-allowed characters and styles.
@@ -226,9 +246,9 @@ public:
      * underlying string representation, which is both complex and error-prone.
      * @return Vector of style spans.
      */
-    const std::vector<Span>& getSpans() const { return mSpans; }
+    APL_DEPRECATED const std::vector<Span>& getSpans() const { return mSpans; }
 
-    const std::string asString() const {
+    std::string asString() const {
         return getRawText();
     }
 
@@ -244,10 +264,10 @@ public:
 
     bool operator==(const StyledText& rhs) const { return mRawText == rhs.mRawText; }
 
-    StyledText(const Context& context, const std::string& raw);
-
 private:
-    StyledText() {}
+    StyledText() = default;
+    explicit StyledText(const std::string& raw);
+    StyledText(const Context& context, const std::string& raw);
 
     std::string mRawText;
     std::string mText;

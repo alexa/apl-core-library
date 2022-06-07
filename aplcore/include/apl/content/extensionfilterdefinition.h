@@ -90,7 +90,7 @@ public:
 
     /**
      * Add a named property. The property names "when", "type", "source", and "destination" are reserved.
-     * @param property The property name
+     * @param name The property name
      * @param defvalue The default value to use for this property when it is not provided.
      * @param bindingType Binding type.
      * @return This object for chaining.

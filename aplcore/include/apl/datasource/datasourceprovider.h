@@ -38,7 +38,9 @@ public:
      * @param liveArray pointer to base LiveArray.
      * @return connection if succeeded, nullptr otherwise.
      */
-    virtual std::shared_ptr<DataSourceConnection> create(const Object& dataSourceDefinition, std::weak_ptr<Context>, std::weak_ptr<LiveArray> liveArray) = 0;
+    virtual std::shared_ptr<DataSourceConnection> create(const Object& dataSourceDefinition,
+                                                         std::weak_ptr<Context> context,
+                                                         std::weak_ptr<LiveArray> liveArray) = 0;
 
     /**
      * Parse update payload and pass it to relevant connection.

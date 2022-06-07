@@ -216,7 +216,7 @@ CoreComponent::release()
 
 /**
  * Accept a visitor pattern
- * @param visitor
+ * @param visitor The visitor for core components.
  */
 void
 CoreComponent::accept(Visitor<CoreComponent>& visitor) const
@@ -233,7 +233,7 @@ CoreComponent::accept(Visitor<CoreComponent>& visitor) const
  * that the user can see/interact with.  Child classes that have knowledge about which children are off screen or otherwise
  * invalid/unattached should use that knowledge to reduce the number of nodes walked or avoid walking otherwise invalid
  * components they may have stashed in their children.
- * @param visitor
+ * @param visitor The visitor for core components
  */
 void
 CoreComponent::raccept(Visitor<CoreComponent>& visitor) const
@@ -308,7 +308,7 @@ CoreComponent::update(UpdateType type, float value)
             setState(kStatePressed, value != 0);
             break;
         default:
-            LOG(LogLevel::kWarn) << "Unexpected update command type " << type << " value=" << value;
+            LOG(LogLevel::kWarn).session(mContext) << "Unexpected update command type " << type << " value=" << value;
             break;
     }
 }
@@ -452,7 +452,7 @@ CoreComponent::ensureDisplayedChildren()
             childBounds = transform.calculateAxisAlignedBoundingBox(Rect{0, 0, childBounds.getWidth(), childBounds.getHeight()});
             childBounds.offset(childBoundsTopLeft);
 
-            if (!viewportRect.intersect(childBounds).isEmpty()) {
+            if (!viewportRect.intersect(childBounds).empty()) {
                 if (child->getCalculated(kPropertyPosition) == kPositionSticky) {
                     sticky.emplace_back(child);
                 } else {
@@ -631,7 +631,7 @@ CoreComponent::markAdded()
 void
 CoreComponent::ensureLayoutInternal(bool useDirtyFlag)
 {
-    LOG_IF(DEBUG_ENSURE) << toDebugSimpleString() << " useDirtyFlag=" << useDirtyFlag;
+    LOG_IF(DEBUG_ENSURE).session(mContext) << toDebugSimpleString() << " useDirtyFlag=" << useDirtyFlag;
     APL_TRACE_BLOCK("CoreComponent:ensureLayout");
     auto& lm = mContext->layoutManager();
     if (lm.ensure(shared_from_corecomponent()))
@@ -742,7 +742,7 @@ CoreComponent::assignProperties(const ComponentPropDefSet& propDefSet)
                 // Make sure this wasn't a required property
                 if ((pd.flags & kPropRequired) != 0) {
                     mFlags |= kComponentFlagInvalid;
-                    CONSOLE_CTP(mContext) << "Missing required property: " << pd.names;
+                    CONSOLE(mContext) << "Missing required property: " << pd.names;
                 }
 
                 // Check for a styled property
@@ -922,7 +922,7 @@ CoreComponent::find(PropertyKey key) const
 
 /**
  * A property has been set on the component.
- * @param id The property iterator.  Contains the key of the property being changed and the definition.
+ * @param it The property iterator.  Contains the key of the property being changed and the definition.
  * @param value The new value of the property.
  * @return True if the property could be set (it must be dynamic).
  */
@@ -981,7 +981,7 @@ CoreComponent::setProperty(PropertyKey key, const Object& value)
     if (findRef.first && setPropertyInternal(findRef.second, value))
         return true;
 
-    CONSOLE_CTP(mContext) << "Invalid property key '" << sComponentPropertyBimap.at(key) << "' for this component";
+    CONSOLE(mContext) << "Invalid property key '" << sComponentPropertyBimap.at(key) << "' for this component";
     return false;
 }
 
@@ -1000,7 +1000,7 @@ CoreComponent::setProperty( const std::string& key, const Object& value )
     if (setPropertyInternal(key, value))
         return;
 
-    CONSOLE_CTP(mContext) << "Unknown property name " << key;
+    CONSOLE(mContext) << "Unknown property name " << key;
 }
 
 std::pair<Object, bool>
@@ -1023,7 +1023,7 @@ CoreComponent::getPropertyAndWriteableState(const std::string& key) const
     if (internal.second)
         return internal;
 
-    CONSOLE_CTP(mContext) << "Unknown property name " << key;
+    CONSOLE(mContext) << "Unknown property name " << key;
     return { Object::NULL_OBJECT(), false };
 }
 
@@ -1095,7 +1095,7 @@ CoreComponent::updateProperty(PropertyKey key, const Object& value)
     }
 
     // We should not reach this point.  Only an assigned equation calls updateProperty
-    CONSOLE_CTP(mContext) << "Property " << sComponentPropertyBimap.at(key)
+    CONSOLE(mContext) << "Property " << sComponentPropertyBimap.at(key)
                           << " is not dynamic and can't be updated.";
 }
 
@@ -1163,7 +1163,7 @@ void
 CoreComponent::setState( StateProperty stateProperty, bool value )
 {
     if (mInheritParentState) {
-        CONSOLE_CTP(mContext) << "Cannot assign state properties to a child that inherits parent state";
+        CONSOLE(mContext) << "Cannot assign state properties to a child that inherits parent state";
         return;
     }
 
@@ -1444,7 +1444,7 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag, bool first)
             setDirty(kPropertyInnerBounds);
     }
 
-    if (!mCalculated.get(kPropertyLaidOut).asBoolean() && !mCalculated.get(kPropertyBounds).getRect().isEmpty()) {
+    if (!mCalculated.get(kPropertyLaidOut).asBoolean() && !mCalculated.get(kPropertyBounds).getRect().empty()) {
         mCalculated.set(kPropertyLaidOut, true);
         if (useDirtyFlag)
             setDirty(kPropertyLaidOut);
@@ -1576,7 +1576,7 @@ CoreComponent::getHierarchySignature() const
 void
 CoreComponent::fixTransform(bool useDirtyFlag)
 {
-    LOG_IF(DEBUG_TRANSFORM) << mCalculated.get(kPropertyTransform).getTransform2D();
+    LOG_IF(DEBUG_TRANSFORM).session(mContext) << mCalculated.get(kPropertyTransform).getTransform2D();
 
     Transform2D updated;
 
@@ -1605,7 +1605,7 @@ CoreComponent::fixTransform(bool useDirtyFlag)
         if (useDirtyFlag)
             setDirty(kPropertyTransform);
 
-        LOG_IF(DEBUG_TRANSFORM) << "updated to " << mCalculated.get(kPropertyTransform).getTransform2D();
+        LOG_IF(DEBUG_TRANSFORM).session(mContext) << "updated to " << mCalculated.get(kPropertyTransform).getTransform2D();
     }
 }
 
@@ -1622,7 +1622,7 @@ setPaddingIfKeyFound(PropertyKey key, YGEdge edge, CalculatedPropertyMap& map, Y
 void
 CoreComponent::fixPadding()
 {
-    LOG_IF(DEBUG_PADDING) << mCalculated.get(kPropertyPadding);
+    LOG_IF(DEBUG_PADDING).session(mContext) << mCalculated.get(kPropertyPadding);
 
     static std::vector<std::pair<PropertyKey, YGEdge>> EDGES = {
         {kPropertyPaddingLeft,   YGEdgeLeft},
@@ -1653,7 +1653,7 @@ CoreComponent::fixPadding()
 void
 CoreComponent::fixLayoutDirection(bool useDirtyFlag)
 {
-    LOG_IF(DEBUG_LAYOUTDIRECTION) << mCalculated.get(kPropertyLayoutDirection);
+    LOG_IF(DEBUG_LAYOUTDIRECTION).session(mContext) << mCalculated.get(kPropertyLayoutDirection);
     auto reportedLayoutDirection = static_cast<LayoutDirection>(mCalculated.get(kPropertyLayoutDirection).asInt());
     auto currentLayoutDirection = getLayoutDirection() == YGDirectionLTR ? kLayoutDirectionLTR : kLayoutDirectionRTL;
     if (reportedLayoutDirection != currentLayoutDirection) {
@@ -1662,7 +1662,7 @@ CoreComponent::fixLayoutDirection(bool useDirtyFlag)
             setDirty(kPropertyLayoutDirection);
         }
         handleLayoutDirectionChange(useDirtyFlag);
-        LOG_IF(DEBUG_LAYOUTDIRECTION) << "updated to " << mCalculated.get(kPropertyLayoutDirection);
+        LOG_IF(DEBUG_LAYOUTDIRECTION).session(mContext) << "updated to " << mCalculated.get(kPropertyLayoutDirection);
     }
 }
 
@@ -1670,7 +1670,7 @@ void CoreComponent::setHeight(const Dimension& height) {
     if (mYGNodeRef)
         yn::setHeight(mYGNodeRef, height, *mContext);
     else
-        LOG(LogLevel::kError) << "setHeight:  Missing yoga node for component id '" << getId() << "'";
+        LOG(LogLevel::kError).session(mContext) << "setHeight:  Missing yoga node for component id '" << getId() << "'";
     mCalculated.set(kPropertyHeight, height);
 }
 
@@ -1678,7 +1678,7 @@ void CoreComponent::setWidth(const Dimension& width) {
     if (mYGNodeRef)
         yn::setWidth(mYGNodeRef, width, *mContext);
     else
-        LOG(LogLevel::kError) << "setWidth:  Missing yoga node for component id '" << getId() << "'";
+        LOG(LogLevel::kError).session(mContext) << "setWidth:  Missing yoga node for component id '" << getId() << "'";
     mCalculated.set(kPropertyWidth, width);
 }
 
@@ -1773,7 +1773,7 @@ CoreComponent::serializeDirty(rapidjson::Document::AllocatorType& allocator) {
 }
 
 rapidjson::Value
-CoreComponent:: serializeVisualContext(rapidjson::Document::AllocatorType& allocator) {
+CoreComponent::serializeVisualContext(rapidjson::Document::AllocatorType& allocator) {
     float viewportWidth = mContext->width();
     float viewportHeight = mContext->height();
     Rect viewportRect(0, 0, viewportWidth, viewportHeight);
@@ -2117,27 +2117,16 @@ void CoreComponent::resolveDrawnBorder(Component& component) {
 void
 CoreComponent::calculateDrawnBorder(bool useDirtyFlag )
 {
-    auto strokeWidthProp = getCalculated(kPropertyBorderStrokeWidth);
-    float borderWidth = getCalculated(kPropertyBorderWidth).asAbsoluteDimension(*mContext).getValue();
-    float drawnWidth = borderWidth; // default the drawn width to the border width
+    auto strokeWidth = getCalculated(kPropertyBorderStrokeWidth);
+    auto borderWidth = getCalculated(kPropertyBorderWidth);
 
-    if (strokeWidthProp == Object::NULL_OBJECT()) {
-        // no stroke width - default draw border width to border width
-        // initialize stroke width to border width
-        mCalculated.set(kPropertyBorderStrokeWidth, Object(Dimension(borderWidth)));
-    } else {
-        // stroke width - clamp the drawn border to the border width
-        float strokeWidth = strokeWidthProp.getAbsoluteDimension();
-        if (strokeWidth < borderWidth)
-            drawnWidth = strokeWidth;
-    }
+    auto drawnBorderWidth = borderWidth;
+    if (!strokeWidth.isNull())
+        drawnBorderWidth = Object(Dimension(
+            std::min(strokeWidth.getAbsoluteDimension(), borderWidth.getAbsoluteDimension())));
 
-    Dimension dimension(drawnWidth);
-
-    auto drawnWidthProp = getCalculated(kPropertyDrawnBorderWidth);
-    if (drawnWidthProp == Object::NULL_OBJECT() ||
-        dimension != mCalculated.get(kPropertyDrawnBorderWidth).asAbsoluteDimension(*mContext)) {
-        mCalculated.set(kPropertyDrawnBorderWidth, Object(std::move(dimension)));
+    if (drawnBorderWidth != getCalculated(kPropertyDrawnBorderWidth)) {
+        mCalculated.set(kPropertyDrawnBorderWidth, drawnBorderWidth);
         if (useDirtyFlag)
             setDirty(kPropertyDrawnBorderWidth);
     }
@@ -2167,7 +2156,7 @@ CoreComponent::textMeasureInternal(float width, YGMeasureMode widthMode, float h
     fixVisualHash(true);
 
     auto componentHash = textMeasurementHash();
-    LOG_IF(DEBUG_MEASUREMENT)
+    LOG_IF(DEBUG_MEASUREMENT).session(mContext)
         << "Measuring: " << getUniqueId()
         << " hash: " << componentHash
         << " width: " << width
@@ -2186,7 +2175,7 @@ CoreComponent::textMeasureInternal(float width, YGMeasureMode widthMode, float h
             this, width, toMeasureMode(widthMode), height, toMeasureMode(heightMode));
     auto size = YGSize({layoutSize.width, layoutSize.height});
     measuresCache.put(tmr, size);
-    LOG_IF(DEBUG_MEASUREMENT) << "Size: " << size.width << "x" << size.height;
+    LOG_IF(DEBUG_MEASUREMENT).session(mContext) << "Size: " << size.width << "x" << size.height;
     APL_TRACE_END("CoreComponent:textMeasureInternal:runtimeMeasure");
     return size;
 }
@@ -2385,7 +2374,7 @@ CoreComponent::inParentViewport() const {
     // Shift by scroll position if any
     parentBounds.offset(mParent->scrollPosition());
 
-    return !parentBounds.intersect(bounds).isEmpty();
+    return !parentBounds.intersect(bounds).empty();
 }
 
 PointerCaptureStatus

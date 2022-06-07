@@ -36,7 +36,7 @@ LiveDataObject::create(const LiveObjectPtr& data,
     else if (type == Object::kMapType)
         element = std::make_shared<LiveMapObject>(std::static_pointer_cast<LiveMap>(data), context, key);
     else {
-        LOG(LogLevel::kError) << "Unexpected data type for live object key='" << key << "': " << data->getType();
+        LOG(LogLevel::kError).session(context) << "Unexpected data type for live object key='" << key << "': " << data->getType();
         return nullptr;
     }
 

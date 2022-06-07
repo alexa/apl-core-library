@@ -74,6 +74,12 @@ static inline std::string stripControl(const std::string& str)
     return output;
 }
 
+/**
+ * \cond ShowStyledTextGrammar
+ */
+
+namespace styledtextgrammar {
+
 struct quote : sor<one<'"'>, one<'\''>> {};
 struct attributename : plus<alnum>{};
 struct attributevalue : plus<not_one<'"', '\''>>{};
@@ -223,12 +229,41 @@ template<> struct action< hexentity >
     }
 };
 
-Object
-StyledText::create(const Context& context, const Object& object) {
-    if (object.isStyledText())
-        return object;
+} // namespace styledtextgrammar
 
-    return Object(StyledText(context, object.asString()));
+/**
+ * \endcond
+ */
+
+StyledText
+StyledText::create(const Context& context, const Object& object)
+{
+    if (object.isStyledText())
+        return object.getStyledText();
+
+    return {context, object.asString()};
+}
+
+StyledText
+StyledText::createRaw(const std::string& raw)
+{
+    return StyledText(raw);
+}
+
+StyledText&
+StyledText::operator=(const StyledText& other) {
+    if (this == &other)
+        return *this;
+
+    mRawText = other.mRawText;
+    mText = other.mText;
+    mSpans = other.mSpans;
+    return *this;
+}
+
+StyledText::StyledText(const std::string& raw)
+    : mRawText(raw), mText(raw)
+{
 }
 
 StyledText::StyledText(const Context& context, const std::string& raw) {
@@ -237,7 +272,7 @@ StyledText::StyledText(const Context& context, const std::string& raw) {
 
     auto state = StyledTextState(context);
     pegtl::string_input<> in(filtered, "");
-    pegtl::parse<styledtext, action>(in, state);
+    pegtl::parse<styledtextgrammar::styledtext, styledtextgrammar::action>(in, state);
 
     mText = state.getText();
     mSpans = state.finalize();
@@ -285,7 +320,7 @@ StyledText::Iterator::getSpanType() const {
 
 StyledText::Iterator::TokenType
 StyledText::Iterator::next() {
-    const auto& spans = mStyledText.getSpans();
+    const auto& spans = mStyledText.mSpans;
     size_t nextStartSpanPosition = mSpanIndex < spans.size() ? spans[mSpanIndex].start :  std::numeric_limits<int>::max();
     size_t nextEndSpanPosition = mStack.empty() ? std::numeric_limits<int>::max() : mStack.top()->end;
     size_t next = std::min({nextStartSpanPosition, nextEndSpanPosition, codePointCount});
@@ -310,6 +345,11 @@ StyledText::Iterator::next() {
     }
 
     return kEnd;
+}
+
+size_t
+StyledText::Iterator::spanCount() {
+    return mStyledText.mSpans.size();
 }
 
 } // namespace apl

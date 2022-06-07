@@ -18,9 +18,9 @@ target_sources_local(unittest
         unittest_log.cpp
         unittest_lrucache.cpp
         unittest_path.cpp
-        unittest_range.cpp
         unittest_ringbuffer.cpp
         unittest_session.cpp
+        unittest_stringfunctions.cpp
         unittest_url.cpp
         unittest_userdata.cpp
         unittest_weakcache.cpp

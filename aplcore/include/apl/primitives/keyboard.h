@@ -111,7 +111,8 @@ public:
 
     /**
      * Creates a representation of a non-repeating key, without modifier keys.
-     * @param code
+     * @param code The physical key code
+     * @param key The string representation of the key
      */
      Keyboard(std::string code, std::string key) : mCode(std::move(code)), mKey(std::move(key)) {}
 
@@ -148,7 +149,7 @@ public:
 
     /**
      * Set the Ctrl key state.
-     * @param CtrlKey The pressed state of the Ctrl key
+     * @param ctrlKey The pressed state of the Ctrl key
      * @return This Keyboard.
      */
     Keyboard& ctrl(bool ctrlKey) {
@@ -214,14 +215,13 @@ public:
 
     /**
     * Serialize into JSON format
-    * @param allocator
+    * @param allocator The RapidJSON memory allocator
     * @return The serialized rectangle
     */
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
     /**
     * Serialize into ObjectMap format
-    * @param allocator
     * @return The serialized rectangle
     */
     std::shared_ptr<ObjectMap> serialize() const;

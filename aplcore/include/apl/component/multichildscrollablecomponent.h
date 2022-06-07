@@ -16,7 +16,7 @@
 #define _APL_MULTICHILD_SCROLLABLE_COMPONENT_H
 
 #include "apl/component/scrollablecomponent.h"
-#include "apl/utils/range.h"
+#include "apl/primitives/range.h"
 
 namespace apl {
 
@@ -181,6 +181,7 @@ private:
     void fixScrollPosition(const Rect& oldAnchorRect, const Rect& anchorRect);
     Point getPaddedScrollPosition(LayoutDirection layoutDirection) const;
     void processLayoutChangesInternal(bool useDirtyFlag, bool first, bool delayed, bool needsFullReProcess);
+    void scheduleDelayedLayout();
 
 private:
     Range mIndexesSeen;

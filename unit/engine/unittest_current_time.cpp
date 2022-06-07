@@ -37,7 +37,7 @@ TEST_F(CurrentTimeTest, Basic)
 {
     // Thu Sep 05 2019 12:15:39  (UTCTime)
     const apl_time_t START_TIME = 1567685739476;
-    config->utcTime(START_TIME);
+    config->set(RootProperty::kUTCTime, START_TIME);
 
     loadDocument(TIME);
     ASSERT_TRUE(component);
@@ -75,7 +75,7 @@ TEST_F(CurrentTimeTest, Year)
     const apl_time_t START_TIME = 1567685739476;
 
     // Start in 1989
-    config->utcTime(START_TIME - 30.0 * 1000.0 * 3600.0 * 24.0 * 365.0);
+    config->set(RootProperty::kUTCTime, START_TIME - 30.0 * 1000.0 * 3600.0 * 24.0 * 365.0);
 
     loadDocument(TIME_YEAR);
     ASSERT_TRUE(component);
@@ -118,7 +118,7 @@ TEST_F(CurrentTimeTest, Month)
 {
     // Thu Sep 05 2019 12:15:39  (UTCTime)
     const apl_time_t START_TIME = 1567685739476;
-    config->utcTime(START_TIME);
+    config->set(RootProperty::kUTCTime, START_TIME);
 
     loadDocument(TIME_MONTH);
     ASSERT_TRUE(component);
@@ -144,7 +144,7 @@ TEST_F(CurrentTimeTest, Date)
 {
     // Thu Sep 05 2019 12:15:39  (UTCTime)
     const apl_time_t START_TIME = 1567685739476.0;
-    config->utcTime(START_TIME);
+    config->set(RootProperty::kUTCTime, START_TIME);
 
     loadDocument(TIME_DATE);
     ASSERT_TRUE(component);
@@ -172,7 +172,7 @@ TEST_F(CurrentTimeTest, UTCDate)
 {
     // Thu Sep 05 2019 15:39:17  (UTCTime)
     const apl_time_t START_TIME = 1567697957924;
-    config->utcTime(START_TIME).localTimeAdjustment(-16.0 * 3600.0 * 1000.0);  // -16 hours from UTC
+    config->set(RootProperty::kUTCTime, START_TIME).set(RootProperty::kLocalTimeAdjustment, -16.0 * 3600.0 * 1000.0);  // -16 hours from UTC
 
     loadDocument(TIME_UTC_DATE);
     ASSERT_TRUE(component);
@@ -201,7 +201,7 @@ TEST_F(CurrentTimeTest, WeekDay)
 {
     // Thu Sep 05 2019 12:15:39  (UTCTime)
     const apl_time_t START_TIME = 1567685739476;
-    config->utcTime(START_TIME);
+    config->set(RootProperty::kUTCTime, START_TIME);
 
     loadDocument(TIME_WEEK_DAY);
     ASSERT_TRUE(component);
@@ -228,7 +228,7 @@ TEST_F(CurrentTimeTest, UTCWeekDay)
 {
     // Thu Sep 05 2019 15:39:17  (UTCTime)
     const apl_time_t START_TIME = 1567697957924;
-    config->utcTime(START_TIME).localTimeAdjustment(-16 * 3600 * 1000);  // -16 hours from UTC
+    config->set(RootProperty::kUTCTime, START_TIME).set(RootProperty::kLocalTimeAdjustment, -16 * 3600 * 1000);  // -16 hours from UTC
 
     loadDocument(TIME_UTC_WEEK_DAY);
     ASSERT_TRUE(component);
@@ -257,7 +257,7 @@ TEST_F(CurrentTimeTest, Hours)
 {
     // Thu Sep 05 2019 12:15:39  (UTCTime)
     const apl_time_t START_TIME = 1567685739476;
-    config->utcTime(START_TIME);
+    config->set(RootProperty::kUTCTime, START_TIME);
     loadDocument(TIME_HOURS);
     ASSERT_TRUE(component);
     ASSERT_TRUE(IsEqual("12", component->getCalculated(kPropertyText).asString()));
@@ -286,7 +286,7 @@ TEST_F(CurrentTimeTest, UTCHours)
 {
     // Thu Sep 05 2019 15:39:17  (UTCTime)
     const apl_time_t START_TIME = 1567697957924;
-    config->utcTime(START_TIME).localTimeAdjustment(+9 * 3600 * 1000);  // +9 hours from UTC
+    config->set(RootProperty::kUTCTime, START_TIME).set(RootProperty::kLocalTimeAdjustment, 9 * 3600 * 1000);  // +9 hours from UTC
 
     loadDocument(TIME_UTC_HOURS);
     ASSERT_TRUE(component);
@@ -323,7 +323,7 @@ TEST_F(CurrentTimeTest, Minutes)
 {
     // Thu Sep 05 2019 12:15:39  (UTCTime)
     const apl_time_t START_TIME = 1567685739476;
-    config->utcTime(START_TIME);
+    config->set(RootProperty::kUTCTime, START_TIME);
 
     loadDocument(TIME_MINUTES);
     ASSERT_TRUE(component);
@@ -354,7 +354,7 @@ TEST_F(CurrentTimeTest, UTCMinutes)
 {
     // Thu Sep 05 2019 15:39:17  (UTCTime)
     const apl_time_t START_TIME = 1567697957924;
-    config->utcTime(START_TIME).localTimeAdjustment(+6.5 * 3600 * 1000);  // +6.5 hours from UTC
+    config->set(RootProperty::kUTCTime, START_TIME).set(RootProperty::kLocalTimeAdjustment, 6.5 * 3600 * 1000);  // +6.5 hours from UTC
 
     loadDocument(TIME_UTC_MINUTES);
     ASSERT_TRUE(component);
@@ -391,7 +391,7 @@ TEST_F(CurrentTimeTest, Seconds)
 {
     // Thu Sep 05 2019 12:15:39  (UTCTime)
     const apl_time_t START_TIME = 1567685739476;
-    config->utcTime(START_TIME);
+    config->set(RootProperty::kUTCTime, START_TIME);
 
     loadDocument(TIME_SECONDS);
     ASSERT_TRUE(component);
@@ -422,7 +422,7 @@ TEST_F(CurrentTimeTest, UTCSeconds)
 {
     // Thu Sep 05 2019 15:39:17  (UTCTime)
     const apl_time_t START_TIME = 1567697957924;
-    config->utcTime(START_TIME).localTimeAdjustment(6.5 * 3600.0 * 1000.0);  // +6.5 hours from UTC
+    config->set(RootProperty::kUTCTime, START_TIME).set(RootProperty::kLocalTimeAdjustment, 6.5 * 3600.0 * 1000.0);  // +6.5 hours from UTC
 
     loadDocument(TIME_UTC_SECONDS);
     ASSERT_TRUE(component);
@@ -458,7 +458,7 @@ TEST_F(CurrentTimeTest, Milliseconds)
 {
     // Thu Sep 05 2019 12:15:39  (UTCTime)
     const apl_time_t START_TIME = 1567685739476;
-    config->utcTime(START_TIME);
+    config->set(RootProperty::kUTCTime, START_TIME);
 
     loadDocument(TIME_MILLISECONDS);
     ASSERT_TRUE(component);
@@ -489,7 +489,7 @@ TEST_F(CurrentTimeTest, UTCMilliseconds)
 {
     // Thu Sep 05 2019 15:39:17  (UTCTime)
     const apl_time_t START_TIME = 1567697957924;
-    config->utcTime(START_TIME).localTimeAdjustment(+6.5 * 3600 * 1000);  // +6.5 hours from UTC
+    config->set(RootProperty::kUTCTime, START_TIME).set(RootProperty::kLocalTimeAdjustment, 6.5 * 3600 * 1000);  // +6.5 hours from UTC
 
     loadDocument(TIME_UTC_MILLISECONDS);
     ASSERT_TRUE(component);
@@ -545,8 +545,8 @@ TEST_F(CurrentTimeTest, Format)
     // Thu Sep 05 2019 21:39:07  (LocalTime)
     const apl_time_t START_TIME = 1567696147924;
 
-    config->localTimeAdjustment(+6.5 * 3600.0 * 1000.0);
-    config->utcTime(START_TIME);
+    config->set(RootProperty::kLocalTimeAdjustment, 6.5 * 3600.0 * 1000.0);
+    config->set(RootProperty::kUTCTime, START_TIME);
     loadDocument(TIME_FORMAT);
     ASSERT_TRUE(component);
 

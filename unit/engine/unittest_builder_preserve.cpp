@@ -606,7 +606,7 @@ static const char *PAGER_PRESERVE_ID = R"apl(
  */
 TEST_F(BuilderPreserveTest, PagerPreserveId)
 {
-    config->pagerChildCache(10);  // Cache all pages (simplifies dirty)
+    config->set(RootProperty::kPagerChildCache, 10);  // Cache all pages (simplifies dirty)
     metrics.size(1000,500);
     loadDocument(PAGER_PRESERVE_ID);
     ASSERT_TRUE(component);
@@ -682,7 +682,7 @@ static const char *PAGER_SET_VALUE = R"apl(
  */
 TEST_F(BuilderPreserveTest, PagerChangePages)
 {
-    config->pagerChildCache(10);   // Set the cache so that all pages will be laid out immediately
+    config->set(RootProperty::kPagerChildCache, 10);   // Set the cache so that all pages will be laid out immediately
     metrics.size(1000,500);
     loadDocument(PAGER_SET_VALUE);
     ASSERT_TRUE(component);
@@ -898,6 +898,7 @@ TEST_F(BuilderPreserveTest, VideoComponentPlayState)
         3003,   // Duration
         false,  // Paused
         false,  // Ended
+        false   // Muted
     };
     component->updateMediaState(ms, false);
     ASSERT_TRUE(IsEqual(1, component->getCalculated(kPropertyTrackIndex)));
@@ -906,6 +907,7 @@ TEST_F(BuilderPreserveTest, VideoComponentPlayState)
     ASSERT_TRUE(IsEqual(3003, component->getCalculated(kPropertyTrackDuration)));
     ASSERT_TRUE(IsEqual(false, component->getCalculated(kPropertyTrackPaused)));
     ASSERT_TRUE(IsEqual(false, component->getCalculated(kPropertyTrackEnded)));
+    ASSERT_TRUE(IsEqual(false, component->getCalculated(kPropertyMuted)));
 
     configChangeReinflate(ConfigurationChange(200,200));
     // Verify that the component changed on the reinflation
@@ -918,6 +920,7 @@ TEST_F(BuilderPreserveTest, VideoComponentPlayState)
     ASSERT_TRUE(IsEqual(3003, component->getCalculated(kPropertyTrackDuration)));
     ASSERT_TRUE(IsEqual(false, component->getCalculated(kPropertyTrackPaused)));
     ASSERT_TRUE(IsEqual(false, component->getCalculated(kPropertyTrackEnded)));
+    ASSERT_TRUE(IsEqual(false, component->getCalculated(kPropertyMuted)));
 }
 
 

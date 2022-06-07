@@ -26,7 +26,7 @@ protected:
                       .theme("green")
                       .shape(apl::ROUND)
                       .mode(apl::kViewportModeTV);
-        auto r = RootConfig().agent("UnitTests", "1.0");
+        auto r = RootConfig().set(RootProperty::kAgentName, "UnitTests");
         r.setEnvironmentValue("testEnvironment", "23.2");
         c = Context::createTestContext(m,r);
     }
@@ -47,7 +47,7 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ("1.0", env.get("agentVersion").asString());
     EXPECT_EQ("normal", env.get("animation").asString());
     EXPECT_FALSE(env.get("allowOpenURL").asBoolean());
-    EXPECT_EQ("1.9", env.get("aplVersion").asString());
+    EXPECT_EQ("2022.1", env.get("aplVersion").asString());
     EXPECT_FALSE(env.get("disallowDialog").asBoolean());
     EXPECT_FALSE(env.get("disallowEditText").asBoolean());
     EXPECT_FALSE(env.get("disallowVideo").asBoolean());
@@ -91,24 +91,25 @@ TEST_F(ContextTest, Basic)
 
 TEST_F(ContextTest, AlternativeConfig)
 {
-    auto root = RootConfig().agent("MyTest", "0.2")
+    auto root = RootConfig()
+        .set({{RootProperty::kAgentName, "MyTest"}, {RootProperty::kAgentVersion, "0.2"}})
         .set(RootProperty::kDisallowDialog, true)
         .set(RootProperty::kDisallowEditText, true)
-        .disallowVideo(true)
-        .reportedAPLVersion("1.2")
-        .allowOpenUrl(true)
-        .animationQuality(RootConfig::kAnimationQualitySlow)
+        .set(RootProperty::kDisallowVideo, true)
+        .set(RootProperty::kReportedVersion, "1.2")
+        .set(RootProperty::kAllowOpenUrl, true)
+        .set(RootProperty::kAnimationQuality, RootConfig::kAnimationQualitySlow)
         .setEnvironmentValue("testEnvironment", 122)
-        .fontScale(2.0)
-        .screenMode(RootConfig::kScreenModeHighContrast)
-        .screenReader(true)
-        .doublePressTimeout(2000)
+        .set(RootProperty::kFontScale, 2.0)
+        .set(RootProperty::kScreenMode, RootConfig::kScreenModeHighContrast)
+        .set(RootProperty::kScreenReader, true)
+        .set(RootProperty::kDoublePressTimeout, 2000)
         .set(RootProperty::kLang, "en-US")
         .set(RootProperty::kLayoutDirection, "RTL")
-        .longPressTimeout(2100)
-        .minimumFlingVelocity(565)
-        .pressedDuration(999)
-        .tapOrScrollTimeout(777);
+        .set(RootProperty::kLongPressTimeout, 2100)
+        .set(RootProperty::kMinimumFlingVelocity, 565)
+        .set(RootProperty::kPressedDuration, 999)
+        .set(RootProperty::kTapOrScrollTimeout, 777);
 
     c = Context::createTestContext(Metrics().size(400,400), root);
 
@@ -201,7 +202,7 @@ TEST_F(ContextTest, Time)
     const unsigned long long utcTime = 1567697957924;
     const long long deltaTime = 3600 * 1000;
 
-    auto rootConfig = RootConfig().utcTime(utcTime).localTimeAdjustment(deltaTime);
+    auto rootConfig = RootConfig().set(RootProperty::kUTCTime, utcTime).set(RootProperty::kLocalTimeAdjustment, deltaTime);
     ASSERT_EQ(utcTime, rootConfig.getUTCTime());
     ASSERT_EQ(deltaTime, rootConfig.getLocalTimeAdjustment());
 
@@ -228,7 +229,7 @@ TEST_F(ContextTest, Time)
     // Demonstrate how to set the root config to reflect the current time in local time.
     auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch());
-    rootConfig = RootConfig().utcTime(now.count());
+    rootConfig = RootConfig().set(RootProperty::kUTCTime, now.count());
 
     ASSERT_EQ(std::chrono::milliseconds{static_cast<long long>(rootConfig.getUTCTime())}, now);
 

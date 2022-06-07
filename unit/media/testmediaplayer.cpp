@@ -364,7 +364,8 @@ TestMediaPlayer::doCallback(MediaPlayerEventType eventType)
                          mPlayer->getPosition(),                // Current time
                          mPlayer->getDuration(),                // Current track duration
                          !mPlayer->isPlaying(),                 // paused
-                         atEnd)                                 // ended
+                         atEnd,                                 // ended
+                         false)                                 // muted
                   .withTrackState(mPlayer->getTrackState()));
 }
 

@@ -145,13 +145,13 @@ ByteCodeOptimizer::simplifyOperations()
                 case BC_OPCODE_LOAD_DATA:
                     return operands.at(cmd.value);
                 default:
-                    LOG(LogLevel::kError) << "Illegal offset in stack at " << offset;
+                    LOG(LogLevel::kError).session(mByteCode.getContext()) << "Illegal offset in stack at " << offset;
                     assert(false);
                     return Object::NULL_OBJECT();
             }
         }
 
-        LOG(LogLevel::kError) << "Too many DUPLICATE commands on the stack for constant value retrieval";
+        LOG(LogLevel::kError).session(mByteCode.getContext()) << "Too many DUPLICATE commands on the stack for constant value retrieval";
         assert(false);
         return Object::NULL_OBJECT();
     };
@@ -399,9 +399,9 @@ ByteCodeOptimizer::simplifyOperations()
     }
 
     if (DEBUG_OPTIMIZER) {
-        LOG(LogLevel::kDebug) << "Basic blocks located at: ";
+        LOG(LogLevel::kDebug).session(mByteCode.getContext()) << "Basic blocks located at: ";
         for (const auto& m : basicBlocks)
-            LOG(LogLevel::kDebug) << m.first << ": " << m.second.toString();
+            LOG(LogLevel::kDebug).session(mByteCode.getContext()) << m.first << ": " << m.second.toString();
     }
 
     LOG_IF(DEBUG_OPTIMIZER) << "Scanning for dead code blocks";

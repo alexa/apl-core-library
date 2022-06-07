@@ -98,3 +98,80 @@ TEST_F(UnicodeTest, StringSlice) {
     for (const auto& m : STRING_SLICE_TESTS)
         ASSERT_EQ(m.expected, utf8StringSlice(m.original, m.start, m.end));
 }
+
+struct StripTest {
+    std::string original;
+    std::string valid;
+    std::string expected;
+};
+
+static auto STRING_STRIP_TESTS = std::vector<StripTest> {
+    { u8"", u8"abcd", u8"" },
+    { u8"abcd", u8"", u8"abcd"},  // Empty valid set returns everything
+    { u8"abcd", u8"bd", u8"bd"},
+    { u8"abcd", u8"abdefghij", u8"abd"},
+    { u8"\u27a3€17,23\u261ac", u8"$€0123456789,.", u8"€17,23"},  // 3-byte characters
+    { u8"123,631", u8"0-9", u8"123631"},   // Simple range
+    { u8"+--+", u8"-", u8"--"},  // Just hyphens
+    { u8"+*-*", u8"-+", u8"+-"},
+    { u8"+*-*", u8"+-", u8"+"},  // Malformed hyphen range
+};
+
+TEST_F(UnicodeTest, StringStripInvalid)
+{
+    for (const auto& m : STRING_STRIP_TESTS)
+        ASSERT_EQ(m.expected, utf8StripInvalid(m.original, m.valid));
+}
+
+struct ValidCharacters {
+    std::string original;
+    std::string valid;
+    bool expected;
+};
+
+static auto VALID_CHARACTER_TESTS = std::vector<ValidCharacters> {
+    { u8"This is a test with an empty string", u8"", true},
+    { u8"", u8"a-z", true},  // Empty strings are generally fine
+    { u8"abc", u8"a-z", true},
+    { u8"ABc", u8"a-z", false},
+    { u8"☜", u8"a-zA-Z0-9", false},  // Out of normal range
+    { u8"⇐", u8"\u21d0", true},  // The actual character
+    { u8"⇐", u8"\u2100-\uffff", true},  // Large range
+    { u8"\U0001f603", u8"\u0020-\uffff", false}, // Emoji are outside of the BMP
+    { u8"\U0001f603", u8"\U0001f600-\U0001f64f", true}, // Emoticon ranges are fine
+};
+
+TEST_F(UnicodeTest, StringValidCharacters)
+{
+    for (const auto& m : VALID_CHARACTER_TESTS)
+        ASSERT_EQ(m.expected, utf8ValidCharacters(m.original, m.valid)) << m.original;
+}
+
+
+struct TrimTest {
+    std::string original;
+    std::string expected;
+    int trim;
+};
+
+static auto TRIM_TEST = std::vector<TrimTest> {
+    { u8"1234567890", u8"123", 3},
+    { u8"1234567890", u8"1234567890", 0},  // No trimming
+    { u8"", u8"", 10},  // Nothing to trim
+    { u8"", u8"", -1},  // Nothing to trim
+    { u8"1234567890", u8"1234567890", 10},  // Fits within the trim window
+    { u8"1234567890", u8"1234567890", 20},  // Fits within the trim window
+    { u8"Stühle", u8"Stü", 3},   // Two-byte character
+    { u8"\u27a3€17,23\u261ac", u8"\u27a3€17", 4}, // Three-byte characters
+    { u8"\U0001f601\U0001f602\U0001f603", u8"\U0001f601\U0001f602", 2 }, // Four-byte characters
+};
+
+TEST_F(UnicodeTest, TrimTest)
+{
+    for (const auto& m : TRIM_TEST) {
+        auto s = m.original;
+        utf8StringTrim(s, m.trim);
+        ASSERT_EQ(m.expected, s) << m.original << ":" << m.expected << ":" << m.trim;
+    }
+
+}

@@ -153,7 +153,7 @@ CoreCommand::validate()
 
             auto p = mProperties.find(cpd.second.names);
             if (p == mProperties.end()) {
-                CONSOLE_CTP(mContext) << "Missing required property '" << cpd.second.names << "' for " << name();
+                CONSOLE(mContext) << "Missing required property '" << cpd.second.names << "' for " << name();
                 return false;
             }
         }
@@ -185,12 +185,12 @@ CoreCommand::calculateProperties()
         if (mTarget == nullptr && (cpd->second.flags & kPropRequired)) {
             // TODO: Try full inflation, we may be missing deep component inflated. Quite inefficient, especially if done
             //  in onMount, revisit.
-            LOG(LogLevel::kWarn) << "Trying to scroll to uninflated component. Flushing pending layouts.";
+            LOG(LogLevel::kWarn).session(mContext) << "Trying to scroll to uninflated component. Flushing pending layouts.";
             auto& lm = mContext->layoutManager();
             lm.flushLazyInflation();
             mTarget = std::dynamic_pointer_cast<CoreComponent>(mContext->findComponentById(id));
             if (mTarget == nullptr) {
-                CONSOLE_CTP(mContext) << "Illegal command " << name() << " - need to specify a target componentId";
+                CONSOLE(mContext) << "Illegal command " << name() << " - need to specify a target componentId";
                 return false;
             }
         }
@@ -219,7 +219,7 @@ CoreCommand::calculateProperties()
 
             // Enumerated properties must be valid
             if (!result.first) {
-                CONSOLE_CTP(context) << "Invalid enumerated property for '" << it.second.names << "'";
+                CONSOLE(context) << "Invalid enumerated property for '" << it.second.names << "'";
                 return false;
             }
 
@@ -229,7 +229,7 @@ CoreCommand::calculateProperties()
 
     if (DEBUG_COMMAND_VALUES) {
         for (const auto& m : mValues) {
-            LOG(LogLevel::kDebug) << "Property: " << sCommandPropertyBimap.at(m.first) << "("
+            LOG(LogLevel::kDebug).session(mContext) << "Property: " << sCommandPropertyBimap.at(m.first) << "("
                       << m.first << ")";
             DumpVisitor::dump(m.second);
         }

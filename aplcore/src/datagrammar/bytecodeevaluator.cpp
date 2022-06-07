@@ -58,7 +58,7 @@ ByteCodeEvaluator::advance()
     // For now, we'll consider a program done when it runs off the end of the code
     for (; mProgramCounter < number_of_commands; mProgramCounter++) {
         const auto &cmd = instructions.at(mProgramCounter);
-        LOG_IF(DEBUG_BYTE_CODE) << mByteCode.instructionAsString(mProgramCounter)
+        LOG_IF(DEBUG_BYTE_CODE).session(mByteCode.getContext()) << mByteCode.instructionAsString(mProgramCounter)
                                 << " stack={" << stackToString(mStack) << "}";
         switch (cmd.type) {
             case BC_OPCODE_NOP:
@@ -75,7 +75,7 @@ ByteCodeEvaluator::advance()
                         mIsConstant = false;
                     mStack.emplace_back(f.call(args));
                 } else {
-                    CONSOLE_CTP(mByteCode.getContext()) << "Invalid function pc=" << mProgramCounter;
+                    CONSOLE(mByteCode.getContext()) << "Invalid function pc=" << mProgramCounter;
                     mStack.emplace_back(Object::NULL_OBJECT());
                 }
             }
@@ -242,7 +242,7 @@ ByteCodeEvaluator::getResult() const
         return Object::NULL_OBJECT();
 
     if (len > 1)
-        LOG(LogLevel::kError) << "Expected no items on stack; found " << len << " instead";
+        LOG(LogLevel::kError).session(mByteCode.getContext()) << "Expected no items on stack; found " << len << " instead";
 
     return mStack.back();
 }

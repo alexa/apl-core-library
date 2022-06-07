@@ -323,8 +323,8 @@ public:
 
     /**
      * Serialize this event into a JSON object
-     * @param allocator
-     * @return
+     * @param allocator RapidJSON memory allocator
+     * @return The event serialized as a RapidJSON object
      */
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 

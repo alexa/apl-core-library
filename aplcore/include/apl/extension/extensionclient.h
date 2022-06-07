@@ -184,6 +184,12 @@ public:
     bool registered();
 
     /**
+     * @return True if extension failed to register (i.e. registration was processed but failed).
+     *         False otherwise.
+     */
+    bool registrationFailed();
+
+    /**
      * @return The assigned connection token.
      */
     std::string getConnectionToken() const;
@@ -213,20 +219,20 @@ public:
     /**
      * @deprecated @c createComponentChange
      */
-    rapidjson::Value processComponentRequest(rapidjson::Document::AllocatorType& allocator,
-                                             ExtensionComponent& component);
+    APL_DEPRECATED rapidjson::Value processComponentRequest(rapidjson::Document::AllocatorType& allocator,
+                                                            ExtensionComponent& component);
 
     /**
      * @deprecated @c createComponentChange
      */
-    rapidjson::Value processComponentUpdate(rapidjson::Document::AllocatorType& allocator,
-                                            ExtensionComponent& component);
+    APL_DEPRECATED rapidjson::Value processComponentUpdate(rapidjson::Document::AllocatorType& allocator,
+                                                           ExtensionComponent& component);
 
     /**
      * @deprecated @c createComponentChange
      */
-    rapidjson::Value processComponentRelease(rapidjson::Document::AllocatorType& allocator,
-                                             ExtensionComponent& component);
+    APL_DEPRECATED rapidjson::Value processComponentRelease(rapidjson::Document::AllocatorType& allocator,
+                                                            ExtensionComponent& component);
 
     /**
      * Handle disconnection from an extension. It could either be a graceful disconnection or

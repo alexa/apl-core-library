@@ -93,22 +93,27 @@ public:
     /**
      * @return The red component [0-255]
      */
-    int red() const { return (mColor >> 24) & 0xff; }
+    int red() const { return (mColor >> 24u) & 0xffu; }
 
     /**
      * @return The green component [0-255]
      */
-    int green() const { return (mColor >> 16) & 0xff; }
+    int green() const { return (mColor >> 16u) & 0xffu; }
 
     /**
      * @return The blue component [0-255]
      */
-    int blue() const { return (mColor >> 8) & 0xff; }
+    int blue() const { return (mColor >> 8u) & 0xffu; }
 
     /**
      * @return The alpha component [0-255]
      */
-    int alpha() const { return (mColor & 0xff); }
+    int alpha() const { return (mColor & 0xffu); }
+
+    /**
+     * @return True if the color is transparent
+     */
+    bool transparent() const { return alpha() == 0; }
 
     friend streamer& operator<<(streamer& os, const Color& color) {
         return os << color.asString();
@@ -118,10 +123,10 @@ public:
      * @return This color in '#RRGGBBAA' format
      */
     std::string asString() const {
-        uint32_t a = mColor & 0xff;
-        uint32_t b = (mColor >> 8) & 0xff;
-        uint32_t g = (mColor >> 16) & 0xff;
-        uint32_t r = (mColor >> 24) & 0xff;
+        uint32_t a = mColor & 0xffu;
+        uint32_t b = (mColor >> 8u) & 0xffu;
+        uint32_t g = (mColor >> 16u) & 0xffu;
+        uint32_t r = (mColor >> 24u) & 0xffu;
         char hex[10];
         snprintf(hex, sizeof(hex), "#%02x%02x%02x%02x", r, g, b, a);
         return std::string(hex);
@@ -151,7 +156,7 @@ private:
     /**
      * Convert from a color string representation to a color
      * @param color The color string
-     * @return
+     * @return An color as a 32 bit unsigned integer in the form RGBA
      */
     static uint32_t parse(const SessionPtr& session, const char *color);
 

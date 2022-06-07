@@ -28,10 +28,9 @@ static const bool DEBUG_LAYOUT_MANAGER = false;
 static void
 yogaNodeDirtiedCallback(YGNodeRef node)
 {
-    LOG_IF(DEBUG_LAYOUT_MANAGER) << "dirty top node";
-
     auto component = static_cast<CoreComponent*>(YGNodeGetContext(node));
     assert(component);
+    LOG_IF(DEBUG_LAYOUT_MANAGER).session(*component) << "dirty top node";
     component->getContext()->layoutManager().requestLayout(component->shared_from_corecomponent(), false);
 }
 
@@ -60,7 +59,7 @@ LayoutManager::needsLayout() const
 void
 LayoutManager::firstLayout()
 {
-    LOG_IF(DEBUG_LAYOUT_MANAGER) << mTerminated;
+    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << mTerminated;
 
     if (mTerminated)
         return;
@@ -108,7 +107,7 @@ compareComponents(const CoreComponentPtr& a, const CoreComponentPtr& b)
 void
 LayoutManager::layout(bool useDirtyFlag, bool first)
 {
-    LOG_IF(DEBUG_LAYOUT_MANAGER) << mTerminated << " dirty_flag=" << useDirtyFlag;
+    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << mTerminated << " dirty_flag=" << useDirtyFlag;
 
     if (mTerminated || mInLayout)
         return;
@@ -119,7 +118,7 @@ LayoutManager::layout(bool useDirtyFlag, bool first)
 
     mInLayout = true;
     while (needsLayout()) {
-        LOG_IF(DEBUG_LAYOUT_MANAGER) << "Laying out " << mPendingLayout.size() << " component(s)";
+        LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << "Laying out " << mPendingLayout.size() << " component(s)";
 
         // Copy the pending components into a vector and sort them from top to bottom
         std::vector<CoreComponentPtr> dirty(mPendingLayout.begin(), mPendingLayout.end());
@@ -166,7 +165,7 @@ LayoutManager::flushLazyInflationInternal(const CoreComponentPtr& comp)
 void
 LayoutManager::setAsTopNode(const CoreComponentPtr& component)
 {
-    LOG_IF(DEBUG_LAYOUT_MANAGER) << component->toDebugSimpleString();
+    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << component->toDebugSimpleString();
     assert(component);
     YGNodeSetDirtiedFunc(component->getNode(), yogaNodeDirtiedCallback);
 }
@@ -174,7 +173,7 @@ LayoutManager::setAsTopNode(const CoreComponentPtr& component)
 void
 LayoutManager::removeAsTopNode(const CoreComponentPtr& component)
 {
-    LOG_IF(DEBUG_LAYOUT_MANAGER) << component->toDebugSimpleString();
+    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << component->toDebugSimpleString();
     assert(component);
     YGNodeSetDirtiedFunc(component->getNode(), nullptr);
 }
@@ -185,7 +184,7 @@ LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyF
     APL_TRACE_BLOCK("LayoutManager:layoutComponent");
     auto parent = component->getParent();
 
-    LOG_IF(DEBUG_LAYOUT_MANAGER) << "component=" << component->toDebugSimpleString()
+    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << "component=" << component->toDebugSimpleString()
                                  << " dirty_flag=" << useDirtyFlag
                                  << " parent=" << (parent ? parent->toDebugSimpleString() : "none");
 
@@ -218,7 +217,7 @@ LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyF
 void
 LayoutManager::requestLayout(const CoreComponentPtr& component, bool force)
 {
-    LOG_IF(DEBUG_LAYOUT_MANAGER) << component->toDebugSimpleString() << " force=" << force;
+    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << component->toDebugSimpleString() << " force=" << force;
     assert(component);
 
     if (mTerminated)
@@ -258,7 +257,7 @@ LayoutManager::remove(const CoreComponentPtr& component)
 bool
 LayoutManager::ensure(const CoreComponentPtr& component)
 {
-    LOG_IF(DEBUG_LAYOUT_MANAGER) << component->toDebugSimpleString();
+    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << component->toDebugSimpleString();
 
     // Walk up the component hierarchy and ensure that Yoga nodes are correctly attached
     bool result = false;
@@ -277,7 +276,7 @@ LayoutManager::ensure(const CoreComponentPtr& component)
                     attachedYogaNodeNeedsLayout = false;
                 }
             } else {   // This child needs to be attached to its parent
-                LOG_IF(DEBUG_LAYOUT_MANAGER) << "Attaching yoga node from: " << child->toDebugSimpleString();
+                LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << "Attaching yoga node from: " << child->toDebugSimpleString();
                 parent->attachYogaNode(child);
                 attachedYogaNodeNeedsLayout = true;
             }

@@ -27,7 +27,7 @@ namespace apl {
  * Convert a media state object into event properties that will be passed to the event handler.
  * Note that this method copies more properties than are strictly needed according to the APL
  * documentation.
- * @param mediaState
+ * @param mediaState The media state to convert
  * @return Shared object map
  */
 ObjectMapPtr
@@ -41,6 +41,7 @@ mediaStateToEventProperties(const MediaState& mediaState)
     eventProps->emplace("duration", mediaState.getDuration());
     eventProps->emplace("paused", mediaState.isPaused());
     eventProps->emplace("ended", mediaState.isEnded());
+    eventProps->emplace("muted", mediaState.isMuted());
     eventProps->emplace("errorCode", mediaState.getErrorCode());
     return eventProps;
 }
@@ -167,13 +168,14 @@ VideoComponent::remove()
 const ComponentPropDefSet&
 VideoComponent::propDefSet() const
 {
-    static const std::array<PropertyKey, 6> PLAYING_STATE = {
+    static const std::array<PropertyKey, 7> PLAYING_STATE = {
         kPropertyTrackCount,
         kPropertyTrackCurrentTime,
         kPropertyTrackDuration,
         kPropertyTrackIndex,
         kPropertyTrackPaused,
-        kPropertyTrackEnded
+        kPropertyTrackEnded,
+        kPropertyMuted
     };
 
     // Save the current playing state of the component
@@ -189,7 +191,7 @@ VideoComponent::propDefSet() const
     // and decide how to handle them.
     static auto setPlayingState = [](CoreComponent& component, const Object& value ) -> void {
         if (!value.isArray() || value.size() != PLAYING_STATE.size()) {
-            CONSOLE_CTP(component.getContext()) << "setPlayingState: Invalid " << value.toDebugString();
+            CONSOLE(component.getContext()) << "setPlayingState: Invalid " << value.toDebugString();
             return;
         }
 
@@ -211,6 +213,7 @@ VideoComponent::propDefSet() const
         CoreComponent::propDefSet(), MediaComponentTrait::propDefList()).add({
         { kPropertyAudioTrack,      kAudioTrackForeground,  sAudioTrackMap,     kPropInOut },
         { kPropertyAutoplay,        false,                  asOldBoolean,       kPropInOut },
+        { kPropertyMuted,           false,                  asOldBoolean,       kPropDynamic | kPropInOut },
         { kPropertyScale,           kVideoScaleBestFit,     sVideoScaleMap,     kPropInOut },
         { kPropertySource,          Object::EMPTY_ARRAY(),  asMediaSourceArray, kPropDynamic | kPropInOut | kPropVisualContext | kPropVisualHash | kPropEvaluated, resetMediaState },
         { kPropertyOnEnd,           Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
@@ -271,6 +274,7 @@ VideoComponent::saveMediaState(const MediaState& state)
     mCalculated.set(kPropertyTrackIndex, state.getTrackIndex());
     mCalculated.set(kPropertyTrackPaused, state.isPaused());
     mCalculated.set(kPropertyTrackEnded, state.isEnded());
+    mCalculated.set(kPropertyMuted, state.isMuted());
     mCalculated.set(kPropertyTrackState, state.getTrackState());
 }
 
@@ -380,7 +384,7 @@ VideoComponent::createDefaultEventProperties()
     eventProps->emplace("duration", getCalculated(kPropertyTrackDuration).asInt());
     eventProps->emplace("paused", getCalculated(kPropertyTrackPaused).asBoolean());
     eventProps->emplace("ended", getCalculated(kPropertyTrackEnded).asBoolean());
-
+    eventProps->emplace("muted", getCalculated(kPropertyMuted).asBoolean());
     return eventProps;
 }
 
@@ -438,6 +442,7 @@ VideoComponent::eventPropertyMap() const
             {"duration",    [](const CoreComponent* c) { return c->getCalculated(kPropertyTrackDuration); }},
             {"paused",      [](const CoreComponent* c) { return c->getCalculated(kPropertyTrackPaused); }},
             {"ended",       [](const CoreComponent* c) { return c->getCalculated(kPropertyTrackEnded); }},
+            {"muted",       [](const CoreComponent* c) { return c->getCalculated(kPropertyMuted); }},
             {"source",      &inlineGetCurrentURL},
             {"url",         &inlineGetCurrentURL},
             {"trackState",  [](const CoreComponent* c) { return sTrackStateMap.at(c->getCalculated(kPropertyTrackState).asInt()); }},

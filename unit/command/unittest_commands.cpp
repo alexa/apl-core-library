@@ -23,27 +23,27 @@
 using namespace apl;
 
 
-static const char *DATA = "{"
-                          "\"title\": \"Pecan Pie V\""
-                          "}";
+static const char *DATA = R"({
+  "title": "Pecan Pie V"
+})";
 
 
-const char *TOUCH_WRAPPER_EMPTY = "{"
-                            "  \"type\": \"APL\","
-                            "  \"version\": \"1.0\","
-                            "  \"mainTemplate\": {"
-                            "    \"parameters\": ["
-                            "      \"payload\""
-                            "    ],"
-                            "    \"item\": {"
-                            "      \"type\": \"TouchWrapper\","
-                            "      \"items\": {"
-                            "        \"type\": \"Text\","
-                            "        \"text\": \"${payload.title}\""
-                            "      }"
-                            "    }"
-                            "  }"
-                            "}";
+const char *TOUCH_WRAPPER_EMPTY = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "TouchWrapper",
+      "items": {
+        "type": "Text",
+        "text": "${payload.title}"
+      }
+    }
+  }
+})";
 
 TEST_F(CommandTest, OnEmptyPress)
 {
@@ -61,29 +61,29 @@ TEST_F(CommandTest, OnEmptyPress)
 }
 
 
-const char *TOUCH_WRAPPER_OTHER = "{"
-                            "  \"type\": \"APL\","
-                            "  \"version\": \"1.0\","
-                            "  \"mainTemplate\": {"
-                            "    \"parameters\": ["
-                            "      \"payload\""
-                            "    ],"
-                            "    \"item\": {"
-                            "      \"type\": \"TouchWrapper\","
-                            "      \"onPress\": {"
-                            "        \"type\": \"SetValue\","
-                            "        \"property\": \"opacity\","
-                            "        \"value\": 0.5,"
-                            "        \"componentId\": \"foo\""
-                            "      },"
-                            "      \"items\": {"
-                            "        \"type\": \"Text\","
-                            "        \"id\": \"foo\","
-                            "        \"text\": \"${payload.title}\""
-                            "      }"
-                            "    }"
-                            "  }"
-                            "}";
+const char *TOUCH_WRAPPER_OTHER = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "SetValue",
+        "property": "opacity",
+        "value": 0.5,
+        "componentId": "foo"
+      },
+      "items": {
+        "type": "Text",
+        "id": "foo",
+        "text": "${payload.title}"
+      }
+    }
+  }
+})";
 
 TEST_F(CommandTest, OnSetValueOther)
 {
@@ -113,27 +113,27 @@ TEST_F(CommandTest, OnSetValueOther)
 }
 
 
-const char *TOUCH_WRAPPER_SELF = "{"
-                            "  \"type\": \"APL\","
-                            "  \"version\": \"1.0\","
-                            "  \"mainTemplate\": {"
-                            "    \"parameters\": ["
-                            "      \"payload\""
-                            "    ],"
-                            "    \"item\": {"
-                            "      \"type\": \"TouchWrapper\","
-                            "      \"onPress\": {"
-                            "        \"type\": \"SetValue\","
-                            "        \"property\": \"opacity\","
-                            "        \"value\": 0.5"
-                            "      },"
-                            "      \"items\": {"
-                            "        \"type\": \"Text\","
-                            "        \"text\": \"${payload.title}\""
-                            "      }"
-                            "    }"
-                            "  }"
-                            "}";
+const char *TOUCH_WRAPPER_SELF = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "SetValue",
+        "property": "opacity",
+        "value": 0.5
+      },
+      "items": {
+        "type": "Text",
+        "text": "${payload.title}"
+      }
+    }
+  }
+})";
 
 TEST_F(CommandTest, OnSetValueSelf)
 {
@@ -160,26 +160,26 @@ TEST_F(CommandTest, OnSetValueSelf)
 }
 
 
-const char *TOUCH_WRAPPER_DISABLED = "{"
-                            "  \"type\": \"APL\","
-                            "  \"version\": \"1.0\","
-                            "  \"mainTemplate\": {"
-                            "    \"parameters\": ["
-                            "      \"payload\""
-                            "    ],"
-                            "    \"item\": {"
-                            "      \"type\": \"TouchWrapper\","
-                            "      \"onPress\": {"
-                            "        \"type\": \"SendEvent\","
-                            "        \"when\": false"
-                            "      },"
-                            "      \"items\": {"
-                            "        \"type\": \"Text\","
-                            "        \"text\": \"${payload.title}\""
-                            "      }"
-                            "    }"
-                            "  }"
-                            "}";
+const char *TOUCH_WRAPPER_DISABLED = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "SendEvent",
+        "when": false
+      },
+      "items": {
+        "type": "Text",
+        "text": "${payload.title}"
+      }
+    }
+  }
+})";
 
 TEST_F(CommandTest, OnPressDisabled)
 {
@@ -199,27 +199,27 @@ TEST_F(CommandTest, OnPressDisabled)
 }
 
 
-const char *TOUCH_WRAPPER_DELAYED = "{"
-                                     "  \"type\": \"APL\","
-                                     "  \"version\": \"1.0\","
-                                     "  \"mainTemplate\": {"
-                                     "    \"parameters\": ["
-                                     "      \"payload\""
-                                     "    ],"
-                                     "    \"item\": {"
-                                     "      \"type\": \"TouchWrapper\","
-                                     "      \"onPress\": {"
-                                     "        \"type\": \"SendEvent\","
-                                     "        \"when\": true,"
-                                     "        \"delay\": 100"
-                                     "      },"
-                                     "      \"items\": {"
-                                     "        \"type\": \"Text\","
-                                     "        \"text\": \"${payload.title}\""
-                                     "      }"
-                                     "    }"
-                                     "  }"
-                                     "}";
+const char *TOUCH_WRAPPER_DELAYED = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "SendEvent",
+        "when": true,
+        "delay": 100
+      },
+      "items": {
+        "type": "Text",
+        "text": "${payload.title}"
+      }
+    }
+  }
+})";
 
 TEST_F(CommandTest, OnPressDelayed)
 {
@@ -245,40 +245,40 @@ TEST_F(CommandTest, OnPressDelayed)
 }
 
 
-const char *TOUCH_WRAPPER_ARRAY = "{"
-                                    "  \"type\": \"APL\","
-                                    "  \"version\": \"1.0\","
-                                    "  \"mainTemplate\": {"
-                                    "    \"parameters\": ["
-                                    "      \"payload\""
-                                    "    ],"
-                                    "    \"item\": {"
-                                    "      \"type\": \"TouchWrapper\","
-                                    "      \"onPress\": ["
-                                    "        {"
-                                    "          \"type\": \"SendEvent\","
-                                    "          \"when\": true,"
-                                    "          \"delay\": 100,"
-                                    "          \"arguments\": [1,2,\"3\"]"
-                                    "        },"
-                                    "        {"
-                                    "          \"type\": \"Idle\","
-                                    "          \"when\": false,"
-                                    "          \"delay\": 50"
-                                    "        },"
-                                    "        {"
-                                    "          \"type\": \"Idle\","
-                                    "          \"when\": true,"
-                                    "          \"delay\": 100"
-                                    "        }"
-                                    "      ],"
-                                    "      \"items\": {"
-                                    "        \"type\": \"Text\","
-                                    "        \"text\": \"${payload.title}\""
-                                    "      }"
-                                    "    }"
-                                    "  }"
-                                    "}";
+const char *TOUCH_WRAPPER_ARRAY = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": [
+        {
+          "type": "SendEvent",
+          "when": true,
+          "delay": 100,
+          "arguments": [1,2,"3"]
+        },
+        {
+          "type": "Idle",
+          "when": false,
+          "delay": 50
+        },
+        {
+          "type": "Idle",
+          "when": true,
+          "delay": 100
+        }
+      ],
+      "items": {
+        "type": "Text",
+        "text": "${payload.title}"
+      }
+    }
+  }
+})";
 
 TEST_F(CommandTest, OnPressCommandArray)
 {
@@ -362,26 +362,26 @@ TEST_F(CommandTest, OnPressCommandArrayTerminate)
     ASSERT_EQ(0, loop->size());
 }
 
-const char * SEQ_TEST = "{"
-                        "  \"type\": \"APL\","
-                        "  \"version\": \"1.0\","
-                        "  \"mainTemplate\": {"
-                        "    \"parameters\": ["
-                        "      \"payload\""
-                        "    ],"
-                        "    \"item\": {"
-                        "      \"type\": \"TouchWrapper\","
-                        "      \"onPress\": {"
-                        "        \"type\": \"Sequential\","
-                        "        \"delay\": 100,"
-                        "        \"repeatCount\": 1,"
-                        "        \"commands\": {"
-                        "          \"type\": \"SendEvent\""
-                        "        }"
-                        "      }"
-                        "    }"
-                        "  }"
-                        "}";
+const char * SEQ_TEST = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "Sequential",
+        "delay": 100,
+        "repeatCount": 1,
+        "commands": {
+          "type": "SendEvent"
+        }
+      }
+    }
+  }
+})";
 
 TEST_F(CommandTest, SequentialTest)
 {
@@ -410,73 +410,72 @@ TEST_F(CommandTest, SequentialTest)
     root->popEvent();
 }
 
-static const char *TRY_CATCH_FINALLY =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"TouchWrapper\","
-    "      \"onPress\": {"
-    "        \"type\": \"Sequential\","
-    "        \"repeatCount\": 2,"
-    "        \"commands\": {"
-    "          \"type\": \"Custom\","
-    "          \"delay\": 1000,"
-    "          \"arguments\": ["
-    "            \"try\""
-    "          ]"
-    "        },"
-    "        \"catch\": ["
-    "          {"
-    "            \"type\": \"Custom\","
-    "            \"arguments\": ["
-    "              \"catch1\""
-    "            ],"
-    "            \"delay\": 1000"
-    "          },"
-    "          {"
-    "            \"type\": \"Custom\","
-    "            \"arguments\": ["
-    "              \"catch2\""
-    "            ],"
-    "            \"delay\": 1000"
-    "          },"
-    "          {"
-    "            \"type\": \"Custom\","
-    "            \"arguments\": ["
-    "              \"catch3\""
-    "            ],"
-    "            \"delay\": 1000"
-    "          }"
-    "        ],"
-    "        \"finally\": ["
-    "          {"
-    "            \"type\": \"Custom\","
-    "            \"arguments\": ["
-    "              \"finally1\""
-    "            ],"
-    "            \"delay\": 1000"
-    "          },"
-    "          {"
-    "            \"type\": \"Custom\","
-    "            \"arguments\": ["
-    "              \"finally2\""
-    "            ],"
-    "            \"delay\": 1000"
-    "          },"
-    "          {"
-    "            \"type\": \"Custom\","
-    "            \"arguments\": ["
-    "              \"finally3\""
-    "            ],"
-    "            \"delay\": 1000"
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *TRY_CATCH_FINALLY = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "Sequential",
+        "repeatCount": 2,
+        "commands": {
+          "type": "Custom",
+          "delay": 1000,
+          "arguments": [
+            "try"
+          ]
+        },
+        "catch": [
+          {
+            "type": "Custom",
+            "arguments": [
+              "catch1"
+            ],
+            "delay": 1000
+          },
+          {
+            "type": "Custom",
+            "arguments": [
+              "catch2"
+            ],
+            "delay": 1000
+          },
+          {
+            "type": "Custom",
+            "arguments": [
+              "catch3"
+            ],
+            "delay": 1000
+          }
+        ],
+        "finally": [
+          {
+            "type": "Custom",
+            "arguments": [
+              "finally1"
+            ],
+            "delay": 1000
+          },
+          {
+            "type": "Custom",
+            "arguments": [
+              "finally2"
+            ],
+            "delay": 1000
+          },
+          {
+            "type": "Custom",
+            "arguments": [
+              "finally3"
+            ],
+            "delay": 1000
+          }
+        ]
+      }
+    }
+  }
+})";
 
 
 // Let the entire command run normally through the "try" and "finally" parts
@@ -604,44 +603,44 @@ TEST_F(CommandTest, TryCatchFinallyAbortAfterTry)
 
 
 
-const char *PARALLEL_TEST = "{"
-                            "  \"type\": \"APL\","
-                            "  \"version\": \"1.1\","
-                            "  \"mainTemplate\": {"
-                            "    \"parameters\": ["
-                            "      \"payload\""
-                            "    ],"
-                            "    \"item\": {"
-                            "      \"type\": \"TouchWrapper\","
-                            "      \"onPress\": {"
-                            "        \"type\": \"Parallel\","
-                            "        \"commands\": ["
-                            "          {"
-                            "            \"type\": \"Idle\""
-                            "          },"
-                            "          {"
-                            "            \"type\": \"Idle\","
-                            "            \"when\": false"
-                            "          },"
-                            "          {"
-                            "            \"type\": \"Idle\","
-                            "            \"delay\": 100"
-                            "          },"
-                            "          {"
-                            "            \"type\": \"Idle\","
-                            "            \"delay\": 150,"
-                            "            \"when\": false"
-                            "          },"
-                            "          {"
-                            "            \"type\": \"Idle\","
-                            "            \"delay\": 200,"
-                            "            \"when\": true"
-                            "          }"
-                            "        ]"
-                            "      }"
-                            "    }"
-                            "  }"
-                            "}";
+const char *PARALLEL_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "Parallel",
+        "commands": [
+          {
+            "type": "Idle"
+          },
+          {
+            "type": "Idle",
+            "when": false
+          },
+          {
+            "type": "Idle",
+            "delay": 100
+          },
+          {
+            "type": "Idle",
+            "delay": 150,
+            "when": false
+          },
+          {
+            "type": "Idle",
+            "delay": 200,
+            "when": true
+          }
+        ]
+      }
+    }
+  }
+})";
 
 TEST_F(CommandTest, ParallelTest)
 {
@@ -675,103 +674,103 @@ TEST_F(CommandTest, ParallelTestTerminated)
     ASSERT_EQ(100, loop->currentTime());
 }
 
-const char *LARGE_TEST = "{"
-                         "  \"type\": \"APL\","
-                         "  \"version\": \"1.1\","
-                         "  \"mainTemplate\": {"
-                         "    \"parameters\": ["
-                         "      \"payload\""
-                         "    ],"
-                         "    \"item\": {"
-                         "      \"type\": \"Container\","
-                         "      \"direction\": \"row\","
-                         "      \"items\": ["
-                         "        {"
-                         "          \"type\": \"TouchWrapper\","
-                         "          \"id\": \"myTouchWrapper\","
-                         "          \"onPress\": ["
-                         "            {"
-                         "              \"type\": \"Sequential\","
-                         "              \"commands\": ["
-                         "                {"
-                         "                  \"type\": \"Parallel\","
-                         "                  \"commands\": ["
-                         "                    {"
-                         "                      \"type\": \"SetValue\","
-                         "                      \"property\": \"text\","
-                         "                      \"value\": \"Hello 1\","
-                         "                      \"componentId\": \"text1\""
-                         "                    },"
-                         "                    {"
-                         "                      \"type\": \"SetValue\","
-                         "                      \"property\": \"text\","
-                         "                      \"value\": \"Hello 2\","
-                         "                      \"componentId\": \"text2\""
-                         "                    }"
-                         "                  ]"
-                         "                },"
-                         "                {"
-                         "                  \"type\": \"Idle\","
-                         "                  \"delay\": 1000"
-                         "                },"
-                         "                {"
-                         "                  \"type\": \"SetValue\","
-                         "                  \"property\": \"backgroundColor\","
-                         "                  \"value\": \"red\","
-                         "                  \"componentId\": \"frame1\""
-                         "                },"
-                         "                {"
-                         "                  \"type\": \"Idle\","
-                         "                  \"delay\": 1000"
-                         "                },"
-                         "                {"
-                         "                  \"type\": \"SetValue\","
-                         "                  \"property\": \"backgroundColor\","
-                         "                  \"value\": \"yellow\","
-                         "                  \"componentId\": \"frame2\""
-                         "                }"
-                         "              ]"
-                         "            }"
-                         "          ],"
-                         "          \"width\": 100,"
-                         "          \"height\": 100,"
-                         "          \"item\": {"
-                         "            \"type\": \"Frame\","
-                         "            \"width\": \"100%\","
-                         "            \"height\": \"100%\","
-                         "            \"backgroundColor\": \"green\""
-                         "          }"
-                         "        },"
-                         "        {"
-                         "          \"type\": \"Container\","
-                         "          \"direction\": \"column\","
-                         "          \"items\": ["
-                         "            {"
-                         "              \"type\": \"Frame\","
-                         "              \"id\": \"frame1\","
-                         "              \"backgroundColor\": \"yellow\","
-                         "              \"item\": {"
-                         "                \"type\": \"Text\","
-                         "                \"text\": \"Item 1\","
-                         "                \"id\": \"text1\""
-                         "              }"
-                         "            },"
-                         "            {"
-                         "              \"type\": \"Frame\","
-                         "              \"id\": \"frame2\","
-                         "              \"backgroundColor\": \"red\","
-                         "              \"item\": {"
-                         "                \"type\": \"Text\","
-                         "                \"text\": \"Item 2\","
-                         "                \"id\": \"text2\""
-                         "              }"
-                         "            }"
-                         "          ]"
-                         "        }"
-                         "      ]"
-                         "    }"
-                         "  }"
-                         "}";
+const char *LARGE_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "Container",
+      "direction": "row",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "myTouchWrapper",
+          "onPress": [
+            {
+              "type": "Sequential",
+              "commands": [
+                {
+                  "type": "Parallel",
+                  "commands": [
+                    {
+                      "type": "SetValue",
+                      "property": "text",
+                      "value": "Hello 1",
+                      "componentId": "text1"
+                    },
+                    {
+                      "type": "SetValue",
+                      "property": "text",
+                      "value": "Hello 2",
+                      "componentId": "text2"
+                    }
+                  ]
+                },
+                {
+                  "type": "Idle",
+                  "delay": 1000
+                },
+                {
+                  "type": "SetValue",
+                  "property": "backgroundColor",
+                  "value": "red",
+                  "componentId": "frame1"
+                },
+                {
+                  "type": "Idle",
+                  "delay": 1000
+                },
+                {
+                  "type": "SetValue",
+                  "property": "backgroundColor",
+                  "value": "yellow",
+                  "componentId": "frame2"
+                }
+              ]
+            }
+          ],
+          "width": 100,
+          "height": 100,
+          "item": {
+            "type": "Frame",
+            "width": "100%",
+            "height": "100%",
+            "backgroundColor": "green"
+          }
+        },
+        {
+          "type": "Container",
+          "direction": "column",
+          "items": [
+            {
+              "type": "Frame",
+              "id": "frame1",
+              "backgroundColor": "yellow",
+              "item": {
+                "type": "Text",
+                "text": "Item 1",
+                "id": "text1"
+              }
+            },
+            {
+              "type": "Frame",
+              "id": "frame2",
+              "backgroundColor": "red",
+              "item": {
+                "type": "Text",
+                "text": "Item 2",
+                "id": "text2"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+})";
 
 
 TEST_F(CommandTest, ParallelSequentialMix)
@@ -814,35 +813,33 @@ TEST_F(CommandTest, ParallelSequentialMix)
 }
 
 
-static const char *REPEATED_SET_VALUE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": [],"
-    "    \"item\": {"
-    "      \"type\": \"TouchWrapper\","
-    "      \"width\": 100,"
-    "      \"height\": 100,"
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"text\": \"Woof\","
-    "        \"id\": \"dogText\""
-    "      },"
-    "      \"onPress\": {"
-    "        \"type\": \"Sequential\","
-    "        \"repeatCount\": 6,"
-    "        \"commands\": {"
-    "          \"type\": \"SetValue\","
-    "          \"componentId\": \"dogText\","
-    "          \"property\": \"opacity\","
-    "          \"value\": \"${event.target.opacity - 0.2}\","
-    "          \"delay\": 100"
-    "        }"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *REPEATED_SET_VALUE = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "width": 100,
+      "height": 100,
+      "items": {
+        "type": "Text",
+        "text": "Woof",
+        "id": "dogText"
+      },
+      "onPress": {
+        "type": "Sequential",
+        "repeatCount": 6,
+        "commands": {
+          "type": "SetValue",
+          "componentId": "dogText",
+          "property": "opacity",
+          "value": "${event.target.opacity - 0.2}",
+          "delay": 100
+        }
+      }
+    }
+  }
+})";
 
 TEST_F(CommandTest, RepeatedSetValue)
 {
@@ -860,32 +857,30 @@ TEST_F(CommandTest, RepeatedSetValue)
     }
 }
 
-static const char *SET_STATE_DISABLED =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": [],"
-    "    \"item\": {"
-    "      \"type\": \"TouchWrapper\","
-    "      \"width\": \"100%\","
-    "      \"height\": \"100%\","
-    "      \"onPress\": ["
-    "        {"
-    "          \"type\": \"SendEvent\","
-    "          \"arguments\": ["
-    "            \"Sending\""
-    "          ]"
-    "        },"
-    "        {"
-    "          \"type\": \"SetState\","
-    "          \"state\": \"disabled\","
-    "          \"value\": true"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SET_STATE_DISABLED = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "width": "100%",
+      "height": "100%",
+      "onPress": [
+        {
+          "type": "SendEvent",
+          "arguments": [
+            "Sending"
+          ]
+        },
+        {
+          "type": "SetState",
+          "state": "disabled",
+          "value": true
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(CommandTest, SetStateDisabled)
 {
@@ -903,24 +898,22 @@ TEST_F(CommandTest, SetStateDisabled)
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char *SET_STATE_CHECKED =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": [],"
-    "    \"item\": {"
-    "      \"type\": \"TouchWrapper\","
-    "      \"width\": \"100%\","
-    "      \"height\": \"100%\","
-    "      \"onPress\": {"
-    "        \"type\": \"SetState\","
-    "        \"state\": \"checked\","
-    "        \"value\": \"${!event.source.value}\""
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *SET_STATE_CHECKED = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "width": "100%",
+      "height": "100%",
+      "onPress": {
+        "type": "SetState",
+        "state": "checked",
+        "value": "${!event.source.value}"
+      }
+    }
+  }
+})";
 
 TEST_F(CommandTest, SetStateChecked)
 {
@@ -942,45 +935,43 @@ TEST_F(CommandTest, SetStateChecked)
     ASSERT_TRUE(component->getState().get(kStateChecked));
 }
 
-static const char *SET_STATE_FOCUSED =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": [],"
-    "    \"item\": {"
-    "      \"type\": \"Container\","
-    "      \"width\": \"100%\","
-    "      \"height\": \"100%\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"thing1\","
-    "          \"width\": 20,"
-    "          \"height\": 20,"
-    "          \"onPress\": {"
-    "            \"type\": \"SetState\","
-    "            \"state\": \"focused\","
-    "            \"value\": true,"
-    "            \"componentId\": \"thing2\""
-    "          }"
-    "        },"
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"thing2\","
-    "          \"width\": 20,"
-    "          \"height\": 20,"
-    "          \"onPress\": {"
-    "            \"type\": \"SetState\","
-    "            \"state\": \"focused\","
-    "            \"value\": true,"
-    "            \"componentId\": \"thing1\""
-    "          }"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SET_STATE_FOCUSED = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "thing1",
+          "width": 20,
+          "height": 20,
+          "onPress": {
+            "type": "SetState",
+            "state": "focused",
+            "value": true,
+            "componentId": "thing2"
+          }
+        },
+        {
+          "type": "TouchWrapper",
+          "id": "thing2",
+          "width": 20,
+          "height": 20,
+          "onPress": {
+            "type": "SetState",
+            "state": "focused",
+            "value": true,
+            "componentId": "thing1"
+          }
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(CommandTest, SetStateFocused)
 {
@@ -1018,36 +1009,35 @@ TEST_F(CommandTest, SetStateFocused)
     ASSERT_EQ(thing2, event.getComponent());
 }
 
-static const char *SET_FOCUS_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"touch1\","
-    "          \"height\": 10,"
-    "          \"onPress\": {"
-    "            \"type\": \"SetFocus\","
-    "            \"componentId\": \"touch2\""
-    "          }"
-    "        },"
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"touch2\","
-    "          \"height\": 10,"
-    "          \"onPress\": {"
-    "            \"type\": \"SetFocus\","
-    "            \"componentId\": \"touch1\""
-    "          }"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SET_FOCUS_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "touch1",
+          "height": 10,
+          "onPress": {
+            "type": "SetFocus",
+            "componentId": "touch2"
+          }
+        },
+        {
+          "type": "TouchWrapper",
+          "id": "touch2",
+          "height": 10,
+          "onPress": {
+            "type": "SetFocus",
+            "componentId": "touch1"
+          }
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(CommandTest, SetFocus)
 {
@@ -1078,35 +1068,34 @@ TEST_F(CommandTest, SetFocus)
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char *CLEAR_FOCUS =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"touch1\","
-    "          \"height\": 10,"
-    "          \"onPress\": {"
-    "            \"type\": \"SetFocus\","
-    "            \"componentId\": \"touch2\""
-    "          }"
-    "        },"
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"touch2\","
-    "          \"height\": 10,"
-    "          \"onPress\": {"
-    "            \"type\": \"ClearFocus\""
-    "          }"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *CLEAR_FOCUS = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "touch1",
+          "height": 10,
+          "onPress": {
+            "type": "SetFocus",
+            "componentId": "touch2"
+          }
+        },
+        {
+          "type": "TouchWrapper",
+          "id": "touch2",
+          "height": 10,
+          "onPress": {
+            "type": "ClearFocus"
+          }
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(CommandTest, ClearFocus)
 {
@@ -1131,7 +1120,7 @@ TEST_F(CommandTest, ClearFocus)
     ASSERT_EQ(kEventTypeFocus, event.getType());
     ASSERT_FALSE(event.getComponent().get());
     ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(event.getActionRef().isEmpty());
+    ASSERT_TRUE(event.getActionRef().empty());
     root->clearPending();
 
     // Hit it again
@@ -1139,26 +1128,25 @@ TEST_F(CommandTest, ClearFocus)
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char *EXECUTE_FOCUS =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"touch1\""
-    "        },"
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"touch2\""
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *EXECUTE_FOCUS = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "touch1"
+        },
+        {
+          "type": "TouchWrapper",
+          "id": "touch2"
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(CommandTest, ExecuteFocus)
 {
@@ -1202,7 +1190,7 @@ TEST_F(CommandTest, ExecuteFocus)
     event = root->popEvent();
     ASSERT_EQ(kEventTypeFocus, event.getType());
     ASSERT_EQ(nullptr, event.getComponent().get());
-    ASSERT_TRUE(event.getActionRef().isEmpty());
+    ASSERT_TRUE(event.getActionRef().empty());
     root->clearPending();
     ASSERT_FALSE(std::static_pointer_cast<CoreComponent>(touch1)->getState().get(kStateFocused));
     ASSERT_FALSE(std::static_pointer_cast<CoreComponent>(touch2)->getState().get(kStateFocused));
@@ -1247,25 +1235,23 @@ TEST_F(CommandTest, ExecuteFocusDisabled)
     ASSERT_FALSE(std::static_pointer_cast<CoreComponent>(touch1)->getState().get(kStateFocused));
 }
 
-static const char *FINISH_BACK =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.3\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": [],"
-        "    \"item\": {"
-        "      \"type\": \"TouchWrapper\","
-        "      \"width\": \"100%\","
-        "      \"height\": \"100%\","
-        "      \"onPress\": ["
-        "        {"
-        "          \"type\": \"Finish\","
-        "          \"reason\": \"back\""
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
+static const char *FINISH_BACK = R"({
+  "type": "APL",
+  "version": "1.3",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "width": "100%",
+      "height": "100%",
+      "onPress": [
+        {
+          "type": "Finish",
+          "reason": "back"
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(CommandTest, FinishBack)
 {
@@ -1278,25 +1264,23 @@ TEST_F(CommandTest, FinishBack)
     ASSERT_EQ(kEventReasonBack, event.getValue(kEventPropertyReason).asInt());
 }
 
-static const char *FINISH_EXIT =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.3\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": [],"
-        "    \"item\": {"
-        "      \"type\": \"TouchWrapper\","
-        "      \"width\": \"100%\","
-        "      \"height\": \"100%\","
-        "      \"onPress\": ["
-        "        {"
-        "          \"type\": \"Finish\","
-        "          \"reason\": \"exit\""
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
+static const char *FINISH_EXIT = R"({
+  "type": "APL",
+  "version": "1.3",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "width": "100%",
+      "height": "100%",
+      "onPress": [
+        {
+          "type": "Finish",
+          "reason": "exit"
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(CommandTest, FinishExit)
 {
@@ -1309,24 +1293,22 @@ TEST_F(CommandTest, FinishExit)
     ASSERT_EQ(kEventReasonExit, event.getValue(kEventPropertyReason).asInt());
 }
 
-static const char *FINISH_DEFAULT =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.3\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": [],"
-        "    \"item\": {"
-        "      \"type\": \"TouchWrapper\","
-        "      \"width\": \"100%\","
-        "      \"height\": \"100%\","
-        "      \"onPress\": ["
-        "        {"
-        "          \"type\": \"Finish\""
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
+static const char *FINISH_DEFAULT = R"({
+  "type": "APL",
+  "version": "1.3",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "width": "100%",
+      "height": "100%",
+      "onPress": [
+        {
+          "type": "Finish"
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(CommandTest, FinishDefault)
 {
@@ -1339,31 +1321,29 @@ TEST_F(CommandTest, FinishDefault)
     ASSERT_EQ(kEventReasonExit, event.getValue(kEventPropertyReason).asInt());
 }
 
-static const char *FINISH_COMMAND_LAST =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.3\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": [],"
-        "    \"item\": {"
-        "      \"type\": \"TouchWrapper\","
-        "      \"width\": \"100%\","
-        "      \"height\": \"100%\","
-        "      \"onPress\": ["
-        "        {"
-        "          \"type\": \"SendEvent\","
-        "          \"arguments\": ["
-        "            \"Sending\""
-        "          ]"
-        "        },"
-        "        {"
-        "          \"type\": \"Finish\","
-        "          \"reason\": \"back\""
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
+static const char *FINISH_COMMAND_LAST = R"({
+  "type": "APL",
+  "version": "1.3",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "width": "100%",
+      "height": "100%",
+      "onPress": [
+        {
+          "type": "SendEvent",
+          "arguments": [
+            "Sending"
+          ]
+        },
+        {
+          "type": "Finish",
+          "reason": "back"
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(CommandTest, FinishCommandLast)
 {
@@ -1379,31 +1359,29 @@ TEST_F(CommandTest, FinishCommandLast)
     ASSERT_EQ(kEventReasonBack, event.getValue(kEventPropertyReason).asInt());
 }
 
-static const char *FINISH_COMMAND_FIRST =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.3\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": [],"
-        "    \"item\": {"
-        "      \"type\": \"TouchWrapper\","
-        "      \"width\": \"100%\","
-        "      \"height\": \"100%\","
-        "      \"onPress\": ["
-        "        {"
-        "          \"type\": \"Finish\","
-        "          \"reason\": \"back\""
-        "        },"
-        "        {"
-        "          \"type\": \"SendEvent\","
-        "          \"arguments\": ["
-        "            \"Sending\""
-        "          ]"
-        "        }"
-        "      ]"
-        "    }"
-        "  }"
-        "}";
+static const char *FINISH_COMMAND_FIRST = R"({
+  "type": "APL",
+  "version": "1.3",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "width": "100%",
+      "height": "100%",
+      "onPress": [
+        {
+          "type": "Finish",
+          "reason": "back"
+        },
+        {
+          "type": "SendEvent",
+          "arguments": [
+            "Sending"
+          ]
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(CommandTest, FinishCommandFirst)
 {
@@ -1419,20 +1397,18 @@ TEST_F(CommandTest, FinishCommandFirst)
     ASSERT_FALSE(root->hasEvent());
 }
 
-static const char *EXECUTE_FINISH =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.3\","
-        "  \"mainTemplate\": {"
-        "    \"parameters\": [],"
-        "    \"item\": {"
-        "      \"type\": \"Frame\","
-        "      \"width\": \"100%\","
-        "      \"height\": \"100%\","
-        "      \"backgroundColor\": \"green\""
-        "    }"
-        "  }"
-        "}";
+static const char *EXECUTE_FINISH = R"({
+  "type": "APL",
+  "version": "1.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Frame",
+      "width": "100%",
+      "height": "100%",
+      "backgroundColor": "green"
+    }
+  }
+})";
 
 TEST_F(CommandTest, ExecuteFinishBack)
 {
@@ -1487,37 +1463,37 @@ TEST_F(CommandTest, ExecuteFinishFastMode)
 }
 
 static const char *EXTERNAL_BINDING_UPDATE_TRANSFORM_DOCUMENT = R"({
-      "type": "APL",
-      "version": "1.3",
-      "mainTemplate": {
+  "type": "APL",
+  "version": "1.3",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Container",
+        "id": "myContainer",
+        "width": "100%",
+        "height": "100%",
+        "bind": [
+          {
+            "name": "len",
+            "value": 64,
+            "type": "dimension"
+          }
+        ],
         "items": [
           {
-            "type": "Container",
-            "id": "myContainer",
-            "width": "100%",
-            "height": "100%",
-            "bind": [
+            "type": "Text",
+            "text": "Some text.",
+            "transform": [
               {
-                "name": "len",
-                "value": 64,
-                "type": "dimension"
-              }
-            ],
-            "items": [
-              {
-                "type": "Text",
-                "text": "Some text.",
-                "transform": [
-                  {
-                    "translateX": "${len}"
-                  }
-                ]
+                "translateX": "${len}"
               }
             ]
           }
         ]
       }
-    })";
+    ]
+  }
+})";
 
 TEST_F(CommandTest, BindingUpdateTransform){
     loadDocument(EXTERNAL_BINDING_UPDATE_TRANSFORM_DOCUMENT);

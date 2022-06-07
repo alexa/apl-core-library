@@ -73,13 +73,14 @@ public:
      *           removed.  For touch type pointers, the pointer will be removed from the manager.
      *
      * @param pointerEvent The PointerEvent to handle.
-     * @param event timestamp.
+     * @param timestamp The time of the event
      * @return true if was consumed and should not be passed through any platform handling.
      */
     bool handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t timestamp);
 
     /**
      * Function to notify all interested parties about pointer related time updates.
+     * @param timestamp The time of the event
      */
     void handleTimeUpdate(apl_time_t timestamp);
 

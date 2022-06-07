@@ -45,7 +45,7 @@ public:
 
     /**
      * Add an object segment to the path
-     * @param segment The name of the object.
+     * @param segment The name of the segment.
      * @return A new Path object
      */
     Path addObject(const std::string& segment) const {
@@ -58,6 +58,11 @@ public:
         return Path(mPath + '/' + segment);
     }
 
+    /**
+     * Add an object segment to the path
+     * @param segment The name of the segment
+     * @return a new Path object
+     */
     Path addObject(const char *segment) const {
         return addObject(std::string(segment));
     }
@@ -65,7 +70,7 @@ public:
     /**
      * Add an array segment to the path
      * @param segment The name of the array
-     * @return
+     * @return A new Path object
      */
     Path addArray(const std::string& segment) const {
         if (mPath.empty())
@@ -77,6 +82,11 @@ public:
         return Path(mPath + '/' + segment + '/');
     }
 
+    /**
+     * Add an array segment to the path
+     * @param segment The name of the array
+     * @return A new Path object
+     */
     Path addArray(const char *segment) const {
         return addArray(std::string(segment));
     }

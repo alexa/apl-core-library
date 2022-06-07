@@ -49,7 +49,7 @@ public:
 
     /**
      * Search and remove all dependants that are associated with this downstream key.
-     * @param key
+     * @param key The key
      */
     void removeUpstream(T key) {
         for (auto it = mUpstream.begin() ; it != mUpstream.end() ; )

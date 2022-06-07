@@ -16,6 +16,7 @@
 #include "apl/engine/contextdependant.h"
 #include "apl/engine/evaluate.h"
 #include "apl/primitives/symbolreferencemap.h"
+#include "apl/utils/session.h"
 
 namespace apl {
 
@@ -28,7 +29,7 @@ ContextDependant::create(const ContextPtr& downstreamContext,
                          const ContextPtr& bindingContext,
                          BindingFunction bindingFunction)
 {
-    LOG_IF(DEBUG_CONTEXT_DEP) << "to '" << downstreamName << "' (" << downstreamContext.get() << ")";
+    LOG_IF(DEBUG_CONTEXT_DEP).session(bindingContext) << "to '" << downstreamName << "' (" << downstreamContext.get() << ")";
 
     SymbolReferenceMap symbols;
     equation.symbols(symbols);

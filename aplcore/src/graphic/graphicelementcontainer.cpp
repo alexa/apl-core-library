@@ -65,13 +65,13 @@ GraphicElementContainer::initialize(const GraphicPtr& graphic, const Object& jso
 
     auto height = mValues.get(kGraphicPropertyHeightOriginal).getAbsoluteDimension();
     if (height <= 0) {
-        CONSOLE_CTP(mContext) << "Invalid graphic height - must be positive";
+        CONSOLE(mContext) << "Invalid graphic height - must be positive";
         return false;
     }
 
     auto width = mValues.get(kGraphicPropertyWidthOriginal).getAbsoluteDimension();
     if (width <= 0) {
-        CONSOLE_CTP(mContext) << "Invalid graphic width - must be positive";
+        CONSOLE(mContext) << "Invalid graphic width - must be positive";
         return false;
     }
 

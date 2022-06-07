@@ -16,6 +16,7 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 #include "gtest/gtest.h"
+#include "apl/buildTimeConstants.h"
 #include "apl/content/content.h"
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
@@ -25,19 +26,18 @@
 
 using namespace apl;
 
-const char *BASIC_DOC =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": ["
-    "      \"payload\""
-    "    ],"
-    "    \"item\": {"
-    "      \"type\": \"Text\""
-    "    }"
-    "  }"
-    "}";
+const char *BASIC_DOC = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
 TEST(DocumentTest, Load)
 {
@@ -53,23 +53,21 @@ TEST(DocumentTest, Load)
     ASSERT_TRUE(content->isReady());
 
     auto m = Metrics().size(1024,800).theme("dark");
-    auto config = RootConfig().defaultIdleTimeout(15000);
+    auto config = RootConfig().set(RootProperty::kDefaultIdleTimeout, 15000);
     auto doc = RootContext::create(m, content, config);
 
     ASSERT_TRUE(doc);
     ASSERT_EQ(15000, content->getDocumentSettings()->idleTimeout(config));
-    ASSERT_EQ(15000, doc->settings().idleTimeout());
 }
 
-const char *BASIC_DOC_NO_TYPE_FIELD =
-        "{"
-        "  \"version\": \"1.1\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"Text\""
-        "    }"
-        "  }"
-        "}";
+const char *BASIC_DOC_NO_TYPE_FIELD = R"apl({
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
 TEST(DocumentTest, NoTypeField)
 {
@@ -77,16 +75,15 @@ TEST(DocumentTest, NoTypeField)
     ASSERT_FALSE(content);
 }
 
-const char *BASIC_DOC_BAD_TYPE_FIELD =
-        "{"
-        "  \"type\": \"APMLTemplate\","
-        "  \"version\": \"1.1\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"Text\""
-        "    }"
-        "  }"
-        "}";
+const char *BASIC_DOC_BAD_TYPE_FIELD = R"apl({
+  "type": "APMLTemplate",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
 TEST(DocumentTest, DontEnforceBadTypeField)
 {
@@ -103,24 +100,23 @@ TEST(DocumentTest, EnforceBadTypeField)
     auto content = Content::create(BASIC_DOC_BAD_TYPE_FIELD, makeDefaultSession());
     ASSERT_TRUE(content->isReady());
     auto m = Metrics().size(1024,800).theme("dark");
-    auto config = RootConfig().enforceTypeField(true);
+    auto config = RootConfig().set(RootProperty::kEnforceTypeField, true);
     auto doc = RootContext::create(m, content, config);
     ASSERT_FALSE(doc);
 }
 
-const char *BASIC_DOC_WITH_SETTINGS =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"settings\": {"
-        "    \"idleTimeout\": 10000"
-        "  },"
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"Text\""
-        "    }"
-        "  }"
-        "}";
+const char *BASIC_DOC_WITH_SETTINGS = R"apl({
+  "type": "APL",
+  "version": "1.0",
+  "settings": {
+    "idleTimeout": 10000
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
 TEST(DocumentTest, Settings)
 {
@@ -133,23 +129,21 @@ TEST(DocumentTest, Settings)
 
     ASSERT_TRUE(doc);
     ASSERT_EQ(10000, content->getDocumentSettings()->idleTimeout(doc->rootConfig()));
-    ASSERT_EQ(10000, doc->settings().idleTimeout());
 }
 
-// NOTE: Backward compatibility for some APL 1.0 users where a runtime allowed "features" instead of "settings"
-static const char *BASIC_DOC_WITH_FEATURES =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"features\": {"
-        "    \"idleTimeout\": 10002"
-        "  },"
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"Text\""
-        "    }"
-        "  }"
-        "}";
+// NOTE: Backward compatibility for some APL 1.0 users where a runtime allowed "features" instead of "settings
+static const char *BASIC_DOC_WITH_FEATURES = R"apl({
+  "type": "APL",
+  "version": "1.0",
+  "features": {
+    "idleTimeout": 10002
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
 TEST(DocumentTest, Features)
 {
@@ -161,28 +155,26 @@ TEST(DocumentTest, Features)
     auto doc = RootContext::create(m, content);
 
     ASSERT_TRUE(doc);
-    ASSERT_EQ(10002, doc->settings().idleTimeout());
     ASSERT_EQ(10002, content->getDocumentSettings()->idleTimeout(doc->rootConfig()));
 }
 
 
-// NOTE: Ensure that "settings" overrides "features"
-static const char *BASIC_DOC_WITH_FEATURES_AND_SETTINGS =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"features\": {"
-        "    \"idleTimeout\": 10002"
-        "  },"
-        "  \"settings\": {"
-        "    \"idleTimeout\": 80000"
-        "  },"
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"Text\""
-        "    }"
-        "  }"
-        "}";
+// NOTE: Ensure that "settings" overrides "features
+static const char *BASIC_DOC_WITH_FEATURES_AND_SETTINGS = R"apl({
+  "type": "APL",
+  "version": "1.0",
+  "features": {
+    "idleTimeout": 10002
+  },
+  "settings": {
+    "idleTimeout": 80000
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
 TEST(DocumentTest, SettingsAndFeatures)
 {
@@ -194,36 +186,34 @@ TEST(DocumentTest, SettingsAndFeatures)
     auto doc = RootContext::create(m, content);
 
     ASSERT_TRUE(doc);
-    ASSERT_EQ(80000, doc->settings().idleTimeout());
     ASSERT_EQ(80000, content->getDocumentSettings()->idleTimeout(doc->rootConfig()));
 }
 
-const char *BASIC_DOC_WITH_USER_DEFINED_SETTINGS =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"settings\": {"
-        "    \"idleTimeout\": 20000,"
-        "    \"userSettingString\": \"MyValue\","
-        "    \"userSettingNumber\": 500,"
-        "    \"userSettingBool\": true,"
-        "    \"userSettingDimension\": \"100dp\","
-        "    \"userSettingArray\": ["
-        "      \"valueA\","
-        "      \"valueB\","
-        "      \"valueC\""
-        "    ],"
-        "    \"userSettingMap\": {"
-        "      \"keyA\": \"valueA\","
-        "      \"keyB\": \"valueB\""
-        "    }"
-        "  },"
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"Text\""
-        "    }"
-        "  }"
-        "}";
+const char *BASIC_DOC_WITH_USER_DEFINED_SETTINGS = R"apl({
+  "type": "APL",
+  "version": "1.0",
+  "settings": {
+    "idleTimeout": 20000,
+    "userSettingString": "MyValue",
+    "userSettingNumber": 500,
+    "userSettingBool": true,
+    "userSettingDimension": "100dp",
+    "userSettingArray": [
+      "valueA",
+      "valueB",
+      "valueC"
+    ],
+    "userSettingMap": {
+      "keyA": "valueA",
+      "keyB": "valueB"
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
 TEST(DocumentTest, UserDefinedSettings)
 {
@@ -239,7 +229,7 @@ TEST(DocumentTest, UserDefinedSettings)
 
     ASSERT_TRUE(settings);
     ASSERT_EQ(Object::NULL_OBJECT(), settings->getValue("settingAbsent"));
-    ASSERT_EQ(20000, settings->idleTimeout());
+    ASSERT_EQ(20000, settings->idleTimeout(doc->rootConfig()));
     ASSERT_STREQ("MyValue",settings->getValue("userSettingString").getString().c_str());
     ASSERT_EQ(500, settings->getValue("userSettingNumber").getInteger());
     ASSERT_TRUE(settings->getValue("userSettingBool").getBoolean());
@@ -249,16 +239,15 @@ TEST(DocumentTest, UserDefinedSettings)
 
 }
 
-const char *BASIC_DOC_WITHOUT_SETTINGS =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"Text\""
-        "    }"
-        "  }"
-        "}";
+const char *BASIC_DOC_WITHOUT_SETTINGS = R"apl({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
 TEST(DocumentTest, WithoutSettings)
 {
@@ -270,9 +259,8 @@ TEST(DocumentTest, WithoutSettings)
     auto doc = RootContext::create(m, content);
 
     ASSERT_TRUE(doc);
-    ASSERT_EQ(30000, doc->settings().idleTimeout());
     ASSERT_EQ(30000, content->getDocumentSettings()->idleTimeout(doc->rootConfig()));
-    ASSERT_EQ(Object::NULL_OBJECT(), doc->settings().getValue("userSetting"));
+    ASSERT_EQ(Object::NULL_OBJECT(), content->getDocumentSettings()->getValue("userSetting"));
 }
 
 
@@ -281,51 +269,48 @@ TEST(DocumentTest, LoadError) {
     ASSERT_FALSE(content);
 }
 
-const char *ONE_DEPENDENCY =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"import\": ["
-    "    {"
-    "      \"name\": \"basic\","
-    "      \"version\": \"1.2\""
-    "    }"
-    "  ],"
-    "  \"mainTemplate\": {"
-    "    \"parameters\": ["
-    "      \"payload\""
-    "    ],"
-    "    \"item\": {"
-    "      \"type\": \"Text\""
-    "    }"
-    "  }"
-    "}";
+const char *ONE_DEPENDENCY = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "import": [
+    {
+      "name": "basic",
+      "version": "1.2"
+    }
+  ],
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
-const char *BASIC_PACKAGE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\""
-    "}";
+const char *BASIC_PACKAGE = R"apl({
+  "type": "APL",
+  "version": "1.1"
+})apl";
 
-const char *ONE_DEPENDENCY_VERSION =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.0\","
-        "  \"import\": ["
-        "    {"
-        "      \"name\": \"basic\","
-        "      \"version\": \"1.2\""
-        "    }"
-        "  ],"
-        "  \"mainTemplate\": {"
-        "    \"parameters\": ["
-        "      \"payload\""
-        "    ],"
-        "    \"item\": {"
-        "      \"type\": \"Text\""
-        "    }"
-        "  }"
-        "}";
+const char *ONE_DEPENDENCY_VERSION = R"apl({
+  "type": "APL",
+  "version": "1.0",
+  "import": [
+    {
+      "name": "basic",
+      "version": "1.2"
+    }
+  ],
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
 TEST(DocumentTest, LoadOneDependency)
 {
@@ -352,16 +337,15 @@ TEST(DocumentTest, LoadOneDependency)
     ASSERT_EQ("1.1", content->getAPLVersion());
 }
 
-const char *INCOMPATIBLE_MAIN =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.very_custom_version\","
-        "  \"mainTemplate\": {"
-        "    \"item\": {"
-        "      \"type\": \"Text\""
-        "    }"
-        "  }"
-        "}";
+const char *INCOMPATIBLE_MAIN = R"apl({
+  "type": "APL",
+  "version": "1.very_custom_version",
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
 TEST(DocumentTest, IncompatibleMainVersion)
 {
@@ -379,11 +363,10 @@ TEST(DocumentTest, IncompatibleMainVersion)
     ASSERT_FALSE(doc);
 }
 
-const char *BASIC_INCOMPATIBLE_PACKAGE =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.very_custom_version\""
-        "}";
+const char *BASIC_INCOMPATIBLE_PACKAGE = R"apl({
+  "type": "APL",
+  "version": "1.very_custom_version"
+})apl";
 
 TEST(DocumentTest, IncompatibleImportVersion)
 {
@@ -496,43 +479,41 @@ TEST(DocumentTest, EnforceSpecVersionCheckMultipleVersions)
     ASSERT_TRUE(doc);
 }
 
-const char *SINGLE_WITH_RESOURCE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"import\": ["
-    "    {"
-    "      \"name\": \"basic\","
-    "      \"version\": \"1.2\""
-    "    }"
-    "  ],"
-    "  \"resources\": ["
-    "    {"
-    "      \"strings\": {"
-    "        \"test\": \"A\""
-    "      }"
-    "    }"
-    "  ],"
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Text\""
-    "    }"
-    "  }"
-    "}";
+const char *SINGLE_WITH_RESOURCE = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "import": [
+    {
+      "name": "basic",
+      "version": "1.2"
+    }
+  ],
+  "resources": [
+    {
+      "strings": {
+        "test": "A"
+      }
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
-const char *BASIC_SINGLE_PKG =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"resources\": ["
-    "    {"
-    "      \"string\": {"
-    "        \"item\": \"Here\","
-    "        \"test\": \"B\""
-    "      }"
-    "    }"
-    "  ]"
-    "}";
+const char *BASIC_SINGLE_PKG = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "resources": [
+    {
+      "string": {
+        "item": "Here",
+        "test": "B"
+      }
+    }
+  ]
+})apl";
 
 TEST(DocumentTest, DependencyCheck)
 {
@@ -559,94 +540,90 @@ TEST(DocumentTest, DependencyCheck)
     ASSERT_EQ(Object("A"), root->context().opt("@test"));     // test gets overridden
 }
 
-const char *DIAMOND =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"import\": ["
-    "    {"
-    "      \"name\": \"A\","
-    "      \"version\": \"2.2\""
-    "    },"
-    "    {"
-    "      \"name\": \"B\","
-    "      \"version\": \"1.0\""
-    "    }"
-    "  ],"
-    "  \"resources\": ["
-    "    {"
-    "      \"strings\": {"
-    "        \"test\": \"Hello\""
-    "      }"
-    "    }"
-    "  ],"
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Text\""
-    "    }"
-    "  }"
-    "}";
+const char *DIAMOND = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "import": [
+    {
+      "name": "A",
+      "version": "2.2"
+    },
+    {
+      "name": "B",
+      "version": "1.0"
+    }
+  ],
+  "resources": [
+    {
+      "strings": {
+        "test": "Hello"
+      }
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
-const char *DIAMOND_A =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"import\": ["
-    "    {"
-    "      \"name\": \"C\","
-    "      \"version\": \"1.5\""
-    "    }"
-    "  ],"
-    "  \"resources\": ["
-    "    {"
-    "      \"strings\": {"
-    "        \"test\": \"My A\","
-    "        \"A\": \"This is A\","
-    "        \"overwrite_A\": \"Original_A\","
-    "        \"overwrite_C\": \"A\""
-    "      }"
-    "    }"
-    "  ]"
-    "}";
+const char *DIAMOND_A = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "import": [
+    {
+      "name": "C",
+      "version": "1.5"
+    }
+  ],
+  "resources": [
+    {
+      "strings": {
+        "test": "My A",
+        "A": "This is A",
+        "overwrite_A": "Original_A",
+        "overwrite_C": "A"
+      }
+    }
+  ]
+})apl";
 
-const char *DIAMOND_B =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"import\": ["
-    "    {"
-    "      \"name\": \"C\","
-    "      \"version\": \"1.5\""
-    "    }"
-    "  ],"
-    "  \"resources\": ["
-    "    {"
-    "      \"strings\": {"
-    "        \"test\": \"My B\","
-    "        \"B\": \"This is B\","
-    "        \"overwrite_B\": \"Original_B\","
-    "        \"overwrite_C\": \"B\""
-    "      }"
-    "    }"
-    "  ]"
-    "}";
+const char *DIAMOND_B = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "import": [
+    {
+      "name": "C",
+      "version": "1.5"
+    }
+  ],
+  "resources": [
+    {
+      "strings": {
+        "test": "My B",
+        "B": "This is B",
+        "overwrite_B": "Original_B",
+        "overwrite_C": "B"
+      }
+    }
+  ]
+})apl";
 
-const char *DIAMOND_C =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"resources\": ["
-    "    {"
-    "      \"strings\": {"
-    "        \"C\": \"This is C\","
-    "        \"test\": \"My C\","
-    "        \"overwrite_A\": \"C's version of A\","
-    "        \"overwrite_B\": \"C's version of B\","
-    "        \"overwrite_C\": \"C's version of C\""
-    "      }"
-    "    }"
-    "  ]"
-    "}";
+const char *DIAMOND_C = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "resources": [
+    {
+      "strings": {
+        "C": "This is C",
+        "test": "My C",
+        "overwrite_A": "C's version of A",
+        "overwrite_B": "C's version of B",
+        "overwrite_C": "C's version of C"
+      }
+    }
+  ]
+})apl";
 
 TEST(DocumentTest, MultipleDependencies)
 {
@@ -694,59 +671,56 @@ TEST(DocumentTest, MultipleDependencies)
     ASSERT_EQ(Object("B"), context->opt("@overwrite_C"));
 }
 
-static const char *DUPLICATE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"import\": ["
-    "    {"
-    "      \"name\": \"A\","
-    "      \"version\": \"2.2\""
-    "    },"
-    "    {"
-    "      \"name\": \"A\","
-    "      \"version\": \"1.2\""
-    "    }"
-    "  ],"
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Text\""
-    "    }"
-    "  }"
-    "}";
+static const char *DUPLICATE = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "import": [
+    {
+      "name": "A",
+      "version": "2.2"
+    },
+    {
+      "name": "A",
+      "version": "1.2"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
 
-static const char *DUPLICATE_A_2_2 =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"import\": ["
-    "    {"
-    "      \"name\": \"A\","
-    "      \"version\": \"1.2\""
-    "    }"
-    "  ],"
-    "  \"resources\": ["
-    "    {"
-    "      \"strings\": {"
-    "        \"A\": \"Not A\""
-    "      }"
-    "    }"
-    "  ]"
-    "}";
+static const char *DUPLICATE_A_2_2 = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "import": [
+    {
+      "name": "A",
+      "version": "1.2"
+    }
+  ],
+  "resources": [
+    {
+      "strings": {
+        "A": "Not A"
+      }
+    }
+  ]
+})apl";
 
-static const char *DUPLICATE_A_1_2 =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"resources\": ["
-    "    {"
-    "      \"strings\": {"
-    "        \"A\": \"A\","
-    "        \"B\": \"B\""
-    "      }"
-    "    }"
-    "  ]"
-    "}";
+static const char *DUPLICATE_A_1_2 = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "resources": [
+    {
+      "strings": {
+        "A": "A",
+        "B": "B"
+      }
+    }
+  ]
+})apl";
 
 TEST(DocumentTest, Duplicate)
 {
@@ -783,12 +757,11 @@ TEST(DocumentTest, Duplicate)
     ASSERT_EQ(Object("B"), context->opt("@B"));
 }
 
-const char *FAKE_MAIN_TEMPLATE =
-    "{"
-    " \"item\": {"
-    "   \"type\": \"Text\""
-    " }"
-    "}";
+const char *FAKE_MAIN_TEMPLATE = R"apl({
+ "item": {
+   "type": "Text"
+ }
+})apl";
 
 static std::string
 makeTestPackage(std::vector<const char *> dependencies, std::map<const char *, const char *> stringMap)
@@ -1030,27 +1003,26 @@ TEST(DocumentTest, DeepLoop)
     ASSERT_TRUE(content->isError());
 }
 
-static const char * PAYLOAD_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.3\","
-    "  \"onMount\": {"
-    "    \"type\": \"SetValue\","
-    "    \"componentId\": \"TestId\","
-    "    \"property\": \"text\","
-    "    \"value\": \"${payload.value}\""
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"parameters\": ["
-    "      \"payload\""
-    "    ],"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"text\": \"Not set\","
-    "      \"id\": \"TestId\""
-    "    }"
-    "  }"
-    "}";
+static const char * PAYLOAD_TEST = R"apl({
+  "type": "APL",
+  "version": "1.3",
+  "onMount": {
+    "type": "SetValue",
+    "componentId": "TestId",
+    "property": "text",
+    "value": "${payload.value}"
+  },
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "items": {
+      "type": "Text",
+      "text": "Not set",
+      "id": "TestId"
+    }
+  }
+})apl";
 
 /**
  * Verify that the onMount command has access to the document payload
@@ -1076,31 +1048,29 @@ TEST(DocumentTest, PayloadTest)
 }
 
 
-static const char * EXTERNAL_COMMAND_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.3\","
-    "  \"mainTemplate\": {"
-    "    \"parameters\": ["
-    "      \"payload\""
-    "    ],"
-    "    \"items\": {"
-    "      \"type\": \"Text\","
-    "      \"id\": \"TextId\","
-    "      \"text\": \"${payload.start}\""
-    "    }"
-    "  }"
-    "}";
+static const char * EXTERNAL_COMMAND_TEST = R"apl({
+  "type": "APL",
+  "version": "1.3",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "items": {
+      "type": "Text",
+      "id": "TextId",
+      "text": "${payload.start}"
+    }
+  }
+})apl";
 
-static const char * EXTERNAL_COMMAND_TEST_COMMAND =
-    "["
-    "  {"
-    "    \"type\": \"SetValue\","
-    "    \"componentId\": \"TextId\","
-    "    \"property\": \"text\","
-    "    \"value\": \"${payload.end}\""
-    "  }"
-    "]";
+static const char * EXTERNAL_COMMAND_TEST_COMMAND = R"apl([
+  {
+    "type": "SetValue",
+    "componentId": "TextId",
+    "property": "text",
+    "value": "${payload.end}"
+  }
+])apl";
 
 /**
  * Verify that an external command has access to the document payload
@@ -1132,18 +1102,16 @@ TEST(DocumentTest, ExternalCommandTest)
 }
 
 
-static const char *ENVIRONMENT_TEST = R"apl(
-    {
-      "type": "APL",
-      "version": "1.8",
-      "environment": {
-        "parameters": [ "a", "b" ]
-      },
-      "mainTemplate": {
-        "parameters": [ "b", "c" ]
-      }
-    }
-)apl";
+static const char *ENVIRONMENT_TEST = R"apl({
+  "type": "APL",
+  "version": "1.8",
+  "environment": {
+    "parameters": [ "a", "b" ]
+  },
+  "mainTemplate": {
+    "parameters": [ "b", "c" ]
+  }
+})apl";
 
 /**
  * Check parameter handling from the environment and mainTemplate
@@ -1171,18 +1139,16 @@ TEST(DocumentTest, EnvironmentTest)
 }
 
 
-static const char *REDUNDANT_ENVIRONMENT_TEST = R"apl(
-    {
-      "type": "APL",
-      "version": "1.8",
-      "environment": {
-        "parameters": [ "a", "b", "a", "b" ]
-      },
-      "mainTemplate": {
-        "parameters": [ "b", "c", "b", "c" ]
-      }
-    }
-)apl";
+static const char *REDUNDANT_ENVIRONMENT_TEST = R"apl({
+  "type": "APL",
+  "version": "1.8",
+  "environment": {
+    "parameters": [ "a", "b", "a", "b" ]
+  },
+  "mainTemplate": {
+    "parameters": [ "b", "c", "b", "c" ]
+  }
+})apl";
 
 /**
  * Check parameter handling from the environment and mainTemplate
@@ -1209,3 +1175,129 @@ TEST(DocumentTest, RedundantEnvironmentTest)
     ASSERT_TRUE(content->isReady());
 }
 
+class MemoizingLogBridge : public LogBridge {
+public:
+    void transport(LogLevel level, const std::string& log) override {
+        mLog = log;
+    }
+
+    void reset() {
+        mLog = "";
+    }
+
+    std::string mLog;
+};
+
+const char *NO_DIAGNOSTIC_TAG = R"apl({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
+
+TEST(DocumentTest, LogId)
+{
+    auto logBridge = std::make_shared<MemoizingLogBridge>();
+    LoggerFactory::instance().initialize(logBridge);
+
+    auto content = Content::create(NO_DIAGNOSTIC_TAG, makeDefaultSession());
+    ASSERT_TRUE(content->isReady());
+
+    auto m = Metrics().size(1024,800).theme("dark");
+    auto config = RootConfig();
+    auto doc = RootContext::create(m, content, config);
+
+    ASSERT_TRUE(doc);
+
+    ASSERT_EQ(doc->getSession()->getLogId() + ":content.cpp:Content : Initializing experience using " +
+        std::string(sCoreRepositoryVersion), logBridge->mLog);
+
+    logBridge->reset();
+
+    ASSERT_EQ(10, doc->getSession()->getLogId().size());
+    LOG(LogLevel::kInfo).session(doc->getSession()) << "TEST";
+    ASSERT_EQ(doc->getSession()->getLogId() + ":unittest_document.cpp:TestBody : TEST", logBridge->mLog);
+
+    LoggerFactory::instance().reset();
+}
+
+const char *LOG_ID_WITH_PREFIX = R"apl({
+  "type": "APL",
+  "version": "1.0",
+  "settings": {
+    "-diagnosticLabel": "FOOBAR"
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
+
+TEST(DocumentTest, ShortLogId)
+{
+    auto logBridge = std::make_shared<MemoizingLogBridge>();
+    LoggerFactory::instance().initialize(logBridge);
+
+    auto content = Content::create(LOG_ID_WITH_PREFIX, makeDefaultSession());
+    ASSERT_TRUE(content->isReady());
+
+    auto m = Metrics().size(1024,800).theme("dark");
+    auto config = RootConfig();
+    auto doc = RootContext::create(m, content, config);
+
+    ASSERT_TRUE(doc);
+
+    ASSERT_TRUE(doc->getSession()->getLogId().rfind("FOOBAR-", 0) == 0);
+    ASSERT_EQ(doc->getSession()->getLogId() + ":content.cpp:Content : Initializing experience using " + std::string(sCoreRepositoryVersion), logBridge->mLog);
+
+    logBridge->reset();
+    LOG(LogLevel::kInfo).session(doc->getSession()) << "TEST";
+    ASSERT_EQ(17, doc->getSession()->getLogId().size());
+    ASSERT_EQ(doc->getSession()->getLogId() + ":unittest_document.cpp:TestBody : TEST", logBridge->mLog);
+
+    LoggerFactory::instance().reset();
+}
+
+TEST(DocumentTest, TwoDocuments)
+{
+    auto logBridge = std::make_shared<MemoizingLogBridge>();
+    LoggerFactory::instance().initialize(logBridge);
+
+    auto content1 = Content::create(LOG_ID_WITH_PREFIX, makeDefaultSession());
+    ASSERT_TRUE(content1->isReady());
+    ASSERT_TRUE(content1->getSession()->getLogId().rfind("FOOBAR-", 0) == 0);
+    ASSERT_EQ(content1->getSession()->getLogId() + ":content.cpp:Content : Initializing experience using " +
+        std::string(sCoreRepositoryVersion), logBridge->mLog);
+
+    auto content2 = Content::create(LOG_ID_WITH_PREFIX, makeDefaultSession());
+    ASSERT_TRUE(content2->isReady());
+    ASSERT_TRUE(content2->getSession()->getLogId().rfind("FOOBAR-", 0) == 0);
+    ASSERT_EQ(content2->getSession()->getLogId() + ":content.cpp:Content : Initializing experience using " +
+        std::string(sCoreRepositoryVersion), logBridge->mLog);
+
+
+    auto m = Metrics().size(1024,800).theme("dark");
+    auto config1 = RootConfig();
+    auto config2 = RootConfig();
+
+    auto doc1 = RootContext::create(m, content1, config1);
+    ASSERT_TRUE(doc1);
+    auto doc2 = RootContext::create(m, content2, config2);
+    ASSERT_TRUE(doc2);
+
+    LOG(LogLevel::kInfo).session(doc1->getSession()) << "TEST";
+    ASSERT_EQ(17, doc1->getSession()->getLogId().size());
+    ASSERT_EQ(doc1->getSession()->getLogId() + ":unittest_document.cpp:TestBody : TEST", logBridge->mLog);
+
+    LOG(LogLevel::kInfo).session(doc2->getSession()) << "TEST";
+    ASSERT_EQ(17, doc2->getSession()->getLogId().size());
+    ASSERT_EQ(doc2->getSession()->getLogId() + ":unittest_document.cpp:TestBody : TEST", logBridge->mLog);
+
+    ASSERT_NE(doc1->getSession()->getLogId(), doc2->getSession()->getLogId());
+
+    LoggerFactory::instance().reset();
+}

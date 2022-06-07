@@ -198,7 +198,8 @@ dumpLayoutInternal(const CoreComponentPtr& component, int indent, int childIndex
                         << " laidOut=" << component->getCalculated(kPropertyLaidOut)
                         << " isAttached=" << component->isAttached()
                         << " bounds=" << component->getCalculated(kPropertyBounds)
-                        << " innerBounds=" << component->getCalculated(kPropertyInnerBounds);
+                        << " innerBounds=" << component->getCalculated(kPropertyInnerBounds)
+                        << " transform=" << component->getCalculated(kPropertyTransform);
 
     if (YGNodeGetDirtiedFunc(component->getNode()))
         s << " LAYOUT_SIZE=" << component->getLayoutSize();

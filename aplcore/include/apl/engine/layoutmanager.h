@@ -109,7 +109,7 @@ public:
 
     /**
      * Unmark this component as the top of a Yoga hierarchy.
-     * @param component
+     * @param component The component to remove
      */
     void removeAsTopNode(const CoreComponentPtr& component);
 

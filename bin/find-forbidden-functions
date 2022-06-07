@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License").
+# You may not use this file except in compliance with the License.
+# A copy of the License is located at
+#
+#     http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is distributed
+# on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+# express or implied. See the License for the specific language governing
+# permissions and limitations under the License.
+
+FORBIDDEN_FUNCTIONS=(
+    # Functions that depend on the C locale
+    "std::fprintf"
+    "std::fscanf"
+    "std::isalnum"
+    "std::isalpha"
+    "std::isblank"
+    "std::iscntrl"
+    "std::isdigit"
+    "std::isgraph"
+    "std::islower"
+    "std::isprint"
+    "std::ispunct"
+    "std::isspace"
+    "std::isupper"
+    "std::iswalnum"
+    "std::iswalpha"
+    "std::iswblank"
+    "std::iswcntrl"
+    "std::iswctype"
+    "std::iswdigit"
+    "std::iswgraph"
+    "std::iswlower"
+    "std::iswprint"
+    "std::iswpunct"
+    "std::iswspace"
+    "std::iswupper"
+    "std::iswxdigit"
+    "std::isxdigit"
+    "std::localeconv"
+    "std::mblen"
+    "std::mbstowcs"
+    "std::mbtowc"
+    "std::setlocale"
+    "std::stod"
+    "std::stof"
+    "std::stold"
+    "std::strcoll"
+    "std::strerror"
+    "std::strtod"
+    "std::strtof"
+    "std::strtold"
+    "std::tolower"
+    "std::toupper"
+    "std::towlower"
+    "std::towupper"
+    "std::wcscoll"
+    "std::wcstod"
+    "std::wcstof"
+    "std::wcstold"
+    "std::wcstombs"
+    "std::wcsxfrm"
+
+    # Stream functions
+    "std::istream"
+    "std::ostream"
+    "std::ifstream"
+    "std::ofstream"
+    "std::fstream"
+    "std::wifstream"
+    "std::wofstream"
+    "std::wfstream"
+    "std::istringstream"
+    "std::ostringstream"
+    "std::stringstream"
+    "std::wistringstream"
+    "std::wostringstream"
+    "std::wstringstream"
+)
+
+function toPattern() {
+    echo "$1[(]"
+}
+
+function buildPattern() {
+    local pattern
+
+    for fn in "${FORBIDDEN_FUNCTIONS[@]}"; do
+        if [ -z "$pattern" ]; then
+            pattern=$fn
+        else
+            pattern="$pattern\\|`toPattern $fn`"
+        fi
+    done
+
+    echo $pattern
+}
+
+APL_CORE_DIR=$(dirname $0)/../aplcore
+cd $APL_CORE_DIR
+
+functions_pattern=$(buildPattern)
+
+# Find all occurrences of forbidden functions, and filter out those that:
+#   - specify the classic locale (for locale-dependent functions)
+#   - are followed by '// disable_forbidden_check'
+
+violations=$(find . \( -iname "*.h" -or -iname "*.cpp" \) -exec 'grep' '-Hn' "$functions_pattern" '{}' \; | grep -v 'std::locale::classic\(\)')
+
+if [ -z "$violations" ]; then
+    exit 0
+fi
+
+echo "Found violations:"
+echo "$violations"
+exit 1

@@ -136,7 +136,8 @@ public:
 
     /**
      * Scale in both the x- and y-direction
-     * @param s Scaling factor. Should satisfy s > 0
+     * @param sx Scaling factor in x
+     * @param sy Scaling factor in y
      * @return The transform
      */
     static Transform2D scale(float sx, float sy) {
@@ -313,8 +314,8 @@ public:
 
     /**
       * Serialize this transform into a 6 element array.
-      * @param allocator
-      * @return
+      * @param allocator RapidJSON memory allocator
+      * @return A RapidJSON array value
       */
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const {
         rapidjson::Value v(rapidjson::kArrayType);

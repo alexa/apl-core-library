@@ -25,26 +25,26 @@ PackagePtr
 Package::create(const SessionPtr& session, const std::string& name, JsonData&& json)
 {
     if (!json) {
-        CONSOLE_S(session).log("Package %s parse error offset=%u: %s", name.c_str(),
+        CONSOLE(session).log("Package %s parse error offset=%u: %s", name.c_str(),
                    json.offset(), json.error());
         return nullptr;
     }
 
     const auto& value = json.get();
     if (!value.IsObject()) {
-        CONSOLE_S(session).log("Package %s: not a valid JSON object", name.c_str());
+        CONSOLE(session).log("Package %s: not a valid JSON object", name.c_str());
         return nullptr;
     }
 
     auto it_type = value.FindMember(DOCUMENT_TYPE);
     if (it_type == value.MemberEnd()) {
-        CONSOLE_S(session).log("Package %s does not contain a type field", name.c_str());
+        CONSOLE(session).log("Package %s does not contain a type field", name.c_str());
         return nullptr;
     }
 
     auto it_version = value.FindMember(DOCUMENT_VERSION);
     if (it_version == value.MemberEnd() || !it_version->value.IsString()) {
-        CONSOLE_S(session).log("Package %s does not contain a valid version field", name.c_str());
+        CONSOLE(session).log("Package %s does not contain a valid version field", name.c_str());
         return nullptr;
     }
 

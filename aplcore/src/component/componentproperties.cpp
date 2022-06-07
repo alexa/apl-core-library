@@ -295,6 +295,7 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyAlignSelf,               "alignSelf"},
     {kPropertyAudioTrack,              "audioTrack"},
     {kPropertyAutoplay,                "autoplay"},
+    {kPropertyMuted,                   "muted"},
     {kPropertyBackgroundColor,         "backgroundColor"},
     {kPropertyBorderBottomLeftRadius,  "borderBottomLeftRadius"},
     {kPropertyBorderBottomRightRadius, "borderBottomRightRadius"},

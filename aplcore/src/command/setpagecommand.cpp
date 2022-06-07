@@ -33,7 +33,7 @@ SetPageCommand::propDefSet() const {
 ActionPtr
 SetPageCommand::execute(const TimersPtr& timers, bool fastMode) {
     if (fastMode) {
-        CONSOLE_CTP(mContext) << "Ignoring SetPage command in fast mode";
+        CONSOLE(mContext) << "Ignoring SetPage command in fast mode";
         return nullptr;
     }
 

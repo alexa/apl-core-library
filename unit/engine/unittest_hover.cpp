@@ -212,7 +212,7 @@ public:
         if (str != TEXT_TEXT) {
             ASSERT_EQ(1, text->getDirty().count(kPropertyText));
         }
-        ASSERT_EQ(StyledText::create(*context, str), text->getCalculated(kPropertyText));
+        ASSERT_TRUE(IsEqual(StyledText::create(*context, str), text->getCalculated(kPropertyText)));
     }
 
     void resetTextString() {

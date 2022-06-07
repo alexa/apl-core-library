@@ -197,22 +197,6 @@ TEST(ObjectTest, RapidJson)
 
 TEST(ObjectTest, Color)
 {
-    Object o = Object(Color(Color::RED));
-    ASSERT_TRUE(o.isColor());
-    ASSERT_EQ(Color::RED, o.asColor());
-
-    o = Object(Color::RED);
-    ASSERT_TRUE(o.isNumber());
-    ASSERT_EQ(Color::RED, o.asColor());
-
-    o = Object("red");
-    ASSERT_TRUE(o.isString());
-    ASSERT_EQ(Color::RED, o.asColor());
-
-    o = Object::NULL_OBJECT();
-    ASSERT_TRUE(o.isNull());
-    ASSERT_EQ(Color::TRANSPARENT, o.asColor());
-
     class TestSession : public Session {
     public:
         void write(const char *filename, const char *func, const char *value) override {
@@ -223,6 +207,23 @@ TEST(ObjectTest, Color)
     };
 
     auto session = std::make_shared<TestSession>();
+
+    Object o = Object(Color(Color::RED));
+    ASSERT_TRUE(o.isColor());
+    ASSERT_EQ(Color::RED, o.asColor(session));
+
+    o = Object(Color::RED);
+    ASSERT_TRUE(o.isNumber());
+    ASSERT_EQ(Color::RED, o.asColor(session));
+
+    o = Object("red");
+    ASSERT_TRUE(o.isString());
+    ASSERT_EQ(Color::RED, o.asColor(session));
+
+    o = Object::NULL_OBJECT();
+    ASSERT_TRUE(o.isNull());
+    ASSERT_EQ(Color::TRANSPARENT, o.asColor(session));
+
     o = Object("blue");
     ASSERT_EQ(Color::BLUE, o.asColor(session));
     ASSERT_EQ(0, session->count);
@@ -252,18 +253,18 @@ TEST(ObjectTest, Gradient)
 
     ASSERT_TRUE(a.isGradient());
     ASSERT_EQ(Gradient::RADIAL, a.getGradient().getType());
-    ASSERT_EQ(0xff0000ff, a.getGradient().getColorRange().at(0).get());
+    ASSERT_EQ(0xff0000ff, a.getGradient().getProperty(kGradientPropertyColorRange).at(0).getColor());
 
     Object b(a);
     ASSERT_TRUE(b.isGradient());
     ASSERT_EQ(Gradient::RADIAL, b.getGradient().getType());
-    ASSERT_EQ(0xff0000ff, b.getGradient().getColorRange().at(0).get());
+    ASSERT_EQ(0xff0000ff, b.getGradient().getProperty(kGradientPropertyColorRange).at(0).getColor());
 
     Object c;
     c = a;
     ASSERT_TRUE(c.isGradient());
     ASSERT_EQ(Gradient::RADIAL, c.getGradient().getType());
-    ASSERT_EQ(0xff0000ff, c.getGradient().getColorRange().at(0).get());
+    ASSERT_EQ(0xff0000ff, c.getGradient().getProperty(kGradientPropertyColorRange).at(0).getColor());
 
     {
         rapidjson::Document doc2;
@@ -282,17 +283,17 @@ TEST(ObjectTest, Gradient)
 
     ASSERT_TRUE(c.isGradient());
     ASSERT_EQ(Gradient::LINEAR, c.getGradient().getType());
-    ASSERT_EQ(0x0000ffff, c.getGradient().getColorRange().at(0).get());
+    ASSERT_EQ(0x0000ffff, c.getGradient().getProperty(kGradientPropertyColorRange).at(0).getColor());
 
     b = c;
     ASSERT_TRUE(b.isGradient());
     ASSERT_EQ(Gradient::LINEAR, b.getGradient().getType());
-    ASSERT_EQ(0x0000ffff, b.getGradient().getColorRange().at(0).get());
+    ASSERT_EQ(0x0000ffff, b.getGradient().getProperty(kGradientPropertyColorRange).at(0).getColor());
 
     // Make sure a has not changed
     ASSERT_TRUE(a.isGradient());
     ASSERT_EQ(Gradient::RADIAL, a.getGradient().getType());
-    ASSERT_EQ(0xff0000ff, a.getGradient().getColorRange().at(0).get());
+    ASSERT_EQ(0xff0000ff, a.getGradient().getProperty(kGradientPropertyColorRange).at(0).getColor());
 }
 
 const char *BAD_CASES =
@@ -430,7 +431,7 @@ TEST(ObjectTest, Radii)
 {
     Object a = Object(Radii());
     ASSERT_EQ(Object::EMPTY_RADII(), a);
-    ASSERT_TRUE(a.getRadii().isEmpty());
+    ASSERT_TRUE(a.getRadii().empty());
 
     Object b = Object(Radii(4));
     ASSERT_TRUE(b.isRadii());
@@ -438,7 +439,7 @@ TEST(ObjectTest, Radii)
     ASSERT_EQ(4, b.getRadii().bottomRight());
     ASSERT_EQ(4, b.getRadii().topLeft());
     ASSERT_EQ(4, b.getRadii().topRight());
-    ASSERT_FALSE(b.getRadii().isEmpty());
+    ASSERT_FALSE(b.getRadii().empty());
 
     Object c = Object(Radii(1,2,3,4));
     ASSERT_TRUE(c.isRadii());
@@ -452,7 +453,7 @@ TEST(ObjectTest, Radii)
     ASSERT_EQ(4, c.getRadii().radius(Radii::kBottomRight));
     ASSERT_EQ(Radii(1,2,3,4), c.getRadii());
     ASSERT_NE(Radii(1,2,3,5), c.getRadii());
-    ASSERT_FALSE(c.getRadii().isEmpty());
+    ASSERT_FALSE(c.getRadii().empty());
 
     auto foo = std::array<float, 4>{1,2,3,4};
     ASSERT_EQ(foo, c.getRadii().get());
@@ -496,6 +497,27 @@ TEST(ObjectTest, DoubleConversion)
 #endif
 }
 
+TEST(ObjectTest, DoubleConversionIgnoresCLocale)
+{
+    std::string previousLocale = std::setlocale(LC_NUMERIC, nullptr);
+    std::setlocale(LC_NUMERIC, "fr_FR.UTF-8");
+
+    feclearexcept (FE_ALL_EXCEPT);
+    for (const auto& m : DOUBLE_TEST) {
+        Object object(m.first);
+        std::string result = object.asString();
+        EXPECT_EQ(m.second, result) << m.first << " : " << m.second;
+    }
+
+    std::setlocale(LC_NUMERIC, previousLocale.c_str());
+
+    // Note: Not all architectures support FE_INVALID (e.g., wasm)
+#if defined(FE_INVALID)
+    int fe = fetestexcept (FE_INVALID);
+    ASSERT_EQ(0, fe);
+#endif
+}
+
 static const std::vector<std::pair<std::string, double>> STRING_TO_DOUBLE{
     {"0",        0},
     {"1",        1},
@@ -527,6 +549,22 @@ TEST(ObjectTest, StringToDouble)
             continue;
         ASSERT_EQ(m.second, result) << "'" << m.first << "' : " << m.second;
     }
+}
+
+TEST(ObjectTest, StringToDoubleIgnoresCLocale)
+{
+    std::string previousLocale = std::setlocale(LC_NUMERIC, nullptr);
+    std::setlocale(LC_NUMERIC, "fr_FR.UTF-8");
+
+    for (const auto& m : STRING_TO_DOUBLE) {
+        Object object(m.first);
+        double result = object.asNumber();
+        if (std::isnan(result) && std::isnan(m.second))  // NaN do not compare as equal, but they are valid
+            continue;
+        EXPECT_EQ(m.second, result) << "'" << m.first << "' : " << m.second;
+    }
+
+    std::setlocale(LC_NUMERIC, previousLocale.c_str());
 }
 
 TEST(ObjectTest, AbsoluteDimensionConversion)
@@ -659,27 +697,27 @@ TEST(ObjectTest, WhenDimensionIsNotFiniteSerializeReturnsZero)
 class DocumentObjectTest : public CommandTest {};
 
 static const char * SEND_EVENT_DIMENSION_NAN = R"apl({
-	   "type": "APL",
-	   "version": "1.1",
-	   "resources": [
-	     {
-	       "dimension": {
-	         "absDimen": "${100/0}"
-	       }
-	     }
-	   ],
-	   "mainTemplate": {
-	     "item": {
-	       "type": "TouchWrapper",
-	       "onPress": {
-	         "type": "SendEvent",
-	         "arguments": [
-	           "@absDimen"
-	         ]
-	       }
-	     }
-	   }
-	 })apl";
+  "type": "APL",
+  "version": "1.1",
+  "resources": [
+    {
+      "dimension": {
+        "absDimen": "${100/0}"
+      }
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "SendEvent",
+        "arguments": [
+          "@absDimen"
+        ]
+      }
+    }
+  }
+})apl";
 
 TEST_F(DocumentObjectTest, WithNewArguments)
 {
@@ -700,27 +738,27 @@ TEST_F(DocumentObjectTest, WithNewArguments)
 
 
 static const char * SEND_EVENT_NUMBER_NAN = R"apl({
-	   "type": "APL",
-	   "version": "1.1",
-	   "resources": [
-	     {
-	       "number": {
-	         "value": "${100/0}"
-	       }
-	     }
-	   ],
-	   "mainTemplate": {
-	     "item": {
-	       "type": "TouchWrapper",
-	       "onPress": {
-	         "type": "SendEvent",
-	         "arguments": [
-	           "@value"
-	         ]
-	       }
-	     }
-	   }
-	 })apl";
+  "type": "APL",
+  "version": "1.1",
+  "resources": [
+    {
+      "number": {
+        "value": "${100/0}"
+      }
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "SendEvent",
+        "arguments": [
+          "@value"
+        ]
+      }
+    }
+  }
+})apl";
 
 TEST_F(DocumentObjectTest, WhenNumberIsNotFiniteSerializeReturnsNull)
 {

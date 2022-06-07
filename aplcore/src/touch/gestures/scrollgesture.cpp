@@ -49,7 +49,7 @@ ScrollGesture::ScrollGesture(const ActionablePtr& actionable)
 void
 ScrollGesture::release()
 {
-    LOG_IF(DEBUG_SCROLL_GESTURE) << "Release";
+    LOG_IF(DEBUG_SCROLL_GESTURE).session(mActionable) << "Release";
     mResourceHolder->release();
     reset();
 }
@@ -57,7 +57,7 @@ ScrollGesture::release()
 void
 ScrollGesture::reset()
 {
-    LOG_IF(DEBUG_SCROLL_GESTURE) << "Reset";
+    LOG_IF(DEBUG_SCROLL_GESTURE).session(mActionable) << "Reset";
     FlingGesture::reset();
 
     if (isTriggered())
@@ -103,7 +103,7 @@ ScrollGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
 
             bool hasPositionChanged = scrollPosition != getOrCalculateNewScrollPosition();
             if (hasPositionChanged) {
-                LOG_IF(DEBUG_SCROLL_GESTURE) << "Triggering";
+                LOG_IF(DEBUG_SCROLL_GESTURE).session(mActionable) << "Triggering";
                 mTriggered = true;
                 mResourceHolder->takeResource();
             }
@@ -145,7 +145,7 @@ ScrollGesture::getVelocityLimit(const Point& travel) {
 
     auto directionalTravel = std::abs(scrollable->isVertical() ? travel.getY() : travel.getX());
 
-    LOG_IF(DEBUG_SCROLL_GESTURE) << "maxTravel " << maxTravel << " directionalTravel " << directionalTravel;
+    LOG_IF(DEBUG_SCROLL_GESTURE).session(mActionable) << "maxTravel " << maxTravel << " directionalTravel " << directionalTravel;
 
     auto maxVelocity = toLocalThreshold(rootConfig.getProperty(RootProperty::kMaximumFlingVelocity).getDouble());
 
@@ -156,7 +156,7 @@ ScrollGesture::getVelocityLimit(const Point& travel) {
         // Just linear distribution from minVelocity to maxVelocity across 0 to longFlingStart as limit
         limit = maxVelocity * velocityEasing->calc(alpha);
 
-        LOG_IF(DEBUG_SCROLL_GESTURE) << " maxVelocity " << maxVelocity << " alpha " << alpha << " limit " << limit;
+        LOG_IF(DEBUG_SCROLL_GESTURE).session(mActionable) << " maxVelocity " << maxVelocity << " alpha " << alpha << " limit " << limit;
     }
 
     return limit / time::MS_PER_SECOND;
@@ -172,7 +172,7 @@ ScrollGesture::onUp(const PointerEvent& event, apl_time_t timestamp)
     auto velocities = toLocalVector(mVelocityTracker->getEstimatedVelocity());
     auto velocity = scrollable->isVertical() ? velocities.getY() : velocities.getX();
     if (std::isnan(velocity)) {
-        CONSOLE_CTP(scrollable->getContext()) << "Singularity encountered during scroll, resetting";
+        CONSOLE(scrollable->getContext()) << "Singularity encountered during scroll, resetting";
         reset();
         return false;
     }
@@ -186,7 +186,7 @@ ScrollGesture::onUp(const PointerEvent& event, apl_time_t timestamp)
         auto delta = position - mStartPosition;
         auto velocityLimit = getVelocityLimit(delta);
         if (std::abs(velocity) > velocityLimit) {
-            LOG_IF(DEBUG_SCROLL_GESTURE)
+            LOG_IF(DEBUG_SCROLL_GESTURE).session(mActionable)
                 << "Velocity " << velocity << " is too fast, reset to " << velocityLimit;
             velocity = velocity > 0 ? velocityLimit : -velocityLimit;
             velocities = Point(velocity, velocity);
@@ -209,7 +209,7 @@ ScrollGesture::onUp(const PointerEvent& event, apl_time_t timestamp)
     } else if (scrollable->shouldForceSnap()) {
         scrollToSnap();
     } else {
-        LOG_IF(DEBUG_SCROLL_GESTURE) << "Velocity " << velocity << " is too low, do not fling.";
+        LOG_IF(DEBUG_SCROLL_GESTURE).session(mActionable) << "Velocity " << velocity << " is too low, do not fling.";
         reset();
     }
     return true;

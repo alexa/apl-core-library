@@ -17,6 +17,7 @@
 #define _APL_SIZE_H
 
 #include "apl/utils/streamer.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -62,8 +63,13 @@ public:
         return os;
     }
 
+    // @deprecated
     std::string toString() const {
-        return std::to_string(mWidth) + "x" + std::to_string(mHeight);
+        return sutil::to_string(mWidth) + "x" + sutil::to_string(mHeight);
+    }
+
+    std::string toDebugString() const {
+        return toString();
     }
 
 private:

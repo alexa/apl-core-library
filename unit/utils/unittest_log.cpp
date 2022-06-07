@@ -16,6 +16,7 @@
 #include "gtest/gtest.h"
 
 #include "apl/utils/log.h"
+#include "apl/utils/session.h"
 
 using namespace apl;
 
@@ -96,4 +97,17 @@ TEST_F(LogTest, Conditional)
     LOGF_IF(false, "LOGF_%d", false);
     ASSERT_STREQ("", log().c_str());
     ASSERT_EQ(0, calls());
+}
+
+TEST_F(LogTest, WithId)
+{
+    SessionPtr session = makeDefaultSession();
+    LOG(LogLevel::kInfo).session(session) << "Log";
+    ASSERT_EQ(LogLevel::kInfo, level());
+    ASSERT_EQ(std::string(session->getLogId() + ":unittest_log.cpp:TestBody : Log"), log());
+
+    session->setLogIdPrefix("PREFIX");
+    LOG(LogLevel::kInfo).session(session) << "Log";
+    ASSERT_EQ(std::string(session->getLogId() + ":unittest_log.cpp:TestBody : Log"), log());
+    ASSERT_TRUE(log().rfind("PREFIX-", 0) == 0);
 }

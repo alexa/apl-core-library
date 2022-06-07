@@ -19,6 +19,7 @@
 #include "apl/primitives/gradient.h"
 #include "apl/primitives/mediasource.h"
 #include "apl/primitives/radii.h"
+#include "apl/primitives/range.h"
 #include "apl/primitives/rect.h"
 #include "apl/primitives/styledtext.h"
 #include "apl/primitives/transform2d.h"
@@ -38,5 +39,6 @@ template<> const Object::ObjectType DirectObjectData<Radii>::sType = Object::kRa
 template<> const Object::ObjectType DirectObjectData<URLRequest>::sType = Object::kURLRequestType;
 template<> const Object::ObjectType DirectObjectData<Transform2D>::sType = Object::kTransform2DType;
 template<> const Object::ObjectType DirectObjectData<StyledText>::sType = Object::kStyledTextType;
+template<> const Object::ObjectType DirectObjectData<Range>::sType = Object::kRangeType;
 
 } // namespace apl

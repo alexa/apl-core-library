@@ -90,7 +90,7 @@ public:
 
     /**
      * Add a named property. The property names "when" and "type" are reserved.
-     * @param property The property to add
+     * @param name The property to add
      * @param defvalue The default value to use for this property when it is not provided.
      * @param required If true and the property is not provided, the command will not execute.
      * @return This object for chaining.
@@ -131,7 +131,6 @@ public:
      * Add a named array-ified property. The property will be converted into an array of values. The names "when"
      * and "type" are reserved.
      * @param property The property to add
-     * @param defvalue The default value to use for this property when it is not provided.
      * @param required If true and the property is not provided, the command will not execute.
      * @return This object for chaining.
      */

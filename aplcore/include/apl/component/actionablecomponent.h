@@ -40,9 +40,9 @@ public:
     void enableGestures();
 
     /**
-     * Get the touch event specific properties
-     * @param point Properties of the component segment of the event.
-     * @return The event data-binding context.
+     * Get the touch event-specific properties
+     * @param localPoint The coordinates of the local touch event
+     * @return A map of event-specific properties to be added to the data-binding context.
      */
     virtual ObjectMapPtr createTouchEventProperties(const Point& localPoint) const;
 

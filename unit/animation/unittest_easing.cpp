@@ -15,6 +15,8 @@
 
 #include "../testeventloop.h"
 
+#include <clocale>
+
 #include "apl/animation/coreeasing.h"
 #include "apl/animation/easinggrammar.h"
 
@@ -615,5 +617,45 @@ TEST_F(EasingTest, MultiSegmentPositionCurve)
          {0.50, 0},
          {0.75, -0.75},
          {1.00, 0}}));
+}
+
+TEST_F(EasingTest, EastingParsingIgnoresCLocale)
+{
+    std::string previousLocale = std::setlocale(LC_NUMERIC, nullptr);
+    std::setlocale(LC_NUMERIC, "fr_FR.UTF-8");
+
+    auto curve = Easing::parse(session, " path(0.25, 1, 0.75, 0)");
+
+    EXPECT_NEAR(0, curve->calc(0), 0.0001);
+    EXPECT_NEAR(0.5, curve->calc(0.125), 0.0001);
+    EXPECT_NEAR(1, curve->calc(0.25), 0.0001);
+    EXPECT_NEAR(0.5, curve->calc(0.5), 0.0001);
+    EXPECT_NEAR(0, curve->calc(0.75), 0.0001);
+    EXPECT_NEAR(0.5, curve->calc(0.875), 0.0001);
+    EXPECT_NEAR(1, curve->calc(1), 0.0001);
+
+    const std::string TEST = "scurve(0,0,0,10,0,0,-10,0.1,0.1,0.5,0.5) send(1,10,10)";
+
+    // X-coordinate
+    ASSERT_TRUE(CheckCurve(
+        session,
+        "spatial(2,0) " + TEST,
+        {{0, 0},
+         {0.25, 0.450455 * 10},
+         {0.50, 0.875000 * 10},
+         {0.75, 0.994079 * 10},
+         {1.00, 10}}));
+
+    // Y-coordinate
+    ASSERT_TRUE(CheckCurve(
+        session,
+        "spatial(2,1) " + TEST,
+        {{0, 0},
+         {0.25, 0.005922 * 10},
+         {0.50, 0.125000 * 10},
+         {0.75, 0.549546 * 10},
+         {1.00, 10}}));
+
+    std::setlocale(LC_NUMERIC, previousLocale.c_str());
 }
 

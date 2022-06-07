@@ -993,6 +993,7 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
     ASSERT_TRUE(CheckChildrenLaidOut(component, {17, 19}, false));
 
     completeScroll(component, 3);
+    advanceTime(10);
     scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
     ASSERT_EQ(600, scrollPosition);
 
@@ -1187,6 +1188,7 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContextRTL)
     ASSERT_TRUE(CheckChildrenLaidOut(component, {17, 19}, false));
 
     completeScroll(component, 3);
+    advanceTime(10);
     scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
     ASSERT_EQ(-600, scrollPosition);
 

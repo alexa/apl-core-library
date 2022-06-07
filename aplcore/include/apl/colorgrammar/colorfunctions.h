@@ -100,9 +100,9 @@ inline uint32_t colorFromHSL(double hue, double sat, double light) {
 
 /**
  * Calculate a color value from a hexidecimal string
- * @param hex
- * @param color
- * @return
+ * @param hex The color as a hexidecimal string value
+ * @param color The calculated color will be stored in this unsigned integer.
+ * @return True if the string parsed correctly
  */
 inline bool colorFromHex(std::string hex, uint32_t& color) {
     switch (hex.length()) {

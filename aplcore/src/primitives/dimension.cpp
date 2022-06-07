@@ -18,6 +18,7 @@
 
 #include "apl/primitives/dimension.h"
 #include "apl/engine/context.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -52,7 +53,7 @@ namespace apl {
     {
         template< typename Input >
         static void apply(const Input& in, std::string& unit, bool& isAuto, double& value) {
-            value = std::stod(in.string());
+            value = sutil::stod(in.string());
         }
     };
 

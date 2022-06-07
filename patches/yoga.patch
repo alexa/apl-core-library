@@ -1,18 +1,14 @@
-diff --git b/.DS_Store b/.DS_Store
-new file mode 100644
-index 0000000..3ecbe97
-Binary files /dev/null and b/.DS_Store differ
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 595faef..102ce08 100644
+index 018c269f..5a1a73c8 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -15,3 +15,4 @@ add_library(yogacore STATIC ${yogacore_SRC})
+@@ -22,3 +22,4 @@ add_library(yogacore STATIC ${yogacore_SRC})
  target_include_directories(yogacore PUBLIC .)
  target_link_libraries(yogacore android log)
  set_target_properties(yogacore PROPERTIES CXX_STANDARD 11)
 +install(TARGETS yogacore ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX})
 diff --git a/lib/fb/src/main/cpp/include/lyra/lyra.h b/lib/fb/src/main/cpp/include/lyra/lyra.h
-index 02e6078..2d53a87 100644
+index 02e6078d..2d53a87a 100644
 --- a/lib/fb/src/main/cpp/include/lyra/lyra.h
 +++ b/lib/fb/src/main/cpp/include/lyra/lyra.h
 @@ -172,16 +172,16 @@ inline std::vector<StackTraceElement> getStackTraceSymbols(
@@ -43,7 +39,7 @@ index 02e6078..2d53a87 100644
  /**
   * Log stack trace
 diff --git a/lib/fb/src/main/cpp/lyra/lyra.cpp b/lib/fb/src/main/cpp/lyra/lyra.cpp
-index 599a360..c4c514c 100644
+index 599a360f..c4c514c0 100644
 --- a/lib/fb/src/main/cpp/lyra/lyra.cpp
 +++ b/lib/fb/src/main/cpp/lyra/lyra.cpp
 @@ -8,7 +8,6 @@
@@ -120,7 +116,7 @@ index 599a360..c4c514c 100644
  void logStackTrace(const vector<StackTraceElement>& trace) {
    auto i = 0;
 diff --git a/lib/fb/src/main/cpp/lyra/lyra_exceptions.cpp b/lib/fb/src/main/cpp/lyra/lyra_exceptions.cpp
-index c07e6fd..0fbcb0f 100644
+index c07e6fdb..0fbcb0f1 100644
 --- a/lib/fb/src/main/cpp/lyra/lyra_exceptions.cpp
 +++ b/lib/fb/src/main/cpp/lyra/lyra_exceptions.cpp
 @@ -8,7 +8,6 @@
@@ -143,11 +139,11 @@ index c07e6fd..0fbcb0f 100644
      return "Unknown exception";
    }
 diff --git a/tests/YGNodeCallbackTest.cpp b/tests/YGNodeCallbackTest.cpp
-index be019d1..c57836b 100644
+index 5e765a0d..cc824155 100644
 --- a/tests/YGNodeCallbackTest.cpp
 +++ b/tests/YGNodeCallbackTest.cpp
-@@ -6,7 +6,6 @@
-  */
+@@ -7,7 +7,6 @@
+ 
  #include <gtest/gtest.h>
  #include <yoga/YGNode.h>
 -#include <ostream>
@@ -155,11 +151,11 @@ index be019d1..c57836b 100644
  inline bool operator==(const YGSize& lhs, const YGSize& rhs) {
    return lhs.width == rhs.width && lhs.height == rhs.height;
 diff --git a/tests/YGStyleTest.cpp b/tests/YGStyleTest.cpp
-index 530d8de..0ef14e9 100644
+index 56aa299d..79f38e2c 100644
 --- a/tests/YGStyleTest.cpp
 +++ b/tests/YGStyleTest.cpp
-@@ -6,7 +6,6 @@
-  */
+@@ -7,7 +7,6 @@
+ 
  #include <gtest/gtest.h>
  #include <yoga/YGNode.h>
 -#include <iostream>
@@ -167,11 +163,11 @@ index 530d8de..0ef14e9 100644
  TEST(YogaTest, copy_style_same) {
    const YGNodeRef node0 = YGNodeNew();
 diff --git a/yoga/YGNode.cpp b/yoga/YGNode.cpp
-index bb240df..85fc976 100644
+index f4c14bf3..aaa5cf7a 100644
 --- a/yoga/YGNode.cpp
 +++ b/yoga/YGNode.cpp
-@@ -6,7 +6,6 @@
-  */
+@@ -7,7 +7,6 @@
+ 
  #include "YGNode.h"
  #include <algorithm>
 -#include <iostream>
@@ -179,36 +175,36 @@ index bb240df..85fc976 100644
  #include "Utils.h"
  
 diff --git a/yoga/YGNodePrint.cpp b/yoga/YGNodePrint.cpp
-index f91d037..b00c6fe 100644
+index 72d147db..57be97d9 100644
 --- a/yoga/YGNodePrint.cpp
 +++ b/yoga/YGNodePrint.cpp
-@@ -4,7 +4,7 @@
-  * This source code is licensed under the MIT license found in the LICENSE
-  * file in the root directory of this source tree.
+@@ -5,7 +5,7 @@
+  * LICENSE file in the root directory of this source tree.
   */
+ 
 -#ifdef DEBUG
 +#ifndef NDEBUG
  #include "YGNodePrint.h"
  #include <stdarg.h>
  #include "YGEnums.h"
 diff --git a/yoga/YGNodePrint.h b/yoga/YGNodePrint.h
-index 8df30e2..cafe23f 100644
+index 3db504b4..31ee0e4c 100644
 --- a/yoga/YGNodePrint.h
 +++ b/yoga/YGNodePrint.h
-@@ -4,7 +4,7 @@
-  * This source code is licensed under the MIT license found in the LICENSE
-  * file in the root directory of this source tree.
+@@ -5,7 +5,7 @@
+  * LICENSE file in the root directory of this source tree.
   */
+ 
 -#ifdef DEBUG
 +#ifndef NDEBUG
  #pragma once
  #include <string>
  
 diff --git a/yoga/Yoga.cpp b/yoga/Yoga.cpp
-index 1a374ab..6d4a0e4 100644
+index 2c68674a..22d3cba0 100644
 --- a/yoga/Yoga.cpp
 +++ b/yoga/Yoga.cpp
-@@ -945,7 +945,7 @@ bool YGLayoutNodeInternal(
+@@ -996,7 +996,7 @@ bool YGLayoutNodeInternal(
      const uint32_t depth,
      const uint32_t generationCount);
  
@@ -217,7 +213,7 @@ index 1a374ab..6d4a0e4 100644
  static void YGNodePrintInternal(
      const YGNodeRef node,
      const YGPrintOptions options) {
-@@ -4140,7 +4140,7 @@ void YGNodeCalculateLayoutWithContext(
+@@ -4190,7 +4190,7 @@ YOGA_EXPORT void YGNodeCalculateLayoutWithContext(
          node->getLayout().direction(), ownerWidth, ownerHeight, ownerWidth);
      YGRoundToPixelGrid(node, node->getConfig()->pointScaleFactor, 0.0f, 0.0f);
  
@@ -226,7 +222,7 @@ index 1a374ab..6d4a0e4 100644
      if (node->getConfig()->printTree) {
        YGNodePrint(
            node,
-@@ -4202,7 +4202,7 @@ void YGNodeCalculateLayoutWithContext(
+@@ -4250,7 +4250,7 @@ YOGA_EXPORT void YGNodeCalculateLayoutWithContext(
            !nodeWithoutLegacyFlag->isLayoutTreeEqualToNode(*node);
        node->setLayoutDoesLegacyFlagAffectsLayout(neededLegacyStretchBehaviour);
  
@@ -235,6 +231,3 @@ index 1a374ab..6d4a0e4 100644
        if (nodeWithoutLegacyFlag->getConfig()->printTree) {
          YGNodePrint(
              nodeWithoutLegacyFlag,
-diff --git b/yoga/yoga.patch b/yoga/yoga.patch
-new file mode 100644
-index 0000000..e69de29

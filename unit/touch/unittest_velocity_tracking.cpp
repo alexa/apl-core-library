@@ -105,7 +105,7 @@ TEST_F(VelocityTrackingTest, ContinuousDirectionChange) {
 
 TEST_F(VelocityTrackingTest, InteractionTimeout) {
     auto config = RootConfig();
-    config.pointerInactivityTimeout(50);
+    config.set(RootProperty::kPointerInactivityTimeout, 50);
 
     auto vt = std::make_shared<VelocityTracker>(config);
     vt->addPointerEvent(PointerEvent(kPointerDown, Point(0, 0)), 0);

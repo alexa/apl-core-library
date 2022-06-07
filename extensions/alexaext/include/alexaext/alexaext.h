@@ -31,6 +31,7 @@
 *                     alexaext:myfeature:10
 */
 
+#include "activitydescriptor.h"
 #include "extension.h"
 #include "extensionbase.h"
 #include "extensionexception.h"
@@ -43,6 +44,11 @@
 #include "extensionschema.h"
 #include "extensionregistrar.h"
 #include "localextensionproxy.h"
+#include "sessiondescriptor.h"
+#include "types.h"
 #include "APLAudioPlayerExtension/AplAudioPlayerExtension.h"
+#include "APLE2EEncryptionExtension/AplE2eEncryptionExtension.h"
+#include "APLWebflowExtension/AplWebflowExtension.h"
+#include "APLMusicAlarmExtension/AplMusicAlarmExtension.h"
 
 #endif //_ALEXAEXT_H

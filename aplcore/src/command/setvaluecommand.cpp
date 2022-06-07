@@ -38,7 +38,7 @@ SetValueCommand::execute(const TimersPtr& timers, bool fastMode) {
 
     std::string property = mValues.at(kCommandPropertyProperty).asString();
     Object value = mValues.at(kCommandPropertyValue);
-    LOG_IF(DEBUG_SET_VALUE) << "SetValue - property: "<< property << " value: "<< value;
+    LOG_IF(DEBUG_SET_VALUE).session(mContext) << "SetValue - property: "<< property << " value: "<< value;
 
     if (sComponentPropertyBimap.has(property)) {
         auto propKey = static_cast<PropertyKey>(sComponentPropertyBimap.at(property));

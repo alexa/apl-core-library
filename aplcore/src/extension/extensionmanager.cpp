@@ -31,7 +31,7 @@ ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std:
     auto uriToNamespace = std::multimap<std::string, std::string>();
     for (const auto& m : requests) {
         uriToNamespace.emplace(m.second, m.first);
-        LOG_IF(DEBUG_EXTENSION_MANAGER) << "URI to Namespace: " << m.second << "->" << m.first;
+        LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "URI to Namespace: " << m.second << "->" << m.first;
     }
 
     // Extensions that define custom commands
@@ -41,7 +41,8 @@ ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std:
         for (auto it = range.first; it != range.second; ++it) {
             auto qualifiedName = it->second + ":" + m.getName();
             mExtensionCommands.emplace(qualifiedName, m);
-            LOG_IF(DEBUG_EXTENSION_MANAGER) << "extension commands: " << qualifiedName << "->" + m.toDebugString();
+            LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "extension commands: " << qualifiedName
+                << "->" + m.toDebugString();
         }
     }
 
@@ -52,7 +53,8 @@ ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std:
         for (auto it = range.first ; it != range.second ; ++it) {
             auto qualifiedName = it->second + ":" + m.getName();
             mExtensionFilters.emplace(qualifiedName, m);
-            LOG_IF(DEBUG_EXTENSION_MANAGER) << "extension filters: " << qualifiedName << "->" + m.toDebugString();
+            LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "extension filters: " << qualifiedName
+                << "->" + m.toDebugString();
         }
     }
 
@@ -61,7 +63,8 @@ ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std:
         auto range = uriToNamespace.equal_range(m.getURI());
         for (auto it = range.first; it != range.second; ++it) {
             mQualifiedEventHandlerMap.emplace(it->second + ":" + m.getName(), m);
-            LOG_IF(DEBUG_EXTENSION_MANAGER) << "qualified handlers: " << it->second + ":" + m.getName() << "->" << m.toDebugString();
+            LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "qualified handlers: "
+                << it->second + ":" + m.getName() << "->" << m.toDebugString();
         }
     }
 
@@ -74,10 +77,12 @@ ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std:
         if (it != supported.end()) {
             auto cfg = Object(rootConfig.getExtensionEnvironment(m.second));
             mEnvironment->emplace(m.first, cfg);// Add the NAME.  The URI should already be there.
-            LOG_IF(DEBUG_EXTENSION_MANAGER) << "requestedEnvironment: " << m.first << "->" << cfg.toDebugString();
+            LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "requestedEnvironment: " << m.first
+                << "->" << cfg.toDebugString();
         } else {
             mEnvironment->emplace(m.first, Object::FALSE_OBJECT());
-            LOG_IF(DEBUG_EXTENSION_MANAGER) << "requestedEnvironment: " << m.first << "->" << false;
+            LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "requestedEnvironment: " << m.first
+                << "->" << false;
         }
     }
 
@@ -88,7 +93,8 @@ ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std:
         for (auto it = range.first; it != range.second; ++it) {
             auto qualifiedName = it->second + ":" + m.getName();
             mExtensionComponentDefs.emplace(qualifiedName, m);
-            LOG_IF(DEBUG_EXTENSION_MANAGER) << "extension component: " << qualifiedName << "->" + m.toDebugString();
+            LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "extension component: " << qualifiedName
+                << "->" + m.toDebugString();
         }
     }
 }

@@ -164,7 +164,7 @@ static const char *SEQUENCE_WITH_PADDING = R"({
 TEST_F(FindComponentAtPosition, SequenceWithPadding)
 {
     // Force loading of all items we are looking at to simplify testing.
-    config->sequenceChildCache(5);
+    config->set(RootProperty::kSequenceChildCache, 5);
     loadDocument(SEQUENCE_WITH_PADDING);
     ASSERT_TRUE(component);
 
@@ -186,6 +186,7 @@ TEST_F(FindComponentAtPosition, SequenceWithPadding)
 
     // Scroll up
     component->update(kUpdateScrollPosition, 20);
+    advanceTime(10);
     ASSERT_EQ(component->getChildAt(1), component->findComponentAtPosition(Point(50, 0)));
     ASSERT_EQ(component->getChildAt(2), component->findComponentAtPosition(Point(50, 10)));
     ASSERT_EQ(component->getChildAt(3), component->findComponentAtPosition(Point(50, 20)));
@@ -195,6 +196,7 @@ TEST_F(FindComponentAtPosition, SequenceWithPadding)
     // Maximum scroll (there are 6 children for a total child height of 60, plus 20 units
     // of padding in a container of height 40).
     component->update(kUpdateScrollPosition, 40);
+    advanceTime(10);
     ASSERT_EQ(component->getChildAt(3), component->findComponentAtPosition(Point(50, 0)));
     ASSERT_EQ(component->getChildAt(4), component->findComponentAtPosition(Point(50, 10)));
     ASSERT_EQ(component->getChildAt(5), component->findComponentAtPosition(Point(50, 20)));
@@ -239,7 +241,7 @@ static const char *GRID_SEQUENCE_WITH_PADDING = R"({
 TEST_F(FindComponentAtPosition, GridSequenceWithPadding)
 {
     // Force loading of all items we are looking at to simplify testing.
-    config->sequenceChildCache(10);
+    config->set(RootProperty::kSequenceChildCache, 10);
     loadDocument(GRID_SEQUENCE_WITH_PADDING);
     ASSERT_TRUE(component);
 
@@ -260,6 +262,7 @@ TEST_F(FindComponentAtPosition, GridSequenceWithPadding)
 
     // Scroll down
     component->update(kUpdateScrollPosition, 20);
+    advanceTime(10);
     ASSERT_EQ(component->getChildAt(2), component->findComponentAtPosition(Point(15, 15)));
     ASSERT_EQ(component->getChildAt(3), component->findComponentAtPosition(Point(40, 15)));
     ASSERT_EQ(component->getChildAt(4), component->findComponentAtPosition(Point(15, 40)));
@@ -267,7 +270,7 @@ TEST_F(FindComponentAtPosition, GridSequenceWithPadding)
 
     // Scroll down
     component->update(kUpdateScrollPosition, 40);
-
+    advanceTime(10);
     ASSERT_EQ(component->getChildAt(4), component->findComponentAtPosition(Point(15, 15)));
     ASSERT_EQ(component->getChildAt(5), component->findComponentAtPosition(Point(40, 15)));
     ASSERT_EQ(component->getChildAt(6), component->findComponentAtPosition(Point(15, 40)));

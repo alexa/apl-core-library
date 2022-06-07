@@ -15,6 +15,8 @@
 
 #include "../testeventloop.h"
 
+#include <clocale>
+
 using namespace apl;
 
 class DimensionTest : public MemoryWrapper {
@@ -98,6 +100,28 @@ TEST_F(DimensionTest, Basic)
 
     EXPECT_TRUE(IsRelative(-30, Dimension(*c, "-30%")));
     EXPECT_TRUE(IsRelative(-124, Dimension(*c, "  -124%  ")));
+}
+
+TEST_F(DimensionTest, DimensionParsingIgnoresCLocale)
+{
+    std::string previousLocale = std::setlocale(LC_NUMERIC, nullptr);
+    std::setlocale(LC_NUMERIC, "fr_FR.UTF-8");
+
+    EXPECT_TRUE(IsAbsolute(1024, Dimension(*c, "  100 vw ")));
+    EXPECT_TRUE(IsAbsolute(250, Dimension(*c, "50vh")));
+    EXPECT_TRUE(IsAbsolute(125, Dimension(*c, "125  dp")));
+    EXPECT_TRUE(IsAbsolute(150, Dimension(*c, "150")));
+    EXPECT_TRUE(IsAbsolute(175, Dimension(*c, "175.0")));
+    EXPECT_TRUE(IsAbsolute(150, Dimension(*c, "   300px ")));
+
+    EXPECT_TRUE(IsRelative(30, Dimension(*c, "30%")));
+    EXPECT_TRUE(IsRelative(31.5, Dimension(*c, "31.5%")));
+
+    EXPECT_TRUE(IsRelative(-30, Dimension(*c, "-30%")));
+    EXPECT_TRUE(IsRelative(-31.5, Dimension(*c, "-31.5%")));
+    EXPECT_TRUE(IsRelative(-124, Dimension(*c, "  -124%  ")));
+
+    std::setlocale(LC_NUMERIC, previousLocale.c_str());
 }
 
 TEST_F(DimensionTest, PreferRelative)

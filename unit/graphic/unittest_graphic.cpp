@@ -423,7 +423,7 @@ TEST_F(GraphicTest, GraphicResourceComponentContextScoping)
 
     auto object = context->opt("@myColor");
     ASSERT_TRUE(object.isColor());
-    ASSERT_EQ(Color(Color::RED), object.asColor());
+    ASSERT_EQ(Color::RED, object.getColor());
 
     auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
     ASSERT_TRUE(graphic);
@@ -434,7 +434,7 @@ TEST_F(GraphicTest, GraphicResourceComponentContextScoping)
     ASSERT_EQ(1, container->getChildCount());
     auto text = container->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypeText, text->getType());
-    ASSERT_EQ(Color(Color::RED), text->getValue(kGraphicPropertyFill).asColor());
+    ASSERT_EQ(Color::RED, text->getValue(kGraphicPropertyFill).getColor());
 
 }
 
@@ -538,6 +538,8 @@ TEST_F(GraphicTest, GroupProperties)
 static const char *MINIMAL_TEXT =
     R"({
       "type": "AVG",
+      "layoutDirection": "RTL",
+      "lang": "ar-IR",
       "version": "1.0",
       "height": 100,
       "width": 200,
@@ -553,13 +555,15 @@ TEST_F(GraphicTest, MinimalText)
 
     auto container = graphic->getRoot();
     ASSERT_TRUE(container);
-    ASSERT_EQ(Object(""), container->getValue(kGraphicPropertyLang));
+    ASSERT_EQ(Object("ar-IR"), container->getValue(kGraphicPropertyLang));
     ASSERT_EQ(kGraphicLayoutDirectionLTR, container->getValue(kGraphicPropertyLang).asInt());
 
     ASSERT_EQ(1, container->getChildCount());
     auto text = container->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypeText, text->getType());
 
+    ASSERT_EQ(kGraphicLayoutDirectionRTL, text->getLayoutDirection());
+    ASSERT_EQ("ar-IR", text->getLang());
     ASSERT_EQ(Object(Color(Color::BLACK)), text->getValue(kGraphicPropertyFill));
     ASSERT_EQ(Object(1), text->getValue(kGraphicPropertyFillOpacity));
     ASSERT_EQ(Object("sans-serif"), text->getValue(kGraphicPropertyFontFamily));
@@ -819,17 +823,6 @@ TEST_F(GraphicTest, BadContent)
     }
 }
 
-
-TEST_F(GraphicTest, BadContentNoSession)
-{
-    for (auto& s : BAD_CONTENT) {
-        auto gc = GraphicContent::create(s);
-        ASSERT_FALSE(gc);
-        ASSERT_FALSE(ConsoleMessage());
-        ASSERT_TRUE(LogMessage());
-    }
-}
-
 static std::vector<std::string> BAD_CONTAINER_PROPERTIES = {
     R"({"type": "AVG", "version": "1.0", "height": 0, "width": 200})",     // Zero height
     R"({"type": "AVG", "version": "1.0", "height": 100, "width": 0})",     // Zero width
@@ -962,8 +955,9 @@ TEST_F(GraphicTest, InvalidUpdateWithInvalidJson) {
     ASSERT_EQ(Object::NULL_OBJECT(), stretch->getCalculated(kPropertyGraphic));
 
     auto json = JsonData(R"(abcd)");
-    auto graphicContent = GraphicContent::create(std::move(json));
+    auto graphicContent = GraphicContent::create(session, std::move(json));
     ASSERT_EQ(nullptr, graphicContent);
+    ASSERT_TRUE(session->checkAndClear());
 
     none = component->findComponentById("none");
     ASSERT_EQ(Object::NULL_OBJECT(), none->getCalculated(kPropertyGraphic));
@@ -987,7 +981,7 @@ TEST_F(GraphicTest, InvalidUpdateWithValidJson) {
     ASSERT_EQ(Object::NULL_OBJECT(), stretch->getCalculated(kPropertyGraphic));
 
     auto json = JsonData(PILL_AVG);
-    auto graphicContent = GraphicContent::create(std::move(json));
+    auto graphicContent = GraphicContent::create(session, std::move(json));
     stretch->updateGraphic(graphicContent);
 
     none = component->findComponentById("none");
@@ -2063,8 +2057,8 @@ TEST_F(GraphicTest, Transformed)
     ASSERT_EQ(Gradient::LINEAR, fillGrad.getProperty(kGradientPropertyType).getInteger());
     auto colorRange = fillGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::RED), colorRange.at(0).asColor());
-    ASSERT_EQ(Color(Color::WHITE), colorRange.at(1).asColor());
+    ASSERT_EQ(Color::RED, colorRange.at(0).getColor());
+    ASSERT_EQ(Color::WHITE, colorRange.at(1).getColor());
 
     auto inputRange = fillGrad.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
@@ -2097,8 +2091,8 @@ TEST_F(GraphicTest, Transformed)
     ASSERT_EQ(Gradient::RADIAL, strokeGrad.getProperty(kGradientPropertyType).getInteger());
     colorRange = strokeGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::BLUE), colorRange.at(0).asColor());
-    ASSERT_EQ(Color(Color::GREEN), colorRange.at(1).asColor());
+    ASSERT_EQ(Color::BLUE, colorRange.at(0).getColor());
+    ASSERT_EQ(Color::GREEN, colorRange.at(1).getColor());
 
     inputRange = strokeGrad.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
@@ -2209,8 +2203,8 @@ TEST_F(GraphicTest, AVGResourceTypes)
     auto fill = path->getValue(kGraphicPropertyFill).getGradient();
     ASSERT_EQ(Gradient::LINEAR, fill.getType());
     ASSERT_EQ(Gradient::kGradientUnitsUserSpace, fill.getProperty(kGradientPropertyUnits).getInteger());
-    ASSERT_EQ(std::vector<Color>({Color::RED, Color::TRANSPARENT}), fill.getColorRange());
-    ASSERT_EQ(std::vector<double>({0, 0.4}), fill.getInputRange());
+    ASSERT_EQ(std::vector<Object>({Color(Color::RED), Color(Color::TRANSPARENT)}), fill.getProperty(kGradientPropertyColorRange).getArray());
+    ASSERT_EQ(std::vector<Object>({0.0, 0.4}), fill.getProperty(kGradientPropertyInputRange).getArray());
     ASSERT_EQ(25, fill.getProperty(kGradientPropertyX1).getDouble());
     ASSERT_EQ(75, fill.getProperty(kGradientPropertyX2).getDouble());
     ASSERT_EQ(15, fill.getProperty(kGradientPropertyY1).getDouble());
@@ -2535,8 +2529,8 @@ TEST_F(GraphicTest, LocalResourcedGradient)
     ASSERT_EQ(Gradient::LINEAR, fillGrad.getProperty(kGradientPropertyType).getInteger());
     auto colorRange = fillGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::RED), colorRange.at(0).asColor());
-    ASSERT_EQ(Color(Color::WHITE), colorRange.at(1).asColor());
+    ASSERT_EQ(Color::RED, colorRange.at(0).getColor());
+    ASSERT_EQ(Color::WHITE, colorRange.at(1).getColor());
 
     auto inputRange = fillGrad.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
@@ -2564,8 +2558,8 @@ TEST_F(GraphicTest, LocalResourcedGradient)
     ASSERT_EQ(Gradient::RADIAL, strokeGrad.getProperty(kGradientPropertyType).getInteger());
     colorRange = strokeGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::BLUE), colorRange.at(0).asColor());
-    ASSERT_EQ(Color(Color::GREEN), colorRange.at(1).asColor());
+    ASSERT_EQ(Color::BLUE, colorRange.at(0).getColor());
+    ASSERT_EQ(Color::GREEN, colorRange.at(1).getColor());
 
     inputRange = strokeGrad.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
@@ -2656,8 +2650,8 @@ TEST_F(GraphicTest, ExternalResourcedGradient)
     ASSERT_EQ(Gradient::LINEAR, fillGrad.getProperty(kGradientPropertyType).getInteger());
     auto colorRange = fillGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::BLUE), colorRange.at(0).asColor());
-    ASSERT_EQ(Color(Color::WHITE), colorRange.at(1).asColor());
+    ASSERT_EQ(Color::BLUE, colorRange.at(0).getColor());
+    ASSERT_EQ(Color::WHITE, colorRange.at(1).getColor());
 
     auto inputRange = fillGrad.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
@@ -2685,8 +2679,8 @@ TEST_F(GraphicTest, ExternalResourcedGradient)
     ASSERT_EQ(Gradient::RADIAL, strokeGrad.getProperty(kGradientPropertyType).getInteger());
     colorRange = strokeGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::RED), colorRange.at(0).asColor());
-    ASSERT_EQ(Color(Color::GREEN), colorRange.at(1).asColor());
+    ASSERT_EQ(Color::RED, colorRange.at(0).getColor());
+    ASSERT_EQ(Color::GREEN, colorRange.at(1).getColor());
 
     inputRange = strokeGrad.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
@@ -2750,8 +2744,8 @@ TEST_F(GraphicTest, GradientInline)
     ASSERT_EQ(Gradient::LINEAR, fillGrad.getProperty(kGradientPropertyType).getInteger());
     auto colorRange = fillGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::BLUE), colorRange.at(0).asColor());
-    ASSERT_EQ(Color(Color::WHITE), colorRange.at(1).asColor());
+    ASSERT_EQ(Color::BLUE, colorRange.at(0).getColor());
+    ASSERT_EQ(Color::WHITE, colorRange.at(1).getColor());
 }
 
 static const char* MIXED_RESOURCES = R"({
@@ -2858,8 +2852,8 @@ TEST_F(GraphicTest, MixedResources)
     ASSERT_EQ(Gradient::RADIAL, strokeGrad.getProperty(kGradientPropertyType).getInteger());
     auto colorRange = strokeGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::RED), colorRange.at(0).asColor());
-    ASSERT_EQ(Color(Color::GREEN), colorRange.at(1).asColor());
+    ASSERT_EQ(Color::RED, colorRange.at(0).getColor());
+    ASSERT_EQ(Color::GREEN, colorRange.at(1).getColor());
 
     auto inputRange = strokeGrad.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
@@ -3052,8 +3046,8 @@ TEST_F(GraphicTest, GradientChecks)
     ASSERT_EQ(Gradient::LINEAR, fillLinearGrad.getProperty(kGradientPropertyType).getInteger());
     auto colorRange = fillLinearGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::BLUE), colorRange.at(0).asColor());
-    ASSERT_EQ(Color(Color::WHITE), colorRange.at(1).asColor());
+    ASSERT_EQ(Color::BLUE, colorRange.at(0).getColor());
+    ASSERT_EQ(Color::WHITE, colorRange.at(1).getColor());
     auto inputRange = fillLinearGrad.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
     ASSERT_EQ(0, inputRange.at(0).getDouble());
@@ -3074,8 +3068,8 @@ TEST_F(GraphicTest, GradientChecks)
     ASSERT_EQ(Gradient::RADIAL, fillRadialGrad.getProperty(kGradientPropertyType).getInteger());
     colorRange = fillRadialGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::BLUE), colorRange.at(0).asColor());
-    ASSERT_EQ(Color(Color::WHITE), colorRange.at(1).asColor());
+    ASSERT_EQ(Color::BLUE, colorRange.at(0).getColor());
+    ASSERT_EQ(Color::WHITE, colorRange.at(1).getColor());
     inputRange = fillRadialGrad.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
     ASSERT_EQ(0, inputRange.at(0).getDouble());

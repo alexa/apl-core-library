@@ -460,7 +460,7 @@ TEST_F(TickTest, FpsLimitedByDefault) {
 }
 
 TEST_F(TickTest, AdjustedFpsLimit) {
-    config->tickHandlerUpdateLimit(10);
+    config->set(RootProperty::kTickHandlerUpdateLimit, 10);
     loadDocument(UNLIMITED_UPDATES);
 
     advanceTime(10);
@@ -477,7 +477,7 @@ TEST_F(TickTest, AdjustedFpsLimit) {
 }
 
 TEST_F(TickTest, CantGo0) {
-    config->tickHandlerUpdateLimit(0);
+    config->set(RootProperty::kTickHandlerUpdateLimit, 0);
     ASSERT_EQ(1.0, config->getTickHandlerUpdateLimit());
     loadDocument(UNLIMITED_UPDATES);
 

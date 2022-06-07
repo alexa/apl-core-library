@@ -20,6 +20,7 @@
 
 #include "apl/primitives/point.h"
 #include "apl/primitives/size.h"
+#include "apl/utils/deprecated.h"
 
 namespace apl {
 
@@ -84,17 +85,17 @@ public:
      * @deprecated Remove this in favor of "empty()"
      * @return True if this rectangle has zero or undefined width and height.
      */
-    bool isEmpty() const;
+    APL_DEPRECATED bool isEmpty() const { return empty(); }
 
     /**
      * @return True if this rectangle has zero or undefined width and height.
      */
-    bool empty() const { return isEmpty(); }
+    bool empty() const;
 
     /**
      * @return True if this rectangle is not empty
      */
-    bool truthy() const { return !isEmpty(); }
+    bool truthy() const { return !empty(); }
 
     /**
      * @return The x-value of the top-left corner
@@ -183,11 +184,25 @@ public:
     void offset(const Point& p) { mX += p.getX(); mY += p.getY(); }
 
     /**
+     * Offset this rectangle by a distance
+     * @param dx The distance in the x-direction
+     * @param dy The distance in the y-direction
+     */
+    void offset(float dx, float dy) { mX += dx; mY += dy; }
+
+    /**
      * Get rect intersection with other rect.
      * @param other rect to intersect with.
      * @return intersection Rect.
      */
     Rect intersect(const Rect& other) const;
+
+    /**
+     * Create a rectangle that contains both rectangles.  Empty rectangles are ignored.
+     * @param other Rectangle to extend over.
+     * @return union rectangle
+     */
+    Rect extend(const Rect& other) const;
 
     /**
      * Check whether point is within this rectangle.  The point must in the region [left, right] and [top, bottom].
@@ -211,6 +226,26 @@ public:
     float area() const { return mWidth * mHeight; }
 
     /**
+     * Inset the rectangle and return a new rectangle.  Rectangles do not
+     * turn inside-out.  If you inset more than half the width/height, the
+     * rectangle will pin to a zero width/height.
+     * @param dx Distance to inset horizontally
+     * @param dy Distance to inset vertically
+     * @return The new rectangle (may be empty).
+     */
+    Rect inset(float dx, float dy) const;
+
+    /**
+     * Inset the rectangle and return a new rectangle. Rectangles do not
+     * turn inside-out.  If you inset more than half the width/height, the
+     * rectangle will pin to a zero width/height.
+     * @param dx Distance to inset horizontally
+     * @param dy Distance to inset vertically
+     * @return The new rectangle (may be empty).
+     */
+    Rect inset(float dist) const { return inset(dist, dist); }
+
+    /**
      * Serialize into a string.
      *
      * For historical reasons this method ensures that the reported sizes are integral
@@ -222,7 +257,7 @@ public:
 
     /**
      * Serialize into JSON format
-     * @param allocator
+     * @param allocator RapidJSON memory allocator
      * @return The serialized rectangle
      */
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;

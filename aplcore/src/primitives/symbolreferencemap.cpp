@@ -25,9 +25,9 @@ namespace apl {
  * is a subset of this key, then the key should not be added.  For example, if
  * the key is "alpha/0/" and the map contains "alpha/", then we should not add
  * the new key.
- * @param name
- * @param map
- * @return
+ * @param key The symbol to look up in the map.
+ * @param map The map of symbols to contexts
+ * @return True if the symbol exists
  */
 static bool
 checkExisting(const std::string& key, std::map<std::string, ContextPtr>& map)

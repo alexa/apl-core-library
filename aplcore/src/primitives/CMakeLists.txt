@@ -14,8 +14,8 @@
 target_sources_local(apl
     PRIVATE
     accessibilityaction.cpp
-    characterrange.cpp
     color.cpp
+    range.cpp
     dimension.cpp
     filter.cpp
     functions.cpp
@@ -24,7 +24,7 @@ target_sources_local(apl
     mediasource.cpp
     radii.cpp
     rect.cpp
-    urlrequest.cpp
+    roundedrect.cpp
     symbolreferencemap.cpp
     styledtext.cpp
     styledtextstate.cpp
@@ -35,4 +35,5 @@ target_sources_local(apl
     object.cpp
     objectdata.cpp
     unicode.cpp
+    urlrequest.cpp
 )

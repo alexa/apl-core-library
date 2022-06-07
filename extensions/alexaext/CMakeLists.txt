@@ -22,10 +22,16 @@ project(AlexaExt
 
 add_library(alexaext STATIC
             src/APLAudioPlayerExtension/AplAudioPlayerExtension.cpp
+            src/APLE2EEncryptionExtension/AplE2eEncryptionExtension.cpp
+        src/APLWebflowExtension/AplWebflowBase.cpp
+        src/APLWebflowExtension/AplWebflowExtension.cpp
+        src/APLMusicAlarmExtension/AplMusicAlarmExtension.cpp
             src/executor.cpp
             src/extensionmessage.cpp
             src/extensionregistrar.cpp
             src/localextensionproxy.cpp
+            src/random.cpp
+            src/sessiondescriptor.cpp
     )
 
 if (BUILD_SHARED OR ENABLE_PIC)

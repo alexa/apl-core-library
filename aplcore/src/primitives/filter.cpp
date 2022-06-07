@@ -147,7 +147,7 @@ calculateNormal(const FilterPropDef& def,
         if (value != -1)
             return value;
 
-        CONSOLE_CTX(context) << "Invalid value for filter property " << def.names[0] << ": " << tmp.asString();
+        CONSOLE(context) << "Invalid value for filter property " << def.names[0] << ": " << tmp.asString();
         return def.defvalue;
     }
 
@@ -179,7 +179,7 @@ Filter::create(const Context& context, const Object& object)
 
     auto typeName = propertyAsString(context, object, "type");
     if (typeName.empty()) {
-        CONSOLE_CTX(context) << "No 'type' property defined for filter";
+        CONSOLE(context) << "No 'type' property defined for filter";
         return Object::NULL_OBJECT();
     }
 
@@ -223,7 +223,7 @@ Filter::create(const Context& context, const Object& object)
         return Object(Filter(kFilterTypeExtension, std::move(data)));
     }
 
-    CONSOLE_CTX(context) << "Unable to find filter named '" << typeName << "'";
+    CONSOLE(context) << "Unable to find filter named '" << typeName << "'";
     return Object::NULL_OBJECT();
 }
 

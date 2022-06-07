@@ -854,7 +854,7 @@ TEST_F(GraphicComponentTest, RelayoutTest)
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyBorderWidth));
     ASSERT_EQ(Rect(100, 100, 824, 600), component->getCalculated(kPropertyInnerBounds).getRect());
     ASSERT_TRUE(CheckDirty(component, kPropertyInnerBounds, kPropertyBorderWidth, kPropertyNotifyChildrenChanged,
-                           kPropertyVisualHash));
+                           kPropertyVisualHash, kPropertyDrawnBorderWidth));
 
     // The graphic itself should have a new viewport height and width
     ASSERT_EQ(100, graphic->getViewportWidth());
@@ -1108,8 +1108,8 @@ TEST_F(GraphicComponentTest, GraphicFocusAndHover) {
     auto path = graphic->getRoot()->getChildAt(0);
     auto pathData = path->getValue(kGraphicPropertyPathData);
     ASSERT_EQ("M25,50 a25,25 0 1 1 50,0 a25,25 0 1 1 -50,0", pathData.asString());
-    auto stroke = path->getValue(kGraphicPropertyStroke).asColor();
-    ASSERT_EQ(Color(0xffffffff), stroke);
+    auto stroke = path->getValue(kGraphicPropertyStroke).getColor();
+    ASSERT_EQ(0xffffffff, stroke);
 
     // Hover on
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(75, 75)));
@@ -1117,8 +1117,8 @@ TEST_F(GraphicComponentTest, GraphicFocusAndHover) {
     ASSERT_TRUE(CheckDirty(path, kGraphicPropertyStroke));
     ASSERT_TRUE(CheckDirty(gc, kPropertyGraphic, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, gc));
-    stroke = path->getValue(kGraphicPropertyStroke).asColor();
-    ASSERT_EQ(Color(0xff0000ff), stroke);
+    stroke = path->getValue(kGraphicPropertyStroke).getColor();
+    ASSERT_EQ(0xff0000ff, stroke);
 
     // Hover off
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(200, 200)));
@@ -1126,8 +1126,8 @@ TEST_F(GraphicComponentTest, GraphicFocusAndHover) {
     ASSERT_TRUE(CheckDirty(path, kGraphicPropertyStroke));
     ASSERT_TRUE(CheckDirty(gc, kPropertyGraphic, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, gc));
-    stroke = path->getValue(kGraphicPropertyStroke).asColor();
-    ASSERT_EQ(Color(0xffffffff), stroke);
+    stroke = path->getValue(kGraphicPropertyStroke).getColor();
+    ASSERT_EQ(0xffffffff, stroke);
 }
 
 static const char * SLIDER =
@@ -1762,7 +1762,7 @@ TEST_F(GraphicComponentTest, StyleEverything)
     auto fillPattern = fill.getGraphicPattern();
     auto fillPatternPath = fillPattern->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypePath, fillPatternPath->getType());
-    ASSERT_EQ(Color(Color::RED), fillPatternPath->getValue(kGraphicPropertyFill).asColor());
+    ASSERT_EQ(Color::RED, fillPatternPath->getValue(kGraphicPropertyFill).getColor());
 
     ASSERT_EQ(0.9, path->getValue(kGraphicPropertyFillOpacity).asNumber());
     ASSERT_EQ("M 50 0 L 100 50 L 50 100 L 0 50 z", path->getValue(kGraphicPropertyPathData).asString());
@@ -1773,8 +1773,8 @@ TEST_F(GraphicComponentTest, StyleEverything)
     ASSERT_EQ(Gradient::LINEAR, stroke.getProperty(kGradientPropertyType).asInt());
     auto colorRange = stroke.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::BLUE), colorRange.at(0).asColor());
-    ASSERT_EQ(Color(Color::WHITE), colorRange.at(1).asColor());
+    ASSERT_EQ(Color::BLUE, colorRange.at(0).getColor());
+    ASSERT_EQ(Color::WHITE, colorRange.at(1).getColor());
 
     auto inputRange = stroke.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
@@ -1808,7 +1808,7 @@ TEST_F(GraphicComponentTest, StyleEverything)
     fillPattern = fill.getGraphicPattern();
     fillPatternPath = fillPattern->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypePath, fillPatternPath->getType());
-    ASSERT_EQ(Color(Color::RED), fillPatternPath->getValue(kGraphicPropertyFill).asColor());
+    ASSERT_EQ(Color::RED, fillPatternPath->getValue(kGraphicPropertyFill).getColor());
 
     ASSERT_EQ(0.9, text->getValue(kGraphicPropertyFillOpacity).asNumber());
     ASSERT_EQ("sans-serif", text->getValue(kGraphicPropertyFontFamily).asString());
@@ -1855,7 +1855,7 @@ TEST_F(GraphicComponentTest, StyleEverything)
     fillPattern = fill.getGraphicPattern();
     fillPatternPath = fillPattern->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypePath, fillPatternPath->getType());
-    ASSERT_EQ(Color(Color::BLUE), fillPatternPath->getValue(kGraphicPropertyFill).asColor());
+    ASSERT_EQ(Color::BLUE, fillPatternPath->getValue(kGraphicPropertyFill).getColor());
 
     ASSERT_EQ(0.8, path->getValue(kGraphicPropertyFillOpacity).asNumber());
     ASSERT_EQ("M 25 0 L 50 25 L 25 50 L 0 25 z", path->getValue(kGraphicPropertyPathData).asString());
@@ -1866,8 +1866,8 @@ TEST_F(GraphicComponentTest, StyleEverything)
     ASSERT_EQ(Gradient::LINEAR, stroke.getProperty(kGradientPropertyType).asInt());
     colorRange = stroke.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
-    ASSERT_EQ(Color(Color::GREEN), colorRange.at(0).asColor());
-    ASSERT_EQ(Color(Color::WHITE), colorRange.at(1).asColor());
+    ASSERT_EQ(Color::GREEN, colorRange.at(0).getColor());
+    ASSERT_EQ(Color::WHITE, colorRange.at(1).getColor());
 
     inputRange = stroke.getProperty(kGradientPropertyInputRange);
     ASSERT_EQ(2, inputRange.size());
@@ -1900,7 +1900,7 @@ TEST_F(GraphicComponentTest, StyleEverything)
     fillPattern = fill.getGraphicPattern();
     fillPatternPath = fillPattern->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypePath, fillPatternPath->getType());
-    ASSERT_EQ(Color(Color::BLUE), fillPatternPath->getValue(kGraphicPropertyFill).asColor());
+    ASSERT_EQ(Color::BLUE, fillPatternPath->getValue(kGraphicPropertyFill).getColor());
 
     ASSERT_EQ(0.8, text->getValue(kGraphicPropertyFillOpacity).asNumber());
     ASSERT_EQ("funky", text->getValue(kGraphicPropertyFontFamily).asString());

@@ -47,32 +47,31 @@ public:
     rapidjson::Document doc;
 };
 
-static const char *VIDEO =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Video\","
-    "          \"id\": \"myVideo\","
-    "          \"width\": 100,"
-    "          \"height\": 100,"
-    "          \"source\": [\"URL1\", \"URL2\"]"
-    "        },"
-    "        {"
-    "          \"type\": \"Video\","
-    "          \"id\": \"myVideo3\","
-    "          \"width\": 100,"
-    "          \"height\": 100,"
-    "          \"source\": \"URL1\""
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *VIDEO = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "Video",
+          "id": "myVideo",
+          "width": 100,
+          "height": 100,
+          "source": ["URL1", "URL2"]
+        },
+        {
+          "type": "Video",
+          "id": "myVideo3",
+          "width": 100,
+          "height": 100,
+          "source": "URL1"
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(CommandMediaTest, Control)
 {
@@ -85,7 +84,7 @@ TEST_F(CommandMediaTest, Control)
     ASSERT_EQ(kEventTypeControlMedia, event.getType());
     ASSERT_EQ(kEventControlMediaPlay, event.getValue(kEventPropertyCommand).asInt());
     ASSERT_EQ(component->getCoreChildAt(0), event.getComponent());
-    ASSERT_FALSE(event.getActionRef().isEmpty());
+    ASSERT_FALSE(event.getActionRef().empty());
     ASSERT_FALSE(root->hasEvent());
 
     // Play in fast mode ignored
@@ -215,7 +214,7 @@ TEST_F(CommandMediaTest, Play)
     ASSERT_EQ(kEventTypePlayMedia, event.getType());
     ASSERT_EQ(kEventAudioTrackForeground, event.getValue(kEventPropertyAudioTrack).getInteger());
     ASSERT_EQ(component->getCoreChildAt(0), event.getComponent());
-    ASSERT_FALSE(event.getActionRef().isEmpty());
+    ASSERT_FALSE(event.getActionRef().empty());
     event.getActionRef().resolve();
 
     // Play background audio
@@ -225,7 +224,7 @@ TEST_F(CommandMediaTest, Play)
     ASSERT_EQ(kEventTypePlayMedia, event.getType());
     ASSERT_EQ(kEventAudioTrackBackground, event.getValue(kEventPropertyAudioTrack).getInteger());
     ASSERT_EQ(component->getCoreChildAt(0), event.getComponent());
-    ASSERT_FALSE(event.getActionRef().isEmpty());
+    ASSERT_FALSE(event.getActionRef().empty());
 
     // Play without audio
     executePlayMedia("myVideo", "none", Object::EMPTY_ARRAY(), false);
@@ -234,7 +233,7 @@ TEST_F(CommandMediaTest, Play)
     ASSERT_EQ(kEventTypePlayMedia, event.getType());
     ASSERT_EQ(kEventAudioTrackNone, event.getValue(kEventPropertyAudioTrack).getInteger());
     ASSERT_EQ(component->getCoreChildAt(0), event.getComponent());
-    ASSERT_FALSE(event.getActionRef().isEmpty());
+    ASSERT_FALSE(event.getActionRef().empty());
 
     // Test the "mute" alias
     executePlayMedia("myVideo", "mute", Object::EMPTY_ARRAY(), false);
@@ -243,7 +242,7 @@ TEST_F(CommandMediaTest, Play)
     ASSERT_EQ(kEventTypePlayMedia, event.getType());
     ASSERT_EQ(kEventAudioTrackNone, event.getValue(kEventPropertyAudioTrack).getInteger());
     ASSERT_EQ(component->getCoreChildAt(0), event.getComponent());
-    ASSERT_FALSE(event.getActionRef().isEmpty());
+    ASSERT_FALSE(event.getActionRef().empty());
 
     // Play in fast mode
     ASSERT_FALSE(ConsoleMessage());
@@ -275,24 +274,23 @@ TEST_F(CommandMediaTest, PlayMalformed)
     ASSERT_TRUE(ConsoleMessage());
 }
 
-const static char *COMMAND_SERIES =
-        "["
-        "  {"
-        "    \"type\": \"PlayMedia\","
-        "    \"componentId\": \"myVideo\","
-        "    \"source\": \"URLX\""
-        "  },"
-        "  {"
-        "    \"type\": \"ControlMedia\","
-        "    \"componentId\": \"myVideo\","
-        "    \"command\": \"next\""
-        "  },"
-        "  {"
-        "    \"type\": \"ControlMedia\","
-        "    \"componentId\": \"myVideo\","
-        "    \"command\": \"previous\""
-        "  }"
-        "]";
+const static char *COMMAND_SERIES = R"([
+  {
+    "type": "PlayMedia",
+    "componentId": "myVideo",
+    "source": "URLX"
+  },
+  {
+    "type": "ControlMedia",
+    "componentId": "myVideo",
+    "command": "next"
+  },
+  {
+    "type": "ControlMedia",
+    "componentId": "myVideo",
+    "command": "previous"
+  }
+])";
 
 
 
@@ -314,11 +312,11 @@ TEST_F(CommandMediaTest, ControlSeries)
 
     // The first event should be a play with an action reference
     ASSERT_EQ(kEventTypePlayMedia, event.getType());
-    ASSERT_FALSE(event.getActionRef().isEmpty());
+    ASSERT_FALSE(event.getActionRef().empty());
     ASSERT_EQ(video, event.getComponent());
 
     // Update the video state
-    MediaState state(0, 3, 0, 1000, false, false);
+    MediaState state(0, 3, 0, 1000, false, false, false);
     video->updateMediaState(state, true);
     CheckMediaState(state, video->getCalculated());
     event.getActionRef().resolve();
@@ -332,11 +330,11 @@ TEST_F(CommandMediaTest, ControlSeries)
     // The second event should be a control media with an action reference
     ASSERT_EQ(kEventTypeControlMedia, event.getType());
     ASSERT_EQ(kEventControlMediaNext, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_FALSE(event.getActionRef().isEmpty());
+    ASSERT_FALSE(event.getActionRef().empty());
     ASSERT_EQ(video, event.getComponent());
 
     // Update the video state.  It's paused because the control media commands pause it
-    state = MediaState(1, 3, 0, 1000, true, false);
+    state = MediaState(1, 3, 0, 1000, true, false, false);
     video->updateMediaState(state, true);
     CheckMediaState(state, video->getCalculated());
     event.getActionRef().resolve();
@@ -350,11 +348,11 @@ TEST_F(CommandMediaTest, ControlSeries)
     // The third event should be a control media with an action reference
     ASSERT_EQ(kEventTypeControlMedia, event.getType());
     ASSERT_EQ(kEventControlMediaPrevious, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_FALSE(event.getActionRef().isEmpty());
+    ASSERT_FALSE(event.getActionRef().empty());
     ASSERT_EQ(video, event.getComponent());
 
     // Update the video state.  It's paused because the control media commands pause it
-    state = MediaState(0, 3, 0, 1000, true, false);
+    state = MediaState(0, 3, 0, 1000, true, false, false);
     video->updateMediaState(state, true);
     CheckMediaState(state, video->getCalculated());
     event.getActionRef().resolve();

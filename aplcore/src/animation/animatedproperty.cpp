@@ -27,20 +27,20 @@ AnimatedProperty::create(const ContextPtr& context,
                          const Object& object)
 {
     if (!object.isMap()) {
-        CONSOLE_CTP(context) << "Unrecognized animation command" << object;
+        CONSOLE(context) << "Unrecognized animation command" << object;
         return nullptr;
     }
 
     auto property = propertyAsString(*context, object, "property");
 
     if (!object.has("to")) {
-        CONSOLE_CTP(context) << "Animation property has no 'to' value '" << property << "'";
+        CONSOLE(context) << "Animation property has no 'to' value '" << property << "'";
         return nullptr;
     }
 
     auto propRef = component->getPropertyAndWriteableState(property);
     if (!propRef.second) {
-        CONSOLE_CTP(context) << "Unusable animation property '" << property << "'";
+        CONSOLE(context) << "Unusable animation property '" << property << "'";
         return nullptr;
     }
 
@@ -48,7 +48,7 @@ AnimatedProperty::create(const ContextPtr& context,
     auto key = static_cast<PropertyKey>(sComponentPropertyBimap.get(property, -1));
     if (key == kPropertyTransformAssigned) {
         if (!object.has("from")) {
-            CONSOLE_CTP(context) << "Animated transforms need a 'from' property";
+            CONSOLE(context) << "Animated transforms need a 'from' property";
             return nullptr;
         }
 
@@ -59,12 +59,12 @@ AnimatedProperty::create(const ContextPtr& context,
 
     // The only other assigned key we can animate is opacity
     if (key != static_cast<PropertyKey>(-1) && key != kPropertyOpacity) {
-        CONSOLE_CTP(context) << "Unable to animate property '" << property << "'";
+        CONSOLE(context) << "Unable to animate property '" << property << "'";
         return nullptr;
     }
 
     if (!propRef.first.isNumber()) {
-        CONSOLE_CTP(context) << "Only numbers and transforms can be animated '" << property << "'";
+        CONSOLE(context) << "Only numbers and transforms can be animated '" << property << "'";
         return nullptr;
     }
 

@@ -188,7 +188,7 @@ TEST_F(GraphicBindTest, Nested)
         ASSERT_EQ(i+1, row->getChildCount());
         // Rows alternate blue and red
         auto first = row->getChildAt(0);
-        ASSERT_TRUE(IsEqual(Color(i % 2 == 0 ? Color::BLUE : Color::RED),
-                            first->getValue(kGraphicPropertyFill).asColor()));
+        ASSERT_TRUE(IsEqual(i % 2 == 0 ? Color::BLUE : Color::RED,
+                            first->getValue(kGraphicPropertyFill).getColor()));
     }
 }

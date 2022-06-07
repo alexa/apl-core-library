@@ -47,12 +47,12 @@ StyleDefinition::extendWithStyle(const StyleDefinitionPtr& extend)
 const StyleInstancePtr
 StyleDefinition::get(const ContextPtr& context, const State& state)
 {
-    LOG_IF(DEBUG_STYLES) << "StyleDefinition::get " << state;
+    LOG_IF(DEBUG_STYLES).session(context) << "StyleDefinition::get " << state;
     auto it = mCache.find(state);
     if (it != mCache.end())
         return it->second;
 
-    LOG_IF(DEBUG_STYLES) << "Constructing style";
+    LOG_IF(DEBUG_STYLES).session(context) << "Constructing style";
     StyleInstancePtr ptr = std::make_shared<StyleInstance>(mStyleProvenance);
 
     // Build extensions in order

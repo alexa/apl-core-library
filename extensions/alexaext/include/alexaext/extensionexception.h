@@ -13,8 +13,8 @@
  * permissions and limitations under the License.
  */
 
-#ifndef _ALEXAEXT_EXTENSIONEXCEPTION_H
-#define _ALEXAEXT_EXTENSIONEXCEPTION_H
+#ifndef _ALEXAEXT_EXTENSION_EXCEPTION_H
+#define _ALEXAEXT_EXTENSION_EXCEPTION_H
 
 #include <cstdint>
 #include <cstdarg>
@@ -89,4 +89,4 @@ private:
 
 } // namespace alexaext
 
-#endif //_ALEXAEXT_EXTENSIONEXCEPTION_H
+#endif //_ALEXAEXT_EXTENSION_EXCEPTION_H

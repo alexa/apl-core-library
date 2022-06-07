@@ -358,13 +358,16 @@ TEST_F(BuilderTestSequence, LayoutCacheHorizontal)
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(5, 5), false));
 
     component->update(kUpdateScrollPosition, 100);
+    advanceTime(10);
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 5), true));
 }
 
 TEST_F(BuilderTestSequence, LayoutCacheHorizontalRTL)
 {
     loadDocument(LAYOUT_CACHE_TEST_HORIZONTAL);
+    advanceTime(10);
     component->update(kUpdateScrollPosition, 50);
+    advanceTime(10);
     ASSERT_EQ(Point(50, 0), component->scrollPosition());
     ASSERT_EQ(6, component->getChildCount());
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 4), true));
@@ -384,6 +387,7 @@ TEST_F(BuilderTestSequence, LayoutCacheHorizontalRTL)
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(5, 5), false));
 
     component->update(kUpdateScrollPosition, -100);
+    advanceTime(10);
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 5), true));
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
@@ -650,4 +654,171 @@ TEST_F(BuilderTestSequence, AutoSequenceSizing)
 
     auto frame = component->getCoreChildAt(0);
     ASSERT_EQ(Object(Rect(0, 0, 1024, 104)), frame->getCalculated(kPropertyBounds));
+}
+
+const char *RTL_SEQUENCE_VERTICAL_LOAD_TEST = R"(
+{
+  "type": "APL",
+  "version": "1.9",
+  "mainTemplate": {
+    "parameters": [
+      "layoutDir",
+      "scrollDir"
+    ],
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "${scrollDir}",
+      "layoutDirection": "${layoutDir}",
+      "items": {
+        "type": "Text",
+        "id": "${data}",
+        "text": "${data}"
+      },
+      "data": "${TestArray}"
+    }
+  }
+}
+)";
+
+// Test that the correct number of children are inflated as a sequence scrolls regardless of layoutDirection
+TEST_F(BuilderTestSequence, SequenceInflationTestVerticalRTL)
+{
+    std::vector<Object> v;
+    for( int i = 0; i < 50; i++ )
+        v.push_back( i );
+
+    auto myArray = LiveArray::create(std::move(v));
+    config->liveData("TestArray", myArray);
+
+    config->set(RootProperty::kSequenceChildCache, 5);
+
+    loadDocument(RTL_SEQUENCE_VERTICAL_LOAD_TEST, "{\"layoutDir\": \"RTL\", \"scrollDir\": \"vertical\"}");
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 10), true));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(11, 49), false));
+
+    component->update(kUpdateScrollPosition, 50);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 14), true));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(15, 49), false));
+
+    for (int i = 0; i < 50; i++)
+        myArray->insert(0, -i);
+
+    root->clearPending();
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 3), false));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(4, 99), true));
+}
+
+// Test that the correct number of children are inflated as a sequence scrolls regardless of layoutDirection
+TEST_F(BuilderTestSequence, SequenceInflationTestVerticalLTR)
+{
+    std::vector<Object> v;
+    for( int i = 0; i < 50; i++ )
+        v.push_back( i );
+
+    auto myArray = LiveArray::create(std::move(v));
+    config->liveData("TestArray", myArray);
+    config->set(RootProperty::kSequenceChildCache, 5);
+
+    loadDocument(RTL_SEQUENCE_VERTICAL_LOAD_TEST, "{\"layoutDir\": \"LTR\", \"scrollDir\": \"vertical\"}");
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 10), true));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(11, 49), false));
+
+    component->update(kUpdateScrollPosition, 50);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 14), true));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(15, 49), false));
+
+    for (int i = 0; i < 50; i++)
+        myArray->insert(0, -i);
+
+    root->clearPending();
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 3), false));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(4, 99), true));
+}
+
+// Test that the correct number of children are inflated as a sequence scrolls regardless of layoutDirection
+TEST_F(BuilderTestSequence, SequenceInflationTestHorizontalRTL)
+{
+    std::vector<Object> v;
+    for( int i = 0; i < 50; i++ )
+        v.push_back( i );
+
+    auto myArray = LiveArray::create(std::move(v));
+    config->liveData("TestArray", myArray);
+
+    config->set(RootProperty::kSequenceChildCache, 5);
+
+    loadDocument(RTL_SEQUENCE_VERTICAL_LOAD_TEST, "{\"layoutDir\": \"RTL\", \"scrollDir\": \"horizontal\"}");
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 10), true));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(11, 49), false));
+
+    component->update(kUpdateScrollPosition, -100);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 14), true));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(15, 49), false));
+
+    for (int i = 0; i < 50; i++)
+        myArray->insert(0, -i);
+
+    root->clearPending();
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 31), false));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(32, 90), true));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(91, 99), false));
+}
+
+// Test that the correct number of children are inflated as a sequence scrolls regardless of layoutDirection
+TEST_F(BuilderTestSequence, SequenceInflationTestHorizontalLTR)
+{
+    std::vector<Object> v;
+    for( int i = 0; i < 50; i++ )
+        v.push_back( i );
+
+    auto myArray = LiveArray::create(std::move(v));
+    config->liveData("TestArray", myArray);
+
+    config->set(RootProperty::kSequenceChildCache, 5);
+
+    loadDocument(RTL_SEQUENCE_VERTICAL_LOAD_TEST, "{\"layoutDir\": \"LTR\", \"scrollDir\": \"horizontal\"}");
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 10), true));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(11, 49), false));
+
+    component->update(kUpdateScrollPosition, 100);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 14), true));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(15, 49), false));
+
+    for (int i = 0; i < 50; i++)
+        myArray->insert(0, -i);
+
+    root->clearPending();
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 31), false));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(32, 90), true));
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(91, 99), false));
 }

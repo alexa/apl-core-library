@@ -24,28 +24,30 @@ class APLVersion {
 public:
     enum Value : uint32_t {
         kAPLVersionIgnore = 0x0, /// Ignore version numbers
-        kAPLVersion10 = 0x1, /// Support version 1.0
-        kAPLVersion11 = 0x1U << 1, /// Support version 1.1
-        kAPLVersion12 = 0x1U << 2, /// Support version 1.2
-        kAPLVersion13 = 0x1U << 3, /// Support version 1.3
-        kAPLVersion14 = 0x1U << 4, /// Support version 1.4
-        kAPLVersion15 = 0x1U << 5, /// Support version 1.5
-        kAPLVersion16 = 0x1U << 6, /// Support version 1.6
-        kAPLVersion17 = 0x1U << 7, /// Support version 1.7
-        kAPLVersion18 = 0x1U << 8, /// Support version 1.8
-        kAPLVersion19 = 0x1U << 9, /// Support version 1.9
-        kAPLVersion10to11 = kAPLVersion10 | kAPLVersion11, /// Convenience ranges from 1.0 to latest,
-        kAPLVersion10to12 = kAPLVersion10to11 | kAPLVersion12,
-        kAPLVersion10to13 = kAPLVersion10to12 | kAPLVersion13,
-        kAPLVersion10to14 = kAPLVersion10to13 | kAPLVersion14,
-        kAPLVersion10to15 = kAPLVersion10to14 | kAPLVersion15,
-        kAPLVersion10to16 = kAPLVersion10to15 | kAPLVersion16,
-        kAPLVersion10to17 = kAPLVersion10to16 | kAPLVersion17,
-        kAPLVersion10to18 = kAPLVersion10to17 | kAPLVersion18,
-        kAPLVersion10to19 = kAPLVersion10to18 | kAPLVersion19,
-        kAPLVersionLatest = kAPLVersion10to19, /// Support the most recent engine version
-        kAPLVersionDefault = kAPLVersion10to19, /// Default value
-        kAPLVersionReported = kAPLVersion19, /// Default reported version
+        kAPLVersion10  = 0x1, /// Support version 1.0
+        kAPLVersion11  = 0x1U << 1, /// Support version 1.1
+        kAPLVersion12  = 0x1U << 2, /// Support version 1.2
+        kAPLVersion13  = 0x1U << 3, /// Support version 1.3
+        kAPLVersion14  = 0x1U << 4, /// Support version 1.4
+        kAPLVersion15  = 0x1U << 5, /// Support version 1.5
+        kAPLVersion16  = 0x1U << 6, /// Support version 1.6
+        kAPLVersion17  = 0x1U << 7, /// Support version 1.7
+        kAPLVersion18  = 0x1U << 8, /// Support version 1.8
+        kAPLVersion19  = 0x1U << 9, /// Support version 1.9
+        kAPLVersion20221 = 0x1U << 10, /// Support version 2022.1
+        kAPLVersion10to11  = kAPLVersion10 | kAPLVersion11, /// Convenience ranges from 1.0 to latest,
+        kAPLVersion10to12  = kAPLVersion10to11 | kAPLVersion12,
+        kAPLVersion10to13  = kAPLVersion10to12 | kAPLVersion13,
+        kAPLVersion10to14  = kAPLVersion10to13 | kAPLVersion14,
+        kAPLVersion10to15  = kAPLVersion10to14 | kAPLVersion15,
+        kAPLVersion10to16  = kAPLVersion10to15 | kAPLVersion16,
+        kAPLVersion10to17  = kAPLVersion10to16 | kAPLVersion17,
+        kAPLVersion10to18  = kAPLVersion10to17 | kAPLVersion18,
+        kAPLVersion10to19  = kAPLVersion10to18 | kAPLVersion19,
+        kAPLVersion10to20221 = kAPLVersion10to19 | kAPLVersion20221,
+        kAPLVersionLatest = kAPLVersion10to20221, /// Support the most recent engine version
+        kAPLVersionDefault = kAPLVersion10to20221, /// Default value
+        kAPLVersionReported = kAPLVersion20221, /// Default reported version
         kAPLVersionAny = 0xffffffff, /// Support any versions in the list
     };
 

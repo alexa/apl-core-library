@@ -26,6 +26,7 @@
 #include "apl/engine/propertymap.h"
 #include "apl/primitives/rect.h"
 #include "apl/engine/state.h"
+#include "apl/utils/deprecated.h"
 #include "apl/utils/noncopyable.h"
 #include "apl/utils/visitor.h"
 #include "apl/utils/userdata.h"
@@ -247,7 +248,7 @@ public:
     /**
      * @return This component's context
      */
-    std::shared_ptr<const Context> getContext() const { return mContext; }
+    ConstContextPtr getContext() const { return mContext; }
 
     /**
      * @return True if this component was properly created with all required
@@ -342,7 +343,7 @@ public:
      *      }
      *  }
      *
-     * @param index The zero-based display index of the child.
+     * @param displayIndex The zero-based display index of the child.
      * @return The child.
      */
     virtual ComponentPtr getDisplayedChildAt(size_t displayIndex) const = 0;
@@ -352,7 +353,7 @@ public:
      * children of a sequence to before retrieving the layout bounds.
      * @deprecated Should not be used. No-op.
      */
-    virtual void ensureLayout(bool useDirtyFlag = false) {}
+    APL_DEPRECATED virtual void ensureLayout(bool useDirtyFlag = false) {}
 
     /**
      * The bounds of this component within an ancestor.
@@ -416,8 +417,8 @@ public:
 
     /**
      * Serialize a component and its children into a rapidjson object.
-     * @param allocator
-     * @return
+     * @param allocator RapidJSON memory allocator
+     * @return The component as a RapidJSON object
      */
     virtual rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const = 0;
 
@@ -425,16 +426,16 @@ public:
      * Convert this component and all of its properties into a human-readable JSON object.
      * This method is intended to be used by debugging and testing tools; it is not intended
      * for viewhosts.
-     * @param allocator
-     * @return The object
+     * @param allocator RapidJSON memory allocator
+     * @return The component and all of its properties as a RapidJSON object.
      */
     virtual rapidjson::Value serializeAll(rapidjson::Document::AllocatorType& allocator) const = 0;
 
     /**
-     * Serialize all dirty component parameters into a rapidjson array. This clears the dirty
+     * Serialize all dirty component parameters into an object. This clears the dirty
      * flags.
-     * @param allocator
-     * @return
+     * @param allocator RapidJSON memory allocator
+     * @return All dirty properties as a RapidJSON object
      */
     virtual rapidjson::Value serializeDirty(rapidjson::Document::AllocatorType& allocator) = 0;
 
@@ -442,7 +443,7 @@ public:
      * @return The descriptive path of the source that created this component
      * @deprecated Replace with provenance
      */
-    virtual std::string getPath() const { return provenance(); };
+    APL_DEPRECATED virtual std::string getPath() const { return provenance(); };
 
     /**
      * @return The descriptive path of the source that created this component
@@ -455,7 +456,7 @@ public:
      * @param allocator Allocator for allocating memory for the DOM
      * @return a json representation of the visual context.
      */
-    virtual rapidjson::Value serializeVisualContext(rapidjson::Document::AllocatorType& allocator) = 0;
+    APL_DEPRECATED virtual rapidjson::Value serializeVisualContext(rapidjson::Document::AllocatorType& allocator) = 0;
 
     /**
      * Find a component at or below this point in the hierarchy with the given id or uniqueId.

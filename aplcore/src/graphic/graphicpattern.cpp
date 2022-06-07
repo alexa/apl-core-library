@@ -15,11 +15,12 @@
 
 #include "apl/engine/evaluate.h"
 #include "apl/engine/arrayify.h"
-#include "apl/utils/session.h"
-#include "apl/primitives/object.h"
 #include "apl/graphic/graphicpattern.h"
 #include "apl/graphic/graphicelement.h"
 #include "apl/graphic/graphicbuilder.h"
+#include "apl/primitives/object.h"
+#include "apl/utils/session.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -46,12 +47,12 @@ GraphicPattern::create(const Context& context, const Object& object)
     std::string description = propertyAsString(context, object, "description");
     double height = propertyAsDouble(context, object, "height", -1);
     if (height < 0) {
-        CONSOLE_CTX(context) << "GraphicPattern height is required.";
+        CONSOLE(context) << "GraphicPattern height is required.";
         return Object::NULL_OBJECT();
     }
     double width  = propertyAsDouble(context, object, "width", -1);
     if (width < 0) {
-        CONSOLE_CTX(context) << "GraphicPattern width is required.";
+        CONSOLE(context) << "GraphicPattern width is required.";
         return Object::NULL_OBJECT();
     }
 
@@ -71,8 +72,8 @@ std::string
 GraphicPattern::toDebugString() const {
     std::string result = "GraphicPattern< id=" + getId() +
             " description=" + getDescription() +
-            " width=" + std::to_string(getWidth()) +
-            " height=" + std::to_string(getHeight()) +
+            " width=" + sutil::to_string(getWidth()) +
+            " height=" + sutil::to_string(getHeight()) +
             " items=[";
     for (const auto& item : getItems())
         result += " " + item->toDebugString();

@@ -13,8 +13,8 @@
  * permissions and limitations under the License.
  */
 
-#ifndef _ALEXAEXT_EXTENSIONREGISTRAR_H
-#define _ALEXAEXT_EXTENSIONREGISTRAR_H
+#ifndef _ALEXAEXT_EXTENSION_REGISTRAR_H
+#define _ALEXAEXT_EXTENSION_REGISTRAR_H
 
 #include <map>
 #include <memory>
@@ -27,11 +27,20 @@ namespace alexaext {
 
 /**
  * Default implementation of ExtensionProvider, maintained by the runtime.
- * Provides a registry of extension URI to extension proxy.
+ * Provides a registry of directly registered extension URI to extension proxy plus provider
+ * delegation.
  */
 class ExtensionRegistrar : public ExtensionProvider {
 
 public:
+    /**
+     * Add a specific ExtensionProvider.
+     *
+     * @param provider Provider implementation.
+     * @return This object for chaining.
+     */
+    ExtensionRegistrar& addProvider(const ExtensionProviderPtr& provider);
+
     /**
      * Register an extension. Called by the runtime to register a known extension.
      *
@@ -43,7 +52,7 @@ public:
     /**
      * Identifies the presence of an extension.  Called when a document has
      * requested an extension. This method returns true if an extension matching
-     * the given uri has been registered.
+     * the given uri has been registered or is available through any of known providers.
      *
      * @param uri The requsted extension URI.
      * @return true if the extension is registered.
@@ -51,16 +60,19 @@ public:
     bool hasExtension(const std::string& uri) override;
 
     /**
-     * Get a proxy to the extension.  Called when a document has requested
-     * an extension.
+     * Get a proxy to the extension.  Called when a document has requested an extension.
+     * If an extension that supports the specified URI has been directly registered with this
+     * registrar, it will be returned. If not, the providers added to this registrar prior to
+     * this call will be queried inthe hash order (undefined). The first provider to have an
+     * extension with the specified URI will be used. Any remaining providers will not be queried.
      *
      * @param uri The extension URI.
-     * @return An extension proxy of a registered extension, nullptr if the extension
-     *    was not registered.
+     * @return An extension proxy of a registered or provider-held extension.
      */
     ExtensionProxyPtr getExtension(const std::string& uri) override;
 
 private:
+    std::set<ExtensionProviderPtr> mProviders;
     std::map<std::string, ExtensionProxyPtr> mExtensions;
 };
 
@@ -68,4 +80,4 @@ using ExtensionRegistrarPtr = std::shared_ptr<ExtensionRegistrar>;
 
 } // namespace alexaext
 
-#endif // _ALEXAEXT_EXTENSIONREGISTRAR_H
+#endif // _ALEXAEXT_EXTENSION_REGISTRAR_H

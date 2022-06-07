@@ -17,6 +17,7 @@
 
 #include "../testeventloop.h"
 
+#include <clocale>
 #include <cmath>
 
 using namespace apl;
@@ -438,6 +439,38 @@ TEST_F(TransformTest, NumberParsing)
         EXPECT_EQ(test.second, transform) << "Test case: " << test.first;
         EXPECT_FALSE(session->checkAndClear());
     }
+}
+
+TEST_F(TransformTest, NumberParsingIgnoresCLocale)
+{
+    std::string previousLocale = std::setlocale(LC_NUMERIC, nullptr);
+    std::setlocale(LC_NUMERIC, "fr_FR.UTF-8");
+
+    // Move these tests inside the function because they call Transform2D::scale when initialized
+    std::map<std::string, Transform2D> const NUMBER_PARSE = {
+        {"scale(2)",          Transform2D::scale(2)},
+        {"scale(2.5)",        Transform2D::scale(2.5)},
+        {"scale(00002)",      Transform2D::scale(2)},
+        {"scale(.5)",         Transform2D::scale(0.5)},
+        {"scale(.500000000)", Transform2D::scale(0.5)},
+        {"scale(+2)",         Transform2D::scale(2)},
+        {"scale(-2)",         Transform2D::scale(-2)},
+        {"scale(2e1)",        Transform2D::scale(20)},
+        {"scale(2E1)",        Transform2D::scale(20)},
+        {"scale(2e+2)",       Transform2D::scale(200)},
+        {"scale(10e-1)",      Transform2D::scale(1)},
+        {"scale(5e0)",        Transform2D::scale(5)},
+        {"scale(1+2)",        Transform2D::scale(1,2)},   // Note that "1+2" is valid
+        {"scale(1-2)",        Transform2D::scale(1,-2)},
+    };
+
+    for (const auto& test : NUMBER_PARSE) {
+        auto transform = Transform2D::parse(session, test.first);
+        EXPECT_EQ(test.second, transform) << "Test case: " << test.first;
+        EXPECT_FALSE(session->checkAndClear());
+    }
+
+    std::setlocale(LC_NUMERIC, previousLocale.c_str());
 }
 
 static const std::vector<std::string> EMPTY_TRANSFORMS = {

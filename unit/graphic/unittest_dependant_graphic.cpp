@@ -334,7 +334,7 @@ TEST_F(DependantGraphicTest, Transformed)
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     auto fill = path->getValue(kGraphicPropertyFill);
-    ASSERT_EQ(Color(Color::GREEN), fill.asColor());
+    ASSERT_EQ(Color::GREEN, fill.getColor());
 
     auto fillTransform = path->getValue(kGraphicPropertyFillTransform).getTransform2D();
     ASSERT_EQ(Transform2D::skewX(40), fillTransform);
@@ -422,14 +422,14 @@ TEST_F(DependantGraphicTest, ChangingGradient)
 
     auto pathGrad = path->getValue(kGraphicPropertyFill);
     ASSERT_TRUE(pathGrad.isGradient());
-    ASSERT_EQ(Color(Color::RED), pathGrad.getGradient().getColorRange().at(0));
+    ASSERT_EQ(Object(Color(Color::RED)), pathGrad.getGradient().getProperty(kGradientPropertyColorRange).at(0));
 
     auto text = group->getChildAt(1);
     ASSERT_EQ(kGraphicElementTypeText, text->getType());
 
     auto textGrad = text->getValue(kGraphicPropertyStroke);
     ASSERT_TRUE(textGrad.isGradient());
-    ASSERT_EQ(Color(Color::RED), textGrad.getGradient().getColorRange().at(0));
+    ASSERT_EQ(Object(Color(Color::RED)), textGrad.getGradient().getProperty(kGradientPropertyColorRange).at(0));
 
     executeCommand("SetValue", {{"componentId", "gc"},
                                 {"property",    "gradientColor"},

@@ -75,7 +75,7 @@ FocusManager::setFocus(const CoreComponentPtr& component, bool notifyViewhost)
 
     auto focused = mFocused.lock();
 
-    LOG_IF(DEBUG_FOCUS) << focused << " -> " << component;
+    LOG_IF(DEBUG_FOCUS).session(component) << focused << " -> " << component;
 
     // If you target the already focused component, we don't need to do any work
     if (focused == component)
@@ -117,7 +117,7 @@ FocusManager::releaseFocus(const std::shared_ptr<apl::CoreComponent>& component,
 {
     auto focused = mFocused.lock();
 
-    LOG_IF(DEBUG_FOCUS) << focused << " -> " << component;
+    LOG_IF(DEBUG_FOCUS).session(component) << focused << " -> " << component;
 
     if (focused == component)
         clearFocus(notifyViewhost);
@@ -130,9 +130,9 @@ void
 FocusManager::clearFocus(bool notifyViewhost, FocusDirection direction, bool force)
 {
     auto focused = mFocused.lock();
-    LOG_IF(DEBUG_FOCUS) << focused;
 
     if (focused) {
+        LOG_IF(DEBUG_FOCUS).session(focused) << focused;
         if (!notifyViewhost) {
             clearFocusedComponent();
             return;

@@ -20,7 +20,7 @@
 #include "apl/content/rootconfig.h"
 #include "apl/engine/event.h"
 #include "apl/focus/focusmanager.h"
-#include "apl/primitives/characterrange.h"
+#include "apl/primitives/unicode.h"
 #include "apl/time/sequencer.h"
 #include "apl/touch/pointerevent.h"
 
@@ -57,7 +57,13 @@ EditTextComponent::assignProperties(const ComponentPropDefSet& propDefSet)
 {
     ActionableComponent::assignProperties(propDefSet);
     calculateDrawnBorder(false);
-    parseValidCharactersProperty();
+
+    // Force the text to match the valid characters
+    const auto& current = getCalculated(kPropertyText).getString();
+    const auto& valid = getCalculated(kPropertyValidCharacters).getString();
+    auto text = utf8StripInvalid(current, valid);
+    if (text != current)
+        mCalculated.set(kPropertyText, text);
 
     // Calculate initial measurement hash.
     fixTextMeasurementHash();
@@ -96,9 +102,21 @@ static inline Object defaultHighlightColor(Component& component, const RootConfi
 const ComponentPropDefSet&
 EditTextComponent::propDefSet() const
 {
+    // This is only called from 'setProperty()'
+    static auto checkText = [](Component& component) {
+        auto& coreComp = dynamic_cast<EditTextComponent&>(component);
+        const auto& current = component.getCalculated(kPropertyText).getString();
+        const auto& valid = component.getCalculated(kPropertyValidCharacters).getString();
+        auto text = utf8StripInvalid(current, valid);
+        if (text != current) {
+            coreComp.mCalculated.set(kPropertyText, text);
+            coreComp.setDirty(kPropertyText);
+        }
+    };
+
     static ComponentPropDefSet sEditTextComponentProperties(ActionableComponent::propDefSet(), {
             {kPropertyBorderColor,              Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
-            {kPropertyBorderWidth,              Dimension(0),                   asNonNegativeAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic,                                yn::setBorder<YGEdgeAll>},
+            {kPropertyBorderWidth,              Dimension(0),                   asNonNegativeAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic,                                yn::setBorder<YGEdgeAll>, resolveDrawnBorder},
             {kPropertyColor,                    Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash,                                defaultFontColor},
             {kPropertyFontFamily,               "",                             asString,                       kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash,  defaultFontFamily},
             {kPropertyFontSize,                 Dimension(40),                  asAbsoluteDimension,            kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
@@ -119,8 +137,8 @@ EditTextComponent::propDefSet() const
             {kPropertySelectOnFocus,            false,                          asBoolean,                      kPropInOut | kPropStyled},
             {kPropertySize,                     8,                              asPositiveInteger,              kPropInOut | kPropStyled | kPropLayout},
             {kPropertySubmitKeyType,            kSubmitKeyTypeDone,             sSubmitKeyTypeMap,              kPropInOut | kPropStyled},
-            {kPropertyText,                     "",                             asString,                       kPropInOut | kPropDynamic | kPropVisualContext | kPropTextHash | kPropVisualHash},
-            {kPropertyValidCharacters,          "",                             asString,                       kPropIn | kPropStyled},
+            {kPropertyText,                     "",                             asString,                       kPropInOut | kPropDynamic | kPropVisualContext | kPropTextHash | kPropVisualHash, checkText},
+            {kPropertyValidCharacters,          "",                             asString,                       kPropIn | kPropStyled, checkText},
 
             // The width of the drawn border.  If borderStrokeWith is set, the drawn border is the min of borderWidth
             // and borderStrokeWidth.  If borderStrokeWidth is unset, the drawn border defaults to borderWidth
@@ -185,21 +203,7 @@ EditTextComponent::update(UpdateType type, const std::string& value)
 bool
 EditTextComponent::isCharacterValid(const wchar_t wc) const
 {
-    if (mCharacterRangesPtr == nullptr) return true;
-
-    std::vector<CharacterRangeData> validRanges = mCharacterRangesPtr->getRanges();
-    if (validRanges.empty()) return true;
-
-    for (auto& range : validRanges) {
-        if (range.isCharacterValid(wc)) return true;
-    }
-    return false;
-}
-
-void EditTextComponent::parseValidCharactersProperty()
-{
-    mCharacterRangesPtr = std::make_shared<CharacterRanges>(CharacterRanges(getContext()->session(),
-            mCalculated.get(kPropertyValidCharacters).asString()));
+    return wcharValidCharacter(wc, getCalculated(kPropertyValidCharacters).getString());
 }
 
 PointerCaptureStatus

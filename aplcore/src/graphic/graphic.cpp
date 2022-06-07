@@ -68,15 +68,15 @@ Graphic::create(const ContextPtr& context,
                 const Path& path,
                 const StyleInstancePtr& styledPtr)
 {
-    LOG_IF(DEBUG_GRAPHIC) << "Creating graphic data=" << context->opt("data").toDebugString();
+    LOG_IF(DEBUG_GRAPHIC).session(context) << "Creating graphic data=" << context->opt("data").toDebugString();
 
     // Check and extract the version
     auto version = propertyAsMapped(*context, json, "version", -1, sGraphicVersionBimap);
     if (version == -1) {
-        CONSOLE_CTP(context) << "Illegal graphics version";
+        CONSOLE(context) << "Illegal graphics version";
         return nullptr;
     }
-    LOG_IF(DEBUG_GRAPHIC) << "Found version" << version;
+    LOG_IF(DEBUG_GRAPHIC).session(context) << "Found version" << version;
 
     auto graphic = std::make_shared<Graphic>(context, json, static_cast<GraphicVersions>(version));
     graphic->initialize(context, json, std::move(properties), component, path, styledPtr);
@@ -167,7 +167,7 @@ Graphic::initialize(const ContextPtr& sourceContext,
 
     // Populate the data-binding context with parameters
     for (const auto& param : mParameterArray) {
-        LOG_IF(DEBUG_GRAPHIC) << "Parse parameter: " << param.name;
+        LOG_IF(DEBUG_GRAPHIC).session(sourceContext) << "Parse parameter: " << param.name;
         const auto& conversionFunc = sBindingFunctions.at(param.type);
         auto value = conversionFunc(*sourceContext, evaluate(*mInternalContext, param.defvalue));
         Object parsed;
@@ -193,7 +193,7 @@ Graphic::initialize(const ContextPtr& sourceContext,
         }
 
         // Store the calculated value in the data-binding context
-        LOG_IF(DEBUG_GRAPHIC) << "Storing parameter '" << param.name << "' = " << value;
+        LOG_IF(DEBUG_GRAPHIC).session(sourceContext) << "Storing parameter '" << param.name << "' = " << value;
         mInternalContext->putUserWriteable(param.name, value);
 
         // After storing the parameter we can wire up any necessary data dependant

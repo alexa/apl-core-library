@@ -13,6 +13,7 @@
  * permissions and limitations under the License.
  */
 
+#include <clocale>
 #include <iostream>
 #include <iomanip>
 
@@ -370,6 +371,18 @@ TEST_F(GrammarTest, Basic)
 
     EXPECT_EQ(o(1024), eval( "${viewport['width']}"));
     EXPECT_EQ(o(false), eval("${10==11}"));
+}
+
+TEST_F(GrammarTest, NumbersIgnoreCLocale)
+{
+    std::string previousLocale = std::setlocale(LC_NUMERIC, nullptr);
+    std::setlocale(LC_NUMERIC, "fr_FR.UTF-8");
+
+    EXPECT_EQ(42, eval( "${42}" ).asNumber());
+    EXPECT_EQ(-10, eval( "${-10.0}" ).asNumber());
+    EXPECT_EQ(-11.4, eval( "${-11.4}" ).asNumber());
+
+    std::setlocale(LC_NUMERIC, previousLocale.c_str());
 }
 
 TEST_F(GrammarTest, Functions)

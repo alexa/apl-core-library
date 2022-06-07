@@ -461,7 +461,7 @@ static const char *LIVE_SCROLL_TEST = R"({
 
 TEST_F(NativeGesturesScrollableTest, LiveScroll)
 {
-    config->pointerInactivityTimeout(100);
+    config->set(RootProperty::kPointerInactivityTimeout, 100);
     auto myArray = LiveArray::create(ObjectArray{"red", "green", "yellow", "blue", "purple"});
     config->liveData("TestArray", myArray);
     loadDocument(LIVE_SCROLL_TEST);
@@ -492,7 +492,7 @@ TEST_F(NativeGesturesScrollableTest, LiveScroll)
 
 TEST_F(NativeGesturesScrollableTest, LiveScrollBackwards)
 {
-    config->pointerInactivityTimeout(100);
+    config->set(RootProperty::kPointerInactivityTimeout, 100);
     auto myArray = LiveArray::create(ObjectArray{"red", "green", "yellow", "blue", "purple"});
     config->liveData("TestArray", myArray);
     loadDocument(LIVE_SCROLL_TEST);
@@ -572,6 +572,7 @@ TEST_F(NativeGesturesScrollableTest, LiveFlingBackwards)
     auto myArray = LiveArray::create(ObjectArray{"red", "green", "yellow", "blue", "purple"});
     config->liveData("TestArray", myArray);
     loadDocument(LIVE_SCROLL_TEST);
+    advanceTime(10);
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 4}, true));
 
     // Give ability to scroll backwards
@@ -613,6 +614,7 @@ TEST_F(NativeGesturesScrollableTest, LiveFlingBackwards)
     ASSERT_TRUE(CheckChildrenLaidOut(component, {2, 19}, true));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {20, 24}, false));
     advanceTime(2400);
+    advanceTime(10);
     ASSERT_EQ(Point(0, 275), component->scrollPosition());
 }
 
@@ -647,7 +649,7 @@ static const char *LIVE_SCROLL_SPACED_TEST = R"({
 
 TEST_F(NativeGesturesScrollableTest, LiveScrollBackwardsSpaced)
 {
-    config->pointerInactivityTimeout(100);
+    config->set(RootProperty::kPointerInactivityTimeout, 100);
     auto myArray = LiveArray::create(ObjectArray{"red", "green", "yellow", "blue", "purple"});
     config->liveData("TestArray", myArray);
     loadDocument(LIVE_SCROLL_SPACED_TEST);
@@ -674,8 +676,9 @@ TEST_F(NativeGesturesScrollableTest, LiveScrollBackwardsSpaced)
 
     advanceTime(100);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,300), true));
-    ASSERT_EQ(Point(0, 710), component->scrollPosition());
+    ASSERT_EQ(Point(0, 590), component->scrollPosition());
 
+    // After scrolling finished more data will be cached.
     advanceTime(100);
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(0,300), true));
 
@@ -716,6 +719,7 @@ TEST_F(NativeGesturesScrollableTest, LiveFlingBackwardsSpaced)
     advanceTime(100);
     advanceTime(100);
     advanceTime(2400);
+    advanceTime(10);
     ASSERT_EQ(Point(0, 475), component->scrollPosition());
 }
 
@@ -2079,7 +2083,7 @@ static const char *SCROLL_SNAP_SPACED_CENTER_TEST = R"({
 
 TEST_F(NativeGesturesScrollableTest, ScrollSnapSpacedCenter)
 {
-    config->pointerInactivityTimeout(600);
+    config->set(RootProperty::kPointerInactivityTimeout, 600);
     loadDocument(SCROLL_SNAP_SPACED_CENTER_TEST);
 
     ASSERT_EQ(Point(), component->scrollPosition());

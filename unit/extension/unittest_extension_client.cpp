@@ -29,7 +29,7 @@ public:
 
     void createConfig(JsonData&& document) {
         configPtr = std::make_shared<RootConfig>();
-        configPtr->agent("Unit tests", "1.0").timeManager(loop).session(session);
+        configPtr->set(RootProperty::kAgentName, "Unit tests").timeManager(loop).session(session);
         content = Content::create(std::move(document), session);
         ASSERT_TRUE(content->isReady());
     }
@@ -2735,7 +2735,7 @@ TEST_F(ExtensionClientTest, ExtensionComponentCommandAndEvent) {
     ASSERT_TRUE(client->processMessage(root, extensionEvent));
     ASSERT_TRUE(CheckDirty(touchwrapper, kPropertyShadowColor, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, touchwrapper));
-    ASSERT_EQ(touchwrapper->getCalculated(kPropertyShadowColor).asColor().get(), Color::ColorConstants::BLUE);
+    ASSERT_EQ(touchwrapper->getCalculated(kPropertyShadowColor).getColor(), Color::ColorConstants::BLUE);
 }
 
 TEST_F(ExtensionClientTest, ExtensionComponentProperty) {
@@ -2912,7 +2912,7 @@ TEST_F(ExtensionClientTest, ExtensionClientDisconnection) {
     auto alexaButton = component->findComponentById("AlexaButton");
     ASSERT_EQ(alexaButton->getType(), kComponentTypeTouchWrapper);
     // Verifies that onFatalError was called.
-    ASSERT_EQ(alexaButton->getCalculated(kPropertyShadowColor).asColor().get(), Color::ColorConstants::BLACK);
+    ASSERT_EQ(alexaButton->getCalculated(kPropertyShadowColor).getColor(), Color::ColorConstants::BLACK);
 }
 
 static const char* EXT_DOC_EXTCOMP_INVALID_COMPONENT_ID = R"({

@@ -110,7 +110,7 @@ PagerFlingGesture::reset() {
 bool
 PagerFlingGesture::onDown(const PointerEvent& event, apl_time_t timestamp)
 {
-    LOG_IF(DEBUG_FLING_GESTURE) << "event: " << event.pointerEventPosition.toString() << ", timestamp: " << timestamp;
+    LOG_IF(DEBUG_FLING_GESTURE).session(mActionable) << "event: " << event.pointerEventPosition.toString() << ", timestamp: " << timestamp;
 
     // We don't change layout direction during a gesture
     mLayoutDirection = static_cast<LayoutDirection>(mActionable->getCalculated(kPropertyLayoutDirection).asInt());
@@ -135,7 +135,7 @@ PagerFlingGesture::onDown(const PointerEvent& event, apl_time_t timestamp)
         mStartPosition += distanceShift;
         // Restore old start time to avoid move timeout
         mStartTime = startTime;
-        LOG_IF(DEBUG_FLING_GESTURE) << "Chaining. distanceShift:" << distanceShift
+        LOG_IF(DEBUG_FLING_GESTURE).session(mActionable) << "Chaining. distanceShift:" << distanceShift
             << ", mStartPosition: " << mStartPosition.toString() << ", mAmount: " << mAmount
             << ", mLastAnimationAmount: " << mLastAnimationAmount;
         return true;
@@ -158,11 +158,11 @@ PagerFlingGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
                          ? (distance < 0 ? kPageDirectionBack    : kPageDirectionForward)
                          : (distance < 0 ? kPageDirectionForward : kPageDirectionBack);
 
-    LOG_IF(DEBUG_FLING_GESTURE) << "Distance: " << distance << ", direction: " << direction;
+    LOG_IF(DEBUG_FLING_GESTURE).session(mActionable) << "Distance: " << distance << ", direction: " << direction;
 
     if (mTriggered && direction != mPageDirection) {
         mTriggered = false;
-        LOG_IF(DEBUG_FLING_GESTURE) << "Reverse direction from: " << mPageDirection;
+        LOG_IF(DEBUG_FLING_GESTURE).session(mActionable) << "Reverse direction from: " << mPageDirection;
     }
 
     auto horizontal = mActionable->isHorizontal();
@@ -181,7 +181,7 @@ PagerFlingGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
         }
 
         mTriggered = true;
-        LOG_IF(DEBUG_FLING_GESTURE) << "Triggered";
+        LOG_IF(DEBUG_FLING_GESTURE).session(mActionable) << "Triggered";
         mResourceHolder->takeResource();
         mPageDirection = direction;
         mTargetPage = calculateTargetPage(mActionable, mPageDirection, mCurrentPage);
@@ -192,7 +192,7 @@ PagerFlingGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
     if (mTriggered) {
         mAmount = getTranslationAmount(mActionable, distance);
         if (mAmount > 1.0f) {
-            LOG_IF(DEBUG_FLING_GESTURE) << "Moved over 100%, restarting with new page.";
+            LOG_IF(DEBUG_FLING_GESTURE).session(mActionable) << "Moved over 100%, restarting with new page.";
 
             // Reset start of the gesture, we effectively switched the page
             pager->endPageMove(true, ActionRef(nullptr), false);
@@ -302,7 +302,7 @@ PagerFlingGesture::finishUp()
     auto globalToLocal = mActionable->getGlobalToLocalTransform();
     auto scaleFactor = (horizontal ? globalToLocal.getXScaling() : globalToLocal.getYScaling());
     if (std::isnan(scaleFactor)) {
-        CONSOLE_CTP(mActionable->getContext())
+        CONSOLE(mActionable->getContext())
             << "Singular transform encountered during page switch. Animation impossible, resetting.";
         // Reset the state of the component
         auto pager = std::dynamic_pointer_cast<PagerComponent>(mActionable);
@@ -327,7 +327,7 @@ PagerFlingGesture::finishUp()
     // In case if we don't get enough fling or distance or fling in opposite direction - snap back.
     if ((mAmount < 0.5f && std::abs(velocity) < (minFlingVelocity / time::MS_PER_SECOND))
         || direction != mPageDirection) {
-        LOG(LogLevel::kDebug) << "Do not fling with velocity: " << velocity << ", amount :" << mAmount
+        LOG(LogLevel::kDebug).session(mActionable) << "Do not fling with velocity: " << velocity << ", amount :" << mAmount
             << ", expected direction: " << mPageDirection << ", direction: " << direction;
         fulfill = false;
     }

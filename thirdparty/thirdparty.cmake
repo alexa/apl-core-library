@@ -28,6 +28,10 @@ list(APPEND CMAKE_ARGS -DCMAKE_CXX_FLAGS=${EXT_CXX_ARGS})
 list(APPEND CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/lib)
 list(APPEND CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
 
+# Yoga can be built from local source or can be included as a system or external library
+set(YOGA_SOURCE_URL "${APL_PROJECT_DIR}/thirdparty/yoga-1.19.0.tar.gz")
+set(YOGA_SOURCE_MD5 "284d6752a3fea3937a1abd49e826b109")
+
 if (YOGA_EXTERNAL_INSTALL_DIR)
     # Use an externally provided Yoga library
     find_path(YOGA_INCLUDE
@@ -50,11 +54,21 @@ elseif (USE_SYSTEM_YOGA)
         PATHS ${CMAKE_SYSROOT}/usr/lib
         REQUIRED)
     set(YOGA_EXTERNAL_LIB ${YOGA_LIB}) # used by aplcoreConfig.cmake.in
+elseif (USE_PROVIDED_YOGA_INLINE)
+    # Unpack the bundled Yoga library
+    FetchContent_Declare(yogasource
+        URL ${YOGA_SOURCE_URL}
+        URL_MD5 ${YOGA_SOURCE_MD5}
+        PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/yoga.patch
+    )
+    FetchContent_MakeAvailable(yogasource)
+    set(YOGA_INCLUDE ${yogasource_SOURCE_DIR})
+    file(GLOB_RECURSE YOGA_SRC ${yogasource_SOURCE_DIR}/yoga/*.cpp)
 else()
     # Build the bundled Yoga library
     ExternalProject_Add(yoga
-        URL ${APL_PROJECT_DIR}/thirdparty/yoga-1.16.0.tar.gz
-        URL_MD5 c9e88076ec371513fb23a0a5370ec2fd
+        URL ${YOGA_SOURCE_URL}
+        URL_MD5 ${YOGA_SOURCE_MD5}
         EXCLUDE_FROM_ALL TRUE
         INSTALL_DIR ${CMAKE_BINARY_DIR}/lib
         PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/yoga.patch
@@ -68,14 +82,17 @@ else()
     set(YOGA_LIB ${install_dir}/${CMAKE_STATIC_LIBRARY_PREFIX}yogacore${CMAKE_STATIC_LIBRARY_SUFFIX})
 endif()
 
+if(NOT USE_PROVIDED_YOGA_INLINE)
 add_library(libyoga STATIC IMPORTED)
 set_target_properties(libyoga
     PROPERTIES
         IMPORTED_LOCATION
             "${YOGA_LIB}"
     )
+set(YOGA_PC_LIBS "-lyogacore")
 message(VERBOSE Using yoga include directory = ${YOGA_INCLUDE})
 message(VERBOSE Using yoga lib = ${YOGA_LIB})
+endif()
 
 ExternalProject_Add(pegtl
         URL ${APL_PROJECT_DIR}/thirdparty/pegtl-2.8.3.tar.gz

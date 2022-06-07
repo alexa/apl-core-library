@@ -67,7 +67,7 @@ calculateNormal(const GraphicFilterPropDef& def,
         if (value != -1)
             return value;
 
-        CONSOLE_CTX(context) << "Invalid value for graphic filter property " << def.names[0] << ": " << tmp.asString();
+        CONSOLE(context) << "Invalid value for graphic filter property " << def.names[0] << ": " << tmp.asString();
         return def.defvalue;
     }
 
@@ -85,7 +85,7 @@ GraphicFilter::create(const Context& context, const Object& object)
 
     auto typeName = propertyAsString(context, object, "type");
     if (typeName.empty()) {
-        CONSOLE_CTX(context) << "No 'type' property defined for graphic filter";
+        CONSOLE(context) << "No 'type' property defined for graphic filter";
         return Object::NULL_OBJECT();
     }
 
@@ -100,7 +100,7 @@ GraphicFilter::create(const Context& context, const Object& object)
         return Object(GraphicFilter(type, std::move(data)));
     }
 
-    CONSOLE_CTX(context) << "Unable to find graphic filter named '" << typeName << "'";
+    CONSOLE(context) << "Unable to find graphic filter named '" << typeName << "'";
     return Object::NULL_OBJECT();
 }
 

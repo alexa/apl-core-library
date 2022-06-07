@@ -64,6 +64,9 @@ namespace timegrammar {
 namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 using namespace pegtl;
 
+/**
+ * \cond ShowTimeGrammar
+ */
 struct other         : any {};
 
 struct year_four     : string<'Y', 'Y', 'Y', 'Y'> {};
@@ -322,6 +325,10 @@ template<> struct action<millisecond>
 };
 
 extern std::string timeToString(const std::string& format, double time);
+
+/**
+ * \endcond
+ */
 
 } // namespace timegrammar
 

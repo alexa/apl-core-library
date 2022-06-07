@@ -79,9 +79,9 @@ ByteCodeAssembler::parse(const Context& context, const std::string& value)
     }
     catch (const pegtl::parse_error& e) {
         const auto p = e.positions.front();
-        CONSOLE_CTX(context) << "Syntax error: " << e.what();
-        CONSOLE_CTX(context) << in.line_at(p);
-        CONSOLE_CTX(context) << std::string(p.byte_in_line, ' ') << "^";
+        CONSOLE(context) << "Syntax error: " << e.what();
+        CONSOLE(context) << in.line_at(p);
+        CONSOLE(context) << std::string(p.byte_in_line, ' ') << "^";
     }
 
     return value;
@@ -407,10 +407,6 @@ ByteCodeAssembler::pushArrayAccessEnd()
     mOperatorsRef->pop_back();
 }
 
-/**
- * The top of the operator stack should match "order" and can be reduced.
- * @param order
- */
 void
 ByteCodeAssembler::reduceOneJump(ByteCodeOrder order)
 {

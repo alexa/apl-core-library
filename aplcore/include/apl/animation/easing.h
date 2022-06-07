@@ -48,7 +48,7 @@ public:
 
     /**
      * Evaluate the easing curve at a given time between 0 and 1.
-     * @param time
+     * @param time The parameterized time
      * @return The value
      */
     virtual float calc(float time) = 0;

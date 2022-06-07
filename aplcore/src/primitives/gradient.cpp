@@ -98,13 +98,13 @@ Gradient::create(const Context& context, const Object& object, bool avg)
         return Object::NULL_OBJECT();
 
     if (avg && !object.has("type")) {
-        CONSOLE_CTX(context) << "Type field is required in AVG gradient";
+        CONSOLE(context) << "Type field is required in AVG gradient";
         return Object::NULL_OBJECT();
     }
 
     auto type = propertyAsMapped<GradientType>(context, object, "type", LINEAR, sGradientTypeMap);
     if (type < 0) {
-        CONSOLE_CTX(context) << "Unrecognized type field in gradient";
+        CONSOLE(context) << "Unrecognized type field in gradient";
         return Object::NULL_OBJECT();
     }
 
@@ -112,7 +112,7 @@ Gradient::create(const Context& context, const Object& object, bool avg)
     auto colorRange = arrayifyPropertyAsObject(context, object, "colorRange");
     auto length = colorRange.size();
     if (length < 2) {
-        CONSOLE_CTX(context) << "Gradient does not have suitable color range";
+        CONSOLE(context) << "Gradient does not have suitable color range";
         return Object::NULL_OBJECT();
     }
 
@@ -120,7 +120,7 @@ Gradient::create(const Context& context, const Object& object, bool avg)
     auto inputRange = arrayifyPropertyAsObject(context, object, "inputRange");
     auto inputRangeLength = inputRange.size();
     if (inputRangeLength != 0 && inputRangeLength != length) {
-        CONSOLE_CTX(context) << "Gradient input range must match the color range length";
+        CONSOLE(context) << "Gradient input range must match the color range length";
         return Object::NULL_OBJECT();
     }
 
@@ -140,7 +140,7 @@ Gradient::create(const Context& context, const Object& object, bool avg)
         for (const auto& m : inputRange.getArray()) {
             double value = m.asNumber();
             if (value < last || value > 1) {
-                CONSOLE_CTX(context) << "Gradient input range not in ascending order within range [0,1]";
+                CONSOLE(context) << "Gradient input range not in ascending order within range [0,1]";
                 return Object::NULL_OBJECT();
             }
 
@@ -204,7 +204,7 @@ Gradient::create(const Context& context, const Object& object, bool avg)
         properties.emplace(kGradientPropertyRadius, radius);
     }
 
-    return Object(Gradient(std::move(properties)));
+    return Object(Gradient(context, std::move(properties)));
 }
 
 std::string
@@ -237,12 +237,12 @@ Gradient::operator==(const apl::Gradient &other) const {
     return mProperties == other.mProperties;
 }
 
-Gradient::Gradient(std::map<GradientProperty, Object>&& properties) :
+Gradient::Gradient(const Context& context, std::map<GradientProperty, Object>&& properties) :
     mProperties(std::move(properties)) {
     for(auto& m : mProperties.at(kGradientPropertyInputRange).getArray())
         mInputRange.emplace_back(m.asNumber());
     for(auto& m : mProperties.at(kGradientPropertyColorRange).getArray())
-        mColorRange.emplace_back(m.asColor());
+        mColorRange.emplace_back(m.asColor(context));
 }
 
 }  // namespace apl

@@ -92,7 +92,14 @@ public:
     /**
      * @return context object
      */
-    std::shared_ptr<Context> getContext() { return mContext.lock(); }
+    ContextPtr getContext() { return mContext.lock(); }
+
+    /**
+     * Replace attached context.
+     *
+     * @param context context object
+     */
+    void setContext(const ContextPtr& context) { mContext = context; }
 
 protected:
     /**
@@ -105,7 +112,8 @@ protected:
     void clearTimeouts(const ContextPtr& context, const std::string& correlationToken);
     timeout_id scheduleUpdateExpiry(int version);
     void reportUpdateExpired(int version);
-    void constructAndReportError(const std::string& reason, const Object& operationIndex, const std::string& message);
+    void constructAndReportError(const SessionPtr& session, const std::string& reason, const Object& operationIndex,
+                                 const std::string& message);
 
     std::weak_ptr<Context> mContext;
     DynamicListConfiguration mConfiguration;
@@ -162,14 +170,23 @@ protected:
     DLConnectionPtr getConnection(const std::string& listId, const Object& correlationToken);
 
     void constructAndReportError(
+        const SessionPtr& session,
         const std::string& reason,
         const std::string& listId,
         const Object& listVersion,
         const Object& operationIndex,
         const std::string& message);
-    void constructAndReportError(const std::string& reason, const std::string& listId, const std::string& message);
     void constructAndReportError(
-        const std::string& reason, const DLConnectionPtr& connection, const Object& operationIndex, const std::string& message);
+        const SessionPtr& session,
+        const std::string& reason,
+        const std::string& listId,
+        const std::string& message);
+    void constructAndReportError(
+        const SessionPtr& session,
+        const std::string& reason,
+        const DLConnectionPtr& connection,
+        const Object& operationIndex,
+        const std::string& message);
 
     bool canFetch(const Object& correlationToken, const DLConnectionPtr& connection);
 

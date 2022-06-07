@@ -32,7 +32,7 @@ ScrollCommand::propDefSet() const {
 ActionPtr
 ScrollCommand::execute(const TimersPtr& timers, bool fastMode) {
     if (fastMode) {
-        CONSOLE_CTP(mContext) << "Ignoring Scroll in fast mode";
+        CONSOLE(mContext) << "Ignoring Scroll in fast mode";
         return nullptr;
     }
 
@@ -40,7 +40,7 @@ ScrollCommand::execute(const TimersPtr& timers, bool fastMode) {
         return nullptr;
 
     if (!mTarget || mTarget->scrollType() == kScrollTypeNone) {
-        CONSOLE_CTP(mContext) << "Attempting to scroll non-scrollable component";
+        CONSOLE(mContext) << "Attempting to scroll non-scrollable component";
         return nullptr;
     }
 

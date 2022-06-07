@@ -135,6 +135,7 @@ public:
         ASSERT_FALSE(root->hasEvent());
         executeScroll(component, distance);
         advanceTime(1000);
+        advanceTime(10);
     }
 
 private:
@@ -896,6 +897,7 @@ TEST_F(LiveArrayRebuildTest, SequencePositionContext)
     config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_SEQUENCE);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(0, component->getChildCount());
@@ -960,6 +962,7 @@ TEST_F(LiveArrayRebuildTest, SequencePositionContext)
 
     // Move position and check it's still right
     component->update(kUpdateScrollPosition, 100);
+    advanceTime(10);
     root->clearPending();
 
     scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
@@ -1094,6 +1097,7 @@ TEST_F(LiveArrayRebuildTest, SequenceScrollingContext)
     config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_SEQUENCE);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(0, component->getChildCount());
@@ -1214,6 +1218,7 @@ TEST_F(LiveArrayRebuildTest, SequenceUpdateContext)
     config->liveData("TestArray", myArray);
 
     loadDocument(LIVE_SEQUENCE);
+    advanceTime(10);
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(5, component->getChildCount());
@@ -1224,6 +1229,7 @@ TEST_F(LiveArrayRebuildTest, SequenceUpdateContext)
 
     // Move position
     component->update(kUpdateScrollPosition, 100);
+    advanceTime(10);
     root->clearPending();
 
     // Update first item size and see if position moved on.
@@ -1674,7 +1680,7 @@ CheckSpacing(const CoreComponentPtr& comp, float spacing) {
 TEST_F(LiveArrayRebuildTest, SpacedSequence) {
     auto myArray = LiveArray::create(ObjectArray{0, 1});
     config->liveData("TestArray", myArray);
-    config->sequenceChildCache(2);
+    config->set(RootProperty::kSequenceChildCache, 2);
 
     loadDocument(SPACED_SEQUENCE);
     ASSERT_TRUE(component);
@@ -1753,7 +1759,7 @@ static const char *SPACED_CONTAINER = R"({
 TEST_F(LiveArrayRebuildTest, SpacedContainer) {
     auto myArray = LiveArray::create(ObjectArray{0, 1});
     config->liveData("TestArray", myArray);
-    config->sequenceChildCache(2);
+    config->set(RootProperty::kSequenceChildCache, 2);
 
     loadDocument(SPACED_CONTAINER);
     ASSERT_TRUE(component);

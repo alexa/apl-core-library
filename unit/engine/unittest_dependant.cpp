@@ -1090,3 +1090,289 @@ TEST_F(DependantTest, LayoutLiveArray)
 
     ASSERT_EQ("5", calculatedStuff->getCalculated(kPropertyText).asString());
 }
+
+static const char *LAYOUT_LIVE_ARRAY_SWAP = R"({
+  "type": "APL",
+  "version": "1.10",
+  "theme": "dark",
+  "layouts": {
+    "MyLayout": {
+      "parameters": [
+        "things"
+      ],
+      "item": {
+        "type": "Sequence",
+        "id": "cont",
+        "height": "100%",
+        "width": "100%",
+        "direction": "column",
+        "data": "${things}",
+        "items": [
+          {
+            "type": "Container",
+            "bind": [
+              {
+                "name": "Item",
+                "type": "number",
+                "value": "${data}"
+              }
+            ],
+            "items": [
+              {
+                "type": "Text",
+                "display": "${Item > 0 ? 'normal' : 'none'}",
+                "text": "${Item}"
+              },
+              {
+                "type": "Text",
+                "display": "${Item <= 0 ? 'normal' : 'none'}",
+                "text": "NAN"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "MyLayout",
+      "things": "${ExampleArray}"
+    }
+  }
+})";
+
+TEST_F(DependantTest, LayoutLiveArrayFromEmpty)
+{
+    auto la = LiveArray::create();
+    config->liveData("ExampleArray", la);
+    loadDocument(LAYOUT_LIVE_ARRAY_SWAP);
+    ASSERT_TRUE(component);
+
+    advanceTime(10);
+    ASSERT_TRUE(CheckDirty(root));
+    ASSERT_EQ(0, component->getChildCount());
+
+    la->push_back(0);
+    la->push_back(1);
+    advanceTime(10);
+
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0)->getChildAt(0)));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0)->getChildAt(1),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(1)->getChildAt(0),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(1)->getChildAt(1)));
+
+    auto notifyInternal0 = component->getChildAt(0)->getCalculated(kPropertyNotifyChildrenChanged).getArray();
+    ASSERT_EQ(2, notifyInternal0.size());
+    ASSERT_EQ(Object("insert"), notifyInternal0.at(0).getMap().at("action"));
+    ASSERT_EQ(Object(0), notifyInternal0.at(0).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(0)->getChildAt(0)->getUniqueId()), notifyInternal0.at(0).getMap().at("uid"));
+    ASSERT_EQ(Object("insert"), notifyInternal0.at(1).getMap().at("action"));
+    ASSERT_EQ(Object(1), notifyInternal0.at(1).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(0)->getChildAt(1)->getUniqueId()), notifyInternal0.at(1).getMap().at("uid"));
+    ASSERT_TRUE(CheckChildLaidOutDirtyFlagsWithNotify(component, 0));
+
+    auto notifyInternal1 = component->getChildAt(1)->getCalculated(kPropertyNotifyChildrenChanged).getArray();
+    ASSERT_EQ(2, notifyInternal1.size());
+    ASSERT_EQ(Object("insert"), notifyInternal1.at(0).getMap().at("action"));
+    ASSERT_EQ(Object(0), notifyInternal1.at(0).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(1)->getChildAt(0)->getUniqueId()), notifyInternal1.at(0).getMap().at("uid"));
+    ASSERT_EQ(Object("insert"), notifyInternal1.at(1).getMap().at("action"));
+    ASSERT_EQ(Object(1), notifyInternal1.at(1).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(1)->getChildAt(1)->getUniqueId()), notifyInternal1.at(1).getMap().at("uid"));
+    ASSERT_TRUE(CheckChildLaidOutDirtyFlagsWithNotify(component, 1));
+
+    auto notify = component->getCalculated(kPropertyNotifyChildrenChanged).getArray();
+    ASSERT_EQ(2, notify.size());
+    ASSERT_EQ(Object("insert"), notify.at(0).getMap().at("action"));
+    ASSERT_EQ(Object(0), notify.at(0).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(0)->getUniqueId()), notify.at(0).getMap().at("uid"));
+    ASSERT_EQ(Object("insert"), notify.at(1).getMap().at("action"));
+    ASSERT_EQ(Object(1), notify.at(1).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(1)->getUniqueId()), notify.at(1).getMap().at("uid"));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+
+    root->clearDirty();
+
+    ASSERT_EQ(2, component->getChildCount());
+
+    ASSERT_EQ(2, component->getChildAt(0)->getChildAt(0)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ(0, component->getChildAt(0)->getChildAt(1)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ("NAN", component->getChildAt(0)->getChildAt(1)->getCalculated(kPropertyText).asString());
+
+    ASSERT_EQ(0, component->getChildAt(1)->getChildAt(0)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ(2, component->getChildAt(1)->getChildAt(1)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ("1", component->getChildAt(1)->getChildAt(0)->getCalculated(kPropertyText).asString());
+
+    la->update(0, 2);
+    la->update(1, 0);
+    advanceTime(10);
+
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0)->getChildAt(0),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyVisualHash,
+                           kPropertyDisplay, kPropertyText));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0)->getChildAt(1),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash, kPropertyDisplay));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(1)->getChildAt(0),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyVisualHash, kPropertyDisplay,
+                           kPropertyText));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(1)->getChildAt(1),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyVisualHash,
+                           kPropertyDisplay));
+
+    notifyInternal0 = component->getChildAt(0)->getCalculated(kPropertyNotifyChildrenChanged).getArray();
+    ASSERT_EQ(0, notifyInternal0.size());
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyNotifyChildrenChanged));
+
+    notifyInternal1 = component->getChildAt(1)->getCalculated(kPropertyNotifyChildrenChanged).getArray();
+    ASSERT_EQ(0, notifyInternal1.size());
+    ASSERT_TRUE(CheckDirty(component->getChildAt(1), kPropertyNotifyChildrenChanged));
+
+    notify = component->getCalculated(kPropertyNotifyChildrenChanged).getArray();
+    ASSERT_EQ(0, notify.size());
+    ASSERT_TRUE(CheckDirty(component));
+
+    root->clearDirty();
+
+    ASSERT_EQ(2, component->getChildCount());
+
+    ASSERT_EQ(0, component->getChildAt(0)->getChildAt(0)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ(2, component->getChildAt(0)->getChildAt(1)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ("2", component->getChildAt(0)->getChildAt(0)->getCalculated(kPropertyText).asString());
+
+    ASSERT_EQ(2, component->getChildAt(1)->getChildAt(0)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ(0, component->getChildAt(1)->getChildAt(1)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ("NAN", component->getChildAt(1)->getChildAt(1)->getCalculated(kPropertyText).asString());
+}
+
+TEST_F(DependantTest, LayoutLiveArrayFromEmptyReplace)
+{
+    auto la = LiveArray::create();
+    config->liveData("ExampleArray", la);
+    loadDocument(LAYOUT_LIVE_ARRAY_SWAP);
+    ASSERT_TRUE(component);
+
+    advanceTime(10);
+    ASSERT_TRUE(CheckDirty(root));
+
+    ASSERT_EQ(0, component->getChildCount());
+
+    la->push_back(0);
+    la->push_back(1);
+    advanceTime(10);
+
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0)->getChildAt(0)));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0)->getChildAt(1),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(1)->getChildAt(0),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(1)->getChildAt(1)));
+
+    auto notifyInternal0 = component->getChildAt(0)->getCalculated(kPropertyNotifyChildrenChanged).getArray();
+    ASSERT_EQ(2, notifyInternal0.size());
+    ASSERT_EQ(Object("insert"), notifyInternal0.at(0).getMap().at("action"));
+    ASSERT_EQ(Object(0), notifyInternal0.at(0).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(0)->getChildAt(0)->getUniqueId()), notifyInternal0.at(0).getMap().at("uid"));
+    ASSERT_EQ(Object("insert"), notifyInternal0.at(1).getMap().at("action"));
+    ASSERT_EQ(Object(1), notifyInternal0.at(1).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(0)->getChildAt(1)->getUniqueId()), notifyInternal0.at(1).getMap().at("uid"));
+    ASSERT_TRUE(CheckChildLaidOutDirtyFlagsWithNotify(component, 0));
+
+    auto notifyInternal1 = component->getChildAt(1)->getCalculated(kPropertyNotifyChildrenChanged).getArray();
+    ASSERT_EQ(2, notifyInternal1.size());
+    ASSERT_EQ(Object("insert"), notifyInternal1.at(0).getMap().at("action"));
+    ASSERT_EQ(Object(0), notifyInternal1.at(0).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(1)->getChildAt(0)->getUniqueId()), notifyInternal1.at(0).getMap().at("uid"));
+    ASSERT_EQ(Object("insert"), notifyInternal1.at(1).getMap().at("action"));
+    ASSERT_EQ(Object(1), notifyInternal1.at(1).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(1)->getChildAt(1)->getUniqueId()), notifyInternal1.at(1).getMap().at("uid"));
+    ASSERT_TRUE(CheckChildLaidOutDirtyFlagsWithNotify(component, 1));
+
+    auto cachedUid0 = component->getChildAt(0)->getUniqueId();
+    auto cachedUid1 = component->getChildAt(1)->getUniqueId();
+    auto notify = component->getCalculated(kPropertyNotifyChildrenChanged).getArray();
+    ASSERT_EQ(2, notify.size());
+    ASSERT_EQ(Object("insert"), notify.at(0).getMap().at("action"));
+    ASSERT_EQ(Object(0), notify.at(0).getMap().at("index"));
+    ASSERT_EQ(Object(cachedUid0), notify.at(0).getMap().at("uid"));
+    ASSERT_EQ(Object("insert"), notify.at(1).getMap().at("action"));
+    ASSERT_EQ(Object(1), notify.at(1).getMap().at("index"));
+    ASSERT_EQ(Object(cachedUid1), notify.at(1).getMap().at("uid"));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+
+    root->clearDirty();
+
+    ASSERT_EQ(2, component->getChildCount());
+
+    ASSERT_EQ(2, component->getChildAt(0)->getChildAt(0)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ(0, component->getChildAt(0)->getChildAt(1)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ("NAN", component->getChildAt(0)->getChildAt(1)->getCalculated(kPropertyText).asString());
+
+    ASSERT_EQ(0, component->getChildAt(1)->getChildAt(0)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ(2, component->getChildAt(1)->getChildAt(1)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ("1", component->getChildAt(1)->getChildAt(0)->getCalculated(kPropertyText).asString());
+
+    la->clear();
+    la->push_back(2);
+    la->push_back(0);
+    advanceTime(10);
+
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0)->getChildAt(0),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0)->getChildAt(1)));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(1)->getChildAt(0)));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(1)->getChildAt(1),
+                           kPropertyBounds, kPropertyInnerBounds, kPropertyLaidOut, kPropertyVisualHash));
+
+    notifyInternal0 = component->getChildAt(0)->getCalculated(kPropertyNotifyChildrenChanged).getArray();
+    ASSERT_EQ(2, notifyInternal0.size());
+    ASSERT_EQ(Object("insert"), notifyInternal0.at(0).getMap().at("action"));
+    ASSERT_EQ(Object(0), notifyInternal0.at(0).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(0)->getChildAt(0)->getUniqueId()), notifyInternal0.at(0).getMap().at("uid"));
+    ASSERT_EQ(Object("insert"), notifyInternal0.at(1).getMap().at("action"));
+    ASSERT_EQ(Object(1), notifyInternal0.at(1).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(0)->getChildAt(1)->getUniqueId()), notifyInternal0.at(1).getMap().at("uid"));
+    ASSERT_TRUE(CheckChildLaidOutDirtyFlagsWithNotify(component, 0));
+
+    notifyInternal1 = component->getChildAt(1)->getCalculated(kPropertyNotifyChildrenChanged).getArray();
+    ASSERT_EQ(2, notifyInternal1.size());
+    ASSERT_EQ(Object("insert"), notifyInternal1.at(0).getMap().at("action"));
+    ASSERT_EQ(Object(0), notifyInternal1.at(0).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(1)->getChildAt(0)->getUniqueId()), notifyInternal1.at(0).getMap().at("uid"));
+    ASSERT_EQ(Object("insert"), notifyInternal1.at(1).getMap().at("action"));
+    ASSERT_EQ(Object(1), notifyInternal1.at(1).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(1)->getChildAt(1)->getUniqueId()), notifyInternal1.at(1).getMap().at("uid"));
+    ASSERT_TRUE(CheckChildLaidOutDirtyFlagsWithNotify(component, 1));
+
+    auto sp = component->scrollPosition();
+
+    notify = component->getCalculated(kPropertyNotifyChildrenChanged).getArray();
+    ASSERT_EQ(4, notify.size());
+    ASSERT_EQ(Object("insert"), notify.at(0).getMap().at("action"));
+    ASSERT_EQ(Object(0), notify.at(0).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(0)->getUniqueId()), notify.at(0).getMap().at("uid"));
+    ASSERT_EQ(Object("insert"), notify.at(1).getMap().at("action"));
+    ASSERT_EQ(Object(1), notify.at(1).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(1)->getUniqueId()), notify.at(1).getMap().at("uid"));
+    ASSERT_EQ(Object("remove"), notify.at(2).getMap().at("action"));
+    ASSERT_EQ(Object(2), notify.at(2).getMap().at("index"));
+    ASSERT_EQ(Object(cachedUid0), notify.at(2).getMap().at("uid"));
+    ASSERT_EQ(Object("remove"), notify.at(3).getMap().at("action"));
+    ASSERT_EQ(Object(2), notify.at(3).getMap().at("index"));
+    ASSERT_EQ(Object(cachedUid1), notify.at(3).getMap().at("uid"));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+
+    ASSERT_EQ(sp, component->scrollPosition());
+
+    ASSERT_EQ(2, component->getChildCount());
+
+    ASSERT_EQ(0, component->getChildAt(0)->getChildAt(0)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ(2, component->getChildAt(0)->getChildAt(1)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ("2", component->getChildAt(0)->getChildAt(0)->getCalculated(kPropertyText).asString());
+
+    ASSERT_EQ(2, component->getChildAt(1)->getChildAt(0)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ(0, component->getChildAt(1)->getChildAt(1)->getCalculated(kPropertyDisplay).asNumber());
+    ASSERT_EQ("NAN", component->getChildAt(1)->getChildAt(1)->getCalculated(kPropertyText).asString());
+}

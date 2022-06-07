@@ -155,7 +155,7 @@ public:
 
     /**
      * Release all claimed resources associated with this holder
-     * @param holder
+     * @param holder An execution resource holder
      */
     void releaseRelatedResources(const ExecutionResourceHolderPtr& holder);
 

@@ -29,7 +29,7 @@ namespace datagrammar {
  * if a problem occurs.  The static "error_value" defined in this template converts
  * from a templated action to a numbered error message.  The "errorToString" method
  * further converts the error message into a human-readable string.
- * @tparam Rule
+ * @tparam Rule The base type for the rules
  */
 template< typename Rule >
 struct error_control : tao::pegtl::normal< Rule > {
@@ -44,8 +44,8 @@ struct error_control : tao::pegtl::normal< Rule > {
 /**
  * Convenience routine for printing out the current character being processed
  * by the PEGTL grammar.
- * @tparam Input
- * @param in
+ * @tparam Input PEGTL input
+ * @param in Input data
  * @return A string showing the character (if printable) and the numeric value of the character.
  */
 template< typename Input > std::string
@@ -90,7 +90,7 @@ const bool TRACED_ERROR_CONTROL_SHOW_FAILURE = false; // Log failed blocks
 /**
  * Fancing PEGTL parsing error controller.  This is enabled with DEBUG_DATA_BINDING.
  * The messages are output as the PEGTL grammar is parsed.
- * @tparam Rule
+ * @tparam Rule The base type for the rules
  */
 template< typename Rule >
 struct traced_error_control : error_control<Rule>

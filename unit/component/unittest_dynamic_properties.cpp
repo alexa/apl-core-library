@@ -811,7 +811,8 @@ TEST_F(DynamicPropertiesTest, BorderWidth) {
     frame1->setProperty(kPropertyBorderWidth, 10);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderWidth, kPropertyInnerBounds, kPropertyNotifyChildrenChanged, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(frame1, kPropertyBorderWidth, kPropertyInnerBounds, kPropertyNotifyChildrenChanged,
+                           kPropertyVisualHash, kPropertyDrawnBorderWidth));
     ASSERT_TRUE(CheckDirty(root, frame1));
     root->clearDirty();
 
@@ -974,8 +975,8 @@ TEST_F(DynamicPropertiesTest, ImageProperties) {
 
     auto grad1 = img1->getCalculated(kPropertyOverlayGradient);
     ASSERT_TRUE(grad1.isGradient());
-    ASSERT_EQ(Object(Color(Color::BLUE)), grad1.getGradient().getColorRange().at(0));
-    ASSERT_EQ(Object(Color(Color::RED)), grad1.getGradient().getColorRange().at(1));
+    ASSERT_EQ(Object(Color(Color::BLUE)), grad1.getGradient().getProperty(kGradientPropertyColorRange).at(0));
+    ASSERT_EQ(Object(Color(Color::RED)), grad1.getGradient().getProperty(kGradientPropertyColorRange).at(1));
 
     // Set aline property of img
     img1->setProperty(kPropertyAlign, "left");
@@ -1020,8 +1021,8 @@ TEST_F(DynamicPropertiesTest, ImageProperties) {
 
     grad1 = img1->getCalculated(kPropertyOverlayGradient);
     ASSERT_TRUE(grad1.isGradient());
-    ASSERT_EQ(Object(Color(Color::GREEN)), grad1.getGradient().getColorRange().at(0));
-    ASSERT_EQ(Object(Color(Color::GRAY)), grad1.getGradient().getColorRange().at(1));
+    ASSERT_EQ(Object(Color(Color::GREEN)), grad1.getGradient().getProperty(kGradientPropertyColorRange).at(0));
+    ASSERT_EQ(Object(Color(Color::GRAY)), grad1.getGradient().getProperty(kGradientPropertyColorRange).at(1));
 }
 
 static const char *VECTOR_GRAPHIC_SETVALUE = R"apl(
@@ -1279,7 +1280,8 @@ TEST_F(DynamicPropertiesTest, EditTextProperties) {
     txt->setProperty(kPropertyBorderWidth, 5);
 
     ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(txt, kPropertyBorderWidth, kPropertyInnerBounds, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(txt, kPropertyBorderWidth, kPropertyInnerBounds, kPropertyVisualHash,
+                           kPropertyDrawnBorderWidth));
     ASSERT_TRUE(CheckDirty(root, txt));
     root->clearDirty();
     ASSERT_TRUE(CheckProperties(txt, {

@@ -18,6 +18,10 @@
 #include "../testeventloop.h"
 #include "apl/extension/extensioncomponent.h"
 
+#include <deque>
+#include <unordered_map>
+#include <utility>
+
 using namespace apl;
 using namespace alexaext;
 
@@ -206,7 +210,6 @@ static bool sForceFail = false;
  * Sample Extension for testing.
  */
 class TestExtension final : public alexaext::ExtensionBase {
-
 public:
     explicit TestExtension(const std::set<std::string>& uris) : ExtensionBase(uris) {};
 
@@ -286,6 +289,286 @@ public:
     std::string mAuthorizationCode;
     ResourceHolderPtr mResource;
 };
+
+enum class InteractionKind {
+    kSessionStarted,
+    kSessionEnded,
+    kActivityRegistered,
+    kActivityUnregistered,
+    kDisplayStateChanged,
+    kCommandReceived,
+    kResourceReady,
+    kUpdateComponentReceived,
+};
+
+/**
+ * Defines utilities to record extension interactions for verification purposes. Can be used
+ * as a mixin or standalone.
+ */
+class LifecycleInteractionRecorder {
+public:
+    virtual ~LifecycleInteractionRecorder() = default;
+
+    struct Interaction {
+        Interaction(InteractionKind kind)
+            : kind(kind)
+        {}
+        Interaction(InteractionKind kind, const Object& value)
+            : kind(kind),
+              value(value)
+        {}
+        Interaction(InteractionKind kind, const alexaext::ActivityDescriptor& activity)
+            : kind(kind),
+              activity(activity)
+        {}
+        Interaction(InteractionKind kind, const alexaext::ActivityDescriptor& activity, const Object& value)
+            : kind(kind),
+              activity(activity),
+              value(value)
+        {}
+
+        bool operator==(const Interaction& other) const {
+            return kind == other.kind
+                   && activity == other.activity
+                   && value == other.value;
+        }
+
+        bool operator!=(const Interaction& rhs) const { return !(rhs == *this); }
+
+        InteractionKind kind;
+        alexaext::ActivityDescriptor activity = ActivityDescriptor("", nullptr, "");
+        Object value = Object::NULL_OBJECT();
+    };
+
+    ::testing::AssertionResult verifyNextInteraction(const Interaction& interaction) {
+        if (mRecordedInteractions.empty()) {
+            return ::testing::AssertionFailure() << "Expected an interaction but none was found";
+        }
+
+        auto nextInteraction = mRecordedInteractions.front();
+        if (interaction != nextInteraction) {
+            return ::testing::AssertionFailure() << "Found mismatched interactions";
+        }
+
+        // Consume the interaction since it was a match
+        mRecordedInteractions.pop_front();
+        return ::testing::AssertionSuccess();
+    }
+
+    ::testing::AssertionResult verifyUnordered(std::vector<Interaction> interactions) {
+        while (!interactions.empty()) {
+            if (mRecordedInteractions.empty()) {
+                return ::testing::AssertionFailure() << "Expected an interaction but none was found";
+            }
+
+            const auto& targetInteraction = interactions.back();
+            bool found = false;
+            for (auto it = mRecordedInteractions.begin(); it != mRecordedInteractions.end(); it++) {
+                if (*it == targetInteraction) {
+                    interactions.pop_back();
+                    mRecordedInteractions.erase(it);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) return ::testing::AssertionFailure() << "Interaction not found";
+        }
+
+        return ::testing::AssertionSuccess();
+    }
+
+    ::testing::AssertionResult verifyNoMoreInteractions() {
+        if (!mRecordedInteractions.empty()) {
+            return ::testing::AssertionFailure() << "Expected no more interactions, but some were found";
+        }
+        return ::testing::AssertionSuccess();
+    }
+
+    virtual void recordInteraction(const Interaction& interaction) {
+        mRecordedInteractions.emplace_back(interaction);
+    }
+
+private:
+    std::deque<Interaction> mRecordedInteractions;
+};
+
+/**
+ * Extension that uses activity-based APIs.
+ */
+class LifecycleTestExtension : public alexaext::ExtensionBase,
+                               public LifecycleInteractionRecorder {
+public:
+    static const char *URI;
+    static const char *TOKEN;
+
+    explicit LifecycleTestExtension(const std::string& uri = URI)
+            : ExtensionBase(uri),
+              LifecycleInteractionRecorder(),
+              lastActivity(uri, nullptr, "")
+    {}
+    ~LifecycleTestExtension() override = default;
+
+    rapidjson::Document createRegistration(const ActivityDescriptor& activity,
+                                           const rapidjson::Value& registrationRequest) override {
+        const auto& uri = activity.getURI();
+        lastActivity = activity;
+
+        if (failRegistration) {
+            return alexaext::RegistrationFailure::forException(uri, "Failure for unit tests");
+        }
+
+        const auto *settings = RegistrationRequest::SETTINGS().Get(registrationRequest);
+        std::string prefix = "";
+        if (settings) {
+            prefix = GetWithDefault("prefix", settings, "");
+            prefixByActivity.emplace(activity, prefix);
+        }
+
+        rapidjson::Document response = RegistrationSuccess("1.0")
+            .uri(uri)
+            .token(useAutoToken ? "<AUTO_TOKEN>" : TOKEN)
+            .schema("1.0", [uri, prefix](ExtensionSchema schema) {
+                schema
+                    .uri(uri)
+                    .dataType("liveMapSchema", [](TypeSchema &dataTypeSchema) {
+                        dataTypeSchema
+                            .property("state", "string");
+                    })
+                    .dataType("liveArraySchema")
+                    .command("PublishState")
+                    .event(prefix + "ExtensionReady")
+                    .liveDataMap(prefix + "liveMap", [](LiveDataSchema &liveDataSchema) {
+                        liveDataSchema.dataType("liveMapSchema");
+                    })
+                    .liveDataArray(prefix + "liveArray", [](LiveDataSchema &liveDataSchema) {
+                        liveDataSchema.dataType("liveArraySchema");
+                    });
+            });
+
+        // The schema API doesn't support component definitions yet, so we amend the response
+        // directly here instead
+        rapidjson::Value component;
+        component.SetObject();
+        component.AddMember("name", "Component", response.GetAllocator());
+        rapidjson::Value components;
+        components.SetArray();
+        components.PushBack(component, response.GetAllocator());
+        response["schema"].AddMember("components", components, response.GetAllocator());
+        return response;
+    }
+
+    void onSessionStarted(const SessionDescriptor& session) override {
+        recordInteraction({InteractionKind::kSessionStarted, session.getId()});
+    }
+
+    void onSessionEnded(const SessionDescriptor& session) override {
+        recordInteraction({InteractionKind::kSessionEnded, session.getId()});
+    }
+
+    void onActivityRegistered(const ActivityDescriptor& activity) override {
+        recordInteraction({InteractionKind::kActivityRegistered, activity});
+    }
+
+    void onActivityUnregistered(const ActivityDescriptor& activity) override {
+        recordInteraction({InteractionKind::kActivityUnregistered, activity});
+    }
+
+    void onForeground(const ActivityDescriptor& activity) override {
+        recordInteraction({InteractionKind::kDisplayStateChanged, activity, DisplayState::kDisplayStateForeground});
+    }
+
+    void onBackground(const ActivityDescriptor& activity) override {
+        recordInteraction({InteractionKind::kDisplayStateChanged, activity, DisplayState::kDisplayStateBackground});
+    }
+
+    void onHidden(const ActivityDescriptor& activity) override {
+        recordInteraction({InteractionKind::kDisplayStateChanged, activity, DisplayState::kDisplayStateHidden});
+    }
+
+    bool invokeCommand(const ActivityDescriptor& activity, const rapidjson::Value& command) override {
+        const std::string &name = GetWithDefault(alexaext::Command::NAME(), command, "");
+        if (command.HasMember("token")) {
+            lastToken = command["token"].GetString();
+        }
+        recordInteraction({InteractionKind::kCommandReceived, activity, name});
+
+        std::string prefix = "";
+        auto it = prefixByActivity.find(activity);
+        if (it != prefixByActivity.end()) {
+            prefix = it->second;
+        }
+
+        if (name == "PublishState") {
+            const auto& uri = activity.getURI();
+            auto event = alexaext::Event("1.0")
+                             .uri(uri)
+                             .target(uri)
+                             .name(prefix + "ExtensionReady");
+            invokeExtensionEventHandler(activity, event);
+
+            auto liveMapUpdate = LiveDataUpdate("1.0")
+                .uri(uri)
+                .objectName(prefix + "liveMap")
+                .target(uri)
+                .liveDataMapUpdate([&](LiveDataMapOperation &operation) {
+                  operation
+                      .type("Set")
+                      .key("status")
+                      .item("Ready");
+                });
+            invokeLiveDataUpdate(activity, liveMapUpdate);
+
+            auto liveArrayUpdate = LiveDataUpdate("1.0")
+                .uri(uri)
+                .objectName(prefix + "liveArray")
+                .target(uri)
+                .liveDataArrayUpdate([&](LiveDataArrayOperation &operation) {
+                  operation
+                      .type("Insert")
+                      .index(0)
+                      .item("Ready");
+                });
+            invokeLiveDataUpdate(activity, liveArrayUpdate);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    bool updateComponent(const ActivityDescriptor& activity, const rapidjson::Value& command) override {
+        recordInteraction({InteractionKind::kUpdateComponentReceived, activity});
+        return true;
+    }
+
+    void onResourceReady(const ActivityDescriptor& activity,
+                         const ResourceHolderPtr& resourceHolder) override {
+        recordInteraction({InteractionKind::kResourceReady, activity});
+    }
+
+    void setInteractionRecorder(const std::shared_ptr<LifecycleInteractionRecorder>& recorder) {
+        interactionRecorder = recorder;
+    }
+
+    void recordInteraction(const Interaction& interaction) override {
+        LifecycleInteractionRecorder::recordInteraction(interaction);
+        if (interactionRecorder) interactionRecorder->recordInteraction(interaction);
+    }
+
+public:
+    ActivityDescriptor lastActivity;
+    std::string lastToken = "";
+    bool useAutoToken = true;
+    bool failRegistration = false;
+
+private:
+    std::unordered_map<ActivityDescriptor, std::string, ActivityDescriptor::Hash> prefixByActivity;
+    std::shared_ptr<LifecycleInteractionRecorder> interactionRecorder = nullptr;
+};
+
+const char* LifecycleTestExtension::URI = "test:lifecycle:1.0";
+const char* LifecycleTestExtension::TOKEN = "lifecycle-extension-token";
 
 
 class TestResourceProvider final: public ExtensionResourceProvider {
@@ -1102,7 +1385,7 @@ static const char* AUDIO_PLAYER = R"(
 }
 )";
 
-class AudioPlayerObserverStub : public AudioPlayer::AplAudioPlayerExtensionObserverInterface {
+class AudioPlayerObserverStub : public ::AudioPlayer::AplAudioPlayerExtensionObserverInterface {
 public:
     void onAudioPlayerPlay() override {}
     void onAudioPlayerPause() override {}
@@ -1121,7 +1404,7 @@ TEST_F(ExtensionMediatorTest, AudioPlayerIntegration) {
 
     createProvider();
     auto stub = std::make_shared<AudioPlayerObserverStub>();
-    auto extension = std::make_shared<AudioPlayer::AplAudioPlayerExtension>(stub);
+    auto extension = std::make_shared<::AudioPlayer::AplAudioPlayerExtension>(stub);
     extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
     loadExtensions(AUDIO_PLAYER);
 
@@ -1254,7 +1537,7 @@ public:
     bool invokeCommand(const std::string &uri, const rapidjson::Value &command,
                                CommandSuccessCallback success, CommandFailureCallback error) override { return false; }
 
-    bool sendMessage(const std::string &uri, const rapidjson::Value &message) override { return false; }
+    bool sendComponentMessage(const std::string &uri, const rapidjson::Value &message) override { return false; }
 
     void registerEventCallback(Extension::EventCallback callback) override {}
 
@@ -2417,15 +2700,25 @@ TEST_F(ExtensionMediatorTest, ExtensionComponentResourceProviderError) {
 
 class TestExtensionProvider : public alexaext::ExtensionRegistrar {
 public :
-    bool returnNullExtensionProxy = false;
+    std::function<bool(const std::string& uri)> returnNullProxyPredicate = nullptr;
 
     ExtensionProxyPtr getExtension(const std::string& uri) {
-        if(returnNullExtensionProxy)
+        if (returnNullProxyPredicate && returnNullProxyPredicate(uri))
             return nullptr;
         else
             return ExtensionRegistrar::getExtension(uri);
     }
 
+    void returnNullProxy(bool returnNull) {
+        if (returnNull)
+            returnNullProxyPredicate = [](const std::string& uri) { return true; };
+        else
+            returnNullProxyPredicate = [](const std::string& uri) { return false; };
+    }
+
+    void returnNullProxyForURI(const std::string& uri) {
+        returnNullProxyPredicate = [uri](const std::string& candidateURI) { return candidateURI == uri; };
+    }
 };
 
 TEST_F(ExtensionMediatorTest, ExtensionProviderFaultTest) {
@@ -2444,11 +2737,946 @@ TEST_F(ExtensionMediatorTest, ExtensionProviderFaultTest) {
     mediator->initializeExtensions(config, content);
 
     // To mock a faulty provider that returns null proxy for an initialized extension
-    std::static_pointer_cast<TestExtensionProvider>(extensionProvider)->returnNullExtensionProxy = true;
+    std::static_pointer_cast<TestExtensionProvider>(extensionProvider)->returnNullProxy(true);
     mediator->loadExtensions(config, content, [](){});
 
     inflate();
     ASSERT_TRUE(ConsoleMessage());
+}
+
+static const char* LIFECYCLE_DOC = R"({
+  "type": "APL",
+  "version": "1.9",
+  "theme": "dark",
+  "extensions": [
+    {
+      "uri": "test:lifecycle:1.0",
+      "name": "Lifecycle"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "item": {
+        "type": "TouchWrapper",
+        "id": "tw1",
+        "width": 100,
+        "height": 100,
+        "onPress": {
+          "type": "Lifecycle:PublishState"
+        }
+      }
+    }
+  },
+  "Lifecycle:ExtensionReady": {
+    "type": "SendEvent",
+    "sequencer": "ExtensionEvent",
+    "arguments": [ "ExtensionReadyReceived" ]
+  }
+})";
+
+TEST_F(ExtensionMediatorTest, BasicExtensionLifecycle) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>();
+    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    extensionProvider->registerExtension(proxy);
+
+    createContent(LIFECYCLE_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+    mediator->loadExtensions(config, content);
+
+    ASSERT_NE("", extension->lastActivity.getId());
+
+    inflate();
+    ASSERT_TRUE(root);
+
+    root->updateTime(100);
+    performClick(50, 50);
+    root->clearPending();
+
+    root->updateTime(200);
+    root->updateDisplayState(DisplayState::kDisplayStateBackground);
+
+    root->updateTime(300);
+    root->updateDisplayState(DisplayState::kDisplayStateHidden);
+
+    root->cancelExecution();
+    mediator->finish();
+    session->end();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kCommandReceived, extension->lastActivity, "PublishState"}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateBackground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateHidden}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+
+    ASSERT_TRUE(CheckSendEvent(root, "ExtensionReadyReceived"));
+}
+
+TEST_F(ExtensionMediatorTest, SessionUsedAcrossDocuments) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    auto extension = std::make_shared<LifecycleTestExtension>();
+    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    extensionProvider->registerExtension(proxy);
+
+    // Render a first document
+
+    createContent(LIFECYCLE_DOC, nullptr);
+    ASSERT_TRUE(content->isReady());
+
+    // Experimental feature required
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    mediator->initializeExtensions(config, content);
+    mediator->loadExtensions(config, content);
+
+    ASSERT_NE("", extension->lastActivity.getId());
+    auto firstDocumentActivity = extension->lastActivity;
+
+    inflate();
+    ASSERT_TRUE(root);
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNoMoreInteractions());
+
+    // Render a second document within the same session
+
+    createContent(LIFECYCLE_DOC, nullptr);
+    ASSERT_TRUE(content->isReady());
+
+    // Experimental feature required
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    mediator->initializeExtensions(config, content);
+    mediator->loadExtensions(config, content);
+
+    ASSERT_NE(firstDocumentActivity, extension->lastActivity);
+
+    inflate();
+    ASSERT_TRUE(root);
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNoMoreInteractions());
+
+    session->end();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+    ASSERT_TRUE(extension->verifyNoMoreInteractions());
+}
+
+TEST_F(ExtensionMediatorTest, SessionEndedBeforeDocumentFinished) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>();
+    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    extensionProvider->registerExtension(proxy);
+
+    createContent(LIFECYCLE_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+    mediator->loadExtensions(config, content);
+
+    ASSERT_NE("", extension->lastActivity.getId());
+
+    inflate();
+
+    session->end();
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+}
+
+TEST_F(ExtensionMediatorTest, SessionEndedBeforeDocumentRendered) {
+    auto session = ExtensionSession::create();
+    session->end();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>();
+    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    extensionProvider->registerExtension(proxy);
+
+    createContent(LIFECYCLE_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+    mediator->loadExtensions(config, content);
+
+    inflate();
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNoMoreInteractions());
+}
+
+TEST_F(ExtensionMediatorTest, SessionEndedBeforeExtensionsLoaded) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>();
+    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    extensionProvider->registerExtension(proxy);
+
+    createContent(LIFECYCLE_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+
+    session->end();
+    mediator->initializeExtensions(config, content);
+    mediator->loadExtensions(config, content);
+
+    inflate();
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNoMoreInteractions());
+}
+
+static const char* LIFECYCLE_WITH_MULTIPLE_EXTENSIONS_DOC = R"({
+  "type": "APL",
+  "version": "1.9",
+  "theme": "dark",
+  "extensions": [
+    {
+      "uri": "test:lifecycle:1.0",
+      "name": "Lifecycle"
+    },
+    {
+      "uri": "test:lifecycleOther:2.0",
+      "name": "LifecycleOther"
+    }
+  ],
+  "settings": {
+    "LifecycleOther": {
+      "prefix": "other_"
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "item": {
+        "type": "TouchWrapper",
+        "id": "tw1",
+        "width": 100,
+        "height": 100,
+        "onPress": {
+          "type": "Lifecycle:PublishState"
+        }
+      }
+    }
+  },
+  "Lifecycle:ExtensionReady": {
+    "type": "SendEvent",
+    "sequencer": "ExtensionEvent",
+    "arguments": [ "ExtensionReadyReceived" ]
+  },
+  "Lifecycle:other_ExtensionReady": {
+    "type": "SendEvent",
+    "sequencer": "ExtensionEvent",
+    "arguments": [ "OtherExtensionReadyReceived" ]
+  }
+})";
+
+TEST_F(ExtensionMediatorTest, SessionEndsAfterAllActivitiesHaveFinished) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
+    auto otherExtension = std::make_shared<LifecycleTestExtension>("test:lifecycleOther:2.0");
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(otherExtension));
+
+    createContent(LIFECYCLE_WITH_MULTIPLE_EXTENSIONS_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+    mediator->loadExtensions(config, content);
+
+    ASSERT_NE("", extension->lastActivity.getId());
+
+    inflate();
+
+    session->end();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+
+    ASSERT_TRUE(otherExtension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(otherExtension->verifyNextInteraction({InteractionKind::kActivityRegistered, otherExtension->lastActivity}));
+    ASSERT_TRUE(otherExtension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, otherExtension->lastActivity, DisplayState::kDisplayStateForeground}));
+
+    // Start collecting interactions for both extensions in a combined timeline so we can assert
+    // the order across extensions
+    auto combinedTimeline = std::make_shared<LifecycleInteractionRecorder>();
+    extension->setInteractionRecorder(combinedTimeline);
+    otherExtension->setInteractionRecorder(combinedTimeline);
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+    ASSERT_TRUE(otherExtension->verifyNextInteraction({InteractionKind::kActivityUnregistered, otherExtension->lastActivity}));
+    ASSERT_TRUE(otherExtension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+    ASSERT_TRUE(extension->verifyNoMoreInteractions());
+    ASSERT_TRUE(otherExtension->verifyNoMoreInteractions());
+
+    // Verify that both activities were finished before the session was ended
+    ASSERT_TRUE(combinedTimeline->verifyUnordered({
+            {InteractionKind::kActivityUnregistered, extension->lastActivity},
+            {InteractionKind::kActivityUnregistered, otherExtension->lastActivity}
+    }));
+    ASSERT_TRUE(combinedTimeline->verifyUnordered({
+            {InteractionKind::kSessionEnded, session->getId()},
+            {InteractionKind::kSessionEnded, session->getId()}
+    }));
+
+    ASSERT_TRUE(combinedTimeline->verifyNoMoreInteractions());
+}
+
+TEST_F(ExtensionMediatorTest, RejectedExtensionsDoNotPreventEndingSessions) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
+    auto otherExtension = std::make_shared<LifecycleTestExtension>("test:lifecycleOther:2.0");
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(otherExtension));
+
+    createContent(LIFECYCLE_WITH_MULTIPLE_EXTENSIONS_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+
+    std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
+
+    mediator->loadExtensions(config, content, &grantedExtensions);
+
+    ASSERT_NE("", extension->lastActivity.getId());
+
+    inflate();
+
+    session->end();
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+    ASSERT_TRUE(extension->verifyNoMoreInteractions());
+
+    // Check that there were no interactions with the denied extension
+    ASSERT_TRUE(otherExtension->verifyNoMoreInteractions());
+}
+
+TEST_F(ExtensionMediatorTest, FailureDuringRegistrationDoesNotPreventEndingSessions) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
+    auto otherExtension = std::make_shared<LifecycleTestExtension>("test:lifecycleOther:2.0");
+    otherExtension->failRegistration = true;
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(otherExtension));
+
+    createContent(LIFECYCLE_WITH_MULTIPLE_EXTENSIONS_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+
+    std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
+
+    mediator->loadExtensions(config, content);
+
+    ASSERT_NE("", extension->lastActivity.getId());
+
+    inflate();
+
+    session->end();
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+    ASSERT_TRUE(extension->verifyNoMoreInteractions());
+
+    // Check that there were no interactions with the denied extension
+    ASSERT_TRUE(otherExtension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(otherExtension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+    ASSERT_TRUE(otherExtension->verifyNoMoreInteractions());
+}
+
+TEST_F(ExtensionMediatorTest, RejectedRegistrationDoesNotPreventEndingSessions) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    auto failingProxy = std::make_shared<ExtensionCommunicationTestAdapter>("test:lifecycleOther:2.0", true, false);
+    extensionProvider->registerExtension(failingProxy);
+
+    createContent(LIFECYCLE_WITH_MULTIPLE_EXTENSIONS_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+
+    std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
+
+    mediator->loadExtensions(config, content);
+
+    ASSERT_NE("", extension->lastActivity.getId());
+
+    inflate();
+
+    session->end();
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+    ASSERT_TRUE(extension->verifyNoMoreInteractions());
+
+    ASSERT_TRUE(ConsoleMessage()); // Consume the failed registration console message
+}
+
+TEST_F(ExtensionMediatorTest, MissingProxyDoesNotPreventEndingSessions) {
+    auto session = ExtensionSession::create();
+
+    auto extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
+    auto otherExtension = std::make_shared<LifecycleTestExtension>("test:lifecycleOther:2.0");
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(otherExtension));
+
+    extensionProvider->returnNullProxyForURI("test:lifecycleOther:2.0");
+
+    createContent(LIFECYCLE_WITH_MULTIPLE_EXTENSIONS_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+
+    std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
+
+    mediator->loadExtensions(config, content);
+
+    ASSERT_NE("", extension->lastActivity.getId());
+
+    inflate();
+
+    session->end();
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+    ASSERT_TRUE(extension->verifyNoMoreInteractions());
+
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(ExtensionMediatorTest, UnknownExtensionDoesNotPreventEndingSessions) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+
+    createContent(LIFECYCLE_WITH_MULTIPLE_EXTENSIONS_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+
+    std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
+
+    mediator->loadExtensions(config, content);
+
+    ASSERT_NE("", extension->lastActivity.getId());
+
+    inflate();
+
+    session->end();
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+    ASSERT_TRUE(extension->verifyNoMoreInteractions());
+}
+
+TEST_F(ExtensionMediatorTest, BrokenProviderDoesNotPreventEndingSessions) {
+    auto session = ExtensionSession::create();
+
+    auto extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
+    auto otherExtension = std::make_shared<LifecycleTestExtension>("test:lifecycleOther:2.0");
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(otherExtension));
+
+    // Broken provider will return a valid proxy once but then nullptr subsequently for the same URI
+    int proxyRequestCount = 0;
+    extensionProvider->returnNullProxyPredicate = [&](const std::string& uri) {
+        if (uri != "test:lifecycleOther:2.0") return false;
+        // Return false on the first getProxy call, nullptr thereafter
+        proxyRequestCount += 1;
+        return proxyRequestCount > 1;
+    };
+
+    createContent(LIFECYCLE_WITH_MULTIPLE_EXTENSIONS_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+
+    std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
+
+    mediator->loadExtensions(config, content);
+
+    ASSERT_NE("", extension->lastActivity.getId());
+
+    inflate();
+
+    session->end();
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+    ASSERT_TRUE(extension->verifyNoMoreInteractions());
+
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(ExtensionMediatorTest, FailureToInitializeDoesNotPreventEndingSessions) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    auto failingProxy = std::make_shared<ExtensionCommunicationTestAdapter>("test:lifecycleOther:2.0", false, true);
+    extensionProvider->registerExtension(failingProxy);
+
+    createContent(LIFECYCLE_WITH_MULTIPLE_EXTENSIONS_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+
+    std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
+
+    mediator->loadExtensions(config, content);
+
+    ASSERT_NE("", extension->lastActivity.getId());
+
+    inflate();
+
+    session->end();
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+    ASSERT_TRUE(extension->verifyNoMoreInteractions());
+
+    ASSERT_TRUE(ConsoleMessage()); // Consume the failed initialization console message
+}
+
+static const char* LIFECYCLE_COMPONENT_DOC = R"({
+  "type": "APL",
+  "version": "1.9",
+  "theme": "dark",
+  "extensions": [
+    {
+      "uri": "test:lifecycle:1.0",
+      "name": "Lifecycle"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "item": {
+        "type": "Lifecycle:Component",
+        "id": "extensionComponent",
+        "width": 100,
+        "height": 100
+      }
+    }
+  }
+})";
+
+TEST_F(ExtensionMediatorTest, LifecycleWithComponent) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    resourceProvider = std::make_shared<TestResourceProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         resourceProvider,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>();
+    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    extensionProvider->registerExtension(proxy);
+
+    createContent(LIFECYCLE_COMPONENT_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+    mediator->loadExtensions(config, content);
+
+    ASSERT_NE("", extension->lastActivity.getId());
+
+    inflate();
+
+    auto component = root->findComponentById("extensionComponent");
+    ASSERT_TRUE(component);
+
+    ASSERT_TRUE(IsEqual(kResourcePending, component->getCalculated(kPropertyResourceState)));
+    component->updateResourceState(kResourceReady);
+    ASSERT_TRUE(IsEqual(kResourceReady, component->getCalculated(kPropertyResourceState)));
+
+    session->end();
+
+    root->cancelExecution();
+    mediator->finish();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kUpdateComponentReceived, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kUpdateComponentReceived, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kResourceReady, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+}
+
+static const char* LIFECYCLE_LIVE_DATA_DOC = R"({
+  "type": "APL",
+  "version": "1.9",
+  "theme": "dark",
+  "extensions": [
+    {
+      "uri": "test:lifecycle:1.0",
+      "name": "Lifecycle"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "items": [
+        {
+            "type": "TouchWrapper",
+            "id": "tw1",
+            "width": "100px",
+            "height": "100px",
+            "onPress": {
+              "type": "Lifecycle:PublishState"
+            }
+        },
+        {
+            "type": "Text",
+            "id": "mapStatus",
+            "text": "${liveMap.status}",
+            "width": "100px",
+            "height": "100px"
+        },
+        {
+            "type": "Text",
+            "id": "arrayLength",
+            "text": "${liveArray.length}",
+            "width": "100px",
+            "height": "100px"
+        }
+      ]
+    }
+  },
+  "Lifecycle:ExtensionReady": {
+    "type": "SendEvent",
+    "sequencer": "ExtensionEvent",
+    "arguments": [ "ExtensionReadyReceived" ]
+  }
+})";
+
+TEST_F(ExtensionMediatorTest, LifecycleWithLiveData) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>();
+    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    extensionProvider->registerExtension(proxy);
+
+    createContent(LIFECYCLE_LIVE_DATA_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+    mediator->loadExtensions(config, content);
+
+    ASSERT_NE("", extension->lastActivity.getId());
+
+    inflate();
+    ASSERT_TRUE(root);
+
+    root->updateTime(100);
+    performClick(50, 50);
+    root->clearPending();
+
+    root->updateTime(200);
+    root->clearPending();
+
+    auto mapComponent = root->findComponentById("mapStatus");
+    ASSERT_TRUE(mapComponent);
+    ASSERT_EQ("Ready", mapComponent->getCalculated(kPropertyText).asString());
+
+    auto arrayComponent = root->findComponentById("arrayLength");
+    ASSERT_TRUE(arrayComponent);
+    ASSERT_EQ("1", arrayComponent->getCalculated(kPropertyText).asString());
+
+    root->cancelExecution();
+    mediator->finish();
+    session->end();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kCommandReceived, extension->lastActivity, "PublishState"}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+
+    ASSERT_TRUE(CheckSendEvent(root, "ExtensionReadyReceived"));
+}
+
+TEST_F(ExtensionMediatorTest, LifecycleAPIsRespectExtensionToken) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         nullptr,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<LifecycleTestExtension>();
+    extension->useAutoToken = false; // make sure the extension specifies its own token
+    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    extensionProvider->registerExtension(proxy);
+
+    createContent(LIFECYCLE_DOC, nullptr);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+    mediator->loadExtensions(config, content);
+
+    inflate();
+    ASSERT_TRUE(root);
+
+    root->updateTime(100);
+    performClick(50, 50);
+    root->clearPending();
+
+    // The extension's token from the registration response should be used
+    ASSERT_EQ(LifecycleTestExtension::TOKEN, extension->lastToken);
+
+    root->cancelExecution();
+    mediator->finish();
+    session->end();
+
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityRegistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateForeground}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kCommandReceived, extension->lastActivity, "PublishState"}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
+    ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+
+    ASSERT_TRUE(CheckSendEvent(root, "ExtensionReadyReceived"));
 }
 
 #endif

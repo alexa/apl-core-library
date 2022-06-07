@@ -25,20 +25,20 @@ namespace yn {
 const static bool DEBUG_FLEXBOX = false;
 
 void
-setPropertyGrow(YGNodeRef nodeRef, const Object& value, const Context&) {
-    LOG_IF(DEBUG_FLEXBOX) << value << " [" << nodeRef << "]";
+setPropertyGrow(YGNodeRef nodeRef, const Object& value, const Context& context) {
+    LOG_IF(DEBUG_FLEXBOX).session(context) << value << " [" << nodeRef << "]";
     YGNodeStyleSetFlexGrow(nodeRef, value.asNumber());
 }
 
 void
-setPropertyShrink(YGNodeRef nodeRef, const Object& value, const Context&) {
-    LOG_IF(DEBUG_FLEXBOX) << value << " [" << nodeRef << "]";
+setPropertyShrink(YGNodeRef nodeRef, const Object& value, const Context& context) {
+    LOG_IF(DEBUG_FLEXBOX).session(context) << value << " [" << nodeRef << "]";
     YGNodeStyleSetFlexShrink(nodeRef, value.asNumber());
 }
 
 void
-setPositionType(YGNodeRef nodeRef, const Object& value, const Context&) {
-    LOG_IF(DEBUG_FLEXBOX) << value << " [" << nodeRef << "]";
+setPositionType(YGNodeRef nodeRef, const Object& value, const Context& context) {
+    LOG_IF(DEBUG_FLEXBOX).session(context) << value << " [" << nodeRef << "]";
     auto positionType = static_cast<Position>(value.asInt());
     if (positionType == kPositionRelative || positionType == kPositionSticky)
         YGNodeStyleSetPositionType(nodeRef, YGPositionTypeRelative);
@@ -48,7 +48,7 @@ setPositionType(YGNodeRef nodeRef, const Object& value, const Context&) {
 
 void
 setWidth(YGNodeRef nodeRef, const Object& value, const Context& context) {
-    LOG_IF(DEBUG_FLEXBOX) << value << " [" << nodeRef << "]";
+    LOG_IF(DEBUG_FLEXBOX).session(context) << value << " [" << nodeRef << "]";
     if (value.isNull())
         return;
 
@@ -63,7 +63,7 @@ setWidth(YGNodeRef nodeRef, const Object& value, const Context& context) {
 
 void
 setMinWidth(YGNodeRef nodeRef, const Object& value, const Context& context) {
-    LOG_IF(DEBUG_FLEXBOX) << value << " [" << nodeRef << "]";
+    LOG_IF(DEBUG_FLEXBOX).session(context) << value << " [" << nodeRef << "]";
     if (value.isNull())
         return;
 
@@ -76,7 +76,7 @@ setMinWidth(YGNodeRef nodeRef, const Object& value, const Context& context) {
 
 void
 setMaxWidth(YGNodeRef nodeRef, const Object& value, const Context& context) {
-    LOG_IF(DEBUG_FLEXBOX) << value << " [" << nodeRef << "]";
+    LOG_IF(DEBUG_FLEXBOX).session(context) << value << " [" << nodeRef << "]";
     if (value.isNull())
         return;
 
@@ -89,7 +89,7 @@ setMaxWidth(YGNodeRef nodeRef, const Object& value, const Context& context) {
 
 void
 setHeight(YGNodeRef nodeRef, const Object& value, const Context& context) {
-    LOG_IF(DEBUG_FLEXBOX) << value << " [" << nodeRef << "]";
+    LOG_IF(DEBUG_FLEXBOX).session(context) << value << " [" << nodeRef << "]";
     if (value.isNull())
         return;
 
@@ -104,7 +104,7 @@ setHeight(YGNodeRef nodeRef, const Object& value, const Context& context) {
 
 void
 setMinHeight(YGNodeRef nodeRef, const Object& value, const Context& context) {
-    LOG_IF(DEBUG_FLEXBOX) << value << " [" << nodeRef << "]";
+    LOG_IF(DEBUG_FLEXBOX).session(context) << value << " [" << nodeRef << "]";
     if (value.isNull())
         return;
 
@@ -117,7 +117,7 @@ setMinHeight(YGNodeRef nodeRef, const Object& value, const Context& context) {
 
 void
 setMaxHeight(YGNodeRef nodeRef, const Object& value, const Context& context) {
-    LOG_IF(DEBUG_FLEXBOX) << value << " [" << nodeRef << "]";
+    LOG_IF(DEBUG_FLEXBOX).session(context) << value << " [" << nodeRef << "]";
     if (value.isNull())
         return;
 
@@ -141,7 +141,7 @@ static const std::array<std::string, 9> sEdgeToString = {
 };
 
 void setPadding(YGNodeRef nodeRef, YGEdge edge, const Object& value, const Context& context) {
-    LOG_IF(DEBUG_FLEXBOX) << sEdgeToString[edge] << "->" << value << " [" << nodeRef << "]";
+    LOG_IF(DEBUG_FLEXBOX).session(context) << sEdgeToString[edge] << "->" << value << " [" << nodeRef << "]";
     Dimension padding = value.asDimension(context);
     if (padding.isRelative())
         YGNodeStyleSetPaddingPercent(nodeRef, edge, padding.getValue());
@@ -150,14 +150,14 @@ void setPadding(YGNodeRef nodeRef, YGEdge edge, const Object& value, const Conte
 }
 
 void setBorder(YGNodeRef nodeRef, YGEdge edge, const Object& value, const Context& context) {
-    LOG_IF(DEBUG_FLEXBOX) << sEdgeToString[edge] << "->" << value << " [" << nodeRef << "]";
+    LOG_IF(DEBUG_FLEXBOX).session(context) << sEdgeToString[edge] << "->" << value << " [" << nodeRef << "]";
     Dimension border = value.asDimension(context);
     if (border.isAbsolute())
         YGNodeStyleSetBorder(nodeRef, edge, border.getValue());
 }
 
 void setPosition(YGNodeRef nodeRef, YGEdge edge, const Object& value, const Context& context) {
-    LOG_IF(DEBUG_FLEXBOX) << sEdgeToString[edge] << "->" << value << " [" << nodeRef << "]";
+    LOG_IF(DEBUG_FLEXBOX).session(context) << sEdgeToString[edge] << "->" << value << " [" << nodeRef << "]";
 
     CoreComponent *component = static_cast<CoreComponent*>(nodeRef->getContext());
     if (component && component->getCalculated(kPropertyPosition) == kPositionSticky) {
@@ -175,8 +175,8 @@ void setPosition(YGNodeRef nodeRef, YGEdge edge, const Object& value, const Cont
 }
 
 void
-setFlexDirection(YGNodeRef nodeRef, const Object& value, const Context&) {
-    LOG_IF(DEBUG_FLEXBOX) << sScrollDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
+setFlexDirection(YGNodeRef nodeRef, const Object& value, const Context& context) {
+    LOG_IF(DEBUG_FLEXBOX).session(context) << sScrollDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
     auto flexDirection = static_cast<ContainerDirection>(value.asInt());
     switch (flexDirection) {
         case kContainerDirectionColumn:
@@ -197,7 +197,7 @@ setFlexDirection(YGNodeRef nodeRef, const Object& value, const Context&) {
 // Note: In the future if we allow Container to change layout direction, we'll need to reset all the margins carefully.
 void
 setSpacing(YGNodeRef nodeRef, const Object& value, const Context& context) {
-    LOG_IF(DEBUG_FLEXBOX) << value << " [" << nodeRef << "]";
+    LOG_IF(DEBUG_FLEXBOX).session(context) << value << " [" << nodeRef << "]";
 
     CoreComponent *component = static_cast<CoreComponent*>(nodeRef->getContext());
     auto spacing = value.asDimension(context);
@@ -233,8 +233,8 @@ static const YGJustify JUSTIFY_LOOKUP[] = {
 };
 
 void
-setJustifyContent(YGNodeRef nodeRef, const Object& value, const Context&) {
-    LOG_IF(DEBUG_FLEXBOX) << sFlexboxJustifyContentMap.at(value.asInt()) << " [" << nodeRef << "]";
+setJustifyContent(YGNodeRef nodeRef, const Object& value, const Context& context) {
+    LOG_IF(DEBUG_FLEXBOX).session(context) << sFlexboxJustifyContentMap.at(value.asInt()) << " [" << nodeRef << "]";
     auto justify = static_cast<FlexboxJustifyContent>(value.asInt());
     if (justify >= kFlexboxJustifyContentStart && justify <= kFlexboxJustifyContentSpaceAround)
         YGNodeStyleSetJustifyContent(nodeRef, JUSTIFY_LOOKUP[justify]);
@@ -248,8 +248,8 @@ static const YGWrap WRAP_LOOKUP[] = {
 };
 
 void
-setWrap(YGNodeRef nodeRef, const Object& value, const Context&) {
-    LOG_IF(DEBUG_FLEXBOX) << sFlexboxWrapMap.at(value.asInt()) << " [" << nodeRef << "]";
+setWrap(YGNodeRef nodeRef, const Object& value, const Context& context) {
+    LOG_IF(DEBUG_FLEXBOX).session(context) << sFlexboxWrapMap.at(value.asInt()) << " [" << nodeRef << "]";
     auto wrap = static_cast<FlexboxWrap>(value.asInt());
     if (wrap >= kFlexboxWrapNoWrap && wrap <= kFlexboxWrapWrapReverse)
         YGNodeStyleSetFlexWrap(nodeRef, WRAP_LOOKUP[wrap]);
@@ -266,16 +266,16 @@ static const YGAlign ALIGN_LOOKUP[] = {
 };
 
 void
-setAlignSelf(YGNodeRef nodeRef, const Object& value, const Context&) {
-    LOG_IF(DEBUG_FLEXBOX) << sFlexboxAlignMap.at(value.asInt()) << " [" << nodeRef << "]";
+setAlignSelf(YGNodeRef nodeRef, const Object& value, const Context& context) {
+    LOG_IF(DEBUG_FLEXBOX).session(context) << sFlexboxAlignMap.at(value.asInt()) << " [" << nodeRef << "]";
     auto alignSelf = static_cast<FlexboxAlign>(value.asInt());
     if (alignSelf >= kFlexboxAlignStretch && alignSelf <= kFlexboxAlignAuto)
         YGNodeStyleSetAlignSelf(nodeRef, ALIGN_LOOKUP[alignSelf]);
 }
 
 void
-setAlignItems(YGNodeRef nodeRef, const Object& value, const Context&) {
-    LOG_IF(DEBUG_FLEXBOX) << sFlexboxAlignMap.at(value.asInt()) << " [" << nodeRef << "]";
+setAlignItems(YGNodeRef nodeRef, const Object& value, const Context& context) {
+    LOG_IF(DEBUG_FLEXBOX).session(context) << sFlexboxAlignMap.at(value.asInt()) << " [" << nodeRef << "]";
     auto alignItems = static_cast<FlexboxAlign>(value.asInt());
     if (alignItems >= kFlexboxAlignStretch && alignItems <= kFlexboxAlignAuto)
         YGNodeStyleSetAlignItems(nodeRef, ALIGN_LOOKUP[alignItems]);
@@ -295,8 +295,8 @@ scrollDirectionLookup(ScrollDirection direction) {
 }
 
 void
-setScrollDirection(YGNodeRef nodeRef, const Object& value, const Context&) {
-    LOG_IF(DEBUG_FLEXBOX) << sScrollDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
+setScrollDirection(YGNodeRef nodeRef, const Object& value, const Context& context) {
+    LOG_IF(DEBUG_FLEXBOX).session(context) << sScrollDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
     auto scrollDirection = static_cast<ScrollDirection>(value.asInt());
     YGNodeStyleSetFlexDirection(nodeRef, scrollDirectionLookup(scrollDirection));
 }
@@ -315,22 +315,22 @@ gridScrollDirectionLookup(ScrollDirection direction) {
 }
 
 void
-setGridScrollDirection(YGNodeRef nodeRef, const Object& value, const Context&) {
-    LOG_IF(DEBUG_FLEXBOX) << sScrollDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
+setGridScrollDirection(YGNodeRef nodeRef, const Object& value, const Context& context) {
+    LOG_IF(DEBUG_FLEXBOX).session(context) << sScrollDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
     auto scrollDirection = static_cast<ScrollDirection>(value.asInt());
     YGNodeStyleSetFlexDirection(nodeRef, gridScrollDirectionLookup(scrollDirection));
 }
 
 void
-setDisplay(YGNodeRef nodeRef, const Object& value, const Context&) {
-    LOG_IF(DEBUG_FLEXBOX) << sDisplayMap.at(value.asInt()) << " [" << nodeRef << "]";
+setDisplay(YGNodeRef nodeRef, const Object& value, const Context& context) {
+    LOG_IF(DEBUG_FLEXBOX).session(context) << sDisplayMap.at(value.asInt()) << " [" << nodeRef << "]";
     auto display = static_cast<Display>(value.asInt());
     YGNodeStyleSetDisplay(nodeRef, display == kDisplayNone ? YGDisplayNone : YGDisplayFlex);
 }
 
 void
-setLayoutDirection(YGNodeRef nodeRef, const Object& value, const Context&) {
-    LOG_IF(DEBUG_FLEXBOX) << sLayoutDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
+setLayoutDirection(YGNodeRef nodeRef, const Object& value, const Context& context) {
+    LOG_IF(DEBUG_FLEXBOX).session(context) << sLayoutDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
     auto layoutDirection = static_cast<LayoutDirection>(value.asInt());
     switch (layoutDirection) {
         case kLayoutDirectionLTR:

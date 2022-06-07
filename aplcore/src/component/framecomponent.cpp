@@ -62,7 +62,8 @@ FrameComponent::propDefSet() const
         {kPropertyBorderWidth,             Dimension(0),          asNonNegativeAbsoluteDimension, kPropInOut |
                                                                                                   kPropStyled |
                                                                                                   kPropDynamic |
-                                                                                                  kPropVisualHash, yn::setBorder<YGEdgeAll>},
+                                                                                                  kPropVisualHash,
+                                                                                                  yn::setBorder<YGEdgeAll>, resolveDrawnBorder},
 
         // These are input-only properties that trigger the calculation of the output properties
         {kPropertyBorderBottomLeftRadius,  Object::NULL_OBJECT(), asAbsoluteDimension,            kPropIn |

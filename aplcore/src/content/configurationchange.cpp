@@ -43,13 +43,13 @@ ConfigurationChange::mergeRootConfig(const RootConfig& oldRootConfig) const
     auto rootConfig = oldRootConfig;
 
     if ((mFlags & kConfigurationChangeScreenMode) != 0)
-        rootConfig.screenMode(mScreenMode);
+        rootConfig.set(RootProperty::kScreenMode, mScreenMode);
 
     if ((mFlags & kConfigurationChangeFontScale) != 0)
-        rootConfig.fontScale(mFontScale);
+        rootConfig.set(RootProperty::kFontScale, mFontScale);
 
     if ((mFlags & kConfigurationChangeScreenReader) != 0)
-        rootConfig.screenReader(mScreenReaderEnabled);
+        rootConfig.set(RootProperty::kScreenReader, mScreenReaderEnabled);
 
     if ((mFlags & kConfigurationChangeDisallowVideo) != 0)
         rootConfig.set(RootProperty::kDisallowVideo, mDisallowVideo);
