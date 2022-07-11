@@ -232,7 +232,7 @@ GridSequenceComponent::adjustChildDimensions(
         auto d = crossAxisArray.at(0).asDimension(*mContext);
         if (d.isAbsolute() || d.isRelative()) {
             auto adjustedSize = adjustedCrossAxisSizes.at(0);
-            if (adjustedSize > 0) {
+            if (adjustedSize > 0 && autoSizeBudget >= 0) {
                 adjustedCrossAxisSizes.insert(adjustedCrossAxisSizes.end(), std::floor(autoSizeBudget/adjustedSize), adjustedSize);
                 autoSizeBudget = 0;
             }

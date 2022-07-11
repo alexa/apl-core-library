@@ -2295,3 +2295,36 @@ TEST_F(GridSequenceComponentTest, ScrollOffsetReinflate) {
     advanceTime(10);
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0,3}, true));
 }
+
+static const char* GRIDSEQUENCE_LARGE_CHILD = R"({
+  "type": "APL",
+  "version": "1.4",
+  "extensions":{
+    "name":"E",
+    "uri":"aplext:Event"
+  },
+  "mainTemplate": {
+    "parameters": [],
+    "item": {
+      "type": "GridSequence",
+      "scrollDirection": "vertical",
+      "width": 60,
+      "height": 40,
+      "childWidth": "65dp",
+      "childHeight": "20dp",
+      "items": {
+        "type": "Frame",
+        "backgroundColor": "${data}"
+      },
+      "data": [ "red", "blue", "green", "yellow", "gray", "orange", "white", "purple", "magenta", "cyan"  ]
+    }
+  }
+})";
+
+TEST_F(GridSequenceComponentTest, InflateLargeChild) {
+    loadDocument(GRIDSEQUENCE_LARGE_CHILD);
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ(kComponentTypeGridSequence, component->getType());
+    ASSERT_EQ(kScrollDirectionVertical, component->getCalculated(kPropertyScrollDirection).asInt());
+}
