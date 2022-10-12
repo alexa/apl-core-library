@@ -19,6 +19,9 @@
 #include "apl/engine/keyboardmanager.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/primitives/keyboard.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/layer.h"
+#endif // SCENEGRAPH
 #include "apl/time/sequencer.h"
 #include "apl/touch/gesture.h"
 
@@ -237,5 +240,25 @@ ActionableComponent::focusDirectionToNextProperty()
     };
     return sFocusDirectionToNextProperty;
 }
+
+#ifdef SCENEGRAPH
+sg::LayerPtr
+ActionableComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
+{
+    auto layer = CoreComponent::constructSceneGraphLayer(sceneGraph);
+    assert(layer);
+
+    if (isHorizontal())
+        layer->setInteraction(sg::Layer::kInteractionScrollHorizontal);
+
+    if (isVertical())
+        layer->setInteraction(sg::Layer::kInteractionScrollVertical);
+
+    if (isTouchable())
+        layer->setInteraction(sg::Layer::kInteractionPressable);
+
+    return layer;
+}
+#endif // SCENEGRAPH
 
 } // namespace apl

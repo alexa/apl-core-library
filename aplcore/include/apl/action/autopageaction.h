@@ -26,12 +26,6 @@ class Component;
 
 /**
  * Scroll or page to bring a target component into view.
- *
- * This action results in either a kEventScrollTo or kEventPageTo event being fired.
- * The following properties are passed with the event:
- *
- *    kCommandPropertyDirection        Set to forward/back (only for PageTo)
- *    kCommandPropertyPosition         The scroll position or the page number.
  */
 class AutoPageAction : public ResourceHoldingAction {
 public:
@@ -45,6 +39,9 @@ public:
                    int end,
                    apl_time_t duration);
 
+    void freeze() override;
+    bool rehydrate(const RootContext& context) override;
+
 private:
     void advance();
 
@@ -52,6 +49,7 @@ private:
     std::shared_ptr<CoreCommand> mCommand;
     ComponentPtr mContainer;
     ActionPtr mCurrentAction;
+    size_t mCurrentIndex;
     size_t mNextIndex;
     size_t mEndIndex;
     apl_time_t mDuration;

@@ -24,4 +24,6 @@
 #cmakedefine ALEXAEXTENSIONS
 #endif //ALEXAEXTENSIONS
 
+#cmakedefine SCENEGRAPH
+
 #endif //_APL_GENERATED_CONFIG_H

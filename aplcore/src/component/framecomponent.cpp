@@ -16,6 +16,12 @@
 #include "apl/component/componentpropdef.h"
 #include "apl/component/framecomponent.h"
 #include "apl/component/yogaproperties.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/node.h"
+#include "apl/scenegraph/path.h"
+#include "apl/scenegraph/scenegraph.h"
+#endif // SCENEGRAPH
 
 namespace apl {
 
@@ -144,6 +150,128 @@ FrameComponent::fixBorder(bool useDirtyFlag)
             setDirty(kPropertyBorderRadii);
     }
 }
+
+#ifdef SCENEGRAPH
+/**
+ * The Frame component structure:
+ *
+ * Layer
+ *   - Outline Path     [If the outline isn't a rectangle]
+ *   - Child Clip Path  [If the borderWidth != 0]
+ *   - Content
+ *         Fill DrawNode
+ *         Border DrawNode
+ *
+ *  For now we always create the two drawing nodes to support animation without inserting and
+ *  deleting new nodes.
+ */
+sg::LayerPtr
+FrameComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
+{
+    auto layer = CoreComponent::constructSceneGraphLayer(sceneGraph);
+    assert(layer);
+
+    auto radii = getCalculated(kPropertyBorderRadii).getRadii();
+    auto borderWidth = static_cast<float>(getCalculated(kPropertyBorderWidth).asNumber());
+    auto strokeWidth = static_cast<float>(getCalculated(kPropertyDrawnBorderWidth).asNumber());
+    auto size = getCalculated(kPropertyBounds).getRect().getSize();
+    auto outline = RoundedRect(Rect{0, 0, size.getWidth(), size.getHeight()}, radii);
+
+    // Set the outline only if it isn't a rectangle that matches the size
+    if (!outline.isRect())
+        layer->setOutline(sg::path(outline));
+
+    // Set the child clip path if there is a border width
+    if (borderWidth > 0)
+        layer->setChildClip(sg::path(outline.inset(borderWidth)));
+
+    // The frame always puts two content nodes in - one for the fill and one for the border
+    // In the future we may change this to make the content nodes more dynamic
+    layer->appendContent(
+        sg::draw(sg::path(outline.inset(strokeWidth)),
+                 sg::fill(sg::paint(getCalculated(kPropertyBackgroundColor)))));
+
+    layer->appendContent(
+        sg::draw(sg::path(outline, strokeWidth),
+                 sg::fill(sg::paint(getCalculated(kPropertyBorderColor)))));
+
+    return layer;
+}
+
+
+bool
+FrameComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
+{
+    auto outlineChanged = isDirty(kPropertyBorderRadii) ||
+                          isDirty(kPropertyBounds);
+
+    auto borderWidthChanged = isDirty(kPropertyBorderWidth);
+    auto drawnBorderWidthChanged = isDirty(kPropertyDrawnBorderWidth);
+    auto backgroundChanged = isDirty(kPropertyBackgroundColor);
+    auto borderColorChanged = isDirty(kPropertyBorderColor);
+    auto strokeWidthChanged = isDirty(kPropertyBorderStrokeWidth);
+
+    if (!outlineChanged && !borderWidthChanged && !drawnBorderWidthChanged &&
+        !backgroundChanged && !borderColorChanged && !strokeWidthChanged)
+        return false;
+
+    auto radii = getCalculated(kPropertyBorderRadii).getRadii();
+    auto borderWidth = getCalculated(kPropertyBorderWidth).asFloat();
+    auto strokeWidth = getCalculated(kPropertyDrawnBorderWidth).asFloat();
+    auto size = getCalculated(kPropertyBounds).getRect().getSize();
+    auto outline = RoundedRect(Rect{0, 0, size.getWidth(), size.getHeight()}, radii);
+
+    auto *layer = mSceneGraphLayer.get();
+    auto result = false;
+
+    // Fix the outline
+    if (outlineChanged)
+        result |= layer->setOutline(outline.isRect() ? nullptr : sg::path(outline));
+
+    // Fix the child clipping region
+    if (outlineChanged || borderWidthChanged)
+        result |= layer->setChildClip(borderWidth > 0 ? sg::path(outline.inset(borderWidth)) : nullptr);
+
+    assert(layer->content().size() == 2);
+    auto background = layer->content().at(0);
+    auto border = layer->content().at(1);
+
+    // Fix the background.  Actually, this should already be clipped, so we could a rectangular fill
+    if (outlineChanged || borderWidthChanged || backgroundChanged) {
+        auto *draw = sg::DrawNode::cast(background);
+
+        if (outlineChanged || borderWidthChanged) {
+            auto* path = sg::RoundedRectPath::cast(draw->getPath());
+            result |= path->setRoundedRect(outline.inset(borderWidth));
+        }
+
+        if (backgroundChanged) {
+            auto* fill = sg::FillPathOp::cast(draw->getOp());
+            auto* paint = sg::ColorPaint::cast(fill->paint);
+            result |= paint->setColor(getCalculated(kPropertyBackgroundColor).getColor());
+        }
+    }
+
+    // Fix the border drawing
+    if (outlineChanged || borderWidthChanged || drawnBorderWidthChanged || borderColorChanged) {
+        auto *draw = sg::DrawNode::cast(border);
+
+        if (outlineChanged || borderWidthChanged || drawnBorderWidthChanged) {
+            auto* path = sg::FramePath::cast(draw->getPath());
+            result |= path->setRoundedRect(outline.inset(borderWidth - strokeWidth));
+            result |= path->setInset(strokeWidth);
+        }
+
+        if (borderColorChanged) {
+            auto* fill = sg::FillPathOp::cast(draw->getOp());
+            auto* paint = sg::ColorPaint::cast(fill->paint);
+            result |= paint->setColor(getCalculated(kPropertyBorderColor).getColor());
+        }
+    }
+
+    return result;
+}
+#endif // SCENEGRAPH
 
 /*
  * Initial assignment of properties.  Don't set any dirty flags here; this

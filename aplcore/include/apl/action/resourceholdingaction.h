@@ -28,6 +28,9 @@ public:
     ResourceHoldingAction(const TimersPtr& timers,
                           const ContextPtr& context);
 
+    void freeze() override;
+    bool rehydrate(const RootContext& context) override;
+
 protected:
     void onFinish() override;
 

@@ -19,6 +19,7 @@
 #include <map>
 #include <set>
 
+#include "apl/apl_config.h"
 #include "apl/content/configurationchange.h"
 #include "apl/content/settings.h"
 #include "apl/common.h"
@@ -28,6 +29,9 @@
 #include "apl/content/rootconfig.h"
 #include "apl/focus/focusdirection.h"
 #include "apl/media/mediaobject.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/common.h"
+#endif // SCENEGRAPH
 #include "apl/utils/noncopyable.h"
 #include "apl/utils/userdata.h"
 #include "apl/primitives/keyboard.h"
@@ -256,6 +260,21 @@ public:
     rapidjson::Value serializeDataSourceContext(rapidjson::Document::AllocatorType& allocator);
 
     /**
+     * Serialize a complete version of the DOM
+     * @param extended If true, serialize everything.  If false, just serialize external data
+     * @param allocator Rapidjson allocator
+     * @return The serialized DOM
+     */
+    rapidjson::Value serializeDOM(bool extended, rapidjson::Document::AllocatorType& allocator);
+
+    /**
+     * Serialize the global values for developer tools
+     * @param allocator Rapidjson allocator
+     * @return The serialized global values
+     */
+    rapidjson::Value serializeContext(rapidjson::Document::AllocatorType& allocator);
+
+    /**
      * Execute an externally-driven command
      * @param commands The commands to execute
      * @param fastMode If true this handler will be invoked in fast mode
@@ -423,6 +442,13 @@ public:
     ComponentPtr findComponentById(const std::string& id) const;
 
     /**
+     * Find a UID object
+     * @param uid The uniqueId to search for.
+     * @return The object or nullptr if it is not found.
+     */
+    UIDObject * findByUniqueId(const std::string& uid) const;
+
+    /**
      * Get top level focusable areas available from APL Core. It's up to engine to decide if it needs to pass focus to
      * the any child of provided area.
      * All dimensions is in APL viewport coordinate space.
@@ -481,6 +507,14 @@ public:
      */
     void mediaLoadFailed(const std::string& source, int errorCode = -1, const std::string& error = std::string());
 
+#ifdef SCENEGRAPH
+    /**
+     * This method returns the current scene graph.  It will clear all dirty properties as well.
+     * @return The current scene graph
+     */
+    sg::SceneGraphPtr getSceneGraph();
+#endif // SCENEGRAPH
+
     friend streamer& operator<<(streamer& os, const RootContext& root);
 
 private:
@@ -514,6 +548,9 @@ private:
     apl_duration_t mLocalTimeAdjustment;
     ConfigurationChange mActiveConfigurationChanges;
     DisplayState mDisplayState;
+#ifdef SCENEGRAPH
+    sg::SceneGraphPtr mSceneGraph;
+#endif // SCENEGRAPH
 };
 
 } // namespace apl

@@ -77,4 +77,10 @@ AutoScroller::updateOffset(apl_duration_t offset)
     update(scrollable, offset);
 }
 
+void
+AutoScroller::replaceTarget(const ScrollablePtr& scrollable)
+{
+    mScrollable = scrollable;
+}
+
 } // namespace apl

@@ -21,7 +21,7 @@
 #include "apl/utils/session.h"
 #include "apl/utils/stringfunctions.h"
 
-namespace apl{
+namespace apl {
 
 using FilterRule = std::pair<std::regex, bool>;
 using FilterRuleArray = const std::vector<FilterRule>;
@@ -121,4 +121,4 @@ URLRequest::serialize(rapidjson::Document::AllocatorType& allocator) const {
     return v;
 }
 
-}
+} // namespace apl

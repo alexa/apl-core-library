@@ -112,7 +112,7 @@ public:
     /**
      * @return The offset of the first parse error.
      */
-    unsigned int offset() const {
+    size_t offset() const {
         return mType == kDocument ? mDocument.GetErrorOffset() : 0;
     }
 

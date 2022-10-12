@@ -52,7 +52,7 @@ CheckPlayerEvents(const std::map<TestMediaPlayer::EventType, int> &events, std::
 
 class MediaPlayerTest : public DocumentWrapper {
 public:
-    MediaPlayerTest() : DocumentWrapper() {
+    MediaPlayerTest() : DocumentWrapper(), mediaDocument(rapidjson::kObjectType) {
         config->enableExperimentalFeature(RootConfig::kExperimentalFeatureManageMediaRequests);
         mediaPlayerFactory = std::make_shared<TestMediaPlayerFactory>();
         mediaPlayerFactory->setEventCallback([&](TestMediaPlayer::EventType event) {
@@ -63,6 +63,10 @@ public:
               }
         });
         config->mediaPlayerFactory(mediaPlayerFactory);
+    }
+
+    void serializeVisualContext() {
+        visualContext = root->serializeVisualContext(mediaDocument.GetAllocator());
     }
 
     // Step forward time for both the system clock AND the media player in small increments
@@ -78,8 +82,11 @@ public:
 
     std::shared_ptr<TestMediaPlayerFactory> mediaPlayerFactory;
     std::map<TestMediaPlayer::EventType, int> eventCounts;
-};
 
+protected:
+    rapidjson::Document mediaDocument;
+    rapidjson::Value visualContext;
+};
 
 static const char *BASIC_PLAYBACK = R"apl(
     {
@@ -97,6 +104,7 @@ static const char *BASIC_PLAYBACK = R"apl(
               "Duration: ${event.source.duration} (${event.duration})",
               "Ended: ${event.source.ended ? 'YES' : 'NO'} (${event.ended ? 'YES' : 'NO'})",
               "Paused: ${event.source.paused ? 'YES' : 'NO'} (${event.paused ? 'YES' : 'NO'})",
+              "Muted: ${event.source.muted ? 'YES' : 'NO'} (${event.muted ? 'YES' : 'NO'})",
               "TrackCount: ${event.source.trackCount} (${event.trackCount})",
               "TrackIndex: ${event.source.trackIndex} (${event.trackIndex})",
               "TrackState: ${event.source.trackState} (${event.trackState})"
@@ -147,6 +155,7 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "Duration: 0 (0)",  // We asked for the whole video to play
                                "Ended: NO (NO)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -169,9 +178,12 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: NO (NO)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
+    ASSERT_TRUE(root->isVisualContextDirty());
+    root->clearVisualContextDirty();
 
     // Move forward 500 milliseconds.  The "onTimeUpdate" handler executes
     mediaPlayerFactory->advanceTime(500);
@@ -182,9 +194,18 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: NO (NO)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
+    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
+    serializeVisualContext();
+    ASSERT_TRUE(visualContext.HasMember("tags"));
+    ASSERT_STREQ("MyVideo", visualContext["id"].GetString());
+    auto& tags = visualContext["tags"];
+    ASSERT_TRUE(tags.HasMember("media"));
+    auto& media = tags["media"];
+    ASSERT_EQ(500, media["positionInMilliseconds"].GetInt());
 
     // Move forward another 500 milliseconds.  The "onEnd" handler executes
     mediaPlayerFactory->advanceTime(500);
@@ -195,6 +216,7 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "Duration: 0 (0)",
                                "Ended: YES (YES)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -212,6 +234,7 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -225,6 +248,7 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: NO (NO)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -238,6 +262,7 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -251,6 +276,7 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: NO (NO)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -264,6 +290,7 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: NO (NO)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -277,6 +304,7 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -290,6 +318,7 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "Duration: 0 (0)",
                                "Ended: YES (YES)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -303,6 +332,7 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -328,6 +358,7 @@ static const char *BASIC_PLAYBACK_NESTED = R"apl(
               "Duration: ${event.source.duration} (${event.duration})",
               "Ended: ${event.source.ended ? 'YES' : 'NO'} (${event.ended ? 'YES' : 'NO'})",
               "Paused: ${event.source.paused ? 'YES' : 'NO'} (${event.paused ? 'YES' : 'NO'})",
+              "Muted: ${event.source.muted ? 'YES' : 'NO'} (${event.muted ? 'YES' : 'NO'})",
               "TrackCount: ${event.source.trackCount} (${event.trackCount})",
               "TrackIndex: ${event.source.trackIndex} (${event.trackIndex})",
               "TrackState: ${event.source.trackState} (${event.trackState})"
@@ -382,6 +413,7 @@ TEST_F(MediaPlayerTest, BasicPlaybackNested)
                                "Duration: 0 (0)",  // We asked for the whole video to play
                                "Ended: NO (NO)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -404,6 +436,7 @@ TEST_F(MediaPlayerTest, BasicPlaybackNested)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: NO (NO)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -417,6 +450,7 @@ TEST_F(MediaPlayerTest, BasicPlaybackNested)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: NO (NO)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -430,6 +464,7 @@ TEST_F(MediaPlayerTest, BasicPlaybackNested)
                                "Duration: 0 (0)",
                                "Ended: YES (YES)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -447,6 +482,7 @@ TEST_F(MediaPlayerTest, BasicPlaybackNested)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -460,6 +496,7 @@ TEST_F(MediaPlayerTest, BasicPlaybackNested)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: NO (NO)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -473,6 +510,7 @@ TEST_F(MediaPlayerTest, BasicPlaybackNested)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -486,6 +524,7 @@ TEST_F(MediaPlayerTest, BasicPlaybackNested)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: NO (NO)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -499,6 +538,7 @@ TEST_F(MediaPlayerTest, BasicPlaybackNested)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: NO (NO)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -512,6 +552,7 @@ TEST_F(MediaPlayerTest, BasicPlaybackNested)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -525,6 +566,7 @@ TEST_F(MediaPlayerTest, BasicPlaybackNested)
                                "Duration: 0 (0)",
                                "Ended: YES (YES)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -538,6 +580,7 @@ TEST_F(MediaPlayerTest, BasicPlaybackNested)
                                "Duration: 0 (0)",
                                "Ended: NO (NO)",
                                "Paused: YES (YES)",
+                               "Muted: NO (NO)",
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
@@ -898,6 +941,74 @@ TEST_F(MediaPlayerTest, PlayMediaInSequence)
     mediaPlayerFactory->advanceTime(2000);
     ASSERT_TRUE(CheckSendEvent(root, "TrackReady track1 0/"));
     ASSERT_TRUE(CheckSendEvent(root, "End track1 1000/EP"));
+}
+
+
+static const char *CONTROL_MEDIA_IN_SEQUENCE = R"apl(
+    {
+      "type": "APL",
+      "version": "1.7",
+      "commands": {
+        "DUMP": {
+          "command": {
+            "type": "SendEvent",
+            "sequencer": "FOO",
+            "arguments": [
+              "${event.source.handler} ${event.source.url} ${event.currentTime}/${event.ended ? 'E' : ''}${event.paused ? 'P' : ''}"
+            ]
+          }
+        },
+        "PLAY_AND_SEND": {
+          "command": [
+            {
+              "type": "ControlMedia",
+              "componentId": "MyVideo",
+              "command": "play"
+            },
+            {
+              "type": "SendEvent",
+              "arguments": [ "STARTED" ]
+            }
+          ]
+        }
+      },
+      "mainTemplate": {
+        "item": {
+          "type": "Video",
+          "id": "MyVideo",
+          "autoplay": false,
+          "source": "track1",
+          "onEnd":         { "type": "DUMP" },
+          "onPause":       { "type": "DUMP" },
+          "onPlay":        { "type": "DUMP" },
+          "onTimeUpdate":  { "type": "DUMP" },
+          "onTrackUpdate": { "type": "DUMP" },
+          "onTrackReady":  { "type": "DUMP" },
+          "onTrackFail":   { "type": "DUMP" }
+        }
+      }
+    }
+)apl";
+
+/**
+ * Test chaining commands with ControlMedia.  Action references is resolved immediately.
+ * Note that have to put the ControlMedia.play and SendEvent[Finished] commands
+ * on a different sequencer than the main sequencer.
+ */
+TEST_F(MediaPlayerTest, ControlMediaInSequence)
+{
+    mediaPlayerFactory->addFakeContent({
+        {"track1", 1000, 100, -1},   // 1000 ms long, 100 ms buffer delay
+    });
+
+    loadDocument(CONTROL_MEDIA_IN_SEQUENCE);
+    ASSERT_TRUE(component);
+
+    // Play the track in foreground
+    executeCommand("PLAY_AND_SEND", {}, false);
+    ASSERT_TRUE(CheckSendEvent(root, "Play track1 0/"));
+    // After the command we should receive a send event immediately
+    ASSERT_TRUE(CheckSendEvent(root, "STARTED"));
 }
 
 
@@ -1283,6 +1394,46 @@ TEST_F(MediaPlayerTest, DestroyMediaPlayer)
 
     // We need this to clear out the old OnPlay handler that is holding onto the video resource
     root->clearPending();
+    root->clearVisualContextDirty();
 
     ASSERT_TRUE(std::dynamic_pointer_cast<TestMediaPlayer>(mp)->isReleased());
+}
+
+static const char *MUTE_MEDIA_PLAYER = R"apl(
+    {
+      "type": "APL",
+      "version": "1.7",
+      "mainTemplate": {
+        "item": {
+          "type": "Container",
+          "items": {
+            "type": "Video",
+            "id": "MyVideo",
+            "muted": true,
+             "source": [
+                "track1"
+             ]
+          }
+        }
+      }
+    }
+)apl";
+
+TEST_F(MediaPlayerTest, MuteVideo) {
+    loadDocument(MUTE_MEDIA_PLAYER);
+    ASSERT_TRUE(component);
+
+    auto child = component->getChildAt(0);
+    ASSERT_TRUE(child->getType() == kComponentTypeVideo);
+
+    auto mp = std::dynamic_pointer_cast<VideoComponent>(child)->getMediaPlayer();
+    auto testMediaPlayer = std::dynamic_pointer_cast<TestMediaPlayer>(mp);
+    ASSERT_TRUE(testMediaPlayer->isMuted());
+
+    executeCommand("SetValue", {{"componentId", "MyVideo"}, {"property", "muted"}, {"value", false}}, false);
+    ASSERT_FALSE(testMediaPlayer->isMuted());
+
+    executeCommand("SetValue", {{"componentId", "MyVideo"}, {"property", "muted"}, {"value", true}}, false);
+    ASSERT_TRUE(testMediaPlayer->isMuted());
+
 }

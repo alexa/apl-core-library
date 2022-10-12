@@ -210,7 +210,7 @@ utf8StripInvalid(const std::string& utf8String, const std::string& validCharacte
     std::string result;
 
     while (*ptr) {
-        const auto pcount = countUTF8TrailingBytes(*ptr);
+        const auto pcount = static_cast<int>(countUTF8TrailingBytes(*ptr));
         if (utf8ValidCharacter(ptr, pcount, vptr))
             result.append((char *) ptr, pcount + 1);
         ptr += pcount + 1;
@@ -229,7 +229,7 @@ utf8ValidCharacters(const std::string& utf8String, const std::string& validChara
     uint8_t *vptr = (uint8_t *) validCharacters.c_str();
 
     while (*ptr) {
-        const auto pcount = countUTF8TrailingBytes(*ptr);
+        const auto pcount = static_cast<int>(countUTF8TrailingBytes(*ptr));
         if (!utf8ValidCharacter(ptr, pcount, vptr))
             return false;
         ptr += pcount + 1;
@@ -249,7 +249,7 @@ wcharValidCharacter(wchar_t wc, const std::string& validCharacters)
     auto result = converter.to_bytes(wc);
     auto* ptr = result.c_str();
     return utf8ValidCharacter((uint8_t*)ptr,
-                              countUTF8TrailingBytes(*ptr),
+                              static_cast<int>(countUTF8TrailingBytes(*ptr)),
                               (uint8_t*)validCharacters.c_str());
 }
 
@@ -268,6 +268,14 @@ utf8StringTrim(std::string& utf8String, int maxLength)
 
     utf8String.erase(it, utf8String.end());
     return true;
+}
+
+std::string
+utf8StripInvalidAndTrim(const std::string& utf8String, const std::string& validCharacters, int maxLength)
+{
+    auto result = utf8StripInvalid(utf8String, validCharacters);
+    utf8StringTrim(result, maxLength);
+    return result;
 }
 
 } // namespace apl

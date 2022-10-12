@@ -17,6 +17,7 @@
 #include "apl/action/speakitemaction.h"
 #include "apl/action/scrolltoaction.h"
 #include "apl/command/corecommand.h"
+#include "apl/engine/rootcontext.h"
 
 namespace apl {
 
@@ -49,6 +50,24 @@ SpeakListAction::make(const TimersPtr& timers,
     return ptr;
 }
 
+SpeakListAction::SpeakListAction(const TimersPtr& timers,
+                                 const std::shared_ptr<CoreCommand>& command,
+                                 CoreComponentPtr& container,
+                                 size_t startIndex, size_t endIndex)
+    : Action(timers),
+      mCommand(command),
+      mContainer(container),
+      mNextIndex(startIndex),
+      mEndIndex(endIndex)
+{
+    addTerminateCallback([this](const TimersPtr&) {
+        if (mCurrentAction) {
+            mCurrentAction->terminate();
+            mCurrentAction = nullptr;
+        }
+    });
+}
+
 void
 SpeakListAction::advance()
 {
@@ -72,5 +91,46 @@ SpeakListAction::advance()
     resolve();
 }
 
+void
+SpeakListAction::freeze()
+{
+    if (mCurrentAction) {
+        mCurrentAction->freeze();
+    }
+    if (mCommand) {
+        mCommand->freeze();
+    }
+
+    Action::freeze();
+}
+
+bool
+SpeakListAction::rehydrate(const RootContext& context)
+{
+    if (!Action::rehydrate(context)) return false;
+
+    if (mCommand) {
+        if (!mCommand->rehydrate(context)) return false;
+    }
+
+    mContainer = mCommand->target();
+    if (!mContainer) return false;
+
+    // Clip the count in case if changed
+    auto start = mCommand->getValue(kCommandPropertyStart).asInt();
+    auto count = mCommand->getValue(kCommandPropertyCount).asInt();
+    auto len = static_cast<int>(mContainer->getChildCount());
+
+    if (start + count > len)
+        mEndIndex = start + (len - start);
+
+    auto speakItem = std::dynamic_pointer_cast<SpeakItemAction>(mCurrentAction);
+    if (speakItem) {
+        speakItem->mTarget = mContainer->getCoreChildAt(mNextIndex - 1);
+        if (!speakItem->rehydrate(context)) return false;
+    }
+
+    return true;
+}
 
 } // namespace apl

@@ -50,6 +50,7 @@ public:
     void update(UpdateType type, const std::string& value) override {}
     void ensureLayout(bool useDirtyFlag) override {}
     size_t getDisplayedChildCount() const override{return 0;}
+    Point localToGlobal(Point) const override { return {0,0}; }
     ComponentPtr getDisplayedChildAt(size_t drawIndex) const override { return nullptr; }
     std::string getHierarchySignature() const override { return std::string(); }
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override { return rapidjson::Value(); }

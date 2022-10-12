@@ -207,6 +207,8 @@ Sequencer::terminate()
         LOG(LogLevel::kDebug) << "OneShots: " << mOneShotSet.size();
     }
 
+    mTerminated = true;
+
     for (auto& sequencer : mSequencers) {
         mResetInExecute.emplace(sequencer.first);
         sequencer.second->terminate();
@@ -217,7 +219,6 @@ Sequencer::terminate()
     mResourcesByAction.clear();
     mResourcesByHolder.clear();
     mResetInExecute.clear();
-    mTerminated = true;
 }
 
 void
@@ -322,6 +323,50 @@ Sequencer::empty(const std::string& sequencerName) const
 
     auto it = mSequencers.find(sequencerName);
     return !(it != mSequencers.end() && it->second != nullptr);
+}
+
+std::set<std::string>
+Sequencer::getSequencersToPreserve() const
+{
+    std::set<std::string> result;
+    for (auto& s : mSequencers) {
+        if (mPreserveSequencers.count(s.first)) {
+            result.emplace(s.first);
+        }
+    }
+    return result;
+}
+
+void
+Sequencer::setPreservedSequencers(const std::set<std::string>& sequencers)
+{
+    mPreserveSequencers.clear();
+    for (auto& s : sequencers) {
+        mPreserveSequencers.emplace(s);
+    }
+}
+
+ActionPtr
+Sequencer::detachSequencer(const std::string& sequencerName)
+{
+    auto it = mSequencers.find(sequencerName);
+    if (it != mSequencers.end()) {
+        auto result = it->second;
+        mSequencers.erase(it);
+        result->freeze();
+        return result;
+    }
+
+    return nullptr;
+}
+
+bool
+Sequencer::reattachSequencer(const std::string& sequencerName, const ActionPtr& action, const RootContext& root)
+{
+    terminateSequencer(sequencerName);
+    if (!action->rehydrate(root)) return false;
+    attachToSequencer(action, sequencerName);
+    return true;
 }
 
 } // namespace apl

@@ -65,6 +65,37 @@ CoreTimeManager::clearTimeout(timeout_id id)
 }
 
 void
+CoreTimeManager::freeze(timeout_id id)
+{
+    LOG_IF(DEBUG_CORE_TIME) << "id=" << id;
+    auto it = mTimerHeap.begin();
+    while (it != mTimerHeap.end()) {
+        if (it->id == id) {
+            mFrozen.emplace(id, std::move(*it));
+            it = mTimerHeap.erase(it);
+        } else
+            it++;
+    }
+}
+
+bool
+CoreTimeManager::rehydrate(timeout_id id)
+{
+    LOG_IF(DEBUG_CORE_TIME) << "id=" << id;
+    auto it = mFrozen.find(id);
+    if (it == mFrozen.end()) return false;
+    if (it->second.animator) {
+        mAnimatorCount++;
+    }
+
+    mTimerHeap.emplace_back(std::move(it->second));
+    std::push_heap(mTimerHeap.begin(), mTimerHeap.end());
+    mFrozen.erase(id);
+
+    return true;
+}
+
+void
 CoreTimeManager::updateTime(apl_time_t updatedTime)
 {
     LOG_IF(DEBUG_CORE_TIME) << "updateTime=" << updatedTime;
@@ -120,6 +151,7 @@ void
 CoreTimeManager::clear()
 {
     mTimerHeap.clear();
+    mAnimatorCount = 0;
 }
 
 void

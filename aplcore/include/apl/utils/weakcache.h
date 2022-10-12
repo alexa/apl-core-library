@@ -28,12 +28,14 @@ namespace apl {
  *
  * @tparam T The templated type stored in the cache
  */
-template<class T>
+template<class K, class V>
 class WeakCache {
+    using VPtr = std::shared_ptr<V>;
+
 public:
     WeakCache() {}
 
-    WeakCache(std::initializer_list<std::pair<std::string, std::shared_ptr<T>>> args) {
+    WeakCache(std::initializer_list<std::pair<K, VPtr>> args) {
         for (const auto& m : args)
             mCache.emplace(m);
     }
@@ -43,7 +45,7 @@ public:
      * @param key The key to look up in the cache
      * @return The value if it exists or nullptr
      */
-    std::shared_ptr<T> find(const std::string& key) {
+    VPtr find(K key) {
         auto it = mCache.find(key);
         if (it != mCache.end()) {
             auto ptr = it->second.lock();
@@ -59,7 +61,7 @@ public:
      * @param key The key to add to the cache.
      * @param value The value to add
      */
-    void insert(std::string key, const std::shared_ptr<T>& value) {
+    void insert(K key, const VPtr& value) {
         mCache.emplace(key, value);
     }
 
@@ -93,7 +95,7 @@ public:
     }
 
 private:
-    std::map<std::string, std::weak_ptr<T>> mCache;
+    std::map<K, std::weak_ptr<V>> mCache;
 };
 
 } // namespace apl

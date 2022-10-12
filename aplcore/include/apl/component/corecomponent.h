@@ -20,7 +20,10 @@
 #include <stack>
 
 #include <yoga/YGNode.h>
-
+#include "apl/apl_config.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/common.h"
+#endif // SCENEGRAPH
 #include "apl/component/component.h"
 #include "apl/component/textmeasurement.h"
 #include "apl/engine/properties.h"
@@ -152,7 +155,7 @@ public:
      */
     int getChildIndex(const CoreComponentPtr& child) const {
         auto it = std::find(mChildren.begin(), mChildren.end(), child);
-        return it != mChildren.end() ? std::distance(mChildren.begin(), it) : -1;
+        return it != mChildren.end() ? static_cast<int>(std::distance(mChildren.begin(), it)) : -1;
     }
 
     /**
@@ -251,6 +254,14 @@ public:
     Object getProperty(const std::string& key) { return getPropertyAndWriteableState(key).first; }
 
     /**
+     * Return the value of a component property.  This is the opposite of the
+     * setProperty(PropertyKey key, const Object& value) method.
+     * @param key The property to retrieve
+     * @return The value or null if the property does not exist
+     */
+    Object getProperty(PropertyKey key);
+
+    /**
      * Mark a property as being changed.  This only applies to properties set to
      * mutable arguments such as transformations.
      * @param key The property key to mark.
@@ -286,6 +297,13 @@ public:
 
     const std::set<PropertyKey>& getDirty() override;
     void clearDirty() override;
+
+    /**
+     * Check to see if a property has been marked as dirty
+     * @param key The key to check
+     * @return True if the property is dirty
+     */
+    bool isDirty(PropertyKey key) const { return mDirty.find(key) != mDirty.end(); }
 
     /**
      * @return The current parent of this component.  May be nullptr.
@@ -421,7 +439,6 @@ public:
      * @deprecated use RootContext->serializeVisualContext()
      */
     rapidjson::Value serializeVisualContext(rapidjson::Document::AllocatorType& allocator) override;
-
 
     /**
      * Internal method.  Identifies when this components internal state, a property, or an update
@@ -716,6 +733,14 @@ public:
     Point toLocalPoint(const Point& globalPoint) const;
 
     /**
+     * Converts a point in local coordinates to global coordinates.  If the conversion
+     * is not possible due to singularities, return a point with NaN coordinates.
+     * @param position A point in local coordinates
+     * @return The computed point in global coordinate space
+     */
+    Point localToGlobal(Point position) const override;
+
+    /**
      * @return true if this component's bounds intersect with it's parent viewport.
      */
     bool inParentViewport() const;
@@ -908,6 +933,18 @@ public:
      */
     void setStickyOffset(Point stickyOffset) { mStickyOffset = stickyOffset; }
 
+#ifdef SCENEGRAPH
+    /**
+     * @return The current scene graph node.
+     */
+    sg::LayerPtr getSceneGraph(sg::SceneGraphUpdates& sceneGraph);
+
+    /**
+     * Update the scene graph based on dirty properties.
+     */
+    void updateSceneGraph(sg::SceneGraphUpdates& sceneGraph);
+#endif // SCENEGRAPH
+
 protected:
     // internal, do not call directly
     virtual bool insertChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag);
@@ -977,6 +1014,23 @@ protected:
      * Update visual hash
      */
     void fixVisualHash(bool useDirtyFlag);
+
+#ifdef SCENEGRAPH
+    /*
+     * Used by getSceneGraph() to build the component's scene graph (and attached children).
+     * Subclasses that override this method should call the parent method first.
+     * @return The scene graph
+     */
+    virtual sg::LayerPtr constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph);
+
+    /**
+     * Override this method in subclasses which watch for dirty property changes
+     * and update the scene graph.
+     * @param sg Scene graph builder component
+     * @return True if one of the nodes changed (will mark the contents as needed to be drawn)
+     */
+    virtual bool updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph) { return false; }
+#endif // SCENEGRAPH
 
     /**
      * Set an internal property that is component-specific and not part of the component definition.
@@ -1072,6 +1126,9 @@ protected:
     std::shared_ptr<LayoutRebuilder> mRebuilder;
     Size                             mLayoutSize;
     bool                             mDisplayedChildrenStale;
+#ifdef SCENEGRAPH
+    sg::LayerPtr                     mSceneGraphLayer;
+#endif // SCENEGRAPH
 
 private:
     // The members below are used to store cached values for performance reasons, and not part of

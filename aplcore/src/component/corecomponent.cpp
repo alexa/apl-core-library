@@ -36,6 +36,10 @@
 #include "apl/livedata/livearrayobject.h"
 #include "apl/primitives/accessibilityaction.h"
 #include "apl/primitives/keyboard.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/scenegraph.h"
+#endif // SCENEGRAPH
 #include "apl/time/sequencer.h"
 #include "apl/time/timemanager.h"
 #include "apl/touch/pointerevent.h"
@@ -699,6 +703,121 @@ CoreComponent::updateNodeProperties()
     }
 }
 
+#ifdef SCENEGRAPH
+sg::LayerPtr
+CoreComponent::getSceneGraph(sg::SceneGraphUpdates& sceneGraph)
+{
+    if (!mSceneGraphLayer) {
+        mSceneGraphLayer = constructSceneGraphLayer(sceneGraph);
+
+        // Attach children
+        ensureDisplayedChildren();
+        for (const auto& m : mDisplayedChildren)
+            mSceneGraphLayer->appendChild(m->getSceneGraph(sceneGraph));
+
+        mSceneGraphLayer->clearFlags();
+        sceneGraph.created(mSceneGraphLayer);
+    }
+
+    return mSceneGraphLayer;
+}
+
+void
+CoreComponent::updateSceneGraph(sg::SceneGraphUpdates& sceneGraph)
+{
+    if (!mSceneGraphLayer)
+        return;
+
+    auto* layer = mSceneGraphLayer.get();
+
+    // Basic interaction property changes
+    if (isDirty(kPropertyDisabled))
+        layer->updateInteraction(sg::Layer::kInteractionDisabled,
+                                 getCalculated(kPropertyDisabled).asBoolean());
+
+    if (isDirty(kPropertyChecked))
+        layer->updateInteraction(sg::Layer::kInteractionChecked,
+                                 getCalculated(kPropertyChecked).asBoolean());
+
+    // Check to see if any core layer properties changes
+    bool needsRebuild = isDirty(kPropertyDisplay) || isDirty(kPropertyOpacity) ||
+                        isDirty(kPropertyTransform) || isDirty(kPropertyBounds);
+
+    if (needsRebuild) {
+        layer->setBounds(getCalculated(kPropertyBounds).getRect());
+        layer->setOpacity(static_cast<float>(getCalculated(kPropertyOpacity).asNumber()));
+        layer->setTransform(getCalculated(kPropertyTransform).getTransform2D());
+    }
+
+    // Check if the shadow changed
+    auto shadowChanged = isDirty(kPropertyShadowColor) ||
+                         isDirty(kPropertyShadowHorizontalOffset) ||
+                         isDirty(kPropertyShadowVerticalOffset) || isDirty(kPropertyShadowRadius);
+
+    if (shadowChanged)
+        layer->setShadow(sg::shadow(getCalculated(kPropertyShadowColor).getColor(),
+                                    Point{getCalculated(kPropertyShadowHorizontalOffset).asFloat(),
+                                          getCalculated(kPropertyShadowVerticalOffset).asFloat()},
+                                    getCalculated(kPropertyShadowRadius).asFloat()));
+
+    // Check for an accessibility change
+    auto accessibilityChanged = isDirty(kPropertyAccessibilityLabel) ||
+                                isDirty(kPropertyAccessibilityActions) || isDirty(kPropertyRole);
+
+    if (accessibilityChanged)
+        layer->setAccessibility(sg::accessibility(*this));
+
+    // Check to see if the children of this component changed; update as necessary
+    // Note: This flag is not, in fact, reliable because the children may not have
+    // changed.
+    if (isDirty(kPropertyNotifyChildrenChanged)) {
+        ensureDisplayedChildren();
+
+        std::vector<sg::LayerPtr> display;
+        for (const auto& m : mDisplayedChildren)
+            display.emplace_back(m->getSceneGraph(sceneGraph));
+
+        if (display != layer->children()) {
+            layer->removeAllChildren();
+            for (const auto& m : display)
+                layer->appendChild(m);
+        }
+    }
+
+    // Fix up any internal drawing
+    if (updateSceneGraphInternal(sceneGraph))
+        layer->setFlag(sg::Layer::kFlagRedrawContent);
+
+    // Transfer any layer changes to the change map
+    sceneGraph.changed(layer);
+
+    // Clear all of the dirty flags on the component
+    clearDirty();
+}
+
+sg::LayerPtr
+CoreComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
+{
+    auto layer = sg::layer(mUniqueId, getCalculated(kPropertyBounds).getRect(),
+                           static_cast<float>(getCalculated(kPropertyOpacity).asNumber()),
+                           getCalculated(kPropertyTransform).getTransform2D());
+
+    if (getCalculated(kPropertyDisabled).truthy())
+        layer->setInteraction(sg::Layer::kInteractionDisabled);
+    if (getCalculated(kPropertyChecked).truthy())
+        layer->setInteraction(sg::Layer::kInteractionChecked);
+
+    layer->setAccessibility(sg::accessibility(*this));
+    layer->setShadow(sg::shadow(getCalculated(kPropertyShadowColor).getColor(),
+                                Point{getCalculated(kPropertyShadowHorizontalOffset).asFloat(),
+                                      getCalculated(kPropertyShadowVerticalOffset).asFloat()},
+                                getCalculated(kPropertyShadowRadius).asFloat()));
+
+    // TODO: Fix visibility?
+    return layer;
+}
+#endif // SCENEGRAPH
+
 /**
  * Initial assignment of properties.  Don't set any dirty flags here; this
  * all should be running in the constructor.
@@ -1025,6 +1144,18 @@ CoreComponent::getPropertyAndWriteableState(const std::string& key) const
 
     CONSOLE(mContext) << "Unknown property name " << key;
     return { Object::NULL_OBJECT(), false };
+}
+
+Object
+CoreComponent::getProperty(PropertyKey key)
+{
+    if (sComponentPropertyBimap.has(key)) {
+        auto findRef = find(key);
+        if (findRef.first)
+            return getPropertyInternal(findRef.second).first;
+    }
+
+    return Object::NULL_OBJECT();
 }
 
 bool
@@ -2274,6 +2405,7 @@ CoreComponent::propDefSet() const {
                                                                                                kPropDynamic |
                                                                                                kPropStyled,         yn::setMinWidth},
       {kPropertyOnMount,                  Object::EMPTY_ARRAY(),   asCommand,                  kPropIn},
+      {kPropertyOnSpeechMark,             Object::EMPTY_ARRAY(),   asCommand,                  kPropIn},
       {kPropertyOpacity,                  1.0,                     asOpacity,                  kPropInOut |
                                                                                                kPropStyled |
                                                                                                kPropDynamic |
@@ -2358,6 +2490,18 @@ CoreComponent::toLocalPoint(const Point& globalPoint) const
         return {NaN, NaN};
     } else {
         return toLocal * globalPoint;
+    }
+}
+
+Point
+CoreComponent::localToGlobal(Point position) const
+{
+    auto toLocal = getGlobalToLocalTransform();
+    if (toLocal.singular()) {
+        static float NaN = std::numeric_limits<float>::quiet_NaN();
+        return {NaN, NaN};
+    } else {
+        return toLocal.inverse() * position;
     }
 }
 

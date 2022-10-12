@@ -75,6 +75,15 @@ bool wcharValidCharacter(wchar_t wc, const std::string& validCharacters);
  */
 bool utf8StringTrim(std::string& utf8String, int maxLength);
 
+/**
+ * Strip the string of invalid characters and trim the length to a maximum number of code points.
+ * @param utf8String The string to strip and trim.
+ * @param validCharacters The set of valid characters.  If empty, all characters are valid.
+ * @param maxLength The maximum number of code points.  If zero, no trimming occurs.
+ * @return The stripped and trimmed string.
+ */
+std::string utf8StripInvalidAndTrim(const std::string& utf8String, const std::string& validCharacters, int maxLength);
+
 } // namespace apl
 
 #endif // _APL_UNICODE_H

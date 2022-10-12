@@ -115,6 +115,7 @@ enum CommandPropertyKey {
     kCommandPropertyOnFail,
     kCommandPropertyOtherwise,
     kCommandPropertyPosition,
+    kCommandPropertyPreservedSequencers,
     kCommandPropertyProperty,
     kCommandPropertyReason,
     kCommandPropertyRepeatCount,

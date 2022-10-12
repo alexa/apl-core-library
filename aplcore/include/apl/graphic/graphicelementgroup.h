@@ -46,6 +46,11 @@ protected:
     bool initialize(const GraphicPtr& graphic, const Object& json) override;
     void updateTransform(const Context& context, bool useDirtyFlag);
 
+#ifdef SCENEGRAPH
+    sg::NodePtr buildSceneGraph(sg::SceneGraphUpdates& sceneGraph) override;
+    void updateSceneGraphInternal(sg::ModifiedNodeList& modList, const sg::NodePtr& node) override;
+#endif // SCENEGRAPH
+
     static void fixTransform(GraphicElement& element) {
         auto& group = static_cast<GraphicElementGroup&>(element);
         group.updateTransform(*group.mContext, true);

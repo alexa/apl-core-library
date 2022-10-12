@@ -239,8 +239,7 @@ public:
      * Inset the rectangle and return a new rectangle. Rectangles do not
      * turn inside-out.  If you inset more than half the width/height, the
      * rectangle will pin to a zero width/height.
-     * @param dx Distance to inset horizontally
-     * @param dy Distance to inset vertically
+     * @param dist Distance to inset both horizontally and vertially
      * @return The new rectangle (may be empty).
      */
     Rect inset(float dist) const { return inset(dist, dist); }

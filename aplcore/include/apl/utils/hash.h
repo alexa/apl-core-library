@@ -16,6 +16,8 @@
 #ifndef APL_HASH_H
 #define APL_HASH_H
 
+#include <functional>
+
 #include "apl/primitives/object.h"
 
 namespace apl {

@@ -76,6 +76,8 @@ public:
         return mSegments == other.mSegments && mPoints == other.mPoints;
     }
 
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override;
+
 private:
     float calcInternal(float t);
     float segmentStartTime(std::vector<EasingSegment>::iterator it);

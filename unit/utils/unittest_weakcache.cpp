@@ -30,7 +30,7 @@ public:
 
 TEST(WeakCache, Basic)
 {
-    WeakCache<Foo> cache;
+    WeakCache<std::string, Foo> cache;
 
     {
         auto f1 = Foo::create(1);
@@ -56,7 +56,7 @@ TEST(WeakCache, Prepopulate)
     auto f1 = Foo::create(1);
     auto f2 = Foo::create(2);
 
-    WeakCache<Foo> cache = {
+    WeakCache<std::string, Foo> cache = {
         {"f1", f1},
         {"f2", f2}
     };

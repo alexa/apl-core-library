@@ -32,6 +32,11 @@ public:
 protected:
     const GraphicPropDefSet& propDefSet() const override;
     bool initialize(const GraphicPtr& graphic, const Object& json) override;
+
+#ifdef SCENEGRAPH
+    sg::NodePtr buildSceneGraph(sg::SceneGraphUpdates& sceneGraph) override;
+    void updateSceneGraphInternal(sg::ModifiedNodeList& modList, const sg::NodePtr& node) override;
+#endif // SCENEGRAPH
 };
 
 } // namespace apl

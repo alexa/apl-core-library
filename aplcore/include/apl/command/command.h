@@ -80,6 +80,19 @@ public:
      * @return Sequencer name for command to be executed on.
      */
     virtual std::string sequencer() const { return ""; }
+
+    /**
+     * Freeze command state and memoize any of state required to "revive" this command in the
+     * different context.
+     */
+    virtual void freeze() {}
+
+    /**
+     * Revive a command in the new context.
+     * @param context new RootContext.
+     * @return true if successful, false otherwise.
+     */
+    virtual bool rehydrate(const RootContext& context) { return false; }
 };
 
 } // namespace apl

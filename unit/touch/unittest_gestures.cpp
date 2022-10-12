@@ -3409,3 +3409,64 @@ TEST_F(GesturesTest, Tap)
     ASSERT_TRUE(CheckEvent("onTap", "myTouchWrapper", 10, 0));
     ASSERT_FALSE(root->hasEvent());
 }
+
+static const char * SWIPE_AND_STAY = R"apl({
+  "type": "APL",
+  "version": "1.9",
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "width": 500,
+      "height": 100,
+      "padding": 10,
+      "item": {
+        "type": "Frame",
+        "backgroundColor": "blue",
+        "height": "100%",
+        "width": "100%"
+      },
+      "gestures": [
+        {
+          "type": "SwipeAway",
+          "direction": "left",
+          "items": {
+            "type": "Frame",
+            "width": "100%",
+            "height": "100%",
+            "backgroundColor": "red"
+          }
+        }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(GesturesTest, SwipeAndStay)
+{
+    loadDocument(SWIPE_AND_STAY);
+    ASSERT_TRUE(component);
+
+    // The TouchWrapper should have bounds of (0,0,500,100)
+    ASSERT_TRUE(IsEqual(Rect{0,0,500,100}, component->getCalculated(kPropertyBounds)));
+
+    // The inner blue frame should have bounds of (10,10,480,80)
+    auto blueFrame = component->getChildAt(0);
+    ASSERT_TRUE(IsEqual(Rect{10,10,480,80}, blueFrame->getCalculated(kPropertyBounds)));
+    ASSERT_TRUE(IsEqual(Color(Color::BLUE), blueFrame->getCalculated(apl::kPropertyBackgroundColor)));
+
+    // Execute a swipe
+    ASSERT_FALSE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(490,20))));
+    advanceTime(10);
+    ASSERT_FALSE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(490,20))));
+    advanceTime(250);
+    ASSERT_TRUE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(10,20))));
+    advanceTime(10);
+    ASSERT_TRUE(root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(10,20))));
+    advanceTime(1000);
+
+    // The red frame should have replaced the blue frame, but be at the same location
+    auto redFrame = component->getChildAt(0);
+    ASSERT_NE(blueFrame, redFrame);
+    ASSERT_TRUE(IsEqual(Color(Color::RED), redFrame->getCalculated(apl::kPropertyBackgroundColor)));
+    ASSERT_TRUE(IsEqual(Rect{10,10,480,80}, redFrame->getCalculated(kPropertyBounds)));
+}

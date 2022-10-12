@@ -46,7 +46,7 @@ AnimateItemAction::AnimateItemAction(const TimersPtr& timers,
 {}
 
 void
-AnimateItemAction::start()
+AnimateItemAction::extractAnimators()
 {
     // Walk the array of values and create animated properties
     for (const auto& m : mCommand->getValue(kCommandPropertyValue).getArray()) {
@@ -58,6 +58,12 @@ AnimateItemAction::start()
             mAnimators.push_back(std::move(ptr));
         }
     }
+}
+
+void
+AnimateItemAction::start()
+{
+    extractAnimators();
 
     auto mode = mCommand->context()->getRootConfig().getAnimationQuality();
 
@@ -135,6 +141,35 @@ AnimateItemAction::finalize()
         m->update(mCommand->target(), alpha);
 }
 
+void
+AnimateItemAction::freeze()
+{
+    if (mCurrentAction) {
+        mCurrentAction->freeze();
+    }
+    if (mCommand) {
+        mCommand->freeze();
+    }
+    ResourceHoldingAction::freeze();
+}
 
+bool
+AnimateItemAction::rehydrate(const RootContext& context)
+{
+    if (!ResourceHoldingAction::rehydrate(context)) return false;
+
+    if (mCommand) {
+        if (!mCommand->rehydrate(context)) return false;
+    }
+
+    if (mCurrentAction) {
+        if (!mCurrentAction->rehydrate(context)) return false;
+    }
+
+    mAnimators.clear();
+    extractAnimators();
+
+    return true;
+}
 
 } // namespace apl

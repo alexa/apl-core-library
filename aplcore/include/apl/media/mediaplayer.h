@@ -165,6 +165,23 @@ public:
      */
     virtual void setAudioTrack( AudioTrack audioTrack ) = 0;
 
+    /**
+     * Mute or unmute the media player's audio.
+     *
+     * @param mute True to mute, false to unmute the audio.
+     */
+    virtual void setMute( bool mute ) {}
+
+    /**
+     * Replace event callback.
+     * @param callback new callback.
+     */
+    void setCallback(MediaPlayerCallback callback) { mCallback = std::move(callback); }
+
+    virtual rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const {
+        return rapidjson::Value();
+    }
+
 protected:
     MediaPlayerCallback mCallback;
 };

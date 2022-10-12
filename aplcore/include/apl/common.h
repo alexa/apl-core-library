@@ -47,6 +47,8 @@ using apl_duration_t = double;
 // here so they can be conveniently used from any source file.
 
 class Action;
+class AudioPlayer;
+class AudioPlayerFactory;
 class Command;
 class Component;
 class Content;
@@ -79,8 +81,11 @@ class StyleDefinition;
 class StyleInstance;
 class TextMeasurement;
 class Timers;
+class UIDObject;
 
 using ActionPtr = std::shared_ptr<Action>;
+using AudioPlayerPtr = std::shared_ptr<AudioPlayer>;
+using AudioPlayerFactoryPtr = std::shared_ptr<AudioPlayerFactory>;
 using CommandPtr = std::shared_ptr<Command>;
 using ConstCommandPtr = std::shared_ptr<const Command>;
 using ComponentPtr = std::shared_ptr<Component>;
@@ -115,7 +120,6 @@ using StyleDefinitionPtr = std::shared_ptr<StyleDefinition>;
 using StyleInstancePtr = std::shared_ptr<StyleInstance>;
 using TextMeasurementPtr = std::shared_ptr<TextMeasurement>;
 using TimersPtr = std::shared_ptr<Timers>;
-
 
 // Convenience templates for creating sets of weak and strong pointers
 template<class T> using WeakPtrSet = std::set<std::weak_ptr<T>, std::owner_less<std::weak_ptr<T>>>;

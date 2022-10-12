@@ -17,6 +17,7 @@
 #define _APL_PLAY_MEDIA_ACTION_H
 
 #include "apl/action/resourceholdingaction.h"
+#include "apl/primitives/object.h"
 
 namespace apl {
 
@@ -38,12 +39,18 @@ public:
                     const std::shared_ptr<CoreCommand>& command,
                     const ComponentPtr& target);
 
+    void freeze() override;
+    bool rehydrate(const RootContext& context) override;
+
 private:
     void start();
 
 private:
     std::shared_ptr<CoreCommand> mCommand;
     ComponentPtr mTarget;
+    MediaPlayerPtr mPlayer;
+    Object mSource;
+    Object mPlayingState;
 };
 
 } // namespace apl

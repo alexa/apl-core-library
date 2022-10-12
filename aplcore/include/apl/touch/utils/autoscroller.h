@@ -79,6 +79,11 @@ public:
     */
     virtual apl_duration_t getDuration() const = 0;
 
+    /**
+     * Replace scroller scroll target.
+     */
+    virtual void replaceTarget(const ScrollablePtr& scrollable);
+
 protected:
     /**
      * Update function to be overriden by particular scroller implementation.
@@ -93,8 +98,10 @@ protected:
         mOnFinish();
     }
 
-private:
+protected:
     std::weak_ptr<ScrollableComponent> mScrollable;
+
+private:
     FinishFunc mOnFinish;
     bool mFinished;
     apl_time_t mStartTime;

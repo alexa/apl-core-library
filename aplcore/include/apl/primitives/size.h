@@ -16,6 +16,8 @@
 #ifndef _APL_SIZE_H
 #define _APL_SIZE_H
 
+#include <rapidjson/document.h>
+
 #include "apl/utils/streamer.h"
 #include "apl/utils/stringfunctions.h"
 
@@ -70,6 +72,13 @@ public:
 
     std::string toDebugString() const {
         return toString();
+    }
+
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const {
+        auto out = rapidjson::Value(rapidjson::kArrayType);
+        out.PushBack(mWidth, allocator);
+        out.PushBack(mHeight, allocator);
+        return out;
     }
 
 private:

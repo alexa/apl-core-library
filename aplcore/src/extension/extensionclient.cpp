@@ -354,8 +354,11 @@ ExtensionClient::processCommand(rapidjson::Document::AllocatorType& allocator, c
 
     auto actionRef = event.getActionRef();
     if (!actionRef.empty() && actionRef.isPending()) {
-        actionRef.addTerminateCallback([this, id](const TimersPtr&) {
-            mActionRefs.erase(id);
+        auto weakSelf = std::weak_ptr<ExtensionClient>(shared_from_this());
+        actionRef.addTerminateCallback([weakSelf, id](const TimersPtr&) {
+            if (auto self = weakSelf.lock()) {
+                self->mActionRefs.erase(id);
+            }
         });
         mActionRefs.emplace(id, actionRef);
     }

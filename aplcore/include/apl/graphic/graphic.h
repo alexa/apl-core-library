@@ -16,10 +16,12 @@
 #ifndef _APL_GRAPHIC_H
 #define _APL_GRAPHIC_H
 
+#include "apl/apl_config.h"
 #include "apl/graphic/graphiccontent.h"
 #include "apl/graphic/graphicelement.h"
 #include "apl/engine/jsonresource.h"
 #include "apl/engine/styles.h"
+#include "apl/engine/uidobject.h"
 #include "apl/utils/noncopyable.h"
 #include "apl/utils/userdata.h"
 
@@ -31,7 +33,8 @@ class VectorGraphicComponent;
  * Represent a vector graphic element.  This outer element holds a tree of GraphicElement
  * internally.
  */
-class Graphic : public std::enable_shared_from_this<Graphic>,
+class Graphic : public UIDObject,
+                public std::enable_shared_from_this<Graphic>,
                 public NonCopyable,
                 public Counter<Graphic>,
                 public UserData<Graphic> {
@@ -159,7 +162,7 @@ public:
     /**
      * @return The internal data-binding context used by this graphic
      */
-    const ContextPtr& getContext() const { return mInternalContext; }
+    const ContextPtr& getContext() const { return mContext; }
 
     /**
      * @return Styles access interface.
@@ -167,6 +170,17 @@ public:
     std::shared_ptr<Styles> styles() const { return mStyles; }
 
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
+
+#ifdef SCENEGRAPH
+    sg::NodePtr getSceneGraph(sg::SceneGraphUpdates& sceneGraph);
+
+    /**
+     * Update the scene graph with any changes
+     * @param sceneGraph The scene graph to update
+     * @return True if the scene graph needs to be redrawn
+     */
+    bool updateSceneGraph(sg::SceneGraphUpdates& sceneGraph);
+#endif // SCENEGRAPH
 
 private:
     /**
@@ -191,7 +205,6 @@ private:
     void addDirtyChild(const GraphicElementPtr& child);
 
 private:
-    ContextPtr                   mInternalContext;
     ParameterArray               mParameterArray;
     GraphicVersions              mVersion;
 

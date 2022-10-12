@@ -510,6 +510,10 @@ protected:
         ASSERT_TRUE(context);
         ASSERT_TRUE(context->getReinflationFlag());
         component = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+
+        if (event.getActionRef().isPending()) {
+            event.getActionRef().resolve();
+        }
     }
 
     // Register a configuration change and expect a reinflate event

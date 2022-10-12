@@ -76,4 +76,28 @@ ScrollAction::start() {
     scroll(vertical, position);
 }
 
+void
+ScrollAction::freeze()
+{
+    if (mCommand) {
+        mCommand->freeze();
+    }
+
+    AnimatedScrollAction::freeze();
+}
+
+bool
+ScrollAction::rehydrate(const RootContext& context)
+{
+    if (!AnimatedScrollAction::rehydrate(context)) return false;
+
+    if (mCommand) {
+        mCommand->rehydrate(context);
+    }
+
+    mContext->sequencer().claimResource({kExecutionResourcePosition, mContainer}, shared_from_this());
+
+    return true;
+}
+
 } // namespace apl

@@ -23,7 +23,8 @@
 
 namespace apl {
 
-static WeakCache<EasingApproximation> sEasingAppoxCache;
+// TODO: This is not thread safe
+static WeakCache<std::string, EasingApproximation> sEasingAppoxCache;
 
 std::string
 dofSig(int dof, const float* array) {
@@ -371,6 +372,28 @@ CoreEasing::bounds()
     }
 
     return {minTime, maxTime, minValue, maxValue};
+}
+
+rapidjson::Value
+CoreEasing::serialize(rapidjson::Document::AllocatorType& allocator) const {
+    auto result = rapidjson::Value(rapidjson::kObjectType);
+
+    auto segments = rapidjson::Value(rapidjson::kArrayType);
+    for (const auto& m : mSegments) {
+        auto segment = rapidjson::Value(rapidjson::kObjectType);
+        segment.AddMember("type", m.type, allocator);
+        segment.AddMember("offset", rapidjson::Value(static_cast<uint32_t>(m.offset)), allocator);
+        segments.PushBack(segment, allocator);
+    }
+    result.AddMember("segments", segments, allocator);
+
+    auto points = rapidjson::Value(rapidjson::kArrayType);
+    for (const auto& m : mPoints) {
+        points.PushBack(m, allocator);
+    }
+    result.AddMember("points", points, allocator);
+
+    return result;
 }
 
 } // namespace apl

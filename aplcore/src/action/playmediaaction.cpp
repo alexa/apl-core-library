@@ -57,17 +57,17 @@ PlayMediaAction::start()
     auto videoComponent = std::dynamic_pointer_cast<VideoComponent>(mTarget);
     assert(videoComponent);
 
-    auto mediaPlayer = videoComponent->getMediaPlayer();
-    if (mediaPlayer) {
+    mPlayer = videoComponent->getMediaPlayer();
+    if (mPlayer) {
         // Update the video component to list the new sources and audio track
         // TODO: In the future I'd like to remove these from the video component and only store them in the player
         videoComponent->setCalculated(kPropertySource, source);
         videoComponent->setCalculated(kPropertyAudioTrack, audioTrack);
 
         // Update the media player
-        mediaPlayer->setTrackList(mediaSourcesToTracks(source));
-        mediaPlayer->setAudioTrack(static_cast<AudioTrack>(audioTrack.getInteger()));
-        mediaPlayer->play(shared_from_this());
+        mPlayer->setTrackList(mediaSourcesToTracks(source));
+        mPlayer->setAudioTrack(static_cast<AudioTrack>(audioTrack.getInteger()));
+        mPlayer->play(shared_from_this());
     }
     else {
         EventBag bag;
@@ -79,6 +79,63 @@ PlayMediaAction::start()
         mCommand->context()->pushEvent(
             Event(kEventTypePlayMedia, std::move(bag), mTarget, shared_from_this()));
     }
+}
+
+void
+PlayMediaAction::freeze()
+{
+    auto videoComponent = std::dynamic_pointer_cast<VideoComponent>(mTarget);
+
+    mPlayingState = videoComponent->getProperty(kPropertyPlayingState);
+    mSource = videoComponent->getProperty(kPropertySource);
+
+    videoComponent->detachPlayer();
+
+    if (mCommand) {
+        mCommand->freeze();
+    }
+
+    ResourceHoldingAction::freeze();
+}
+
+bool
+PlayMediaAction::rehydrate(const RootContext& context)
+{
+    if (!ResourceHoldingAction::rehydrate(context)) return false;
+
+    if (mCommand) {
+        if (!mCommand->rehydrate(context)) {
+            mPlayer->release();
+            mPlayer = nullptr;
+            return false;
+        }
+    }
+
+    mTarget = mCommand->target();
+
+    // Ensure that source AND playbackState preserved. If not - we recreate the player (as per spec).
+    auto videoComponent = std::dynamic_pointer_cast<VideoComponent>(mTarget);
+    if (mPlayingState != videoComponent->getProperty(kPropertyPlayingState) ||
+        mSource != videoComponent->getProperty(kPropertySource)) {
+        mPlayer->release();
+        mPlayer = nullptr;
+        CONSOLE(mContext->session()) << R"(Can't preserve PlayMedia command without "source" and
+            "playingState" preservation on component level.)";
+        return false;
+    }
+
+    mPlayingState = Object::NULL_OBJECT();
+    mSource = Object::NULL_OBJECT();
+
+    videoComponent->attachPlayer(mPlayer);
+
+    auto audioTrack = mCommand->getValue(kCommandPropertyAudioTrack);
+    if (audioTrack == kCommandAudioTrackForeground) {
+        mCommand->context()->sequencer().claimResource(kExecutionResourceForegroundAudio, shared_from_this());
+    } else if (audioTrack == kCommandAudioTrackBackground) {
+        mCommand->context()->sequencer().claimResource(kExecutionResourceBackgroundAudio, shared_from_this());
+    }
+    return true;
 }
 
 } // namespace apl

@@ -220,6 +220,19 @@ Action::makeAnimation(const TimersPtr& timers, apl_duration_t delay, Timers::Ani
     return ptr;
 }
 
+void
+Action::freeze()
+{
+    if (mTimeoutId != 0)
+        mTimers->freeze(mTimeoutId);
+}
+
+bool
+Action::rehydrate(const RootContext& context)
+{
+    if (mTimeoutId != 0 && !mTimers->rehydrate(mTimeoutId)) return false;
+    return true;
+}
 
 class Collection : public Action {
 protected:
@@ -227,39 +240,53 @@ protected:
 
 public:
     Collection(const TimersPtr& timers, const ActionList& actionList)
-            : Action(timers)
-    {
+            : Action(timers) {
         for (const auto& action : actionList)
             if (!action->isTerminated())
                 mActions.push_back(action);
     }
 
-    void
-    removeAction(const ActionPtr& ptr)
-    {
+    void removeAction(const ActionPtr& ptr) {
         auto it = std::find(mActions.begin(), mActions.end(), ptr);
         assert(it != mActions.end());
         mActions.erase(it);
     }
 
-    void
-    terminateRemaining()
-    {
+    void terminateRemaining() {
         for (auto& p : mActions)
             p->terminate();
         mActions.clear();
     }
 
-    unsigned int
-    size()
-    {
-        return mActions.size();
+    unsigned int size() {
+        return static_cast<unsigned int>(mActions.size());
     }
 
-    ActionList&
-    actions()
-    {
+    ActionList& actions() {
         return mActions;
+    }
+    void freeze() override {
+        for (auto& action : actions()) {
+            action->freeze();
+        }
+
+        Action::freeze();
+    }
+
+    bool rehydrate(const RootContext& context) override {
+        if (!Action::rehydrate(context)) return false;
+
+        auto it = mActions.cbegin();
+        while (it != mActions.cend()) {
+            if (!(*it)->rehydrate(context))
+                it = mActions.erase(it);
+            else
+                it++;
+        }
+
+        if (mActions.empty()) resolve();
+
+        return true;
     }
 };
 

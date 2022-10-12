@@ -44,6 +44,7 @@ enum GradientProperty {
     kGradientPropertyUnits
 };
 
+
 /**
  * Represent a linear or radial gradient. Normally used in the Image for the
  * overlayGradient. Because gradients may be defined in a resource, we treat

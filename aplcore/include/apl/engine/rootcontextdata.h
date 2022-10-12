@@ -20,6 +20,11 @@
 #include <string>
 #include <queue>
 
+#include "apl/apl_config.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/common.h"
+#endif // SCENEGRAPH
+
 #include "apl/content/content.h"
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
@@ -65,9 +70,7 @@ public:
                     const SessionPtr& session,
                     const std::vector<std::pair<std::string, std::string>>& extensions);
 
-    ~RootContextData() {
-        YGConfigFree(mYGConfigRef);
-    }
+    ~RootContextData();
 
     /**
      * Halt the RootContextData and release the component hierarchy..
@@ -93,6 +96,7 @@ public:
     LayoutManager& layoutManager() const { return *mLayoutManager; }
     MediaManager& mediaManager() const { return *mConfig.getMediaManager(); }
     MediaPlayerFactory& mediaPlayerFactory() const { return *mConfig.getMediaPlayerFactory(); }
+    UIDManager& uniqueIdManager() const { return *mUniqueIdManager; }
 
     const YGConfigRef& ygconfig() const { return mYGConfigRef; }
     CoreComponentPtr top() const { return mTop; }
@@ -143,6 +147,13 @@ public:
      */
     WeakPtrSet<CoreComponent>& pendingOnMounts() { return mPendingOnMounts; }
 
+#ifdef SCENEGRAPH
+    /**
+     * @return A cache of TextProperties
+     */
+    sg::TextPropertiesCache& textPropertiesCache() { return *mTextPropertiesCache; }
+#endif // SCENEGRAPH
+
 public:
     int getPixelWidth() const { return mMetrics.getPixelHeight(); }
     int getPixelHeight() const { return mMetrics.getPixelHeight(); }
@@ -180,6 +191,7 @@ private:
     std::unique_ptr<LiveDataManager> mDataManager;
     std::unique_ptr<ExtensionManager> mExtensionManager;
     std::unique_ptr<LayoutManager> mLayoutManager;
+    std::unique_ptr<UIDManager> mUniqueIdManager;
     YGConfigRef mYGConfigRef;
     TextMeasurementPtr mTextMeasurement;
     CoreComponentPtr mTop;         // The top component
@@ -192,6 +204,9 @@ private:
     LruCache<TextMeasureRequest, YGSize> mCachedMeasures;
     LruCache<TextMeasureRequest, float> mCachedBaselines;
     WeakPtrSet<CoreComponent> mPendingOnMounts;
+#ifdef SCENEGRAPH
+    std::unique_ptr<sg::TextPropertiesCache> mTextPropertiesCache;
+#endif // SCENEGRAPH
 };
 
 

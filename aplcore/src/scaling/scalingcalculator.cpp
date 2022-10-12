@@ -15,6 +15,7 @@
 
 #include "apl/scaling/scalingcalculator.h"
 #include <cmath>
+#include <limits>
 
 namespace apl {
 namespace scaling {

@@ -20,7 +20,11 @@
 #include <regex>
 #include <string>
 
+#include "apl/apl_config.h"
 #include "apl/common.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/common.h"
+#endif // SCENEGRAPH
 #include "apl/component/componentproperties.h"
 #include "apl/content/aplversion.h"
 #include "apl/content/extensioncommanddefinition.h"
@@ -162,6 +166,35 @@ public:
         mMediaPlayerFactory = mediaPlayerFactory;
         return *this;
     }
+
+    /**
+     * Specify the audio player factory used for creating audio players.
+     *
+     * An audio player is used with the SpeakItem/SpeakList commands.  When an audio
+     * player factory is set speech commands no longer send kEventTypePreroll, kEventTypeSpeak,
+     * and kEventTypeRequestFirstLineBounds.  The local audio player takes care of preroll and
+     * speak; either the scene graph logic takes care of highlighting individual lines of text
+     * or separate events request highlighting.
+     *
+     * @param audioPlayerFactory The audio player factory object.
+     * @return This object for chaining
+     */
+    RootConfig& audioPlayerFactory(const AudioPlayerFactoryPtr& audioPlayerFactory) {
+        mAudioPlayerFactory = audioPlayerFactory;
+        return *this;
+    }
+
+#ifdef SCENEGRAPH
+    /**
+     * Specify the edit text factory used for creating edit text objects.
+     * @param editTextFactory The edit text layout factory object
+     * @return This object for chaining
+     */
+    RootConfig& editTextFactory(const sg::EditTextFactoryPtr& editTextFactory) {
+        mEditTextFactory = editTextFactory;
+        return *this;
+    }
+#endif // SCENEGRAPH
 
     /**
      * Specify the time manager.
@@ -878,6 +911,18 @@ public:
      MediaPlayerFactoryPtr getMediaPlayerFactory() const { return mMediaPlayerFactory; }
 
     /**
+     * @return The configured audio player factory
+     */
+    AudioPlayerFactoryPtr getAudioPlayerFactory() const { return mAudioPlayerFactory; }
+
+#ifdef SCENEGRAPH
+    /**
+     * @return The configured edit text factory
+     */
+    sg::EditTextFactoryPtr getEditTextFactory() const { return mEditTextFactory; }
+#endif // SCENEGRAPH
+
+    /**
      * @return The time manager object
      */
     std::shared_ptr<TimeManager> getTimeManager() const { return mTimeManager; }
@@ -1340,6 +1385,10 @@ private:
     TextMeasurementPtr mTextMeasurement;
     MediaManagerPtr mMediaManager;
     MediaPlayerFactoryPtr mMediaPlayerFactory;
+    AudioPlayerFactoryPtr mAudioPlayerFactory;
+#ifdef SCENEGRAPH
+    sg::EditTextFactoryPtr mEditTextFactory;
+#endif // SCENEGRAPH
     std::shared_ptr<TimeManager> mTimeManager;
     std::shared_ptr<LocaleMethods> mLocaleMethods;
     std::map<std::pair<ComponentType, bool>, std::pair<Dimension, Dimension>> mDefaultComponentSize;

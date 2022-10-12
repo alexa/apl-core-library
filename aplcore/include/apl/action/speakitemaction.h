@@ -16,18 +16,31 @@
 #ifndef _APL_SPEAK_ITEM_ACTION_H
 #define _APL_SPEAK_ITEM_ACTION_H
 
+#include "apl/apl_config.h"
 #include "apl/action/resourceholdingaction.h"
+#include "apl/audio/speechmark.h"
+#include "apl/primitives/range.h"
 
 namespace apl {
 
 class CoreCommand;
 class CoreComponent;
 class ScrollToAction;
+class SpeakItemActionPrivate;
 
 /**
- * Lightweight action that handles speaking.  This action will send out an EventType::kEventTypePreroll,
- * followed by a EventType::kEventtypeScrollTo to bring the item into view and a EventType::kEventTypeSpeak
- * to speak the item.
+ * Lightweight action that handles speaking.
+ *
+ * When no AudioPlayerFactory is installed in RootConfig, this action will send out an
+ * EventType::kEventTypePreroll, move the appropriate component into view, and send an
+ * EventType::kEventTypeSpeak to speak the item.  Line-by-line karaoke highlighting is
+ * handled completely by the view host.
+ *
+ * When an AudioPlayerFactory is installed the action creates a local AudioPlayer, sets
+ * the track, moves the appropriate component into view, and plays audio through the
+ * AudioPlayer. Line-by-line karaoke highlighting is handled by new set of events:
+ * EventType::kEventTypeRequestLineBounds and EventType::kEventTypeLineHighlight or
+ * by the scene graph directly
  */
 class SpeakItemAction : public ResourceHoldingAction {
 public:
@@ -39,16 +52,28 @@ public:
                     const std::shared_ptr<CoreCommand>& command,
                     const CoreComponentPtr& target);
 
+    void freeze() override;
+    bool rehydrate(const RootContext& context) override;
+
 private:
     void start();
     void scroll(const std::shared_ptr<ScrollToAction>& action);
     void advance();
 
 private:
+    friend class SpeakListAction;
+
     std::shared_ptr<CoreCommand> mCommand;
     CoreComponentPtr mTarget;
     ActionPtr mCurrentAction;
-    std::string mSource;
+    std::string mSource;  // The URL of the audio file to play
+
+    friend class SpeakItemActionPrivate;
+#ifdef SCENEGRAPH
+    friend class SpeakItemActionPrivateSceneGraph;
+#endif // SCENEGRAPH
+    friend class SpeakItemActionPrivateEvents;
+    std::unique_ptr<SpeakItemActionPrivate> mPrivate;
 };
 
 }  // namespace apl

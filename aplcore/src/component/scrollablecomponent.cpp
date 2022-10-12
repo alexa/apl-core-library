@@ -23,6 +23,10 @@
 #include "apl/touch/gestures/scrollgesture.h"
 #include "apl/time/timemanager.h"
 #include "apl/utils/stickychildrentree.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/scenegraph.h"
+#endif // SCENEGRAPH
 
 namespace apl {
 
@@ -275,5 +279,27 @@ ScrollableComponent::takeFocusFromChild(FocusDirection direction, const Rect& or
 
     return nullptr;
 }
+
+#ifdef SCENEGRAPH
+sg::LayerPtr
+ScrollableComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) {
+    auto layer = ActionableComponent::constructSceneGraphLayer(sceneGraph);
+    assert(layer);
+
+    layer->setChildOffset(scrollPosition());
+    return layer;
+}
+
+bool
+ScrollableComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
+{
+    if (isDirty(kPropertyScrollPosition)) {
+        mSceneGraphLayer->setChildOffset(scrollPosition());
+        sceneGraph.changed(mSceneGraphLayer);
+    }
+
+    return false;
+}
+#endif // SCENEGRAPH
 
 } // namespace apl

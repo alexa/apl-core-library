@@ -82,7 +82,7 @@ public:
                    bool shapeOverridesCost)
         : ScalingOptions(specifications, biasConstant, shapeOverridesCost, false) {}
 
-    ScalingOptions() : ScalingOptions({}, 1.0f, true, false) {}
+    ScalingOptions() {}
 
     /**
      * Set configured specifications.
@@ -144,9 +144,9 @@ public:
 private:
     std::vector<ViewportSpecification> mSpecifications;
     std::set<ViewportMode> mAllowedModes;
-    double mBiasConstant;
-    bool mShapeOverridesCost;
-    bool mIgnoresMode;
+    double mBiasConstant = 1.0;
+    bool mShapeOverridesCost = true;
+    bool mIgnoresMode = false;
 };
 
 /**

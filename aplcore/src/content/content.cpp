@@ -109,7 +109,7 @@ Content::getPackage(const std::string& name) const {
         return mMainPackage;
 
     auto it = std::find_if(mLoaded.begin(), mLoaded.end(), [&name](const std::pair<ImportRef, PackagePtr>& ref) {
-        return ref.first.name() == name;
+        return ref.first.toString() == name;
     });
 
     return it != mLoaded.end() ? it->second : nullptr;
@@ -197,6 +197,14 @@ void Content::addData(const std::string& name, JsonData&& raw) {
 
     mParameterValues.emplace(name, std::move(raw));
     updateStatus();
+}
+
+std::vector<std::string>
+Content::getLoadedPackageNames() const {
+    std::vector<std::string> result;
+    for (const auto& m : mLoaded)
+        result.push_back(m.second->name());
+    return result;
 }
 
 bool

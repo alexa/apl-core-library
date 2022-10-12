@@ -20,8 +20,12 @@
 #include "apl/engine/rootcontextdata.h"
 #include "apl/engine/keyboardmanager.h"
 #include "apl/engine/styles.h"
+#include "apl/engine/uidmanager.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/livedata/livedatamanager.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/textpropertiescache.h"
+#endif // SCENEGRAPH
 #include "apl/time/timemanager.h"
 #include "apl/utils/log.h"
 
@@ -87,6 +91,7 @@ RootContextData::RootContextData(const Metrics& metrics,
       mDataManager(new LiveDataManager()),
       mExtensionManager(new ExtensionManager(extensions, config)),
       mLayoutManager(new LayoutManager(*this)),
+      mUniqueIdManager(new UIDManager()),
       mYGConfigRef(YGConfigNew()),
       mTextMeasurement(config.getMeasure()),
       mConfig(config),
@@ -96,10 +101,18 @@ RootContextData::RootContextData(const Metrics& metrics,
       mLayoutDirection(kLayoutDirectionInherit),
       mCachedMeasures(config.getProperty(RootProperty::kTextMeasurementCacheLimit).getInteger()),
       mCachedBaselines(config.getProperty(RootProperty::kTextMeasurementCacheLimit).getInteger())
+#ifdef SCENEGRAPH
+      ,
+      mTextPropertiesCache(new sg::TextPropertiesCache())
+#endif // SCENEGRAPH
 {
     YGConfigSetPrintTreeFlag(mYGConfigRef, DEBUG_YG_PRINT_TREE);
     YGConfigSetLogger(mYGConfigRef, ygLogger);
     YGConfigSetPointScaleFactor(mYGConfigRef, metrics.getDpi() / Metrics::CORE_DPI);
+}
+
+RootContextData::~RootContextData() {
+    YGConfigFree(mYGConfigRef);
 }
 
 void

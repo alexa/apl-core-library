@@ -16,7 +16,7 @@
 #ifndef _APL_SCROLLABLE_COMPONENT_H
 #define _APL_SCROLLABLE_COMPONENT_H
 
-#include "actionablecomponent.h"
+#include "apl/component/actionablecomponent.h"
 
 namespace apl {
 
@@ -69,6 +69,12 @@ protected:
      * @param value The target scroll offset (in dp)
      */
     void setScrollPositionDirectly(float value);
+
+#ifdef SCENEGRAPH
+    // Common scene graph handling
+    sg::LayerPtr constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) override;
+    bool updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph) override;
+#endif // SCENEGRAPH
 
 private:
     bool setScrollPositionInternal(float value);

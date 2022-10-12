@@ -35,6 +35,9 @@ public:
      */
     DelayAction(const TimersPtr& timers, const CommandPtr& command, bool fastMode);
 
+    void freeze() override;
+    bool rehydrate(const RootContext& context) override;
+
 private:
     /**
      * This method must be called to start the action running.

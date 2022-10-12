@@ -950,3 +950,4 @@ TEST_F(EditTextComponentTest, NoOpWhenAlreadyInFocus) {
     loop->advanceToEnd();
     ASSERT_FALSE(root->hasEvent());
 }
+

@@ -29,7 +29,7 @@ public:
     }
 
     void loadGraphic(const char *str, const StyleInstancePtr& style = nullptr) {
-        GraphicContentPtr gc = GraphicContent::create(session, str);
+        gc = GraphicContent::create(session, str);
         ASSERT_TRUE(gc);
         auto jr = JsonResource(&gc->get(), Path());
         auto context = Context::createTestContext(metrics, *config);
@@ -56,8 +56,9 @@ public:
         DocumentWrapper::TearDown();
     }
 
+    GraphicContentPtr gc;
     GraphicPtr graphic;
-    SharedMapPtr propertyValues;
+    ObjectMapPtr propertyValues;
 };
 
 static const char * HEART =
@@ -2300,7 +2301,7 @@ TEST_F(GraphicTest, LocalResourcedPattern)
 
     auto fillPattern = path->getValue(kGraphicPropertyFill);
     ASSERT_TRUE(fillPattern.isGraphicPattern());
-    auto fillPatternId = fillPattern.getGraphicPattern()->getId();
+    auto fillPatternId = fillPattern.getGraphicPattern()->getUniqueId();
 
     auto fillPath = fillPattern.getGraphicPattern()->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypePath, fillPath->getType());
@@ -2311,7 +2312,7 @@ TEST_F(GraphicTest, LocalResourcedPattern)
 
     auto strokePattern = text->getValue(kGraphicPropertyStroke);
     ASSERT_TRUE(strokePattern.isGraphicPattern());
-    auto strokePatternId = strokePattern.getGraphicPattern()->getId();
+    auto strokePatternId = strokePattern.getGraphicPattern()->getUniqueId();
 
     auto strokePath = strokePattern.getGraphicPattern()->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypePath, strokePath->getType());

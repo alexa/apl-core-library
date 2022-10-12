@@ -14,6 +14,7 @@
  */
 
 #include "apl/command/reinflatecommand.h"
+#include "apl/time/sequencer.h"
 
 namespace apl {
 
@@ -21,7 +22,7 @@ const CommandPropDefSet&
 ReinflateCommand::propDefSet() const
 {
     static CommandPropDefSet sReinflateCommandProperties(CoreCommand::propDefSet(), {
-        // This space reserved for properties to be added in the future
+        { kCommandPropertyPreservedSequencers, Object::EMPTY_ARRAY(), asArray }
     });
 
     return sReinflateCommandProperties;
@@ -32,6 +33,17 @@ ReinflateCommand::execute(const TimersPtr& timers, bool fastMode)
 {
     if (!calculateProperties())
         return nullptr;
+
+    auto preservedSequencersList = mValues.find(kCommandPropertyPreservedSequencers);
+    if (preservedSequencersList->second.isArray()) {
+        auto sequencers = std::set<std::string>();
+        for (auto& so : preservedSequencersList->second.getArray()) {
+            if (!so.empty()) {
+                sequencers.emplace(so.asString());
+            }
+        }
+        mContext->sequencer().setPreservedSequencers(sequencers);
+    }
 
     // Return a simple action that pushes the event and does nothing else.  The view host must
     // resolve this event to allow further events in the sequencer to execute.

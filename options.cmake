@@ -31,6 +31,8 @@ option(USE_PROVIDED_YOGA_INLINE "Use the provided yoga and build it directly int
 option(ENABLE_ALEXAEXTENSIONS "Use the Alexa Extensions library." OFF)
 option(BUILD_ALEXAEXTENSIONS "Build Alexa Extensions library as part of the project." OFF)
 
+option(ENABLE_SCENEGRAPH "Build and enable Scene Graph support" OFF)
+
 # Test options
 option(BUILD_TESTS "Build unit tests and test programs." OFF)
 option(BUILD_TEST_PROGRAMS "Build test programs. Included if BUILD_TESTS=ON" OFF)
@@ -50,6 +52,17 @@ endif(BUILD_ALEXAEXTENSIONS)
 if(ENABLE_ALEXAEXTENSIONS)
     set(ALEXAEXTENSIONS ON)
 endif(ENABLE_ALEXAEXTENSIONS)
+
+if(ENABLE_SCENEGRAPH)
+    set(SCENEGRAPH ON)
+endif(ENABLE_SCENEGRAPH)
+
+# Enumgen is only built for certain platforms
+if (NOT APPLE)
+    set(BUILD_ENUMGEN ON)
+else()
+    set(BUILD_ENUMGEN OFF)
+endif()
 
 # Building Yoga inline depends on having the FetchContent module
 if(USE_PROVIDED_YOGA_INLINE AND NOT HAS_FETCH_CONTENT)

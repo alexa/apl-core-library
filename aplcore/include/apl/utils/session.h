@@ -141,7 +141,7 @@ private:
     streamer mStringStream;
 };
 
-#define CONSOLE(SESSION_HODER) SessionMessage(SESSION_HODER,__FILENAME__,__func__)
+#define CONSOLE(SESSION_HOLDER) SessionMessage(SESSION_HOLDER,__FILENAME__,__func__)
 
 } // namespace apl
 

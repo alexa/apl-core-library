@@ -12,15 +12,26 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-#include <string>
 
-#include "apl/component/componentpropdef.h"
 #include "apl/component/edittextcomponent.h"
+#include "apl/component/componentpropdef.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/event.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/primitives/unicode.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/edittextconfig.h"
+#include "apl/scenegraph/edittext.h"
+#include "apl/scenegraph/edittextfactory.h"
+#include "apl/scenegraph/scenegraphupdates.h"
+#include "apl/scenegraph/edittextbox.h"
+#include "apl/scenegraph/textchunk.h"
+#include "apl/scenegraph/textlayout.h"
+#include "apl/scenegraph/textmeasurement.h"
+#include "apl/scenegraph/utilities.h"
+#endif // SCENEGRAPH
 #include "apl/time/sequencer.h"
 #include "apl/touch/pointerevent.h"
 
@@ -41,9 +52,32 @@ EditTextComponent::EditTextComponent(const ContextPtr& context,
                                      const Path& path)
         : ActionableComponent(context, std::move(properties), path)
 {
-    YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc);
-    YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc);
-    YGNodeSetNodeType(mYGNodeRef, YGNodeTypeText);
+#ifdef SCENEGRAPH
+    static auto sgTextMeasureFunc = [](YGNodeRef node, float width, YGMeasureMode widthMode,
+                                       float height, YGMeasureMode heightMode) -> YGSize {
+        // TODO: Hash this properly so we don't call it multiple times
+        auto self = static_cast<EditTextComponent *>(node->getContext());
+        return self->measureEditText(
+            MeasureRequest(width, toMeasureMode(widthMode), height, toMeasureMode(heightMode)));
+    };
+
+    static auto sgTextBaselineFunc = [](YGNodeRef node, float width, float height) -> float {
+        auto self = static_cast<EditTextComponent*>(node->getContext());
+        return self->baselineText(width, height);
+    };
+
+    if (context->getRootConfig().getEditTextFactory()) {
+        YGNodeSetMeasureFunc(mYGNodeRef, sgTextMeasureFunc);
+        YGNodeSetBaselineFunc(mYGNodeRef, sgTextBaselineFunc);
+        YGNodeSetNodeType(mYGNodeRef, YGNodeTypeDefault);
+    } else {
+#endif // SCENEGRAPH
+        YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc);
+        YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc);
+        YGNodeSetNodeType(mYGNodeRef, YGNodeTypeText);
+#ifdef SCENEGRAPH
+    }
+#endif // SCENEGRAPH
 }
 
 /*
@@ -62,6 +96,8 @@ EditTextComponent::assignProperties(const ComponentPropDefSet& propDefSet)
     const auto& current = getCalculated(kPropertyText).getString();
     const auto& valid = getCalculated(kPropertyValidCharacters).getString();
     auto text = utf8StripInvalid(current, valid);
+    utf8StringTrim(text, getCalculated(kPropertyMaxLength).getInteger());
+
     if (text != current)
         mCalculated.set(kPropertyText, text);
 
@@ -102,47 +138,137 @@ static inline Object defaultHighlightColor(Component& component, const RootConfi
 const ComponentPropDefSet&
 EditTextComponent::propDefSet() const
 {
-    // This is only called from 'setProperty()'
-    static auto checkText = [](Component& component) {
-        auto& coreComp = dynamic_cast<EditTextComponent&>(component);
-        const auto& current = component.getCalculated(kPropertyText).getString();
-        const auto& valid = component.getCalculated(kPropertyValidCharacters).getString();
-        auto text = utf8StripInvalid(current, valid);
-        if (text != current) {
-            coreComp.mCalculated.set(kPropertyText, text);
-            coreComp.setDirty(kPropertyText);
+    // Private convenience routine to re-scan text, update the stored valued, and let the
+    // edit layout know that the text has changed.
+    static auto checkText = [](EditTextComponent& self) {
+        const auto& unstripped = self.getCalculated(kPropertyText).getString();
+        auto stripped = utf8StripInvalidAndTrim(unstripped,
+                                                self.getCalculated(kPropertyValidCharacters).getString(),
+                                                self.getCalculated(kPropertyMaxLength).getInteger());
+        if (stripped != unstripped) {
+            self.mCalculated.set(kPropertyText, stripped);
+            self.setDirty(kPropertyText);
         }
     };
 
+    static auto hintTextChanged = [](Component& component) -> void {
+#ifdef SCENEGRAPH
+        auto& self = static_cast<EditTextComponent&>(component);
+        self.mHintText = nullptr;
+        self.mHintLayout = nullptr;
+#endif // SCENEGRAPH
+    };
+
+    static auto textChanged = [](Component& component) -> void {
+        auto& self = static_cast<EditTextComponent&>(component);
+        checkText(self);
+    };
+
+    static auto clearEditConfig = [](Component& component) -> void {
+#ifdef SCENEGRAPH
+        auto& self = static_cast<EditTextComponent&>(component);
+        self.mEditTextConfig = nullptr;
+#endif // SCENEGRAPH
+    };
+
+    static auto clearEditConfigAndCheckText = [](Component& component) -> void {
+        auto& self = static_cast<EditTextComponent&>(component);
+#ifdef SCENEGRAPH
+        self.mEditTextConfig = nullptr;
+#endif // SCENEGRAPH
+        checkText(self);
+    };
+
+    static auto hintStyleOrWeightChanged = [](Component& component) -> void {
+#ifdef SCENEGRAPH
+        auto& self = static_cast<EditTextComponent&>(component);
+        self.mHintLayout = nullptr;
+        self.mHintTextProperties = nullptr;
+#endif // SCENEGRAPH
+    };
+
+    static auto styleOrWeightChanged = [](Component& component) -> void {
+#ifdef SCENEGRAPH
+        auto& self = static_cast<EditTextComponent&>(component);
+        self.mEditTextProperties = nullptr;
+        self.mEditTextBox = nullptr;
+        self.mEditTextConfig = nullptr;
+
+        if (!self.mLastMeasureRequest.isExact())
+            YGNodeMarkDirty(self.mYGNodeRef);
+#endif // SCENEGRAPH
+    };
+
+    static auto familyOrSizeChanged = [](Component& component) -> void {
+#ifdef SCENEGRAPH
+        auto& self = static_cast<EditTextComponent&>(component);
+        self.mHintLayout = nullptr;
+        self.mHintTextProperties = nullptr;
+        self.mEditTextProperties = nullptr;
+        self.mEditTextBox = nullptr;
+        self.mEditTextConfig = nullptr;
+
+        if (!self.mLastMeasureRequest.isExact())
+            YGNodeMarkDirty(self.mYGNodeRef);
+#endif // SCENEGRAPH
+    };
+
+    static auto sizeChanged = [](Component& component) -> void {
+#ifdef SCENEGRAPH
+        auto& self = static_cast<EditTextComponent&>(component);
+        self.mEditTextBox = nullptr;
+
+        if (!self.mLastMeasureRequest.isExact())
+            YGNodeMarkDirty(self.mYGNodeRef);
+#endif // SCENEGRAPH
+    };
+
+    /*
+     * What affects the layout on the screen?
+     *
+     * First, if the last measure mode was EXACTLY, then we don't need another global layout
+     * If the last measure mode was UNDEFINED or AT_MOST then we probably _do_ need another global layout
+     *
+     * Second, the following properties can actually change the measurements:
+     *
+     *   FontFamily     FontWeight    BorderWidth
+     *   FontSize       FontStyle     Size
+     *
+     * Note that BorderWidth directy calls yn::setBorder<YGEdgeAll>, so it will trigger a layout
+     * pass if needed.
+     *
+     * We'll assume that the hint never affects the global layout (it just has to fit in the box)
+     */
     static ComponentPropDefSet sEditTextComponentProperties(ActionableComponent::propDefSet(), {
             {kPropertyBorderColor,              Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
             {kPropertyBorderWidth,              Dimension(0),                   asNonNegativeAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic,                                yn::setBorder<YGEdgeAll>, resolveDrawnBorder},
-            {kPropertyColor,                    Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash,                                defaultFontColor},
-            {kPropertyFontFamily,               "",                             asString,                       kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash,  defaultFontFamily},
-            {kPropertyFontSize,                 Dimension(40),                  asAbsoluteDimension,            kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
-            {kPropertyFontStyle,                kFontStyleNormal,               sFontStyleMap,                  kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
-            {kPropertyFontWeight,               400,                            sFontWeightMap,                 kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
-            {kPropertyHighlightColor,           Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash,                                defaultHighlightColor},
-            {kPropertyHint,                     "",                             asString,                       kPropInOut | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
-            {kPropertyHintColor,                Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash,                                defaultFontColor},
-            {kPropertyHintStyle,                kFontStyleNormal,               sFontStyleMap,                  kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
-            {kPropertyHintWeight,               400,                            sFontWeightMap,                 kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
-            {kPropertyKeyboardType,             kKeyboardTypeNormal,            sKeyboardTypeMap,               kPropInOut | kPropStyled},
-            {kPropertyLang,                     "",                             asString,                       kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash,  inheritLang},
-            {kPropertyMaxLength,                0,                              asInteger,                      kPropInOut | kPropStyled | kPropTextHash | kPropVisualHash},
+            {kPropertyColor,                    Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash,                               clearEditConfig, defaultFontColor},
+            {kPropertyFontFamily,               "",                             asString,                       kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, familyOrSizeChanged, defaultFontFamily},
+            {kPropertyFontSize,                 Dimension(40),                  asAbsoluteDimension,            kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, familyOrSizeChanged},
+            {kPropertyFontStyle,                kFontStyleNormal,               sFontStyleMap,                  kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, styleOrWeightChanged},
+            {kPropertyFontWeight,               400,                            sFontWeightMap,                 kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, styleOrWeightChanged},
+            {kPropertyHighlightColor,           Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash, clearEditConfig,              defaultHighlightColor},
+            {kPropertyHint,                     "",                             asString,                       kPropInOut | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash,               hintTextChanged},
+            {kPropertyHintColor,                Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash,                               defaultFontColor},
+            {kPropertyHintStyle,                kFontStyleNormal,               sFontStyleMap,                  kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, hintStyleOrWeightChanged},
+            {kPropertyHintWeight,               400,                            sFontWeightMap,                 kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, hintStyleOrWeightChanged},
+            {kPropertyKeyboardType,             kKeyboardTypeNormal,            sKeyboardTypeMap,               kPropInOut | kPropStyled, clearEditConfig},
+            {kPropertyLang,                     "",                             asString,                       kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, clearEditConfig, inheritLang},
+            {kPropertyMaxLength,                0,                              asInteger,                      kPropInOut | kPropStyled | kPropTextHash | kPropVisualHash, clearEditConfigAndCheckText},
             {kPropertyOnSubmit,                 Object::EMPTY_ARRAY(),          asCommand,                      kPropIn},
             {kPropertyOnTextChange,             Object::EMPTY_ARRAY(),          asCommand,                      kPropIn},
-            {kPropertySecureInput,              false,                          asBoolean,                      kPropInOut | kPropStyled | kPropDynamic},
-            {kPropertyKeyboardBehaviorOnFocus,  kBehaviorOnFocusSystemDefault,  sKeyboardBehaviorOnFocusMap,    kPropIn | kPropStyled},
-            {kPropertySelectOnFocus,            false,                          asBoolean,                      kPropInOut | kPropStyled},
-            {kPropertySize,                     8,                              asPositiveInteger,              kPropInOut | kPropStyled | kPropLayout},
-            {kPropertySubmitKeyType,            kSubmitKeyTypeDone,             sSubmitKeyTypeMap,              kPropInOut | kPropStyled},
-            {kPropertyText,                     "",                             asString,                       kPropInOut | kPropDynamic | kPropVisualContext | kPropTextHash | kPropVisualHash, checkText},
-            {kPropertyValidCharacters,          "",                             asString,                       kPropIn | kPropStyled, checkText},
+            {kPropertySecureInput,              false,                          asBoolean,                      kPropInOut | kPropStyled | kPropDynamic, clearEditConfig},
+            {kPropertyKeyboardBehaviorOnFocus,  kBehaviorOnFocusSystemDefault,  sKeyboardBehaviorOnFocusMap,    kPropIn | kPropStyled, clearEditConfig},
+            {kPropertySelectOnFocus,            false,                          asBoolean,                      kPropInOut | kPropStyled, clearEditConfig },
+            {kPropertySize,                     8,                              asPositiveInteger,              kPropInOut | kPropStyled | kPropLayout, sizeChanged},
+            {kPropertySubmitKeyType,            kSubmitKeyTypeDone,             sSubmitKeyTypeMap,              kPropInOut | kPropStyled, clearEditConfig},
+            {kPropertyText,                     "",                             asString,                       kPropInOut | kPropDynamic | kPropVisualContext | kPropTextHash | kPropVisualHash,
+             textChanged},
+            {kPropertyValidCharacters,          "",                             asString,                       kPropIn | kPropStyled, clearEditConfigAndCheckText},
 
             // The width of the drawn border.  If borderStrokeWith is set, the drawn border is the min of borderWidth
             // and borderStrokeWidth.  If borderStrokeWidth is unset, the drawn border defaults to borderWidth
-            {kPropertyBorderStrokeWidth,        Object::NULL_OBJECT(),          asNonNegativeAbsoluteDimension, kPropIn | kPropStyled | kPropDynamic,                                                     resolveDrawnBorder},
+            {kPropertyBorderStrokeWidth,        Object::NULL_OBJECT(),          asNonNegativeAbsoluteDimension, kPropIn | kPropStyled | kPropDynamic, resolveDrawnBorder},
             {kPropertyDrawnBorderWidth,         Object::NULL_OBJECT(),          asNonNegativeAbsoluteDimension, kPropOut | kPropVisualHash},
     });
 
@@ -231,12 +357,350 @@ EditTextComponent::processPointerEvent(const PointerEvent& event, apl_time_t tim
 }
 
 void
+EditTextComponent::executeOnBlur()
+{
+    ActionableComponent::executeOnBlur();
+#ifdef SCENEGRAPH
+    if (mEditText)
+        mEditText->setFocus(false);
+#endif // SCENEGRAPH
+}
+
+void
 EditTextComponent::executeOnFocus() {
     ActionableComponent::executeOnFocus();
 
     if (getCalculated(kPropertyKeyboardBehaviorOnFocus) == kBehaviorOnFocusOpenKeyboard) {
         getContext()->pushEvent(Event(kEventTypeOpenKeyboard, shared_from_this()));
     }
+
+#ifdef SCENEGRAPH
+    if (mEditText)
+        mEditText->setFocus(true);
+#endif // SCENEGRAPH
 }
+
+#ifdef SCENEGRAPH
+YGSize
+EditTextComponent::measureEditText(MeasureRequest&& request)
+{
+    if (request != mLastMeasureRequest) {
+        mLastMeasureRequest = std::move(request);
+        mEditTextBox = nullptr;
+    }
+
+    if (!mEditTextBox) {
+        ensureEditTextProperties();
+
+        auto measure = std::dynamic_pointer_cast<sg::TextMeasurement>(mContext->measure());
+        assert(measure);
+
+        mEditTextBox = measure->box(
+            getCalculated(kPropertySize).getInteger(),
+            mEditTextProperties,
+            mLastMeasureRequest.width(),
+            mLastMeasureRequest.widthMode(),
+            mLastMeasureRequest.height(),
+            mLastMeasureRequest.heightMode());
+    }
+
+    if (!mEditTextBox)   // No box, no layout
+        return {0, 0};
+
+    auto size = mEditTextBox->getSize();
+    return YGSize{ size.getWidth(), size.getHeight() };
+}
+
+float
+EditTextComponent::baselineText(float width, float height)
+{
+    // This should only be called if the component has been laid out.
+    return mEditTextBox ? mEditTextBox->getBaseline() : 0.0f;
+}
+
+/*
+ * The EditText scene graph structure:
+ *
+ * Layer
+ *   - Content
+ *        DrawNode: Border
+ *        TransformNode
+ *            DrawText: Hint    (set color to transparent if it is hidden)
+ *   - Children
+ *        Layer
+ *            EditTextNode:
+ */
+sg::LayerPtr
+EditTextComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
+{
+    assert(!mEditText);  // The edit text is only constructed once
+
+    ensureEditTextBox();
+    ensureEditConfig();
+    ensureHintLayout();
+
+    // Construct the edit text
+    auto factory = mContext->getRootConfig().getEditTextFactory();
+    assert(factory);
+
+    // Note: We pass "this" to the callbacks because this class is careful to release()
+    // the EditText before it is destroyed
+    mEditText = factory->createEditText(
+        [&]() {
+            // Run the "onSubmit" callbacks (if there are any)
+            auto commands = mCalculated.get(kPropertyOnSubmit);
+            if (commands.isArray() && commands.size() > 0) {
+                auto eventContext = createEventContext("Submit");
+                mContext->sequencer().executeCommands(commands, eventContext,
+                                                      shared_from_corecomponent(), false);
+            }
+        },
+        [&](const std::string& text) {
+            // Set the text. Only run the event handler if it actually changed
+            auto old = mCalculated.get(kPropertyText);
+            setProperty(kPropertyText, text);
+            if (old != mCalculated.get(kPropertyText)) {
+                auto commands = mCalculated.get(kPropertyOnTextChange);
+                if (commands.isArray() && commands.size() > 0) {
+                    auto eventContext = createEventContext("TextChange");
+                    mContext->sequencer().executeCommands(commands, eventContext,
+                                                          shared_from_corecomponent(), false);
+                }
+            }
+        },
+        [&](bool focused) {
+            // Inform the focus manager of a potential focus change
+            if (focused)
+                mContext->focusManager().setFocus(shared_from_corecomponent(), false);
+            else
+                mContext->focusManager().releaseFocus(shared_from_corecomponent(), false);
+        });
+
+    // Build the scene graph
+    auto layer = CoreComponent::constructSceneGraphLayer(sceneGraph);
+    assert(layer);
+
+    auto size = getCalculated(kPropertyBounds).getRect().getSize();
+    auto outline = Rect{0, 0, size.getWidth(), size.getHeight()};
+    auto strokeWidth = getCalculated(kPropertyDrawnBorderWidth).asFloat();
+
+    // The first content node draws the border
+    layer->appendContent(
+        sg::draw(sg::path(RoundedRect{outline, 0}, strokeWidth),
+                 sg::fill(sg::paint(getCalculated(kPropertyBorderColor)))));
+
+    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect();
+    auto hintSize = mHintLayout->getSize();
+
+    // The second content node draws the hint.  The hint is transparent if the edit control
+    // has text to display.
+    // TODO: Fix auto for RTOL text based on language
+    Color hintColor = getCalculated(kPropertyText).empty()
+                         ? getCalculated(kPropertyHintColor).getColor() : Color::TRANSPARENT;
+    layer->appendContent(sg::transform(
+        Point{innerBounds.getLeft(), innerBounds.getCenterY() - hintSize.getHeight() / 2},
+        sg::text(mHintLayout, sg::fill(sg::paint(hintColor)))));
+
+    // Construct an inner layer for the actual edit text
+    auto innerLayer = sg::layer(mUniqueId + "-innerEditText", innerBounds, 1.0, Transform2D());
+    innerLayer->appendContent(sg::editText(mEditText.getPtr(), mEditTextBox,
+                                           mEditTextConfig, getCalculated(kPropertyText).getString()));
+    innerLayer->clearFlags();
+
+    layer->appendChild(innerLayer);
+
+    return layer;
+}
+
+bool
+EditTextComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
+{
+    auto result = false;
+
+    // Fix the border
+    const auto outlineChanged          = isDirty(kPropertyBounds);
+    const auto borderWidthChanged      = isDirty(kPropertyBorderWidth);
+    const auto drawnBorderWidthChanged = isDirty(kPropertyDrawnBorderWidth);
+    const auto borderColorChanged      = isDirty(kPropertyBorderColor);
+
+    if (outlineChanged || borderWidthChanged || drawnBorderWidthChanged || borderColorChanged) {
+        auto* draw = sg::DrawNode::cast(mSceneGraphLayer->content().at(0));
+        auto* path = sg::FramePath::cast(draw->getPath());
+
+        if (outlineChanged || borderWidthChanged || drawnBorderWidthChanged) {
+            auto size = getCalculated(kPropertyBounds).getRect().getSize();
+            auto outline = RoundedRect(Rect{0,0,size.getWidth(), size.getHeight()}, 0);
+            result |= path->setRoundedRect(outline);
+            result |= path->setInset(getCalculated(kPropertyDrawnBorderWidth).asFloat());
+        }
+
+        if (borderColorChanged) {
+            auto* paint = sg::ColorPaint::cast(draw->getOp()->paint);
+            result |= paint->setColor(getCalculated(kPropertyBorderColor).getColor());
+        }
+    }
+
+    const bool fixInnerBounds = isDirty(kPropertyInnerBounds);
+    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect();
+
+    const auto fixText = isDirty(kPropertyText);
+
+    // Fix the hint.  Note: If the text has changed, the hint color may need to turn on or off
+    const auto fixHintLayout = ensureHintLayout();
+    const bool fixHintColor = isDirty(kPropertyHintColor) || fixText;
+
+    if (fixInnerBounds || fixHintLayout || fixHintColor) {
+        auto* transform = sg::TransformNode::cast(mSceneGraphLayer->content().at(1));
+        auto* text = sg::TextNode::cast(transform->child());
+
+        if (fixInnerBounds || fixHintLayout) {
+            auto hintSize = mHintLayout->getSize();
+            result |= transform->setTransform(Transform2D::translate(
+                innerBounds.getLeft(), innerBounds.getCenterY() - hintSize.getHeight() / 2));
+        }
+
+        if (fixHintLayout)
+            result |= text->setTextLayout(mHintLayout);
+
+        auto hintColor = getCalculated(kPropertyText).empty()
+                             ? getCalculated(kPropertyHintColor).getColor()
+                             : Color::TRANSPARENT;
+
+        // Redraw the content if the hint color changes (even if there is no hint)
+        result |= sg::ColorPaint::cast(text->getOp()->paint)->setColor(hintColor);
+    }
+
+    // Fix the edit text.  This is in an inner layer, so the "result" variable is not changed
+    const auto fixEditConfig = ensureEditConfig();
+    const auto fixEditBox = ensureEditTextBox();
+
+    if (fixInnerBounds || fixEditConfig || fixText || fixEditBox) {
+        auto innerLayer = mSceneGraphLayer->children().at(0);
+        auto *editNode = sg::EditTextNode::cast(innerLayer->content().at(0));
+
+        if (fixInnerBounds)
+            innerLayer->setBounds(innerBounds);
+
+        if (fixEditConfig && editNode->setEditTextConfig(mEditTextConfig))
+            innerLayer->setFlag(sg::Layer::kFlagRedrawContent);
+
+        if (fixText && editNode->setText(getCalculated(kPropertyText).getString()))
+            innerLayer->setFlag(sg::Layer::kFlagRedrawContent);
+
+        if (fixEditBox && editNode->setEditTextBox(mEditTextBox))
+            innerLayer->setFlag(sg::Layer::kFlagRedrawContent);
+
+        // Transfer any layer changes to the change map
+        sceneGraph.changed(innerLayer);
+    }
+
+    return result;
+}
+
+
+bool
+EditTextComponent::ensureEditTextBox()
+{
+    if (mEditTextBox)
+        return false;
+
+    ensureEditTextProperties();
+
+    auto measure = std::dynamic_pointer_cast<sg::TextMeasurement>(mContext->measure());
+    assert(measure);
+
+    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect();
+
+    mEditTextBox = measure->box(getCalculated(kPropertySize).getInteger(),
+                                mEditTextProperties,
+                                innerBounds.getWidth(),
+                                MeasureMode::AtMost,
+                                innerBounds.getHeight(),
+                                MeasureMode::AtMost);
+
+    return true;
+}
+
+bool
+EditTextComponent::ensureEditConfig()
+{
+    if (mEditTextConfig)
+        return false;
+
+    ensureEditTextProperties();
+
+    mEditTextConfig = sg::EditTextConfig::create(
+        getCalculated(kPropertyColor).getColor(),
+        getCalculated(kPropertyHighlightColor).getColor(),
+        getCalculated(kPropertyKeyboardType).asEnum<KeyboardType>(),
+        getCalculated(kPropertyLang).asString(),
+        getCalculated(kPropertyMaxLength).asInt(),
+        getCalculated(kPropertySecureInput).asBoolean(),
+        getCalculated(kPropertySubmitKeyType).asEnum<SubmitKeyType>(),
+        getCalculated(kPropertyValidCharacters).asString(),
+        getCalculated(kPropertySelectOnFocus).asBoolean(),
+        getCalculated(kPropertyKeyboardBehaviorOnFocus).asEnum<KeyboardBehaviorOnFocus>(),
+        mEditTextProperties);
+
+    return true;
+}
+
+bool
+EditTextComponent::ensureEditTextProperties()
+{
+    if (mEditTextProperties)
+        return false;
+
+    mEditTextProperties = sg::TextProperties::create(
+        mContext->textPropertiesCache(),
+        sg::splitFontString(mContext->getRootConfig(),
+                            getCalculated(kPropertyFontFamily).getString()),
+        getCalculated(kPropertyFontSize).asFloat(),
+        getCalculated(kPropertyFontStyle).asEnum<FontStyle>(),
+        getCalculated(kPropertyFontWeight).getInteger());
+
+    return true;
+}
+
+/**
+ * Ensure that the hint layout has been constructed.  This should only be called after a layout
+ * pass so that we have a valid "innerBounds" property.
+ */
+bool
+EditTextComponent::ensureHintLayout()
+{
+    if (mHintLayout)
+        return false;
+
+    if (!mHintText)
+        mHintText = sg::TextChunk::create(getCalculated(kPropertyHint).getString());
+
+    const auto* context = mContext.get();
+    assert(context);
+
+    if (!mHintTextProperties)
+        mHintTextProperties = sg::TextProperties::create(
+            context->textPropertiesCache(),
+            sg::splitFontString(context->getRootConfig(),
+                                getCalculated(kPropertyFontFamily).getString()),
+            getCalculated(kPropertyFontSize).asFloat(),
+            getCalculated(kPropertyHintStyle).asEnum<FontStyle>(),
+            getCalculated(kPropertyHintWeight).getInteger(),
+            0,     // Letter spacing
+            1.25f, // Line height
+            1      // Max lines (force hint on a single line
+        );
+
+    auto borderWidth = getCalculated(kPropertyBorderWidth).asFloat();
+    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect().inset(borderWidth);
+    auto measure = std::dynamic_pointer_cast<sg::TextMeasurement>(context->measure());
+    assert(measure);
+
+    mHintLayout =
+        measure->layout(mHintText, mHintTextProperties, innerBounds.getWidth(), MeasureMode::AtMost,
+                        innerBounds.getHeight(), MeasureMode::AtMost);
+    return true;
+}
+#endif // SCENEGRAPH
 
 }  // namespace apl

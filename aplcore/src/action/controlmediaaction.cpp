@@ -79,33 +79,28 @@ ControlMediaAction::start()
     if (mediaPlayer) {
         switch (mediaCommand) {
             case kCommandControlMediaPlay:
-                mediaPlayer->play(shared_from_this());
+                mediaPlayer->play(apl::ActionRef(nullptr));
                 break;
             case kCommandControlMediaPause:
                 mediaPlayer->pause();
-                resolve();
                 break;
             case kCommandControlMediaNext:
                 mediaPlayer->next();
-                resolve();
                 break;
             case kCommandControlMediaPrevious:
                 mediaPlayer->previous();
-                resolve();
                 break;
             case kCommandControlMediaRewind:
                 mediaPlayer->rewind();
-                resolve();
                 break;
             case kCommandControlMediaSeek:
                 mediaPlayer->seek(value.getInteger());
-                resolve();
                 break;
             case kCommandControlMediaSetTrack:
                 mediaPlayer->setTrackIndex(value.getInteger());
-                resolve();
                 break;
         }
+        resolve();
     }
     else {
         EventBag bag;

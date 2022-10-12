@@ -140,3 +140,50 @@ TEST_F(DisplayStateTest, DisplayStateChangeCommandHasExpectedName)
     auto command = DisplayStateChangeCommand::create(root, ObjectMap());
     ASSERT_TRUE(IsEqual("DisplayStateChangeCommand", command->name()));
 }
+
+static const char *DISPLAY_STATE_DELAY = R"apl(
+{
+  "type": "APL",
+  "version": "1.8",
+  "mainTemplate": {
+    "item": {
+      "type": "Text",
+      "id": "TEXT",
+      "text": "Hello there"
+    }
+  },
+  "onDisplayStateChange": [
+    {
+      "type": "SetValue",
+      "componentId": "TEXT",
+      "property": "text",
+      "value": "${event.displayState} alpha"
+    },
+    {
+      "type": "SetValue",
+      "componentId": "TEXT",
+      "property": "text",
+      "value": "${event.displayState} beta"
+    }
+  ]
+}
+)apl";
+
+TEST_F(DisplayStateTest, DisplayStateDelayAndTerminate)
+{
+    loadDocument(DISPLAY_STATE_DELAY);
+    ASSERT_TRUE(component);
+
+    // When we change the state, both commands in the queue execute
+    root->updateDisplayState(apl::kDisplayStateBackground);
+    ASSERT_TRUE(IsEqual(component->getProperty(kPropertyText).asString(), "background alpha"));
+    root->clearPending();  // The second command doesn't run until we clear the pending queue
+    ASSERT_TRUE(IsEqual(component->getProperty(kPropertyText).asString(), "background beta"));
+
+    // Change the state, but this time destroy the RootContext before the second
+    // command can run.  The second command should NOT run in this case.
+    root->updateDisplayState(apl::kDisplayStateForeground);
+    ASSERT_TRUE(IsEqual(component->getProperty(kPropertyText).asString(), "foreground alpha"));
+    root = nullptr;  // This should trigger the destructor of RootContext
+    ASSERT_TRUE(IsEqual(component->getProperty(kPropertyText).asString(), "foreground alpha"));
+}

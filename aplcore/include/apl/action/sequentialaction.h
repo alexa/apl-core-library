@@ -24,20 +24,22 @@ namespace apl {
 class SequentialAction : public Action {
 public:
     static std::shared_ptr<SequentialAction> make(const TimersPtr& timers,
-                                                  std::shared_ptr<const CoreCommand> command, bool fastMode) {
-        auto ptr = std::make_shared<SequentialAction>(timers, command, fastMode);
-        ptr->advance();
-        return ptr;
-    }
+                                                  std::shared_ptr<CoreCommand>& command,
+                                                  bool fastMode);
 
-    SequentialAction(const TimersPtr& timers, std::shared_ptr<const CoreCommand> command, bool fastMode);
+    SequentialAction(const TimersPtr& timers,
+                     std::shared_ptr<CoreCommand>& command,
+                     bool fastMode);
+
+    void freeze() override;
+    bool rehydrate(const RootContext& context) override;
 
 private:
     void advance();
     bool doCommand(const Object& command);
 
 private:
-    std::shared_ptr<const CoreCommand> mCommand;
+    std::shared_ptr<CoreCommand> mCommand;
     bool mFastMode;
     bool mStateFinally;
 

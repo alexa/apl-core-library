@@ -19,6 +19,7 @@
 #include <functional>
 #include <string>
 
+#include "apl/apl_config.h"
 #include "apl/common.h"
 #include "apl/engine/event.h"
 #include "apl/primitives/size.h"
@@ -41,7 +42,7 @@ using MediaObjectCallback = std::function<void(const MediaObjectPtr&)>;
  * Releasing the shared pointer to the media object may also release the downloaded content.  Components
  * should hold onto the media object pointers as long as they are needed to render on-screen content.
  */
-class MediaObject : NonCopyable,
+class MediaObject : public NonCopyable,
                     public Counter<MediaObject> {
 public:
     using CallbackID = int;
@@ -110,6 +111,12 @@ public:
      * @param callbackToken token received from @see MediaObject::addCallback()
      */
     virtual void removeCallback(CallbackID callbackToken) = 0;
+
+    virtual rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const {
+        auto out = rapidjson::Value(rapidjson::kObjectType);
+        out.AddMember("url", rapidjson::Value(url().c_str(), allocator), allocator);
+        return out;
+    }
 };
 
 /**

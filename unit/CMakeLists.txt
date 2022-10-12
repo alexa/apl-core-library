@@ -24,12 +24,18 @@ add_executable( unittest
         debugtools.cpp
         unittest_simpletextmeasurement.cpp
         unittest_testeventloop.cpp
+)
+
+if (BUILD_ENUMGEN)
+    target_sources(unittest PRIVATE
         ../tools/src/enumparser.cpp
         unittest_enumgen.cpp
-)
+    )
+endif()
 
 add_subdirectory(action)
 add_subdirectory(animation)
+add_subdirectory(audio)
 add_subdirectory(command)
 add_subdirectory(component)
 add_subdirectory(content)
@@ -43,6 +49,9 @@ add_subdirectory(livedata)
 add_subdirectory(media)
 add_subdirectory(primitives)
 add_subdirectory(scaling)
+if(ENABLE_SCENEGRAPH)
+    add_subdirectory(scenegraph)
+endif(ENABLE_SCENEGRAPH)
 add_subdirectory(time)
 add_subdirectory(touch)
 add_subdirectory(utils)

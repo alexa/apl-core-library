@@ -335,6 +335,9 @@ TEST(DocumentTest, LoadOneDependency)
     ASSERT_FALSE(content->isWaiting());
 
     ASSERT_EQ("1.1", content->getAPLVersion());
+
+    auto expected = std::vector<std::string>{ "basic:1.2"};
+    ASSERT_EQ(expected, content->getLoadedPackageNames());
 }
 
 const char *INCOMPATIBLE_MAIN = R"apl({
@@ -669,6 +672,9 @@ TEST(DocumentTest, MultipleDependencies)
     ASSERT_EQ(Object("Original_A"), context->opt("@overwrite_A"));
     ASSERT_EQ(Object("Original_B"), context->opt("@overwrite_B"));
     ASSERT_EQ(Object("B"), context->opt("@overwrite_C"));
+
+    auto expected = std::vector<std::string>{ "A:2.2", "B:1.0", "C:1.5" };
+    ASSERT_EQ(expected, doc->getLoadedPackageNames());
 }
 
 static const char *DUPLICATE = R"apl({
@@ -755,6 +761,9 @@ TEST(DocumentTest, Duplicate)
     ASSERT_EQ(2, root->info().resources().size());
     ASSERT_EQ(Object("Not A"), context->opt("@A"));
     ASSERT_EQ(Object("B"), context->opt("@B"));
+
+    auto expected = std::vector<std::string>{ "A:1.2", "A:2.2" };
+    ASSERT_EQ(expected, doc->getLoadedPackageNames());
 }
 
 const char *FAKE_MAIN_TEMPLATE = R"apl({

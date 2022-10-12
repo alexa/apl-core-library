@@ -17,6 +17,7 @@
 #define _APL_GRAPHIC_PATTERN_H
 
 #include "apl/common.h"
+#include "apl/engine/uidobject.h"
 #include "apl/primitives/objectdata.h"
 #include "apl/utils/counter.h"
 
@@ -26,7 +27,8 @@ namespace apl {
  * AVG patterns are non-parameterized re-usable vector graphic elements that can be applied to path stroke and
  * fill properties.
  */
-class GraphicPattern : public ObjectData,
+class GraphicPattern : public UIDObject,
+                       public ObjectData,
                        public Counter<GraphicPattern> {
 public:
     static Object create(const Context& context, const Object& object);
@@ -34,12 +36,17 @@ public:
     /**
      * Constructor, use create instead.
      */
-    GraphicPattern(const std::string& description, double height, double width, std::vector<GraphicElementPtr>&& items);
+    GraphicPattern(const ContextPtr& context,
+                   const std::string& description,
+                   double height,
+                   double width,
+                   std::vector<GraphicElementPtr>&& items);
 
     /**
-     * @return Unique pattern ID.
+     * @deprecated Use getUniqueId(), here only for migration period.
+     * @return The unique id for this element.
      */
-    std::string getId() const { return mId; }
+    APL_DEPRECATED std::string getId() const { return getUniqueId(); }
 
     /**
      * @return Optional pattern description.
@@ -59,7 +66,7 @@ public:
     /**
      * @return AVG elements contained in the pattern.
      */
-    const std::vector<GraphicElementPtr> getItems() const { return mItems; }
+    const std::vector<GraphicElementPtr>& getItems() const { return mItems; }
 
     /* Standard ObjectData methods */
     std::string toDebugString() const override;
@@ -67,16 +74,14 @@ public:
     bool empty() const override { return false; }
     bool truthy() const override { return true; }
     std::uint64_t size() const override { return mItems.size(); }
+
 private:
-    std::string mId;
     std::string mDescription;
     double mHeight;
     double mWidth;
     std::vector<GraphicElementPtr> mItems;
-
-    static id_type sUniqueIdGenerator;
 };
 
 } // namespace apl
 
-#endif //_APL_GRAPHIC_PATTERN_H
+#endif // _APL_GRAPHIC_PATTERN_H

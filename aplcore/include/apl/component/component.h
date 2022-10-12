@@ -24,6 +24,7 @@
 #include "componentproperties.h"
 #include "apl/utils/counter.h"
 #include "apl/engine/propertymap.h"
+#include "apl/engine/uidobject.h"
 #include "apl/primitives/rect.h"
 #include "apl/engine/state.h"
 #include "apl/utils/deprecated.h"
@@ -133,7 +134,8 @@ enum PageDirection {
  * changed. The dirty flags must be explicitly cleared.  Note that the dirty flag is
  * only set for an *output* property change.
  */
-class Component : public Counter<Component>,
+class Component : public UIDObject,
+                  public Counter<Component>,
                   public UserData<Component>,
                   public NonCopyable,
                   public std::enable_shared_from_this<Component> {
@@ -223,11 +225,6 @@ public:
      * @return The primitive type of the component.
      */
     virtual ComponentType getType() const = 0;
-
-    /**
-     * @return The unique ID assigned to this component by the system.
-     */
-    std::string getUniqueId() const { return mUniqueId; }
 
     /**
      * @return The ID assigned to this component by the APL author.  If not
@@ -369,6 +366,12 @@ public:
     Rect getGlobalBounds() const { Rect r; getBoundsInParent(nullptr, r); return r; }
 
     /**
+     * @param position Coordinates in local component space
+     * @return Coordinates in global drawing space
+     */
+    virtual Point localToGlobal(Point position) const = 0;
+
+    /**
      * @return The type of scrolling supported by this component.
      */
     virtual ScrollType scrollType() const { return kScrollTypeNone; }
@@ -482,11 +485,6 @@ public:
      */
     std::string toDebugSimpleString() const;
 
-    /**
-     * Equality operator override
-     */
-    bool operator==(const ComponentPtr& other) const { return mUniqueId == other->getUniqueId(); }
-
     virtual bool isCharacterValid(const wchar_t wc) const;
 
     /**
@@ -510,10 +508,6 @@ protected:
     friend streamer& operator<<(streamer&, const Component&);
     friend class Builder;
 
-    static id_type             sUniqueIdGenerator;
-
-    ContextPtr                 mContext;
-    std::string                mUniqueId;
     std::string                mId;
     CalculatedPropertyMap      mCalculated;  // Current calculated object properties
     std::set<PropertyKey>      mDirty;

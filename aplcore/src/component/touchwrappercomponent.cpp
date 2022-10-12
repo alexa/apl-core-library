@@ -59,7 +59,11 @@ TouchWrapperComponent::injectReplaceComponent(const CoreComponentPtr& child, boo
 void
 TouchWrapperComponent::resetChildPositionType() {
     if (!mChildren.empty()) {
+        // TouchWrapper only supports relative positioning, we force absolute and inner bounds
+        // coordinates to position overlay in case of Swipe/Replace
         yn::setPositionType(getCoreChildAt(0)->getNode(), static_cast<int>(kPositionRelative), *mContext);
+        yn::setPosition<YGEdgeLeft>(getCoreChildAt(0)->getNode(), 0, *mContext);
+        yn::setPosition<YGEdgeTop>(getCoreChildAt(0)->getNode(), 0, *mContext);
     }
 }
 

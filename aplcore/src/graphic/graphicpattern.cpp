@@ -16,7 +16,6 @@
 #include "apl/engine/evaluate.h"
 #include "apl/engine/arrayify.h"
 #include "apl/graphic/graphicpattern.h"
-#include "apl/graphic/graphicelement.h"
 #include "apl/graphic/graphicbuilder.h"
 #include "apl/primitives/object.h"
 #include "apl/utils/session.h"
@@ -24,16 +23,16 @@
 
 namespace apl {
 
-// Start a little offset to catch errors
-id_type GraphicPattern::sUniqueIdGenerator = 1000;
-
-GraphicPattern::GraphicPattern(const std::string& description, double height, double width,
-        std::vector<GraphicElementPtr>&& items) :
-    mId(std::to_string(GraphicPattern::sUniqueIdGenerator++)),
-    mDescription(description),
-    mHeight(height),
-    mWidth(width),
-    mItems(std::move(items)) {}
+GraphicPattern::GraphicPattern(const ContextPtr& context,
+                               const std::string& description,
+                               double height, double width,
+                               std::vector<GraphicElementPtr>&& items)
+    : UIDObject(context),
+      mDescription(description),
+      mHeight(height),
+      mWidth(width),
+      mItems(std::move(items))
+{}
 
 Object
 GraphicPattern::create(const Context& context, const Object& object)
@@ -65,12 +64,14 @@ GraphicPattern::create(const Context& context, const Object& object)
             items.emplace_back(item);
     }
 
-    return Object(std::make_shared<GraphicPattern>(description, height, width, std::move(items)));
+    // Cast away const-ness
+    auto cptr = const_cast<Context&>(context).shared_from_this();
+    return Object(std::make_shared<GraphicPattern>(cptr, description, height, width, std::move(items)));
 }
 
 std::string
 GraphicPattern::toDebugString() const {
-    std::string result = "GraphicPattern< id=" + getId() +
+    std::string result = "GraphicPattern< id=" + getUniqueId() +
             " description=" + getDescription() +
             " width=" + sutil::to_string(getWidth()) +
             " height=" + sutil::to_string(getHeight()) +
@@ -85,7 +86,7 @@ rapidjson::Value
 GraphicPattern::serialize(rapidjson::Document::AllocatorType& allocator) const {
     using rapidjson::Value;
     Value v(rapidjson::kObjectType);
-    v.AddMember("id", rapidjson::Value(getId().c_str(), allocator).Move(), allocator);
+    v.AddMember("id", rapidjson::Value(getUniqueId().c_str(), allocator).Move(), allocator);
     v.AddMember("description", rapidjson::Value(getDescription().c_str(), allocator).Move(), allocator);
     v.AddMember("width", getWidth(), allocator);
     v.AddMember("height", getHeight(), allocator);

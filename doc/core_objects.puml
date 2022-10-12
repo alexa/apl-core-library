@@ -1,0 +1,171 @@
+@startuml
+
+object RootConfig #CAFFBF
+
+abstract TextMeasurement #CAFFBF
+abstract MediaManager #CAFFBF
+abstract MediaPlayerFactory #CAFFBF
+abstract AudioPlayerFactory #CAFFBF
+
+abstract Timers #CAFFBF
+Timers : timeout_id setTimeout(Runnable, apl_duration_t);
+Timers : timeout_id setAnimator(Animator, apl_duration_t);
+Timers : bool clearTimeout(timeout_id);
+
+abstract TimeManager #CAFFBF
+TimeManager <|-- Timers
+
+object Session
+
+object Settings #FFC6FF
+Settings : rapidJson::Value mJson
+
+object Component #FFADAD
+Component : ContextPtr mContext;
+Component : string mUniqueId;
+Component : string mId;
+Component : CalculatedPropertyMap mCalculated;
+Component : set<PropertyKey> mDirty;
+Component : unsigned int mFlags;
+
+object CoreComponent #FFADAD
+CoreComponent : bool mInheritParentState;
+CoreComponent : State mState;
+CoreComponent : string mStyle;
+CoreComponent : Properties mProperties;
+CoreComponent : set<PropertyKey> mAssigned;
+CoreComponent : vector<CoreComponentPtr> mChildren;
+CoreComponent : vector<CoreComponentPtr> mDisplayedChildren;
+CoreComponent : CoreComponentPtr mParent;
+CoreComponent : YGNodeRef mYGNodeRef;
+CoreComponent : Path mPath;
+CoreComponent : shared_ptr<LayoutRebuilder> mRebuilder;
+CoreComponent : Size mLayoutSize;
+CoreComponent : bool mDisplayedChildrenStale;
+CoreComponent : sg::LayerPtr mSceneGraphLayer;
+CoreComponent <|-- Component
+
+
+object RootContextData
+RootContextData : queue<Event> events;
+RootContextData : queue<Event> extensionEvents;
+RootContextData : set<ComponentPtr> dirty;
+RootContextData : set<ComponentPtr> dirtyVisualContext;
+RootContextData : set<DataSourceConnectionPtr> dirtyDatasourceContext;
+RootContextData : RuntimeState mRuntimeState;
+RootContextData : map<string, JsonResource> mLayouts;
+RootContextData : map<string, JsonResource> mCommands;
+RootContextData : map<string, JsonResource> mGraphics;
+RootContextData : Metrics mMetrics;
+RootContextData : shared_ptr<Styles> mStyles;
+RootContextData : unique_ptr<Sequencer> mSequencer;
+RootContextData : unique_ptr<FocusManager> mFocusManager;
+RootContextData : unique_ptr<HoverManager> mHoverManager;
+RootContextData : unique_ptr<PointerManager> mPointerManager;
+RootContextData : unique_ptr<KeyboardManager> mKeyboardManager;
+RootContextData : unique_ptr<LiveDataManager> mDataManager;
+RootContextData : unique_ptr<ExtensionManager> mExtensionManager;
+RootContextData : unique_ptr<LayoutManager> mLayoutManager;
+RootContextData : YGConfigRef mYGConfigRef;
+RootContextData : TextMeasurementPtr mTextMeasurement;
+RootContextData : CoreComponentPtr mTop;
+RootContextData : const RootConfig mConfig;
+RootContextData : int mScreenLockCount;
+RootContextData : SettingsPtr mSettings;
+RootContextData : SessionPtr mSession;
+RootContextData : string mLang;
+RootContextData : LayoutDirection mLayoutDirection;
+RootContextData : LruCache<TextMeasureRequest, YGSize> mCachedMeasures;
+RootContextData : LruCache<TextMeasureRequest, float> mCachedBaselines;
+RootContextData : WeakPtrSet<CoreComponent> mPendingOnMounts;
+RootContextData *-- RootConfig
+RootContextData *-- Session
+RootContextData *-- CoreComponent
+RootContextData *-- Settings
+
+object Context
+Context : ContextPtr mParent;
+Context : ContextPtr mTop;
+Context : shared_ptr<RootContextData> mCore;
+Context : map<string, ContextObject> mMap;
+Context *-- RootContextData
+
+object Package #FFC6FF
+Package : string mName;
+Package : const JsonData mJson;
+Package : vector<ImportRef> mDependencies;
+
+object Content #FFC6FF
+Content : SessionPtr mSession;
+Content : PackagePtr mMainPackage;
+Content : vector<pair<string, string>> mExtensionRequests;
+Content : ObjectMapPtr mExtensionSettings;
+Content : State mState;
+Content : const rapidjson::Value& mMainTemplate;
+Content : set<ImportRequest> mRequested;
+Content : set<ImportRequest> mPending;
+Content : map<ImportRef, PackagePtr> mLoaded;
+Content : vector<PackagePtr> mOrderedDependencies;
+Content : map<string, JsonData> mParameterValues;
+Content : vector<string> mMainParameters;
+Content : vector<string> mEnvironmentParameters;
+Content : set<string> mPendingParameters;
+Content : vector<string> mAllParameters;
+Content "1" *-- "n" Package
+Content *-- Session
+
+
+object RootContext
+RootContext : ContentPtr mContent;
+RootContext : ContextPtr mContext;
+RootContext : shared_ptr<RootContextData> mCore;
+RootContext : shared_ptr<TimeManager> mTimeManager;
+RootContext : apl_time_t mUTCTime;
+RootContext : apl_duration_t mLocalTimeAdjustment;
+RootContext : ConfigurationChange mActiveConfigurationChanges;
+RootContext : DisplayState mDisplayState;
+RootContext : sg::SceneGraphPtr mSceneGraph;
+RootContext *-- Content
+RootContext *-- Context
+RootContext *-- RootContextData
+RootContext *-- TimeManager
+
+
+' RootConfig
+RootConfig : ContextPtr mContext;
+RootConfig : TextMeasurementPtr mTextMeasurement;
+RootConfig : MediaManagerPtr mMediaManager;
+RootConfig : MediaPlayerFactoryPtr mMediaPlayerFactory;
+RootConfig : AudioPlayerFactoryPtr mAudioPlayerFactory;
+RootConfig : shared_ptr<TimeManager> mTimeManager;
+RootConfig : shared_ptr<LocaleMethods> mLocaleMethods;
+RootConfig : map<pair<ComponentType, bool>, pair<Dimension, Dimension>> mDefaultComponentSize;
+RootConfig : SessionPtr mSession;
+RootConfig : ObjectMap mEnvironmentValues;
+RootConfig : map<string, DataSourceProviderPtr> mDataSources;
+RootConfig : map<string, LiveObjectPtr> mLiveObjectMap;
+RootConfig : multimap<string, LiveDataObjectWatcherWPtr> mLiveDataObjectWatchersMap;
+RootConfig : alexaext::ExtensionProviderPtr mExtensionProvider;
+RootConfig : ExtensionMediatorPtr mExtensionMediator;
+RootConfig : ObjectMap mSupportedExtensions; // URI -> config
+RootConfig : ObjectMap mExtensionFlags; // URI -> opaque flags
+RootConfig : vector<ExtensionEventHandler> mExtensionHandlers;
+RootConfig : vector<ExtensionCommandDefinition> mExtensionCommands;
+RootConfig : vector<ExtensionFilterDefinition> mExtensionFilters;
+RootConfig : vector<ExtensionComponentDefinition> mExtensionComponentDefinitions;
+RootConfig : map<string, Color> mDefaultThemeFontColor;
+RootConfig : map<string, Color> mDefaultThemeHighlightColor;
+RootConfig : APLVersion mEnforcedAPLVersion = APLVersion::kAPLVersionIgnore;
+RootConfig : vector<pair<regex, bool>> mHeaderFilters;
+RootConfig : set<ExperimentalFeature> mEnabledExperimentalFeatures;
+RootConfig : RootPropertyMap mProperties;
+' RootConfig *-- Context : Only used for pre-evaluation
+RootConfig *-- Session
+RootConfig *-- TextMeasurement
+RootConfig *-- MediaManager
+RootConfig *-- MediaPlayerFactory
+RootConfig *-- AudioPlayerFactory
+RootConfig *-- TimeManager
+
+
+@enduml

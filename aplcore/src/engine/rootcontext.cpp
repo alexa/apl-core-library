@@ -37,9 +37,14 @@
 #include "apl/engine/rootcontext.h"
 #include "apl/engine/resources.h"
 #include "apl/engine/rootcontextdata.h"
+#include "apl/engine/uidmanager.h"
 #include "apl/graphic/graphic.h"
 #include "apl/livedata/livedataobject.h"
 #include "apl/livedata/livedataobjectwatcher.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/scenegraph.h"
+#endif // SCENEGRAPH
 #include "apl/time/timemanager.h"
 #include "apl/utils/log.h"
 #include "apl/utils/tracing.h"
@@ -159,6 +164,10 @@ RootContext::reinflate()
 
     // Release any "onConfigChange" action
     mCore->sequencer().terminateSequencer(ConfigChangeCommand::SEQUENCER);
+#ifdef SCENEGRAPH
+    // Release the existing scene graph
+    mSceneGraph = nullptr;
+#endif // SCENEGRAPH
 
     auto metrics = mActiveConfigurationChanges.mergeMetrics(mCore->mMetrics);
     auto config = mActiveConfigurationChanges.mergeRootConfig(mCore->mConfig);
@@ -166,6 +175,11 @@ RootContext::reinflate()
     // Update the configuration with the current UTC time and time adjustment
     config.set(RootProperty::kUTCTime, mUTCTime);
     config.set(RootProperty::kLocalTimeAdjustment, mLocalTimeAdjustment);
+
+    auto preservedSequencers = std::map<std::string, ActionPtr>();
+    for (auto& stp : mCore->sequencer().getSequencersToPreserve()) {
+        preservedSequencers.emplace(stp, mCore->sequencer().detachSequencer(stp));
+    }
 
     // Stop any execution on the old core
     auto oldTop = mCore->halt();
@@ -182,6 +196,12 @@ RootContext::reinflate()
 
     // Clear the old active configuration; it is reset on a reinflation
     mActiveConfigurationChanges.clear();
+
+    for (auto& ps : preservedSequencers) {
+        if(!mCore->sequencer().reattachSequencer(ps.first, ps.second, *this)) {
+            CONSOLE(getSession()) << "Can't preserve sequencer: " << ps.first;
+        }
+    }
 }
 
 void
@@ -412,6 +432,21 @@ RootContext::serializeDataSourceContext(rapidjson::Document::AllocatorType& allo
     }
     return outArray;
 }
+
+rapidjson::Value
+RootContext::serializeDOM(bool extended, rapidjson::Document::AllocatorType& allocator)
+{
+    if (extended)
+        return mCore->mTop->serializeAll(allocator);
+    return mCore->mTop->serialize(allocator);
+}
+
+rapidjson::Value
+RootContext::serializeContext(rapidjson::Document::AllocatorType& allocator)
+{
+    return mContext->serialize(allocator);
+}
+
 
 std::shared_ptr<ObjectMap>
 RootContext::createDocumentEventProperties(const std::string& handler) const
@@ -917,8 +952,21 @@ RootContext::findComponentById(const std::string& id) const
 {
     assert(mCore);
 
+    // Fast path search for uid value
+    auto *ptr = dynamic_cast<Component *>(mCore->uniqueIdManager().find(id));
+    if (ptr)
+        return ptr->shared_from_this();
+
+    // Depth-first search
     auto top = mCore->top();
     return top ? top->findComponentById(id) : nullptr;
+}
+
+UIDObject *
+RootContext::findByUniqueId(const std::string& uid) const
+{
+    assert(mCore);
+    return mCore->uniqueIdManager().find(uid);
 }
 
 std::map<std::string, Rect>
@@ -993,4 +1041,37 @@ RootContext::mediaLoadFailed(const std::string& source, int errorCode, const std
     mCore->mediaManager().mediaLoadComplete(source, false, errorCode, error);
 }
 
+#ifdef SCENEGRAPH
+/*
+ * If it does exist, we clean out any dirty markings for the scene graph, then walk
+ * the list of dirty components and update the scene graph.  If the scene graph does not exist,
+ * we create a new one.
+ */
+sg::SceneGraphPtr
+RootContext::getSceneGraph()
+{
+    assert(mCore);
+
+    // If we need a layout pass, do it now - this avoids screen flicker when a Text component
+    // with "auto" width has a new, longer content but a full layout has not yet executed.
+    if (mCore->layoutManager().needsLayout())
+        mCore->layoutManager().layout(true, false);
+
+    if (!mSceneGraph)
+        mSceneGraph = sg::SceneGraph::create();
+
+    if (mSceneGraph->getLayer()) {
+        mSceneGraph->updates().clear();
+        for (auto& component : mCore->dirty)
+            std::static_pointer_cast<CoreComponent>(component)->updateSceneGraph(mSceneGraph->updates());
+    } else {
+        auto top = mCore->top();
+        if (top)
+            mSceneGraph->setLayer(top->getSceneGraph(mSceneGraph->updates()));
+    }
+
+    clearDirty();
+    return mSceneGraph;
+}
+#endif // SCENEGRAPH
 } // namespace apl

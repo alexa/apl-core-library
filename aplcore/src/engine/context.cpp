@@ -169,6 +169,13 @@ Context::pxToDp(double px) const
 }
 
 double
+Context::dpToPx(double dp) const
+{
+    assert(mCore);
+    return dp / mCore->getPxToDp();
+}
+
+double
 Context::width() const
 {
     assert(mCore);
@@ -380,6 +387,11 @@ Context::mediaPlayerFactory() const {
     return mCore->mediaPlayerFactory();
 }
 
+UIDManager&
+Context::uniqueIdManager() const {
+    return mCore->uniqueIdManager();
+}
+
 const SessionPtr&
 Context::session() const {
     return mCore->session();
@@ -425,6 +437,14 @@ Context::pendingOnMounts()
     return mCore->pendingOnMounts();
 }
 
+#ifdef SCENEGRAPH
+sg::TextPropertiesCache&
+Context::textPropertiesCache() const
+{
+    return mCore->textPropertiesCache();
+}
+#endif // SCENEGRAPH
+
 ComponentPtr
 Context::inflate(const rapidjson::Value& component)
 {
@@ -433,6 +453,29 @@ Context::inflate(const rapidjson::Value& component)
 
     return Builder().inflate(shared_from_this(), component);
 }
+
+rapidjson::Value
+Context::serialize(rapidjson::Document::AllocatorType& allocator) {
+    rapidjson::Value out(rapidjson::kArrayType);
+
+    for (const auto& m : mMap) {
+        rapidjson::Value entry(rapidjson::kObjectType);
+        entry.AddMember("name", rapidjson::StringRef(m.first.c_str()), allocator);
+        entry.AddMember("prov",
+                        rapidjson::Value(m.second.provenance().toString().c_str(), allocator),
+                        allocator);
+        entry.AddMember("value", m.second.value().serialize(allocator), allocator);
+        entry.AddMember("perm",
+                        rapidjson::StringRef(m.second.isUserWriteable()
+                                                 ? "write"
+                                                 : (m.second.isMutable() ? "mutable" : "const")),
+                        allocator);
+        out.PushBack(entry, allocator);
+    }
+
+    return out;
+}
+
 
 streamer&
 operator<<(streamer& os, const Context& context)

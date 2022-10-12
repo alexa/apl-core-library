@@ -47,7 +47,7 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ("1.0", env.get("agentVersion").asString());
     EXPECT_EQ("normal", env.get("animation").asString());
     EXPECT_FALSE(env.get("allowOpenURL").asBoolean());
-    EXPECT_EQ("2022.1", env.get("aplVersion").asString());
+    EXPECT_EQ("2022.2", env.get("aplVersion").asString());
     EXPECT_FALSE(env.get("disallowDialog").asBoolean());
     EXPECT_FALSE(env.get("disallowEditText").asBoolean());
     EXPECT_FALSE(env.get("disallowVideo").asBoolean());

@@ -16,6 +16,7 @@
 #include "apl/action/resourceholdingaction.h"
 #include "apl/command/corecommand.h"
 #include "apl/time/sequencer.h"
+#include "apl/engine/rootcontext.h"
 
 namespace apl {
 
@@ -29,6 +30,21 @@ void
 ResourceHoldingAction::onFinish()
 {
     mContext->sequencer().releaseRelatedResources(shared_from_this());
+}
+
+void
+ResourceHoldingAction::freeze()
+{
+    mContext = nullptr;
+    Action::freeze();
+}
+
+bool
+ResourceHoldingAction::rehydrate(const RootContext& context)
+{
+    if (!Action::rehydrate(context)) return false;
+    mContext = context.contextPtr();
+    return true;
 }
 
 } // namespace apl

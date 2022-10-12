@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include "apl/apl_config.h"
 #include "apl/utils/bimap.h"
 
 namespace apl {
@@ -550,6 +551,8 @@ enum PropertyKey {
     kPropertyOnMount,
     /// TouchableComponent handler for move
     kPropertyOnMove,
+    /// Component handler for speechmarks
+    kPropertyOnSpeechMark,
     /// PagerComponent handler for the page change animation
     kPropertyHandlePageMove,
     /// PagerComponent handler for when the page changes
@@ -608,6 +611,8 @@ enum PropertyKey {
     kPropertyPosition,
     /// Component properties to preserve over configuration changes
     kPropertyPreserve,
+    /// TextComponent range for karaoke target
+    kPropertyRangeKaraokeTarget,
     /// The unique identifier of the resource associated with extension component
     kPropertyResourceId,
     // ExtensionComponent handler on error
@@ -727,15 +732,6 @@ enum ComponentType {
     kComponentTypeTouchWrapper,
     kComponentTypeVectorGraphic,
     kComponentTypeVideo
-};
-
-/**
- * Modes to measure layout size in TextMeasurement class
- */
-enum MeasureMode {
-    Undefined,
-    Exactly,
-    AtMost
 };
 
 extern Bimap<int, std::string> sAlignMap;

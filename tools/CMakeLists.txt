@@ -28,7 +28,10 @@ add_executable(enumgen
         src/enumparser.cpp
         src/enumgen.cpp)
 
-add_dependencies(enumgen pegtl-build)
+if (NOT HAS_FETCH_CONTENT)
+        add_dependencies(enumgen pegtl-build)
+endif()
+
 include_directories(${PEGTL_INCLUDE})
 
 install(TARGETS enumgen RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})

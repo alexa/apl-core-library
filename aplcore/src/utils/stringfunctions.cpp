@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <locale>
 
 namespace apl {
@@ -224,7 +225,7 @@ parseFloatingPointLiteral(const std::string& str, std::size_t* pos)
     if (consumeToken(str, &current, ".")) {
         auto fractionalStart = current;
         if (consumeDigits(str, &current, base)) {
-            int count = current - fractionalStart;
+            auto count = static_cast<int>(current - fractionalStart);
             auto fractional = std::stoll(str.substr(fractionalStart, count), nullptr, base);
             value += fractional / std::pow(base, count);
         }

@@ -63,30 +63,30 @@ SetPageAction::start()
 {
     auto position = static_cast<CommandPosition>(mCommand->getValue(kCommandPropertyPosition).asInt());
     auto value = mCommand->getValue(kCommandPropertyValue).asInt();
-    int len = mTarget->getChildCount();
+    int len = static_cast<int>(mTarget->getChildCount());
     int current = mTarget->pagePosition();
-    int index = current;
+    mTargetIndex = current;
     PageDirection direction;
 
     switch (position) {
         case kCommandPositionAbsolute:
             // Clamp to the valid range.  Note that a negative position is a measurement from the end
-            index = clamp((value < 0 ? value + len : value), 0, len - 1);
-            direction = (index < current ? kPageDirectionBack : kPageDirectionForward);
+            mTargetIndex = clamp((value < 0 ? value + len : value), 0, len - 1);
+            direction = (mTargetIndex < current ? kPageDirectionBack : kPageDirectionForward);
             break;
 
         case kCommandPositionRelative:
             // Offset from the current location
-            index = current + value;
+            mTargetIndex = current + value;
 
             // A non-wrapping pager doesn't support relative motion that wraps. Ignore if it is out of range.
-            if (mTarget->getCalculated(kPropertyNavigation).asInt() != kNavigationWrap && (index < 0 || index >= len)) {
+            if (mTarget->getCalculated(kPropertyNavigation).asInt() != kNavigationWrap && (mTargetIndex < 0 || mTargetIndex >= len)) {
                 resolve();
                 return;
             }
 
             // Use modulus to ensure we're in the correct range
-            index = modulus(index, len);
+            mTargetIndex = modulus(mTargetIndex, len);
             direction = (value < 0 ? kPageDirectionBack : kPageDirectionForward);
             break;
         default:
@@ -95,14 +95,44 @@ SetPageAction::start()
     }
 
     // Check to see if we haven't moved
-    if (index == current) {
+    if (mTargetIndex == current) {
         resolve();
     }
     else {
-        mTarget->ensureChildLayout(mTarget->getCoreChildAt(index), true);
-        PagerComponent::setPageUtil(mContext, mTarget, index, direction, shared_from_this(),
+        mTarget->ensureChildLayout(mTarget->getCoreChildAt(mTargetIndex), true);
+        PagerComponent::setPageUtil(mContext, mTarget, mTargetIndex, direction, shared_from_this(),
             position == kCommandPositionAbsolute || mContext->getRequestedAPLVersion().compare("1.6") < 0);
     }
+}
+
+void
+SetPageAction::freeze()
+{
+    if (mCommand) {
+        mCommand->freeze();
+    }
+
+    ResourceHoldingAction::freeze();
+}
+
+bool
+SetPageAction::rehydrate(const RootContext& context)
+{
+    if (!ResourceHoldingAction::rehydrate(context)) return false;
+
+    if (mCommand) {
+        if (!mCommand->rehydrate(context)) return false;
+    }
+
+    mTarget = mCommand->target();
+
+    if (mTargetIndex >= mTarget->getChildCount()) return false;
+
+    // Jump to the end state
+    mTarget->ensureChildLayout(mTarget->getCoreChildAt(mTargetIndex), true);
+    mTarget->setProperty(kPropertyPageIndex, Object(mTargetIndex));
+
+    return true;
 }
 
 } // namespace apl

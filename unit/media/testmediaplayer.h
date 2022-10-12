@@ -52,11 +52,15 @@ public:
     void rewind() override;
     void seek(int offset) override;
     void setTrackIndex(int trackIndex) override;
+    void setMute(bool mute) override;
+
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override;
 
     // ************** Testing methods ****************
 
     apl_duration_t advanceByUpTo(apl_duration_t milliseconds); // Return how many milliseconds we advanced
     bool isReleased() const { return mReleased; }
+    bool isMuted() const { return mIsMuted; }
 
     enum class EventType {
         kPlayerEventSetTrackList,
@@ -90,7 +94,7 @@ private:
 
     AudioTrack mAudioTrack = kAudioTrackForeground;
     bool mReleased = false; // Set when the media player is released and should not be used
-
+    bool mIsMuted = false;
     EventCallback mEventCallback = nullptr;
 };
 

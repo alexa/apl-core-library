@@ -1,0 +1,365 @@
+@startuml
+
+' Color palette
+' FFADAD    Paint
+' FFD6A5    Path Op
+' FDFFB6    Path
+' CAFFBF    Filter
+' 9BF6FF
+' A0C4FF    Node
+' BDB2FF    MediaObject/Player
+' FFC6FF    TextLayout
+' FFFFFC    Layer
+
+' Forward declarations
+object ImageNode #A0C4FF
+object VideoNode #A0C4FF
+object TextNode #A0C4FF
+object EditTextNode #A0C4FF
+
+class MediaObject #BDB2FF
+class MediaPlayer #BDB2FF
+class TextLayout #BDB2FF
+class EditText #BDB2FF
+class EditTextBox #BDB2FF
+object EditTextConfig #FFC6FF
+
+object Node #A0C4FF
+object PathOp #FFD6A5
+object Paint #FFADAD
+
+class Accessibility #FFFFFC
+object Action #FFFFFC
+
+' =================== Path ====================
+object Path #FDFFB6
+object RectPath #FDFFB6
+object RoundedRectPath #FDFFB6
+object FramePath #FDFFB6
+object GeneralPath #FDFFB6
+
+Path : type: Type
+
+Path <|-- RectPath
+RectPath : rect: Rect
+
+Path <|-- RoundedRectPath
+RoundedRectPath : roundedRect: RoundedRect
+
+Path <|-- FramePath
+FramePath : roundedRect: RoundedRect
+FramePath : inset: Float
+
+Path <|-- GeneralPath
+GeneralPath : value : String
+GeneralPath : points : [float]
+
+' =================== Shadow ====================
+
+object Shadow #9bf6ff
+Shadow : color : Color
+Shadow : offset : Point
+Shadow : radius: float
+
+' =================== Filter ====================
+object Filter #CAFFBF
+object BlendFilter #CAFFBF
+object BlurFilter #CAFFBF
+object GrayscaleFilter #CAFFBF
+object MediaObjectFilter #CAFFBF
+object NoiseFilter #CAFFBF
+object SaturateFilter #CAFFBF
+object SolidFilter #CAFFBF
+
+Filter : type: Type
+Filter : size() : Size
+
+Filter <|-- BlendFilter
+BlendFilter : back : Filter
+BlendFilter : front : Filter
+BlendFilter : blendMode : BlendMode
+
+Filter <|-- BlurFilter
+BlurFilter : filter : Filter
+BlurFilter : radius : Number
+
+Filter <|-- GrayscaleFilter
+GrayscaleFilter : filter : Filter
+GrayscaleFilter : amount : Number
+
+Filter <|-- MediaObjectFilter
+MediaObjectFilter : mediaObject : MediaObject
+MediaObjectFilter *-- MediaObject
+
+Filter <|-- NoiseFilter
+NoiseFilter : filter : Filter
+NoiseFilter : kind : uniform/gaussian
+NoiseFilter : useColor : Bool
+NoiseFilter : sigma : Number
+
+Filter <|-- SaturateFilter
+SaturateFilter : filter : Filter
+SaturateFilter : amount : Number
+
+Filter <|-- SolidFilter
+SolidFilter : paint : Paint
+SolidFilter *-- Paint
+
+' ================== Node ========================
+Node : type: Type
+Node : firstChild: NodePtr
+Node : nextSibling: NodePtr
+Node : nextModified: NodePtr
+
+' ====== ShadowNode =========
+object ShadowNode #A0C4FF
+Node <|-- ShadowNode
+ShadowNode : shadow : Shadow
+ShadowNode *-- Shadow
+
+' ====== GenericNode =======
+object GenericNode #A0C4FF
+Node <|-- GenericNode
+
+' ===== DrawNode =======
+object DrawNode #A0C4FF
+Node <|-- DrawNode
+DrawNode : <no children>
+DrawNode : path: PathPtr
+DrawNode : op: PathOpPtr
+DrawNode *-- Path
+DrawNode *-- PathOp
+
+
+' ====== TransformNode =========
+object TransformNode #A0C4FF
+Node <|-- TransformNode
+TransformNode : transform: Transform2D
+
+' ======== ClipNode =========
+object ClipNode #A0C4FF
+Node <|-- ClipNode
+ClipNode : path: PathPtr
+ClipNode *-- Path
+
+' ==== OpacityNode ====
+object OpacityNode #A0C4FF
+Node <|-- OpacityNode
+OpacityNode : opacity: Number
+
+' ========= TextProperties =========
+
+object TextProperties #FFC6FF
+TextProperties : fontFamily : [String]
+TextProperties : fontSize : float
+TextProperties : fontStyle : ENUM
+TextProperties : fontWeight : ENUM
+TextProperties : letterSpacing : float
+TextProperties : lineHeight : float
+TextProperties : maxLines : int
+TextProperties : align : ENUM
+TextProperties : alignVertical : ENUM
+
+object TextChunk #FFC6FF
+TextChunk : styledText : StyledText
+
+' ======== EditText =========
+
+EditText : submitCallback : Function
+EditText : changedCallback : Function
+EditText : setText()
+EditText : setFocus(bool)
+EditText : openKeyboard()
+
+EditTextBox : getSize()
+EditTextBox : getBaseline()
+
+EditTextConfig : textColor : Color
+EditTextConfig : highlightColor : Color
+EditTextConfig : keyboardType : KeyboardType
+EditTextConfig : language: String
+EditTextConfig : maxLength : unsigned int
+EditTextConfig : secureInput: bool
+EditTextConfig : submitKeyType : SubmitKeyType
+EditTextConfig : validCharacters : String
+EditTextConfig : textProperties : TextPropertiesPtr
+EditTextConfig *-- TextProperties
+
+
+' ======== TextNode =========
+
+Node <|-- TextNode
+TextNode : <no children>
+TextNode : textLayout: TextLayoutPtr
+TextNode : op: PathOpPtr
+TextNode : range : Range
+TextNode *-- PathOp
+
+Node <|-- EditTextNode
+EditTextNode : <no children>
+EditTextNode : editText : EditTextPtr
+EditTextNode : editTextBox : EditTextBoxPtr
+EditTextNode : editConfigTextConfig : EditTextConfigPtr
+EditTextNode : text : String
+EditTextNode *-- EditText
+EditTextNode *-- EditTextBox
+EditTextNode *-- EditTextConfig
+
+TextLayout : empty() : bool
+TextLayout : getSize() : Size
+TextLayout : getBaseline() : float
+TextLayout : getLineCount() : int
+TextLayout : getByteLength() : unsigned int
+TextLayout : getLineRangeFromByteRange(Range) : Range
+TextLayout : getBoundingBoxForLines(Range) : Rect
+
+TextLayout --> TextChunk
+TextLayout --> TextProperties
+TextNode *-- TextLayout
+
+' =========== Accessibility =================
+
+Action : name : String
+Action : label : String
+Action : enabled : bool
+
+Accessibility : label : String
+Accessibility : role : Enum<Role>
+Accessibility : actions : [Action]
+Accessibility : executeCallback(name)
+
+Accessibility *- Action : > has N
+
+
+' =================== Layer ====================
+object Layer #FFFFFC
+Layer : name : String
+Layer : children : [LayerPtr]
+Layer : content : [NodePtr]
+Layer : bounds : Rect
+Layer : transform : Transform2D
+Layer : childOffset : Point
+Layer : outline : PathPtr
+Layer : childClip : PathPtr
+Layer : shadow : ShadowPtr
+Layer : accessibility : AccessibilityPtr
+Layer : opacity : float
+Layer : flags : BitField
+Layer : interaction : BitField
+
+Layer *-- Node : > has N (content))
+Layer *-- Shadow : > has (shadow)
+Layer *-- Path : > has (outline)
+Layer *-- Accessibility : > has (accessibility))
+
+' ====== Media =======
+
+Node <|-- ImageNode
+ImageNode : <no children>
+ImageNode : image: FilterPtr
+ImageNode : source: Rect
+ImageNode : target: Rect
+ImageNode *-- Filter
+
+Node <|-- VideoNode
+VideoNode : <no children>
+VideoNode : mediaPlayer : MediaPlayerPtr
+VideoNode : target: Rect
+VideoNode : scale: BestFill/BestFit
+VideoNode *-- MediaPlayer
+
+MediaObject : url() : String
+MediaObject : size(): Size
+MediaObject : state() : Pending/Ready/Error
+MediaObject : type() : Bitmap/Video/AVG
+MediaObject : errorCode() : int
+MediaObject : errorDescription() : String
+MediaObject : headers() : const HeaderArray&
+MediaObject : callback : function
+
+MediaPlayer : setTrackList( MediaTrack[] ]
+MediaPlayer : play()
+MediaPlayer : pause()
+MediaPlayer : next()
+MediaPlayer : previous()
+MediaPlayer : rewind()
+MediaPlayer : seek(int offset)
+MediaPlayer : setTrackIndex(int index)
+MediaPlayer : setAudioTrack( AudioTrack )
+MediaPlayer : callback : function
+
+' ========= Audio ==========
+
+class AudioPlayer #BDB2FF
+AudioPlayer : setTrack(MediaTrack)
+AudioPlayer : play(ActionRef)
+AudioPlayer : pause()
+AudioPlayer : playerCallback : Function
+AudioPlayer : speechMarkCallback : Function
+
+MediaObject -[hidden] AudioPlayer
+
+' =================== Paint ================
+object ColorPaint #FFADAD
+object GradientPaint #FFADAD
+object LinearGradientPaint #FFADAD
+object RadialGradientPaint #FFADAD
+object PatternPaint #FFADAD
+
+Paint : type: Type
+Paint : opacity : float
+Paint : transform: Transform2D
+
+' ==== ColorPaint =====
+Paint <|-- ColorPaint
+ColorPaint : color: RGBA
+
+' ==== GradientPaint =====
+Paint <|-- GradientPaint
+GradientPaint : points : [float]
+GradientPaint : colors : [Color]
+GradientPaint : spreadMethod : ENUM
+GradientPaint : useBoundingBox : Bool
+
+' ==== LinearGradientPaint ====
+GradientPaint <|-- LinearGradientPaint
+LinearGradientPaint : start : Point
+LinearGradientPaint : end : Point
+
+' ==== RadialGradientPaint ====
+GradientPaint <|-- RadialGradientPaint
+RadialGradientPaint : center : Point
+RadialGradientPaint : radius : float
+
+' ==== PatternPaint ====
+Paint <|-- PatternPaint
+PatternPaint : size : Size
+PatternPaint : node : NodePtr
+PatternPaint *-- Node
+
+
+
+' ================ PathOp ====================
+
+
+object Stroke #FFD6A5
+object Fill #FFD6A5
+
+PathOp : type : Type
+PathOp : paint : PaintPtr
+PathOp : nextSibling : PathOpPtr
+PathOp -> Paint
+
+PathOp <|--  Stroke
+Stroke : strokeWidth: Number
+Stroke : dashes: [Number]
+Stroke : dashOffset : Number
+Stroke : miterLimit: Number
+Stroke : lineCap: ENUM
+Stroke : lineJoin: ENUM
+Stroke : pathLength: Number
+
+PathOp <|-- Fill
+
+
+@enduml

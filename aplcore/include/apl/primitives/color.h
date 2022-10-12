@@ -20,6 +20,8 @@
 #include <cstdio>
 #include <unordered_map>
 
+#include <rapidjson/document.h>
+
 #include "apl/utils/streamer.h"
 #include "apl/common.h"
 
@@ -130,6 +132,10 @@ public:
         char hex[10];
         snprintf(hex, sizeof(hex), "#%02x%02x%02x%02x", r, g, b, a);
         return std::string(hex);
+    }
+
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const {
+        return rapidjson::Value(asString().c_str(), allocator);
     }
 
     friend bool operator==( const Color& lhs, const Color& rhs) {

@@ -28,7 +28,10 @@ list(APPEND CMAKE_ARGS -DCMAKE_CXX_FLAGS=${EXT_CXX_ARGS})
 list(APPEND CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/lib)
 list(APPEND CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
 
-# Yoga can be built from local source or can be included as a system or external library
+############################################################
+# Build yoga locally or use an external library
+############################################################
+
 set(YOGA_SOURCE_URL "${APL_PROJECT_DIR}/thirdparty/yoga-1.19.0.tar.gz")
 set(YOGA_SOURCE_MD5 "284d6752a3fea3937a1abd49e826b109")
 
@@ -61,7 +64,7 @@ elseif (USE_PROVIDED_YOGA_INLINE)
         URL_MD5 ${YOGA_SOURCE_MD5}
         PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/yoga.patch
     )
-    FetchContent_MakeAvailable(yogasource)
+    FetchContent_Populate(yogasource)
     set(YOGA_INCLUDE ${yogasource_SOURCE_DIR})
     file(GLOB_RECURSE YOGA_SRC ${yogasource_SOURCE_DIR}/yoga/*.cpp)
 else()
@@ -83,38 +86,73 @@ else()
 endif()
 
 if(NOT USE_PROVIDED_YOGA_INLINE)
-add_library(libyoga STATIC IMPORTED)
-set_target_properties(libyoga
-    PROPERTIES
-        IMPORTED_LOCATION
-            "${YOGA_LIB}"
-    )
-set(YOGA_PC_LIBS "-lyogacore")
-message(VERBOSE Using yoga include directory = ${YOGA_INCLUDE})
-message(VERBOSE Using yoga lib = ${YOGA_LIB})
+    add_library(libyoga STATIC IMPORTED)
+    set_target_properties(libyoga
+        PROPERTIES
+            IMPORTED_LOCATION
+                "${YOGA_LIB}"
+        )
+    set(YOGA_PC_LIBS "-lyogacore")
+    message(VERBOSE Using yoga lib = ${YOGA_LIB})
 endif()
 
-ExternalProject_Add(pegtl
-        URL ${APL_PROJECT_DIR}/thirdparty/pegtl-2.8.3.tar.gz
-        URL_MD5 28b3c455d9ec392dd4230402383a8c6f
-        PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/pegtl.patch
-        STEP_TARGETS build
-        EXCLUDE_FROM_ALL TRUE
-        CONFIGURE_COMMAND ""
-        BUILD_COMMAND ""
-        CMAKE_ARGS ${CMAKE_ARGS}
-        )
-ExternalProject_Get_Property(pegtl install_dir)
-set(PEGTL_INCLUDE ${install_dir}/src/pegtl/include)
+message(VERBOSE "Yoga include directory ${YOGA_INCLUDE}")
+
+############################################################
+# PEGTL is a header-only library
+############################################################
+
+set(PEGTL_SOURCE_URL "${APL_PROJECT_DIR}/thirdparty/pegtl-2.8.3.tar.gz")
+set(PEGTL_SOURCE_MD5 "28b3c455d9ec392dd4230402383a8c6f")
+
+if (HAS_FETCH_CONTENT)
+    FetchContent_Declare(pegtl
+            URL ${PEGTL_SOURCE_URL}
+            URL_MD5 ${PEGTL_SOURCE_MD5}
+            PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/pegtl.patch
+            )
+    FetchContent_Populate(pegtl)
+    set(PEGTL_INCLUDE ${pegtl_SOURCE_DIR}/include)
+else()
+    ExternalProject_Add(pegtl
+            URL ${PEGTL_SOURCE_URL}
+            URL_MD5 ${PEGTL_SOURCE_MD5}
+            PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/pegtl.patch
+            STEP_TARGETS build
+            EXCLUDE_FROM_ALL TRUE
+            CONFIGURE_COMMAND ""
+            BUILD_COMMAND ""
+            CMAKE_ARGS ${CMAKE_ARGS}
+            )
+    ExternalProject_Get_Property(pegtl install_dir)
+    set(PEGTL_INCLUDE ${install_dir}/src/pegtl/include)
+endif()
+
+message(VERBOSE "PEGTL include directory ${PEGTL_INCLUDE}")
+
+############################################################
+# RapidJSON is a header-only library
+############################################################
+
+set(RAPIDJSON_SOURCE_URL "${APL_PROJECT_DIR}/thirdparty/rapidjson-v1.1.0.tar.gz")
+set(RAPIDJSON_SOURCE_MD5 "badd12c511e081fec6c89c43a7027bce")
 
 if (USE_SYSTEM_RAPIDJSON)
     find_path(RAPIDJSON_INCLUDE
         NAMES rapidjson/document.h
         REQUIRED)
+elseif (HAS_FETCH_CONTENT)
+    FetchContent_Declare(rapidjson
+            URL ${RAPIDJSON_SOURCE_URL}
+            URL_MD5 ${RAPIDJSON_SOURCE_MD5}
+            PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/rapidjson.patch
+            )
+    FetchContent_Populate(rapidjson)
+    set(RAPIDJSON_INCLUDE ${rapidjson_SOURCE_DIR}/include)
 else()
     ExternalProject_Add(rapidjson
-            URL ${APL_PROJECT_DIR}/thirdparty/rapidjson-v1.1.0.tar.gz
-            URL_MD5 badd12c511e081fec6c89c43a7027bce
+            URL ${RAPIDJSON_SOURCE_URL}
+            URL_MD5 ${RAPIDJSON_SOURCE_MD5}
             PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/rapidjson.patch
             STEP_TARGETS build
             EXCLUDE_FROM_ALL TRUE
@@ -126,7 +164,11 @@ else()
     set(RAPIDJSON_INCLUDE ${install_dir}/src/rapidjson/include)
 endif()
 
+message(VERBOSE "Rapidjson include directory ${RAPIDJSON_INCLUDE}")
+
+############################################################
 # Unpack googletest at configure time.  This is copied from the googletest README.md file
+############################################################
 configure_file(${APL_PROJECT_DIR}/thirdparty/googletest-CMakeLists.txt.in
                ${CMAKE_BINARY_DIR}/googletest-download/CMakeLists.txt )
 

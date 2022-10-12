@@ -119,7 +119,7 @@ public:
     }
 
     virtual rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const {
-        throw std::runtime_error("Illegal serialize call");
+        return rapidjson::Value(toDebugString().c_str(), allocator);
     }
 
     virtual const ObjectArray &getArray() const {
@@ -446,7 +446,7 @@ public:
     at(std::uint64_t index) const override {
         if (!mValue->IsArray() || index >= mValue->Size())
             return Object::NULL_OBJECT();
-        return (*mValue)[index];
+        return (*mValue)[static_cast<rapidjson::SizeType>(index)];
     }
 
     std::uint64_t
@@ -543,7 +543,7 @@ public:
     at(std::uint64_t index) const override {
         if (!mDoc.IsArray() || index >= mDoc.Size())
             return Object::NULL_OBJECT();
-        return mDoc[index];
+        return mDoc[static_cast<rapidjson::SizeType>(index)];
     }
 
     std::uint64_t

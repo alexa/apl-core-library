@@ -48,8 +48,24 @@ protected:
     // Component trait overrides
     CoreComponentPtr getComponent() override { return shared_from_corecomponent(); }
 
+#ifdef SCENEGRAPH
+    // Common scene graph handling
+    sg::LayerPtr constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) override;
+    bool updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph) override;
+#endif // SCENEGRAPH
+
 private:
     bool mOnLoadOnFailReported = false;
+#ifdef SCENEGRAPH
+    sg::FilterPtr getFilteredImage();
+
+    struct ImageRects {
+        Rect source;  // Portion of image to draw, in pixels
+        Rect target;  // Target rectangle to draw in the DP coordinate system
+    };
+
+    ImageRects getImageRects(const sg::FilterPtr& filter);
+#endif // SCENEGRAPH
 };
 
 } // namespace apl

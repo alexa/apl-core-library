@@ -29,7 +29,8 @@ static auto sEaseIn = CoreEasing::bezier(0.42, 0, 1, 1);
 static auto sEaseOut = CoreEasing::bezier(0, 0, 0.58, 1);
 static auto sEaseInOut = CoreEasing::bezier(0.42, 0, 0.58, 1);
 
-static WeakCache<Easing> sEasingCache = {
+// TODO: This is not thread safe
+static WeakCache<std::string, Easing> sEasingCache = {
     {"linear",      sLinear},
     {"ease",        sEase},
     {"ease-in",     sEaseIn},

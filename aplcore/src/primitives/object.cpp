@@ -48,7 +48,7 @@ const bool OBJECT_DEBUG = false;
 
 template<typename XData, typename T>
 std::shared_ptr<ObjectData> create(T&& data) {
-    return std::make_shared<XData>(std::move(data));
+    return std::make_shared<XData>(std::forward(data));
 }
 
 /****************************************************************************/
@@ -1483,9 +1483,9 @@ Object::serialize(rapidjson::Document::AllocatorType& allocator) const
             return m;
         }
         case kByteCodeType:
-            return rapidjson::Value("UNABLE TO SERIALIZE COMPILED BYTE CODE", allocator);
+            return rapidjson::Value("COMPILED BYTE CODE", allocator);
         case kFunctionType:
-            return rapidjson::Value("UNABLE TO SERIALIZE FUNCTION", allocator);
+            return rapidjson::Value("FUNCTION", allocator);
         case kAbsoluteDimensionType:
             return rapidjson::Value(std::isfinite(mU.value) ? mU.value : 0);
         case kRelativeDimensionType:
@@ -1510,9 +1510,9 @@ Object::serialize(rapidjson::Document::AllocatorType& allocator) const
         case kGraphicType:
             return getGraphic()->serialize(allocator);
         case kTransformType:
-            return rapidjson::Value("UNABLE TO SERIALIZE TRANSFORM", allocator);
+            return rapidjson::Value("TRANSFORM", allocator);
         case kBoundSymbolType:
-            return rapidjson::Value("UNABLE TO SERIALIZE BOUND SYMBOL", allocator);
+            return rapidjson::Value("BOUND SYMBOL", allocator);
         case kComponentType:
             return std::static_pointer_cast<ComponentEventWrapper>(mU.data)->serialize(allocator);
         case kContextType:

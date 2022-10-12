@@ -67,8 +67,8 @@ getTranslationAmount(const ActionablePtr& actionable, float distance)
 static inline size_t
 calculateTargetPage(const ActionablePtr& actionable, PageDirection direction, size_t current)
 {
-    const int childCount = actionable->getChildCount();
-    const int delta = direction == kPageDirectionForward ? 1 : childCount - 1;
+    const auto childCount = actionable->getChildCount();
+    const auto delta = direction == kPageDirectionForward ? 1 : childCount - 1;
     return (current + delta) % childCount;
 }
 
@@ -186,7 +186,7 @@ PagerFlingGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
         mPageDirection = direction;
         mTargetPage = calculateTargetPage(mActionable, mPageDirection, mCurrentPage);
 
-        pager->startPageMove(mPageDirection, mCurrentPage, mTargetPage);
+        pager->startPageMove(mPageDirection, mCurrentPage, static_cast<int>(mTargetPage));
     }
 
     if (mTriggered) {
@@ -209,7 +209,7 @@ PagerFlingGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
                 // Start new one from the new page
                 mCurrentPage = mTargetPage;
                 mTargetPage = calculateTargetPage(mActionable, mPageDirection, mCurrentPage);
-                pager->startPageMove(mPageDirection, mCurrentPage, mTargetPage);
+                pager->startPageMove(mPageDirection, mCurrentPage, static_cast<int>(mTargetPage));
             } else {
                 reset();
             }

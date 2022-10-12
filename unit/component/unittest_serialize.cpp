@@ -14,16 +14,24 @@
  */
 
 #include <iostream>
+#include <memory>
 
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/prettywriter.h"
 
 #include "../testeventloop.h"
+#include "../media/testmediaplayerfactory.h"
 
 using namespace apl;
 
 class SerializeTest : public DocumentWrapper {
+public:
+    SerializeTest() : DocumentWrapper() {
+        auto mediaPlayerFactory = std::make_shared<TestMediaPlayerFactory>();
+        config->mediaPlayerFactory(mediaPlayerFactory);
+    }
+
 protected:
     static void checkCommonProperties(const ComponentPtr& component, rapidjson::Value& json) {
         ASSERT_EQ(component->getUniqueId(), json["id"].GetString());
@@ -197,7 +205,7 @@ TEST_F(SerializeTest, Components)
     ASSERT_TRUE(component);
 
     rapidjson::Document doc;
-    auto json = component->serialize(doc.GetAllocator());
+    auto json = root->serializeDOM(false, doc.GetAllocator());
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
     checkCommonProperties(component, json);
@@ -312,6 +320,8 @@ TEST_F(SerializeTest, Components)
     ASSERT_EQ(source3.getDuration(), videoJson["source"][2]["duration"].GetInt());
     ASSERT_EQ(source3.getRepeatCount(), videoJson["source"][2]["repeatCount"].GetInt());
     ASSERT_EQ(source3.getOffset(), videoJson["source"][2]["offset"].GetInt());
+    ASSERT_TRUE(videoJson["__mediaPlayer"].GetObject().HasMember("mediaPlayerId"));
+    ASSERT_STREQ("TEST", videoJson["__mediaPlayer"].GetObject().FindMember("mediaPlayerId")->value.GetString());
 }
 
 TEST_F(SerializeTest, Dirty)
@@ -414,6 +424,7 @@ const static char *SERIALIZE_ALL_RESULT = R"({
   ],
   "checked": false,
   "color": "#fafafaff",
+  "_rangeKaraokeTarget": { "lowerBound": 0, "upperBound": -1 },
   "_colorKaraokeTarget": "#fafafaff",
   "_colorNonKaraoke": "#fafafaff",
   "description": "",
@@ -444,6 +455,7 @@ const static char *SERIALIZE_ALL_RESULT = R"({
   "minHeight": 0,
   "minWidth": 0,
   "onMount": [],
+  "onSpeechMark": [],
   "opacity": 1,
   "padding": [],
   "paddingBottom": null,
@@ -492,7 +504,7 @@ TEST_F(SerializeTest, SerializeAll)
     auto visualHash = component->getCalculated(kPropertyVisualHash).getString();
 
     rapidjson::Document doc;
-    auto json = component->serializeAll(doc.GetAllocator());
+    auto json = root->serializeDOM(true, doc.GetAllocator());
 
     // Need to remove the "id" element - it changes depending on the number of unit tests executed.
     json.RemoveMember("id");
@@ -769,7 +781,7 @@ TEST_F(SerializeTest, AVG)
     auto graphicRoot = graphic->getRoot();
     auto& graphicRootJson = graphicJson["root"];
 
-    ASSERT_EQ(graphicRootJson["id"].GetInt(), graphicRoot->getId());
+    ASSERT_STREQ(graphicRootJson["id"].GetString(), graphicRoot->getUniqueId().c_str());
     ASSERT_EQ(graphicRootJson["props"]["height_actual"].GetDouble(), graphicRoot->getValue(kGraphicPropertyHeightActual).getAbsoluteDimension());
     ASSERT_EQ(graphicRootJson["props"]["width_actual"].GetDouble(), graphicRoot->getValue(kGraphicPropertyWidthActual).getAbsoluteDimension());
     ASSERT_EQ(graphicRootJson["props"]["viewportHeight_actual"].GetDouble(), graphicRoot->getValue(kGraphicPropertyViewportHeightActual).getDouble());
@@ -779,7 +791,7 @@ TEST_F(SerializeTest, AVG)
     auto group = graphicRoot->getChildAt(0);
     auto& groupJson = graphicRootJson["children"][0];
 
-    ASSERT_EQ(groupJson["id"].GetInt(), group->getId());
+    ASSERT_STREQ(groupJson["id"].GetString(), group->getUniqueId().c_str());
     ASSERT_EQ(groupJson["type"].GetInt(), group->getType());
     ASSERT_EQ(groupJson["props"]["clipPath"].GetString(), group->getValue(kGraphicPropertyClipPath).getString());
     ASSERT_EQ(groupJson["props"]["opacity"].GetDouble(), group->getValue(kGraphicPropertyOpacity).getDouble());
@@ -789,7 +801,7 @@ TEST_F(SerializeTest, AVG)
     auto path = group->getChildAt(0);
     auto& pathJson = groupJson["children"][0];
 
-    ASSERT_EQ(pathJson["id"].GetInt(), path->getId());
+    ASSERT_STREQ(pathJson["id"].GetString(), path->getUniqueId().c_str());
     ASSERT_EQ(pathJson["type"].GetInt(), path->getType());
     ASSERT_EQ(pathJson["props"]["fillOpacity"].GetDouble(), path->getValue(kGraphicPropertyFillOpacity).getDouble());
     ASSERT_TRUE(pathJson["props"]["_fillTransform"].IsArray());
@@ -820,7 +832,7 @@ TEST_F(SerializeTest, AVG)
     auto pattern = path->getValue(kGraphicPropertyFill).getGraphicPattern();
     auto& patternJson = pathJson["props"]["fill"];
 
-    ASSERT_EQ(patternJson["id"].GetString(), pattern->getId());
+    ASSERT_EQ(patternJson["id"].GetString(), pattern->getUniqueId());
     ASSERT_EQ(patternJson["description"].GetString(), pattern->getDescription());
     ASSERT_EQ(patternJson["width"].GetDouble(), pattern->getWidth());
     ASSERT_EQ(patternJson["height"].GetDouble(), pattern->getHeight());
@@ -828,14 +840,14 @@ TEST_F(SerializeTest, AVG)
     auto patternPath = pattern->getItems().at(0);
     auto& patternPathJson = patternJson["items"][0];
     // Just check type and ID. It's just regular Path.
-    ASSERT_EQ(patternPathJson["id"].GetInt(), patternPath->getId());
+    ASSERT_STREQ(patternPathJson["id"].GetString(), patternPath->getUniqueId().c_str());
     ASSERT_EQ(patternPathJson["type"].GetInt(), patternPath->getType());
 
 
     auto text = group->getChildAt(1);
     auto& textJson = groupJson["children"][1];
 
-    ASSERT_EQ(textJson["id"].GetInt(), text->getId());
+    ASSERT_STREQ(textJson["id"].GetString(), text->getUniqueId().c_str());
     ASSERT_EQ(textJson["type"].GetInt(), text->getType());
     ASSERT_EQ(textJson["props"]["x"].GetDouble(), text->getValue(kGraphicPropertyCoordinateX).getDouble());
     ASSERT_EQ(textJson["props"]["y"].GetDouble(), text->getValue(kGraphicPropertyCoordinateY).getDouble());
@@ -987,7 +999,7 @@ TEST_F(SerializeTest, SingularTransform) {
     ASSERT_TRUE(component);
 
     rapidjson::Document doc;
-    auto json = component->serialize(doc.GetAllocator());
+    auto json = root->serializeDOM(false, doc.GetAllocator());
 
     auto &transformJson = json["children"][0]["_transform"];
     ASSERT_EQ(0.0f, transformJson[0].GetFloat());
@@ -1044,7 +1056,7 @@ TEST_F(SerializeTest, SerializeHeaders) {
     ASSERT_TRUE(component);
 
     rapidjson::Document doc;
-    auto json = component->serialize(doc.GetAllocator());
+    auto json = root->serializeDOM(false, doc.GetAllocator());
 
     auto video = context->findComponentById("video1");
     ASSERT_TRUE(video);

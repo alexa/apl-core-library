@@ -17,6 +17,7 @@
 #define _APL_ANIMATED_SCROLL_ACTION_H
 
 #include "apl/action/resourceholdingaction.h"
+#include "apl/primitives/object.h"
 
 namespace apl {
 
@@ -26,6 +27,10 @@ class AutoScroller;
 class AnimatedScrollAction : public ResourceHoldingAction {
 public:
     CoreComponentPtr getScrollableContainer() const { return mContainer; }
+
+
+    void freeze() override;
+    bool rehydrate(const RootContext& context) override;
 
 protected:
     AnimatedScrollAction(const TimersPtr& timers,
@@ -43,6 +48,7 @@ private:
     std::shared_ptr<AutoScroller> mScroller;
     ActionPtr mCurrentAction;
     apl_duration_t mDuration;
+    std::string mFrozenContainerId;
 };
 
 

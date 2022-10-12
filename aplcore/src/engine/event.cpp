@@ -33,6 +33,8 @@ Bimap<int, std::string> sEventTypeBimap = {
     {kEventTypePreroll,                "preroll"},
     {kEventTypeReinflate,              "reinflate"},
     {kEventTypeRequestFirstLineBounds, "requestFirstLineBounds"},
+    {kEventTypeRequestLineBounds,      "requestLineBounds"},
+    {kEventTypeLineHighlight,          "lineHighlight"},
     {kEventTypeSendEvent,              "sendEvent"},
     {kEventTypeSpeak,                  "speak"}
 };
@@ -54,6 +56,8 @@ Bimap<int, std::string> sEventPropertyBimap = {
     {kEventPropertyMediaType,                "mediaType"},
     {kEventPropertyName,                     "name"},
     {kEventPropertyPosition,                 "position"},
+    {kEventPropertyRangeStart,               "rangeStart"},
+    {kEventPropertyRangeEnd,                 "rangeEnd"},
     {kEventPropertyReason,                   "reason"},
     {kEventPropertySource,                   "source"},
     {kEventPropertyValue,                    "value"}

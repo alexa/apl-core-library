@@ -85,7 +85,7 @@ public:
 
     const value_type & operator[](size_t index) const {
         if (mValue->IsArray())
-            return (*mValue)[index];
+            return (*mValue)[static_cast<rapidjson::SizeType>(index)];
 
         return *mValue;
     }

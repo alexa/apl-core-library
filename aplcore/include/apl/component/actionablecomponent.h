@@ -16,7 +16,7 @@
 #ifndef _APL_ACTIONABLE_COMPONENT_H
 #define _APL_ACTIONABLE_COMPONENT_H
 
-#include "corecomponent.h"
+#include "apl/component/corecomponent.h"
 #include "apl/focus/focusdirection.h"
 
 namespace apl {
@@ -76,6 +76,10 @@ protected:
 
     bool processGestures(const PointerEvent& event, apl_time_t timestamp) override;
     void invokeStandardAccessibilityAction(const std::string& name) override;
+
+#ifdef SCENEGRAPH
+    sg::LayerPtr constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) override;
+#endif // SCENEGRAPH
 
     static const std::map<Keyboard, FocusDirection, Keyboard::comparatorWithoutRepeat>& keyboardToFocusDirection();
     static const std::map<FocusDirection, PropertyKey>& focusDirectionToNextProperty();

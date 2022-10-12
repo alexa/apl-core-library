@@ -59,6 +59,13 @@ protected:
     // Component trait overrides
     CoreComponentPtr getComponent() override { return shared_from_corecomponent(); }
 
+#ifdef SCENEGRAPH
+    // Common scene graph handling
+    sg::LayerPtr constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) override;
+    bool updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph) override;
+    bool fixMediaLayer(sg::SceneGraphUpdates& sceneGraph, const sg::LayerPtr& layer);
+#endif // SCENEGRAPH
+
 private:
     bool mOnLoadOnFailReported = false;
 };

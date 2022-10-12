@@ -18,7 +18,7 @@
 #include "apl/animation/animatedproperty.h"
 #include "apl/command/corecommand.h"
 #include "apl/component/scrollablecomponent.h"
-#include "apl/content/rootconfig.h"
+#include "apl/engine/rootcontext.h"
 #include "apl/time/sequencer.h"
 #include "apl/touch/utils/autoscroller.h"
 
@@ -33,7 +33,7 @@ AnimatedScrollAction::AnimatedScrollAction(const TimersPtr& timers,
           mDuration(duration)
 {
     // Default to programmatic duration if not specified
-    mDuration = mDuration ? mDuration : context->getRootConfig().getScrollCommandDuration();
+    mDuration = mDuration >= 0 ? mDuration : context->getRootConfig().getScrollCommandDuration();
 }
 
 void
@@ -60,6 +60,11 @@ AnimatedScrollAction::scroll(bool vertical, const Point& position)
 void
 AnimatedScrollAction::advance()
 {
+    if (!mScroller) {
+        resolve();
+        return;
+    }
+
     std::weak_ptr<AnimatedScrollAction> weak_ptr(std::static_pointer_cast<AnimatedScrollAction>(shared_from_this()));
     mCurrentAction = Action::makeAnimation(timers(), mScroller->getDuration(),
        [weak_ptr](apl_duration_t offset) {
@@ -77,6 +82,33 @@ AnimatedScrollAction::advance()
                 self->resolve();
         }
     });
+}
+
+void
+AnimatedScrollAction::freeze()
+{
+    mCurrentAction->freeze();
+
+    mFrozenContainerId = mContainer->getId();
+
+    ResourceHoldingAction::freeze();
+}
+
+bool
+AnimatedScrollAction::rehydrate(const RootContext& context)
+{
+    if (!mCurrentAction) {
+        return true;
+    }
+
+    if (!ResourceHoldingAction::rehydrate(context)) return false;
+
+    mContainer = std::dynamic_pointer_cast<CoreComponent>(context.findComponentById(mFrozenContainerId));
+    if (!mContainer) return false;
+
+    mScroller->replaceTarget(std::dynamic_pointer_cast<ScrollableComponent>(mContainer));
+
+    return mCurrentAction->rehydrate(context);
 }
 
 } // namespace apl

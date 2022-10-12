@@ -14,6 +14,7 @@
  */
 
 #include "apl/primitives/rect.h"
+
 #include <cmath>
 #ifdef APL_CORE_UWP
     #include <algorithm>

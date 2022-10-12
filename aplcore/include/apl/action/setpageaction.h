@@ -24,11 +24,7 @@ class CoreCommand;
 class Component;
 
 /**
- * Tell the view host to change pages in a Pager component.  This is fired by the
- * SetPage and AutoPage commands
- *
- *   kEventPropertyPosition    Target page
- *   kEventPropertyDirection   Direction to page (forward/back)
+ * Change the displayed page in a Pager component.
  */
 class SetPageAction : public ResourceHoldingAction {
 public:
@@ -39,12 +35,16 @@ public:
                   const std::shared_ptr<CoreCommand>& command,
                   const CoreComponentPtr& target);
 
+    void freeze() override;
+    bool rehydrate(const RootContext& context) override;
+
 private:
     void start();
 
 private:
     std::shared_ptr<CoreCommand> mCommand;
     CoreComponentPtr mTarget;
+    int mTargetIndex;
 };
 
 } // namespace apl

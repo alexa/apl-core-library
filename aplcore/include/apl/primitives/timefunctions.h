@@ -53,7 +53,7 @@ int monthFromTime(apl_itime_t t);
  */
 inline constexpr apl_itime_t day(apl_itime_t t) noexcept
 {
-    return t / MS_PER_DAY;
+    return static_cast<int>(t / MS_PER_DAY);
 }
 
 /**

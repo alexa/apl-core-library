@@ -97,6 +97,29 @@ enum EventType {
     kEventTypeRequestFirstLineBounds,
 
     /**
+     * Requests the bounds information for a text component
+     *
+     * kEventPropertyRangeStart byte range start
+     * kEventPropertyRangeEnd byte range end
+     *
+     * The component is a TextComponent that needs the line bounds measured
+     */
+    kEventTypeRequestLineBounds,
+
+    /**
+     * Requests the karaoke line to be highlighted
+     *
+     * kEventPropertyRangeStart byte range start
+     * kEventPropertyRangeEnd byte range end
+     *
+     * The component is a TextComponent that needs the line highlighted. If range is empty (0,0)
+     * clear any highlights.
+     *
+     * Does not have an ActionRef
+     */
+    kEventTypeLineHighlight,
+
+    /**
      * Send an event to the server
      *
      * kEventPropertySource: The rich source object describing who raised this event.
@@ -197,6 +220,8 @@ enum EventProperty {
     kEventPropertyMediaType,
     kEventPropertyName,
     kEventPropertyPosition,
+    kEventPropertyRangeStart,
+    kEventPropertyRangeEnd,
     kEventPropertyReason,
     kEventPropertySource,
     kEventPropertyValue,

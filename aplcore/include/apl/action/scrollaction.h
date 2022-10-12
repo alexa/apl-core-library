@@ -26,11 +26,6 @@ class AnimatedProperty;
 
 /**
  * Scroll to position in scrollable component.
- *
- * This action results in a kEventTypeScrollTo event being fired.
- * The following properties are passed with the event:
- *
- *    kEventPropertyPosition  The scroll position.
  */
 class ScrollAction : public AnimatedScrollAction {
 public:
@@ -54,13 +49,16 @@ public:
                                               const ContextPtr& context,
                                               const CoreComponentPtr& target,
                                               const Object& targetDistance,
-                                              apl_duration_t duration = 0);
+                                              apl_duration_t duration = -1);
 
     ScrollAction(const TimersPtr& timers,
                  const ContextPtr& context,
                  const CoreComponentPtr& target,
                  const Object& targetDistance,
                  apl_duration_t duration);
+
+    void freeze() override;
+    bool rehydrate(const RootContext& context) override;
 
 private:
     void start();

@@ -62,6 +62,20 @@ public:
      */
     virtual bool       clearTimeout(timeout_id id) = 0;
 
+    /**
+     * Freeze timeout state and memoize any of state required to "revive" this timeout in the different
+     * context.
+     * @param id timeout ID.
+     */
+    virtual void freeze(timeout_id id) {}
+
+    /**
+     * Continue timeout processing.
+     * @param id timeout ID.
+     * @return true if successful, false otherwise.
+     */
+    virtual bool rehydrate(timeout_id id) { return false; }
+
 protected:
     Timers() {};
 

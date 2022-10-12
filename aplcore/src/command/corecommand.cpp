@@ -45,6 +45,7 @@
 #include "apl/command/reinflatecommand.h"
 
 #include "apl/engine/layoutmanager.h"
+#include "apl/engine/rootcontext.h"
 
 namespace apl {
 
@@ -113,7 +114,56 @@ CoreCommand::propDefSet() const
              });
 
     return sCommonProperties;
-};
+}
+
+void
+CoreCommand::freeze()
+{
+    if (mFrozen) return;
+
+    if (mBase) {
+        mBaseId = mBase->getId();
+    }
+    if (mTarget) {
+        mTargetId = mTarget->getId();
+    }
+
+    // TODO: Need to see if any "better" re-evaluation required. We effectively keep copy of current
+    //  context, so any bindings may be "obsolete" after rehydration.
+    auto event = mContext->opt("event");
+
+    rapidjson::Document serializer;
+    auto eventValue = event.serialize(serializer.GetAllocator());
+    mFrozenEventContext = rapidjson::Document();
+    mFrozenEventContext.CopyFrom(eventValue, mFrozenEventContext.GetAllocator());
+
+    mContext = nullptr;
+    mBase = nullptr;
+    mTarget = nullptr;
+    mFrozen = true;
+}
+
+bool
+CoreCommand::rehydrate(const RootContext& context)
+{
+    if (!mFrozen) return true;
+
+    mContext = context.contextPtr();
+    mContext->putConstant("event", Object(std::move(mFrozenEventContext)));
+
+    if (!mBaseId.empty()) {
+        mBase = std::static_pointer_cast<CoreComponent>(context.findComponentById(mBaseId));
+        if (!mBase) return false;
+    }
+    if (!mTargetId.empty()) {
+        mTarget = std::static_pointer_cast<CoreComponent>(context.findComponentById(mTargetId));
+        if (!mTarget) return false;
+    }
+
+    mFrozenEventContext = nullptr;
+    mFrozen = false;
+    return true;
+}
 
 std::string
 CoreCommand::name() const

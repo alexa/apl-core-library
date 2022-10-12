@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include <rapidjson/document.h>
+
 #include "apl/utils/streamer.h"
 #include "apl/utils/stringfunctions.h"
 
@@ -83,7 +85,13 @@ public:
         return sutil::to_string(mX) + "," + sutil::to_string(mY);
     }
 
-    bool isFinite() { return std::isfinite(mX) && std::isfinite(mY); }
+    std::string toDebugString() const {
+        return "Point<" + toString() + ">";
+    }
+
+    bool isFinite() const { return std::isfinite(mX) && std::isfinite(mY); }
+
+    bool empty() const { return mX == 0 && mY == 0; }
 
     /**
      * Get bottom right bounding position for two provided points.
@@ -103,6 +111,13 @@ public:
      */
     static tPoint topLeftBound(const tPoint& p1, const tPoint& p2) {
         return {std::min(p1.getX(), p2.getX()), std::min(p1.getY(), p2.getY())};
+    }
+
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const {
+        auto out = rapidjson::Value(rapidjson::kArrayType);
+        out.PushBack(mX, allocator);
+        out.PushBack(mY, allocator);
+        return out;
     }
 
 private:

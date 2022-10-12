@@ -25,15 +25,10 @@ public:
     static CommandPtr create(const ContextPtr& context,
                              Properties&& properties,
                              const CoreComponentPtr& base,
-                             const std::string& parentSequencer) {
-        auto ptr = std::make_shared<SendEventCommand>(context, std::move(properties), base, parentSequencer);
-        return ptr->validate() ? ptr : nullptr;
-    }
+                             const std::string& parentSequencer);
 
     SendEventCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
-                     const std::string& parentSequencer)
-            : CoreCommand(context, std::move(properties), base, parentSequencer)
-    {}
+                     const std::string& parentSequencer);
 
     const CommandPropDefSet& propDefSet() const override;
 

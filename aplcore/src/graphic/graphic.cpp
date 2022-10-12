@@ -22,6 +22,9 @@
 #include "apl/utils/session.h"
 #include "apl/engine/propdef.h"
 #include "apl/component/vectorgraphiccomponent.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/scenegraphupdates.h"
+#endif // SCENEGRAPH
 
 namespace apl {
 
@@ -84,13 +87,13 @@ Graphic::create(const ContextPtr& context,
 }
 
 Graphic::Graphic(const ContextPtr& context, const rapidjson::Value& json, GraphicVersions version)
-    : mInternalContext(Context::createClean(context)),
+    : UIDObject(Context::createClean(context)),
       mParameterArray(json),
       mVersion(version)
 {
     // Put in some dummy values.  This will allow internal GraphicElements to set up dependant relationships
-    mInternalContext->putSystemWriteable("width", 100);
-    mInternalContext->putSystemWriteable("height", 100);
+    mContext->putSystemWriteable("width", 100);
+    mContext->putSystemWriteable("height", 100);
 }
 
 Graphic::~Graphic()
@@ -108,8 +111,8 @@ Graphic::release()
     clearDirty();
     if (mRootElement)
         mRootElement->release();
-    if (mInternalContext)
-        mInternalContext->release();  // This ensures any resources holding GraphicPattern are cleared
+    if (mContext)
+        mContext->release();  // This ensures any resources holding GraphicPattern are cleared
     mComponent.reset();
 }
 
@@ -156,7 +159,7 @@ Graphic::initialize(const ContextPtr& sourceContext,
                     const StyleInstancePtr& styledPtr)
 {
     setComponent(component);
-    addNamedResourcesBlock(*mInternalContext, json, path, "resources", sGraphicResourceOperators);
+    addNamedResourcesBlock(*mContext, json, path, "resources", sGraphicResourceOperators);
 
     mStyles = std::make_shared<Styles>(sourceContext->styles());
 
@@ -169,7 +172,7 @@ Graphic::initialize(const ContextPtr& sourceContext,
     for (const auto& param : mParameterArray) {
         LOG_IF(DEBUG_GRAPHIC).session(sourceContext) << "Parse parameter: " << param.name;
         const auto& conversionFunc = sBindingFunctions.at(param.type);
-        auto value = conversionFunc(*sourceContext, evaluate(*mInternalContext, param.defvalue));
+        auto value = conversionFunc(*sourceContext, evaluate(*mContext, param.defvalue));
         Object parsed;
 
         // Check if there is an assigned property
@@ -194,11 +197,11 @@ Graphic::initialize(const ContextPtr& sourceContext,
 
         // Store the calculated value in the data-binding context
         LOG_IF(DEBUG_GRAPHIC).session(sourceContext) << "Storing parameter '" << param.name << "' = " << value;
-        mInternalContext->putUserWriteable(param.name, value);
+        mContext->putUserWriteable(param.name, value);
 
         // After storing the parameter we can wire up any necessary data dependant
         if (parsed.isEvaluable())
-            ContextDependant::create(mInternalContext, param.name, parsed, sourceContext, conversionFunc);
+            ContextDependant::create(mContext, param.name, parsed, sourceContext, conversionFunc);
     }
 
     auto self = std::static_pointer_cast<Graphic>(shared_from_this());
@@ -210,7 +213,7 @@ Graphic::setProperty(const std::string& key, const apl::Object& value)
 {
     for (const auto& param : mParameterArray) {
         if (param.name == key) {
-            mInternalContext->userUpdateAndRecalculate(key, value, true);
+            mContext->userUpdateAndRecalculate(key, value, true);
             mAssigned.emplace(key);
             return true;
         }
@@ -224,7 +227,7 @@ Graphic::getProperty(const std::string& key) const
 {
     for (const auto& param : mParameterArray) {
         if (param.name == key)
-            return { mInternalContext->opt(key), true };
+            return { mContext->opt(key), true };
     }
 
     return { Object::NULL_OBJECT(), false };
@@ -303,8 +306,8 @@ Graphic::layout(double width, double height, bool useDirtyFlag) {
     if (viewportWidthNew != viewportWidthActual || viewportHeightNew != viewportHeightActual) {
         mRootElement->setValue(kGraphicPropertyViewportWidthActual, viewportWidthNew, useDirtyFlag);
         mRootElement->setValue(kGraphicPropertyViewportHeightActual, viewportHeightNew, useDirtyFlag);
-        mInternalContext->systemUpdateAndRecalculate("height", viewportHeightNew, useDirtyFlag);
-        mInternalContext->systemUpdateAndRecalculate("width", viewportWidthNew, useDirtyFlag);
+        mContext->systemUpdateAndRecalculate("height", viewportHeightNew, useDirtyFlag);
+        mContext->systemUpdateAndRecalculate("width", viewportWidthNew, useDirtyFlag);
     }
 
     // If we've reached this point, we know that at least one of width or height change, so we're dirty.
@@ -332,10 +335,10 @@ Graphic::updateStyle(const StyleInstancePtr& styledPtr)
                 auto newValue = m.defvalue;
                 auto itStyle = styledPtr->find(m.name);
                 if (itStyle != styledPtr->end())
-                    newValue = sBindingFunctions.at(m.type)(*mInternalContext, itStyle->second);
+                    newValue = sBindingFunctions.at(m.type)(*mContext, itStyle->second);
 
-                if (mInternalContext->opt(m.name) != newValue) {  // Ah - there's a change
-                    mInternalContext->userUpdateAndRecalculate(m.name, newValue, true);
+                if (mContext->opt(m.name) != newValue) {  // Ah - there's a change
+                    mContext->userUpdateAndRecalculate(m.name, newValue, true);
                     changed = true;
                 }
             }
@@ -371,13 +374,41 @@ rapidjson::Value
 Graphic::serialize(rapidjson::Document::AllocatorType& allocator) const {
     using rapidjson::Value;
     Value v(rapidjson::kObjectType);
+    v.AddMember("id", rapidjson::Value(getUniqueId().c_str(), allocator), allocator);
     v.AddMember("isValid", isValid(), allocator);
     v.AddMember("intrinsicWidth", getIntrinsicWidth(), allocator);
     v.AddMember("intrinsicHeight", getIntrinsicHeight(), allocator);
     v.AddMember("viewportWidth", getViewportWidth(), allocator);
     v.AddMember("viewportHeight", getViewportHeight(), allocator);
-    v.AddMember("root", getRoot()->serialize(allocator), allocator);
+    auto root = getRoot();
+    if (root)
+        v.AddMember("root", root->serialize(allocator), allocator);
     return v;
 }
+
+#ifdef SCENEGRAPH
+sg::NodePtr
+Graphic::getSceneGraph(sg::SceneGraphUpdates& sceneGraph)
+{
+    if (!mRootElement)
+        return nullptr;
+
+    return mRootElement->getSceneGraph(sceneGraph);
+}
+
+bool
+Graphic::updateSceneGraph(sg::SceneGraphUpdates& sceneGraph)
+{
+    if (!mRootElement)
+        return false;
+
+    sg::ModifiedNodeList list;
+    for (const auto& element : mDirty)
+        element->updateSceneGraph(list);
+
+    clearDirty();
+    return mRootElement->needsRedraw();
+}
+#endif // SCENEGRAPH
 
 } // namespace apl

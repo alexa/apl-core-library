@@ -23,6 +23,22 @@ namespace apl {
 
 const static bool DEBUG_SEND_EVENT = false;
 
+CommandPtr
+SendEventCommand::create(const ContextPtr& context,
+                         Properties&& properties,
+                         const CoreComponentPtr& base,
+                         const std::string& parentSequencer) {
+    auto ptr = std::make_shared<SendEventCommand>(context, std::move(properties), base, parentSequencer);
+    return ptr->validate() ? ptr : nullptr;
+}
+
+SendEventCommand::SendEventCommand(const ContextPtr& context,
+                                   Properties&& properties,
+                                   const CoreComponentPtr& base,
+                                   const std::string& parentSequencer)
+    : CoreCommand(context, std::move(properties), base, parentSequencer)
+{}
+
 const CommandPropDefSet&
 SendEventCommand::propDefSet() const {
     static CommandPropDefSet sSendEventCommandProperties(CoreCommand::propDefSet(), {
@@ -41,7 +57,7 @@ SendEventCommand::execute(const TimersPtr& timers, bool fastMode) {
         return nullptr;
     }
 
-    if (!calculateProperties())
+    if (!mContext || !calculateProperties())
         return nullptr;
 
     // Calculate the component map
@@ -54,7 +70,13 @@ SendEventCommand::execute(const TimersPtr& timers, bool fastMode) {
     }
 
     // Freeze the "event.source" property as a JSON object
-    mSource = mContext->opt("event").get("source").serialize(mDocument.GetAllocator());
+    auto event = mContext->opt("event");
+    if (event.empty()) {
+        LOG(LogLevel::kError)
+            << "Event field not available in context. Should not happen during normal operation.";
+        return nullptr;
+    }
+    mSource = event.get("source").serialize(mDocument.GetAllocator());
     rapidjson::Document sourceDoc;
     sourceDoc.CopyFrom(mSource, sourceDoc.GetAllocator());
 

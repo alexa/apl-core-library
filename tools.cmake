@@ -11,11 +11,13 @@
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
-set(ENUMGEN_INSTALL_DIR "${CMAKE_BINARY_DIR}/tools")
-set(ENUMGEN_BIN "${ENUMGEN_INSTALL_DIR}/enumgen")
+if (BUILD_ENUMGEN)
+    set(ENUMGEN_INSTALL_DIR "${CMAKE_BINARY_DIR}/tools")
+    set(ENUMGEN_BIN "${ENUMGEN_INSTALL_DIR}/enumgen")
 
-ExternalProject_Add(enumgen
-    DOWNLOAD_COMMAND ""
-    SOURCE_DIR ${APL_PROJECT_DIR}/tools
-    CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX=${ENUMGEN_INSTALL_DIR}"
-)
+    ExternalProject_Add(enumgen
+        DOWNLOAD_COMMAND ""
+        SOURCE_DIR ${APL_PROJECT_DIR}/tools
+        CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX=${ENUMGEN_INSTALL_DIR}"
+    )
+endif()

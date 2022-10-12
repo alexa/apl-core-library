@@ -13,17 +13,17 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/graphic/graphicelement.h"
 
 #include "apl/component/corecomponent.h"
-
 #include "apl/engine/propdef.h"
-
 #include "apl/graphic/graphic.h"
-
 #include "apl/graphic/graphicdependant.h"
+#include "apl/graphic/graphicelement.h"
 #include "apl/graphic/graphicpropdef.h"
-
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/node.h"
+#endif // SCENEGRAPH
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -44,13 +44,21 @@ GraphicElement::asAvgFill(const Context& context, const Object& object) {
 
 /**************************************************************************/
 
-id_type GraphicElement::sUniqueGraphicIdGenerator = 1000;
-
 GraphicElement::GraphicElement(const GraphicPtr& graphic, const ContextPtr& context)
-    : mId(sUniqueGraphicIdGenerator++),
-      mGraphic(graphic),
-      mContext(context)
+    : UIDObject(context),
+      mGraphic(graphic)
 {
+}
+
+id_type
+GraphicElement::getId() const {
+    if (mCachedTempId <= 0) {
+        auto result = getUniqueId();
+        result.erase(0,1);
+        mCachedTempId = std::stoi(result);
+    }
+
+    return mCachedTempId;
 }
 
 
@@ -162,7 +170,7 @@ GraphicElement::serialize(rapidjson::Document::AllocatorType& allocator) const
 {
     using rapidjson::Value;
     Value v(rapidjson::kObjectType);
-    v.AddMember("id", getId(), allocator);
+    v.AddMember("id", rapidjson::Value(getUniqueId().c_str(), allocator), allocator);
     v.AddMember("type", static_cast<int>(getType()), allocator);
     Value props(rapidjson::kObjectType);
     for(const auto& pds : propDefSet()) {
@@ -183,6 +191,7 @@ GraphicElement::serialize(rapidjson::Document::AllocatorType& allocator) const
 
 void
 GraphicElement::clearDirtyProperties() {
+    // TODO: Why are we clearing the children?  Shouldn't this be handled by the Graphic?
     for(const auto& child : mChildren) {
         child->clearDirtyProperties();
     }
@@ -283,5 +292,53 @@ GraphicElement::release() {
     }
 }
 
+#ifdef SCENEGRAPH
+sg::NodePtr
+GraphicElement::getSceneGraph(sg::SceneGraphUpdates& sceneGraph)
+{
+    if (!mSceneGraphNode) {
+        mInnerSceneGraphNode = buildSceneGraph(sceneGraph);
+        mSceneGraphNode = mInnerSceneGraphNode;
+
+        const auto& filters = mValues.get(kGraphicPropertyFilters);
+        if (!filters.empty()) {
+            // Build up the filter list in reverse order
+            for (int i = 0; i < filters.size(); i++) {
+                const auto& filter = filters.at(i).getGraphicFilter();
+                switch (filter.getType()) {
+                    case kGraphicFilterTypeDropShadow:
+                        mSceneGraphNode = sg::shadowNode(
+                            sg::shadow(
+                                filter.getValue(kGraphicPropertyFilterColor).getColor(),
+                                Point{filter.getValue(kGraphicPropertyFilterHorizontalOffset)
+                                          .asFloat(),
+                                      filter.getValue(kGraphicPropertyFilterVerticalOffset)
+                                          .asFloat()},
+                                filter.getValue(kGraphicPropertyFilterRadius).asFloat()),
+                            mSceneGraphNode);
+                        break;
+                }
+            }
+        }
+    }
+
+    return mSceneGraphNode;
+}
+
+void
+GraphicElement::updateSceneGraph(sg::ModifiedNodeList& modList)
+{
+    if (!mSceneGraphNode)
+        return;
+
+    updateSceneGraphInternal(modList, mInnerSceneGraphNode);
+}
+
+bool
+GraphicElement::needsRedraw() const
+{
+    return mSceneGraphNode ? mSceneGraphNode->needsRedraw() : false;
+}
+#endif // SCENEGRAPH
 
 } // namespace apl

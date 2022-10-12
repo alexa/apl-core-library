@@ -93,6 +93,9 @@ public:
 
     virtual const CommandPropDefSet& propDefSet() const;
 
+    void freeze() final;
+    bool rehydrate(const RootContext& context) final;
+
 protected:
     bool validate();
     bool calculateProperties();
@@ -106,7 +109,13 @@ protected:
     CoreComponentPtr  mTarget;
     const bool        mScreenLock;
     std::string       mSequencer;
- };
+
+private:
+    std::string mBaseId;
+    std::string mTargetId;
+    rapidjson::Document mFrozenEventContext;
+    bool mFrozen = false;
+};
 
 } // namespace apl
 

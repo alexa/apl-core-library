@@ -23,6 +23,7 @@
 #include <map>
 #include <yoga/Yoga.h>
 
+#include "apl/apl_config.h"
 #include "apl/common.h"
 #include "apl/component/componentproperties.h"
 #include "apl/engine/contextobject.h"
@@ -32,6 +33,9 @@
 #include "apl/engine/styleinstance.h"
 #include "apl/primitives/object.h"
 #include "apl/primitives/textmeasurerequest.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/common.h"
+#endif // SCENEGRAPH
 #include "apl/utils/counter.h"
 #include "apl/utils/localemethods.h"
 #include "apl/utils/lrucache.h"
@@ -55,6 +59,7 @@ class KeyboardManager;
 class LiveDataManager;
 class ExtensionManager;
 class LayoutManager;
+class UIDManager;
 
 using DataSourceConnectionPtr = std::shared_ptr<DataSourceConnection>;
 
@@ -448,6 +453,13 @@ public:
     double pxToDp(double px) const;
 
     /**
+     * Convert dp to pixel units
+     * @param dp The amount of dp units
+     * @return The corresponding amount in px
+     */
+    double dpToPx(double dp) const;
+
+    /**
      * @return The height of the viewport in dp
      */
     double width() const;
@@ -575,6 +587,13 @@ public:
      */
     WeakPtrSet<CoreComponent>& pendingOnMounts();
 
+#ifdef SCENEGRAPH
+    /**
+     * @return A cache of TextProperties
+     */
+    sg::TextPropertiesCache& textPropertiesCache() const;
+#endif // SCENEGRAPH
+
     void pushEvent(Event&& event);
 
 #ifdef ALEXAEXTENSIONS
@@ -591,6 +610,7 @@ public:
     LayoutManager& layoutManager() const;
     MediaManager& mediaManager() const;
     MediaPlayerFactory& mediaPlayerFactory() const;
+    UIDManager& uniqueIdManager() const;
 
     std::shared_ptr<Styles> styles() const;
 
@@ -610,6 +630,8 @@ public:
      * @return The inflated component or nullptr if the JSON is invalid.
      */
     ComponentPtr inflate(const rapidjson::Value& component);
+
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator);
 
 protected:
     ContextPtr mParent;

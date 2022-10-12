@@ -17,7 +17,7 @@
 #include "apl/command/corecommand.h"
 #include "apl/time/sequencer.h"
 #include "apl/component/pagercomponent.h"
-#include "apl/content/rootconfig.h"
+#include "apl/engine/rootcontext.h"
 
 namespace apl {
 
@@ -81,6 +81,14 @@ ScrollToAction::make(const TimersPtr& timers,
     return make(timers, align, subBounds, context, true, target);
 }
 
+inline ComponentPtr getScrollableParent(const ComponentPtr& target) {
+    auto container = target->getParent();
+    while (container && container->scrollType() == kScrollTypeNone)
+        container = container->getParent();
+
+    return container;
+}
+
 std::shared_ptr<ScrollToAction>
 ScrollToAction::make(const TimersPtr& timers,
                      const CommandScrollAlign& align,
@@ -94,10 +102,7 @@ ScrollToAction::make(const TimersPtr& timers,
         return nullptr;
 
     // Find a scrollable or page-able parent
-    auto container = target->getParent();
-    while (container && container->scrollType() == kScrollTypeNone)
-        container = container->getParent();
-
+    auto container = getScrollableParent(target);
     if (!container)
         return nullptr;
 
@@ -136,7 +141,7 @@ ScrollToAction::make(const TimersPtr& timers,
             scrollToSubBounds,
             target,
             std::dynamic_pointer_cast<CoreComponent>(container),
-            duration > 0 ? duration : context->getRootConfig().getScrollCommandDuration());
+            duration >= 0 ? duration : context->getRootConfig().getScrollCommandDuration());
 
     context->sequencer().claimResource({kExecutionResourcePosition, container}, ptr);
 
@@ -294,6 +299,56 @@ ScrollToAction::pageTo()
     PagerComponent::setPageUtil(mContext, mContainer, targetPage,
         targetPage < currentPage ? kPageDirectionBack : kPageDirectionForward, shared_from_this(),
         mContext->getRequestedAPLVersion().compare("1.6") < 0);
+}
+
+void
+ScrollToAction::freeze()
+{
+    mFrozenContainerId = mContainer->getId();
+    mFrozenTargetId = mTarget->getId();
+
+    if (mFrozenTargetId.empty()) {
+        mFrozenTargetIndex = mContainer->getChildIndex(mTarget);
+    }
+
+    // Intentionally higher level, we don't need to freeze underlying scroller
+    ResourceHoldingAction::freeze();
+}
+
+bool
+ScrollToAction::rehydrate(const RootContext& context)
+{
+    if (!ResourceHoldingAction::rehydrate(context)) return false;
+
+    mTarget = std::dynamic_pointer_cast<CoreComponent>(context.findComponentById(mFrozenTargetId));
+
+    mContainer = std::dynamic_pointer_cast<CoreComponent>(context.findComponentById(mFrozenContainerId));
+    if (!mContainer) {
+        // If not here, rely on mTarget to get the container with usual "scrollable parent" rule,
+        // if no  mTarget id is here - we can't restore.
+        if (!mTarget) return false;
+
+        mContainer = std::dynamic_pointer_cast<CoreComponent>(getScrollableParent(mTarget));
+        if (!mContainer) return false;
+    }
+
+    if (!mTarget) {
+        // May still work if have container and index, if not - drop out
+        if (mFrozenTargetIndex <= 0 || mContainer->getChildCount() <= mFrozenTargetIndex) return false;
+        mTarget = mContainer->getCoreChildAt(mFrozenTargetIndex);
+    }
+
+    if (!mTarget) return false;
+
+    // Now, start scroll to whatever "new" target is
+    mContext->sequencer().claimResource({kExecutionResourcePosition, mContainer}, shared_from_this());
+    start();
+
+    // TODO: We don't preserve time, so it takes full duration for the remainder of scrolling.
+    //  Considering the need to recalculate the target it's fine for now, but we may consider
+    //  improving in future.
+
+    return true;
 }
 
 } // namespace apl

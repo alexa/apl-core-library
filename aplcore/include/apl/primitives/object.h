@@ -43,6 +43,7 @@
 #include "rapidjson/document.h"
 
 #include "apl/common.h"
+#include "apl/utils/deprecated.h"
 #include "apl/utils/visitor.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
@@ -88,11 +89,6 @@ using ObjectMap = std::map<std::string, Object>;
 using ObjectMapPtr = std::shared_ptr<ObjectMap>;
 using ObjectArray = std::vector<Object>;
 using ObjectArrayPtr = std::shared_ptr<ObjectArray>;
-
-/// @deprecated
-using SharedMapPtr = ObjectMapPtr;
-/// @deprecated
-using SharedVectorPtr = ObjectArrayPtr;
 
 /**
  * A single Object which can hold a variety of types.

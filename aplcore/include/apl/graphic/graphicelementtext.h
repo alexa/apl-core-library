@@ -17,6 +17,9 @@
 #define _APL_GRAPHIC_ELEMENT_TEXT_H
 
 #include "apl/graphic/graphicelement.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/textproperties.h"
+#endif // SCENEGRAPH
 
 namespace apl {
 
@@ -36,6 +39,21 @@ public:
 protected:
     const GraphicPropDefSet& propDefSet() const override;
     bool initialize(const GraphicPtr& graphic, const Object& json) override;
+
+#ifdef SCENEGRAPH
+    sg::NodePtr buildSceneGraph(sg::SceneGraphUpdates& sceneGraph) override;
+    void updateSceneGraphInternal(sg::ModifiedNodeList& modList, const sg::NodePtr& node) override;
+
+private:
+    void ensureSGTextLayout();
+    void ensureTextProperties();
+    Point getPosition() const;
+
+private:
+    sg::TextChunkPtr mTextChunk;
+    sg::TextPropertiesPtr mTextProperties;
+    sg::TextLayoutPtr mLayout;
+#endif // SCENEGRAPH
 };
 
 

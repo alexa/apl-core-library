@@ -17,8 +17,10 @@
 #include "apl/component/componentpropdef.h"
 #include "apl/component/videocomponent.h"
 #include "apl/component/yogaproperties.h"
-#include "apl/media/mediaplayerfactory.h"
 #include "apl/media/mediautils.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/builder.h"
+#endif // SCENEGRAPH
 #include "apl/time/sequencer.h"
 
 namespace apl {
@@ -57,95 +59,116 @@ VideoComponent::create(const ContextPtr& context,
     return ptr;
 }
 
+void
+VideoComponent::playerCallback(MediaPlayerEventType eventType, const MediaState& mediaState)
+{
+    if (!mMediaPlayer)
+        return;
+
+    auto self = shared_from_corecomponent();
+    auto& sequencer = mContext->sequencer();
+
+    saveMediaState(mediaState);
+
+    // The event handlers are invoked using new sequencer logic.  In this version, the
+    // onEnd/onPause/onPlay handlers are always invoked on a sequencer unique to the video
+    // player. The onTimeUpdate/onTrackUpdate/onTrackReady/onTrackFail event handlers are always
+    // invoked in fast mode
+    switch (eventType) {
+        case kMediaPlayerEventEnd: {
+            auto& commands = getCalculated(kPropertyOnEnd);
+            if (!commands.empty()) {
+                sequencer.executeCommandsOnSequencer(
+                    commands,
+                    createEventContext("End", mediaStateToEventProperties(mediaState)), self,
+                    mMediaSequencer);
+            }
+        } break;
+        case kMediaPlayerEventPause: {
+            auto& commands = getCalculated(kPropertyOnPause);
+            if (!commands.empty()) {
+                sequencer.executeCommandsOnSequencer(
+                    commands,
+                    createEventContext("Pause", mediaStateToEventProperties(mediaState)), self,
+                    mMediaSequencer);
+            }
+        } break;
+        case kMediaPlayerEventPlay: {
+            auto& commands = getCalculated(kPropertyOnPlay);
+            if (!commands.empty())
+                sequencer.executeCommandsOnSequencer(
+                    commands,
+                    createEventContext("Play", mediaStateToEventProperties(mediaState)), self,
+                    mMediaSequencer);
+        } break;
+        case kMediaPlayerEventTimeUpdate: {
+            auto& commands = getCalculated(kPropertyOnTimeUpdate);
+            if (!commands.empty()) {
+                sequencer.executeCommands(
+                    commands,
+                    createEventContext("TimeUpdate", mediaStateToEventProperties(mediaState),
+                                       mediaState.getCurrentTime()),
+                    self, true);
+            }
+        } break;
+        case kMediaPlayerEventTrackUpdate: {
+            auto& commands = getCalculated(kPropertyOnTrackUpdate);
+            if (!commands.empty()) {
+                sequencer.executeCommands(
+                    commands,
+                    createEventContext("TrackUpdate", mediaStateToEventProperties(mediaState),
+                                       mediaState.getTrackIndex()),
+                    self, true);
+            }
+        } break;
+        case kMediaPlayerEventTrackReady: {
+            auto& commands = getCalculated(kPropertyOnTrackReady);
+            if (!commands.empty()) {
+                sequencer.executeCommands(
+                    commands,
+                    createEventContext("TrackReady", mediaStateToEventProperties(mediaState)),
+                    self, true);
+            }
+        } break;
+        case kMediaPlayerEventTrackFail: {
+            auto& commands = getCalculated(kPropertyOnTrackFail);
+            if (!commands.empty()) {
+                sequencer.executeCommands(
+                    commands,
+                    createEventContext("TrackFail", mediaStateToEventProperties(mediaState)),
+                    self, true);
+            }
+            break;
+        }
+    }
+}
+
+void
+VideoComponent::detachPlayer()
+{
+    mMediaPlayer = nullptr;
+}
+
+void
+VideoComponent::attachPlayer(const MediaPlayerPtr& player)
+{
+    mMediaPlayer = player;
+    mMediaPlayer->setCallback(
+        [this] (MediaPlayerEventType eventType, const MediaState& mediaState) {
+        playerCallback(eventType, mediaState);
+    });
+}
+
 VideoComponent::VideoComponent(const ContextPtr& context,
                                Properties&& properties,
                                const Path& path)
     : CoreComponent(context, std::move(properties), path),
       mMediaSequencer("VIDEO"+getUniqueId())
 {
-    mMediaPlayer = mContext->mediaPlayerFactory().createPlayer([this](
-                                                                   MediaPlayerEventType eventType,
-                                                                   const MediaState& mediaState) {
-        if (!mMediaPlayer)
-            return;
-
-        auto self = shared_from_corecomponent();
-        auto& sequencer = mContext->sequencer();
-
-        saveMediaState(mediaState);
-
-        // The event handlers are invoked using new sequencer logic.  In this version, the
-        // onEnd/onPause/onPlay handlers are always invoked on a sequencer unique to the video
-        // player. The onTimeUpdate/onTrackUpdate/onTrackReady/onTrackFail event handlers are always
-        // invoked in fast mode
-        switch (eventType) {
-            case kMediaPlayerEventEnd: {
-                auto& commands = getCalculated(kPropertyOnEnd);
-                if (!commands.empty()) {
-                    sequencer.executeCommandsOnSequencer(
-                        commands,
-                        createEventContext("End", mediaStateToEventProperties(mediaState)), self,
-                        mMediaSequencer);
-                }
-            } break;
-            case kMediaPlayerEventPause: {
-                auto& commands = getCalculated(kPropertyOnPause);
-                if (!commands.empty()) {
-                    sequencer.executeCommandsOnSequencer(
-                        commands,
-                        createEventContext("Pause", mediaStateToEventProperties(mediaState)), self,
-                        mMediaSequencer);
-                }
-            } break;
-            case kMediaPlayerEventPlay: {
-                auto& commands = getCalculated(kPropertyOnPlay);
-                if (!commands.empty())
-                    sequencer.executeCommandsOnSequencer(
-                        commands,
-                        createEventContext("Play", mediaStateToEventProperties(mediaState)), self,
-                        mMediaSequencer);
-            } break;
-            case kMediaPlayerEventTimeUpdate: {
-                auto& commands = getCalculated(kPropertyOnTimeUpdate);
-                if (!commands.empty()) {
-                    sequencer.executeCommands(
-                        commands,
-                        createEventContext("TimeUpdate", mediaStateToEventProperties(mediaState),
-                                           mediaState.getCurrentTime()),
-                        self, true);
-                }
-            } break;
-            case kMediaPlayerEventTrackUpdate: {
-                auto& commands = getCalculated(kPropertyOnTrackUpdate);
-                if (!commands.empty()) {
-                    sequencer.executeCommands(
-                        commands,
-                        createEventContext("TrackUpdate", mediaStateToEventProperties(mediaState),
-                                           mediaState.getTrackIndex()),
-                        self, true);
-                }
-            } break;
-            case kMediaPlayerEventTrackReady: {
-                auto& commands = getCalculated(kPropertyOnTrackReady);
-                if (!commands.empty()) {
-                    sequencer.executeCommands(
-                        commands,
-                        createEventContext("TrackReady", mediaStateToEventProperties(mediaState)),
-                        self, true);
-                }
-            } break;
-            case kMediaPlayerEventTrackFail: {
-                auto& commands = getCalculated(kPropertyOnTrackFail);
-                if (!commands.empty()) {
-                    sequencer.executeCommands(
-                        commands,
-                        createEventContext("TrackFail", mediaStateToEventProperties(mediaState)),
-                        self, true);
-                }
-                break;
-            }
-        }
-    });
+    mMediaPlayer = mContext->mediaPlayerFactory().createPlayer(
+        [this] (MediaPlayerEventType eventType, const MediaState& mediaState) {
+            playerCallback(eventType, mediaState);
+        });
 }
 
 VideoComponent::~VideoComponent() noexcept
@@ -209,11 +232,18 @@ VideoComponent::propDefSet() const
             mediaPlayer->setTrackList(mediaSourcesToTracks(comp.getCalculated(kPropertySource)));
     };
 
+    static auto setMute = [](Component& component) -> void {
+      auto& self = dynamic_cast<VideoComponent&>(component);
+      auto mediaPlayer = self.getMediaPlayer();
+      if (mediaPlayer)
+          mediaPlayer->setMute(self.getCalculated(kPropertyMuted).asBoolean());
+    };
+
     static ComponentPropDefSet sVideoComponentProperties = ComponentPropDefSet(
         CoreComponent::propDefSet(), MediaComponentTrait::propDefList()).add({
         { kPropertyAudioTrack,      kAudioTrackForeground,  sAudioTrackMap,     kPropInOut },
         { kPropertyAutoplay,        false,                  asOldBoolean,       kPropInOut },
-        { kPropertyMuted,           false,                  asOldBoolean,       kPropDynamic | kPropInOut },
+        { kPropertyMuted,           false,                  asOldBoolean,       kPropDynamic | kPropInOut, setMute },
         { kPropertyScale,           kVideoScaleBestFit,     sVideoScaleMap,     kPropInOut },
         { kPropertySource,          Object::EMPTY_ARRAY(),  asMediaSourceArray, kPropDynamic | kPropInOut | kPropVisualContext | kPropVisualHash | kPropEvaluated, resetMediaState },
         { kPropertyOnEnd,           Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
@@ -259,15 +289,16 @@ VideoComponent::assignProperties(const ComponentPropDefSet &propDefSet)
             if (getCalculated(kPropertyAutoplay).asBoolean())
                 mMediaPlayer->play(ActionRef(nullptr));
         }
+        if (propDefSet.find(kPropertyMuted) != propDefSet.end()) {
+            mMediaPlayer->setMute(getCalculated(kPropertyMuted).asBoolean());
+        }
     }
 }
 
 void
 VideoComponent::saveMediaState(const MediaState& state)
 {
-    if (!mMediaPlayer)
-        setVisualContextDirty();
-
+    setVisualContextDirty();
     mCalculated.set(kPropertyTrackCount, state.getTrackCount());
     mCalculated.set(kPropertyTrackCurrentTime, state.getCurrentTime());
     mCalculated.set(kPropertyTrackDuration, state.getDuration());
@@ -452,7 +483,8 @@ VideoComponent::eventPropertyMap() const
 }
 
 bool
-VideoComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) {
+VideoComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator)
+{
     bool actionable = CoreComponent::getTags(outMap, allocator);
     auto sources = getCalculated(kPropertySource);
     if (sources.size() > 0) {
@@ -499,4 +531,41 @@ VideoComponent::getVisualContextType() const
     return getCalculated(kPropertySource).empty() ? VISUAL_CONTEXT_TYPE_EMPTY : VISUAL_CONTEXT_TYPE_VIDEO;
 }
 
+rapidjson::Value
+VideoComponent::serialize(rapidjson::Document::AllocatorType& allocator) const
+{
+    auto component = CoreComponent::serialize(allocator);
+    if (mMediaPlayer) {
+        component.AddMember("__mediaPlayer", mMediaPlayer->serialize(allocator), allocator);
+    }
+    return component;
+}
+
+#ifdef SCENEGRAPH
+sg::LayerPtr
+VideoComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
+{
+    auto top = CoreComponent::constructSceneGraphLayer(sceneGraph);
+    assert(top);
+
+    // Find the target bounding box of the image.  This is where we will be drawing the image.  This is in DP.
+    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect();
+    auto scale = static_cast<VideoScale>(getCalculated(kPropertyScale).getInteger());
+    top->appendContent(sg::video(mMediaPlayer, innerBounds, scale));
+    return top;
+}
+
+bool
+VideoComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
+{
+    const auto dirty = isDirty(kPropertyInnerBounds) || isDirty(kPropertyScale);
+    if (dirty) {
+        auto *video = sg::VideoNode::cast(mSceneGraphLayer->content().front());
+        video->setTarget(getCalculated(kPropertyInnerBounds).getRect());
+        video->setScale(static_cast<VideoScale>(getCalculated(kPropertyScale).getInteger()));
+    }
+
+    return false;
+}
+#endif // SCENEGRAPH
 } // namespace apl

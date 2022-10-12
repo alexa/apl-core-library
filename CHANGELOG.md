@@ -1,5 +1,20 @@
 # Changelog
 
+## [2022.2]
+
+This release adds support for version 2022.2 of the APL specification.
+
+### Added
+
+- Support selective preservation of sequencers and associated state upon re-inflation.
+- Allow easy synchronization of visual and audio with onSpeechMark handler.
+- Alpha feature: Scene graph rendering to provide simplified drawing instructions to the view host.
+
+### Changed
+
+- Bug fixes.
+- Videos can be muted/unmuted by setting the corresponding property.
+
 ## [2022.1.1]
 
 ### Changed

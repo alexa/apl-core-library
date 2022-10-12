@@ -73,6 +73,9 @@ getMemoryCounterMap() {
         {"GraphicElementText",      Counter<GraphicElementText>::itemsDelta},
         {"GraphicPattern",          Counter<GraphicPattern>::itemsDelta},
         {"MediaObject",             Counter<MediaObject>::itemsDelta},
+#ifdef SCENEGRAPH
+        {"Node",                    Counter<sg::Node>::itemsDelta},
+#endif // SCENEGRAPH
         {"Package",                 Counter<Package>::itemsDelta},
         {"RootContextData",         Counter<RootContextData>::itemsDelta},
         {"Sequencer",               Counter<Sequencer>::itemsDelta},

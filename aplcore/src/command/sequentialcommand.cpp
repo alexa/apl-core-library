@@ -35,7 +35,7 @@ SequentialCommand::execute(const TimersPtr& timers, bool fastMode) {
     if (!calculateProperties())
         return nullptr;
 
-    auto shared = std::static_pointer_cast<const CoreCommand>(shared_from_this());
+    auto shared = std::static_pointer_cast<CoreCommand>(shared_from_this());
     return SequentialAction::make(timers, shared, fastMode);
 }
 

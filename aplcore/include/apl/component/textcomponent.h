@@ -16,10 +16,13 @@
 #ifndef _APL_TEXT_COMPONENT_H
 #define _APL_TEXT_COMPONENT_H
 
-#include "corecomponent.h"
+#include "apl/component/corecomponent.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/textproperties.h"
+#endif // SCENEGRAPH
+#include "apl/primitives/range.h"
 
 namespace apl {
-
 
 class TextComponent : public CoreComponent {
 public:
@@ -35,6 +38,14 @@ public:
 
     rapidjson::Value serializeMeasure(rapidjson::Document::AllocatorType& allocator) const;
 
+#ifdef SCENEGRAPH
+    sg::TextLayoutPtr getTextLayout() const { return mLayout; }
+
+    bool setKaraokeLine(Range byteRange);
+    void clearKaraokeLine() { setKaraokeLine(Range{}); }
+    Rect getKaraokeBounds();
+#endif // SCENEGRAPH
+
 private:
     void updateTextAlign(bool useDirtyFlag);
 
@@ -44,10 +55,27 @@ protected:
     const EventPropertyMap & eventPropertyMap() const override;
     const ComponentPropDefSet& propDefSet() const override;
     void assignProperties(const ComponentPropDefSet& propDefSet) override;
+
     std::string getVisualContextType() const override;
+
+#ifdef SCENEGRAPH
+    // Common scene graph handling
+    sg::LayerPtr constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) override;
+    bool updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph) override;
+
+private:
+    Point calcSceneGraphOffset() const;
+    YGSize measureText(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode);
+    float baselineText(float width, float height);
+    void ensureSGTextLayout();
+    void ensureTextProperties();
+    void populateTextNodes(sg::Node *transform);
+
+    sg::TextPropertiesPtr mTextProperties;
+    sg::TextChunkPtr mTextChunk;
+    sg::TextLayoutPtr mLayout;
+#endif // SCENEGRAPH
 };
-
-
 
 } // namespace apl
 

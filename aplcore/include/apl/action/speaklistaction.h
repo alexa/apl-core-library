@@ -34,20 +34,10 @@ public:
     SpeakListAction(const TimersPtr& timers,
                     const std::shared_ptr<CoreCommand>& command,
                     CoreComponentPtr& container,
-                    size_t startIndex, size_t endIndex)
-        : Action(timers),
-          mCommand(command),
-          mContainer(container),
-          mNextIndex(startIndex),
-          mEndIndex(endIndex)
-    {
-        addTerminateCallback([this](const TimersPtr&) {
-            if (mCurrentAction) {
-                mCurrentAction->terminate();
-                mCurrentAction = nullptr;
-            }
-        });
-    }
+                    size_t startIndex, size_t endIndex);
+
+    void freeze() override;
+    bool rehydrate(const RootContext& context) override;
 
 private:
     void advance();

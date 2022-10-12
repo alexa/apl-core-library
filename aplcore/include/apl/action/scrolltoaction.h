@@ -26,12 +26,6 @@ class Component;
 
 /**
  * Scroll or page to bring a target component into view.
- *
- * This action results in either a kEventScrollTo or kEventPageTo event being fired.
- * The following properties are passed with the event:
- *
- *    kCommandPropertyDirection        Set to forward/back (only for PageTo)
- *    kCommandPropertyPosition         The scroll position or the page number.
  */
 class ScrollToAction : public AnimatedScrollAction {
 public:
@@ -62,7 +56,7 @@ public:
     /**
      * Called from rootcontext by viewhost during line karaoke.
      * @param timers Timer reference.
-     * @param align Scroll slignment.
+     * @param align Scroll alignment.
      * @param subBounds Bounds within the target to scroll to.
      * @param context Target context.
      * @param target Component to scroll to.
@@ -73,6 +67,25 @@ public:
                                                 const Rect& subBounds,
                                                 const ContextPtr& context,
                                                 const CoreComponentPtr& target = nullptr);
+
+    /**
+     * @param timers Timer reference.
+     * @param align Scroll alignment.
+     * @param subBounds Bounds within the target to scroll to.
+     * @param context Target context.
+     * @param scrollToSubBounds Scroll to sub-bounds.
+     * @param target Component to scroll to.
+     * @param duration Scrolling duration.
+     * @return The scroll to action or null if it is not needed.
+     */
+    static std::shared_ptr<ScrollToAction> make(const TimersPtr& timers,
+                                                const CommandScrollAlign& align,
+                                                const Rect& subBounds,
+                                                const ContextPtr& context,
+                                                bool scrollToSubBounds,
+                                                const CoreComponentPtr& target = nullptr,
+                                                apl_duration_t duration = -1,
+                                                bool useSnap = false);
 
     /**
      * Called in order to bring child into view, utilizing snap setting if exists.
@@ -94,16 +107,10 @@ public:
                    const CoreComponentPtr& scrollableParent,
                    apl_duration_t duration);
 
-private:
-    static std::shared_ptr<ScrollToAction> make(const TimersPtr& timers,
-                                                const CommandScrollAlign& align,
-                                                const Rect& subBounds,
-                                                const ContextPtr& context,
-                                                bool scrollToSubBounds,
-                                                const CoreComponentPtr& target = nullptr,
-                                                apl_duration_t duration = 0,
-                                                bool useSnap = false);
+    void freeze() override;
+    bool rehydrate(const RootContext& context) override;
 
+private:
     void start();
     void pageTo();
     void scrollTo();
@@ -113,6 +120,10 @@ private:
     Rect mSubBounds;
     bool mScrollToSubBounds;
     CoreComponentPtr mTarget;
+
+    std::string mFrozenContainerId;
+    std::string mFrozenTargetId;
+    size_t mFrozenTargetIndex = -1;
 };
 
 

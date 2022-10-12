@@ -53,15 +53,18 @@ if (TARGET yoga)
     add_dependencies(apl yoga)
 endif()
 
-add_dependencies(apl pegtl-build)
+if (NOT HAS_FETCH_CONTENT)
+    add_dependencies(apl pegtl-build)
+endif()
 
 # When not using the system rapidjson build the library, add a dependency on the build step
-if (NOT USE_SYSTEM_RAPIDJSON)
+if (NOT USE_SYSTEM_RAPIDJSON AND NOT HAS_FETCH_CONTENT)
     add_dependencies(apl rapidjson-build)
 endif()
 
 add_subdirectory(src/action)
 add_subdirectory(src/animation)
+add_subdirectory(src/audio)
 add_subdirectory(src/command)
 add_subdirectory(src/component)
 add_subdirectory(src/content)
@@ -76,6 +79,9 @@ add_subdirectory(src/livedata)
 add_subdirectory(src/media)
 add_subdirectory(src/primitives)
 add_subdirectory(src/scaling)
+if(ENABLE_SCENEGRAPH)
+    add_subdirectory(src/scenegraph)
+endif(ENABLE_SCENEGRAPH)
 add_subdirectory(src/time)
 add_subdirectory(src/touch)
 add_subdirectory(src/utils)
@@ -99,7 +105,9 @@ if (ENABLE_PIC)
   )
 endif()
 
+# Generate a pkg-config file
 configure_file(apl.pc.in apl.pc @ONLY)
+
 target_include_directories(apl
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
@@ -156,6 +164,10 @@ install(TARGETS apl
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/aplcore/include/apl
         DESTINATION include
         FILES_MATCHING PATTERN "*.h")
+
+# Put the generated pkg-config file in the right directory?
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/apl.pc
+        DESTINATION lib/pkgconfig)
 
 if (NOT USE_SYSTEM_RAPIDJSON)
 install(DIRECTORY ${RAPIDJSON_INCLUDE}/rapidjson

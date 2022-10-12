@@ -19,6 +19,15 @@
 #include "apl/component/componentproperties.h"
 #include "apl/content/rootconfig.h"
 
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/scenegraph.h"
+#include "apl/scenegraph/textchunk.h"
+#include "apl/scenegraph/textlayout.h"
+#include "apl/scenegraph/textmeasurement.h"
+#include "apl/scenegraph/utilities.h"
+#endif // SCENEGRAPH
+
 namespace apl {
 
 GraphicElementPtr
@@ -45,6 +54,22 @@ defaultFontFamily(GraphicElement&, const RootConfig& rootConfig)
 const GraphicPropDefSet&
 GraphicElementText::propDefSet() const
 {
+    static auto fixTextTrigger = [](GraphicElement& element) -> void {
+#ifdef SCENEGRAPH
+      auto& text = dynamic_cast<GraphicElementText&>(element);
+      text.mTextProperties = nullptr;
+      text.mLayout = nullptr;
+#endif // SCENEGRAPH
+    };
+
+    static auto fixTextChunkTrigger = [](GraphicElement& element) -> void {
+#ifdef SCENEGRAPH
+        auto& text = dynamic_cast<GraphicElementText&>(element);
+        text.mTextChunk = nullptr;
+        text.mLayout = nullptr;
+#endif // SCENEGRAPH
+    };
+
     static GraphicPropDefSet sTextProperties = GraphicPropDefSet()
         .add({
                  {kGraphicPropertyFill,                    Color(Color::BLACK),     asAvgFill,               kPropInOut | kPropDynamic | kPropEvaluated},
@@ -52,17 +77,17 @@ GraphicElementText::propDefSet() const
                  {kGraphicPropertyFillTransform,           Object::IDENTITY_2D(),   nullptr,                 kPropOut},
                  {kGraphicPropertyFillTransformAssigned,   "",                      asString,                kPropIn    | kPropDynamic, fixFillTransform},
                  {kGraphicPropertyFilters,                 Object::EMPTY_ARRAY(),   asGraphicFilterArray,    kPropInOut },
-                 {kGraphicPropertyFontFamily,              "",                      asString,                kPropInOut | kPropDynamic, defaultFontFamily},
-                 {kGraphicPropertyFontSize,                40,                      asNonNegativeNumber,     kPropInOut | kPropDynamic},
-                 {kGraphicPropertyFontStyle,               kFontStyleNormal,        sFontStyleMap,           kPropInOut | kPropDynamic},
-                 {kGraphicPropertyFontWeight,              400,                     sFontWeightMap,          kPropInOut | kPropDynamic},
-                 {kGraphicPropertyLetterSpacing,           0,                       asNumber,                kPropInOut | kPropDynamic},
+                 {kGraphicPropertyFontFamily,              "",                      asString,                kPropInOut | kPropDynamic, fixTextTrigger, defaultFontFamily},
+                 {kGraphicPropertyFontSize,                40,                      asNonNegativeNumber,     kPropInOut | kPropDynamic, fixTextTrigger},
+                 {kGraphicPropertyFontStyle,               kFontStyleNormal,        sFontStyleMap,           kPropInOut | kPropDynamic, fixTextTrigger},
+                 {kGraphicPropertyFontWeight,              400,                     sFontWeightMap,          kPropInOut | kPropDynamic, fixTextTrigger},
+                 {kGraphicPropertyLetterSpacing,           0,                       asNumber,                kPropInOut | kPropDynamic, fixTextTrigger},
                  {kGraphicPropertyStroke,                  Color(),                 asAvgFill,               kPropInOut | kPropDynamic | kPropEvaluated},
                  {kGraphicPropertyStrokeOpacity,           1,                       asOpacity,               kPropInOut | kPropDynamic},
                  {kGraphicPropertyStrokeTransform,         Object::IDENTITY_2D(),   nullptr,                 kPropOut},
                  {kGraphicPropertyStrokeTransformAssigned, "",                      asString,                kPropIn    | kPropDynamic, fixStrokeTransform},
                  {kGraphicPropertyStrokeWidth,             0,                       asNonNegativeNumber,     kPropInOut | kPropDynamic},
-                 {kGraphicPropertyText,                    "",                      asFilteredText,          kPropInOut | kPropRequired | kPropDynamic},
+                 {kGraphicPropertyText,                    "",                      asFilteredText,          kPropInOut | kPropRequired | kPropDynamic, fixTextChunkTrigger},
                  {kGraphicPropertyTextAnchor,              kGraphicTextAnchorStart, sGraphicTextAnchorBimap, kPropInOut | kPropDynamic},
                  {kGraphicPropertyCoordinateX,             0,                       asNumber,                kPropInOut | kPropDynamic},
                  {kGraphicPropertyCoordinateY,             0,                       asNumber,                kPropInOut | kPropDynamic}
@@ -85,4 +110,183 @@ GraphicElementText::initialize(const GraphicPtr& graphic, const Object& json)
     return true;
 }
 
+#ifdef SCENEGRAPH
+sg::NodePtr
+GraphicElementText::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
+{
+    ensureSGTextLayout();
+
+    auto fill = sg::fill(sg::paint(getValue(kGraphicPropertyFill),
+                                   getValue(kGraphicPropertyFillOpacity).asFloat(),
+                                   getValue(kGraphicPropertyFillTransform).getTransform2D()));
+    auto stroke =
+        sg::stroke(sg::paint(getValue(kGraphicPropertyStroke),
+                             getValue(kGraphicPropertyStrokeOpacity).asFloat(),
+                             getValue(kGraphicPropertyStrokeTransform).getTransform2D()))
+            .strokeWidth(getValue(kGraphicPropertyStrokeWidth).asFloat())
+            .get();
+
+    fill->nextSibling = stroke;
+    return sg::transform(getPosition(), sg::text(mLayout, fill));
+}
+
+/*
+ * This method is called if the GraphicElementText has a pre-existing scene graph.
+ * Nominally "isDirty(PROPERTY)" tells us if a component property has changed and hence
+ * may be need to be updated in the scene graph.  A shortcut is available since changing
+ * some properties clears mLayout.
+ *
+ * These properties clear mLayout:
+ *
+ *   kGraphicPropertyFontFamily
+ *   kGraphicPropertyFontSize
+ *   kGraphicPropertyFontStyle
+ *   kGraphicPropertyFontWeight
+ *   kGraphicPropertyLetterSpacing
+ *   kGraphicPropertyText
+ *
+ * These properties are needed to calculate paint and positioning of the text layout
+ *
+ *   kGraphicPropertyFill
+ *   kGraphicPropertyFillOpacity
+ *   kGraphicPropertyFillTransform
+ *   kGraphicPropertyFilters
+ *   kGraphicPropertyStroke
+ *   kGraphicPropertyStrokeOpacity
+ *   kGraphicPropertyStrokeTransform
+ *   kGraphicPropertyStrokeWidth
+ *   kGraphicPropertyTextAnchor
+ *   kGraphicPropertyCoordinateX
+ *   kGraphicPropertyCoordinateY
+ *
+ *   kGraphicPropertyFilters is not dynamic, so it doesn't change
+ */
+void
+GraphicElementText::updateSceneGraphInternal(sg::ModifiedNodeList& modList, const sg::NodePtr& node)
+{
+    const auto textChanged = !mLayout;
+    const auto fillChanged = isDirty(kGraphicPropertyFill) ||
+                             isDirty(kGraphicPropertyFillOpacity) ||
+                             isDirty(kGraphicPropertyFillTransform);
+    const auto strokePaintChanged = isDirty(kGraphicPropertyStroke) ||
+                                    isDirty(kGraphicPropertyStrokeOpacity) ||
+                                    isDirty(kGraphicPropertyStrokeTransform);
+    const auto strokeWidthChanged = isDirty(kGraphicPropertyStrokeWidth);
+    const auto transformChanged = isDirty(kGraphicPropertyCoordinateX) ||
+                                  isDirty(kGraphicPropertyCoordinateY) ||
+                                  isDirty(kGraphicPropertyTextAnchor);
+
+    ensureSGTextLayout();
+
+    auto* transform = sg::TransformNode::cast(node);
+    if ((textChanged || transformChanged) &&
+        transform->setTransform(Transform2D::translate(getPosition()))) {
+        modList.contentChanged(transform);
+    }
+
+    if (textChanged || fillChanged || strokePaintChanged || strokeWidthChanged) {
+        auto* text = sg::TextNode::cast(transform->child());
+
+        if (textChanged)
+            text->setTextLayout(mLayout);
+
+        auto* fill = text->getOp().get();
+        if (fillChanged) {
+            if (isDirty(kGraphicPropertyFill)) {
+                // If the fill changes, we create a new paint object.
+                // TODO: Shouldn't allocate memory here if the paint hasn't changed type
+                fill->paint = sg::paint(getValue(kGraphicPropertyFill),
+                                        getValue(kGraphicPropertyFillOpacity).asFloat(),
+                                        getValue(kGraphicPropertyFillTransform).getTransform2D());
+            }
+            else {
+                fill->paint->setOpacity(getValue(kGraphicPropertyFillOpacity).asFloat());
+                fill->paint->setTransform(getValue(kGraphicPropertyFillTransform).getTransform2D());
+            }
+        }
+
+        auto* stroke = fill->nextSibling.get();
+        if (strokePaintChanged) {
+            if (isDirty(kGraphicPropertyStroke)) {
+                // If the stroke changes, we create a new paint object.
+                // TODO: Shouldn't allocate memory here if the paint hasn't changed type
+                stroke->paint =
+                    sg::paint(getValue(kGraphicPropertyStroke),
+                              getValue(kGraphicPropertyStrokeOpacity).asFloat(),
+                              getValue(kGraphicPropertyStrokeTransform).getTransform2D());
+            }
+            else {
+                stroke->paint->setOpacity(getValue(kGraphicPropertyStrokeOpacity).asFloat());
+                stroke->paint->setTransform(
+                    getValue(kGraphicPropertyStrokeTransform).getTransform2D());
+            }
+        }
+
+        if (strokeWidthChanged)
+            sg::stroke(sg::StrokePathOp::castptr(fill->nextSibling))
+                .strokeWidth(getValue(kGraphicPropertyStrokeWidth).asFloat());
+
+        modList.contentChanged(text);
+    }
+}
+
+
+void
+GraphicElementText::ensureSGTextLayout()
+{
+    if (mLayout)
+        return;
+
+    const auto* context = mContext.get();
+    if (!context)
+        return;
+
+    auto measure = std::dynamic_pointer_cast<sg::TextMeasurement>(mContext->measure());
+    assert(measure);
+
+    ensureTextProperties();
+    mLayout = measure->layout(mTextChunk, mTextProperties, INFINITY, MeasureMode::Undefined,
+                              INFINITY, MeasureMode::Undefined);
+}
+
+void
+GraphicElementText::ensureTextProperties()
+{
+    if (!mTextChunk)
+        mTextChunk = sg::TextChunk::create(
+            StyledText::createRaw(getValue(kGraphicPropertyText).getString()));
+
+    if (!mTextProperties)
+        mTextProperties = sg::TextProperties::create(
+            mContext->textPropertiesCache(),
+            sg::splitFontString(mContext->getRootConfig(),
+                                getValue(kGraphicPropertyFontFamily).getString()),
+            getValue(kGraphicPropertyFontSize).asFloat(),
+            static_cast<FontStyle>(getValue(kGraphicPropertyFontStyle).getInteger()),
+            getValue(kGraphicPropertyFontWeight).getInteger(),
+            getValue(kGraphicPropertyLetterSpacing).asFloat());
+}
+
+Point
+GraphicElementText::getPosition() const
+{
+    assert(mLayout);
+    auto x = static_cast<float>(getValue(kGraphicPropertyCoordinateX).asFloat());
+    auto y = static_cast<float>(getValue(kGraphicPropertyCoordinateY).asFloat()) - mLayout->getBaseline();
+    auto coordinate = Point{x, y};
+
+    switch (static_cast<GraphicTextAnchor>(getValue(kGraphicPropertyTextAnchor).getInteger())) {
+        case kGraphicTextAnchorStart:
+            break;
+        case kGraphicTextAnchorMiddle:
+            coordinate -= Point(mLayout->getSize().getWidth() / 2, 0);
+            break;
+        case kGraphicTextAnchorEnd:
+            coordinate -= Point(mLayout->getSize().getWidth(), 0);
+            break;
+    }
+
+    return coordinate;
+}
+#endif // SCENEGRAPH
 } // namespace apl

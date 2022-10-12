@@ -22,8 +22,15 @@ namespace apl {
 
 static const bool DEBUG_SEQUENTIAL = false;
 
+std::shared_ptr<SequentialAction>
+SequentialAction::make(const TimersPtr& timers, std::shared_ptr<CoreCommand>& command, bool fastMode) {
+    auto ptr = std::make_shared<SequentialAction>(timers, command, fastMode);
+    ptr->advance();
+    return ptr;
+}
+
 SequentialAction::SequentialAction(const TimersPtr& timers,
-                                   std::shared_ptr<const CoreCommand> command, bool fastMode)
+                                   std::shared_ptr<CoreCommand>& command, bool fastMode)
     : Action(timers),
       mCommand(command),
       mFastMode(fastMode),
@@ -32,7 +39,7 @@ SequentialAction::SequentialAction(const TimersPtr& timers,
       mRepeatCounter(0)
 {
     addTerminateCallback([this](const TimersPtr&) {
-        LOG_IF(DEBUG_SEQUENTIAL).session(mCommand) << "terminating " << *this;
+        LOG_IF(DEBUG_SEQUENTIAL).session(mCommand->context()) << "terminating " << *this;
         if (mCurrentAction) {
             mCurrentAction->terminate();
             mCurrentAction = nullptr;
@@ -66,7 +73,7 @@ SequentialAction::SequentialAction(const TimersPtr& timers,
  */
 void
 SequentialAction::advance() {
-    LOG_IF(DEBUG_SEQUENTIAL).session(mCommand) << *this << " state=" << mStateFinally;
+    LOG_IF(DEBUG_SEQUENTIAL).session(mCommand->context()) << *this << " state=" << mStateFinally;
 
     if (isTerminated())
         return;
@@ -125,6 +132,37 @@ SequentialAction::doCommand(const Object& command)
     }
 
     return false;
+}
+
+void
+SequentialAction::freeze()
+{
+    if (mCurrentAction) {
+        mCurrentAction->freeze();
+    }
+    if (mCommand) {
+        mCommand->freeze();
+    }
+
+    Action::freeze();
+}
+
+bool
+SequentialAction::rehydrate(const RootContext& context)
+{
+    if (!Action::rehydrate(context)) return false;
+
+    if (mCommand) {
+        if (!mCommand->rehydrate(context)) return false;
+    }
+    if (mCurrentAction) {
+        if (!mCurrentAction->rehydrate(context)) {
+            // Continue the chain, just skip it
+            mCurrentAction->resolve();
+        }
+    }
+
+    return true;
 }
 
 

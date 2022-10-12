@@ -16,7 +16,7 @@
 #ifndef APL_COMPONENTTRAIT_H
 #define APL_COMPONENTTRAIT_H
 
-#include "corecomponent.h"
+#include "apl/component/corecomponent.h"
 
 namespace apl {
 

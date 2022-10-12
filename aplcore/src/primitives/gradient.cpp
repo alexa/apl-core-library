@@ -22,18 +22,18 @@
 
 namespace apl {
 
-const Bimap<Gradient::GradientType, std::string> sGradientTypeMap = {
+Bimap<Gradient::GradientType, std::string> sGradientTypeMap = {
     {Gradient::LINEAR, "linear"},
     {Gradient::RADIAL, "radial"}
 };
 
-const Bimap<Gradient::GradientSpreadMethod, std::string> sGradientSpreadMethodMap = {
+Bimap<Gradient::GradientSpreadMethod, std::string> sGradientSpreadMethodMap = {
     {Gradient::PAD,     "pad"},
     {Gradient::REFLECT, "reflect"},
     {Gradient::REPEAT,  "repeat"},
 };
 
-const Bimap<Gradient::GradientUnits, std::string> sGradientUnitsMap = {
+Bimap<Gradient::GradientUnits, std::string> sGradientUnitsMap = {
     {Gradient::kGradientUnitsBoundingBox, "boundingBox"},
     {Gradient::kGradientUnitsUserSpace,   "userSpace"},
 };

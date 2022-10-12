@@ -41,6 +41,12 @@ public:
         return result;
     }
 
+#ifdef SCENEGRAPH
+protected:
+    sg::NodePtr buildSceneGraph(sg::SceneGraphUpdates& sceneGraph) override;
+    void updateSceneGraphInternal(sg::ModifiedNodeList& sceneGraph, const sg::NodePtr& node) override;
+#endif // SCENEGRAPH
+
 protected:
     const GraphicPropDefSet& propDefSet() const override;
     bool initialize(const GraphicPtr& graphic, const Object& json) override;

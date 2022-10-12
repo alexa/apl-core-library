@@ -20,6 +20,7 @@
 #include <vector>
 #include <limits>
 #include <atomic>
+#include <map>
 
 #include "apl/time/timemanager.h"
 
@@ -38,10 +39,12 @@ public:
     timeout_id setTimeout(Runnable func, apl_duration_t delay) override;
     timeout_id setAnimator(Animator animator, apl_duration_t delay) override;
     bool clearTimeout(timeout_id id) override;
+    void freeze(timeout_id id) override;
+    bool rehydrate(timeout_id id) override;
 
     /****** Methods from TimeManager *******/
 
-    int size() const override { return mTimerHeap.size(); }
+    int size() const override { return static_cast<int>(mTimerHeap.size()); }
     void updateTime(apl_time_t updatedTime) override;
     apl_time_t nextTimeout() override;
     apl_time_t currentTime() const override { return mTime; }
@@ -75,6 +78,7 @@ protected:
     timeout_id mNextId;
     int mAnimatorCount;
     std::atomic<bool> mTerminated;
+    std::map<timeout_id, TimeoutTuple> mFrozen;
 };
 
 

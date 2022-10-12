@@ -192,6 +192,19 @@ public:
 
     friend streamer& operator<<(streamer&, Action&);
 
+    /**
+     * Freeze action state and memoize any of state required to "revive" this action in the different
+     * context.
+     */
+    virtual void freeze();
+
+    /**
+     * Revive an action in the new context.
+     * @param context new RootContext.
+     * @return true if successful, false otherwise.
+     */
+    virtual bool rehydrate(const RootContext& context);
+
 protected:
     virtual void onFinish() {}
 

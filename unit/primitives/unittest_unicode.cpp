@@ -175,3 +175,30 @@ TEST_F(UnicodeTest, TrimTest)
     }
 
 }
+
+struct StripTrimTest {
+    std::string original;
+    std::string valid;
+    std::string expected;
+    int trim;
+};
+
+static auto STRING_STRIP_TRIM_TESTS = std::vector<StripTrimTest> {
+    { u8"", u8"abcd", u8"", 0 },
+    { u8"abcd", u8"", u8"abcd", 0},  // Empty valid set returns everything
+    { u8"abcd", u8"bd", u8"bd", 0},
+    { u8"abcd", u8"abdefghij", u8"abd", 3},
+    { u8"\u27a3€17,23\u261ac", u8"$€0123456789,.", u8"€17,", 4},  // 3-byte characters
+    { u8"123,631", u8"0-9", u8"12363", 5},   // Simple range
+    { u8"+--+", u8"-", u8"-", 1},  // Just hyphens
+    { u8"+*-*", u8"-+", u8"+-", 2},
+    { u8"+*-*", u8"+-", u8"+", 20},  // Malformed hyphen range
+};
+
+TEST_F(UnicodeTest, InvalidAndTripTest)
+{
+    for (const auto& m : STRING_STRIP_TRIM_TESTS) {
+        auto s = utf8StripInvalidAndTrim(m.original, m.valid, m.trim);
+        ASSERT_EQ(m.expected, s) << m.original << ":" << m.expected << ":" << m.trim;
+    }
+}

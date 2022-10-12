@@ -19,6 +19,7 @@
 #include <set>
 #include <map>
 
+#include "apl/apl_config.h"
 #include "apl/common.h"
 #include "apl/utils/counter.h"
 #include "apl/content/package.h"
@@ -192,6 +193,16 @@ public:
      * @return The active session
      */
     const SessionPtr& getSession() const { return mSession; }
+
+    /**
+     * @return An ordered list of the loaded packages, not including the main package
+     */
+    std::vector<std::string> getLoadedPackageNames() const;
+
+    /**
+     * @return The set of pending parameters.
+     */
+    std::set<std::string> getPendingParameters() const { return mPendingParameters; }
 
 private:  // Non-public methods used by other classes
     friend class RootContext;

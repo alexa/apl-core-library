@@ -15,6 +15,10 @@
 
 #include "apl/graphic/graphicelementgroup.h"
 #include "apl/graphic/graphicpropdef.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/scenegraph.h"
+#endif // SCENEGRAPH
 
 namespace apl {
 
@@ -82,13 +86,13 @@ GraphicElementGroup::updateTransform(const Context& context, bool useDirtyFlag)
         outTransform = inTransformStr.empty() ? Transform2D()
                                               : Transform2D::parse(context.session(), inTransformStr);
     } else {
-        auto scaleX = mValues.get(kGraphicPropertyScaleX).asNumber();
-        auto scaleY = mValues.get(kGraphicPropertyScaleY).asNumber();
-        auto pivotX = mValues.get(kGraphicPropertyPivotX).asNumber();
-        auto pivotY = mValues.get(kGraphicPropertyPivotY).asNumber();
-        auto rotation = mValues.get(kGraphicPropertyRotation).asNumber();
-        auto translateX = mValues.get(kGraphicPropertyTranslateX).asNumber();
-        auto translateY = mValues.get(kGraphicPropertyTranslateY).asNumber();
+        auto scaleX = mValues.get(kGraphicPropertyScaleX).asFloat();
+        auto scaleY = mValues.get(kGraphicPropertyScaleY).asFloat();
+        auto pivotX = mValues.get(kGraphicPropertyPivotX).asFloat();
+        auto pivotY = mValues.get(kGraphicPropertyPivotY).asFloat();
+        auto rotation = mValues.get(kGraphicPropertyRotation).asFloat();
+        auto translateX = mValues.get(kGraphicPropertyTranslateX).asFloat();
+        auto translateY = mValues.get(kGraphicPropertyTranslateY).asFloat();
 
         // Remember that transformations apply from right-to-left.  The documented order is:
         // "translate(tx ty) translate(px py) rotate(rotation) scale(sx sy) translate(-px -py)"
@@ -111,4 +115,47 @@ GraphicElementGroup::updateTransform(const Context& context, bool useDirtyFlag)
     }
 }
 
+#ifdef SCENEGRAPH
+sg::NodePtr
+GraphicElementGroup::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
+{
+    auto clip = sg::clip(sg::path(getValue(kGraphicPropertyClipPath).asString()), nullptr);
+
+    for (const auto& m : mChildren) {
+        auto child = m->getSceneGraph(sceneGraph);
+        if (child)
+            clip->appendChild(child);
+    }
+
+    return sg::opacity(
+        getValue(kGraphicPropertyOpacity),
+        sg::transform(
+            getValue(kGraphicPropertyTransform),
+            clip));
+}
+
+void
+GraphicElementGroup::updateSceneGraphInternal(sg::ModifiedNodeList& modList, const sg::NodePtr& node)
+{
+    const auto clipChanged = isDirty(kGraphicPropertyClipPath);
+    const auto opacityChanged = isDirty(kGraphicPropertyOpacity);
+    const auto transformChanged = isDirty(kGraphicPropertyTransform);
+
+    if (!clipChanged && !opacityChanged && !transformChanged)
+        return;
+
+    auto* opacity = sg::OpacityNode::cast(node);
+    if (opacityChanged && opacity->setOpacity(getValue(kGraphicPropertyOpacity).asFloat()))
+        modList.contentChanged(opacity);
+
+    auto* transform = sg::TransformNode::cast(opacity->child());
+    if (transformChanged &&
+        transform->setTransform(getValue(kGraphicPropertyTransform).getTransform2D()))
+        modList.contentChanged(transform);
+
+    auto* clip = sg::ClipNode::cast(transform->child());
+    if (clipChanged && clip->setPath(sg::path(getValue(kGraphicPropertyClipPath).asString())))
+        modList.contentChanged(clip);
+}
+#endif // SCENEGRAPH
 } // namespace apl

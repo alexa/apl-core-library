@@ -19,16 +19,21 @@
 #include <memory>
 #include <set>
 
+#include "apl/apl_config.h"
 #include "apl/common.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/noncopyable.h"
 #include "apl/utils/userdata.h"
+#include "apl/engine/uidobject.h"
 #include "apl/primitives/object.h"
 #include "apl/engine/properties.h"
 #include "apl/engine/propertymap.h"
 #include "apl/engine/recalculatetarget.h"
 
 #include "apl/graphic/graphicproperties.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/modifiednodelist.h"
+#endif // SCENEGRAPH
 
 namespace apl {
 
@@ -44,7 +49,8 @@ using GraphicPropertyMap = PropertyMap<GraphicPropertyKey, sGraphicPropertyBimap
  * A single element of a graphic.  This may be a group of other elements, a path element,
  * or the overall container. This class is instantiated internally by the Graphic class.
  */
-class GraphicElement : public std::enable_shared_from_this<GraphicElement>,
+class GraphicElement : public UIDObject,
+                       public std::enable_shared_from_this<GraphicElement>,
                        public RecalculateTarget<GraphicPropertyKey>,
                        public UserData<GraphicElement>,
                        public NonCopyable,
@@ -52,8 +58,6 @@ class GraphicElement : public std::enable_shared_from_this<GraphicElement>,
     friend class Graphic;
     friend class GraphicDependant;
     friend class GraphicBuilder;
-
-    static id_type sUniqueGraphicIdGenerator;
 
 public:
     /**
@@ -64,9 +68,10 @@ public:
     ~GraphicElement() override = default;
 
     /**
+     * @deprecated Use getUniqueId(), here only for migration period.
      * @return The unique id for this element.
      */
-    id_type getId() const { return mId; }
+    APL_DEPRECATED id_type getId() const;
 
     /**
      * @return The number of children.
@@ -93,6 +98,13 @@ public:
      * Clear all properties marked as dirty.
      */
     void clearDirtyProperties();
+
+    /**
+     * Check to see if a single graphic property has been marked as dirty.
+     * @param key The property to check.
+     * @return True if this property is dirty.
+     */
+    bool isDirty(GraphicPropertyKey key) const { return mDirtyProperties.find(key) != mDirtyProperties.end(); }
 
     /**
      * @return The set of properties which are marked as dirty for this element.
@@ -129,6 +141,23 @@ public:
      */
     void release();
 
+#ifdef SCENEGRAPH
+    /**
+     * @return The current scene graph
+     */
+    sg::NodePtr getSceneGraph(sg::SceneGraphUpdates& sceneGraph);
+
+    /**
+     * @return True if the scene graph needs to be redrawn
+     */
+    bool needsRedraw() const;
+
+    /**
+     * Update the scene graph based on dirty properties.
+     */
+    void updateSceneGraph(sg::ModifiedNodeList& modList);
+#endif // SCENEGRAPH
+
     virtual std::string toDebugString() const = 0;
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
@@ -143,14 +172,17 @@ protected:
     void updateStyleInternal(const StyleInstancePtr& stylePtr, const GraphicPropDefSet& gds);
 
     void markAsDirty();
-
     void updateTransform(const Context& context, GraphicPropertyKey inKey, GraphicPropertyKey outKey, bool useDirtyFlag);
+
+#ifdef SCENEGRAPH
+    virtual sg::NodePtr buildSceneGraph(sg::SceneGraphUpdates& sceneGraph) = 0;
+    virtual void updateSceneGraphInternal(sg::ModifiedNodeList& modList, const sg::NodePtr& node) = 0;
+#endif // SCENEGRAPH
 
     static void fixFillTransform(GraphicElement& element);
     static void fixStrokeTransform(GraphicElement& element);
 
 protected:
-    id_type                mId;               // Unique ID assigned to this vector graphic element
     GraphicPropertyMap     mValues;           // Calculated values
     GraphicChildren        mChildren;         // Child elements
     GraphicDirtyProperties mDirtyProperties;  // Set of dirty properties
@@ -158,7 +190,13 @@ protected:
     std::weak_ptr<Graphic> mGraphic;          // The top-level graphic we belong to
     std::string            mStyle;            // Current style name.
     std::set<GraphicPropertyKey> mAssigned;
-    ContextPtr             mContext;
+    mutable id_type mCachedTempId = 0;
+
+#ifdef SCENEGRAPH
+private:
+    sg::NodePtr            mSceneGraphNode;
+    sg::NodePtr            mInnerSceneGraphNode;
+#endif // SCENEGRAPH
 };
 
 } // namespace apl

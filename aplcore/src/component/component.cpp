@@ -19,12 +19,8 @@
 
 namespace apl {
 
-// Start a little offset to catch errors
-id_type Component::sUniqueIdGenerator = 1000;
-
 Component::Component(const ContextPtr& context, const std::string& id)
-    : mContext(context),
-      mUniqueId(':'+std::to_string(Component::sUniqueIdGenerator++)),
+    : UIDObject(context),
       mId(id)
 {
 }
@@ -34,7 +30,6 @@ Component::name() const
 {
     return sComponentTypeBimap.at(getType());
 }
-
 
 void
 Component::updateMediaState(const MediaState& state, bool fromEvent)

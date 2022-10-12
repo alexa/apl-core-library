@@ -59,6 +59,8 @@ public:
      */
     apl_duration_t getDuration() const override { return mDuration; }
 
+    void replaceTarget(const ScrollablePtr& scrollable) override;
+
 protected:
     void update(const std::shared_ptr<ScrollableComponent>& scrollable, apl_duration_t offset) override;
 

@@ -159,7 +159,30 @@ public:
      */
     void releaseRelatedResources(const ExecutionResourceHolderPtr& holder);
 
+    /**
+     * Get set of sequencers that should be preserved in case of reinflation.
+     */
+    std::set<std::string> getSequencersToPreserve() const;
+
+    /**
+     * Detach action from the named sequencer.
+     * @param sequencerName Sequencer name.
+     * @return action if any, nullptr otherwise.
+     */
+    ActionPtr detachSequencer(const std::string& sequencerName);
+
+    /**
+     * Attach action to previously preserved sequencer.
+     * @param sequencerName Name of the sequencer.
+     * @param action action to attach.
+     * @param root new root context.
+     * @return true if successful, false otherwise.
+     */
+    bool reattachSequencer(const std::string& sequencerName, const ActionPtr& action, const RootContext& root);
+
 private:
+    friend class ReinflateCommand;
+    void setPreservedSequencers(const std::set<std::string>& sequencers);
     void executeFast(const CommandPtr& commandPtr);
 
     bool mTerminated;
@@ -171,6 +194,7 @@ private:
     std::map<ExecutionResource, ExecutionResourceHolderPtr> mResourcesByHolder;
     bool mFeatureSupportResources = true;
     bool mFeatureSupportMultiSequencer = true;
+    mutable std::set<std::string> mPreserveSequencers;
 };
 
 } // namespace apl

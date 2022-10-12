@@ -116,4 +116,31 @@ DelayAction::resolveInternal() {
     resolve();
 }
 
+void
+DelayAction::freeze()
+{
+    if (mCurrentAction) {
+        mCurrentAction->freeze();
+    }
+    if (mCommand) {
+        mCommand->freeze();
+    }
+
+    Action::freeze();
+}
+
+bool
+DelayAction::rehydrate(const RootContext& context)
+{
+    if (!Action::rehydrate(context)) return false;
+
+    if (mCommand) {
+        // Ignore result, some actions may need to react in a special way.
+        mCommand->rehydrate(context);
+    }
+    if (mCurrentAction && !mCurrentAction->rehydrate(context)) return false;
+
+    return true;
+}
+
 } // namespace apl

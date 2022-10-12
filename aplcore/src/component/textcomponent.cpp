@@ -13,9 +13,20 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/component/componentpropdef.h"
 #include "apl/component/textcomponent.h"
+#include "apl/component/componentpropdef.h"
+#include "apl/component/textmeasurement.h"
 #include "apl/content/rootconfig.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/scenegraph.h"
+#include "apl/scenegraph/textchunk.h"
+#include "apl/scenegraph/textlayout.h"
+#include "apl/scenegraph/textmeasurement.h"
+#include "apl/scenegraph/textproperties.h"
+#include "apl/scenegraph/utilities.h"
+#endif // SCENEGRAPH
+#include "apl/utils/session.h"
 
 namespace apl {
 
@@ -35,57 +46,95 @@ TextComponent::TextComponent(const ContextPtr& context,
                              const Path& path)
     : CoreComponent(context, std::move(properties), path)
 {
-    YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc);
-    YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc);
+#ifdef SCENEGRAPH
+    static auto sgTextMeasureFunc = [](YGNodeRef node, float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode) -> YGSize {
+        // TODO: Hash this properly so we don't call it multiple times
+        auto self = static_cast<TextComponent *>(node->getContext());
+        return self->measureText(width, widthMode, height, heightMode);
+    };
+
+    static auto sgTextBaselineFunc = [](YGNodeRef node, float width, float height) -> float {
+        auto self = static_cast<TextComponent*>(node->getContext());
+        return self->baselineText(width, height);
+    };
+
+    if (dynamic_cast<sg::TextMeasurement *>(mContext->measure().get())) {
+        YGNodeSetMeasureFunc(mYGNodeRef, sgTextMeasureFunc);
+        YGNodeSetBaselineFunc(mYGNodeRef, sgTextBaselineFunc);
+    } else {
+#endif // SCENEGRAPH
+        YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc);
+        YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc);
+#ifdef SCENEGRAPH
+    }
+#endif // SCENEGRAPH
+
     YGNodeSetNodeType(mYGNodeRef, YGNodeTypeText);
 }
 
 
-static inline void internalCheckKaraokeTargetColor(Component& component)
-{
-    auto& text = static_cast<TextComponent&>(component);
-    text.checkKaraokeTargetColor();
-}
-
-static inline Object defaultFontColor(Component& component, const RootConfig& rootConfig)
-{
-    return Object(rootConfig.getDefaultFontColor(component.getContext()->getTheme()));
-}
-
-static inline Object defaultFontFamily(Component&, const RootConfig& rootConfig)
-{
-    return Object(rootConfig.getDefaultFontFamily());
-}
-
-static inline Object inheritLang(Component& comp, const RootConfig& rconfig)
-{
-    return Object(comp.getContext()->getLang());
-};
-
 const ComponentPropDefSet&
 TextComponent::propDefSet() const
 {
-    auto fixTextAlign = [] (Component& comp) {
-      auto& coreComp = dynamic_cast<TextComponent&>(comp);
+    static auto defaultFontFamily = [](Component& component, const RootConfig& rootConfig) -> Object {
+      return Object(rootConfig.getDefaultFontFamily());
+    };
+
+    static auto defaultFontColor = [](Component& component, const RootConfig& rootConfig) -> Object {
+      return Object(rootConfig.getDefaultFontColor(component.getContext()->getTheme()));
+    };
+
+    static auto defaultLang = [](Component& component, const RootConfig& rootConfig) -> Object {
+        return component.getContext()->getLang();
+    };
+
+    static auto karaokeTargetColorTrigger = [](Component& component) -> void {
+        auto& text = dynamic_cast<TextComponent&>(component);
+        text.checkKaraokeTargetColor();
+    };
+
+    static auto fixTextAlignTrigger = [](Component& component) -> void {
+      auto& coreComp = dynamic_cast<TextComponent&>(component);
       coreComp.updateTextAlign(true);
+#ifdef SCENEGRAPH
+      coreComp.mTextProperties = nullptr;
+      coreComp.mLayout = nullptr;
+#endif // SCENEGRAPH
+    };
+
+    static auto fixTextTrigger = [](Component& component) -> void {
+#ifdef SCENEGRAPH
+      auto& coreComp = dynamic_cast<TextComponent&>(component);
+      coreComp.mTextProperties = nullptr;
+      coreComp.mLayout = nullptr;
+#endif // SCENEGRAPH
+    };
+
+    static auto fixTextChunkTrigger = [](Component& component) -> void {
+#ifdef SCENEGRAPH
+        auto& coreComp = dynamic_cast<TextComponent&>(component);
+        coreComp.mTextChunk = nullptr;
+        coreComp.mLayout = nullptr;
+#endif // SCENEGRAPH
     };
 
     static ComponentPropDefSet sTextComponentProperties(CoreComponent::propDefSet(), {
-        {kPropertyColor,               Color(),                asColor,               kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash, internalCheckKaraokeTargetColor, defaultFontColor},
-        {kPropertyColorKaraokeTarget,  Color(),                asColor,               kPropOut | kPropVisualHash,                                                                 defaultFontColor},
-        {kPropertyColorNonKaraoke,     Color(),                asColor,               kPropOut | kPropVisualHash,                                                                 defaultFontColor},
-        {kPropertyFontFamily,          "",                     asString,              kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash,    defaultFontFamily},
-        {kPropertyFontSize,            Dimension(40),          asAbsoluteDimension,   kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
-        {kPropertyFontStyle,           kFontStyleNormal,       sFontStyleMap,         kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
-        {kPropertyFontWeight,          400,                    sFontWeightMap,        kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash},
-        {kPropertyLang,                "",                     asString,              kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash,    inheritLang},
-        {kPropertyLetterSpacing,       Dimension(0),           asAbsoluteDimension,   kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash},
-        {kPropertyLineHeight,          1.25,                   asNonNegativeNumber,   kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash},
-        {kPropertyMaxLines,            0,                      asInteger,             kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash},
-        {kPropertyText,                StyledText::EMPTY(),    asStyledText,          kPropInOut | kPropLayout | kPropDynamic | kPropVisualContext | kPropTextHash | kPropVisualHash},
-        {kPropertyTextAlign,           kTextAlignAuto,         sTextAlignMap,         kPropOut | kPropTextHash | kPropVisualHash},
-        {kPropertyTextAlignAssigned,   kTextAlignAuto,         sTextAlignMap,         kPropIn  | kPropLayout | kPropStyled | kPropDynamic,                                       fixTextAlign},
-        {kPropertyTextAlignVertical,   kTextAlignVerticalAuto, sTextAlignVerticalMap, kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash},
+        {kPropertyColor,               Color(),                 asColor,               kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash, karaokeTargetColorTrigger,    defaultFontColor},
+        {kPropertyRangeKaraokeTarget,  Range(),                 nullptr,               kPropOut | kPropVisualHash  },
+        {kPropertyColorKaraokeTarget,  Color(),                 asColor,               kPropOut | kPropVisualHash,                                                              defaultFontColor},
+        {kPropertyColorNonKaraoke,     Color(),                 asColor,               kPropOut | kPropVisualHash,                                                              defaultFontColor},
+        {kPropertyFontFamily,          "",                      asString,              kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, fixTextTrigger, defaultFontFamily},
+        {kPropertyFontSize,            Dimension(40),           asAbsoluteDimension,   kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, fixTextTrigger},
+        {kPropertyFontStyle,           kFontStyleNormal,        sFontStyleMap,         kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, fixTextTrigger},
+        {kPropertyFontWeight,          400,                     sFontWeightMap,        kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, fixTextTrigger},
+        {kPropertyLang,                "",                      asString,              kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, fixTextTrigger, defaultLang},
+        {kPropertyLetterSpacing,       Dimension(0),            asAbsoluteDimension,   kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash, fixTextTrigger},
+        {kPropertyLineHeight,          1.25,                    asNonNegativeNumber,   kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash, fixTextTrigger},
+        {kPropertyMaxLines,            0,                       asInteger,             kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash, fixTextTrigger},
+        {kPropertyText,                StyledText::EMPTY(),     asStyledText,          kPropInOut | kPropLayout | kPropDynamic | kPropVisualContext | kPropTextHash | kPropVisualHash, fixTextChunkTrigger},
+        {kPropertyTextAlign,           kTextAlignAuto,          sTextAlignMap,         kPropOut | kPropTextHash | kPropVisualHash, fixTextTrigger},
+        {kPropertyTextAlignAssigned,   kTextAlignAuto,          sTextAlignMap,         kPropIn  | kPropLayout | kPropStyled | kPropDynamic,                                       fixTextAlignTrigger},
+        {kPropertyTextAlignVertical,   kTextAlignVerticalAuto,  sTextAlignVerticalMap, kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, fixTextTrigger},
     });
 
     return sTextComponentProperties;
@@ -147,6 +196,9 @@ TextComponent::preLayoutProcessing(bool useDirtyFlag)
  * Classic      Block    kPropertyColor             N/A
  * Modern       Line     kPropertyColor             kPropertyColorKaraokeTarget
  * Modern       Block    kPropertyColor             N/A
+ *
+ *
+ * The Karaoke Range specifies where to draw the kPropertyColorKaraokeTarget
  */
 
 void
@@ -256,6 +308,289 @@ TextComponent::getVisualContextType() const
     return getValue().empty() ? VISUAL_CONTEXT_TYPE_EMPTY : VISUAL_CONTEXT_TYPE_TEXT;
 }
 
+#ifdef SCENEGRAPH
+Point
+TextComponent::calcSceneGraphOffset() const
+{
+    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect();
+    auto textSize = mLayout ? mLayout->getSize() : Size{};
 
+    float dx = 0;
+    switch (static_cast<TextAlign>(getCalculated(kPropertyTextAlign).getInteger())) {
+        case kTextAlignAuto:
+        case kTextAlignLeft:  // TODO: Fix auto for rtol text
+        case kTextAlignStart: // TODO: Fix for RTOL text
+            dx = innerBounds.getLeft();
+            break;
+        case kTextAlignCenter:
+            dx = innerBounds.getCenterX() - textSize.getWidth() / 2;
+            break;
+        case kTextAlignRight:
+        case kTextAlignEnd: // TODO: Fix for RTOL text
+            dx = innerBounds.getRight() - textSize.getWidth();
+            break;
+    }
+
+    float dy = 0;
+    switch (
+        static_cast<TextAlignVertical>(getCalculated(kPropertyTextAlignVertical).getInteger())) {
+        case kTextAlignVerticalAuto: // TODO: Fix auto for text
+        case kTextAlignVerticalTop:
+            dy = innerBounds.getTop();
+            break;
+        case kTextAlignVerticalCenter:
+            dy = innerBounds.getCenterY() - textSize.getHeight() / 2;
+            break;
+        case kTextAlignVerticalBottom:
+            dy = innerBounds.getBottom() - textSize.getHeight();
+            break;
+    }
+
+    return {dx, dy};
+}
+
+/**
+ * Construct the scene graph.
+ *
+ * In most cases we create a single TextNode wrapped by a TransformNode.
+ * In karaoke we need to create between one and three nodes for highlighting individual lines.
+ *
+ * @param sceneGraph Screen graph update tracking.
+ * @return The scene graph
+ */
+sg::LayerPtr
+TextComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) {
+    auto layer = CoreComponent::constructSceneGraphLayer(sceneGraph);
+    assert(layer);
+
+    ensureSGTextLayout();
+
+    auto transform = sg::transform(calcSceneGraphOffset(), nullptr);
+    populateTextNodes(sg::TransformNode::cast(transform));
+    layer->appendContent(transform);
+
+    return layer;
+}
+
+/*
+ * This method is called if the TextComponent has a pre-existing scene graph.
+ * Nominally "isDirty(PROPERTY)" tells us if a component property has changed and hence
+ * may be need to be updated in the scene graph.  A shortcut is available since changing
+ * some properties clears mLayout.
+ *
+ * These properties clear the layout
+ *
+ *   kPropertyFontFamily
+ *   kPropertyFontSize
+ *   kPropertyFontStyle
+ *   kPropertyFontWeight
+ *   kPropertyLang
+ *   kPropertyLetterSpacing
+ *   kPropertyLineHeight
+ *   kPropertyMaxLines
+ *   kPropertyTextAlign
+ *   kPropertyTextAlignVertical
+ *   kPropertyText
+ *
+ * These properties are needed to calculate paint and positioning of the text layout
+ *
+ *   kPropertyColor
+ *   kPropertyRangeKaraokeTarget
+ *   kPropertyColorKaraokeTarget
+ *   kPropertyInnerBounds
+ *   kPropertyBounds
+ */
+bool
+TextComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
+{
+    auto* transform = sg::TransformNode::cast(mSceneGraphLayer->content().front());
+    auto* text = sg::TextNode::cast(transform->child());
+
+    ensureSGTextLayout();
+
+    const bool fixText = text->getTextLayout() != mLayout;
+    const bool fixColor = isDirty(kPropertyColor);
+    const bool fixKaraokeColor = isDirty(kPropertyColorKaraokeTarget);
+    const bool fixKaraokeRange = isDirty(kPropertyRangeKaraokeTarget);
+    const bool fixTransform = fixText || isDirty(kPropertyInnerBounds) || isDirty(kPropertyBounds);
+
+    if (!fixColor && !fixKaraokeColor && !fixText && !fixTransform && !fixKaraokeRange)
+        return false;
+
+    if (fixTransform)
+        transform->setTransform(Transform2D::translate(calcSceneGraphOffset()));
+
+    // If Karaoke highlighting changes or if the text/color changes AND we're in
+    // karaoke highlighting, then we just rebuild all of the nodes.
+    if (fixKaraokeRange || (transform->childCount() > 1 && (fixColor || fixText || fixKaraokeColor))) {
+        transform->removeAllChildren();
+        populateTextNodes(transform);
+    }
+    else {
+        if (fixText)
+            text->setTextLayout(mLayout);
+        if (fixColor) {
+            auto* paint = sg::ColorPaint::cast(text->getOp()->paint);
+            paint->setColor(getCalculated(kPropertyColor).getColor());
+        }
+    }
+
+    return true;
+}
+
+void
+TextComponent::populateTextNodes(sg::Node *transform)
+{
+    const auto range = getCalculated(kPropertyRangeKaraokeTarget).getRange();
+    const auto lineCount = mLayout->getLineCount();
+    const auto lineRange = lineCount > 0 ? Range(0, lineCount - 1) : Range();
+
+    // Calculate Karaoke strips if needed
+    if (!range.empty() && lineCount > 0) {
+
+        // Identify lines BEFORE the karaoke range
+        auto subrange = lineRange.subsetBelow(range.lowerBound());
+        if (!subrange.empty())
+            transform->appendChild(sg::text(
+                mLayout, sg::fill(sg::paint(getCalculated(kPropertyColor))), subrange));
+
+        // Lines within the karaoke range
+        subrange = lineRange.intersectWith(range);
+        if (!subrange.empty())
+            transform->appendChild(sg::text(
+                mLayout, sg::fill(sg::paint(getCalculated(kPropertyColorKaraokeTarget))),
+                subrange));
+
+        // Lines beyond the karaoke range
+        subrange = lineRange.subsetAbove(range.upperBound());
+        if (!subrange.empty())
+            transform->appendChild(sg::text(
+                mLayout, sg::fill(sg::paint(getCalculated(kPropertyColor))), subrange));
+    }
+    else {
+        transform->appendChild(sg::text(
+            mLayout, sg::fill(sg::paint(getCalculated(kPropertyColor)))));
+    }
+}
+
+YGSize
+TextComponent::measureText(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)
+{
+    auto *tm = dynamic_cast<sg::TextMeasurement *>(mContext->measure().get());
+    assert(tm);
+
+    // TODO: Hash and check for cache hits
+    ensureTextProperties();
+    mLayout = tm->layout(mTextChunk, mTextProperties, width, toMeasureMode(widthMode),
+                         height, toMeasureMode(heightMode));
+    if (!mLayout)
+        return {0, 0};  // No text, no layout
+
+    auto size = mLayout->getSize();
+    return YGSize{size.getWidth(), size.getHeight()};
+}
+
+float
+TextComponent::baselineText(float width, float height)
+{
+    // Make the large assumption that Yoga needs baseline information with a text layout
+    if (!mLayout) {
+        auto *tm = dynamic_cast<sg::TextMeasurement *>(mContext->measure().get());
+        assert(tm);
+        ensureTextProperties();
+        mLayout = tm->layout(mTextChunk, mTextProperties, width, MeasureMode::Undefined,
+                             height, MeasureMode::Undefined);
+    }
+
+    return mLayout ? mLayout->getBaseline() : 0;
+}
+
+void
+TextComponent::ensureSGTextLayout()
+{
+    // Having a layout is no guarantee that the layout is correct.  Yoga caches previous layout calculations
+    // for efficiency.  If the layout exists, you also need to check that it matches the desired size and scaling modes.
+    if (mLayout) {
+        // Yoga rounds text box sizes.  They should be rounded UP (to ensure no clipping).
+        // They round to the nearest pixel dimension.  We'll assume that if the layout size
+        // is within 2 pixels of the measured size and _larger_ than the measured size, then
+        // we are okay and don't need to re-layout.
+        auto s = mLayout->getSize();
+        auto dw = mContext->dpToPx(YGNodeLayoutGetWidth(mYGNodeRef) - s.getWidth());
+        auto dh = mContext->dpToPx(YGNodeLayoutGetHeight(mYGNodeRef) - s.getHeight());
+
+        if (dw >= 0.0 && dw <= 2.0 && dh >= 0.0 && dh <= 2.0)
+            return;
+    }
+
+    auto measure = std::dynamic_pointer_cast<sg::TextMeasurement>(mContext->measure());
+    assert(measure);
+
+    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect();
+
+    ensureTextProperties();
+    mLayout = measure->layout(mTextChunk, mTextProperties, innerBounds.getWidth(),
+                              MeasureMode::AtMost, innerBounds.getHeight(), MeasureMode::AtMost);
+}
+
+void
+TextComponent::ensureTextProperties()
+{
+    if (!mTextChunk)
+        mTextChunk = sg::TextChunk::create(getCalculated(kPropertyText).getStyledText());
+
+    if (!mTextProperties)
+        mTextProperties = sg::TextProperties::create(
+            mContext->textPropertiesCache(),
+            sg::splitFontString(mContext->getRootConfig(),
+                                getCalculated(kPropertyFontFamily).getString()),
+            getCalculated(kPropertyFontSize).asFloat(),
+            getCalculated(kPropertyFontStyle).asEnum<FontStyle>(),
+            getCalculated(kPropertyFontWeight).getInteger(),
+            getCalculated(kPropertyLetterSpacing).asFloat(),
+            getCalculated(kPropertyLineHeight).asFloat(),
+            getCalculated(kPropertyMaxLines).getInteger(),
+            getCalculated(kPropertyTextAlign).asEnum<TextAlign>(),
+            getCalculated(kPropertyTextAlignVertical).asEnum<TextAlignVertical>());
+}
+
+bool
+TextComponent::setKaraokeLine(Range byteRange)
+{
+    const auto& previousLineRange = mCalculated.get(kPropertyRangeKaraokeTarget).getRange();
+
+    if (byteRange.empty()) {
+        if (!previousLineRange.empty()) {
+            mCalculated.set(kPropertyRangeKaraokeTarget, Range());
+            setDirty(kPropertyRangeKaraokeTarget);
+            return true;
+        }
+        return false;
+    }
+
+    // We have to ensure we have a text layout so we can find the start and end of lines
+    ensureSGTextLayout();
+    auto lineRange = mLayout->getLineRangeFromByteRange(byteRange);
+
+    if (previousLineRange != lineRange) {
+        mCalculated.set(kPropertyRangeKaraokeTarget, lineRange);
+        setDirty(kPropertyRangeKaraokeTarget);
+        return true;
+    }
+
+    return false;
+}
+
+Rect
+TextComponent::getKaraokeBounds()
+{
+    const auto& range = mCalculated.get(kPropertyRangeKaraokeTarget).getRange();
+    if (range.empty())
+        return {};
+
+    ensureSGTextLayout();
+    return mLayout->getBoundingBoxForLines(range);
+}
+#endif // SCENEGRAPH
 
 } // namespace apl

@@ -109,6 +109,14 @@ function apl-build-core {  # Run make for the core build
     )
 }
 
+function apl-install-core {  # Run make install
+    (
+        apl-switch-to-build-directory build $@ && \
+        $CMAKE -DBUILD_TESTS=ON -DCOVERAGE=OFF .. && \
+        make install -j$APL_BUILD_PROCS
+    )
+}
+
 function apl-check-core {  # Run make for the core build with -Werror
     (
         apl-switch-to-build-directory build $@ && \

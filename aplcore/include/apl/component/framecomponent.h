@@ -16,7 +16,7 @@
 #ifndef _APL_FRAME_COMPONENT_H
 #define _APL_FRAME_COMPONENT_H
 
-#include "corecomponent.h"
+#include "apl/component/corecomponent.h"
 
 namespace apl {
 
@@ -35,6 +35,12 @@ public:
 protected:
     const ComponentPropDefSet& propDefSet() const override;
     void assignProperties(const ComponentPropDefSet& propDefSet) override;
+
+#ifdef SCENEGRAPH
+    // Common scene graph handling
+    sg::LayerPtr constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) override;
+    bool updateSceneGraphInternal(apl::sg::SceneGraphUpdates& sceneGraph) override;
+#endif // SCENEGRAPH
 
 private:
     bool singleChild() const override { return true; }

@@ -15,6 +15,10 @@
 
 #include "apl/graphic/graphicelementcontainer.h"
 #include "apl/graphic/graphicpropdef.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/node.h"
+#endif // SCENEGRAPH
 
 #include "apl/utils/session.h"
 
@@ -104,5 +108,26 @@ GraphicElementContainer::initialize(const GraphicPtr& graphic, const Object& jso
     return true;
 }
 
+#ifdef SCENEGRAPH
+sg::NodePtr
+GraphicElementContainer::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
+{
+    auto node = sg::generic();
+
+    for (const auto& m : mChildren) {
+        auto child = m->getSceneGraph(sceneGraph);
+        if (child)
+            node->appendChild(child);
+    }
+
+    return node;
+}
+
+void
+GraphicElementContainer::updateSceneGraphInternal(sg::ModifiedNodeList& modList, const sg::NodePtr& node)
+{
+    // Graphic property nodes are fixed
+}
+#endif // SCENEGRAPH
 
 } // namespace apl

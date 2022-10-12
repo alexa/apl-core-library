@@ -17,16 +17,63 @@
 #define _APL_TEXT_MEASUREMENT_H
 
 #include <memory>
-#include "apl/component/component.h"
+
+#include "apl/common.h"
 
 namespace apl {
 
-/**
- * struct LayoutSize is defined to pass width and height mode.
- */
 struct LayoutSize {
     float width;
     float height;
+};
+
+/**
+ * Modes to measure layout size in TextMeasurement class
+ */
+enum MeasureMode {
+    Undefined,
+    Exactly,
+    AtMost
+};
+
+/**
+ * Convenience structure for storing and passing around measurement requests
+ */
+class MeasureRequest {
+public:
+    MeasureRequest() = default;
+    MeasureRequest(float width,
+                   MeasureMode widthMode,
+                   float height,
+                   MeasureMode heightMode)
+        : mWidth(width),
+          mWidthMode(widthMode),
+          mHeight(height),
+          mHeightMode(heightMode) {}
+
+    bool isExact() const { return mWidthMode == Exactly && mHeightMode == Exactly; }
+
+    float width() const { return mWidth; }
+    float height() const { return mHeight; }
+
+    MeasureMode widthMode() const { return mWidthMode; }
+    MeasureMode heightMode() const { return mHeightMode; }
+
+    friend bool operator==(const MeasureRequest& lhs, const MeasureRequest& rhs)  {
+        return lhs.mWidth == rhs.mWidth && lhs.mWidthMode == rhs.mWidthMode &&
+        lhs.mHeight == rhs.mHeight && lhs.mHeightMode == rhs.mHeightMode;
+    }
+
+    friend bool operator!=(const MeasureRequest& lhs, const MeasureRequest& rhs)  {
+        return lhs.mWidth != rhs.mWidth || lhs.mWidthMode != rhs.mWidthMode ||
+               lhs.mHeight != rhs.mHeight || lhs.mHeightMode != rhs.mHeightMode;
+    }
+
+private:
+    float mWidth = 0;
+    MeasureMode mWidthMode = Undefined;
+    float mHeight = 0;
+    MeasureMode mHeightMode = Undefined;
 };
 
 /**

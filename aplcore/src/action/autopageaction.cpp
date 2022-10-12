@@ -54,16 +54,15 @@ AutoPageAction::make(const TimersPtr& timers,
         || target->getChildCount() < 2)
         return nullptr;
 
-    auto start = target->pagePosition() + 1;
-    auto len = target->getChildCount();
+    auto start = static_cast<int>(target->pagePosition()) + 1;
+    auto len = static_cast<int>(target->getChildCount());
     auto count = command->getValue(kCommandPropertyCount).asInt();
     auto duration = command->getValue(kCommandPropertyDuration).asInt();
 
     if (count <= 0 || start >= len)
         return nullptr;
 
-    if (start + count > len)
-        count = len - start;
+    count = std::min(len - start, count);  // Note: Count may be INT_MAX, so be careful with math
 
     auto ptr = std::make_shared<AutoPageAction>(timers, command, target, start, start + count, duration);
     command->context()->sequencer().claimResource({kExecutionResourcePosition, target}, ptr);
@@ -77,6 +76,8 @@ AutoPageAction::advance() {
         resolve();
         return;
     }
+
+    mCurrentIndex = mContainer->pagePosition();
 
     if (mNextIndex == mEndIndex) {
         // No more pages to change.  We pause on the final page for mDuration
@@ -101,6 +102,47 @@ AutoPageAction::advance() {
 
         self->advance();
     });
+}
+
+void
+AutoPageAction::freeze()
+{
+    if (mCommand) {
+        mCommand->freeze();
+    }
+
+    ResourceHoldingAction::freeze();
+}
+
+bool
+AutoPageAction::rehydrate(const RootContext& context)
+{
+    if (!ResourceHoldingAction::rehydrate(context)) return false;
+
+    if (mCommand) {
+        if (!mCommand->rehydrate(context)) return false;
+    }
+
+    mContainer = mCommand->target();
+
+    auto oldCurrentIndex = mCurrentIndex;
+    mCurrentIndex = mContainer->pagePosition();
+
+    if (mCurrentIndex >= mContainer->getChildCount()) return false;
+
+    if (oldCurrentIndex != mCurrentIndex) {
+        mEndIndex = std::min(mEndIndex - oldCurrentIndex + mCurrentIndex, mContainer->getChildCount() - 1);
+    }
+
+    mNextIndex = mCurrentIndex + 1;
+
+    if (mNextIndex >= mEndIndex || mNextIndex >= mContainer->getChildCount()) return false;
+
+    mCommand->context()->sequencer().claimResource({kExecutionResourcePosition, mContainer}, shared_from_this());
+
+    mCurrentAction->resolve();
+
+    return true;
 }
 
 } // namespace apl

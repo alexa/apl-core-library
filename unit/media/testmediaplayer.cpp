@@ -263,6 +263,20 @@ TestMediaPlayer::setAudioTrack(AudioTrack audioTrack)
     mAudioTrack = audioTrack;
 }
 
+void
+TestMediaPlayer::setMute(bool mute)
+{
+    mIsMuted = mute;
+}
+
+rapidjson::Value
+TestMediaPlayer::serialize(rapidjson::Document::AllocatorType& allocator) const
+{
+    rapidjson::Value mediaPlayer(rapidjson::kObjectType);
+    mediaPlayer.AddMember("mediaPlayerId", "TEST", allocator);
+    return mediaPlayer;
+}
+
 /**
  * Advance by at most "milliseconds".  At most a single callback will be invoked here.
  */

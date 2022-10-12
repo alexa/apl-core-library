@@ -20,6 +20,10 @@
 #include "apl/graphic/graphic.h"
 #include "apl/media/mediamanager.h"
 #include "apl/media/mediaobject.h"
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/scenegraph.h"
+#endif // SCENEGRAPH
 #include "apl/time/sequencer.h"
 
 namespace apl {
@@ -159,6 +163,9 @@ VectorGraphicComponent::updateGraphic(const GraphicContentPtr& json)
     if (graphic.isGraphic()) {
         graphic.getGraphic()->release();
         setDirty(kPropertyGraphic);
+#ifdef SCENEGRAPH
+        mSceneGraphLayer.reset();  // TODO: Will this kill the media layer appropriately?
+#endif // SCENEGRAPH
     }
 
     auto url = encodeUrl(getCalculated(kPropertySource).asString());
@@ -404,6 +411,99 @@ VectorGraphicComponent::postProcessLayoutChanges() {
     CoreComponent::postProcessLayoutChanges();
     MediaComponentTrait::postProcessLayoutChanges();
 }
+
+#ifdef SCENEGRAPH
+/**
+ * The scenegraph structure:
+ *
+ * Layer (CoreComponent)
+ *   Layer (MediaLayer)   [bounds match the vector graphic]
+ *     Transform (within MediaLayer)
+ *       Graphic
+ *
+ * If the graphic is not valid, we still construct the mediaLayer and transform for later use.
+ */
+sg::LayerPtr
+VectorGraphicComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
+{
+    auto layer = TouchableComponent::constructSceneGraphLayer(sceneGraph);
+    assert(layer);
+
+    // Build the basic data structures
+    auto mediaLayer = sg::layer(mUniqueId + "-mediaLayer", Rect{0,0,1,1}, 1.0f, Transform2D());
+    auto transform = sg::transform();
+    mediaLayer->appendContent(transform);
+    layer->appendChild(mediaLayer);
+    fixMediaLayer(sceneGraph, mediaLayer);
+
+    sceneGraph.created(mediaLayer);
+
+    return layer;
+}
+
+bool
+VectorGraphicComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
+{
+    auto boundsChanged = isDirty(kPropertyMediaBounds);  // The media bounds changed (for example, due to layout changes)
+    auto graphicChanged = isDirty(kPropertyGraphic);  // The current graphic had some property changes
+
+    if (!boundsChanged && !graphicChanged)
+        return false;
+
+    auto mediaLayer = mSceneGraphLayer->children().at(0);
+
+    // Update the media layer and transform.  Force a re-attachment of the graphic if there is a new one
+    auto validGraphic = fixMediaLayer(sceneGraph, mediaLayer);
+
+    // If the media layer size changed, then we also need to redraw its content
+    if (mediaLayer->isFlagSet(sg::Layer::kFlagSizeChanged))
+        mediaLayer->setFlag(sg::Layer::kFlagRedrawContent);
+
+    // If the graphic changed (and is valid), let the update routine decide if we need a redraw of the content
+    if (graphicChanged && validGraphic) {
+        auto graphic = getCalculated(kPropertyGraphic).getGraphic();
+        if (graphic->updateSceneGraph(sceneGraph))
+            mediaLayer->setFlag(sg::Layer::kFlagRedrawContent);
+    }
+
+    // Copy over media layer flags, if set
+    sceneGraph.changed(mediaLayer);
+
+    return false;  // The vector graphic layer didn't change; the media layer did
+}
+
+/**
+ * If there is a valid graphic object, fix the media layer and transform object
+ * to correctly set the bounds and transformation.
+ * @param sceneGraph
+ * @return True if there was a valid graphic object
+ */
+bool
+VectorGraphicComponent::fixMediaLayer(sg::SceneGraphUpdates& sceneGraph,
+                                      const sg::LayerPtr& mediaLayer)
+{
+    auto* transform = sg::TransformNode::cast(mediaLayer->content().at(0));
+    transform->removeAllChildren();
+
+    auto object = getCalculated(kPropertyGraphic);
+    if (!object.isGraphic())
+        return false;
+
+    auto graphic = object.getGraphic();
+    if (!graphic || !graphic->isValid())
+        return false;
+
+    auto mediaBounds = getCalculated(kPropertyMediaBounds).getRect();
+    mediaLayer->setBounds(mediaBounds);
+    sg::TransformNode::cast(transform)->setTransform(
+        Transform2D::scale(mediaBounds.getWidth() / graphic->getViewportWidth(),
+                           mediaBounds.getHeight() / graphic->getViewportHeight()));
+
+    transform->appendChild(graphic->getSceneGraph(sceneGraph));
+
+    return true;
+}
+#endif // SCENEGRAPH
 
 void
 VectorGraphicComponent::onFail(const MediaObjectPtr& mediaObject)

@@ -27,6 +27,7 @@ target_sources_local(unittest
         unittest_command_setvalue.cpp
         unittest_commands.cpp
         unittest_screenlock.cpp
+        unittest_sequencer_preservation.cpp
         unittest_serialize_event.cpp
         unittest_setstate.cpp
         unittest_setvalue.cpp

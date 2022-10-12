@@ -63,7 +63,16 @@ UnidirectionalEasingScroller::make(
         const Point& target,
         apl_duration_t duration)
 {
-    assert(duration > 0);
+    assert(duration >= 0);
+
+    // 0 duration means go to it directly.
+    if (duration == 0) {
+        auto resultingPosition = scrollable->isVertical() ? target.getY() : target.getX();
+        scrollable->update(UpdateType::kUpdateScrollPosition, resultingPosition);
+        finish();
+        return nullptr;
+    }
+
     auto easing = scrollable->getRootConfig().getProperty(RootProperty::kUEScrollerDurationEasing).getEasing();
     return std::make_shared<UnidirectionalEasingScroller>(scrollable, easing, std::move(finish), target, duration);
 }
@@ -151,6 +160,13 @@ UnidirectionalEasingScroller::fixFlingStartPosition(const std::shared_ptr<Scroll
         mLastScrollPosition = currentPosition;
         LOG_IF(DEBUG_SCROLLER).session(scrollable) << "Diff: " << diff.toString();
     }
+}
+
+void
+UnidirectionalEasingScroller::replaceTarget(const ScrollablePtr& scrollable)
+{
+    AutoScroller::replaceTarget(scrollable);
+    fixFlingStartPosition(scrollable);
 }
 
 } // namespace apl

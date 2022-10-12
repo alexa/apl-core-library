@@ -38,4 +38,6 @@ target_sources_local(apl
     styleinstance.cpp
     styledefinition.cpp
     styles.cpp
+    uidobject.cpp
+    uidmanager.cpp
 )

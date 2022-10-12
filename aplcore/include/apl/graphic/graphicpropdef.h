@@ -28,6 +28,9 @@ public:
     GraphicPropDef(GraphicPropertyKey key, int defvalue, Bimap<int, std::string> &map, int flags)
             : PropDef(key, defvalue, map, flags) {}
 
+    GraphicPropDef(GraphicPropertyKey key, int defvalue, Bimap<int, std::string> &map, int flags, Trigger trigger)
+            : PropDef(key, defvalue, map, flags), trigger(trigger) {}
+
     GraphicPropDef(GraphicPropertyKey key, const Object &defvalue, BindingFunction func, int flags)
             : GraphicPropDef(key, defvalue, std::move(func), flags, nullptr, nullptr) {}
 

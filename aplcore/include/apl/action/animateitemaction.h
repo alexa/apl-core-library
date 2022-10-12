@@ -37,10 +37,14 @@ public:
                       const std::shared_ptr<CoreCommand>& command,
                       bool fastMode);
 
+    void freeze() override;
+    bool rehydrate(const RootContext& context) override;
+
 private:
     void start();
     void advance();
     void finalize();
+    void extractAnimators();
 
 private:
     std::shared_ptr<CoreCommand> mCommand;

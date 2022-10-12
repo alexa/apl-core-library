@@ -107,25 +107,25 @@ inline uint32_t colorFromHSL(double hue, double sat, double light) {
 inline bool colorFromHex(std::string hex, uint32_t& color) {
     switch (hex.length()) {
         case 5:  // #RGBA
-            color = (17 * stoul(hex.substr(1, 1), nullptr, 16)) << 24 |
-                    (17 * stoul(hex.substr(2, 1), nullptr, 16)) << 16 |
-                    (17 * stoul(hex.substr(3, 1), nullptr, 16)) << 8 |
-                    (17 * stoul(hex.substr(4, 1), nullptr, 16));
+            color = static_cast<uint32_t>((17 * stoul(hex.substr(1, 1), nullptr, 16)) << 24 |
+                                          (17 * stoul(hex.substr(2, 1), nullptr, 16)) << 16 |
+                                          (17 * stoul(hex.substr(3, 1), nullptr, 16)) << 8 |
+                                          (17 * stoul(hex.substr(4, 1), nullptr, 16)));
             return true;
 
         case 4:  // #RGB
             color = 0x000000ff |
-                    (17 * stoul(hex.substr(1, 1), nullptr, 16)) << 24 |
-                    (17 * stoul(hex.substr(2, 1), nullptr, 16)) << 16 |
-                    (17 * stoul(hex.substr(3, 1), nullptr, 16)) << 8;
+                    static_cast<uint32_t>((17 * stoul(hex.substr(1, 1), nullptr, 16)) << 24 |
+                                          (17 * stoul(hex.substr(2, 1), nullptr, 16)) << 16 |
+                                          (17 * stoul(hex.substr(3, 1), nullptr, 16)) << 8);
             return true;
 
         case 9:  // #RRGGBBAA
-            color = stoul(hex.substr(1), nullptr, 16);
+            color = static_cast<uint32_t>(stoul(hex.substr(1), nullptr, 16));
             return true;
 
         case 7:  // #RRGGBB
-            color = 0x000000ff | stoul(hex.substr(1), nullptr, 16) << 8;
+            color = 0x000000ff | static_cast<uint32_t>(stoul(hex.substr(1), nullptr, 16) << 8);
             return true;
     }
 
