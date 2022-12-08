@@ -148,9 +148,9 @@ public:
     sg::NodePtr getSceneGraph(sg::SceneGraphUpdates& sceneGraph);
 
     /**
-     * @return True if the scene graph needs to be redrawn
+     * @return The first scene graph node
      */
-    bool needsRedraw() const;
+    sg::NodePtr getSceneGraphNode() const { return mSceneGraphNode; }
 
     /**
      * Update the scene graph based on dirty properties.

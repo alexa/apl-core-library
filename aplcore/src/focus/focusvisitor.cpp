@@ -24,7 +24,7 @@ FocusVisitor::visit(const CoreComponent& component)
 {
     bool inTheViewport = true;
 
-    auto parent = std::static_pointer_cast<CoreComponent>(component.getParent());
+    auto parent = CoreComponent::cast(component.getParent());
     // Defer visibility to scrollable itself
     if (parent && !parent->scrollable()) {
         inTheViewport = !parent || parent->isDisplayedChild(component);

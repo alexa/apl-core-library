@@ -43,7 +43,7 @@ public:
 
     AudioPlayerPtr createPlayer(AudioPlayerCallback playerCallback,
                                 SpeechMarkCallback speechMarkCallback) override {
-        auto self = std::dynamic_pointer_cast<TestAudioPlayerFactory>(shared_from_this());
+        auto self = std::static_pointer_cast<TestAudioPlayerFactory>(shared_from_this());
         auto player = std::make_shared<TestAudioPlayer>(std::move(playerCallback),
                                                         std::move(speechMarkCallback),
                                                         std::move(self));

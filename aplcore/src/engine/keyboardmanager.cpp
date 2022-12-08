@@ -71,7 +71,7 @@ KeyboardManager::handleKeyboard(KeyHandlerType type, const CoreComponentPtr& com
             LOG_IF(DEBUG_KEYBOARD_MANAGER).session(rootContext) << target->getUniqueId() << " " << type << " consumed.";
         } else {
             // propagate
-            target = std::static_pointer_cast<CoreComponent>(target->getParent());
+            target = CoreComponent::cast(target->getParent());
         }
     }
 

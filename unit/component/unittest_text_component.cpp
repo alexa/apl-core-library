@@ -101,7 +101,7 @@ static const char* LANG_TEXT_DEFAULT_DOC = R"({
 TEST_F(TextComponentTest, ComponentTextLangDefaults) {
     loadDocument(LANG_TEXT_DEFAULT_DOC);
 
-    auto et = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+    auto et = CoreComponent::cast(root->topComponent());
     ASSERT_EQ("en-US", et->getCalculated(kPropertyLang).asString());
 
     et->setProperty(kPropertyLang, "ja-jp");
@@ -152,7 +152,7 @@ static const char* TEXT_ALIGN_DEFAULT = R"({
 TEST_F(TextComponentTest, TextAlignParseCheck) {
     loadDocument(TEXT_ALIGN_DEFAULT);
 
-    auto et = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+    auto et = CoreComponent::cast(root->topComponent());
 
     ASSERT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
     ASSERT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
@@ -212,7 +212,7 @@ static const char* TEXT_ALIGN_DEFAULT_RTL = R"({
 TEST_F(TextComponentTest, TextAlignParseCheckRTL) {
     loadDocument(TEXT_ALIGN_DEFAULT_RTL);
 
-    auto et = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+    auto et = CoreComponent::cast(root->topComponent());
 
     ASSERT_EQ(kTextAlignRight, et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
     ASSERT_EQ(kTextAlignStart, et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
@@ -234,7 +234,7 @@ TEST_F(TextComponentTest, TextAlignParseCheckRTL) {
 TEST_F(TextComponentTest, TextAlignDynCheckRTL) {
     loadDocument(TEXT_ALIGN_DEFAULT_RTL);
 
-    auto et = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+    auto et = CoreComponent::cast(root->topComponent());
 
     ASSERT_EQ(kTextAlignRight, et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
     ASSERT_EQ(kTextAlignStart, et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
@@ -257,7 +257,7 @@ TEST_F(TextComponentTest, TextAlignDynCheckRTL) {
 TEST_F(TextComponentTest, TextAlignDirtyFlag) {
     loadDocument(TEXT_ALIGN_DEFAULT_RTL);
 
-    auto et = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+    auto et = CoreComponent::cast(root->topComponent());
 
     ASSERT_TRUE(CheckDirty(root));
 

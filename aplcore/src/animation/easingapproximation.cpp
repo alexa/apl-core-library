@@ -15,6 +15,8 @@
 
 #include "apl/animation/easingapproximation.h"
 
+#include "apl/utils/log.h"
+
 namespace apl {
 
 static float cubic( float a, float b, float c, float d, float t)

@@ -40,7 +40,7 @@ BlendFilter::serialize(rapidjson::Document::AllocatorType& allocator) const
 std::string
 BlurFilter::toDebugString() const
 {
-    return "Blur radius=" + std::to_string(radius);
+    return "Blur radius=" + sutil::to_string(radius);
 }
 
 rapidjson::Value
@@ -58,7 +58,7 @@ BlurFilter::serialize(rapidjson::Document::AllocatorType& allocator) const
 std::string
 GrayscaleFilter::toDebugString() const
 {
-    return "Grayscale amount=" + std::to_string(amount);
+    return "Grayscale amount=" + sutil::to_string(amount);
 }
 
 rapidjson::Value
@@ -98,7 +98,7 @@ NoiseFilter::toDebugString() const
 {
     return "Noise kind=" + sFilterNoiseKindBimap.at(kind) +
            " useColor=" + (useColor ? "yes" : "no") +
-           " sigma=" + std::to_string(sigma);
+           " sigma=" + sutil::to_string(sigma);
 }
 
 rapidjson::Value
@@ -118,7 +118,7 @@ NoiseFilter::serialize(rapidjson::Document::AllocatorType& allocator) const
 std::string
 SaturateFilter::toDebugString() const
 {
-    return "Saturate amount=" + std::to_string(amount);
+    return "Saturate amount=" + sutil::to_string(amount);
 }
 
 rapidjson::Value

@@ -51,8 +51,8 @@ static const char *FOCUS_TEST = R"({
 TEST_F(FocusManagerTest, ManualControl)
 {
     loadDocument(FOCUS_TEST);
-    auto thing1 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing1"));
-    auto thing2 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing2"));
+    auto thing1 = CoreComponent::cast(root->context().findComponentById("thing1"));
+    auto thing2 = CoreComponent::cast(root->context().findComponentById("thing2"));
     ASSERT_TRUE(thing1);
     ASSERT_TRUE(thing2);
 
@@ -106,8 +106,8 @@ TEST_F(FocusManagerTest, ManualControl)
 TEST_F(FocusManagerTest, ManualControlDontNotifyViewhost)
 {
     loadDocument(FOCUS_TEST);
-    auto thing1 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing1"));
-    auto thing2 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing2"));
+    auto thing1 = CoreComponent::cast(root->context().findComponentById("thing1"));
+    auto thing2 = CoreComponent::cast(root->context().findComponentById("thing2"));
     ASSERT_TRUE(thing1);
     ASSERT_TRUE(thing2);
 
@@ -139,8 +139,8 @@ TEST_F(FocusManagerTest, ManualControlDontNotifyViewhost)
 TEST_F(FocusManagerTest, ClearCheck)
 {
     loadDocument(FOCUS_TEST);
-    auto thing1 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing1"));
-    auto thing2 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing2"));
+    auto thing1 = CoreComponent::cast(root->context().findComponentById("thing1"));
+    auto thing2 = CoreComponent::cast(root->context().findComponentById("thing2"));
     ASSERT_TRUE(thing1);
     ASSERT_TRUE(thing2);
 
@@ -220,8 +220,8 @@ TEST_F(FocusManagerTest, BlurFocus)
 {
     loadDocument(BLUR_FOCUS);
 
-    auto thing1 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing1"));
-    auto thing2 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing2"));
+    auto thing1 = CoreComponent::cast(root->context().findComponentById("thing1"));
+    auto thing2 = CoreComponent::cast(root->context().findComponentById("thing2"));
     ASSERT_TRUE(thing1);
     ASSERT_TRUE(thing2);
 
@@ -479,7 +479,7 @@ TEST_F(FocusManagerTest, FocusOnComponentType)
 
     // Set focus using the "update" method
     for (const auto& m : sCanFocus) {
-        auto component = std::static_pointer_cast<CoreComponent>(root->context().findComponentById(m.first));
+        auto component = CoreComponent::cast(root->context().findComponentById(m.first));
         ASSERT_TRUE(component) << m.first;
         fm.clearFocus(false);
 
@@ -497,7 +497,7 @@ TEST_F(FocusManagerTest, FocusOnComponentType)
 
     // Set focus using a command
     for (const auto& m : sCanFocus) {
-        auto component = std::static_pointer_cast<CoreComponent>(root->context().findComponentById(m.first));
+        auto component = CoreComponent::cast(root->context().findComponentById(m.first));
         ASSERT_TRUE(component) << m.first;
         fm.clearFocus(false);
 
@@ -520,7 +520,7 @@ TEST_F(FocusManagerTest, FocusOnComponentType)
 
     // Now disable all of the components and verify they do not take focus
     for (const auto& m : sCanFocus) {
-        auto component = std::static_pointer_cast<CoreComponent>(root->context().findComponentById(m.first));
+        auto component = CoreComponent::cast(root->context().findComponentById(m.first));
         ASSERT_TRUE(component) << m.first;
         fm.clearFocus(false);
 
@@ -595,8 +595,8 @@ TEST_F(FocusManagerTest, FocusWithInheritParentState)
     loadDocument(INHERIT_PARENT_STATE);
 
     auto text = root->context().findComponentById("MyText");
-    auto a = std::static_pointer_cast<CoreComponent>(root->context().findComponentById("TouchWrapperA"));
-    auto b = std::static_pointer_cast<CoreComponent>(root->context().findComponentById("TouchWrapperB"));
+    auto a = CoreComponent::cast(root->context().findComponentById("TouchWrapperA"));
+    auto b = CoreComponent::cast(root->context().findComponentById("TouchWrapperB"));
 
     ASSERT_TRUE(text);
     ASSERT_TRUE(a);

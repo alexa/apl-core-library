@@ -322,14 +322,14 @@ public:
      *          p.opacity *= opacity;
      *
      *          // Apply clip bounds, exit if nothing visible
-     *          auto bounds = getCalculated(kPropertyBounds).getRect();
+     *          const auto& bounds = getCalculated(kPropertyBounds).get<Rect>();
      *          p.addClipping( bounds );
      *          if (p.clipRegionEmpty())
      *              return;
      *
      *          // Transform to the local coordinate space
      *          p.translate( bounds.getTopLeft() );
-     *          auto transform = getCalculated(kPropertyTransform).getTransform2D();
+     *          auto transform = getCalculated(kPropertyTransform).get<Transform2D>();
      *          p.applyTransform( c.getTransform() );
      *
      *          // Draw self, then children
@@ -501,6 +501,11 @@ public:
      * @return true if component should participate be reported to the accessibility system.
      */
     virtual bool isAccessible() const { return false; }
+
+    /**
+     * @return MediaPlayer attached to this component, if any.
+     */
+    virtual MediaPlayerPtr getMediaPlayer() const { return nullptr; }
 
 protected:
     Component(const ContextPtr& context, const std::string& id);

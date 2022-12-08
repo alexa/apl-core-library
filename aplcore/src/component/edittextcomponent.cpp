@@ -392,8 +392,8 @@ EditTextComponent::measureEditText(MeasureRequest&& request)
     if (!mEditTextBox) {
         ensureEditTextProperties();
 
-        auto measure = std::dynamic_pointer_cast<sg::TextMeasurement>(mContext->measure());
-        assert(measure);
+        assert(mContext->measure()->sceneGraphCompatible());
+        auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
 
         mEditTextBox = measure->box(
             getCalculated(kPropertySize).getInteger(),
@@ -477,34 +477,34 @@ EditTextComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
         });
 
     // Build the scene graph
-    auto layer = CoreComponent::constructSceneGraphLayer(sceneGraph);
+    auto layer = ActionableComponent::constructSceneGraphLayer(sceneGraph);
     assert(layer);
 
-    auto size = getCalculated(kPropertyBounds).getRect().getSize();
+    // The first content node draws the outline
+    auto size = getCalculated(kPropertyBounds).get<Rect>().getSize();
     auto outline = Rect{0, 0, size.getWidth(), size.getHeight()};
     auto strokeWidth = getCalculated(kPropertyDrawnBorderWidth).asFloat();
-
-    // The first content node draws the border
-    layer->appendContent(
-        sg::draw(sg::path(RoundedRect{outline, 0}, strokeWidth),
-                 sg::fill(sg::paint(getCalculated(kPropertyBorderColor)))));
-
-    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect();
-    auto hintSize = mHintLayout->getSize();
+    auto content = sg::draw(sg::path(RoundedRect{outline, 0}, strokeWidth),
+                        sg::fill(sg::paint(getCalculated(kPropertyBorderColor))));
 
     // The second content node draws the hint.  The hint is transparent if the edit control
     // has text to display.
     // TODO: Fix auto for RTOL text based on language
     Color hintColor = getCalculated(kPropertyText).empty()
-                         ? getCalculated(kPropertyHintColor).getColor() : Color::TRANSPARENT;
-    layer->appendContent(sg::transform(
+                          ? getCalculated(kPropertyHintColor).getColor() : Color::TRANSPARENT;
+    auto innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();
+    auto hintSize = mHintLayout->getSize();
+
+    content->setNext(sg::transform(
         Point{innerBounds.getLeft(), innerBounds.getCenterY() - hintSize.getHeight() / 2},
         sg::text(mHintLayout, sg::fill(sg::paint(hintColor)))));
 
+    layer->setContent(content);
+
     // Construct an inner layer for the actual edit text
     auto innerLayer = sg::layer(mUniqueId + "-innerEditText", innerBounds, 1.0, Transform2D());
-    innerLayer->appendContent(sg::editText(mEditText.getPtr(), mEditTextBox,
-                                           mEditTextConfig, getCalculated(kPropertyText).getString()));
+    innerLayer->setContent(sg::editText(mEditText.getPtr(), mEditTextBox,
+                                        mEditTextConfig, getCalculated(kPropertyText).getString()));
     innerLayer->clearFlags();
 
     layer->appendChild(innerLayer);
@@ -524,11 +524,11 @@ EditTextComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
     const auto borderColorChanged      = isDirty(kPropertyBorderColor);
 
     if (outlineChanged || borderWidthChanged || drawnBorderWidthChanged || borderColorChanged) {
-        auto* draw = sg::DrawNode::cast(mSceneGraphLayer->content().at(0));
+        auto* draw = sg::DrawNode::cast(mSceneGraphLayer->content());
         auto* path = sg::FramePath::cast(draw->getPath());
 
         if (outlineChanged || borderWidthChanged || drawnBorderWidthChanged) {
-            auto size = getCalculated(kPropertyBounds).getRect().getSize();
+            auto size = getCalculated(kPropertyBounds).get<Rect>().getSize();
             auto outline = RoundedRect(Rect{0,0,size.getWidth(), size.getHeight()}, 0);
             result |= path->setRoundedRect(outline);
             result |= path->setInset(getCalculated(kPropertyDrawnBorderWidth).asFloat());
@@ -541,7 +541,7 @@ EditTextComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
     }
 
     const bool fixInnerBounds = isDirty(kPropertyInnerBounds);
-    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect();
+    const auto& innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();
 
     const auto fixText = isDirty(kPropertyText);
 
@@ -550,7 +550,7 @@ EditTextComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
     const bool fixHintColor = isDirty(kPropertyHintColor) || fixText;
 
     if (fixInnerBounds || fixHintLayout || fixHintColor) {
-        auto* transform = sg::TransformNode::cast(mSceneGraphLayer->content().at(1));
+        auto* transform = sg::TransformNode::cast(mSceneGraphLayer->content()->next());
         auto* text = sg::TextNode::cast(transform->child());
 
         if (fixInnerBounds || fixHintLayout) {
@@ -576,7 +576,7 @@ EditTextComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
 
     if (fixInnerBounds || fixEditConfig || fixText || fixEditBox) {
         auto innerLayer = mSceneGraphLayer->children().at(0);
-        auto *editNode = sg::EditTextNode::cast(innerLayer->content().at(0));
+        auto *editNode = sg::EditTextNode::cast(innerLayer->content());
 
         if (fixInnerBounds)
             innerLayer->setBounds(innerBounds);
@@ -606,10 +606,10 @@ EditTextComponent::ensureEditTextBox()
 
     ensureEditTextProperties();
 
-    auto measure = std::dynamic_pointer_cast<sg::TextMeasurement>(mContext->measure());
-    assert(measure);
+    assert(mContext->measure()->sceneGraphCompatible());
+    auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
 
-    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect();
+    const auto& innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();
 
     mEditTextBox = measure->box(getCalculated(kPropertySize).getInteger(),
                                 mEditTextProperties,
@@ -692,9 +692,9 @@ EditTextComponent::ensureHintLayout()
         );
 
     auto borderWidth = getCalculated(kPropertyBorderWidth).asFloat();
-    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect().inset(borderWidth);
-    auto measure = std::dynamic_pointer_cast<sg::TextMeasurement>(context->measure());
-    assert(measure);
+    auto innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>().inset(borderWidth);
+    assert(mContext->measure()->sceneGraphCompatible());
+    auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
 
     mHintLayout =
         measure->layout(mHintText, mHintTextProperties, innerBounds.getWidth(), MeasureMode::AtMost,

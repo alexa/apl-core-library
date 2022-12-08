@@ -261,9 +261,9 @@ TEST_F(CommandEventBinding, VideoComponentEventInterpolation)
 
     auto array = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(3, array.size());
-    ASSERT_EQ("track2", array.at(0).getMediaSource().getUrl());
-    ASSERT_EQ("track13", array.at(1).getMediaSource().getUrl());
-    ASSERT_EQ("track3", array.at(2).getMediaSource().getUrl());
+    ASSERT_EQ("track2", array.at(0).get<MediaSource>().getUrl());
+    ASSERT_EQ("track13", array.at(1).get<MediaSource>().getUrl());
+    ASSERT_EQ("track3", array.at(2).get<MediaSource>().getUrl());
 
     // Start playback
     component->updateMediaState(MediaState(0,
@@ -288,5 +288,5 @@ TEST_F(CommandEventBinding, VideoComponentEventInterpolation)
 
     array = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(1, array.size());
-    ASSERT_EQ("clip0-3", array.at(0).getMediaSource().getUrl());
+    ASSERT_EQ("clip0-3", array.at(0).get<MediaSource>().getUrl());
 }

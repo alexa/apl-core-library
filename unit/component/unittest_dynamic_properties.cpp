@@ -96,9 +96,9 @@ TEST_F(DynamicPropertiesTest, HeightWidthStyled)
     loadDocument(HEIGHT_WIDTH_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto frame1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame1"));
-    auto frame2 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame2"));
-    auto frame3 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame3"));
+    auto frame1 = CoreComponent::cast(context->findComponentById("frame1"));
+    auto frame2 = CoreComponent::cast(context->findComponentById("frame2"));
+    auto frame3 = CoreComponent::cast(context->findComponentById("frame3"));
 
     ASSERT_TRUE(frame1);
     ASSERT_EQ(kComponentTypeFrame, frame1->getType());
@@ -125,8 +125,8 @@ TEST_F(DynamicPropertiesTest, HeightWidthStyled)
             {kPropertyBounds, Rect(0, 0, 90, 90) },
     }));
 
-    ASSERT_EQ(Rect(0, 90, 100, 100), frame2->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 190, 100, 100), frame3->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 90, 100, 100), frame2->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 190, 100, 100), frame3->getCalculated(kPropertyBounds).get<Rect>());
 
     root->clearDirty();
 }
@@ -137,7 +137,7 @@ TEST_F(DynamicPropertiesTest, HeightWidthDynamic)
     loadDocument(HEIGHT_WIDTH_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto container = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("c1"));
+    auto container = CoreComponent::cast(context->findComponentById("c1"));
     ASSERT_TRUE(container);
     ASSERT_EQ(kComponentTypeContainer, container->getType());
     ASSERT_TRUE(CheckProperties(container, {
@@ -146,7 +146,7 @@ TEST_F(DynamicPropertiesTest, HeightWidthDynamic)
         {kPropertyBounds, Rect(0, 0, 200, 550) },
     }));
 
-    auto frame1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame1"));
+    auto frame1 = CoreComponent::cast(context->findComponentById("frame1"));
     ASSERT_TRUE(frame1);
     ASSERT_EQ(kComponentTypeFrame, frame1->getType());
     ASSERT_TRUE(CheckProperties(frame1, {
@@ -155,7 +155,7 @@ TEST_F(DynamicPropertiesTest, HeightWidthDynamic)
             {kPropertyBounds, Rect(0, 0, 100, 100) },
     }));
 
-    auto frame2 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame2"));
+    auto frame2 = CoreComponent::cast(context->findComponentById("frame2"));
     ASSERT_TRUE(frame2);
     ASSERT_EQ(kComponentTypeFrame, frame2->getType());
     ASSERT_TRUE(CheckProperties(frame2, {
@@ -164,7 +164,7 @@ TEST_F(DynamicPropertiesTest, HeightWidthDynamic)
             {kPropertyBounds, Rect(0, 100, 100, 100) },
     }));
 
-    auto frame3 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame3"));
+    auto frame3 = CoreComponent::cast(context->findComponentById("frame3"));
     ASSERT_TRUE(frame3);
     ASSERT_EQ(kComponentTypeFrame, frame3->getType());
     ASSERT_TRUE(CheckProperties(frame3, {
@@ -182,10 +182,10 @@ TEST_F(DynamicPropertiesTest, HeightWidthDynamic)
     ASSERT_TRUE(CheckDirty(root, component, frame1, frame2, frame3));
     root->clearDirty();
 
-    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 0, 100, 400), frame1->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 400, 100, 100), frame2->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 500, 100, 100), frame3->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 0, 100, 400), frame1->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 400, 100, 100), frame2->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 500, 100, 100), frame3->getCalculated(kPropertyBounds).get<Rect>());
 
     // Set width property of frame1, it will impact only frame1
     frame1->setProperty(kPropertyWidth, 150);
@@ -194,10 +194,10 @@ TEST_F(DynamicPropertiesTest, HeightWidthDynamic)
     ASSERT_TRUE(CheckDirty(root, component, frame1));
     root->clearDirty();
 
-    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 0, 150, 400), frame1->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 400, 100, 100), frame2->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 500, 100, 100), frame3->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 0, 150, 400), frame1->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 400, 100, 100), frame2->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 500, 100, 100), frame3->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 // Test for base component min/max height/width properties for dynamic
@@ -206,12 +206,12 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     loadDocument(HEIGHT_WIDTH_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto container = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("c1"));
+    auto container = CoreComponent::cast(context->findComponentById("c1"));
     ASSERT_TRUE(container);
     ASSERT_EQ(kComponentTypeContainer, container->getType());
-    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).get<Rect>());
 
-    auto frame1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame1"));
+    auto frame1 = CoreComponent::cast(context->findComponentById("frame1"));
     ASSERT_TRUE(frame1);
     ASSERT_EQ(kComponentTypeFrame, frame1->getType());
     ASSERT_TRUE(CheckProperties(frame1, {
@@ -222,7 +222,7 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
             {kPropertyBounds, Rect(0, 0, 100, 100) },
     }));
 
-    auto frame2 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame2"));
+    auto frame2 = CoreComponent::cast(context->findComponentById("frame2"));
     ASSERT_TRUE(frame2);
     ASSERT_EQ(kComponentTypeFrame, frame2->getType());
     ASSERT_TRUE(CheckProperties(frame2, {
@@ -233,7 +233,7 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
             {kPropertyBounds, Rect(0, 100, 100, 100) },
     }));
 
-    auto frame3 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame3"));
+    auto frame3 = CoreComponent::cast(context->findComponentById("frame3"));
     ASSERT_TRUE(frame3);
     ASSERT_EQ(kComponentTypeFrame, frame3->getType());
     ASSERT_TRUE(CheckProperties(frame3, {
@@ -254,10 +254,10 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     ASSERT_EQ(Object(Dimension(90)), frame1->getCalculated(kPropertyMaxHeight));
     root->clearDirty();
 
-    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 0, 100, 90), frame1->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 90, 100, 100), frame2->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 190, 100, 100), frame3->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 0, 100, 90), frame1->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 90, 100, 100), frame2->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 190, 100, 100), frame3->getCalculated(kPropertyBounds).get<Rect>());
 
     // Set maxWidth property of frame1, it will not impact any component
     frame1->setProperty(kPropertyMaxWidth, 150);
@@ -268,10 +268,10 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     ASSERT_EQ(Object(Dimension(150)), frame1->getCalculated(kPropertyMaxWidth));
     root->clearDirty();
 
-    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 0, 100, 90), frame1->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 90, 100, 100), frame2->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 190, 100, 100), frame3->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 0, 100, 90), frame1->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 90, 100, 100), frame2->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 190, 100, 100), frame3->getCalculated(kPropertyBounds).get<Rect>());
 
     // Set maxWidth property of frame1 to lower than width, it will impact only frame1
     frame1->setProperty(kPropertyMaxWidth, 90);
@@ -282,10 +282,10 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     ASSERT_EQ(Object(Dimension(90)), frame1->getCalculated(kPropertyMaxWidth));
     root->clearDirty();
 
-    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 0, 90, 90), frame1->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 90, 100, 100), frame2->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 190, 100, 100), frame3->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 0, 90, 90), frame1->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 90, 100, 100), frame2->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 190, 100, 100), frame3->getCalculated(kPropertyBounds).get<Rect>());
 
     // Set minHeight property of frame2, it will impact frame3 also
     frame2->setProperty(kPropertyMinHeight, 125);
@@ -297,10 +297,10 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     ASSERT_EQ(Object(Dimension(125)), frame2->getCalculated(kPropertyMinHeight));
     root->clearDirty();
 
-    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 0, 90, 90), frame1->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 90, 100, 125), frame2->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 215, 100, 100), frame3->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 0, 90, 90), frame1->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 90, 100, 125), frame2->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 215, 100, 100), frame3->getCalculated(kPropertyBounds).get<Rect>());
 
     // Set minWidth property of frame2, it will not impact any component
     frame2->setProperty(kPropertyMinWidth, 50);
@@ -311,10 +311,10 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     ASSERT_EQ(Object(Dimension(50)), frame2->getCalculated(kPropertyMinWidth));
     root->clearDirty();
 
-    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 0, 90, 90), frame1->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 90, 100, 125), frame2->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 215, 100, 100), frame3->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 0, 90, 90), frame1->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 90, 100, 125), frame2->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 215, 100, 100), frame3->getCalculated(kPropertyBounds).get<Rect>());
 
     // Set minWidth property of frame2 to higher than width, it will impact only frame2
     frame2->setProperty(kPropertyMinWidth, 125);
@@ -325,10 +325,10 @@ TEST_F(DynamicPropertiesTest, MinMaxHeightWidth)
     ASSERT_EQ(Object(Dimension(125)), frame2->getCalculated(kPropertyMinWidth));
     root->clearDirty();
 
-    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 0, 90, 90), frame1->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 90, 125, 125), frame2->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 215, 100, 100), frame3->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 200, 550), container->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 0, 90, 90), frame1->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 90, 125, 125), frame2->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 215, 100, 100), frame3->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 // Test for base component shadow* properties for dynamic
@@ -337,7 +337,7 @@ TEST_F(DynamicPropertiesTest, ShadowProperties)
     loadDocument(HEIGHT_WIDTH_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto frame2 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame2"));
+    auto frame2 = CoreComponent::cast(context->findComponentById("frame2"));
     ASSERT_TRUE(frame2);
     ASSERT_EQ(kComponentTypeFrame, frame2->getType());
 
@@ -442,26 +442,26 @@ TEST_F(DynamicPropertiesTest, LayoutDirectionPropertyStyled)
     loadDocument(LAYOUTDIRCTION_SETVALUE);
     ASSERT_TRUE(component);
     // Given a container with layoutDirection as LTR
-    auto container = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("c1"));
+    auto container = CoreComponent::cast(context->findComponentById("c1"));
     ASSERT_TRUE(container);
     ASSERT_EQ(kComponentTypeContainer, container->getType());
     ASSERT_EQ(Object(kLayoutDirectionLTR), container->getCalculated(kPropertyLayoutDirection));
     // and the frame1 displays at top-left.
-    auto frame1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame1"));
+    auto frame1 = CoreComponent::cast(context->findComponentById("frame1"));
     ASSERT_TRUE(CheckProperties(frame1, {
         {kPropertyLayoutDirection, Object(kLayoutDirectionLTR)},
         {kPropertyBounds, Rect(0, 0, 200, 100) },
         {kPropertyInnerBounds, Rect(0, 0, 200, 100) },
     }));
     // and the frame2 displays at center.
-    auto frame2 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame2"));
+    auto frame2 = CoreComponent::cast(context->findComponentById("frame2"));
     ASSERT_TRUE(CheckProperties(frame2, {
         {kPropertyLayoutDirection, Object(kLayoutDirectionLTR)},
         {kPropertyBounds, Rect(150, 100, 200, 100) },
         {kPropertyInnerBounds, Rect(0, 0, 200, 100) },
     }));
     // and the frame3 displays at top-left of frame2.
-    auto frame3 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame3"));
+    auto frame3 = CoreComponent::cast(context->findComponentById("frame3"));
     ASSERT_TRUE(CheckProperties(frame3, {
         {kPropertyLayoutDirection, Object(kLayoutDirectionLTR)},
         {kPropertyBounds, Rect(0, 0, 100, 100) },
@@ -509,26 +509,26 @@ TEST_F(DynamicPropertiesTest, LayoutDirectionPropertyDynamic)
     loadDocument(LAYOUTDIRCTION_SETVALUE);
     ASSERT_TRUE(component);
     // Given a container with layoutDirection as LTR
-    auto container = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("c1"));
+    auto container = CoreComponent::cast(context->findComponentById("c1"));
     ASSERT_TRUE(container);
     ASSERT_EQ(kComponentTypeContainer, container->getType());
     ASSERT_EQ(Object(kLayoutDirectionLTR), container->getCalculated(kPropertyLayoutDirection));
     // and the frame1 displays at top-left.
-    auto frame1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame1"));
+    auto frame1 = CoreComponent::cast(context->findComponentById("frame1"));
     ASSERT_TRUE(CheckProperties(frame1, {
         {kPropertyLayoutDirection, Object(kLayoutDirectionLTR)},
         {kPropertyBounds, Rect(0, 0, 200, 100) },
         {kPropertyInnerBounds, Rect(0, 0, 200, 100) },
     }));
     // and the frame2 displays at center.
-    auto frame2 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame2"));
+    auto frame2 = CoreComponent::cast(context->findComponentById("frame2"));
     ASSERT_TRUE(CheckProperties(frame2, {
         {kPropertyLayoutDirection, Object(kLayoutDirectionLTR)},
         {kPropertyBounds, Rect(150, 100, 200, 100) },
         {kPropertyInnerBounds, Rect(0, 0, 200, 100) },
     }));
     // and the frame3 displays at top-left of frame2.
-    auto frame3 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame3"));
+    auto frame3 = CoreComponent::cast(context->findComponentById("frame3"));
     ASSERT_TRUE(CheckProperties(frame3, {
         {kPropertyLayoutDirection, Object(kLayoutDirectionLTR)},
         {kPropertyBounds, Rect(0, 0, 100, 100) },
@@ -648,12 +648,12 @@ TEST_F(DynamicPropertiesTest, PaddingStyled)
     loadDocument(PADDING_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto frame1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame1"));
+    auto frame1 = CoreComponent::cast(context->findComponentById("frame1"));
     ASSERT_TRUE(frame1);
     ASSERT_EQ(kComponentTypeFrame, frame1->getType());
 
 
-    auto frame2 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame2"));
+    auto frame2 = CoreComponent::cast(context->findComponentById("frame2"));
     ASSERT_TRUE(CheckProperties(frame2, {
             {kPropertyPaddingBottom, Dimension(5) },
             {kPropertyPaddingLeft, Dimension(5) },
@@ -694,7 +694,7 @@ TEST_F(DynamicPropertiesTest, PaddingDynamic) {
     loadDocument(PADDING_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto container = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("c1"));
+    auto container = CoreComponent::cast(context->findComponentById("c1"));
     ASSERT_TRUE(container);
     ASSERT_EQ(kComponentTypeContainer, container->getType());
     ASSERT_TRUE(CheckProperties(container, {
@@ -706,7 +706,7 @@ TEST_F(DynamicPropertiesTest, PaddingDynamic) {
             {kPropertyBounds, Rect(0, 0, 500, 400) },
     }));
 
-    auto frame1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame1"));
+    auto frame1 = CoreComponent::cast(context->findComponentById("frame1"));
     ASSERT_TRUE(frame1);
     ASSERT_EQ(kComponentTypeFrame, frame1->getType());
     ASSERT_TRUE(CheckProperties(frame1, {
@@ -715,7 +715,7 @@ TEST_F(DynamicPropertiesTest, PaddingDynamic) {
             {kPropertyInnerBounds, Rect(10, 10, 180, 80) },
     }));
 
-    auto frame2 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame2"));
+    auto frame2 = CoreComponent::cast(context->findComponentById("frame2"));
     ASSERT_TRUE(frame2);
     ASSERT_EQ(kComponentTypeFrame, frame2->getType());
     ASSERT_TRUE(CheckProperties(frame2, {
@@ -798,7 +798,7 @@ TEST_F(DynamicPropertiesTest, BorderWidth) {
     loadDocument(HEIGHT_WIDTH_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto frame1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame1"));
+    auto frame1 = CoreComponent::cast(context->findComponentById("frame1"));
     ASSERT_TRUE(frame1);
     ASSERT_EQ(kComponentTypeFrame, frame1->getType());
     ASSERT_TRUE(CheckProperties(frame1, {
@@ -828,7 +828,7 @@ TEST_F(DynamicPropertiesTest, BorderRadius) {
     loadDocument(HEIGHT_WIDTH_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto frame1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame1"));
+    auto frame1 = CoreComponent::cast(context->findComponentById("frame1"));
     ASSERT_TRUE(frame1);
     ASSERT_EQ(kComponentTypeFrame, frame1->getType());
     ASSERT_TRUE(CheckProperties(frame1, {
@@ -855,7 +855,7 @@ TEST_F(DynamicPropertiesTest, BorderAnyRadius) {
     loadDocument(HEIGHT_WIDTH_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto frame1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("frame1"));
+    auto frame1 = CoreComponent::cast(context->findComponentById("frame1"));
     ASSERT_TRUE(frame1);
     ASSERT_EQ(kComponentTypeFrame, frame1->getType());
     ASSERT_TRUE(CheckProperties(frame1, {
@@ -963,7 +963,7 @@ TEST_F(DynamicPropertiesTest, ImageProperties) {
     loadDocument(IMAGE_SETVALUE);
     ASSERT_TRUE(component);
     auto mediaSourceUrl = Object("https://images.amazon.com/image/foo.png");
-    auto img1 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("img1"));
+    auto img1 = CoreComponent::cast(context->findComponentById("img1"));
     ASSERT_TRUE(img1);
     ASSERT_EQ(kComponentTypeImage, img1->getType());
     ASSERT_TRUE(CheckProperties(img1, {
@@ -974,9 +974,9 @@ TEST_F(DynamicPropertiesTest, ImageProperties) {
     }));
 
     auto grad1 = img1->getCalculated(kPropertyOverlayGradient);
-    ASSERT_TRUE(grad1.isGradient());
-    ASSERT_EQ(Object(Color(Color::BLUE)), grad1.getGradient().getProperty(kGradientPropertyColorRange).at(0));
-    ASSERT_EQ(Object(Color(Color::RED)), grad1.getGradient().getProperty(kGradientPropertyColorRange).at(1));
+    ASSERT_TRUE(grad1.is<Gradient>());
+    ASSERT_EQ(Object(Color(Color::BLUE)), grad1.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0));
+    ASSERT_EQ(Object(Color(Color::RED)), grad1.get<Gradient>().getProperty(kGradientPropertyColorRange).at(1));
 
     // Set aline property of img
     img1->setProperty(kPropertyAlign, "left");
@@ -1009,7 +1009,7 @@ TEST_F(DynamicPropertiesTest, ImageProperties) {
     ASSERT_EQ(kImageScaleBestFill, img1->getCalculated(kPropertyScale).getInteger());
 
     // Set overlayGradient property of img
-    auto img2 = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("img2"));
+    auto img2 = CoreComponent::cast(context->findComponentById("img2"));
     auto grad2 = img2->getCalculated(kPropertyOverlayGradient);
 
     img1->setProperty(kPropertyOverlayGradient, Object(grad2));
@@ -1020,9 +1020,9 @@ TEST_F(DynamicPropertiesTest, ImageProperties) {
     root->clearDirty();
 
     grad1 = img1->getCalculated(kPropertyOverlayGradient);
-    ASSERT_TRUE(grad1.isGradient());
-    ASSERT_EQ(Object(Color(Color::GREEN)), grad1.getGradient().getProperty(kGradientPropertyColorRange).at(0));
-    ASSERT_EQ(Object(Color(Color::GRAY)), grad1.getGradient().getProperty(kGradientPropertyColorRange).at(1));
+    ASSERT_TRUE(grad1.is<Gradient>());
+    ASSERT_EQ(Object(Color(Color::GREEN)), grad1.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0));
+    ASSERT_EQ(Object(Color(Color::GRAY)), grad1.get<Gradient>().getProperty(kGradientPropertyColorRange).at(1));
 }
 
 static const char *VECTOR_GRAPHIC_SETVALUE = R"apl(
@@ -1058,7 +1058,7 @@ TEST_F(DynamicPropertiesTest, VectorGraphicProperties) {
     loadDocument(VECTOR_GRAPHIC_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto vg = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("vg"));
+    auto vg = CoreComponent::cast(context->findComponentById("vg"));
     ASSERT_TRUE(vg);
     ASSERT_EQ(kComponentTypeVectorGraphic, vg->getType());
     ASSERT_TRUE(CheckProperties(vg, {
@@ -1113,7 +1113,7 @@ TEST_F(DynamicPropertiesTest, TextProperties) {
     loadDocument(TEXT_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto txt = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("txt"));
+    auto txt = CoreComponent::cast(context->findComponentById("txt"));
     ASSERT_TRUE(txt);
     ASSERT_EQ(kComponentTypeText, txt->getType());
     ASSERT_TRUE(CheckProperties(txt, {
@@ -1203,7 +1203,7 @@ TEST_F(DynamicPropertiesTest, EditTextFontProperties) {
     loadDocument(EDIT_TEXT_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto txt = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("editText"));
+    auto txt = CoreComponent::cast(context->findComponentById("editText"));
     ASSERT_TRUE(txt);
     ASSERT_EQ(kComponentTypeEditText, txt->getType());
     ASSERT_TRUE(CheckProperties(txt, {
@@ -1266,7 +1266,7 @@ TEST_F(DynamicPropertiesTest, EditTextProperties) {
     loadDocument(EDIT_TEXT_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto txt = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("editText"));
+    auto txt = CoreComponent::cast(context->findComponentById("editText"));
     ASSERT_TRUE(txt);
     ASSERT_EQ(kComponentTypeEditText, txt->getType());
     ASSERT_TRUE(CheckProperties(txt, {
@@ -1313,7 +1313,7 @@ TEST_F(DynamicPropertiesTest, EditTextHintProperties) {
     loadDocument(EDIT_TEXT_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto txt = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("editText"));
+    auto txt = CoreComponent::cast(context->findComponentById("editText"));
     ASSERT_TRUE(txt);
     ASSERT_EQ(kComponentTypeEditText, txt->getType());
     ASSERT_TRUE(CheckProperties(txt, {
@@ -1416,19 +1416,19 @@ TEST_F(DynamicPropertiesTest, SequenceStyled)
     loadDocument(SEQUENCE_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto child0 = std::dynamic_pointer_cast<CoreComponent>(component->getChildAt(0));
+    auto child0 = CoreComponent::cast(component->getChildAt(0));
     ASSERT_TRUE(CheckProperties(child0, {
             {kPropertySpacing, Dimension(10) }, // spacing will be ignored for the first child
             {kPropertyBounds, Rect(0, 0, 100, 20) },
     }));
 
-    auto child1 = std::dynamic_pointer_cast<CoreComponent>(component->getChildAt(1));
+    auto child1 = CoreComponent::cast(component->getChildAt(1));
     ASSERT_TRUE(CheckProperties(child1, {
             {kPropertySpacing, Dimension(10) },
             {kPropertyBounds, Rect(0, 30, 100, 20) },
     }));
 
-    auto child2 = std::dynamic_pointer_cast<CoreComponent>(component->getChildAt(2));
+    auto child2 = CoreComponent::cast(component->getChildAt(2));
     ASSERT_TRUE(CheckProperties(child2, {
             {kPropertySpacing, Dimension(10) },
             {kPropertyBounds, Rect(0, 60, 100, 20) },
@@ -1439,9 +1439,9 @@ TEST_F(DynamicPropertiesTest, SequenceStyled)
     ASSERT_TRUE(CheckDirty(root, component, child1, child2));
 
     ASSERT_EQ(Object(Dimension(20)), child1 ->getCalculated(kPropertySpacing));
-    ASSERT_EQ(Rect(0, 0, 100, 20), child0->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 40, 100, 20), child1->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 70, 100, 20), child2->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 20), child0->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 40, 100, 20), child1->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 70, 100, 20), child2->getCalculated(kPropertyBounds).get<Rect>());
 
     root->clearDirty();
 }
@@ -1455,19 +1455,19 @@ TEST_F(DynamicPropertiesTest, SequenceDynamic) {
 
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 2), true));
 
-    auto child0 = std::dynamic_pointer_cast<CoreComponent>(component->getChildAt(0));
+    auto child0 = CoreComponent::cast(component->getChildAt(0));
     ASSERT_TRUE(CheckProperties(child0, {
             {kPropertySpacing, Dimension(10) }, // spacing will be ignored for the first child
             {kPropertyBounds, Rect(0, 0, 100, 20) },
     }));
 
-    auto child1 = std::dynamic_pointer_cast<CoreComponent>(component->getChildAt(1));
+    auto child1 = CoreComponent::cast(component->getChildAt(1));
     ASSERT_TRUE(CheckProperties(child1, {
             {kPropertySpacing, Dimension(10) },
             {kPropertyBounds, Rect(0, 30, 100, 20) },
     }));
 
-    auto child2 = std::dynamic_pointer_cast<CoreComponent>(component->getChildAt(2));
+    auto child2 = CoreComponent::cast(component->getChildAt(2));
     ASSERT_TRUE(CheckProperties(child2, {
             {kPropertySpacing, Dimension(10) },
             {kPropertyBounds, Rect(0, 60, 100, 20) },
@@ -1482,7 +1482,7 @@ TEST_F(DynamicPropertiesTest, SequenceDynamic) {
     ASSERT_TRUE(CheckDirty(root, component, child1, child2));
     root->clearDirty();
     ASSERT_EQ(Object(Dimension(20)), child1 ->getCalculated(kPropertySpacing));
-    ASSERT_EQ(Rect(0, 0, 100, 20), child0->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 40, 100, 20), child1->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 70, 100, 20), child2->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 20), child0->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 40, 100, 20), child1->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 70, 100, 20), child2->getCalculated(kPropertyBounds).get<Rect>());
 }

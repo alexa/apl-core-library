@@ -50,7 +50,6 @@ private:
 
 LayerPtr layer(const std::string& name, Rect bounds, float opacity, Transform2D transform);
 
-NodePtr generic();
 NodePtr draw(PathPtr path, PathOpPtr op);
 NodePtr text(TextLayoutPtr textLayout, PathOpPtr op);
 NodePtr text(TextLayoutPtr textLayout, PathOpPtr op, Range range);

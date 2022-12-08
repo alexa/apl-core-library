@@ -202,9 +202,7 @@ TEST_F(SGEditTextTest, Everything)
                              .path(IsFramePath(RoundedRect{Rect{0, 0, 1000, 1000}, 0}, 4))
                              .pathOp(IsFillOp(IsColorPaint(Color::RED))))
                 .child(IsLayer(Rect{10, 10, 980, 980})
-                           .content(IsEditNode()
-                                        .text("foo@bar.")
-                                        .color(Color::PURPLE)))));
+                           .content(IsEditNode().text("foo@bar.").color(Color::PURPLE)))));
 
     // Change the text
     executeCommand("SetValue", {{"componentId", "TEST"}, {"property", "text"}, {"value", "a"}},
@@ -229,12 +227,12 @@ TEST_F(SGEditTextTest, Everything)
                 .dirty(sg::Layer::kFlagRedrawContent)
                 .content(IsDrawNode()
                              .path(IsFramePath(RoundedRect{Rect{0, 0, 1000, 1000}, 0}, 4))
-                             .pathOp(IsFillOp(IsColorPaint(Color::RED))))
-                .content(IsTransformNode()
-                             .translate(Point{10, 480})
-                             .child(IsTextNode()
-                                        .text("e-mail address")
-                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))
+                             .pathOp(IsFillOp(IsColorPaint(Color::RED)))
+                             .next(IsTransformNode()
+                                       .translate(Point{10, 480})
+                                       .child(IsTextNode()
+                                                  .text("e-mail address")
+                                                  .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))
                 .child(IsLayer(Rect{10, 10, 980, 980})
                            .dirty(sg::Layer::kFlagRedrawContent)
                            .content(IsEditNode().text("").color(Color::PURPLE)))));
@@ -383,7 +381,6 @@ TEST_F(SGEditTextTest, Resize) {
     configChange(ConfigurationChange(200, 200));
     root->clearPending();
     sg = root->getSceneGraph();
-    DumpSceneGraph(sg);
 
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200})
@@ -512,13 +509,13 @@ TEST_F(SGEditTextTest, FocusStyle)
                                       .content(IsEditNode().text("Beta").color(Color::BLACK))))));
 
     // Pull out the two edit nodes
-    auto edit1 = sg::EditTextNode::cast(sg->getLayer()->children().at(0)->children().at(0)->content().at(0));
-    auto edit2 = sg::EditTextNode::cast(sg->getLayer()->children().at(1)->children().at(0)->content().at(0));
+    auto edit1 = sg::EditTextNode::cast(sg->getLayer()->children().at(0)->children().at(0)->content());
+    auto edit2 = sg::EditTextNode::cast(sg->getLayer()->children().at(1)->children().at(0)->content());
     ASSERT_TRUE(edit1);
     ASSERT_TRUE(edit2);
 
-    auto test1 = dynamic_cast<TestEditText *>(edit1->getEditText().get());
-    auto test2 = dynamic_cast<TestEditText *>(edit2->getEditText().get());
+    auto test1 = static_cast<TestEditText *>(edit1->getEditText().get());
+    auto test2 = static_cast<TestEditText *>(edit2->getEditText().get());
     ASSERT_TRUE(test1);
     ASSERT_TRUE(test2);
 

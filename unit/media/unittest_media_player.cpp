@@ -805,6 +805,8 @@ TEST_F(MediaPlayerTest, PlayMedia)
 
     // Play a non-existent track.  This will fail immediately
     executeCommand("PlayMedia", {{"componentId", "MyVideo"}, {"source", "track9" }}, false);
+    // A track fail terminates action which pauses the previously playing track
+    ASSERT_TRUE(CheckSendEvent(root, "Pause track3 250/P"));
     ASSERT_TRUE(CheckSendEvent(root, "Play track9 0/"));
 
     ASSERT_TRUE(CheckPlayerEvents(eventCounts, {
@@ -854,6 +856,74 @@ TEST_F(MediaPlayerTest, PlayMedia)
     ASSERT_TRUE(CheckSendEvent(root, "TrackReady track3 0/P"));
 }
 
+/**
+ * Check that the mediaplayer is paused when the screen is touched during a PlayMedia command execution
+ * and the audioTrack is foreground
+ */
+TEST_F(MediaPlayerTest, PlayMediaTerminationByTap)
+{
+    mediaPlayerFactory->addFakeContent({
+        {"track1", 1000, 100, -1},   // 1000 ms long, 100 ms buffer delay
+        {"track2", 2000, 100, 1200}, // 2000 ms long, 100 ms buffer delay, fails at 1200 ms
+        {"track3", 500, 0, -1}       // 500 ms long, no buffer delay
+    });
+
+    loadDocument(PLAY_MEDIA);
+    ASSERT_TRUE(component);
+
+    ASSERT_TRUE(CheckPlayerEvents(eventCounts, {
+            {TestMediaPlayer::EventType::kPlayerEventSetTrackList,  1},
+            {TestMediaPlayer::EventType::kPlayerEventSetAudioTrack, 1}
+        })
+    );
+    eventCounts.clear();
+
+    // After 100 milliseconds nothing happens
+    mediaPlayerFactory->advanceTime(100);
+    ASSERT_FALSE(root->hasEvent());
+
+    // Play an existing track with audioTrack background
+    executeCommand("PlayMedia", {{"componentId", "MyVideo"}, {"source", "track3" }}, false);
+    ASSERT_TRUE(CheckSendEvent(root, "Play track3 0/"));
+
+    ASSERT_TRUE(CheckPlayerEvents(eventCounts, {
+            {TestMediaPlayer::EventType::kPlayerEventSetTrackList,  1},
+            {TestMediaPlayer::EventType::kPlayerEventSetAudioTrack, 1},
+            {TestMediaPlayer::EventType::kPlayerEventPlay,          1}
+        })
+    );
+    eventCounts.clear();
+
+    mediaPlayerFactory->advanceTime(250);
+    ASSERT_TRUE(CheckSendEvent(root, "TrackReady track3 0/"));
+    ASSERT_TRUE(CheckSendEvent(root, "TimeUpdate track3 250/"));
+
+    performTap(1, 100);
+    ASSERT_TRUE(CheckSendEvent(root, "Pause track3 250/P"));
+
+    // After 100 milliseconds nothing happens
+    mediaPlayerFactory->advanceTime(100);
+    ASSERT_FALSE(root->hasEvent());
+
+    // Play an existing track with audioTrack background
+    executeCommand("PlayMedia", {{"componentId", "MyVideo"}, {"source", "track3" }, {"audioTrack", "background"}}, false);
+    ASSERT_TRUE(CheckSendEvent(root, "Play track3 0/"));
+    ASSERT_TRUE(CheckPlayerEvents(eventCounts, {
+            {TestMediaPlayer::EventType::kPlayerEventSetTrackList,  1},
+            {TestMediaPlayer::EventType::kPlayerEventSetAudioTrack, 1},
+            {TestMediaPlayer::EventType::kPlayerEventPlay,          1}
+        })
+    );
+    eventCounts.clear();
+
+    mediaPlayerFactory->advanceTime(250);
+    ASSERT_TRUE(CheckSendEvent(root, "TrackReady track3 0/"));
+    ASSERT_TRUE(CheckSendEvent(root, "TimeUpdate track3 250/"));
+
+    performTap(1, 100);
+    // Player is not paused if audioTrack is anything other than foreground
+    ASSERT_FALSE(CheckSendEvent(root, "Pause track3 250/P"));
+}
 
 static const char *PLAY_MEDIA_IN_SEQUENCE = R"apl(
     {
@@ -1385,8 +1455,8 @@ TEST_F(MediaPlayerTest, DestroyMediaPlayer)
 
     auto child = component->getChildAt(0);
     ASSERT_TRUE(child->getType() == kComponentTypeVideo);
-    auto mp = std::dynamic_pointer_cast<VideoComponent>(child)->getMediaPlayer();
-    ASSERT_FALSE(std::dynamic_pointer_cast<TestMediaPlayer>(mp)->isReleased());
+    auto mp = child->getMediaPlayer();
+    ASSERT_FALSE(std::static_pointer_cast<TestMediaPlayer>(mp)->isReleased());
 
     ASSERT_TRUE(child->remove());
     child = nullptr;  // This should release the media player
@@ -1396,7 +1466,7 @@ TEST_F(MediaPlayerTest, DestroyMediaPlayer)
     root->clearPending();
     root->clearVisualContextDirty();
 
-    ASSERT_TRUE(std::dynamic_pointer_cast<TestMediaPlayer>(mp)->isReleased());
+    ASSERT_TRUE(std::static_pointer_cast<TestMediaPlayer>(mp)->isReleased());
 }
 
 static const char *MUTE_MEDIA_PLAYER = R"apl(
@@ -1426,8 +1496,8 @@ TEST_F(MediaPlayerTest, MuteVideo) {
     auto child = component->getChildAt(0);
     ASSERT_TRUE(child->getType() == kComponentTypeVideo);
 
-    auto mp = std::dynamic_pointer_cast<VideoComponent>(child)->getMediaPlayer();
-    auto testMediaPlayer = std::dynamic_pointer_cast<TestMediaPlayer>(mp);
+    auto mp = child->getMediaPlayer();
+    auto testMediaPlayer = std::static_pointer_cast<TestMediaPlayer>(mp);
     ASSERT_TRUE(testMediaPlayer->isMuted());
 
     executeCommand("SetValue", {{"componentId", "MyVideo"}, {"property", "muted"}, {"value", false}}, false);

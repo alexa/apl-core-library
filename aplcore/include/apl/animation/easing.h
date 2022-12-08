@@ -17,7 +17,7 @@
 #ifndef _APL_EASING_H
 #define _APL_EASING_H
 
-#include "apl/primitives/objectdata.h"
+#include "apl/primitives/objecttype.h"
 
 namespace apl {
 
@@ -67,6 +67,19 @@ public:
     virtual bool operator==(const Easing& other) const = 0;
     virtual bool operator==(const CoreEasing& other) const = 0;
     virtual ~Easing() noexcept;
+
+    class ObjectType final : public PointerHolderObjectType<Easing> {
+    public:
+        bool isCallable() const override { return true; }
+
+        bool equals(const Object::DataHolder& lhs, const Object::DataHolder& rhs) const override {
+            return *lhs.data == *rhs.data;
+        }
+
+        Object call(const Object::DataHolder& dataHolder, const ObjectArray& args) const override {
+            return dataHolder.data->call(args);
+        }
+    };
 };
 
 } // namespace apl

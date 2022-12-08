@@ -45,9 +45,9 @@ ImageComponent::ImageComponent(const ContextPtr& context,
 }
 
 void
-ImageComponent::release()
+ImageComponent::releaseSelf()
 {
-    CoreComponent::release();
+    CoreComponent::releaseSelf();
     MediaComponentTrait::release();
 }
 
@@ -55,22 +55,22 @@ const ComponentPropDefSet&
 ImageComponent::propDefSet() const
 {
     static auto resetMediaState = [](Component& component) {
-        auto& comp = dynamic_cast<ImageComponent&>(component);
+        auto& comp = (ImageComponent&)component;
         comp.mOnLoadOnFailReported = false;
         comp.resetMediaFetchState();
     };
 
     static ComponentPropDefSet sImageComponentProperties = ComponentPropDefSet(
         CoreComponent::propDefSet(), MediaComponentTrait::propDefList()).add({
-        {kPropertyAlign,           kImageAlignCenter,        sAlignMap,           kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash}, // Doesn't match 1.0 spec
-        {kPropertyBorderRadius,    Object::ZERO_ABS_DIMEN(), asAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
-        {kPropertyFilters,         Object::EMPTY_ARRAY(),    asFilterArray,       kPropInOut | kPropVisualHash}, // Takes part in hash even though it's not dynamic.
-        {kPropertyOnFail,          Object::EMPTY_ARRAY(),    asCommand,           kPropIn},
-        {kPropertyOnLoad,          Object::EMPTY_ARRAY(),    asCommand,           kPropIn},
-        {kPropertyOverlayColor,    Color(),                  asColor,             kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
-        {kPropertyOverlayGradient, Object::NULL_OBJECT(),    asGradient,          kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
-        {kPropertyScale,           kImageScaleBestFit,       sScaleMap,           kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
-        {kPropertySource,          "",                       asImageSourceArray,  kPropInOut | kPropDynamic | kPropVisualHash | kPropEvaluated, resetMediaState},
+        {kPropertyAlign,           kImageAlignCenter,                     sAlignMap,           kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash}, // Doesn't match 1.0 spec
+        {kPropertyBorderRadius,    Dimension(DimensionType::Absolute, 0), asAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
+        {kPropertyFilters,         Object::EMPTY_ARRAY(),                 asFilterArray,       kPropInOut | kPropVisualHash}, // Takes part in hash even though it's not dynamic.
+        {kPropertyOnFail,          Object::EMPTY_ARRAY(),                 asCommand,           kPropIn},
+        {kPropertyOnLoad,          Object::EMPTY_ARRAY(),                 asCommand,           kPropIn},
+        {kPropertyOverlayColor,    Color(),                               asColor,             kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
+        {kPropertyOverlayGradient, Object::NULL_OBJECT(),                 asGradient,          kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
+        {kPropertyScale,           kImageScaleBestFit,                    sScaleMap,           kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
+        {kPropertySource,          "",                                    asImageSourceArray,  kPropInOut | kPropDynamic | kPropVisualHash | kPropEvaluated, resetMediaState},
     });
 
     return sImageComponentProperties;
@@ -88,14 +88,14 @@ ImageComponent::getSources()
     }
 
     if (sourceProp.isString()) { // Single source
-        sources.emplace_back(sourceProp.asURLRequest());
+        sources.emplace_back(URLRequest::asURLRequest(sourceProp));
     } else if (sourceProp.isArray()) {
         auto& filters = getCalculated(kPropertyFilters);
         if (filters.empty()) { // If no filters use last
-            sources.emplace_back(sourceProp.at(sourceProp.size() - 1).asURLRequest());
+            sources.emplace_back(URLRequest::asURLRequest(sourceProp.at(sourceProp.size() - 1)));
         } else { // Else request everything
             for (auto& source : sourceProp.getArray()) {
-                sources.emplace_back(source.asURLRequest());
+                sources.emplace_back(URLRequest::asURLRequest(source));
             }
         }
     }
@@ -140,7 +140,7 @@ ImageComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
 
     // TODO: Shadow - adjust the boundary of the object to put the shadow in the right spot
     // TODO: Use a child layer instead?
-    layer->appendContent(
+    layer->setContent(
         sg::clip(
            sg::path(rects.target,
                     getCalculated(kPropertyBorderRadius).asFloat()),
@@ -165,7 +165,7 @@ ImageComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
         return false;
 
     auto *layer = mSceneGraphLayer.get();
-    auto* clip = sg::ClipNode::cast(layer->content().front());
+    auto* clip = sg::ClipNode::cast(layer->content());
     auto* image = sg::ImageNode::cast(clip->child());
 
     if (fixFilter || fixMediaState) {
@@ -208,7 +208,7 @@ ImageComponent::getFilteredImage()
     auto filters = getCalculated(kPropertyFilters);
 
     for (int i = 0; i < filters.size(); i++) {
-        const auto& filter = filters.at(i).getFilter();
+        const auto& filter = filters.at(i).get<Filter>();
         switch (filter.getType()) {
             case kFilterTypeBlend:
                 stack.push_back(sg::blend(
@@ -270,7 +270,7 @@ ImageComponent::getImageRects(const sg::FilterPtr& filter)
     if (!filter)
         return {};
 
-    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect();
+    const auto& innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();
 
     // Calculate the scaled size of the image fit to the component.  This is in PIXELS and must be
     // CONVERTED to DP.

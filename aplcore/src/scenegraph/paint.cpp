@@ -24,8 +24,10 @@ namespace sg {
 
 static std::string tail(const Paint& paint)
 {
-    return std::string(" opacity=") + std::to_string(paint.getOpacity()) +
-        " transform=" + paint.getTransform().toDebugString();
+    auto result = std::string(" opacity=") + sutil::to_string(paint.getOpacity());
+    if (!paint.getTransform().isIdentity())
+        result += " transform=" + paint.getTransform().toDebugString();
+    return result;
 }
 
 bool
@@ -295,7 +297,13 @@ PatternPaint::serialize(rapidjson::Document::AllocatorType& allocator) const
 
     result.AddMember("type", "patternPaint", allocator);
     result.AddMember("size", mSize.serialize(allocator), allocator);
-    result.AddMember("node", mNode->serialize(allocator), allocator);  // TODO: Do we need an array of node here?
+
+    if (mNode) {
+        auto contentArray = rapidjson::Value(rapidjson::kArrayType);
+        for (auto node = mNode ; node != nullptr; node = node->next())
+            contentArray.PushBack(node->serialize(allocator), allocator);
+        result.AddMember("content", contentArray, allocator);
+    }
 
     return result;
 }

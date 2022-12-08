@@ -231,7 +231,7 @@ TEST_F(ExtensionComponentTest, NamedExtensionComponent) {
 
     ASSERT_TRUE(component);
     ASSERT_EQ(kComponentTypeExtension, component->getType());
-    auto extensionComponent = dynamic_cast<ExtensionComponent*>(component.get());
+    auto extensionComponent = ExtensionComponent::cast(component);
     ASSERT_STREQ(extensionComponent->getUri().c_str(), "aplext:hello:10");
     ASSERT_STREQ(extensionComponent->name().c_str(), "Display");
     auto resId = extensionComponent->getResourceID();
@@ -276,7 +276,7 @@ TEST_F(ExtensionComponentTest, ComponentProperties) {
 
     ASSERT_TRUE(component);
     ASSERT_EQ(kComponentTypeExtension, component->getType());
-    auto extensionComponent = dynamic_cast<ExtensionComponent*>(component.get());
+    auto extensionComponent = ExtensionComponent::cast(component);
 
     ASSERT_STREQ(extensionComponent->getUri().c_str(), "aplext:hello:10");
     ASSERT_STREQ(extensionComponent->name().c_str(), "Display");
@@ -460,7 +460,7 @@ TEST_F(ExtensionComponentTest, ExtensionError) {
     ASSERT_FALSE(ConsoleMessage());
     ASSERT_TRUE(IsEqual(kResourcePending, component->getCalculated(kPropertyResourceState)));
 
-    auto extensionComponent = dynamic_cast<ExtensionComponent*>(component.get());
+    auto extensionComponent = ExtensionComponent::cast(component);
     extensionComponent->extensionComponentFail(42, "extension failure");
     ASSERT_FALSE(ConsoleMessage());
     ASSERT_TRUE(CheckDirty(component, kPropertyResourceState));

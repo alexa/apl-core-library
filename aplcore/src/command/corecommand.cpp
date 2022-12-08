@@ -152,11 +152,11 @@ CoreCommand::rehydrate(const RootContext& context)
     mContext->putConstant("event", Object(std::move(mFrozenEventContext)));
 
     if (!mBaseId.empty()) {
-        mBase = std::static_pointer_cast<CoreComponent>(context.findComponentById(mBaseId));
+        mBase = CoreComponent::cast(context.findComponentById(mBaseId));
         if (!mBase) return false;
     }
     if (!mTargetId.empty()) {
-        mTarget = std::static_pointer_cast<CoreComponent>(context.findComponentById(mTargetId));
+        mTarget = CoreComponent::cast(context.findComponentById(mTargetId));
         if (!mTarget) return false;
     }
 
@@ -229,7 +229,7 @@ CoreCommand::calculateProperties()
         std::string id;
         if (p != mProperties.end()) {
             id = evaluate(*mContext, p->second).asString();
-            mTarget = std::dynamic_pointer_cast<CoreComponent>(mContext->findComponentById(id));
+            mTarget = CoreComponent::cast(mContext->findComponentById(id));
         }
 
         if (mTarget == nullptr && (cpd->second.flags & kPropRequired)) {
@@ -238,7 +238,7 @@ CoreCommand::calculateProperties()
             LOG(LogLevel::kWarn).session(mContext) << "Trying to scroll to uninflated component. Flushing pending layouts.";
             auto& lm = mContext->layoutManager();
             lm.flushLazyInflation();
-            mTarget = std::dynamic_pointer_cast<CoreComponent>(mContext->findComponentById(id));
+            mTarget = CoreComponent::cast(mContext->findComponentById(id));
             if (mTarget == nullptr) {
                 CONSOLE(mContext) << "Illegal command " << name() << " - need to specify a target componentId";
                 return false;

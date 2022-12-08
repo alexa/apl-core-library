@@ -60,7 +60,8 @@ public:
     }
 
     /**
-     * @return True if this path has nothing to draw
+     * @return True if this path has no segments.  Rectangular paths ALWAYS have segments,
+     *         even if the length of those segments are zero.
      */
     virtual bool empty() const = 0;
 
@@ -85,6 +86,13 @@ public:
      * @return The serialized value
      */
     virtual rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const = 0;
+
+    /**
+     * Calculate the axis-aligned bounding box of this path.
+     * @param A transformation to apply before calculating the bounding box
+     * @return An axis-aligned rectangle containing the path.
+     */
+    virtual Rect boundingBox(const Transform2D& transform) const = 0;
 
 protected:
     explicit Path(Type type) : mType(type) {}
@@ -112,7 +120,8 @@ protected:
     static bool is_type(const PathPtr& path) { return is_type(path.get()); }          \
     std::string toDebugString() const override;             \
     bool empty() const override;                            \
-    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override
+    Rect boundingBox(const Transform2D& transform) const override;                      \
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override;
 
 /**
  * A rectangular path.
@@ -162,17 +171,26 @@ private:
 
 /**
  * A path specified by the AVG path data string description
+ *
+ * The value string supports the following single-character codes:
+ *
+ *   C: Cubic bezier with 6 data points: CP1x, CP1y, CP2x, CP2y, X, Y
+ *   L: Line to with 2 data points: X, Y
+ *   M: Move to with 2 data points: X, Y
+ *   Q: Quadratic bezier with 4 data points: CPx, CPy, X, Y
+ *   Z: Close path
  */
 class GeneralPath : public Path {
     PATH_SUBCLASS(GeneralPath, kGeneral);
 
-    bool setPaths(const std::string value, const std::vector<float> points);
     const std::string& getValue() const { return mValue; }
     const std::vector<float>& getPoints() const { return mPoints; }
 
+    friend class MutablePath;
+
 private:
-    std::string mValue;
-    std::vector<float> mPoints;
+    std::string mValue = "M";
+    std::vector<float> mPoints = {0,0};
 };
 
 

@@ -22,6 +22,7 @@
 
 #include "rapidjson/document.h"
 
+#include "apl/primitives/objecttype.h"
 #include "apl/utils/deprecated.h"
 
 namespace apl {
@@ -104,7 +105,7 @@ public:
      * @param corner The corner to return
      * @return The radius
      */
-    float radius(Corner corner) { return mData[corner]; }
+    float radius(Corner corner) const { return mData[corner]; }
 
     /**
      * Compare two sets of radii for inequality
@@ -158,6 +159,8 @@ public:
 
     bool empty() const { return mData[0] == 0 && mData[1] == 0 && mData[2] == 0 && mData[3] == 0; }
     bool truthy() const { return !empty(); }
+
+    class ObjectType final : public ReferenceHolderObjectType<Radii> {};
 
 private:
     void sanitize();

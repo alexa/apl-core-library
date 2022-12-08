@@ -157,13 +157,13 @@ static const std::string DOCUMENT =
 class HoverTest : public DocumentWrapper {
 public:
     inline CoreComponentPtr getTouchWrapper(const RootContextPtr& root) const {
-        return std::static_pointer_cast<CoreComponent>(root->topComponent());
+        return CoreComponent::cast(root->topComponent());
     }
     inline CoreComponentPtr getFrame(const ComponentPtr& touchWrapper) const {
-        return std::static_pointer_cast<CoreComponent>(touchWrapper->getChildAt(0));
+        return CoreComponent::cast(touchWrapper->getChildAt(0));
     }
     inline CoreComponentPtr getText(const ComponentPtr& cmp) const {
-        return std::static_pointer_cast<CoreComponent>(cmp->getChildAt(0));
+        return CoreComponent::cast(cmp->getChildAt(0));
     }
 
     void init(const char *json) {
@@ -249,8 +249,8 @@ public:
 
     void printBounds(const std::string& name, const ComponentPtr& component) {
         std::cerr << "[          ] " << name << ": " << component.get() << std::endl;
-        std::cerr << "[          ]\tbounds " << component->getCalculated(kPropertyBounds).getRect().toString() << std::endl;
-        std::cerr << "[          ]\tinner bounds " << component->getCalculated(kPropertyInnerBounds).getRect().toString() << std::endl;
+        std::cerr << "[          ]\tbounds " << component->getCalculated(kPropertyBounds).get<Rect>().toString() << std::endl;
+        std::cerr << "[          ]\tinner bounds " << component->getCalculated(kPropertyInnerBounds).get<Rect>().toString() << std::endl;
         std::cerr << "[          ]\tglobal bounds " << component->getGlobalBounds().toString() << std::endl;
     }
 
@@ -868,7 +868,7 @@ static const char *SEQUENCE_HORIZONTAL =
 TEST_F(HoverTest, SequenceHorizontal) {
     loadDocument(SEQUENCE_HORIZONTAL);
 
-    auto sequence = std::dynamic_pointer_cast<SequenceComponent>(context->findComponentById("mySequence"));
+    auto sequence = SequenceComponent::cast(context->findComponentById("mySequence"));
 
     completeScroll(component, 1);
     ASSERT_EQ(sequence->scrollPosition(), Point(100.0, 0.0));
@@ -928,7 +928,7 @@ static const char *SEQUENCE_VERTICAL_PADDING =
 TEST_F(HoverTest, SequenceVerticalPadding) {
     loadDocument(SEQUENCE_VERTICAL_PADDING);
 
-    auto sequence = std::dynamic_pointer_cast<SequenceComponent>(context->findComponentById("mySequence"));
+    auto sequence = SequenceComponent::cast(context->findComponentById("mySequence"));
 
     completeScroll(component, 1);
     ASSERT_EQ(sequence->scrollPosition(), Point(0.0, 200.0));
@@ -998,7 +998,7 @@ static const char *SEQUENCE_VERTICAL =
 TEST_F(HoverTest, SequenceVertical) {
     loadDocument(SEQUENCE_VERTICAL);
 
-    auto sequence = std::dynamic_pointer_cast<SequenceComponent>(context->findComponentById("mySequence"));
+    auto sequence = SequenceComponent::cast(context->findComponentById("mySequence"));
 
     completeScroll(component, 1);
     ASSERT_EQ(sequence->scrollPosition(), Point(0.0, 300.0));
@@ -1070,7 +1070,7 @@ static const char *SEQUENCE_VERTICAL_PADDING_TEXT =
 TEST_F(HoverTest, SequenceVerticalPaddingText) {
     loadDocument(SEQUENCE_VERTICAL_PADDING_TEXT);
 
-    auto sequence = std::dynamic_pointer_cast<SequenceComponent>(context->findComponentById("mySequence"));
+    auto sequence = SequenceComponent::cast(context->findComponentById("mySequence"));
 
     completeScroll(component, 1);
     ASSERT_EQ(sequence->scrollPosition(), Point(0.0, 200.0));
@@ -1214,7 +1214,7 @@ TEST_F(HoverTest, OnCursor_DisableState_Change)
     ASSERT_TRUE(component);
     ASSERT_EQ(2, component->getChildCount());
 
-    auto text1 = std::static_pointer_cast<CoreComponent>(component->getChildAt(0));
+    auto text1 = CoreComponent::cast(component->getChildAt(0));
     auto& fm = root->context().hoverManager();
 
     // Hover over the component
@@ -1270,7 +1270,7 @@ TEST_F(HoverTest, CursorMove_DisabledComponent)
     ASSERT_TRUE(component);
     ASSERT_EQ(2, component->getChildCount());
 
-    auto text1 = std::static_pointer_cast<CoreComponent>(component->getChildAt(0));
+    auto text1 = CoreComponent::cast(component->getChildAt(0));
     auto& fm = root->context().hoverManager();
 
     // disable the component

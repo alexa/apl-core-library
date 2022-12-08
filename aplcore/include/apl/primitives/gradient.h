@@ -21,8 +21,8 @@
 
 #include "rapidjson/document.h"
 
+#include "apl/primitives/objecttype.h"
 #include "apl/primitives/color.h"
-#include "apl/primitives/object.h"
 
 namespace apl {
 
@@ -140,6 +140,8 @@ public:
 
     bool empty() const { return false; }
     bool truthy() const { return true; }
+
+    class ObjectType final : public ReferenceHolderObjectType<Gradient> {};
 
 private:
     Gradient(const Context& context, std::map<GradientProperty, Object>&& properties);

@@ -23,7 +23,7 @@ mediaSourcesToTracks(const Object& mediaSources)
 {
     std::vector<MediaTrack> result;
     for (auto i = 0 ; i < mediaSources.size() ; i++) {
-        const auto& ms = mediaSources.at(i).getMediaSource();
+        const auto& ms = mediaSources.at(i).get<MediaSource>();
         result.emplace_back(MediaTrack{
             ms.getUrl(),        // URL
             ms.getHeaders(),    // HTTP HeaderArray

@@ -112,6 +112,11 @@ public:
      */
     virtual void removeCallback(CallbackID callbackToken) = 0;
 
+    /**
+     * @return The JSON value of this media object (if it exists)
+     */
+    virtual GraphicContentPtr graphic() { return nullptr; }
+
     virtual rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const {
         auto out = rapidjson::Value(rapidjson::kObjectType);
         out.AddMember("url", rapidjson::Value(url().c_str(), allocator), allocator);

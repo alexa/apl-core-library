@@ -17,11 +17,12 @@
 #define _APL_GRAPHIC_H
 
 #include "apl/apl_config.h"
-#include "apl/graphic/graphiccontent.h"
-#include "apl/graphic/graphicelement.h"
 #include "apl/engine/jsonresource.h"
 #include "apl/engine/styles.h"
 #include "apl/engine/uidobject.h"
+#include "apl/graphic/graphiccontent.h"
+#include "apl/graphic/graphicelement.h"
+#include "apl/primitives/objecttype.h"
 #include "apl/utils/noncopyable.h"
 #include "apl/utils/userdata.h"
 
@@ -35,9 +36,9 @@ class VectorGraphicComponent;
  */
 class Graphic : public UIDObject,
                 public std::enable_shared_from_this<Graphic>,
-                public NonCopyable,
                 public Counter<Graphic>,
-                public UserData<Graphic> {
+                public UserData<Graphic>,
+                public ObjectData {
     friend class GraphicElement;
     friend class GraphicDependant;
     friend class VectorGraphicComponent;
@@ -169,7 +170,11 @@ public:
      */
     std::shared_ptr<Styles> styles() const { return mStyles; }
 
-    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override;
+
+    std::string toDebugString() const override {
+        return "Graphic<>";
+    }
 
 #ifdef SCENEGRAPH
     sg::NodePtr getSceneGraph(sg::SceneGraphUpdates& sceneGraph);
@@ -181,6 +186,8 @@ public:
      */
     bool updateSceneGraph(sg::SceneGraphUpdates& sceneGraph);
 #endif // SCENEGRAPH
+
+    class ObjectType final : public PointerHolderObjectType<Graphic> {};
 
 private:
     /**

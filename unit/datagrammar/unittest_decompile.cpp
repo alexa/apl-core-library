@@ -88,7 +88,7 @@ TEST_F(DecompileTest, Basic)
     for (const auto& m : DECOMPILE_TEST_CASES) {
         auto v = getDataBinding(*context, m.expression);
         ASSERT_TRUE(v.isEvaluable());
-        auto bc = v.getByteCode();
+        auto bc = v.get<datagrammar::ByteCode>();
         ASSERT_TRUE(CheckByteCode(m.instructions, bc)) << "Test case '" << m.expression << "'";
     }
 }

@@ -226,7 +226,7 @@ TEST_F(BuilderConfigChange, Basic)
 
     configChangeReinflate(ConfigurationChange(500, 1000));
 
-    component = std::static_pointer_cast<CoreComponent>(root->topComponent());
+    component = CoreComponent::cast(root->topComponent());
     ASSERT_TRUE(component);
     ASSERT_TRUE(IsEqual(Color(Color::RED), component->getCalculated(kPropertyBackgroundColor)));
     ASSERT_TRUE(IsEqual("reinflation", evaluate(*context, "${environment.reason}")));
@@ -644,7 +644,7 @@ TEST_F(BuilderConfigChange, DefaultResizeBehavior)
     // Change the size.  There is no onConfigChange handler, so the document should resize automatically
     configChange(ConfigurationChange(600,200));
     root->clearPending();
-    ASSERT_TRUE(IsEqual(Rect({0,0,300,100}), component->getCalculated(kPropertyBounds).getRect()));
+    ASSERT_TRUE(IsEqual(Rect({0,0,300,100}), component->getCalculated(kPropertyBounds).get<Rect>()));
     ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged,
                            kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
@@ -676,12 +676,12 @@ TEST_F(BuilderConfigChange, OnConfigChangeNoRelayout)
     metrics.size(200,200);
     loadDocument(ON_CONFIG_CHANGE_NO_RELAYOUT);
     ASSERT_TRUE(component);
-    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).get<Rect>());
 
     // Change the size.
     configChange(ConfigurationChange(300,100));
     root->clearPending();
-    ASSERT_EQ(Rect({0,0,300,100}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect({0,0,300,100}), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged,
                            kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
@@ -712,7 +712,7 @@ TEST_F(BuilderConfigChange, ReinflateActionRefIsTerminated)
     metrics.size(200,200);
     loadDocument(ON_CONFIG_CHANGE_BASIC_RELAYOUT);
     ASSERT_TRUE(component);
-    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).get<Rect>());
 
     // Change the size.
     configChange(ConfigurationChange(300,100));
@@ -723,7 +723,7 @@ TEST_F(BuilderConfigChange, ReinflateActionRefIsTerminated)
     ASSERT_TRUE(event.getActionRef().isPending());  // There is a pending action reference
 
     // No reinflation has occurred yet - we haven't resolved the action reference
-    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_TRUE(CheckDirty(component));
     ASSERT_TRUE(CheckDirty(root));
 
@@ -731,8 +731,8 @@ TEST_F(BuilderConfigChange, ReinflateActionRefIsTerminated)
     root->reinflate();
     context = root->contextPtr();
     ASSERT_TRUE(context);
-    component = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
-    ASSERT_EQ(Rect({0,0,300,100}), component->getCalculated(kPropertyBounds).getRect());
+    component = CoreComponent::cast(root->topComponent());
+    ASSERT_EQ(Rect({0,0,300,100}), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_TRUE(CheckDirty(component));
     ASSERT_TRUE(CheckDirty(root));
     ASSERT_TRUE(event.getActionRef().isTerminated());
@@ -762,7 +762,7 @@ TEST_F(BuilderConfigChange, ResizeQueue)
     metrics.size(200,200);
     loadDocument(RESIZE_QUEUE);
     ASSERT_TRUE(component);
-    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).get<Rect>());
 
     // Change the size.
     configChange(ConfigurationChange(300,100));
@@ -773,7 +773,7 @@ TEST_F(BuilderConfigChange, ResizeQueue)
     ASSERT_TRUE(event.getActionRef().isPending());  // There is a pending action reference
 
     // No reinflation has occurred yet - we haven't resolved the first action reference
-    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_TRUE(CheckDirty(component));
     ASSERT_TRUE(CheckDirty(root));
 
@@ -790,14 +790,14 @@ TEST_F(BuilderConfigChange, ResizeQueue)
     root->clearPending();
 
     // No reinflation has occurred yet - we haven't resolved the new "live" action reference
-    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_TRUE(CheckDirty(component));
     ASSERT_TRUE(CheckDirty(root));
 
     // Resolve the second action ref - this will unblock the resize.
     event2.getActionRef().resolve();
     root->clearPending();
-    ASSERT_EQ(Rect({0,0,400,500}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect({0,0,400,500}), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_TRUE(CheckDirty(component, kPropertyBounds, kPropertyInnerBounds, kPropertyNotifyChildrenChanged,
                            kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
@@ -858,7 +858,7 @@ TEST_F(BuilderConfigChange, ReinflateWithHandleTick)
     metrics.size(200,200);
     loadDocument(HANDLE_TICK_REINFLATE);
     ASSERT_TRUE(component);
-    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect({0,0,200,200}), component->getCalculated(kPropertyBounds).get<Rect>());
 
     auto text = component->findComponentById("textField");
     ASSERT_TRUE(text);
@@ -870,7 +870,7 @@ TEST_F(BuilderConfigChange, ReinflateWithHandleTick)
     // Change the size.
     configChangeReinflate(ConfigurationChange(300,300));
     ASSERT_TRUE(component);
-    ASSERT_EQ(Rect({0,0,300,300}), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect({0,0,300,300}), component->getCalculated(kPropertyBounds).get<Rect>());
 
     text = component->findComponentById("textField");
     ASSERT_TRUE(text);
@@ -913,10 +913,10 @@ TEST_F(BuilderConfigChange, ScaledWidthHeight)
     metrics.size(1000,600).dpi(320);
     loadDocument(CHECK_SCALED_WIDTH_HEIGHT);
     ASSERT_TRUE(component);
-    ASSERT_TRUE(IsEqual(Rect({0,0,500,300}), component->getCalculated(kPropertyBounds).getRect()));
+    ASSERT_TRUE(IsEqual(Rect({0,0,500,300}), component->getCalculated(kPropertyBounds).get<Rect>()));
 
     // Change the size of the view host
     configChange(ConfigurationChange(600,1000));
     ASSERT_TRUE(CheckSendEvent(root, 300, 500));
-    ASSERT_TRUE(IsEqual(Rect({0,0,300,500}), component->getCalculated(kPropertyBounds).getRect()));
+    ASSERT_TRUE(IsEqual(Rect({0,0,300,500}), component->getCalculated(kPropertyBounds).get<Rect>()));
 }

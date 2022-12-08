@@ -95,7 +95,13 @@ TEST_F(ColorTest, Basic)
 const static std::vector<std::string> sErrorTests = {
     "rgb(123 ",
     "bluz",
-    "hsl(120, 0, 0, )"
+    "hsl(120, 0, 0, )",
+    "#fefefefefefefe",
+    "hsl(120, 0, 0, 48, 75)",
+    "hsl(120, 0)",
+    "rgb(green, 50%, 78, 54, 78)",
+    "rgb(green)",
+    "hsl(nan, 1, 1)",
 };
 
 TEST_F(ColorTest, Error)

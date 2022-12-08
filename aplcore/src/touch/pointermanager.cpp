@@ -92,7 +92,7 @@ public:
 private:
     void advance() {
         while (mCurrent) {
-            mCurrent = std::static_pointer_cast<CoreComponent>(mCurrent->getParent());
+            mCurrent = CoreComponent::cast(mCurrent->getParent());
             if (mCurrent && mCurrent->isActionable()) {
                 if (mCurrent->isTouchable()) {
                     // Skip this component because we already found a touchable component
@@ -163,7 +163,7 @@ PointerManager::handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t 
             // If component claims the event - pointer should be captured by it.
             if (pointerStatus != kPointerStatusNotCaptured) {
                 if (!pointer->isCaptured())
-                    pointer->setCapture(std::dynamic_pointer_cast<ActionableComponent>(hitTarget));
+                    pointer->setCapture(ActionableComponent::cast(hitTarget));
                 if (pointerStatus == kPointerStatusCaptured)
                     break;
             }
@@ -216,13 +216,13 @@ PointerManager::handlePointerStart(const std::shared_ptr<Pointer>& pointer,
     if (mActivePointer != nullptr)
         return nullptr;
 
-    auto top = std::dynamic_pointer_cast<CoreComponent>(mCore.top());
+    auto top = CoreComponent::cast(mCore.top());
     if (!top)
         return nullptr;
 
     auto visitor = TouchableAtPosition(pointerEvent.pointerEventPosition);
     top->raccept(visitor);
-    auto target = std::dynamic_pointer_cast<ActionableComponent>(visitor.getResult());
+    auto target = ActionableComponent::cast(visitor.getResult());
 
     pointer->setTarget(target);
     pointer->setPosition(pointerEvent.pointerEventPosition);

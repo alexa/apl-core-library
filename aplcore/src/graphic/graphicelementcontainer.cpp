@@ -112,12 +112,11 @@ GraphicElementContainer::initialize(const GraphicPtr& graphic, const Object& jso
 sg::NodePtr
 GraphicElementContainer::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
 {
-    auto node = sg::generic();
-
-    for (const auto& m : mChildren) {
-        auto child = m->getSceneGraph(sceneGraph);
+    sg::NodePtr node = nullptr;
+    for (auto it = mChildren.rbegin() ; it != mChildren.rend() ; it++) {
+        auto child = (*it)->getSceneGraph(sceneGraph);
         if (child)
-            node->appendChild(child);
+            node = child->setNext(node);
     }
 
     return node;

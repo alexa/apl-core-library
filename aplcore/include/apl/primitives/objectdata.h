@@ -16,14 +16,12 @@
 #ifndef _APL_OBJECT_DATA_H
 #define _APL_OBJECT_DATA_H
 
-#include <stdexcept>
-
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
 #include "apl/primitives/object.h"
-#include "apl/primitives/styledtext.h"
 #include "apl/utils/noncopyable.h"
+#include "apl/utils/throw.h"
 
 namespace apl {
 
@@ -106,7 +104,7 @@ public:
      * @return The inner object.
      */
     virtual const void *inner() const {
-        throw std::runtime_error("Illegal inner reference");
+        aplThrow("Illegal inner reference");
     }
 
     /**
@@ -123,31 +121,19 @@ public:
     }
 
     virtual const ObjectArray &getArray() const {
-        throw std::runtime_error("Illegal array");
+        aplThrow("Illegal array");
     }
 
     virtual ObjectArray &getMutableArray() {
-        throw std::runtime_error("Illegal mutable array");
+        aplThrow("Illegal mutable array");
     }
 
     virtual const ObjectMap &getMap() const {
-        throw std::runtime_error("Illegal map");
+        aplThrow("Illegal map");
     }
 
     virtual ObjectMap &getMutableMap() {
-        throw std::runtime_error("Illegal mutable map");
-    }
-
-    virtual GraphicPtr getGraphic() const {
-        throw std::runtime_error("Illegal graphic");
-    }
-
-    virtual std::shared_ptr<Transformation> getTransform() const {
-        throw std::runtime_error("Illegal transform");
-    }
-
-    virtual const rapidjson::Value *getJson() const {
-        return nullptr;
+        aplThrow("Illegal mutable map");
     }
 
     virtual std::string toDebugString() const {
@@ -155,6 +141,10 @@ public:
     }
 
 protected:
+    virtual const rapidjson::Value *getJson() const {
+        return nullptr;
+    }
+
     bool arrayCompare(const ObjectData& rhs) const {
         const auto len = size();
         if (len != rhs.size())
@@ -233,7 +223,7 @@ public:
 
     std::vector<Object>& getMutableArray() override {
         if (!mIsMutable)
-            throw std::runtime_error("Attempted to retrieve mutable array for non-mutable object");
+            aplThrow("Attempted to retrieve mutable array for non-mutable object");
         return *mArray;
     }
 
@@ -296,7 +286,7 @@ public:
 
     std::vector<Object>& getMutableArray() override {
         if (!mIsMutable)
-            throw std::runtime_error("Attempted to retrieve mutable array for non-mutable object");
+            aplThrow("Attempted to retrieve mutable array for non-mutable object");
         return mArray;
     }
 
@@ -353,7 +343,7 @@ public:
 
     ObjectMap& getMutableMap() override {
         if (!mIsMutable)
-            throw std::runtime_error("Attempted to retrieve mutable map for non-mutable object");
+            aplThrow("Attempted to retrieve mutable map for non-mutable object");
         return *mMap;
     }
 
@@ -485,16 +475,17 @@ public:
         return mMap;
     }
 
-    const rapidjson::Value* getJson() const override {
-        return mValue;
-    }
-
     std::string toDebugString() const override {
         rapidjson::StringBuffer buffer;
         buffer.Clear();
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
         mValue->Accept(writer);
         return "JSON<" + std::string(buffer.GetString()) + ">";
+    }
+
+protected:
+    const rapidjson::Value* getJson() const override {
+        return mValue;
     }
 
 private:
@@ -582,48 +573,19 @@ public:
         return mMap;
     }
 
-    const rapidjson::Value* getJson() const override {
-        return &mDoc;
-    }
-
     std::string toDebugString() const override {
         return "JSONDoc<size=" + std::to_string(size()) + ">";
+    }
+
+protected:
+    const rapidjson::Value* getJson() const override {
+        return &mDoc;
     }
 
 private:
     const rapidjson::Document mDoc;
     const std::map<std::string, Object> mMap;
     const std::vector<Object> mVector;
-};
-
-/****************************************************************************/
-
-class GraphicData : public ObjectData {
-public:
-    GraphicData(const GraphicPtr& graphic) : mGraphic(graphic) {}
-    GraphicPtr getGraphic() const override { return mGraphic; }
-
-    std::string toDebugString() const override {
-        return "Graphic<>";
-    }
-
-private:
-    const GraphicPtr mGraphic;
-};
-
-/****************************************************************************/
-
-class TransformData : public ObjectData {
-public:
-    TransformData(const std::shared_ptr<Transformation>& transform) : mTransform(transform) {}
-    std::shared_ptr<Transformation> getTransform() const override { return mTransform; }
-
-    std::string toDebugString() const override {
-        return "Transform<>";
-    }
-
-private:
-    std::shared_ptr<Transformation> mTransform;
 };
 
 /****************************************************************************/
@@ -667,11 +629,6 @@ public:
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override {
         return mData.serialize(allocator);
     }
-
-    /**
-     * Static type information for this direct object category.
-     */
-    static const Object::ObjectType sType;
 
 private:
     T mData;

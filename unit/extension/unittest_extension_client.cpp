@@ -44,7 +44,7 @@ public:
         if (root) {
             context = root->contextPtr();
             ASSERT_TRUE(context);
-            component = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+            component = CoreComponent::cast(root->topComponent());
         }
     }
 
@@ -715,8 +715,8 @@ TEST_F(ExtensionClientTest, ExtensionParseEventDataBindings) {
     ASSERT_EQ(2, liveDataMap.size());
     auto arr = liveDataMap.at("entityList");
     auto map = liveDataMap.at("deviceState");
-    ASSERT_EQ(Object::ObjectType::kArrayType, arr->getType());
-    ASSERT_EQ(Object::ObjectType::kMapType, map->getType());
+    ASSERT_EQ(LiveObject::ObjectType::kArrayType, arr->getType());
+    ASSERT_EQ(LiveObject::ObjectType::kMapType, map->getType());
 }
 
 
@@ -2314,8 +2314,8 @@ TEST_F(ExtensionClientTest, TypeWithoutPropertis) {
     auto liveDataMap = configPtr->getLiveObjectMap();
     ASSERT_EQ(1, liveDataMap.size());
     auto& map = liveDataMap.at("MyWeather");
-    ASSERT_EQ(Object::ObjectType::kMapType, map->getType());
-    auto liveMap = std::dynamic_pointer_cast<LiveMap>(map);
+    ASSERT_EQ(LiveObject::ObjectType::kMapType, map->getType());
+    auto liveMap = std::static_pointer_cast<LiveMap>(map);
     ASSERT_EQ(0, liveMap->getMap().size());
 
     // Inflate the doc
@@ -2392,7 +2392,7 @@ TEST_F(ExtensionClientTest, ComponentRequestWithSuccessResponse) {
 
     ASSERT_EQ(component->getType(), kComponentTypeExtension);
 
-    auto extensionComponent = std::dynamic_pointer_cast<ExtensionComponent>(component);
+    auto extensionComponent = ExtensionComponent::cast(component);
     auto componentRequest = client->createComponentChange(doc.GetAllocator(), *extensionComponent);
 
     ASSERT_TRUE(std::string("1.0").compare(componentRequest["version"].GetString()) <= 0);
@@ -2438,7 +2438,7 @@ TEST_F(ExtensionClientTest, ComponentRequestOnWrongClient) {
 
     ASSERT_EQ(component->getType(), kComponentTypeExtension);
 
-    auto extensionComponent = std::dynamic_pointer_cast<ExtensionComponent>(component);
+    auto extensionComponent = ExtensionComponent::cast(component);
     auto componentRequest = client2->createComponentChange(doc.GetAllocator(), *extensionComponent);
     ASSERT_TRUE(ConsoleMessage());
     ASSERT_EQ(rapidjson::Value(rapidjson::kNullType), componentRequest);
@@ -2453,7 +2453,7 @@ TEST_F(ExtensionClientTest, ComponentRequestWithSuccessResponseButInvalidID) {
 
     ASSERT_EQ(component->getType(), kComponentTypeExtension);
 
-    auto extensionComponent = std::dynamic_pointer_cast<ExtensionComponent>(component);
+    auto extensionComponent = ExtensionComponent::cast(component);
     auto componentRequest = client->createComponentChange(doc.GetAllocator(), *extensionComponent);
 
     ASSERT_TRUE(std::string("1.0").compare(componentRequest["version"].GetString()) <= 0);
@@ -2480,7 +2480,7 @@ TEST_F(ExtensionClientTest, ComponentRequestWithFailedResponse) {
 
     ASSERT_EQ(component->getType(), kComponentTypeExtension);
 
-    auto extensionComponent = std::dynamic_pointer_cast<ExtensionComponent>(component);
+    auto extensionComponent = ExtensionComponent::cast(component);
     auto componentRequest = client->createComponentChange(doc.GetAllocator(), *extensionComponent);
 
     ASSERT_TRUE(std::string("1.0").compare(componentRequest["version"].GetString()) <= 0);
@@ -2509,7 +2509,7 @@ TEST_F(ExtensionClientTest, ComponentRelease) {
 
     ASSERT_EQ(component->getType(), kComponentTypeExtension);
 
-    auto extensionComponent = std::dynamic_pointer_cast<ExtensionComponent>(component);
+    auto extensionComponent = ExtensionComponent::cast(component);
     extensionComponent->updateResourceState(kResourceReleased);
     auto componentRelease = client->createComponentChange(doc.GetAllocator(), *extensionComponent);
 
@@ -2719,7 +2719,7 @@ TEST_F(ExtensionClientTest, ExtensionComponentCommandAndEvent) {
     auto extensionComponent = component->findComponentById("DrawArea");
     ASSERT_EQ(extensionComponent->getType(), kComponentTypeExtension);
 
-    auto extnComp = std::dynamic_pointer_cast<ExtensionComponent>(extensionComponent);
+    auto extnComp = ExtensionComponent::cast(extensionComponent);
     ASSERT_NE(extnComp, nullptr);
 
     // Runtime needs to redirect this events to the server.
@@ -2747,7 +2747,7 @@ TEST_F(ExtensionClientTest, ExtensionComponentProperty) {
 
     auto extensionComponent = component->findComponentById("DrawArea");
     ASSERT_EQ(extensionComponent->getType(), kComponentTypeExtension);
-    auto extnComp = std::dynamic_pointer_cast<ExtensionComponent>(extensionComponent);
+    auto extnComp = ExtensionComponent::cast(extensionComponent);
     ASSERT_NE(extnComp, nullptr);
 
     // The pending message should trigger a componentUpdate
@@ -2802,13 +2802,13 @@ TEST_F(ExtensionClientTest, ExtensionComponentKPropOutProperty) {
     initializeContext();
 
     auto alexaButton = component->findComponentById("AlexaButton");
-    auto extensionComponent = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("DrawArea"));
+    auto extensionComponent = CoreComponent::cast(component->findComponentById("DrawArea"));
     ASSERT_EQ(extensionComponent->getType(), kComponentTypeExtension);
 
     extensionComponent->setProperty(kPropertyDisplay, "none");
     extensionComponent->updateResourceState(kResourceReady);
 
-    auto extnComp = dynamic_cast<ExtensionComponent*>(extensionComponent.get());
+    auto extnComp = ExtensionComponent::cast(extensionComponent);
     ASSERT_NE(extnComp, nullptr);
 
     // A dirty property in the extension component should trigger a componentUpdate
@@ -2861,7 +2861,7 @@ TEST_F(ExtensionClientTest, ExtensionComponentInvalidEventHandlerInvoke) {
 
     ASSERT_EQ(component->getType(), kComponentTypeExtension);
 
-    auto extnComp = std::dynamic_pointer_cast<ExtensionComponent>(component);
+    auto extnComp = ExtensionComponent::cast(component);
     ASSERT_NE(extnComp, nullptr);
 
     std::string extensionEvent = EXT_COMPONENT_EVENT_HEADER;
@@ -2882,7 +2882,7 @@ TEST_F(ExtensionClientTest, ExtensionComponentInvalidComponentInvoke) {
     auto extensionComponent = component->findComponentById("DrawArea");
     ASSERT_EQ(extensionComponent->getType(), kComponentTypeExtension);
 
-    auto extnComp = std::dynamic_pointer_cast<ExtensionComponent>(extensionComponent);
+    auto extnComp = ExtensionComponent::cast(extensionComponent);
     ASSERT_NE(extnComp, nullptr);
 
     std::string extensionEvent = EXT_COMPONENT_EVENT_HEADER;
@@ -2903,7 +2903,7 @@ TEST_F(ExtensionClientTest, ExtensionClientDisconnection) {
     auto extensionComponent = component->findComponentById("DrawArea");
     ASSERT_EQ(extensionComponent->getType(), kComponentTypeExtension);
 
-    auto extnComp = std::dynamic_pointer_cast<ExtensionComponent>(extensionComponent);
+    auto extnComp = ExtensionComponent::cast(extensionComponent);
     ASSERT_NE(extnComp, nullptr);
 
     ASSERT_TRUE(client->handleDisconnection(root, 500, "Service not available"));

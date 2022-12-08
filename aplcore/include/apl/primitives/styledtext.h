@@ -18,15 +18,13 @@
 #ifndef _APL_STYLED_TEXT_H
 #define _APL_STYLED_TEXT_H
 
-#include "apl/primitives/object.h"
-
 #include <vector>
 #include <stack>
 #include <string>
 
 #include <rapidjson/document.h>
 
-#include "apl/primitives/object.h"
+#include "apl/primitives/objecttype.h"
 
 namespace apl {
 
@@ -263,6 +261,31 @@ public:
     bool truthy() const { return mText.size() != 0 || !mSpans.empty(); }
 
     bool operator==(const StyledText& rhs) const { return mRawText == rhs.mRawText; }
+
+    class ObjectType final : public ReferenceHolderObjectType<StyledText> {
+    public:
+        std::string asString(const Object::DataHolder& dataHolder) const override;
+
+        double asNumber(const Object::DataHolder& dataHolder) const override;
+
+        int asInt(const Object::DataHolder& dataHolder, int base) const override;
+
+        int64_t asInt64(const Object::DataHolder& dataHolder, int base) const override;
+
+        Color asColor(const Object::DataHolder& dataHolder, const SessionPtr& session) const override;
+
+        Dimension asDimension(const Object::DataHolder& dataHolder, const Context& context) const override;
+
+        Dimension asAbsoluteDimension(const Object::DataHolder& dataHolder, const Context& context) const override;
+
+        Dimension asNonAutoDimension(const Object::DataHolder& dataHolder, const Context& context) const override;
+
+        Dimension asNonAutoRelativeDimension(const Object::DataHolder& dataHolder, const Context& context) const override;
+
+        std::uint64_t size(const Object::DataHolder& dataHolder) const override;
+
+        std::size_t hash(const Object::DataHolder& dataHolder) const override;
+    };
 
 private:
     StyledText() = default;

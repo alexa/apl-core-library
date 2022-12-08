@@ -27,14 +27,13 @@ namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
  * @return The ARGB value.
  */
 uint32_t Color::parse(const SessionPtr& session, const char *color) {
-    try {
-        colorgrammar::color_state state;
-        pegtl::string_input<> in(color, "");
-        pegtl::parse<colorgrammar::grammar, colorgrammar::action>(in, state);
+    colorgrammar::color_state state;
+    pegtl::string_input<> in(color, "");
+
+    if (!pegtl::parse<colorgrammar::grammar, colorgrammar::action, colorgrammar::c_control>(in, state) || state.failed) {
+        CONSOLE(session) << "Error parsing color '" << color << "', " << state.what();
+    } else {
         return state.getColor();
-    }
-    catch (pegtl::parse_error e) {
-        CONSOLE(session) << "Error parsing color '" << color << "', " << e.what();
     }
 
     return TRANSPARENT;

@@ -54,7 +54,7 @@ PlayMediaAction::start()
     auto audioTrack = mCommand->getValue(kCommandPropertyAudioTrack);
     auto source = mCommand->getValue(kCommandPropertySource);
 
-    auto videoComponent = std::dynamic_pointer_cast<VideoComponent>(mTarget);
+    auto videoComponent = VideoComponent::cast(mTarget);
     assert(videoComponent);
 
     mPlayer = videoComponent->getMediaPlayer();
@@ -68,6 +68,13 @@ PlayMediaAction::start()
         mPlayer->setTrackList(mediaSourcesToTracks(source));
         mPlayer->setAudioTrack(static_cast<AudioTrack>(audioTrack.getInteger()));
         mPlayer->play(shared_from_this());
+        // An early termination of the command (for example, by the user touching on the screen)
+        // will only stop the video playing if the audioTrack is set to foreground
+        if (audioTrack == kAudioTrackForeground) {
+            addTerminateCallback([this](const TimersPtr &) {
+                mPlayer->pause();
+            });
+        }
     }
     else {
         EventBag bag;
@@ -84,7 +91,8 @@ PlayMediaAction::start()
 void
 PlayMediaAction::freeze()
 {
-    auto videoComponent = std::dynamic_pointer_cast<VideoComponent>(mTarget);
+    auto videoComponent = VideoComponent::cast(mTarget);
+    assert(videoComponent);
 
     mPlayingState = videoComponent->getProperty(kPropertyPlayingState);
     mSource = videoComponent->getProperty(kPropertySource);
@@ -114,7 +122,8 @@ PlayMediaAction::rehydrate(const RootContext& context)
     mTarget = mCommand->target();
 
     // Ensure that source AND playbackState preserved. If not - we recreate the player (as per spec).
-    auto videoComponent = std::dynamic_pointer_cast<VideoComponent>(mTarget);
+    auto videoComponent = VideoComponent::cast(mTarget);
+    if (!videoComponent) return false;
     if (mPlayingState != videoComponent->getProperty(kPropertyPlayingState) ||
         mSource != videoComponent->getProperty(kPropertySource)) {
         mPlayer->release();

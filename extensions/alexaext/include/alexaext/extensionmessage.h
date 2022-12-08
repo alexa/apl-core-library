@@ -650,6 +650,11 @@ public:
         return *this;
     }
 
+    Event& resourceId(const std::string& resourceId) {
+      RESOURCE_ID().Set(*mMessage, resourceId.c_str());
+      return *this;
+    }
+
     static const rapidjson::Pointer& NAME() {
         static const rapidjson::Pointer ptr("/name");
         return ptr;
@@ -657,6 +662,11 @@ public:
 
     static const rapidjson::Pointer& PAYLOAD() {
         static const rapidjson::Pointer ptr("/payload");
+        return ptr;
+    }
+
+    static const rapidjson::Pointer& RESOURCE_ID() {
+        static const rapidjson::Pointer ptr("/resourceId");
         return ptr;
     }
 

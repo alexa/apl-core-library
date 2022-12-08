@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "apl/datagrammar/functions.h"
-#include "apl/primitives/objectdata.h"
+#include "apl/primitives/objecttype.h"
 
 
 namespace apl {
@@ -233,6 +233,16 @@ public:
     friend class ByteCodeAssembler;
     friend class ByteCodeOptimizer;
     friend class ByteCodeEvaluator;
+
+    class ObjectType final : public EvaluableObjectType<ByteCode> {
+    public:
+        rapidjson::Value serialize(
+            const Object::DataHolder&,
+            rapidjson::Document::AllocatorType& allocator) const override
+        {
+            return rapidjson::Value("COMPILED BYTE CODE", allocator);
+        }
+    };
 
 private:
     std::weak_ptr<Context> mContext;

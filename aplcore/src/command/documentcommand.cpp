@@ -30,7 +30,7 @@ DocumentCommand::collectChildCommands(const ComponentPtr& base,
 {
     auto commands = base->getCalculated(mPropertyKey);
     if (commands.isArray() && !commands.empty()) {
-        auto core = std::static_pointer_cast<CoreComponent>(base);
+        auto core = CoreComponent::cast(base);
         auto ctx = core->createDefaultEventContext(mHandler);
         collection.emplace_back(ArrayCommand::create(ctx, commands, core, Properties(), ""));
     }

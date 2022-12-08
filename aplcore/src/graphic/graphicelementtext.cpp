@@ -56,7 +56,7 @@ GraphicElementText::propDefSet() const
 {
     static auto fixTextTrigger = [](GraphicElement& element) -> void {
 #ifdef SCENEGRAPH
-      auto& text = dynamic_cast<GraphicElementText&>(element);
+      auto& text = (GraphicElementText&)element;
       text.mTextProperties = nullptr;
       text.mLayout = nullptr;
 #endif // SCENEGRAPH
@@ -64,7 +64,7 @@ GraphicElementText::propDefSet() const
 
     static auto fixTextChunkTrigger = [](GraphicElement& element) -> void {
 #ifdef SCENEGRAPH
-        auto& text = dynamic_cast<GraphicElementText&>(element);
+        auto& text = (GraphicElementText&)element;
         text.mTextChunk = nullptr;
         text.mLayout = nullptr;
 #endif // SCENEGRAPH
@@ -74,7 +74,7 @@ GraphicElementText::propDefSet() const
         .add({
                  {kGraphicPropertyFill,                    Color(Color::BLACK),     asAvgFill,               kPropInOut | kPropDynamic | kPropEvaluated},
                  {kGraphicPropertyFillOpacity,             1,                       asOpacity,               kPropInOut | kPropDynamic},
-                 {kGraphicPropertyFillTransform,           Object::IDENTITY_2D(),   nullptr,                 kPropOut},
+                 {kGraphicPropertyFillTransform,           Transform2D(),           nullptr,                 kPropOut},
                  {kGraphicPropertyFillTransformAssigned,   "",                      asString,                kPropIn    | kPropDynamic, fixFillTransform},
                  {kGraphicPropertyFilters,                 Object::EMPTY_ARRAY(),   asGraphicFilterArray,    kPropInOut },
                  {kGraphicPropertyFontFamily,              "",                      asString,                kPropInOut | kPropDynamic, fixTextTrigger, defaultFontFamily},
@@ -84,7 +84,7 @@ GraphicElementText::propDefSet() const
                  {kGraphicPropertyLetterSpacing,           0,                       asNumber,                kPropInOut | kPropDynamic, fixTextTrigger},
                  {kGraphicPropertyStroke,                  Color(),                 asAvgFill,               kPropInOut | kPropDynamic | kPropEvaluated},
                  {kGraphicPropertyStrokeOpacity,           1,                       asOpacity,               kPropInOut | kPropDynamic},
-                 {kGraphicPropertyStrokeTransform,         Object::IDENTITY_2D(),   nullptr,                 kPropOut},
+                 {kGraphicPropertyStrokeTransform,         Transform2D(),           nullptr,                 kPropOut},
                  {kGraphicPropertyStrokeTransformAssigned, "",                      asString,                kPropIn    | kPropDynamic, fixStrokeTransform},
                  {kGraphicPropertyStrokeWidth,             0,                       asNonNegativeNumber,     kPropInOut | kPropDynamic},
                  {kGraphicPropertyText,                    "",                      asFilteredText,          kPropInOut | kPropRequired | kPropDynamic, fixTextChunkTrigger},
@@ -118,16 +118,35 @@ GraphicElementText::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
 
     auto fill = sg::fill(sg::paint(getValue(kGraphicPropertyFill),
                                    getValue(kGraphicPropertyFillOpacity).asFloat(),
-                                   getValue(kGraphicPropertyFillTransform).getTransform2D()));
+                                   getValue(kGraphicPropertyFillTransform).get<Transform2D>()));
     auto stroke =
         sg::stroke(sg::paint(getValue(kGraphicPropertyStroke),
                              getValue(kGraphicPropertyStrokeOpacity).asFloat(),
-                             getValue(kGraphicPropertyStrokeTransform).getTransform2D()))
+                             getValue(kGraphicPropertyStrokeTransform).get<Transform2D>()))
             .strokeWidth(getValue(kGraphicPropertyStrokeWidth).asFloat())
             .get();
 
-    fill->nextSibling = stroke;
-    return sg::transform(getPosition(), sg::text(mLayout, fill));
+
+    // Include the fill operation if it is visible or if it can change to be visible
+    const auto includeFill = fill->visible() ||
+                             hasUpstream(kGraphicPropertyFill) ||
+                             hasUpstream(kGraphicPropertyFillOpacity);
+
+    // Include the stroke operation if it is visible or if it can change to be visible
+    const auto includeStroke = stroke->visible() ||
+                               hasUpstream(kGraphicPropertyStroke) ||
+                               hasUpstream(kGraphicPropertyStrokeOpacity) ||
+                               hasUpstream(kGraphicPropertyStrokeWidth);
+
+    // Assemble the operations list in reverse order so that fill occurs before stroke.
+    auto op = includeStroke ? stroke : nullptr;
+    if (includeFill) {
+        fill->nextSibling = op;
+        op = fill;
+    }
+
+    // If there are no drawing operations, return a null node
+    return op ? sg::transform(getPosition(), sg::text(mLayout, op)) : nullptr;
 }
 
 /*
@@ -190,41 +209,46 @@ GraphicElementText::updateSceneGraphInternal(sg::ModifiedNodeList& modList, cons
         if (textChanged)
             text->setTextLayout(mLayout);
 
-        auto* fill = text->getOp().get();
-        if (fillChanged) {
+        auto op = text->getOp();
+        if (sg::FillPathOp::is_type(op) && fillChanged) {
             if (isDirty(kGraphicPropertyFill)) {
                 // If the fill changes, we create a new paint object.
                 // TODO: Shouldn't allocate memory here if the paint hasn't changed type
-                fill->paint = sg::paint(getValue(kGraphicPropertyFill),
-                                        getValue(kGraphicPropertyFillOpacity).asFloat(),
-                                        getValue(kGraphicPropertyFillTransform).getTransform2D());
+                op->paint = sg::paint(getValue(kGraphicPropertyFill),
+                                      getValue(kGraphicPropertyFillOpacity).asFloat(),
+                                      getValue(kGraphicPropertyFillTransform).get<Transform2D>());
             }
             else {
-                fill->paint->setOpacity(getValue(kGraphicPropertyFillOpacity).asFloat());
-                fill->paint->setTransform(getValue(kGraphicPropertyFillTransform).getTransform2D());
+                op->paint->setOpacity(getValue(kGraphicPropertyFillOpacity).asFloat());
+                op->paint->setTransform(getValue(kGraphicPropertyFillTransform).get<Transform2D>());
             }
         }
 
-        auto* stroke = fill->nextSibling.get();
-        if (strokePaintChanged) {
-            if (isDirty(kGraphicPropertyStroke)) {
-                // If the stroke changes, we create a new paint object.
-                // TODO: Shouldn't allocate memory here if the paint hasn't changed type
-                stroke->paint =
-                    sg::paint(getValue(kGraphicPropertyStroke),
-                              getValue(kGraphicPropertyStrokeOpacity).asFloat(),
-                              getValue(kGraphicPropertyStrokeTransform).getTransform2D());
-            }
-            else {
-                stroke->paint->setOpacity(getValue(kGraphicPropertyStrokeOpacity).asFloat());
-                stroke->paint->setTransform(
-                    getValue(kGraphicPropertyStrokeTransform).getTransform2D());
-            }
-        }
+        // Advance to the stroke operation if the fill was defined
+        if (op->nextSibling)
+            op = op->nextSibling;
 
-        if (strokeWidthChanged)
-            sg::stroke(sg::StrokePathOp::castptr(fill->nextSibling))
-                .strokeWidth(getValue(kGraphicPropertyStrokeWidth).asFloat());
+        if (sg::StrokePathOp::is_type(op)) {
+            if (strokePaintChanged) {
+                if (isDirty(kGraphicPropertyStroke)) {
+                    // If the stroke changes, we create a new paint object.
+                    // TODO: Shouldn't allocate memory here if the paint hasn't changed type
+                    op->paint =
+                        sg::paint(getValue(kGraphicPropertyStroke),
+                                  getValue(kGraphicPropertyStrokeOpacity).asFloat(),
+                                  getValue(kGraphicPropertyStrokeTransform).get<Transform2D>());
+                }
+                else {
+                    op->paint->setOpacity(getValue(kGraphicPropertyStrokeOpacity).asFloat());
+                    op->paint->setTransform(
+                        getValue(kGraphicPropertyStrokeTransform).get<Transform2D>());
+                }
+            }
+
+            if (strokeWidthChanged)
+                sg::stroke(sg::StrokePathOp::castptr(op))
+                    .strokeWidth(getValue(kGraphicPropertyStrokeWidth).asFloat());
+        }
 
         modList.contentChanged(text);
     }
@@ -241,8 +265,8 @@ GraphicElementText::ensureSGTextLayout()
     if (!context)
         return;
 
-    auto measure = std::dynamic_pointer_cast<sg::TextMeasurement>(mContext->measure());
-    assert(measure);
+    assert(mContext->measure()->sceneGraphCompatible());
+    auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
 
     ensureTextProperties();
     mLayout = measure->layout(mTextChunk, mTextProperties, INFINITY, MeasureMode::Undefined,

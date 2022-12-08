@@ -13,11 +13,10 @@
  * permissions and limitations under the License.
  */
 
-#include <map>
 #include <array>
 #include <apl/scenegraph/path.h>
 
-#include "apl/primitives/point.h"
+#include "apl/primitives/transform2d.h"
 #include "apl/scenegraph/pathparser.h"
 
 namespace apl {
@@ -64,7 +63,7 @@ public:
         if (peek() != NUMBER)
             return false;
 
-        // TODO: This isn't exactly right because it accepts a hexidecimal values and other invalid SVG path data
+        // TODO: This isn't exactly right because it accepts hexadecimal values and other invalid SVG path data
         char *p;
         result = ::strtof(mPtr, &p);  // Note: can I pass &mPtr as the second argument?
         mPtr = p;
@@ -106,10 +105,6 @@ public:
     explicit PathParser(const char *pathData)
         : mTokenizer(pathData) {}
 
-    bool failed() {
-        return mError || mTokenizer.peek() != Tokenizer::END;
-    }
-
     bool isCharacter() {
         return !mError && mTokenizer.peek() == Tokenizer::CHARACTER;
     }
@@ -138,264 +133,428 @@ private:
     bool mError = false;
 };
 
-std::shared_ptr<GeneralPath>
-parsePathString(const std::string& path)
-{
-    std::vector<float> points;
-    std::string commands;
+/**
+ * A MutablePath is a path to which we add pathData strings
+ * A valid MutablePath is one that has at least one drawn segment.
+ */
+class MutablePath {
+public:
+    MutablePath()
+        : mGeneralPath(std::make_shared<GeneralPath>()),
+          mPoints(mGeneralPath->mPoints),
+          mCommands(mGeneralPath->mValue)
+    {}
 
-    PathParser parser(path.c_str());
+    void add(const std::string& path);
+    std::shared_ptr<GeneralPath> getGeneralPath();
+
+private:
+    void addArc(float radiusX, float radiusY, float degrees, bool largeArcFlag,
+                bool sweepFlag, float endX, float endY);
+
+private:
+    std::shared_ptr<GeneralPath> mGeneralPath;
+
+    std::vector<float>& mPoints;
+    std::string& mCommands;
 
     // Last point
-    float last_x = 0;
-    float last_y = 0;
+    float mLastX = 0;
+    float mLastY = 0;
 
     // Last control point
-    float control_x = 0;
-    float control_y = 0;
+    float mControlX = 0;
+    float mControlY = 0;
 
-    char lastCh = 0;
-    bool isDrawn = false;   // Set to true once we find something that draws
+    char mLastCharacter = 0;
+    bool mIsDrawn = false;   // Set to true once we find something that draws
+};
 
-    auto result = std::make_shared<GeneralPath>();
+std::shared_ptr<GeneralPath>
+MutablePath::getGeneralPath() {
+    // Return an empty path if nothing was drawn
+    if (!mIsDrawn) {
+        mPoints.clear();
+        mCommands.erase();
+    }
 
+    // Drop any move commands from the end of the command list
+    while (mCommands.back() == 'M') {
+        mCommands.resize(mCommands.size() - 1);
+        mPoints.resize(mPoints.size() - 2);
+    }
+
+    return mGeneralPath;
+}
+
+void
+MutablePath::addArc(float radiusX, float radiusY, float degrees, bool largeArcFlag,
+                    bool sweepFlag, float endX, float endY)
+{
+    if (mLastX == endX && mLastY == endY)
+        return;
+
+    auto start = Point(mLastX, mLastY);
+    auto end = Point(endX, endY);
+
+    // Straight line?
+    auto rx = std::abs(radiusX);
+    auto ry = std::abs(radiusY);
+    if (rx < 1e-12 || ry < 1e-12) {
+        mPoints.emplace_back(endX);
+        mPoints.emplace_back(endY);
+        mCommands.push_back('L');
+        mIsDrawn = true;
+        return;
+    }
+
+    auto pointTransform = Transform2D::rotate(-degrees);
+
+    // TODO: Is this negative?
+    auto midPointDistance = Point(0.5f*(mLastX - endX), 0.5f*(mLastY - endY));
+    auto transformedMidPoint = pointTransform * midPointDistance;
+
+    float squareRx = rx * rx;
+    float squareRy = ry * ry;
+    float squareX = transformedMidPoint.getX() * transformedMidPoint.getX();
+    float squareY = transformedMidPoint.getY() * transformedMidPoint.getY();
+
+    // Check if the radii are big enough to draw the arc, scale radii if not.
+    // http://www.w3.org/TR/SVG/implnote.html#ArcCorrectionOutOfRangeRadii
+    float radiiScale = squareX / squareRx + squareY / squareRy;
+    if (radiiScale > 1) {
+        radiiScale = sqrt(radiiScale);
+        rx *= radiiScale;
+        ry *= radiiScale;
+    }
+
+    // Set up a transformation for a unit circle (scale, then rotate)
+    pointTransform = Transform2D::scale(1/rx, 1/ry) * Transform2D::rotate(-degrees);
+
+    auto point1 = pointTransform * start;
+    auto point2 = pointTransform * end;
+
+    float dx = point2.getX() - point1.getX();
+    float dy = point2.getY() - point1.getY();
+
+    float d = dx * dx + dy * dy;
+    float scaleFactorSquared = std::max(1 / d - 0.25f, 0.f);
+    float scaleFactor = sqrt(scaleFactorSquared);
+    if (largeArcFlag == sweepFlag)
+        scaleFactor = -scaleFactor;
+
+    dx *= scaleFactor;
+    dy *= scaleFactor;
+
+    auto centerPoint = Point(0.5f * (point1.getX() + point2.getX()) - dy,
+                             0.5f * (point1.getY() + point2.getY()) + dx);
+
+    // Calculate the starting and ending angle
+    float theta1 = atan2f(point1.getY() - centerPoint.getY(), point1.getX() - centerPoint.getX());
+    float theta2 = atan2f(point2.getY() - centerPoint.getY(), point2.getX() - centerPoint.getX());
+
+    float thetaArc = theta2 - theta1;
+    if (thetaArc < 0 && sweepFlag) {  // arcSweep flipped from the original implementation
+        thetaArc += M_PI * 2;
+    } else if (thetaArc > 0 && !sweepFlag) {  // arcSweep flipped from the original implementation
+        thetaArc -= M_PI * 2;
+    }
+
+    // Very tiny angles cause our subsequent math to go wonky (skbug.com/9272)
+    // so we do a quick check here. The precise tolerance amount is just made up.
+    // PI/million happens to fix the bug in 9272, but a larger value is probably
+    // ok too.
+    if (std::abs(thetaArc) < (M_PI / (1000 * 1000))) {
+        mPoints.emplace_back(endX);
+        mPoints.emplace_back(endY);
+        mCommands.push_back('L');
+        mIsDrawn = true;
+        return;
+    }
+
+    // Configure the transform to go from the unit circle to the rotated ellipse
+    pointTransform = Transform2D::rotate(degrees) * Transform2D::scale(rx, ry);
+
+    // the arc may be slightly bigger than 1/4 circle, so allow up to 1/3rd
+    int segments = ceil(std::abs(thetaArc / (2 * M_PI / 3)));   // Also has been done as (M_PI_2 + 0.001)
+    float thetaWidth = thetaArc / segments;
+    float startThetaSin = sinf(theta1);
+    float startThetaCos = cosf(theta1);
+    float t = (4.f/3.f) * tanf(0.25f * thetaWidth);  // Used for the Cubic's control points
+    if (!std::isfinite(t))
+        return;
+
+    for (int i = 0 ; i < segments ; i++) {
+        float endTheta = theta1 + (i + 1) * thetaWidth;
+
+        float endThetaSin = sinf(endTheta);
+        float endThetaCos = cosf(endTheta);
+
+        auto cp1 = pointTransform * Point( startThetaCos - t * startThetaSin + centerPoint.getX(),
+                                          startThetaSin + t * startThetaCos + centerPoint.getY());
+        auto cp2 = pointTransform * Point( endThetaCos + t * endThetaSin + centerPoint.getX(),
+                                           endThetaSin - t * endThetaCos + centerPoint.getY());
+        auto xy = pointTransform * Point( endThetaCos + centerPoint.getX(),
+                                         endThetaSin + centerPoint.getY());
+
+        mPoints.insert(mPoints.end(), { cp1.getX(), cp1.getY(), cp2.getX(), cp2.getY(), xy.getX(), xy.getY()});
+        mCommands.push_back('C');
+        mControlX = 2 * xy.getX() - cp2.getX();  // Set this because we could be followed by an 'S' or 's'
+        mControlY = 2 * xy.getY() - cp2.getY();
+        mIsDrawn = true;
+
+        startThetaSin = endThetaSin;
+        startThetaCos = endThetaCos;
+    }
+}
+
+void
+MutablePath::add(const std::string& path)
+{
+    PathParser parser(path.c_str());
     while (parser.isCharacter()) {
         auto ch = parser.matchCharacter();
         switch (ch) {
-            case 'M':   // Absolute MoveTo
+            case 'M': // Absolute MoveTo
                 do {
-                    last_x = parser.matchNumber();
-                    last_y = parser.matchNumber();
-                    points.emplace_back(last_x);
-                    points.emplace_back(last_y);
-                    commands.push_back('M');
+                    mLastX = parser.matchNumber();
+                    mLastY = parser.matchNumber();
+                    if (!mCommands.empty() && mCommands.back() == 'M')  // Last was move
+                        mPoints.resize(mPoints.size() - 2);  // Drop the points from the last move
+                    else
+                        mCommands.push_back('M');
+                    mPoints.emplace_back(mLastX);
+                    mPoints.emplace_back(mLastY);
                 } while (parser.isNumber());
                 break;
 
-            case 'm':   // Relative MoveTo  -> convert to absolute move to
+            case 'm': // Relative MoveTo  -> convert to absolute move to
                 do {
-                    last_x += parser.matchNumber();
-                    last_y += parser.matchNumber();
-                    points.emplace_back(last_x);
-                    points.emplace_back(last_y);
-                    commands.push_back('M');
+                    mLastX += parser.matchNumber();
+                    mLastY += parser.matchNumber();
+                    if (!mCommands.empty() && mCommands.back() == 'M')  // Last was move
+                        mPoints.resize(mPoints.size() - 2);  // Drop the points from the last move
+                    else
+                        mCommands.push_back('M');
+                    mPoints.emplace_back(mLastX);
+                    mPoints.emplace_back(mLastY);
                 } while (parser.isNumber());
                 break;
 
-            case 'L':   // Absolute LineTo
+            case 'L': // Absolute LineTo
                 do {
-                    last_x = parser.matchNumber();
-                    last_y = parser.matchNumber();
-                    points.emplace_back(last_x);
-                    points.emplace_back(last_y);
-                    commands.push_back('L');
-                    isDrawn = true;
+                    mLastX = parser.matchNumber();
+                    mLastY = parser.matchNumber();
+                    mPoints.emplace_back(mLastX);
+                    mPoints.emplace_back(mLastY);
+                    mCommands.push_back('L');
+                    mIsDrawn = true;
                 } while (parser.isNumber());
                 break;
 
-            case 'l':   // Relative LineTo -> convert to absolute line to
+            case 'l': // Relative LineTo -> convert to absolute line to
                 do {
-                    last_x += parser.matchNumber();
-                    last_y += parser.matchNumber();
-                    points.emplace_back(last_x);
-                    points.emplace_back(last_y);
-                    commands.push_back('L');
-                    isDrawn = true;
+                    mLastX += parser.matchNumber();
+                    mLastY += parser.matchNumber();
+                    mPoints.emplace_back(mLastX);
+                    mPoints.emplace_back(mLastY);
+                    mCommands.push_back('L');
+                    mIsDrawn = true;
                 } while (parser.isNumber());
                 break;
 
-            case 'H':   // Absolute Horizontal Line
+            case 'H': // Absolute Horizontal Line
                 do {
-                    last_x = parser.matchNumber();
-                    points.emplace_back(last_x);
-                    points.emplace_back(last_y);
-                    commands.push_back('L');
-                    isDrawn = true;
+                    mLastX = parser.matchNumber();
+                    mPoints.emplace_back(mLastX);
+                    mPoints.emplace_back(mLastY);
+                    mCommands.push_back('L');
+                    mIsDrawn = true;
                 } while (parser.isNumber());
                 break;
 
-            case 'h':   // Relative Horizontal Line
+            case 'h': // Relative Horizontal Line
                 do {
-                    last_x += parser.matchNumber();
-                    points.emplace_back(last_x);
-                    points.emplace_back(last_y);
-                    commands.push_back('L');
-                    isDrawn = true;
+                    mLastX += parser.matchNumber();
+                    mPoints.emplace_back(mLastX);
+                    mPoints.emplace_back(mLastY);
+                    mCommands.push_back('L');
+                    mIsDrawn = true;
                 } while (parser.isNumber());
                 break;
 
-            case 'V':  // Absolute Vertical Line
+            case 'V': // Absolute Vertical Line
                 do {
-                    last_y = parser.matchNumber();
-                    points.emplace_back(last_x);
-                    points.emplace_back(last_y);
-                    commands.push_back('L');
-                    isDrawn = true;
+                    mLastY = parser.matchNumber();
+                    mPoints.emplace_back(mLastX);
+                    mPoints.emplace_back(mLastY);
+                    mCommands.push_back('L');
+                    mIsDrawn = true;
                 } while (parser.isNumber());
                 break;
 
-            case 'v':  // Relative Vertical Line
+            case 'v': // Relative Vertical Line
                 do {
-                    last_y += parser.matchNumber();
-                    points.emplace_back(last_x);
-                    points.emplace_back(last_y);
-                    commands.push_back('L');
-                    isDrawn = true;
+                    mLastY += parser.matchNumber();
+                    mPoints.emplace_back(mLastX);
+                    mPoints.emplace_back(mLastY);
+                    mCommands.push_back('L');
+                    mIsDrawn = true;
                 } while (parser.isNumber());
                 break;
 
-            case 'C':  // Absolute Bezier cubic curve
+            case 'C': // Absolute Bezier cubic curve
                 do {
                     float x1 = parser.matchNumber();
                     float y1 = parser.matchNumber();
                     float x2 = parser.matchNumber();
                     float y2 = parser.matchNumber();
-                    last_x = parser.matchNumber();
-                    last_y = parser.matchNumber();
-                    points.insert(points.end(), {x1, y1, x2, y2, last_x, last_y});
-                    commands.push_back('C');
-                    control_x = 2 * last_x - x2;
-                    control_y = 2 * last_y - y2;
-                    isDrawn = true;
+                    mLastX = parser.matchNumber();
+                    mLastY = parser.matchNumber();
+                    mPoints.insert(mPoints.end(), {x1, y1, x2, y2, mLastX, mLastY});
+                    mCommands.push_back('C');
+                    mControlX = 2 * mLastX - x2;
+                    mControlY = 2 * mLastY - y2;
+                    mIsDrawn = true;
                 } while (parser.isNumber());
 
                 break;
 
-            case 'c':  // Relative Bezier curve
+            case 'c': // Relative Bezier curve
                 do {
-                    float x1 = parser.matchNumber() + last_x;
-                    float y1 = parser.matchNumber() + last_y;
-                    float x2 = parser.matchNumber() + last_x;
-                    float y2 = parser.matchNumber() + last_y;
-                    last_x += parser.matchNumber();
-                    last_y += parser.matchNumber();
-                    points.insert(points.end(), {x1, y1, x2, y2, last_x, last_y});
-                    commands.push_back('C');
-                    control_x = 2 * last_x - x2;
-                    control_y = 2 * last_y - y2;
-                    isDrawn = true;
+                    float x1 = parser.matchNumber() + mLastX;
+                    float y1 = parser.matchNumber() + mLastY;
+                    float x2 = parser.matchNumber() + mLastX;
+                    float y2 = parser.matchNumber() + mLastY;
+                    mLastX += parser.matchNumber();
+                    mLastY += parser.matchNumber();
+                    mPoints.insert(mPoints.end(), {x1, y1, x2, y2, mLastX, mLastY});
+                    mCommands.push_back('C');
+                    mControlX = 2 * mLastX - x2;
+                    mControlY = 2 * mLastY - y2;
+                    mIsDrawn = true;
                 } while (parser.isNumber());
 
                 break;
 
-            case 'S':  // Smooth Bezier curve
-                if (!std::strchr("CcSs", lastCh)) {
-                    control_x = last_x;
-                    control_y = last_y;
+            case 'S': // Smooth Bezier curve
+                if (!std::strchr("CcSs", mLastCharacter)) {
+                    mControlX = mLastX;
+                    mControlY = mLastY;
                 }
 
                 do {
                     float x2 = parser.matchNumber();
                     float y2 = parser.matchNumber();
-                    last_x = parser.matchNumber();
-                    last_y = parser.matchNumber();
-                    points.insert(points.end(), {control_x, control_y, x2, y2, last_x, last_y});
-                    commands.push_back('C');
-                    control_x = 2 * last_x - x2;
-                    control_y = 2 * last_y - y2;
-                    isDrawn = true;
+                    mLastX = parser.matchNumber();
+                    mLastY = parser.matchNumber();
+                    mPoints.insert(mPoints.end(), {mControlX, mControlY, x2, y2, mLastX, mLastY});
+                    mCommands.push_back('C');
+                    mControlX = 2 * mLastX - x2;
+                    mControlY = 2 * mLastY - y2;
+                    mIsDrawn = true;
                 } while (parser.isNumber());
 
                 break;
 
             case 's':
-                if (!std::strchr("CcSs", lastCh)) {
-                    control_x = last_x;
-                    control_y = last_y;
+                if (!std::strchr("CcSs", mLastCharacter)) {
+                    mControlX = mLastX;
+                    mControlY = mLastY;
                 }
 
                 do {
-                    float x2 = parser.matchNumber() + last_x;
-                    float y2 = parser.matchNumber() + last_y;
-                    last_x += parser.matchNumber();
-                    last_y += parser.matchNumber();
-                    points.insert(points.end(), {control_x, control_y, x2, y2, last_x, last_y});
-                    commands.push_back('C');
-                    control_x = 2 * last_x - x2;
-                    control_y = 2 * last_y - y2;
-                    isDrawn = true;
+                    float x2 = parser.matchNumber() + mLastX;
+                    float y2 = parser.matchNumber() + mLastY;
+                    mLastX += parser.matchNumber();
+                    mLastY += parser.matchNumber();
+                    mPoints.insert(mPoints.end(), {mControlX, mControlY, x2, y2, mLastX, mLastY});
+                    mCommands.push_back('C');
+                    mControlX = 2 * mLastX - x2;
+                    mControlY = 2 * mLastY - y2;
+                    mIsDrawn = true;
                 } while (parser.isNumber());
 
                 break;
 
-            case 'Q':  // Quadratic Bezier curve
+            case 'Q': // Quadratic Bezier curve
                 do {
                     float x1 = parser.matchNumber();
                     float y1 = parser.matchNumber();
-                    last_x = parser.matchNumber();
-                    last_y = parser.matchNumber();
-                    points.insert(points.end(), {x1, y1, last_x, last_y});
-                    commands.push_back('Q');
-                    control_x = 2 * last_x - x1;
-                    control_y = 2 * last_y - y1;
-                    isDrawn = true;
+                    mLastX = parser.matchNumber();
+                    mLastY = parser.matchNumber();
+                    mPoints.insert(mPoints.end(), {x1, y1, mLastX, mLastY});
+                    mCommands.push_back('Q');
+                    mControlX = 2 * mLastX - x1;
+                    mControlY = 2 * mLastY - y1;
+                    mIsDrawn = true;
                 } while (parser.isNumber());
 
                 break;
 
             case 'q':
                 do {
-                    float x1 = parser.matchNumber() + last_x;
-                    float y1 = parser.matchNumber() + last_y;
-                    last_x += parser.matchNumber();
-                    last_y += parser.matchNumber();
-                    points.insert(points.end(), {x1, y1, last_x, last_y});
-                    commands.push_back('Q');
-                    control_x = 2 * last_x - x1;
-                    control_y = 2 * last_y - y1;
-                    isDrawn = true;
+                    float x1 = parser.matchNumber() + mLastX;
+                    float y1 = parser.matchNumber() + mLastY;
+                    mLastX += parser.matchNumber();
+                    mLastY += parser.matchNumber();
+                    mPoints.insert(mPoints.end(), {x1, y1, mLastX, mLastY});
+                    mCommands.push_back('Q');
+                    mControlX = 2 * mLastX - x1;
+                    mControlY = 2 * mLastY - y1;
+                    mIsDrawn = true;
                 } while (parser.isNumber());
 
                 break;
 
-            case 'T':  // Smooth Quadratic Bezier curve
-                if (!std::strchr("QqTt", lastCh)) {
-                    control_x = last_x;
-                    control_y = last_y;
+            case 'T': // Smooth Quadratic Bezier curve
+                if (!std::strchr("QqTt", mLastCharacter)) {
+                    mControlX = mLastX;
+                    mControlY = mLastY;
                 }
 
                 do {
-                    last_x = parser.matchNumber();
-                    last_y = parser.matchNumber();
-                    points.insert(points.end(), {control_x, control_y, last_x, last_y});
-                    commands.push_back('Q');
-                    control_x = 2 * last_x - control_x;
-                    control_y = 2 * last_y - control_y;
-                    isDrawn = true;
+                    mLastX = parser.matchNumber();
+                    mLastY = parser.matchNumber();
+                    mPoints.insert(mPoints.end(), {mControlX, mControlY, mLastX, mLastY});
+                    mCommands.push_back('Q');
+                    mControlX = 2 * mLastX - mControlX;
+                    mControlY = 2 * mLastY - mControlY;
+                    mIsDrawn = true;
                 } while (parser.isNumber());
 
                 break;
 
             case 't':
-                if (!std::strchr("QqTt", lastCh)) {
-                    control_x = last_x;
-                    control_y = last_y;
+                if (!std::strchr("QqTt", mLastCharacter)) {
+                    mControlX = mLastX;
+                    mControlY = mLastY;
                 }
 
                 do {
-                    last_x += parser.matchNumber();
-                    last_y += parser.matchNumber();
-                    points.insert(points.end(), {control_x, control_y, last_x, last_y});
-                    commands.push_back('Q');
-                    control_x = 2 * last_x - control_x;
-                    control_y = 2 * last_y - control_y;
-                    isDrawn = true;
+                    mLastX += parser.matchNumber();
+                    mLastY += parser.matchNumber();
+                    mPoints.insert(mPoints.end(), {mControlX, mControlY, mLastX, mLastY});
+                    mCommands.push_back('Q');
+                    mControlX = 2 * mLastX - mControlX;
+                    mControlY = 2 * mLastY - mControlY;
+                    mIsDrawn = true;
                 } while (parser.isNumber());
 
                 break;
 
-            case 'A':  // Elliptical arc
+            case 'A': // Elliptical arc
                 do {
                     float rx = parser.matchNumber();
                     float ry = parser.matchNumber();
                     float x_axis_rotation = parser.matchNumber();
-                    float large_arc_flag = parser.matchNumber();
-                    float sweep_flag = parser.matchNumber();
-                    last_x = parser.matchNumber();
-                    last_y = parser.matchNumber();
-                    points.insert(points.end(), {rx, ry, x_axis_rotation, large_arc_flag, sweep_flag, last_x, last_y});
-                    commands.push_back('A');
-                    isDrawn = true;
+                    bool large_arc_flag = parser.matchNumber() != 0.0f;
+                    bool sweep_flag = parser.matchNumber() != 0.0f;
+                    float endX = parser.matchNumber();
+                    float endY = parser.matchNumber();
+                    addArc(rx, ry, x_axis_rotation, large_arc_flag, sweep_flag, endX, endY);
+                    mLastX = endX;
+                    mLastY = endY;
                 } while (parser.isNumber());
 
                 break;
@@ -405,33 +564,39 @@ parsePathString(const std::string& path)
                     float rx = parser.matchNumber();
                     float ry = parser.matchNumber();
                     float x_axis_rotation = parser.matchNumber();
-                    float large_arc_flag = parser.matchNumber();
-                    float sweep_flag = parser.matchNumber();
-                    last_x += parser.matchNumber();
-                    last_y += parser.matchNumber();
-                    points.insert(points.end(), {rx, ry, x_axis_rotation, large_arc_flag, sweep_flag, last_x, last_y});
-                    commands.push_back('A');
-                    isDrawn = true;
+                    bool large_arc_flag = parser.matchNumber() != 0.0f;
+                    bool sweep_flag = parser.matchNumber() != 0.0f;
+                    float endX = mLastX + parser.matchNumber();
+                    float endY = mLastY + parser.matchNumber();
+                    addArc(rx, ry, x_axis_rotation, large_arc_flag, sweep_flag, endX, endY);
+                    mLastX = endX;
+                    mLastY = endY;
                 } while (parser.isNumber());
 
                 break;
 
-            case 'Z':  // Close the current sub-path
+            case 'Z': // Close the current sub-path
             case 'z':
-                commands.push_back('Z');
+                if (!mCommands.empty() && mCommands.back() != 'Z')
+                    mCommands.push_back('Z');
                 break;
 
             default:
-                printf("Error - unrecognized character %d\n", ch);
-                return result;
+                // Illegal character; drop all drawing changes
+                mCommands.erase();
+                mPoints.clear();
+                return;
         }
-        lastCh = ch;
+        mLastCharacter = ch;
     }
+}
 
-    if (!parser.failed() && isDrawn)
-        result->setPaths(std::move(commands), std::move(points));
-
-    return result;
+std::shared_ptr<GeneralPath>
+parsePathString(const std::string& path)
+{
+    MutablePath mp;
+    mp.add(path);
+    return mp.getGeneralPath();
 }
 
 } // namespace sg

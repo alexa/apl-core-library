@@ -47,8 +47,6 @@ public:
      */
     std::string name() const override;
 
-    void release() override;
-
     void initialize() override;
 
     const ComponentPropDefSet& propDefSet() const override { return mPropDefSet; };
@@ -90,6 +88,12 @@ public:
                              int errorCode = 0,
                              const std::string& error = "") override;
 
+    /**
+     * @param component Pointer to cast.
+     * @return Casted pointer to this type, nullptr if not possible.
+     */
+    static std::shared_ptr<ExtensionComponent> cast(const std::shared_ptr<Component>& component);
+
 protected:
     /**
      * Function which executes the handler associated with FatalError
@@ -107,6 +111,8 @@ protected:
     const EventPropertyMap& eventPropertyMap() const override;
 
     std::string getVisualContextType() const override;
+
+    void releaseSelf() override;
 
 private:
     /**

@@ -33,7 +33,7 @@ target_sources_local(apl
     transform.cpp
     transform2d.cpp
     object.cpp
-    objectdata.cpp
+    objecttype.cpp
     unicode.cpp
     urlrequest.cpp
 )

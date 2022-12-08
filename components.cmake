@@ -38,6 +38,13 @@ if (DEBUG_MEMORY_USE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDEBUG_MEMORY_USE=1")
 endif (DEBUG_MEMORY_USE)
 
+#Disable RTTI if requested. Will not work for every case.
+if (DISABLE_RTTI)
+    message("RTTI disabled. Static inclusion may not work for clients using dynamic casting.")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-rtti")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+endif()
+
 if(COVERAGE)
     # We can't really generate core coverage without tests. Option will be applied in clang.cmake as feature is clang
     # specific.

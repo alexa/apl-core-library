@@ -20,7 +20,7 @@ namespace apl {
 namespace sg {
 
 
-static NodePtr sTerminal = std::make_shared<GenericNode>();
+static NodePtr sTerminal = std::make_shared<OpacityNode>();
 
 ModifiedNodeList::ModifiedNodeList()
 {
@@ -51,18 +51,6 @@ ModifiedNodeList::contentChanged(Node* node)
 {
     assert(node);
     node->setFlag(Node::kNodeFlagModified);
-
-    if (!node->mNextModified) {
-        node->mNextModified = mModified;
-        mModified = node->shared_from_this();
-    }
-}
-
-void
-ModifiedNodeList::childChanged(Node* node)
-{
-    assert(node);
-    node->setFlag(Node::kNodeFlagChildrenChanged);
 
     if (!node->mNextModified) {
         node->mNextModified = mModified;

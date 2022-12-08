@@ -182,13 +182,12 @@ DynamicTokenListDataSourceProvider::process(const Object& responseMap) {
     if(!dataSourceConnection)
         return false;
 
-    auto connection = std::dynamic_pointer_cast<DynamicTokenListDataSourceConnection>(dataSourceConnection);
+    auto connection = std::static_pointer_cast<DynamicTokenListDataSourceConnection>(dataSourceConnection);
 
     bool result = processLazyLoadInternal(connection, responseMap);
     auto context = connection->getContext();
     if (result && context != nullptr)
-        context->setDirtyDataSourceContext(
-            std::dynamic_pointer_cast<DataSourceConnection>(shared_from_this()));
+        context->setDirtyDataSourceContext(connection);
 
     return result;
 }

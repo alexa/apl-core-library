@@ -18,6 +18,7 @@
 
 #include "apl/datagrammar/boundsymbol.h"
 #include "apl/engine/context.h"
+#include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
 #include "apl/primitives/functions.h"
 #include "apl/utils/log.h"
@@ -226,7 +227,7 @@ Compare(const Object& a, const Object& b)
     if (a.isBoolean() && b.isBoolean() && a.asBoolean() == b.asBoolean())
         return 0;
 
-    if (a.isColor() && b.isColor() && a.getColor() == b.getColor())
+    if (a.is<Color>() && b.is<Color>() && a.getColor() == b.getColor())
         return 0;
 
     if (a.isNull() && b.isNull())

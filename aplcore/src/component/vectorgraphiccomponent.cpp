@@ -47,13 +47,13 @@ VectorGraphicComponent::VectorGraphicComponent(const ContextPtr& context,
 }
 
 void
-VectorGraphicComponent::release()
+VectorGraphicComponent::releaseSelf()
 {
     auto graphic = mCalculated.get(kPropertyGraphic);
-    if (graphic.isGraphic())
-        graphic.getGraphic()->release();
+    if (graphic.is<Graphic>())
+        graphic.get<Graphic>()->release();
 
-    ActionableComponent::release();
+    ActionableComponent::releaseSelf();
     MediaComponentTrait::release();
 }
 
@@ -62,13 +62,11 @@ VectorGraphicComponent::propDefSet() const
 {
     static auto checkLayout = [](Component& component)
     {
-        auto& vg = static_cast<VectorGraphicComponent&>(component);
-        vg.processLayoutChanges(true, false);
+        ((VectorGraphicComponent&)component).processLayoutChanges(true, false);
     };
 
-    static auto resetOnLoadOnFailFlag = [](Component& component) {
-        auto& comp = dynamic_cast<VectorGraphicComponent&>(component);
-        comp.mOnLoadOnFailReported = false;
+    static auto resetMediaState = [](Component& component) {
+        ((VectorGraphicComponent&)component).sourcePropertyChanged();
     };
 
     static auto sVectorGraphicComponentProperties = ComponentPropDefSet(TouchableComponent::propDefSet(), MediaComponentTrait::propDefList())
@@ -79,7 +77,7 @@ VectorGraphicComponent::propDefSet() const
             {kPropertyOnFail,      Object::EMPTY_ARRAY(),     asCommand,              kPropIn},
             {kPropertyOnLoad,      Object::EMPTY_ARRAY(),     asCommand,              kPropIn},
             {kPropertyScale,       kVectorGraphicScaleNone,   sVectorGraphicScaleMap, kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash, checkLayout},
-            {kPropertySource,      "",                        asVectorGraphicSource,  kPropInOut | kPropDynamic | kPropVisualHash | kPropEvaluated, resetOnLoadOnFailFlag},
+            {kPropertySource,      "",                        asVectorGraphicSource,  kPropInOut | kPropDynamic | kPropVisualHash | kPropEvaluated, resetMediaState},
     });
 
     return sVectorGraphicComponentProperties;
@@ -102,7 +100,7 @@ VectorGraphicComponent::initialize()
             auto graphic = Graphic::create(mContext,
                                            graphicResource,
                                            Properties(mProperties),
-                                           std::static_pointer_cast<CoreComponent>(shared_from_this()));
+                                           shared_from_corecomponent());
             if (graphic) {
                 mCalculated.set(kPropertyGraphic, graphic);
                 height = graphic->getIntrinsicHeight();
@@ -132,7 +130,7 @@ VectorGraphicComponent::updateStyle()
     // Changing the style is likely to change the graphic
     auto graphic = mCalculated.get(kPropertyGraphic);
     auto stylePtr = getStyle();
-    if (graphic.isGraphic() && graphic.getGraphic()->updateStyle(stylePtr))
+    if (graphic.is<Graphic>() && graphic.get<Graphic>()->updateStyle(stylePtr))
         setDirty(kPropertyGraphic);
 
     // Changing the style may result in a size change or a position change
@@ -155,25 +153,18 @@ VectorGraphicComponent::eventPropertyMap() const
 bool
 VectorGraphicComponent::updateGraphic(const GraphicContentPtr& json)
 {
-    if (!json) {
+    if (!json)
         return false;
-    }
-    // Remove any existing graphic
-    auto graphic = mCalculated.get(kPropertyGraphic);
-    if (graphic.isGraphic()) {
-        graphic.getGraphic()->release();
-        setDirty(kPropertyGraphic);
-#ifdef SCENEGRAPH
-        mSceneGraphLayer.reset();  // TODO: Will this kill the media layer appropriately?
-#endif // SCENEGRAPH
-    }
+
+    // Release any existing graphic
+    releaseGraphic();
 
     auto url = encodeUrl(getCalculated(kPropertySource).asString());
     auto path = Path("_url").addObject(url);
     auto g = Graphic::create(mContext,
                              json->get(),
                              Properties(mProperties),
-                             std::static_pointer_cast<CoreComponent>(shared_from_this()),
+                             shared_from_corecomponent(),
                              path,
                              getStyle());
     if (!g)
@@ -181,6 +172,7 @@ VectorGraphicComponent::updateGraphic(const GraphicContentPtr& json)
 
     mCalculated.set(kPropertyGraphic, g);
     setDirty(kPropertyGraphic);
+    mGraphicReplaced = true;
 
     // Recalculate the media bounds. This will internally do a layout
     processLayoutChanges(true, false);
@@ -189,15 +181,59 @@ VectorGraphicComponent::updateGraphic(const GraphicContentPtr& json)
 }
 
 void
+VectorGraphicComponent::releaseGraphic()
+{
+    auto graphic = mCalculated.get(kPropertyGraphic);
+    if (!graphic.isNull()) {
+        if (graphic.is<Graphic>())
+            graphic.get<Graphic>()->release();
+        setDirty(kPropertyGraphic);
+        mCalculated.set(kPropertyGraphic, Object::NULL_OBJECT());
+        mGraphicReplaced = true;
+    }
+}
+
+void
+VectorGraphicComponent::sourcePropertyChanged()
+{
+    mOnLoadOnFailReported = false;
+    releaseGraphic();
+
+    // Load a local graphic if it exists
+    auto source = mCalculated.get(kPropertySource);
+    if (source.isString()) {
+        auto graphicResource = mContext->getGraphic(source.getString());
+        if (!graphicResource.empty()) {
+            auto graphic = Graphic::create(mContext,
+                                           graphicResource,
+                                           Properties(mProperties),
+                                           shared_from_corecomponent());
+            if (graphic) {
+                mCalculated.set(kPropertyGraphic, graphic);
+                setDirty(kPropertyGraphic);
+                mGraphicReplaced = true;
+
+                // Recalculate the media bounds.  This will internally run a layout
+                processLayoutChanges(true, false);
+                graphic->clearDirty();  // First use of the graphic; clear dirty flags
+            }
+        }
+    }
+
+    // Fix the media state and toggle a download for a URL-based graphic
+    resetMediaFetchState();
+}
+
+void
 VectorGraphicComponent::processLayoutChanges(bool useDirtyFlag, bool first)
 {
     CoreComponent::processLayoutChanges(useDirtyFlag, first);
 
     auto graphic = mCalculated.get(kPropertyGraphic);
-    if (graphic.isGraphic()) {
-        auto g = graphic.getGraphic();
+    if (graphic.is<Graphic>()) {
+        auto g = graphic.get<Graphic>();
 
-        auto innerBounds = mCalculated.get(kPropertyInnerBounds).getRect();
+        const auto& innerBounds = mCalculated.get(kPropertyInnerBounds).get<Rect>();
         double width = g->getIntrinsicWidth();
         double height = g->getIntrinsicHeight();
         auto scaleProp = static_cast<VectorGraphicScale>(mCalculated.get(kPropertyScale).getInteger());
@@ -276,7 +312,7 @@ VectorGraphicComponent::processLayoutChanges(bool useDirtyFlag, bool first)
 
         Rect r(x, y, width, height);
         auto mediaBounds = mCalculated.get(kPropertyMediaBounds);
-        if (!mediaBounds.isRect() || r != mediaBounds.getRect()) {
+        if (!mediaBounds.is<Rect>() || r != mediaBounds.get<Rect>()) {
             mCalculated.set(kPropertyMediaBounds, std::move(r));
             if (useDirtyFlag)
                 setDirty(kPropertyMediaBounds);
@@ -298,8 +334,8 @@ bool
 VectorGraphicComponent::setPropertyInternal(const std::string& key, const apl::Object& value)
 {
     auto graphic = mCalculated.get(kPropertyGraphic);
-    if (graphic.isGraphic()) {
-        auto g = graphic.getGraphic();
+    if (graphic.is<Graphic>()) {
+        auto g = graphic.get<Graphic>();
         return g->setProperty(key, value);
     }
 
@@ -310,8 +346,8 @@ std::pair<Object, bool>
 VectorGraphicComponent::getPropertyInternal(const std::string& key) const
 {
     auto graphic = mCalculated.get(kPropertyGraphic);
-    if (graphic.isGraphic())
-        return graphic.getGraphic()->getProperty(key);
+    if (graphic.is<Graphic>())
+        return graphic.get<Graphic>()->getProperty(key);
 
     return { Object::NULL_OBJECT(), false };
 }
@@ -319,10 +355,10 @@ VectorGraphicComponent::getPropertyInternal(const std::string& key) const
 
 void VectorGraphicComponent::clearDirty() {
     // order is important.  clear the component before the graphic
-    Component::clearDirty();
+    CoreComponent::clearDirty();
     auto graphic = mCalculated.get(kPropertyGraphic);
-    if (graphic.isGraphic()) {
-        auto g = graphic.getGraphic();
+    if (graphic.is<Graphic>()) {
+        auto g = graphic.get<Graphic>();
         g->clearDirty();
     }
 }
@@ -331,9 +367,9 @@ std::shared_ptr<ObjectMap>
 VectorGraphicComponent::createTouchEventProperties(const Point &localPoint) const
 {
     std::shared_ptr<ObjectMap> eventProperties = TouchableComponent::createTouchEventProperties(localPoint);
-    auto graphic = mCalculated.get(kPropertyGraphic).getGraphic();
+    auto graphic = mCalculated.get(kPropertyGraphic).get<Graphic>();
 
-    const auto mediaBounds = mCalculated.get(kPropertyMediaBounds).getRect();
+    const auto& mediaBounds = mCalculated.get(kPropertyMediaBounds).get<Rect>();
     auto viewportWidth = graphic->getViewportWidth();
     auto viewportHeight = graphic->getViewportHeight();
 
@@ -387,7 +423,7 @@ VectorGraphicComponent::getSources() {
     std::vector<URLRequest> sources;
 
     auto graphic = mCalculated.get(kPropertyGraphic);
-    if (graphic.isGraphic()) {
+    if (graphic.is<Graphic>()) {
         // Graphic is already present, nothing to load
         return sources;
     }
@@ -397,10 +433,10 @@ VectorGraphicComponent::getSources() {
         auto graphicResource = mContext->getGraphic(source.getString());
         if (graphicResource.empty()) {
             // Graphic is not a local resource, treat as URI
-            sources.emplace_back(source.asURLRequest());
+            sources.emplace_back(URLRequest::asURLRequest(source));
         }
-    } else if (source.isURLRequest()) {
-        sources.emplace_back(source.getURLRequest());
+    } else if (source.is<URLRequest>()) {
+        sources.emplace_back(source.get<URLRequest>());
     }
 
     return sources;
@@ -432,7 +468,7 @@ VectorGraphicComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGra
     // Build the basic data structures
     auto mediaLayer = sg::layer(mUniqueId + "-mediaLayer", Rect{0,0,1,1}, 1.0f, Transform2D());
     auto transform = sg::transform();
-    mediaLayer->appendContent(transform);
+    mediaLayer->setContent(transform);
     layer->appendChild(mediaLayer);
     fixMediaLayer(sceneGraph, mediaLayer);
 
@@ -445,9 +481,9 @@ bool
 VectorGraphicComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
 {
     auto boundsChanged = isDirty(kPropertyMediaBounds);  // The media bounds changed (for example, due to layout changes)
-    auto graphicChanged = isDirty(kPropertyGraphic);  // The current graphic had some property changes
+    auto graphicDirty = isDirty(kPropertyGraphic);  // The current graphic had some property changes or it is a new graphic
 
-    if (!boundsChanged && !graphicChanged)
+    if (!boundsChanged && !graphicDirty && !mGraphicReplaced)
         return false;
 
     auto mediaLayer = mSceneGraphLayer->children().at(0);
@@ -459,9 +495,13 @@ VectorGraphicComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGra
     if (mediaLayer->isFlagSet(sg::Layer::kFlagSizeChanged))
         mediaLayer->setFlag(sg::Layer::kFlagRedrawContent);
 
-    // If the graphic changed (and is valid), let the update routine decide if we need a redraw of the content
-    if (graphicChanged && validGraphic) {
-        auto graphic = getCalculated(kPropertyGraphic).getGraphic();
+    // If we changed the graphic, we definitely need to redraw the content
+    if (mGraphicReplaced) {
+        mediaLayer->setFlag(sg::Layer::kFlagRedrawContent);
+        mGraphicReplaced = false;
+    }
+    else if (graphicDirty && validGraphic) {  // If it didn't change but was dirty, let the update routine decide
+        auto graphic = getCalculated(kPropertyGraphic).get<Graphic>();
         if (graphic->updateSceneGraph(sceneGraph))
             mediaLayer->setFlag(sg::Layer::kFlagRedrawContent);
     }
@@ -482,24 +522,24 @@ bool
 VectorGraphicComponent::fixMediaLayer(sg::SceneGraphUpdates& sceneGraph,
                                       const sg::LayerPtr& mediaLayer)
 {
-    auto* transform = sg::TransformNode::cast(mediaLayer->content().at(0));
+    auto* transform = sg::TransformNode::cast(mediaLayer->content());
     transform->removeAllChildren();
 
     auto object = getCalculated(kPropertyGraphic);
-    if (!object.isGraphic())
+    if (!object.is<Graphic>())
         return false;
 
-    auto graphic = object.getGraphic();
+    auto graphic = object.get<Graphic>();
     if (!graphic || !graphic->isValid())
         return false;
 
-    auto mediaBounds = getCalculated(kPropertyMediaBounds).getRect();
+    const auto& mediaBounds = getCalculated(kPropertyMediaBounds).get<Rect>();
     mediaLayer->setBounds(mediaBounds);
     sg::TransformNode::cast(transform)->setTransform(
         Transform2D::scale(mediaBounds.getWidth() / graphic->getViewportWidth(),
                            mediaBounds.getHeight() / graphic->getViewportHeight()));
 
-    transform->appendChild(graphic->getSceneGraph(sceneGraph));
+    transform->setChild(graphic->getSceneGraph(sceneGraph));
 
     return true;
 }
@@ -530,6 +570,10 @@ VectorGraphicComponent::onLoad()
 {
     if (mOnLoadOnFailReported)
         return;
+
+    assert(mMediaObjectHolders.size() == 1);
+    updateGraphic(mMediaObjectHolders.at(0).getMediaObject()->graphic());
+
     auto component = getComponent();
     auto& commands = component->getCalculated(kPropertyOnLoad);
     component->getContext()->sequencer().executeCommands(

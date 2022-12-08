@@ -113,7 +113,7 @@ protected:
     const ComponentPropDefSet& propDefSet() const override;
     std::map<int, float> getChildrenVisibility(float realOpacity, const Rect &visibleRect) const override;
     bool insertChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
-    void removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
+    void removeChildAfterMarkedRemoved(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
     virtual void layoutChildIfRequired(const CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag, bool first);
     void relayoutInPlace(bool useDirtyFlag, bool first);

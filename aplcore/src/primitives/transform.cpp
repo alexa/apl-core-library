@@ -23,6 +23,8 @@
 
 namespace apl {
 
+// TODO: Comparisons here should not use dynamic_casts.
+
 // Evaluate this object as a dimension.  If relative, use the side length to convert to a DP value.
 inline float
 evalDim(const Dimension& object, float side)
@@ -40,15 +42,10 @@ public:
         return mFunction(mValue);
     }
 
-    bool canInterpolate(Transform& other) const override {
-        auto o = dynamic_cast<ScalarTransform*>(&other);
-        if (o == nullptr)
-            return false;
-
-        return &mFunction == &o->mFunction;
-    }
-
     Transform2D interpolate(Transform& other, float alpha, float, float) const override {
+        assert(other.getType() == Type::ROTATE ||
+               other.getType() == Type::SKEW_X ||
+               other.getType() == Type::SKEW_Y);
         float v2 = static_cast<ScalarTransform&>(other).mValue;
         float value = mValue * (1-alpha) + v2 * alpha;
         return mFunction(value);
@@ -70,12 +67,9 @@ public:
         return Transform2D::scale(mX, mY);
     }
 
-    bool canInterpolate(Transform& other) const override {
-        return dynamic_cast<ScaleTransform*>(&other) != nullptr;
-    }
-
     Transform2D interpolate(Transform& other, float alpha, float, float) const override {
-        auto o = dynamic_cast<ScaleTransform*>(&other);
+        assert(other.getType() == Type::SCALE);
+        auto o = static_cast<ScaleTransform*>(&other);
         float x = mX * (1-alpha) + o->mX * alpha;
         float y = mY * (1-alpha) + o->mY * alpha;
         return Transform2D::scale(x, y);
@@ -96,12 +90,9 @@ public:
         return Transform2D::translate(evalDim(mX, width), evalDim(mY, height));
     }
 
-    bool canInterpolate(Transform& other) const override {
-        return dynamic_cast<TranslateTransform*>(&other) != nullptr;
-    }
-
     Transform2D interpolate(Transform& other, float alpha, float width, float height) const override {
-        auto o = dynamic_cast<TranslateTransform*>(&other);
+        assert(other.getType() == Type::TRANSLATE);
+        auto o = static_cast<TranslateTransform*>(&other);
         float x = evalDim(mX, width) * (1-alpha) + evalDim(o->mX, width) * alpha;
         float y = evalDim(mY, height) * (1-alpha) + evalDim(o->mY, height) * alpha;
         return Transform2D::translate(x, y);

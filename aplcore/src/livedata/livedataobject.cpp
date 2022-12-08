@@ -28,21 +28,21 @@ LiveDataObject::create(const LiveObjectPtr& data,
                        const ContextPtr& context,
                        const std::string& key)
 {
-    std::shared_ptr<LiveDataObject> element;
+    Object element;
 
     auto type = data->getType();
-    if (type == Object::kArrayType)
+    if (type == LiveObject::ObjectType::kArrayType)
         element = std::make_shared<LiveArrayObject>(std::static_pointer_cast<LiveArray>(data), context, key);
-    else if (type == Object::kMapType)
+    else if (type == LiveObject::ObjectType::kMapType)
         element = std::make_shared<LiveMapObject>(std::static_pointer_cast<LiveMap>(data), context, key);
     else {
-        LOG(LogLevel::kError).session(context) << "Unexpected data type for live object key='" << key << "': " << data->getType();
+        LOG(LogLevel::kError).session(context) << "Unexpected data type for live object key='" << key << "': " << static_cast<int>(data->getType());
         return nullptr;
     }
 
-    context->putSystemWriteable(key, Object(element));
-    context->dataManager().add(element);
-    return element;
+    context->putSystemWriteable(key, element);
+    context->dataManager().add(element.getLiveDataObject());
+    return element.getLiveDataObject();
 }
 
 void

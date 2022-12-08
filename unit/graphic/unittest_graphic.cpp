@@ -126,7 +126,7 @@ TEST_F(GraphicTest, Basic)
 
     ASSERT_EQ(kGraphicElementTypeGroup, child->getType());
     auto filterArray = child->getValue(kGraphicPropertyFilters);
-    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_TRUE(filterArray.isArray());
     ASSERT_EQ(Object::EMPTY_ARRAY(), filterArray);
     ASSERT_EQ(Object(1), child->getValue(kGraphicPropertyOpacity));
     ASSERT_EQ(Object(15), child->getValue(kGraphicPropertyRotation));
@@ -142,7 +142,7 @@ TEST_F(GraphicTest, Basic)
     auto path = child->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
     filterArray = path->getValue(kGraphicPropertyFilters);
-    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_TRUE(filterArray.isArray());
     ASSERT_EQ(Object::EMPTY_ARRAY(), filterArray);
     ASSERT_TRUE(path->getValue(kGraphicPropertyPathData).size() > 30);
     ASSERT_EQ(Object(0.3), path->getValue(kGraphicPropertyFillOpacity));
@@ -151,11 +151,13 @@ TEST_F(GraphicTest, Basic)
     path = child->getChildAt(1);
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
     filterArray = path->getValue(kGraphicPropertyFilters);
-    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_TRUE(filterArray.isArray());
     ASSERT_EQ(Object::EMPTY_ARRAY(), filterArray);
     ASSERT_TRUE(path->getValue(kGraphicPropertyPathData).size() > 30);
     ASSERT_EQ(Object(1.0), path->getValue(kGraphicPropertyFillOpacity));
     ASSERT_EQ(Object(Color(Color::GREEN)), path->getValue(kGraphicPropertyFill));
+
+    ASSERT_EQ("Graphic<>", Object(graphic).toDebugString());
 }
 
 // Verify default properties get set correctly
@@ -326,7 +328,7 @@ TEST_F(GraphicTest, MinimalProvenance)
     loadDocument(MINIMAL_DOCUMENT);
     ASSERT_TRUE(component);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     ASSERT_EQ("A", graphic->getContext()->opt("@test").asString());
@@ -403,7 +405,7 @@ TEST_F(GraphicTest, GraphicResources)
     loadDocument(GRAPHIC_RESOURCES);
     ASSERT_TRUE(component);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     auto container = graphic->getRoot();
@@ -423,10 +425,10 @@ TEST_F(GraphicTest, GraphicResourceComponentContextScoping)
     loadDocument(GRAPHIC_RESOURCES);
 
     auto object = context->opt("@myColor");
-    ASSERT_TRUE(object.isColor());
+    ASSERT_TRUE(object.is<Color>());
     ASSERT_EQ(Color::RED, object.getColor());
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     auto container = graphic->getRoot();
@@ -446,7 +448,7 @@ TEST_F(GraphicTest, GraphicResourcesSmallPort)
     ASSERT_TRUE(component);
 
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     auto container = graphic->getRoot();
@@ -725,7 +727,7 @@ TEST_F(GraphicTest, PathProperties)
     ASSERT_EQ(Object("M0,0"), path->getValue(kGraphicPropertyPathData));
     ASSERT_EQ(Object(42), path->getValue(kGraphicPropertyPathLength));
     ASSERT_EQ(Object(Color(Color::GREEN)), path->getValue(kGraphicPropertyStroke));
-    ASSERT_EQ(Object::kArrayType, path->getValue(kGraphicPropertyStrokeDashArray).getType());
+    ASSERT_TRUE(path->getValue(kGraphicPropertyStrokeDashArray).isArray());
     ASSERT_EQ(2, path->getValue(kGraphicPropertyStrokeDashArray).getArray().size());
     ASSERT_EQ(Object(1), path->getValue(kGraphicPropertyStrokeDashArray).getArray()[0]);
     ASSERT_EQ(Object(2), path->getValue(kGraphicPropertyStrokeDashArray).getArray()[1]);
@@ -988,7 +990,7 @@ TEST_F(GraphicTest, InvalidUpdateWithValidJson) {
     none = component->findComponentById("none");
     ASSERT_EQ(Object::NULL_OBJECT(), none->getCalculated(kPropertyGraphic));
     stretch = component->findComponentById("stretch");
-    auto graphic = stretch->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = stretch->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     ASSERT_EQ("A", graphic->getContext()->opt("@test").asString());
@@ -1334,7 +1336,7 @@ TEST_F(GraphicTest, Time)
     auto box = root->topComponent();
     ASSERT_TRUE(box);
 
-    auto graphic = box->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = box->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_EQ(100, graphic->getViewportWidth());
     ASSERT_EQ(100, graphic->getViewportHeight());
 
@@ -1408,7 +1410,7 @@ TEST_F(GraphicTest, ParameterizedTime)
     auto box = root->topComponent();
     ASSERT_TRUE(box);
 
-    auto graphic = box->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = box->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_EQ(100, graphic->getViewportWidth());
     ASSERT_EQ(100, graphic->getViewportHeight());
 
@@ -1523,7 +1525,7 @@ TEST_F(GraphicTest, FullClock)
     auto box = root->topComponent();
     ASSERT_TRUE(box);
 
-    auto graphic = box->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = box->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_EQ(100, graphic->getViewportWidth());
     ASSERT_EQ(100, graphic->getViewportHeight());
 
@@ -1582,7 +1584,7 @@ TEST_F(GraphicTest, ClearDirty)
     ASSERT_TRUE(box);
     ASSERT_EQ(0,box->getChildCount());
 
-    auto graphic = box->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = box->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
     ASSERT_TRUE(graphic->isValid());
 
@@ -2041,7 +2043,7 @@ TEST_F(GraphicTest, Transformed)
     auto group = graphic->getRoot()->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypeGroup, group->getType());
 
-    auto transform = group->getValue(kGraphicPropertyTransform).getTransform2D();
+    auto transform = group->getValue(kGraphicPropertyTransform).get<Transform2D>();
     Transform2D expected;
     expected *= Transform2D::translate(50, 75);
     expected *= Transform2D::rotate(-10);
@@ -2051,10 +2053,10 @@ TEST_F(GraphicTest, Transformed)
     auto path = group->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
-    ASSERT_TRUE(path->getValue(kGraphicPropertyFill).isGradient());
+    ASSERT_TRUE(path->getValue(kGraphicPropertyFill).is<Gradient>());
     auto fill = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fill.isGradient());
-    auto& fillGrad = fill.getGradient();
+    ASSERT_TRUE(fill.is<Gradient>());
+    auto& fillGrad = fill.get<Gradient>();
     ASSERT_EQ(Gradient::LINEAR, fillGrad.getProperty(kGradientPropertyType).getInteger());
     auto colorRange = fillGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
@@ -2078,17 +2080,17 @@ TEST_F(GraphicTest, Transformed)
     ASSERT_EQ(0.89, fillGrad.getProperty(kGradientPropertyY2).getDouble());
 
 
-    auto fillTransform = path->getValue(kGraphicPropertyFillTransform).getTransform2D();
+    auto fillTransform = path->getValue(kGraphicPropertyFillTransform).get<Transform2D>();
     Transform2D expectedFill;
     expectedFill *= Transform2D::translate(-36, 45.5);
     expectedFill *= Transform2D::skewX(40);
 
     ASSERT_EQ(expectedFill, fillTransform);
 
-    ASSERT_TRUE(path->getValue(kGraphicPropertyStroke).isGradient());
+    ASSERT_TRUE(path->getValue(kGraphicPropertyStroke).is<Gradient>());
     auto stroke = path->getValue(kGraphicPropertyStroke);
-    ASSERT_TRUE(stroke.isGradient());
-    auto& strokeGrad = stroke.getGradient();
+    ASSERT_TRUE(stroke.is<Gradient>());
+    auto& strokeGrad = stroke.get<Gradient>();
     ASSERT_EQ(Gradient::RADIAL, strokeGrad.getProperty(kGradientPropertyType).getInteger());
     colorRange = strokeGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
@@ -2106,7 +2108,7 @@ TEST_F(GraphicTest, Transformed)
     ASSERT_EQ(0.3, strokeGrad.getProperty(kGradientPropertyCenterY).getDouble());
     ASSERT_EQ(1.2, strokeGrad.getProperty(kGradientPropertyRadius).getDouble());
 
-    auto strokeTransform = path->getValue(kGraphicPropertyStrokeTransform).getTransform2D();
+    auto strokeTransform = path->getValue(kGraphicPropertyStrokeTransform).get<Transform2D>();
     Transform2D expectedStroke;
     expectedStroke *= Transform2D::skewY(5);
     expectedStroke *= Transform2D::scale(0.7, 0.5);
@@ -2201,7 +2203,7 @@ TEST_F(GraphicTest, AVGResourceTypes)
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     // Patterns checked separately
-    auto fill = path->getValue(kGraphicPropertyFill).getGradient();
+    auto fill = path->getValue(kGraphicPropertyFill).get<Gradient>();
     ASSERT_EQ(Gradient::LINEAR, fill.getType());
     ASSERT_EQ(Gradient::kGradientUnitsUserSpace, fill.getProperty(kGradientPropertyUnits).getInteger());
     ASSERT_EQ(std::vector<Object>({Color(Color::RED), Color(Color::TRANSPARENT)}), fill.getProperty(kGradientPropertyColorRange).getArray());
@@ -2300,10 +2302,10 @@ TEST_F(GraphicTest, LocalResourcedPattern)
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     auto fillPattern = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fillPattern.isGraphicPattern());
-    auto fillPatternId = fillPattern.getGraphicPattern()->getUniqueId();
+    ASSERT_TRUE(fillPattern.is<GraphicPattern>());
+    auto fillPatternId = fillPattern.get<GraphicPattern>()->getUniqueId();
 
-    auto fillPath = fillPattern.getGraphicPattern()->getItems().at(0);
+    auto fillPath = fillPattern.get<GraphicPattern>()->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypePath, fillPath->getType());
     ASSERT_EQ(Object(Color(Color::RED)), fillPath->getValue(kGraphicPropertyFill));
 
@@ -2311,10 +2313,10 @@ TEST_F(GraphicTest, LocalResourcedPattern)
     ASSERT_EQ(kGraphicElementTypeText, text->getType());
 
     auto strokePattern = text->getValue(kGraphicPropertyStroke);
-    ASSERT_TRUE(strokePattern.isGraphicPattern());
-    auto strokePatternId = strokePattern.getGraphicPattern()->getUniqueId();
+    ASSERT_TRUE(strokePattern.is<GraphicPattern>());
+    auto strokePatternId = strokePattern.get<GraphicPattern>()->getUniqueId();
 
-    auto strokePath = strokePattern.getGraphicPattern()->getItems().at(0);
+    auto strokePath = strokePattern.get<GraphicPattern>()->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypePath, strokePath->getType());
     ASSERT_EQ(Object(Color(Color::GREEN)), strokePath->getValue(kGraphicPropertyFill));
 
@@ -2384,7 +2386,7 @@ TEST_F(GraphicTest, ExternalResourcedPattern)
     ASSERT_TRUE(ConsoleMessage());
 
     auto fillPattern = path->getValue(kGraphicPropertyFill);
-    ASSERT_FALSE(fillPattern.isGraphicPattern());
+    ASSERT_FALSE(fillPattern.is<GraphicPattern>());
 }
 
 static const char* PATTERN_INLINE = R"({
@@ -2439,7 +2441,7 @@ TEST_F(GraphicTest, PatternInline)
 
     auto fillPattern = path->getValue(kGraphicPropertyFill);
     // Inline not supported
-    ASSERT_TRUE(fillPattern.isColor());
+    ASSERT_TRUE(fillPattern.is<Color>());
     ASSERT_EQ(Object(Color()), fillPattern);
     ASSERT_TRUE(ConsoleMessage());
 }
@@ -2525,8 +2527,8 @@ TEST_F(GraphicTest, LocalResourcedGradient)
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     auto fill = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fill.isGradient());
-    auto& fillGrad = fill.getGradient();
+    ASSERT_TRUE(fill.is<Gradient>());
+    auto& fillGrad = fill.get<Gradient>();
     ASSERT_EQ(Gradient::LINEAR, fillGrad.getProperty(kGradientPropertyType).getInteger());
     auto colorRange = fillGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
@@ -2554,8 +2556,8 @@ TEST_F(GraphicTest, LocalResourcedGradient)
     ASSERT_EQ(kGraphicElementTypeText, text->getType());
 
     auto stroke = text->getValue(kGraphicPropertyStroke);
-    ASSERT_TRUE(stroke.isGradient());
-    auto& strokeGrad = stroke.getGradient();
+    ASSERT_TRUE(stroke.is<Gradient>());
+    auto& strokeGrad = stroke.get<Gradient>();
     ASSERT_EQ(Gradient::RADIAL, strokeGrad.getProperty(kGradientPropertyType).getInteger());
     colorRange = strokeGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
@@ -2646,8 +2648,8 @@ TEST_F(GraphicTest, ExternalResourcedGradient)
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     auto fill = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fill.isGradient());
-    auto& fillGrad = fill.getGradient();
+    ASSERT_TRUE(fill.is<Gradient>());
+    auto& fillGrad = fill.get<Gradient>();
     ASSERT_EQ(Gradient::LINEAR, fillGrad.getProperty(kGradientPropertyType).getInteger());
     auto colorRange = fillGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
@@ -2675,8 +2677,8 @@ TEST_F(GraphicTest, ExternalResourcedGradient)
     ASSERT_EQ(kGraphicElementTypeText, text->getType());
 
     auto stroke = text->getValue(kGraphicPropertyStroke);
-    ASSERT_TRUE(stroke.isGradient());
-    auto& strokeGrad = stroke.getGradient();
+    ASSERT_TRUE(stroke.is<Gradient>());
+    auto& strokeGrad = stroke.get<Gradient>();
     ASSERT_EQ(Gradient::RADIAL, strokeGrad.getProperty(kGradientPropertyType).getInteger());
     colorRange = strokeGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
@@ -2740,8 +2742,8 @@ TEST_F(GraphicTest, GradientInline)
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     auto fill = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fill.isGradient());
-    auto& fillGrad = fill.getGradient();
+    ASSERT_TRUE(fill.is<Gradient>());
+    auto& fillGrad = fill.get<Gradient>();
     ASSERT_EQ(Gradient::LINEAR, fillGrad.getProperty(kGradientPropertyType).getInteger());
     auto colorRange = fillGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
@@ -2837,9 +2839,9 @@ TEST_F(GraphicTest, MixedResources)
 
 
     auto fillPattern = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fillPattern.isGraphicPattern());
+    ASSERT_TRUE(fillPattern.is<GraphicPattern>());
 
-    auto fillPath = fillPattern.getGraphicPattern()->getItems().at(0);
+    auto fillPath = fillPattern.get<GraphicPattern>()->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypePath, fillPath->getType());
     ASSERT_EQ(Object(Color(Color::RED)), fillPath->getValue(kGraphicPropertyFill));
 
@@ -2848,8 +2850,8 @@ TEST_F(GraphicTest, MixedResources)
     ASSERT_EQ(kGraphicElementTypeText, text->getType());
 
     auto stroke = text->getValue(kGraphicPropertyStroke);
-    ASSERT_TRUE(stroke.isGradient());
-    auto& strokeGrad = stroke.getGradient();
+    ASSERT_TRUE(stroke.is<Gradient>());
+    auto& strokeGrad = stroke.get<Gradient>();
     ASSERT_EQ(Gradient::RADIAL, strokeGrad.getProperty(kGradientPropertyType).getInteger());
     auto colorRange = strokeGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
@@ -2906,7 +2908,7 @@ TEST_F(GraphicTest, Transform)
     auto box = root->topComponent();
     ASSERT_TRUE(box);
 
-    auto graphic = box->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = box->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_EQ(100, graphic->getViewportWidth());
     ASSERT_EQ(100, graphic->getViewportHeight());
 
@@ -2924,17 +2926,17 @@ TEST_F(GraphicTest, Transform)
     ASSERT_EQ(0.5, group->getValue(kGraphicPropertyScaleY).getDouble());
 
     auto transform = group->getValue(kGraphicPropertyTransform);
-    ASSERT_TRUE(transform.isTransform2D());
+    ASSERT_TRUE(transform.is<Transform2D>());
 
     // Start       -Pivot        Scaled       Rotate     +Pivot     Translated
     // ( 0, 0) -> (-20,-10) -> (-40, -5) -> ( 5,-40) -> (25,-30) -> (125, 20)
-    ASSERT_EQ(Point(125,20), transform.getTransform2D() * Point(0,0));
+    ASSERT_EQ(Point(125,20), transform.get<Transform2D>() * Point(0,0));
 
     // (20,10) -> (  0,  0) -> (  0,  0) -> ( 0,  0) -> (20, 10) -> (120, 60)
-    ASSERT_EQ(Point(120,60), transform.getTransform2D() * Point(20,10));
+    ASSERT_EQ(Point(120,60), transform.get<Transform2D>() * Point(20,10));
 
     // (30,20) -> ( 10, 10) -> ( 20,  5) -> (-5, 20) -> (15, 30) -> (115, 80)
-    ASSERT_EQ(Point(115,80), transform.getTransform2D() * Point(30,20));
+    ASSERT_EQ(Point(115,80), transform.get<Transform2D>() * Point(30,20));
 }
 
 static const char* GRADIENT_REQUIRED = R"({
@@ -3018,7 +3020,7 @@ TEST_F(GraphicTest, GradientChecks)
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     auto fill = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fill.isColor());
+    ASSERT_TRUE(fill.is<Color>());
     ASSERT_EQ(Color(Color::TRANSPARENT), fill.getColor());
 
     // Defaults to default color when gradient is incorrect (no type)
@@ -3026,7 +3028,7 @@ TEST_F(GraphicTest, GradientChecks)
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     fill = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fill.isColor());
+    ASSERT_TRUE(fill.is<Color>());
     ASSERT_EQ(Color(Color::TRANSPARENT), fill.getColor());
 
     // Defaults to default color when gradient is incorrect (no type, no color range)
@@ -3034,7 +3036,7 @@ TEST_F(GraphicTest, GradientChecks)
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     fill = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fill.isColor());
+    ASSERT_TRUE(fill.is<Color>());
     ASSERT_EQ(Color(Color::TRANSPARENT), fill.getColor());
 
     // Default values on linear gradient
@@ -3042,8 +3044,8 @@ TEST_F(GraphicTest, GradientChecks)
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     fill = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fill.isGradient());
-    auto& fillLinearGrad = fill.getGradient();
+    ASSERT_TRUE(fill.is<Gradient>());
+    auto& fillLinearGrad = fill.get<Gradient>();
     ASSERT_EQ(Gradient::LINEAR, fillLinearGrad.getProperty(kGradientPropertyType).getInteger());
     auto colorRange = fillLinearGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
@@ -3064,8 +3066,8 @@ TEST_F(GraphicTest, GradientChecks)
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     fill = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fill.isGradient());
-    auto& fillRadialGrad = fill.getGradient();
+    ASSERT_TRUE(fill.is<Gradient>());
+    auto& fillRadialGrad = fill.get<Gradient>();
     ASSERT_EQ(Gradient::RADIAL, fillRadialGrad.getProperty(kGradientPropertyType).getInteger());
     colorRange = fillRadialGrad.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
@@ -3196,9 +3198,9 @@ TEST_F(GraphicTest, DefaultGraphicFilter)
 
     ASSERT_EQ(kGraphicElementTypeGroup, child->getType());
     auto filterArray = child->getValue(kGraphicPropertyFilters);
-    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_TRUE(filterArray.isArray());
     ASSERT_EQ(1, filterArray.size());
-    auto graphicFilter = filterArray.at(0).getGraphicFilter();
+    auto graphicFilter = filterArray.at(0).get<GraphicFilter>();
     ASSERT_EQ(kGraphicFilterTypeDropShadow, graphicFilter.getType());
     ASSERT_TRUE(IsEqual(Color::BLACK, graphicFilter.getValue(kGraphicPropertyFilterColor)));
     ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterHorizontalOffset)));
@@ -3208,14 +3210,14 @@ TEST_F(GraphicTest, DefaultGraphicFilter)
     auto path = child->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
     filterArray = path->getValue(kGraphicPropertyFilters);
-    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_TRUE(filterArray.isArray());
     ASSERT_EQ(Object::EMPTY_ARRAY(), filterArray);
 
     auto text = child->getChildAt(1);
     ASSERT_EQ(kGraphicElementTypeText, text->getType());
     filterArray = text->getValue(kGraphicPropertyFilters);
-    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
-    graphicFilter = filterArray.at(0).getGraphicFilter();
+    ASSERT_TRUE(filterArray.isArray());
+    graphicFilter = filterArray.at(0).get<GraphicFilter>();
     ASSERT_EQ(kGraphicFilterTypeDropShadow, graphicFilter.getType());
     ASSERT_TRUE(IsEqual(Color::BLACK, graphicFilter.getValue(kGraphicPropertyFilterColor)));
     ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterHorizontalOffset)));
@@ -3301,9 +3303,9 @@ TEST_F(GraphicTest, GraphicFilterArray)
 
     ASSERT_EQ(kGraphicElementTypeGroup, child->getType());
     auto filterArray = child->getValue(kGraphicPropertyFilters);
-    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_TRUE(filterArray.isArray());
     ASSERT_EQ(1, filterArray.size());
-    auto graphicFilter = filterArray.at(0).getGraphicFilter();
+    auto graphicFilter = filterArray.at(0).get<GraphicFilter>();
     ASSERT_EQ(kGraphicFilterTypeDropShadow, graphicFilter.getType());
     ASSERT_TRUE(IsEqual(Color(Color::GREEN), graphicFilter.getValue(kGraphicPropertyFilterColor)));
     ASSERT_TRUE(IsEqual(1, graphicFilter.getValue(kGraphicPropertyFilterHorizontalOffset)));
@@ -3313,11 +3315,11 @@ TEST_F(GraphicTest, GraphicFilterArray)
     auto path = child->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
     filterArray = path->getValue(kGraphicPropertyFilters);
-    ASSERT_EQ(rapidjson::kArrayType, filterArray.getType());
+    ASSERT_TRUE(filterArray.isArray());
     ASSERT_EQ(2, filterArray.size());
 
     // check value of first filter
-    graphicFilter = filterArray.at(0).getGraphicFilter();
+    graphicFilter = filterArray.at(0).get<GraphicFilter>();
     ASSERT_EQ(kGraphicFilterTypeDropShadow, graphicFilter.getType());
     ASSERT_TRUE(IsEqual(Color::BLACK, graphicFilter.getValue(kGraphicPropertyFilterColor)));
     ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterHorizontalOffset)));
@@ -3325,7 +3327,7 @@ TEST_F(GraphicTest, GraphicFilterArray)
     ASSERT_TRUE(IsEqual(0, graphicFilter.getValue(kGraphicPropertyFilterVerticalOffset)));
 
     // check value of second filter
-    graphicFilter = filterArray.at(1).getGraphicFilter();
+    graphicFilter = filterArray.at(1).get<GraphicFilter>();
     ASSERT_EQ(kGraphicFilterTypeDropShadow, graphicFilter.getType());
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), graphicFilter.getValue(kGraphicPropertyFilterColor)));
     ASSERT_TRUE(IsEqual(-1, graphicFilter.getValue(kGraphicPropertyFilterHorizontalOffset)));

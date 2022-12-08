@@ -16,6 +16,10 @@
 #ifndef APL_EXTENSION_RESOURCE_PROVIDER_H
 #define APL_EXTENSION_RESOURCE_PROVIDER_H
 
+#include <functional>
+#include <memory>
+#include <string>
+
 #include "extensionresourceholder.h"
 
 namespace alexaext {

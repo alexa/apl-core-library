@@ -160,22 +160,22 @@ static const char *RTL_THREE_CHILDREN_WIDE = R"(
 TEST_F(LayoutDirectionText, RTLThreeChildrenWide)
 {
     loadDocument(RTL_THREE_CHILDREN_WIDE);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(Object(kLayoutDirectionRTL), component->getCalculated(kPropertyLayoutDirection));
-    ASSERT_EQ(Rect(10, 30, 994, 730), component->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(10, 30, 994, 730), component->getCalculated(kPropertyInnerBounds).get<Rect>());
     ASSERT_EQ(3, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(904, 30, 100, 200), child->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(904, 30, 100, 200), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(804, 30, 100, 200), child->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(804, 30, 100, 200), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).get<Rect>());
 
     child = component->getChildAt(2);
-    ASSERT_EQ(Rect(704, 30, 100, 200), child->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(704, 30, 100, 200), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).get<Rect>());
 }
 
 /*
@@ -210,18 +210,18 @@ static const char *RTL_OVERLY_TALL_CHILDREN = R"(
 TEST_F(LayoutDirectionText, RTLOverlyTallChildren)
 {
     loadDocument(RTL_OVERLY_TALL_CHILDREN);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(Object(kLayoutDirectionRTL), component->getCalculated(kPropertyLayoutDirection));
     ASSERT_EQ(3, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(924, 0, 100, 400), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(924, 0, 100, 400), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(924, 400, 100, 400), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(924, 400, 100, 400), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);
-    ASSERT_EQ(Rect(924, 800, 100, 400), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(924, 800, 100, 400), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 /*
@@ -637,12 +637,12 @@ TEST_F(LayoutDirectionText, RTLAbsolutePosition)
     // If top is set, bottom is ignored.
     // Also in RTL, if right is set, left is ignored.
     loadDocument(RTL_ABSOLUTE_POSITION);
-    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(Object(kLayoutDirectionRTL), component->getCalculated(kPropertyLayoutDirection));
     ASSERT_EQ(1, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(904, 10, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(904, 10, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *RTL_RELATIVE_POSITION = R"(
@@ -673,12 +673,12 @@ TEST_F(LayoutDirectionText, RTLRelativePosition)
     // If top is set, bottom is ignored.
     // Also in RTL, if right is set, left is ignored.
     loadDocument(RTL_RELATIVE_POSITION);
-    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(Object(kLayoutDirectionRTL), component->getCalculated(kPropertyLayoutDirection));
     ASSERT_EQ(1, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(904, 10, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(904, 10, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *RTL_ALIGN_ITEMS_START = R"(
@@ -710,21 +710,21 @@ static const char *RTL_ALIGN_ITEMS_START = R"(
 TEST_F(LayoutDirectionText, RTLAlignItemsStart)
 {
     loadDocument(RTL_ALIGN_ITEMS_START);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(Object(kLayoutDirectionRTL), component->getCalculated(kPropertyLayoutDirection));
     ASSERT_EQ(4, component->getChildCount());
 
     auto child = component->getChildAt(0);  // First child is "auto", which will be right-aligned
-    ASSERT_EQ(Rect(924, 0, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(924, 0, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);  // Second child is "start", which will be right-aligned
-    ASSERT_EQ(Rect(924, 100, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(924, 100, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);  // Third child is "end", which will be left-aligned
-    ASSERT_EQ(Rect(0, 200, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 200, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(3);  // Fourth child is "center", which will be centered
-    ASSERT_EQ(Rect(462, 300, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(462, 300, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *RTL_ALIGN_ITEMS_END = R"(
@@ -756,21 +756,21 @@ static const char *RTL_ALIGN_ITEMS_END = R"(
 TEST_F(LayoutDirectionText, RTLAlignItemsEnd)
 {
     loadDocument(RTL_ALIGN_ITEMS_END);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(Object(kLayoutDirectionRTL), component->getCalculated(kPropertyLayoutDirection));
     ASSERT_EQ(4, component->getChildCount());
 
     auto child = component->getChildAt(0);  // First child is "auto", which will be left-aligned
-    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);  // Second child is "start", which will be right-aligned
-    ASSERT_EQ(Rect(924, 100, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(924, 100, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);  // Third child is "end", which will be left-aligned
-    ASSERT_EQ(Rect(0, 200, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 200, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(3);  // Fourth child is "center", which will be centered
-    ASSERT_EQ(Rect(462, 300, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(462, 300, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 /*
@@ -803,14 +803,14 @@ static const char *RTL_JUSTIFY_END = R"(
 TEST_F(LayoutDirectionText, RTLJustifyEnd)
 {
     loadDocument(RTL_JUSTIFY_END);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(2, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(100, 0, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(100, 0, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *DOC_LAYOUTDIRECTION_PROPERTY_DEFAULT = R"(

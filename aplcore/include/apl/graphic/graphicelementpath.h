@@ -27,7 +27,9 @@ public:
 
     GraphicElementPath(const GraphicPtr& graphic, const ContextPtr& context) : GraphicElement(graphic, context) {}
     GraphicElementType getType() const override { return kGraphicElementTypePath; }
-    std::string toDebugString() const override { return "GraphicElementPath<>"; }
+    std::string toDebugString() const override {
+        return std::string("GraphicElementPath<") + mUniqueId + ">";
+    }
 
 protected:
     const GraphicPropDefSet& propDefSet() const override;

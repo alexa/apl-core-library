@@ -125,13 +125,13 @@ TEST_F(BuilderTestSequence, SimpleHorizontalSequenceRTL)
 {
     loadDocument(SIMPLE_HORIZONTAL_SEQUENCE_RTL);
     advanceTime(10);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(kScrollDirectionHorizontal, component->getCalculated(kPropertyScrollDirection).asInt());
 
     for (int i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(624-400*i, 0, 400, 800), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(624-400*i, 0, 400, 800), child->getCalculated(kPropertyBounds).get<Rect>());
     }
 
     // Children
@@ -391,7 +391,7 @@ TEST_F(BuilderTestSequence, LayoutCacheHorizontalRTL)
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 5), true));
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(100 - 100*i, 0, 100, 800), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(100 - 100*i, 0, 100, 800), child->getCalculated(kPropertyBounds).get<Rect>());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(100 - 100*i + 100, 0, 100, 800), rect);

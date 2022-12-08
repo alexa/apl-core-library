@@ -77,7 +77,7 @@ calculateNormal(const GraphicFilterPropDef& def,
 Object
 GraphicFilter::create(const Context& context, const Object& object)
 {
-    if (object.isGraphicFilter())
+    if (object.is<GraphicFilter>())
         return object;
 
     if (!object.isMap())

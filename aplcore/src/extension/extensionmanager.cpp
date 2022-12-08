@@ -167,7 +167,7 @@ ExtensionManager::findAndCreateExtensionComponent(const std::string& componentTy
     if (componentDef != nullptr) {
         MakeComponentFunc func = [this, componentDef](const ContextPtr& context, Properties&& properties, const Path& path){
           auto component = ExtensionComponent::create(*componentDef, context, std::move(properties), path);
-          auto extComponent = std::dynamic_pointer_cast<ExtensionComponent>(component);
+          auto extComponent = ExtensionComponent::cast(component);
           this->addExtensionComponent(extComponent->getResourceID(), extComponent);
           return component;
         };

@@ -31,13 +31,13 @@ public:
 
     void postProcessLayoutChanges() override;
 
-    void release() override;
-
 protected:
     const EventPropertyMap& eventPropertyMap() const override;
     const ComponentPropDefSet& propDefSet() const override;
 
     std::string getVisualContextType() const override;
+
+    void releaseSelf() override;
 
     /// Media component trait overrides
     std::vector<URLRequest> getSources() override;

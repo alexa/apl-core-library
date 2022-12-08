@@ -35,10 +35,10 @@ TEST(FilterTest, Basic)
     JsonData json(R"({"type":"Blur", "radius": 10})");
     auto f = Filter::create(*context, json.get());
 
-    ASSERT_TRUE(f.isFilter());
-    ASSERT_EQ(kFilterTypeBlur, f.getFilter().getType());
-    ASSERT_TRUE(IsEqual(Dimension(10), f.getFilter().getValue(kFilterPropertyRadius)));
-    ASSERT_TRUE(IsEqual(-1, f.getFilter().getValue(kFilterPropertySource)));
+    ASSERT_TRUE(f.is<Filter>());
+    ASSERT_EQ(kFilterTypeBlur, f.get<Filter>().getType());
+    ASSERT_TRUE(IsEqual(Dimension(10), f.get<Filter>().getValue(kFilterPropertyRadius)));
+    ASSERT_TRUE(IsEqual(-1, f.get<Filter>().getValue(kFilterPropertySource)));
 }
 
 TEST(FilterTest, BadFilter)
@@ -48,7 +48,7 @@ TEST(FilterTest, BadFilter)
     JsonData json(R"({"type":"Blurry", "radius": 10})");
     auto f = Filter::create(*context, json.get());
 
-    ASSERT_FALSE(f.isFilter());
+    ASSERT_FALSE(f.is<Filter>());
     ASSERT_EQ(Object::NULL_OBJECT(), f);
 }
 
@@ -86,8 +86,8 @@ TEST(FilterTest, BlendFilter)
     for (auto& m : BLEND_TESTS) {
         JsonData json(m.json);
         auto filterObject = Filter::create(*context, json.get());
-        ASSERT_TRUE(filterObject.isFilter()) << m.json;
-        const auto& filter = filterObject.getFilter();
+        ASSERT_TRUE(filterObject.is<Filter>()) << m.json;
+        const auto& filter = filterObject.get<Filter>();
         ASSERT_EQ(kFilterTypeBlend, filter.getType()) << m.json;
         ASSERT_TRUE(IsEqual(m.destination, filter.getValue(kFilterPropertyDestination))) << m.json;
         ASSERT_TRUE(IsEqual(m.mode, filter.getValue(kFilterPropertyMode))) << m.json;
@@ -122,8 +122,8 @@ TEST(FilterTest, BlurFilter)
     for (auto& m : BLUR_TESTS) {
         JsonData json(m.json);
         auto filterObject = Filter::create(*context, json.get());
-        ASSERT_TRUE(filterObject.isFilter()) << m.json;
-        const auto& filter = filterObject.getFilter();
+        ASSERT_TRUE(filterObject.is<Filter>()) << m.json;
+        const auto& filter = filterObject.get<Filter>();
         ASSERT_EQ(kFilterTypeBlur, filter.getType()) << m.json;
         ASSERT_TRUE(IsEqual(m.radius, filter.getValue(kFilterPropertyRadius))) << m.json;
         ASSERT_TRUE(IsEqual(m.source, filter.getValue(kFilterPropertySource))) << m.json;
@@ -149,8 +149,8 @@ TEST(FilterTest, ColorFilter) {
     for (auto& m : COLOR_TESTS) {
         JsonData json(m.json);
         auto filterObject = Filter::create(*context, json.get());
-        ASSERT_TRUE(filterObject.isFilter()) << m.json;
-        const auto& filter = filterObject.getFilter();
+        ASSERT_TRUE(filterObject.is<Filter>()) << m.json;
+        const auto& filter = filterObject.get<Filter>();
         ASSERT_EQ(kFilterTypeColor, filter.getType()) << m.json;
         ASSERT_TRUE(IsEqual(m.color, filter.getValue(kFilterPropertyColor))) << m.json;
     }
@@ -198,15 +198,15 @@ TEST(FilterTest, GradientFilter) {
     for (auto& m : GRADIENT_TESTS) {
         JsonData json(m.json);
         auto filterObject = Filter::create(*context, json.get());
-        ASSERT_TRUE(filterObject.isFilter()) << m.json;
-        const auto& filter = filterObject.getFilter();
+        ASSERT_TRUE(filterObject.is<Filter>()) << m.json;
+        const auto& filter = filterObject.get<Filter>();
         ASSERT_EQ(kFilterTypeGradient, filter.getType()) << m.json;
 
         const auto& gradient = filter.getValue(kFilterPropertyGradient);
         if (m.type == static_cast<Gradient::GradientType>(-1)) {
             ASSERT_TRUE(gradient.isNull()) << m.json;
         } else {
-            const auto& g = gradient.getGradient();
+            const auto& g = gradient.get<Gradient>();
             ASSERT_EQ(m.type, g.getType()) << m.json;
             ASSERT_EQ(m.colorRange, g.getProperty(kGradientPropertyColorRange).getArray()) << m.json;
             ASSERT_EQ(m.inputRange, g.getProperty(kGradientPropertyInputRange).getArray()) << m.json;
@@ -236,10 +236,10 @@ TEST(FilterTest, GrayscaleFilter)
     for (auto& m : GRAYSCALE_TESTS) {
         JsonData json(m.json);
         auto f = Filter::create(*context, json.get());
-        ASSERT_TRUE(f.isFilter()) << m.json;
-        ASSERT_EQ(kFilterTypeGrayscale, f.getFilter().getType()) << m.json;
-        ASSERT_TRUE(IsEqual(m.amount, f.getFilter().getValue(kFilterPropertyAmount))) << m.json;
-        ASSERT_TRUE(IsEqual(m.source, f.getFilter().getValue(kFilterPropertySource))) << m.json;
+        ASSERT_TRUE(f.is<Filter>()) << m.json;
+        ASSERT_EQ(kFilterTypeGrayscale, f.get<Filter>().getType()) << m.json;
+        ASSERT_TRUE(IsEqual(m.amount, f.get<Filter>().getValue(kFilterPropertyAmount))) << m.json;
+        ASSERT_TRUE(IsEqual(m.source, f.get<Filter>().getValue(kFilterPropertySource))) << m.json;
     }
 }
 
@@ -268,12 +268,12 @@ TEST(FilterTest, NoiseFilter)
     for (auto& m : NOISE_TESTS) {
         JsonData json(m.json);
         auto f = Filter::create(*context, json.get());
-        ASSERT_TRUE(f.isFilter()) << m.json;
-        ASSERT_EQ(kFilterTypeNoise, f.getFilter().getType()) << m.json;
-        ASSERT_TRUE(IsEqual(m.useColor, f.getFilter().getValue(kFilterPropertyUseColor))) << m.json;
-        ASSERT_TRUE(IsEqual(m.kind, f.getFilter().getValue(kFilterPropertyKind))) << m.json;
-        ASSERT_TRUE(IsEqual(m.sigma, f.getFilter().getValue(kFilterPropertySigma))) << m.json;
-        ASSERT_TRUE(IsEqual(m.source, f.getFilter().getValue(kFilterPropertySource))) << m.json;
+        ASSERT_TRUE(f.is<Filter>()) << m.json;
+        ASSERT_EQ(kFilterTypeNoise, f.get<Filter>().getType()) << m.json;
+        ASSERT_TRUE(IsEqual(m.useColor, f.get<Filter>().getValue(kFilterPropertyUseColor))) << m.json;
+        ASSERT_TRUE(IsEqual(m.kind, f.get<Filter>().getValue(kFilterPropertyKind))) << m.json;
+        ASSERT_TRUE(IsEqual(m.sigma, f.get<Filter>().getValue(kFilterPropertySigma))) << m.json;
+        ASSERT_TRUE(IsEqual(m.source, f.get<Filter>().getValue(kFilterPropertySource))) << m.json;
     }
 }
 
@@ -298,10 +298,10 @@ TEST(FilterTest, SaturateFilter)
     for (auto& m : SATURATE_TESTS) {
         JsonData json(m.json);
         auto f = Filter::create(*context, json.get());
-        ASSERT_TRUE(f.isFilter()) << m.json;
-        ASSERT_EQ(kFilterTypeSaturate, f.getFilter().getType()) << m.json;
-        ASSERT_TRUE(IsEqual(m.amount, f.getFilter().getValue(kFilterPropertyAmount))) << m.json;
-        ASSERT_TRUE(IsEqual(m.source, f.getFilter().getValue(kFilterPropertySource))) << m.json;
+        ASSERT_TRUE(f.is<Filter>()) << m.json;
+        ASSERT_EQ(kFilterTypeSaturate, f.get<Filter>().getType()) << m.json;
+        ASSERT_TRUE(IsEqual(m.amount, f.get<Filter>().getValue(kFilterPropertyAmount))) << m.json;
+        ASSERT_TRUE(IsEqual(m.source, f.get<Filter>().getValue(kFilterPropertySource))) << m.json;
     }
 }
 
@@ -313,8 +313,8 @@ TEST(FilterTest, ResourceSubstitution)
 
     JsonData json(R"({"type": "Blur", "radius": "${@filterSize * 2}"})");
     auto f = Filter::create(*context, json.get());
-    ASSERT_TRUE(f.isFilter());
-    ASSERT_EQ(Object(Dimension(20)), f.getFilter().getValue(kFilterPropertyRadius));
+    ASSERT_TRUE(f.is<Filter>());
+    ASSERT_EQ(Object(Dimension(20)), f.get<Filter>().getValue(kFilterPropertyRadius));
 }
 
 static const char *COMPONENT_FILTER =
@@ -342,8 +342,8 @@ TEST_F(FilterTestDocument, InComponent)
 
     auto filters = component->getCalculated(kPropertyFilters);
     ASSERT_EQ(1, filters.size());
-    ASSERT_EQ(kFilterTypeBlur, filters.at(0).getFilter().getType());
-    ASSERT_EQ(Object(Dimension(20)), filters.at(0).getFilter().getValue(kFilterPropertyRadius));
+    ASSERT_EQ(kFilterTypeBlur, filters.at(0).get<Filter>().getType());
+    ASSERT_EQ(Object(Dimension(20)), filters.at(0).get<Filter>().getValue(kFilterPropertyRadius));
 }
 
 static const char *COMPONENT_MIXED_FILTERS =
@@ -378,13 +378,13 @@ TEST_F(FilterTestDocument, InComponentMixed)
     auto filters = component->getCalculated(kPropertyFilters);
     ASSERT_EQ(2, filters.size());
 
-    ASSERT_EQ(kFilterTypeNoise, filters.at(0).getFilter().getType());
-    ASSERT_TRUE(IsEqual(true, filters.at(0).getFilter().getValue(kFilterPropertyUseColor)));
-    ASSERT_TRUE(IsEqual(kFilterNoiseKindGaussian, filters.at(0).getFilter().getValue(kFilterPropertyKind)));
-    ASSERT_TRUE(IsEqual(10, filters.at(0).getFilter().getValue(kFilterPropertySigma)));
+    ASSERT_EQ(kFilterTypeNoise, filters.at(0).get<Filter>().getType());
+    ASSERT_TRUE(IsEqual(true, filters.at(0).get<Filter>().getValue(kFilterPropertyUseColor)));
+    ASSERT_TRUE(IsEqual(kFilterNoiseKindGaussian, filters.at(0).get<Filter>().getValue(kFilterPropertyKind)));
+    ASSERT_TRUE(IsEqual(10, filters.at(0).get<Filter>().getValue(kFilterPropertySigma)));
 
-    ASSERT_EQ(kFilterTypeBlur, filters.at(1).getFilter().getType());
-    ASSERT_TRUE(IsEqual(Dimension(10), filters.at(1).getFilter().getValue(kFilterPropertyRadius)));
+    ASSERT_EQ(kFilterTypeBlur, filters.at(1).get<Filter>().getType());
+    ASSERT_TRUE(IsEqual(Dimension(10), filters.at(1).get<Filter>().getValue(kFilterPropertyRadius)));
 
     ASSERT_TRUE(ConsoleMessage()); // The Blurry filter should have generated a console message
 }
@@ -431,9 +431,9 @@ TEST_F(FilterTestDocument, ExtensionWithSource)
     ASSERT_EQ(1, filters.size());
 
     auto filterObject = filters.at(0);
-    ASSERT_TRUE(filterObject.isFilter());
+    ASSERT_TRUE(filterObject.is<Filter>());
 
-    const auto& filter = filterObject.getFilter();
+    const auto& filter = filterObject.get<Filter>();
     ASSERT_EQ(kFilterTypeExtension, filter.getType());
     ASSERT_TRUE(IsEqual("aplext:CannyEdgeFilters:10", filter.getValue(kFilterPropertyExtensionURI)));
     ASSERT_TRUE(IsEqual("FindEdges", filter.getValue(kFilterPropertyName)));
@@ -486,9 +486,9 @@ TEST_F(FilterTestDocument, ExtensionWithSourceAndDestination)
     ASSERT_EQ(1, filters.size());
 
     auto filterObject = filters.at(0);
-    ASSERT_TRUE(filterObject.isFilter());
+    ASSERT_TRUE(filterObject.is<Filter>());
 
-    const auto& filter = filterObject.getFilter();
+    const auto& filter = filterObject.get<Filter>();
     ASSERT_EQ(kFilterTypeExtension, filter.getType());
     ASSERT_TRUE(IsEqual("aplext:MorphingFilters:10", filter.getValue(kFilterPropertyExtensionURI)));
     ASSERT_TRUE(IsEqual("MergeTwo", filter.getValue(kFilterPropertyName)));
@@ -546,9 +546,9 @@ TEST_F(FilterTestDocument, ExtensionNoInputImages)
     ASSERT_EQ(1, filters.size());
 
     auto filterObject = filters.at(0);
-    ASSERT_TRUE(filterObject.isFilter());
+    ASSERT_TRUE(filterObject.is<Filter>());
 
-    const auto& filter = filterObject.getFilter();
+    const auto& filter = filterObject.get<Filter>();
     ASSERT_EQ(kFilterTypeExtension, filter.getType());
     ASSERT_TRUE(IsEqual("aplext:NoiseGeneration:10", filter.getValue(kFilterPropertyExtensionURI)));
     ASSERT_TRUE(IsEqual("Perlin", filter.getValue(kFilterPropertyName)));

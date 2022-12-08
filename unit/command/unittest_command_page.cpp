@@ -55,7 +55,7 @@ public:
                     << ", actual: " << actualId;
         }
 
-        auto actualBounds = child->getCalculated(kPropertyBounds).getRect();
+        auto actualBounds = child->getCalculated(kPropertyBounds).get<Rect>();
         if (bounds != actualBounds) {
             return ::testing::AssertionFailure()
                     << "child " << idx

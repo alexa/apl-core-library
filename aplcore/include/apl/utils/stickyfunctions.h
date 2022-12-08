@@ -43,10 +43,18 @@ void updateStickyOffset(const CoreComponentPtr &component);
 Point calculateStickyOffset(const CoreComponentPtr &component);
 
 /**
- * Traverse up the ancestors and find the nearest horizontal and vertical scrollables if they exist
+ * Traverse up the ancestors and find the nearest horizontal and vertical scrollables if they exist,
+ * starting with parent of component
  */
 std::pair<CoreComponentPtr, CoreComponentPtr>
 getAncestorHorizontalAndVerticalScrollable(const CoreComponentPtr &component);
+
+/**
+ * Traverse up the ancestors and find the nearest horizontal and vertical scrollables if they exist,
+ * starting with component
+ */
+std::pair<CoreComponentPtr, CoreComponentPtr>
+getHorizontalAndVerticalScrollable(const CoreComponentPtr &component);
 
 }  // namespace stickyfunctions
 

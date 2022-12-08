@@ -36,6 +36,12 @@ ExtensionComponent::create(const ExtensionComponentDefinition& definition,
     return component;
 }
 
+std::shared_ptr<ExtensionComponent>
+ExtensionComponent::cast(const std::shared_ptr<Component>& component) {
+    return component && component->getType() == ComponentType::kComponentTypeExtension
+            ? std::static_pointer_cast<ExtensionComponent>(component) : nullptr;
+}
+
 ExtensionComponent::ExtensionComponent(const ExtensionComponentDefinition& definition,
                                        const ContextPtr& context, Properties&& properties,
                                        const Path& path)
@@ -77,7 +83,7 @@ const EventPropertyMap &
 ExtensionComponent::eventPropertyMap() const
 {
     static auto getType = [](const CoreComponent *c) {
-        auto extensionComp = dynamic_cast<const ExtensionComponent*>(c);
+        const auto* extensionComp = (const ExtensionComponent*)c;
         if (extensionComp != nullptr) {
             return extensionComp->mDefinition.getName();
         }
@@ -85,11 +91,11 @@ ExtensionComponent::eventPropertyMap() const
     };
 
     static auto getResourceId = [](const CoreComponent *c) {
-      auto extensionComp = dynamic_cast<const ExtensionComponent*>(c);
-      if (extensionComp != nullptr) {
-          return extensionComp->getResourceID();
-      }
-      return std::string();
+        const auto* extensionComp = (const ExtensionComponent*)c;
+        if (extensionComp != nullptr) {
+            return extensionComp->getResourceID();
+        }
+        return std::string();
     };
 
     static EventPropertyMap sExtensionComponentEventProperties = EventPropertyMap({
@@ -100,10 +106,10 @@ ExtensionComponent::eventPropertyMap() const
 }
 
 void
-ExtensionComponent::release()
+ExtensionComponent::releaseSelf()
 {
-    CoreComponent::release();
     getContext()->extensionManager().removeExtensionComponent(getResourceID());
+    CoreComponent::releaseSelf();
 }
 
 void
@@ -184,7 +190,7 @@ void
 ExtensionComponent::notifyExtension(bool acquireResource) {
     // Notify the extension the component has changed
     auto extManager = getContext()->extensionManager();
-    extManager.notifyComponentUpdate(std::static_pointer_cast<ExtensionComponent>(shared_from_this()), acquireResource);
+    extManager.notifyComponentUpdate(ExtensionComponent::cast(shared_from_this()), acquireResource);
 }
 
 

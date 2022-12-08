@@ -44,7 +44,7 @@ TouchableComponent::setGestureHandlers()
 {
     auto handlers = getCalculated(kPropertyGestures).getArray();
     for (auto& handler : handlers) {
-        auto gesture = Gesture::create(std::dynamic_pointer_cast<TouchableComponent>(shared_from_this()), handler);
+        auto gesture = Gesture::create(std::static_pointer_cast<TouchableComponent>(shared_from_this()), handler);
         if (gesture) {
             mGestureHandlers.emplace_back(gesture);
         }

@@ -156,7 +156,7 @@ TEST_F(StylesTest, Basic)
     ASSERT_EQ(2, base->size());
     ASSERT_TRUE(base->find("fontFamily") != base->end());
     ASSERT_EQ(Object("Amazon Ember"), base->at("fontFamily"));
-    ASSERT_TRUE(base->at("color").isColor());
+    ASSERT_TRUE(base->at("color").is<Color>());
     ASSERT_EQ(0xf0f1efff, base->at("color").getColor());
 
     // Sanity check that path values match rapidjson Pointer architecture

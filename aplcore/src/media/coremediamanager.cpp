@@ -169,7 +169,7 @@ CoreMediaManager::mediaLoadComplete(
         return;
     }
 
-    auto mediaObject = std::dynamic_pointer_cast<CoreMediaObject>(ptr);
+    auto mediaObject = std::static_pointer_cast<CoreMediaObject>(ptr);
     if (!mediaObject) {
         LOG(LogLevel::kError) << "Unrecognized media object type";
         return;

@@ -16,7 +16,6 @@
  */
 
 
-#include <stdexcept>
 #include <cmath>
 
 #include "apl/component/containercomponent.h"
@@ -264,7 +263,7 @@ Builder::expandSingleComponent(const ContextPtr& context,
 
         CoreComponentPtr oldComponent;
         if(mOld) {
-            oldComponent = std::dynamic_pointer_cast<CoreComponent>(
+            oldComponent = CoreComponent::cast(
                 mOld->findComponentById(component->getId()));
             copyPreservedBindings(component, oldComponent);
         }

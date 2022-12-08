@@ -28,7 +28,7 @@ compareCurve(const TestCurve& testCurve,
 {
     for (double t = 0.0; t <= 1.0; t += 0.01) {
         for (int index = 0; index < testCurve.dof(); index++) {
-            if (::abs(testCurve.position(t, index) - approx->getPosition(t, index)) > epsilon)
+            if (std::abs(testCurve.position(t, index) - approx->getPosition(t, index)) > epsilon)
                 return ::testing::AssertionFailure()
                        << " position mismatch at percentage=" << t << " index=" << index
                        << " expected=" << testCurve.position(t, index)

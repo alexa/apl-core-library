@@ -120,4 +120,10 @@ LiveMapObject::handleMapMessage(const LiveMapChange& change)
     markDirty();
 }
 
+std::shared_ptr<LiveDataObject>
+LiveMapObject::ObjectType::getLiveDataObject(const Object::DataHolder& dataHolder) const
+{
+    return std::static_pointer_cast<LiveDataObject>(dataHolder.data);
+}
+
 } // namespace apl

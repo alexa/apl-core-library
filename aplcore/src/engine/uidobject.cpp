@@ -19,9 +19,10 @@
 
 namespace apl {
 
-UIDObject::UIDObject(const ContextPtr& context)
+UIDObject::UIDObject(const ContextPtr& context, UIDObject::UIDObjectType type)
     : mUniqueId(context->uniqueIdManager().create(this)),
-      mContext(context)
+      mContext(context),
+      mType(type)
 {}
 
 UIDObject::~UIDObject()

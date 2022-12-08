@@ -109,7 +109,7 @@ Logger::session(const ComponentPtr& component)
 Logger&
 Logger::session(const ConstCommandPtr& command)
 {
-    return command ? session(std::dynamic_pointer_cast<const CoreCommand>(command)->context()->session()) : *this;
+    return command ? session(std::static_pointer_cast<const CoreCommand>(command)->context()->session()) : *this;
 }
 
 void

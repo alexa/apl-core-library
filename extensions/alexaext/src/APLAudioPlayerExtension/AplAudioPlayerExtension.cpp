@@ -275,6 +275,7 @@ AplAudioPlayerExtension::invokeCommand(const std::string &uri, const rapidjson::
         auto offset = GetWithDefault<int>(PROPERTY_OFFSET, *params, -1);
         if (offset < 0)
             return false;
+        updatePlaybackProgress(offset);
         mObserver->onAudioPlayerSeekToPosition(offset);
         return true;
     }
@@ -389,8 +390,6 @@ AplAudioPlayerExtension::updatePlayerActivity(const std::string &state, int offs
     if (std::find(PLAYER_ACTIVITY.begin(), PLAYER_ACTIVITY.end(), state) == PLAYER_ACTIVITY.end()) {
         return;
     }
-    if (offset < 100)
-        return;
 
     mPlaybackStateActivity = state;
     mPlaybackStateOffset = offset;

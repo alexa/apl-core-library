@@ -18,7 +18,7 @@
 
 #include <memory>
 
-#include "apl/primitives/objectdata.h"
+#include "apl/primitives/objecttype.h"
 #include "apl/engine/context.h"
 #include "apl/livedata/liveobject.h"
 
@@ -58,7 +58,7 @@ public:
     /**
      * @return The object type contained
      */
-    virtual Object::ObjectType getType() const = 0;
+    virtual LiveObject::ObjectType getType() const = 0;
 
     /**
      * @return This object as a live array object or nullptr if that is invalid.

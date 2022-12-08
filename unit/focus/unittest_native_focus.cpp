@@ -53,7 +53,7 @@ public:
     eventGlobalBoundsEqual(const ComponentPtr& ptr, const Event& event) {
         Rect expectedBounds;
         ptr->getBoundsInParent(component, expectedBounds);
-        auto eventBounds = event.getValue(kEventPropertyValue).getRect();
+        auto eventBounds = event.getValue(kEventPropertyValue).get<Rect>();
         if (expectedBounds != eventBounds) {
             return ::testing::AssertionFailure()
                 << "Reported bounds. "
@@ -4864,7 +4864,7 @@ TEST_F(NativeFocusTest, RuntimeAPIFocusSimple)
     auto& fm = root->context().focusManager();
 
     // Let's say we want to focus 21
-    auto child = std::dynamic_pointer_cast<CoreComponent>(root->findComponentById("21"));
+    auto child = CoreComponent::cast(root->findComponentById("21"));
     auto result = root->setFocus(
         FocusDirection::kFocusDirectionRight,
         Rect(-100, 100, 100, 100),
@@ -4885,7 +4885,7 @@ TEST_F(NativeFocusTest, RuntimeAPIFocusablesParentPager)
 TEST_F(NativeFocusTest, RuntimeAPIFocusParentPager)
 {
     loadDocument(TOUCHABLE_PAGER);
-    auto child = std::dynamic_pointer_cast<CoreComponent>(root->findComponentById("pager"));
+    auto child = CoreComponent::cast(root->findComponentById("pager"));
     executeCommand("SetPage", {{"componentId", "pager"}, {"position", "relative"}, {"value", 1}}, false);
     advanceTime(1000);
 
@@ -4898,7 +4898,7 @@ TEST_F(NativeFocusTest, RuntimeAPIFocusParentPager)
         child->getUniqueId());
 
     ASSERT_TRUE(result);
-    child = std::dynamic_pointer_cast<CoreComponent>(root->findComponentById("1"));
+    child = CoreComponent::cast(root->findComponentById("1"));
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));
 }
@@ -4915,14 +4915,14 @@ TEST_F(NativeFocusTest, RuntimeAPIFocusParentSequence)
     loadDocument(SEQUENCE_WITH_TOUCHABLES);
     auto& fm = root->context().focusManager();
 
-    auto child = std::dynamic_pointer_cast<CoreComponent>(root->findComponentById("scrollable"));
+    auto child = CoreComponent::cast(root->findComponentById("scrollable"));
     auto result = root->setFocus(
         FocusDirection::kFocusDirectionRight,
         Rect(-100, 100, 100, 100),
         child->getUniqueId());
 
     ASSERT_TRUE(result);
-    child = std::dynamic_pointer_cast<CoreComponent>(root->findComponentById("0"));
+    child = CoreComponent::cast(root->findComponentById("0"));
     LOG(LogLevel::kWarn) << fm.getFocus()->getId();
     ASSERT_EQ(child, fm.getFocus());
     ASSERT_TRUE(verifyFocusSwitchEvent(child, root->popEvent()));

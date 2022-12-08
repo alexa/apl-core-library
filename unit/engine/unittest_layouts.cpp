@@ -472,7 +472,7 @@ TEST_F(LayoutTest, TypedLayoutParameterDefault)
     ASSERT_EQ(kComponentTypeText, text->getType());
 
     ASSERT_EQ("150dp", text->getCalculated(kPropertyText).asString());
-    ASSERT_EQ(Rect(0, 0, 300, 300), text->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 300, 300), text->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 const char *DIMENSION_PARAMETER =
@@ -524,5 +524,5 @@ TEST_F(LayoutTest, TypedLayoutParameter)
     ASSERT_EQ(kComponentTypeText, text->getType());
 
     ASSERT_EQ("100dp", text->getCalculated(kPropertyText).asString());
-    ASSERT_EQ(Rect(0, 0, 200, 200), text->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 200, 200), text->getCalculated(kPropertyBounds).get<Rect>());
 }

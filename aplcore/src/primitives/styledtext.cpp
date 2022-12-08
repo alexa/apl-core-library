@@ -19,7 +19,9 @@
 
 #include <tao/pegtl.hpp>
 
-#include "apl/primitives/object.h"
+#include "apl/primitives/objectdata.h"
+#include "apl/primitives/color.h"
+#include "apl/primitives/dimension.h"
 #include "apl/primitives/unicode.h"
 #include "apl/primitives/styledtext.h"
 #include "apl/primitives/styledtextstate.h"
@@ -238,8 +240,8 @@ template<> struct action< hexentity >
 StyledText
 StyledText::create(const Context& context, const Object& object)
 {
-    if (object.isStyledText())
-        return object.getStyledText();
+    if (object.is<StyledText>())
+        return object.get<StyledText>();
 
     return {context, object.asString()};
 }
@@ -350,6 +352,74 @@ StyledText::Iterator::next() {
 size_t
 StyledText::Iterator::spanCount() {
     return mStyledText.mSpans.size();
+}
+
+std::string
+StyledText::ObjectType::asString(const Object::DataHolder& dataHolder) const
+{
+    return get<StyledText>(dataHolder).asString();
+}
+
+double
+StyledText::ObjectType::asNumber(const Object::DataHolder& dataHolder) const
+{
+    return aplFormattedStringToDouble(get<StyledText>(dataHolder).asString());
+}
+
+int
+StyledText::ObjectType::asInt(const Object::DataHolder& dataHolder, int base) const
+{
+    return sutil::stoi(get<StyledText>(dataHolder).asString(), nullptr, base);
+}
+
+int64_t
+StyledText::ObjectType::asInt64(const Object::DataHolder& dataHolder, int base) const
+{
+    return sutil::stoll(get<StyledText>(dataHolder).asString(), nullptr, base);
+}
+
+Color
+StyledText::ObjectType::asColor(const Object::DataHolder& dataHolder, const apl::SessionPtr& session) const
+{
+    return Color(session, get<StyledText>(dataHolder).asString());
+}
+
+Dimension
+StyledText::ObjectType::asDimension(const Object::DataHolder& dataHolder, const Context& context) const
+{
+    return Dimension(context, get<StyledText>(dataHolder).asString());
+}
+
+Dimension
+StyledText::ObjectType::asAbsoluteDimension(const Object::DataHolder& dataHolder, const Context& context) const
+{
+    auto d = Dimension(context, get<StyledText>(dataHolder).asString());
+    return (d.getType() == DimensionType::Absolute ? d : Dimension(DimensionType::Absolute, 0));
+}
+
+Dimension
+StyledText::ObjectType::asNonAutoDimension(const Object::DataHolder& dataHolder, const Context& context) const
+{
+    auto d = Dimension(context, get<StyledText>(dataHolder).asString());
+    return (d.getType() == DimensionType::Auto ? Dimension(DimensionType::Absolute, 0) : d);
+}
+Dimension
+StyledText::ObjectType::asNonAutoRelativeDimension(const Object::DataHolder& dataHolder, const Context& context) const
+{
+    auto d = Dimension(context, get<StyledText>(dataHolder).asString(), true);
+    return (d.getType() == DimensionType::Auto ? Dimension(DimensionType::Relative, 0) : d);
+}
+
+std::uint64_t
+StyledText::ObjectType::size(const Object::DataHolder& dataHolder) const
+{
+    return get<StyledText>(dataHolder).asString().size();
+}
+
+size_t
+StyledText::ObjectType::hash(const Object::DataHolder& dataHolder) const
+{
+    return std::hash<std::string>{}(get<StyledText>(dataHolder).getRawText());
 }
 
 } // namespace apl

@@ -48,10 +48,10 @@ PagerComponent::PagerComponent(const ContextPtr& context,
 {}
 
 void
-PagerComponent::release()
+PagerComponent::releaseSelf()
 {
     mCurrentAnimation = nullptr;
-    ActionableComponent::release();
+    ActionableComponent::releaseSelf();
 }
 
 inline Object
@@ -86,7 +86,7 @@ PagerComponent::propDefSet() const {
         for (size_t index = 0 ; index < component.getChildCount() ; index++) {
             auto child = component.getChildAt(index);
             if (child->getId() == id || child->getUniqueId() == id) {
-                dynamic_cast<PagerComponent&>(component).setPageImmediate(index);
+                ((PagerComponent&)component).setPageImmediate((int)index);
                 return;
             }
         }
@@ -97,7 +97,7 @@ PagerComponent::propDefSet() const {
     };
 
     static auto setPageIndex = [](CoreComponent& component, const Object& value) -> void {
-        dynamic_cast<PagerComponent&>(component).setPageImmediate(value.asInt());
+        ((PagerComponent&)component).setPageImmediate(value.asInt());
     };
 
     static ComponentPropDefSet sPagerComponentProperties(ActionableComponent::propDefSet(), {
@@ -116,6 +116,12 @@ PagerComponent::propDefSet() const {
     return sPagerComponentProperties;
 }
 
+std::shared_ptr<PagerComponent>
+PagerComponent::cast(const std::shared_ptr<Component>& component) {
+    return component && component->getType() == ComponentType::kComponentTypePager
+               ? std::static_pointer_cast<PagerComponent>(component) : nullptr;
+}
+
 void
 PagerComponent::initialize() {
     CoreComponent::initialize();
@@ -125,7 +131,7 @@ PagerComponent::initialize() {
     mCalculated.set(kPropertyCurrentPage, currentPage);
 
     // If native gestures enabled - register them.
-    mGestureHandlers.emplace_back(PagerFlingGesture::create(std::static_pointer_cast<ActionableComponent>(shared_from_this())));
+    mGestureHandlers.emplace_back(PagerFlingGesture::create(ActionableComponent::cast(shared_from_this())));
 }
 
 void
@@ -182,7 +188,10 @@ PagerComponent::setPageUtil(
         const ActionRef& ref,
         bool skipDefaultAnimation)
 {
-   std::dynamic_pointer_cast<PagerComponent>(target)->handleSetPage(index, direction, ref, skipDefaultAnimation);
+    if (target->getType() == ComponentType::kComponentTypePager) {
+        std::static_pointer_cast<PagerComponent>(target)->handleSetPage(index, direction, ref,
+                                                                         skipDefaultAnimation);
+    }
 }
 
 void
@@ -209,7 +218,7 @@ PagerComponent::handleSetPage(int index, PageDirection direction, const ActionRe
     startPageMove(direction, currentPage, index);
 
     // Animate if required.
-    std::weak_ptr<PagerComponent> weak_ptr(std::dynamic_pointer_cast<PagerComponent>(shared_from_this()));
+    std::weak_ptr<PagerComponent> weak_ptr(std::static_pointer_cast<PagerComponent>(shared_from_this()));
     disableGestures();
     if (mPageMoveHandler && !(mPageMoveHandler->isDefault() && skipDefaultAnimation)) {
         auto duration = getRootConfig().getDefaultPagerAnimationDuration();
@@ -310,7 +319,7 @@ isOnPage(const CoreComponentPtr& pager, const CoreComponentPtr& child, const Cor
     auto comp = targetComponent;
     while (comp && comp != pager) {
         if (comp == child) return true;
-        comp = std::static_pointer_cast<CoreComponent>(comp->getParent());
+        comp = CoreComponent::cast(comp->getParent());
     }
     return false;
 }
@@ -597,9 +606,9 @@ PagerComponent::insertChild(const CoreComponentPtr& child, size_t index, bool us
 }
 
 void
-PagerComponent::removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag)
+PagerComponent::removeChildAfterMarkedRemoved(const CoreComponentPtr& child, size_t index, bool useDirtyFlag)
 {
-    CoreComponent::removeChild(child, index, useDirtyFlag);
+    CoreComponent::removeChildAfterMarkedRemoved(child, index, useDirtyFlag);
     mContext->layoutManager().removeAsTopNode(child);
     int currentPage = getCalculated(kPropertyCurrentPage).asInt();
     if (currentPage >= index && currentPage != 0) {
@@ -768,7 +777,7 @@ PagerComponent::takeFocusFromChild(FocusDirection direction, const Rect& origin)
 {
     auto targetDirection = focusDirectionToPage(direction);
     if (targetDirection != kPageDirectionNone) {
-        auto bounds = getCalculated(kPropertyBounds).getRect();
+        const auto& bounds = getCalculated(kPropertyBounds).get<Rect>();
         Rect offsetRect = origin.empty() ? Rect(0, 0, bounds.getWidth(), bounds.getHeight()) : origin;
         switch(direction) {
             case kFocusDirectionLeft:
@@ -792,9 +801,9 @@ PagerComponent::takeFocusFromChild(FocusDirection direction, const Rect& origin)
 
         auto allowedPageDirection = pageDirection();
         if (allowedPageDirection == kPageDirectionBoth || targetDirection == allowedPageDirection) {
-            const int childCount = getChildCount();
+            const auto childCount = getChildCount();
             const auto delta = targetDirection == kPageDirectionForward ? 1 : -1;
-            const auto targetPage = (pagePosition() + delta + childCount) % childCount;
+            const auto targetPage = (int)((pagePosition() + delta + childCount) % childCount);
             // Reset any running commands that may affect page position.
             getContext()->sequencer().releaseResource({kExecutionResourcePosition, shared_from_this()});
             setPageUtil(getContext(), shared_from_corecomponent(), targetPage, targetDirection, ActionRef(nullptr));

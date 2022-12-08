@@ -140,8 +140,8 @@ ScrollGesture::getVelocityLimit(const Point& travel) {
 
     auto maxTravel = scrollable->isVertical() ? mActionable->getContext()->height()
                                               : mActionable->getContext()->width();
-    auto velocityEasing = scrollable->isVertical() ? rootConfig.getProperty(RootProperty::kScrollFlingVelocityLimitEasingVertical).getEasing()
-                                                   : rootConfig.getProperty(RootProperty::kScrollFlingVelocityLimitEasingHorizontal).getEasing();
+    auto velocityEasing = scrollable->isVertical() ? rootConfig.getProperty(RootProperty::kScrollFlingVelocityLimitEasingVertical).get<Easing>()
+                                                   : rootConfig.getProperty(RootProperty::kScrollFlingVelocityLimitEasingHorizontal).get<Easing>();
 
     auto directionalTravel = std::abs(scrollable->isVertical() ? travel.getY() : travel.getX());
 

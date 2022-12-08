@@ -500,6 +500,7 @@ static const char* EVENT_MESSAGE = R"(
     "uri": "alexaext:test:10",
     "target": "alexaext:test:10",
     "name": "myEvent",
+    "resourceId": "myResource",
     "payload": {
         "key1": 1,
         "key2": true,
@@ -522,6 +523,7 @@ TEST_F(ExtensionMessageTest, Event) {
 
     Document rhsDoc = Event("1.2.3").uri(URI)
             .name("myEvent")
+            .resourceId("myResource")
             .property("key1", 1)
             .property("key2", true)
             .property("key3", "three")

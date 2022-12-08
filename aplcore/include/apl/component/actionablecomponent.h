@@ -56,6 +56,12 @@ public:
      */
     virtual bool isVertical() const { return false; }
 
+    /**
+     * @param component Pointer to cast.
+     * @return Casted pointer to this type, nullptr if not possible.
+     */
+    static std::shared_ptr<ActionableComponent> cast(const std::shared_ptr<Component>& component);
+
     /// CoreComponent overrides
     bool isActionable() const override { return true; }
     bool canConsumeFocusDirectionEvent(FocusDirection direction, bool fromInside) override { return !fromInside; }
@@ -69,7 +75,7 @@ protected:
     bool executeKeyHandlers(KeyHandlerType type, const Keyboard& keyboard) override;
     bool executeIntrinsicKeyHandlers(KeyHandlerType type, const Keyboard& keyboard) override;
     const ComponentPropDefSet& propDefSet() const override;
-    void release() override;
+    void releaseSelf() override;
 
     ActionableComponent(const ContextPtr& context, Properties&& properties, const Path& path) :
             CoreComponent(context, std::move(properties), path), mGesturesDisabled(false) {}

@@ -23,8 +23,7 @@ add_executable( unittest
         testeventloop.cpp
         debugtools.cpp
         unittest_simpletextmeasurement.cpp
-        unittest_testeventloop.cpp
-)
+        unittest_testeventloop.cpp)
 
 if (BUILD_ENUMGEN)
     target_sources(unittest PRIVATE

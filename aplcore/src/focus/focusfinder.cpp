@@ -189,7 +189,7 @@ FocusFinder::getImplicitFocusRoot(const CoreComponentPtr& focused, FocusDirectio
     CoreComponentPtr prevParent = parent;
     do {
         prevParent = parent;
-        parent = std::dynamic_pointer_cast<CoreComponent>(prevParent->getParent());
+        parent = CoreComponent::cast(prevParent->getParent());
         // If parent can't take focus in direction we want - expand the search.
         if(parent && parent->isFocusable() && parent->canConsumeFocusDirectionEvent(direction, true)) {
             return parent;
@@ -208,7 +208,7 @@ childIsVisible(const CoreComponentPtr& root, const CoreComponentPtr& child)
         if (current->getCalculated(kPropertyDisplay).asInt() != kDisplayNormal ||
             current->getCalculated(kPropertyOpacity).getDouble() <= 0)
             return false;
-        current = std::dynamic_pointer_cast<CoreComponent>(current->getParent());
+        current = CoreComponent::cast(current->getParent());
     }
     return true;
 }
@@ -234,7 +234,7 @@ FocusFinder::isValidCandidate(
     }
 
     // Check if child is actually in parent's viewport.
-    auto rootSize = root->getCalculated(kPropertyBounds).getRect().getSize();
+    auto rootSize = root->getCalculated(kPropertyBounds).get<Rect>().getSize();
     auto scrollPosition = root->scrollPosition();
     auto rootBounds = Rect(scrollPosition.getX(), scrollPosition.getY(), rootSize.getWidth(), rootSize.getHeight());
     if (candidateRect.intersect(rootBounds).empty()) {

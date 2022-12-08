@@ -18,6 +18,7 @@
 
 #include <string>
 #include "apl/utils/streamer.h"
+#include "apl/primitives/objecttype.h"
 
 namespace apl {
 
@@ -105,6 +106,181 @@ public:
     DimensionType getType() const { return mType; }
 
     friend streamer& operator<<(streamer&, const Dimension&);
+
+    class DimensionObjectType : public BaseObjectType<Dimension> {
+    public:
+        bool isDimension() const final { return true; }
+
+        bool equals(const Object::DataHolder& lhs, const Object::DataHolder& rhs) const override {
+            return lhs.value == rhs.value;
+        }
+    };
+
+    class AutoDimensionObjectType final : public TrueObjectType<Dimension> {
+    public:
+        static ObjectTypeRef instance() {
+            static Dimension::AutoDimensionObjectType sType;
+            return &sType;
+        }
+
+        bool isAutoDimension() const override { return true; }
+
+        std::string asString(const Object::DataHolder& dataHolder) const override { return "auto"; }
+
+        Dimension asDimension(const Object::DataHolder& dataHolder, const Context&) const override {
+            return Dimension(DimensionType::Auto, 0);
+        }
+
+        std::size_t hash(const Object::DataHolder&) const override {
+            return std::hash<std::string>{}("auto");
+        }
+
+        rapidjson::Value serialize(
+            const Object::DataHolder&,
+            rapidjson::Document::AllocatorType& allocator) const override
+        {
+            return rapidjson::Value("auto", allocator);
+        }
+
+        std::string toDebugString(const Object::DataHolder&) const override { return "AutoDim"; }
+
+        bool equals(const Object::DataHolder&, const Object::DataHolder&) const override {
+            return true;
+        }
+    };
+
+    class RelativeDimensionObjectType final : public DimensionObjectType {
+    public:
+        static ObjectTypeRef instance() {
+            static Dimension::RelativeDimensionObjectType sType;
+            return &sType;
+        }
+
+        bool isRelativeDimension() const override { return true; }
+
+        bool isNonAutoDimension() const override { return true; }
+
+        std::string asString(const Object::DataHolder& dataHolder) const override {
+            return doubleToAplFormattedString(dataHolder.value) + "%";
+        }
+
+        Dimension asDimension(const Object::DataHolder& dataHolder, const Context&) const override {
+            return Dimension(DimensionType::Relative, dataHolder.value);
+        }
+
+        Dimension asNonAutoDimension(
+            const Object::DataHolder& dataHolder,
+            const Context&) const override
+        {
+            return Dimension(DimensionType::Relative, dataHolder.value);
+        }
+
+        Dimension asNonAutoRelativeDimension(
+            const Object::DataHolder& dataHolder,
+            const Context&) const override
+        {
+            return Dimension(DimensionType::Relative, dataHolder.value);
+        }
+
+        double getRelativeDimension(const Object::DataHolder& dataHolder) const override {
+            return dataHolder.value;
+        }
+
+        bool truthy(const Object::DataHolder& dataHolder) const override {
+            return dataHolder.value != 0;
+        }
+
+        std::size_t hash(const Object::DataHolder& dataHolder) const override {
+            return std::hash<double>{}(dataHolder.value);
+        }
+
+        rapidjson::Value serialize(
+            const Object::DataHolder& dataHolder,
+            rapidjson::Document::AllocatorType& allocator) const override
+        {
+            return rapidjson::Value((doubleToAplFormattedString(dataHolder.value)+"%").c_str(), allocator);
+        }
+
+        std::string toDebugString(const Object::DataHolder& dataHolder) const override {
+            return "RelDim<" + sutil::to_string(dataHolder.value) + ">";
+        }
+    };
+
+    class AbsoluteDimensionObjectType final : public DimensionObjectType {
+    public:
+        static ObjectTypeRef instance() {
+            static Dimension::AbsoluteDimensionObjectType sType;
+            return &sType;
+        }
+
+        bool isAbsoluteDimension() const override { return true; }
+
+        bool isNonAutoDimension() const override { return true; }
+
+        std::string asString(const Object::DataHolder& dataHolder) const override {
+            return doubleToAplFormattedString(dataHolder.value) + "dp";
+        }
+
+        double asNumber(const Object::DataHolder& dataHolder) const override {
+            return dataHolder.value;
+        }
+
+        int asInt(const Object::DataHolder& dataHolder, int base) const override {
+            return std::lround(dataHolder.value);
+        }
+
+        int64_t asInt64(const Object::DataHolder& dataHolder, int base) const override {
+            return std::llround(dataHolder.value);
+        }
+
+        Dimension asDimension(const Object::DataHolder& dataHolder, const Context&) const override {
+            return Dimension(DimensionType::Absolute, dataHolder.value);
+        }
+
+        Dimension asAbsoluteDimension(
+            const Object::DataHolder& dataHolder,
+            const Context&) const override
+        {
+            return Dimension(DimensionType::Absolute, dataHolder.value);
+        }
+
+        Dimension asNonAutoDimension(
+            const Object::DataHolder& dataHolder,
+            const Context&) const override
+        {
+            return Dimension(DimensionType::Absolute, dataHolder.value);
+        }
+
+        Dimension asNonAutoRelativeDimension(
+            const Object::DataHolder& dataHolder,
+            const Context&) const override
+        {
+            return Dimension(DimensionType::Absolute, dataHolder.value);
+        }
+
+        double getAbsoluteDimension(const Object::DataHolder& dataHolder) const override {
+            return dataHolder.value;
+        }
+
+        bool truthy(const Object::DataHolder& dataHolder) const override {
+            return dataHolder.value != 0;
+        }
+
+        std::size_t hash(const Object::DataHolder& dataHolder) const override {
+            return std::hash<double>{}(dataHolder.value);
+        }
+
+        rapidjson::Value serialize(
+            const Object::DataHolder& dataHolder,
+            rapidjson::Document::AllocatorType& allocator) const override
+        {
+            return rapidjson::Value(std::isfinite(dataHolder.value) ? dataHolder.value : 0);
+        }
+
+        std::string toDebugString(const Object::DataHolder& dataHolder) const override {
+            return "AbsDim<" + sutil::to_string(dataHolder.value) + ">";
+        }
+    };
 
 private:
     DimensionType mType;

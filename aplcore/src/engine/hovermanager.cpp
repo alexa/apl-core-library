@@ -89,7 +89,7 @@ HoverManager::findHoverByPosition(const Point& position) const {
 
     auto target = top->findComponentAtPosition(position);
 
-    return std::static_pointer_cast<CoreComponent>(target);
+    return CoreComponent::cast(target);
 }
 
 

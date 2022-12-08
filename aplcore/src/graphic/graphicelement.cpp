@@ -31,12 +31,12 @@ namespace apl {
 
 Object
 GraphicElement::asAvgFill(const Context& context, const Object& object) {
-    if (object.isGraphicPattern() || object.isGradient() || object.isColor())
+    if (object.is<GraphicPattern>() || object.is<Gradient>() || object.is<Color>())
         return object;
 
     if (object.isMap()) {
         auto gradient = asAvgGradient(context, object);
-        if (gradient.isGradient()) return gradient;
+        if (gradient.is<Gradient>()) return gradient;
     }
 
     return asColor(context, object);
@@ -45,7 +45,7 @@ GraphicElement::asAvgFill(const Context& context, const Object& object) {
 /**************************************************************************/
 
 GraphicElement::GraphicElement(const GraphicPtr& graphic, const ContextPtr& context)
-    : UIDObject(context),
+    : UIDObject(context, UIDObject::UIDObjectType::GRAPHIC_ELEMENT),
       mGraphic(graphic)
 {
 }
@@ -261,7 +261,7 @@ GraphicElement::updateTransform(const Context& context, GraphicPropertyKey inKey
                        ? Transform2D()
                        : Transform2D::parse(context.session(), inTransformStr);
 
-    auto currentTransform = mValues.get(outKey).getTransform2D();
+    const auto& currentTransform = mValues.get(outKey).get<Transform2D>();
 
     if (inTransform != currentTransform) {
         mValues.set(outKey, Object(std::move(inTransform)));
@@ -304,7 +304,7 @@ GraphicElement::getSceneGraph(sg::SceneGraphUpdates& sceneGraph)
         if (!filters.empty()) {
             // Build up the filter list in reverse order
             for (int i = 0; i < filters.size(); i++) {
-                const auto& filter = filters.at(i).getGraphicFilter();
+                const auto& filter = filters.at(i).get<GraphicFilter>();
                 switch (filter.getType()) {
                     case kGraphicFilterTypeDropShadow:
                         mSceneGraphNode = sg::shadowNode(
@@ -334,11 +334,6 @@ GraphicElement::updateSceneGraph(sg::ModifiedNodeList& modList)
     updateSceneGraphInternal(modList, mInnerSceneGraphNode);
 }
 
-bool
-GraphicElement::needsRedraw() const
-{
-    return mSceneGraphNode ? mSceneGraphNode->needsRedraw() : false;
-}
 #endif // SCENEGRAPH
 
 } // namespace apl

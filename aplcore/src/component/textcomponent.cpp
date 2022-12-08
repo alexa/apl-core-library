@@ -58,7 +58,7 @@ TextComponent::TextComponent(const ContextPtr& context,
         return self->baselineText(width, height);
     };
 
-    if (dynamic_cast<sg::TextMeasurement *>(mContext->measure().get())) {
+    if (mContext->measure()->sceneGraphCompatible()) {
         YGNodeSetMeasureFunc(mYGNodeRef, sgTextMeasureFunc);
         YGNodeSetBaselineFunc(mYGNodeRef, sgTextBaselineFunc);
     } else {
@@ -89,12 +89,12 @@ TextComponent::propDefSet() const
     };
 
     static auto karaokeTargetColorTrigger = [](Component& component) -> void {
-        auto& text = dynamic_cast<TextComponent&>(component);
+        auto& text = (TextComponent&)component;
         text.checkKaraokeTargetColor();
     };
 
     static auto fixTextAlignTrigger = [](Component& component) -> void {
-      auto& coreComp = dynamic_cast<TextComponent&>(component);
+      auto& coreComp = (TextComponent&)component;
       coreComp.updateTextAlign(true);
 #ifdef SCENEGRAPH
       coreComp.mTextProperties = nullptr;
@@ -104,7 +104,7 @@ TextComponent::propDefSet() const
 
     static auto fixTextTrigger = [](Component& component) -> void {
 #ifdef SCENEGRAPH
-      auto& coreComp = dynamic_cast<TextComponent&>(component);
+      auto& coreComp = (TextComponent&)component;
       coreComp.mTextProperties = nullptr;
       coreComp.mLayout = nullptr;
 #endif // SCENEGRAPH
@@ -112,7 +112,7 @@ TextComponent::propDefSet() const
 
     static auto fixTextChunkTrigger = [](Component& component) -> void {
 #ifdef SCENEGRAPH
-        auto& coreComp = dynamic_cast<TextComponent&>(component);
+        auto& coreComp = (TextComponent&)component;
         coreComp.mTextChunk = nullptr;
         coreComp.mLayout = nullptr;
 #endif // SCENEGRAPH
@@ -146,7 +146,7 @@ TextComponent::eventPropertyMap() const
     static EventPropertyMap sTextEventProperties = eventPropertyMerge(
             CoreComponent::eventPropertyMap(),
             {
-                    {"text",  [](const CoreComponent *c) { return c->getCalculated(kPropertyText).getStyledText().getText(); }},
+                    {"text",  [](const CoreComponent *c) { return c->getCalculated(kPropertyText).get<StyledText>().getText(); }},
                     {"color", [](const CoreComponent *c) { return c->getCalculated(kPropertyColor); }},
             });
 
@@ -312,7 +312,7 @@ TextComponent::getVisualContextType() const
 Point
 TextComponent::calcSceneGraphOffset() const
 {
-    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect();
+    const auto& innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();
     auto textSize = mLayout ? mLayout->getSize() : Size{};
 
     float dx = 0;
@@ -367,7 +367,7 @@ TextComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) {
 
     auto transform = sg::transform(calcSceneGraphOffset(), nullptr);
     populateTextNodes(sg::TransformNode::cast(transform));
-    layer->appendContent(transform);
+    layer->setContent(transform);
 
     return layer;
 }
@@ -403,7 +403,7 @@ TextComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) {
 bool
 TextComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
 {
-    auto* transform = sg::TransformNode::cast(mSceneGraphLayer->content().front());
+    auto* transform = sg::TransformNode::cast(mSceneGraphLayer->content());
     auto* text = sg::TextNode::cast(transform->child());
 
     ensureSGTextLayout();
@@ -441,43 +441,45 @@ TextComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
 void
 TextComponent::populateTextNodes(sg::Node *transform)
 {
-    const auto range = getCalculated(kPropertyRangeKaraokeTarget).getRange();
+    const auto range = getCalculated(kPropertyRangeKaraokeTarget).get<Range>();
     const auto lineCount = mLayout->getLineCount();
     const auto lineRange = lineCount > 0 ? Range(0, lineCount - 1) : Range();
 
     // Calculate Karaoke strips if needed
     if (!range.empty() && lineCount > 0) {
+        sg::NodePtr child = nullptr;
 
-        // Identify lines BEFORE the karaoke range
-        auto subrange = lineRange.subsetBelow(range.lowerBound());
+        // Build up the child list in reverse order.  Start with lines beyond the karaoke range
+        auto subrange = lineRange.subsetAbove(range.upperBound());
         if (!subrange.empty())
-            transform->appendChild(sg::text(
-                mLayout, sg::fill(sg::paint(getCalculated(kPropertyColor))), subrange));
+            child = sg::text(mLayout, sg::fill(sg::paint(getCalculated(kPropertyColor))), subrange);
 
         // Lines within the karaoke range
         subrange = lineRange.intersectWith(range);
         if (!subrange.empty())
-            transform->appendChild(sg::text(
-                mLayout, sg::fill(sg::paint(getCalculated(kPropertyColorKaraokeTarget))),
-                subrange));
+            child =
+                sg::text(mLayout, sg::fill(sg::paint(getCalculated(kPropertyColorKaraokeTarget))),
+                         subrange)
+                    ->setNext(child);
 
-        // Lines beyond the karaoke range
-        subrange = lineRange.subsetAbove(range.upperBound());
+        // Identify lines BEFORE the karaoke range
+        subrange = lineRange.subsetBelow(range.lowerBound());
         if (!subrange.empty())
-            transform->appendChild(sg::text(
-                mLayout, sg::fill(sg::paint(getCalculated(kPropertyColor))), subrange));
+            child = sg::text(mLayout, sg::fill(sg::paint(getCalculated(kPropertyColor))), subrange)
+                        ->setNext(child);
+
+        transform->setChild(child);
     }
     else {
-        transform->appendChild(sg::text(
-            mLayout, sg::fill(sg::paint(getCalculated(kPropertyColor)))));
+        transform->setChild(sg::text(mLayout, sg::fill(sg::paint(getCalculated(kPropertyColor)))));
     }
 }
 
 YGSize
 TextComponent::measureText(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)
 {
-    auto *tm = dynamic_cast<sg::TextMeasurement *>(mContext->measure().get());
-    assert(tm);
+    assert(mContext->measure()->sceneGraphCompatible());
+    auto *tm = (sg::TextMeasurement *)(mContext->measure().get());
 
     // TODO: Hash and check for cache hits
     ensureTextProperties();
@@ -495,8 +497,8 @@ TextComponent::baselineText(float width, float height)
 {
     // Make the large assumption that Yoga needs baseline information with a text layout
     if (!mLayout) {
-        auto *tm = dynamic_cast<sg::TextMeasurement *>(mContext->measure().get());
-        assert(tm);
+        assert(mContext->measure()->sceneGraphCompatible());
+        auto *tm = (sg::TextMeasurement *)(mContext->measure().get());
         ensureTextProperties();
         mLayout = tm->layout(mTextChunk, mTextProperties, width, MeasureMode::Undefined,
                              height, MeasureMode::Undefined);
@@ -523,10 +525,10 @@ TextComponent::ensureSGTextLayout()
             return;
     }
 
-    auto measure = std::dynamic_pointer_cast<sg::TextMeasurement>(mContext->measure());
-    assert(measure);
+    assert(mContext->measure()->sceneGraphCompatible());
+    auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
 
-    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect();
+    const auto& innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();
 
     ensureTextProperties();
     mLayout = measure->layout(mTextChunk, mTextProperties, innerBounds.getWidth(),
@@ -537,7 +539,7 @@ void
 TextComponent::ensureTextProperties()
 {
     if (!mTextChunk)
-        mTextChunk = sg::TextChunk::create(getCalculated(kPropertyText).getStyledText());
+        mTextChunk = sg::TextChunk::create(getCalculated(kPropertyText).get<StyledText>());
 
     if (!mTextProperties)
         mTextProperties = sg::TextProperties::create(
@@ -557,7 +559,7 @@ TextComponent::ensureTextProperties()
 bool
 TextComponent::setKaraokeLine(Range byteRange)
 {
-    const auto& previousLineRange = mCalculated.get(kPropertyRangeKaraokeTarget).getRange();
+    const auto& previousLineRange = mCalculated.get(kPropertyRangeKaraokeTarget).get<Range>();
 
     if (byteRange.empty()) {
         if (!previousLineRange.empty()) {
@@ -573,7 +575,7 @@ TextComponent::setKaraokeLine(Range byteRange)
     auto lineRange = mLayout->getLineRangeFromByteRange(byteRange);
 
     if (previousLineRange != lineRange) {
-        mCalculated.set(kPropertyRangeKaraokeTarget, lineRange);
+        mCalculated.set(kPropertyRangeKaraokeTarget, std::move(lineRange));
         setDirty(kPropertyRangeKaraokeTarget);
         return true;
     }
@@ -584,7 +586,7 @@ TextComponent::setKaraokeLine(Range byteRange)
 Rect
 TextComponent::getKaraokeBounds()
 {
-    const auto& range = mCalculated.get(kPropertyRangeKaraokeTarget).getRange();
+    const auto& range = mCalculated.get(kPropertyRangeKaraokeTarget).get<Range>();
     if (range.empty())
         return {};
 

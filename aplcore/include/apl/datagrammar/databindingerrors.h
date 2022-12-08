@@ -32,12 +32,17 @@ namespace datagrammar {
  * @tparam Rule The base type for the rules
  */
 template< typename Rule >
-struct error_control : tao::pegtl::normal< Rule > {
+struct error_control : apl_control< Rule > {
     static const GrammarError error_value;
 
+    template< typename Input, typename... States>
+    static void fail( const Input& in, fail_state& failState, States&&...) {
+        failState.fail(errorToString(error_value), in);
+    }
+
     template<typename Input, typename... States>
-    static void raise(const Input &in, States &&...) {
-        throw tao::pegtl::parse_error(errorToString(error_value), in);
+    static void raise(const Input &in, States &&... st) {
+        fail(in, st...);
     }
 };
 

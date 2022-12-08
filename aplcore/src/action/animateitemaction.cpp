@@ -42,7 +42,7 @@ AnimateItemAction::AnimateItemAction(const TimersPtr& timers,
       mRepeatCount(command->getValue(kCommandPropertyRepeatCount).asInt()),
       mRepeatMode(command->getValue(kCommandPropertyRepeatMode).asInt()),
       mFastMode(fastMode),
-      mEasing(command->getValue(kCommandPropertyEasing).getEasing())
+      mEasing(command->getValue(kCommandPropertyEasing).get<Easing>())
 {}
 
 void

@@ -147,6 +147,8 @@ class CommandSchema;
 
 class LiveDataSchema;
 
+class ComponentSchema;
+
 /**
  * Extension Schema builder.
  * The extension schema defines the extension api that is exposed to the execution environment.
@@ -164,6 +166,7 @@ public:
         TYPES().Set(*mValue, rapidjson::Value(rapidjson::kArrayType), *mAllocator);
         COMMANDS().Set(*mValue, rapidjson::Value(rapidjson::kArrayType), *mAllocator);
         LIVE_DATA().Set(*mValue, rapidjson::Value(rapidjson::kArrayType), *mAllocator);
+        COMPONENTS().Set(*mValue, rapidjson::Value(rapidjson::kArrayType), *mAllocator);
     }
 
     static const rapidjson::Pointer& TYPE() {
@@ -264,6 +267,20 @@ public:
 
     static const rapidjson::Pointer& LIVE_DATA() {
         static const rapidjson::Pointer ptr("/liveData");
+        return ptr;
+    }
+
+    /**
+     * Add a extension component definition.
+     */
+    ExtensionSchema& component(const std::string& name,
+                               const std::function<void(ComponentSchema&)>& builder = nullptr) {
+        factoryPush<ComponentSchema>(COMPONENTS(), builder, name);
+        return *this;
+    }
+
+    static const rapidjson::Pointer& COMPONENTS() {
+        static const rapidjson::Pointer ptr("/components");
         return ptr;
     }
 };
@@ -391,12 +408,12 @@ public:
     }
 
     EventSchema fastMode(bool fastMode) {
-        FAST_MODE().Set(*mValue, fastMode, *mAllocator);
+        FAST_MODE().Set(*mValue, fastMode ? "FAST" : "NORMAL", *mAllocator);
         return *this;
     }
 
     static const rapidjson::Pointer& FAST_MODE() {
-        static const rapidjson::Pointer ptr("/fastMode");
+        static const rapidjson::Pointer ptr("/mode");
         return ptr;
     }
 };
@@ -578,6 +595,66 @@ public:
 
     static const rapidjson::Pointer& COLLAPSE() {
         static const rapidjson::Pointer ptr("/collapse");
+        return ptr;
+    }
+};
+
+class ComponentSchema : public SchemaBuilder {
+public:
+    explicit ComponentSchema(rapidjson::Document::AllocatorType* allocator,
+                             const std::string& name)
+        : SchemaBuilder(allocator) {
+        NAME().Set(*mValue, name.c_str(), *mAllocator);
+        PROPERTIES().Set(*mValue, rapidjson::Value(rapidjson::kObjectType), *mAllocator);
+        EVENTS().Set(*mValue, rapidjson::Value(rapidjson::kArrayType), *mAllocator);
+    }
+
+    ComponentSchema& resourceType(const std::string& resourceType) {
+        RESOURCE_TYPE().Set(*mValue, resourceType.c_str(), *mAllocator);
+        return *this;
+    }
+
+    ComponentSchema& context(const std::string& context) {
+        CONTEXT().Set(*mValue, context.c_str(), *mAllocator);
+        return *this;
+    }
+
+    ComponentSchema& event(const std::string& name,
+                           const std::function<void(EventSchema&)>& builder = nullptr) {
+        factoryPush<EventSchema>(EVENTS(), builder, name);
+        return *this;
+    }
+
+    ComponentSchema& property(const std::string& name, const std::string& type) {
+        PROPERTIES().Get(*mValue)->AddMember(rapidjson::Value(name.c_str(), *mAllocator),
+                                             rapidjson::Value(type.c_str(), *mAllocator), *mAllocator);
+        return *this;
+    }
+
+    ComponentSchema& property(const std::string& name,
+                              const std::function<void(TypePropertySchema&)>& builder = nullptr) {
+        factoryAdd<TypePropertySchema>(PROPERTIES(), name, builder);
+        return *this;
+    }
+
+
+    static const rapidjson::Pointer& RESOURCE_TYPE() {
+        static const rapidjson::Pointer ptr("/resourceType");
+        return ptr;
+    }
+
+    static const rapidjson::Pointer& CONTEXT() {
+        static const rapidjson::Pointer ptr("/context");
+        return ptr;
+    }
+
+    static const rapidjson::Pointer& EVENTS() {
+        static const rapidjson::Pointer ptr("/events");
+        return ptr;
+    }
+
+    static const rapidjson::Pointer& PROPERTIES() {
+        static const rapidjson::Pointer ptr("/properties");
         return ptr;
     }
 };

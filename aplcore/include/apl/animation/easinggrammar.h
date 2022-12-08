@@ -16,10 +16,8 @@
 #ifndef _APL_EASING_GRAMMAR_H
 #define _APL_EASING_GRAMMAR_H
 
-#include <tao/pegtl.hpp>
-#include <tao/pegtl/contrib/abnf.hpp>
-
 #include "apl/animation/coreeasing.h"
+#include "apl/datagrammar/grammarpolyfill.h"
 #include "apl/utils/log.h"
 #include "apl/utils/stringfunctions.h"
 
@@ -86,7 +84,7 @@ struct action
     : nothing< Rule > {
 };
 
-struct easing_state
+struct easing_state : fail_state
 {
     float lastTime = 0;
     size_t startIndex = 0;
@@ -118,14 +116,18 @@ template<> struct action< path >
     template< typename Input >
     static void apply(const Input& in, easing_state& state) {
         auto argCount = state.args.size() - state.startIndex;
-        if (argCount % 2 == 1)
-            throw parse_error("Path easing function needs an even number of arguments", in);
+        if (argCount % 2 == 1) {
+            state.fail("Path easing function needs an even number of arguments", in);
+            return;
+        }
 
         // Push each linear segment.  Check to ensure time is incrementing
         for (auto offset = state.startIndex ; offset < state.args.size() ; offset += 2) {
             auto time = state.args.at(offset);
-            if (time <= state.lastTime || time >= 1)
-                throw parse_error("Path easing function needs ordered array of segments", in);
+            if (time <= state.lastTime || time >= 1) {
+                state.fail("Path easing function needs ordered array of segments", in);
+                return;
+            }
             state.lastTime = time;
             state.segments.emplace_back(EasingSegment(kLinearSegment, offset));
         }
@@ -153,8 +155,10 @@ template<> struct action< cubicbezier >
     template< typename Input >
     static void apply(const Input& in, easing_state& state) {
         auto argCount = state.args.size() - state.startIndex;
-        if (argCount != 4)
-            throw parse_error("Cubic-bezier easing function requires 4 arguments", in);
+        if (argCount != 4) {
+            state.fail("Cubic-bezier easing function requires 4 arguments", in);
+            return;
+        }
 
         // Add a final segment at (1,1)
         state.segments.emplace_back(EasingSegment(kEndSegment, state.args.size()));
@@ -176,12 +180,16 @@ template<> struct action< end >
     template< typename Input >
     static void apply(const Input& in, easing_state& state) {
         auto argCount = state.args.size() - state.startIndex;
-        if (argCount != 2)
-            throw parse_error("End easing function segment requires 2 arguments", in);
+        if (argCount != 2) {
+            state.fail("End easing function segment requires 2 arguments", in);
+            return;
+        }
 
         auto time = state.args.at(state.startIndex);
-        if (time <= state.lastTime && state.startIndex > 0)
-            throw parse_error("End easing function segment cannot start at this time", in);
+        if (time <= state.lastTime && state.startIndex > 0) {
+            state.fail("End easing function segment cannot start at this time", in);
+            return;
+        }
 
         state.lastTime = time;
         state.segments.emplace_back(EasingSegment(kEndSegment, state.startIndex));
@@ -201,12 +209,16 @@ template<> struct action< line >
     template< typename Input >
     static void apply(const Input& in, easing_state& state) {
         auto argCount = state.args.size() - state.startIndex;
-        if (argCount != 2)
-            throw parse_error("Line easing function segment requires 2 arguments", in);
+        if (argCount != 2) {
+            state.fail("Line easing function segment requires 2 arguments", in);
+            return;
+        }
 
         auto time = state.args.at(state.startIndex);
-        if (time <= state.lastTime && state.startIndex > 0)
-            throw parse_error("Line easing function segment cannot start at this time", in);
+        if (time <= state.lastTime && state.startIndex > 0) {
+            state.fail("Line easing function segment cannot start at this time", in);
+            return;
+        }
 
         state.lastTime = time;
         state.segments.emplace_back(EasingSegment(kLinearSegment, state.startIndex));
@@ -226,12 +238,16 @@ template<> struct action< curve >
     template< typename Input >
     static void apply(const Input& in, easing_state& state) {
         auto argCount = state.args.size() - state.startIndex;
-        if (argCount != 6)
-            throw parse_error("Curve easing function segment requires 6 arguments", in);
+        if (argCount != 6) {
+            state.fail("Curve easing function segment requires 6 arguments", in);
+            return;
+        }
 
         auto time = state.args.at(state.startIndex);
-        if (time <= state.lastTime && state.startIndex > 0)
-            throw parse_error("Curve easing function segment cannot start at this time", in);
+        if (time <= state.lastTime && state.startIndex > 0) {
+            state.fail("Curve easing function segment cannot start at this time", in);
+            return;
+        }
 
         state.lastTime = time;
         state.segments.emplace_back(EasingSegment(kCurveSegment, state.startIndex));
@@ -246,16 +262,22 @@ template<> struct action< spatial >
         assert(state.startIndex == 0);
 
         auto argCount = state.args.size();
-        if (argCount != 2)
-            throw parse_error("Wrong number of arguments to spatial", in);
+        if (argCount != 2) {
+            state.fail("Wrong number of arguments to spatial", in);
+            return;
+        }
 
         auto dof = static_cast<int>(state.args.at(0));
-        if (dof < 2)
-            throw parse_error("invalid number of indices in spatial segment", in);
+        if (dof < 2) {
+            state.fail("invalid number of indices in spatial segment", in);
+            return;
+        }
 
         auto index = static_cast<int>(state.args.at(1));
-        if (index < 0 || index >= dof)
-            throw parse_error("select index out of range in spatial segment", in);
+        if (index < 0 || index >= dof) {
+            state.fail("select index out of range in spatial segment", in);
+            return;
+        }
     }
 };
 
@@ -274,13 +296,17 @@ template<> struct action< send >
         auto argCount = state.args.size() - state.startIndex;
 
         // Time, pcount for value
-        auto dof = ::abs(static_cast<int>(state.args[0]));
-        if (argCount != 1 + dof)
-            throw parse_error("Wrong number of arguments to send", in);
+        auto dof = std::abs(static_cast<int>(state.args[0]));
+        if (argCount != 1 + dof) {
+            state.fail("Wrong number of arguments to send", in);
+            return;
+        }
 
         auto time = state.args.at(state.startIndex);
-        if (time <= state.lastTime && !state.segments.empty())
-            throw parse_error("send easing function segment cannot start at this time", in);
+        if (time <= state.lastTime && !state.segments.empty()) {
+            state.fail("send easing function segment cannot start at this time", in);
+            return;
+        }
 
         state.lastTime = time;
         state.segments.emplace_back(EasingSegment(kSEndSegment, state.startIndex));
@@ -302,13 +328,17 @@ template<> struct action< scurve >
         auto argCount = state.args.size() - state.startIndex;
 
         // Time, pcount * 3 for value, tin, tout, 4 for the time curve =
-        auto dof = ::abs(static_cast<int>(state.args[0]));
-        if (argCount != 5 + dof * 3)
-            throw parse_error("Wrong number of arguments to scurve", in);
+        auto dof = std::abs(static_cast<int>(state.args[0]));
+        if (argCount != 5 + dof * 3) {
+            state.fail("Wrong number of arguments to scurve", in);
+            return;
+        }
 
         auto time = state.args.at(state.startIndex);
-        if (time <= state.lastTime && !state.segments.empty())
-            throw parse_error("scurve easing function segment cannot start at this time", in);
+        if (time <= state.lastTime && !state.segments.empty()) {
+            state.fail("scurve easing function segment cannot start at this time", in);
+            return;
+        }
 
         state.lastTime = time;
         state.segments.emplace_back(EasingSegment(kSCurveSegment, state.startIndex));

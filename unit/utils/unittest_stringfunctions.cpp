@@ -191,6 +191,49 @@ TEST(StringFunctionsTest, ParseLongDoubleLiteral)
     }
 }
 
+struct ParseSimpleTestCase {
+    std::string input;
+    long long expectedValue;
+    std::size_t expectedPosition;
+};
+
+static const std::vector<ParseSimpleTestCase> PARSE_SIMPLE_TEST_CASES = {
+    // Finite decimal values
+    {"4", 4, 1},
+    {"-4", -4, 2},
+    {"4.0", 4, 1},
+    {"4.", 4, 1},
+    {"14.5", 14, 2},
+    {"14.5", 14, 2},
+    {"9999999999999999999999999", 0, 18446744073709551615u},
+
+    {"robert", 0, 18446744073709551615u},
+};
+
+TEST(StringFunctionsTest, ParseIntegerLiteral)
+{
+    double max_delta = 1e-6;
+    for (const auto &testCase : PARSE_SIMPLE_TEST_CASES) {
+        std::size_t pos = std::numeric_limits<std::size_t>::max();
+        int parsed = sutil::stoi(testCase.input, &pos);
+
+        ASSERT_NEAR(testCase.expectedValue, parsed, max_delta) << "Input: '" << testCase.input << "'";
+        ASSERT_EQ(testCase.expectedPosition, pos) << "Input: '" << testCase.input << "'";
+    }
+}
+
+TEST(StringFunctionsTest, ParseLongLongLiteral)
+{
+    double max_delta = 1e-6;
+    for (const auto &testCase : PARSE_SIMPLE_TEST_CASES) {
+        std::size_t pos = std::numeric_limits<std::size_t>::max();
+        long long parsed = sutil::stoll(testCase.input, &pos);
+
+        ASSERT_NEAR(testCase.expectedValue, parsed, max_delta) << "Input: '" << testCase.input << "'";
+        ASSERT_EQ(testCase.expectedPosition, pos) << "Input: '" << testCase.input << "'";
+    }
+}
+
 TEST(StringFunctionsTest, FormatFloat)
 {
     ASSERT_EQ("4.000000", sutil::to_string(4.0f));

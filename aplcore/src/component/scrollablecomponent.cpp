@@ -33,7 +33,13 @@ namespace apl {
 ScrollableComponent::ScrollableComponent(const ContextPtr& context, Properties&& properties,
                                          const Path& path) :
     ActionableComponent(context, std::move(properties), path),
-    mStickyTree(std::make_shared<StickyChildrenTree>(*this)) {};
+    mStickyTree(std::make_shared<StickyChildrenTree>(*this)) {}
+
+std::shared_ptr<ScrollableComponent>
+ScrollableComponent::cast(const std::shared_ptr<Component>& component) {
+    return component && CoreComponent::cast(component)->scrollable()
+               ? std::static_pointer_cast<ScrollableComponent>(component) : nullptr;
+}
 
 const ComponentPropDefSet&
 ScrollableComponent::propDefSet() const
@@ -43,7 +49,7 @@ ScrollableComponent::propDefSet() const
     };
 
     static auto setScrollOffset = [](CoreComponent& component, const Object& value) -> void {
-        dynamic_cast<ScrollableComponent&>(component).setScrollPositionDirectly(value.asNumber());
+        ((ScrollableComponent&)component).setScrollPositionDirectly((float)value.asNumber());
     };
 
     static auto getScrollPercent = [](const CoreComponent& component) -> Object {
@@ -57,7 +63,7 @@ ScrollableComponent::propDefSet() const
         } else {
             scrollSize = YGNodeLayoutGetHeight(component.getNode());
         }
-        dynamic_cast<ScrollableComponent&>(component).setScrollPositionDirectly(scrollSize * value.asNumber());
+        ((ScrollableComponent&)component).setScrollPositionDirectly(scrollSize * (float)value.asNumber());
     };
 
     static ComponentPropDefSet sScrollableComponentProperties(ActionableComponent::propDefSet(), {
@@ -148,7 +154,7 @@ void
 ScrollableComponent::initialize()
 {
     ActionableComponent::initialize();
-    mGestureHandlers.emplace_back(ScrollGesture::create(std::static_pointer_cast<ScrollableComponent>(shared_from_this())));
+    mGestureHandlers.emplace_back(ScrollGesture::create(ScrollableComponent::cast(shared_from_this())));
 }
 
 void
@@ -191,7 +197,7 @@ ScrollableComponent::canScroll(FocusDirection direction)
 CoreComponentPtr
 ScrollableComponent::takeFocusFromChild(FocusDirection direction, const Rect& origin)
 {
-    auto bounds = getCalculated(kPropertyBounds).getRect();
+    const auto& bounds = getCalculated(kPropertyBounds).get<Rect>();
     Rect offsetRect = origin;
     if (origin.empty()) {
         // If empty - we simulate entrance from edge opposite to movement direction.

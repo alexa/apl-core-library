@@ -1677,7 +1677,7 @@ TEST_F(DynamicTokenListTest, DeepProgressive) {
     config->dataSourceProvider("testList", source);
 
     loadDocument(BIT_BY_A_BIT_DEEP, BIT_BY_A_BIT_DATA);
-    auto sequence = std::static_pointer_cast<CoreComponent>(root->findComponentById("dynamicSequence"));
+    auto sequence = CoreComponent::cast(root->findComponentById("dynamicSequence"));
     ASSERT_TRUE(sequence);
     ASSERT_EQ(1, sequence->getChildCount());
 
@@ -1932,12 +1932,12 @@ TEST_F(DynamicTokenListTest, DoublePager) {
     config->dataSourceProvider("testList", source);
 
     loadDocument(DOUBLE_PAGER_GALORE, DOUBLE_PAGER_GALORE_DATA);
-    auto topPager = std::static_pointer_cast<CoreComponent>(root->findComponentById("topPager"));
+    auto topPager = CoreComponent::cast(root->findComponentById("topPager"));
     ASSERT_TRUE(topPager);
     ASSERT_EQ(1, topPager->getChildCount());
     ASSERT_EQ(Object(Rect(0,-50,100,100)), topPager->getCalculated(kPropertyBounds));
 
-    auto bottomPager = std::static_pointer_cast<CoreComponent>(root->findComponentById("bottomPager"));
+    auto bottomPager = CoreComponent::cast(root->findComponentById("bottomPager"));
     ASSERT_TRUE(bottomPager);
     ASSERT_EQ(1, bottomPager->getChildCount());
     ASSERT_EQ(Object(Rect(0,50,750,850)), bottomPager->getCalculated(kPropertyBounds));

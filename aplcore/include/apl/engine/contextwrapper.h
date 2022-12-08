@@ -16,7 +16,7 @@
 #ifndef _APL_CONTEXT_WRAPPER_H
 #define _APL_CONTEXT_WRAPPER_H
 
-#include "apl/primitives/objectdata.h"
+#include "apl/primitives/objecttype.h"
 #include "apl/engine/context.h"
 
 namespace apl {
@@ -87,6 +87,21 @@ public:
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override {
         return rapidjson::Value(rapidjson::kObjectType);
     }
+
+    class ObjectType final : public MapLikeObjectType<ContextWrapper> {
+    public:
+        rapidjson::Value serialize(
+            const Object::DataHolder& dataHolder,
+            rapidjson::Document::AllocatorType& allocator) const override
+        {
+            return dataHolder.data->serialize(allocator);
+        }
+
+        bool equals(const Object::DataHolder& lhs, const Object::DataHolder& rhs) const override {
+            return *std::static_pointer_cast<ContextWrapper>(lhs.data) ==
+                   *std::static_pointer_cast<ContextWrapper>(rhs.data);
+        }
+    };
 
 private:
     std::weak_ptr<const Context> mContext;

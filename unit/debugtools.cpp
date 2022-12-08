@@ -112,7 +112,7 @@ void
 dumpHierarchy(const ComponentPtr& component, std::initializer_list<std::string> args)
 {
     HierarchyVisitor hv(args);
-    std::dynamic_pointer_cast<CoreComponent>(component)->accept(hv);
+    CoreComponent::cast(component)->accept(hv);
 }
 
 
@@ -186,7 +186,7 @@ dumpYogaInternal(YGNodeRef node, int indent=0) {
 void
 dumpYoga(const ComponentPtr& component)
 {
-    auto node = std::dynamic_pointer_cast<CoreComponent>(component)->getNode();
+    auto node = CoreComponent::cast(component)->getNode();
     dumpYogaInternal(node);
 }
 
@@ -214,7 +214,7 @@ dumpLayoutInternal(const CoreComponentPtr& component, int indent, int childIndex
 void
 dumpLayout(const ComponentPtr& component)
 {
-    dumpLayoutInternal(std::dynamic_pointer_cast<CoreComponent>(component), 0, 0);
+    dumpLayoutInternal(CoreComponent::cast(component), 0, 0);
 }
 
 } // namespace apl

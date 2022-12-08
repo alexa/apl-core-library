@@ -83,7 +83,7 @@ main(int argc, char *argv[])
             // and evaluate it "N" times
             if (optimize) {
                 auto cbc = apl::getDataBinding(*c, m);
-                if (cbc.isByteCode()) {
+                if (cbc.is<apl::datagrammar::ByteCode>()) {
                     apl::SymbolReferenceMap map;
                     cbc.symbols(map);
                 }
@@ -110,16 +110,16 @@ main(int argc, char *argv[])
 
             auto cbc = apl::getDataBinding(*c, m);
 
-            if (verbose && cbc.isByteCode())
-                cbc.getByteCode()->dump();
+            if (verbose && cbc.is<apl::datagrammar::ByteCode>())
+                cbc.get<apl::datagrammar::ByteCode>()->dump();
 
             std::cout << "Evaluates to " << cbc.eval().asString() << std::endl;
 
-            if (optimize && cbc.isByteCode()) {
+            if (optimize && cbc.is<apl::datagrammar::ByteCode>()) {
                 apl::SymbolReferenceMap map;
                 cbc.symbols(map);
                 std::cout << std::endl << "Optimized version" << std::endl;
-                cbc.getByteCode()->dump();
+                cbc.get<apl::datagrammar::ByteCode>()->dump();
                 std::cout << "optimized version evaluates to " << cbc.eval().asString() << std::endl;
             }
         }

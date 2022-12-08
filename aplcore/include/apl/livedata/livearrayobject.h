@@ -41,7 +41,7 @@ public:
     using size_type = ObjectArray::size_type;
 
     static LiveArrayObject& cast(LiveDataObject& object) {
-        assert(object.getType() == Object::kArrayType);
+        assert(object.getType() == LiveObject::ObjectType::kArrayType);
         return reinterpret_cast<LiveArrayObject&>(object);
     }
 
@@ -58,7 +58,7 @@ public:
     /**
      * Overrides from LiveDataObject
      */
-    Object::ObjectType getType() const override { return Object::kArrayType; }
+    LiveObject::ObjectType getType() const override { return LiveObject::ObjectType::kArrayType; }
 
     std::shared_ptr<LiveArrayObject> asArray() override {
         return std::static_pointer_cast<LiveArrayObject>(shared_from_this());
@@ -97,6 +97,11 @@ public:
      * otherwise.
      */
     virtual bool isPaginating() const { return false; }
+
+    class ObjectType final : public ArrayObjectType<LiveArrayObject> {
+    public:
+        std::shared_ptr<LiveDataObject> getLiveDataObject(const Object::DataHolder& dataHolder) const override;
+    };
 
 private:
     void handleArrayMessage(const LiveArrayChange& change);

@@ -101,6 +101,7 @@ public_apl_headers=(
     "apl/primitives/object.h"
     "apl/primitives/objectbag.h"
     "apl/primitives/objectdata.h"
+    "apl/primitives/objecttype.h"
     "apl/primitives/point.h"
     "apl/primitives/radii.h"
     "apl/primitives/range.h"
@@ -143,6 +144,7 @@ public_apl_headers=(
     "apl/utils/session.h"
     "apl/utils/streamer.h"
     "apl/utils/stringfunctions.h"
+    "apl/utils/throw.h"
     "apl/utils/userdata.h"
     "apl/utils/visitor.h"
 )

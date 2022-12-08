@@ -68,7 +68,7 @@ TEST_F(GraphicDataTest, MultipleTopLevelChildren)
     loadDocument(MULTIPLE_TOP_LEVEL_CHILDREN);
     ASSERT_TRUE(component);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     auto box = graphic->getRoot();
@@ -132,7 +132,7 @@ TEST_F(GraphicDataTest, DataBinding)
     loadDocument(DATA_BINDING);
     ASSERT_TRUE(component);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     auto box = graphic->getRoot();
@@ -197,7 +197,7 @@ TEST_F(GraphicDataTest, DataBindingToItems)
     loadDocument(DATA_BINDING_TO_ITEMS);
     ASSERT_TRUE(component);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     auto box = graphic->getRoot();
@@ -261,7 +261,7 @@ TEST_F(GraphicDataTest, Grid)
     loadDocument(GRID);
     ASSERT_TRUE(component);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     auto box = graphic->getRoot();
 
     ASSERT_EQ(3, box->getChildCount());
@@ -308,7 +308,7 @@ TEST_F(GraphicDataTest, TestVersion)
     loadDocument(TEST_VERSION);
     ASSERT_TRUE(component);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     auto box = graphic->getRoot();
 
     // Data is ignored, so a single item should be inflated

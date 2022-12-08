@@ -383,7 +383,7 @@ TEST_F(AnimateItemValueTest, AnimateVG)
     loadDocument(ANIMATE_VG);
     ASSERT_TRUE(component);
 
-    auto graphic = component->getCalculated(apl::kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(apl::kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     auto container = graphic->getRoot();
@@ -470,7 +470,7 @@ TEST_F(AnimateItemValueTest, BadVGParameters)
     loadDocument(BAD_VG_PARAMETERS);
     ASSERT_TRUE(component);
 
-    auto graphic = component->getCalculated(apl::kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(apl::kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     auto container = graphic->getRoot();
@@ -534,7 +534,7 @@ TEST_F(AnimateItemValueTest, NoVG)
     ASSERT_TRUE(component);
 
     auto graphic = component->getCalculated(apl::kPropertyGraphic);
-    ASSERT_FALSE(graphic.isGraphic());
+    ASSERT_FALSE(graphic.is<Graphic>());
 
     // Animate a property that doesn't exist
     executeCommand("ChangeValue", {{"TO", "red"}, {"PARAM", "COLOR"}}, false);

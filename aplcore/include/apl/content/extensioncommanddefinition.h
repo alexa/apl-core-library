@@ -18,6 +18,8 @@
 
 #include "apl/content/extensionproperty.h"
 
+#include "apl/utils/log.h"
+
 namespace apl {
 
 /**

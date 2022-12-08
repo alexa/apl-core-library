@@ -131,7 +131,7 @@ TEST_F(GesturesTest, DoublePress)
 {
     loadDocument(DOUBLE_PRESS);
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component);
+    auto tw = TouchWrapperComponent::cast(component);
     auto text = tw->getChildAt(0);
     ASSERT_EQ(kComponentTypeText, text->getType());
     ASSERT_EQ("Lorem ipsum dolor", text->getCalculated(kPropertyText).asString());
@@ -162,7 +162,7 @@ TEST_F(GesturesTest, DoublePressThree)
 {
     loadDocument(DOUBLE_PRESS);
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component);
+    auto tw = TouchWrapperComponent::cast(component);
     auto text = tw->getChildAt(0);
     ASSERT_EQ(kComponentTypeText, text->getType());
     ASSERT_EQ("Lorem ipsum dolor", text->getCalculated(kPropertyText).asString());
@@ -192,7 +192,7 @@ TEST_F(GesturesTest, DoublePressTooLong)
 {
     loadDocument(DOUBLE_PRESS);
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component);
+    auto tw = TouchWrapperComponent::cast(component);
     auto text = tw->getChildAt(0);
     ASSERT_EQ(kComponentTypeText, text->getType());
     ASSERT_EQ("Lorem ipsum dolor", text->getCalculated(kPropertyText).asString());
@@ -300,7 +300,7 @@ TEST_F(GesturesTest, DoublePressDefinedTwice)
 {
     loadDocument(DOUBLE_PRESS_TWICE);
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component);
+    auto tw = TouchWrapperComponent::cast(component);
     auto text = tw->getChildAt(0);
     ASSERT_EQ(kComponentTypeText, text->getType());
     ASSERT_EQ("Lorem ipsum dolor", text->getCalculated(kPropertyText).asString());
@@ -555,7 +555,7 @@ TEST_F(GesturesTest, LongPress)
 {
     loadDocument(LONG_PRESS);
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component);
+    auto tw = TouchWrapperComponent::cast(component);
     auto text = tw->getChildAt(0);
     ASSERT_EQ(kComponentTypeText, text->getType());
     ASSERT_EQ("Lorem ipsum dolor", text->getCalculated(kPropertyText).asString());
@@ -688,10 +688,10 @@ TEST_F(GesturesTest, SwipeAwayUnfinished)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "reveal", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     // Up before fulfilled.
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
@@ -739,10 +739,10 @@ TEST_F(GesturesTest, SwipeAwayUnfinishedMiddle)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "reveal", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     // Up before fulfilled.
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(150,100), "onDown"));
@@ -790,10 +790,10 @@ TEST_F(GesturesTest, SwipeAwayCancelled)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "reveal", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
     ASSERT_TRUE(HandleAndCheckConsumedPointerEvent(PointerEventType::kPointerMove, Point(140,100), "onMove"));
@@ -826,10 +826,10 @@ TEST_F(GesturesTest, SwipeAwayWrongDirection)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "reveal", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerMove, Point(200,110), "onMove"));
@@ -844,7 +844,7 @@ TEST_F(GesturesTest, SwipeAwayLeftReveal)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "reveal", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
 
@@ -886,7 +886,7 @@ TEST_F(GesturesTest, SwipeAwayLeftReveal)
     ASSERT_TRUE(CheckEvent("onSwipeDone", "left"));
 
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 TEST_F(GesturesTest, SwipeAwayLeftRevealTapOrScrollTimeout)
@@ -920,10 +920,10 @@ TEST_F(GesturesTest, SwipeAwayLeftCover)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "cover", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
@@ -963,16 +963,16 @@ TEST_F(GesturesTest, SwipeAwayLeftCover)
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 void
 GesturesTest::swipeAwayLeftSlide()
 {
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
@@ -1017,7 +1017,7 @@ GesturesTest::swipeAwayLeftSlide()
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 TEST_F(GesturesTest, SwipeAwayLeftSlide)
@@ -1036,10 +1036,10 @@ TEST_F(GesturesTest, SwipeAwayLeftRightLeftSlide)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "slide", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
     advanceTime(800);
@@ -1085,17 +1085,17 @@ TEST_F(GesturesTest, SwipeAwayLeftRightLeftSlide)
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 TEST_F(GesturesTest, SwipeAwayLeftRightLeftSlideUnfinished)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "slide", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
     advanceTime(550);
@@ -1148,10 +1148,10 @@ TEST_F(GesturesTest, SwipeAwayFlickLeftSlide)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "slide", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
     // Advance time to something in flick range
@@ -1187,17 +1187,17 @@ TEST_F(GesturesTest, SwipeAwayFlickLeftSlide)
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 TEST_F(GesturesTest, SwipeAwayUnfinishedFlickLeftSlide)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "slide", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
     // Advance time to something not in flick range
@@ -1241,10 +1241,10 @@ TEST_F(GesturesTest, SwipeAwayFlickTooFast)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "slide", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
     // This will actually give us 20000 dp/s, which would end up in 2 ms without a limit.
@@ -1269,10 +1269,10 @@ TEST_F(GesturesTest, SwipeAwayLeftSlideNotEnoughDistance)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "slide", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     // Up before fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
@@ -1286,11 +1286,11 @@ TEST_F(GesturesTest, SwipeAwayLeftSlideNotEnoughDistance)
 
 void
 GesturesTest::swipeAwayRightSlide() {
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
 
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(100,100), "onDown"));
@@ -1337,7 +1337,7 @@ GesturesTest::swipeAwayRightSlide() {
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 TEST_F(GesturesTest, SwipeAwayRightSlide)
@@ -1356,10 +1356,10 @@ TEST_F(GesturesTest, SwipeAwayUpSlide)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "up", "mode": "slide", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(100,200), "onDown"));
@@ -1405,17 +1405,17 @@ TEST_F(GesturesTest, SwipeAwayUpSlide)
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 TEST_F(GesturesTest, SwipeAwayDownSlide)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "down", "mode": "slide", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(100,100), "onDown"));
@@ -1461,17 +1461,17 @@ TEST_F(GesturesTest, SwipeAwayDownSlide)
 
     ASSERT_TRUE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateY(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 TEST_F(GesturesTest, SwipeAwayOverSwipe)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "cover", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
@@ -1512,7 +1512,7 @@ TEST_F(GesturesTest, SwipeAwayLeftPointerMovementTooVertical)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "reveal", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
 
@@ -1531,7 +1531,7 @@ TEST_F(GesturesTest, SwipeAwayRightPointerMovementTooVertical)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "right", "mode": "reveal", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
 
@@ -1550,7 +1550,7 @@ TEST_F(GesturesTest, SwipeAwayUpPointerMovementTooHorizontal)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "up", "mode": "reveal", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
 
@@ -1569,7 +1569,7 @@ TEST_F(GesturesTest, SwipeAwayDownPointerMovementTooHorizontal)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "down", "mode": "reveal", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
 
@@ -1589,7 +1589,7 @@ TEST_F(GesturesTest, SwipeAwayMaxDurationEnforced)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "reveal", "w": 400, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
 
@@ -1631,7 +1631,7 @@ TEST_F(GesturesTest, SwipeAwayMaxDurationEnforced)
     ASSERT_TRUE(CheckEvent("onSwipeDone", "left"));
 
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 TEST_F(GesturesTest, SwipeAwayContext)
@@ -1664,7 +1664,7 @@ TEST_F(GesturesTest, SwipeAwayContext)
     ASSERT_FALSE(child.HasMember("tags"));
     //////////////////
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
 
@@ -1733,19 +1733,19 @@ TEST_F(GesturesTest, SwipeAwayContext)
     //////////////////
 
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 TEST_F(GesturesTest, SwipeAwayLeftDisabled)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "slide", "w": 100, "h": 100 })");
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     tw->setState(StateProperty::kStateDisabled, true);
 
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
-    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 
     // Up after fulfilled
     ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(200,100), false));
@@ -1781,7 +1781,7 @@ TEST_F(GesturesTest, SwipeAwayLeftDisabled)
 
     ASSERT_FALSE(CheckDirty(tw->getChildAt(0), kPropertyTransform));
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *TOUCH_ALL = R"(
@@ -1922,7 +1922,7 @@ TEST_F(GesturesTest, GestureCombo)
 {
     loadDocument(TOUCH_ALL);
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     auto text = tw->getChildAt(0);
     ASSERT_EQ(kComponentTypeText, text->getType());
     ASSERT_EQ("Lorem ipsum dolor", text->getCalculated(kPropertyText).asString());
@@ -2027,7 +2027,7 @@ TEST_F(GesturesTest, SwipeAwayMiddle)
 {
     loadDocument(TOUCH_ALL);
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     auto text = tw->getChildAt(0);
     ASSERT_EQ(kComponentTypeText, text->getType());
     ASSERT_EQ("Lorem ipsum dolor", text->getCalculated(kPropertyText).asString());
@@ -2309,7 +2309,7 @@ TEST_F(GesturesTest, DoublePressDisabledAVG)
 {
     loadDocument(ALL_AVG);
 
-    auto myGraphic = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("MyGraphic"));
+    auto myGraphic = CoreComponent::cast(component->findComponentById("MyGraphic"));
     myGraphic->setState(StateProperty::kStateDisabled, true);
 
     ASSERT_EQ(kComponentTypeVectorGraphic, component->getType());
@@ -2368,7 +2368,7 @@ TEST_F(GesturesTest, LongPressDisabledAVG)
 {
     loadDocument(ALL_AVG);
 
-    auto myGraphic = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("MyGraphic"));
+    auto myGraphic = CoreComponent::cast(component->findComponentById("MyGraphic"));
     myGraphic->setState(StateProperty::kStateDisabled, true);
 
     ASSERT_EQ(kComponentTypeVectorGraphic, component->getType());
@@ -2980,7 +2980,7 @@ TEST_F(GesturesTest, LongPressSingularTransformAfterStart) {
 TEST_F(GesturesTest, SwipeAwayScaled)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "reveal", "w": 100, "h": 100 })");
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
 
@@ -3026,13 +3026,13 @@ TEST_F(GesturesTest, SwipeAwayScaled)
     ASSERT_TRUE(CheckEvent("onSwipeDone", "left"));
 
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 TEST_F(GesturesTest, SwipeAwayRotated)
 {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "reveal", "w": 100, "h": 100 })");
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
     ASSERT_EQ(1, tw->getChildCount());
     ASSERT_EQ("texty", tw->getChildAt(0)->getId());
 
@@ -3078,12 +3078,12 @@ TEST_F(GesturesTest, SwipeAwayRotated)
     ASSERT_TRUE(CheckEvent("onSwipeDone", "left"));
 
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 TEST_F(GesturesTest, SwipeAwayTransformedDuringSwipe) {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "reveal", "w": 100, "h": 100 })");
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
     advanceTime(100);
@@ -3121,12 +3121,12 @@ TEST_F(GesturesTest, SwipeAwayTransformedDuringSwipe) {
     ASSERT_TRUE(CheckEvent("onSwipeDone", "left"));
 
     ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), tw->getChildAt(0)));
-    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).getRect(), tw->getChildAt(0)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(tw->getCalculated(kPropertyInnerBounds).get<Rect>(), tw->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 TEST_F(GesturesTest, SwipeAwaySingularTransformDuringSwipe) {
     loadDocument(SWIPE_AWAY, R"({ "direction": "left", "mode": "reveal", "w": 100, "h": 100 })");
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("tw"));
+    auto tw = TouchWrapperComponent::cast(component->findComponentById("tw"));
 
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(200,100), "onDown"));
     advanceTime(100);
@@ -3237,8 +3237,8 @@ static const char *SWIPE_RTL = R"(
 
 TEST_F(GesturesTest, SwipeAwayRTL) {
     loadDocument(SWIPE_RTL);
-    auto f1 = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("forwardSwipe"));
-    auto f2 = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("backwardSwipe"));
+    auto f1 = CoreComponent::cast(component->findComponentById("forwardSwipe"));
+    auto f2 = CoreComponent::cast(component->findComponentById("backwardSwipe"));
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(20,40)));
@@ -3272,8 +3272,8 @@ TEST_F(GesturesTest, SwipeAwayRTL) {
 
 TEST_F(GesturesTest, SwipeAwayWrongDirectionRTL) {
     loadDocument(SWIPE_RTL);
-    auto f1 = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("forwardSwipe"));
-    auto f2 = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("backwardSwipe"));
+    auto f1 = CoreComponent::cast(component->findComponentById("forwardSwipe"));
+    auto f2 = CoreComponent::cast(component->findComponentById("backwardSwipe"));
 
     // Up after fulfilled
     ASSERT_TRUE(HandleAndCheckPointerEvent(PointerEventType::kPointerDown, Point(20,40)));
@@ -3368,7 +3368,7 @@ TEST_F(GesturesTest, Tap)
 {
     loadDocument(TAP);
 
-    auto tw = std::dynamic_pointer_cast<TouchWrapperComponent>(component);
+    auto tw = TouchWrapperComponent::cast(component);
     auto text = tw->getChildAt(0);
     ASSERT_EQ(kComponentTypeText, text->getType());
     ASSERT_EQ("Not tapped", text->getCalculated(kPropertyText).asString());

@@ -16,7 +16,8 @@
 #ifndef _APL_FILTER_H
 #define _APL_FILTER_H
 
-#include "objectbag.h"
+#include "apl/primitives/objectbag.h"
+#include "apl/primitives/objecttype.h"
 
 namespace apl {
 
@@ -136,6 +137,8 @@ public:
     bool empty() const { return false; }
 
     bool truthy() const { return true; }
+
+    class ObjectType final : public ReferenceHolderObjectType<Filter> {};
 
 private:
     Filter(FilterType type, std::map<int, Object>&& data) : mType(type), mData(std::move(data)) {}

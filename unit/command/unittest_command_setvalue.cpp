@@ -292,13 +292,13 @@ TEST_F(CommandSetValueTest, Video)
 
     auto source = component->getCalculated(kPropertySource);
     ASSERT_TRUE(source.isArray());
-    ASSERT_EQ("https://video.com/video.mp4", source.at(0).getMediaSource().getUrl());
+    ASSERT_EQ("https://video.com/video.mp4", source.at(0).get<MediaSource>().getUrl());
     executeSetValue("video", "source", "https://video.com/new_video.mp4");
     ASSERT_TRUE(root->isDirty());
     root->clearDirty();
     source = component->getCalculated(kPropertySource);
     ASSERT_TRUE(source.isArray());
-    ASSERT_EQ("https://video.com/new_video.mp4", source.at(0).getMediaSource().getUrl());
+    ASSERT_EQ("https://video.com/new_video.mp4", source.at(0).get<MediaSource>().getUrl());
 
     ASSERT_TRUE(CheckNoActions());
 }

@@ -71,17 +71,21 @@ ByteCodeAssembler::parse(const Context& context, const std::string& value)
         return value;
 
     pegtl::string_input<> in(value, "");
-    try {
-        datagrammar::ByteCodeAssembler assembler(context);
+    datagrammar::ByteCodeAssembler assembler(context);
+    fail_state failState;
 
-        pegtl::parse<datagrammar::grammar, datagrammar::action, PEGTL_ERROR_CTRL>(in, assembler);
+    if (!pegtl::parse<datagrammar::grammar, datagrammar::action, PEGTL_ERROR_CTRL>(in, failState, assembler) || failState.failed) {
+        if (failState.failed) {
+            const auto p = failState.positions().front();
+            CONSOLE(context) << "Syntax error: " << failState.what();
+            CONSOLE(context) << in.line_at(p);
+            CONSOLE(context) << std::string(p.byte_in_line, ' ') << "^";
+        } else {
+            CONSOLE(context) << "Syntax error in: " << value;
+        }
+
+    } else {
         return assembler.retrieve();
-    }
-    catch (const pegtl::parse_error& e) {
-        const auto p = e.positions.front();
-        CONSOLE(context) << "Syntax error: " << e.what();
-        CONSOLE(context) << in.line_at(p);
-        CONSOLE(context) << std::string(p.byte_in_line, ' ') << "^";
     }
 
     return value;

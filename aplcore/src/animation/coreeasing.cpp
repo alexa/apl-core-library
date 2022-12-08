@@ -148,7 +148,7 @@ public:
     PSegment(const CoreEasing& easing, std::vector<EasingSegment>::const_iterator it)
         : easing(easing), mData(&easing.mPoints.at(it->offset)) {}
 
-    int dof() const { return ::abs(static_cast<int>(easing.mPoints.at(0))); }
+    int dof() const { return std::abs(static_cast<int>(easing.mPoints.at(0))); }
     int index() const { return static_cast<int>(easing.mPoints.at(1)); }
 
     const float* start() const { return &mData[1]; }

@@ -16,7 +16,7 @@
 #ifndef _APL_GRAPHIC_FILTER_H
 #define _APL_GRAPHIC_FILTER_H
 
-#include "apl/primitives/object.h"
+#include "apl/primitives/objecttype.h"
 #include "apl/utils/bimap.h"
 
 namespace apl {
@@ -79,6 +79,8 @@ public:
     bool empty() const { return false; }
 
     bool truthy() const { return true; }
+
+    class ObjectType final : public ReferenceHolderObjectType<GraphicFilter> {};
 
 private:
     GraphicFilter(GraphicFilterType type, std::map<int, Object>&& data) : mType(type), mData(std::move(data)) {}

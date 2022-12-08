@@ -15,6 +15,8 @@
 
 #include <tao/pegtl.hpp>
 
+#include "apl/datagrammar/grammarpolyfill.h"
+#include "apl/primitives/rect.h"
 #include "apl/primitives/transform2d.h"
 #include "apl/utils/session.h"
 #include "apl/utils/stringfunctions.h"
@@ -67,12 +69,12 @@ struct grammar    : must<transforms, eof> {};
 // **************** Error reporting ***************
 
 template<typename Rule>
-struct t2_control : pegtl::normal< Rule > {
+struct t2_control : apl_control< Rule > {
     static const std::string error_message;
 
     template<typename Input, typename...States >
-    static void raise( const Input& in, States&&... ) {
-        throw pegtl::parse_error( error_message, in );
+    static void raise( const Input& in, States&&... st) {
+        apl_control<Rule>::fail(in, st...);
     }
 };
 
@@ -91,7 +93,7 @@ template<typename Rule>
 struct action : pegtl::nothing< Rule > {
 };
 
-struct transform_state {
+struct transform_state : fail_state {
     void push(double value) {
         args[arg_count++] = value;
     }
@@ -247,21 +249,20 @@ namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 Transform2D
 Transform2D::parse(const SessionPtr& session, const std::string& transform)
 {
-    try {
-        t2grammar::transform_state state;
-        pegtl::string_input<> in(transform, "");
-        pegtl::parse<t2grammar::grammar, t2grammar::action, t2grammar::t2_control>(in, state);
+    t2grammar::transform_state state;
+    pegtl::string_input<> in(transform, "");
+
+    if (!pegtl::parse<t2grammar::grammar, t2grammar::action, t2grammar::t2_control>(in, state) || state.failed) {
+        CONSOLE(session) << "Error parsing transform '" << transform << "'" << state.what();
+    } else {
         return state.transform;
-    }
-    catch (pegtl::parse_error error) {
-        CONSOLE(session) << "Error parsing transform '" << transform << "'" << error.what();
     }
 
     return Transform2D();
 }
 
 Rect
-Transform2D::calculateAxisAlignedBoundingBox(const Rect& rect) {
+Transform2D::calculateAxisAlignedBoundingBox(const Rect& rect) const {
 
     if (isIdentity())
         return rect;

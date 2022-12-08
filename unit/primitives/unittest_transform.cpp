@@ -326,7 +326,7 @@ TEST_F(TransformTest, SimpleInterpolation)
 {
     interpolate(SIMPLE_INTERPOLATION);
 
-    auto interpolator = std::dynamic_pointer_cast<InterpolatedTransformation>(array);
+    auto interpolator = std::static_pointer_cast<InterpolatedTransformation>(array);
     ASSERT_TRUE(interpolator);
 
     // (0,0) -> (-50,-10) -> (-50,-10) -> (0,0)
@@ -372,7 +372,7 @@ TEST_F(TransformTest, ComplexInterpolation)
 {
     interpolate(COMPLEX_INTERPOLATION);
 
-    auto interpolator = std::dynamic_pointer_cast<InterpolatedTransformation>(array);
+    auto interpolator = std::static_pointer_cast<InterpolatedTransformation>(array);
     ASSERT_TRUE(interpolator);
 
     //     Center     Rotate: 0    Scale X=2     Trans(-100, -20)   Center
@@ -553,7 +553,6 @@ TEST_F(TransformTest, ParseBadTransforms)
  */
 TEST_F(TransformTest, AABB)
 {
-
     auto rect  = Rect (-1,-1,2,2);
 
     auto t2d = Transform2D();
@@ -578,6 +577,18 @@ TEST_F(TransformTest, AABB)
     auto result = t2d.calculateAxisAlignedBoundingBox(rect);
     ASSERT_PRED2(Close,r.getTopLeft(), result.getTopLeft());
     ASSERT_PRED2(Close,r.getBottomRight(), result.getBottomRight());
+}
+
+TEST_F(TransformTest, Array)
+{
+    // Empty vectors transform without any effect
+    ASSERT_EQ(std::vector<float>{}, Transform2D::scale(2) * std::vector<float>{});
+
+    auto vector = std::vector<float>{0, 0, 10, 0, 0, 20, 30, 40};
+    ASSERT_EQ(Transform2D()*vector, vector);
+
+    auto half = std::vector<float>{0, 0, 5, 0, 0, 10, 15, 20};
+    ASSERT_EQ(Transform2D::scale(0.5)*vector, half);
 }
 
 // TEST ARRAYIFICATION

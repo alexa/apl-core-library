@@ -74,12 +74,12 @@ ScrollViewComponent::trimScroll(const Point& point) {
 
 float
 ScrollViewComponent::maxScroll() const {
-    float bottom = mCalculated.get(kPropertyInnerBounds).getRect().getBottom();
+    float bottom = mCalculated.get(kPropertyInnerBounds).get<Rect>().getBottom();
     if (mChildren.empty()) {
         return bottom;
     }
     auto child = mChildren.at(mChildren.size() - 1);
-    return nonNegative(child->getCalculated(kPropertyBounds).getRect().getBottom() - bottom);
+    return nonNegative(child->getCalculated(kPropertyBounds).get<Rect>().getBottom() - bottom);
 }
 
 bool
@@ -88,8 +88,8 @@ ScrollViewComponent::allowForward() const {
         return false;
 
     auto child = getChildAt(0);
-    auto innerScrollSize = child->getCalculated(kPropertyBounds).getRect().getHeight();
-    auto scrollSize = mCalculated.get(kPropertyInnerBounds).getRect().getHeight();
+    auto innerScrollSize = child->getCalculated(kPropertyBounds).get<Rect>().getHeight();
+    auto scrollSize = mCalculated.get(kPropertyInnerBounds).get<Rect>().getHeight();
     auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
     return currentPosition + scrollSize < innerScrollSize;
 }

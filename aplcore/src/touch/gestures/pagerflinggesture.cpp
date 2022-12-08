@@ -46,7 +46,7 @@ static inline float
 getAnimationDistance(const ActionablePtr& actionable, PageDirection direction, float amount,
                      LayoutDirection layoutDirection)
 {
-    auto parentBounds = actionable->getCalculated(kPropertyBounds).getRect();
+    const auto& parentBounds = actionable->getCalculated(kPropertyBounds).get<Rect>();
     auto wholeDistance = actionable->isHorizontal() ? parentBounds.getWidth() : parentBounds.getHeight();
     auto sign = direction == kPageDirectionForward ? 1.0f : -1.0f;
     if (actionable->isHorizontal() && layoutDirection == kLayoutDirectionRTL) {
@@ -59,7 +59,7 @@ getAnimationDistance(const ActionablePtr& actionable, PageDirection direction, f
 static inline float
 getTranslationAmount(const ActionablePtr& actionable, float distance)
 {
-    auto parentBounds = actionable->getCalculated(kPropertyBounds).getRect();
+    const auto& parentBounds = actionable->getCalculated(kPropertyBounds).get<Rect>();
     return std::abs(distance) /
            (actionable->isHorizontal() ? parentBounds.getWidth() : parentBounds.getHeight());
 }
@@ -150,7 +150,7 @@ PagerFlingGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
     if (!FlingGesture::onMove(event, timestamp))
         return false;
 
-    auto pager = std::dynamic_pointer_cast<PagerComponent>(mActionable);
+    auto pager = PagerComponent::cast(mActionable);
     auto localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
     auto distance = getDistance(mActionable, mStartPosition, localPoint);
     // Flip direction for RTL layout
@@ -238,7 +238,7 @@ PagerFlingGesture::animateRemainder(bool fulfill)
 
                auto amount = self->mAmount + alpha * remainder;
                self->mLastAnimationAmount = amount;
-               std::dynamic_pointer_cast<PagerComponent>(self->mActionable)->executePageMove(amount);
+               PagerComponent::cast(self->mActionable)->executePageMove(amount);
            }
        });
 
@@ -261,7 +261,7 @@ PagerFlingGesture::awaitForFinish(const std::weak_ptr<PagerFlingGesture>& weak_p
       [weak_ptr, fulfill](ActionRef ref) {
           auto self = weak_ptr.lock();
           if (self) {
-              std::dynamic_pointer_cast<PagerComponent>(self->mActionable)->endPageMove(fulfill, ref, false);
+              PagerComponent::cast(self->mActionable)->endPageMove(fulfill, ref, false);
           }
       });
 
@@ -305,7 +305,7 @@ PagerFlingGesture::finishUp()
         CONSOLE(mActionable->getContext())
             << "Singular transform encountered during page switch. Animation impossible, resetting.";
         // Reset the state of the component
-        auto pager = std::dynamic_pointer_cast<PagerComponent>(mActionable);
+        auto pager = PagerComponent::cast(mActionable);
         pager->executePageMove(0.0f);
         pager->endPageMove(false);
         // And gesture.

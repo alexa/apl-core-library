@@ -24,6 +24,7 @@
 #include "apl/component/componentproperties.h"
 #include "apl/component/textmeasurement.h"
 #include "apl/primitives/range.h"
+#include "apl/primitives/rect.h"
 #include "apl/primitives/transform2d.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/noncopyable.h"
@@ -56,7 +57,6 @@ class Node : public Counter<Node>,
 
 public:
     enum Type {
-        kGeneric,
         kTransform,
         kClip,
         kOpacity,
@@ -76,10 +76,16 @@ public:
     Type type() const { return mType; }
 
     /**
-     * Add a child to this node.  This is not a fast operation if there are many children
-     * @param child The child to add
+     * Set the child of this node.
+     * @param child The child
      */
-    void appendChild(const NodePtr& child);
+    void setChild(const NodePtr& child);
+
+    /**
+     * Set the sibling of this node
+     * @param sibling The new sibling
+     */
+    NodePtr setNext(const NodePtr& sibling);
 
     /**
      * Remove all children from this node
@@ -121,6 +127,19 @@ public:
      * @return True if this node draws something on the screen
      */
     virtual bool visible() const;
+
+    /**
+     * Calculate the bounding box of this node
+     * @return The bounding box of this node and all of its children
+     */
+    virtual Rect boundingBox(const Transform2D& transform) const;
+
+    /**
+     * Calculate the bounding box of a node and all siblings
+     * @param node The node to start with
+     * @return A rectangle that just encloses all of this node, siblings, and children
+     */
+    static Rect calculateBoundingBox(const NodePtr& node, const Transform2D& transform = Transform2D());
 
     /**
      * Serialize this node
@@ -169,13 +188,6 @@ protected:
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override
 
 /**
- * A generic node that holds children.
- */
-class GenericNode : public Node {
-    NODE_SUBCLASS(GenericNode, kGeneric);
-};
-
-/**
  * Draw geometry on the screen.  Contains a path to draw and one or more drawing operations.
  * Normally doesn't have children.
  */
@@ -190,6 +202,7 @@ class DrawNode : public Node {
 
     bool needsRedraw() const override;
     bool visible() const override;
+    Rect boundingBox(const Transform2D& transform) const override;
 
 private:
     PathPtr mPath;
@@ -215,6 +228,7 @@ class TextNode : public Node {
 
     bool needsRedraw() const override;
     bool visible() const override;
+    Rect boundingBox(const Transform2D& transform) const override;
 
 private:
     TextLayoutPtr mTextLayout;
@@ -230,6 +244,7 @@ class TransformNode : public Node {
 
     bool setTransform(Transform2D transform);
     const Transform2D& getTransform() const { return mTransform; }
+    Rect boundingBox(const Transform2D& transform) const override;
 
 private:
     Transform2D mTransform;
@@ -243,6 +258,7 @@ class ClipNode : public Node {
 
     bool setPath(PathPtr path);
     PathPtr getPath() const { return mPath; }
+    Rect boundingBox(const Transform2D& transform) const override;
 
 private:
     PathPtr mPath;
@@ -282,6 +298,7 @@ class ImageNode : public Node {
 
     bool needsRedraw() const override;
     bool visible() const override;
+    Rect boundingBox(const Transform2D& transform) const override;
 
 private:
     FilterPtr mImage;
@@ -306,6 +323,7 @@ class VideoNode : public Node {
 
     bool needsRedraw() const override;
     bool visible() const override;
+    Rect boundingBox(const Transform2D& transform) const override;
 
 private:
     MediaPlayerPtr mPlayer;
@@ -321,6 +339,7 @@ class ShadowNode : public Node {
 
     bool setShadow(ShadowPtr shadow);
     ShadowPtr getShadow() const { return mShadow; }
+    Rect boundingBox(const Transform2D& transform) const override;
 
 private:
     ShadowPtr mShadow;
@@ -346,6 +365,7 @@ class EditTextNode : public Node {
 
     bool needsRedraw() const override;
     bool visible() const override;
+    Rect boundingBox(const Transform2D& transform) const override;
 
 private:
     EditTextPtr mEditText;

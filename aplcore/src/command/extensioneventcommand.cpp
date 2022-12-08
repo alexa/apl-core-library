@@ -70,7 +70,7 @@ ExtensionEventCommand::propDefSet() const
 std::string
 ExtensionEventCommand::getResourceID() const
 {
-    auto extensionComponent = std::dynamic_pointer_cast<ExtensionComponent>(mTarget);
+    auto extensionComponent = ExtensionComponent::cast(mTarget);
 
     if (extensionComponent) {
         return extensionComponent->getResourceID();

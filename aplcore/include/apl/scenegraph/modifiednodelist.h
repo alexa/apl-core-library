@@ -34,8 +34,6 @@ public:
     ~ModifiedNodeList();
 
     void contentChanged(Node *node);
-    void childChanged(Node *node);
-
     void clear();
 
 private:

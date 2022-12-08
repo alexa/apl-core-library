@@ -18,7 +18,7 @@
 
 #include <functional>
 
-#include "apl/primitives/objectdata.h"
+#include "apl/primitives/objecttype.h"
 
 namespace apl {
 
@@ -58,6 +58,22 @@ public:
     std::string toDebugString() const override {
         return "function<" + mName + ">";
     }
+
+    class ObjectType final : public PointerHolderObjectType<Function> {
+    public:
+        bool isCallable() const override { return true; }
+
+        Object call(const Object::DataHolder& dataHolder, const ObjectArray& args) const override {
+            return dataHolder.data->call(args);
+        }
+
+        rapidjson::Value serialize(
+            const Object::DataHolder&,
+            rapidjson::Document::AllocatorType& allocator) const override
+        {
+            return rapidjson::Value("FUNCTION", allocator);
+        }
+    };
 
 private:
     std::string mName;

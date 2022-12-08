@@ -162,7 +162,7 @@ TEST_F(BuilderTest, SimpleImage)
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyShadowHorizontalOffset));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyShadowRadius));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyShadowVerticalOffset));
-    ASSERT_EQ(Object::IDENTITY_2D(), component->getCalculated(kPropertyTransform));
+    ASSERT_EQ(Object(Transform2D()), component->getCalculated(kPropertyTransform));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyTransformAssigned));
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyWidth));
     ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
@@ -264,8 +264,8 @@ TEST_F(BuilderTest, FullImage)
 
     // Transforms are tricky
     auto transform = component->getCalculated(kPropertyTransformAssigned);
-    ASSERT_TRUE(transform.isTransform());
-    ASSERT_EQ(Point(20,4), transform.getTransformation()->get(10,10) * Point(10,4));
+    ASSERT_TRUE(transform.is<Transformation>());
+    ASSERT_EQ(Point(20,4), transform.get<Transformation>()->get(10,10) * Point(10,4));
     ASSERT_EQ(Object(Transform2D::translateX(10)), component->getCalculated(kPropertyTransform));
 
     // Image-specific properties
@@ -276,14 +276,14 @@ TEST_F(BuilderTest, FullImage)
     ASSERT_EQ("http://foo.com/bar.png", component->getCalculated(kPropertySource).getString());
 
     auto grad = component->getCalculated(kPropertyOverlayGradient);
-    ASSERT_TRUE(grad.isGradient());
-    ASSERT_EQ(Gradient::LINEAR, grad.getGradient().getType());
-    ASSERT_EQ(Object(Color(0x0000ffff)), grad.getGradient().getProperty(kGradientPropertyColorRange).at(0));
+    ASSERT_TRUE(grad.is<Gradient>());
+    ASSERT_EQ(Gradient::LINEAR, grad.get<Gradient>().getType());
+    ASSERT_EQ(Object(Color(0x0000ffff)), grad.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0));
 
     auto filters = component->getCalculated(kPropertyFilters);
     ASSERT_EQ(1, filters.size());
-    ASSERT_EQ(kFilterTypeBlur, filters.at(0).getFilter().getType());
-    ASSERT_EQ(Object(Dimension(22)), filters.at(0).getFilter().getValue(kFilterPropertyRadius));
+    ASSERT_EQ(kFilterTypeBlur, filters.at(0).get<Filter>().getType());
+    ASSERT_EQ(Object(Dimension(22)), filters.at(0).get<Filter>().getValue(kFilterPropertyRadius));
 
     ASSERT_TRUE(CheckState(component, kStateChecked, kStateDisabled));
 }
@@ -322,9 +322,9 @@ TEST_F(BuilderTest, GradientInResource)
 {
     loadDocument(GRADIENT_IN_RESOURCE, DATA);
     auto grad = component->getCalculated(kPropertyOverlayGradient);
-    ASSERT_TRUE(grad.isGradient());
-    ASSERT_EQ(Gradient::LINEAR, grad.getGradient().getType());
-    ASSERT_EQ(Object(Color(0x0000ffff)), grad.getGradient().getProperty(kGradientPropertyColorRange).at(0));
+    ASSERT_TRUE(grad.is<Gradient>());
+    ASSERT_EQ(Gradient::LINEAR, grad.get<Gradient>().getType());
+    ASSERT_EQ(Object(Color(0x0000ffff)), grad.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0));
 }
 
 static const char *SIMPLE_TEXT = R"(
@@ -367,7 +367,7 @@ TEST_F(BuilderTest, SimpleText)
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyPaddingTop));
     ASSERT_EQ(Object(ObjectArray{}), component->getCalculated(kPropertyPadding));
     ASSERT_EQ(kRoleNone, component->getCalculated(kPropertyRole).getInteger());
-    ASSERT_EQ(Object::IDENTITY_2D(), component->getCalculated(kPropertyTransform));
+    ASSERT_EQ(Object(Transform2D()), component->getCalculated(kPropertyTransform));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyTransformAssigned));
     ASSERT_EQ(Object(Dimension()), component->getCalculated(kPropertyWidth));
     ASSERT_EQ(Object::TRUE_OBJECT(), component->getCalculated(kPropertyLaidOut));
@@ -525,15 +525,15 @@ TEST_F(BuilderTest, SimpleContainer)
 
     // The child has relative positioning
     ASSERT_EQ(kFlexboxAlignAuto, text["alignSelf"].getInteger());
-    ASSERT_EQ(Object::AUTO_OBJECT(), text["bottom"]);
+    ASSERT_EQ(Object(Dimension()), text["bottom"]);
     ASSERT_EQ(0, text["grow"].getDouble());
-    ASSERT_EQ(Object::AUTO_OBJECT(), text["left"]);
+    ASSERT_EQ(Object(Dimension()), text["left"]);
     ASSERT_EQ(kNumberingNormal, text["numbering"].getInteger());
     ASSERT_EQ(kPositionRelative, text["position"].getInteger());
-    ASSERT_EQ(Object::AUTO_OBJECT(), text["right"]);
+    ASSERT_EQ(Object(Dimension()), text["right"]);
     ASSERT_EQ(0, text["shrink"].getDouble());
     ASSERT_EQ(Object(Dimension(0)), text["spacing"]);
-    ASSERT_EQ(Object::AUTO_OBJECT(), text["top"]);
+    ASSERT_EQ(Object(Dimension()), text["top"]);
 }
 
 static const char *FULL_CONTAINER = R"(
@@ -650,15 +650,15 @@ TEST_F(BuilderTest, FullContainer)
     // Third item (Relative positioning)
     child = component->getChildAt(2)->getCalculated();
     ASSERT_EQ(kFlexboxAlignBaseline, child["alignSelf"].getInteger());
-    ASSERT_EQ(Object::AUTO_OBJECT(), child["bottom"]);
+    ASSERT_EQ(Object(Dimension()), child["bottom"]);
     ASSERT_EQ(1, child["grow"].getDouble());
     ASSERT_EQ(Object(Dimension(10)), child["left"]);
     ASSERT_EQ(kNumberingSkip, child["numbering"].getInteger());
     ASSERT_EQ(kPositionRelative, child["position"].getInteger());
-    ASSERT_EQ(Object::AUTO_OBJECT(), child["right"]);
+    ASSERT_EQ(Object(Dimension()), child["right"]);
     ASSERT_EQ(2, child["shrink"].getDouble());
     ASSERT_EQ(Object(Dimension(20)), child["spacing"]);
-    ASSERT_EQ(Object::AUTO_OBJECT(), child["top"]);
+    ASSERT_EQ(Object(Dimension()), child["top"]);
 
     // Fourth item
     ASSERT_EQ("Last", component->getChildAt(3)->getCalculated(kPropertyText).asString());
@@ -1601,7 +1601,7 @@ TEST_F(BuilderTest, FullVideo)
     ASSERT_EQ(true, map.get(kPropertyMuted).getBoolean());
 
     ASSERT_EQ(3, map.get(kPropertySource).size());
-    auto source1 = map.get(kPropertySource).at(0).getMediaSource();
+    auto source1 = map.get(kPropertySource).at(0).get<MediaSource>();
     ASSERT_EQ("", source1.getDescription());
     ASSERT_EQ(0, source1.getDuration());
     ASSERT_EQ("URL1", source1.getUrl());
@@ -1609,7 +1609,7 @@ TEST_F(BuilderTest, FullVideo)
     ASSERT_TRUE(source1.getEntities().empty());
     ASSERT_EQ(0, source1.getOffset());
 
-    auto source2 = map.get(kPropertySource).at(1).getMediaSource();
+    auto source2 = map.get(kPropertySource).at(1).get<MediaSource>();
     ASSERT_EQ("", source2.getDescription());
     ASSERT_EQ(0, source2.getDuration());
     ASSERT_EQ("URL2", source2.getUrl());
@@ -1617,7 +1617,7 @@ TEST_F(BuilderTest, FullVideo)
     ASSERT_TRUE(source2.getEntities().empty());
     ASSERT_EQ(0, source2.getOffset());
 
-    auto source3 = map.get(kPropertySource).at(2).getMediaSource();
+    auto source3 = map.get(kPropertySource).at(2).get<MediaSource>();
     ASSERT_EQ("Sample video.", source3.getDescription());
     ASSERT_EQ(1000, source3.getDuration());
     ASSERT_EQ("URL3", source3.getUrl());
@@ -1689,7 +1689,7 @@ TEST_F(BuilderTest, MediaSource)
     sources = video1->getCalculated(kPropertySource);
     ASSERT_TRUE(sources.isArray());
     ASSERT_EQ(1, sources.size());
-    auto source = sources.at(0).getMediaSource();
+    auto source = sources.at(0).get<MediaSource>();
     ASSERT_EQ("", source.getDescription());
     ASSERT_EQ(0, source.getDuration());
     ASSERT_EQ("URL1", source.getUrl());
@@ -1700,7 +1700,7 @@ TEST_F(BuilderTest, MediaSource)
     sources = video2->getCalculated(kPropertySource);
     ASSERT_TRUE(sources.isArray());
     ASSERT_EQ(1, sources.size());
-    source = sources.at(0).getMediaSource();
+    source = sources.at(0).get<MediaSource>();
     ASSERT_EQ("Sample video.", source.getDescription());
     ASSERT_EQ(1000, source.getDuration());
     ASSERT_EQ("URL1", source.getUrl());
@@ -1711,13 +1711,13 @@ TEST_F(BuilderTest, MediaSource)
     sources = video3->getCalculated(kPropertySource);
     ASSERT_TRUE(sources.isArray());
     ASSERT_EQ(2, sources.size());
-    source = sources.at(0).getMediaSource();
+    source = sources.at(0).get<MediaSource>();
     ASSERT_EQ("", source.getDescription());
     ASSERT_EQ(0, source.getDuration());
     ASSERT_EQ("URL1", source.getUrl());
     ASSERT_EQ(0, source.getRepeatCount());
     ASSERT_EQ(0, source.getOffset());
-    source = sources.at(1).getMediaSource();
+    source = sources.at(1).get<MediaSource>();
     ASSERT_EQ("", source.getDescription());
     ASSERT_EQ(0, source.getDuration());
     ASSERT_EQ("URL2", source.getUrl());
@@ -1791,7 +1791,7 @@ TEST_F(BuilderTest, MediaSource2)
         auto sources = video->getCalculated(kPropertySource);
         ASSERT_TRUE(sources.isArray()) << msg;
         ASSERT_EQ(1, sources.size()) << msg;
-        auto source = sources.at(0).getMediaSource();
+        auto source = sources.at(0).get<MediaSource>();
         ASSERT_EQ("URL1", source.getUrl()) << msg;
     }
 }
@@ -2085,12 +2085,12 @@ TEST_F(BuilderTest, TransformOnPress)
 
     auto frame = component->getChildAt(0);
 
-    ASSERT_EQ(Object::IDENTITY_2D(), frame->getCalculated(kPropertyTransform));
+    ASSERT_EQ(Object(Transform2D()), frame->getCalculated(kPropertyTransform));
 
     performClick(1, 1);
     root->clearPending();
 
-    auto t = frame->getCalculated(kPropertyTransform).getTransform2D();
+    auto t = frame->getCalculated(kPropertyTransform).get<Transform2D>();
     // (0,0) -> (-10, -50) -> (20, -50) -> (40, -100) -> (50, -50)
     ASSERT_EQ(Point(50,-50), t * Point());
 }
@@ -2152,7 +2152,7 @@ TEST_F(BuilderTest, TransformWithResources)
     loadDocument(TRANSFORM_WITH_RESOURCES);
 
     auto frame = component->getChildAt(0);
-    auto t = frame->getCalculated(kPropertyTransform).getTransform2D();
+    auto t = frame->getCalculated(kPropertyTransform).get<Transform2D>();
 
     //     Center      Ty=+400       Rot=-90       De-Center
     // (0,0) -> (-10,-50) -> (-10, 350) -> (350,10) -> (360, 60)
@@ -2162,7 +2162,7 @@ TEST_F(BuilderTest, TransformWithResources)
     performClick(1, 1);
     root->clearPending();
 
-    t = frame->getCalculated(kPropertyTransform).getTransform2D();
+    t = frame->getCalculated(kPropertyTransform).get<Transform2D>();
     //     Center        Tx=+5        Scale=0.5     De-center
     // (0,0) -> (-10, -50) -> (-5, -50) -> (-2.5, -25) -> (7.5, 25)
     ASSERT_EQ(Point(7.5,25), t * Point());
@@ -2197,8 +2197,8 @@ static const char *DISPLAY_TEST = R"(
 TEST_F(BuilderTest, DisplayTest)
 {
     loadDocument(DISPLAY_TEST);
-    auto thing1 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing1"));
-    auto thing2 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing2"));
+    auto thing1 = CoreComponent::cast(root->context().findComponentById("thing1"));
+    auto thing2 = CoreComponent::cast(root->context().findComponentById("thing2"));
 
     ASSERT_TRUE(thing1);
     ASSERT_TRUE(thing2);
@@ -2843,10 +2843,10 @@ TEST_F(BuilderTest, DynamicStartEndPaddingLTR)
 {
     loadDocument(START_END_NO_PADDING_OVERRIDE);
 
-    auto frame = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("paddedFrame"));
-    auto frame2 = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("paddedFrame2"));
-    auto child = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("paddedFrameChild"));
-    auto child2 = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("paddedFrameChild2"));
+    auto frame = CoreComponent::cast(component->findComponentById("paddedFrame"));
+    auto frame2 = CoreComponent::cast(component->findComponentById("paddedFrame2"));
+    auto child = CoreComponent::cast(component->findComponentById("paddedFrameChild"));
+    auto child2 = CoreComponent::cast(component->findComponentById("paddedFrameChild2"));
 
     //Check setting End and the right doesn't apply the right padding
     {
@@ -2985,7 +2985,7 @@ TEST_F(BuilderTest, ComplexDynamicStartEndPaddingRTL)
 {
     loadDocument(START_END_PADDING_OVERRIDE);
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("cont"));
+    auto cont = CoreComponent::cast(component->findComponentById("cont"));
     cont->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
 
@@ -3048,7 +3048,7 @@ TEST_F(BuilderTest, PositionTypeRelativeToAbsolute)
 {
     loadDocument(POSITION_TYPE_TEST);
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("frameComp1"));
+    auto cont = CoreComponent::cast(component->findComponentById("frameComp1"));
     cont->setProperty(kPropertyRight, 0);
 
     EXPECT_TRUE(expectBounds(cont, 0, 0, 100, 100));
@@ -3098,8 +3098,8 @@ TEST_F(BuilderTest, PositionTypeRelativeToAbsoluteStartEndInsets)
 {
     loadDocument(POSITION_TYPE_TEST);
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("frameComp1"));
-    auto containerComp = std::dynamic_pointer_cast<CoreComponent>(component->findComponentById("containerComp"));
+    auto cont = CoreComponent::cast(component->findComponentById("frameComp1"));
+    auto containerComp = CoreComponent::cast(component->findComponentById("containerComp"));
     cont->setProperty(kPropertyStart, 10);
     cont->setProperty(kPropertyRight, 20);
 

@@ -16,7 +16,7 @@
 #ifndef APL_URLREQUEST_H
 #define APL_URLREQUEST_H
 
-#include "apl/primitives/object.h"
+#include "apl/primitives/objecttype.h"
 
 #include <string>
 #include <vector>
@@ -69,16 +69,14 @@ public:
     static Object create(const Context& context, const Object& object);
 
     /**
-     * Builds a URLRequest.
+     * Build a URLRequest from an URI string.
      *
-     * This method should not be used directly, use URLRequest#create instead.
-     *
-     * Using the constructor will not pre-filter headers.
-     *
-     * @param url with the location to obtain the source
-     * @param headers vector of key/value pairs with http/s headers to use for the header.
+     * @param url URI string.
+     * @return An object containing a source.
      */
-    URLRequest(const std::string url, const HeaderArray headers);
+    static Object create(const std::string& url);
+
+    static URLRequest asURLRequest(const Object& object);
 
     /**
      * @return Get request url.
@@ -97,6 +95,21 @@ public:
 
     bool empty() const { return false; }
     bool truthy() const { return true; }
+
+    class ObjectType final : public ReferenceHolderObjectType<URLRequest> {};
+
+private:
+    /**
+     * Builds a URLRequest.
+     *
+     * This method should not be used directly, use URLRequest#create instead.
+     *
+     * Using the constructor will not pre-filter headers.
+     *
+     * @param url with the location to obtain the source
+     * @param headers vector of key/value pairs with http/s headers to use for the header.
+     */
+    URLRequest(const std::string& url, HeaderArray headers);
 
 private:
     std::string mUrl;

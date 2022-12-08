@@ -57,7 +57,7 @@ TEST_F(ParseTest, Simple)
     context->putConstant("@red", Color(Color::RED));
     foo = parseDataBinding(*context, "${@red}");
     ASSERT_FALSE(foo.isEvaluable());
-    ASSERT_TRUE(foo.isColor());
+    ASSERT_TRUE(foo.is<Color>());
     ASSERT_TRUE(IsEqual(Color(Color::RED), foo));
 
     context->putUserWriteable("b", 82);

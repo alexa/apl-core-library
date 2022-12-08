@@ -488,7 +488,7 @@ TEST_F(DynamicComponentTestSimple, Focus)
     ASSERT_FALSE(event.getComponent());
 
     // The detached component should be unfocused
-    ASSERT_FALSE(std::static_pointer_cast<CoreComponent>(child)->getState().get(kStateFocused));
+    ASSERT_FALSE(CoreComponent::cast(child)->getState().get(kStateFocused));
 
     // The children property will be dirty
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));

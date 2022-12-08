@@ -176,7 +176,7 @@ SwipeAwayGesture::onDown(const PointerEvent& event, apl_time_t timestamp)
 std::shared_ptr<InterpolatedTransformation>
 SwipeAwayGesture::getTransformation(bool above)
 {
-    auto bounds = mActionable->getCalculated(kPropertyInnerBounds).getRect();
+    auto bounds = mActionable->getCalculated(kPropertyInnerBounds).get<Rect>();
     auto from = std::make_shared<ObjectMap>();
     auto to = std::make_shared<ObjectMap>();
 
@@ -291,7 +291,7 @@ SwipeAwayGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
 
             mSwipeComponent = Builder().inflate(mActionable->getContext(), mItems);
 
-            std::dynamic_pointer_cast<TouchWrapperComponent>(mActionable)->injectReplaceComponent(mSwipeComponent,
+            TouchWrapperComponent::cast(mActionable)->injectReplaceComponent(mSwipeComponent,
                     mAction != SwipeAwayActionType::kSwipeAwayActionReveal);
 
             if (mAction == SwipeAwayActionType::kSwipeAwayActionReveal ||
@@ -337,7 +337,7 @@ SwipeAwayGesture::animateRemainder(bool fulfilled, float velocity)
         animationDuration = 0;
     }
 
-    std::weak_ptr<SwipeAwayGesture> weak_ptr(std::dynamic_pointer_cast<SwipeAwayGesture>(shared_from_this()));
+    std::weak_ptr<SwipeAwayGesture> weak_ptr(shared_from_this());
     mAnimateAction = Action::makeAnimation(timeManager, animationDuration,
        [this, weak_ptr, animationDuration, travelPercentage, remainingPercentage](apl_duration_t offset) {
            auto self = weak_ptr.lock();
@@ -366,7 +366,7 @@ SwipeAwayGesture::animateRemainder(bool fulfilled, float velocity)
                 self->mReplacedComponent->remove();
                 self->mReplacedComponent->release();
                 // Need that as absolute positioning does not play well when original child removed
-                std::dynamic_pointer_cast<TouchWrapperComponent>(self->mActionable)->resetChildPositionType();
+                TouchWrapperComponent::cast(self->mActionable)->resetChildPositionType();
                 auto params = std::make_shared<ObjectMap>();
                 params->emplace("direction", sSwipeDirectionMap.at(self->mDirection));
                 self->mActionable->executeEventHandler("SwipeDone", self->mOnSwipeDone, false, params);

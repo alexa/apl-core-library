@@ -78,7 +78,7 @@ public:
             action.mCommand->getValue(kCommandPropertyHighlightMode) == kCommandHighlightModeLine) {
             // Stash the raw text in lower-case for word comparisons
             mText = action.mTarget->getRootConfig().getLocaleMethods()->toLowerCase(
-                action.mTarget->getCalculated(kPropertyText).getStyledText().getText(), "");
+                action.mTarget->getCalculated(kPropertyText).get<StyledText>().getText(), "");
         }
 
         // Create an audio player and queue up the TTS as the track
@@ -585,8 +585,7 @@ SpeakItemAction::SpeakItemAction(const TimersPtr& timers, const std::shared_ptr<
 #ifdef SCENEGRAPH
         // If a sg::TextMeasurement is installed, we use that to select the text to highlight
         // Otherwise we use an event mechanism to set highlighted lines
-        auto measure = std::dynamic_pointer_cast<sg::TextMeasurement>(rootConfig.getMeasure());
-        if (measure)
+        if (rootConfig.getMeasure()->sceneGraphCompatible())
             mPrivate = std::make_unique<SpeakItemActionPrivateSceneGraph>();
         else
 #endif // SCENEGRAPH

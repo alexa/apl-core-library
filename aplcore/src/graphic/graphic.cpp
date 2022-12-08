@@ -24,6 +24,7 @@
 #include "apl/component/vectorgraphiccomponent.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/scenegraphupdates.h"
+#include "apl/scenegraph/node.h"
 #endif // SCENEGRAPH
 
 namespace apl {
@@ -87,7 +88,7 @@ Graphic::create(const ContextPtr& context,
 }
 
 Graphic::Graphic(const ContextPtr& context, const rapidjson::Value& json, GraphicVersions version)
-    : UIDObject(Context::createClean(context)),
+    : UIDObject(Context::createClean(context), UIDObject::UIDObjectType::GRAPHIC),
       mParameterArray(json),
       mVersion(version)
 {
@@ -407,7 +408,12 @@ Graphic::updateSceneGraph(sg::SceneGraphUpdates& sceneGraph)
         element->updateSceneGraph(list);
 
     clearDirty();
-    return mRootElement->needsRedraw();
+
+    for (auto node = mRootElement->getSceneGraphNode() ; node ; node = node->next())
+        if (node->needsRedraw())
+            return true;
+
+    return false;
 }
 #endif // SCENEGRAPH
 

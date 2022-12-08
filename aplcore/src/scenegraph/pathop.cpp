@@ -23,8 +23,6 @@ PathOp::serialize(rapidjson::Document::AllocatorType& allocator) const
 {
     auto result = rapidjson::Value(rapidjson::kObjectType);
     result.AddMember("paint", paint->serialize(allocator), allocator);
-    if (nextSibling)
-        result.AddMember("op", nextSibling->serialize(allocator), allocator);
     return result;
 }
 
@@ -35,14 +33,14 @@ StrokePathOp::toDebugString() const
     auto d = std::string();
     auto len = dashes.size();
     if (len)
-        d += std::to_string(dashes[0]);
+        d += sutil::to_string(dashes[0]);  // Note: use sutil to ensure locale-independence
     for (int i = 1 ; i < len ; i++)
-        d += "," + std::to_string(dashes[i]);
+        d += "," + sutil::to_string(dashes[i]);
 
-    return "Stroke width=" + std::to_string(strokeWidth) +
-        " miterLimit=" + std::to_string(miterLimit) +
-        " pathLen=" + std::to_string(pathLength) +
-        " dashOffset=" + std::to_string(dashOffset) +
+    return "Stroke width=" + sutil::to_string(strokeWidth) +
+        " miterLimit=" + sutil::to_string(miterLimit) +
+        " pathLen=" + sutil::to_string(pathLength) +
+        " dashOffset=" + sutil::to_string(dashOffset) +
         " lineCap=" + sGraphicLineCapBimap.at(lineCap) +
         " lineJoin=" + sGraphicLineJoinBimap.at(lineJoin) +
         " dashes=[" + d + "]";

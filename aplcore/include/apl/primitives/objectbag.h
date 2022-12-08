@@ -19,7 +19,7 @@
 #include <map>
 
 #include "apl/utils/bimap.h"
-#include "object.h"
+#include "apl/primitives/object.h"
 
 namespace apl {
 

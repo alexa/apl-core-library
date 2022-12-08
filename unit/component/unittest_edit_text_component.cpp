@@ -164,7 +164,7 @@ static const char* LANG_TEXT_DEFAULT_DOC = R"({
 TEST_F(EditTextComponentTest, ComponentTextLangDefaults) {
     loadDocument(LANG_TEXT_DEFAULT_DOC);
 
-    auto et = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+    auto et = CoreComponent::cast(root->topComponent());
     ASSERT_EQ("en-US", et->getCalculated(kPropertyLang).asString());
 
     et->setProperty(kPropertyLang, "ja-jp");
@@ -250,10 +250,10 @@ TEST_F(EditTextComponentTest, NonDefaults) {
     ASSERT_TRUE(IsEqual(kKeyboardTypeNumberPad, et->getCalculated(kPropertyKeyboardType)));
     ASSERT_TRUE(IsEqual(4, et->getCalculated(kPropertyMaxLength)));
     auto submit = et->getCalculated(kPropertyOnSubmit);
-    ASSERT_EQ(Object::kArrayType, submit.getType());
+    ASSERT_TRUE(submit.isArray());
     ASSERT_EQ(1, submit.getArray().size());
     auto change = et->getCalculated(kPropertyOnTextChange);
-    ASSERT_EQ(Object::kArrayType, submit.getType());
+    ASSERT_TRUE(submit.isArray());
     ASSERT_EQ(1, change.getArray().size());
     ASSERT_TRUE(IsEqual(true, et->getCalculated(kPropertySecureInput)));
     ASSERT_TRUE(IsEqual(true, et->getCalculated(kPropertySelectOnFocus)));
@@ -281,24 +281,23 @@ static const char* VALID_CHARACTER_RANGES_DOC = R"({
 TEST_F(EditTextComponentTest, ValidCharacterRanges) {
 
     loadDocument(VALID_CHARACTER_RANGES_DOC);
-    EditTextComponent* pEditText = dynamic_cast<EditTextComponent*>(root->topComponent().get());
-    ASSERT_TRUE(pEditText);
-    ASSERT_EQ(kComponentTypeEditText, pEditText->getType());
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
 
-    ASSERT_TRUE(pEditText->isCharacterValid(L'0'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'9'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'A'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'Y'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'a'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'y'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'-'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'@'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L':'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'?'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'z'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'Z'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'{'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'\u2192'));
+    ASSERT_TRUE(component->isCharacterValid(L'0'));
+    ASSERT_TRUE(component->isCharacterValid(L'9'));
+    ASSERT_TRUE(component->isCharacterValid(L'A'));
+    ASSERT_TRUE(component->isCharacterValid(L'Y'));
+    ASSERT_TRUE(component->isCharacterValid(L'a'));
+    ASSERT_TRUE(component->isCharacterValid(L'y'));
+    ASSERT_FALSE(component->isCharacterValid(L'-'));
+    ASSERT_TRUE(component->isCharacterValid(L'@'));
+    ASSERT_TRUE(component->isCharacterValid(L':'));
+    ASSERT_TRUE(component->isCharacterValid(L'?'));
+    ASSERT_FALSE(component->isCharacterValid(L'z'));
+    ASSERT_FALSE(component->isCharacterValid(L'Z'));
+    ASSERT_FALSE(component->isCharacterValid(L'{'));
+    ASSERT_FALSE(component->isCharacterValid(L'\u2192'));
 }
 
 static const char* VALID_CHARACTER_RANGES_UNICODE_DOC =
@@ -320,14 +319,13 @@ static const char* VALID_CHARACTER_RANGES_UNICODE_DOC =
 TEST_F(EditTextComponentTest, ValidCharacterRangesUnicode) {
 
     loadDocument(VALID_CHARACTER_RANGES_UNICODE_DOC);
-    EditTextComponent* pEditText = dynamic_cast<EditTextComponent*>(root->topComponent().get());
-    ASSERT_TRUE(pEditText);
-    ASSERT_EQ(kComponentTypeEditText, pEditText->getType());
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
 
-    ASSERT_TRUE(pEditText->isCharacterValid(L'\u2192'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'\u2193'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'\u2195'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'\u2196'));
+    ASSERT_TRUE(component->isCharacterValid(L'\u2192'));
+    ASSERT_TRUE(component->isCharacterValid(L'\u2193'));
+    ASSERT_TRUE(component->isCharacterValid(L'\u2195'));
+    ASSERT_FALSE(component->isCharacterValid(L'\u2196'));
 }
 
 static const char* EMPTY_CHARACTER_RANGES_DOC = R"({
@@ -344,15 +342,14 @@ static const char* EMPTY_CHARACTER_RANGES_DOC = R"({
 TEST_F(EditTextComponentTest, EmptyCharacterRanges) {
 
     loadDocument(EMPTY_CHARACTER_RANGES_DOC);
-    EditTextComponent* pEditText = dynamic_cast<EditTextComponent*>(root->topComponent().get());
-    ASSERT_TRUE(pEditText);
-    ASSERT_EQ(kComponentTypeEditText, pEditText->getType());
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
 
     // everything should be valid
-    ASSERT_TRUE(pEditText->isCharacterValid(L'\u2192'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'-'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'A'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'0'));
+    ASSERT_TRUE(component->isCharacterValid(L'\u2192'));
+    ASSERT_TRUE(component->isCharacterValid(L'-'));
+    ASSERT_TRUE(component->isCharacterValid(L'A'));
+    ASSERT_TRUE(component->isCharacterValid(L'0'));
 
     session->clear();
 }
@@ -374,16 +371,15 @@ static const char* INVALID_CHARACTER_RANGES_DOC = R"({
 TEST_F(EditTextComponentTest, InvalidCharacterRanges) {
 
     loadDocument(INVALID_CHARACTER_RANGES_DOC);
-    EditTextComponent* pEditText = dynamic_cast<EditTextComponent*>(root->topComponent().get());
-    ASSERT_TRUE(pEditText);
-    ASSERT_EQ(kComponentTypeEditText, pEditText->getType());
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
 
     // everything should be valid
-    ASSERT_FALSE(pEditText->isCharacterValid(L'\u2192'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'-'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'Q'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'A'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'0'));
+    ASSERT_FALSE(component->isCharacterValid(L'\u2192'));
+    ASSERT_FALSE(component->isCharacterValid(L'-'));
+    ASSERT_TRUE(component->isCharacterValid(L'Q'));
+    ASSERT_FALSE(component->isCharacterValid(L'A'));
+    ASSERT_FALSE(component->isCharacterValid(L'0'));
 
     session->clear();
 }
@@ -403,19 +399,18 @@ static const char* INVALID_DASH_CHARACTER_RANGES_DOC = R"({
 TEST_F(EditTextComponentTest, InvalidDashCharacterRanges) {
 
     loadDocument(INVALID_DASH_CHARACTER_RANGES_DOC);
-    EditTextComponent* pEditText = dynamic_cast<EditTextComponent*>(root->topComponent().get());
-    ASSERT_TRUE(pEditText);
-    ASSERT_EQ(kComponentTypeEditText, pEditText->getType());
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
 
     // everything should be valid
-    ASSERT_FALSE(pEditText->isCharacterValid(L'\u2192'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'-'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'A'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'Z'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'0'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'?'));  // U+003F
-    ASSERT_TRUE(pEditText->isCharacterValid(L'@'));  // U+0040
-    ASSERT_FALSE(pEditText->isCharacterValid(L'}'));  // U+007D
+    ASSERT_FALSE(component->isCharacterValid(L'\u2192'));
+    ASSERT_TRUE(component->isCharacterValid(L'-'));
+    ASSERT_TRUE(component->isCharacterValid(L'A'));
+    ASSERT_FALSE(component->isCharacterValid(L'Z'));
+    ASSERT_TRUE(component->isCharacterValid(L'0'));
+    ASSERT_TRUE(component->isCharacterValid(L'?'));  // U+003F
+    ASSERT_TRUE(component->isCharacterValid(L'@'));  // U+0040
+    ASSERT_FALSE(component->isCharacterValid(L'}'));  // U+007D
 
     session->clear();
 }
@@ -434,19 +429,18 @@ static const char* AMOUNT_CHARACTER_RANGES_DOC = R"({
 TEST_F(EditTextComponentTest, AmountCharacterRanges) {
 
     loadDocument(AMOUNT_CHARACTER_RANGES_DOC);
-    EditTextComponent* pEditText = dynamic_cast<EditTextComponent*>(root->topComponent().get());
-    ASSERT_TRUE(pEditText);
-    ASSERT_EQ(kComponentTypeEditText, pEditText->getType());
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
 
-    ASSERT_TRUE(pEditText->isCharacterValid(L'0'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'5'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'7'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'9'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'.'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'A'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'@'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'-'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'\u2192'));
+    ASSERT_TRUE(component->isCharacterValid(L'0'));
+    ASSERT_TRUE(component->isCharacterValid(L'5'));
+    ASSERT_TRUE(component->isCharacterValid(L'7'));
+    ASSERT_TRUE(component->isCharacterValid(L'9'));
+    ASSERT_TRUE(component->isCharacterValid(L'.'));
+    ASSERT_FALSE(component->isCharacterValid(L'A'));
+    ASSERT_FALSE(component->isCharacterValid(L'@'));
+    ASSERT_FALSE(component->isCharacterValid(L'-'));
+    ASSERT_FALSE(component->isCharacterValid(L'\u2192'));
 }
 
 static const char* EMAIL_CHARACTER_RANGES_DOC = R"({
@@ -463,27 +457,26 @@ static const char* EMAIL_CHARACTER_RANGES_DOC = R"({
 TEST_F(EditTextComponentTest, EmailCharacterRanges) {
 
     loadDocument(EMAIL_CHARACTER_RANGES_DOC);
-    EditTextComponent* pEditText = dynamic_cast<EditTextComponent*>(root->topComponent().get());
-    ASSERT_TRUE(pEditText);
-    ASSERT_EQ(kComponentTypeEditText, pEditText->getType());
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
 
-    ASSERT_TRUE(pEditText->isCharacterValid(L'-'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'+'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'a'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'p'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'z'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'A'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'P'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'Z'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'0'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'5'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'7'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'9'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'_'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'@'));
-    ASSERT_TRUE(pEditText->isCharacterValid(L'.'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L':'));
-    ASSERT_FALSE(pEditText->isCharacterValid(L'\u2192'));
+    ASSERT_TRUE(component->isCharacterValid(L'-'));
+    ASSERT_TRUE(component->isCharacterValid(L'+'));
+    ASSERT_TRUE(component->isCharacterValid(L'a'));
+    ASSERT_TRUE(component->isCharacterValid(L'p'));
+    ASSERT_TRUE(component->isCharacterValid(L'z'));
+    ASSERT_TRUE(component->isCharacterValid(L'A'));
+    ASSERT_TRUE(component->isCharacterValid(L'P'));
+    ASSERT_TRUE(component->isCharacterValid(L'Z'));
+    ASSERT_TRUE(component->isCharacterValid(L'0'));
+    ASSERT_TRUE(component->isCharacterValid(L'5'));
+    ASSERT_TRUE(component->isCharacterValid(L'7'));
+    ASSERT_TRUE(component->isCharacterValid(L'9'));
+    ASSERT_TRUE(component->isCharacterValid(L'_'));
+    ASSERT_TRUE(component->isCharacterValid(L'@'));
+    ASSERT_TRUE(component->isCharacterValid(L'.'));
+    ASSERT_FALSE(component->isCharacterValid(L':'));
+    ASSERT_FALSE(component->isCharacterValid(L'\u2192'));
 }
 
 static const char* INVALID_DIMENSIONS_DOC = R"({
@@ -635,8 +628,8 @@ TEST_F(EditTextComponentTest, Handlers) {
     CheckDirty(result, kPropertyText);
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), et->getCalculated(kPropertyColor)));
     auto resultTxt = result->getCalculated(kPropertyText);
-    ASSERT_TRUE(resultTxt.isStyledText());
-    ASSERT_TRUE(IsEqual("Submit:hello", resultTxt.getStyledText().getRawText()));
+    ASSERT_TRUE(resultTxt.is<StyledText>());
+    ASSERT_TRUE(IsEqual("Submit:hello", resultTxt.get<StyledText>().getRawText()));
     root->clearDirty();
 
     et->update(kUpdateTextChange, "goodbye");
@@ -648,8 +641,8 @@ TEST_F(EditTextComponentTest, Handlers) {
     ASSERT_TRUE(IsEqual("goodbye", et->getCalculated(kPropertyText)));
     ASSERT_TRUE(IsEqual(Color(Color::RED), et->getCalculated(kPropertyColor)));
     resultTxt = result->getCalculated(kPropertyText);
-    ASSERT_TRUE(resultTxt.isStyledText());
-    ASSERT_TRUE(IsEqual("TextChange:goodbye", resultTxt.getStyledText().getRawText()));
+    ASSERT_TRUE(resultTxt.is<StyledText>());
+    ASSERT_TRUE(IsEqual("TextChange:goodbye", resultTxt.get<StyledText>().getRawText()));
     root->clearDirty();
 }
 
@@ -786,9 +779,9 @@ TEST_F(EditTextComponentTest, EditTextMeasurement) {
 
     // Check the layout
     auto top = root->topComponent().get();
-    ASSERT_EQ(Rect(0, 0, 400, 400), top->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 400, 400), top->getCalculated(kPropertyBounds).get<Rect>());
     auto editText = top->getChildAt(0);
-    ASSERT_EQ(Rect(2, 2, 60, 120), editText->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(2, 2, 60, 120), editText->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 /**

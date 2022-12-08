@@ -39,17 +39,14 @@
 #include <map>
 #include <cmath>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include "rapidjson/document.h"
 
 #include "apl/common.h"
 #include "apl/utils/deprecated.h"
 #include "apl/utils/visitor.h"
-#include "apl/primitives/color.h"
-#include "apl/primitives/dimension.h"
-#include "apl/primitives/radii.h"
-#include "apl/primitives/rect.h"
-#include "apl/primitives/transform2d.h"
 
 #ifdef APL_CORE_UWP
     #undef TRUE
@@ -64,24 +61,14 @@ namespace datagrammar {
 }
 
 class Object;
-class AccessibilityAction;
-class ComponentEventWrapper;
-class ContextWrapper;
-class Filter;
-class Function;
-class Gradient;
-class GraphicFilter;
-class GraphicPattern;
-class Transformation;
-class MediaSource;
+class Color;
+class Dimension;
 class LiveDataObject;
-class Range;
 class RangeGenerator;
-class URLRequest;
 class SliceGenerator;
-class StyledText;
 class SymbolReferenceMap;
 class ObjectData;
+class ObjectType;
 
 class streamer;
 
@@ -101,7 +88,7 @@ using ObjectArrayPtr = std::shared_ptr<ObjectArray>;
  * property.
  *
  * Note that certain types stored in Objects are treated as immutable and certain types
- * are mutable.  The immutable types are:
+ * are mutable.  Examples of immutable types are:
  *
  * - Null
  * - Boolean
@@ -109,66 +96,27 @@ using ObjectArrayPtr = std::shared_ptr<ObjectArray>;
  * - String
  * - Array
  * - Map (object)
- * - Function
  * - Dimensions (absolute, relative, and auto)
  * - Colors
- * - Filters
- * - Gradients
- * - Media sources
- * - Range
- * - Rectangles
- * - Radii
- * - Sources
- * - Styled Text
- * - 2D Transformations
- * - Bound Symbol
- * - ByteCode
  *
- * The mutable types are:
+ * Example of mutable types are:
  * - Vector graphic
  * - Generalized transformation
  */
 class Object
 {
 public:
-    enum ObjectType {
-        kNullType,
-        kBoolType,
-        kNumberType,
-        kStringType,
-        kArrayType,
-        kMapType,
-        kByteCodeType,
-        kFunctionType,
-        kAbsoluteDimensionType,
-        kRelativeDimensionType,
-        kAutoDimensionType,
-        kColorType,
-        kFilterType,
-        kGraphicFilterType,
-        kGradientType,
-        kGraphicPatternType,
-        kMediaSourceType,
-        kRectType,
-        kRadiiType,
-        kStyledTextType,
-        kRangeType,
-        kGraphicType,
-        kTransformType,
-        kTransform2DType,
-        kURLRequestType,
-        kEasingType,
-        kBoundSymbolType,
-        kComponentType,
-        kContextType,
-        kAccessibilityActionType,
+    /// ObjectData held types.
+    enum class StorageType {
+        kStorageTypeEmpty,
+        kStorageTypeValue,
+        kStorageTypeString,
+        kStorageTypeReference,
+        kStorageTypePointer
     };
-
-    class Data;  // Forward declaration
 
     // Constructors
     Object();
-    Object(ObjectType type);
     Object(bool b);
     Object(int i);
     Object(uint32_t u);
@@ -179,34 +127,28 @@ public:
     Object(double d);
     Object(const char *s);
     Object(const std::string& s);
-    Object(const std::shared_ptr<datagrammar::ByteCode>& bc);
     Object(const ObjectMapPtr& m, bool isMutable=false);
     Object(const ObjectArrayPtr& v, bool isMutable=false);
     Object(ObjectArray&& v, bool isMutable=false);
-    Object(const rapidjson::Value& v);
-    Object(rapidjson::Document&& doc);
-    Object(const std::shared_ptr<Function>& f);
     Object(const Color& color);
     Object(const Dimension& dimension);
-    Object(Filter&& filter);
-    Object(GraphicFilter&& graphicFilter);
-    Object(Gradient&& gradient);
-    Object(MediaSource&& mediaSource);
-    Object(Rect&& rect);
-    Object(Radii&& radii);
-    Object(StyledText&& styledText);
-    Object(Range range);
-    Object(const GraphicPtr& graphic);
-    Object(const GraphicPatternPtr& graphicPattern);
-    Object(const std::shared_ptr<Transformation>& transform);
-    Object(Transform2D&& transform2d);
-    Object(URLRequest&& urlRequest);
-    Object(const EasingPtr& easing);
-    Object(const std::shared_ptr<datagrammar::BoundSymbol>& b);
-    Object(const std::shared_ptr<LiveDataObject>& d);
-    Object(const std::shared_ptr<ComponentEventWrapper>& component);
-    Object(const std::shared_ptr<ContextWrapper>& context);
-    Object(const std::shared_ptr<AccessibilityAction>& accessibilityAction);
+    Object(const rapidjson::Value& v);
+    Object(rapidjson::Document&& doc);
+
+    template<
+        class T,
+        StorageType ST = T::ObjectType::scStorageType,
+        typename = typename std::enable_if<ST == StorageType::kStorageTypePointer>::type
+        >
+    Object(const std::shared_ptr<T>& content) : mType(T::ObjectType::instance()), mU(content) {}
+
+    template<
+        class T,
+        StorageType ST = T::ObjectType::scStorageType,
+        typename = typename std::enable_if<ST == StorageType::kStorageTypeReference>::type
+        >
+    Object(T&& content) : mType(T::ObjectType::instance()), mU(T::ObjectType::createDirectObjectData(std::move(content))) {}
+
     Object(const std::shared_ptr<RangeGenerator>& range);
     Object(const std::shared_ptr<SliceGenerator>& slice);
 
@@ -215,16 +157,10 @@ public:
     static const Object& FALSE_OBJECT();
     static const Object& NULL_OBJECT();
     static Object NAN_OBJECT();
-    static Object AUTO_OBJECT();
     static Object EMPTY_ARRAY();
     static Object EMPTY_MUTABLE_ARRAY();
     static Object EMPTY_MAP();
     static Object EMPTY_MUTABLE_MAP();
-    static Object ZERO_ABS_DIMEN();
-    static Object EMPTY_RECT();
-    static Object EMPTY_RADII();
-    static Object IDENTITY_2D();
-    static Object LINEAR_EASING();
 
     // Destructor
     ~Object();
@@ -239,50 +175,40 @@ public:
     bool operator==(const Object& rhs) const;
     bool operator!=(const Object& rhs) const;
 
-    bool isNull() const { return mType == kNullType; }
-    bool isBoolean() const { return mType == kBoolType; }
-    bool isString() const { return mType == kStringType; }
-    bool isNumber() const { return mType == kNumberType; }
-    bool isNaN() const { return mType == kNumberType && std::isnan(mU.value); }
-    bool isArray() const { return mType == kArrayType; }
-    bool isMap() const { return mType == kMapType || mType == kComponentType || mType == kContextType; }
-    bool isTrueMap() const { return mType == kMapType; }
-    bool isBoundSymbol() const { return mType == kBoundSymbolType; }
-    bool isCallable() const { return mType == kFunctionType || mType == kEasingType; }
-    bool isByteCode() const { return mType == kByteCodeType; }
-    bool isEvaluable() const { return mType == kByteCodeType ||
-                                      mType == kBoundSymbolType; }
-    bool isFunction() const { return mType == kFunctionType; }
-    bool isAbsoluteDimension() const { return mType == kAbsoluteDimensionType; }
-    bool isRelativeDimension() const { return mType == kRelativeDimensionType; }
-    bool isAutoDimension() const { return mType == kAutoDimensionType; }
-    bool isNonAutoDimension() const { return mType == kAbsoluteDimensionType ||
-                                             mType == kRelativeDimensionType; }
-    bool isDimension() const { return mType == kAutoDimensionType ||
-                                      mType == kRelativeDimensionType ||
-                                      mType == kAbsoluteDimensionType; }
-    bool isColor() const { return mType == kColorType; }
-    bool isFilter() const { return mType == kFilterType; }
-    bool isGraphicFilter() const { return mType == kGraphicFilterType; }
-    bool isGradient() const { return mType == kGradientType; }
-    bool isMediaSource() const { return mType == kMediaSourceType; }
-    bool isRect() const { return mType == kRectType; }
-    bool isRadii() const { return mType == kRadiiType; }
-    bool isURLRequest() const { return mType == kURLRequestType; }
-    bool isStyledText() const { return mType == kStyledTextType; }
-    bool isRange() const { return mType == kRangeType; }
-    bool isGraphic() const { return mType == kGraphicType; }
-    bool isGraphicPattern() const { return mType == kGraphicPatternType; }
-    bool isTransform() const { return mType == kTransformType; }
-    bool isTransform2D() const { return mType == kTransform2DType; }
-    bool isEasing() const { return mType == kEasingType; }
-    bool isComponentEventData() const { return mType == kComponentType; }
-    bool isContext() const { return mType == kContextType; }
-    bool isJson() const;
-    bool isAccessibilityAction() const { return mType == kAccessibilityActionType; }
+    /**
+     * Check if object contains data of provided type.
+     * @tparam T type
+     * @return true if contains requested type, false otherwise.
+     */
+    template <class T> bool is() const { return mType == T::ObjectType::instance(); }
 
-    // These methods force a conversion to the appropriate type.  We try to return
-    // plausible defaults whenever possible.
+    bool isNull() const;
+    bool isBoolean() const;
+    bool isString() const;
+    bool isNumber() const;
+    bool isNaN() const;
+    bool isArray() const;
+    bool isMap() const;
+    bool isTrueMap() const;
+    bool isDimension() const;
+    bool isAbsoluteDimension() const;
+    bool isRelativeDimension() const;
+    bool isAutoDimension() const;
+    bool isNonAutoDimension() const;
+
+    bool isCallable() const;
+    bool isEvaluable() const;
+
+    /// These methods force a conversion to the appropriate type.  We try to return
+    /// plausible defaults whenever possible.
+    /**
+     * This method is used when coercing an object to a string.  This can be used
+     * by an APL author to display information in a Text component, so we deliberately
+     * do not return values for many of the internal object types.  Please use
+     * Object::toDebugString() to return strings suitable for writing to the system log.
+     *
+     * @return The user-friendly value of the object as a string.
+     */
     std::string asString() const;
     bool asBoolean() const { return truthy(); }
     double asNumber() const;
@@ -293,47 +219,66 @@ public:
     Dimension asAbsoluteDimension(const Context&) const;
     Dimension asNonAutoDimension(const Context&) const;
     Dimension asNonAutoRelativeDimension(const Context&) const;
-    URLRequest asURLRequest() const;
     /// @deprecated This method will be removed soon.
     APL_DEPRECATED Color asColor() const;
     Color asColor(const SessionPtr&) const;
     Color asColor(const Context&) const;
 
+    union DataHolder {
+        double value;
+        std::string string;
+        std::shared_ptr<ObjectData> data;
+
+        DataHolder() : value(0.0) {}
+        DataHolder(double v) : value(v) {}
+        DataHolder(const std::string& s) : string(s) {}
+        DataHolder(const std::shared_ptr<ObjectData>& d) : data(d) {}
+        ~DataHolder() {}
+    };
+
     // These methods return the actual contents of the Object
-    const std::string& getString() const { assert(mType == kStringType); return mU.string; }
-    bool getBoolean() const { assert(mType == kBoolType); return mU.value != 0; }
-    double getDouble() const { assert(mType == kNumberType); return mU.value; }
-    int getInteger() const { assert(mType == kNumberType); return static_cast<int>(std::round(mU.value)); }
-    unsigned getUnsigned() const { assert(mType == kNumberType); return static_cast<unsigned>(mU.value);}
-    double getAbsoluteDimension() const { assert(mType == kAbsoluteDimensionType); return mU.value; }
-    double getRelativeDimension() const { assert(mType == kRelativeDimensionType); return mU.value; }
-    uint32_t getColor() const { assert(mType == kColorType); return static_cast<uint32_t>(mU.value); }
+    /**
+     * Get data of provided type from the object. Applicable only to non-primitive types.
+     * @tparam T requested type.
+     * @return reference to data of requested type.
+     */
+    template<
+        class T,
+        StorageType ST = T::ObjectType::scStorageType,
+        typename = typename std::enable_if<ST == StorageType::kStorageTypeReference>::type
+        >
+    const T& get() const {
+        assert(is<T>());
+        return *static_cast<const T*>(extractDataInner(mU));
+    }
 
-    std::shared_ptr<Function> getFunction() const;
-    std::shared_ptr<datagrammar::BoundSymbol> getBoundSymbol() const;
-    std::shared_ptr<LiveDataObject> getLiveDataObject() const;
-    std::shared_ptr<AccessibilityAction> getAccessibilityAction() const;
-    std::shared_ptr<datagrammar::ByteCode> getByteCode() const;
+    /**
+     * Get data of provided type from the object. Applicable only to non-primitive types.
+     * @tparam T requested type.
+     * @return pointer to data of requested type.
+     */
+    template<
+        class T,
+        StorageType ST = T::ObjectType::scStorageType,
+        typename = typename std::enable_if<ST == StorageType::kStorageTypePointer>::type
+        >
+    std::shared_ptr<T> get() const {
+        assert(is<T>());
+        return std::static_pointer_cast<T>(mU.data);
+    }
 
+    const std::string& getString() const;
+    bool getBoolean() const;
+    double getDouble() const;
+    int getInteger() const;
+    double getAbsoluteDimension() const;
+    double getRelativeDimension() const;
+    uint32_t getColor() const;
     const ObjectMap& getMap() const;
     ObjectMap& getMutableMap();
     const ObjectArray& getArray() const;
     ObjectArray& getMutableArray();
-    const Filter& getFilter() const;
-    const GraphicFilter& getGraphicFilter() const;
-    const Gradient& getGradient() const;
-    const MediaSource& getMediaSource() const;
-    GraphicPtr getGraphic() const;
-    GraphicPatternPtr getGraphicPattern() const;
-    Rect getRect() const;
-    Radii getRadii() const;
-    const URLRequest& getURLRequest() const;
-    const StyledText& getStyledText() const;
-    const Range& getRange() const;
-    std::shared_ptr<Transformation> getTransformation() const;
-    Transform2D getTransform2D() const;
-    EasingPtr getEasing() const;
-    const rapidjson::Value& getJson() const;
+    std::shared_ptr<LiveDataObject> getLiveDataObject() const;
 
     bool truthy() const;
 
@@ -345,7 +290,8 @@ public:
     // ARRAY objects
     Object at(std::uint64_t index) const;
 
-    ObjectType getType() const;
+    // Get object type
+    const apl::ObjectType& type() const;
 
     // MAP, ARRAY, and STRING objects
     std::uint64_t size() const;
@@ -369,7 +315,7 @@ public:
     Object call(const ObjectArray& args) const;
 
     // Current object hash
-    size_t hash() const;
+    std::size_t hash() const;
 
     // Visitor pattern
     void accept(Visitor<Object>& visitor) const;
@@ -385,24 +331,16 @@ public:
     // Serialize just the dirty bits to JSON format
     rapidjson::Value serializeDirty(rapidjson::Document::AllocatorType& allocator) const;
 
-    template<typename T> const T& as() const;
     template<typename T> T asEnum() const { return static_cast<T>(getInteger()); }
 
 private:
-    ObjectType mType;
-    union U {
-        double value;
-        std::string string;
-        std::shared_ptr<ObjectData> data;
+    static const void* extractDataInner(const Object::DataHolder& dataHolder);
+    bool comparableWith(const Object& rhs) const;
 
-        U() : value(0.0) {}
-        U(double v) : value(v) {}
-        U(const std::string& s) : string(s) {}
-        U(const std::shared_ptr<ObjectData>& d) : data(d) {}
-        ~U() {}
-    } mU;
+private:
+    const apl::ObjectType* mType;
+    union DataHolder mU;
 };
-
 
 }  // namespace apl
 

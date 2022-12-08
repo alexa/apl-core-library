@@ -24,6 +24,7 @@
 
 
 #include "apl/primitives/object.h"
+#include "apl/primitives/dimension.h"
 #include "apl/utils/stringfunctions.h"
 
 #ifdef APL_CORE_UWP
@@ -53,7 +54,8 @@ struct action : nothing< Rule >
 template<> struct action< number >
 {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         double value = sutil::stod(in.string());
         if (fitsInBCI(value))
             assembler.loadImmediate(asBCI(value));
@@ -65,7 +67,8 @@ template<> struct action< number >
 template<> struct action< key_null >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.loadConstant(BC_CONSTANT_NULL);
     }
 };
@@ -73,7 +76,8 @@ template<> struct action< key_null >
 template<> struct action< key_true >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.loadConstant(BC_CONSTANT_TRUE);
     }
 };
@@ -81,7 +85,8 @@ template<> struct action< key_true >
 template<> struct action< key_false >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.loadConstant(BC_CONSTANT_FALSE);
     }
 };
@@ -91,7 +96,8 @@ template<> struct action< key_false >
 template<> struct action< dimension >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.loadOperand(Object(Dimension(*(assembler.context()), in.string())));
     }
 };
@@ -100,7 +106,8 @@ template<> struct action< dimension >
 template<> struct action< sym_unary >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.pushUnaryOperator(in.string()[0]);
     }
 };
@@ -108,7 +115,8 @@ template<> struct action< sym_unary >
 template<> struct action< unary_expression >
 {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.reduceUnary();
     }
 };
@@ -116,7 +124,8 @@ template<> struct action< unary_expression >
 // ************* Multiplication, division, modulus *************
 template<> struct action< sym_multiplicative > {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.pushBinaryOperator(in.string());
     }
 };
@@ -124,7 +133,8 @@ template<> struct action< sym_multiplicative > {
 template<> struct action< multiplicative_expression >
 {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.reduceBinary(BC_ORDER_MULTIPLICATIVE);
     }
 };
@@ -132,7 +142,8 @@ template<> struct action< multiplicative_expression >
 // ************* Addition, subtraction *************
 template<> struct action< sym_additive > {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.pushBinaryOperator(in.string());
     }
 };
@@ -140,7 +151,8 @@ template<> struct action< sym_additive > {
 template<> struct action< additive_expression >
 {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.reduceBinary(BC_ORDER_ADDITIVE);
     }
 };
@@ -148,7 +160,8 @@ template<> struct action< additive_expression >
 // ************* Comparison *************
 template<> struct action< sym_compare > {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.pushBinaryOperator(in.string());
     }
 };
@@ -156,7 +169,8 @@ template<> struct action< sym_compare > {
 template<> struct action< comparison_expression >
 {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.reduceBinary(BC_ORDER_COMPARISON);
     }
 };
@@ -164,7 +178,8 @@ template<> struct action< comparison_expression >
 // ************* Equality *************
 template<> struct action< sym_equal > {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.pushBinaryOperator(in.string());
     }
 };
@@ -172,7 +187,8 @@ template<> struct action< sym_equal > {
 template<> struct action< equality_expression >
 {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.reduceBinary(BC_ORDER_EQUALITY);
     }
 };
@@ -180,7 +196,8 @@ template<> struct action< equality_expression >
 // ************* Logical AND *************
 template<> struct action< sym_and > {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.pushAnd();
     }
 };
@@ -188,7 +205,8 @@ template<> struct action< sym_and > {
 template<> struct action< logical_and_expression >
 {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.reduceJumps(BC_ORDER_LOGICAL_AND);
     }
 };
@@ -196,7 +214,8 @@ template<> struct action< logical_and_expression >
 // ************* Logical OR *************
 template<> struct action< sym_or > {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.pushOr();
     }
 };
@@ -204,7 +223,8 @@ template<> struct action< sym_or > {
 template<> struct action< logical_or_expression >
 {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.reduceJumps(BC_ORDER_LOGICAL_OR);
     }
 };
@@ -212,7 +232,8 @@ template<> struct action< logical_or_expression >
 // ************* Null coalescence *************
 template<> struct action< sym_nullc > {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.pushNullC();
     }
 };
@@ -220,7 +241,8 @@ template<> struct action< sym_nullc > {
 template<> struct action< nullc_expression >
 {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.reduceJumps(BC_ORDER_NULLC);
     }
 };
@@ -229,7 +251,8 @@ template<> struct action< nullc_expression >
 template<> struct action < sym_question >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushTernaryIf();
     }
 };
@@ -237,7 +260,8 @@ template<> struct action < sym_question >
 template<> struct action < sym_colon >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushTernaryElse();
     }
 };
@@ -245,7 +269,8 @@ template<> struct action < sym_colon >
 template<> struct action< ternary_tail >
 {
     template< typename Input >
-    static void apply(const Input& in, ByteCodeAssembler& assembler) {
+    static void apply(const Input& in, fail_state& failState, ByteCodeAssembler& assembler) {
+        if (failState.failed) return;
         assembler.reduceOneJump(BC_ORDER_TERNARY_ELSE);
     }
 };
@@ -254,7 +279,8 @@ template<> struct action< ternary_tail >
 template<> struct action< group_start >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushGroup();
     }
 };
@@ -263,7 +289,8 @@ template<> struct action< group_start >
 template<> struct action< grouping >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.popGroup();
     }
 };
@@ -272,7 +299,8 @@ template<> struct action< grouping >
 template<> struct action< resource >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.loadGlobal(in.string());  // TODO: Should this be treated differently?
     }
 };
@@ -281,7 +309,8 @@ template<> struct action< resource >
 template<> struct action< plain_symbol >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.loadGlobal(in.string());
     }
 };
@@ -290,7 +319,8 @@ template<> struct action< plain_symbol >
 template<> struct action< array_start >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushInlineArrayStart();
     }
 };
@@ -298,7 +328,8 @@ template<> struct action< array_start >
 template<> struct action< array_end >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushInlineArrayEnd();
     }
 };
@@ -306,7 +337,8 @@ template<> struct action< array_end >
 template<> struct action< array_comma >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.appendInlineArrayArgument();
     }
 };
@@ -314,7 +346,8 @@ template<> struct action< array_comma >
 template<> struct action< array_list >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.appendInlineArrayArgument();    // Insert a fake comma
     }
 };
@@ -323,7 +356,8 @@ template<> struct action< array_list >
 template<> struct action< map_start >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushInlineMapStart();
     }
 };
@@ -331,7 +365,8 @@ template<> struct action< map_start >
 template<> struct action< map_end >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushInlineMapEnd();
     }
 };
@@ -339,7 +374,8 @@ template<> struct action< map_end >
 template<> struct action< map_comma >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.appendInlineMapArgument();
     }
 };
@@ -347,7 +383,8 @@ template<> struct action< map_comma >
 template<> struct action< map_list >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.appendInlineMapArgument();    // Insert a fake comma
     }
 };
@@ -356,7 +393,8 @@ template<> struct action< map_list >
 template<> struct action< postfix_identifier >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushAttributeName(in.string());
         assembler.loadAttribute();
     }
@@ -366,7 +404,8 @@ template<> struct action< postfix_identifier >
 template<> struct action< sym_array_access_start >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushArrayAccessStart();
     }
 };
@@ -374,7 +413,8 @@ template<> struct action< sym_array_access_start >
 template<> struct action< postfix_array_access >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushArrayAccessEnd();
     }
 };
@@ -383,7 +423,8 @@ template<> struct action< postfix_array_access >
 template<> struct action<postfix_left_paren >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushFunctionStart();
     }
 };
@@ -391,7 +432,8 @@ template<> struct action<postfix_left_paren >
 template<> struct action< sym_comma >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushComma();
     }
 };
@@ -399,7 +441,8 @@ template<> struct action< sym_comma >
 template<> struct action< argument_list >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushComma();  // Insert a fake comma
     }
 };
@@ -407,7 +450,8 @@ template<> struct action< argument_list >
 template<> struct action< postfix_right_paren >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushFunctionEnd();
     }
 };
@@ -417,7 +461,8 @@ template<> struct action< postfix_right_paren >
 template<> struct action< sym_dbstart >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.pushDBGroup();
     }
 };
@@ -425,7 +470,8 @@ template<> struct action< sym_dbstart >
 template<> struct action<db_empty>
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler ) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.loadConstant(BC_CONSTANT_EMPTY_STRING);
     }
 };
@@ -433,7 +479,8 @@ template<> struct action<db_empty>
 template<> struct action< db >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.popDBGroup();
     }
 };
@@ -443,7 +490,8 @@ template<> struct action< db >
 template<> struct action< ds_start >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.startString();
     }
 };
@@ -451,7 +499,8 @@ template<> struct action< ds_start >
 template<> struct action< ss_start >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.startString();
     }
 };
@@ -459,7 +508,8 @@ template<> struct action< ss_start >
 template<> struct action< os_start >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.startString();
     }
 };
@@ -467,7 +517,8 @@ template<> struct action< os_start >
 template<> struct action< ss_raw >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         auto s = in.string();
         if (s.length() > 0)
             assembler.addString(s);
@@ -477,7 +528,8 @@ template<> struct action< ss_raw >
 template<> struct action< ds_raw >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         auto s = in.string();
         if (s.length() > 0)
             assembler.addString(s);
@@ -487,7 +539,8 @@ template<> struct action< ds_raw >
 template<> struct action< os_raw >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         auto s = in.string();
         if (s.length() > 0)
             assembler.addString(s);
@@ -498,7 +551,8 @@ template<> struct action< os_raw >
 template<> struct action< os_string >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.endString();
     }
 };
@@ -506,7 +560,8 @@ template<> struct action< os_string >
 template<> struct action< ss_string >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.endString();
     }
 };
@@ -514,7 +569,8 @@ template<> struct action< ss_string >
 template<> struct action< ds_string >
 {
     template< typename Input >
-    static void apply( const Input& in, ByteCodeAssembler& assembler) {
+    static void apply( const Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (failState.failed) return;
         assembler.endString();
     }
 };

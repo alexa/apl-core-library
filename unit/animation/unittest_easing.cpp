@@ -18,7 +18,6 @@
 #include <clocale>
 
 #include "apl/animation/coreeasing.h"
-#include "apl/animation/easinggrammar.h"
 
 using namespace apl;
 
@@ -264,17 +263,20 @@ static std::vector<std::string> sFailureCases = {
     "path(0.2,0.2,0.1,0.5)",  // Out of order
     "cubic-bezier()",
     "cubic-bezier(1,2,3)",
-    "cubic-bezier(1,2,3,4,5)"
+    "cubic-bezier(1,2,3,4,5)",
     "line() end(1,1)",      // Wrong number of arguments
+    "line(0,0) end(1,1,1)", // Wrong arguments
     "line(1) end(1,1)",
     "line(a",
     "line(1, end(1,1)",
     "line(1,1)",   // No end value
     "line(1,2,3)",
     "line(1,1) end(0,1)",  // Invalid times
+    "line(0,0) line(0.25, 1) line(0,0) end(1,1)", // Invalid times
     "curve(0,0) end(1,1)",  // Wrong number of arguments
     "curve(0,1,2,3,4,5,6,7,8) end(1,2)",
     "curve(1,0,1,1,1,1) end(0,1)", // Invalid times
+    "curve(0, 0, 0.25, 0.10, 0.25, 1.0) curve(0, 0, 0, 0, 0, 0) end(1,1)", // Invalid times
     "end(0,1)",
     "line(0,1) line(2,1) end(1,1)", // Invalid times
     "send(1,2,3)",
@@ -287,6 +289,8 @@ static std::vector<std::string> sFailureCases = {
     "spatial(2,-1) scurve(0, 0,0, 0,0, 0,0, 0.25,0.25,0.25,0.25) send(1,0,0)", // Invalid spatial index
     "spatial(3,0) scurve(0, 0,0, 0,0, 0,0, 0.25,0.25,0.25,0.25) send(1,0,0)", // DOF mismatch
     "spatial(2,0) scurve(0, 0,0, 0,0, 0,0, 0.25,0.25,0.25,0.25) send(-1,0,0)",  // Invalid time
+    "spatial(2,0,0) scurve(0, 0,0, 0,0, 0,0, 0.25,0.25,0.25,0.25) send(1,0,0)", // Invalid arguments
+    "spatial(2,0) scurve(0, 0,0, 0,0, 0,0, 0.25,0.25,0.25,0.25) scurve(0, 0,0, 0,0, 0,0, 0.25,0.25,0.25,0.25) send(1,0,0)",
 };
 
 TEST_F(EasingTest, EasingFail)
@@ -367,9 +371,9 @@ TEST_F(EasingTest, Rotate)
     ASSERT_TRUE(component);
 
     auto graphicObject = component->getCalculated(kPropertyGraphic);
-    ASSERT_TRUE(graphicObject.isGraphic());
+    ASSERT_TRUE(graphicObject.is<Graphic>());
 
-    auto graphic = graphicObject.getGraphic();
+    auto graphic = graphicObject.get<Graphic>();
     ASSERT_TRUE(graphic);
 
     auto graphicRoot = graphic->getRoot();
@@ -394,7 +398,7 @@ TEST_F(EasingTest, Rotate)
     advanceTime(5000);
 
     ASSERT_TRUE(IsEqual(222, group1->getValue(kGraphicPropertyTranslateX)));
-    ASSERT_TRUE(IsEqual(Transform2D::translate(222, 118.5), group1->getValue(kGraphicPropertyTransform).getTransform2D()));
+    ASSERT_TRUE(IsEqual(Transform2D::translate(222, 118.5), group1->getValue(kGraphicPropertyTransform).get<Transform2D>()));
 }
 
 

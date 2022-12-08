@@ -59,6 +59,12 @@ VideoComponent::create(const ContextPtr& context,
     return ptr;
 }
 
+std::shared_ptr<VideoComponent>
+VideoComponent::cast(const std::shared_ptr<Component>& component) {
+    return component && component->getType() == ComponentType::kComponentTypeVideo
+               ? std::static_pointer_cast<VideoComponent>(component) : nullptr;
+}
+
 void
 VideoComponent::playerCallback(MediaPlayerEventType eventType, const MediaState& mediaState)
 {
@@ -218,7 +224,7 @@ VideoComponent::propDefSet() const
             return;
         }
 
-        auto& self = dynamic_cast<VideoComponent&>(component);
+        auto& self = (VideoComponent&)component;
         for (size_t index = 0 ; index < PLAYING_STATE.size() ; index++)
             self.mCalculated.set(PLAYING_STATE.at(index), value.at(index));
 
@@ -226,14 +232,14 @@ VideoComponent::propDefSet() const
     };
 
     static auto resetMediaState = [](Component& component) {
-        auto& comp = dynamic_cast<VideoComponent&>(component);
+        auto& comp = (VideoComponent&)component;
         auto mediaPlayer = comp.getMediaPlayer();
         if (mediaPlayer)
             mediaPlayer->setTrackList(mediaSourcesToTracks(comp.getCalculated(kPropertySource)));
     };
 
     static auto setMute = [](Component& component) -> void {
-      auto& self = dynamic_cast<VideoComponent&>(component);
+      auto& self = (VideoComponent&)component;
       auto mediaPlayer = self.getMediaPlayer();
       if (mediaPlayer)
           mediaPlayer->setMute(self.getCalculated(kPropertyMuted).asBoolean());
@@ -452,13 +458,12 @@ VideoComponent::getCurrentUrl() const
     auto trackIndex = getCalculated(kPropertyTrackIndex).asInt();
     if (trackIndex < 0 || trackIndex >= source.size())
         return "";
-    return source.at(trackIndex).getMediaSource().getUrl();
+    return source.at(trackIndex).get<MediaSource>().getUrl();
 }
 
 static inline Object
 inlineGetCurrentURL(const CoreComponent *c) {
-    auto comp = dynamic_cast<const VideoComponent*>(c);
-    return comp->getCurrentUrl();
+    return ((const VideoComponent*)c)->getCurrentUrl();
 }
 
 const EventPropertyMap&
@@ -507,7 +512,7 @@ VideoComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::Allocator
             state = "playing";
         }
 
-        auto currentSource = sources.getArray().at(trackIndex).getMediaSource();
+        auto currentSource = sources.getArray().at(trackIndex).get<MediaSource>();
 
         rapidjson::Value media(rapidjson::kObjectType);
         media.AddMember("allowAdjustSeekPositionForward", allowAdjustSeekPositionForward, allocator);
@@ -549,9 +554,9 @@ VideoComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
     assert(top);
 
     // Find the target bounding box of the image.  This is where we will be drawing the image.  This is in DP.
-    auto innerBounds = getCalculated(kPropertyInnerBounds).getRect();
+    const auto& innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();
     auto scale = static_cast<VideoScale>(getCalculated(kPropertyScale).getInteger());
-    top->appendContent(sg::video(mMediaPlayer, innerBounds, scale));
+    top->setContent(sg::video(mMediaPlayer, innerBounds, scale));
     return top;
 }
 
@@ -560,8 +565,9 @@ VideoComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
 {
     const auto dirty = isDirty(kPropertyInnerBounds) || isDirty(kPropertyScale);
     if (dirty) {
-        auto *video = sg::VideoNode::cast(mSceneGraphLayer->content().front());
-        video->setTarget(getCalculated(kPropertyInnerBounds).getRect());
+        auto *video = sg::VideoNode::cast(mSceneGraphLayer->content());
+        video->setTarget(getCalculated(kPropertyInnerBounds).get<Rect>());
+
         video->setScale(static_cast<VideoScale>(getCalculated(kPropertyScale).getInteger()));
     }
 

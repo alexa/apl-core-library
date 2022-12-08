@@ -361,3 +361,102 @@ TEST_F(CommandSendEventTest, SendEventWithDefaultFlags)
     ASSERT_EQ(Object(7), flags.get("three"));
     ASSERT_EQ(Object("I_AM_DEFAULT"), flags.get("four"));
 }
+
+static const char *SENDEVENT_WITH_NULL_COMPONENTS = R"apl({
+  "type": "APL",
+  "version": "2022.2",
+  "commands": {
+    "SendEventWrap1": {
+      "parameters": [
+        {
+          "name": "arguments",
+          "type": "array"
+        },
+        {
+          "name": "components",
+          "type": "array"
+        }
+      ],
+      "commands": [
+        {
+          "type": "SendEvent",
+          "arguments": [
+            "${arguments}",
+            {
+              "utcTime": "${utcTime}"
+            }
+          ],
+          "components": "${components}"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "TouchWrapper",
+      "width": "100%",
+      "height": "100%",
+      "onPress": [
+        {
+          "type": "SendEventWrap1",
+          "arguments": ["8C246"]
+        }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(CommandSendEventTest, SendEventWithNullComponents)
+{
+    loadDocument(SENDEVENT_WITH_NULL_COMPONENTS);
+    ASSERT_TRUE(component);
+
+    performClick(10, 10);
+    advanceTime(500);
+
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    auto arguments = event.getValue(kEventPropertyArguments).getArray();
+    ASSERT_EQ(Object("8C246"), arguments.at(0));
+
+    ASSERT_TRUE(event.getValue(kEventPropertyComponents).empty());
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+static const char *SENDEVENT_WITH_TYPE_MIX_COMPONENTS = R"apl({
+  "type": "APL",
+  "version": "2022.2",
+  "mainTemplate": {
+    "item": {
+      "id": "root",
+      "type": "TouchWrapper",
+      "width": "100%",
+      "height": "100%",
+      "onPress": [
+        {
+          "type": "SendEvent",
+          "components": ["root", null, 42, {"fuzzy":"duck"}]
+        }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(CommandSendEventTest, SendEventWithTypeMixComponents)
+{
+    loadDocument(SENDEVENT_WITH_TYPE_MIX_COMPONENTS);
+    ASSERT_TRUE(component);
+
+    performClick(10, 10);
+    advanceTime(500);
+
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    auto components = event.getValue(kEventPropertyComponents).getMap();
+    const auto& pair = components.begin();
+    ASSERT_EQ(pair->first, "root");
+    ASSERT_EQ(pair->second, component->getValue());
+
+    // 3 messages for 3 non-string component IDs.
+    ASSERT_TRUE(ConsoleMessage());
+}

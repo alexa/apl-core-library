@@ -124,8 +124,8 @@ SpeakListAction::rehydrate(const RootContext& context)
     if (start + count > len)
         mEndIndex = start + (len - start);
 
-    auto speakItem = std::dynamic_pointer_cast<SpeakItemAction>(mCurrentAction);
-    if (speakItem) {
+    if (mCurrentAction) {
+        auto speakItem = std::static_pointer_cast<SpeakItemAction>(mCurrentAction);
         speakItem->mTarget = mContainer->getCoreChildAt(mNextIndex - 1);
         if (!speakItem->rehydrate(context)) return false;
     }

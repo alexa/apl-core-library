@@ -43,6 +43,12 @@ ActionableComponent::propDefSet() const {
     return sActionableComponentProperties;
 }
 
+std::shared_ptr<ActionableComponent>
+ActionableComponent::cast(const std::shared_ptr<Component>& component) {
+    return component && CoreComponent::cast(component)->isActionable()
+               ? std::static_pointer_cast<ActionableComponent>(component) : nullptr;
+}
+
 void
 ActionableComponent::executeOnBlur() {
     auto command = getCalculated(kPropertyOnBlur);
@@ -119,7 +125,7 @@ ActionableComponent::executeIntrinsicKeyHandlers(KeyHandlerType type, const Keyb
 }
 
 void
-ActionableComponent::release()
+ActionableComponent::releaseSelf()
 {
     // Avoiding reference loop.
     if (mActiveGesture) {
@@ -127,7 +133,7 @@ ActionableComponent::release()
         mActiveGesture = nullptr;
     }
     mGestureHandlers.clear();
-    CoreComponent::release();
+    CoreComponent::releaseSelf();
 }
 
 bool
@@ -208,7 +214,7 @@ ActionableComponent::getUserSpecifiedNextFocus(FocusDirection direction)
     if (it != focusDirectionToNextProperty().end()) {
         auto componentId = getCalculated(it->second).getString();
         if (!componentId.empty()) {
-            return std::dynamic_pointer_cast<CoreComponent>(getContext()->findComponentById(componentId));
+            return CoreComponent::cast(getContext()->findComponentById(componentId));
         }
     }
     return nullptr;

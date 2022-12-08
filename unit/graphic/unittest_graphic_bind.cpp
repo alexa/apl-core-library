@@ -61,7 +61,7 @@ TEST_F(GraphicBindTest, BindTest)
     loadDocument(BIND_TEST);
     ASSERT_TRUE(component);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     auto box = graphic->getRoot();
     ASSERT_EQ(kGraphicElementTypeContainer, box->getType());
 
@@ -119,7 +119,7 @@ TEST_F(GraphicBindTest, BindToTime)
     loadDocument(BIND_TO_TIME_TEST);
     ASSERT_TRUE(component);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     auto box = graphic->getRoot();
     ASSERT_EQ(kGraphicElementTypeContainer, box->getType());
 
@@ -178,7 +178,7 @@ TEST_F(GraphicBindTest, Nested)
     loadDocument(NESTED);
     ASSERT_TRUE(component);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     auto box = graphic->getRoot();
     ASSERT_EQ(kGraphicElementTypeContainer, box->getType());
 

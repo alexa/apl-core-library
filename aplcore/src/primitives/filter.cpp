@@ -171,7 +171,7 @@ calculateExtended(const std::string& name,
 Object
 Filter::create(const Context& context, const Object& object)
 {
-    if (object.isFilter())
+    if (object.is<Filter>())
         return object;
 
     if (!object.isMap())

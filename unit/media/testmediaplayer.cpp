@@ -16,6 +16,8 @@
 #include "testmediaplayer.h"
 #include "testmediaplayerfactory.h"
 
+#include "apl/utils/log.h"
+
 namespace apl {
 
 const bool DEBUG_MP = false;

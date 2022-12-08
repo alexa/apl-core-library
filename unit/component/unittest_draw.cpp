@@ -32,8 +32,8 @@ const double EPSILON = 0.05;
 inline
 ::testing::AssertionResult
 CheckAABB(const Rect &expected, const ComponentPtr &component) {
-    auto t2d = component->getCalculated(kPropertyTransform).getTransform2D();
-    auto bounds = component->getCalculated(kPropertyBounds).getRect();
+    auto t2d = component->getCalculated(kPropertyTransform).get<Transform2D>();
+    auto bounds = component->getCalculated(kPropertyBounds).get<Rect>();
 
     auto aabb = t2d.calculateAxisAlignedBoundingBox(Rect{0, 0, bounds.getWidth(), bounds.getHeight()});
     aabb.offset(bounds.getTopLeft());

@@ -96,7 +96,7 @@ AnimatedTransform::update(const CoreComponentPtr& component, float alpha)
 {
     bool changed = mTransformation->interpolate(alpha);
     auto assigned = component->getCalculated(kPropertyTransformAssigned);
-    if (!assigned.isTransform() || assigned.getTransformation() != mTransformation)
+    if (!assigned.is<Transformation>() || assigned.get<Transformation>() != mTransformation)
         component->setProperty(kPropertyTransformAssigned, Object(mTransformation));
     else if (changed)
         component->markProperty(kPropertyTransformAssigned);

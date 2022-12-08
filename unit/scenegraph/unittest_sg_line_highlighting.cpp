@@ -180,16 +180,18 @@ TEST_F(AudioHighlightTest, BasicSceneGraph)
 
     // We've got the first speech mark, so we have Karaoke-Target state
     sg = root->getSceneGraph();
-    ASSERT_TRUE(CheckSceneGraph(
-        sg, IsLayer(Rect{0, 0, 100, 100}, "...Text")
-            .dirty(sg::Layer::kFlagRedrawContent)
-            .content(IsTransformNode()
-                         .child(
-                             IsTextNode().text("Fuzzy duck").range({0,0}).pathOp(IsFillOp(IsColorPaint(Color::GREEN))))
-                         .child(
-                             IsTextNode().text("Fuzzy duck").range({1,1}).pathOp(IsFillOp(IsColorPaint(Color::RED)))
-                               )
-                    )));
+    ASSERT_TRUE(
+        CheckSceneGraph(sg, IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                                .dirty(sg::Layer::kFlagRedrawContent)
+                                .content(IsTransformNode().child(
+                                    IsTextNode()
+                                        .text("Fuzzy duck")
+                                        .range({0, 0})
+                                        .pathOp(IsFillOp(IsColorPaint(Color::GREEN)))
+                                        .next(IsTextNode()
+                                                  .text("Fuzzy duck")
+                                                  .range({1, 1})
+                                                  .pathOp(IsFillOp(IsColorPaint(Color::RED))))))));
 
     // ======= Advance to the next speech mark ========
     advanceTime(500);
@@ -200,13 +202,15 @@ TEST_F(AudioHighlightTest, BasicSceneGraph)
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 100, 100}, "...Text")
                 .dirty(sg::Layer::kFlagRedrawContent)
-                .content(IsTransformNode()
-                             .child(
-                                 IsTextNode().text("Fuzzy duck").range({0,0}).pathOp(IsFillOp(IsColorPaint(Color::RED))))
-                             .child(
-                                 IsTextNode().text("Fuzzy duck").range({1,1}).pathOp(IsFillOp(IsColorPaint(Color::GREEN)))
-                                     )
-                             )));
+                .content(IsTransformNode().child(
+                    IsTextNode()
+                        .text("Fuzzy duck")
+                        .range({0, 0})
+                        .pathOp(IsFillOp(IsColorPaint(Color::RED)))
+                        .next(IsTextNode()
+                                  .text("Fuzzy duck")
+                                  .range({1, 1})
+                                  .pathOp(IsFillOp(IsColorPaint(Color::GREEN))))))));
 
     // ======= Advance to the end of audio playback ========
     advanceTime(500);
@@ -310,7 +314,12 @@ TEST_F(AudioHighlightTest, Scrolling) {
                                    .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))));
 
     // Execute SpeakItem with line highlighting.  Align the line to "first"
-    executeCommand("SpeakItem", {{"componentId", "TEXT"}, {"sequencer", "MAGIC"}, {"highlightMode", "line"}, {"align", "first"}}, false);
+    executeCommand("SpeakItem",
+                   {{"componentId", "TEXT"},
+                    {"sequencer", "MAGIC"},
+                    {"highlightMode", "line"},
+                    {"align", "first"}},
+                   false);
 
     ASSERT_TRUE(CheckPlayer("http://foo.com", TestAudioPlayer::kPreroll));
     ASSERT_FALSE(factory->hasEvent());
@@ -360,17 +369,17 @@ TEST_F(AudioHighlightTest, Scrolling) {
                 .vertical()
                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
                            .dirty(sg::Layer::kFlagRedrawContent)
-                           .content(IsTransformNode()
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({0, 0})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::GREEN))))
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({1, 4})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))
+                           .content(IsTransformNode().child(
+                               IsTextNode()
+                                   .text("Line1Line2Line3Line4Line5")
+                                   .range({0, 0})
+                                   .pathOp(IsFillOp(IsColorPaint(Color::GREEN)))
+                                   .next(IsTextNode()
+                                             .text("Line1Line2Line3Line4Line5")
+                                             .range({1, 4})
+                                             .pathOp(IsFillOp(IsColorPaint(Color::RED))))
 
-                                        ))));
+                                   )))));
 
     // ========== The second karaoke word hits.  Starts scrolling Line2 ===========
     advanceTime(200);
@@ -378,52 +387,54 @@ TEST_F(AudioHighlightTest, Scrolling) {
     // The second line turns GREEN
     sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
-        sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
-                .vertical()
-                .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
-                           .dirty(sg::Layer::kFlagRedrawContent)
-                           .content(IsTransformNode()
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({0, 0})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({1, 1})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::GREEN))))
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({2, 4})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))
-                                    ))));
+        sg,
+        IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
+            .vertical()
+            .child(
+                IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                    .dirty(sg::Layer::kFlagRedrawContent)
+                    .content(IsTransformNode().child(
+                        IsTextNode()
+                            .text("Line1Line2Line3Line4Line5")
+                            .range({0, 0})
+                            .pathOp(IsFillOp(IsColorPaint(Color::RED)))
+                            .next(IsTextNode()
+                                      .text("Line1Line2Line3Line4Line5")
+                                      .range({1, 1})
+                                      .pathOp(IsFillOp(IsColorPaint(Color::GREEN)))
+                                      .next(IsTextNode()
+                                                .text("Line1Line2Line3Line4Line5")
+                                                .range({2, 4})
+                                                .pathOp(IsFillOp(IsColorPaint(Color::RED))))))))));
 
     // ========== Advance past the initial scrolling but before the next word ===========
     advanceTime(100);
 
     sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
-        sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
-                .vertical()
-                .dirty(sg::Layer::kFlagChildOffsetChanged)
-                .childOffset(Point(0,20))
-                .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
-                           .content(IsTransformNode()
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({0, 0})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({1, 1})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::GREEN))))
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({2, 4})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))
-                                        ))));
+        sg,
+        IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
+            .vertical()
+            .dirty(sg::Layer::kFlagChildOffsetChanged)
+            .childOffset(Point(0, 20))
+            .child(
+                IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                    .content(IsTransformNode().child(
+                        IsTextNode()
+                            .text("Line1Line2Line3Line4Line5")
+                            .range({0, 0})
+                            .pathOp(IsFillOp(IsColorPaint(Color::RED)))
+                            .next(IsTextNode()
+                                      .text("Line1Line2Line3Line4Line5")
+                                      .range({1, 1})
+                                      .pathOp(IsFillOp(IsColorPaint(Color::GREEN)))
+                                      .next(IsTextNode()
+                                                .text("Line1Line2Line3Line4Line5")
+                                                .range({2, 4})
+                                                .pathOp(IsFillOp(IsColorPaint(Color::RED))))))))));
 
     // ========== Run off until all playback is done ===========
-    for (int i = 0 ; i < 2000 ; i += 100)
+    for (int i = 0; i < 2000; i += 100)
         advanceTime(100);
 
     // The player has finished
@@ -437,18 +448,17 @@ TEST_F(AudioHighlightTest, Scrolling) {
         sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
                 .vertical()
                 .dirty(sg::Layer::kFlagChildOffsetChanged)
-                .childOffset(Point(0,40))
+                .childOffset(Point(0, 40))
                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
                            .dirty(sg::Layer::kFlagRedrawContent)
-                           .content(IsTransformNode()
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))
-                                        ))));
-
+                           .content(IsTransformNode().child(
+                               IsTextNode()
+                                   .text("Line1Line2Line3Line4Line5")
+                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))));
 }
 
-TEST_F(AudioHighlightTest, ScrollingWithPreserve) {
+TEST_F(AudioHighlightTest, ScrollingWithPreserve)
+{
     config->set(RootProperty::kScrollCommandDuration, 50);
 
     factory->addFakeContent({{"http://foo.com",
@@ -478,7 +488,12 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve) {
                                    .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))));
 
     // Execute SpeakItem with line highlighting.  Align the line to "first"
-    executeCommand("SpeakItem", {{"componentId", "TEXT"}, {"sequencer", "MAGIC"}, {"highlightMode", "line"}, {"align", "first"}}, false);
+    executeCommand("SpeakItem",
+                   {{"componentId", "TEXT"},
+                    {"sequencer", "MAGIC"},
+                    {"highlightMode", "line"},
+                    {"align", "first"}},
+                   false);
 
     ASSERT_TRUE(CheckPlayer("http://foo.com", TestAudioPlayer::kPreroll));
     ASSERT_FALSE(factory->hasEvent());
@@ -528,17 +543,17 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve) {
                 .vertical()
                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
                            .dirty(sg::Layer::kFlagRedrawContent)
-                           .content(IsTransformNode()
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({0, 0})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::GREEN))))
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({1, 4})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))
+                           .content(IsTransformNode().child(
+                               IsTextNode()
+                                   .text("Line1Line2Line3Line4Line5")
+                                   .range({0, 0})
+                                   .pathOp(IsFillOp(IsColorPaint(Color::GREEN)))
+                                   .next(IsTextNode()
+                                             .text("Line1Line2Line3Line4Line5")
+                                             .range({1, 4})
+                                             .pathOp(IsFillOp(IsColorPaint(Color::RED))))
 
-                                        ))));
+                                   )))));
 
     // ========== The second karaoke word hits.  Starts scrolling Line2 ===========
     advanceTime(200);
@@ -546,60 +561,62 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve) {
     // The second line turns GREEN
     sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
-        sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
-                .vertical()
-                .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
-                           .dirty(sg::Layer::kFlagRedrawContent)
-                           .content(IsTransformNode()
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({0, 0})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({1, 1})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::GREEN))))
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({2, 4})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))
-                                        ))));
+        sg,
+        IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
+            .vertical()
+            .child(
+                IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                    .dirty(sg::Layer::kFlagRedrawContent)
+                    .content(IsTransformNode().child(
+                        IsTextNode()
+                            .text("Line1Line2Line3Line4Line5")
+                            .range({0, 0})
+                            .pathOp(IsFillOp(IsColorPaint(Color::RED)))
+                            .next(IsTextNode()
+                                      .text("Line1Line2Line3Line4Line5")
+                                      .range({1, 1})
+                                      .pathOp(IsFillOp(IsColorPaint(Color::GREEN)))
+                                      .next(IsTextNode()
+                                                .text("Line1Line2Line3Line4Line5")
+                                                .range({2, 4})
+                                                .pathOp(IsFillOp(IsColorPaint(Color::RED))))))))));
 
     // ========== Advance past the initial scrolling but before the next word ===========
     advanceTime(100);
 
     sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
-        sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
-                .vertical()
-                .dirty(sg::Layer::kFlagChildOffsetChanged)
-                .childOffset(Point(0,20))
-                .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
-                           .content(IsTransformNode()
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({0, 0})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({1, 1})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::GREEN))))
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .range({2, 4})
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))
-                                        ))));
+        sg,
+        IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
+            .vertical()
+            .dirty(sg::Layer::kFlagChildOffsetChanged)
+            .childOffset(Point(0, 20))
+            .child(
+                IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                    .content(IsTransformNode().child(
+                        IsTextNode()
+                            .text("Line1Line2Line3Line4Line5")
+                            .range({0, 0})
+                            .pathOp(IsFillOp(IsColorPaint(Color::RED)))
+                            .next(IsTextNode()
+                                      .text("Line1Line2Line3Line4Line5")
+                                      .range({1, 1})
+                                      .pathOp(IsFillOp(IsColorPaint(Color::GREEN)))
+                                      .next(IsTextNode()
+                                                .text("Line1Line2Line3Line4Line5")
+                                                .range({2, 4})
+                                                .pathOp(IsFillOp(IsColorPaint(Color::RED))))))))));
 
     auto playerTimer = factory->getPlayers().at(0).lock()->getTimeoutId();
     loop->freeze(playerTimer);
 
-    configChange(ConfigurationChange(1000,1000));
+    configChange(ConfigurationChange(1000, 1000));
     processReinflate();
 
     loop->rehydrate(playerTimer);
 
     // ========== Run off until all playback is done ===========
-    for (int i = 0 ; i < 2000 ; i += 100)
+    for (int i = 0; i < 2000; i += 100)
         advanceTime(100);
 
     // The player has finished
@@ -612,14 +629,12 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve) {
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
                 .vertical()
-                .childOffset(Point(0,40))
+                .childOffset(Point(0, 40))
                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
-                           .content(IsTransformNode()
-                                        .child(IsTextNode()
-                                                   .text("Line1Line2Line3Line4Line5")
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))
-                                        ))));
-
+                           .content(IsTransformNode().child(
+                               IsTextNode()
+                                   .text("Line1Line2Line3Line4Line5")
+                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))));
 }
 
 static const char *SPEECH_MARK_HANDLER = R"apl({

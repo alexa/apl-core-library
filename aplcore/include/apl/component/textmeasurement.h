@@ -18,6 +18,7 @@
 
 #include <memory>
 
+#include "apl/apl_config.h"
 #include "apl/common.h"
 
 namespace apl {
@@ -106,6 +107,10 @@ public:
     virtual float baseline( Component *component,
                             float width,
                             float height ) = 0;
+
+#ifdef SCENEGRAPH
+    virtual bool sceneGraphCompatible() const { return false; }
+#endif // SCENEGRAPH
 };
 
 } // namespace apl

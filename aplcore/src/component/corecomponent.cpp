@@ -115,9 +115,14 @@ CoreComponent::CoreComponent(const ContextPtr& context,
     YGNodeSetContext(mYGNodeRef, this);
 }
 
+std::shared_ptr<CoreComponent>
+CoreComponent::cast( const std::shared_ptr<Component>& component) {
+    return std::static_pointer_cast<CoreComponent>(component);
+}
+
 void
 CoreComponent::scheduleTickHandler(const Object& handler, double delay) {
-    auto weak_ptr = std::weak_ptr<CoreComponent>(std::static_pointer_cast<CoreComponent>(shared_from_this()));
+    auto weak_ptr = std::weak_ptr<CoreComponent>(shared_from_corecomponent());
     // Lambda capture takes care of handler here as it's a copy.
     mContext->getRootConfig().getTimeManager()->setTimeout([weak_ptr, handler, delay]() {
         auto self = weak_ptr.lock();
@@ -209,12 +214,17 @@ CoreComponent::initialize()
 void
 CoreComponent::release()
 {
+    traverse([](CoreComponent& c) {},
+             [](CoreComponent& c) { c.releaseSelf(); });
+}
+
+void
+CoreComponent::releaseSelf()
+{
     // TODO: Must remove this component from any dirty lists
     mContext->layoutManager().remove(shared_from_corecomponent());
     RecalculateTarget::removeUpstreamDependencies();
     mParent = nullptr;
-    for (auto& child : mChildren)
-        child->release();
     mChildren.clear();
 }
 
@@ -247,6 +257,16 @@ CoreComponent::raccept(Visitor<CoreComponent>& visitor) const
     for (auto it = mChildren.rbegin(); !visitor.isAborted() && it != mChildren.rend(); it++)
         (*it)->raccept(visitor);
     visitor.pop();
+}
+
+template<typename Pre, typename Post>
+void
+CoreComponent::traverse(const Pre& pre, const Post& post)
+{
+    pre(*this);
+    for (auto& child : mChildren)
+        child->traverse(pre, post);
+    post(*this);
 }
 
 ComponentPtr
@@ -326,11 +346,11 @@ CoreComponent::update(UpdateType type, const std::string& value) {
         // Find the first accessibility action in the array that matches the requested name.
         const auto& array = accessibilityActions.getArray();
         auto it = std::find_if(array.begin(), array.end(), [&](const Object& object) {
-            return object.getAccessibilityAction()->getName() == value;
+            return object.get<AccessibilityAction>()->getName() == value;
         });
 
         if (it != array.end()) {
-            const auto& aa = it->getAccessibilityAction();
+            const auto& aa = it->get<AccessibilityAction>();
             if (aa->enabled()) {
                 const auto& cmds = aa->getCommands();
                 if (cmds.isArray() && !cmds.empty())
@@ -349,7 +369,7 @@ CoreComponent::update(UpdateType type, const std::string& value) {
 bool
 CoreComponent::appendChild(const ComponentPtr& child, bool useDirtyFlag)
 {
-    return insertChild(std::dynamic_pointer_cast<CoreComponent>(child), mChildren.size(), useDirtyFlag);
+    return insertChild(CoreComponent::cast(child), mChildren.size(), useDirtyFlag);
 }
 
 void
@@ -430,7 +450,7 @@ CoreComponent::ensureDisplayedChildren()
     // Identify this components local viewport using bounds and scroll position
     // top left of viewport is the most significant offset found when comparing
     // bounds offset and scroll offset
-    Rect bounds = getCalculated(kPropertyBounds).getRect();
+    const Rect& bounds = getCalculated(kPropertyBounds).get<Rect>();
 
     // Get viewport offset by scroll Position
     Rect viewportRect = Rect(0,0,bounds.getWidth(),bounds.getHeight());
@@ -442,8 +462,8 @@ CoreComponent::ensureDisplayedChildren()
         // only visible children
         if (child->isDisplayable()) {
             // compare child rect, transformed as needed, against the viewport
-            auto childBounds = child->getCalculated(kPropertyBounds).getRect();
-            auto transform = child->getCalculated(kPropertyTransform).getTransform2D();
+            auto childBounds = child->getCalculated(kPropertyBounds).get<Rect>();
+            const auto& transform = child->getCalculated(kPropertyTransform).get<Transform2D>();
             // The axis aligned bounding box is an approximation for checking bounds intersection.
             // The AABB test eliminates children that are guaranteed NOT to intersect. It does not
             // prove the parent and child do intersect.
@@ -475,7 +495,7 @@ CoreComponent::ensureDisplayedChildren()
 bool
 CoreComponent::insertChild(const ComponentPtr& child, size_t index)
 {
-    return canInsertChild() && insertChild(std::dynamic_pointer_cast<CoreComponent>(child), index, true);
+    return canInsertChild() && insertChild(CoreComponent::cast(child), index, true);
 }
 
 bool
@@ -490,7 +510,7 @@ CoreComponent::insertChild(const CoreComponentPtr& child, size_t index, bool use
     if (!child || child->getParent())
         return false;
 
-    auto coreChild = std::static_pointer_cast<CoreComponent>(child);
+    auto coreChild = CoreComponent::cast(child);
 
     if (index > mChildren.size())
         index = mChildren.size();
@@ -547,11 +567,8 @@ CoreComponent::remove()
 }
 
 void
-CoreComponent::removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag)
+CoreComponent::removeChildAfterMarkedRemoved(const CoreComponentPtr& child, size_t index, bool useDirtyFlag)
 {
-    // Release focus for this child and descendants.  Also remove them from the dirty set
-    child->markRemoved();
-
     YGNodeRemoveChild(mYGNodeRef, child->getNode());
     mChildren.erase(mChildren.begin() + index);
 
@@ -565,7 +582,7 @@ CoreComponent::removeChild(const CoreComponentPtr& child, size_t index, bool use
     setVisualContextDirty();
 
     // Update the position: sticky components tree
-    auto p = stickyfunctions::getAncestorHorizontalAndVerticalScrollable(child);
+    auto p = stickyfunctions::getHorizontalAndVerticalScrollable(shared_from_corecomponent());
     auto horizontalScrollable   = std::get<0>(p);
     auto verticalScrollable     = std::get<1>(p);
     if (horizontalScrollable && horizontalScrollable->getStickyTree())
@@ -580,7 +597,8 @@ CoreComponent::removeChild(const CoreComponentPtr& child, bool useDirtyFlag)
     auto it = std::find(mChildren.begin(), mChildren.end(), child);
     assert(it != mChildren.end());
     size_t index = std::distance(mChildren.begin(), it);
-    removeChild(child, index, useDirtyFlag);
+    child->traverse([](CoreComponent& c) { c.markSelfRemoved(); });
+    removeChildAfterMarkedRemoved(child, index, useDirtyFlag);
 }
 
 void
@@ -589,17 +607,18 @@ CoreComponent::removeChildAt(size_t index, bool useDirtyFlag)
     if (index >= mChildren.size())
         return;
     auto child = mChildren.at(index);
-    removeChild(child, index, useDirtyFlag);
-    child->release();
+
+    child->traverse(
+        [](CoreComponent& c) { c.markSelfRemoved(); },
+        [](CoreComponent& c) { c.releaseSelf(); });
+    removeChildAfterMarkedRemoved(child, index, useDirtyFlag);
 }
 
 /**
- * This component has been removed from the DOM.  Walk the hierarchy and make sure that
- * it and its children are not focused and not dirty.  Note that we don't clear dirty
- * flags from the component hierarchy.
+ * This component has been removed from the DOM.  Make sure that it is not focused and not dirty.
  */
 void
-CoreComponent::markRemoved()
+CoreComponent::markSelfRemoved()
 {
     auto self = shared_from_corecomponent();
 
@@ -612,9 +631,6 @@ CoreComponent::markRemoved()
         else // If nothing suitable is found - clear focus forcefully as we don't have another choice.
             fm.clearFocus(true, kFocusDirectionNone, true);
     }
-
-    for (auto& child : mChildren)
-        std::static_pointer_cast<CoreComponent>(child)->markRemoved();
 }
 
 /**
@@ -629,7 +645,7 @@ CoreComponent::markAdded()
         mContext->setDirty(self);
 
     for (auto& child : mChildren)
-        std::static_pointer_cast<CoreComponent>(child)->markAdded();
+        CoreComponent::cast(child)->markAdded();
 }
 
 void
@@ -679,7 +695,7 @@ CoreComponent::isLaidOut() const
         if (YGNodeIsDirty(node))
             return false;
 
-        auto parent = std::static_pointer_cast<CoreComponent>(component->getParent());
+        auto parent = CoreComponent::cast(component->getParent());
         if (!parent)
             return true;
 
@@ -744,9 +760,9 @@ CoreComponent::updateSceneGraph(sg::SceneGraphUpdates& sceneGraph)
                         isDirty(kPropertyTransform) || isDirty(kPropertyBounds);
 
     if (needsRebuild) {
-        layer->setBounds(getCalculated(kPropertyBounds).getRect());
+        layer->setBounds(getCalculated(kPropertyBounds).get<Rect>());
         layer->setOpacity(static_cast<float>(getCalculated(kPropertyOpacity).asNumber()));
-        layer->setTransform(getCalculated(kPropertyTransform).getTransform2D());
+        layer->setTransform(getCalculated(kPropertyTransform).get<Transform2D>());
     }
 
     // Check if the shadow changed
@@ -798,9 +814,9 @@ CoreComponent::updateSceneGraph(sg::SceneGraphUpdates& sceneGraph)
 sg::LayerPtr
 CoreComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
 {
-    auto layer = sg::layer(mUniqueId, getCalculated(kPropertyBounds).getRect(),
+    auto layer = sg::layer(mUniqueId, getCalculated(kPropertyBounds).get<Rect>(),
                            static_cast<float>(getCalculated(kPropertyOpacity).asNumber()),
-                           getCalculated(kPropertyTransform).getTransform2D());
+                           getCalculated(kPropertyTransform).get<Transform2D>());
 
     if (getCalculated(kPropertyDisabled).truthy())
         layer->setInteraction(sg::Layer::kInteractionDisabled);
@@ -840,7 +856,7 @@ CoreComponent::assignProperties(const ComponentPropDefSet& propDefSet)
                 if (p->second.isString()) {
                     auto tmp = parseDataBinding(*mContext, p->second.getString());  // Expand data-binding
                     if (tmp.isEvaluable()) {
-                        auto self = std::static_pointer_cast<CoreComponent>(shared_from_this());
+                        auto self = shared_from_corecomponent();
                         ComponentDependant::create(self, pd.key, tmp, mContext, pd.getBindingFunction());
                     }
                     value = pd.calculate(*mContext, evaluate(*mContext, tmp));  // Calculate the final value
@@ -849,7 +865,7 @@ CoreComponent::assignProperties(const ComponentPropDefSet& propDefSet)
                     // Explicitly marked for evaluation, so do it.
                     // Will not attach dependant if no valid symbols.
                     auto tmp = parseDataBindingRecursive(*mContext, p->second);
-                    auto self = std::static_pointer_cast<CoreComponent>(shared_from_this());
+                    auto self = shared_from_corecomponent();
                     ComponentDependant::create(self, pd.key, tmp, mContext, pd.getBindingFunction());
                     value = pd.calculate(*mContext, p->second);
                 }
@@ -1404,7 +1420,7 @@ CoreComponent::inheritsStateFrom(const CoreComponentPtr& component) {
 
     // compare to ancestor components
     while (stateOwner && stateOwner->getInheritParentState()) {
-        stateOwner = std::static_pointer_cast<CoreComponent>(stateOwner->getParent());
+        stateOwner = CoreComponent::cast(stateOwner->getParent());
         if (stateOwner == component) {
             return true;
         }
@@ -1417,7 +1433,7 @@ CoreComponentPtr
 CoreComponent::findStateOwner() {
     auto ptr = shared_from_corecomponent();
     while (ptr && ptr->getInheritParentState()) {
-        ptr = std::static_pointer_cast<CoreComponent>(ptr->getParent());
+        ptr = CoreComponent::cast(ptr->getParent());
     }
     return ptr;
 }
@@ -1538,7 +1554,7 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag, bool first)
     fixLayoutDirection(useDirtyFlag);
 
     Rect rect(left, top, width, height);
-    changed |= rect != mCalculated.get(kPropertyBounds).getRect();
+    changed |= rect != mCalculated.get(kPropertyBounds).get<Rect>();
 
     if (changed) {
         mCalculated.set(kPropertyBounds, std::move(rect));
@@ -1566,7 +1582,7 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag, bool first)
                      borderTop + paddingTop,
                      width - (borderLeft + paddingLeft + borderRight + paddingRight),
                      height - (borderTop + paddingTop + borderBottom + paddingBottom));
-    changed = inner != mCalculated.get(kPropertyInnerBounds).getRect();
+    changed = inner != mCalculated.get(kPropertyInnerBounds).get<Rect>();
 
     if (changed) {
         mCalculated.set(kPropertyInnerBounds, std::move(inner));
@@ -1575,7 +1591,7 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag, bool first)
             setDirty(kPropertyInnerBounds);
     }
 
-    if (!mCalculated.get(kPropertyLaidOut).asBoolean() && !mCalculated.get(kPropertyBounds).getRect().empty()) {
+    if (!mCalculated.get(kPropertyLaidOut).asBoolean() && !mCalculated.get(kPropertyBounds).get<Rect>().empty()) {
         mCalculated.set(kPropertyLaidOut, true);
         if (useDirtyFlag)
             setDirty(kPropertyLaidOut);
@@ -1707,7 +1723,7 @@ CoreComponent::getHierarchySignature() const
 void
 CoreComponent::fixTransform(bool useDirtyFlag)
 {
-    LOG_IF(DEBUG_TRANSFORM).session(mContext) << mCalculated.get(kPropertyTransform).getTransform2D();
+    LOG_IF(DEBUG_TRANSFORM).session(mContext) << mCalculated.get(kPropertyTransform).get<Transform2D>();
 
     Transform2D updated;
 
@@ -1718,13 +1734,13 @@ CoreComponent::fixTransform(bool useDirtyFlag)
         mCalculated.set(kPropertyTransformAssigned, transform);
     }
 
-    if (transform.isTransform()) {
+    if (transform.is<Transformation>()) {
         float width = YGNodeLayoutGetWidth(mYGNodeRef);
         float height = YGNodeLayoutGetHeight(mYGNodeRef);
-        updated = transform.getTransformation()->get(width, height);
+        updated = transform.get<Transformation>()->get(width, height);
     }
 
-    auto value = getCalculated(kPropertyTransform).getTransform2D();
+    auto value = getCalculated(kPropertyTransform).get<Transform2D>();
     if (updated != value) {
         mCalculated.set(kPropertyTransform, Object(std::move(updated)));
         markGlobalToLocalTransformStale();
@@ -1736,7 +1752,7 @@ CoreComponent::fixTransform(bool useDirtyFlag)
         if (useDirtyFlag)
             setDirty(kPropertyTransform);
 
-        LOG_IF(DEBUG_TRANSFORM).session(mContext) << "updated to " << mCalculated.get(kPropertyTransform).getTransform2D();
+        LOG_IF(DEBUG_TRANSFORM).session(mContext) << "updated to " << mCalculated.get(kPropertyTransform).get<Transform2D>();
     }
 }
 
@@ -1971,7 +1987,7 @@ CoreComponent::serializeVisualContextInternal(rapidjson::Value &outArray, rapidj
     }
 
     // Transform
-    auto transform = getCalculated(kPropertyTransform).getTransform2D();
+    auto transform = getCalculated(kPropertyTransform).get<Transform2D>();
     if(!transform.isIdentity()) {
         visualContext.AddMember("transform", transform.serialize(allocator).Move(), allocator);
     }
@@ -2174,14 +2190,14 @@ CoreComponent::processKeyPress(KeyHandlerType type, const Keyboard& keyboard) {
 static inline void
 inlineFixTransform(Component& component)
 {
-    auto& core = dynamic_cast<CoreComponent&>(component);
+    auto& core = (CoreComponent&)component;
     core.fixTransform(true);
 }
 
 static inline void
 inlineFixPadding(Component& component)
 {
-    auto& core = dynamic_cast<CoreComponent&>(component);
+    auto& core = (CoreComponent&)component;
     core.fixPadding();
 }
 
@@ -2360,7 +2376,7 @@ CoreComponent::propDefSet() const {
       {kPropertyAccessibilityLabel,       "",                      asString,                   kPropInOut |
                                                                                                kPropDynamic},
       {kPropertyAccessibilityActions,     Object::EMPTY_ARRAY(),   asArray,                    kPropInOut},
-      {kPropertyBounds,                   Object::EMPTY_RECT(),    nullptr,                    kPropOut |
+      {kPropertyBounds,                   Rect(0,0,0,0),           nullptr,                    kPropOut |
                                                                                                kPropVisualContext |
                                                                                                kPropVisualHash},
       {kPropertyChecked,                  false,                   asBoolean,                  kPropInOut |
@@ -2383,7 +2399,7 @@ CoreComponent::propDefSet() const {
       {kPropertyHeight,                   Dimension(),             asDimension,                kPropIn |
                                                                                                kPropDynamic |
                                                                                                kPropStyled,         yn::setHeight, defaultHeight},
-      {kPropertyInnerBounds,              Object::EMPTY_RECT(),    nullptr,                    kPropOut |
+      {kPropertyInnerBounds,              Rect(0,0,0,0),           nullptr,                    kPropOut |
                                                                                                kPropVisualContext |
                                                                                                kPropVisualHash},
       {kPropertyLayoutDirectionAssigned,  kLayoutDirectionInherit, sLayoutDirectionMap,        kPropIn |
@@ -2457,7 +2473,7 @@ CoreComponent::propDefSet() const {
                                                                                                kPropDynamic |
                                                                                                kPropEvaluated |
                                                                                                kPropVisualContext,  inlineFixTransform},
-      {kPropertyTransform,                Object::IDENTITY_2D(),   nullptr,                    kPropOut |
+      {kPropertyTransform,                Transform2D(),           nullptr,                    kPropOut |
                                                                                                kPropVisualContext},
       {kPropertyUser,                     Object::NULL_OBJECT(),   nullptr,                    kPropOut},
       {kPropertyWidth,                    Dimension(),             asDimension,                kPropIn |
@@ -2476,7 +2492,7 @@ CoreComponent::propDefSet() const {
 
 bool
 CoreComponent::containsLocalPosition(const Point &position) const {
-    auto bounds = getCalculated(kPropertyBounds).getRect();
+    const auto& bounds = getCalculated(kPropertyBounds).get<Rect>();
     Rect localBounds(0, 0, bounds.getWidth(), bounds.getHeight());
     return localBounds.contains(position);
 }
@@ -2511,8 +2527,8 @@ CoreComponent::inParentViewport() const {
         return false;
     }
 
-    Rect bounds = getCalculated(kPropertyBounds).getRect();
-    auto parentBounds = mParent->getCalculated(kPropertyBounds).getRect();
+    const auto& bounds = getCalculated(kPropertyBounds).get<Rect>();
+    auto parentBounds = mParent->getCalculated(kPropertyBounds).get<Rect>();
     // Reset to "viewport"
     parentBounds = Rect(0, 0, parentBounds.getWidth(), parentBounds.getHeight());
     // Shift by scroll position if any
@@ -2558,11 +2574,11 @@ CoreComponent::ensureGlobalToLocalTransform() {
 
     Transform2D newLocalTransform;
 
-    auto componentTransform = getCalculated(kPropertyTransform).getTransform2D();
+    auto componentTransform = getCalculated(kPropertyTransform).get<Transform2D>();
     // To transform from the coordinate space of the parent component to the
     // coordinate space of the child component, first offset by the position of
     // the child in the parent, then undo the child transformation:
-    auto boundsInParent = getCalculated(kPropertyBounds).getRect();
+    const auto& boundsInParent = getCalculated(kPropertyBounds).get<Rect>();
     auto offsetInParent = boundsInParent.getTopLeft();
     newLocalTransform = componentTransform.inverse() * Transform2D::translate(-offsetInParent);
 

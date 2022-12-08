@@ -22,6 +22,8 @@
 #include "apl/utils/userdata.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/gradient.h"
+#include "apl/primitives/size.h"
+#include "apl/primitives/transform2d.h"
 
 namespace apl {
 namespace sg {

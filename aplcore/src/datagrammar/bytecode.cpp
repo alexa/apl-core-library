@@ -100,7 +100,7 @@ ByteCode::symbols(SymbolReferenceMap& symbols)
                 if (!ref.first.empty())
                     symbols.emplace(ref);
 
-                ref = mData[cmd.value].getBoundSymbol()->getSymbol();
+                ref = mData[cmd.value].get<datagrammar::BoundSymbol>()->getSymbol();
                 operand = Object::NULL_OBJECT();
                 break;
 

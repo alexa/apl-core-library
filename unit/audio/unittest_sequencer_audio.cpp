@@ -164,8 +164,8 @@ TEST_F(SequencerAudioTest, SpeakItemAndScroll)
     ASSERT_TRUE(CheckPlayer("URL3", TestAudioPlayer::kReady));
     ASSERT_FALSE(factory->hasEvent());
 
-    auto bounds = component->getCalculated(kPropertyBounds).getRect();
-    auto childBounds = component->getChildAt(0)->getCalculated(kPropertyBounds).getRect();
+    auto bounds = component->getCalculated(kPropertyBounds).get<Rect>();
+    auto childBounds = component->getChildAt(0)->getCalculated(kPropertyBounds).get<Rect>();
     auto position = Point(0, (childBounds.getCenterY() - bounds.getCenterY()) / 2);
     ASSERT_EQ(position, component->scrollPosition());
 

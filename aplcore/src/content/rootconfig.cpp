@@ -274,4 +274,12 @@ RootConfig::setEnvironmentValue(const std::string& name, const Object& value) {
     return *this;
 }
 
+/**
+     * @return Animation easing for SwipeAway gesture.
+ */
+EasingPtr
+RootConfig::getSwipeAwayAnimationEasing() const {
+    return getProperty(RootProperty::kSwipeAwayAnimationEasing).get<Easing>();
+}
+
 } // namespace apl

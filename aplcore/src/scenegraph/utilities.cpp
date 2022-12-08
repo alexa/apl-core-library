@@ -20,8 +20,7 @@
 #include "apl/scenegraph/textproperties.h"
 #include "apl/utils/session.h"
 
-#include <tao/pegtl.hpp>
-#include <tao/pegtl/contrib/abnf.hpp>
+#include "apl/datagrammar/grammarpolyfill.h"
 
 namespace apl {
 namespace sg {
@@ -56,7 +55,8 @@ struct action
     : pegtl::nothing< Rule > {
 };
 
-struct split_state {
+struct split_state : fail_state
+{
     std::vector<std::string> strings;
     std::string working;
 };
@@ -102,13 +102,9 @@ std::vector<std::string>
 splitFontString(const RootConfig& rootConfig, const std::string& text)
 {
     grammar::split_state state;
-
-    try {
-        pegtl::string_input<> in(text, "");
-        pegtl::parse<grammar::textlist, grammar::action>(in, state);
-    }
-    catch (const pegtl::parse_error& e) {
-        CONSOLE(rootConfig.getSession()) << "Parse error in '" << text << "' - " << e.what();
+    pegtl::string_input<> in(text, "");
+    if (!pegtl::parse<grammar::textlist, grammar::action, apl_control>(in, state) || state.failed) {
+        CONSOLE(rootConfig.getSession()) << "Parse error in '" << text << "' - " << state.what();
         state.strings.clear();  // Throw away any partial data that was parsed
     }
 

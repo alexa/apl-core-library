@@ -395,7 +395,7 @@ DynamicIndexListDataSourceProvider::process(const Object& responseMap) {
         return false;
     }
 
-    auto connection = std::dynamic_pointer_cast<DynamicIndexListDataSourceConnection>(dataSourceConnection);
+    auto connection = std::static_pointer_cast<DynamicIndexListDataSourceConnection>(dataSourceConnection);
     auto context = connection->getContext();
     if (!context)
         return false;
@@ -458,15 +458,14 @@ DynamicIndexListDataSourceProvider::process(const Object& responseMap) {
     }
 
     if (result)
-        context->setDirtyDataSourceContext(
-            std::dynamic_pointer_cast<DataSourceConnection>(shared_from_this()));
+        context->setDirtyDataSourceContext(connection);
 
     return result;
 }
 
 std::pair<int, int>
 DynamicIndexListDataSourceProvider::getBounds(const std::string& listId) {
-    auto connection = std::dynamic_pointer_cast<DynamicIndexListDataSourceConnection>(getConnection(listId));
+    auto connection = std::static_pointer_cast<DynamicIndexListDataSourceConnection>(getConnection(listId));
     if(!connection)
         return {};
 

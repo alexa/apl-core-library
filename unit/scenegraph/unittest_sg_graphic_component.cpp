@@ -64,14 +64,11 @@ TEST_F(SGGraphicComponentTest, Basic)
         sg,
         IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
             .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer")
-                       .content(
-                           IsTransformNode(".transform")
-                               .child(IsGenericNode(".generic")
-                                          .child(IsDrawNode(".draw")
-                                                     .path(IsGeneralPath(
-                                                         "MLLLZ", {0, 50, 50, 0, 100, 50, 50, 100}))
-                                                     .pathOp(IsFillOp(
-                                                         IsColorPaint(Color::GREEN)))))))));
+                       .content(IsTransformNode(".transform")
+                                    .child(IsDrawNode(".draw")
+                                               .path(IsGeneralPath(
+                                                   "MLLLZ", {0, 50, 50, 0, 100, 50, 50, 100}))
+                                               .pathOp(IsFillOp(IsColorPaint(Color::GREEN))))))));
 
     executeCommand("SetValue",
                    {{"componentId", "VG"}, {"property", "align"}, {"value", "top-right"}}, true);
@@ -82,11 +79,9 @@ TEST_F(SGGraphicComponentTest, Basic)
                 .child(IsLayer(Rect{100, 0, 100, 100}, ".MediaLayer")
                            .dirty(sg::Layer::kFlagPositionChanged)
                            .content(IsTransformNode().child(
-                               IsGenericNode(".generic")
-                                   .child(IsDrawNode()
-                                              .path(IsGeneralPath("MLLLZ",
-                                                                  {0, 50, 50, 0, 100, 50, 50, 100}))
-                                              .pathOp(IsFillOp(IsColorPaint(Color::GREEN)))))))));
+                               IsDrawNode()
+                                   .path(IsGeneralPath("MLLLZ", {0, 50, 50, 0, 100, 50, 50, 100}))
+                                   .pathOp(IsFillOp(IsColorPaint(Color::GREEN))))))));
 }
 
 
@@ -165,21 +160,19 @@ TEST_F(SGGraphicComponentTest, MultiText)
     ASSERT_TRUE(CheckSceneGraph(
         sg,
         IsLayer(Rect{0, 0, 800, 800}, "...Frame")
-            .child(
-                IsLayer(Rect{0, 0, 800, 800}, "...VectorGraphic")
-                    .child(
-                        IsLayer(Rect{0, 0, 800, 800}, "...Graphic")
-                            .content(
-                                IsTransformNode()
-                                    .transform(Transform2D::scale(4. / 3.))
-                                    .child(IsGenericNode().child(
-                                        IsTransformNode()
-                                            .translate(Point{10, 92})
-                                            .child(IsTextNode()
-                                                       .text("Hello, world!")
-                                                       .pathOp(IsFillOp(IsColorPaint(Color::BLACK)))
-                                                       .pathOp(IsStrokeOp(IsColorPaint(Color::BLUE),
-                                                                          2))))))))));
+            .child(IsLayer(Rect{0, 0, 800, 800}, "...VectorGraphic")
+                       .child(IsLayer(Rect{0, 0, 800, 800}, "...Graphic")
+                                  .content(IsTransformNode()
+                                               .transform(Transform2D::scale(4. / 3.))
+                                               .child(IsTransformNode()
+                                                          .translate(Point{10, 92})
+                                                          .child(IsTextNode()
+                                                                     .text("Hello, world!")
+                                                                     .pathOp(IsFillOp(IsColorPaint(
+                                                                         Color::BLACK)))
+                                                                     .pathOp(IsStrokeOp(
+                                                                         IsColorPaint(Color::BLUE),
+                                                                         2)))))))));
 }
 
 static const char *MOVING = R"apl(
@@ -218,28 +211,25 @@ static const char *MOVING = R"apl(
 }
 )apl";
 
-TEST_F(SGGraphicComponentTest, Moving) {
+TEST_F(SGGraphicComponentTest, Moving)
+{
     loadDocument(MOVING);
     auto sg = root->getSceneGraph();
 
     ASSERT_TRUE(CheckSceneGraph(
-        sg,
-        IsLayer(Rect{0, 0, 200, 200})
-            .child(
-                IsLayer(Rect{0, 0, 200, 200})
-                    .content(
-                        IsTransformNode(".alignment")
-                            .child(IsGenericNode(".elementContainer")
-                                       .child(IsOpacityNode(".groupOpacity")
-                                                  .child(IsTransformNode(".group").child(
-                                                      IsClipNode(".groupClip")
-                                                          .path(IsGeneralPath("", {}))
-                                                          .child(IsDrawNode()
-                                                                     .path(IsGeneralPath(
-                                                                         "MLLLZ", {0, 0, 10, 0, 10,
-                                                                                   10, 0, 10}))
-                                                                     .pathOp(IsFillOp(IsColorPaint(
-                                                                         Color::BLUE))))))))))));
+        sg, IsLayer(Rect{0, 0, 200, 200})
+                .child(IsLayer(Rect{0, 0, 200, 200})
+                           .content(IsTransformNode(".alignment")
+                                        .child(IsOpacityNode(".groupOpacity")
+                                                   .child(IsTransformNode(".group").child(
+                                                       IsClipNode(".groupClip")
+                                                           .path(IsGeneralPath("", {}))
+                                                           .child(IsDrawNode()
+                                                                      .path(IsGeneralPath(
+                                                                          "MLLLZ", {0, 0, 10, 0, 10,
+                                                                                    10, 0, 10}))
+                                                                      .pathOp(IsFillOp(IsColorPaint(
+                                                                          Color::BLUE)))))))))));
 
     root->updateTime(100);
     root->clearPending();
@@ -255,21 +245,13 @@ TEST_F(SGGraphicComponentTest, Moving) {
                     .content(
                         IsTransformNode(".alignment")
                             .child(
-                                IsGenericNode(".elementContainer")
-                                    .child(
-                                        IsOpacityNode(".groupOpacity")
-                                            .child(
-                                                IsTransformNode(".group")
-                                                    .translate({100, 0})
-                                                    .child(
-                                                        IsClipNode(".groupClip")
-                                                            .path(IsGeneralPath("", {}))
-                                                            .child(
-                                                                IsDrawNode()
-                                                                    .path(IsGeneralPath(
-                                                                        "MLLLZ",
-                                                                        {0, 0, 10, 0, 10, 10, 0,
-                                                                         10}))
-                                                                    .pathOp(IsFillOp(IsColorPaint(
-                                                                        Color::BLUE))))))))))));
+                                IsOpacityNode(".groupOpacity")
+                                    .child(IsTransformNode(".group").translate({100, 0}).child(
+                                        IsClipNode(".groupClip")
+                                            .path(IsGeneralPath("", {}))
+                                            .child(IsDrawNode()
+                                                       .path(IsGeneralPath(
+                                                           "MLLLZ", {0, 0, 10, 0, 10, 10, 0, 10}))
+                                                       .pathOp(IsFillOp(
+                                                           IsColorPaint(Color::BLUE)))))))))));
 }

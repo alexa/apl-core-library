@@ -15,7 +15,7 @@
 # on older systems
 include(FetchContent OPTIONAL RESULT_VARIABLE HAS_FETCH_CONTENT)
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.11)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

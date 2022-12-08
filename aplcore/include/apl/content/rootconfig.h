@@ -1245,9 +1245,7 @@ public:
     /**
      * @return Animation easing for SwipeAway gesture.
      */
-    EasingPtr getSwipeAwayAnimationEasing() const {
-        return getProperty(RootProperty::kSwipeAwayAnimationEasing).getEasing();
-    }
+    EasingPtr getSwipeAwayAnimationEasing() const;
 
     /**
      * @return Swipe velocity threshold.

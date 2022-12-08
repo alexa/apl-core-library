@@ -153,3 +153,33 @@ TEST_F(SpeechMarkTest, PollyTurtles)
     result1.insert(result1.end(), result2.begin(), result2.end());
     ASSERT_EQ(result1, TURTLES_EXPECTED);
 }
+
+static const char * POLLY_EXAMPLE_BAD = R"apl(
+{"time":0,"type":"sentence","start":0,"end":23,"value":"Mary had a little lamb."}
+{"time":6,"type":"word","start":0,"end":4,"value":"Mary"}
+{"time":6,"type":"viseme","value":"p"}
+{"time":73,"type":"viseme","value":"E"}
+{"time":180,"type":"viseme","value":"r"}
+{"time":292,"type":"viseme","value":"i"
+{"time":373,"type":"word","start":5,"end":8,"value":"had"}
+{"time":373,"type":"viseme","value":"k"}
+{"time":460,"type":"viseme","value":"a"}
+{"time":521,"type":"viseme","value":"t"}
+{"time":604,"type":"word","start":9,"end":10,"value":"a"}
+{"time":604,"type":"viseme","value":"@"}
+{"time":643,"type":"word","start":11,"end":17,"value":"little"}
+{"time":643,"type":"viseme","value":"t"}
+{"time":739,"type":"viseme","value":"i"}
+{"time":769,"type":"viseme","value":"t"}
+{"time":799,"type":"viseme","value":"t"}
+{"time":882,"type":"word","start":18,"end":22,"value":"lamb"}
+{"time":882,"type":"viseme","value":"t"}
+{"time":964,"type":"viseme","value":"a"}
+{"time":1082,"type":"viseme","value":"p"}
+)apl";
+
+TEST_F(SpeechMarkTest, PollyExampleBad)
+{
+    auto result = parsePollySpeechMarks(POLLY_EXAMPLE_BAD, strlen(POLLY_EXAMPLE_BAD));
+    ASSERT_EQ(result.size(), 6);
+}

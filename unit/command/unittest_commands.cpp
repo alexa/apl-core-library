@@ -976,8 +976,8 @@ static const char *SET_STATE_FOCUSED = R"({
 TEST_F(CommandTest, SetStateFocused)
 {
     loadDocument(SET_STATE_FOCUSED);
-    auto thing1 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing1"));
-    auto thing2 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing2"));
+    auto thing1 = CoreComponent::cast(root->context().findComponentById("thing1"));
+    auto thing2 = CoreComponent::cast(root->context().findComponentById("thing2"));
     ASSERT_TRUE(thing1);
     ASSERT_TRUE(thing2);
 
@@ -1164,25 +1164,25 @@ TEST_F(CommandTest, ExecuteFocus)
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeFocus, event.getType());
     ASSERT_EQ(touch1, event.getComponent());
-    ASSERT_TRUE(std::static_pointer_cast<CoreComponent>(touch1)->getState().get(kStateFocused));
+    ASSERT_TRUE(CoreComponent::cast(touch1)->getState().get(kStateFocused));
 
     // Try to set the focus on a non-existing component
     ASSERT_FALSE(ConsoleMessage());
     executeCommand("SetFocus", {{"componentId", "touch7"}}, false);
     ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(std::static_pointer_cast<CoreComponent>(touch1)->getState().get(kStateFocused));
+    ASSERT_TRUE(CoreComponent::cast(touch1)->getState().get(kStateFocused));
     ASSERT_TRUE(ConsoleMessage());  // There should be a warning about a missing component
 
     // Leave out the component ID
     executeCommand("SetFocus", {}, false);
     ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(std::static_pointer_cast<CoreComponent>(touch1)->getState().get(kStateFocused));
+    ASSERT_TRUE(CoreComponent::cast(touch1)->getState().get(kStateFocused));
     ASSERT_TRUE(ConsoleMessage());  // Warn about missing componentId
 
     // Refocus the component that already has the focus
     executeCommand("SetFocus", {{"componentId", "touch1"}}, false);
     ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(std::static_pointer_cast<CoreComponent>(touch1)->getState().get(kStateFocused));
+    ASSERT_TRUE(CoreComponent::cast(touch1)->getState().get(kStateFocused));
 
     // Clear focus
     executeCommand("ClearFocus", {}, false);
@@ -1192,8 +1192,8 @@ TEST_F(CommandTest, ExecuteFocus)
     ASSERT_EQ(nullptr, event.getComponent().get());
     ASSERT_TRUE(event.getActionRef().empty());
     root->clearPending();
-    ASSERT_FALSE(std::static_pointer_cast<CoreComponent>(touch1)->getState().get(kStateFocused));
-    ASSERT_FALSE(std::static_pointer_cast<CoreComponent>(touch2)->getState().get(kStateFocused));
+    ASSERT_FALSE(CoreComponent::cast(touch1)->getState().get(kStateFocused));
+    ASSERT_FALSE(CoreComponent::cast(touch2)->getState().get(kStateFocused));
 
     // Clear focus when no focus set
     executeCommand("ClearFocus", {}, false);
@@ -1216,12 +1216,12 @@ TEST_F(CommandTest, ExecuteFocusDisabled)
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeFocus, event.getType());
     ASSERT_EQ(touch1, event.getComponent());
-    ASSERT_TRUE(std::static_pointer_cast<CoreComponent>(touch1)->getState().get(kStateFocused));
+    ASSERT_TRUE(CoreComponent::cast(touch1)->getState().get(kStateFocused));
 
     // Disable the component
     executeCommand("SetValue", {{"componentId", "touch1"}, {"property", "disabled"}, {"value", true}}, false);
-    ASSERT_TRUE(std::static_pointer_cast<CoreComponent>(touch1)->getState().get(kStateDisabled));
-    ASSERT_FALSE(std::static_pointer_cast<CoreComponent>(touch1)->getState().get(kStateFocused));
+    ASSERT_TRUE(CoreComponent::cast(touch1)->getState().get(kStateDisabled));
+    ASSERT_FALSE(CoreComponent::cast(touch1)->getState().get(kStateFocused));
 
     ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();
@@ -1232,7 +1232,7 @@ TEST_F(CommandTest, ExecuteFocusDisabled)
     // Try to execute set focus on the disabled component
     executeCommand("SetFocus", {{"componentId", "touch1"}}, false);
     ASSERT_FALSE(root->hasEvent());
-    ASSERT_FALSE(std::static_pointer_cast<CoreComponent>(touch1)->getState().get(kStateFocused));
+    ASSERT_FALSE(CoreComponent::cast(touch1)->getState().get(kStateFocused));
 }
 
 static const char *FINISH_BACK = R"({
@@ -1504,9 +1504,9 @@ TEST_F(CommandTest, BindingUpdateTransform){
     ASSERT_TRUE(text);
     ASSERT_EQ(kComponentTypeText, text->getType());
 
-    ASSERT_TRUE(IsEqual(Transform2D().translateX(64), text->getCalculated(kPropertyTransform).getTransform2D()));
+    ASSERT_TRUE(IsEqual(Transform2D().translateX(64), text->getCalculated(kPropertyTransform).get<Transform2D>()));
 
     executeCommand("SetValue", {{"componentId", "myContainer"}, {"property", "len"}, {"value", "${500}"}}, false);
 
-    ASSERT_TRUE(IsEqual(Transform2D().translateX(500), text->getCalculated(kPropertyTransform).getTransform2D()));
+    ASSERT_TRUE(IsEqual(Transform2D().translateX(500), text->getCalculated(kPropertyTransform).get<Transform2D>()));
 }

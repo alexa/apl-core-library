@@ -18,6 +18,7 @@
 #include "apl/datagrammar/functions.h"
 #include "apl/datagrammar/boundsymbol.h"
 #include "apl/engine/context.h"
+#include "apl/primitives/functions.h"
 #include "apl/utils/log.h"
 
 namespace apl {
@@ -249,7 +250,7 @@ ByteCodeOptimizer::simplifyOperations()
         if (out_constants >= item_count) {// Number of arguments + the function name
             auto offset = -item_count;  // Offset to the name of the function
             auto f = getValueOffsetFromEnd(offset++);
-            if (f.isFunction() && f.isPure()) {
+            if (f.is<Function>() && f.isPure()) {
                 LOG_IF(DEBUG_OPTIMIZER) << "Reducing function at " << pc;
                 std::vector<Object> args(cmd.value);  // Reserve enough space
                 for (int i = 0; i < cmd.value; i++)

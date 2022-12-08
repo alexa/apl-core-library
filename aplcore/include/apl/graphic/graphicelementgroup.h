@@ -29,16 +29,8 @@ public:
     GraphicElementType getType() const override { return kGraphicElementTypeGroup; }
     bool hasChildren() const override { return true; }
 
-    std::string toDebugString() const override
-    {
-        std::string result = "GraphicElementGroup<children=[";
-        for (auto& child : mChildren) {
-            result += " ";
-            result += child->toDebugString();
-        }
-        result +=  ">";
-
-        return result;
+    std::string toDebugString() const override {
+        return std::string("GraphicElementGroup<") + mUniqueId + ">";
     }
 
 protected:

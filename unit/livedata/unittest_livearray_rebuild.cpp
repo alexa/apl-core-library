@@ -68,7 +68,7 @@ public:
                     s = child->getCalculated(kPropertySource)
                             .getArray()
                             .at(0)
-                            .getURLRequest().getUrl();
+                            .get<URLRequest>().getUrl();
                 } else if (child->getCalculated(kPropertySource).isString()) {
                     s = child->getCalculated(kPropertySource).getString();
                 }
@@ -829,8 +829,8 @@ TEST_F(LiveArrayRebuildTest, MultipleContexts)
     auto root1 = RootContext::create(metrics, content1, *config);
     auto root2 = RootContext::create(metrics, content1, *config);
 
-    auto component1 = std::dynamic_pointer_cast<CoreComponent>(root1->topComponent());
-    auto component2 = std::dynamic_pointer_cast<CoreComponent>(root2->topComponent());
+    auto component1 = CoreComponent::cast(root1->topComponent());
+    auto component2 = CoreComponent::cast(root2->topComponent());
 
     ASSERT_TRUE(CheckComponentChildOrder(component1, {"a", "b", "c", "d", "e", "f"}));
     ASSERT_TRUE(CheckComponentChildOrder(component2, {"a", "b", "c", "d", "e", "f"}));
@@ -1659,7 +1659,7 @@ static ::testing::AssertionResult
 CheckSpacing(const CoreComponentPtr& comp, float spacing) {
     float ypos = 0;
     for (int i = 0; i < comp->getChildCount(); i++) {
-        auto rect = comp->getCoreChildAt(i)->getCalculated(kPropertyBounds).getRect();
+        auto rect = comp->getCoreChildAt(i)->getCalculated(kPropertyBounds).get<Rect>();
         if (ypos != rect.getTop()) {
             return ::testing::AssertionFailure() << "Position wrong on: " << i
                                                  << " expected='" << ypos
@@ -1668,7 +1668,7 @@ CheckSpacing(const CoreComponentPtr& comp, float spacing) {
         ypos += (rect.getHeight() + spacing);
     }
     // Last one should end without spacing
-    auto lastChildRect = comp->getCoreChildAt(comp->getChildCount() - 1)->getCalculated(kPropertyBounds).getRect();
+    auto lastChildRect = comp->getCoreChildAt(comp->getChildCount() - 1)->getCalculated(kPropertyBounds).get<Rect>();
     ypos -= spacing;
     if (ypos != lastChildRect.getBottom()) {
         return ::testing::AssertionFailure() << "Last child too big";
@@ -1919,7 +1919,7 @@ TEST_F(LiveArrayRebuildTest, SpacedContainerRowFull) {
     loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"row\", \"layoutDir\": \"LTR\"}");
     root->clearPending();
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto cont = CoreComponent::cast(root->context().findComponentById("container"));
     auto c  = cont->getChildAt(0);
     auto c2 = cont->getChildAt(1);
     auto c3 = cont->getChildAt(2);
@@ -1934,7 +1934,7 @@ TEST_F(LiveArrayRebuildTest, SpacedContainerRowReverseFull) {
     loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"rowReverse\", \"layoutDir\": \"LTR\"}");
     root->clearPending();
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto cont = CoreComponent::cast(root->context().findComponentById("container"));
     auto c  = cont->getChildAt(0);
     auto c2 = cont->getChildAt(1);
     auto c3 = cont->getChildAt(2);
@@ -1949,7 +1949,7 @@ TEST_F(LiveArrayRebuildTest, SpacedContainerColumnFull) {
     loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"column\", \"layoutDir\": \"LTR\"}");
     root->clearPending();
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto cont = CoreComponent::cast(root->context().findComponentById("container"));
     auto c  = cont->getChildAt(0);
     auto c2 = cont->getChildAt(1);
     auto c3 = cont->getChildAt(2);
@@ -1964,7 +1964,7 @@ TEST_F(LiveArrayRebuildTest, SpacedContainerColumnReverseFull) {
     loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"columnReverse\", \"layoutDir\": \"LTR\"}");
     root->clearPending();
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto cont = CoreComponent::cast(root->context().findComponentById("container"));
     auto c  = cont->getChildAt(0);
     auto c2 = cont->getChildAt(1);
     auto c3 = cont->getChildAt(2);
@@ -1982,7 +1982,7 @@ TEST_F(LiveArrayRebuildTest, SpacedContainerChangeDirection) {
     loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"row\", \"layoutDir\": \"LTR\"}");
     root->clearPending();
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto cont = CoreComponent::cast(root->context().findComponentById("container"));
     auto c  = cont->getChildAt(0);
     auto c2 = cont->getChildAt(1);
     auto c3 = cont->getChildAt(2);
@@ -2042,7 +2042,7 @@ TEST_F(LiveArrayRebuildTest, SpacedContainerRowFullRTL) {
     loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"row\", \"layoutDir\": \"RTL\"}");
     root->clearPending();
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto cont = CoreComponent::cast(root->context().findComponentById("container"));
     auto c  = cont->getChildAt(0);
     auto c2 = cont->getChildAt(1);
     auto c3 = cont->getChildAt(2);
@@ -2057,7 +2057,7 @@ TEST_F(LiveArrayRebuildTest, SpacedContainerRowReverseFullRTL) {
     loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"rowReverse\", \"layoutDir\": \"RTL\"}");
     root->clearPending();
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto cont = CoreComponent::cast(root->context().findComponentById("container"));
     auto c  = cont->getChildAt(0);
     auto c2 = cont->getChildAt(1);
     auto c3 = cont->getChildAt(2);
@@ -2072,7 +2072,7 @@ TEST_F(LiveArrayRebuildTest, SpacedContainerColumnFullRTL) {
     loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"column\", \"layoutDir\": \"RTL\"}");
     root->clearPending();
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto cont = CoreComponent::cast(root->context().findComponentById("container"));
     auto c  = cont->getChildAt(0);
     auto c2 = cont->getChildAt(1);
     auto c3 = cont->getChildAt(2);
@@ -2087,7 +2087,7 @@ TEST_F(LiveArrayRebuildTest, SpacedContainerColumnReverseFullRTL) {
     loadDocument(SPACED_CONTAINER_WITH_LAYOUTDIR, "{\"containerDir\": \"columnReverse\", \"layoutDir\": \"RTL\"}");
     root->clearPending();
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("container"));
+    auto cont = CoreComponent::cast(root->context().findComponentById("container"));
     auto c  = cont->getChildAt(0);
     auto c2 = cont->getChildAt(1);
     auto c3 = cont->getChildAt(2);
@@ -2140,7 +2140,7 @@ TEST_F(LiveArrayRebuildTest, SpacedSequenceChangeDirectionHorizontal) {
     loadDocument(SPACED_SEQUENCE_WITH_LAYOUTDIR, "{\"scrollDir\": \"horizontal\", \"layoutDir\": \"LTR\"}");
     root->clearPending();
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("sequence"));
+    auto cont = CoreComponent::cast(root->context().findComponentById("sequence"));
     auto c  = cont->getChildAt(0);
     auto c2 = cont->getChildAt(1);
     auto c3 = cont->getChildAt(2);
@@ -2175,7 +2175,7 @@ TEST_F(LiveArrayRebuildTest, SpacedSequenceChangeDirectionVertical) {
     loadDocument(SPACED_SEQUENCE_WITH_LAYOUTDIR, "{\"scrollDir\": \"vertical\", \"layoutDir\": \"LTR\"}");
     root->clearPending();
 
-    auto cont = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("sequence"));
+    auto cont = CoreComponent::cast(root->context().findComponentById("sequence"));
     auto c  = cont->getChildAt(0);
     auto c2 = cont->getChildAt(1);
     auto c3 = cont->getChildAt(2);

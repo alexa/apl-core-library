@@ -32,6 +32,12 @@ public:
     Object getValue() const override { return mState.get(kStateChecked); }
 
     /**
+     * @param component Pointer to cast.
+     * @return Casted pointer to this type, nullptr if not possible.
+     */
+    static std::shared_ptr<TouchWrapperComponent> cast(const std::shared_ptr<Component>& component);
+
+    /**
      * Inject component that will replace current child of touch wrapper. While likely short lived - it will exist for
      * customer interaction time + any animations left.
      * Component will inherit TouchWrapper's internal dimensions.

@@ -16,6 +16,7 @@
 #ifndef APL_EXTENSION_RESOURCE_HOLDER_H
 #define APL_EXTENSION_RESOURCE_HOLDER_H
 
+#include <memory>
 #include <string>
 
 namespace alexaext {

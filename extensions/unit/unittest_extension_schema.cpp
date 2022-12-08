@@ -61,6 +61,7 @@ static const char* SCHEMA = R"(
   "types": [],
   "commands": [],
   "liveData": [],
+  "components": [],
   "uri": "alexaext:test:10"
 }
 )";
@@ -174,11 +175,11 @@ static const char* EVENTS = R"(
         },
         {
             "name": "myEventTwo",
-            "fastMode": false
+            "mode": "NORMAL"
         },
         {
             "name": "myEventThree",
-            "fastMode": true
+            "mode": "FAST"
         }
     ]
 }
@@ -384,5 +385,95 @@ TEST_F(ExtensionSchemaTest, SchemaLiveData) {
     // get the LiveData and compare to expected
     Value* expected = ExtensionSchema::LIVE_DATA().Get(lhsDoc);
     Value* actual = ExtensionSchema::LIVE_DATA().Get(rhsValue);
+    ASSERT_TRUE(IsEqual(*expected, *actual));
+}
+
+
+// Extension Schema Component Structure
+static const char* COMPONENTS = R"(
+{
+  "components": [
+    {
+      "name": "ComponentA",
+      "properties": {},
+      "events": []
+    },
+    {
+      "name": "ComponentB",
+      "properties": {},
+      "events": [],
+      "context": "myContext",
+      "resourceType": "SURFACE"
+    },
+    {
+      "name": "ComponentC",
+      "properties": {
+        "PropA": "number",
+        "PropB": {
+          "required": true,
+          "description": "My Property",
+          "type": "string",
+          "default": "PropBValue"
+        }
+      },
+      "events": [
+        {
+          "name": "EventA"
+        },
+        {
+          "name": "EventB",
+          "mode": "NORMAL"
+        }
+      ],
+      "context": "OtherContext",
+      "resourceType": "WINDOW"
+    }
+  ]
+}
+)";
+
+TEST_F(ExtensionSchemaTest, SchemaComponent) {
+
+    ExtensionSchema schemaMsg(&testDocument.GetAllocator(), "1.0");
+
+    // add events
+    schemaMsg.uri(URI)
+        .component("ComponentA")
+        .component("ComponentB",
+                 [](ComponentSchema& componentSchema) {
+                    componentSchema
+                           .context("myContext")
+                           .resourceType("SURFACE");
+                 })
+        .component("ComponentC",
+                   [](ComponentSchema& componentSchema) {
+                       componentSchema
+                           .context("OtherContext")
+                           .resourceType("WINDOW")
+                           .event("EventA")
+                           .event("EventB", [](EventSchema& eventSchema) {
+                               eventSchema.fastMode(false);
+                           })
+                           .property("PropA", "number")
+                           .property("PropB", [](TypePropertySchema& typePropertySchema) {
+                               typePropertySchema
+                                   .required(true)
+                                   .description("My Property")
+                                   .type("string")
+                                   .defaultValue("PropBValue");
+                           });
+                   });
+
+    Value rhsValue = schemaMsg;
+    ASSERT_FALSE(rhsValue.IsNull());
+
+    // creat an "expected" document for comparison
+    Document lhsDoc;
+    lhsDoc.Parse(COMPONENTS);
+    ASSERT_FALSE(lhsDoc.HasParseError() && lhsDoc.Empty());
+
+    // get the Command and compare to expected
+    Value* expected = ExtensionSchema::COMPONENTS().Get(lhsDoc);
+    Value* actual = ExtensionSchema::COMPONENTS().Get(rhsValue);
     ASSERT_TRUE(IsEqual(*expected, *actual));
 }

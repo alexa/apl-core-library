@@ -16,6 +16,8 @@
 #include "testaudioplayer.h"
 #include "testaudioplayerfactory.h"
 
+#include "apl/utils/log.h"
+
 namespace apl {
 
 const bool DEBUG_TEST_AUDIO_PLAYER = false;

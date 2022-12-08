@@ -44,7 +44,7 @@ public:
      * MediaPlayerFactory interface
      */
     MediaPlayerPtr createPlayer( MediaPlayerCallback callback ) override {
-        auto self = std::dynamic_pointer_cast<TestMediaPlayerFactory>(shared_from_this());
+        auto self = std::static_pointer_cast<TestMediaPlayerFactory>(shared_from_this());
         auto player = std::make_shared<TestMediaPlayer>(std::move(callback), std::move(self));
         if (mEventCallback) player->setEventCallback(mEventCallback);
         mPlayers.emplace_back(player);

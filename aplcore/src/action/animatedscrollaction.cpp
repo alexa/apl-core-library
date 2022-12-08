@@ -48,9 +48,8 @@ AnimatedScrollAction::scroll(bool vertical, const Point& position)
         return;
     }
 
-
     mScroller = AutoScroller::make(mContext->getRootConfig(),
-        std::dynamic_pointer_cast<ScrollableComponent>(mContainer),
+        ScrollableComponent::cast(mContainer),
         []() {},
         position - mContainer->scrollPosition(),
         mDuration);
@@ -103,10 +102,13 @@ AnimatedScrollAction::rehydrate(const RootContext& context)
 
     if (!ResourceHoldingAction::rehydrate(context)) return false;
 
-    mContainer = std::dynamic_pointer_cast<CoreComponent>(context.findComponentById(mFrozenContainerId));
+    mContainer = CoreComponent::cast(context.findComponentById(mFrozenContainerId));
     if (!mContainer) return false;
 
-    mScroller->replaceTarget(std::dynamic_pointer_cast<ScrollableComponent>(mContainer));
+    auto scrollable = ScrollableComponent::cast(mContainer);
+    if (!scrollable) return false;
+
+    mScroller->replaceTarget(scrollable);
 
     return mCurrentAction->rehydrate(context);
 }

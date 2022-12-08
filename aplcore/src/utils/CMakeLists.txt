@@ -21,6 +21,7 @@ target_sources_local(apl
     stickychildrentree.cpp
     stickyfunctions.cpp
     stringfunctions.cpp
+    throw.cpp
     tracing.cpp
     url.cpp
 )

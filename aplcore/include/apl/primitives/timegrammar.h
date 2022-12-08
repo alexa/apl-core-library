@@ -22,8 +22,9 @@
 #include <stack>
 #include <algorithm>
 
-#include "apl/utils/log.h"
+#include "apl/datagrammar/grammarpolyfill.h"
 #include "apl/primitives/timefunctions.h"
+#include "apl/utils/log.h"
 
 namespace apl {
 
@@ -117,7 +118,7 @@ struct grammar : must< raw, pegtl::eof > {};
 template<typename Rule>
 struct action : pegtl::nothing<Rule> {};
 
-struct time_state {
+struct time_state : fail_state {
     time_state(double time) : mTime(static_cast<apl::time::apl_itime_t>(time)) {}
 
     void append(int number) {

@@ -17,9 +17,9 @@
 #include "apl/engine/arrayify.h"
 #include "apl/content/rootconfig.h"
 #include "apl/primitives/mediasource.h"
+#include "apl/primitives/objectdata.h"
 #include "apl/utils/log.h"
 #include "apl/utils/session.h"
-#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -39,7 +39,7 @@ MediaSource::MediaSource(URLRequest urlRequest,
 Object
 MediaSource::create(const Context& context, const Object& object)
 {
-    if (object.isMediaSource())
+    if (object.is<MediaSource>())
         return object;
 
     if (object.isString()) {
@@ -48,7 +48,7 @@ MediaSource::create(const Context& context, const Object& object)
             CONSOLE(context) << "Empty string for media source";
             return Object::NULL_OBJECT();
         }
-        return Object(MediaSource(URLRequest::create(context, object).getURLRequest(),
+        return Object(MediaSource(URLRequest::create(context, object).get<URLRequest>(),
                                   "",
                                   0,
                                   0,
@@ -71,7 +71,7 @@ MediaSource::create(const Context& context, const Object& object)
     int offset = propertyAsInt(context, object, "offset", 0);
     auto entities = Object(arrayifyProperty(context, object, "entities", "entity"));
 
-    return Object(MediaSource(URLRequest::create(context, object).getURLRequest(),
+    return Object(MediaSource(URLRequest::create(context, object).get<URLRequest>(),
                               description,
                               duration,
                               repeatCount,

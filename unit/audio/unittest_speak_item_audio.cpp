@@ -1019,7 +1019,7 @@ TEST_F(SpeakItemAudioTest, TransitionalRequests)
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeRequestLineBounds, event.getType());
-    auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyBounds).getRect();
+    auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyBounds).get<Rect>();
     event.getActionRef().resolve({0, 0, textFieldBoundary.getWidth(), 10});
 
     advanceTime(100);
@@ -1133,7 +1133,7 @@ TEST_F(SpeakItemAudioTest, PreserveTesting)
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeRequestLineBounds, event.getType());
-    auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyBounds).getRect();
+    auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyBounds).get<Rect>();
     event.getActionRef().resolve({0, 0, textFieldBoundary.getWidth(), 10});
 
     advanceTime(100);
@@ -1145,7 +1145,7 @@ TEST_F(SpeakItemAudioTest, PreserveTesting)
     ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kPlay));
     ASSERT_EQ(component->scrollPosition().getY(), textFieldBoundary.getY());
 
-    auto text = std::dynamic_pointer_cast<CoreComponent>(root->findComponentById("text1"));
+    auto text = CoreComponent::cast(root->findComponentById("text1"));
 
     // Will also ask to scroll to the first line for play
     ASSERT_TRUE(verifyLineUpdate(root, text, 0, 0, 4));
@@ -1166,7 +1166,7 @@ TEST_F(SpeakItemAudioTest, PreserveTesting)
 
     loop->rehydrate(playerTimer);
 
-    text = std::dynamic_pointer_cast<CoreComponent>(root->findComponentById("text1"));
+    text = CoreComponent::cast(root->findComponentById("text1"));
     ASSERT_TRUE(text->getState().get(apl::kStateKaraoke));
 
     // "give your office a holiday"
@@ -1217,7 +1217,7 @@ TEST_F(SpeakItemAudioTest, PreserveTestingNoTarget)
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeRequestLineBounds, event.getType());
-    auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyBounds).getRect();
+    auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyBounds).get<Rect>();
     event.getActionRef().resolve({0, 0, textFieldBoundary.getWidth(), 10});
 
     advanceTime(100);
@@ -1229,7 +1229,7 @@ TEST_F(SpeakItemAudioTest, PreserveTestingNoTarget)
     ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kPlay));
     ASSERT_EQ(component->scrollPosition().getY(), textFieldBoundary.getY());
 
-    auto text = std::dynamic_pointer_cast<CoreComponent>(root->findComponentById("text1"));
+    auto text = CoreComponent::cast(root->findComponentById("text1"));
 
     // Will also ask to scroll to the first line for play
     ASSERT_TRUE(verifyLineUpdate(root, text, 0, 0, 4));
@@ -1438,7 +1438,7 @@ TEST_F(SpeakItemAudioTest, MarksAfterText)
     ASSERT_TRUE(root->hasEvent());
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeRequestLineBounds, event.getType());
-    auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyBounds).getRect();
+    auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyBounds).get<Rect>();
     event.getActionRef().resolve({0, 0, textFieldBoundary.getWidth(), 10});
 
     advanceTime(100);

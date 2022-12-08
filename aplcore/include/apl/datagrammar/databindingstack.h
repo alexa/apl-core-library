@@ -27,6 +27,7 @@
 #include "apl/primitives/object.h"
 #include "apl/utils/log.h"
 #include "apl/utils/streamer.h"
+#include "apl/utils/throw.h"
 
 namespace apl {
 namespace datagrammar {
@@ -237,7 +238,7 @@ public:
                 return mObjects.back();
         }
 
-        throw std::runtime_error("Illegal combination");
+        aplThrow("Illegal combination");
     }
 
     void dump()

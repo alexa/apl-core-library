@@ -22,6 +22,7 @@
 #include <iostream>
 #include <regex>
 #include <algorithm>
+#include <type_traits>
 
 #include "rapidjson/error/en.h"
 #include "rapidjson/pointer.h"
@@ -485,7 +486,7 @@ protected:
             context = root->contextPtr();
             ASSERT_TRUE(context);
             ASSERT_FALSE(context->getReinflationFlag());
-            component = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+            component = CoreComponent::cast(root->topComponent());
         }
 
         postInflate();
@@ -509,7 +510,7 @@ protected:
         context = root->contextPtr();
         ASSERT_TRUE(context);
         ASSERT_TRUE(context->getReinflationFlag());
-        component = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+        component = CoreComponent::cast(root->topComponent());
 
         if (event.getActionRef().isPending()) {
             event.getActionRef().resolve();
@@ -625,7 +626,7 @@ public:
         // Calculate the component map
         auto componentsMap = std::make_shared<ObjectMap>();
         for (auto& compId : mValues.at(kCommandPropertyComponents).getArray()) {
-            auto comp = std::dynamic_pointer_cast<CoreComponent>(mContext->findComponentById(compId.getString()));
+            auto comp = CoreComponent::cast(mContext->findComponentById(compId.getString()));
             if (comp) {
                 componentsMap->emplace(compId.getString(), comp->getValue());
             }
@@ -881,7 +882,7 @@ template<class... Args>
     for (auto key : v)
         values[key] = true;
 
-    auto& core = std::static_pointer_cast<CoreComponent>(component)->getState();
+    auto& core = CoreComponent::cast(component)->getState();
     for (int i = 0 ; i < kStatePropertyCount ; i++) {
         auto key = static_cast<StateProperty>(i);
         if (core.get(key) != values[i])
@@ -924,10 +925,10 @@ template<class... Args>
 }
 
 inline
-::testing::AssertionResult IsEqual(const Transform2D& lhs, const Transform2D& rhs)
+::testing::AssertionResult IsEqual(const Transform2D& lhs, const Transform2D& rhs, float epsilon=0.0001)
 {
     for (int i = 0 ; i < 6 ; i++)
-        if (std::abs(lhs.get()[i] - rhs.get()[i]) > 0.0001) {
+        if (std::abs(lhs.get()[i] - rhs.get()[i]) > epsilon) {
             streamer s;
             s << "[" << lhs << "] != [" << rhs << "]";
             return ::testing::AssertionFailure() << s.str();
@@ -936,8 +937,49 @@ inline
     return ::testing::AssertionSuccess();
 }
 
-template<class T>
-::testing::AssertionResult IsEqual(const std::vector<T>& a, const std::vector<T>& b) {
+inline
+::testing::AssertionResult IsEqual(const Point& lhs, const Point& rhs, float epsilon=0.0001)
+{
+    if (std::abs(lhs.getX() - rhs.getX()) > epsilon ||
+        std::abs(lhs.getY() - rhs.getY()) > epsilon)
+        return ::testing::AssertionFailure() << lhs.toDebugString() << " != " << rhs.toDebugString();
+
+    return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult IsEqual(const Rect& lhs, const Rect& rhs, float epsilon=0.0001)
+{
+    if (std::abs(lhs.getX() - rhs.getX()) > epsilon ||
+        std::abs(lhs.getY() - rhs.getY()) > epsilon ||
+        std::abs(lhs.getWidth() - rhs.getWidth()) > epsilon ||
+        std::abs(lhs.getHeight() - rhs.getHeight()) > epsilon)
+        return ::testing::AssertionFailure() << lhs.toDebugString() << " != " << rhs.toDebugString();
+
+    return ::testing::AssertionSuccess();
+}
+
+// This template compares two vectors of floating point numbers (doubles, floats, etc)
+template<typename T,
+         typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
+::testing::AssertionResult IsEqual(const std::vector<T>& a, const std::vector<T>& b, float epsilon=1e-6)
+{
+    if (a.size() != b.size())
+        return ::testing::AssertionFailure() << "Size mismatch a=" << a.size() << " b=" << b.size();
+
+    for (int i = 0; i < a.size(); i++)
+        if (std::abs(a.at(i)-b.at(i)) > epsilon)
+            return ::testing::AssertionFailure()
+                   << "Element mismatch index=" << i << " a=" << a.at(i) << " b=" << b.at(i);
+
+    return ::testing::AssertionSuccess();
+}
+
+// This template compares two vectors of items that support the '!=' operator
+template<class T,
+          typename std::enable_if<!std::is_floating_point<T>::value, bool>::type = true>
+::testing::AssertionResult IsEqual(const std::vector<T>& a, const std::vector<T>& b)
+{
     if (a.size() != b.size())
         return ::testing::AssertionFailure() << "Size mismatch a=" << a.size() << " b=" << b.size();
 
@@ -1077,7 +1119,7 @@ template<class... Args>
 
     std::vector<ComponentPtr> v = {args...};
     for (const auto& target : v)
-        if (!std::dynamic_pointer_cast<CoreComponent>(target)->isVisualContextDirty())
+        if (!CoreComponent::cast(target)->isVisualContextDirty())
             return ::testing::AssertionFailure() << "invalid visual context isDirty" ;
 
     return ::testing::AssertionSuccess();
@@ -1154,8 +1196,8 @@ MouseDown(const RootContextPtr& root, const CoreComponentPtr& comp, double x, do
     root->handlePointerEvent(PointerEvent(kPointerDown, point));
 
     auto visitor = TouchableAtPosition(point);
-    std::dynamic_pointer_cast<CoreComponent>(root->topComponent())->raccept(visitor);
-    auto target = std::dynamic_pointer_cast<CoreComponent>(visitor.getResult());
+    CoreComponent::cast(root->topComponent())->raccept(visitor);
+    auto target = CoreComponent::cast(visitor.getResult());
 
     if (target != comp)
         return ::testing::AssertionFailure() << "Down failed to hit target at " << x << "," << y;
@@ -1170,8 +1212,8 @@ MouseUp(const RootContextPtr& root, const CoreComponentPtr& comp, double x, doub
     root->handlePointerEvent(PointerEvent(kPointerUp, point));
 
     auto visitor = TouchableAtPosition(point);
-    std::dynamic_pointer_cast<CoreComponent>(root->topComponent())->raccept(visitor);
-    auto target = std::dynamic_pointer_cast<CoreComponent>(visitor.getResult());
+    CoreComponent::cast(root->topComponent())->raccept(visitor);
+    auto target = CoreComponent::cast(visitor.getResult());
 
     if (target != comp)
         return ::testing::AssertionFailure() << "Up failed to hit target at " << x << "," << y;
@@ -1186,8 +1228,8 @@ MouseDown(const RootContextPtr& root, double x, double y) {
     root->handlePointerEvent(PointerEvent(kPointerDown, point));
 
     auto visitor = TouchableAtPosition(point);
-    std::dynamic_pointer_cast<CoreComponent>(root->topComponent())->raccept(visitor);
-    auto target = std::dynamic_pointer_cast<CoreComponent>(visitor.getResult());
+    CoreComponent::cast(root->topComponent())->raccept(visitor);
+    auto target = CoreComponent::cast(visitor.getResult());
 
     if (!target)
         return ::testing::AssertionFailure() << "Down failed to hit target at " << x << "," << y;
@@ -1202,8 +1244,8 @@ MouseUp(const RootContextPtr& root, double x, double y) {
     root->handlePointerEvent(PointerEvent(kPointerUp, point));
 
     auto visitor = TouchableAtPosition(point);
-    std::dynamic_pointer_cast<CoreComponent>(root->topComponent())->raccept(visitor);
-    auto target = std::dynamic_pointer_cast<CoreComponent>(visitor.getResult());
+    CoreComponent::cast(root->topComponent())->raccept(visitor);
+    auto target = CoreComponent::cast(visitor.getResult());
 
     if (!target)
         return ::testing::AssertionFailure() << "Up failed to hit target at " << x << "," << y;
@@ -1218,8 +1260,8 @@ MouseMove(const RootContextPtr& root, double x, double y) {
     root->handlePointerEvent(PointerEvent(kPointerMove, point));
 
     auto visitor = TouchableAtPosition(point);
-    std::dynamic_pointer_cast<CoreComponent>(root->topComponent())->raccept(visitor);
-    auto target = std::dynamic_pointer_cast<CoreComponent>(visitor.getResult());
+    CoreComponent::cast(root->topComponent())->raccept(visitor);
+    auto target = CoreComponent::cast(visitor.getResult());
 
     if (!target)
         return ::testing::AssertionFailure() << "Up failed to hit target at " << x << "," << y;
@@ -1289,19 +1331,19 @@ compareTransformApprox(const Transform2D& left, const Transform2D& right, float 
 inline
 ::testing::AssertionResult
 CheckTransform(const Transform2D& expected, const ComponentPtr& component) {
-    return compareTransformApprox(expected, component->getCalculated(kPropertyTransform).getTransform2D());
+    return compareTransformApprox(expected, component->getCalculated(kPropertyTransform).get<Transform2D>());
 }
 
 inline
 ::testing::AssertionResult
 CheckTransformApprox(const Transform2D& expected, const ComponentPtr& component, float delta) {
-    return compareTransformApprox(expected, component->getCalculated(kPropertyTransform).getTransform2D(), delta);
+    return compareTransformApprox(expected, component->getCalculated(kPropertyTransform).get<Transform2D>(), delta);
 }
 
 inline
 ::testing::AssertionResult
 expectBounds(ComponentPtr comp, float top, float left, float bottom, float right) {
-    auto bounds = comp->getCalculated(kPropertyBounds).getRect();
+    auto bounds = comp->getCalculated(kPropertyBounds).get<Rect>();
     if (bounds.getTop() != top)
         return ::testing::AssertionFailure() << "bounds.getTop() does not equal top: "
                                              << bounds.getTop() << " != " << top;
@@ -1320,7 +1362,7 @@ expectBounds(ComponentPtr comp, float top, float left, float bottom, float right
 inline
 ::testing::AssertionResult
 expectInnerBounds(ComponentPtr comp, float top, float left, float bottom, float right) {
-    auto bounds = comp->getCalculated(kPropertyInnerBounds).getRect();
+    auto bounds = comp->getCalculated(kPropertyInnerBounds).get<Rect>();
     if (bounds.getTop() != top)
         return ::testing::AssertionFailure() << "bounds.getTop() does not equal top: "
                                              << bounds.getTop() << " != " << top;

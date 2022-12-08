@@ -34,18 +34,11 @@ layer(const std::string& name, Rect bounds, float opacity, Transform2D transform
 }
 
 NodePtr
-generic()
-{
-    return std::make_shared<GenericNode>();
-}
-
-NodePtr
 transform(Transform2D transform, const NodePtr& child)
 {
     auto node = std::make_shared<TransformNode>();
     node->setTransform(transform);
-    if (child)
-        node->appendChild(child);
+    node->setChild(child);
     return node;
 }
 
@@ -58,7 +51,7 @@ transform(Point offset, const NodePtr& child)
 NodePtr
 transform(const Object& object, const NodePtr& child)
 {
-    return transform(object.getTransform2D(), child);
+    return transform(object.get<Transform2D>(), child);
 }
 
 NodePtr
@@ -72,8 +65,7 @@ clip(PathPtr path, const NodePtr& child)
 {
     auto node = std::make_shared<ClipNode>();
     node->setPath(std::move(path));
-    if (child)
-        node->appendChild(child);
+    node->setChild(child);
     return node;
 }
 
@@ -83,10 +75,7 @@ opacity(float opacity, const NodePtr& child)
 {
     auto node = std::make_shared<OpacityNode>();
     node->setOpacity(opacity);
-
-    if (child)
-        node->appendChild(child);
-
+    node->setChild(child);
     return node;
 }
 
@@ -121,10 +110,10 @@ video(MediaPlayerPtr player, Rect target, VideoScale scale)
 NodePtr
 shadowNode(ShadowPtr shadow, const NodePtr& child)
 {
-    assert(filter);
+    // No assert. nullptr shadow is a valid case.
     auto node = std::make_shared<ShadowNode>();
-    node->setShadow(std::move(shadow));
-    node->appendChild(child);
+    if (shadow) node->setShadow(std::move(shadow));
+    node->setChild(child);
     return node;
 }
 
@@ -294,25 +283,28 @@ paint(const GraphicPatternPtr& pattern, float opacity, Transform2D transform)
 
     SceneGraphUpdates updates;
 
-    auto node = std::make_shared<GenericNode>();
-    for (const auto& m : pattern->getItems())
-        node->appendChild(m->getSceneGraph(updates));
-    paint->setNode(node);
+    NodePtr node = nullptr;
+    for (auto it = pattern->getItems().rbegin() ; it != pattern->getItems().rend() ; it++) {
+        auto child = (*it)->getSceneGraph(updates);
+        if (child)
+            node = child->setNext(node);
+    }
 
+    paint->setNode(node);
     return paint;
 }
 
 PaintPtr
 paint(const Object& object, float opacity, Transform2D transform)
 {
-    if (object.isColor())
+    if (object.is<Color>())
         return paint(static_cast<Color>(object.getColor()), opacity);
 
-    if (object.isGradient())
-        return paint(object.getGradient(), opacity, transform);
+    if (object.is<Gradient>())
+        return paint(object.get<Gradient>(), opacity, transform);
 
-    if (object.isGraphicPattern())
-        return paint(object.getGraphicPattern(), opacity, transform);
+    if (object.is<GraphicPattern>())
+        return paint(object.get<GraphicPattern>(), opacity, transform);
 
     return std::make_shared<ColorPaint>();
 }
@@ -364,7 +356,7 @@ accessibility(CoreComponent& component)
     acc->setRole(role);
 
     for (const auto& m : actions) {
-        const auto& ptr = m.getAccessibilityAction();
+        const auto& ptr = m.get<AccessibilityAction>();
         acc->appendAction(ptr->getName(), ptr->getLabel(), ptr->enabled());
     }
 

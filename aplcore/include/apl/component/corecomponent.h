@@ -32,6 +32,7 @@
 #include "apl/focus/focusdirection.h"
 #include "apl/primitives/keyboard.h"
 #include "apl/primitives/size.h"
+#include "apl/primitives/transform2d.h"
 
 namespace apl {
 
@@ -100,7 +101,7 @@ public:
 
     /**
      * Release this component and all children.  This component may still be in
-     * its parents child list.
+     * its parent's child list.
      */
     void release() override;
 
@@ -933,6 +934,12 @@ public:
      */
     void setStickyOffset(Point stickyOffset) { mStickyOffset = stickyOffset; }
 
+    /**
+     * @param component Pointer to cast.
+     * @return Casted pointer to this type, nullptr if not possible.
+     */
+    static std::shared_ptr<CoreComponent> cast(const std::shared_ptr<Component>& component);
+
 #ifdef SCENEGRAPH
     /**
      * @return The current scene graph node.
@@ -948,7 +955,6 @@ public:
 protected:
     // internal, do not call directly
     virtual bool insertChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag);
-    virtual void removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag);
     virtual void reportLoaded(size_t index);
 
     // Attach the yoga node of this child
@@ -1015,6 +1021,31 @@ protected:
      */
     void fixVisualHash(bool useDirtyFlag);
 
+    /**
+     * Traverse the component hierarchy rooted at this component, invoking pre on each component
+     * before traversing all children, and post on each component after traversing all children.
+     * @param pre pre-order traversal function accepting CoreComponent&
+     * @param post post-order traversal function accepting CoreComponent&
+     */
+    template<typename Pre, typename Post>
+    void traverse(const Pre& pre, const Post& post);
+
+    /**
+     * Traverse the component hierarchy rooted at this component, invoking pre on each component
+     * before traversing each child.
+     * @param pre pre-order traversal function accepting CoreComponent&
+     */
+    template<typename Pre>
+    void traverse(const Pre& pre) { traverse(pre, [](CoreComponent& c) {}); };
+
+    /**
+     * Release this component. This component may still be in its parent's child list. This does
+     * not release children of this component, nor does it clear this component's list of children.
+     */
+    virtual void releaseSelf();
+
+    virtual void removeChildAfterMarkedRemoved(const CoreComponentPtr& child, size_t index, bool useDirtyFlag);
+
 #ifdef SCENEGRAPH
     /*
      * Used by getSceneGraph() to build the component's scene graph (and attached children).
@@ -1068,7 +1099,7 @@ private:
 
     void removeChildAt(size_t index, bool useDirtyFlag);
 
-    void markRemoved();
+    void markSelfRemoved();
 
     void markAdded();
 

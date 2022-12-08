@@ -14,6 +14,7 @@
  */
 
 #include "apl/primitives/rect.h"
+#include "apl/primitives/transform2d.h"
 
 #include <cmath>
 #ifdef APL_CORE_UWP
@@ -122,6 +123,25 @@ Rect::inset(float dx, float dy) const {
     auto x = w <= 0 ? mX + mWidth / 2 : mX + dx;
     auto y = h <= 0 ? mY + mHeight / 2 : mY + dy;
     return {x, y, w, h};
+}
+
+Rect
+Rect::boundingBox(const apl::Transform2D& transform) const
+{
+    if (empty())
+        return {};
+
+    auto p1 = transform * getTopLeft();
+    auto p2 = transform * getTopRight();
+    auto p3 = transform * getBottomLeft();
+    auto p4 = transform * getBottomRight();
+
+    auto left = std::min({p1.getX(), p2.getX(), p3.getX(), p4.getX()});
+    auto top = std::min({p1.getY(), p2.getY(), p3.getY(), p4.getY()});
+    auto right =  std::max({p1.getX(), p2.getX(), p3.getX(), p4.getX()});
+    auto bottom = std::max({p1.getY(), p2.getY(), p3.getY(), p4.getY()});
+
+    return { left, top, right - left, bottom - top };
 }
 
 rapidjson::Value

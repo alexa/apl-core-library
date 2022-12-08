@@ -88,9 +88,8 @@ public:
     void appendChild(const LayerPtr& layer);
     const std::vector<LayerPtr>& children() const { return mChildren; }
 
-    void clearContent();
-    void appendContent(const NodePtr& node);
-    const std::vector<NodePtr>& content() const { return mContent; }
+    void setContent(const NodePtr& node);
+    const NodePtr& content() const { return mContent; }
 
     /**
      * The bounds of the layer are its outline and position relative to the containing layer.
@@ -125,7 +124,6 @@ public:
 
     /**
      * The child transformation is relative to the center of the bounds
-     * TODO: This might be better as a Point offset
      */
     bool setChildOffset(Point childOffset);
     Point getChildOffset() const { return mChildOffset; }
@@ -150,7 +148,7 @@ public:
 private:
     std::string mName;
     std::vector<LayerPtr> mChildren;
-    std::vector<NodePtr> mContent;
+    NodePtr mContent;
 
     Rect mBounds;     // The bounds of the layer.  The position is the top-left corner in the parent
 

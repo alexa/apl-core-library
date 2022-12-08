@@ -14,6 +14,7 @@
  */
 
 #include "apl/engine/evaluate.h"
+#include "apl/primitives/color.h"
 #include "apl/primitives/styledtextstate.h"
 #include "apl/utils/stringfunctions.h"
 

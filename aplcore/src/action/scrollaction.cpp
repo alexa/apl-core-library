@@ -55,7 +55,7 @@ void
 ScrollAction::start() {
     // Now set the position
     auto vertical = (mContainer->scrollType() == kScrollTypeVertical);
-    auto innerBounds = mContainer->getCalculated(kPropertyInnerBounds).getRect();
+    const auto& innerBounds = mContainer->getCalculated(kPropertyInnerBounds).get<Rect>();
 
     auto targetSize = (vertical ? innerBounds.getHeight() : innerBounds.getWidth());
     float distance = 0;

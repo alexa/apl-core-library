@@ -63,9 +63,13 @@ SendEventCommand::execute(const TimersPtr& timers, bool fastMode) {
     // Calculate the component map
     auto componentsMap = std::make_shared<ObjectMap>();
     for (auto& compId : mValues.at(kCommandPropertyComponents).getArray()) {
-        auto comp = std::dynamic_pointer_cast<CoreComponent>(mContext->findComponentById(compId.getString()));
-        if (comp) {
-            componentsMap->emplace(compId.getString(), comp->getValue());
+        if (compId.isString()) {
+            auto comp = CoreComponent::cast(mContext->findComponentById(compId.getString()));
+            if (comp) {
+                componentsMap->emplace(compId.getString(), comp->getValue());
+            }
+        } else {
+            CONSOLE(mContext) << "SendEvent components array can only contain strings.";
         }
     }
 

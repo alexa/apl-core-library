@@ -13,45 +13,24 @@
  * permissions and limitations under the License.
  */
 
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/writer.h"
+#include "apl/primitives/object.h"
 
-#include "apl/animation/easing.h"
-#include "apl/component/componenteventwrapper.h"
+#include <stack>
+
 #include "apl/datagrammar/boundsymbol.h"
 #include "apl/datagrammar/bytecode.h"
-#include "apl/engine/contextwrapper.h"
-#include "apl/graphic/graphic.h"
-#include "apl/graphic/graphicfilter.h"
-#include "apl/graphic/graphicpattern.h"
-#include "apl/livedata/livedataobject.h"
-#include "apl/primitives/accessibilityaction.h"
-#include "apl/primitives/filter.h"
+#include "apl/engine/context.h"
+#include "apl/primitives/color.h"
+#include "apl/primitives/dimension.h"
 #include "apl/primitives/functions.h"
-#include "apl/primitives/gradient.h"
-#include "apl/primitives/mediasource.h"
-#include "apl/primitives/object.h"
-#include "apl/primitives/objectdata.h"
-#include "apl/primitives/range.h"
+#include "apl/primitives/objecttype.h"
 #include "apl/primitives/rangegenerator.h"
 #include "apl/primitives/slicegenerator.h"
-#include "apl/primitives/transform.h"
-#include "apl/primitives/urlrequest.h"
 #include "apl/utils/log.h"
-#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
 const bool OBJECT_DEBUG = false;
-
-/****************************************************************************/
-
-template<typename XData, typename T>
-std::shared_ptr<ObjectData> create(T&& data) {
-    return std::make_shared<XData>(std::forward(data));
-}
-
-/****************************************************************************/
 
 const Object& Object::TRUE_OBJECT() {
     static Object *answer = new Object(true);
@@ -72,10 +51,6 @@ Object Object::NAN_OBJECT() {
     return Object(std::numeric_limits<double>::quiet_NaN());
 }
 
-Object Object::AUTO_OBJECT() {
-    return Object(Dimension());
-}
-
 Object Object::EMPTY_ARRAY() {
     return Object(std::vector<Object>{});
 }
@@ -92,43 +67,18 @@ Object Object::EMPTY_MUTABLE_MAP() {
     return Object(std::make_shared<ObjectMap>(), true);
 }
 
-Object Object::ZERO_ABS_DIMEN() {
-    return Object(Dimension(DimensionType::Absolute, 0));
-}
-
-Object Object::EMPTY_RECT() {
-    return Object(Rect(0,0,0,0));
-}
-
-Object Object::EMPTY_RADII() {
-    return Object(Radii());
-}
-
-Object Object::IDENTITY_2D() {
-    return Object(Transform2D());
-}
-
-Object Object::LINEAR_EASING() {
-    return Object(Easing::linear());
-}
-
 /****************************************************************************/
 
 Object::Object(const Object& object) noexcept
         : mType(object.mType)
 {
-    switch (mType) {
-        case kNullType:
+    switch(mType->storageType()) {
+        case StorageType::kStorageTypeEmpty:
             break;
-        case kBoolType:
-        case kNumberType:
-        case kAbsoluteDimensionType:
-        case kRelativeDimensionType:
-        case kAutoDimensionType:
-        case kColorType:
+        case StorageType::kStorageTypeValue:
             mU.value = object.mU.value;
             break;
-        case kStringType:
+        case StorageType::kStorageTypeString:
             new(&mU.string) std::string(object.mU.string);
             break;
         default:
@@ -140,18 +90,13 @@ Object::Object(const Object& object) noexcept
 Object::Object(Object&& object) noexcept
         : mType(object.mType)
 {
-    switch (mType) {
-        case kNullType:
+    switch(mType->storageType()) {
+        case StorageType::kStorageTypeEmpty:
             break;
-        case kBoolType:
-        case kNumberType:
-        case kAbsoluteDimensionType:
-        case kRelativeDimensionType:
-        case kAutoDimensionType:
-        case kColorType:
+        case StorageType::kStorageTypeValue:
             mU.value = object.mU.value;
             break;
-        case kStringType:
+        case StorageType::kStorageTypeString:
             new(&mU.string) std::string(std::move(object.mU.string));
             break;
         default:
@@ -166,18 +111,13 @@ Object& Object::operator=(const Object& rhs) noexcept
         return *this;
 
     if (mType == rhs.mType) {
-        switch (mType) {
-            case kNullType:
+        switch(mType->storageType()) {
+            case StorageType::kStorageTypeEmpty:
                 break;
-            case kBoolType:
-            case kNumberType:
-            case kAbsoluteDimensionType:
-            case kRelativeDimensionType:
-            case kAutoDimensionType:
-            case kColorType:
+            case StorageType::kStorageTypeValue:
                 mU.value = rhs.mU.value;
                 break;
-            case kStringType:
+            case StorageType::kStorageTypeString:
                 mU.string = rhs.mU.string;
                 break;
             default:
@@ -187,16 +127,11 @@ Object& Object::operator=(const Object& rhs) noexcept
     }
     else {
         // Delete the old item
-        switch (mType) {
-            case kNullType:
-            case kBoolType:
-            case kNumberType:
-            case kAbsoluteDimensionType:
-            case kRelativeDimensionType:
-            case kAutoDimensionType:
-            case kColorType:
+        switch(mType->storageType()) {
+            case StorageType::kStorageTypeEmpty: // FALL_THROUGH
+            case StorageType::kStorageTypeValue:
                 break;
-            case kStringType:
+            case StorageType::kStorageTypeString:
                 mU.string.~basic_string<char>();
                 break;
             default:
@@ -206,18 +141,13 @@ Object& Object::operator=(const Object& rhs) noexcept
 
         // Construct the new
         mType = rhs.mType;
-        switch (mType) {
-            case kNullType:
+        switch(mType->storageType()) {
+            case StorageType::kStorageTypeEmpty:
                 break;
-            case kBoolType:
-            case kNumberType:
-            case kAbsoluteDimensionType:
-            case kRelativeDimensionType:
-            case kAutoDimensionType:
-            case kColorType:
+            case StorageType::kStorageTypeValue:
                 mU.value = rhs.mU.value;
                 break;
-            case kStringType:
+            case StorageType::kStorageTypeString:
                 new(&mU.string) std::string(rhs.mU.string);
                 break;
             default:
@@ -232,18 +162,13 @@ Object& Object::operator=(const Object& rhs) noexcept
 Object& Object::operator=(Object&& rhs) noexcept
 {
     if (mType == rhs.mType) {
-        switch (mType) {
-            case kNullType:
+        switch(mType->storageType()) {
+            case StorageType::kStorageTypeEmpty:
                 break;
-            case kBoolType:
-            case kNumberType:
-            case kAbsoluteDimensionType:
-            case kRelativeDimensionType:
-            case kAutoDimensionType:
-            case kColorType:
-                mU.value = std::move(rhs.mU.value);
+            case StorageType::kStorageTypeValue:
+                mU.value = rhs.mU.value;
                 break;
-            case kStringType:
+            case StorageType::kStorageTypeString:
                 mU.string = std::move(rhs.mU.string);
                 break;
             default:
@@ -253,16 +178,11 @@ Object& Object::operator=(Object&& rhs) noexcept
     }
     else {
         // Delete the old item
-        switch (mType) {
-            case kNullType:
-            case kBoolType:
-            case kNumberType:
-            case kAbsoluteDimensionType:
-            case kRelativeDimensionType:
-            case kAutoDimensionType:
-            case kColorType:
+        switch(mType->storageType()) {
+            case StorageType::kStorageTypeEmpty: // FALL_THROUGH
+            case StorageType::kStorageTypeValue:
                 break;
-            case kStringType:
+            case StorageType::kStorageTypeString:
                 mU.string.~basic_string<char>();
                 break;
             default:
@@ -272,18 +192,13 @@ Object& Object::operator=(Object&& rhs) noexcept
 
         // Construct the new
         mType = rhs.mType;
-        switch (mType) {
-            case kNullType:
+        switch(mType->storageType()) {
+            case StorageType::kStorageTypeEmpty:
                 break;
-            case kBoolType:
-            case kNumberType:
-            case kAbsoluteDimensionType:
-            case kRelativeDimensionType:
-            case kAutoDimensionType:
-            case kColorType:
-                mU.value = std::move(rhs.mU.value);
+            case StorageType::kStorageTypeValue:
+                mU.value = rhs.mU.value;
                 break;
-            case kStringType:
+            case StorageType::kStorageTypeString:
                 new(&mU.string) std::string(std::move(rhs.mU.string));
                 break;
             default:
@@ -300,16 +215,11 @@ Object& Object::operator=(Object&& rhs) noexcept
 Object::~Object()
 {
     LOG_IF(OBJECT_DEBUG) << "  --- Destroying " << *this;
-    switch (mType) {
-        case kNullType:
-        case kBoolType:
-        case kNumberType:
-        case kAbsoluteDimensionType:
-        case kRelativeDimensionType:
-        case kAutoDimensionType:
-        case kColorType:
+    switch(mType->storageType()) {
+        case StorageType::kStorageTypeEmpty: // FALL_THROUGH
+        case StorageType::kStorageTypeValue:
             break;
-        case kStringType:
+        case StorageType::kStorageTypeString:
             mU.string.~basic_string<char>();
             break;
         default:
@@ -319,199 +229,152 @@ Object::~Object()
 }
 
 Object::Object()
-    : mType(kNullType)
+    : mType(Null::ObjectType::instance())
 {
     LOG_IF(OBJECT_DEBUG) << "Object null constructor" << this;
 }
 
-Object::Object(ObjectType type)
-    : mType(type)
-{
-    LOG_IF(OBJECT_DEBUG) << "Object type constructor" << this;
-}
-
 Object::Object(bool b)
-    : mType(kBoolType),
+    : mType(Boolean::ObjectType::instance()),
       mU(b ? 1.0 : 0.0)
 {
     LOG_IF(OBJECT_DEBUG) << "Object bool constructor: " << b << " this=" << this;
 }
 
 Object::Object(int i)
-    : mType(kNumberType),
+    : mType(Number::ObjectType::instance()),
       mU(i)
 {}
 
 Object::Object(uint32_t u)
-    : mType(kNumberType),
+    : mType(Number::ObjectType::instance()),
       mU(u)
 {}
 
 Object::Object(unsigned long l)
-    : mType(kNumberType),
+    : mType(Number::ObjectType::instance()),
       mU(static_cast<double>(l))
 {}
 
 Object::Object(long l)
-    : mType(kNumberType),
+    : mType(Number::ObjectType::instance()),
       mU(static_cast<double>(l))
 {}
 
 Object::Object(unsigned long long l)
-    : mType(kNumberType),
+    : mType(Number::ObjectType::instance()),
       mU(static_cast<double>(l))
 {}
 
 Object::Object(long long l)
-    : mType(kNumberType),
+    : mType(Number::ObjectType::instance()),
       mU(static_cast<double>(l))
 {}
 
 Object::Object(double d)
-    : mType(kNumberType),
+    : mType(Number::ObjectType::instance()),
       mU(d)
 {}
 
 Object::Object(const char *s)
-    : mType(kStringType),
+    : mType(String::ObjectType::instance()),
       mU(s)
 {}
 
 Object::Object(const std::string& s)
-    : mType(kStringType),
+    : mType(String::ObjectType::instance()),
       mU(s)
 {}
 
 Object::Object(const ObjectMapPtr& m, bool isMutable)
-    : mType(kMapType),
+    : mType(Map::ObjectType::instance()),
       mU(std::static_pointer_cast<ObjectData>(std::make_shared<MapData>(m, isMutable)))
 {}
 
 Object::Object(const ObjectArrayPtr& v, bool isMutable)
-    : mType(kArrayType),
+    : mType(Array::ObjectType::instance()),
       mU(std::static_pointer_cast<ObjectData>(std::make_shared<ArrayData>(v, isMutable)))
 {}
 
 Object::Object(ObjectArray&& v, bool isMutable)
-    : mType(kArrayType),
-      mU(std::static_pointer_cast<ObjectData>(std::make_shared<FixedArrayData>(std::move(v),isMutable)))
+    : mType(Array::ObjectType::instance()),
+      mU(std::static_pointer_cast<ObjectData>(std::make_shared<FixedArrayData>(std::move(v), isMutable)))
 {}
 
-Object::Object(const std::shared_ptr<datagrammar::ByteCode>& n)
-    : mType(kByteCodeType),
-      mU(std::static_pointer_cast<ObjectData>(n))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object constructor compiled byte code: " << this;
-}
-
-Object::Object(const std::shared_ptr<datagrammar::BoundSymbol>& bs)
-    : mType(kBoundSymbolType),
-      mU(std::static_pointer_cast<ObjectData>(bs))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object constructor bound symbol: " << this;
-}
-
-Object::Object(const std::shared_ptr<LiveDataObject>& d)
-    : mType(d->getType()),
-      mU(d)
-{
-    LOG_IF(OBJECT_DEBUG) << "Object live data: " << this;
-}
-
-Object::Object(const std::shared_ptr<ComponentEventWrapper>& d)
-    : mType(kComponentType),
-      mU(d)
-{
-    LOG_IF(OBJECT_DEBUG) << "Object component event data: " << this;
-}
-
-Object::Object(const std::shared_ptr<ContextWrapper>& c)
-    : mType(kContextType),
-      mU(c)
-{
-    LOG_IF(OBJECT_DEBUG) << "Object context: " << this;
-}
-
-Object::Object(const rapidjson::Value& value)
+Object::Object(const rapidjson::Value& value) : mType(Null::ObjectType::instance())
 {
     LOG_IF(OBJECT_DEBUG) << "Object constructor value: " << this;
 
     switch(value.GetType()) {
     case rapidjson::kNullType:
-        mType = kNullType;
+        mType = Null::ObjectType::instance();
         break;
     case rapidjson::kFalseType:
-        mType = kBoolType;
+        mType = Boolean::ObjectType::instance();
         mU.value = 0;
         break;
     case rapidjson::kTrueType:
-        mType = kBoolType;
+        mType = Boolean::ObjectType::instance();
         mU.value = 1;
         break;
     case rapidjson::kNumberType:
-        mType = kNumberType;
+        mType = Number::ObjectType::instance();
         mU.value = value.GetDouble();
         break;
     case rapidjson::kStringType:
-        mType = kStringType;
+        mType = String::ObjectType::instance();
         new(&mU.string) std::string(value.GetString());  // TODO: Should we keep the string in place?
         break;
     case rapidjson::kObjectType:
-        mType = kMapType;
+        mType = Map::ObjectType::instance();
         new(&mU.data) std::shared_ptr<ObjectData>(std::make_shared<JSONData>(&value));
         break;
     case rapidjson::kArrayType:
-        mType = kArrayType;
+        mType = Array::ObjectType::instance();
         new(&mU.data) std::shared_ptr<ObjectData>(std::make_shared<JSONData>(&value));
         break;
     }
 }
 
-Object::Object(rapidjson::Document&& value)
+Object::Object(rapidjson::Document&& value) : mType(Null::ObjectType::instance())
 {
     if (OBJECT_DEBUG) LOG(LogLevel::kDebug) << "Object constructor value: " << this;
 
     switch(value.GetType()) {
         case rapidjson::kNullType:
-            mType = kNullType;
+            mType = Null::ObjectType::instance();
             break;
         case rapidjson::kFalseType:
-            mType = kBoolType;
+            mType = Boolean::ObjectType::instance();
             mU.value = 0;
             break;
         case rapidjson::kTrueType:
-            mType = kBoolType;
+            mType = Boolean::ObjectType::instance();
             mU.value = 1;
             break;
         case rapidjson::kNumberType:
-            mType = kNumberType;
+            mType = Number::ObjectType::instance();
             mU.value = value.GetDouble();
             break;
         case rapidjson::kStringType:
-            mType = kStringType;
+            mType = String::ObjectType::instance();
             mU.string = value.GetString();  // TODO: Should we keep the string in place?
             break;
         case rapidjson::kObjectType:
-            mType = kMapType;
+            mType = Map::ObjectType::instance();
             new(&mU.data) std::shared_ptr<ObjectData>(std::make_shared<JSONDocumentData>(std::move(value)));
             break;
         case rapidjson::kArrayType:
-            mType = kArrayType;
+            mType = Array::ObjectType::instance();
             new(&mU.data) std::shared_ptr<ObjectData>(std::make_shared<JSONDocumentData>(std::move(value)));
             break;
     }
 }
 
-Object::Object(const std::shared_ptr<Function>& f)
-    : mType(kFunctionType),
-      mU(std::static_pointer_cast<ObjectData>(f))
-{
-    LOG_IF(OBJECT_DEBUG) << "User Function constructor";
-}
-
 Object::Object(const Dimension& d)
-    : mType(d.isAuto() ? kAutoDimensionType :
-            (d.isRelative() ? kRelativeDimensionType : kAbsoluteDimensionType)),
+    : mType(d.isAuto() ? Dimension::AutoDimensionObjectType::instance() :
+           (d.isRelative() ? Dimension::RelativeDimensionObjectType::instance()
+                           : Dimension::AbsoluteDimensionObjectType::instance())),
       mU(d.getValue())
 {
     if (OBJECT_DEBUG)
@@ -519,130 +382,38 @@ Object::Object(const Dimension& d)
 }
 
 Object::Object(const Color& color)
-    : mType(kColorType),
+    : mType(Color::ObjectType::instance()),
       mU(color.get())
 {
     LOG_IF(OBJECT_DEBUG) << "Object color constructor " << this;
 }
 
-Object::Object(Filter&& filter)
-    : mType(DirectObjectData<Filter>::sType),
-      mU(DirectObjectData<Filter>::create(std::move(filter)))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object filter constructor " << this;
-}
-
-Object::Object(GraphicFilter&& graphicFilter)
-        : mType(DirectObjectData<GraphicFilter>::sType),
-          mU(DirectObjectData<GraphicFilter>::create(std::move(graphicFilter)))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object graphic filter constructor " << this;
-}
-
-Object::Object(Gradient&& gradient)
-    : mType(DirectObjectData<Gradient>::sType),
-      mU(DirectObjectData<Gradient>::create(std::move(gradient)))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object gradient constructor " << this;
-}
-
-
-Object::Object(MediaSource&& mediaSource)
-    : mType(DirectObjectData<MediaSource>::sType),
-      mU(DirectObjectData<MediaSource>::create(std::move(mediaSource)))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object MediaSource constructor " << this;
-}
-
-Object::Object(Rect&& rect)
-    : mType(DirectObjectData<Rect>::sType),
-      mU(DirectObjectData<Rect>::create(std::move(rect)))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object Rect constructor " << this;
-}
-
-Object::Object(Radii&& radii)
-    : mType(DirectObjectData<Radii>::sType),
-      mU(DirectObjectData<Radii>::create(std::move(radii)))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object Radii constructor " << this;
-}
-
-Object::Object(URLRequest&& urlRequest)
-    : mType(DirectObjectData<URLRequest>::sType),
-      mU(DirectObjectData<URLRequest>::create(std::move(urlRequest)))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object Source constructor " << this;
-}
-
-Object::Object(StyledText&& styledText)
-    : mType(DirectObjectData<StyledText>::sType),
-      mU(DirectObjectData<StyledText>::create(std::move(styledText)))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object StyledText constructor " << this;
-}
-
-Object::Object(Range range)
-    : mType(DirectObjectData<Range>::sType),
-      mU(DirectObjectData<Range>::create(std::move(range)))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object Range constructor " << this;
-}
-
-Object::Object(const GraphicPtr& graphic)
-    : mType(kGraphicType),
-      mU(std::make_shared<GraphicData>(graphic))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object Graphic constructor " << this;
-}
-
-Object::Object(const GraphicPatternPtr& graphicPattern)
-    : mType(kGraphicPatternType),
-      mU(graphicPattern)
-{
-    LOG_IF(OBJECT_DEBUG) << "Object GraphicPattern constructor " << this;
-}
-
-Object::Object(const std::shared_ptr<Transformation>& transform)
-    : mType(kTransformType),
-      mU(std::make_shared<TransformData>(transform))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object transform constructor " << this;
-}
-
-Object::Object(Transform2D&& transform)
-    : mType(DirectObjectData<Transform2D>::sType),
-      mU(DirectObjectData<Transform2D>::create(std::move(transform)))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object transform 2D constructor " << this;
-}
-
-Object::Object(const EasingPtr& easing)
-    : mType(kEasingType),
-      mU(std::static_pointer_cast<ObjectData>(easing))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object easing constructor " << this;
-}
-
-Object::Object(const std::shared_ptr<AccessibilityAction>& accessibilityAction)
-    : mType(kAccessibilityActionType),
-      mU(std::static_pointer_cast<ObjectData>(accessibilityAction))
-{
-    LOG_IF(OBJECT_DEBUG) << "Object accessibility action constructor " << this;
-}
-
 Object::Object(const std::shared_ptr<RangeGenerator>& range)
-    : mType(kArrayType),
+    : mType(Array::ObjectType::instance()),
       mU(std::static_pointer_cast<ObjectData>(range))
 {
     LOG_IF(OBJECT_DEBUG) << "Object range generator " << this;
 }
 
 Object::Object(const std::shared_ptr<SliceGenerator>& range)
-    : mType(kArrayType),
+    : mType(Array::ObjectType::instance()),
       mU(std::static_pointer_cast<ObjectData>(range))
 {
     LOG_IF(OBJECT_DEBUG) << "Object slice generator " << this;
+}
+
+bool
+Object::comparableWith(const Object& rhs) const {
+    // Same type is comparable
+    if (mType == rhs.mType) return true;
+
+    // Any true maps considered comparable
+    if (mType->isTrueMap() && rhs.mType->isTrueMap()) return true;
+
+    // Any arrays considered comparable.
+    if (mType->isArray() && rhs.mType->isArray()) return true;
+
+    return false;
 }
 
 bool
@@ -650,58 +421,9 @@ Object::operator==(const Object& rhs) const
 {
     LOG_IF(OBJECT_DEBUG) << "comparing " << *this << " to " << rhs;
 
-    if (mType != rhs.mType)
-        return false;
+    if (!comparableWith(rhs)) return false;
 
-    switch (mType) {
-        case kNullType: // FALL_THROUGH
-        case kAutoDimensionType:
-            return true;
-        case kBoolType: // FALL_THROUGH
-        case kNumberType:
-        case kAbsoluteDimensionType:
-        case kRelativeDimensionType:
-        case kColorType:
-            return mU.value == rhs.mU.value;
-        case kStringType:
-            return mU.string == rhs.mU.string;
-        case kByteCodeType: // FALL_THROUGH
-        case kFunctionType:
-        case kGraphicType:
-        case kGraphicPatternType:
-        case kTransformType:
-            return mU.data == rhs.mU.data;
-        case kGradientType: // FALL_THROUGH
-        case kFilterType:
-        case kGraphicFilterType:
-        case kMediaSourceType:
-        case kRectType:
-        case kRadiiType:
-        case kURLRequestType:
-        case kTransform2DType:
-        case kStyledTextType:
-        case kRangeType:
-        case kArrayType:
-        case kMapType:
-            return *(mU.data.get()) == *(rhs.mU.data.get());
-        case kEasingType:
-            return *std::static_pointer_cast<Easing>(mU.data) ==
-                   *std::static_pointer_cast<Easing>(rhs.mU.data);
-        case kAccessibilityActionType:
-            return *std::static_pointer_cast<AccessibilityAction>(mU.data) ==
-                   *std::static_pointer_cast<AccessibilityAction>(rhs.mU.data);
-        case kBoundSymbolType:
-            return *std::static_pointer_cast<datagrammar::BoundSymbol>(mU.data) ==
-                   *std::static_pointer_cast<datagrammar::BoundSymbol>(rhs.mU.data);
-        case kComponentType:
-            return *std::static_pointer_cast<ComponentEventWrapper>(mU.data) ==
-                   *std::static_pointer_cast<ComponentEventWrapper>(rhs.mU.data);
-        case kContextType:
-            return *std::static_pointer_cast<ContextWrapper>(mU.data) ==
-                   *std::static_pointer_cast<ContextWrapper>(rhs.mU.data);
-    }
-
-    return false;  // Shouldn't ever get here
+    return mType->equals(mU, rhs.mU);
 }
 
 bool
@@ -710,591 +432,67 @@ Object::operator!=(const Object& rhs) const
     return !operator==(rhs);
 }
 
-bool
-Object::isJson() const
-{
-    switch(mType) {
-        case kMapType:
-        case kArrayType:
-            return mU.data->getJson() != nullptr;
-        default:
-            return false;
-    }
-}
+bool Object::isNull() const { return mType->is<Null>(); }
+bool Object::isBoolean() const { return mType->is<Boolean>();}
+bool Object::isString() const { return mType->is<String>(); }
+bool Object::isNumber() const { return mType->is<Number>(); }
+bool Object::isNaN() const { return isNumber() && std::isnan(getDouble()); }
+bool Object::isArray() const { return mType->isArray(); }
+bool Object::isMap() const { return mType->isMap(); }
+bool Object::isTrueMap() const { return mType->isTrueMap(); }
+bool Object::isCallable() const { return mType->isCallable(); }
+bool Object::isEvaluable() const { return mType->isEvaluable(); }
+bool Object::isAbsoluteDimension() const { return mType->isAbsoluteDimension(); }
+bool Object::isRelativeDimension() const { return mType->isRelativeDimension(); }
+bool Object::isAutoDimension() const { return mType->isAutoDimension(); }
+bool Object::isNonAutoDimension() const { return mType->isNonAutoDimension(); }
+bool Object::isDimension() const { return mType->isDimension(); }
 
-/**
- * Return a formatted double for display. The formatted double follows the APL syntax for
- * floating-point numbers. Additionally, we drop trailing zeros for decimal numbers.  If the number
- * is an integer or rounds to an integer, we drop the decimal point as well.
- * Scientific notation numbers are not handled attractively.
- *
- * @param value The value to format
- * @return A suitable string
- */
-static inline std::string
-doubleToString(double value)
-{
-    if (value < static_cast<double>(std::numeric_limits<std::int64_t>::max())
-     && value > static_cast<double>(std::numeric_limits<std::int64_t>::min())) {
-        auto iValue = static_cast<std::int64_t>(value);
-        if (value == iValue)
-            return std::to_string(iValue);
-    }
+std::string Object::asString() const { return mType->asString(mU); }
+double Object::asNumber() const { return mType->asNumber(mU); }
+float Object::asFloat() const { return static_cast<float>(asNumber()); }
+int Object::asInt(int base) const { return mType->asInt(mU, base); }
+std::int64_t Object::asInt64(int base) const { return mType->asInt64(mU, base); }
+Color Object::asColor() const { return asColor(nullptr); }
+Color Object::asColor(const SessionPtr& session) const { return mType->asColor(mU, session); }
+Color Object::asColor(const Context& context) const { return asColor(context.session()); }
+Dimension Object::asDimension(const Context& context) const { return mType->asDimension(mU, context); }
+Dimension Object::asAbsoluteDimension(const Context& context) const { return mType->asAbsoluteDimension(mU, context); }
+Dimension Object::asNonAutoDimension(const Context& context) const { return mType->asNonAutoDimension(mU, context); }
+Dimension Object::asNonAutoRelativeDimension(const Context& context) const { return mType->asNonAutoRelativeDimension(mU, context); }
 
-    auto s = sutil::to_string(value);
-    auto it = s.find_last_not_of('0');
-    if (it != s.find(sutil::DECIMAL_POINT))   // Remove a trailing decimal point
-        it++;
-    s.erase(it, std::string::npos);
-    return s;
-}
+const std::string& Object::getString() const { return mType->getString(mU); }
+bool Object::getBoolean() const { return mType->getBoolean(mU); }
+double Object::getDouble() const { return mType->getDouble(mU); }
+int Object::getInteger() const { return static_cast<int>(mType->getDouble(mU)); }
+double Object::getAbsoluteDimension() const { return mType->getAbsoluteDimension(mU); }
+double Object::getRelativeDimension() const { return mType->getRelativeDimension(mU); }
+uint32_t Object::getColor() const { return mType->getColor(mU); }
+const ObjectMap& Object::getMap() const { return mType->getMap(mU); }
+ObjectMap& Object::getMutableMap() { return mType->getMutableMap(mU); }
+const ObjectArray& Object::getArray() const { return mType->getArray(mU); }
+ObjectArray& Object::getMutableArray() { return mType->getMutableArray(mU); }
+std::shared_ptr<LiveDataObject> Object::getLiveDataObject() const { return mType->getLiveDataObject(mU); }
 
-/**
- * This method is used when coercing an object to a string.  This can be used
- * by an APL author to display information in a Text component, so we deliberately
- * do not return values for many of the internal object types.  Please use
- * Object::toDebugString() to return strings suitable for writing to the system log.
- *
- * @return The user-friendly value of the object as a string.
- */
-std::string
-Object::asString() const
-{
-    switch (mType) {
-        case kNullType: return "";
-        case kBoolType: return mU.value ? "true": "false";
-        case kStringType: return mU.string;
-        case kNumberType: return doubleToString(mU.value);
-        case kAutoDimensionType: return "auto";
-        case kAbsoluteDimensionType: return doubleToString(mU.value)+"dp";
-        case kRelativeDimensionType: return doubleToString(mU.value)+"%";
-        case kColorType: return Color(mU.value).asString();
-        case kMapType: return "";
-        case kArrayType: return "";
-        case kByteCodeType: return "";
-        case kFunctionType: return "";
-        case kFilterType: return "";
-        case kGraphicFilterType: return "";
-        case kGradientType: return "";
-        case kMediaSourceType: return "";
-        case kRectType: return "";
-        case kRadiiType: return "";
-        case kURLRequestType: return "";
-        case kStyledTextType: return as<StyledText>().asString();
-        case kRangeType: return "";
-        case kGraphicType: return "";
-        case kGraphicPatternType: return "";
-        case kTransformType: return "";
-        case kTransform2DType: return "";
-        case kEasingType: return "";
-        case kBoundSymbolType: return "";
-        case kComponentType: return "";
-        case kContextType: return "";
-        case kAccessibilityActionType: return "";
-    }
+bool Object::truthy() const { return mType->truthy(mU); }
 
-    return "ERROR";  // TODO: Fix up the string type
-}
-
-inline double
-stringToDouble(const std::string& string)
-{
-    try {
-        auto len = string.size();
-        auto idx = len;
-        double result = sutil::stod(string, &idx);
-        // Handle percentages.  We skip over whitespace and stop on any other character
-        while (idx < len) {
-            auto c = string[idx];
-            if (c == '%') {
-                result *= 0.01;
-                break;
-            }
-            if (!sutil::isspace(c))
-                break;
-            idx++;
-        }
-        return result;
-    } catch (...) {}
-    return std::numeric_limits<double>::quiet_NaN();
-}
-
-double
-Object::asNumber() const
-{
-    switch (mType) {
-        case kBoolType:
-        case kNumberType:
-            return mU.value;
-        case kStringType:
-            return stringToDouble(mU.string);
-        case kStyledTextType:
-            return stringToDouble(as<StyledText>().asString());
-        case kAbsoluteDimensionType:
-            return mU.value;
-        default:
-            return std::numeric_limits<double>::quiet_NaN();
-    }
-}
-
-float
-Object::asFloat() const
-{
-    return static_cast<float>(asNumber());
-}
-
-int
-Object::asInt(int base) const
-{
-    switch (mType) {
-        case kBoolType:
-            return static_cast<int>(mU.value);
-        case kNumberType:
-            return std::lround(mU.value);
-        case kStringType:
-            try { return std::stoi(mU.string, nullptr, base); } catch(...) {}
-            return 0;
-        case kStyledTextType:
-            try { return std::stoi(as<StyledText>().asString(), nullptr, base); } catch(...) {}
-            return 0;
-        case kAbsoluteDimensionType:
-            return std::lround(mU.value);
-        default:
-            return 0;
-    }
-}
-
-std::int64_t
-Object::asInt64(int base) const
-{
-    switch (mType) {
-        case kBoolType:
-            return static_cast<std::int64_t>(mU.value);
-        case kNumberType:
-            return std::llround(mU.value);
-        case kStringType:
-            try { return std::stoll(mU.string, nullptr, base); } catch(...) {}
-            return 0;
-        case kStyledTextType:
-            try { return std::stoll(as<StyledText>().asString(), nullptr, base); } catch(...) {}
-            return 0;
-        case kAbsoluteDimensionType:
-            return std::llround(mU.value);
-        default:
-            return 0;
-    }
-}
-
-/// @deprecated
-Color
-Object::asColor() const
-{
-    return asColor(nullptr);
-}
-
-Color
-Object::asColor(const SessionPtr& session) const
-{
-    switch (mType) {
-        case kNumberType:
-        case kColorType:
-            return Color(mU.value);
-        case kStringType:
-            return Color(session, mU.string);
-        case kStyledTextType:
-            return Color(session, as<StyledText>().asString());
-        default:
-            return Color();  // Transparent
-    }
-}
-
-Color
-Object::asColor(const Context& context) const
-{
-    return asColor(context.session());
-}
-
-Dimension
-Object::asDimension(const Context& context) const
-{
-    switch (mType) {
-        case kNumberType:
-            return Dimension(DimensionType::Absolute, mU.value);
-        case kStringType:
-            return Dimension(context, mU.string);
-        case kAbsoluteDimensionType:
-            return Dimension(DimensionType::Absolute, mU.value);
-        case kRelativeDimensionType:
-            return Dimension(DimensionType::Relative, mU.value);
-        case kAutoDimensionType:
-            return Dimension(DimensionType::Auto, 0);
-        case kStyledTextType:
-            return Dimension(context, as<StyledText>().asString());
-        default:
-            return Dimension(DimensionType::Absolute, 0);
-    }
-}
-
-Dimension
-Object::asAbsoluteDimension(const Context& context) const
-{
-    switch (mType) {
-        case kNumberType:
-            return Dimension(DimensionType::Absolute, mU.value);
-        case kStringType: {
-            auto d = Dimension(context, mU.string);
-            return (d.getType() == DimensionType::Absolute ? d : Dimension(DimensionType::Absolute, 0));
-        }
-        case kStyledTextType: {
-            auto d = Dimension(context, as<StyledText>().asString());
-            return (d.getType() == DimensionType::Absolute ? d : Dimension(DimensionType::Absolute, 0));
-        }
-        case kAbsoluteDimensionType:
-            return Dimension(DimensionType::Absolute, mU.value);
-        default:
-            return Dimension(DimensionType::Absolute, 0);
-    }
-}
-
-Dimension
-Object::asNonAutoDimension(const Context& context) const
-{
-    switch (mType) {
-        case kNumberType:
-            return Dimension(DimensionType::Absolute, mU.value);
-        case kStringType: {
-            auto d = Dimension(context, mU.string);
-            return (d.getType() == DimensionType::Auto ? Dimension(DimensionType::Absolute, 0) : d);
-        }
-        case kStyledTextType: {
-            auto d = Dimension(context, as<StyledText>().asString());
-            return (d.getType() == DimensionType::Auto ? Dimension(DimensionType::Absolute, 0) : d);
-        }
-        case kAbsoluteDimensionType:
-            return Dimension(DimensionType::Absolute, mU.value);
-        case kRelativeDimensionType:
-            return Dimension(DimensionType::Relative, mU.value);
-        default:
-            return Dimension(DimensionType::Absolute, 0);
-    }
-}
-
-Dimension
-Object::asNonAutoRelativeDimension(const Context& context) const
-{
-    switch (mType) {
-        case kNumberType:
-            return Dimension(DimensionType::Relative, mU.value * 100);
-        case kStringType: {
-            auto d = Dimension(context, mU.string, true);
-            return (d.getType() == DimensionType::Auto ? Dimension(DimensionType::Relative, 0) : d);
-        }
-        case kStyledTextType: {
-            auto d = Dimension(context, as<StyledText>().asString(), true);
-            return (d.getType() == DimensionType::Auto ? Dimension(DimensionType::Relative, 0) : d);
-        }
-        case kAbsoluteDimensionType:
-            return Dimension(DimensionType::Absolute, mU.value);
-        case kRelativeDimensionType:
-            return Dimension(DimensionType::Relative, mU.value);
-        default:
-            return Dimension(DimensionType::Relative, 0);
-    }
-}
-
-URLRequest
-Object::asURLRequest() const
-{
-    switch (mType) {
-        case kStringType:
-            return { mU.string, HeaderArray() };
-        case kURLRequestType:
-            return as<URLRequest>();
-        default:
-            return { "", HeaderArray() };
-    }
-}
-
-std::shared_ptr<Function>
-Object::getFunction() const
-{
-    assert(mType == kFunctionType);
-    return std::static_pointer_cast<Function>(mU.data);
-}
-
-std::shared_ptr<datagrammar::BoundSymbol>
-Object::getBoundSymbol() const
-{
-    assert(mType == kBoundSymbolType);
-    return std::static_pointer_cast<datagrammar::BoundSymbol>(mU.data);
-}
-
-std::shared_ptr<LiveDataObject>
-Object::getLiveDataObject() const
-{
-    assert(mType == kArrayType || mType == kMapType);
-    return std::dynamic_pointer_cast<LiveDataObject>(mU.data);
-}
-
-std::shared_ptr<datagrammar::ByteCode>
-Object::getByteCode() const
-{
-    assert(mType == kByteCodeType);
-    return std::static_pointer_cast<datagrammar::ByteCode>(mU.data);
-}
-
-std::shared_ptr<AccessibilityAction>
-Object::getAccessibilityAction() const {
-    assert(mType == kAccessibilityActionType);
-    return std::static_pointer_cast<AccessibilityAction>(mU.data);
-}
-
-const ObjectMap&
-Object::getMap() const {
-    assert(isMap()); return mU.data->getMap();
-}
-
-ObjectMap&
-Object::getMutableMap() {
-    assert(mType == kMapType); return mU.data->getMutableMap();
-}
-
-const ObjectArray&
-Object::getArray() const {
-    assert(mType == kArrayType); return mU.data->getArray();
-}
-
-ObjectArray&
-Object::getMutableArray() {
-    assert(mType == kArrayType); return mU.data->getMutableArray();
-}
-
-
-const Filter&
-Object::getFilter() const {
-    return as<Filter>();
-}
-
-const GraphicFilter&
-Object::getGraphicFilter() const {
-    return as<GraphicFilter>();
-}
-
-const Gradient&
-Object::getGradient() const {
-    return as<Gradient>();
-}
-
-const MediaSource&
-Object::getMediaSource() const {
-    return as<MediaSource>();
-}
-
-GraphicPtr
-Object::getGraphic() const {
-    assert(mType == kGraphicType); return mU.data->getGraphic();
-}
-
-GraphicPatternPtr
-Object::getGraphicPattern() const {
-    assert(mType == kGraphicPatternType); return std::static_pointer_cast<GraphicPattern>(mU.data);
-}
-
-Rect
-Object::getRect() const {
-    return as<Rect>();
-}
-
-Radii
-Object::getRadii() const {
-    return as<Radii>();
-}
-
-const URLRequest&
-Object::getURLRequest() const {
-    return as<URLRequest>();
-}
-
-const StyledText&
-Object::getStyledText() const {
-    return as<StyledText>();
-}
-
-const Range&
-Object::getRange() const {
-    return as<Range>();
-}
-
-std::shared_ptr<Transformation>
-Object::getTransformation() const {
-    assert(mType == kTransformType); return mU.data->getTransform();
-}
-
-Transform2D
-Object::getTransform2D() const {
-    return as<Transform2D>();
-}
-
-EasingPtr
-Object::getEasing() const {
-    assert(mType == kEasingType);
-    return std::static_pointer_cast<Easing>(mU.data);
-}
-
-const rapidjson::Value&
-Object::getJson() const {
-    assert(isJson());
-    return *(mU.data->getJson());
-}
-
-
-bool
-Object::truthy() const
-{
-    switch (mType) {
-        case kNullType:
-            return false;
-        case kBoolType:
-        case kNumberType:
-            return mU.value != 0;
-        case kStringType:
-            return mU.string.size() != 0;
-        case kArrayType:
-        case kMapType:
-        case kByteCodeType:
-        case kFunctionType:
-            return true;
-        case kAbsoluteDimensionType:
-        case kRelativeDimensionType:
-            return mU.value != 0;
-        case kAutoDimensionType:
-        case kColorType:
-            return true;
-
-        case kFilterType:
-        case kGraphicFilterType:
-        case kGradientType:
-        case kMediaSourceType:
-        case kEasingType:
-        case kRectType:
-        case kRadiiType:
-        case kTransform2DType:
-        case kURLRequestType:
-        case kStyledTextType:
-        case kRangeType:
-        case kGraphicPatternType:
-            return mU.data->truthy();
-
-        case kGraphicType:
-            return true;
-        case kTransformType:
-            return true;
-        case kBoundSymbolType:
-            return true;
-        case kComponentType:
-            return std::static_pointer_cast<ComponentEventWrapper>(mU.data)->getComponent() != nullptr;
-        case kContextType:
-        case kAccessibilityActionType:
-            return mU.data->truthy();
-    }
-
-    // Should never be reached.
-    return true;
-}
-
-// Methods for MAP objects
-Object
-Object::get(const std::string& key) const
-{
-    assert(mType == kMapType || mType == kComponentType || mType == kContextType);
-    return mU.data->get(key);
-}
-
-bool
-Object::has(const std::string& key) const
-{
-    assert(mType == kMapType || mType == kComponentType || mType == kContextType);
-    return mU.data->has(key);
-}
-
-Object
-Object::opt(const std::string& key, const Object& def) const
-{
-    assert(mType == kMapType || mType == kComponentType || mType == kContextType);
-    return mU.data->opt(key, def);
-}
+// Methods for MAP-like objects
+Object Object::get(const std::string& key) const { return mType->get(mU, key); }
+bool Object::has(const std::string& key) const { return mType->has(mU, key); }
+Object Object::opt(const std::string& key, const Object& def) const { return mType->opt(mU, key, def); }
 
 // Methods for ARRAY objects
-Object
-Object::at(std::uint64_t index) const
-{
-    assert(mType == kArrayType);
-    return mU.data->at(index);
-}
+Object Object::at(std::uint64_t index) const { return mType->at(mU, index); }
 
-Object::ObjectType
-Object::getType() const
-{
-    return mType;
-}
+const apl::ObjectType& Object::type() const { return *mType; }
 
+std::uint64_t Object::size() const { return mType->size(mU); }
 
-std::uint64_t
-Object::size() const
-{
-    switch (mType) {
-        case kArrayType:
-        case kMapType:
-        case kComponentType:
-        case kContextType:
-        case kGraphicPatternType:
-            return mU.data->size();
-        case kStringType:
-            return mU.string.size();
-        case kStyledTextType:
-            return as<StyledText>().asString().size();  // Size of the raw text
-        default:
-            return 0;
-    }
-}
+bool Object::empty() const { return mType->empty(mU); }
 
-bool
-Object::empty() const
-{
-    switch (mType) {
-        case kNullType:
-            return true;
-        case kArrayType:
-        case kMapType:
-        case kRectType:
-        case kGraphicPatternType:
-            return mU.data->empty();
-        case kStringType:
-            return mU.string.empty();
-        case kStyledTextType:
-            return mU.data->empty();
-        default:
-            return false;
-    }
-}
+bool Object::isMutable() const { return mType->isMutable(mU); }
 
-bool
-Object::isMutable() const
-{
-    switch (mType) {
-        case kArrayType:
-        case kMapType:
-            return mU.data->isMutable();
-        default:
-            return false;
-    }
-}
-
-Object
-Object::eval() const
-{
-    return (mType == kByteCodeType || mType == kBoundSymbolType) ? mU.data->eval() : *this;
-}
+Object Object::eval() const { return mType->isEvaluable() ? mType->eval(mU) : *this; }
 
 /**
  * Internal visitor class used to check if an equation is "pure" - that is, if the result
@@ -1303,7 +501,7 @@ Object::eval() const
 class PureVisitor : public Visitor<Object> {
 public:
     void visit(const Object& object) override {
-        if (object.isFunction() && !object.getFunction()->isPure())
+        if (object.is<Function>() && !object.get<Function>()->isPure())
             mIsPure = false;
     }
 
@@ -1344,12 +542,12 @@ public:
 
         mCurrentSuffix.clear();  // In the majority of cases there will be no suffix
 
-        if (object.isBoundSymbol()) {  // A bound symbol should be added to the map with existing suffixes
-            auto symbol = object.getBoundSymbol()->getSymbol();
+        if (object.is<datagrammar::BoundSymbol>()) {  // A bound symbol should be added to the map with existing suffixes
+            auto symbol = object.get<datagrammar::BoundSymbol>()->getSymbol();
             if (symbol.second)  // An invalid bound symbol will not have a context
                 mMap.emplace(symbol.first + (mIndex == 0 ? mParentSuffix : ""), symbol.second);
         }
-        else if (object.isByteCode()) {
+        else if (object.is<datagrammar::ByteCode>()) {
             object.symbols(mMap);
         }
 
@@ -1387,206 +585,42 @@ private:
 void
 Object::symbols(SymbolReferenceMap& symbols) const
 {
-    if (mType == kByteCodeType)
-        std::dynamic_pointer_cast<datagrammar::ByteCode>(getByteCode())->symbols(symbols);
+    if (mType == datagrammar::ByteCode::ObjectType::instance())
+        get<datagrammar::ByteCode>()->symbols(symbols);
     else {
         SymbolVisitor visitor(symbols);
         accept(visitor);
     }
 }
 
-Object
-Object::call(const ObjectArray& args) const
-{
-    assert(mType == kFunctionType || mType == kEasingType);
-    LOG_IF(OBJECT_DEBUG) << "Calling user function";
-    return mU.data->call(args);
-}
+Object Object::call(const ObjectArray& args) const { return mType->call(mU, args); }
 
-size_t
-Object::hash() const
-{
-    switch (mType) {
-        case kNullType:
-            return 0;
-        case kBoolType:
-            return std::hash<bool>{}(mU.value > 0);
-        case kStringType:
-            return std::hash<std::string>{}(mU.string);
-        case kNumberType: // FALL_THORUGH
-        case kAbsoluteDimensionType:
-        case kRelativeDimensionType:
-        case kColorType:
-            return std::hash<double>{}(mU.value);
-        case kAutoDimensionType:
-            return std::hash<std::string>{}("auto");
-        case kStyledTextType:
-            return std::hash<std::string>{}(getStyledText().getRawText());
-        case kArrayType: // FALL_THORUGH UNSUPPORTED
-        case kMapType:
-        case kByteCodeType:
-        case kFunctionType:
-        case kFilterType:
-        case kGraphicFilterType:
-        case kGradientType:
-        case kMediaSourceType:
-        case kRectType:
-        case kRadiiType:
-        case kURLRequestType:
-        case kEasingType:
-        case kTransform2DType:
-        case kGraphicPatternType:
-        case kGraphicType:
-        case kTransformType:
-        case kBoundSymbolType:
-        case kComponentType:
-        case kContextType:
-        case kAccessibilityActionType:
-        default:
-            return 0;
-    }
-
-    return 0;
-}
+size_t Object::hash() const { return mType->hash(mU); }
 
 // Visitor pattern
 void
 Object::accept(Visitor<Object>& visitor) const
 {
     visitor.visit(*this);
-    if (!visitor.isAborted() && (mType == kArrayType || mType == kMapType))
-        mU.data->accept(visitor);
+    if (!visitor.isAborted())
+        mType->accept(mU, visitor);
 }
 
-rapidjson::Value
-Object::serialize(rapidjson::Document::AllocatorType& allocator) const
-{
-    switch (mType) {
-        case kNullType:
-            return rapidjson::Value();
-        case kBoolType:
-            return rapidjson::Value(static_cast<bool>(mU.value));
-        case kNumberType:
-            return std::isfinite(mU.value) ? rapidjson::Value(mU.value) : rapidjson::Value();
-        case kStringType:
-            return rapidjson::Value(mU.string.c_str(), allocator);
-        case kArrayType: {
-            rapidjson::Value v(rapidjson::kArrayType);
-            for (int i = 0 ; i < size() ; i++)
-                v.PushBack(at(i).serialize(allocator), allocator);
-            return v;
-        }
-        case kMapType: {
-            rapidjson::Value m(rapidjson::kObjectType);
-            for (auto &kv : mU.data->getMap())
-                m.AddMember(rapidjson::Value(kv.first.c_str(), allocator), kv.second.serialize(allocator).Move(), allocator);
-            return m;
-        }
-        case kByteCodeType:
-            return rapidjson::Value("COMPILED BYTE CODE", allocator);
-        case kFunctionType:
-            return rapidjson::Value("FUNCTION", allocator);
-        case kAbsoluteDimensionType:
-            return rapidjson::Value(std::isfinite(mU.value) ? mU.value : 0);
-        case kRelativeDimensionType:
-            return rapidjson::Value((doubleToString(mU.value)+"%").c_str(), allocator);
-        case kAutoDimensionType:
-            return rapidjson::Value("auto", allocator);
-        case kColorType:
-            return rapidjson::Value(asString().c_str(), allocator);
-        case kFilterType:
-        case kGraphicFilterType:
-        case kGradientType:
-        case kMediaSourceType:
-        case kRectType:
-        case kRadiiType:
-        case kURLRequestType:
-        case kEasingType:
-        case kTransform2DType:
-        case kStyledTextType:
-        case kRangeType:
-        case kGraphicPatternType:
-            return mU.data->serialize(allocator);
-        case kGraphicType:
-            return getGraphic()->serialize(allocator);
-        case kTransformType:
-            return rapidjson::Value("TRANSFORM", allocator);
-        case kBoundSymbolType:
-            return rapidjson::Value("BOUND SYMBOL", allocator);
-        case kComponentType:
-            return std::static_pointer_cast<ComponentEventWrapper>(mU.data)->serialize(allocator);
-        case kContextType:
-        case kAccessibilityActionType:
-            return mU.data->serialize(allocator);
-    }
-
-    return rapidjson::Value();  // Never should be reached
-}
+rapidjson::Value Object::serialize(rapidjson::Document::AllocatorType& allocator) const { return mType->serialize(mU, allocator); }
 
 rapidjson::Value
 Object::serializeDirty(rapidjson::Document::AllocatorType& allocator) const
 {
-    switch (mType) {
-        case kGraphicType:
-            // TODO: Fix this - should return just the dirty bits
-            return serialize(allocator);
-            break;
-        default:
-            return serialize(allocator);
-    }
+    // TODO: Fix this - should return just the dirty bits
+    return serialize(allocator);
 }
 
-template<typename T> const T& Object::as() const {
-    assert(mType == DirectObjectData<T>::sType);
-    return *static_cast<const T*>(mU.data->inner());
-}
+std::string Object::toDebugString() const { return mType->toDebugString(mU); }
 
-std::string
-Object::toDebugString() const
+const void*
+Object::extractDataInner(const Object::DataHolder& dataHolder)
 {
-    switch (mType) {
-        case Object::kNullType:
-            return "null";
-        case Object::kBoolType:
-            return (mU.value ? "true" : "false");
-        case Object::kNumberType:
-            return sutil::to_string(mU.value);
-        case Object::kStringType:
-            return "'" + mU.string + "'";
-        case Object::kMapType:
-        case Object::kArrayType:
-        case Object::kByteCodeType:
-        case Object::kFunctionType:
-            return mU.data->toDebugString();
-        case Object::kAbsoluteDimensionType:
-            return "AbsDim<" + sutil::to_string(mU.value) + ">";
-        case Object::kRelativeDimensionType:
-            return "RelDim<" + sutil::to_string(mU.value) + ">";
-        case Object::kAutoDimensionType:
-            return "AutoDim";
-        case Object::kColorType:
-            return asString();
-        case Object::kFilterType:
-        case Object::kGraphicFilterType:
-        case Object::kGradientType:
-        case Object::kMediaSourceType:
-        case Object::kRectType:
-        case Object::kRadiiType:
-        case Object::kURLRequestType:
-        case Object::kStyledTextType:
-        case Object::kRangeType:
-        case Object::kGraphicType:
-        case Object::kGraphicPatternType:
-        case Object::kTransformType:
-        case Object::kTransform2DType:
-        case Object::kEasingType:
-        case Object::kBoundSymbolType:
-        case Object::kComponentType:
-        case Object::kContextType:
-        case Object::kAccessibilityActionType:
-            return mU.data->toDebugString();
-    }
-    return "";
+    return dataHolder.data->inner();
 }
 
 streamer&

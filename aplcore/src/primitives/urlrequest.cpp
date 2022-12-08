@@ -59,18 +59,20 @@ processHeaders( const std::vector<Object>& sourceHeaders, const FilterRuleArray&
     return result;
 }
 
-URLRequest::URLRequest(const std::string url, const HeaderArray headers) :
-    mUrl(std::move(url)),
-    mHeaders(std::move(headers)) {
+URLRequest::URLRequest(const std::string& url, HeaderArray headers) :
+    mUrl(url),
+    mHeaders(std::move(headers))
+{
 }
 
 Object
-URLRequest::create(const Context& context, const Object& object) {
-    if (object.isURLRequest())
+URLRequest::create(const Context& context, const Object& object)
+{
+    if (object.is<URLRequest>())
         return object;
 
     if (object.isString())
-        return object.asURLRequest();
+        return URLRequest(object.getString(), HeaderArray());
 
     if (!object.isMap())
         return Object::NULL_OBJECT();
@@ -85,8 +87,27 @@ URLRequest::create(const Context& context, const Object& object) {
                                        context.getRootConfig().getHttpHeadersFilterRules() )};
 }
 
+Object
+URLRequest::create(const std::string& url)
+{
+    return URLRequest(url, HeaderArray());
+}
+
+URLRequest
+URLRequest::asURLRequest(const Object& object)
+{
+    if (object.isString()) {
+        return URLRequest::create(object.getString()).get<URLRequest>();
+    } else if (object.is<URLRequest>()) {
+        return object.get<URLRequest>();
+    }
+
+    return URLRequest::create("").get<URLRequest>();
+}
+
 bool
-URLRequest::operator==(const URLRequest& other) const {
+URLRequest::operator==(const URLRequest& other) const
+{
     return mUrl == other.mUrl &&
            mHeaders == other.mHeaders;
 }
@@ -94,7 +115,8 @@ URLRequest::operator==(const URLRequest& other) const {
 // LCOV_EXCL_START
 // GCOV_EXCL_START
 std::string
-URLRequest::toDebugString() const {
+URLRequest::toDebugString() const
+{
     std::string result = "Source<url=" + getUrl() +
                          " headers=[";
     for (auto i = 0; i < mHeaders.size(); ++i) {
@@ -110,7 +132,8 @@ URLRequest::toDebugString() const {
 // GCOV_EXCL_STOP
 
 rapidjson::Value
-URLRequest::serialize(rapidjson::Document::AllocatorType& allocator) const {
+URLRequest::serialize(rapidjson::Document::AllocatorType& allocator) const
+{
     using rapidjson::Value;
     Value v(rapidjson::kObjectType);
     v.AddMember("url", Value(getUrl().c_str(), allocator).Move(), allocator);

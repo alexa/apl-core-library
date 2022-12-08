@@ -21,6 +21,7 @@ option(VALIDATE_FORBIDDEN_FUNCTIONS "Validate that there are no calls to forbidd
 option(USER_DATA_RELEASE_CALLBACKS "Enable release callbacks in UserData" ON)
 option(BUILD_SHARED "Build as shared library." OFF)
 option(ENABLE_PIC "Build position independent code (i.e. -fPIC)" OFF)
+option(DISABLE_RTTI "Build code without RTTI (i.e. -fno-rtti)" OFF)
 
 option(USE_SYSTEM_RAPIDJSON "Use the system-provided RapidJSON instead of the bundled one." OFF)
 

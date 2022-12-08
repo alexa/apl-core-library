@@ -17,9 +17,7 @@
 #include "apl/engine/arrayify.h"
 #include "apl/graphic/graphicpattern.h"
 #include "apl/graphic/graphicbuilder.h"
-#include "apl/primitives/object.h"
 #include "apl/utils/session.h"
-#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 
@@ -27,7 +25,7 @@ GraphicPattern::GraphicPattern(const ContextPtr& context,
                                const std::string& description,
                                double height, double width,
                                std::vector<GraphicElementPtr>&& items)
-    : UIDObject(context),
+    : UIDObject(context, UIDObject::UIDObjectType::GRAPHIC_PATTERN),
       mDescription(description),
       mHeight(height),
       mWidth(width),
@@ -37,7 +35,7 @@ GraphicPattern::GraphicPattern(const ContextPtr& context,
 Object
 GraphicPattern::create(const Context& context, const Object& object)
 {
-    if (object.isGraphicPattern())
+    if (object.is<GraphicPattern>())
         return object;
 
     if (!object.isMap())
@@ -71,7 +69,7 @@ GraphicPattern::create(const Context& context, const Object& object)
 
 std::string
 GraphicPattern::toDebugString() const {
-    std::string result = "GraphicPattern< id=" + getUniqueId() +
+    std::string result = "GraphicPattern<id=" + getUniqueId() +
             " description=" + getDescription() +
             " width=" + sutil::to_string(getWidth()) +
             " height=" + sutil::to_string(getHeight()) +

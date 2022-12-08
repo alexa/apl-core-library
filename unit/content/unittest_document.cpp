@@ -234,8 +234,8 @@ TEST(DocumentTest, UserDefinedSettings)
     ASSERT_EQ(500, settings->getValue("userSettingNumber").getInteger());
     ASSERT_TRUE(settings->getValue("userSettingBool").getBoolean());
     ASSERT_EQ(Object(Dimension(100)), settings->getValue("userSettingDimension").asDimension(*context));
-    ASSERT_EQ(Object::kArrayType, settings->getValue("userSettingArray").getType());
-    ASSERT_EQ(Object::kMapType, settings->getValue("userSettingMap").getType());
+    ASSERT_TRUE(settings->getValue("userSettingArray").isArray());
+    ASSERT_TRUE(settings->getValue("userSettingMap").isMap());
 
 }
 

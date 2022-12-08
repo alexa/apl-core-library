@@ -111,7 +111,7 @@ TEST_F(KeyboardManagerTest, ComponentWithFocus) {
     ASSERT_TRUE(root->isDirty());
 
     // verify target component changed
-    auto target = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("testFrame"));
+    auto target = CoreComponent::cast(root->context().findComponentById("testFrame"));
     ASSERT_TRUE(target);
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), target->getCalculated(kPropertyBackgroundColor)));
 }
@@ -144,7 +144,7 @@ TEST_F(KeyboardManagerTest, WhenIsTrue) {
     setFocus(component);
 
     // verify initial state of the command target component
-    auto target = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("testFrame"));
+    auto target = CoreComponent::cast(root->context().findComponentById("testFrame"));
     ASSERT_TRUE(target);
     ASSERT_TRUE(IsEqual(Color(Color::RED), target->getCalculated(kPropertyBackgroundColor)));
 
@@ -167,7 +167,7 @@ TEST_F(KeyboardManagerTest, WhenIsFalse) {
     setFocus(component);
 
     // verify initial state of the command target component
-    auto target = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("testFrame"));
+    auto target = CoreComponent::cast(root->context().findComponentById("testFrame"));
     ASSERT_TRUE(target);
     ASSERT_TRUE(IsEqual(Color(Color::RED), target->getCalculated(kPropertyBackgroundColor)));
 
@@ -245,7 +245,7 @@ TEST_F(KeyboardManagerTest, DocumentWhenIsTrue) {
     ASSERT_TRUE(root);
 
     // verify initial state of the command target component
-    auto target = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("testFrame"));
+    auto target = CoreComponent::cast(root->context().findComponentById("testFrame"));
     ASSERT_TRUE(target);
     ASSERT_TRUE(IsEqual(Color(Color::RED), target->getCalculated(kPropertyBackgroundColor)));
 
@@ -267,7 +267,7 @@ TEST_F(KeyboardManagerTest, DocumentWhenIsFalse) {
     ASSERT_TRUE(root);
 
     // verify initial state of the command target component
-    auto target = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("testFrame"));
+    auto target = CoreComponent::cast(root->context().findComponentById("testFrame"));
     ASSERT_TRUE(target);
     ASSERT_TRUE(IsEqual(Color(Color::RED), target->getCalculated(kPropertyBackgroundColor)));
 
@@ -393,8 +393,8 @@ TEST_F(KeyboardManagerTest, PropagateToParent) {
     loadDocument(PROPAGATE_KEY_HANDLER_DOC);
     ASSERT_TRUE(component);
 
-    auto thing1 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing1"));
-    auto thing2 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing2"));
+    auto thing1 = CoreComponent::cast(root->context().findComponentById("thing1"));
+    auto thing2 = CoreComponent::cast(root->context().findComponentById("thing2"));
     ASSERT_TRUE(thing1);
     ASSERT_TRUE(thing2);
 
@@ -404,7 +404,7 @@ TEST_F(KeyboardManagerTest, PropagateToParent) {
 
     // verify key update propagated to top Component
     ASSERT_TRUE(root->isDirty());
-    auto target = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("testFrame"));
+    auto target = CoreComponent::cast(root->context().findComponentById("testFrame"));
     ASSERT_TRUE(target);
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), target->getCalculated(kPropertyBackgroundColor)));
 }
@@ -414,8 +414,8 @@ TEST_F(KeyboardManagerTest, PropagateBlock) {
     loadDocument(PROPAGATE_KEY_HANDLER_DOC);
     ASSERT_TRUE(component);
 
-    auto thing1 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing1"));
-    auto thing2 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing2"));
+    auto thing1 = CoreComponent::cast(root->context().findComponentById("thing1"));
+    auto thing2 = CoreComponent::cast(root->context().findComponentById("thing2"));
     ASSERT_TRUE(thing1);
     ASSERT_TRUE(thing2);
 
@@ -425,7 +425,7 @@ TEST_F(KeyboardManagerTest, PropagateBlock) {
     ASSERT_FALSE(root->isDirty());
 
     // verify the key was consumed, and no change in the target component
-    auto target = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("testFrame"));
+    auto target = CoreComponent::cast(root->context().findComponentById("testFrame"));
     ASSERT_FALSE(root->isDirty());
     ASSERT_TRUE(target);
     ASSERT_TRUE(IsEqual(Color(Color::RED), target->getCalculated(kPropertyBackgroundColor)));
@@ -437,8 +437,8 @@ TEST_F(KeyboardManagerTest, PropagateToDocument) {
     loadDocument(PROPAGATE_KEY_HANDLER_DOC);
     ASSERT_TRUE(component);
 
-    auto thing1 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing1"));
-    auto thing2 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing2"));
+    auto thing1 = CoreComponent::cast(root->context().findComponentById("thing1"));
+    auto thing2 = CoreComponent::cast(root->context().findComponentById("thing2"));
     ASSERT_TRUE(thing1);
     ASSERT_TRUE(thing2);
 
@@ -448,7 +448,7 @@ TEST_F(KeyboardManagerTest, PropagateToDocument) {
 
     // verify key update propagated to Document
     ASSERT_TRUE(root->isDirty());
-    auto target = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("testFrame"));
+    auto target = CoreComponent::cast(root->context().findComponentById("testFrame"));
     ASSERT_TRUE(target);
     ASSERT_TRUE(IsEqual(Color(Color::GREEN), target->getCalculated(kPropertyBackgroundColor)));
 
@@ -463,11 +463,11 @@ TEST_F(KeyboardManagerTest, Consumed) {
     loadDocument(PROPAGATE_KEY_HANDLER_DOC);
     ASSERT_TRUE(component);
 
-    auto thing1 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing1"));
-    auto thing2 = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("thing2"));
+    auto thing1 = CoreComponent::cast(root->context().findComponentById("thing1"));
+    auto thing2 = CoreComponent::cast(root->context().findComponentById("thing2"));
     ASSERT_TRUE(thing1);
     ASSERT_TRUE(thing2);
-    auto target = std::dynamic_pointer_cast<CoreComponent>(root->context().findComponentById("testFrame"));
+    auto target = CoreComponent::cast(root->context().findComponentById("testFrame"));
     ASSERT_TRUE(target);
 
     // send an "No Key" keydown to touch wrapper with handler, expect not consumed
@@ -1070,17 +1070,17 @@ TEST_F(KeyboardManagerTest, ArrowKeysForAvg)
     loadDocument(ARROW_KEYS_CONTROLLING_AVG);
     ASSERT_TRUE(component);
 
-    auto vg = std::static_pointer_cast<CoreComponent>(component->findComponentById("vg"));
+    auto vg = CoreComponent::cast(component->findComponentById("vg"));
     ASSERT_EQ(kComponentTypeVectorGraphic, vg->getType());
 
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeFocus, event.getType());
     ASSERT_EQ(vg, event.getComponent());
 
-    auto group = vg->getCalculated(kPropertyGraphic).getGraphic()->getRoot()->getChildAt(1);
+    auto group = vg->getCalculated(kPropertyGraphic).get<Graphic>()->getRoot()->getChildAt(1);
     ASSERT_EQ(kGraphicElementTypeGroup, group->getType());
 
-    auto transform = group->getValue(kGraphicPropertyTransform).getTransform2D();
+    auto transform = group->getValue(kGraphicPropertyTransform).get<Transform2D>();
     ASSERT_EQ(Transform2D::translate(150, 150), transform);
 
 
@@ -1091,7 +1091,7 @@ TEST_F(KeyboardManagerTest, ArrowKeysForAvg)
     ASSERT_TRUE(root->handleKeyboard(kKeyDown, A_KEY));
     ASSERT_TRUE(root->handleKeyboard(kKeyDown, S_KEY));
 
-    transform = group->getValue(kGraphicPropertyTransform).getTransform2D();
+    transform = group->getValue(kGraphicPropertyTransform).get<Transform2D>();
     ASSERT_EQ(Transform2D::translate(200, 100), transform);
 
     ASSERT_TRUE(root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY()));
@@ -1101,16 +1101,16 @@ TEST_F(KeyboardManagerTest, ArrowKeysForAvg)
     ASSERT_TRUE(root->handleKeyboard(kKeyDown, Keyboard::ARROW_LEFT_KEY()));
     ASSERT_TRUE(root->handleKeyboard(kKeyDown, Keyboard::ARROW_DOWN_KEY()));
 
-    transform = group->getValue(kGraphicPropertyTransform).getTransform2D();
+    transform = group->getValue(kGraphicPropertyTransform).get<Transform2D>();
     ASSERT_EQ(Transform2D::translate(250, 50), transform);
 
     ASSERT_TRUE(root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY()));
-    transform = group->getValue(kGraphicPropertyTransform).getTransform2D();
+    transform = group->getValue(kGraphicPropertyTransform).get<Transform2D>();
     ASSERT_EQ(Transform2D::translate(300, 50), transform);
 
     // Actually passed to focus nav
     ASSERT_TRUE(root->handleKeyboard(kKeyDown, Keyboard::ARROW_RIGHT_KEY()));
-    transform = group->getValue(kGraphicPropertyTransform).getTransform2D();
+    transform = group->getValue(kGraphicPropertyTransform).get<Transform2D>();
     ASSERT_EQ(Transform2D::translate(300, 50), transform);
     ASSERT_TRUE(root->hasEvent());
     event = root->popEvent();

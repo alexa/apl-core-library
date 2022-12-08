@@ -26,7 +26,6 @@ class VectorGraphicComponent : public TouchableComponent,
 public:
     static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const Path& path);
     VectorGraphicComponent(const ContextPtr& context, Properties&& properties, const Path& path);
-    void release() override;
 
     ComponentType getType() const override { return kComponentTypeVectorGraphic; };
     void initialize() override;
@@ -44,8 +43,8 @@ protected:
     const EventPropertyMap& eventPropertyMap() const override;
     const ComponentPropDefSet& propDefSet() const override;
     void processLayoutChanges(bool useDirtyFlag, bool first) override;
+    void releaseSelf() override;
 
-protected:
     std::string getVisualContextType() const override;
     bool setPropertyInternal(const std::string& key, const Object& value) override;
     std::pair<Object, bool> getPropertyInternal(const std::string& key) const override;
@@ -59,6 +58,11 @@ protected:
     // Component trait overrides
     CoreComponentPtr getComponent() override { return shared_from_corecomponent(); }
 
+    // Release any existing vector graphic
+    void releaseGraphic();
+    // The graphic source has changed
+    void sourcePropertyChanged();
+
 #ifdef SCENEGRAPH
     // Common scene graph handling
     sg::LayerPtr constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) override;
@@ -68,6 +72,7 @@ protected:
 
 private:
     bool mOnLoadOnFailReported = false;
+    bool mGraphicReplaced = false;
 };
 
 

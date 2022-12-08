@@ -71,17 +71,14 @@ MediaComponentTrait::ensureMediaRequested()
         auto mediaObject = context->mediaManager().request(m.getUrl(), mediaType(), m.getHeaders());
         MediaObject::CallbackID callbackToken = 0;
         if (mediaObject->state() == MediaObject::kPending) {
-            auto weak = std::weak_ptr<CoreComponent>(component);
-            callbackToken = mediaObject->addCallback([weak](const MediaObjectPtr& mediaObjectPtr) {
-                auto self = weak.lock();
-                if (self)
-                    std::dynamic_pointer_cast<MediaComponentTrait>(self)->pendingMediaReturned(mediaObjectPtr);
+            callbackToken = mediaObject->addCallback([this](const MediaObjectPtr& mediaObjectPtr) {
+                pendingMediaReturned(mediaObjectPtr);
             });
         }
         mMediaObjectHolders.emplace_back(MediaObjectHolder{mediaObject, callbackToken});
     }
 
-    // Some of the media objects may have been ready or in error state
+    // Some media objects may have been ready or in error state
     updateMediaState();
 }
 

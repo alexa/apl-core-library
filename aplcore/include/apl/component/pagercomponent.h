@@ -32,6 +32,12 @@ public:
 
     ComponentType getType() const override { return kComponentTypePager; };
 
+    /**
+     * @param component Pointer to cast.
+     * @return Casted pointer to this type, nullptr if not possible.
+     */
+    static std::shared_ptr<PagerComponent> cast(const std::shared_ptr<Component>& component);
+
     /// Component overrides.
     void initialize() override;
     void update(UpdateType type, float value) override;
@@ -44,7 +50,6 @@ public:
     void processLayoutChanges(bool useDirtyFlag, bool first) override;
     bool allowForward() const override;
     bool allowBackwards() const override;
-    void release() override;
 
     /// Actionable overrides
     bool isHorizontal() const override { return scrollType() == kScrollTypeHorizontalPager; }
@@ -94,10 +99,11 @@ protected:
     void accept(Visitor<CoreComponent>& visitor) const override;
     void raccept(Visitor<CoreComponent>& visitor) const override;
     bool insertChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
-    void removeChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
+    void removeChildAfterMarkedRemoved(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
     bool shouldAttachChildYogaNode(int index) const override;
     void finalizePopulate() override;
     void ensureDisplayedChildren() override;
+    void releaseSelf() override;
 
 private:
     bool multiChild() const override { return true; }

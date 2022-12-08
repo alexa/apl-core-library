@@ -54,7 +54,7 @@ TEST_F(DocumentBackgroundTest, NoBackground)
 {
     auto background = load(NO_BACKGROUND);
 
-    ASSERT_TRUE(background.isColor());
+    ASSERT_TRUE(background.is<Color>());
     ASSERT_TRUE(IsEqual(Color(Color::TRANSPARENT), background));
 }
 
@@ -73,7 +73,7 @@ TEST_F(DocumentBackgroundTest, ColorBackground)
 {
     auto background = load(COLOR_BACKGROUND);
 
-    ASSERT_TRUE(background.isColor());
+    ASSERT_TRUE(background.is<Color>());
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), background));
 }
 
@@ -103,9 +103,9 @@ TEST_F(DocumentBackgroundTest, GradientBackground)
 {
     auto background = load(GRADIENT_BACKGROUND);
 
-    ASSERT_TRUE(background.isGradient());
+    ASSERT_TRUE(background.is<Gradient>());
 
-    auto gradient = background.getGradient();
+    auto gradient = background.get<Gradient>();
     ASSERT_EQ(Gradient::GradientType::LINEAR, gradient.getType());
     ASSERT_EQ(90, gradient.getProperty(kGradientPropertyAngle).getInteger());
     ASSERT_EQ(std::vector<Object>({Color(0x006400ff), Color(0xffffffff)}), gradient.getProperty(kGradientPropertyColorRange).getArray());
@@ -129,7 +129,7 @@ TEST_F(DocumentBackgroundTest, BadBackgroundMap)
 {
     auto background = load(BAD_BACKGROUND_MAP);
 
-    ASSERT_TRUE(background.isColor());
+    ASSERT_TRUE(background.is<Color>());
     ASSERT_TRUE(IsEqual(Color(Color::TRANSPARENT), background));
 }
 
@@ -148,7 +148,7 @@ TEST_F(DocumentBackgroundTest, BadBackgroundColor)
 {
     auto background = load(BAD_BACKGROUND_COLOR);
 
-    ASSERT_TRUE(background.isColor());
+    ASSERT_TRUE(background.is<Color>());
     ASSERT_TRUE(IsEqual(Color(Color::TRANSPARENT), background));
 }
 
@@ -168,13 +168,13 @@ TEST_F(DocumentBackgroundTest, DataBindingTest)
     // Small screens get a red background
     metrics.size(100, 100);
     auto background = load(DATA_BINDING_TEST);
-    ASSERT_TRUE(background.isColor());
+    ASSERT_TRUE(background.is<Color>());
     ASSERT_TRUE(IsEqual(Color(Color::RED), background));
 
     // Large screens get a blue background
     metrics.size(1000,1000);
     background = load(DATA_BINDING_TEST);
-    ASSERT_TRUE(background.isColor());
+    ASSERT_TRUE(background.is<Color>());
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), background));
 }
 
@@ -196,12 +196,12 @@ TEST_F(DocumentBackgroundTest, DataBoundTheme)
 {
     metrics.theme("dark");
     auto background = load(DATA_BOUND_THEME);
-    ASSERT_TRUE(background.isColor());
+    ASSERT_TRUE(background.is<Color>());
     ASSERT_TRUE(IsEqual(Color(0x102040ff), background));
 
     metrics.theme("light");
     background = load(DATA_BOUND_THEME);
-    ASSERT_TRUE(background.isColor());
+    ASSERT_TRUE(background.is<Color>());
     ASSERT_TRUE(IsEqual(Color(0xe0e0c0ff), background));
 }
 
@@ -224,11 +224,11 @@ TEST_F(DocumentBackgroundTest, DataBoundThemeOverride)
 {
     metrics.theme("dark");
     auto background = load(DATA_BOUND_THEME_OVERRIDE);
-    ASSERT_TRUE(background.isColor());
+    ASSERT_TRUE(background.is<Color>());
     ASSERT_TRUE(IsEqual(Color(0xe0e0c0ff), background));
 
     metrics.theme("light");
     background = load(DATA_BOUND_THEME_OVERRIDE);
-    ASSERT_TRUE(background.isColor());
+    ASSERT_TRUE(background.is<Color>());
     ASSERT_TRUE(IsEqual(Color(0xe0e0c0ff), background));
 }

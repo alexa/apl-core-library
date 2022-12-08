@@ -23,6 +23,7 @@ target_sources_local(apl
         paint.cpp
         path.cpp
         pathop.cpp
+        pathbounds.cpp
         pathparser.cpp
         scenegraph.cpp
         scenegraphupdates.cpp

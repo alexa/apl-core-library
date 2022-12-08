@@ -143,7 +143,7 @@ FocusManager::clearFocus(bool notifyViewhost, FocusDirection direction, bool for
             clearFocusedComponent();
             focused->getContext()->pushEvent(Event(kEventTypeFocus, nullptr));  // Indicate null focus
         } else {
-            auto timers = std::dynamic_pointer_cast<Timers>(mCore.rootConfig().getTimeManager());
+            auto timers = std::static_pointer_cast<Timers>(mCore.rootConfig().getTimeManager());
             Rect bounds;
             focused->getBoundsInParent(mCore.top(), bounds);
             auto boundsObject = Object(std::move(bounds));
@@ -214,7 +214,7 @@ FocusManager::focus(FocusDirection direction)
             return true;
         }
         else {
-            auto origin = generateOrigin(direction, mCore.top()->getCalculated(kPropertyBounds).getRect());
+            auto origin = generateOrigin(direction, mCore.top()->getCalculated(kPropertyBounds).get<Rect>());
             return focus(direction, origin);
         }
     }
@@ -268,7 +268,7 @@ FocusManager::find(FocusDirection direction)
 CoreComponentPtr
 FocusManager::find(FocusDirection direction, const Rect& origin)
 {
-    return mFinder->findNext(mFocused.lock(), origin, direction, std::dynamic_pointer_cast<CoreComponent>(mCore.top()));
+    return mFinder->findNext(mFocused.lock(), origin, direction, CoreComponent::cast(mCore.top()));
 }
 
 CoreComponentPtr
@@ -281,7 +281,7 @@ std::map<std::string, Rect>
 FocusManager::getFocusableAreas()
 {
     std::map<std::string, Rect> result;
-    auto root = std::dynamic_pointer_cast<CoreComponent>(mCore.top());
+    auto root = CoreComponent::cast(mCore.top());
     auto focusables = mFinder->getFocusables(root, false);
     if(root->isFocusable()) {
         focusables.push_back(root);

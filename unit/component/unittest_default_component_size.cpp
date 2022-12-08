@@ -728,8 +728,7 @@ static const char *DEFAULT_IS_VALID_CHAR_TEST = R"(
 TEST_F(DefaultComponentTest, DefaultIsChar)
 {
     loadDocument(DEFAULT_IS_VALID_CHAR_TEST);
-    Component* textComponent = dynamic_cast<Component*>(root->topComponent().get());
-    ASSERT_EQ(kComponentTypeText, textComponent->getType());
+    ASSERT_EQ(kComponentTypeText, component->getType());
     //if isCharacterValid is unsupported for the component, it should return false.
-    ASSERT_FALSE(textComponent->isCharacterValid(L'0'));
+    ASSERT_FALSE(component->isCharacterValid(L'0'));
 }

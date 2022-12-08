@@ -31,7 +31,7 @@ public:
 
     bool invokeCommand(const std::string& uri, const rapidjson::Value& command) override {
         if (getURIs().count("aplext:ugly:1")) {
-            throw ExtensionException::create("ugly %s %s", "exception", "error");
+            return false;
         }
         auto name = Command::NAME().Get(command);
         return (name && *name != "nope");
@@ -39,9 +39,7 @@ public:
 
     rapidjson::Document createRegistration(const std::string& uri, const rapidjson::Value& registerRequest) override {
 
-        if (uri == "aplext:ugly:1") {
-            throw ExtensionException::create("ugly %s %s", "exception", "error");
-        } else if (uri == "aplext:ugly:2") {
+        if (uri == "aplext:ugly:2") {
             return RegistrationFailure("1.0").uri("aplext:ugly:2").errorCode(13).errorMessage("total failure");
         }
 
@@ -261,33 +259,6 @@ TEST_F(ExtensionProviderTest, RegistrationFailure) {
 }
 
 /**
- * Test registration exception
- */
-TEST_F(ExtensionProviderTest, RegistrationException) {
-    ASSERT_TRUE(extPro->hasExtension("aplext:ugly:1"));
-    auto ugly = extPro->getExtension("aplext:ugly:1");
-    ASSERT_TRUE(ugly);
-
-    document.Parse(SETTINGS);
-    Document req = RegistrationRequest("1.0").uri("aplext:ugly:1").settings(document);
-
-    bool gotfailure = false;
-    auto invoke = ugly->getRegistration(
-            "aplext:ugly:1", req,
-            nullptr, [this, &gotfailure](const std::string& uri, const rapidjson::Value& registerFailure) {
-                gotfailure = true;
-                ASSERT_EQ("aplext:ugly:1", uri);
-                AssertMessage(uri, "RegisterFailure", registerFailure);
-                ASSERT_EQ(kErrorExtensionException,
-                          GetWithDefault<int>(RegistrationFailure::CODE(), registerFailure, -1));
-                ASSERT_STREQ("ugly exception error",
-                             GetWithDefault<const char*>(RegistrationFailure::MESSAGE(), registerFailure, ""));
-            });
-    ASSERT_FALSE(invoke);
-    ASSERT_TRUE(gotfailure);
-}
-
-/**
  * Test registration failure from extension.
  */
 TEST_F(ExtensionProviderTest, RegistrationFailureFromExtension) {
@@ -473,37 +444,6 @@ TEST_F(ExtensionProviderTest, InvokeCommandFailure) {
                 ASSERT_EQ(kErrorFailedCommand, GetWithDefault<int>(CommandFailure::CODE(), commandFailure, -1));
                 ASSERT_EQ(sErrorMessage[kErrorFailedCommand] + std::to_string(id),
                           GetWithDefault<const char*>(CommandFailure::MESSAGE(), commandFailure, ""));
-            });
-    ASSERT_FALSE(invoke);
-    ASSERT_TRUE(gotfailure);
-}
-
-/**
- * Test invoke event handler.  This is a message from extension to doc.
- */
-TEST_F(ExtensionProviderTest, InvokeCommandException) {
-
-    int id = 31;
-    Document command = Command("1.0").uri("aplext:ugly:1").name("ugly").id(id).property("prop1", Value(1).Move());
-
-    // the extension was registered
-    ASSERT_TRUE(extPro->hasExtension("aplext:ugly:1"));
-    auto foo = extPro->getExtension("aplext:ugly:1");
-    ASSERT_TRUE(foo);
-
-    // test failure callback
-    bool gotfailure = false;
-    bool invoke = foo->invokeCommand(
-            "aplext:ugly:1", command,
-            nullptr,
-            [this, &gotfailure, &id](const std::string& uri, const rapidjson::Value& commandFailure) {
-                gotfailure = true;
-                ASSERT_EQ("aplext:ugly:1", uri);
-                AssertMessage(uri, "CommandFailure", commandFailure);
-                ASSERT_EQ(id, GetWithDefault<int>(Command::ID(), commandFailure, -1));
-                ASSERT_EQ(kErrorExtensionException, GetWithDefault<int>(CommandFailure::CODE(), commandFailure, -1));
-                ASSERT_STREQ("ugly exception error",
-                             GetWithDefault<const char*>(CommandFailure::MESSAGE(), commandFailure, ""));
             });
     ASSERT_FALSE(invoke);
     ASSERT_TRUE(gotfailure);

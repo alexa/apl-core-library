@@ -52,13 +52,13 @@ TEST_F(BoundsTest, ScrollView)
 {
     loadDocument(SCROLL_VIEW);
 
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     auto frame = component->getChildAt(0);
     ASSERT_EQ(10, frame->getChildCount());
 
     for (auto i = 0 ; i < frame->getChildCount() ; i++) {
         auto child = frame->getChildAt(i);
-        ASSERT_EQ(Rect(0, 200*i, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(0, 200*i, 200, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(0, 200*i, 200, 200), rect);
@@ -67,7 +67,7 @@ TEST_F(BoundsTest, ScrollView)
     component->update(kUpdateScrollPosition, 100);
     for (auto i = 0 ; i < frame->getChildCount() ; i++) {
         auto child = frame->getChildAt(i);
-        ASSERT_EQ(Rect(0, 200*i, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(0, 200*i, 200, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(0, 200*i - 100, 200, 200), rect);
@@ -76,7 +76,7 @@ TEST_F(BoundsTest, ScrollView)
     component->update(kUpdateScrollPosition, 500);
     for (auto i = 0 ; i < frame->getChildCount() ; i++) {
         auto child = frame->getChildAt(i);
-        ASSERT_EQ(Rect(0, 200*i, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(0, 200*i, 200, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(0, 200*i - 500, 200, 200), rect);
@@ -107,12 +107,12 @@ TEST_F(BoundsTest, VerticalSequence)
     loadDocument(VERTICAL_SEQUENCE);
     advanceTime(10);
 
-    ASSERT_EQ(Rect(0,0,200,500), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,200,500), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(5, component->getChildCount());
 
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(0, 200*i, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(0, 200*i, 200, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(0, 200*i, 200, 200), rect);
@@ -121,7 +121,7 @@ TEST_F(BoundsTest, VerticalSequence)
     component->update(kUpdateScrollPosition, 100);
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(0, 200*i, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(0, 200*i, 200, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(0, 200*i - 100, 200, 200), rect);
@@ -130,7 +130,7 @@ TEST_F(BoundsTest, VerticalSequence)
     component->update(kUpdateScrollPosition, 500);
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(0, 200*i, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(0, 200*i, 200, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(0, 200*i - 500, 200, 200), rect);
@@ -165,12 +165,12 @@ TEST_F(BoundsTest, HorizontalSequence)
     loadDocument(HORIZONTAL_SEQUENCE);
     advanceTime(10);
 
-    ASSERT_EQ(Rect(0,0,500,200), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,500,200), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(5, component->getChildCount());
 
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(200*i, 0, 200, 200), rect);
@@ -179,7 +179,7 @@ TEST_F(BoundsTest, HorizontalSequence)
     component->update(kUpdateScrollPosition, 100);
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(200*i - 100, 0, 200, 200), rect);
@@ -188,7 +188,7 @@ TEST_F(BoundsTest, HorizontalSequence)
     component->update(kUpdateScrollPosition, 500);
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(200*i - 500, 0, 200, 200), rect);
@@ -205,12 +205,12 @@ TEST_F(BoundsTest, HorizontalSequenceRTL)
     component->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending();
 
-    ASSERT_EQ(Rect(0,0,500,200), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,500,200), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(5, component->getChildCount());
 
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(300 - 200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(300 - 200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(300 - 200*i, 0, 200, 200), rect);
@@ -219,7 +219,7 @@ TEST_F(BoundsTest, HorizontalSequenceRTL)
     component->update(kUpdateScrollPosition, -100);
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(300 - 200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(300 - 200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(300 - 200*i + 100, 0, 200, 200), rect);
@@ -228,7 +228,7 @@ TEST_F(BoundsTest, HorizontalSequenceRTL)
     component->update(kUpdateScrollPosition, -500);
     for (auto i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(300 - 200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(300 - 200*i, 0, 200, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         Rect rect;
         ASSERT_TRUE(child->getBoundsInParent(nullptr, rect));
         ASSERT_EQ(Rect(300 - 200*i + 500, 0, 200, 200), rect);
@@ -320,8 +320,8 @@ TEST_F(BoundsTest, ChildInParent)
         auto label = child->getChildAt(1);
 
         // Position w.r.t. the holding container
-        ASSERT_EQ(Rect(0, 0, 100, 100), number->getCalculated(kPropertyBounds).getRect());
-        ASSERT_EQ(Rect(100, 0, 924, 100), label->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(0, 0, 100, 100), number->getCalculated(kPropertyBounds).get<Rect>());
+        ASSERT_EQ(Rect(100, 0, 924, 100), label->getCalculated(kPropertyBounds).get<Rect>());
 
         // Global position
         ASSERT_EQ(Rect(0, 150 + i * 100, 100, 100), number->getGlobalBounds());
@@ -345,8 +345,8 @@ TEST_F(BoundsTest, ChildInParent)
         auto label = child->getChildAt(1);
 
         // Position w.r.t. the holding container doesn't change
-        ASSERT_EQ(Rect(0, 0, 100, 100), number->getCalculated(kPropertyBounds).getRect());
-        ASSERT_EQ(Rect(100, 0, 924, 100), label->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(0, 0, 100, 100), number->getCalculated(kPropertyBounds).get<Rect>());
+        ASSERT_EQ(Rect(100, 0, 924, 100), label->getCalculated(kPropertyBounds).get<Rect>());
 
         // Global position moves upwards by 25
         ASSERT_EQ(Rect(0, 125 + i * 100, 100, 100), number->getGlobalBounds());
@@ -420,7 +420,7 @@ TEST_F(BoundsTest, NestedChild)
 
     auto text2 = ctr2->getCoreChildAt(0);
     ASSERT_EQ(kComponentTypeText, text2->getType());
-    ASSERT_EQ(Rect(0, 0, 50, 50), text2->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 50, 50), text2->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(Rect(0, 100, 50, 50), text2->getGlobalBounds());
 }
 
@@ -490,6 +490,6 @@ TEST_F(BoundsTest, AbsolutePositioning)
 
     auto text2 = ctr2->getCoreChildAt(0);
     ASSERT_EQ(kComponentTypeText, text2->getType());
-    ASSERT_EQ(Rect(10, 40, 50, 50), text2->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(10, 40, 50, 50), text2->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(Rect(810, 340, 50, 50), text2->getGlobalBounds());
 }

@@ -26,6 +26,7 @@
 #endif
 
 #include "apl/content/directive.h"
+#include "apl/utils/stringfunctions.h"
 
 #include "utils.h"
 
@@ -60,22 +61,6 @@ struct Options {
 
 Options gOptions;
 
-inline std::string
-doubleToString(double value)
-{
-    static char *separator = std::localeconv()->decimal_point;
-
-    if (value > 100000000000) return "INF";
-    if (value < -100000000000) return "-INF";
-
-    auto s = std::to_string(value);
-    auto it = s.find_last_not_of('0');
-    if (it != s.find(separator))   // Remove a trailing decimal point
-        it++;
-    s.erase(it, std::string::npos);
-    return s;
-}
-
 /**
  * Simplify the transform
  */
@@ -92,7 +77,7 @@ void fixArray(rapidjson::Value& tree, const char *name, rapidjson::Document::All
 
     auto s = "["+ std::accumulate(values.begin(), values.end(), std::string(),
                              [](const std::string& a, double b) -> std::string {
-                                 return a + (a.empty() ? "" : ",") + doubleToString(b);
+                                 return a + (a.empty() ? "" : ",") + doubleToAplFormattedString(b);
                              }) + "]";
     transform.SetString(s.c_str(), s.size(), alloc);
 }

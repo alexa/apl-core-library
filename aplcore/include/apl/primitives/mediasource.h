@@ -18,8 +18,8 @@
 
 #include <string>
 
+#include "apl/primitives/objecttype.h"
 #include "apl/media/mediaobject.h"
-#include "apl/primitives/object.h"
 #include "apl/primitives/urlrequest.h"
 
 namespace apl {
@@ -80,6 +80,8 @@ public:
 
     bool empty() const { return false; }
     bool truthy() const { return true; }
+
+    class ObjectType final : public ReferenceHolderObjectType<MediaSource> {};
 
 private:
     MediaSource(URLRequest urlRequest,

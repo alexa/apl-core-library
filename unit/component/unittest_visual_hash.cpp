@@ -379,7 +379,7 @@ TEST_F(VisualHashTest, HashRemainsStableWhenLayoutAlignmentNeedsFixing)
     loadDocument(RTL_FIX_ALIGNMENT);
 
     ASSERT_EQ("Text", component->name());
-    auto textComponent = std::dynamic_pointer_cast<TextComponent>(component);
+    auto textComponent = TextComponent::cast(component);
     auto originalVisualHash = textComponent->getCalculated(kPropertyVisualHash);
 
     textComponent->setProperty(kPropertyText, "Different text");
@@ -419,7 +419,7 @@ TEST_F(VisualHashTest, HashRecalculatedBeforeLayoutInTimeForTextMeasurement)
 
     loadDocument(REMEASURE_TEXT);
     ASSERT_EQ(1, component->getChildCount());
-    auto textComponent = std::dynamic_pointer_cast<TextComponent>(component->getChildAt(0));
+    auto textComponent = TextComponent::cast(component->getChildAt(0));
     ASSERT_EQ("Text", textComponent->name());
 
     ASSERT_EQ(1, spyTextMeasure->visualHashes.size());

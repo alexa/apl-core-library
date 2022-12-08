@@ -118,22 +118,12 @@ Layer::appendChild(const LayerPtr& child)
 }
 
 void
-Layer::clearContent()
+Layer::setContent(const NodePtr& node)
 {
-    if (mContent.empty())
-        return;
-
-    mContent.clear();
-    setFlag(kFlagRedrawContent);
-}
-
-void
-Layer::appendContent(const NodePtr& node)
-{
-    assert(node);
-
-    mContent.push_back(node);
-    setFlag(kFlagRedrawContent);
+    if (node != mContent) {
+        mContent = node;
+        setFlag(kFlagRedrawContent);
+    }
 }
 
 bool
@@ -245,8 +235,8 @@ Layer::visible() const
     if (mShadow && mShadow->visible())
         return true;
 
-    for (const auto& m : mContent)
-        if (m->visible())
+    for (auto node = mContent; node; node = node->next())
+        if (node->visible())
             return true;
 
     for (const auto& m : mChildren)
@@ -276,9 +266,9 @@ Layer::serialize(rapidjson::Document::AllocatorType& allocator) const
     if (mShadow)
         out.AddMember("shadow", mShadow->serialize(allocator), allocator);
 
-    if (!mContent.empty()) {
+    if (mContent) {
         auto contentArray = rapidjson::Value(rapidjson::kArrayType);
-        for (const auto& node : mContent)
+        for (auto node = mContent ; node != nullptr ; node = node->next())
             contentArray.PushBack(node->serialize(allocator), allocator);
         out.AddMember("content", contentArray, allocator);
     }

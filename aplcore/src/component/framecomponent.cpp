@@ -16,6 +16,7 @@
 #include "apl/component/componentpropdef.h"
 #include "apl/component/framecomponent.h"
 #include "apl/component/yogaproperties.h"
+#include "apl/primitives/radii.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
 #include "apl/scenegraph/node.h"
@@ -59,7 +60,7 @@ FrameComponent::propDefSet() const
                                                                                                   kPropStyled |
                                                                                                   kPropDynamic |
                                                                                                   kPropVisualHash},
-        {kPropertyBorderRadii,             Object::EMPTY_RADII(), nullptr,                        kPropOut |
+        {kPropertyBorderRadii,             Radii(),               nullptr,                        kPropOut |
                                                                                                   kPropVisualHash},
         {kPropertyBorderColor,             Color(),               asColor,                        kPropInOut |
                                                                                                   kPropStyled |
@@ -144,7 +145,7 @@ FrameComponent::fixBorder(bool useDirtyFlag)
 
     Radii radii(std::move(result));
 
-    if (radii != mCalculated.get(kPropertyBorderRadii).getRadii()) {
+    if (radii != mCalculated.get(kPropertyBorderRadii).get<Radii>()) {
         mCalculated.set(kPropertyBorderRadii, Object(std::move(radii)));
         if (useDirtyFlag)
             setDirty(kPropertyBorderRadii);
@@ -159,11 +160,8 @@ FrameComponent::fixBorder(bool useDirtyFlag)
  *   - Outline Path     [If the outline isn't a rectangle]
  *   - Child Clip Path  [If the borderWidth != 0]
  *   - Content
- *         Fill DrawNode
- *         Border DrawNode
- *
- *  For now we always create the two drawing nodes to support animation without inserting and
- *  deleting new nodes.
+ *         Background DrawNode [optional]
+ *         Border DrawNode [optional]
  */
 sg::LayerPtr
 FrameComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
@@ -171,10 +169,10 @@ FrameComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
     auto layer = CoreComponent::constructSceneGraphLayer(sceneGraph);
     assert(layer);
 
-    auto radii = getCalculated(kPropertyBorderRadii).getRadii();
+    const auto& radii = getCalculated(kPropertyBorderRadii).get<Radii>();
     auto borderWidth = static_cast<float>(getCalculated(kPropertyBorderWidth).asNumber());
     auto strokeWidth = static_cast<float>(getCalculated(kPropertyDrawnBorderWidth).asNumber());
-    auto size = getCalculated(kPropertyBounds).getRect().getSize();
+    auto size = getCalculated(kPropertyBounds).get<Rect>().getSize();
     auto outline = RoundedRect(Rect{0, 0, size.getWidth(), size.getHeight()}, radii);
 
     // Set the outline only if it isn't a rectangle that matches the size
@@ -185,16 +183,13 @@ FrameComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
     if (borderWidth > 0)
         layer->setChildClip(sg::path(outline.inset(borderWidth)));
 
-    // The frame always puts two content nodes in - one for the fill and one for the border
-    // In the future we may change this to make the content nodes more dynamic
-    layer->appendContent(
-        sg::draw(sg::path(outline.inset(strokeWidth)),
-                 sg::fill(sg::paint(getCalculated(kPropertyBackgroundColor)))));
+    auto background = sg::draw(sg::path(outline.inset(strokeWidth)),
+                               sg::fill(sg::paint(getCalculated(kPropertyBackgroundColor))));
+    auto border = sg::draw(sg::path(outline, strokeWidth),
+                           sg::fill(sg::paint(getCalculated(kPropertyBorderColor))));
 
-    layer->appendContent(
-        sg::draw(sg::path(outline, strokeWidth),
-                 sg::fill(sg::paint(getCalculated(kPropertyBorderColor)))));
-
+    background->setNext(border);
+    layer->setContent(background);
     return layer;
 }
 
@@ -215,10 +210,10 @@ FrameComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
         !backgroundChanged && !borderColorChanged && !strokeWidthChanged)
         return false;
 
-    auto radii = getCalculated(kPropertyBorderRadii).getRadii();
+    const auto& radii = getCalculated(kPropertyBorderRadii).get<Radii>();
     auto borderWidth = getCalculated(kPropertyBorderWidth).asFloat();
     auto strokeWidth = getCalculated(kPropertyDrawnBorderWidth).asFloat();
-    auto size = getCalculated(kPropertyBounds).getRect().getSize();
+    auto size = getCalculated(kPropertyBounds).get<Rect>().getSize();
     auto outline = RoundedRect(Rect{0, 0, size.getWidth(), size.getHeight()}, radii);
 
     auto *layer = mSceneGraphLayer.get();
@@ -232,11 +227,13 @@ FrameComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
     if (outlineChanged || borderWidthChanged)
         result |= layer->setChildClip(borderWidth > 0 ? sg::path(outline.inset(borderWidth)) : nullptr);
 
-    assert(layer->content().size() == 2);
-    auto background = layer->content().at(0);
-    auto border = layer->content().at(1);
+    assert(layer->content());
+    auto background = layer->content();
+    assert(background->next());
+    auto border = background->next();
+    assert(!border->next());
 
-    // Fix the background.  Actually, this should already be clipped, so we could a rectangular fill
+    // Fix the background.  Actually, this should already be clipped, so we could use a rectangular fill
     if (outlineChanged || borderWidthChanged || backgroundChanged) {
         auto *draw = sg::DrawNode::cast(background);
 

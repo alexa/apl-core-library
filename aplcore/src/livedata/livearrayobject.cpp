@@ -134,4 +134,10 @@ LiveArrayObject::newToOld(ObjectArray::size_type index)
     return { index, changed };
 }
 
+std::shared_ptr<LiveDataObject>
+LiveArrayObject::ObjectType::getLiveDataObject(const Object::DataHolder& dataHolder) const
+{
+    return std::static_pointer_cast<LiveDataObject>(dataHolder.data);
+}
+
 } // namespace apl

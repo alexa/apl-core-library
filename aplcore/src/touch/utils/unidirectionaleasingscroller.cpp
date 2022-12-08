@@ -49,7 +49,7 @@ UnidirectionalEasingScroller::make(
 
     // S = v^2 / 2*a
     auto distance = (directionalVelocity * directionalVelocity) / (2 * deceleration) * time::MS_PER_SECOND;
-    auto easing = rootConfig.getProperty(RootProperty::kUEScrollerVelocityEasing).getEasing();
+    auto easing = rootConfig.getProperty(RootProperty::kUEScrollerVelocityEasing).get<Easing>();
     auto maxDuration = rootConfig.getProperty(RootProperty::kUEScrollerMaxDuration).getDouble();
     auto duration = std::min(static_cast<apl_duration_t>(std::abs(distance/directionalVelocity)), maxDuration);
     return std::make_shared<UnidirectionalEasingScroller>(
@@ -73,7 +73,7 @@ UnidirectionalEasingScroller::make(
         return nullptr;
     }
 
-    auto easing = scrollable->getRootConfig().getProperty(RootProperty::kUEScrollerDurationEasing).getEasing();
+    auto easing = scrollable->getRootConfig().getProperty(RootProperty::kUEScrollerDurationEasing).get<Easing>();
     return std::make_shared<UnidirectionalEasingScroller>(scrollable, easing, std::move(finish), target, duration);
 }
 

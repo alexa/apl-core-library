@@ -17,7 +17,7 @@
 #define _APL_COMPONENT_EVENT_WRAPPER_H
 
 #include "apl/common.h"
-#include "apl/primitives/objectdata.h"
+#include "apl/primitives/objecttype.h"
 
 namespace apl {
 
@@ -47,6 +47,25 @@ public:
     virtual bool operator==(const ComponentEventWrapper& rhs) const = 0;
     virtual bool operator==(const ComponentEventSourceWrapper& rhs) const { return false; }
     virtual bool operator==(const ComponentEventTargetWrapper& rhs) const { return false; }
+
+    class ObjectType final : public MapLikeObjectType<ComponentEventWrapper> {
+    public:
+        bool truthy(const Object::DataHolder& dataHolder) const override {
+            return std::static_pointer_cast<ComponentEventWrapper>(dataHolder.data)->getComponent() != nullptr;
+        }
+
+        rapidjson::Value serialize(
+            const Object::DataHolder& dataHolder,
+            rapidjson::Document::AllocatorType& allocator) const override
+        {
+            return std::static_pointer_cast<ComponentEventWrapper>(dataHolder.data)->serialize(allocator);
+        }
+
+        bool equals(const Object::DataHolder& lhs, const Object::DataHolder& rhs) const override {
+            return *std::static_pointer_cast<ComponentEventWrapper>(lhs.data) ==
+                   *std::static_pointer_cast<ComponentEventWrapper>(rhs.data);
+        }
+    };
 
 protected:
     std::weak_ptr<const CoreComponent> mComponent;

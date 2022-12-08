@@ -117,10 +117,6 @@ Node <|-- ShadowNode
 ShadowNode : shadow : Shadow
 ShadowNode *-- Shadow
 
-' ====== GenericNode =======
-object GenericNode #A0C4FF
-Node <|-- GenericNode
-
 ' ===== DrawNode =======
 object DrawNode #A0C4FF
 Node <|-- DrawNode

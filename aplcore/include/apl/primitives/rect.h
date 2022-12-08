@@ -18,11 +18,14 @@
 
 #include "rapidjson/document.h"
 
+#include "apl/primitives/objecttype.h"
 #include "apl/primitives/point.h"
 #include "apl/primitives/size.h"
 #include "apl/utils/deprecated.h"
 
 namespace apl {
+
+class Transform2D;
 
 /**
  * A simple rectangle class.  A rectangle has a left, top, width, and height.  The width and height
@@ -255,6 +258,13 @@ public:
     std::string toString() const;
 
     /**
+     * Calculate the bounding box of the rectangle after transformation
+     * @param transform The transform to apply
+     * @return The axis-aligned bounding box
+     */
+    Rect boundingBox(const Transform2D& transform) const;
+
+    /**
      * Serialize into JSON format
      * @param allocator RapidJSON memory allocator
      * @return The serialized rectangle
@@ -262,6 +272,8 @@ public:
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
     std::string toDebugString() const;
+
+    class ObjectType final : public ReferenceHolderObjectType<Rect> {};
 
 private:
     float mX;

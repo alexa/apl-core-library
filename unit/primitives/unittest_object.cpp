@@ -23,7 +23,12 @@
 
 #include "apl/animation/easing.h"
 #include "apl/engine/context.h"
+#include "apl/component/component.h"
+#include "apl/component/componenteventsourcewrapper.h"
 #include "apl/content/metrics.h"
+#include "apl/livedata/livedataobject.h"
+#include "apl/livedata/livearrayobject.h"
+#include "apl/livedata/livemapobject.h"
 #include "apl/primitives/object.h"
 #include "apl/primitives/gradient.h"
 #include "apl/primitives/rect.h"
@@ -44,9 +49,9 @@ TEST(ObjectTest, Constants)
 
     ASSERT_TRUE( Object::NULL_OBJECT().isNull());
     ASSERT_TRUE( Object::NAN_OBJECT().isNumber());
-    ASSERT_TRUE( Object::AUTO_OBJECT().isAutoDimension());
+    ASSERT_TRUE( Object(Dimension()).isAutoDimension());
     ASSERT_TRUE( Object::EMPTY_ARRAY().isArray());
-    ASSERT_TRUE( Object::EMPTY_RECT().isRect());
+    ASSERT_TRUE( Object(Rect()).is<Rect>());
 }
 
 TEST(ObjectTest, Basic)
@@ -101,7 +106,7 @@ TEST(ObjectTest, Size)
     ASSERT_EQ(0, a.size());
 
     ASSERT_TRUE(Object::EMPTY_ARRAY().empty());
-    ASSERT_TRUE(Object::EMPTY_RECT().empty());
+    ASSERT_TRUE(Object(Rect()).empty());
 }
 
 TEST(ObjectTest, SharedMap)
@@ -209,7 +214,7 @@ TEST(ObjectTest, Color)
     auto session = std::make_shared<TestSession>();
 
     Object o = Object(Color(Color::RED));
-    ASSERT_TRUE(o.isColor());
+    ASSERT_TRUE(o.is<Color>());
     ASSERT_EQ(Color::RED, o.asColor(session));
 
     o = Object(Color::RED);
@@ -251,20 +256,20 @@ TEST(ObjectTest, Gradient)
 
     Object a = Gradient::create(*context, doc);
 
-    ASSERT_TRUE(a.isGradient());
-    ASSERT_EQ(Gradient::RADIAL, a.getGradient().getType());
-    ASSERT_EQ(0xff0000ff, a.getGradient().getProperty(kGradientPropertyColorRange).at(0).getColor());
+    ASSERT_TRUE(a.is<Gradient>());
+    ASSERT_EQ(Gradient::RADIAL, a.get<Gradient>().getType());
+    ASSERT_EQ(0xff0000ff, a.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0).getColor());
 
     Object b(a);
-    ASSERT_TRUE(b.isGradient());
-    ASSERT_EQ(Gradient::RADIAL, b.getGradient().getType());
-    ASSERT_EQ(0xff0000ff, b.getGradient().getProperty(kGradientPropertyColorRange).at(0).getColor());
+    ASSERT_TRUE(b.is<Gradient>());
+    ASSERT_EQ(Gradient::RADIAL, b.get<Gradient>().getType());
+    ASSERT_EQ(0xff0000ff, b.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0).getColor());
 
     Object c;
     c = a;
-    ASSERT_TRUE(c.isGradient());
-    ASSERT_EQ(Gradient::RADIAL, c.getGradient().getType());
-    ASSERT_EQ(0xff0000ff, c.getGradient().getProperty(kGradientPropertyColorRange).at(0).getColor());
+    ASSERT_TRUE(c.is<Gradient>());
+    ASSERT_EQ(Gradient::RADIAL, c.get<Gradient>().getType());
+    ASSERT_EQ(0xff0000ff, c.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0).getColor());
 
     {
         rapidjson::Document doc2;
@@ -281,19 +286,19 @@ TEST(ObjectTest, Gradient)
         c = p;
     }
 
-    ASSERT_TRUE(c.isGradient());
-    ASSERT_EQ(Gradient::LINEAR, c.getGradient().getType());
-    ASSERT_EQ(0x0000ffff, c.getGradient().getProperty(kGradientPropertyColorRange).at(0).getColor());
+    ASSERT_TRUE(c.is<Gradient>());
+    ASSERT_EQ(Gradient::LINEAR, c.get<Gradient>().getType());
+    ASSERT_EQ(0x0000ffff, c.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0).getColor());
 
     b = c;
-    ASSERT_TRUE(b.isGradient());
-    ASSERT_EQ(Gradient::LINEAR, b.getGradient().getType());
-    ASSERT_EQ(0x0000ffff, b.getGradient().getProperty(kGradientPropertyColorRange).at(0).getColor());
+    ASSERT_TRUE(b.is<Gradient>());
+    ASSERT_EQ(Gradient::LINEAR, b.get<Gradient>().getType());
+    ASSERT_EQ(0x0000ffff, b.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0).getColor());
 
     // Make sure a has not changed
-    ASSERT_TRUE(a.isGradient());
-    ASSERT_EQ(Gradient::RADIAL, a.getGradient().getType());
-    ASSERT_EQ(0xff0000ff, a.getGradient().getProperty(kGradientPropertyColorRange).at(0).getColor());
+    ASSERT_TRUE(a.is<Gradient>());
+    ASSERT_EQ(Gradient::RADIAL, a.get<Gradient>().getType());
+    ASSERT_EQ(0xff0000ff, a.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0).getColor());
 }
 
 const char *BAD_CASES =
@@ -378,8 +383,8 @@ TEST(ObjectTest, MalformedGradient)
 TEST(ObjectTest, Rect)
 {
     Object a = Object(Rect(0,10,100,200));
-    ASSERT_TRUE(a.isRect());
-    auto r = a.getRect();
+    ASSERT_TRUE(a.is<Rect>());
+    auto r = a.get<Rect>();
     ASSERT_EQ(0, r.getX());
     ASSERT_EQ(10, r.getY());
     ASSERT_EQ(100, r.getWidth());
@@ -404,59 +409,59 @@ TEST(ObjectTest, Transform)
     auto transform = Transformation::create(*context, arrayify(*context, Object(doc)));
 
     Object a = Object(transform);
-    ASSERT_TRUE(a.isTransform());
-    ASSERT_EQ(Point(-20,-20), a.getTransformation()->get(20,20) * Point());
+    ASSERT_TRUE(a.is<Transformation>());
+    ASSERT_EQ(Point(-20,-20), a.get<Transformation>()->get(20,20) * Point());
 }
 
 TEST(ObjectTest, Transform2)
 {
     Object a = Object(Transform2D::rotate(90));
-    ASSERT_TRUE(a.isTransform2D());
-    ASSERT_EQ(Transform2D::rotate(90), a.getTransform2D());
+    ASSERT_TRUE(a.is<Transform2D>());
+    ASSERT_EQ(Transform2D::rotate(90), a.get<Transform2D>());
 }
 
 TEST(ObjectTest, Easing)
 {
     Object a = Object(Easing::linear());
-    ASSERT_TRUE(a.isEasing());
-    ASSERT_EQ(0.5, a.getEasing()->calc(0.5));
+    ASSERT_TRUE(a.is<Easing>());
+    ASSERT_EQ(0.5, a.get<Easing>()->calc(0.5));
 
     auto session = makeDefaultSession();
     a = Object(Easing::parse(session, "ease"));
-    ASSERT_TRUE(a.isEasing());
-    ASSERT_NEAR(0.80240017, a.getEasing()->calc(0.5), 0.0001);
+    ASSERT_TRUE(a.is<Easing>());
+    ASSERT_NEAR(0.80240017, a.get<Easing>()->calc(0.5), 0.0001);
 }
 
 TEST(ObjectTest, Radii)
 {
     Object a = Object(Radii());
-    ASSERT_EQ(Object::EMPTY_RADII(), a);
-    ASSERT_TRUE(a.getRadii().empty());
+    ASSERT_EQ(Object(Radii()), a);
+    ASSERT_TRUE(a.get<Radii>().empty());
 
     Object b = Object(Radii(4));
-    ASSERT_TRUE(b.isRadii());
-    ASSERT_EQ(4, b.getRadii().bottomLeft());
-    ASSERT_EQ(4, b.getRadii().bottomRight());
-    ASSERT_EQ(4, b.getRadii().topLeft());
-    ASSERT_EQ(4, b.getRadii().topRight());
-    ASSERT_FALSE(b.getRadii().empty());
+    ASSERT_TRUE(b.is<Radii>());
+    ASSERT_EQ(4, b.get<Radii>().bottomLeft());
+    ASSERT_EQ(4, b.get<Radii>().bottomRight());
+    ASSERT_EQ(4, b.get<Radii>().topLeft());
+    ASSERT_EQ(4, b.get<Radii>().topRight());
+    ASSERT_FALSE(b.get<Radii>().empty());
 
     Object c = Object(Radii(1,2,3,4));
-    ASSERT_TRUE(c.isRadii());
-    ASSERT_EQ(1, c.getRadii().topLeft());
-    ASSERT_EQ(2, c.getRadii().topRight());
-    ASSERT_EQ(3, c.getRadii().bottomLeft());
-    ASSERT_EQ(4, c.getRadii().bottomRight());
-    ASSERT_EQ(1, c.getRadii().radius(Radii::kTopLeft));
-    ASSERT_EQ(2, c.getRadii().radius(Radii::kTopRight));
-    ASSERT_EQ(3, c.getRadii().radius(Radii::kBottomLeft));
-    ASSERT_EQ(4, c.getRadii().radius(Radii::kBottomRight));
-    ASSERT_EQ(Radii(1,2,3,4), c.getRadii());
-    ASSERT_NE(Radii(1,2,3,5), c.getRadii());
-    ASSERT_FALSE(c.getRadii().empty());
+    ASSERT_TRUE(c.is<Radii>());
+    ASSERT_EQ(1, c.get<Radii>().topLeft());
+    ASSERT_EQ(2, c.get<Radii>().topRight());
+    ASSERT_EQ(3, c.get<Radii>().bottomLeft());
+    ASSERT_EQ(4, c.get<Radii>().bottomRight());
+    ASSERT_EQ(1, c.get<Radii>().radius(Radii::kTopLeft));
+    ASSERT_EQ(2, c.get<Radii>().radius(Radii::kTopRight));
+    ASSERT_EQ(3, c.get<Radii>().radius(Radii::kBottomLeft));
+    ASSERT_EQ(4, c.get<Radii>().radius(Radii::kBottomRight));
+    ASSERT_EQ(Radii(1,2,3,4), c.get<Radii>());
+    ASSERT_NE(Radii(1,2,3,5), c.get<Radii>());
+    ASSERT_FALSE(c.get<Radii>().empty());
 
     auto foo = std::array<float, 4>{1,2,3,4};
-    ASSERT_EQ(foo, c.getRadii().get());
+    ASSERT_EQ(foo, c.get<Radii>().get());
 }
 
 // NOTE: These test cases assume a '.' decimal separator.
@@ -578,7 +583,7 @@ TEST(ObjectTest, AbsoluteDimensionConversion)
 
 TEST(ObjectTest, MutableObjects)
 {
-    ASSERT_FALSE(Object::EMPTY_RADII().isMutable());
+    ASSERT_FALSE(Object(Radii()).isMutable());
     ASSERT_FALSE(Object::NULL_OBJECT().isMutable());
 
     ASSERT_FALSE(Object::EMPTY_ARRAY().isMutable());
@@ -592,11 +597,7 @@ TEST(ObjectTest, MutableObjects)
     ASSERT_TRUE(Object(mapPtr, true).isMutable());
 
     // Check that retrieving the mutable map fails if the object is not marked as mutable
-    try {
-        Object(mapPtr).getMutableMap();
-        FAIL();
-    } catch (...) {
-    }
+    ASSERT_DEATH(Object(mapPtr).getMutableMap(), "Attempted to retrieve mutable map for non-mutable object");
 
     // Check that retrieving the mutable map succeeds if the object is marked as mutable
     ObjectMap& map = Object(mapPtr, true).getMutableMap();
@@ -606,13 +607,11 @@ TEST(ObjectTest, MutableObjects)
     auto arrayPtr = std::make_shared<ObjectArray>(ObjectArray{1,2,3,4});
     ASSERT_FALSE(Object(arrayPtr).isMutable());
     ASSERT_TRUE(Object(arrayPtr, true).isMutable());
+    ASSERT_EQ(Object(arrayPtr).toDebugString(), "Array<size=4>[1.000000, 2.000000, 3.000000, 4.000000, ]");
+    ASSERT_EQ(Object(arrayPtr).at(10), Object::NULL_OBJECT());
 
     // Check that retrieving the mutable array fails if the object is not marked as mutable
-    try {
-        Object(arrayPtr).getMutableArray();
-        FAIL();
-    } catch (...) {
-    }
+    ASSERT_DEATH(Object(arrayPtr).getMutableArray(), "Attempted to retrieve mutable array for non-mutable object");
 
     // Check that retrieving the mutable array succeeds if the object is marked as mutable
     ObjectArray& array = Object(arrayPtr, true).getMutableArray();
@@ -622,11 +621,7 @@ TEST(ObjectTest, MutableObjects)
     ASSERT_FALSE(Object(ObjectArray{1,2}).isMutable());
     ASSERT_TRUE(Object(ObjectArray{2,3}, true).isMutable());
 
-    try {
-        Object(ObjectArray{1,2,3}).getMutableArray();
-        FAIL();
-    } catch (...) {
-    }
+    ASSERT_DEATH(Object(ObjectArray{1,2,3}).getMutableArray(), "Attempted to retrieve mutable array for non-mutable object");
 
     array = Object(ObjectArray{2,3,4}, true).getMutableArray();
     ASSERT_EQ(3, array.size());
@@ -852,4 +847,44 @@ TEST_F(DocumentObjectTest, MapComparison)
     ASSERT_TRUE(Object(objectMap2) == Object(jsonMap2));
     ASSERT_TRUE(Object(jsonMap1) != Object(objectMap3));
     ASSERT_TRUE(Object(objectMap1) != Object(jsonMap3));
+}
+
+static const char * STYLED_TEXT_CAST = R"apl({
+  "type": "APL",
+  "version": "2022.2",
+  "mainTemplate": {
+    "item": {
+      "type": "Text",
+      "text": "10.5"
+    }
+  }
+})apl";
+
+TEST_F(DocumentObjectTest, StyledTextCast)
+{
+    loadDocument(STYLED_TEXT_CAST);
+    auto st = component->getProperty(kPropertyText);
+    ASSERT_EQ(st.asNumber(), 10.5);
+    ASSERT_EQ(st.asInt(), 10);
+    ASSERT_EQ(st.asInt64(), 10);
+}
+
+TEST_F(DocumentObjectTest, Truthy)
+{
+    loadDocument(STYLED_TEXT_CAST);
+    ASSERT_TRUE(Object(ComponentEventSourceWrapper::create(component, "", Object::NULL_OBJECT())).truthy());
+    ASSERT_FALSE(Object(ComponentEventSourceWrapper::create(nullptr, "", Object::NULL_OBJECT())).truthy());
+}
+
+TEST_F(DocumentObjectTest, LiveDataAccess)
+{
+    loadDocument(STYLED_TEXT_CAST);
+    auto liveMap = Object(LiveDataObject::create(LiveMap::create(), context, "MAPPY")->asMap());
+    ASSERT_TRUE(liveMap.isMap());
+    ASSERT_TRUE(liveMap.isTrueMap());
+    ASSERT_TRUE(liveMap.getLiveDataObject());
+
+    auto liveArray = Object(LiveDataObject::create(LiveArray::create(), context, "ARRAYI")->asArray());
+    ASSERT_TRUE(liveArray.isArray());
+    ASSERT_TRUE(liveArray.getLiveDataObject());
 }

@@ -67,16 +67,7 @@ LocalExtensionProxy::getRegistrationInternal(const std::string& uri,
     }
 
     // request the schema from the extension
-    rapidjson::Document registration;
-    try {
-        registration = processRegistration(registrationRequest);
-    } catch (const std::exception& e) {
-        errorCode = kErrorExtensionException;
-        errorMsg = e.what();
-    } catch (...) {
-        errorCode = kErrorException;
-        errorMsg = sErrorMessage[kErrorException];
-    }
+    auto registration = processRegistration(registrationRequest);
 
     // failed schema creation notify failure callback
     if (registration.IsNull() || registration.HasParseError()) {
@@ -256,16 +247,7 @@ LocalExtensionProxy::invokeCommandInternal(const std::string& uri,
     // invoke the extension command
     int errorCode = kErrorNone;
     std::string errorMsg;
-    bool result = false;
-    try {
-        result = processCommand(command);
-    } catch (const std::exception& e) {
-        errorCode = kErrorExtensionException;
-        errorMsg = e.what();
-    } catch (...) {
-        errorCode = kErrorException;
-        errorMsg = sErrorMessage[kErrorException];
-    }
+    auto result = processCommand(command);
 
     // failed command invocation
     if (!result) {

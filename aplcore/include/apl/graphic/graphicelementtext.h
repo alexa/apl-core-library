@@ -17,6 +17,7 @@
 #define _APL_GRAPHIC_ELEMENT_TEXT_H
 
 #include "apl/graphic/graphicelement.h"
+#include "apl/primitives/point.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/textproperties.h"
 #endif // SCENEGRAPH
@@ -31,9 +32,8 @@ public:
     GraphicElementText(const GraphicPtr& graphic, const ContextPtr& context) : GraphicElement(graphic, context) {}
     GraphicElementType getType() const override { return kGraphicElementTypeText; }
 
-    std::string toDebugString() const override
-    {
-        return "GraphicElementText<text=" + getValue(kGraphicPropertyText).asString() +">";
+    std::string toDebugString() const override {
+        return std::string("GraphicElementText<") + mUniqueId + ">";
     }
 
 protected:

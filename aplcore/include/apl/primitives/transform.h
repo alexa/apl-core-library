@@ -16,8 +16,8 @@
 #ifndef _APL_TRANSFORM_H
 #define _APL_TRANSFORM_H
 
-#include "object.h"
-#include "transform2d.h"
+#include "apl/primitives/objecttype.h"
+#include "apl/primitives/transform2d.h"
 #include "apl/primitives/dimension.h"
 
 namespace apl {
@@ -39,8 +39,6 @@ public:
      */
     virtual Transform2D evaluate(float width, float height) const = 0;
 
-    virtual bool canInterpolate(Transform& other) const = 0;
-
     virtual Transform2D interpolate(Transform& other, float alpha, float width, float height) const = 0;
 
     virtual Type getType() const = 0;
@@ -53,7 +51,7 @@ public:
  * We rotate, scale, and skew about the origin of a component.  We need the WIDTH and HEIGHT in order to interpret
  * relative dimensions.
  */
-class Transformation {
+class Transformation : public ObjectData {
 public:
     virtual ~Transformation() {}
 
@@ -65,6 +63,8 @@ public:
      */
     static std::shared_ptr<Transformation> create(const Context& context, const std::vector<Object>& array);
 
+    // Disambiguate virtual below.
+    Object get(const std::string &key) const override { return Object::NULL_OBJECT(); }
 
      /**
       * Calculate the transformation, given a width and height of the component
@@ -73,6 +73,20 @@ public:
       * @return The transformation
       */
     virtual Transform2D get(float width, float height) = 0;
+
+    std::string toDebugString() const override {
+        return "Transform<>";
+    }
+
+    class ObjectType final : public PointerHolderObjectType<Transformation> {
+    public:
+        rapidjson::Value serialize(
+            const Object::DataHolder&,
+            rapidjson::Document::AllocatorType& allocator) const override
+        {
+            return rapidjson::Value("TRANSFORM", allocator);
+        }
+    };
 };
 
 /**

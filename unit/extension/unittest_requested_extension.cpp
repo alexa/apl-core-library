@@ -450,7 +450,7 @@ TEST_F(RequestedExtensionTest, ExtensionWithSimpleConfig) {
 
     // verify config and environment for boolean
     auto c = config->getExtensionEnvironment("_URIXcolor");
-    ASSERT_TRUE(c.isColor());
+    ASSERT_TRUE(c.is<Color>());
     ASSERT_EQ(Color::BLUE, c.getColor());
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), evaluate(*context, "${environment.extension.Xcolor}")));
 }

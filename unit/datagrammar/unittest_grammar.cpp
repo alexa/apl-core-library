@@ -1062,7 +1062,7 @@ TEST_F(GrammarTest, RangeAsArray)
 
     // Use getArray on a RangeGenerator
     auto range = evaluate(*c, "${Array.range(10)}");
-    ASSERT_EQ(Object::kArrayType, range.getType());
+    ASSERT_TRUE(range.isArray());
     ASSERT_EQ(10, range.size());
     ASSERT_EQ(10, range.getArray().size());
     const auto expected = ObjectArray{0,1,2,3,4,5,6,7,8,9};
@@ -1070,7 +1070,7 @@ TEST_F(GrammarTest, RangeAsArray)
 
     // Try a zero-size array
     range = evaluate(*c, "${Array.range(-2)}");
-    ASSERT_EQ(Object::kArrayType, range.getType());
+    ASSERT_TRUE(range.isArray());
     ASSERT_EQ(0, range.size());
     ASSERT_EQ(0, range.getArray().size());
     ASSERT_EQ(ObjectArray{}, range.getArray());
@@ -1128,7 +1128,7 @@ TEST_F(GrammarTest, SliceAsArray)
 
     // Use getArray on a SliceGenerator
     auto range = evaluate(*c, "${Array.slice(a1, 4)}");
-    ASSERT_EQ(Object::kArrayType, range.getType());
+    ASSERT_TRUE(range.isArray());
     ASSERT_EQ(2, range.size());
     ASSERT_EQ(2, range.getArray().size());
     const auto expected = ObjectArray{105,106};
@@ -1136,7 +1136,7 @@ TEST_F(GrammarTest, SliceAsArray)
 
     // Try a zero-size array
     range = evaluate(*c, "${Array.slice(a1,10)}");
-    ASSERT_EQ(Object::kArrayType, range.getType());
+    ASSERT_TRUE(range.isArray());
     ASSERT_EQ(0, range.size());
     ASSERT_EQ(0, range.getArray().size());
     ASSERT_EQ(ObjectArray{}, range.getArray());

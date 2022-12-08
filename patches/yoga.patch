@@ -1,3 +1,12 @@
+diff --git a/.gitignore b/.gitignore
+index 44f230ed..ddb5fae1 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -68,3 +68,4 @@ Carthage/Build
+ .gradle
+ # NDK/CMake
+ .externalNativeBuild
++/cmake-build-debug/
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 018c269f..5a1a73c8 100644
 --- a/CMakeLists.txt
@@ -162,6 +171,33 @@ index 56aa299d..79f38e2c 100644
  
  TEST(YogaTest, copy_style_same) {
    const YGNodeRef node0 = YGNodeNew();
+diff --git a/yoga/Utils.cpp b/yoga/Utils.cpp
+index eaa74b06..a431cffb 100644
+--- a/yoga/Utils.cpp
++++ b/yoga/Utils.cpp
+@@ -6,7 +6,11 @@
+  */
+ 
+ #include "Utils.h"
++#if defined( __cpp_exceptions )
+ #include <stdexcept>
++#else
++#include <exception>
++#endif
+ 
+ using namespace facebook;
+ 
+@@ -75,5 +79,10 @@ YGFloatOptional YGFloatOptionalMax(YGFloatOptional op1, YGFloatOptional op2) {
+ }
+ 
+ void throwLogicalErrorWithMessage(const char* message) {
++#if defined( __cpp_exceptions )
+   throw std::logic_error(message);
++#else
++  perror(message);
++  std::terminate();
++#endif
+ }
 diff --git a/yoga/YGNode.cpp b/yoga/YGNode.cpp
 index f4c14bf3..aaa5cf7a 100644
 --- a/yoga/YGNode.cpp

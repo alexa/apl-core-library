@@ -21,14 +21,12 @@ namespace timegrammar {
 std::string
 timeToString(const std::string& format, double time)
 {
-    try {
-        time_state state(time);
-        pegtl::string_input<> in(format, "");
-        pegtl::parse<grammar, action>(in, state);
+    time_state state(time);
+    pegtl::string_input<> in(format, "");
+    if (!pegtl::parse<grammar, action, apl_control>(in, state) || state.failed) {
+        LOG(LogLevel::kError) << "Error in '" << format << "', " << state.what();
+    } else {
         return state.mString;
-    }
-    catch (parse_error e) {
-        LOG(LogLevel::kError) << "Error in '" << format << "', " << e.what();
     }
 
     return "";

@@ -20,7 +20,7 @@
 namespace apl {
 
 Component::Component(const ContextPtr& context, const std::string& id)
-    : UIDObject(context),
+    : UIDObject(context, UIDObject::UIDObjectType::COMPONENT),
       mId(id)
 {
 }
@@ -62,11 +62,11 @@ Component::clearDirty() {
 bool
 Component::getBoundsInParent(const ComponentPtr& ancestor, Rect& out) const
 {
-    out = mCalculated.get(kPropertyBounds).getRect();
+    out = mCalculated.get(kPropertyBounds).get<Rect>();
 
     ComponentPtr parent = getParent();
     while (parent && parent != ancestor) {
-        out.offset(parent->getCalculated(kPropertyBounds).getRect().getTopLeft() - parent->scrollPosition());
+        out.offset(parent->getCalculated(kPropertyBounds).get<Rect>().getTopLeft() - parent->scrollPosition());
         parent = parent->getParent();
     }
     return parent == ancestor;

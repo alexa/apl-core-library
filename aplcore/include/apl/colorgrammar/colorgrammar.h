@@ -27,6 +27,8 @@
 #include "apl/primitives/color.h"
 #include "colorfunctions.h"
 
+#include "apl/datagrammar/grammarpolyfill.h"
+
 #include "apl/utils/log.h"
 #include "apl/utils/stringfunctions.h"
 
@@ -35,7 +37,7 @@ namespace colorgrammar {
     namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
     using namespace pegtl;
 
-    static bool DEBUG_GRAMMAR = false;
+    static const bool DEBUG_GRAMMAR = false;
 
     /**
      * \cond ShowColorGrammar
@@ -65,7 +67,7 @@ namespace colorgrammar {
         : pegtl::nothing< Rule > {
         };
 
-    struct color_state
+    struct color_state : fail_state
     {
         std::stack<double> mStack;
 
@@ -74,14 +76,12 @@ namespace colorgrammar {
         uint32_t getColor() {return (uint32_t) mStack.top();}
     };
 
-    /*
-     * The first argument to a function call pushes a sentinel on the stack (the value -1).
-     */
-    template<> struct action< firstarg >
+    // Push a sentinel on the stack with the opening parenthesis
+    template<> struct action< one<'('> >
     {
         template< typename Input >
         static void apply(const Input& in, color_state& state) {
-            LOGF_IF(DEBUG_GRAMMAR, "Firstarg: '%s'", in.string().c_str());
+            if (state.failed) return;
             state.push(-1);
         }
     };
@@ -93,10 +93,13 @@ namespace colorgrammar {
     {
         template< typename Input >
         static void apply( const Input& in, color_state& state ) {
+            if (state.failed) return;
             uint32_t color;
 
-            if (!colorFromHex(in.string(), color))
-                throw parse_error("Invalid hexidecimal color", in);
+            if (!colorFromHex(in.string(), color)) {
+                state.fail("Invalid hexidecimal color", in);
+                return;
+            }
 
             LOGF_IF(DEBUG_GRAMMAR, "Hexidecimal: '%s' -> %08x", in.string().c_str(), color);
             state.push(color);
@@ -111,6 +114,7 @@ namespace colorgrammar {
     {
         template< typename Input >
         static void apply( const Input& in, color_state& state) {
+            if (state.failed) return;
             std::string s(in.string());
 
             double value;
@@ -133,9 +137,14 @@ namespace colorgrammar {
     {
         template< typename Input >
         static void apply(const Input& in, color_state& state) {
+            if (state.failed) return;
+
             auto result = Color::lookup(in.string());
             if (!result.first) {
-                throw parse_error((std::string("Invalid named color: '") + in.string()).c_str() + std::string("'"), in);
+                state.fail(
+                    std::string("Invalid named color: '") + in.string() + std::string("'"),
+                    in);
+                return;
             }
 
             LOGF_IF(DEBUG_GRAMMAR, "Color map: '%s'", in.string().c_str());
@@ -155,21 +164,24 @@ namespace colorgrammar {
     {
         template< typename Input >
         static void apply( const Input& in, color_state& state) {
+            if (state.failed) return;
+
             double v;
             double args[4];
             int argc = 0;
 
             while ((v = state.pop()) != -1) {
-                if (argc >= 3)
-                    throw parse_error("too many arguments in an hsl function", in);
+                if (argc > 3) {
+                    state.fail("too many arguments in an hsl function", in);
+                    return;
+                }
                 args[argc++] = v;
             }
 
-            // Grab the last argument (it was behind the sentinel)
-            args[argc++] = state.pop();
-
-            if (argc < 3)
-                throw parse_error("expected at least three arguments for an hsl function", in);
+            if (argc < 3) {
+                state.fail("expected at least three arguments for an hsl function", in);
+                return;
+            }
 
             if (argc == 3)
                 state.push(colorFromHSL(args[2], args[1], args[0]));
@@ -189,21 +201,24 @@ namespace colorgrammar {
     {
         template< typename Input >
         static void apply( const Input& in, color_state& state) {
+            if (state.failed) return;
+
             double v;
             double args[4];
             int argc = 0;
 
             while ((v = state.pop()) != -1) {
-                if (argc >= 3)
-                    throw parse_error("too many arguments in a color function", in);
+                if (argc > 3) {
+                    state.fail("too many arguments in a color function", in);
+                    return;
+                }
                 args[argc++] = v;
             }
 
-            // Grab the last argument (it was behind the sentinel)
-            args[argc++] = state.pop();
-
-            if (argc < 2)
-                throw parse_error("expected at least two arguments for a color function", in);
+            if (argc < 2)  {
+                state.fail("expected at least two arguments for a color function", in);
+                return;
+            }
 
             if (argc == 2)
                 state.push(applyAlpha(args[1], args[0]));
@@ -217,20 +232,19 @@ namespace colorgrammar {
     // ****************** Error messages *******************
 
     template< typename Rule >
-    struct errors
-        : public pegtl::normal< Rule >
+    struct c_control : public apl_control< Rule >
     {
         static const std::string error_message;
 
         template< typename Input, typename ... States >
-        static void raise( const Input & in, States && ... )
+        static void raise( const Input & in, States &&... st)
         {
-            throw pegtl::parse_error( error_message, in );
+            apl_control<Rule>::fail(in, st...);
         }
     };
 
-    template<> const std::string errors< digits >::error_message = "expected at least one digit";
-    template<> const std::string errors< pegtl::eof >::error_message = "unexpected end";
+    template<> const std::string c_control< digits >::error_message = "expected at least one digit";
+    template<> const std::string c_control< pegtl::eof >::error_message = "unexpected end";
 
     /**
      * \endcond

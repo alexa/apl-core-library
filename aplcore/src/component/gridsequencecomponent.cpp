@@ -81,7 +81,7 @@ GridSequenceComponent::processLayoutChanges(bool useDirtyFlag, bool first)
     CoreComponent::processLayoutChanges(useDirtyFlag, first);
 
     //Calculate child sizes if needed.
-    auto bounds = getCalculated(kPropertyBounds).getRect();
+    const auto& bounds = getCalculated(kPropertyBounds).get<Rect>();
     auto childHeight = getCalculated(kPropertyChildHeight);
     auto childWidth = getCalculated(kPropertyChildWidth);
     if (mLastParentBounds != bounds || mLastChildHeight != childHeight || mLastChildWidth != childWidth) {
@@ -140,7 +140,7 @@ GridSequenceComponent::handlePropertyChange(const ComponentPropDef& def, const O
     MultiChildScrollableComponent::handlePropertyChange(def, value);
 
     if (def.key == kPropertyChildHeight || def.key == kPropertyChildWidth) {
-        auto gridComponent = std::dynamic_pointer_cast<GridSequenceComponent>(shared_from_this());
+        auto gridComponent = std::static_pointer_cast<GridSequenceComponent>(shared_from_corecomponent());
         gridComponent->processLayoutChanges(true, false);
     }
 }

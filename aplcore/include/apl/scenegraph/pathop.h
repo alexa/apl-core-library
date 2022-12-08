@@ -43,7 +43,8 @@ public:
 
     virtual ~PathOp() = default;
     virtual std::string toDebugString() const = 0;
-    bool visible() const { return paint && paint->visible(); }
+    virtual bool visible() const { return paint && paint->visible(); }
+    virtual float maxWidth() const { return 0; }
 
     const Type type;
     PaintPtr   paint;
@@ -78,6 +79,14 @@ public:
 
 class StrokePathOp : public PathOp {
     PATH_OP_SUBCLASS(StrokePathOp, kStroke);
+
+    bool visible() const override { return strokeWidth > 0 && PathOp::visible(); }
+    float maxWidth() const override {
+        // Miter joins stick out by a multiple of the line width
+        if (lineJoin == kGraphicLineJoinMiter)
+            return miterLimit * strokeWidth;
+        return strokeWidth;
+    }
 
     float strokeWidth = 1.0;
     float miterLimit = 4.0;

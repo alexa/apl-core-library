@@ -71,19 +71,35 @@ public:
 
 TEST_F(DimensionTest, Basic)
 {
-    EXPECT_TRUE(Dimension(*c, "auto").isAuto());
-    EXPECT_FALSE(Dimension(*c, "auto").isRelative());
-    EXPECT_FALSE(Dimension(*c, "auto").isAbsolute());
+    auto autoDim = Dimension(*c, "auto");
+    EXPECT_TRUE(autoDim.isAuto());
+    EXPECT_FALSE(autoDim.isRelative());
+    EXPECT_FALSE(autoDim.isAbsolute());
 
-    EXPECT_TRUE(Dimension(*c, "10px").isAbsolute());
-    EXPECT_FALSE(Dimension(*c, "10px").isRelative());
-    EXPECT_FALSE(Dimension(*c, "10px").isAuto());
-    EXPECT_EQ(5, Dimension(*c, "10px").getValue());
+    auto absoluteDim = Dimension(*c, "10px");
+    EXPECT_TRUE(absoluteDim.isAbsolute());
+    EXPECT_FALSE(absoluteDim.isRelative());
+    EXPECT_FALSE(absoluteDim.isAuto());
+    EXPECT_EQ(5, absoluteDim.getValue());
 
-    EXPECT_TRUE(Dimension(*c, "50%").isRelative());
-    EXPECT_FALSE(Dimension(*c, "50%").isAbsolute());
-    EXPECT_FALSE(Dimension(*c, "50%").isAuto());
-    EXPECT_EQ(50, Dimension(*c, "50%").getValue());
+    auto absoluteDimObj = Object(absoluteDim);
+    ASSERT_TRUE(absoluteDimObj.asDimension(*c).isAbsolute());
+    ASSERT_TRUE(absoluteDimObj.asAbsoluteDimension(*c).isAbsolute());
+    ASSERT_TRUE(absoluteDimObj.asNonAutoDimension(*c).isAbsolute());
+    ASSERT_TRUE(absoluteDimObj.asNonAutoRelativeDimension(*c).isAbsolute());
+    ASSERT_EQ("AbsDim<5.000000>", absoluteDimObj.toDebugString());
+
+    auto relativeDim = Dimension(*c, "50%");
+    EXPECT_TRUE(relativeDim.isRelative());
+    EXPECT_FALSE(relativeDim.isAbsolute());
+    EXPECT_FALSE(relativeDim.isAuto());
+    EXPECT_EQ(50, relativeDim.getValue());
+
+    auto relativeDimObj = Object(relativeDim);
+    ASSERT_TRUE(relativeDimObj.asDimension(*c).isRelative());
+    ASSERT_TRUE(relativeDimObj.asNonAutoDimension(*c).isRelative());
+    ASSERT_TRUE(relativeDimObj.asNonAutoRelativeDimension(*c).isRelative());
+    ASSERT_EQ("RelDim<50.000000>", relativeDimObj.toDebugString());
 
     EXPECT_TRUE(Dimension(*c, "     auto  ").isAuto());
 

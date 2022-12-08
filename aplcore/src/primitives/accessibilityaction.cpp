@@ -75,8 +75,8 @@ AccessibilityAction::create(const CoreComponentPtr& component, const Object& obj
 {
     auto context = component->getContext();
 
-    if (object.isAccessibilityAction())
-        return object.getAccessibilityAction();
+    if (object.is<AccessibilityAction>())
+        return object.get<AccessibilityAction>();
 
     if (!object.isMap()) {
         CONSOLE(context) << "Invalid accessibility action";

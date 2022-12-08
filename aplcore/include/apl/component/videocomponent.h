@@ -38,7 +38,7 @@ public:
 
     std::string getCurrentUrl() const;
 
-    MediaPlayerPtr getMediaPlayer() const { return mMediaPlayer; }
+    MediaPlayerPtr getMediaPlayer() const override { return mMediaPlayer; }
 
     /**
      * Detach media player from the component.
@@ -50,6 +50,12 @@ public:
      * @param player MediaPlayer.
      */
     void attachPlayer(const MediaPlayerPtr& player);
+
+    /**
+     * @param component Pointer to cast.
+     * @return Casted pointer to this type, nullptr if not possible.
+     */
+    static std::shared_ptr<VideoComponent> cast(const std::shared_ptr<Component>& component);
 
 protected:
     const EventPropertyMap & eventPropertyMap() const override;

@@ -60,12 +60,12 @@ TEST_F(GraphicComponentTest, SimpleTest)
     ASSERT_EQ( kVectorGraphicAlignCenter, component->getCalculated(kPropertyAlign).getInteger());
     ASSERT_EQ( kVectorGraphicScaleNone, component->getCalculated(kPropertyScale).getInteger());
     ASSERT_EQ( Object("box"), component->getCalculated(kPropertySource));
-    ASSERT_TRUE( component->getCalculated(kPropertyGraphic).isGraphic());
+    ASSERT_TRUE( component->getCalculated(kPropertyGraphic).is<Graphic>());
 
     // Check to see if the graphic will be drawn where we thought it should be
     ASSERT_EQ(Object(Rect(0, 0, 100, 100)), component->getCalculated(kPropertyMediaBounds));
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     ASSERT_EQ(100, graphic->getIntrinsicWidth());
@@ -124,13 +124,13 @@ TEST_F(GraphicComponentTest, BasicNoScale)
     ASSERT_EQ( kVectorGraphicAlignCenter, component->getCalculated(kPropertyAlign).getInteger());
     ASSERT_EQ( kVectorGraphicScaleNone, component->getCalculated(kPropertyScale).getInteger());
     ASSERT_EQ( Object("box"), component->getCalculated(kPropertySource));
-    ASSERT_TRUE( component->getCalculated(kPropertyGraphic).isGraphic());
+    ASSERT_TRUE( component->getCalculated(kPropertyGraphic).is<Graphic>());
 
     // Check to see if the graphic will be drawn where we thought it should be
     ASSERT_EQ(Object(Rect((metrics.getWidth() - 100)/2, (metrics.getHeight() - 100)/2, 100, 100)),
               component->getCalculated(kPropertyMediaBounds));
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     // The graphic element is not scaled, so it should be the original 100x100 size and centered
@@ -178,14 +178,14 @@ TEST_F(GraphicComponentTest, BasicBestFit)
     ASSERT_EQ( kVectorGraphicAlignCenter, component->getCalculated(kPropertyAlign).getInteger());
     ASSERT_EQ( kVectorGraphicScaleBestFit, component->getCalculated(kPropertyScale).getInteger());
     ASSERT_EQ( Object("box"), component->getCalculated(kPropertySource));
-    ASSERT_TRUE( component->getCalculated(kPropertyGraphic).isGraphic());
+    ASSERT_TRUE( component->getCalculated(kPropertyGraphic).is<Graphic>());
 
     // Check to see if the graphic will be drawn where we thought it should be
     double minSize = std::min(metrics.getWidth(), metrics.getHeight());
     ASSERT_EQ(Object(Rect((metrics.getWidth() - minSize)/2, (metrics.getHeight() - minSize) / 2, minSize, minSize)),
               component->getCalculated(kPropertyMediaBounds));
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     ASSERT_EQ(100, graphic->getIntrinsicWidth());
@@ -291,7 +291,7 @@ TEST_F(GraphicComponentTest, FitAndScale)
 
         root = RootContext::create(Metrics().size(1024, 800), content);
         ASSERT_TRUE(root) << "test case " << index;
-        component = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+        component = CoreComponent::cast(root->topComponent());
         ASSERT_TRUE(component) << "test case " << index;
 
         // Verify that the scale and align were set correctly
@@ -299,7 +299,7 @@ TEST_F(GraphicComponentTest, FitAndScale)
         ASSERT_EQ(Object(ftc.align), component->getCalculated(kPropertyAlign)) << "test case " << index;
 
         // Check that the media bounds have been set
-        ASSERT_EQ(component->getCalculated(kPropertyMediaBounds).getRect(), ftc.bounds) << "test case " << index;
+        ASSERT_EQ(component->getCalculated(kPropertyMediaBounds).get<Rect>(), ftc.bounds) << "test case " << index;
     }
 }
 
@@ -382,11 +382,11 @@ TEST_F(GraphicComponentTest, StretchAndGrow)
 
         root = RootContext::create(Metrics().size(1024, 800), content);
         ASSERT_TRUE(root) << "test case " << index;
-        component = std::dynamic_pointer_cast<CoreComponent>(root->topComponent());
+        component = CoreComponent::cast(root->topComponent());
         ASSERT_TRUE(component) << "test case " << index;
 
-        ASSERT_TRUE(component->getCalculated(kPropertyGraphic).isGraphic()) << "test case " << index;
-        auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+        ASSERT_TRUE(component->getCalculated(kPropertyGraphic).is<Graphic>()) << "test case " << index;
+        auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
         ASSERT_TRUE(graphic) << "test case " << index;
         auto top = graphic->getRoot();
 
@@ -452,7 +452,7 @@ TEST_F(GraphicComponentTest, StyleTest)
     ASSERT_EQ( kComponentTypeVectorGraphic, component->getType());
     ASSERT_EQ( Rect(0, 0, metrics.getWidth(), metrics.getHeight()), component->getGlobalBounds());
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     auto box = graphic->getRoot();
@@ -525,10 +525,10 @@ TEST_F(GraphicComponentTest, StyleTestWithAlignment)
     ASSERT_EQ( kComponentTypeVectorGraphic, component->getType());
     ASSERT_EQ( Rect(0, 0, metrics.getWidth(), metrics.getHeight()), component->getGlobalBounds());
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
-    ASSERT_EQ(Rect(0, 350, 100, 100), component->getCalculated(kPropertyMediaBounds).getRect());
+    ASSERT_EQ(Rect(0, 350, 100, 100), component->getCalculated(kPropertyMediaBounds).get<Rect>());
 
     auto box = graphic->getRoot();
     ASSERT_TRUE(box);
@@ -540,7 +540,7 @@ TEST_F(GraphicComponentTest, StyleTestWithAlignment)
     ASSERT_EQ(0, graphic->getDirty().size());
     component->setState(kStatePressed, true);
 
-    ASSERT_EQ(Rect(924, 350, 100, 100), component->getCalculated(kPropertyMediaBounds).getRect());
+    ASSERT_EQ(Rect(924, 350, 100, 100), component->getCalculated(kPropertyMediaBounds).get<Rect>());
     ASSERT_TRUE(CheckDirty(component, kPropertyAlign, kPropertyMediaBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(path));
 }
@@ -597,9 +597,9 @@ TEST_F(GraphicComponentTest, StyleTestWithStretch)
 
     ASSERT_EQ(kComponentTypeVectorGraphic, component->getType());
     ASSERT_EQ(Rect(0, 0, metrics.getWidth(), metrics.getHeight()), component->getGlobalBounds());
-    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyMediaBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyMediaBounds).get<Rect>());
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
     ASSERT_EQ(400, graphic->getViewportWidth());   // Factor of 4 = 1024 / 256
     ASSERT_EQ(1600, graphic->getViewportHeight()); // Factor of 16 = 800 / 50
@@ -641,7 +641,7 @@ TEST_F(GraphicComponentTest, StyleTestWithStretch)
     ASSERT_TRUE(CheckDirty(graphic, container, path));
 
     // The vector graphic component should have a new scale, alignment, and media bounds
-    ASSERT_EQ(Rect(768, 375, 256, 50), component->getCalculated(kPropertyMediaBounds).getRect());  // Right-aligned
+    ASSERT_EQ(Rect(768, 375, 256, 50), component->getCalculated(kPropertyMediaBounds).get<Rect>());  // Right-aligned
     ASSERT_TRUE(CheckDirty(component, kPropertyScale, kPropertyAlign, kPropertyMediaBounds, kPropertyGraphic,
                            kPropertyVisualHash));
 
@@ -699,9 +699,9 @@ TEST_F(GraphicComponentTest, SetValue)
 
     ASSERT_EQ(kComponentTypeVectorGraphic, component->getType());
     ASSERT_TRUE(IsEqual(Rect(0, 0, 512, 512), component->getGlobalBounds()));
-    ASSERT_TRUE(IsEqual(Rect(128, 192, 256, 128), component->getCalculated(kPropertyMediaBounds).getRect()));
+    ASSERT_TRUE(IsEqual(Rect(128, 192, 256, 128), component->getCalculated(kPropertyMediaBounds).get<Rect>()));
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
     ASSERT_EQ(100, graphic->getViewportWidth());
     ASSERT_EQ(100, graphic->getViewportHeight());
@@ -727,7 +727,7 @@ TEST_F(GraphicComponentTest, SetValue)
     ASSERT_TRUE(CheckDirty(graphic));
 
     // The vector graphic component should have a new alignment and media bounds
-    ASSERT_TRUE(IsEqual(Rect(256, 384, 256, 128), component->getCalculated(kPropertyMediaBounds).getRect()));
+    ASSERT_TRUE(IsEqual(Rect(256, 384, 256, 128), component->getCalculated(kPropertyMediaBounds).get<Rect>()));
     ASSERT_TRUE(CheckDirty(component, kPropertyAlign, kPropertyMediaBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 
@@ -755,7 +755,7 @@ TEST_F(GraphicComponentTest, SetValue)
     ASSERT_TRUE(CheckDirty(graphic, container, path));
 
     // The vector graphic component should have a new scale, alignment, and media bounds
-    ASSERT_TRUE(IsEqual(Rect(0, 256, 512, 256), component->getCalculated(kPropertyMediaBounds).getRect()));
+    ASSERT_TRUE(IsEqual(Rect(0, 256, 512, 256), component->getCalculated(kPropertyMediaBounds).get<Rect>()));
     ASSERT_TRUE(CheckDirty(component, kPropertyScale, kPropertyMediaBounds, kPropertyGraphic, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 }
@@ -815,13 +815,13 @@ TEST_F(GraphicComponentTest, RelayoutTest)
     // The top component is a Frame
     ASSERT_EQ(kComponentTypeFrame, component->getType());
     ASSERT_EQ(Rect(0, 0, metrics.getWidth(), metrics.getHeight()), component->getGlobalBounds());
-    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyInnerBounds).get<Rect>());
 
     auto vg = component->getChildAt(0);
     ASSERT_EQ(kComponentTypeVectorGraphic, vg->getType());
-    ASSERT_EQ(Rect(0, 0, 1024, 800), vg->getCalculated(kPropertyMediaBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 1024, 800), vg->getCalculated(kPropertyMediaBounds).get<Rect>());
 
-    auto graphic = vg->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = vg->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
     ASSERT_EQ(100, graphic->getViewportWidth());
     ASSERT_EQ(100, graphic->getViewportHeight());
@@ -838,10 +838,10 @@ TEST_F(GraphicComponentTest, RelayoutTest)
     root->clearPending();  // Ensure that the layout has been updated
 
     // The vector graphic component has new, smaller media bounds
-    ASSERT_EQ(Rect(0, 0, 824, 600), vg->getCalculated(kPropertyMediaBounds).getRect());
-    ASSERT_EQ(Rect(100, 100, 824, 600), vg->getCalculated(kPropertyBounds).getRect());  // Bounds in parent
+    ASSERT_EQ(Rect(0, 0, 824, 600), vg->getCalculated(kPropertyMediaBounds).get<Rect>());
+    ASSERT_EQ(Rect(100, 100, 824, 600), vg->getCalculated(kPropertyBounds).get<Rect>());  // Bounds in parent
     // The kPropertyGraphic is marked as dirty.  That's not right - it's merely resized
-    ASSERT_EQ(Rect(0, 0, 824, 600), vg->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 824, 600), vg->getCalculated(kPropertyInnerBounds).get<Rect>());
 
     // The container should have four updated values
     ASSERT_EQ(Object(Dimension(600)), container->getValue(kGraphicPropertyHeightActual));
@@ -852,7 +852,7 @@ TEST_F(GraphicComponentTest, RelayoutTest)
 
     // The border width has changed on the frame.
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyBorderWidth));
-    ASSERT_EQ(Rect(100, 100, 824, 600), component->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(100, 100, 824, 600), component->getCalculated(kPropertyInnerBounds).get<Rect>());
     ASSERT_TRUE(CheckDirty(component, kPropertyInnerBounds, kPropertyBorderWidth, kPropertyNotifyChildrenChanged,
                            kPropertyVisualHash, kPropertyDrawnBorderWidth));
 
@@ -919,7 +919,7 @@ TEST_F(GraphicComponentTest, AssignGraphicLater) {
     // The top component is the graphic, but there is no content
     ASSERT_EQ(kComponentTypeVectorGraphic, component->getType());
     ASSERT_EQ(Rect(0, 0, metrics.getWidth(), metrics.getHeight()), component->getGlobalBounds());
-    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyInnerBounds).get<Rect>());
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyGraphic));
     ASSERT_EQ(Object(kVectorGraphicAlignCenter), component->getCalculated(kPropertyAlign));
     ASSERT_EQ(Object(kVectorGraphicScaleFill), component->getCalculated(kPropertyScale));
@@ -934,7 +934,7 @@ TEST_F(GraphicComponentTest, AssignGraphicLater) {
     ASSERT_TRUE(CheckDirty(component, kPropertyGraphic, kPropertyMediaBounds, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     auto top = graphic->getRoot();
     auto path = top->getChildAt(0);
 
@@ -1007,8 +1007,8 @@ TEST_F(GraphicComponentTest, GraphicParameter) {
     auto stretch = component->getChildAt(1);
 
     auto obj = none->getCalculated(kPropertyGraphic);
-    ASSERT_EQ(obj.getType(), Object::kGraphicType);
-    auto graphic = obj.getGraphic();
+    ASSERT_TRUE(obj.is<Graphic>());
+    auto graphic = obj.get<Graphic>();
     ASSERT_TRUE(graphic->getRoot() != nullptr);
     ASSERT_EQ(graphic->getRoot()->getChildCount(), 1);
     auto path = graphic->getRoot()->getChildAt(0);
@@ -1016,8 +1016,8 @@ TEST_F(GraphicComponentTest, GraphicParameter) {
     ASSERT_EQ("M25,50 a25,25 0 1 1 50,0 l0 0 a25,25 0 1 1 -50,0 z", pathData.asString());
 
     obj = stretch->getCalculated(kPropertyGraphic);
-    ASSERT_EQ(obj.getType(), Object::kGraphicType);
-    graphic = obj.getGraphic();
+    ASSERT_TRUE(obj.is<Graphic>());
+    graphic = obj.get<Graphic>();
     ASSERT_TRUE(graphic->getRoot() != nullptr);
     ASSERT_EQ(graphic->getRoot()->getChildCount(), 1);
     path = graphic->getRoot()->getChildAt(0);
@@ -1101,8 +1101,8 @@ TEST_F(GraphicComponentTest, GraphicFocusAndHover) {
     ASSERT_EQ(kComponentTypeVectorGraphic, gc->getType());
 
     auto obj = gc->getCalculated(kPropertyGraphic);
-    ASSERT_EQ(obj.getType(), Object::kGraphicType);
-    auto graphic = obj.getGraphic();
+    ASSERT_TRUE(obj.is<Graphic>());
+    auto graphic = obj.get<Graphic>();
     ASSERT_TRUE(graphic->getRoot() != nullptr);
     ASSERT_EQ(graphic->getRoot()->getChildCount(), 1);
     auto path = graphic->getRoot()->getChildAt(0);
@@ -1579,7 +1579,7 @@ TEST_F(GraphicComponentTest, ExternalExpandedStyling)
 {
     loadDocument(EXTERNAL_EXPANDED_STYLING_DOC);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
 
     auto group = graphic->getRoot()->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypeGroup, group->getType());
@@ -1743,13 +1743,13 @@ TEST_F(GraphicComponentTest, StyleEverything)
 {
     loadDocument(STYLE_EVERYTHING_DOC);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
 
     auto group = graphic->getRoot()->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypeGroup, group->getType());
     ASSERT_EQ(0.7, group->getValue(kGraphicPropertyOpacity).asNumber());
     ASSERT_EQ("M 50 0 L 100 50 L 50 100 L 0 50 z", group->getValue(kGraphicPropertyClipPath).asString());
-    ASSERT_EQ(Transform2D::rotate(5), group->getValue(kGraphicPropertyTransform).getTransform2D());
+    ASSERT_EQ(Transform2D::rotate(5), group->getValue(kGraphicPropertyTransform).get<Transform2D>());
 
 
     auto fillTransform = Transform2D::translate(-36, 45.5);
@@ -1758,8 +1758,8 @@ TEST_F(GraphicComponentTest, StyleEverything)
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     auto fill = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fill.isGraphicPattern());
-    auto fillPattern = fill.getGraphicPattern();
+    ASSERT_TRUE(fill.is<GraphicPattern>());
+    auto fillPattern = fill.get<GraphicPattern>();
     auto fillPatternPath = fillPattern->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypePath, fillPatternPath->getType());
     ASSERT_EQ(Color::RED, fillPatternPath->getValue(kGraphicPropertyFill).getColor());
@@ -1768,8 +1768,8 @@ TEST_F(GraphicComponentTest, StyleEverything)
     ASSERT_EQ("M 50 0 L 100 50 L 50 100 L 0 50 z", path->getValue(kGraphicPropertyPathData).asString());
     ASSERT_EQ(50, path->getValue(kGraphicPropertyPathLength).asNumber());
 
-    ASSERT_TRUE(path->getValue(kGraphicPropertyStroke).isGradient());
-    auto stroke = path->getValue(kGraphicPropertyStroke).getGradient();
+    ASSERT_TRUE(path->getValue(kGraphicPropertyStroke).is<Gradient>());
+    auto stroke = path->getValue(kGraphicPropertyStroke).get<Gradient>();
     ASSERT_EQ(Gradient::LINEAR, stroke.getProperty(kGradientPropertyType).asInt());
     auto colorRange = stroke.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
@@ -1796,16 +1796,16 @@ TEST_F(GraphicComponentTest, StyleEverything)
     ASSERT_EQ(3, path->getValue(kGraphicPropertyStrokeMiterLimit).asNumber());
     ASSERT_EQ(1.0, path->getValue(kGraphicPropertyStrokeOpacity).asNumber());
     ASSERT_EQ(4, path->getValue(kGraphicPropertyStrokeWidth).asNumber());
-    ASSERT_EQ(fillTransform, path->getValue(kGraphicPropertyFillTransform).getTransform2D());
-    ASSERT_EQ(strokeTransform, path->getValue(kGraphicPropertyStrokeTransform).getTransform2D());
+    ASSERT_EQ(fillTransform, path->getValue(kGraphicPropertyFillTransform).get<Transform2D>());
+    ASSERT_EQ(strokeTransform, path->getValue(kGraphicPropertyStrokeTransform).get<Transform2D>());
 
 
     auto text = group->getChildAt(1);
     ASSERT_EQ(kGraphicElementTypeText, text->getType());
 
     fill = text->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fill.isGraphicPattern());
-    fillPattern = fill.getGraphicPattern();
+    ASSERT_TRUE(fill.is<GraphicPattern>());
+    fillPattern = fill.get<GraphicPattern>();
     fillPatternPath = fillPattern->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypePath, fillPatternPath->getType());
     ASSERT_EQ(Color::RED, fillPatternPath->getValue(kGraphicPropertyFill).getColor());
@@ -1817,14 +1817,14 @@ TEST_F(GraphicComponentTest, StyleEverything)
     ASSERT_EQ(700, text->getValue(kGraphicPropertyFontWeight).asNumber());
     ASSERT_EQ(1, text->getValue(kGraphicPropertyLetterSpacing).asNumber());
     ASSERT_EQ("Texty text", text->getValue(kGraphicPropertyText).asString());
-    ASSERT_TRUE(text->getValue(kGraphicPropertyStroke).isGradient());
+    ASSERT_TRUE(text->getValue(kGraphicPropertyStroke).is<Gradient>());
     ASSERT_EQ(1.0, text->getValue(kGraphicPropertyStrokeOpacity).asNumber());
     ASSERT_EQ(4, text->getValue(kGraphicPropertyStrokeWidth).asNumber());
     ASSERT_EQ(kGraphicTextAnchorStart, text->getValue(kGraphicPropertyTextAnchor).asInt());
     ASSERT_EQ(2, text->getValue(kGraphicPropertyCoordinateX).asNumber());
     ASSERT_EQ(3, text->getValue(kGraphicPropertyCoordinateY).asNumber());
-    ASSERT_EQ(fillTransform, text->getValue(kGraphicPropertyFillTransform).getTransform2D());
-    ASSERT_EQ(strokeTransform, text->getValue(kGraphicPropertyStrokeTransform).getTransform2D());
+    ASSERT_EQ(fillTransform, text->getValue(kGraphicPropertyFillTransform).get<Transform2D>());
+    ASSERT_EQ(strokeTransform, text->getValue(kGraphicPropertyStrokeTransform).get<Transform2D>());
 
     component->setState(StateProperty::kStateDisabled, true);
 
@@ -1847,12 +1847,12 @@ TEST_F(GraphicComponentTest, StyleEverything)
     transform *= Transform2D::rotate(-10);
     transform *= Transform2D::translate(-50, -75);
 
-    ASSERT_EQ(transform, group->getValue(kGraphicPropertyTransform).getTransform2D());
+    ASSERT_EQ(transform, group->getValue(kGraphicPropertyTransform).get<Transform2D>());
 
 
     fill = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fill.isGraphicPattern());
-    fillPattern = fill.getGraphicPattern();
+    ASSERT_TRUE(fill.is<GraphicPattern>());
+    fillPattern = fill.get<GraphicPattern>();
     fillPatternPath = fillPattern->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypePath, fillPatternPath->getType());
     ASSERT_EQ(Color::BLUE, fillPatternPath->getValue(kGraphicPropertyFill).getColor());
@@ -1861,8 +1861,8 @@ TEST_F(GraphicComponentTest, StyleEverything)
     ASSERT_EQ("M 25 0 L 50 25 L 25 50 L 0 25 z", path->getValue(kGraphicPropertyPathData).asString());
     ASSERT_EQ(40, path->getValue(kGraphicPropertyPathLength).asNumber());
 
-    ASSERT_TRUE(path->getValue(kGraphicPropertyStroke).isGradient());
-    stroke = path->getValue(kGraphicPropertyStroke).getGradient();
+    ASSERT_TRUE(path->getValue(kGraphicPropertyStroke).is<Gradient>());
+    stroke = path->getValue(kGraphicPropertyStroke).get<Gradient>();
     ASSERT_EQ(Gradient::LINEAR, stroke.getProperty(kGradientPropertyType).asInt());
     colorRange = stroke.getProperty(kGradientPropertyColorRange);
     ASSERT_EQ(2, colorRange.size());
@@ -1891,13 +1891,13 @@ TEST_F(GraphicComponentTest, StyleEverything)
     ASSERT_EQ(2, path->getValue(kGraphicPropertyStrokeWidth).asNumber());
     fillTransform *= Transform2D::skewX(40);
     strokeTransform *= Transform2D::scale(0.7, 0.5);
-    ASSERT_EQ(fillTransform, path->getValue(kGraphicPropertyFillTransform).getTransform2D());
-    ASSERT_EQ(strokeTransform, path->getValue(kGraphicPropertyStrokeTransform).getTransform2D());
+    ASSERT_EQ(fillTransform, path->getValue(kGraphicPropertyFillTransform).get<Transform2D>());
+    ASSERT_EQ(strokeTransform, path->getValue(kGraphicPropertyStrokeTransform).get<Transform2D>());
 
 
     fill = text->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(fill.isGraphicPattern());
-    fillPattern = fill.getGraphicPattern();
+    ASSERT_TRUE(fill.is<GraphicPattern>());
+    fillPattern = fill.get<GraphicPattern>();
     fillPatternPath = fillPattern->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypePath, fillPatternPath->getType());
     ASSERT_EQ(Color::BLUE, fillPatternPath->getValue(kGraphicPropertyFill).getColor());
@@ -1909,14 +1909,14 @@ TEST_F(GraphicComponentTest, StyleEverything)
     ASSERT_EQ(400, text->getValue(kGraphicPropertyFontWeight).asNumber());
     ASSERT_EQ(2, text->getValue(kGraphicPropertyLetterSpacing).asNumber());
     ASSERT_EQ("Less texty text", text->getValue(kGraphicPropertyText).asString());
-    ASSERT_TRUE(text->getValue(kGraphicPropertyStroke).isGradient());
+    ASSERT_TRUE(text->getValue(kGraphicPropertyStroke).is<Gradient>());
     ASSERT_EQ(0.9, text->getValue(kGraphicPropertyStrokeOpacity).asNumber());
     ASSERT_EQ(2, text->getValue(kGraphicPropertyStrokeWidth).asNumber());
     ASSERT_EQ(kGraphicTextAnchorMiddle, text->getValue(kGraphicPropertyTextAnchor).asInt());
     ASSERT_EQ(5, text->getValue(kGraphicPropertyCoordinateX).asNumber());
     ASSERT_EQ(7, text->getValue(kGraphicPropertyCoordinateY).asNumber());
-    ASSERT_EQ(fillTransform, text->getValue(kGraphicPropertyFillTransform).getTransform2D());
-    ASSERT_EQ(strokeTransform, text->getValue(kGraphicPropertyStrokeTransform).getTransform2D());
+    ASSERT_EQ(fillTransform, text->getValue(kGraphicPropertyFillTransform).get<Transform2D>());
+    ASSERT_EQ(strokeTransform, text->getValue(kGraphicPropertyStrokeTransform).get<Transform2D>());
 
 }
 
@@ -1997,19 +1997,19 @@ TEST_F(GraphicComponentTest, TransformInPattern)
 {
     loadDocument(TRANSFORM_IN_PATTERN);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
 
     auto path = graphic->getRoot()->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     auto strokePattern =  path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(strokePattern.isGraphicPattern());
+    ASSERT_TRUE(strokePattern.is<GraphicPattern>());
 
-    auto strokePatternGroup = strokePattern.getGraphicPattern()->getItems().at(0);
+    auto strokePatternGroup = strokePattern.get<GraphicPattern>()->getItems().at(0);
     ASSERT_EQ(kGraphicElementTypeGroup, strokePatternGroup->getType());
     ASSERT_EQ(Object(Transform2D::rotate(90)), strokePatternGroup->getValue(kGraphicPropertyTransform));
 
-    auto strokePatternPath = strokePattern.getGraphicPattern()->getItems().at(1);
+    auto strokePatternPath = strokePattern.get<GraphicPattern>()->getItems().at(1);
     ASSERT_EQ(kGraphicElementTypePath, strokePatternPath->getType());
     ASSERT_EQ(Object(Transform2D::rotate(7)), strokePatternPath->getValue(kGraphicPropertyStrokeTransform));
     ASSERT_EQ(Object(Transform2D::rotate(8)), strokePatternPath->getValue(kGraphicPropertyFillTransform));
@@ -2064,7 +2064,7 @@ static const char * SIMPLE_PRESS = R"(
 
 TEST_F(GraphicComponentTest, KeyboardPress) {
     loadDocument(SIMPLE_PRESS);
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     auto container = graphic->getRoot();
     ASSERT_TRUE(container);
     ASSERT_EQ(1, container->getChildCount());
@@ -2101,7 +2101,7 @@ TEST_F(GraphicComponentTest, KeyboardPress) {
 
 TEST_F(GraphicComponentTest, KeyboardPressNoFocus) {
     loadDocument(SIMPLE_PRESS);
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     auto container = graphic->getRoot();
     ASSERT_TRUE(container);
     ASSERT_EQ(1, container->getChildCount());
@@ -2718,7 +2718,7 @@ TEST_F(GraphicComponentTest, EnumParameterBinding)
 {
     loadDocument(ENUM_PARAMETER_BINDING);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
 
     auto path = graphic->getRoot()->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypePath, path->getType());

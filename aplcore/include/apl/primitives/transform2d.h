@@ -25,6 +25,7 @@
 
 #include "apl/common.h"
 
+#include "apl/primitives/objecttype.h"
 #include "apl/primitives/point.h"
 #include "apl/primitives/rect.h"
 #include "rapidjson/document.h"
@@ -219,7 +220,7 @@ public:
     *
     * @return A new rectangle representing the axis aligned bounding box.
     */
-    Rect calculateAxisAlignedBoundingBox(const Rect& rect);
+    Rect calculateAxisAlignedBoundingBox(const Rect& rect) const;
 
     /**
      * Product of two transforms
@@ -261,6 +262,27 @@ public:
     }
 
     /**
+     * Apply this transform to a vector of the form [x1, y1, x2, y2, ..., xn, yn]
+     * @param points The vector of x,y pairs
+     * @return A vector where each x,y pair is transformed.
+     */
+    friend std::vector<float> operator*(const Transform2D& lhs, const std::vector<float>& points) {
+        auto len = points.size();
+        std::vector<float> result(len);
+        auto *in = points.data();
+        auto out = result.begin();
+
+        while (len > 1) {
+            *out++ = lhs.mData[0] * in[0] + lhs.mData[2] * in[1] + lhs.mData[4];
+            *out++ = lhs.mData[1] * in[0] + lhs.mData[3] * in[1] + lhs.mData[5];
+            in += 2;
+            len -= 2;
+        }
+
+        return result;
+    }
+
+    /**
      * @return True if this transformation is singular
      */
     bool singular() const {
@@ -277,7 +299,7 @@ public:
      */
      Transform2D inverse() const {
         if (empty())
-            return Transform2D();
+            return {};
 
         float d = mData[0] * mData[3] - mData[1] * mData[2];
         return Transform2D({mData[3] / d, -mData[1] / d, -mData[2] / d, mData[0] / d,
@@ -323,7 +345,7 @@ public:
             // Avoid serializing NaN that could be present in transforms by
             // serializing the singular transform [0, 0, 0, 0, 0, 0] instead
             // TODO: serialize the original transform instead, but using a different JSON encoding
-            for (int i = 0; i < mData.size(); i++) {
+            for (std::size_t i = 0; i < mData.size(); i++) {
                 v.PushBack(0.0f, allocator);
             }
         } else {
@@ -356,7 +378,20 @@ public:
         return true;
     }
 
+    /**
+     * Calculate the bounding box of a unit square after transformation.
+     * @return The width and height the covering bounding box
+     */
+    Point scaleExpansion() const {
+        return {std::max({0.0f, mData[0], mData[2], mData[0] + mData[2]}) -
+                    std::min({0.0f, mData[0], mData[2], mData[0] + mData[2]}),
+                std::max({0.0f, mData[1], mData[3], mData[1] + mData[3]}) -
+                    std::min({0.0f, mData[1], mData[3], mData[1] + mData[3]})};
+    }
+
     std::string toDebugString() const;
+
+    class ObjectType final : public ReferenceHolderObjectType<Transform2D> {};
 
 private:
     std::array<float, 6> mData;

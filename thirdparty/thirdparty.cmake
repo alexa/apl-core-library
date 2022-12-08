@@ -20,7 +20,7 @@ foreach(CACHE_VAR ${CACHE_VARS})
     endif()
 endforeach()
 
-set(EXT_CXX_ARGS "-std=c++11 ${WASM_FLAGS} ${CMAKE_CXX_FLAGS}")
+set(EXT_CXX_ARGS "-std=c++11 -fno-exceptions ${WASM_FLAGS} ${CMAKE_CXX_FLAGS}")
 if (BUILD_SHARED OR ENABLE_PIC)
     set(EXT_CXX_ARGS "${EXT_CXX_ARGS} -fPIC")
 endif()

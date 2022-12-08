@@ -543,7 +543,22 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandSeekToPositionSuccess)
                                  .uri("aplext:audioplayer:10")
                                  .name("SeekToPosition")
                                  .property("offset", 42);
+    bool gotUpdate = false;
+    mExtension->registerLiveDataUpdateCallback(
+            [&](const std::string &uri, const rapidjson::Value &liveDataUpdate) {
+                gotUpdate = true;
+                ASSERT_STREQ("LiveDataUpdate",
+                             GetWithDefault<const char *>(RegistrationSuccess::METHOD(), liveDataUpdate, ""));
+              ASSERT_STREQ("aplext:audioplayer:10",
+                           GetWithDefault<const char *>(RegistrationSuccess::TARGET(), liveDataUpdate, ""));
+                const Value *ops = LiveDataUpdate::OPERATIONS().Get(liveDataUpdate);
+                ASSERT_TRUE(ops);
+                ASSERT_TRUE(ops->IsArray() && ops->Size() == 2);
+                ASSERT_TRUE(CheckLiveData(ops->GetArray()[1], "Set", "offset", 42));
+            });
     auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    
+    ASSERT_TRUE(gotUpdate);
     ASSERT_TRUE(invoke);
     ASSERT_EQ("SEEK", mObserver->mCommand);
     ASSERT_EQ(42, mObserver->mParaNum);
@@ -1043,5 +1058,28 @@ TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivityFailure)
     mExtension->updatePlayerActivity("", 100);
     ASSERT_FALSE(gotUpdate);
     mExtension->updatePlayerActivity("PAUSED", -100);
-    ASSERT_FALSE(gotUpdate);
+    ASSERT_TRUE(gotUpdate);
+}
+
+/**
+ * Validates changing state always triggers an update.
+ */
+TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivityStateChange)
+{
+    ASSERT_TRUE(registerExtension());
+
+    int updateCount = 0;
+    mExtension->registerLiveDataUpdateCallback(
+        [&](const std::string &uri, const rapidjson::Value &liveDataUpdate) {
+            updateCount++;
+        });
+
+    mExtension->updatePlayerActivity("PAUSED", 0);
+    ASSERT_EQ(1, updateCount);
+    mExtension->updatePlayerActivity("PLAYING", 0);
+    ASSERT_EQ(2, updateCount);
+    mExtension->updatePlayerActivity("PLAYING", 50);
+    ASSERT_EQ(3, updateCount);
+    mExtension->updatePlaybackProgress(100);
+    ASSERT_EQ(4, updateCount);
 }

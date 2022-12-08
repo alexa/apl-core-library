@@ -36,6 +36,12 @@ TouchWrapperComponent::TouchWrapperComponent(const ContextPtr& context,
         : TouchableComponent(context, std::move(properties), path) {
 }
 
+std::shared_ptr<TouchWrapperComponent>
+TouchWrapperComponent::cast(const std::shared_ptr<Component>& component) {
+    return component && component->getType() == ComponentType::kComponentTypeTouchWrapper
+        ? std::static_pointer_cast<TouchWrapperComponent>(component) : nullptr;
+}
+
 const ComponentPropDefSet&
 TouchWrapperComponent::propDefSet() const {
     static ComponentPropDefSet sTouchWrapperComponentProperties(TouchableComponent::propDefSet());
@@ -44,7 +50,7 @@ TouchWrapperComponent::propDefSet() const {
 
 void
 TouchWrapperComponent::injectReplaceComponent(const CoreComponentPtr& child, bool above) {
-    auto bounds = getCalculated(kPropertyInnerBounds).getRect();
+    const auto& bounds = getCalculated(kPropertyInnerBounds).get<Rect>();
 
     insertChild(child, above ? 1 : 0, true);
 

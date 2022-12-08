@@ -57,7 +57,7 @@ TEST_F(DependantGraphicTest, Simple)
     ASSERT_TRUE(component);
 
     // Verify that the graphic was created and that the color is blue
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     auto box = graphic->getRoot();
@@ -129,7 +129,7 @@ TEST_F(DependantGraphicTest, Binding)
     ASSERT_TRUE(CheckDirty(component));
 
     // Verify that the graphic was created
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
     ASSERT_TRUE(CheckDirty(graphic));
 
@@ -226,7 +226,7 @@ TEST_F(DependantGraphicTest, ManyBindings)
     auto vg = component->getChildAt(0);
 
     // Verify that the graphic was created and that the color is blue
-    auto graphic = vg->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = vg->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
     ASSERT_TRUE(CheckDirty(graphic));
 
@@ -322,12 +322,12 @@ TEST_F(DependantGraphicTest, Transformed)
 {
     loadDocument(TRANSFORMED_DOC);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
 
     auto group = graphic->getRoot()->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypeGroup, group->getType());
 
-    auto transform = group->getValue(kGraphicPropertyTransform).getTransform2D();
+    auto transform = group->getValue(kGraphicPropertyTransform).get<Transform2D>();
     ASSERT_EQ(Transform2D::translate(-36, 45.5), transform);
 
     auto path = group->getChildAt(0);
@@ -336,11 +336,11 @@ TEST_F(DependantGraphicTest, Transformed)
     auto fill = path->getValue(kGraphicPropertyFill);
     ASSERT_EQ(Color::GREEN, fill.getColor());
 
-    auto fillTransform = path->getValue(kGraphicPropertyFillTransform).getTransform2D();
+    auto fillTransform = path->getValue(kGraphicPropertyFillTransform).get<Transform2D>();
     ASSERT_EQ(Transform2D::skewX(40), fillTransform);
 
-    ASSERT_TRUE(path->getValue(kGraphicPropertyStroke).isColor());
-    auto strokeTransform = path->getValue(kGraphicPropertyStrokeTransform).getTransform2D();
+    ASSERT_TRUE(path->getValue(kGraphicPropertyStroke).is<Color>());
+    auto strokeTransform = path->getValue(kGraphicPropertyStrokeTransform).get<Transform2D>();
     ASSERT_EQ(Transform2D::scale(0.7, 0.5), strokeTransform);
 
     executeCommand("SetValue", {{"componentId", "gc"},
@@ -351,10 +351,10 @@ TEST_F(DependantGraphicTest, Transformed)
                                 {"property",    "fillSkew"},
                                 {"value",       7}}, true);
 
-    transform = group->getValue(kGraphicPropertyTransform).getTransform2D();
+    transform = group->getValue(kGraphicPropertyTransform).get<Transform2D>();
     ASSERT_EQ(Transform2D::scale(0.7, 0.5), transform);
 
-    fillTransform = path->getValue(kGraphicPropertyFillTransform).getTransform2D();
+    fillTransform = path->getValue(kGraphicPropertyFillTransform).get<Transform2D>();
     ASSERT_EQ(Transform2D::skewX(7), fillTransform);
 }
 
@@ -412,7 +412,7 @@ TEST_F(DependantGraphicTest, ChangingGradient)
 {
     loadDocument(CHANGING_GRADIENT);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
 
     auto group = graphic->getRoot()->getChildAt(0);
     ASSERT_EQ(kGraphicElementTypeGroup, group->getType());
@@ -421,15 +421,15 @@ TEST_F(DependantGraphicTest, ChangingGradient)
     ASSERT_EQ(kGraphicElementTypePath, path->getType());
 
     auto pathGrad = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(pathGrad.isGradient());
-    ASSERT_EQ(Object(Color(Color::RED)), pathGrad.getGradient().getProperty(kGradientPropertyColorRange).at(0));
+    ASSERT_TRUE(pathGrad.is<Gradient>());
+    ASSERT_EQ(Object(Color(Color::RED)), pathGrad.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0));
 
     auto text = group->getChildAt(1);
     ASSERT_EQ(kGraphicElementTypeText, text->getType());
 
     auto textGrad = text->getValue(kGraphicPropertyStroke);
-    ASSERT_TRUE(textGrad.isGradient());
-    ASSERT_EQ(Object(Color(Color::RED)), textGrad.getGradient().getProperty(kGradientPropertyColorRange).at(0));
+    ASSERT_TRUE(textGrad.is<Gradient>());
+    ASSERT_EQ(Object(Color(Color::RED)), textGrad.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0));
 
     executeCommand("SetValue", {{"componentId", "gc"},
                                 {"property",    "gradientColor"},
@@ -439,12 +439,12 @@ TEST_F(DependantGraphicTest, ChangingGradient)
     ASSERT_TRUE(CheckDirty(text, kGraphicPropertyStroke));
 
     pathGrad = path->getValue(kGraphicPropertyFill);
-    ASSERT_TRUE(pathGrad.isGradient());
-    ASSERT_EQ(Object(Color(Color::GREEN)), pathGrad.getGradient().getProperty(kGradientPropertyColorRange).at(0));
+    ASSERT_TRUE(pathGrad.is<Gradient>());
+    ASSERT_EQ(Object(Color(Color::GREEN)), pathGrad.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0));
 
     textGrad = text->getValue(kGraphicPropertyStroke);
-    ASSERT_TRUE(textGrad.isGradient());
-    ASSERT_EQ(Object(Color(Color::GREEN)), textGrad.getGradient().getProperty(kGradientPropertyColorRange).at(0));
+    ASSERT_TRUE(textGrad.is<Gradient>());
+    ASSERT_EQ(Object(Color(Color::GREEN)), textGrad.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0));
 }
 
 static const char *STROKE_VARIATION_TEST = R"apl(
@@ -494,7 +494,7 @@ static const char *STROKE_VARIATION_TEST = R"apl(
 // Test that the stroke dash array can be dynamically updated
 TEST_F(DependantGraphicTest, StrokeVariation) {
     loadDocument(STROKE_VARIATION_TEST);
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     auto container = graphic->getRoot();
     ASSERT_TRUE(container);
 
@@ -565,7 +565,7 @@ static const char * PARAMETER_TEST =
 TEST_F(DependantGraphicTest, Parameter)
 {
     loadDocument(PARAMETER_TEST);
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     auto container = graphic->getRoot();
     ASSERT_TRUE(container);
 

@@ -16,6 +16,7 @@
 #include "apl/engine/binding.h"
 #include "apl/primitives/dimension.h"
 #include "apl/primitives/object.h"
+#include "apl/primitives/color.h"
 
 namespace apl {
 

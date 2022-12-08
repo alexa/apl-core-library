@@ -72,7 +72,7 @@ ControlMediaAction::start()
     auto mediaCommand = static_cast<CommandControlMedia>(mCommand->getValue(kCommandPropertyCommand).asInt());
     auto value = mCommand->getValue(kCommandPropertyValue);
 
-    auto videoComponent = std::dynamic_pointer_cast<VideoComponent>(mTarget);
+    auto videoComponent = VideoComponent::cast(mTarget);
     assert(videoComponent);
 
     auto mediaPlayer = videoComponent->getMediaPlayer();

@@ -18,8 +18,12 @@
 
 #include <algorithm>
 #include <iterator>
+#include <memory>
 #include <string>
+
 #include <rapidjson/document.h>
+
+#include "apl/primitives/objecttype.h"
 
 namespace apl {
 
@@ -292,6 +296,8 @@ public:
     std::string toDebugString() const;
 
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
+
+    class ObjectType final : public ReferenceHolderObjectType<Range> {};
 
 private:
     int mLowerBound;

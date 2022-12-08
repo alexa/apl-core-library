@@ -1,35 +1,132 @@
 diff --git a/.gitignore b/.gitignore
-index 454bccb..adfdd12 100644
+index 454bccb4..188270c9 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -1,3 +1,4 @@
+@@ -1,3 +1,6 @@
  *~
  build
  private
 +.vscode
++.idea
++cmake-build-debug
+diff --git a/doc/Changelog.md b/doc/Changelog.md
+index 6d7e71cc..ee82f97f 100644
+--- a/doc/Changelog.md
++++ b/doc/Changelog.md
+@@ -1,5 +1,10 @@
+ # Changelog
+ 
++## Patches
++
++* Removed some use of iostreams.
++* Added support for disabling exceptions with [`-fno-exceptions`](Installing-and-Using.md#disabling-exceptions).
++
+ ## 2.8.3
+ 
+ Released 2020-04-22
+diff --git a/doc/Installing-and-Using.md b/doc/Installing-and-Using.md
+index c1cd5e42..b0a972cb 100644
+--- a/doc/Installing-and-Using.md
++++ b/doc/Installing-and-Using.md
+@@ -4,6 +4,8 @@
+ 
+ * [Requirements](#requirements)
+ * [Installation Packages](#installation-packages)
++* [Disabling Exceptions](#disabling-exceptions)
++* [Disabling RTTI](#disabling-rtti)
+ * [Using Conan](#using-conan)
+ * [Using CMake](#using-cmake)
+   * [CMake Installation](#cmake-installation)
+@@ -40,6 +42,33 @@ sufficiently compatible platform).
+ The PEGTL is written with an emphasis on clean code and is compatible with
+ the `-pedantic`, `-Wall`, `-Wextra` and `-Werror` compiler switches.
+ 
++## Disabling Exceptions
++
++The PEGTL is compatible with `-fno-exceptions`, however:
++
++* The following rules are unavailable:
++  * `raise<>`.
++  * `try_catch<>`.
++  * `try_catch_type<>`.
++  * `must<>`.
++  * `if_must<>`.
++  * `if_must_else<>`.
++  * `list_must<>`.
++  * `opt_must<>`.
++  * `star_must<>`.
++* The following headers are unavailable:
++  * `tao/pegtl/contrib/http.hpp`.
++  * `tao/pegtl/contrib/integer.hpp`.
++  * `tao/pegtl/contrib/uri.hpp`.
++* The error control class template `must_if<>` is unavailable.
++* Some of our tests and examples are disabled (via `#if`).
++
++## Disabling RTTI
++
++The PEGTL is compatible with `-fno-rtti` on GCC, Clang, and MSVC.
++An exception are GCC 9.1 and GCC 9.2, see [bug #91155](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=91155).
++On unknown compilers, we use RTTI by default (for demangling), please report any such compiler and it might be possible to extend support for disabling RTTI for those compilers as well.
++
+ ## Installation Packages
+ 
+ Installation packages are available from several package managers.
+diff --git a/doc/README.md b/doc/README.md
+index 63e73be2..048c60d6 100644
+--- a/doc/README.md
++++ b/doc/README.md
+@@ -4,6 +4,8 @@
+ * [Getting Started](Getting-Started.md)
+ * [Installing and Using](Installing-and-Using.md)
+   * [Requirements](Installing-and-Using.md#requirements)
++  * [Disabling Exceptions](Installing-and-Using.md#disabling-exceptions)
++  * [Disabling RTTI](Installing-and-Using.md#disabling-rtti)
+   * [Installation Packages](Installing-and-Using.md#installation-packages)
+   * [Using Conan](Installing-and-Using.md#using-conan)
+   * [Using CMake](Installing-and-Using.md#using-cmake)
 diff --git a/include/tao/pegtl/analysis/analyze_cycles.hpp b/include/tao/pegtl/analysis/analyze_cycles.hpp
-index 697023f..71e059c 100644
+index 6222b04b..1fa2a96c 100644
 --- a/include/tao/pegtl/analysis/analyze_cycles.hpp
 +++ b/include/tao/pegtl/analysis/analyze_cycles.hpp
-@@ -10,7 +10,6 @@
+@@ -8,11 +8,15 @@
+ 
+ #include <map>
  #include <set>
- #include <stdexcept>
+-#include <stdexcept>
  
 -#include <iostream>
  #include <utility>
  
++#if !defined( __cpp_exceptions )
++#include <exception>
++#else
++#include <stdexcept>
++#endif
++
  #include "../config.hpp"
-@@ -90,7 +89,7 @@ namespace tao
+ 
+ #include "grammar_info.hpp"
+@@ -85,12 +89,17 @@ namespace tao
+                         return m_cache[ start->first ] = a;
+                      }
+                   }
++#if defined( __cpp_exceptions )
+                   throw std::logic_error( "code should be unreachable: invalid rule_type value" );  // NOLINT, LCOV_EXCL_LINE
++#else
++                  std::perror( "code should be unreachable: invalid rule_type value" );
++                  std::terminate();
++#endif
+                }
                 if( !accum ) {
                    ++m_problems;
                    if( m_verbose ) {
 -                     std::cout << "problem: cycle without progress detected at rule class " << start->first << std::endl;  // LCOV_EXCL_LINE
-+                     printf("problem: cycle without progress detected at rule class %s", start->first); // NOLINT, LCOV_EXCL_LINE
++                     printf("problem: cycle without progress detected at rule class %s", start->first.c_str()); // NOLINT, LCOV_EXCL_LINE
                    }
                 }
                 return m_cache[ start->first ] = accum;
 diff --git a/include/tao/pegtl/argv_input.hpp b/include/tao/pegtl/argv_input.hpp
-index e0b119f..da7d70e 100644
+index 75744a32..b8656b53 100644
 --- a/include/tao/pegtl/argv_input.hpp
 +++ b/include/tao/pegtl/argv_input.hpp
 @@ -5,7 +5,6 @@
@@ -51,8 +148,304 @@ index e0b119f..da7d70e 100644
           }
  
        }  // namespace internal
+diff --git a/include/tao/pegtl/ascii.hpp b/include/tao/pegtl/ascii.hpp
+index 51cb0e40..c69c4826 100644
+--- a/include/tao/pegtl/ascii.hpp
++++ b/include/tao/pegtl/ascii.hpp
+@@ -40,7 +40,7 @@ namespace tao
+          template< char Lo, char Hi > struct range : internal::range< internal::result_on_found::success, internal::peek_char, Lo, Hi > {};
+          template< char... Cs > struct ranges : internal::ranges< internal::peek_char, Cs... > {};
+          struct seven : internal::range< internal::result_on_found::success, internal::peek_char, char( 0 ), char( 127 ) > {};
+-         struct shebang : internal::if_must< false, internal::string< '#', '!' >, internal::until< internal::eolf > > {};
++         struct shebang : internal::seq< internal::string< '#', '!' >, internal::until< internal::eolf > > {};
+          struct space : internal::one< internal::result_on_found::success, internal::peek_char, ' ', '\n', '\r', '\t', '\v', '\f' > {};
+          template< char... Cs > struct string : internal::string< Cs... > {};
+          template< char C > struct three : internal::string< C, C, C > {};
+diff --git a/include/tao/pegtl/buffer_input.hpp b/include/tao/pegtl/buffer_input.hpp
+index f43513ab..5c267dc8 100644
+--- a/include/tao/pegtl/buffer_input.hpp
++++ b/include/tao/pegtl/buffer_input.hpp
+@@ -10,9 +10,15 @@
+ #include <cstdint>
+ #include <cstring>
+ #include <memory>
+-#include <stdexcept>
+ #include <string>
+ 
++#if defined( __cpp_exceptions )
++#include <stdexcept>
++#else
++#include <cstdio>
++#include <exception>
++#endif
++
+ #include "config.hpp"
+ #include "eol.hpp"
+ #include "memory_input.hpp"
+@@ -155,7 +161,12 @@ namespace tao
+                return;
+             }
+             if( m_current.data + amount > m_buffer.get() + m_maximum ) {
+-               throw std::overflow_error( "require beyond end of buffer" );
++#if defined( __cpp_exceptions )
++               throw std::overflow_error( "require() beyond end of buffer" );
++#else
++               std::fputs( "overflow error: require() beyond end of buffer\n", stderr );
++               std::terminate();
++#endif
+             }
+             if( const auto r = m_reader( m_end, ( std::min )( buffer_free_after_end(), ( std::max )( amount - buffer_occupied(), Chunk ) ) ) ) {
+                m_end += r;
+diff --git a/include/tao/pegtl/contrib/http.hpp b/include/tao/pegtl/contrib/http.hpp
+index 829b40ce..789e17e4 100644
+--- a/include/tao/pegtl/contrib/http.hpp
++++ b/include/tao/pegtl/contrib/http.hpp
+@@ -4,6 +4,10 @@
+ #ifndef TAO_PEGTL_CONTRIB_HTTP_HPP
+ #define TAO_PEGTL_CONTRIB_HTTP_HPP
+ 
++#if !defined( __cpp_exceptions )
++#error "Exception support required tao/pegtl/contrib/http.hpp"
++#else
++
+ #include "../ascii.hpp"
+ #include "../config.hpp"
+ #include "../nothing.hpp"
+@@ -280,3 +284,4 @@ namespace tao
+ }  // namespace tao
+ 
+ #endif
++#endif
+diff --git a/include/tao/pegtl/contrib/integer.hpp b/include/tao/pegtl/contrib/integer.hpp
+index 5c83145d..9511fcc5 100644
+--- a/include/tao/pegtl/contrib/integer.hpp
++++ b/include/tao/pegtl/contrib/integer.hpp
+@@ -4,6 +4,10 @@
+ #ifndef TAO_PEGTL_CONTRIB_INTEGER_HPP
+ #define TAO_PEGTL_CONTRIB_INTEGER_HPP
+ 
++#if !defined( __cpp_exceptions )
++#error "Exception support required tao/pegtl/contrib/integer.hpp"
++#else
++
+ #include <limits>
+ #include <type_traits>
+ 
+@@ -106,3 +110,4 @@ namespace tao
+ }  // namespace tao
+ 
+ #endif
++#endif
+diff --git a/include/tao/pegtl/contrib/json.hpp b/include/tao/pegtl/contrib/json.hpp
+index cd71148d..ce1e8edc 100644
+--- a/include/tao/pegtl/contrib/json.hpp
++++ b/include/tao/pegtl/contrib/json.hpp
+@@ -36,27 +36,27 @@ namespace tao
+          struct null : string< 'n', 'u', 'l', 'l' > {};
+          struct true_ : string< 't', 'r', 'u', 'e' > {}; // NOLINT
+ 
+-         struct digits : plus< abnf::DIGIT > {};
+-         struct exp : seq< one< 'e', 'E' >, opt< one< '-', '+'> >, must< digits > > {};
+-         struct frac : if_must< one< '.' >, digits > {};
+-         struct int_ : sor< one< '0' >, digits > {}; // NOLINT
++         struct digits : plus< digit > {};
++         struct exp : seq< one< 'e', 'E' >, opt< one< '-', '+'> >, digits > {};
++         struct frac : seq< one< '.' >, digits > {};
++         struct int_ : sor< one< '0' >, plus< digit > > {};  // NOLINT(readability-identifier-naming)
+          struct number : seq< opt< one< '-' > >, int_, opt< frac >, opt< exp > > {};
+ 
+-         struct xdigit : abnf::HEXDIG {};
+-         struct unicode : list< seq< one< 'u' >, rep< 4, must< xdigit > > >, one< '\\' > > {};
++         struct xdigit : pegtl::xdigit {};
++         struct unicode : list< seq< one< 'u' >, rep< 4, xdigit > >, one< '\\' > > {};
+          struct escaped_char : one< '"', '\\', '/', 'b', 'f', 'n', 'r', 't' > {};
+          struct escaped : sor< escaped_char, unicode > {};
+          struct unescaped : utf8::range< 0x20, 0x10FFFF > {};
+-         struct char_ : if_then_else< one< '\\' >, must< escaped >, unescaped > {}; // NOLINT
++         struct char_ : if_then_else< one< '\\' >, escaped, unescaped > {};  // NOLINT(readability-identifier-naming)
+ 
+-         struct string_content : until< at< one< '"' > >, must< char_ > > {};
+-         struct string : seq< one< '"' >, must< string_content >, any >
++         struct string_content : until< at< one< '"' > >, char_ > {};
++         struct string : seq< one< '"' >, string_content, any >
+          {
+             using content = string_content;
+          };
+ 
+-         struct key_content : until< at< one< '"' > >, must< char_ > > {};
+-         struct key : seq< one< '"' >, must< key_content >, any >
++         struct key_content : until< at< one< '"' > >, char_ > {};
++         struct key : seq< one< '"' >, key_content, any >
+          {
+             using content = key_content;
+          };
+@@ -64,8 +64,8 @@ namespace tao
+          struct value;
+ 
+          struct array_element;
+-         struct array_content : opt< list_must< array_element, value_separator > > {};
+-         struct array : seq< begin_array, array_content, must< end_array > >
++         struct array_content : opt< array_element, star< value_separator, seq<array_element> > > {};
++         struct array : seq< begin_array, array_content, end_array >
+          {
+             using begin = begin_array;
+             using end = end_array;
+@@ -73,9 +73,11 @@ namespace tao
+             using content = array_content;
+          };
+ 
+-         struct member : if_must< key, name_separator, value > {};
+-         struct object_content : opt< list_must< member, value_separator > > {};
+-         struct object : seq< begin_object, object_content, must< end_object > >
++         struct member_value : padr< value > {};
++         struct member : seq< key, name_separator, member_value > {};
++         struct next_member : seq< member > {};
++         struct object_content : opt< member, star< value_separator, next_member > > {};
++         struct object : seq< begin_object, object_content, end_object >
+          {
+             using begin = begin_object;
+             using end = end_object;
+diff --git a/include/tao/pegtl/contrib/parse_tree.hpp b/include/tao/pegtl/contrib/parse_tree.hpp
+index 4abe7eb4..4c77f1f3 100644
+--- a/include/tao/pegtl/contrib/parse_tree.hpp
++++ b/include/tao/pegtl/contrib/parse_tree.hpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2017-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++//#if !defined( __cpp_exceptions )
++//int main() {}
++//#else
++
+ #ifndef TAO_PEGTL_CONTRIB_PARSE_TREE_HPP
+ #define TAO_PEGTL_CONTRIB_PARSE_TREE_HPP
+ 
+@@ -30,7 +34,7 @@
+ #include "../internal/integer_sequence.hpp"
+ #include "../internal/iterator.hpp"
+ #include "../internal/skip_control.hpp"
+-#include "../internal/try_catch_type.hpp"
++//#include "../internal/try_catch_type.hpp"
+ 
+ namespace tao
+ {
+@@ -169,11 +173,11 @@ namespace tao
+             {
+             };
+ 
+-            template< typename Exception, typename... Rules >
+-            struct is_try_catch_type< TAO_PEGTL_NAMESPACE::internal::try_catch_type< Exception, Rules... > >
+-               : std::true_type
+-            {
+-            };
++//            template< typename Exception, typename... Rules >
++//            struct is_try_catch_type< TAO_PEGTL_NAMESPACE::internal::try_catch_type< Exception, Rules... > >
++//               : std::true_type
++//            {
++//            };
+ 
+             template< typename Node >
+             struct state
+@@ -515,3 +519,5 @@ namespace tao
+ }  // namespace tao
+ 
+ #endif
++
++//#endif
+diff --git a/include/tao/pegtl/contrib/raw_string.hpp b/include/tao/pegtl/contrib/raw_string.hpp
+index 1e66e3b4..e1f76df9 100644
+--- a/include/tao/pegtl/contrib/raw_string.hpp
++++ b/include/tao/pegtl/contrib/raw_string.hpp
+@@ -11,14 +11,7 @@
+ #include "../config.hpp"
+ #include "../rewind_mode.hpp"
+ 
+-#include "../internal/bytes.hpp"
+-#include "../internal/eof.hpp"
+-#include "../internal/eol.hpp"
+-#include "../internal/must.hpp"
+-#include "../internal/not_at.hpp"
+-#include "../internal/seq.hpp"
+-#include "../internal/skip_control.hpp"
+-#include "../internal/star.hpp"
++#include "../rules.hpp"
+ 
+ #include "../analysis/generic.hpp"
+ 
+@@ -39,9 +32,8 @@ namespace tao
+                       class Action,
+                       template< typename... >
+                       class Control,
+-                      typename Input,
+-                      typename... States >
+-            static bool match( Input& in, std::size_t& marker_size, States&&... /*unused*/ ) noexcept( noexcept( in.size( 0 ) ) )
++                      typename Input >
++            static bool match( Input& in, std::size_t& marker_size ) noexcept( noexcept( in.size( 0 ) ) )
+             {
+                if( in.empty() || ( in.peek_char( 0 ) != Open ) ) {
+                   return false;
+@@ -51,7 +43,7 @@ namespace tao
+                      case Open:
+                         marker_size = i + 1;
+                         in.bump_in_this_line( marker_size );
+-                        eol::match( in );
++                        (void)eol::match( in );
+                         return true;
+                      case Marker:
+                         break;
+@@ -79,9 +71,8 @@ namespace tao
+                       class Action,
+                       template< typename... >
+                       class Control,
+-                      typename Input,
+-                      typename... States >
+-            static bool match( Input& in, const std::size_t& marker_size, States&&... /*unused*/ ) noexcept( noexcept( in.size( 0 ) ) )
++                      typename Input >
++            static bool match( Input& in, const std::size_t& marker_size ) noexcept( noexcept( in.size( 0 ) ) )
+             {
+                if( in.size( marker_size ) < marker_size ) {
+                   return false;
+@@ -122,11 +113,11 @@ namespace tao
+                       class Control,
+                       typename Input,
+                       typename... States >
+-            static bool match( Input& in, const std::size_t& marker_size, States&&... st )
++            static bool match( Input& in, const std::size_t& marker_size, States&&... /*unused*/  )
+             {
+                auto m = in.template mark< M >();
+ 
+-               while( !Control< Cond >::template match< A, rewind_mode::required, Action, Control >( in, marker_size, st... ) ) {
++               while( !Control< Cond >::template match< A, rewind_mode::required, Action, Control >( in, marker_size ) ) {
+                   if( in.empty() ) {
+                      return false;
+                   }
+@@ -154,7 +145,7 @@ namespace tao
+                auto m = in.template mark< M >();
+                using m_t = decltype( m );
+ 
+-               while( !Control< Cond >::template match< A, rewind_mode::required, Action, Control >( in, marker_size, st... ) ) {
++               while( !Control< Cond >::template match< A, rewind_mode::required, Action, Control >( in, marker_size ) ) {
+                   if( in.empty() || ( !Control< seq< Rules... > >::template match< A, m_t::next_rewind_mode, Action, Control >( in, st... ) ) ) {
+                      return false;
+                   }
+@@ -218,10 +209,11 @@ namespace tao
+          static bool match( Input& in, States&&... st )
+          {
+             std::size_t marker_size;
+-            if( internal::raw_string_open< Open, Marker >::template match< A, M, Action, Control >( in, marker_size, st... ) ) {
+-               internal::must< content >::template match< A, M, Action, Control >( in, marker_size, st... );
+-               in.bump_in_this_line( marker_size );
+-               return true;
++            if( Control< internal::raw_string_open< Open, Marker > >::template match< A, M, Action, Control >( in, marker_size ) ) {
++               if( Control< content >::template match< A, M, Action, Control >( in, marker_size, st... ) ) {
++                  in.bump_in_this_line( marker_size );
++                  return true;
++               }
+             }
+             return false;
+          }
 diff --git a/include/tao/pegtl/contrib/tracer.hpp b/include/tao/pegtl/contrib/tracer.hpp
-index 245fbf6..2479c25 100644
+index 4174e91b..b85700ba 100644
 --- a/include/tao/pegtl/contrib/tracer.hpp
 +++ b/include/tao/pegtl/contrib/tracer.hpp
 @@ -6,7 +6,6 @@
@@ -197,7 +590,7 @@ index 245fbf6..2479c25 100644
              static void start( const Input& in, States&&... st )
              {
 -               std::cerr << in.position() << "  start  " << internal::demangle< Rule >() << "; current ";
-+               fprintf( stderr, "%d  start  %d; current", in.position(), internal::demangle< Rule >() );
++               fprintf( stderr, "%lu  start  %lu; current", in.position().byte, internal::demangle< Rule >().size() );
                 print_current( in );
 -               std::cerr << std::endl;
 +               fprintf( stderr,  "\n" );
@@ -217,7 +610,7 @@ index 245fbf6..2479c25 100644
              static void success( const Input& in, States&&... st )
              {
 -               std::cerr << in.position() << " success " << internal::demangle< Rule >() << "; next ";
-+               fprintf( stderr,  "%d success %d; next ", in.position(), internal::demangle< Rule >() );
++               fprintf( stderr,  "%lu success %lu; next ", in.position().byte, internal::demangle< Rule >().size() );
                 print_current( in );
 +               fprintf( stderr,  "\n" );
                 std::cerr << std::endl;
@@ -237,7 +630,7 @@ index 245fbf6..2479c25 100644
              static void failure( const Input& in, States&&... st )
              {
 -               std::cerr << in.position() << " failure " << internal::demangle< Rule >() << std::endl;
-+               fprintf( stderr,  "%d failure %d\n", in.position(), internal::demangle< Rule >() );
++               fprintf( stderr,  "%lu failure %lu\n", in.position().byte, internal::demangle< Rule >().size() );
                 Base< Rule >::failure( in, st... );
              }
  
@@ -255,7 +648,7 @@ index 245fbf6..2479c25 100644
                 -> decltype( Base< Rule >::template apply< Action >( begin, in, st... ) )
              {
 -               std::cerr << in.position() << "  apply  " << internal::demangle< Rule >() << std::endl;
-+               fprintf( stderr,  "%d  apply %d\n", in.position(), internal::demangle< Rule >() );
++               fprintf( stderr,  "%lu  apply %lu\n", in.position().byte, internal::demangle< Rule >().size() );
                 return Base< Rule >::template apply< Action >( begin, in, st... );
              }
  
@@ -273,7 +666,7 @@ index 245fbf6..2479c25 100644
                 -> decltype( Base< Rule >::template apply0< Action >( in, st... ) )
              {
 -               std::cerr << in.position() << "  apply0 " << internal::demangle< Rule >() << std::endl;
-+               fprintf( stderr,  "%d  apply0 %d\n", in.position(), internal::demangle< Rule >() );
++               fprintf( stderr,  "%lu  apply0 %lu\n", in.position().byte, internal::demangle< Rule >().size() );
                 return Base< Rule >::template apply0< Action >( in, st... );
              }
  
@@ -286,8 +679,98 @@ index 245fbf6..2479c25 100644
                 return apply0< Action >( in, st... );
              }
           };
+diff --git a/include/tao/pegtl/contrib/unescape.hpp b/include/tao/pegtl/contrib/unescape.hpp
+index 9b6090a6..2ec2d011 100644
+--- a/include/tao/pegtl/contrib/unescape.hpp
++++ b/include/tao/pegtl/contrib/unescape.hpp
+@@ -5,6 +5,7 @@
+ #define TAO_PEGTL_CONTRIB_UNESCAPE_HPP
+ 
+ #include <cassert>
++#include <exception>
+ #include <string>
+ 
+ #include "../ascii.hpp"
+@@ -83,8 +84,8 @@ namespace tao
+                case 'E':
+                case 'F':
+                   return I( c - 'A' + 10 );
+-               default:                                                      // LCOV_EXCL_LINE
+-                  throw std::runtime_error( "invalid character in unhex" );  // NOLINT, LCOV_EXCL_LINE
++               default:              // LCOV_EXCL_LINE
++                  std::terminate();  // NOLINT, LCOV_EXCL_LINE
+             }
+          }
+ 
+@@ -137,7 +138,7 @@ namespace tao
+                      return *( r.begin() + i );
+                   }
+                }
+-               throw parse_error( "invalid character in unescape", in );  // NOLINT, LCOV_EXCL_LINE
++               std::terminate();  // NOLINT, LCOV_EXCL_LINE
+             }
+          };
+ 
+@@ -147,6 +148,7 @@ namespace tao
+ 
+          struct unescape_u
+          {
++#if defined( __cpp_exceptions )
+             template< typename Input >
+             static void apply( const Input& in, std::string& s )
+             {
+@@ -155,6 +157,14 @@ namespace tao
+                   throw parse_error( "invalid escaped unicode code point", in );
+                }
+             }
++#else
++            template< typename Input >
++            static bool apply( const Input& in, std::string& s )
++            {
++               assert( !in.empty() );  // First character MUST be present, usually 'u' or 'U'.
++               return utf8_append_utf32( s, unhex_string< unsigned >( in.begin() + 1, in.end() ) );
++            }
++#endif
+          };
+ 
+          struct unescape_x
+@@ -192,7 +202,12 @@ namespace tao
+                      }
+                   }
+                   if( !utf8_append_utf32( s, c ) ) {
++#if defined( __cpp_exceptions )
+                      throw parse_error( "invalid escaped unicode code point", in );
++#else
++                     // TODO: Set error?
++                     return;
++#endif
+                   }
+                }
+             }
+diff --git a/include/tao/pegtl/contrib/uri.hpp b/include/tao/pegtl/contrib/uri.hpp
+index f86d2de8..38fa8d96 100644
+--- a/include/tao/pegtl/contrib/uri.hpp
++++ b/include/tao/pegtl/contrib/uri.hpp
+@@ -4,6 +4,12 @@
+ #ifndef TAO_PEGTL_CONTRIB_URI_HPP
+ #define TAO_PEGTL_CONTRIB_URI_HPP
+ 
++#if !defined( __cpp_exceptions )
++#error "Exception support required tao/pegtl/contrib/uri.hpp"
++#else
++
++#include <cstdint>
++
+ #include "../ascii.hpp"
+ #include "../config.hpp"
+ #include "../rules.hpp"
+@@ -113,3 +119,4 @@ namespace tao
+ }  // namespace tao
+ 
+ #endif
++#endif
 diff --git a/include/tao/pegtl/input_error.hpp b/include/tao/pegtl/input_error.hpp
-index 4c7aec5..007661a 100644
+index 08cb00b9..4f46a113 100644
 --- a/include/tao/pegtl/input_error.hpp
 +++ b/include/tao/pegtl/input_error.hpp
 @@ -5,7 +5,7 @@
@@ -321,134 +804,619 @@ index 4c7aec5..007661a 100644
     } while( false )
  
  #endif
+diff --git a/include/tao/pegtl/internal/cstream_reader.hpp b/include/tao/pegtl/internal/cstream_reader.hpp
+index 412d45e3..b1946022 100644
+--- a/include/tao/pegtl/internal/cstream_reader.hpp
++++ b/include/tao/pegtl/internal/cstream_reader.hpp
+@@ -8,6 +8,10 @@
+ #include <cstddef>
+ #include <cstdio>
+ 
++#if !defined( __cpp_exceptions )
++#include <exception>
++#endif
++
+ #include "../config.hpp"
+ #include "../input_error.hpp"
+ 
+@@ -33,9 +37,15 @@ namespace tao
+                if( std::feof( m_cstream ) != 0 ) {
+                   return 0;
+                }
++
++#if defined( __cpp_exceptions )
+                // Please contact us if you know how to provoke the following exception.
+                // The example on cppreference.com doesn't work, at least not on macOS.
+                TAO_PEGTL_THROW_INPUT_ERROR( "error in fread() from cstream" );  // LCOV_EXCL_LINE
++#else
++         std::fputs( "std::fread() failed\n", stderr );
++         std::terminate();
++#endif
+             }
+ 
+             std::FILE* m_cstream;
+diff --git a/include/tao/pegtl/internal/demangle.hpp b/include/tao/pegtl/internal/demangle.hpp
+index f0bd799c..9677d921 100644
+--- a/include/tao/pegtl/internal/demangle.hpp
++++ b/include/tao/pegtl/internal/demangle.hpp
+@@ -64,6 +64,8 @@ namespace tao
+ #if defined( __clang__ ) || defined( __GNUC__ )
+             start = std::strchr( __PRETTY_FUNCTION__, '=' ) + 2;
+             stop = std::strrchr( start, ';' );
++            if (stop == nullptr) { stop = std::strrchr( start, ']' ); }
++            if (stop == nullptr) { stop = start + strnlen(start, 256); }
+ #elif defined( _MSC_VER )
+             start = std::strstr( __FUNCSIG__, "demangle<" ) + ( sizeof( "demangle<" ) - 1 );
+             stop = std::strrchr( start, '>' );
 diff --git a/include/tao/pegtl/internal/file_mapper_posix.hpp b/include/tao/pegtl/internal/file_mapper_posix.hpp
-index ff58eda..8d6409d 100644
+index c77529e1..e1169607 100644
 --- a/include/tao/pegtl/internal/file_mapper_posix.hpp
 +++ b/include/tao/pegtl/internal/file_mapper_posix.hpp
-@@ -32,7 +32,7 @@ namespace tao
+@@ -7,6 +7,11 @@
+ #include <sys/mman.h>
+ #include <unistd.h>
+ 
++#if !defined( __cpp_exceptions )
++#include <cstdio>
++#include <exception>
++#endif
++
+ #include "../config.hpp"
+ 
+ #include "file_opener.hpp"
+@@ -32,7 +37,12 @@ namespace tao
                   m_data( static_cast< const char* >( ::mmap( nullptr, m_size, PROT_READ, MAP_PRIVATE, reader.m_fd, 0 ) ) )
              {
                 if( ( m_size != 0 ) && ( intptr_t( m_data ) == -1 ) ) {
 -                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to mmap() file " << reader.m_source << " descriptor " << reader.m_fd );
++#if defined( __cpp_exceptions )
 +                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to mmap() file " + std::string(reader.m_source) + " descriptor " + std::to_string(reader.m_fd) );
++#else
++                  std::perror( "mmap() failed" );
++                  std::terminate();
++#endif
                 }
              }
  
 diff --git a/include/tao/pegtl/internal/file_mapper_win32.hpp b/include/tao/pegtl/internal/file_mapper_win32.hpp
-index 11b249e..82ef1db 100644
+index a8cc1a4e..deb01b7f 100644
 --- a/include/tao/pegtl/internal/file_mapper_win32.hpp
 +++ b/include/tao/pegtl/internal/file_mapper_win32.hpp
-@@ -58,7 +58,7 @@ namespace tao
+@@ -29,36 +29,46 @@
+ #include "../config.hpp"
+ #include "../input_error.hpp"
+ 
++#if !defined( __cpp_exceptions )
++#include <cstdio>
++#include <exception>
++#endif
++
+ namespace tao
+ {
+    namespace TAO_PEGTL_NAMESPACE
+    {
+       namespace internal
+       {
+-         struct win32_file_opener
++         struct file_opener
+          {
+-            explicit win32_file_opener( const char* filename )
++            explicit file_opener( const char* filename )
+                : m_source( filename ),
+                  m_handle( open() )
+             {
+             }
+ 
+-            win32_file_opener( const win32_file_opener& ) = delete;
+-            win32_file_opener( win32_file_opener&& ) = delete;
++            file_opener( const file_opener& ) = delete;
++            file_opener( file_opener&& ) = delete;
+ 
+-            ~win32_file_opener() noexcept
++            ~file_opener() noexcept
+             {
+                ::CloseHandle( m_handle );
+             }
+ 
+-            void operator=( const win32_file_opener& ) = delete;
+-            void operator=( win32_file_opener&& ) = delete;
++            void operator=( const file_opener& ) = delete;
++            void operator=( file_opener&& ) = delete;
+ 
+             std::size_t size() const
              {
                 LARGE_INTEGER size;
                 if( !::GetFileSizeEx( m_handle, &size ) ) {
 -                  TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "unable to GetFileSizeEx() file " << m_source << " handle " << m_handle );
++#if defined( __cpp_exceptions )
 +                  TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "unable to GetFileSizeEx() file " + std::string(m_source) );
++#else
++                  std::perror( "GetFileSizeEx() failed" );
++                  std::terminate();
++#endif
                 }
                 return std::size_t( size.QuadPart );
              }
-@@ -81,7 +81,7 @@ namespace tao
+@@ -81,7 +91,12 @@ namespace tao
                 if( handle != INVALID_HANDLE_VALUE ) {
                    return handle;
                 }
 -               TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "CreateFile2() failed opening file " << m_source << " for reading" );
++#if defined( __cpp_exceptions )
 +               TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "CreateFile2() failed opening file " + std::string(m_source) + " for reading" );
++#else
++               std::perror( "CreateFile2() failed" );
++               std::terminate();
++#endif
  #else
                 const HANDLE handle = ::CreateFileW( ws.c_str(),
                                                      GENERIC_READ,
-@@ -93,7 +93,7 @@ namespace tao
+@@ -93,7 +108,12 @@ namespace tao
                 if( handle != INVALID_HANDLE_VALUE ) {
                    return handle;
                 }
 -               TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "CreateFileW() failed opening file " << m_source << " for reading" );
++#if defined( __cpp_exceptions )
 +               TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "CreateFileW() failed opening file " + std::string(m_source) + " for reading" );
++#else
++               std::perror( "CreateFileW() failed" );
++               std::terminate();
++#endif
  #endif
              }
           };
-@@ -143,7 +143,7 @@ namespace tao
+@@ -101,11 +121,11 @@ namespace tao
+          struct win32_file_mapper
+          {
+             explicit win32_file_mapper( const char* filename )
+-               : win32_file_mapper( win32_file_opener( filename ) )
++               : win32_file_mapper( file_opener( filename ) )
+             {
+             }
+ 
+-            explicit win32_file_mapper( const win32_file_opener& reader )
++            explicit win32_file_mapper( const file_opener& reader )
+                : m_size( reader.size() ),
+                  m_handle( open( reader ) )
+             {
+@@ -126,7 +146,7 @@ namespace tao
+             const HANDLE m_handle;
+ 
+          private:
+-            HANDLE open( const win32_file_opener& reader ) const
++            HANDLE open( const file_opener& reader ) const
+             {
+                const uint64_t file_size = reader.size();
+                SetLastError( 0 );
+@@ -143,7 +163,12 @@ namespace tao
                 if( handle != NULL || file_size == 0 ) {
                    return handle;
                 }
 -               TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "unable to CreateFileMappingW() file " << reader.m_source << " for reading" );
++#if defined( __cpp_exceptions )
 +               TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "unable to CreateFileMappingW() file " + std::string(reader.m_source) + " for reading" );
++#else
++               std::perror( "CreateFileMappingW() failed" );
++               std::terminate();
++#endif
              }
           };
  
-@@ -164,7 +164,7 @@ namespace tao
+@@ -164,7 +189,12 @@ namespace tao
                                                                        0 ) ) )
              {
                 if( ( m_size != 0 ) && ( intptr_t( m_data ) == 0 ) ) {
 -                  TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "unable to MapViewOfFile() file mapping object with handle " << mapper.m_handle );
++#if defined( __cpp_exceptions )
 +                  TAO_PEGTL_THROW_INPUT_WIN32_ERROR( "unable to MapViewOfFile() file mapping object" );
++#else
++                  std::perror( "MapViewOfFile() failed" );
++                  std::terminate();
++#endif
                 }
              }
  
 diff --git a/include/tao/pegtl/internal/file_opener.hpp b/include/tao/pegtl/internal/file_opener.hpp
-index 50f4a4e..32be374 100644
+index 33eccb63..a42c7a62 100644
 --- a/include/tao/pegtl/internal/file_opener.hpp
 +++ b/include/tao/pegtl/internal/file_opener.hpp
-@@ -44,7 +44,7 @@ namespace tao
+@@ -11,6 +11,10 @@
+ 
+ #include <utility>
+ 
++#if !defined( __cpp_exceptions )
++#include <exception>
++#endif
++
+ #include "../config.hpp"
+ #include "../input_error.hpp"
+ 
+@@ -44,7 +48,12 @@ namespace tao
                 struct stat st;  // NOLINT
                 errno = 0;
                 if( ::fstat( m_fd, &st ) < 0 ) {
 -                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fstat() file " << m_source << " descriptor " << m_fd );
++#if defined( __cpp_exceptions )
 +                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fstat() file " + std::string(m_source) + " descriptor " + std::to_string(m_fd) );
++#else
++                  std::perror( std::string("unable to fstat() file " + std::string(m_source) + " descriptor " + std::to_string(m_fd) ).c_str() );
++                  std::terminate();
++#endif
                 }
                 return std::size_t( st.st_size );
              }
-@@ -65,7 +65,7 @@ namespace tao
+@@ -65,7 +74,12 @@ namespace tao
                 if( fd >= 0 ) {
                    return fd;
                 }
 -               TAO_PEGTL_THROW_INPUT_ERROR( "unable to open() file " << m_source << " for reading" );
++#if defined( __cpp_exceptions )
 +               TAO_PEGTL_THROW_INPUT_ERROR( "unable to open() file " + std::string(m_source) + " for reading" );
++#else
++               std::perror( std::string("unable to open() file " + std::string(m_source) + " for reading").c_str() );
++               std::terminate();
++#endif
              }
           };
  
 diff --git a/include/tao/pegtl/internal/file_reader.hpp b/include/tao/pegtl/internal/file_reader.hpp
-index b61386d..58c72b7 100644
+index c309aef3..12a49b7e 100644
 --- a/include/tao/pegtl/internal/file_reader.hpp
 +++ b/include/tao/pegtl/internal/file_reader.hpp
-@@ -32,7 +32,7 @@ namespace tao
+@@ -9,6 +9,10 @@
+ #include <string>
+ #include <utility>
+ 
++#if !defined( __cpp_exceptions )
++#include <exception>
++#endif
++
+ #include "../config.hpp"
+ #include "../input_error.hpp"
+ 
+@@ -32,7 +36,12 @@ namespace tao
              {
                 return file;
              }
 -            TAO_PEGTL_THROW_INPUT_ERROR( "unable to fopen() file " << filename << " for reading" );
++#if defined( __cpp_exceptions )
 +            TAO_PEGTL_THROW_INPUT_ERROR( "unable to fopen() file " + std::string(filename) + " for reading" );
++#else
++            std::perror( "fopen_s() failed" );
++            std::terminate();
++#endif
           }
  
           struct file_close
-@@ -70,16 +70,16 @@ namespace tao
+@@ -70,16 +79,31 @@ namespace tao
              {
                 errno = 0;
                 if( std::fseek( m_file.get(), 0, SEEK_END ) != 0 ) {
 -                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fseek() to end of file " << m_source );  // LCOV_EXCL_LINE
++#if defined( __cpp_exceptions )
 +                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fseek() to end of file " + std::string(m_source) );  // LCOV_EXCL_LINE
++#else
++                  std::perror( "std::fseek() failed [SEEK_END]" );
++                  std::terminate();
++#endif
                 }
                 errno = 0;
                 const auto s = std::ftell( m_file.get() );
                 if( s < 0 ) {
 -                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to ftell() file size of file " << m_source );  // LCOV_EXCL_LINE
++#if defined( __cpp_exceptions )
 +                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to ftell() file size of file " + std::string(m_source) );  // LCOV_EXCL_LINE
++#else
++                  std::perror( "std::ftell() failed" );
++                  std::terminate();
++#endif
                 }
                 errno = 0;
                 if( std::fseek( m_file.get(), 0, SEEK_SET ) != 0 ) {
 -                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fseek() to beginning of file " << m_source );  // LCOV_EXCL_LINE
++#if defined( __cpp_exceptions )
 +                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fseek() to beginning of file " + std::string(m_source) );  // LCOV_EXCL_LINE
++#else
++                  std::perror( "std::fseek() failed [SEEK_SET]" );
++                  std::terminate();
++#endif
                 }
                 return std::size_t( s );
              }
-@@ -90,7 +90,7 @@ namespace tao
+@@ -90,7 +114,12 @@ namespace tao
                 nrv.resize( size() );
                 errno = 0;
                 if( !nrv.empty() && ( std::fread( &nrv[ 0 ], nrv.size(), 1, m_file.get() ) != 1 ) ) {
 -                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fread() file " << m_source << " size " << nrv.size() );  // LCOV_EXCL_LINE
++#if defined( __cpp_exceptions )
 +                  TAO_PEGTL_THROW_INPUT_ERROR( "unable to fread() file " + std::string(m_source) + " size " + std::to_string(nrv.size()) );  // LCOV_EXCL_LINE
++#else
++                  std::perror( "std::fread() failed" );
++                  std::terminate();
++#endif
                 }
                 return nrv;
              }
+diff --git a/include/tao/pegtl/internal/if_must.hpp b/include/tao/pegtl/internal/if_must.hpp
+index 0cbd08c0..8b902d38 100644
+--- a/include/tao/pegtl/internal/if_must.hpp
++++ b/include/tao/pegtl/internal/if_must.hpp
+@@ -4,6 +4,10 @@
+ #ifndef TAO_PEGTL_INTERNAL_IF_MUST_HPP
+ #define TAO_PEGTL_INTERNAL_IF_MUST_HPP
+ 
++#if !defined( __cpp_exceptions )
++#error "Exception support required for tao/pegtl/internal/if_must.hpp"
++#else
++
+ #include "../config.hpp"
+ 
+ #include "must.hpp"
+@@ -56,3 +60,4 @@ namespace tao
+ }  // namespace tao
+ 
+ #endif
++#endif
+diff --git a/include/tao/pegtl/internal/if_must_else.hpp b/include/tao/pegtl/internal/if_must_else.hpp
+index 74db045f..a31eacf4 100644
+--- a/include/tao/pegtl/internal/if_must_else.hpp
++++ b/include/tao/pegtl/internal/if_must_else.hpp
+@@ -4,6 +4,10 @@
+ #ifndef TAO_PEGTL_INTERNAL_IF_MUST_ELSE_HPP
+ #define TAO_PEGTL_INTERNAL_IF_MUST_ELSE_HPP
+ 
++#if !defined( __cpp_exceptions )
++#error "Exception support required for tao/pegtl/internal/if_must_else.hpp"
++#else
++
+ #include "../config.hpp"
+ 
+ #include "if_then_else.hpp"
+@@ -25,3 +29,4 @@ namespace tao
+ }  // namespace tao
+ 
+ #endif
++#endif
+diff --git a/include/tao/pegtl/internal/istream_reader.hpp b/include/tao/pegtl/internal/istream_reader.hpp
+index 77744e0b..5add564a 100644
+--- a/include/tao/pegtl/internal/istream_reader.hpp
++++ b/include/tao/pegtl/internal/istream_reader.hpp
+@@ -6,6 +6,11 @@
+ 
+ #include <istream>
+ 
++#if !defined( __cpp_exceptions )
++#include <cstdio>
++#include <exception>
++#endif
++
+ #include "../config.hpp"
+ #include "../input_error.hpp"
+ 
+@@ -32,7 +37,12 @@ namespace tao
+                if( m_istream.eof() ) {
+                   return 0;
+                }
++#if defined( __cpp_exceptions )
+                TAO_PEGTL_THROW_INPUT_ERROR( "error in istream.read()" );
++#else
++               std::fputs( "std::istream::read() failed\n", stderr );
++               std::terminate();
++#endif
+             }
+ 
+             std::istream& m_istream;
+diff --git a/include/tao/pegtl/internal/list_must.hpp b/include/tao/pegtl/internal/list_must.hpp
+index 9f03ed5f..08c313b9 100644
+--- a/include/tao/pegtl/internal/list_must.hpp
++++ b/include/tao/pegtl/internal/list_must.hpp
+@@ -4,6 +4,10 @@
+ #ifndef TAO_PEGTL_INTERNAL_LIST_MUST_HPP
+ #define TAO_PEGTL_INTERNAL_LIST_MUST_HPP
+ 
++#if !defined( __cpp_exceptions )
++#error "Exception support required for tao/pegtl/internal/list_must.hpp"
++#else
++
+ #include "../config.hpp"
+ 
+ #include "must.hpp"
+@@ -26,3 +30,4 @@ namespace tao
+ }  // namespace tao
+ 
+ #endif
++#endif
+diff --git a/include/tao/pegtl/internal/must.hpp b/include/tao/pegtl/internal/must.hpp
+index 3572728d..1a178ffc 100644
+--- a/include/tao/pegtl/internal/must.hpp
++++ b/include/tao/pegtl/internal/must.hpp
+@@ -4,6 +4,10 @@
+ #ifndef TAO_PEGTL_INTERNAL_MUST_HPP
+ #define TAO_PEGTL_INTERNAL_MUST_HPP
+ 
++#if !defined( __cpp_exceptions )
++#error "Exception support required for tao/pegtl/internal/must.hpp"
++#else
++
+ #include "../config.hpp"
+ 
+ #include "raise.hpp"
+@@ -68,3 +72,4 @@ namespace tao
+ }  // namespace tao
+ 
+ #endif
++#endif
+diff --git a/include/tao/pegtl/internal/raise.hpp b/include/tao/pegtl/internal/raise.hpp
+index d4f66430..7f1916e9 100644
+--- a/include/tao/pegtl/internal/raise.hpp
++++ b/include/tao/pegtl/internal/raise.hpp
+@@ -4,7 +4,10 @@
+ #ifndef TAO_PEGTL_INTERNAL_RAISE_HPP
+ #define TAO_PEGTL_INTERNAL_RAISE_HPP
+ 
+-#include <cstdlib>
++#if !defined( __cpp_exceptions )
++#error "Exception support required for tao/pegtl/internal/raise.hpp"
++#else
++
+ #include <stdexcept>
+ #include <type_traits>
+ 
+@@ -61,3 +64,4 @@ namespace tao
+ }  // namespace tao
+ 
+ #endif
++#endif
+diff --git a/include/tao/pegtl/internal/rules.hpp b/include/tao/pegtl/internal/rules.hpp
+index fc56a6e8..1c468f26 100644
+--- a/include/tao/pegtl/internal/rules.hpp
++++ b/include/tao/pegtl/internal/rules.hpp
+@@ -23,22 +23,17 @@
+ #include "eolf.hpp"
+ #include "identifier.hpp"
+ #include "if_apply.hpp"
+-#include "if_must.hpp"
+-#include "if_must_else.hpp"
+ #include "if_then_else.hpp"
+ #include "istring.hpp"
+ #include "list.hpp"
+-#include "list_must.hpp"
+ #include "list_tail.hpp"
+ #include "list_tail_pad.hpp"
+-#include "must.hpp"
+ #include "not_at.hpp"
+ #include "one.hpp"
+ #include "opt.hpp"
+ #include "pad.hpp"
+ #include "pad_opt.hpp"
+ #include "plus.hpp"
+-#include "raise.hpp"
+ #include "range.hpp"
+ #include "ranges.hpp"
+ #include "rematch.hpp"
+@@ -51,11 +46,19 @@
+ #include "skip_control.hpp"
+ #include "sor.hpp"
+ #include "star.hpp"
+-#include "star_must.hpp"
+ #include "state.hpp"
+ #include "string.hpp"
+ #include "trivial.hpp"
+-#include "try_catch_type.hpp"
+ #include "until.hpp"
+ 
++#if defined( __cpp_exceptions )
++#include "if_must.hpp"
++#include "if_must_else.hpp"
++#include "list_must.hpp"
++#include "must.hpp"
++#include "raise.hpp"
++#include "star_must.hpp"
++#include "try_catch_type.hpp"
++#endif
++
+ #endif
+diff --git a/include/tao/pegtl/internal/star_must.hpp b/include/tao/pegtl/internal/star_must.hpp
+index 84e5a441..38faf931 100644
+--- a/include/tao/pegtl/internal/star_must.hpp
++++ b/include/tao/pegtl/internal/star_must.hpp
+@@ -4,6 +4,10 @@
+ #ifndef TAO_PEGTL_INTERNAL_STAR_MUST_HPP
+ #define TAO_PEGTL_INTERNAL_STAR_MUST_HPP
+ 
++#if !defined( __cpp_exceptions )
++#error "Exception support required for tao/pegtl/internal/star_must.hpp"
++#else
++
+ #include "../config.hpp"
+ 
+ #include "if_must.hpp"
+@@ -25,3 +29,4 @@ namespace tao
+ }  // namespace tao
+ 
+ #endif
++#endif
+diff --git a/include/tao/pegtl/internal/try_catch_type.hpp b/include/tao/pegtl/internal/try_catch_type.hpp
+index 3612c198..8bff0d16 100644
+--- a/include/tao/pegtl/internal/try_catch_type.hpp
++++ b/include/tao/pegtl/internal/try_catch_type.hpp
+@@ -4,6 +4,10 @@
+ #ifndef TAO_PEGTL_INTERNAL_TRY_CATCH_TYPE_HPP
+ #define TAO_PEGTL_INTERNAL_TRY_CATCH_TYPE_HPP
+ 
++#if !defined( __cpp_exceptions )
++#error "Exception support required for tao/pegtl/internal/try_catch_type.hpp"
++#else
++
+ #include <type_traits>
+ 
+ #include "../config.hpp"
+@@ -74,3 +78,4 @@ namespace tao
+ }  // namespace tao
+ 
+ #endif
++#endif
+diff --git a/include/tao/pegtl/normal.hpp b/include/tao/pegtl/normal.hpp
+index 9db70d46..a9109fd6 100644
+--- a/include/tao/pegtl/normal.hpp
++++ b/include/tao/pegtl/normal.hpp
+@@ -7,12 +7,17 @@
+ #include <type_traits>
+ #include <utility>
+ 
++#if !defined( __cpp_exceptions )
++#include <exception>
++#endif
++
+ #include "apply_mode.hpp"
+ #include "config.hpp"
+ #include "match.hpp"
+ #include "parse_error.hpp"
+ #include "rewind_mode.hpp"
+ 
++#include "internal/always_false.hpp"
+ #include "internal/demangle.hpp"
+ #include "internal/has_match.hpp"
+ 
+@@ -41,7 +46,13 @@ namespace tao
+          template< typename Input, typename... States >
+          static void raise( const Input& in, States&&... /*unused*/ )
+          {
++#if defined( __cpp_exceptions )
+             throw parse_error( "parse error matching " + internal::demangle< Rule >(), in );
++#else
++            static_assert( internal::always_false< Rule >::value, "exception support required for normal< Rule >::raise()" );
++            (void)in;
++            std::terminate();
++#endif
+          }
+ 
+          template< template< typename... > class Action, typename Input, typename... States >
+diff --git a/include/tao/pegtl/parse.hpp b/include/tao/pegtl/parse.hpp
+index d6093e01..17856ea9 100644
+--- a/include/tao/pegtl/parse.hpp
++++ b/include/tao/pegtl/parse.hpp
+@@ -41,6 +41,7 @@ namespace tao
+                 typename... States >
+       bool parse_nested( const Outer& oi, Input&& in, States&&... st )
+       {
++#ifdef __cpp_exceptions
+          try {
+             return parse< Rule, Action, Control, A, M >( in, st... );
+          }
+@@ -48,6 +49,10 @@ namespace tao
+             e.positions.push_back( oi.position() );
+             throw;
+          }
++#else
++         (void)oi;
++         return parse< Rule, Action, Control, A, M >( in, st... );
++#endif
+       }
+ 
+    }  // namespace TAO_PEGTL_NAMESPACE
 diff --git a/include/tao/pegtl/position.hpp b/include/tao/pegtl/position.hpp
-index 60904a0..379f707 100644
+index 46a982df..090ef91f 100644
 --- a/include/tao/pegtl/position.hpp
 +++ b/include/tao/pegtl/position.hpp
 @@ -5,8 +5,6 @@
@@ -475,6 +1443,2484 @@ index 60904a0..379f707 100644
 -         o << p;
 -         return o.str();
 +         return p.source + ':' + std::to_string(p.line) + ':' + std::to_string(p.byte_in_line) + '(' + std::to_string(p.byte) + ')';
+       }
+ 
+    }  // namespace TAO_PEGTL_NAMESPACE
+diff --git a/include/tao/pegtl/rules.hpp b/include/tao/pegtl/rules.hpp
+index 8f0ce396..2f195ce8 100644
+--- a/include/tao/pegtl/rules.hpp
++++ b/include/tao/pegtl/rules.hpp
+@@ -28,24 +28,17 @@ namespace tao
+       struct eof : internal::eof {};
+       struct failure : internal::trivial< false > {};
+       template< typename Rule, typename... Actions > struct if_apply : internal::if_apply< Rule, Actions... > {};
+-      template< typename Cond, typename... Thens > struct if_must : internal::if_must< false, Cond, Thens... > {};
+-      template< typename Cond, typename Then, typename Else > struct if_must_else : internal::if_must_else< Cond, Then, Else > {};
+       template< typename Cond, typename Then, typename Else > struct if_then_else : internal::if_then_else< Cond, Then, Else > {};
+       template< typename Rule, typename Sep, typename Pad = void > struct list : internal::list< Rule, internal::pad< Sep, Pad > > {};
+       template< typename Rule, typename Sep > struct list< Rule, Sep, void > : internal::list< Rule, Sep > {};
+-      template< typename Rule, typename Sep, typename Pad = void > struct list_must : internal::list_must< Rule, internal::pad< Sep, Pad > > {};
+-      template< typename Rule, typename Sep > struct list_must< Rule, Sep, void > : internal::list_must< Rule, Sep > {};
+       template< typename Rule, typename Sep, typename Pad = void > struct list_tail : internal::list_tail_pad< Rule, Sep, Pad > {};
+       template< typename Rule, typename Sep > struct list_tail< Rule, Sep, void > : internal::list_tail< Rule, Sep > {};
+       template< typename M, typename S > struct minus : internal::rematch< M, internal::not_at< S, internal::eof > > {};
+-      template< typename... Rules > struct must : internal::must< Rules... > {};
+       template< typename... Rules > struct not_at : internal::not_at< Rules... > {};
+       template< typename... Rules > struct opt : internal::opt< Rules... > {};
+-      template< typename Cond, typename... Rules > struct opt_must : internal::if_must< true, Cond, Rules... > {};
+       template< typename Rule, typename Pad1, typename Pad2 = Pad1 > struct pad : internal::pad< Rule, Pad1, Pad2 > {};
+       template< typename Rule, typename Pad > struct pad_opt : internal::pad_opt< Rule, Pad > {};
+       template< typename Rule, typename... Rules > struct plus : internal::plus< Rule, Rules... > {};
+-      template< typename Exception > struct raise : internal::raise< Exception > {};
+       template< typename Head, typename... Rules > struct rematch : internal::rematch< Head, Rules... > {};
+       template< unsigned Num, typename... Rules > struct rep : internal::rep< Num, Rules... > {};
+       template< unsigned Max, typename... Rules > struct rep_max : internal::rep_min_max< 0, Max, Rules... > {};
+@@ -56,12 +49,22 @@ namespace tao
+       template< typename... Rules > struct seq : internal::seq< Rules... > {};
+       template< typename... Rules > struct sor : internal::sor< Rules... > {};
+       template< typename Rule, typename... Rules > struct star : internal::star< Rule, Rules... > {};
+-      template< typename Cond, typename... Rules > struct star_must : internal::star_must< Cond, Rules... > {};
+       template< typename State, typename... Rules > struct state : internal::state< State, Rules... > {};
+       struct success : internal::trivial< true > {};
++      template< typename Cond, typename... Rules > struct until : internal::until< Cond, Rules... > {};
++
++#if defined( __cpp_exceptions )
++      template< typename Cond, typename... Thens > struct if_must : internal::if_must< false, Cond, Thens... > {};
++      template< typename Cond, typename Then, typename Else > struct if_must_else : internal::if_must_else< Cond, Then, Else > {};
++      template< typename Rule, typename Sep, typename Pad = void > struct list_must : internal::list_must< Rule, internal::pad< Sep, Pad > > {};
++      template< typename Rule, typename Sep > struct list_must< Rule, Sep, void > : internal::list_must< Rule, Sep > {};
++      template< typename... Rules > struct must : internal::must< Rules... > {};
++      template< typename Cond, typename... Rules > struct opt_must : internal::if_must< true, Cond, Rules... > {};
++      template< typename Exception > struct raise : internal::raise< Exception > {};
++      template< typename Cond, typename... Rules > struct star_must : internal::star_must< Cond, Rules... > {};
+       template< typename... Rules > struct try_catch : internal::seq< internal::try_catch_type< parse_error, Rules... > > {};
+       template< typename Exception, typename... Rules > struct try_catch_type : internal::seq< internal::try_catch_type< Exception, Rules... > > {};
+-      template< typename Cond, typename... Rules > struct until : internal::until< Cond, Rules... > {};
++#endif
+       // clang-format on
+ 
+    }  // namespace TAO_PEGTL_NAMESPACE
+diff --git a/src/example/pegtl/abnf2pegtl.cpp b/src/example/pegtl/abnf2pegtl.cpp
+index fa79c538..18ee3372 100644
+--- a/src/example/pegtl/abnf2pegtl.cpp
++++ b/src/example/pegtl/abnf2pegtl.cpp
+@@ -2,6 +2,8 @@
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
+ #include <algorithm>
++#include <exception>
++#include <iomanip>
+ #include <iostream>
+ #include <iterator>
+ #include <map>
+@@ -222,28 +224,28 @@ namespace tao
+ 
+             // The rest is according to the RFC(s):
+             struct comment_cont : until< CRLF, sor< WSP, VCHAR > > {};
+-            struct comment : if_must< one< ';' >, comment_cont > {};
++            struct comment : seq< one< ';' >, comment_cont > {};
+             struct c_nl : sor< comment, CRLF > {};
+             struct c_wsp : sor< WSP, seq< c_nl, WSP > > {};
+ 
+             struct rulename : seq< ALPHA, star< ranges< 'a', 'z', 'A', 'Z', '0', '9', '-' > > > {};
+ 
+             struct quoted_string_cont : until< DQUOTE, print > {};
+-            struct quoted_string : if_must< DQUOTE, quoted_string_cont > {};
++            struct quoted_string : seq< DQUOTE, quoted_string_cont > {};
+             struct case_insensitive_string : seq< opt< istring< '%', 'i' > >, quoted_string > {};
+             struct case_sensitive_string : seq< istring< '%', 's' >, quoted_string > {};
+             struct char_val : sor< case_insensitive_string, case_sensitive_string > {};
+ 
+             struct prose_val_cont : until< one< '>' >, print > {};
+-            struct prose_val : if_must< one< '<' >, prose_val_cont > {};
++            struct prose_val : seq< one< '<' >, prose_val_cont > {};
+ 
+             template< char First, typename Digit >
+             struct gen_val
+             {
+                struct value : plus< Digit > {};
+-               struct range : if_must< one< '-' >, value > {};
+-               struct next_value : must< value > {};
+-               struct type : seq< istring< First >, must< value >, sor< range, star< one< '.' >, next_value > > > {};
++               struct range : seq< one< '-' >, value > {};
++               struct next_value : seq< value > {};
++               struct type : seq< istring< First >, value, sor< range, star< one< '.' >, next_value > > > {};
+             };
+ 
+             using hex_val = gen_val< 'x', HEXDIG >;
+@@ -251,29 +253,29 @@ namespace tao
+             using bin_val = gen_val< 'b', BIT >;
+ 
+             struct num_val_choice : sor< bin_val::type, dec_val::type, hex_val::type > {};
+-            struct num_val : if_must< one< '%' >, num_val_choice > {};
++            struct num_val : seq< one< '%' >, num_val_choice > {};
+ 
+             struct alternation;
+             struct option_close : one< ']' > {};
+-            struct option : seq< one< '[' >, pad< must< alternation >, c_wsp >, must< option_close > > {};
++            struct option : seq< one< '[' >, pad< alternation, c_wsp >, option_close > {};
+             struct group_close : one< ')' > {};
+-            struct group : seq< one< '(' >, pad< must< alternation >, c_wsp >, must< group_close > > {};
++            struct group : seq< one< '(' >, pad< alternation, c_wsp >, group_close > {};
+             struct element : sor< rulename, group, option, char_val, num_val, prose_val > {};
+ 
+             struct repeat : sor< seq< star< DIGIT >, one< '*' >, star< DIGIT > >, plus< DIGIT > > {};
+             struct repetition : seq< opt< repeat >, element > {};
+ 
+-            struct and_predicate : if_must< one< '&' >, repetition > {};
+-            struct not_predicate : if_must< one< '!' >, repetition > {};
++            struct and_predicate : seq< one< '&' >, repetition > {};
++            struct not_predicate : seq< one< '!' >, repetition > {};
+             struct predicate : sor< and_predicate, not_predicate, repetition > {};
+ 
+             struct concatenation : list< predicate, plus< c_wsp > > {};
+-            struct alternation : list_must< concatenation, pad< one< '/' >, c_wsp > > {};
++            struct alternation : seq< concatenation, pad< one< '/' >, c_wsp > > {};
+ 
+             struct defined_as_op : sor< string< '=', '/' >, one< '=' > > {};
+             struct defined_as : pad< defined_as_op, c_wsp > {};
+-            struct rule : seq< if_must< rulename, defined_as, alternation >, star< c_wsp >, must< c_nl > > {};
+-            struct rulelist : until< eof, sor< seq< star< c_wsp >, c_nl >, must< rule > > > {};
++            struct rule : seq< seq< rulename, defined_as, alternation >, star< c_wsp >, c_nl > {};
++            struct rulelist : until< eof, sor< seq< star< c_wsp >, c_nl >, rule > > {};
+ 
+             // end of grammar
+ 
+@@ -285,7 +287,12 @@ namespace tao
+                template< typename Input, typename... States >
+                static void raise( const Input& in, States&&... /*unused*/ )
+                {
++#if defined( __cpp_exceptions )
+                   throw parse_error( error_message, in );
++#else
++                  (void)in;
++                  std::terminate();
++#endif
+                }
+             };
+ 
+@@ -414,7 +421,12 @@ namespace tao
+                   return *it;
+                }
+                if( keywords.count( v ) != 0 || v.find( "__" ) != std::string::npos ) {
++#if defined( __cpp_exceptions )
+                   throw parse_error( '\'' + n->content() + "' is a reserved rulename", n->begin() );  // NOLINT
++#else
++                  std::cerr << '\'' + n->string() + "' is a reserved rulename" << std::endl;
++                  std::terminate();
++#endif
+                }
+                if( print_forward_declarations && find_rule( rules_defined, v ) != rules_defined.rend() ) {
+                   std::cout << "struct " << v << ";\n";
+@@ -461,14 +473,24 @@ namespace tao
+                // when we insert a normal rule, we need to check for duplicates
+                if( op == "=" ) {
+                   if( !previous_rules.insert( { rname, n.get() } ).second ) {
+-                     throw parse_error( "rule '" + rname + "' is already defined", n->begin() );  // NOLINT
++#if defined( __cpp_exceptions )
++                     throw parse_error( "rule '" + rname + "' is already defined", n->begin() );
++#else
++                     std::cerr << "rule '" + rname + "' is already defined" << std::endl;
++                     std::terminate();
++#endif
+                   }
+                }
+                // if it is an "incremental alternation", we need to consolidate the assigned alternations
+                else if( op == "=/" ) {
+                   const auto p = previous_rules.find( rname );
+                   if( p == previous_rules.end() ) {
+-                     throw parse_error( "incremental alternation '" + rname + "' without previous rule definition", n->begin() );  // NOLINT
++#if defined( __cpp_exceptions )
++                     throw parse_error( "incremental alternation '" + rname + "' without previous rule definition", n->begin() );
++#else
++                     std::cerr << "incremental alternation '" + rname + "' without previous rule definition" << std::endl;
++                     std::terminate();
++#endif
+                   }
+                   auto& previous = p->second->children.back();
+ 
+@@ -499,7 +521,12 @@ namespace tao
+                   n.reset();
+                }
+                else {
++#if defined( __cpp_exceptions )
+                   throw parse_error( "invalid operator '" + op + "', this should not happen!", n->begin() );  // NOLINT
++#else
++                  std::cerr << "invalid operator '" + op + "', this should not happen!" << std::endl;
++                  std::terminate();
++#endif
+                }
+             }
+          };
+@@ -531,7 +558,12 @@ namespace tao
+          {
+             stringifier nrv;
+             nrv.default_ = []( const node_ptr& n ) -> std::string {
++#if defined( __cpp_exceptions )
+                throw parse_error( "missing to_string() for " + n->name(), n->begin() );  // NOLINT
++#else
++               std::cerr << "missing to_string() for " + n->name() << std::endl;
++               std::terminate();
++#endif
+             };
+ 
+             nrv.add< grammar::rulename >( []( const node_ptr& n ) { return get_rulename( n, true ); } );
+@@ -615,14 +647,24 @@ namespace tao
+                if( star == std::string::npos ) {
+                   const auto v = remove_leading_zeroes( rep );
+                   if( v.empty() ) {
+-                     throw parse_error( "repetition of zero not allowed", n->begin() );  // NOLINT
++#if defined( __cpp_exceptions )
++                     throw parse_error( "repetition of zero not allowed", n->begin() );
++#else
++                     std::cerr << "repetition of zero not allowed" << std::endl;
++                     std::terminate();
++#endif
+                   }
+                   return prefix + "rep< " + v + ", " + content + " >";
+                }
+                const auto min = remove_leading_zeroes( rep.substr( 0, star ) );
+                const auto max = remove_leading_zeroes( rep.substr( star + 1 ) );
+                if( ( star != rep.size() - 1 ) && max.empty() ) {
+-                  throw parse_error( "repetition maximum of zero not allowed", n->begin() );  // NOLINT
++#if defined( __cpp_exceptions )
++                  throw parse_error( "repetition maximum of zero not allowed", n->begin() );
++#else
++                  std::cerr << "repetition maximum of zero not allowed" << std::endl;
++                  std::terminate();
++#endif
+                }
+                if( min.empty() && max.empty() ) {
+                   return prefix + "star< " + content + " >";
+@@ -650,7 +692,12 @@ namespace tao
+                   s >> max_val;
+                }
+                if( min_val > max_val ) {
+-                  throw parse_error( "repetition minimum which is greater than the repetition maximum not allowed", n->begin() );  // NOLINT
++#if defined( __cpp_exceptions )
++                  throw parse_error( "repetition minimum which is greater than the repetition maximum not allowed", n->begin() );
++#else
++                  std::cerr << "repetition minimum which is greater than the repetition maximum not allowed" << std::endl;
++                  std::terminate();
++#endif
+                }
+                if( ( min_val == 1 ) && ( max_val == 1 ) ) {
+                   // note: content can not be used here!
+@@ -704,6 +751,7 @@ int main( int argc, char** argv )  // NOLINT
+    }
+ 
+    file_input<> in( argv[ 1 ] );
++#if defined( __cpp_exceptions )
+    try {
+       const auto root = parse_tree::parse< abnf::grammar::rulelist, abnf::selector, nothing, abnf::grammar::error_control >( in );
+ 
+@@ -721,6 +769,21 @@ int main( int argc, char** argv )  // NOLINT
+                 << in.line_at( p ) << std::endl
+                 << std::string( p.byte_in_line, ' ' ) << '^' << std::endl;
+    }
++#else
++   if( const auto root = parse_tree::parse< abnf::grammar::rulelist, abnf::selector, nothing, abnf::grammar::error_control >( in ) ) {
++      for( const auto& rule : root->children ) {
++         abnf::rules_defined.push_back( abnf::get_rulename( rule->children.front() ) );
++      }
++
++      for( const auto& rule : root->children ) {
++         std::cout << abnf::to_string( rule ) << '\n';
++      }
++   }
++   else {
++      std::cerr << "error occurred" << std::endl;
++      return 1;
++   }
++#endif
+ 
+    return 0;
+ }
+diff --git a/src/example/pegtl/analyze.cpp b/src/example/pegtl/analyze.cpp
+index 6d841594..127d3e47 100644
+--- a/src/example/pegtl/analyze.cpp
++++ b/src/example/pegtl/analyze.cpp
+@@ -21,7 +21,6 @@ struct bar
+ int main()  // NOLINT
+ {
+    if( analyze< foo >() != 0 ) {
+-      std::cout << "there are problems" << std::endl;
+       return 1;
+    }
+    return 0;
+diff --git a/src/example/pegtl/calculator.cpp b/src/example/pegtl/calculator.cpp
+index ba609850..9ada05b0 100644
+--- a/src/example/pegtl/calculator.cpp
++++ b/src/example/pegtl/calculator.cpp
+@@ -187,7 +187,7 @@ namespace calculator
+    // Comments are introduced by a '#' and proceed to the end-of-line/file.
+ 
+    struct comment
+-      : if_must< one< '#' >, until< eolf > >
++      : seq< one< '#' >, until< eolf > >
+    {
+    };
+ 
+@@ -262,7 +262,7 @@ namespace calculator
+    // proceed with an expression and a ')'.
+ 
+    struct bracket
+-      : if_must< one< '(' >, expression, one< ')' > >
++      : seq< one< '(' >, expression, one< ')' > >
+    {
+    };
+ 
+@@ -286,7 +286,7 @@ namespace calculator
+    // The top-level grammar allows one expression and then expects eof.
+ 
+    struct grammar
+-      : must< expression, eof >
++      : seq< expression, eof >
+    {
+    };
+ 
+@@ -353,11 +353,13 @@ int main( int argc, char** argv )  // NOLINT
+       // Parse and process the command-line arguments as calculator expressions...
+ 
+       pegtl::argv_input<> in( argv, i );
+-      pegtl::parse< calculator::grammar, calculator::action >( in, b, s );
+-
+-      // ...and print the respective results to std::cout.
+-
+-      std::cout << s.finish() << std::endl;
++      if( pegtl::parse< calculator::grammar, calculator::action >( in, b, s ) ) {
++         // ...and print the respective results to std::cout.
++         std::cout << s.finish() << std::endl;
++      }
++      else {
++         std::cerr << "parse error for: " << argv[ i ] << std::endl;
++      }
+    }
+    return 0;
+ }
+diff --git a/src/example/pegtl/csv1.cpp b/src/example/pegtl/csv1.cpp
+index 756c7a6b..a030aabb 100644
+--- a/src/example/pegtl/csv1.cpp
++++ b/src/example/pegtl/csv1.cpp
+@@ -30,8 +30,8 @@ namespace csv1
+    // clang-format off
+    struct value : pegtl::plus< pegtl::digit > {};
+    struct value_item : pegtl::pad< value, pegtl::blank > {};
+-   struct value_list : pegtl::list_must< value_item, pegtl::one< ',' > > {};
+-   struct value_line : pegtl::if_must< value_list, pegtl::eolf > {};
++   struct value_list : pegtl::list< value_item, pegtl::one< ',' > > {};
++   struct value_line : pegtl::seq< value_list, pegtl::eolf > {};
+    struct comment_line : pegtl::seq< pegtl::one< '#' >, pegtl::until< pegtl::eolf > > {};
+    struct line : pegtl::sor< comment_line, value_line > {};
+    struct file : pegtl::until< pegtl::eof, line > {};
+@@ -93,7 +93,10 @@ int main( int argc, char** argv )  // NOLINT
+    for( int i = 1; i < argc; ++i ) {
+       pegtl::file_input<> in( argv[ i ] );
+       csv1::result_data data;
+-      pegtl::parse< pegtl::must< csv1::file >, csv1::action, csv1::control >( in, data );
++      if( !pegtl::parse< pegtl::seq< csv1::file >, csv1::action, csv1::control >( in, data ) ) {
++         std::cerr << "parse error" << std::endl;
++         return 1;
++      }
+       for( const auto& line : data ) {
+          assert( !line.empty() );  // The grammar doesn't allow empty lines.
+          std::cout << line.front();
+diff --git a/src/example/pegtl/csv2.cpp b/src/example/pegtl/csv2.cpp
+index 5de569f4..9c1856cf 100644
+--- a/src/example/pegtl/csv2.cpp
++++ b/src/example/pegtl/csv2.cpp
+@@ -1,6 +1,7 @@
+ // Copyright (c) 2016-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#include <exception>
+ #include <iostream>
+ #include <utility>
+ 
+@@ -25,7 +26,7 @@ namespace csv2
+    // clang-format off
+    template< char C > struct string_without : pegtl::star< pegtl::not_one< C, 10, 13 > > {};
+    struct plain_value : string_without< ',' > {};
+-   struct quoted_value : pegtl::if_must< pegtl::one< '"' >, string_without< '"' >, pegtl::one< '"' > > {};
++   struct quoted_value : pegtl::seq< pegtl::one< '"' >, string_without< '"' >, pegtl::one< '"' > > {};
+    struct value : pegtl::sor< quoted_value, plain_value > {};
+    template< unsigned N > struct line : pegtl::seq< value, pegtl::rep< N - 1, pegtl::one< ',' >, value >, pegtl::eol > {};
+    template< unsigned N > struct file : pegtl::until< pegtl::eof, line< N > > { static_assert( N, "N must be positive" ); };
+@@ -114,7 +115,8 @@ namespace csv2
+       static void apply( const Input& in, result_data< N >& data )
+       {
+          if( data.temp.size() != N ) {
+-            throw pegtl::parse_error( "column count mismatch", in );
++            std::cerr << "column count mismatch " << to_string(in.position()) << std::endl;
++            std::terminate();
+          }
+          tuple_t temp;
+          tuple_init< N - 1 >::init( temp, data.temp );
+@@ -176,9 +178,13 @@ int main( int argc, char** argv )  // NOLINT
+       pegtl::file_input<> in( argv[ i ] );
+       constexpr unsigned number_of_columns = 3;
+       csv2::result_data< number_of_columns > data;
+-      pegtl::parse< pegtl::must< csv2::file< number_of_columns > >, csv2::action >( in, data );
+-      for( const auto& line : data.result ) {
+-         csv2::print_tuple( line );
++      if( pegtl::parse< pegtl::seq< csv2::file< number_of_columns > >, csv2::action >( in, data ) ) {
++         for( const auto& line : data.result ) {
++            csv2::print_tuple( line );
++         }
++      }
++      else {
++         std::cerr << "parse error" << std::endl;
+       }
+    }
+    return 0;
+diff --git a/src/example/pegtl/dynamic_match.cpp b/src/example/pegtl/dynamic_match.cpp
+index b860d8cb..6c5bd0b3 100644
+--- a/src/example/pegtl/dynamic_match.cpp
++++ b/src/example/pegtl/dynamic_match.cpp
+@@ -55,9 +55,8 @@ namespace dynamic
+    };
+ 
+    struct grammar
+-      : pegtl::if_must< long_literal_open, pegtl::until< long_literal_close, long_literal_body >, pegtl::eof >
+-   {
+-   };
++      : pegtl::seq< long_literal_open, pegtl::until< long_literal_close, long_literal_body >, pegtl::eof >
++   {};
+ 
+    template< typename Rule >
+    struct action
+@@ -93,10 +92,14 @@ int main( int argc, char** argv )  // NOLINT
+       std::string body;
+ 
+       pegtl::argv_input<> in( argv, 1 );
+-      pegtl::parse< dynamic::grammar, dynamic::action >( in, id, body );
+-
+-      std::cout << "long literal id was: " << id << std::endl;
+-      std::cout << "long literal body was: " << body << std::endl;
++      if( pegtl::parse< dynamic::grammar, dynamic::action >( in, id, body ) ) {
++         std::cout << "long literal id was: " << id << std::endl;
++         std::cout << "long literal body was: " << body << std::endl;
++      }
++      else {
++         std::cerr << "parse error for: " << argv[ 1 ] << std::endl;
++         return 1;
++      }
+    }
+    return 0;
+ }
+diff --git a/src/example/pegtl/hello_world.cpp b/src/example/pegtl/hello_world.cpp
+index 5e53e089..23976edb 100644
+--- a/src/example/pegtl/hello_world.cpp
++++ b/src/example/pegtl/hello_world.cpp
+@@ -13,7 +13,7 @@ namespace hello
+    // clang-format off
+    struct prefix : pegtl::string< 'H', 'e', 'l', 'l', 'o', ',', ' ' > {};
+    struct name : pegtl::plus< pegtl::alpha > {};
+-   struct grammar : pegtl::must< prefix, name, pegtl::one< '!' >, pegtl::eof > {};
++   struct grammar : pegtl::seq< prefix, name, pegtl::one< '!' >, pegtl::eof > {};
+    // clang-format on
+ 
+    template< typename Rule >
+@@ -39,8 +39,11 @@ int main( int argc, char** argv )  // NOLINT
+       std::string name;
+ 
+       pegtl::argv_input<> in( argv, 1 );
+-      pegtl::parse< hello::grammar, hello::action >( in, name );
+-
+-      std::cout << "Good bye, " << name << "!" << std::endl;
++      if( pegtl::parse< hello::grammar, hello::action >( in, name ) ) {
++         std::cout << "Good bye, " << name << "!" << std::endl;
++      }
++      else {
++         std::cerr << "I don't understand." << std::endl;
++      }
+    }
+ }
+diff --git a/src/example/pegtl/indent_aware.cpp b/src/example/pegtl/indent_aware.cpp
+index 7fd09def..79373b4e 100644
+--- a/src/example/pegtl/indent_aware.cpp
++++ b/src/example/pegtl/indent_aware.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2018-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include <cassert>
+ #include <cstddef>
+ #include <iostream>
+@@ -214,3 +218,5 @@ int main( int argc, char** argv )  // NOLINT
+    }
+    return 0;
+ }
++
++#endif
+diff --git a/src/example/pegtl/json_build.cpp b/src/example/pegtl/json_build.cpp
+index dca2e399..a6d785c4 100644
+--- a/src/example/pegtl/json_build.cpp
++++ b/src/example/pegtl/json_build.cpp
+@@ -2,6 +2,8 @@
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
+ #include <cassert>
++#include <iomanip>
++#include <iostream>
+ #include <sstream>
+ #include <vector>
+ 
+@@ -156,19 +158,35 @@ namespace examples
+       }
+    };
+ 
+-   using grammar = pegtl::must< pegtl::json::text, pegtl::eof >;
++   using grammar = pegtl::seq< pegtl::json::text, pegtl::eof >;
+ 
+ }  // namespace examples
+ 
+ int main( int argc, char** argv )  // NOLINT
+ {
+    if( argc != 2 ) {
+-      std::cerr << "usage: " << argv[ 0 ] << " <json>";
++      std::cerr << "usage: " << argv[ 0 ] << " <json>\n";
+    }
+    else {
+       examples::json_state state;
+       pegtl::file_input<> in( argv[ 1 ] );
+-      pegtl::parse< examples::grammar, examples::action, examples::errors >( in, state );
++#if defined( __cpp_exceptions )
++      try {
++         pegtl::parse< examples::grammar, examples::action, examples::errors >( in, state );
++      }
++      catch( const pegtl::parse_error& e ) {
++         const auto p = e.positions.front();
++         std::cerr << e.what() << '\n'
++                   << in.line_at( p ) << '\n'
++                   << std::setw( p.byte_in_line ) << '^' << std::endl;
++         return 1;
++      }
++#else
++      if( !pegtl::parse< examples::grammar, examples::action, examples::errors >( in, state ) ) {
++         std::cerr << "error occurred" << std::endl;
++         return 1;
++      }
++#endif
+       assert( state.keys.empty() );
+       assert( state.arrays.empty() );
+       assert( state.objects.empty() );
+diff --git a/src/example/pegtl/json_count.cpp b/src/example/pegtl/json_count.cpp
+index 1f2f041b..3eda8211 100644
+--- a/src/example/pegtl/json_count.cpp
++++ b/src/example/pegtl/json_count.cpp
+@@ -12,7 +12,7 @@
+ #include <tao/pegtl/file_input.hpp>
+ 
+ using namespace tao::TAO_PEGTL_NAMESPACE;  // NOLINT
+-using grammar = must< json::text, eof >;
++using grammar = seq< json::text, eof >;
+ 
+ int main( int argc, char** argv )  // NOLINT
+ {
+diff --git a/src/example/pegtl/json_errors.hpp b/src/example/pegtl/json_errors.hpp
+index b1c537c8..74666c44 100644
+--- a/src/example/pegtl/json_errors.hpp
++++ b/src/example/pegtl/json_errors.hpp
+@@ -10,10 +10,7 @@
+ namespace examples
+ {
+    // This file shows how to throw exceptions with
+-   // custom error messages for parse errors. A custom
+-   // control class is created that delegates everything
+-   // to the PEGTL default control class tao::TAO_PEGTL_NAMESPACE::normal<>
+-   // except for the throwing of exceptions:
++   // custom error messages for parse errors.
+ 
+    template< typename Rule >
+    struct errors
+@@ -24,13 +21,20 @@ namespace examples
+       template< typename Input, typename... States >
+       static void raise( const Input& in, States&&... /*unused*/ )
+       {
++#if defined( __cpp_exceptions )
+          throw tao::TAO_PEGTL_NAMESPACE::parse_error( error_message, in );
++#else
++         (void)in;
++         std::terminate();
++#endif
+       }
+    };
+ 
+    // The following specialisations of the static string
+    // member are then used in the exception messages:
+ 
++#if defined( __cpp_exceptions )
++
+    // clang-format off
+    template<> const std::string errors< tao::TAO_PEGTL_NAMESPACE::json::text >::error_message = "no valid JSON";  // NOLINT
+ 
+@@ -51,6 +55,13 @@ namespace examples
+    template<> const std::string errors< tao::TAO_PEGTL_NAMESPACE::eof >::error_message = "unexpected character after JSON value";  // NOLINT
+    // clang-format on
+ 
++#else
++
++   template< typename Rule >
++   using control = tao::pegtl::normal< Rule >;
++
++#endif
++
+    // The raise()-function-template is instantiated exactly
+    // for the specialisations of errors< Rule > for which a
+    // parse error can be generated, therefore the string
+diff --git a/src/example/pegtl/json_parse.cpp b/src/example/pegtl/json_parse.cpp
+index 63cf5033..ab722d12 100644
+--- a/src/example/pegtl/json_parse.cpp
++++ b/src/example/pegtl/json_parse.cpp
+@@ -6,13 +6,20 @@
+ #include "json_errors.hpp"
+ 
+ using namespace tao::TAO_PEGTL_NAMESPACE;  // NOLINT
+-using grammar = must< json::text, eof >;
++using grammar = seq< json::text, eof >;
+ 
+ int main( int argc, char** argv )  // NOLINT
+ {
+    for( int i = 1; i < argc; ++i ) {
+       argv_input<> in( argv, i );
++#if defined( __cpp_exceptions )
+       parse< grammar, nothing, examples::errors >( in );
++#else
++      if( !parse< grammar, nothing, examples::errors >( in ) ) {
++         std::perror("error occurred");
++         return 1;
++      }
++#endif
+    }
+    return 0;
+ }
+diff --git a/src/example/pegtl/lua53_parse.cpp b/src/example/pegtl/lua53_parse.cpp
+index 0c2e8be2..84c8ccbf 100644
+--- a/src/example/pegtl/lua53_parse.cpp
++++ b/src/example/pegtl/lua53_parse.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2015-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include <tao/pegtl.hpp>
+ #include <tao/pegtl/analyze.hpp>
+ #include <tao/pegtl/contrib/raw_string.hpp>
+@@ -345,3 +349,5 @@ int main( int argc, char** argv )  // NOLINT
+    }
+    return 0;
+ }
++
++#endif
+diff --git a/src/example/pegtl/modulus_match.cpp b/src/example/pegtl/modulus_match.cpp
+index b659cec9..67bd59ee 100644
+--- a/src/example/pegtl/modulus_match.cpp
++++ b/src/example/pegtl/modulus_match.cpp
+@@ -29,9 +29,8 @@ namespace modulus
+    };
+ 
+    struct grammar
+-      : until< eolf, must< my_rule< 3 > > >
+-   {
+-   };
++      : until< eolf, my_rule< 3 > >
++   {};
+ 
+ }  // namespace modulus
+ 
+@@ -39,7 +38,9 @@ int main( int argc, char** argv )  // NOLINT
+ {
+    if( argc > 1 ) {
+       argv_input<> in( argv, 1 );
+-      parse< modulus::grammar >( in );
++      if( !parse< modulus::grammar >( in ) ) {
++         return 1;
++      }
+    }
+    return 0;
+ }
+diff --git a/src/example/pegtl/parse_tree.cpp b/src/example/pegtl/parse_tree.cpp
+index f7e1b21f..7493ac3e 100644
+--- a/src/example/pegtl/parse_tree.cpp
++++ b/src/example/pegtl/parse_tree.cpp
+@@ -28,12 +28,12 @@ namespace example
+    struct close_bracket : seq< star< space >, one< ')' > > {};
+ 
+    struct expression;
+-   struct bracketed : if_must< open_bracket, expression, close_bracket > {};
++   struct bracketed : seq< open_bracket, expression, close_bracket > {};
+    struct value : sor< integer, variable, bracketed >{};
+-   struct product : list_must< value, sor< multiply, divide > > {};
+-   struct expression : list_must< product, sor< plus, minus > > {};
++   struct product : list< value, sor< multiply, divide > > {};
++   struct expression : list< product, sor< plus, minus > > {};
+ 
+-   struct grammar : must< expression, eof > {};
++   struct grammar : seq< expression, eof > {};
+    // clang-format on
+ 
+    // after a node is stored successfully, you can add an optional transformer like this:
+@@ -104,19 +104,7 @@ int main( int argc, char** argv )
+       return 1;
+    }
+    argv_input<> in( argv, 1 );
+-   try {
+-      const auto root = parse_tree::parse< example::grammar, example::selector >( in );
+-      parse_tree::print_dot( std::cout, *root );
+-      return 0;
+-   }
+-   catch( const parse_error& e ) {
+-      const auto p = e.positions.front();
+-      std::cerr << e.what() << std::endl
+-                << in.line_at( p ) << std::endl
+-                << std::string( p.byte_in_line, ' ' ) << '^' << std::endl;
+-   }
+-   catch( const std::exception& e ) {
+-      std::cerr << e.what() << std::endl;
+-   }
+-   return 1;
++   const auto root = parse_tree::parse< example::grammar, example::selector >( in );
++   parse_tree::print_dot( std::cout, *root );
++   return 0;
+ }
+diff --git a/src/example/pegtl/proto3.cpp b/src/example/pegtl/proto3.cpp
+index 174ede3f..75057d1c 100644
+--- a/src/example/pegtl/proto3.cpp
++++ b/src/example/pegtl/proto3.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2017-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #define TAO_PEGTL_PRETTY_DEMANGLE 1
+ 
+ #include <tao/pegtl.hpp>
+@@ -144,3 +148,5 @@ int main( int argc, char** argv )  // NOLINT
+    }
+    return 0;
+ }
++
++#endif
+diff --git a/src/example/pegtl/recover.cpp b/src/example/pegtl/recover.cpp
+index 3a26b4da..f779bcf6 100644
+--- a/src/example/pegtl/recover.cpp
++++ b/src/example/pegtl/recover.cpp
+@@ -11,6 +11,10 @@
+ //
+ // Try: build/src/example/pegtl/recover '1+2*3;1+2*(3-)-4;-5;6/;7*(8+9)'
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include <iostream>
+ #include <string>
+ 
+@@ -57,7 +61,7 @@ struct my_action< skipping< T > >
+    static void apply( const Input& in, bool& error )
+    {
+       if( !error ) {
+-         std::cout << in.position() << ": Invalid expression \"" << in.string() << "\"" << std::endl;
++         std::cout << to_string(in.position()) << ": Invalid expression \"" << in.string() << "\"" << std::endl;
+       }
+       error = true;
+    }
+@@ -70,7 +74,7 @@ struct found
+    static void apply( const Input& in, bool& error )
+    {
+       if( !error ) {
+-         std::cout << in.position() << ": Found " << internal::demangle< R >() << ": \"" << in.string() << "\"" << std::endl;
++         std::cout << to_string(in.position()) << ": Found " << internal::demangle< R >() << ": \"" << in.string() << "\"" << std::endl;
+       }
+    }
+ };
+@@ -104,7 +108,7 @@ struct my_control
+    template< typename Input, typename... States >
+    static void raise( const Input& in, States&&... /*unused*/ )
+    {
+-      std::cout << in.position() << ": Parse error matching " << internal::demangle< Rule >() << std::endl;
++      std::cout << to_string(in.position()) << ": Parse error matching " << internal::demangle< Rule >() << std::endl;
+       throw parse_error( "parse error matching " + internal::demangle< Rule >(), in );
+    }
+ };
+@@ -118,3 +122,5 @@ int main( int argc, char** argv )
+    }
+    return 0;
+ }
++
++#endif
+diff --git a/src/example/pegtl/s_expression.cpp b/src/example/pegtl/s_expression.cpp
+index 04e80793..79f832d7 100644
+--- a/src/example/pegtl/s_expression.cpp
++++ b/src/example/pegtl/s_expression.cpp
+@@ -1,6 +1,11 @@
+ // Copyright (c) 2014-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
++#include <iomanip>
+ #include <iostream>
+ 
+ #include <tao/pegtl.hpp>
+@@ -120,3 +125,5 @@ int main( int argc, char** argv )  // NOLINT
+    }
+    return 0;
+ }
++
++#endif
+diff --git a/src/example/pegtl/symbol_table.cpp b/src/example/pegtl/symbol_table.cpp
+index 5d072688..8cbcc615 100644
+--- a/src/example/pegtl/symbol_table.cpp
++++ b/src/example/pegtl/symbol_table.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2018-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include <cstring>
+ #include <iostream>
+ #include <map>
+@@ -103,3 +107,5 @@ int main( int argc, char** argv )  // NOLINT
+    }
+    return 0;
+ }
++
++#endif
+diff --git a/src/example/pegtl/unescape.cpp b/src/example/pegtl/unescape.cpp
+index 0a11a9ad..96a9b979 100644
+--- a/src/example/pegtl/unescape.cpp
++++ b/src/example/pegtl/unescape.cpp
+@@ -4,7 +4,6 @@
+ #include <iostream>
+ 
+ #include <tao/pegtl.hpp>
+-
+ #include <tao/pegtl/contrib/unescape.hpp>
+ 
+ using namespace tao::TAO_PEGTL_NAMESPACE;  // NOLINT
+@@ -18,9 +17,9 @@ namespace example
+    // - A backslash followed by one of the characters listed in the grammar below.
+ 
+    // clang-format off
+-   struct escaped_x : seq< one< 'x' >, rep< 2, must< xdigit > > > {};
+-   struct escaped_u : seq< one< 'u' >, rep< 4, must< xdigit > > > {};
+-   struct escaped_U : seq< one< 'U' >, rep< 8, must< xdigit > > > {};
++   struct escaped_x : seq< one< 'x' >, rep< 2, xdigit > > {};
++   struct escaped_u : seq< one< 'u' >, rep< 4,  xdigit > > {};
++   struct escaped_U : seq< one< 'U' >, rep< 8,  xdigit > > {};
+    struct escaped_c : one< '\'', '"', '?', '\\', 'a', 'b', 'f', 'n', 'r', 't', 'v' > {};
+ 
+    struct escaped : sor< escaped_x,
+@@ -28,10 +27,10 @@ namespace example
+                          escaped_U,
+                          escaped_c > {};
+ 
+-   struct character : if_must_else< one< '\\' >, escaped, utf8::range< 0x20, 0x10FFFF > > {};
+-   struct literal : if_must< one< '"' >, until< one< '"' >, character > > {};
++   struct character : if_then_else< one< '\\' >, escaped, utf8::range< 0x20, 0x10FFFF > > {};
++   struct literal : seq< one< '"' >, until< one< '"' >, character > > {};
+ 
+-   struct padded : must< pad< literal, blank >, eof > {};
++   struct padded : seq< pad< literal, blank >, eof > {};
+ 
+    // Action class that uses the actions from tao/pegtl/contrib/unescape.hpp to
+    // produce a UTF-8 encoded result string where all escape sequences are
+@@ -53,8 +52,12 @@ int main( int argc, char** argv )  // NOLINT
+    for( int i = 1; i < argc; ++i ) {
+       std::string s;
+       argv_input<> in( argv, i );
+-      parse< example::padded, example::action >( in, s );
+-      std::cout << "argv[ " << i << " ] = " << s << std::endl;
++      if( parse< example::padded, example::action >( in, s ) ) {
++         std::cout << "argv[ " << i << " ] = " << s << std::endl;
++      }
++      else {
++         std::cerr << "error parsing: " << argv[ i ] << std::endl;
++      }
+    }
+    return 0;
+ }
+diff --git a/src/example/pegtl/uri.cpp b/src/example/pegtl/uri.cpp
+index f0db1ca7..c7711817 100644
+--- a/src/example/pegtl/uri.cpp
++++ b/src/example/pegtl/uri.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2017-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include <tao/pegtl.hpp>
+ #include <tao/pegtl/contrib/uri.hpp>
+ 
+@@ -87,3 +91,5 @@ int main( int argc, char** argv )
+    }
+    return 0;
+ }
++
++#endif
+diff --git a/src/example/pegtl/uri_trace.cpp b/src/example/pegtl/uri_trace.cpp
+index ca3733e5..1b41a748 100644
+--- a/src/example/pegtl/uri_trace.cpp
++++ b/src/example/pegtl/uri_trace.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2014-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include <iostream>
+ 
+ #include <tao/pegtl.hpp>
+@@ -20,3 +24,5 @@ int main( int argc, char** argv )  // NOLINT
+    }
+    return 0;
+ }
++
++#endif
+diff --git a/src/test/pegtl/CMakeLists.txt b/src/test/pegtl/CMakeLists.txt
+index e9c51912..cf26d88c 100644
+--- a/src/test/pegtl/CMakeLists.txt
++++ b/src/test/pegtl/CMakeLists.txt
+@@ -132,8 +132,8 @@ foreach(testsourcefile ${test_sources})
+   endif()
+ endforeach(testsourcefile)
+ 
+-if(glob_test_sources)
+-  foreach(ignored_source_file ${glob_test_sources})
+-    message(SEND_ERROR "File ${ignored_source_file} in src/test/pegtl is ignored")
+-  endforeach(ignored_source_file)
+-endif()
++#if(glob_test_sources)
++#  foreach(ignored_source_file ${glob_test_sources})
++#    message(SEND_ERROR "File ${ignored_source_file} in src/test/pegtl is ignored")
++#  endforeach(ignored_source_file)
++#endif()
+diff --git a/src/test/pegtl/actions_one.cpp b/src/test/pegtl/actions_one.cpp
+index 21bacb80..e94f3db5 100644
+--- a/src/test/pegtl/actions_one.cpp
++++ b/src/test/pegtl/actions_one.cpp
+@@ -9,7 +9,7 @@ namespace tao
+    {
+       namespace test1
+       {
+-         struct fiz : if_must< at< one< 'a' > >, two< 'a' > >
++         struct fiz : seq< at< one< 'a' > >, two< 'a' > >
+          {
+          };
+ 
+diff --git a/src/test/pegtl/actions_two.cpp b/src/test/pegtl/actions_two.cpp
+index 3fc9add1..fe4c5f65 100644
+--- a/src/test/pegtl/actions_two.cpp
++++ b/src/test/pegtl/actions_two.cpp
+@@ -121,8 +121,7 @@ namespace tao
+          {
+             const char* foo = "f";
+             memory_input<> in( foo, foo + 1, count_source, count_byte, count_line, count_byte_in_line );
+-            const auto result = parse< must< alpha >, count_action >( in );
+-            TAO_PEGTL_TEST_ASSERT( result );
++            TAO_PEGTL_TEST_ASSERT( parse< alpha, count_action >( in ) );
+          }
+ 
+       }  // namespace test1
+diff --git a/src/test/pegtl/analyze_cycles.cpp b/src/test/pegtl/analyze_cycles.cpp
+index 3ad27072..e4029a11 100644
+--- a/src/test/pegtl/analyze_cycles.cpp
++++ b/src/test/pegtl/analyze_cycles.cpp
+@@ -260,6 +260,7 @@ namespace tao
+             };
+             verify_analyze< tst >( __LINE__, __FILE__, false, true );
+          }
++#if defined( __cpp_exceptions )
+          {
+             struct tst : list_must< any, any >
+             {
+@@ -284,6 +285,7 @@ namespace tao
+             };
+             verify_analyze< tst >( __LINE__, __FILE__, false, true );
+          }
++#endif
+          {
+             struct tst : plus< pad_opt< alpha, digit > >
+             {
+diff --git a/src/test/pegtl/buffer_input.cpp b/src/test/pegtl/buffer_input.cpp
+index 2f45336f..999b35b8 100644
+--- a/src/test/pegtl/buffer_input.cpp
++++ b/src/test/pegtl/buffer_input.cpp
+@@ -27,15 +27,19 @@ namespace tao
+          TAO_PEGTL_TEST_ASSERT( parse_cstring< seq< string< 'a', 'b', 'c' >, eof > >( "abc", TAO_TEST_LINE, 128 ) );
+ 
+          // We need one extra byte in the buffer so that eof calling in.empty() calling in.require( 1 ) does not throw a "require beyond end of buffer" exception.
++#if defined( __cpp_exceptions )
+          TAO_PEGTL_TEST_THROWS( parse_cstring< seq< rep< chunk_size + 2, one< 'a' > >, eof > >( std::string( std::size_t( chunk_size + 2 ), 'a' ).c_str(), TAO_TEST_LINE, 2 ) );
++#endif
+          TAO_PEGTL_TEST_ASSERT( parse_cstring< seq< rep< chunk_size + 2, one< 'a' > >, eof > >( std::string( std::size_t( chunk_size + 2 ), 'a' ).c_str(), TAO_TEST_LINE, 3 ) );
+ 
+          TAO_PEGTL_TEST_ASSERT( parse_cstring< rep< chunk_size + 9, one< 'a' > > >( std::string( std::size_t( chunk_size + 9 ), 'a' ).c_str(), TAO_TEST_LINE, 9 ) );
+          TAO_PEGTL_TEST_ASSERT( parse_cstring< rep< chunk_size + 9, one< 'a' > > >( std::string( std::size_t( chunk_size + 10 ), 'a' ).c_str(), TAO_TEST_LINE, 9 ) );
++#if defined( __cpp_exceptions )
+          TAO_PEGTL_TEST_THROWS( parse_cstring< rep< chunk_size + 10, one< 'a' > > >( std::string( std::size_t( chunk_size + 10 ), 'a' ).c_str(), TAO_TEST_LINE, 9 ) );
+          TAO_PEGTL_TEST_THROWS( parse_cstring< rep< chunk_size + 10, one< 'a' > > >( std::string( std::size_t( chunk_size + 11 ), 'a' ).c_str(), TAO_TEST_LINE, 9 ) );
+          TAO_PEGTL_TEST_THROWS( parse_cstring< seq< rep< chunk_size + 10, one< 'a' > >, eof > >( std::string( std::size_t( chunk_size + 10 ), 'a' ).c_str(), TAO_TEST_LINE, 9 ) );
+          TAO_PEGTL_TEST_THROWS( parse_cstring< seq< rep< chunk_size + 10, one< 'a' > >, eof > >( std::string( std::size_t( chunk_size + 10 ), 'a' ).c_str(), TAO_TEST_LINE, 10 ) );
++#endif
+       }
+ 
+    }  // namespace TAO_PEGTL_NAMESPACE
+diff --git a/src/test/pegtl/change_action_and_state.cpp b/src/test/pegtl/change_action_and_state.cpp
+index 05a8e122..3fbe829b 100644
+--- a/src/test/pegtl/change_action_and_state.cpp
++++ b/src/test/pegtl/change_action_and_state.cpp
+@@ -26,9 +26,7 @@ namespace tao
+       {
+          static void apply0( int& c )
+          {
+-            if( c != 0 ) {
+-               throw std::runtime_error( "fail1" );
+-            }
++            TAO_PEGTL_TEST_ASSERT( c == 0 );
+             c = 1;
+          }
+       };
+@@ -44,9 +42,7 @@ namespace tao
+                v = 6;
+             }
+             else {
+-               if( c != 1 ) {
+-                  throw std::runtime_error( "fail2" );
+-               }
++               TAO_PEGTL_TEST_ASSERT( c == 1 );
+                v = 2;
+             }
+          }
+@@ -54,9 +50,7 @@ namespace tao
+          template< typename Input >
+          void success( const Input& /*unused*/, int& c )
+          {
+-            if( v != 3 ) {
+-               throw std::runtime_error( "fail4" );
+-            }
++            TAO_PEGTL_TEST_ASSERT( v == 3 );
+             c = 4;
+          }
+       };
+@@ -71,7 +65,7 @@ namespace tao
+       {
+          static void apply0( S& /*s*/ )
+          {
+-            throw std::runtime_error( "fail4" );
++            TAO_PEGTL_TEST_UNREACHABLE;
+          }
+       };
+ 
+@@ -80,9 +74,7 @@ namespace tao
+       {
+          static void apply0( S& s )
+          {
+-            if( s.v != 2 ) {
+-               throw std::runtime_error( "fail5" );
+-            }
++            TAO_PEGTL_TEST_ASSERT( s.v == 2 );
+             s.v = 3;
+          }
+       };
+diff --git a/src/test/pegtl/change_action_and_states.cpp b/src/test/pegtl/change_action_and_states.cpp
+index 00382760..eee00458 100644
+--- a/src/test/pegtl/change_action_and_states.cpp
++++ b/src/test/pegtl/change_action_and_states.cpp
+@@ -26,9 +26,7 @@ namespace tao
+       {
+          static void apply0( int& c )
+          {
+-            if( c != 0 ) {
+-               throw std::runtime_error( "fail1" );
+-            }
++            TAO_PEGTL_TEST_ASSERT( c == 0 );
+             c = 1;
+          }
+       };
+@@ -40,18 +38,14 @@ namespace tao
+          // not called because my_action_2 is active
+          static void apply0( int& /*v*/ )
+          {
+-            throw std::runtime_error( "fail2" );
++            TAO_PEGTL_TEST_UNREACHABLE;
+          }
+ 
+          template< typename Input >
+          static void success( const Input& /*unused*/, int& v, int& c )
+          {
+-            if( v != 2 ) {
+-               throw std::runtime_error( "fail3" );
+-            }
+-            if( c != 1 ) {
+-               throw std::runtime_error( "fail4" );
+-            }
++            TAO_PEGTL_TEST_ASSERT( v == 2 );
++            TAO_PEGTL_TEST_ASSERT( c == 1 );
+             c = 3;
+          }
+       };
+@@ -61,7 +55,7 @@ namespace tao
+       {
+          static void apply0( int& /*c*/ )
+          {
+-            throw std::runtime_error( "fail5" );
++            TAO_PEGTL_TEST_UNREACHABLE;
+          }
+       };
+ 
+@@ -70,9 +64,7 @@ namespace tao
+       {
+          static void apply0( int& v )
+          {
+-            if( v != 0 ) {
+-               throw std::runtime_error( "fail6" );
+-            }
++            TAO_PEGTL_TEST_ASSERT( v == 0 );
+             v = 2;
+          }
+       };
+diff --git a/src/test/pegtl/change_state.cpp b/src/test/pegtl/change_state.cpp
+index 2db651ea..95d655db 100644
+--- a/src/test/pegtl/change_state.cpp
++++ b/src/test/pegtl/change_state.cpp
+@@ -22,9 +22,7 @@ namespace tao
+       {
+          static void apply0( int& c )
+          {
+-            if( c != 0 ) {
+-               throw std::runtime_error( "fail1" );
+-            }
++            TAO_PEGTL_TEST_ASSERT( c == 0 );
+             c = 1;
+          }
+       };
+@@ -40,9 +38,7 @@ namespace tao
+                v = 6;
+             }
+             else {
+-               if( c != 1 ) {
+-                  throw std::runtime_error( "fail2" );
+-               }
++               TAO_PEGTL_TEST_ASSERT( c == 1 );
+                v = 2;
+             }
+          }
+@@ -50,9 +46,7 @@ namespace tao
+          template< typename Input >
+          void success( const Input& /*unused*/, int& c )
+          {
+-            if( v != 3 ) {
+-               throw std::runtime_error( "fail4" );
+-            }
++            TAO_PEGTL_TEST_ASSERT( v == 3 );
+             c = 4;
+          }
+       };
+@@ -63,9 +57,7 @@ namespace tao
+       {
+          static void apply0( S& s )
+          {
+-            if( s.v != 2 ) {
+-               throw std::runtime_error( "fail5" );
+-            }
++            TAO_PEGTL_TEST_ASSERT( s.v == 2 );
+             s.v = 3;
+          }
+       };
+diff --git a/src/test/pegtl/change_states.cpp b/src/test/pegtl/change_states.cpp
+index e286aa2e..6a5d3b97 100644
+--- a/src/test/pegtl/change_states.cpp
++++ b/src/test/pegtl/change_states.cpp
+@@ -22,9 +22,7 @@ namespace tao
+       {
+          static void apply0( int& c )
+          {
+-            if( c != 0 ) {
+-               throw std::runtime_error( "fail1" );
+-            }
++            TAO_PEGTL_TEST_ASSERT( c == 0 );
+             c = 1;
+          }
+       };
+@@ -35,21 +33,15 @@ namespace tao
+       {
+          static void apply0( int& v )
+          {
+-            if( v != 0 ) {
+-               throw std::runtime_error( "fail6" );
+-            }
++            TAO_PEGTL_TEST_ASSERT( v == 0 );
+             v = 2;
+          }
+ 
+          template< typename Input >
+          static void success( const Input& /*unused*/, int& v, int& c )
+          {
+-            if( v != 2 ) {
+-               throw std::runtime_error( "fail3" );
+-            }
+-            if( c != 1 ) {
+-               throw std::runtime_error( "fail4" );
+-            }
++            TAO_PEGTL_TEST_ASSERT( v == 2 );
++            TAO_PEGTL_TEST_ASSERT( c == 1 );
+             c = 3;
+          }
+       };
+diff --git a/src/test/pegtl/contrib_http.cpp b/src/test/pegtl/contrib_http.cpp
+index ed23bca3..75fc9d54 100644
+--- a/src/test/pegtl/contrib_http.cpp
++++ b/src/test/pegtl/contrib_http.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2019-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include "test.hpp"
+ #include "verify_analyze.hpp"
+ 
+@@ -97,3 +101,5 @@ namespace tao
+ }  // namespace tao
+ 
+ #include "main.hpp"
++
++#endif
+\ No newline at end of file
+diff --git a/src/test/pegtl/contrib_integer.cpp b/src/test/pegtl/contrib_integer.cpp
+index 149c42e6..89a6ff54 100644
+--- a/src/test/pegtl/contrib_integer.cpp
++++ b/src/test/pegtl/contrib_integer.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2018-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include <limits>
+ #include <sstream>
+ 
+@@ -147,3 +151,5 @@ namespace tao
+ }  // namespace tao
+ 
+ #include "main.hpp"
++
++#endif
+diff --git a/src/test/pegtl/contrib_json.cpp b/src/test/pegtl/contrib_json.cpp
+index a0803b49..60f7e274 100644
+--- a/src/test/pegtl/contrib_json.cpp
++++ b/src/test/pegtl/contrib_json.cpp
+@@ -3,7 +3,6 @@
+ 
+ #include "test.hpp"
+ #include "verify_analyze.hpp"
+-#include "verify_fail.hpp"
+ #include "verify_rule.hpp"
+ 
+ #include <tao/pegtl/analyze.hpp>
+@@ -13,19 +12,7 @@ namespace tao
+ {
+    namespace TAO_PEGTL_NAMESPACE
+    {
+-      template< typename Rule >
+-      void verify_file_fail( const std::size_t line, const char* file, const std::string& s )
+-      {
+-         file_input<> in( s );
+-         try {
+-            parse< Rule >( in );
+-            TAO_PEGTL_TEST_FAILED( "expected exception" );
+-         }
+-         catch( ... ) {
+-         }
+-      }
+-
+-      using GRAMMAR = must< json::text, eof >;
++      using GRAMMAR = seq< json::text, eof >;
+ 
+       void unit_test()
+       {
+@@ -58,34 +45,34 @@ namespace tao
+          verify_rule< GRAMMAR >( __LINE__, __FILE__, "[\"\xF4\x8F\xBF\xBF\"]", result_type::success, 0 );  // largest allowed codepoint U+10FFFF
+          verify_rule< GRAMMAR >( __LINE__, __FILE__, "[\"\U0010FFFF\"]", result_type::success, 0 );        // largest allowed codepoint U+10FFFF
+ 
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, " " );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "   " );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, " [" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, " ]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[ " );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "] " );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, " [ " );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, " ] " );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\\a\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\\c\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\\d\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\\e\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\\v\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\\'\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\b\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\f\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\n\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\r\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\t\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\\\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\\\\\\\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\\u12\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\xFF\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\xF4\x90\x80\x80\"]" );
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "[\"\xF7\xBF\xBF\xBF\"]" );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( " ", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "   ", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( " [", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( " ]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[ ", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "] ", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( " [ ", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( " ] ", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\\a\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\\c\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\\d\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\\e\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\\v\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\\'\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\b\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\f\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\n\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\r\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\t\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\\\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\\\\\\\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\\u12\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\xFF\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\xF4\x90\x80\x80\"]", "" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( memory_input<>( "[\"\xF7\xBF\xBF\xBF\"]", "" ) ) );
+ 
+          TAO_PEGTL_TEST_ASSERT( parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/pass1.json" ) ) );
+          TAO_PEGTL_TEST_ASSERT( parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/pass2.json" ) ) );
+@@ -93,45 +80,45 @@ namespace tao
+ 
+          TAO_PEGTL_TEST_ASSERT( parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/blns.json" ) ) );
+ 
+-         // verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail1.json" ); // disabled as it is valid now
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail2.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail3.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail4.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail5.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail6.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail7.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail8.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail9.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail10.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail11.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail12.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail13.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail14.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail15.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail16.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail17.json" );
+-         // verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail18.json" ); // disabled as deep nesting is allowed
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail19.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail20.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail21.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail22.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail23.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail24.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail25.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail26.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail27.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail28.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail29.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail30.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail31.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail32.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail33.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail34.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail35.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail36.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail37.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail38.json" );
+-         verify_file_fail< GRAMMAR >( __LINE__, __FILE__, "src/test/pegtl/data/fail39.json" );
++         // TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input( "src/test/pegtl/data/fail1.json" ) )); // disabled as it is valid now
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail2.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail3.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail4.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail5.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail6.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail7.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail8.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail9.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail10.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail11.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail12.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail13.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail14.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail15.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail16.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail17.json" ) ) );
++         // TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input( "src/test/pegtl/data/fail18.json" ) )); // disabled as deep nesting is allowed
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail19.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail20.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail21.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail22.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail23.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail24.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail25.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail26.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail27.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail28.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail29.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail30.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail31.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail32.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail33.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail34.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail35.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail36.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail37.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail38.json" ) ) );
++         TAO_PEGTL_TEST_ASSERT( !parse< GRAMMAR >( file_input<>( "src/test/pegtl/data/fail39.json" ) ) );
+       }
+ 
+    }  // namespace TAO_PEGTL_NAMESPACE
+diff --git a/src/test/pegtl/contrib_parse_tree.cpp b/src/test/pegtl/contrib_parse_tree.cpp
+index 60a45f95..97bdda5f 100644
+--- a/src/test/pegtl/contrib_parse_tree.cpp
++++ b/src/test/pegtl/contrib_parse_tree.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2018-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include "test.hpp"
+ 
+ #include <tao/pegtl/contrib/parse_tree.hpp>
+@@ -58,3 +62,5 @@ namespace tao
+ }  // namespace tao
+ 
+ #include "main.hpp"
++
++#endif
+diff --git a/src/test/pegtl/contrib_raw_string.cpp b/src/test/pegtl/contrib_raw_string.cpp
+index d7037728..93960fff 100644
+--- a/src/test/pegtl/contrib_raw_string.cpp
++++ b/src/test/pegtl/contrib_raw_string.cpp
+@@ -2,7 +2,6 @@
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
+ #include "test.hpp"
+-#include "verify_fail.hpp"
+ 
+ #include <tao/pegtl/contrib/raw_string.hpp>
+ 
+@@ -46,12 +45,12 @@ namespace tao
+       };
+ 
+       struct rgrammar
+-         : must< rstring, eof >
++         : seq< rstring, eof >
+       {
+       };
+ 
+       struct qgrammar
+-         : must< qstring, eof >
++         : seq< qstring, eof >
+       {
+       };
+ 
+@@ -72,6 +71,16 @@ namespace tao
+          }
+       }
+ 
++      template< typename Rule >
++      void verify_fail( const std::size_t line, const char* file, const std::string& s )
++      {
++         memory_input<> in( s, "expect exception" );
++         if( parse< Rule >( in ) ) {
++            TAO_PEGTL_TEST_FAILED( "expected exception" );  // LCOV_EXCL_LINE
++         }
++      }
++
++
+       void unit_test()
+       {
+          verify_data< rgrammar, raction >( __LINE__, __FILE__, "[[]]", "" );
+diff --git a/src/test/pegtl/contrib_unescape.cpp b/src/test/pegtl/contrib_unescape.cpp
+index e1cdf15c..876460a4 100644
+--- a/src/test/pegtl/contrib_unescape.cpp
++++ b/src/test/pegtl/contrib_unescape.cpp
+@@ -2,7 +2,6 @@
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
+ #include "test.hpp"
+-#include "verify_fail.hpp"
+ 
+ #include <tao/pegtl/contrib/unescape.hpp>
+ 
+@@ -11,107 +10,122 @@ namespace tao
+    namespace TAO_PEGTL_NAMESPACE
+    {
+       // clang-format off
+-   struct escaped_c : one< '"', '\\', 't' > {};
+-   struct escaped_u : seq< one< 'u' >, rep< 4, must< xdigit > > > {};
+-   struct escaped_U : seq< one< 'U' >, rep< 8, must< xdigit > > > {};
+-   struct escaped_j : list< seq< one< 'j' >, rep< 4, must< xdigit > > >, one< '\\' > > {};
+-   struct escaped_x : seq< one< 'x' >, rep< 2, must< xdigit > > > {};
+-   struct escaped : sor< escaped_c, escaped_u, escaped_U, escaped_j, escaped_x > {};
+-   struct character : if_then_else< one< '\\' >, must< escaped >, utf8::any > {};
+-   struct unstring : until< eof, character > {};
+-
+-   template< typename Rule > struct unaction {};
+-
+-   template<> struct unaction< escaped_c > : unescape::unescape_c< escaped_c, '"', '\\', '\t' > {};
+-   template<> struct unaction< escaped_u > : unescape::unescape_u {};
+-   template<> struct unaction< escaped_U > : unescape::unescape_u {};
+-   template<> struct unaction< escaped_j > : unescape::unescape_j {};
+-   template<> struct unaction< escaped_x > : unescape::unescape_x {};
+-   template<> struct unaction< utf8::any > : unescape::append_all {};
++      struct escaped_c : one< '"', '\\', 't' > {};
++      struct escaped_u : seq< one< 'u' >, rep< 4, xdigit > > {};
++      struct escaped_U : seq< one< 'U' >, rep< 8, xdigit > > {};
++      struct escaped_j : list< seq< one< 'j' >, rep< 4, xdigit > >, one< '\\' > > {};
++      struct escaped_x : seq< one< 'x' >, rep< 2, xdigit > > {};
++      struct escaped : sor< escaped_c, escaped_u, escaped_U, escaped_j, escaped_x > {};
++      struct character : if_then_else< one< '\\' >, escaped, utf8::any > {};
++      struct unstring : until< eof, character > {};
++
++      template< typename Rule > struct unaction {};
++
++      template<> struct unaction< escaped_c > : unescape::unescape_c< escaped_c, '"', '\\', '\t' > {};
++      template<> struct unaction< escaped_u > : unescape::unescape_u {};
++      template<> struct unaction< escaped_U > : unescape::unescape_u {};
++      template<> struct unaction< escaped_j > : unescape::unescape_j {};
++      template<> struct unaction< escaped_x > : unescape::unescape_x {};
++      template<> struct unaction< utf8::any > : unescape::append_all {};
+       // clang-format on
+ 
+       template< unsigned M, unsigned N >
+-      void verify_data( const char ( &m )[ M ], const char ( &n )[ N ] )  // NOLINT
++      bool verify_data( const char ( &m )[ M ], const char ( &n )[ N ] )  // NOLINT
+       {
+          std::string s;
+          memory_input<> in( m, M - 1, __FUNCTION__ );
+-         parse< unstring, unaction >( in, s );
+-         if( s != std::string( n, N - 1 ) ) {
+-            throw std::runtime_error( "test failed!" );  // NOLINT
++         if( !parse< unstring, unaction >( in, s ) ) {
++            return false;
+          }
++         return s == std::string( n, N - 1 );
+       }
+ 
+-      void unit_test()
++      bool verify_fail( const std::string& m )
+       {
+-         verify_data( "\\t", "\t" );
+-         verify_data( "\\\\", "\\" );
+-         verify_data( "abc", "abc" );
+-         verify_data( "\\\"foo\\\"", "\"foo\"" );
+-         verify_data( "\\x20", " " );
+-         verify_data( "\\x30", "0" );
+-         verify_data( "\\x2000", " 00" );
+-         verify_data( "\\u0020", " " );
+-         verify_data( "\\u0020\\u0020", "  " );
+-         verify_data( "\\u00e4", "\xc3\xa4" );
+-         verify_data( "\\u00E4", "\xC3\xA4" );
+-         verify_data( "\\u20ac", "\xe2\x82\xac" );
+-
+-         TAO_PEGTL_TEST_THROWS( verify_data( "\\ud800", "" ) );
+-         TAO_PEGTL_TEST_THROWS( verify_data( "\\ud800X", "" ) );
+-         TAO_PEGTL_TEST_THROWS( verify_data( "\\ud800\\u0020", "" ) );
+-         TAO_PEGTL_TEST_THROWS( verify_data( "\\ud800\\udc00", "" ) );  // unescape_u does not support surrogate pairs.
+-         TAO_PEGTL_TEST_THROWS( verify_data( "\\udc00\\ud800", "" ) );
+-
+-         verify_data( "\\j0020", " " );
+-         verify_data( "\\j0020\\j0020", "  " );
+-         verify_data( "\\j20ac", "\xe2\x82\xac" );
+-
+-         verify_data( "\\jd800\\jdc00", "\xf0\x90\x80\x80" );  // unescape_j does support proper surrogate pairs.
+-
+-         TAO_PEGTL_TEST_THROWS( verify_data( "\\jd800", "" ) );
+-         TAO_PEGTL_TEST_THROWS( verify_data( "\\jd800X", "" ) );
+-         TAO_PEGTL_TEST_THROWS( verify_data( "\\jd800\\j0020", "" ) );
+-         TAO_PEGTL_TEST_THROWS( verify_data( "\\jdc00\\jd800", "" ) );
+-
+-         verify_data( "\\j0000\\u0000\x00", "\x00\x00\x00" );
+-
+          std::string s;
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\\\\\", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\x", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\xx", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\xa", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\x1", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\x1h", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "a\\", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "a\\x", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "a\\xx", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "a\\xa", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "a\\x1", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "a\\x1h", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\a", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\_", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\z", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\1", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\a00", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\_1111", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\z22222222", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\13333333333333333", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\u", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\uu", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\uuuu", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\u123", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\u999", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\u444h", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\j", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\ju", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\juuu", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\j123", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\j999", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\j444h", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\U00110000", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\U80000000", s );
+-         verify_fail< unstring, unaction >( __LINE__, __FILE__, "\\Uffffffff", s );
++         memory_input<> in( m, __FUNCTION__ );
++#if defined( __cpp_exceptions )
++         try {
++            return !parse< unstring, unaction >( in, s );
++         }
++         catch( const parse_error& ) {
++         }
++         return true;
++#else
++         return !parse< unstring, unaction >( in, s );
++#endif
++      }
++
++      void unit_test()
++      {
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\t", "\t" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\\\", "\\" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_data( "abc", "abc" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\\"foo\\\"", "\"foo\"" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\x20", " " ) );
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\x30", "0" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\x2000", " 00" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\u0020", " " ) );
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\u0020\\u0020", "  " ) );
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\u00e4", "\xc3\xa4" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\u00E4", "\xC3\xA4" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\u20ac", "\xe2\x82\xac" ) );
++
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\ud800" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\ud800X" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\ud800\\u0020" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\ud800\\udc00" ) );  // unescape_u does not support surrogate pairs.
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\udc00\\ud800" ) );
++
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\j0020", " " ) );
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\j0020\\j0020", "  " ) );
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\j20ac", "\xe2\x82\xac" ) );
++
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\jd800\\jdc00", "\xf0\x90\x80\x80" ) );  // unescape_j does support proper surrogate pairs.
++
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\jd800" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\jd800X" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\jd800\\j0020" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\jdc00\\jd800" ) );
++
++         TAO_PEGTL_TEST_ASSERT( verify_data( "\\j0000\\u0000\x00", "\x00\x00\x00" ) );
++
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\\\\\" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\x" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\xx" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\xa" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\x1" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\x1h" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "a\\" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "a\\x" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "a\\xx" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "a\\xa" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "a\\x1" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "a\\x1h" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\a" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\_" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\z" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\1" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\a00" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\_1111" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\z22222222" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\13333333333333333" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\u" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\uu" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\uuuu" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\u123" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\u999" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\u444h" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\j" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\ju" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\juuu" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\j123" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\j999" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\j444h" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\U00110000" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\U80000000" ) );
++         TAO_PEGTL_TEST_ASSERT( verify_fail( "\\Uffffffff" ) );
+       }
+ 
+    }  // namespace TAO_PEGTL_NAMESPACE
+diff --git a/src/test/pegtl/contrib_uri.cpp b/src/test/pegtl/contrib_uri.cpp
+index 14bda5cc..6d3e48ab 100644
+--- a/src/test/pegtl/contrib_uri.cpp
++++ b/src/test/pegtl/contrib_uri.cpp
+@@ -1,9 +1,12 @@
+-// Copyright (c) 2014-2020 Dr. Colin Hirsch and Daniel Frey
++// Copyright (c) 2014-2021 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include "test.hpp"
+ #include "verify_analyze.hpp"
+-#include "verify_fail.hpp"
+ #include "verify_rule.hpp"
+ 
+ #include <tao/pegtl/contrib/uri.hpp>
+@@ -36,7 +39,7 @@ namespace tao
+          verify_rule< GRAMMAR >( __LINE__, __FILE__, "crid://broadcaster.com/movies/BestActionMovieEver", result_type::success, 0 );
+          verify_rule< GRAMMAR >( __LINE__, __FILE__, "http://nobody:password@example.org:8080/cgi-bin/script.php?action=submit&pageid=86392001#section_2", result_type::success, 0 );
+ 
+-         verify_fail< GRAMMAR >( __LINE__, __FILE__, "" );
++         TAO_PEGTL_TEST_THROWS( parse< GRAMMAR >( memory_input<>( "", "" ) ) );
+       }
+ 
+    }  // namespace TAO_PEGTL_NAMESPACE
+@@ -44,3 +47,5 @@ namespace tao
+ }  // namespace tao
+ 
+ #include "main.hpp"
++
++#endif
+diff --git a/src/test/pegtl/discard_input.cpp b/src/test/pegtl/discard_input.cpp
+index 6d5a7f2a..d9d7ec0e 100644
+--- a/src/test/pegtl/discard_input.cpp
++++ b/src/test/pegtl/discard_input.cpp
+@@ -32,20 +32,28 @@ namespace tao
+ 
+       void unit_test()
+       {
++#if defined( __cpp_exceptions )
+          TAO_PEGTL_TEST_THROWS( parse_cstring< rep< 4, sor< n, n > >, my_action >( "nnnn", TAO_TEST_LINE, 2 ) );
++#endif
+          TAO_PEGTL_TEST_ASSERT( parse_cstring< rep< 4, sor< a, n > >, my_action >( "nnnn", TAO_TEST_LINE, 2 ) );
+          TAO_PEGTL_TEST_ASSERT( parse_cstring< rep< 4, sor< f, n > >, my_action >( "nnnn", TAO_TEST_LINE, 2 ) );
++#if defined( __cpp_exceptions )
+          TAO_PEGTL_TEST_THROWS( parse_cstring< rep< 4, sor< s, n > >, my_action >( "nnnn", TAO_TEST_LINE, 2 ) );
++#endif
+ 
+          TAO_PEGTL_TEST_ASSERT( parse_cstring< rep< 4, sor< n, a > >, my_action >( "aaaa", TAO_TEST_LINE, 2 ) );
+          TAO_PEGTL_TEST_ASSERT( parse_cstring< rep< 4, sor< a, a > >, my_action >( "aaaa", TAO_TEST_LINE, 2 ) );
+          TAO_PEGTL_TEST_ASSERT( parse_cstring< rep< 4, sor< f, a > >, my_action >( "aaaa", TAO_TEST_LINE, 2 ) );
+          TAO_PEGTL_TEST_ASSERT( parse_cstring< rep< 4, sor< s, a > >, my_action >( "aaaa", TAO_TEST_LINE, 2 ) );
+ 
++#if defined( __cpp_exceptions )
+          TAO_PEGTL_TEST_THROWS( parse_cstring< rep< 4, sor< n, f > >, my_action >( "ffff", TAO_TEST_LINE, 2 ) );
++#endif
+          TAO_PEGTL_TEST_ASSERT( parse_cstring< rep< 4, sor< a, f > >, my_action >( "ffff", TAO_TEST_LINE, 2 ) );
++#if defined( __cpp_exceptions )
+          TAO_PEGTL_TEST_THROWS( parse_cstring< rep< 4, sor< f, f > >, my_action >( "ffff", TAO_TEST_LINE, 2 ) );
+          TAO_PEGTL_TEST_THROWS( parse_cstring< rep< 4, sor< s, f > >, my_action >( "ffff", TAO_TEST_LINE, 2 ) );
++#endif
+ 
+          TAO_PEGTL_TEST_ASSERT( parse_cstring< rep< 4, sor< n, s > >, my_action >( "ssss", TAO_TEST_LINE, 2 ) );
+          TAO_PEGTL_TEST_ASSERT( parse_cstring< rep< 4, sor< a, s > >, my_action >( "ssss", TAO_TEST_LINE, 2 ) );
+diff --git a/src/test/pegtl/file_istream.cpp b/src/test/pegtl/file_istream.cpp
+index cf6a618a..0cc92834 100644
+--- a/src/test/pegtl/file_istream.cpp
++++ b/src/test/pegtl/file_istream.cpp
+@@ -19,6 +19,7 @@ namespace tao
+ 
+       void unit_test()
+       {
++#if defined( __cpp_exceptions )
+          try {
+             const char* filename = "src/test/pegtl/no_such_file.txt";
+             std::ifstream stream( filename );
+@@ -28,6 +29,7 @@ namespace tao
+          catch( const input_error& e ) {
+             TAO_PEGTL_TEST_ASSERT( std::string( e.what() ).find( "error in istream.read()" ) != std::string::npos );
+          }
++#endif
+          const char* filename = "src/test/pegtl/file_data.txt";
+          std::ifstream stream( filename );
+          TAO_PEGTL_TEST_ASSERT( parse< file_grammar >( istream_input<>( stream, 16, filename ) ) );
+diff --git a/src/test/pegtl/internal_file_mapper.cpp b/src/test/pegtl/internal_file_mapper.cpp
+index bc5e16d0..fa04d17f 100644
+--- a/src/test/pegtl/internal_file_mapper.cpp
++++ b/src/test/pegtl/internal_file_mapper.cpp
+@@ -1,9 +1,11 @@
+ // Copyright (c) 2015-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
+-#include <tao/pegtl/file_input.hpp>
++#if !defined( __cpp_exceptions ) || !defined( _POSIX_MAPPED_FILES )
++int main() {}
++#else
+ 
+-#if defined( _POSIX_MAPPED_FILES )
++#include <tao/pegtl/file_input.hpp>
+ 
+ #include "test.hpp"
+ 
+@@ -32,11 +34,4 @@ namespace tao
+ 
+ #include "main.hpp"
+ 
+-#else
+-
+-int main( int, char** )
+-{
+-   return 0;
+-}
+-
+ #endif
+diff --git a/src/test/pegtl/internal_file_opener.cpp b/src/test/pegtl/internal_file_opener.cpp
+index 64d0bbde..0d3e6a54 100644
+--- a/src/test/pegtl/internal_file_opener.cpp
++++ b/src/test/pegtl/internal_file_opener.cpp
+@@ -1,9 +1,11 @@
+ // Copyright (c) 2015-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
+-#include <tao/pegtl/file_input.hpp>
++#if !defined( __cpp_exceptions ) || !defined( _POSIX_MAPPED_FILES )
++int main() {}
++#else
+ 
+-#if defined( _POSIX_MAPPED_FILES )
++#include <tao/pegtl/file_input.hpp>
+ 
+ #include "test.hpp"
+ 
+@@ -13,15 +15,17 @@ namespace tao
+    {
+       void unit_test()
+       {
++#if defined( __cpp_exceptions )
+          const internal::file_opener fo( "Makefile" );
+          ::close( fo.m_fd );  // Provoke exception, nobody would normally do this.
+          try {
+-            fo.size();
++            (void)fo.size();
+             std::cerr << "pegtl: unit test failed for [ internal::file_opener ] " << std::endl;
+             ++failed;
+          }
+          catch( const std::exception& ) {
+          }
++#endif
+       }
+ 
+    }  // namespace TAO_PEGTL_NAMESPACE
+@@ -30,11 +34,4 @@ namespace tao
+ 
+ #include "main.hpp"
+ 
+-#else
+-
+-int main( int, char** )
+-{
+-   return 0;
+-}
+-
+ #endif
+diff --git a/src/test/pegtl/position.cpp b/src/test/pegtl/position.cpp
+index 30a06649..8bc6b92a 100644
+--- a/src/test/pegtl/position.cpp
++++ b/src/test/pegtl/position.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2016-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include "test.hpp"
+ 
+ #include <tao/pegtl/internal/cstring_reader.hpp>
+@@ -179,3 +183,5 @@ namespace tao
+ }  // namespace tao
+ 
+ #include "main.hpp"
++
++#endif
+diff --git a/src/test/pegtl/rule_apply.cpp b/src/test/pegtl/rule_apply.cpp
+index 502964a7..4a158a62 100644
+--- a/src/test/pegtl/rule_apply.cpp
++++ b/src/test/pegtl/rule_apply.cpp
+@@ -69,16 +69,15 @@ namespace tao
+       {
+          int state_r = 0;
+          int state_s = 0;
+-         parse< must< apply< test1::action_a, test1::action_b > > >( memory_input<>( "", __FUNCTION__ ), state_r, state_s );
++         TAO_PEGTL_TEST_ASSERT( parse< apply< test1::action_a, test1::action_b > >( memory_input<>( "", __FUNCTION__ ), state_r, state_s ) );
+          TAO_PEGTL_TEST_ASSERT( state_r == 1 );
+          TAO_PEGTL_TEST_ASSERT( state_s == 2 );
+-         parse< must< disable< apply< test1::action_a, test1::action_b > > > >( memory_input<>( "", __FUNCTION__ ), state_r, state_s );
++         TAO_PEGTL_TEST_ASSERT( parse< disable< apply< test1::action_a, test1::action_b > > >( memory_input<>( "", __FUNCTION__ ), state_r, state_s ) );
+          TAO_PEGTL_TEST_ASSERT( state_r == 1 );
+          TAO_PEGTL_TEST_ASSERT( state_s == 2 );
+ 
+          bool state_b = false;
+-         const bool result = parse< apply< test1::action2_a, test1::action2_b, test1::action2_c > >( memory_input<>( "", __FUNCTION__ ), state_b );
+-         TAO_PEGTL_TEST_ASSERT( !result );
++         TAO_PEGTL_TEST_ASSERT( !parse< apply< test1::action2_a, test1::action2_b, test1::action2_c > >( memory_input<>( "", __FUNCTION__ ), state_b ) );
+          TAO_PEGTL_TEST_ASSERT( state_b );
+ 
+          verify_analyze< apply<> >( __LINE__, __FILE__, false, false );
+diff --git a/src/test/pegtl/rule_apply0.cpp b/src/test/pegtl/rule_apply0.cpp
+index 2cef49c5..8c8f14e6 100644
+--- a/src/test/pegtl/rule_apply0.cpp
++++ b/src/test/pegtl/rule_apply0.cpp
+@@ -64,16 +64,15 @@ namespace tao
+       {
+          int state_r = 0;
+          int state_s = 0;
+-         parse< must< apply0< test1::action_a, test1::action_b > > >( memory_input<>( "", __FUNCTION__ ), state_r, state_s );
++         TAO_PEGTL_TEST_ASSERT( parse< apply0< test1::action_a, test1::action_b > >( memory_input<>( "", __FUNCTION__ ), state_r, state_s ) );
+          TAO_PEGTL_TEST_ASSERT( state_r == 1 );
+          TAO_PEGTL_TEST_ASSERT( state_s == 2 );
+-         parse< must< disable< apply< test1::action_a, test1::action_b > > > >( memory_input<>( "", __FUNCTION__ ), state_r, state_s );
++         TAO_PEGTL_TEST_ASSERT( parse< disable< apply< test1::action_a, test1::action_b > > >( memory_input<>( "", __FUNCTION__ ), state_r, state_s ) );
+          TAO_PEGTL_TEST_ASSERT( state_r == 1 );
+          TAO_PEGTL_TEST_ASSERT( state_s == 2 );
+ 
+          bool state_b = false;
+-         const bool result = parse< apply0< test1::action2_a, test1::action2_b, test1::action2_c > >( memory_input<>( "", __FUNCTION__ ), state_b );
+-         TAO_PEGTL_TEST_ASSERT( !result );
++         TAO_PEGTL_TEST_ASSERT( !parse< apply0< test1::action2_a, test1::action2_b, test1::action2_c > >( memory_input<>( "", __FUNCTION__ ), state_b ) );
+          TAO_PEGTL_TEST_ASSERT( state_b );
+ 
+          verify_analyze< apply0<> >( __LINE__, __FILE__, false, false );
+diff --git a/src/test/pegtl/rule_at.cpp b/src/test/pegtl/rule_at.cpp
+index 8a332a8e..54c073c3 100644
+--- a/src/test/pegtl/rule_at.cpp
++++ b/src/test/pegtl/rule_at.cpp
+@@ -39,8 +39,11 @@ namespace tao
+          verify_rule< at< any > >( __LINE__, __FILE__, "a", result_type::success, 1 );
+          verify_rule< at< any > >( __LINE__, __FILE__, "aa", result_type::success, 2 );
+          verify_rule< at< any > >( __LINE__, __FILE__, "aaaa", result_type::success, 4 );
++
++#if defined( __cpp_exceptions )
+          verify_rule< must< at< alpha > > >( __LINE__, __FILE__, "1", result_type::global_failure, 1 );
+          verify_rule< must< at< alpha, alpha > > >( __LINE__, __FILE__, "a1a", result_type::global_failure, 3 );
++#endif
+          {
+             memory_input<> in( "f", 1, __FILE__ );
+             parse< any, at_action >( in );
+diff --git a/src/test/pegtl/rule_if_apply.cpp b/src/test/pegtl/rule_if_apply.cpp
+index 9596949c..71944ee8 100644
+--- a/src/test/pegtl/rule_if_apply.cpp
++++ b/src/test/pegtl/rule_if_apply.cpp
+@@ -94,27 +94,25 @@ namespace tao
+          std::string state_s;
+          TAO_PEGTL_TEST_ASSERT( test1::flag == 0 );
+          memory_input<> in1( "-", __FUNCTION__ );
+-         parse< must< if_apply< one< '-' >, test1::action_a, test1::action_b > >, test1::action >( in1, state_r, state_s );
++         TAO_PEGTL_TEST_ASSERT( parse< if_apply< one< '-' >, test1::action_a, test1::action_b >, test1::action >( in1, state_r, state_s ) );
+          TAO_PEGTL_TEST_ASSERT( test1::flag == 1 );
+          TAO_PEGTL_TEST_ASSERT( state_r == "-" );
+          TAO_PEGTL_TEST_ASSERT( state_s == "-*-" );
+          memory_input<> in2( "-", __FUNCTION__ );
+-         parse< must< disable< if_apply< one< '-' >, test1::action_a, test1::action_b > > >, test1::action >( in2, state_r, state_s );
++         TAO_PEGTL_TEST_ASSERT( parse< disable< if_apply< one< '-' >, test1::action_a, test1::action_b > >, test1::action >( in2, state_r, state_s ) );
+          TAO_PEGTL_TEST_ASSERT( test1::flag == 1 );
+          TAO_PEGTL_TEST_ASSERT( state_r == "-" );
+          TAO_PEGTL_TEST_ASSERT( state_s == "-*-" );
+ 
+          {
+             bool state_b = false;
+-            const bool result = parse< if_apply< plus< alpha >, test1::action2_a, test1::action2_b, test1::action2_c > >( memory_input<>( "foo bar", __FUNCTION__ ), state_b );
+-            TAO_PEGTL_TEST_ASSERT( !result );
++            TAO_PEGTL_TEST_ASSERT( !parse< if_apply< plus< alpha >, test1::action2_a, test1::action2_b, test1::action2_c > >( memory_input<>( "foo bar", __FUNCTION__ ), state_b ) );
+             TAO_PEGTL_TEST_ASSERT( state_b );
+          }
+ 
+          {
+             bool state_b = false;
+-            const bool result = parse< if_apply< plus< alpha >, test1::action2_a, test1::action2_b, test1::action2_c > >( memory_input<>( "", __FUNCTION__ ), state_b );
+-            TAO_PEGTL_TEST_ASSERT( !result );
++            TAO_PEGTL_TEST_ASSERT( !parse< if_apply< plus< alpha >, test1::action2_a, test1::action2_b, test1::action2_c > >( memory_input<>( "", __FUNCTION__ ), state_b ) );
+             TAO_PEGTL_TEST_ASSERT( !state_b );
+          }
+ 
+diff --git a/src/test/pegtl/rule_if_must.cpp b/src/test/pegtl/rule_if_must.cpp
+index 19ba5a41..d8418886 100644
+--- a/src/test/pegtl/rule_if_must.cpp
++++ b/src/test/pegtl/rule_if_must.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2014-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include "test.hpp"
+ #include "verify_analyze.hpp"
+ #include "verify_rule.hpp"
+@@ -46,3 +50,5 @@ namespace tao
+ }  // namespace tao
+ 
+ #include "main.hpp"
++
++#endif
+diff --git a/src/test/pegtl/rule_if_must_else.cpp b/src/test/pegtl/rule_if_must_else.cpp
+index 9f851e3d..ce2e6e8c 100644
+--- a/src/test/pegtl/rule_if_must_else.cpp
++++ b/src/test/pegtl/rule_if_must_else.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2014-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include "test.hpp"
+ #include "verify_ifmt.hpp"
+ 
+@@ -18,3 +22,5 @@ namespace tao
+ }  // namespace tao
+ 
+ #include "main.hpp"
++
++#endif
+diff --git a/src/test/pegtl/rule_list_must.cpp b/src/test/pegtl/rule_list_must.cpp
+index 89856dce..14370b85 100644
+--- a/src/test/pegtl/rule_list_must.cpp
++++ b/src/test/pegtl/rule_list_must.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2014-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include "test.hpp"
+ #include "verify_analyze.hpp"
+ #include "verify_rule.hpp"
+@@ -58,3 +62,5 @@ namespace tao
+ }  // namespace tao
+ 
+ #include "main.hpp"
++
++#endif
+diff --git a/src/test/pegtl/rule_list_tail.cpp b/src/test/pegtl/rule_list_tail.cpp
+index d53cc61a..761b338e 100644
+--- a/src/test/pegtl/rule_list_tail.cpp
++++ b/src/test/pegtl/rule_list_tail.cpp
+@@ -43,9 +43,9 @@ namespace tao
+          verify_rule< list_tail< one< 'a' >, one< ',' > > >( __LINE__, __FILE__, "a ,a", result_type::success, 3 );
+          verify_rule< list_tail< one< 'a' >, one< ',' > > >( __LINE__, __FILE__, "a, a", result_type::success, 2 );
+ 
+-         verify_rule< list_must< one< 'a' >, one< ',' >, blank > >( __LINE__, __FILE__, "", result_type::local_failure, 0 );
+-         verify_rule< list_must< one< 'a' >, one< ',' >, blank > >( __LINE__, __FILE__, " ", result_type::local_failure, 1 );
+-         verify_rule< list_must< one< 'a' >, one< ',' >, blank > >( __LINE__, __FILE__, ",", result_type::local_failure, 1 );
++         verify_rule< list_tail< one< 'a' >, one< ',' >, blank > >( __LINE__, __FILE__, "", result_type::local_failure, 0 );
++         verify_rule< list_tail< one< 'a' >, one< ',' >, blank > >( __LINE__, __FILE__, " ", result_type::local_failure, 1 );
++         verify_rule< list_tail< one< 'a' >, one< ',' >, blank > >( __LINE__, __FILE__, ",", result_type::local_failure, 1 );
+          verify_rule< list_tail< one< 'a' >, one< ',' >, blank > >( __LINE__, __FILE__, "a ", result_type::success, 1 );
+          verify_rule< list_tail< one< 'a' >, one< ',' >, blank > >( __LINE__, __FILE__, " a", result_type::local_failure, 2 );
+          verify_rule< list_tail< one< 'a' >, one< ',' >, blank > >( __LINE__, __FILE__, "a ,a", result_type::success, 0 );
+diff --git a/src/test/pegtl/rule_minus.cpp b/src/test/pegtl/rule_minus.cpp
+index cea081b6..30cf7c52 100644
+--- a/src/test/pegtl/rule_minus.cpp
++++ b/src/test/pegtl/rule_minus.cpp
+@@ -20,8 +20,10 @@ namespace tao
+          verify_rule< minus< alnum, digit > >( __LINE__, __FILE__, "%", result_type::local_failure, 1 );
+          verify_rule< minus< alnum, digit > >( __LINE__, __FILE__, "a%", result_type::success, 1 );
+ 
++#if defined( __cpp_exceptions )
+          verify_rule< must< minus< alnum, digit > > >( __LINE__, __FILE__, "%", result_type::global_failure, 1 );
+          verify_rule< must< minus< alnum, digit > > >( __LINE__, __FILE__, "1", result_type::global_failure, 0 );
++#endif
+ 
+          verify_rule< minus< plus< alnum >, digit > >( __LINE__, __FILE__, "", result_type::local_failure, 0 );
+          verify_rule< minus< plus< alnum >, digit > >( __LINE__, __FILE__, "a", result_type::success, 0 );
+diff --git a/src/test/pegtl/rule_must.cpp b/src/test/pegtl/rule_must.cpp
+index b8808f36..6d513bdf 100644
+--- a/src/test/pegtl/rule_must.cpp
++++ b/src/test/pegtl/rule_must.cpp
+@@ -1,6 +1,10 @@
+-// Copyright (c) 2014-2020 Dr. Colin Hirsch and Daniel Frey
++// Copyright (c) 2014-2021 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include "test.hpp"
+ #include "verify_seqs.hpp"
+ 
+@@ -18,3 +22,5 @@ namespace tao
+ }  // namespace tao
+ 
+ #include "main.hpp"
++
++#endif
+diff --git a/src/test/pegtl/rule_not_at.cpp b/src/test/pegtl/rule_not_at.cpp
+index acbb4011..86e5b444 100644
+--- a/src/test/pegtl/rule_not_at.cpp
++++ b/src/test/pegtl/rule_not_at.cpp
+@@ -39,8 +39,12 @@ namespace tao
+          verify_rule< not_at< any > >( __LINE__, __FILE__, "a", result_type::local_failure, 1 );
+          verify_rule< not_at< any > >( __LINE__, __FILE__, "aa", result_type::local_failure, 2 );
+          verify_rule< not_at< any > >( __LINE__, __FILE__, "aaaa", result_type::local_failure, 4 );
++
++#if defined( __cpp_exceptions )
+          verify_rule< must< not_at< alpha > > >( __LINE__, __FILE__, "a", result_type::global_failure, 1 );
+          verify_rule< must< not_at< alpha, alpha > > >( __LINE__, __FILE__, "aa1", result_type::global_failure, 3 );
++#endif
++
+          {
+             memory_input<> in( "a", 1, __FILE__ );
+             parse< alpha, at_action >( in );
+diff --git a/src/test/pegtl/rule_opt.cpp b/src/test/pegtl/rule_opt.cpp
+index 09f74a22..c3ad7580 100644
+--- a/src/test/pegtl/rule_opt.cpp
++++ b/src/test/pegtl/rule_opt.cpp
+@@ -42,6 +42,7 @@ namespace tao
+          verify_rule< opt< one< 'a' >, one< 'b' > > >( __LINE__, __FILE__, "bab", result_type::success, 3 );
+          verify_rule< opt< one< 'a' >, one< 'b' > > >( __LINE__, __FILE__, "cb", result_type::success, 2 );
+ 
++#if defined( __cpp_exceptions )
+          verify_rule< must< opt< one< 'a' > > > >( __LINE__, __FILE__, "", result_type::success, 0 );
+          verify_rule< must< opt< one< 'a' > > > >( __LINE__, __FILE__, "a", result_type::success, 0 );
+          verify_rule< must< opt< one< 'a' > > > >( __LINE__, __FILE__, "aa", result_type::success, 1 );
+@@ -55,10 +56,10 @@ namespace tao
+          verify_rule< must< opt< one< 'a' >, one< 'b' > > > >( __LINE__, __FILE__, "abab", result_type::success, 2 );
+          verify_rule< must< opt< one< 'a' >, one< 'b' > > > >( __LINE__, __FILE__, "bab", result_type::success, 3 );
+          verify_rule< must< opt< one< 'a' >, one< 'b' > > > >( __LINE__, __FILE__, "cb", result_type::success, 2 );
++#endif
+ 
+          bool success = false;
+-         const bool result = parse< opt< eof >, my_action >( memory_input<>( "", __FUNCTION__ ), success );
+-         TAO_PEGTL_TEST_ASSERT( result );
++         TAO_PEGTL_TEST_ASSERT( parse< opt< eof >, my_action >( memory_input<>( "", __FUNCTION__ ), success ) );
+          TAO_PEGTL_TEST_ASSERT( success );
+       }
+ 
+diff --git a/src/test/pegtl/rule_opt_must.cpp b/src/test/pegtl/rule_opt_must.cpp
+index 232714f7..40d28eda 100644
+--- a/src/test/pegtl/rule_opt_must.cpp
++++ b/src/test/pegtl/rule_opt_must.cpp
+@@ -1,6 +1,10 @@
+-// Copyright (c) 2018-2020 Dr. Colin Hirsch and Daniel Frey
++// Copyright (c) 2018-2021 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include "test.hpp"
+ #include "verify_analyze.hpp"
+ #include "verify_rule.hpp"
+@@ -46,3 +50,5 @@ namespace tao
+ }  // namespace tao
+ 
+ #include "main.hpp"
++
++#endif
+diff --git a/src/test/pegtl/rule_rep.cpp b/src/test/pegtl/rule_rep.cpp
+index e76a278f..8ae15b5c 100644
+--- a/src/test/pegtl/rule_rep.cpp
++++ b/src/test/pegtl/rule_rep.cpp
+@@ -54,6 +54,7 @@ namespace tao
+          verify_rule< rep< 2, one< 'a' >, one< 'b' > > >( __LINE__, __FILE__, "ababa", result_type::success, 1 );
+          verify_rule< rep< 2, one< 'a' >, one< 'b' > > >( __LINE__, __FILE__, "ababab", result_type::success, 2 );
+ 
++#if defined( __cpp_exceptions )
+          verify_rule< must< rep< 2, one< 'a' >, one< 'b' > > > >( __LINE__, __FILE__, "", result_type::global_failure, 0 );
+          verify_rule< must< rep< 2, one< 'a' >, one< 'b' > > > >( __LINE__, __FILE__, "a", result_type::global_failure, 1 );
+          verify_rule< must< rep< 2, one< 'a' >, one< 'b' > > > >( __LINE__, __FILE__, "ab", result_type::global_failure, 0 );
+@@ -69,6 +70,7 @@ namespace tao
+          verify_rule< try_catch< must< rep< 2, one< 'a' >, one< 'b' > > > > >( __LINE__, __FILE__, "abab", result_type::success, 0 );
+          verify_rule< try_catch< must< rep< 2, one< 'a' >, one< 'b' > > > > >( __LINE__, __FILE__, "ababa", result_type::success, 1 );
+          verify_rule< try_catch< must< rep< 2, one< 'a' >, one< 'b' > > > > >( __LINE__, __FILE__, "ababab", result_type::success, 2 );
++#endif
+       }
+ 
+    }  // namespace TAO_PEGTL_NAMESPACE
+diff --git a/src/test/pegtl/rule_rep_min_max.cpp b/src/test/pegtl/rule_rep_min_max.cpp
+index f468f1cf..90f3dd57 100644
+--- a/src/test/pegtl/rule_rep_min_max.cpp
++++ b/src/test/pegtl/rule_rep_min_max.cpp
+@@ -41,9 +41,11 @@ namespace tao
+          verify_rule< rep_min_max< 2, 4, one< 'a' > > >( __LINE__, __FILE__, "baaa", result_type::local_failure, 4 );
+          verify_rule< rep_min_max< 2, 4, one< 'a' > > >( __LINE__, __FILE__, "baaaa", result_type::local_failure, 5 );
+ 
++#if defined( __cpp_exceptions )
+          verify_rule< must< rep_min_max< 3, 4, one< 'a' > > > >( __LINE__, __FILE__, "aa", result_type::global_failure, 0 );
+ 
+          verify_rule< try_catch< must< rep_min_max< 3, 4, one< 'a' > > > > >( __LINE__, __FILE__, "aa", result_type::local_failure, 2 );
++#endif
+       }
+ 
+    }  // namespace TAO_PEGTL_NAMESPACE
+diff --git a/src/test/pegtl/rule_star_must.cpp b/src/test/pegtl/rule_star_must.cpp
+index bd1ff064..95c18e7a 100644
+--- a/src/test/pegtl/rule_star_must.cpp
++++ b/src/test/pegtl/rule_star_must.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2014-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include "test.hpp"
+ #include "verify_analyze.hpp"
+ #include "verify_rule.hpp"
+@@ -38,3 +42,5 @@ namespace tao
+ }  // namespace tao
+ 
+ #include "main.hpp"
++
++#endif
+diff --git a/src/test/pegtl/rule_try_catch.cpp b/src/test/pegtl/rule_try_catch.cpp
+index 182deb9a..8d23ca26 100644
+--- a/src/test/pegtl/rule_try_catch.cpp
++++ b/src/test/pegtl/rule_try_catch.cpp
+@@ -1,6 +1,10 @@
+ // Copyright (c) 2014-2020 Dr. Colin Hirsch and Daniel Frey
+ // Please see LICENSE for license or visit https://github.com/taocpp/PEGTL/
+ 
++#if !defined( __cpp_exceptions )
++int main() {}
++#else
++
+ #include "test.hpp"
+ #include "verify_seqs.hpp"
+ 
+@@ -22,3 +26,5 @@ namespace tao
+ }  // namespace tao
+ 
+ #include "main.hpp"
++
++#endif
+diff --git a/src/test/pegtl/rule_until.cpp b/src/test/pegtl/rule_until.cpp
+index 378d3a5b..23009a30 100644
+--- a/src/test/pegtl/rule_until.cpp
++++ b/src/test/pegtl/rule_until.cpp
+@@ -57,9 +57,11 @@ namespace tao
+          verify_rule< until< one< 'a' > > >( __LINE__, __FILE__, "bbab", result_type::success, 1 );
+          verify_rule< until< one< 'a' > > >( __LINE__, __FILE__, "bbbbbbbbbbbbbbbab", result_type::success, 1 );
+ 
++#if defined( __cpp_exceptions )
+          verify_rule< must< until< one< 'a' > > > >( __LINE__, __FILE__, "bbb", result_type::global_failure, 0 );
+ 
+          verify_rule< try_catch< must< until< one< 'a' > > > > >( __LINE__, __FILE__, "bbb", result_type::local_failure, 3 );
++#endif
+ 
+          verify_rule< until< eof, any > >( __LINE__, __FILE__, "", result_type::success, 0 );
+          verify_rule< until< any, any > >( __LINE__, __FILE__, "", result_type::local_failure, 0 );
+@@ -104,11 +106,13 @@ namespace tao
+          verify_rule< until< one< 'a' >, one< 'b' >, one< 'c' > > >( __LINE__, __FILE__, "cbcbc", result_type::local_failure, 5 );
+          verify_rule< until< one< 'a' >, one< 'b' >, one< 'c' > > >( __LINE__, __FILE__, "bcbcbc", result_type::local_failure, 6 );
+ 
++#if defined( __cpp_exceptions )
+          verify_rule< must< until< one< 'a' >, one< 'b' > > > >( __LINE__, __FILE__, "bbb", result_type::global_failure, 0 );
+          verify_rule< must< until< one< 'a' >, one< 'b' > > > >( __LINE__, __FILE__, "bbbc", result_type::global_failure, 1 );
+ 
+          verify_rule< try_catch< must< until< one< 'a' >, one< 'b' > > > > >( __LINE__, __FILE__, "bbb", result_type::local_failure, 3 );
+          verify_rule< try_catch< must< until< one< 'a' >, one< 'b' > > > > >( __LINE__, __FILE__, "bbbc", result_type::local_failure, 4 );
++#endif
+ 
+          bool success = false;
+          const bool result = parse< until< my_rule, eof >, my_action >( memory_input<>( "", __FUNCTION__ ), success );
+diff --git a/src/test/pegtl/test.hpp b/src/test/pegtl/test.hpp
+index b4a2704f..b8eaef0f 100644
+--- a/src/test/pegtl/test.hpp
++++ b/src/test/pegtl/test.hpp
+@@ -5,6 +5,7 @@
+ #define TAO_PEGTL_SRC_TEST_PEGTL_TEST_HPP
+ 
+ #include <cstddef>
++#include <exception>
+ #include <iostream>
+ #include <string>
+ #include <utility>
+@@ -75,6 +76,12 @@ namespace tao
+       }                                             \
+    } while( false )
+ 
++#define TAO_PEGTL_TEST_UNREACHABLE                                                                                              \
++   do {                                                                                                                         \
++      std::cerr << "Code should be unreachable in " << __FUNCTION__ << " (" << __FILE__ << ':' << __LINE__ << ')' << std::endl; \
++      std::terminate();                                                                                                         \
++   } while( false )
++
+ namespace tao
+ {
+    namespace TAO_PEGTL_NAMESPACE
+diff --git a/src/test/pegtl/tester.cpp b/src/test/pegtl/tester.cpp
+index b57abd0a..88c13be0 100644
+--- a/src/test/pegtl/tester.cpp
++++ b/src/test/pegtl/tester.cpp
+@@ -36,26 +36,5 @@ int main()
+    std::cout << "_MSC_VER: " << _MSC_VER << std::endl;
+    std::cout << "_MSC_FULL_VER: " << _MSC_FULL_VER << std::endl;
+ #endif
+-
+-#ifdef __cplusplus
+-   std::cout << "__cplusplus: " << __cplusplus << std::endl;
+-#endif
+-#ifdef __cpp_constexpr
+-   std::cout << "__cpp_constexpr: " << __cpp_constexpr << std::endl;
+-#endif
+-#ifdef __cpp_variadic_templates
+-   std::cout << "__cpp_variadic_templates: " << __cpp_variadic_templates << std::endl;
+-#endif
+-#ifdef __cpp_variable_templates
+-   std::cout << "__cpp_variable_templates: " << __cpp_variable_templates << std::endl;
+-#endif
+-#ifdef __cpp_fold_expressions
+-   std::cout << "__cpp_fold_expressions: " << __cpp_fold_expressions << std::endl;
+-#endif
+-#ifdef __cpp_deduction_guides
+-   std::cout << "__cpp_deduction_guides: " << __cpp_deduction_guides << std::endl;
+-#endif
+-#ifdef __cpp_lib_integer_sequence
+-   std::cout << "__cpp_lib_integer_sequence: " << __cpp_lib_integer_sequence << std::endl;
+-#endif
++   return 0;
+ }
+diff --git a/src/test/pegtl/verify_file.hpp b/src/test/pegtl/verify_file.hpp
+index fc4b70c8..e8c09fc6 100644
+--- a/src/test/pegtl/verify_file.hpp
++++ b/src/test/pegtl/verify_file.hpp
+@@ -54,6 +54,7 @@ namespace tao
+       template< typename T >
+       void verify_file()
+       {
++#if defined( __cpp_exceptions )
+          {
+             const std::string f{ "src/test/pegtl/no_such_file.txt" };
+             try {
+@@ -64,6 +65,7 @@ namespace tao
+             catch( const input_error& ) {
+             }
+          }
++#endif
+          {
+             const std::string f{ "src/test/pegtl/file_data.txt" };
+             T in( f );
+diff --git a/src/test/pegtl/verify_ifmt.hpp b/src/test/pegtl/verify_ifmt.hpp
+index 59cffbad..36129c27 100644
+--- a/src/test/pegtl/verify_ifmt.hpp
++++ b/src/test/pegtl/verify_ifmt.hpp
+@@ -31,6 +31,7 @@ namespace tao
+          verify_rule< S< one< 'a' >, one< 'b' >, one< 'c' > > >( __LINE__, __FILE__, "ab", result_type::success, 0 );
+          verify_rule< S< one< 'a' >, one< 'b' >, one< 'c' > > >( __LINE__, __FILE__, "ac", failure, 2 );
+ 
++#if defined( __cpp_exceptions )
+          verify_rule< must< S< one< 'a' >, one< 'b' >, one< 'c' > > > >( __LINE__, __FILE__, "", result_type::global_failure, 0 );
+          verify_rule< must< S< one< 'a' >, one< 'b' >, one< 'c' > > > >( __LINE__, __FILE__, "a", result_type::global_failure, 0 );
+          verify_rule< must< S< one< 'a' >, one< 'b' >, one< 'c' > > > >( __LINE__, __FILE__, "ac", result_type::global_failure, 1 );
+@@ -38,6 +39,7 @@ namespace tao
+ 
+          verify_rule< must< S< one< 'a' >, one< 'b' >, seq< one< 'c' >, one< 'd' > > > > >( __LINE__, __FILE__, "c", result_type::global_failure, 0 );
+          verify_rule< must< S< one< 'a' >, one< 'b' >, seq< one< 'c' >, one< 'd' > > > > >( __LINE__, __FILE__, "cc", result_type::global_failure, 1 );
++#endif
+       }
+ 
+    }  // namespace TAO_PEGTL_NAMESPACE
+diff --git a/src/test/pegtl/verify_impl.hpp b/src/test/pegtl/verify_impl.hpp
+index 8014c13b..abe8f849 100644
+--- a/src/test/pegtl/verify_impl.hpp
++++ b/src/test/pegtl/verify_impl.hpp
+@@ -23,6 +23,7 @@ namespace tao
+       template< typename Rule, template< typename... > class Action, typename Input >
+       result_type verify_impl_two( Input& in )
+       {
++#if defined( __cpp_exceptions )
+          try {
+             if( normal< Rule >::template match< apply_mode::action, rewind_mode::required, Action, normal >( in ) ) {
+                return result_type::success;
+@@ -36,6 +37,14 @@ namespace tao
+             std::cerr << "Code should be unreachable in " << __FUNCTION__ << " (" << __FILE__ << ':' << __LINE__ << ')' << std::endl;
+             std::abort();
+          }
++#else
++
++         if( normal< Rule >::template match< apply_mode::action, rewind_mode::required, Action, normal >( in ) ) {
++            return result_type::success;
++         }
++         return result_type::local_failure;
++
++#endif
+       }
+ 
+       template< typename Rule, template< typename... > class Action, typename Input >
+diff --git a/src/test/pegtl/verify_seqs.hpp b/src/test/pegtl/verify_seqs.hpp
+index ede538de..77fbbb86 100644
+--- a/src/test/pegtl/verify_seqs.hpp
++++ b/src/test/pegtl/verify_seqs.hpp
+@@ -49,6 +49,7 @@ namespace tao
+          verify_rule< S< one< 'a' >, one< 'b' >, one< 'c' >, eof > >( __LINE__, __FILE__, "abc", result_type::success, 0 );
+          verify_rule< S< one< 'a' >, one< 'b' >, one< 'c' > > >( __LINE__, __FILE__, "abcd", result_type::success, 1 );
+ 
++#if defined( __cpp_exceptions )
+          verify_rule< must< S< one< 'a' >, one< 'b' > > > >( __LINE__, __FILE__, "", result_type::global_failure, 0 );
+          verify_rule< must< S< one< 'a' >, one< 'b' > > > >( __LINE__, __FILE__, "a", result_type::global_failure, 0 );
+          verify_rule< must< S< one< 'a' >, one< 'b' > > > >( __LINE__, __FILE__, "b", result_type::global_failure, 1 );
+@@ -62,6 +63,7 @@ namespace tao
+          verify_rule< try_catch< must< S< one< 'a' >, one< 'b' > > > > >( __LINE__, __FILE__, "c", result_type::local_failure, 1 );
+          verify_rule< try_catch< must< S< one< 'a' >, one< 'b' > > > > >( __LINE__, __FILE__, "ab", result_type::success, 0 );
+          verify_rule< try_catch< must< S< one< 'a' >, one< 'b' > > > > >( __LINE__, __FILE__, "aba", result_type::success, 1 );
++#endif
        }
  
     }  // namespace TAO_PEGTL_NAMESPACE

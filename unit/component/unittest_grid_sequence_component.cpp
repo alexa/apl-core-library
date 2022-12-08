@@ -43,7 +43,7 @@ public:
 
 ::testing::AssertionResult
 validateBounds(const ComponentPtr& component, const Rect& rect) {
-    auto componentBounds = component->getCalculated(kPropertyBounds).getRect();
+    auto componentBounds = component->getCalculated(kPropertyBounds).get<Rect>();
 
     if (componentBounds != rect) {
         return ::testing::AssertionFailure()
@@ -78,8 +78,8 @@ validateCellBounds(const CoreComponentPtr& grid,
     auto scrollDirection = grid->getCalculated(kPropertyScrollDirection);
     bool isLTR = grid->getCalculated(kPropertyLayoutDirection) == kLayoutDirectionLTR;
     auto startPoint = isLTR
-                      ? grid->getCalculated(kPropertyInnerBounds).getRect().getTopLeft()
-                      : grid->getCalculated(kPropertyInnerBounds).getRect().getTopRight();
+                      ? grid->getCalculated(kPropertyInnerBounds).get<Rect>().getTopLeft()
+                      : grid->getCalculated(kPropertyInnerBounds).get<Rect>().getTopRight();
 
     std::vector<std::string> labels;
 
@@ -1378,7 +1378,7 @@ TEST_F(GridSequenceComponentTest, CheckEmptyEnsuredChildren)
     // Now that mEnsuredChildren is empty we call MultiChildScrollableComponent::processLayoutChanges
     root->clearPending();
 
-    auto grid = std::dynamic_pointer_cast<GridSequenceComponent>(root->findComponentById("grid"));
+    auto grid = GridSequenceComponent::cast(root->findComponentById("grid"));
     ASSERT_EQ(grid->getDisplayedChildCount(), 9);
 }
 
@@ -1670,7 +1670,7 @@ TEST_F(GridSequenceComponentTest, AutoSequence) {
     ASSERT_EQ(kComponentTypeGridSequence, grid->getType());
     ASSERT_EQ(4, grid->getCalculated(kPropertyItemsPerCourse).asInt());
 
-    auto bounds = grid->getCalculated(kPropertyBounds).getRect();
+    auto bounds = grid->getCalculated(kPropertyBounds).get<Rect>();
     ASSERT_EQ(Rect(0, 0, 400, 100), bounds);
     ASSERT_TRUE(validateCellBounds(
             grid,
@@ -1707,7 +1707,7 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthVertical) {
     loadDocument(VERTICAL_GRID_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto gridSeq = std::dynamic_pointer_cast<CoreComponent>(component);
+    auto gridSeq = CoreComponent::cast(component);
     ASSERT_EQ(kComponentTypeGridSequence, gridSeq->getType());
 
     ASSERT_EQ(kScrollDirectionVertical, gridSeq->getCalculated(kPropertyScrollDirection).asInt());
@@ -1851,7 +1851,7 @@ TEST_F(GridSequenceComponentTest, HeightWidthVertical) {
     loadDocument(VERTICAL_GRID_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto gridSeq = std::dynamic_pointer_cast<CoreComponent>(component);
+    auto gridSeq = CoreComponent::cast(component);
     ASSERT_EQ(kComponentTypeGridSequence, gridSeq->getType());
 
     ASSERT_EQ(kScrollDirectionVertical, gridSeq->getCalculated(kPropertyScrollDirection).asInt());
@@ -1954,7 +1954,7 @@ TEST_F(GridSequenceComponentTest, ChildHeightWidthHorizontal) {
     loadDocument(HORIZONTAL_GRID_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto gridSeq = std::dynamic_pointer_cast<CoreComponent>(component);
+    auto gridSeq = CoreComponent::cast(component);
     ASSERT_EQ(kComponentTypeGridSequence, gridSeq->getType());
 
     ASSERT_EQ(kScrollDirectionHorizontal, gridSeq->getCalculated(kPropertyScrollDirection).asInt());
@@ -2099,7 +2099,7 @@ TEST_F(GridSequenceComponentTest, HeightWidthHorizontal) {
     loadDocument(HORIZONTAL_GRID_SETVALUE);
     ASSERT_TRUE(component);
 
-    auto gridSeq = std::dynamic_pointer_cast<CoreComponent>(component);
+    auto gridSeq = CoreComponent::cast(component);
     ASSERT_EQ(kComponentTypeGridSequence, gridSeq->getType());
 
     ASSERT_EQ(kScrollDirectionHorizontal, gridSeq->getCalculated(kPropertyScrollDirection).asInt());
@@ -2236,7 +2236,7 @@ TEST_F(GridSequenceComponentTest, TestSnappingWithMultipleComponentsPerLine) {
 
     // Give time for the component to snap
     advanceTime(1000);
-    auto grid = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("gridSequence"));
+    auto grid = CoreComponent::cast(context->findComponentById("gridSequence"));
 
     // Verify we snap to the top of the component
     ASSERT_EQ(0, grid->getCalculated(kPropertyScrollPosition).asNumber());

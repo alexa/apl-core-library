@@ -148,13 +148,13 @@ TEST(APLTest, Basic)
 
     // Check the layout
     auto top = root->topComponent();  // The touchwrapper
-    ASSERT_EQ(Rect(0, 0, 400, 400), top->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 400, 400), top->getCalculated(kPropertyBounds).get<Rect>());
     auto frame = top->getChildAt(0);
     ASSERT_EQ(Object(Color()), frame->getCalculated(kPropertyBorderColor));
     auto text = frame->getChildAt(0);
-    ASSERT_EQ(Rect(2, 2, 120, 60), text->getCalculated(kPropertyBounds).getRect());  // Frame has a 2 dp border
+    ASSERT_EQ(Rect(2, 2, 120, 60), text->getCalculated(kPropertyBounds).get<Rect>());  // Frame has a 2 dp border
     ASSERT_EQ(StyledText::create(root->context(), "Your text inserted here"),
-              text->getCalculated(kPropertyText).getStyledText());
+              text->getCalculated(kPropertyText).get<StyledText>());
     ASSERT_EQ(Object(Color(root->getSession(), "#ff1020")), text->getCalculated(kPropertyColor));
 
     // Simulate a user touching on the screen

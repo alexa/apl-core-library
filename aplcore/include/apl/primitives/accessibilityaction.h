@@ -17,7 +17,7 @@
 #define _APL_ACCESSIBILITY_ACTION_H
 
 #include "apl/engine/recalculatetarget.h"
-#include "apl/primitives/objectdata.h"
+#include "apl/primitives/objecttype.h"
 #include "apl/utils/userdata.h"
 
 namespace apl {
@@ -83,7 +83,7 @@ public:
 
     // Standard ObjectData methods
     bool operator==(const ObjectData& other) const override {
-        return *this == dynamic_cast<const AccessibilityAction&>(other);
+        return *this == static_cast<const AccessibilityAction&>(other);
     }
 
     bool operator==(const AccessibilityAction& other) const {
@@ -108,6 +108,13 @@ public:
      */
     AccessibilityAction(const CoreComponentPtr& component, std::string name, std::string label)
         : mComponent(component), mName(std::move(name)), mLabel(std::move(label)), mEnabled(true) {}
+
+    class ObjectType final : public PointerHolderObjectType<AccessibilityAction> {
+    public:
+        bool equals(const Object::DataHolder& lhs, const Object::DataHolder& rhs) const override {
+            return *lhs.data == *rhs.data;
+        }
+    };
 
 protected:
     void initialize(const ContextPtr& context, const Object& object);

@@ -18,6 +18,10 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-depth=1024")
 endif()
 
+# Disable what needs to be disabled
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+
 include(target_sources_local.cmake)
 
 # Check for the presence of GIT
@@ -179,6 +183,10 @@ if (USE_PROVIDED_YOGA_AS_LIB)
     # We built the bundled yoga lib, install it
     install(FILES ${YOGA_LIB}
         DESTINATION lib)
+    install(DIRECTORY ${YOGA_INCLUDE}/yoga
+        DESTINATION include
+        FILES_MATCHING PATTERN "*.h")
+    set(YOGA_EXTERNAL_LIB ${YOGA_LIB}) # used by aplcoreConfig.cmake.in
 endif()
 
 if (NOT USE_PROVIDED_YOGA_INLINE)

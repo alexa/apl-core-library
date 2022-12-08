@@ -34,6 +34,8 @@
 #include <tao/pegtl.hpp>
 #include <tao/pegtl/contrib/abnf.hpp>
 
+#include "apl/datagrammar/grammarpolyfill.h"
+
 namespace apl {
 namespace datagrammar {
 

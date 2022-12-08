@@ -72,7 +72,7 @@ PageMoveHandler::create(
     }
 
     // Go for default handling.
-    auto pager = std::dynamic_pointer_cast<PagerComponent>(component);
+    auto pager = PagerComponent::cast(component);
     auto layoutDireciton = static_cast<LayoutDirection>(component->getCalculated(kPropertyLayoutDirection).asInt());
     bool fromLeft = pageDirection == PageDirection::kPageDirectionForward;
     // Flip direction for RTL layout
@@ -145,7 +145,7 @@ PageMoveHandler::execute(const CoreComponentPtr& component, float amount)
     }
 
     if (mCommands.isNull()) {
-        auto animationEasing = component->getRootConfig().getProperty(RootProperty::kDefaultPagerAnimationEasing).getEasing();
+        auto animationEasing = component->getRootConfig().getProperty(RootProperty::kDefaultPagerAnimationEasing).get<Easing>();
         executeDefaultPagingAnimation(animationEasing->calc(amount), currentPage, targetPage);
     } else {
         component->getContext()->sequencer().executeCommands(mCommands,
@@ -194,18 +194,20 @@ PageMoveHandler::executeDefaultPagingAnimation(
     if (mCurrentPageTransform) {
         mCurrentPageTransform->interpolate(amount);
         currentChild->setProperty(kPropertyTransformAssigned, Object(mCurrentPageTransform));
+        currentChild->markProperty(kPropertyTransformAssigned);
     }
 
     if (mTargetPageTransform) {
         mTargetPageTransform->interpolate(amount);
         nextChild->setProperty(kPropertyTransformAssigned, Object(mTargetPageTransform));
+        nextChild->markProperty(kPropertyTransformAssigned);
     }
 }
 
 std::shared_ptr<InterpolatedTransformation>
 PageMoveHandler::getPageTransformation(const PagerPtr& pager, bool comeIn, bool fromLeft)
 {
-    auto bounds = pager->getCalculated(kPropertyInnerBounds).getRect();
+    const auto& bounds = pager->getCalculated(kPropertyInnerBounds).get<Rect>();
     auto from = std::make_shared<ObjectMap>();
     auto to = std::make_shared<ObjectMap>();
 

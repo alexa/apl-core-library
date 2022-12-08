@@ -93,9 +93,9 @@ TEST_F(FlexboxTest, SimpleAuto)
     loadDocument(SIMPLE_AUTO);
 
     auto bounds = component->getCalculated(kPropertyBounds);
-    ASSERT_TRUE(bounds.isRect());
+    ASSERT_TRUE(bounds.is<Rect>());
 
-    ASSERT_EQ(Rect(0,0,1024,800), bounds.getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), bounds.get<Rect>());
 }
 
 static const char * SIMPLE_FIXED =
@@ -116,12 +116,12 @@ TEST_F(FlexboxTest, SimpleFixed)
     loadDocument(SIMPLE_FIXED);
 
     auto bounds = component->getCalculated(kPropertyBounds);
-    ASSERT_TRUE(bounds.isRect());
-    ASSERT_EQ(Rect(0, 0, 200, 300), bounds.getRect());
+    ASSERT_TRUE(bounds.is<Rect>());
+    ASSERT_EQ(Rect(0, 0, 200, 300), bounds.get<Rect>());
 
     auto inner = component->getCalculated(kPropertyInnerBounds);
-    ASSERT_TRUE(inner.isRect());
-    ASSERT_EQ(Rect(0, 0, 200, 300), inner.getRect());
+    ASSERT_TRUE(inner.is<Rect>());
+    ASSERT_EQ(Rect(0, 0, 200, 300), inner.get<Rect>());
 }
 
 static const char *TOO_LARGE =
@@ -141,7 +141,7 @@ static const char *TOO_LARGE =
 TEST_F(FlexboxTest, TooLarge)
 {
     loadDocument(TOO_LARGE);
-    ASSERT_EQ(Rect(0,0,2000,2000), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,2000,2000), component->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *THREE_CHILDREN_TALL =
@@ -176,21 +176,21 @@ static const char *THREE_CHILDREN_TALL =
 TEST_F(FlexboxTest, ThreeChildrenTall)
 {
     loadDocument(THREE_CHILDREN_TALL);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(10, 30, 994, 730), component->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(10, 30, 994, 730), component->getCalculated(kPropertyInnerBounds).get<Rect>());
     ASSERT_EQ(3, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(10, 30, 100, 200), child->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(10, 30, 100, 200), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(10, 230, 100, 200), child->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(10, 230, 100, 200), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).get<Rect>());
 
     child = component->getChildAt(2);
-    ASSERT_EQ(Rect(10, 430, 100, 200), child->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(10, 430, 100, 200), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).get<Rect>());
 }
 
 static const char *THREE_CHILDREN_WIDE =
@@ -226,21 +226,21 @@ static const char *THREE_CHILDREN_WIDE =
 TEST_F(FlexboxTest, ThreeChildrenWide)
 {
     loadDocument(THREE_CHILDREN_WIDE);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(10, 30, 994, 730), component->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(10, 30, 994, 730), component->getCalculated(kPropertyInnerBounds).get<Rect>());
     ASSERT_EQ(3, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(10, 30, 100, 200), child->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(10, 30, 100, 200), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(110, 30, 100, 200), child->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(110, 30, 100, 200), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).get<Rect>());
 
     child = component->getChildAt(2);
-    ASSERT_EQ(Rect(210, 30, 100, 200), child->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(210, 30, 100, 200), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(1, 3, 97, 193), child->getCalculated(kPropertyInnerBounds).get<Rect>());
 }
 
 static const char *OVERLY_TALL_CHILDREN =
@@ -267,17 +267,17 @@ static const char *OVERLY_TALL_CHILDREN =
 TEST_F(FlexboxTest, OverlyTallChildren)
 {
     loadDocument(OVERLY_TALL_CHILDREN);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(3, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(0, 0, 100, 400), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 400), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(0, 400, 100, 400), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 400, 100, 400), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);
-    ASSERT_EQ(Rect(0, 800, 100, 400), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 800, 100, 400), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *SHRINKING_CHILDREN =
@@ -306,20 +306,20 @@ static const char *SHRINKING_CHILDREN =
 TEST_F(FlexboxTest, ShrinkingChildren)
 {
     loadDocument(SHRINKING_CHILDREN);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(4, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(0, 0, 100, 320), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 320), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(0, 320, 100, 240), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 320, 100, 240), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);
-    ASSERT_EQ(Rect(0, 560, 100, 160), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 560, 100, 160), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(3);
-    ASSERT_EQ(Rect(0, 720, 100, 80), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 720, 100, 80), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *GROWING_CHILDREN =
@@ -348,20 +348,20 @@ static const char *GROWING_CHILDREN =
 TEST_F(FlexboxTest, GrowingChildren)
 {
     loadDocument(GROWING_CHILDREN);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(4, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(0, 0, 100, 140), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 140), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(0, 140, 100, 180), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 140, 100, 180), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);
-    ASSERT_EQ(Rect(0, 320, 100, 220), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 320, 100, 220), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(3);
-    ASSERT_EQ(Rect(0, 540, 100, 260), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 540, 100, 260), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *ABSOLUTE_POSITION =
@@ -386,11 +386,11 @@ static const char *ABSOLUTE_POSITION =
 TEST_F(FlexboxTest, AbsolutePosition)
 {
     loadDocument(ABSOLUTE_POSITION);
-    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(1, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(5, 10, 999, 775), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(5, 10, 999, 775), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 const static char * BORDER_TEST =
@@ -418,16 +418,16 @@ const static char * BORDER_TEST =
 TEST_F(FlexboxTest, BorderTest)
 {
     loadDocument(BORDER_TEST);
-    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyBounds).get<Rect>());
 
     auto frame = component->getChildAt(0);
-    ASSERT_EQ(Rect(0, 0, 1024, 800), frame->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 1024, 800), frame->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(Object(Dimension(10)), frame->getCalculated(kPropertyBorderWidth));
-    ASSERT_EQ(Rect(10, 10, 1004, 780), frame->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(10, 10, 1004, 780), frame->getCalculated(kPropertyInnerBounds).get<Rect>());
 
     // The child of the frame respects the border
     auto child = frame->getChildAt(0);
-    ASSERT_EQ(Rect(10, 10, 1004, 780), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(10, 10, 1004, 780), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *BORDER_TEST_WITH_PADDING =
@@ -459,17 +459,17 @@ static const char *BORDER_TEST_WITH_PADDING =
 TEST_F(FlexboxTest, BorderTestWithPadding)
 {
     loadDocument(BORDER_TEST_WITH_PADDING);
-    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 1024, 800), component->getCalculated(kPropertyBounds).get<Rect>());
 
     auto frame = component->getChildAt(0);
-    ASSERT_EQ(Rect(0, 0, 1024, 800), frame->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 1024, 800), frame->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(Object(Dimension(10)), frame->getCalculated(kPropertyBorderWidth));
     ASSERT_TRUE(IsEqual(Rect(30, 40, 944, 700), frame->getCalculated(kPropertyInnerBounds)));
-    ASSERT_EQ(Rect(30, 40, 944, 700), frame->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(30, 40, 944, 700), frame->getCalculated(kPropertyInnerBounds).get<Rect>());
 
     // The child of the frame respects the border
     auto child = frame->getChildAt(0);
-    ASSERT_EQ(Rect(30, 40, 944, 700), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(30, 40, 944, 700), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *JUSTIFY_END =
@@ -496,14 +496,14 @@ static const char *JUSTIFY_END =
 TEST_F(FlexboxTest, JustifyEnd)
 {
     loadDocument(JUSTIFY_END);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(2, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(0, 600, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 600, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(0, 700, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 700, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *JUSTIFY_CENTER =
@@ -530,14 +530,14 @@ static const char *JUSTIFY_CENTER =
 TEST_F(FlexboxTest, JustifyCenter)
 {
     loadDocument(JUSTIFY_CENTER);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(2, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(0, 300, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 300, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(0, 400, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 400, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *JUSTIFY_SPACE_BETWEEN =
@@ -564,14 +564,14 @@ static const char *JUSTIFY_SPACE_BETWEEN =
 TEST_F(FlexboxTest, JustifySpaceBetween)
 {
     loadDocument(JUSTIFY_SPACE_BETWEEN);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(2, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(0, 700, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 700, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *JUSTIFY_SPACE_AROUND =
@@ -598,14 +598,14 @@ static const char *JUSTIFY_SPACE_AROUND =
 TEST_F(FlexboxTest, JustifySpaceAround)
 {
     loadDocument(JUSTIFY_SPACE_AROUND);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(2, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(0, 150, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 150, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(0, 550, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 550, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *ALIGN_ITEMS_START =
@@ -635,20 +635,20 @@ static const char *ALIGN_ITEMS_START =
 TEST_F(FlexboxTest, AlignItemsStart)
 {
     loadDocument(ALIGN_ITEMS_START);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(4, component->getChildCount());
 
     auto child = component->getChildAt(0);  // First child is "auto", which will be left-aligned
-    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);  // Second child is "start
-    ASSERT_EQ(Rect(0, 100, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 100, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);  // Third child is "end"
-    ASSERT_EQ(Rect(924, 200, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(924, 200, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(3);  // Fourth child is "center"
-    ASSERT_EQ(Rect(462, 300, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(462, 300, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *ALIGN_ITEMS_CENTER =
@@ -678,20 +678,20 @@ static const char *ALIGN_ITEMS_CENTER =
 TEST_F(FlexboxTest, AlignItemsCenter)
 {
     loadDocument(ALIGN_ITEMS_CENTER);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(4, component->getChildCount());
 
     auto child = component->getChildAt(0);  // First child is "auto", which will be centered
-    ASSERT_EQ(Rect(462, 0, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(462, 0, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);  // Second child is "start
-    ASSERT_EQ(Rect(0, 100, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 100, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);  // Third child is "end"
-    ASSERT_EQ(Rect(924, 200, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(924, 200, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(3);  // Fourth child is "center"
-    ASSERT_EQ(Rect(462, 300, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(462, 300, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *ALIGN_ITEMS_END =
@@ -721,20 +721,20 @@ static const char *ALIGN_ITEMS_END =
 TEST_F(FlexboxTest, AlignItemsEnd)
 {
     loadDocument(ALIGN_ITEMS_END);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(4, component->getChildCount());
 
     auto child = component->getChildAt(0);  // First child is "auto", which will be right-aligned
-    ASSERT_EQ(Rect(924, 0, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(924, 0, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);  // Second child is "start
-    ASSERT_EQ(Rect(0, 100, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 100, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);  // Third child is "end"
-    ASSERT_EQ(Rect(924, 200, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(924, 200, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(3);  // Fourth child is "center"
-    ASSERT_EQ(Rect(462, 300, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(462, 300, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *SPACING_VERTICAL =
@@ -762,17 +762,17 @@ static const char *SPACING_VERTICAL =
 TEST_F(FlexboxTest, SpacingVertical)
 {
     loadDocument(SPACING_VERTICAL);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(3, component->getChildCount());
 
     auto child = component->getChildAt(0);  // No spacing for first child
-    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);  // Add spacing for second child of 50
-    ASSERT_EQ(Rect(0, 150, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 150, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);  // The last child gets another 100
-    ASSERT_EQ(Rect(0, 350, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 350, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 
@@ -802,17 +802,17 @@ static const char *SPACING_HORIZONTAL =
 TEST_F(FlexboxTest, SpacingHorizontal)
 {
     loadDocument(SPACING_HORIZONTAL);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(3, component->getChildCount());
 
     auto child = component->getChildAt(0);  // No spacing for first child
-    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);  // Add spacing for second child of 50
-    ASSERT_EQ(Rect(150, 0, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(150, 0, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);  // The last child gets another 100
-    ASSERT_EQ(Rect(350, 0, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(350, 0, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 
@@ -844,30 +844,30 @@ TEST_F(FlexboxTest, TextCheck)
 {
     config->measure(std::make_shared<TestTextMeasurement>());
     loadDocument(TEXT_MEASUREMENT);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(2, component->getChildCount());
 
     // Test for TextComponent
     auto childTextComponent = component->getChildAt(0);  // No spacing for first child
-    ASSERT_EQ(Rect(0, 0, 150, 20), childTextComponent->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 150, 20), childTextComponent->getCalculated(kPropertyBounds).get<Rect>());
     clearDirty();
 
     // Now let's change the text - this should trigger a re-layout
-    std::dynamic_pointer_cast<CoreComponent>(childTextComponent)->setProperty(kPropertyText, "Short");
+    CoreComponent::cast(childTextComponent)->setProperty(kPropertyText, "Short");
     ASSERT_TRUE(root->isDirty());
     root->clearDirty();
-    ASSERT_EQ(Rect(0, 0, 50, 10), childTextComponent->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 50, 10), childTextComponent->getCalculated(kPropertyBounds).get<Rect>());
 
     //Test for EditTextComponent
     auto childEditTextComponent = component->getChildAt(1);  // No spacing for first child
-    ASSERT_EQ(Rect(0, 10, 400, 10), childEditTextComponent->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 10, 400, 10), childEditTextComponent->getCalculated(kPropertyBounds).get<Rect>());
     clearDirty();
 
     // Now let's change the text - this should not trigger a re-layout for edit text
-    std::dynamic_pointer_cast<CoreComponent>(childEditTextComponent)->setProperty(kPropertyText, "Short");
+    CoreComponent::cast(childEditTextComponent)->setProperty(kPropertyText, "Short");
     ASSERT_TRUE(root->isDirty());
     root->clearDirty();
-    ASSERT_EQ(Rect(0, 10, 400, 10), childEditTextComponent->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 10, 400, 10), childEditTextComponent->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *FONT_STYLE_CHECK =
@@ -909,11 +909,11 @@ TEST_F(FlexboxTest, FontStyleCheck)
     config->measure(std::make_shared<TestTextMeasurement>());
 
     loadDocument(FONT_STYLE_CHECK);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(1, component->getChildCount());
 
     auto child = component->getChildAt(0);  // No spacing for first child
-    ASSERT_EQ(Rect(0, 0, 150, 20), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 150, 20), child->getCalculated(kPropertyBounds).get<Rect>());
     clearDirty();
 
     // Now toggle the style - this will force a re-layout
@@ -921,11 +921,11 @@ TEST_F(FlexboxTest, FontStyleCheck)
     clearDirty();
 
     // The bold font is twice as wide as the normal font.
-    ASSERT_EQ(Rect(0, 0, 300, 20), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 300, 20), child->getCalculated(kPropertyBounds).get<Rect>());
 
     root->handlePointerEvent(PointerEvent(kPointerUp, Point(1,1)));
     clearDirty();
-    ASSERT_EQ(Rect(0, 0, 150, 20), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 150, 20), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 const static char *BASELINE_TEST =
@@ -957,17 +957,17 @@ TEST_F(FlexboxTest, BaselineTest)
     config->measure(std::make_shared<TestTextMeasurement>());
 
     loadDocument(BASELINE_TEST);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(3, component->getChildCount());
 
     auto child = component->getChildAt(0);  // First child is one line
-    ASSERT_EQ(Rect(0, 20, 110, 10), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 20, 110, 10), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);  // First child is one line
-    ASSERT_EQ(Rect(110, 10, 110, 20), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(110, 10, 110, 20), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);  // First child is one line
-    ASSERT_EQ(Rect(220, 0, 110, 30), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(220, 0, 110, 30), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 const static char *BASELINE_EDITTEXT_TEST = R"(
@@ -1001,20 +1001,20 @@ TEST_F(FlexboxTest, BaselineEditTextTest)
     config->measure(std::make_shared<TestTextMeasurement>());
 
     loadDocument(BASELINE_EDITTEXT_TEST);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(4, component->getChildCount());
 
     auto child = component->getChildAt(0);  // First child is one line
-    ASSERT_EQ(Rect(0, 0, 50, 10), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 50, 10), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);  // First child is one line
-    ASSERT_EQ(Rect(50, 0, 190, 10), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(50, 0, 190, 10), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);  // First child is one line
-    ASSERT_EQ(Rect(240, 0, 400, 10), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(240, 0, 400, 10), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(3);  // First child is one line
-    ASSERT_EQ(Rect(640, 0, 560, 10), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(640, 0, 560, 10), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 const static char *SCROLL_VIEW_TEST =
@@ -1038,12 +1038,12 @@ const static char *SCROLL_VIEW_TEST =
 TEST_F(FlexboxTest, ScrollViewTest)
 {
     loadDocument(SCROLL_VIEW_TEST);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(1, component->getChildCount());
     ASSERT_EQ(kComponentTypeScrollView, component->getType());
 
     auto frame = component->getChildAt(0);
-    ASSERT_EQ(Rect(0, 0, 1024, 4000), frame->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 1024, 4000), frame->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 const static char *SEQUENCE_TEST =
@@ -1075,13 +1075,13 @@ TEST_F(FlexboxTest, SequenceTest)
 {
     loadDocument(SEQUENCE_TEST);
     advanceTime(10);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(4, component->getChildCount());
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
     for (int i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(0, 400*i, 1024, 400), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(0, 400*i, 1024, 400), child->getCalculated(kPropertyBounds).get<Rect>());
     }
 }
 
@@ -1114,14 +1114,14 @@ TEST_F(FlexboxTest, HorizontalSequenceTest)
 {
     loadDocument(HORIZONTAL_SEQUENCE_TEST);
     advanceTime(10);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(4, component->getChildCount());
     ASSERT_EQ(kComponentTypeSequence, component->getType());
     ASSERT_EQ(kScrollDirectionHorizontal, component->getCalculated(kPropertyScrollDirection).asInt());
 
     for (int i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(400*i, 0, 400, 800), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(400*i, 0, 400, 800), child->getCalculated(kPropertyBounds).get<Rect>());
     }
 }
 
@@ -1166,7 +1166,7 @@ TEST_F(FlexboxTest, SequenceWithSpacingTest)
     config->set(RootProperty::kSequenceChildCache, 2);
     loadDocument(SPACED_SEQUENCE);
     advanceTime(10);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(8, component->getChildCount());
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -1174,7 +1174,7 @@ TEST_F(FlexboxTest, SequenceWithSpacingTest)
     for (int i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
         ASSERT_EQ(std::to_string(i+1), child->getChildAt(0)->getCalculated(kPropertyText).asString());
-        ASSERT_EQ(Rect(0, y, 1024, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(0, y, 1024, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         y += 200 + (i + 2) * 10;
     }
 }
@@ -1184,7 +1184,7 @@ TEST_F(FlexboxTest, SequenceWithSpacingTestEnsureJump)
     config->set(RootProperty::kSequenceChildCache, 2);
     loadDocument(SPACED_SEQUENCE);
     advanceTime(10);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(8, component->getChildCount());
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -1192,7 +1192,7 @@ TEST_F(FlexboxTest, SequenceWithSpacingTestEnsureJump)
     for (int i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
         ASSERT_EQ(std::to_string(i+1), child->getChildAt(0)->getCalculated(kPropertyText).asString());
-        ASSERT_EQ(Rect(0, y, 1024, 200), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(0, y, 1024, 200), child->getCalculated(kPropertyBounds).get<Rect>());
         y += 200 + (i + 2) * 10;
     }
 }
@@ -1223,14 +1223,14 @@ const static char *PAGER_TEST =
 TEST_F(FlexboxTest, PagerTest)
 {
     loadDocument(PAGER_TEST);
-    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(3, component->getChildCount());
     ASSERT_EQ(kComponentTypePager, component->getType());
     advanceTime(10);
 
     for (int i = 0 ; i < component->getChildCount() ; i++) {
         auto child = component->getChildAt(i);
-        ASSERT_EQ(Rect(0, 0, 1024, 800), child->getCalculated(kPropertyBounds).getRect());
+        ASSERT_EQ(Rect(0, 0, 1024, 800), child->getCalculated(kPropertyBounds).get<Rect>());
     }
 }
 
@@ -1278,46 +1278,46 @@ TEST_F(FlexboxTest, AlignmentTest)
 {
     metrics.dpi(320.0);
     loadDocument(ALIGNMENT_TEST);
-    ASSERT_EQ(Rect(0,0,512,400), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,512,400), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(5, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(0, 0, 100.5, 100.5), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100.5, 100.5), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(0, 100.5, 100.5, 100.5), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 100.5, 100.5, 100.5), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);
-    ASSERT_EQ(Rect(0, 201, 50, 50), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 201, 50, 50), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(3);
-    ASSERT_EQ(Rect(0, 251, 128, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 251, 128, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(4);
-    ASSERT_EQ(Rect(0, 351, 128, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 351, 128, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 TEST_F(FlexboxTest, AlignmentTestReverse)
 {
     metrics.dpi(80.0);
     loadDocument(ALIGNMENT_TEST);
-    ASSERT_EQ(Rect(0,0,2048,1600), component->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,0,2048,1600), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(5, component->getChildCount());
 
     auto child = component->getChildAt(0);
-    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);
-    ASSERT_EQ(Rect(0, 100, 100, 100), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 100, 100, 100), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);
-    ASSERT_EQ(Rect(0, 200, 200, 200), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 200, 200, 200), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(3);
-    ASSERT_EQ(Rect(0, 400, 512, 400), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 400, 512, 400), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(4);
-    ASSERT_EQ(Rect(0, 800, 512, 400), child->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0, 800, 512, 400), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 /*

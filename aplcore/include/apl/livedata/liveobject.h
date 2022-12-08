@@ -26,7 +26,12 @@ namespace apl {
  */
 class LiveObject {
 public:
-    virtual Object::ObjectType getType() const = 0;
+    enum class ObjectType {
+        kArrayType,
+        kMapType
+    };
+
+    virtual ObjectType getType() const = 0;
     virtual ~LiveObject() = default;
 };
 

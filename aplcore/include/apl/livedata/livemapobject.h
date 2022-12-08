@@ -36,7 +36,7 @@ namespace apl {
 class LiveMapObject : public LiveDataObject, Counter<LiveMapObject> {
 public:
     static LiveMapObject& cast(LiveDataObject& object) {
-        assert(object.getType() == Object::kMapType);
+        assert(object.getType() == LiveObject::ObjectType::kMapType);
         return reinterpret_cast<LiveMapObject&>(object);
     }
 
@@ -53,7 +53,7 @@ public:
     /**
      * Overrides from LiveDataObject
      */
-    Object::ObjectType getType() const override { return Object::kMapType; }
+    LiveObject::ObjectType getType() const override { return LiveObject::ObjectType::kMapType; }
 
     std::shared_ptr<LiveMapObject> asMap() override {
         return std::static_pointer_cast<LiveMapObject>(shared_from_this());
@@ -83,6 +83,11 @@ public:
      * @return List of changed keys.
      */
     const std::set<std::string>& getChanged();
+
+    class ObjectType final : public MapObjectType<LiveMapObject> {
+    public:
+        std::shared_ptr<LiveDataObject> getLiveDataObject(const Object::DataHolder& dataHolder) const override;
+    };
 
 private:
     void handleMapMessage(const LiveMapChange& change);

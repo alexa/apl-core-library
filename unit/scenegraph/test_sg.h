@@ -110,26 +110,24 @@ public:
 protected:
     sg::Node::Type mType;
     std::string mMsg;
-    std::vector<NodeTest> mChildTests;
+    NodeTest mChildTest;
+    NodeTest mNextTest;
 };
 
 template<class T>
 class IsWrapper : public IsNode {
 public:
     IsWrapper(sg::Node::Type type, std::string msg) : IsNode(type, std::move(msg)) {}
-    T& child(NodeTest test) { mChildTests.emplace_back(std::move(test)); return static_cast<T&>(*this); }
-    T& children(std::vector<NodeTest> nodeTests) { mChildTests = std::move(nodeTests); return static_cast<T&>(*this); }
-};
-
-class IsGenericNode : public IsWrapper<IsGenericNode> {
-public:
-    explicit IsGenericNode(std::string msg="") : IsWrapper(sg::Node::kGeneric, std::move(msg)) {}
-    IsGenericNode(std::vector<NodeTest> nodeTests, std::string msg="")
-        : IsWrapper(sg::Node::kGeneric, std::move(msg)) {
-        mChildTests = std::move(nodeTests);
+    T& child(NodeTest test) {
+        assert(!mChildTest);
+        mChildTest = test;
+        return static_cast<T&>(*this);
     }
-
-    ::testing::AssertionResult operator()(sg::NodePtr node);
+    T& next(NodeTest test) {
+        assert(!mNextTest);
+        mNextTest = test;
+        return static_cast<T&>(*this);
+    }
 };
 
 class IsClipNode : public IsWrapper<IsClipNode> {
@@ -279,10 +277,8 @@ public:
     IsLayer& horizontal() { mInteraction |= sg::Layer::kInteractionScrollHorizontal; return *this; }
     IsLayer& vertical() { mInteraction |= sg::Layer::kInteractionScrollVertical; return *this; }
 
-    IsLayer& content(NodeTest test) { mContentTests.emplace_back(std::move(test)); return *this; }
+    IsLayer& content(NodeTest test) { assert(!mContentTest); mContentTest = test; return *this; }
     IsLayer& child(LayerTest test) { mLayerTests.emplace_back(std::move(test)); return *this; }
-
-    IsLayer& contents(std::vector<NodeTest> tests) { mContentTests = std::move(tests); return *this; }
     IsLayer& children(std::vector<LayerTest> tests) { mLayerTests = std::move(tests); return *this; }
 
     IsLayer& dirty(unsigned flags) { mDirtyFlags = flags; return *this; }
@@ -298,7 +294,7 @@ private:
     Transform2D mTransform;
     Point mChildOffset;
     float mOpacity = 1.0f;
-    std::vector<NodeTest> mContentTests;
+    NodeTest mContentTest;
     std::vector<LayerTest> mLayerTests;
     std::string mMsg;
     unsigned mDirtyFlags = 0;

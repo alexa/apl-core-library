@@ -19,6 +19,8 @@
 #include <tao/pegtl/contrib/abnf.hpp>
 #include <tao/pegtl/contrib/unescape.hpp>
 
+#include "apl/datagrammar/grammarpolyfill.h"
+
 namespace apl {
 namespace pollygrammar {
 
@@ -80,11 +82,18 @@ struct SMTemp {
 
 template <typename Rule> struct action : nothing<Rule> {};
 
+template<typename Rule>
+struct polly_control : apl_control< Rule > {
+    template<typename Input, typename...States >
+    static void raise( const Input& /* unused */, States&&... /* unused */) {
+        // SpeechMarks parsing is not used in APL Core. Rely on return.
+    }
+};
 
 template <>
 struct action<number> {
     template <typename Input>
-    static void apply(const Input& in, std::vector<SpeechMark>& speechMarks, SMTemp& temp) {
+    static void apply(const Input& in, SMTemp& temp, std::vector<SpeechMark>& speechMarks) {
         if (temp.keyword == "time")
             speechMarks.back().time = std::stoul(in.string());
         else if (temp.keyword == "start")
@@ -97,8 +106,10 @@ struct action<number> {
 template <>
 struct action<string::content> : unescape {
     template <typename Input>
-    static void success(const Input& /* unused */, std::string& s,
-                        std::vector<SpeechMark>& speechMarks, SMTemp& temp) {
+    static void success(const Input& /* unused */,
+                        std::string& s,
+                        SMTemp& temp,
+                        std::vector<SpeechMark>& speechMarks) {
         if (temp.keyword == "type") {
             if (s == "word")
                 speechMarks.back().type = kSpeechMarkWord;
@@ -117,8 +128,10 @@ struct action<string::content> : unescape {
 template <>
 struct action<key::content> : unescape {
     template <typename Input>
-    static void success(const Input& /* unused */, std::string& s,
-                        std::vector<SpeechMark>& speechMarks, SMTemp& temp) {
+    static void success(const Input& /* unused */,
+                        std::string& s,
+                        SMTemp& temp,
+                        std::vector<SpeechMark>& speechMarks) {
         temp.keyword = s;
     }
 };
@@ -127,7 +140,7 @@ struct action<key::content> : unescape {
 template <>
 struct action<sym_start> {
     template <typename Input>
-    static void apply(const Input& in, std::vector<SpeechMark>& speechMarks, SMTemp& temp) {
+    static void apply(const Input& in, SMTemp& temp, std::vector<SpeechMark>& speechMarks) {
         speechMarks.emplace_back(SpeechMark{kSpeechMarkUnknown, 0, 0, 0, ""});
     }
 };
@@ -137,11 +150,9 @@ parseData(const char* data, unsigned long length) {
     std::vector<SpeechMark> result;
 
     pegtl::memory_input<> in(data, length, "");
-    try {
-        pollygrammar::SMTemp temp;
-        pegtl::parse<grammar, action>(in, result, temp);
-    }
-    catch (const pegtl::parse_error& e) {
+    pollygrammar::SMTemp temp;
+    if (!pegtl::parse<grammar, action, polly_control>(in, temp, result)) {
+        result.clear();
     }
     return result;
 }

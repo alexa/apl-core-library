@@ -213,7 +213,7 @@ TEST_F(MountTest, AnimateMultiple)
                   thing1->getCalculated(kPropertyColor));
 
         ASSERT_TRUE(IsEqual(Transform2D::translateX(100 * (1.0 - delta)),
-                          thing2->getCalculated(kPropertyTransform).getTransform2D()));
+                          thing2->getCalculated(kPropertyTransform).get<Transform2D>()));
         ASSERT_NEAR(delta,component->getCalculated(kPropertyOpacity).asNumber(),0.0001);
     }
 }

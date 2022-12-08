@@ -17,6 +17,7 @@
 #define _APL_SCROLL_GESTURE_H
 
 #include "apl/common.h"
+#include "apl/component/scrollablecomponent.h"
 #include "apl/primitives/object.h"
 #include "apl/touch/gestures/flinggesture.h"
 #include "apl/touch/utils/autoscroller.h"
@@ -47,7 +48,12 @@ protected:
 private:
     float toLocalThreshold(float threshold);
     bool isSlopeWithinTolerance(Point localPosition);
-    ScrollablePtr getScrollable() const { return std::dynamic_pointer_cast<ScrollableComponent>(mActionable); }
+    // This gesture may happen only on scrollable target.
+    ScrollablePtr getScrollable() const {
+        return mActionable->scrollable()
+                   ? std::shared_ptr<ScrollableComponent>(mActionable, (ScrollableComponent*)mActionable.get())
+                   : nullptr;
+    }
     double getVelocityLimit(const Point& travel);
 
     Point mLastLocalPosition;

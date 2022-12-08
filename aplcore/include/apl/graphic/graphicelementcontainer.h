@@ -29,16 +29,8 @@ public:
     GraphicElementType getType() const override { return kGraphicElementTypeContainer; }
     bool hasChildren() const override { return true; }
 
-    std::string toDebugString() const override
-    {
-        std::string result = "GraphicElementContainer<children=[";
-        for (auto& child : mChildren) {
-            result += " ";
-            result += child->toDebugString();
-        }
-        result +=  ">";
-
-        return result;
+    std::string toDebugString() const override {
+        return std::string("GraphicElementContainer<") + mUniqueId + ">";
     }
 
 #ifdef SCENEGRAPH

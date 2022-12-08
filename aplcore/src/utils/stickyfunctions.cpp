@@ -22,8 +22,8 @@ namespace apl {
 namespace stickyfunctions {
 
 std::pair<CoreComponentPtr, CoreComponentPtr>
-getAncestorHorizontalAndVerticalScrollable(const CoreComponentPtr &component) {
-    auto ancestor = std::dynamic_pointer_cast<CoreComponent>(component->getParent());
+getHorizontalAndVerticalScrollable(const CoreComponentPtr &component) {
+    auto ancestor = component;
     CoreComponentPtr horizontal, vertical;
     while (ancestor != nullptr) {
         if (horizontal != nullptr && vertical != nullptr)
@@ -35,9 +35,15 @@ getAncestorHorizontalAndVerticalScrollable(const CoreComponentPtr &component) {
         if (vertical == nullptr && ancestor->scrollable() && ancestor->scrollType() == kScrollTypeVertical)
             vertical = ancestor;
 
-        ancestor = std::dynamic_pointer_cast<CoreComponent>(ancestor->getParent());
+        ancestor = CoreComponent::cast(ancestor->getParent());
     }
     return {horizontal, vertical};
+}
+
+std::pair<CoreComponentPtr, CoreComponentPtr>
+getAncestorHorizontalAndVerticalScrollable(const CoreComponentPtr &component) {
+    auto ancestor = CoreComponent::cast(component->getParent());
+    return getHorizontalAndVerticalScrollable(ancestor);
 }
 
 void
@@ -46,7 +52,7 @@ updateStickyOffset(const CoreComponentPtr &component) {
     // The offset for nested sticky components will be calculated in order from ancestor to descendant.
     // We update the bounds early so any sticky descendants have up to date bounds to work with
     auto currentStickyOffset = component->getStickyOffset();
-    auto b = component->getCalculated(kPropertyBounds).getRect();
+    auto b = component->getCalculated(kPropertyBounds).get<Rect>();
     b.offset(-currentStickyOffset);
     b.offset(offset);
     component->setCalculated(kPropertyBounds, std::move(b));
@@ -58,7 +64,7 @@ static Point
 calculateVerticalOffset(const CoreComponentPtr& component, Point& currentStickyOffset,
                const CoreComponentPtr& verticalScrollable) {
     Point calculatedOffset;
-    float scrollableHeight = verticalScrollable->getCalculated(kPropertyBounds).getRect().getHeight();
+    float scrollableHeight = verticalScrollable->getCalculated(kPropertyBounds).get<Rect>().getHeight();
     float scrollY = verticalScrollable->scrollPosition().getY();
     auto topStyleOffset = component->getCalculated(kPropertyTop);
     auto bottomStyleOffset = component->getCalculated(kPropertyBottom);
@@ -117,7 +123,7 @@ Point
 calculateHorizontalOffset(const CoreComponentPtr& component, const Point& currentStickyOffset,
                           const CoreComponentPtr& horizontalScrollable) {
     Point calculatedOffset;
-    float scrollableWidth = horizontalScrollable->getCalculated(kPropertyBounds).getRect().getWidth();
+    float scrollableWidth = horizontalScrollable->getCalculated(kPropertyBounds).get<Rect>().getWidth();
     float scrollX = horizontalScrollable->scrollPosition().getX();
     auto leftStyleOffset = component->getCalculated(kPropertyLeft);
     auto rightStyleOffset = component->getCalculated(kPropertyRight);

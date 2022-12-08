@@ -434,6 +434,28 @@ TEST_F(MediaManagerTest, VectorGraphicFailure) {
     ASSERT_EQ(kMediaStateError, component->getCalculated(kPropertyMediaState).getInteger());
 }
 
+TEST_F(MediaManagerTest, VectorGraphicChange)
+{
+    loadDocument(VECTOR_GRAPHIC_DOCUMENT);
+
+    ASSERT_FALSE(root->isDirty());
+
+    // Let the first one load
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeVectorGraphic, "http://myPillShape"));
+    ASSERT_EQ(kMediaStatePending, component->getCalculated(apl::kPropertyMediaState).getInteger());
+    ASSERT_TRUE(CheckLoadedMedia(component, "http://myPillShape"));
+    ASSERT_EQ(kMediaStateReady, component->getCalculated(apl::kPropertyMediaState).getInteger());
+
+    // Change the source property
+    component->setProperty(kPropertySource, "http://foobar");
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeVectorGraphic, "http://foobar"));
+    ASSERT_TRUE(CheckDirty(component, kPropertySource, kPropertyMediaState, kPropertyVisualHash));
+    ASSERT_EQ(kMediaStatePending, component->getCalculated(apl::kPropertyMediaState).getInteger());
+    ASSERT_TRUE(CheckLoadedMedia(component, "http://foobar"));
+    ASSERT_EQ(kMediaStateReady, component->getCalculated(apl::kPropertyMediaState).getInteger());
+}
+
+
 static const char* VECTOR_GRAPHIC_LOCAL_SOURCE_DOCUMENT = R"(
     {
         "type": "APL",
@@ -845,12 +867,12 @@ TEST_F(MediaManagerTest, SingleImageLoadChangeSourceTriggersOnLoad)
 
     ASSERT_EQ("bravo", textComponent->getCalculated(kPropertyText).asString());
 
-    auto textComponentMedia = std::dynamic_pointer_cast<TextComponent>(textComponent);
+    auto textComponentMedia = TextComponent::cast(textComponent);
     textComponentMedia->setProperty(kPropertyText, "torpedo");
 
     ASSERT_EQ("torpedo", textComponent->getCalculated(kPropertyText).asString());
 
-    auto imageComponent = std::dynamic_pointer_cast<ImageComponent>(root->findComponentById("myImage"));
+    auto imageComponent = ImageComponent::cast(root->findComponentById("myImage"));
     imageComponent->setProperty(kPropertySource, "universe1");
     ASSERT_TRUE(CheckDirty(imageComponent, kPropertySource, kPropertyMediaState, kPropertyVisualHash));
     ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "universe1"));
@@ -1503,7 +1525,7 @@ TEST_F(MediaManagerTest, SingleImageOnLoadReinflate)
 
     configChangeReinflate(ConfigurationChange(500, 1000));
 
-    component = std::static_pointer_cast<CoreComponent>(root->topComponent());
+    component = CoreComponent::cast(root->topComponent());
     ASSERT_TRUE(component);
 
     ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "source1"));
@@ -1545,7 +1567,7 @@ TEST_F(MediaManagerTest, SingleImageReinflate)
 
     configChangeReinflate(ConfigurationChange(500, 1000));
 
-    component = std::static_pointer_cast<CoreComponent>(root->topComponent());
+    component = CoreComponent::cast(root->topComponent());
     ASSERT_TRUE(component);
 
     ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "source1"));
@@ -1599,7 +1621,7 @@ TEST_F(MediaManagerTest, SingleImageOnLoadReinflateSame)
 
     configChangeReinflate(ConfigurationChange(500, 1000));
 
-    component = std::static_pointer_cast<CoreComponent>(root->topComponent());
+    component = CoreComponent::cast(root->topComponent());
     ASSERT_TRUE(component);
 
     ASSERT_TRUE(CheckSendEvent(root, "loaded0"));
@@ -1641,7 +1663,7 @@ TEST_F(MediaManagerTest, SingleImageReinflateSame)
 
     configChangeReinflate(ConfigurationChange(500, 1000));
 
-    component = std::static_pointer_cast<CoreComponent>(root->topComponent());
+    component = CoreComponent::cast(root->topComponent());
     ASSERT_TRUE(component);
 
     root->mediaLoaded("source0");
@@ -1725,7 +1747,7 @@ TEST_F(MediaManagerTest, ImageWithSourcesAsArraryWithHeaders) {
 
     auto sources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(sources.size(), 1);
-    auto asSource = sources.at(0).getURLRequest();
+    auto asSource = sources.at(0).get<URLRequest>();
     auto headers = asSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
     ASSERT_EQ(headers.at(0), "A: header");
@@ -1759,7 +1781,7 @@ TEST_F(MediaManagerTest, ImageWithSourcesAsArraryWithHeadersAsString) {
 
     auto sources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(sources.size(), 1);
-    auto asSource = sources.at(0).getURLRequest();
+    auto asSource = sources.at(0).get<URLRequest>();
     auto headers = asSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
     ASSERT_EQ(headers.at(0), "A: Let me in");
@@ -1795,7 +1817,7 @@ TEST_F(MediaManagerTest, ImageSourceAsObjectWithHeaders) {
     // Based on the spec, we will "array-fy" the property
     auto sources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(sources.size(), 1);
-    auto asSource = sources.at(0).getURLRequest();
+    auto asSource = sources.at(0).get<URLRequest>();
     auto headers = asSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
     ASSERT_EQ(headers.at(0), "A: Let me in please");
@@ -1846,8 +1868,8 @@ TEST_F(MediaManagerTest, MultipleImagesWithHeaders) {
     auto sources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(sources.size(), 4);
 
-    ASSERT_TRUE(sources.at(0).isURLRequest());
-    auto asSource0 = sources.at(0).getURLRequest();
+    ASSERT_TRUE(sources.at(0).is<URLRequest>());
+    auto asSource0 = sources.at(0).get<URLRequest>();
     ASSERT_EQ(asSource0.getUrl(), "universe0");
     auto headers0 = asSource0.getHeaders();
     ASSERT_EQ(headers0.size(), 1);
@@ -1857,12 +1879,12 @@ TEST_F(MediaManagerTest, MultipleImagesWithHeaders) {
     auto asSource1 = sources.at(1).getString();
     ASSERT_EQ(asSource1, "universe1");
 
-    auto asSource2 = sources.at(2).getURLRequest();
+    auto asSource2 = sources.at(2).get<URLRequest>();
     ASSERT_EQ(asSource2.getUrl(), "universe2");
     auto headers2 = asSource2.getHeaders();
     ASSERT_EQ(headers2.size(), 0);
 
-    auto asSource3 = sources.at(3).getURLRequest();
+    auto asSource3 = sources.at(3).get<URLRequest>();
     ASSERT_EQ(asSource3.getUrl(), "universe3");
     auto headers3 = asSource3.getHeaders();
     ASSERT_EQ(headers3.size(), 2);
@@ -1918,8 +1940,8 @@ TEST_F(MediaManagerTest, MultipleImagesWithFiltersAndHeaders) {
     auto sources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(sources.size(), 4);
 
-    ASSERT_TRUE(sources.at(0).isURLRequest());
-    auto asSoource0 = sources.at(0).getURLRequest();
+    ASSERT_TRUE(sources.at(0).is<URLRequest>());
+    auto asSoource0 = sources.at(0).get<URLRequest>();
     ASSERT_EQ(asSoource0.getUrl(), "universe0");
     auto headers0 = asSoource0.getHeaders();
     ASSERT_EQ(headers0.size(), 1);
@@ -1929,12 +1951,12 @@ TEST_F(MediaManagerTest, MultipleImagesWithFiltersAndHeaders) {
     auto asSource1 = sources.at(1).getString();
     ASSERT_EQ(asSource1, "universe1");
 
-    auto asSource2 = sources.at(2).getURLRequest();
+    auto asSource2 = sources.at(2).get<URLRequest>();
     ASSERT_EQ(asSource2.getUrl(), "universe2");
     auto headers2 = asSource2.getHeaders();
     ASSERT_EQ(headers2.size(), 0);
 
-    auto asSource3 = sources.at(3).getURLRequest();
+    auto asSource3 = sources.at(3).get<URLRequest>();
     ASSERT_EQ(asSource3.getUrl(), "universe3");
     auto headers3 = asSource3.getHeaders();
     ASSERT_EQ(headers3.size(), 2);
@@ -1969,8 +1991,8 @@ TEST_F(MediaManagerTest, VectorGraphicWithHeaders) {
     ASSERT_TRUE(CheckLoadedMedia(component, "universe0"));
 
     auto sourceProp = component->getCalculated(kPropertySource);
-    ASSERT_TRUE(sourceProp.isURLRequest());
-    auto asSource = sourceProp.getURLRequest();
+    ASSERT_TRUE(sourceProp.is<URLRequest>());
+    auto asSource = sourceProp.get<URLRequest>();
     auto headers = asSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
     ASSERT_EQ(headers.at(0), "A: Let me in");
@@ -1998,9 +2020,9 @@ TEST_F(MediaManagerTest, VideoWithWrongHeaders) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 0);
@@ -2029,9 +2051,9 @@ TEST_F(MediaManagerTest, VideoWithHeaders) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
@@ -2046,9 +2068,9 @@ TEST_F(MediaManagerTest, VideoWithHeadersSetsDirtyAfterHeaderChange) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
@@ -2070,8 +2092,8 @@ TEST_F(MediaManagerTest, VideoWithHeadersSetsDirtyAfterHeaderChange) {
 
     mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
-    asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
+    asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
@@ -2092,8 +2114,8 @@ TEST_F(MediaManagerTest, VideoWithHeadersSetsDirtyAfterHeaderChange) {
     ASSERT_TRUE(CheckDirty(component, kPropertySource, kPropertyVisualHash));
     mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
-    asMediaSource = mediaSources.at(0).getMediaSource();
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
+    asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
@@ -2109,9 +2131,9 @@ TEST_F(MediaManagerTest, VideoWithHeadersDenyUppercase) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 0);
@@ -2126,9 +2148,9 @@ TEST_F(MediaManagerTest, VideoWithHeadersDenyLowercase) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 0);
@@ -2143,9 +2165,9 @@ TEST_F(MediaManagerTest, VideoWithHeadersAllowListUppercase) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
@@ -2161,9 +2183,9 @@ TEST_F(MediaManagerTest, VideoWithHeadersAllowListLowercase) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
@@ -2179,9 +2201,9 @@ TEST_F(MediaManagerTest, VideoWithHeadersAllowListNotPresent) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
@@ -2217,9 +2239,9 @@ TEST_F(MediaManagerTest, VideoWithHeadersAllowRegex) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 2);
@@ -2240,9 +2262,9 @@ TEST_F(MediaManagerTest, VideoWithHeadersDenyRegex) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
@@ -2261,9 +2283,9 @@ TEST_F(MediaManagerTest, VideoWithHeadersDenyAllRegex) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
@@ -2298,9 +2320,9 @@ TEST_F(MediaManagerTest, VideoWithHeadersAcceptContentTypeDenyAllRegex) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 1);
@@ -2338,9 +2360,9 @@ TEST_F(MediaManagerTest, VideoWithDuplicatedHeaders) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 2);
@@ -2399,9 +2421,9 @@ TEST_F(MediaManagerTest, VideoWithMultipleHeaders) {
     // Based on the spec, sources get transformed into an array
     auto mediaSources = component->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(mediaSources.size(), 1);
-    ASSERT_TRUE(mediaSources.at(0).isMediaSource());
+    ASSERT_TRUE(mediaSources.at(0).is<MediaSource>());
 
-    auto asMediaSource = mediaSources.at(0).getMediaSource();
+    auto asMediaSource = mediaSources.at(0).get<MediaSource>();
     ASSERT_EQ(asMediaSource.getDescription(), "milky way");
     auto headers = asMediaSource.getHeaders();
     ASSERT_EQ(headers.size(), 5);

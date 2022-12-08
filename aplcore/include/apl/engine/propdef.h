@@ -134,7 +134,7 @@ inline Object asFilterArray(const Context& context, const Object& object) {
     std::vector<Object> data;
     for (auto& m : arrayify(context, object)) {
         auto f = Filter::create(context, m);
-        if (f.isFilter())
+        if (f.is<Filter>())
             data.push_back(std::move(f));
     }
     return Object(std::move(data));
@@ -144,7 +144,7 @@ inline Object asGraphicFilterArray(const Context& context, const Object& object)
     std::vector<Object> data;
     for (auto& m : arrayify(context, object)) {
         auto f = GraphicFilter::create(context, m);
-        if (f.isGraphicFilter())
+        if (f.is<GraphicFilter>())
             data.push_back(std::move(f));
     }
     return Object(std::move(data));
@@ -180,7 +180,7 @@ inline Object asGradient(const Context& context, const Object& object) {
 
 inline Object asFill(const Context& context, const Object& object) {
     auto gradient = asGradient(context, object);
-    return gradient.isGradient() ? gradient : asColor(context, object);
+    return gradient.is<Gradient>() ? gradient : asColor(context, object);
 }
 
 inline Object asVectorGraphicSource(const Context& context, const Object& object) {
@@ -211,7 +211,7 @@ inline Object asMediaSourceArray(const Context& context, const Object& object) {
     std::vector<Object> data;
     for (auto& m : arrayify(context, object)) {
         auto ms = MediaSource::create(context, m);
-        if (ms.isMediaSource())
+        if (ms.is<MediaSource>())
             data.push_back(std::move(ms));
     }
     return Object(std::move(data));
@@ -236,14 +236,14 @@ inline Object asFilteredText(const Context& context, const Object& object) {
 }
 
 inline Object asTransformOrArray(const Context& context, const Object& object) {
-    if (object.isTransform())
+    if (object.is<Transformation>())
         return object;
 
     return evaluateRecursive(context, arrayify(context, object));
 }
 
 inline Object asEasing(const Context& context, const Object& object) {
-    if (object.isEasing())
+    if (object.is<Easing>())
         return object;
 
     return Easing::parse(context.session(), object.asString());

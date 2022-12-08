@@ -14,6 +14,7 @@
  */
 
 #include "apl/scenegraph/path.h"
+#include "apl/scenegraph/pathbounds.h"
 
 namespace apl {
 namespace sg {
@@ -53,7 +54,8 @@ operator==(const PathPtr& lhs, const PathPtr& rhs) {
 bool
 RectPath::empty() const
 {
-    return mRect.empty();
+    // A rectangular path always has segments that can be stroked.
+    return false;
 }
 
 std::string
@@ -73,6 +75,12 @@ RectPath::setRect(Rect rect)
     return true;
 }
 
+Rect
+RectPath::boundingBox(const Transform2D& transform) const
+{
+    return mRect.boundingBox(transform);
+}
+
 rapidjson::Value
 RectPath::serialize(rapidjson::Document::AllocatorType& allocator) const {
     rapidjson::Value result(rapidjson::kObjectType);
@@ -84,7 +92,8 @@ RectPath::serialize(rapidjson::Document::AllocatorType& allocator) const {
 bool
 RoundedRectPath::empty() const
 {
-    return mRoundedRect.empty();
+    // A rounded rectangular path always has segments that can be stroked.
+    return false;
 }
 
 std::string
@@ -104,6 +113,13 @@ RoundedRectPath::setRoundedRect(const RoundedRect& roundedRect)
     return true;
 }
 
+Rect
+RoundedRectPath::boundingBox(const Transform2D& transform) const
+{
+    // Note: this bounding box could be made tighter if there are large radii and 45 degree rotation
+    return mRoundedRect.rect().boundingBox(transform);
+}
+
 rapidjson::Value
 RoundedRectPath::serialize(rapidjson::Document::AllocatorType& allocator) const {
     rapidjson::Value result(rapidjson::kObjectType);
@@ -116,14 +132,15 @@ RoundedRectPath::serialize(rapidjson::Document::AllocatorType& allocator) const 
 bool
 FramePath::empty() const
 {
-    return mRoundedRect.empty() || mInset == 0;
+    // A frame path always has segments that can be stroked.
+    return false;
 }
 
 std::string
 FramePath::toDebugString() const
 {
     return std::string("FramePath ") + mRoundedRect.toDebugString() +
-           " inset=" + std::to_string(mInset);
+           " inset=" + sutil::to_string(mInset);
 }
 
 bool
@@ -146,6 +163,13 @@ FramePath::setInset(float inset)
     mInset = inset;
     mModified = true;
     return true;
+}
+
+Rect
+FramePath::boundingBox(const Transform2D& transform) const
+{
+    // Note: this bounding box could be made tighter if there are large radii and 45 degree rotation
+    return mRoundedRect.rect().boundingBox(transform);
 }
 
 rapidjson::Value
@@ -174,26 +198,21 @@ GeneralPath::toDebugString() const
     auto result = std::string("GeneralPath ") + mValue + " [";
     auto len = mPoints.size();
     if (len)
-        result += std::to_string(mPoints.at(0));
+        result += sutil::to_string(mPoints.at(0));
     for (int i = 1 ; i < len ; i++)
-        result += "," + std::to_string(mPoints.at(i));
+        result += "," + sutil::to_string(mPoints.at(i));
     return result + "]";
 }
 
-bool
-GeneralPath::setPaths(const std::string value, const std::vector<float> points)
+Rect
+GeneralPath::boundingBox(const Transform2D& transform) const
 {
-    if (mValue == value && mPoints == points)
-        return false;
-
-    mValue = value;
-    mPoints = std::move(points);
-    mModified = true;
-    return true;
+    return calculatePathBounds(transform, mValue, mPoints);
 }
 
 rapidjson::Value
-GeneralPath::serialize(rapidjson::Document::AllocatorType& allocator) const {
+GeneralPath::serialize(rapidjson::Document::AllocatorType& allocator) const
+{
     rapidjson::Value result(rapidjson::kObjectType);
     result.AddMember("type", rapidjson::StringRef("generalPath"), allocator);
     result.AddMember("values", rapidjson::Value(mValue.c_str(), allocator), allocator);

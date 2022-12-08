@@ -20,6 +20,8 @@
 
 #include "apl/primitives/object.h"
 
+#include "apl/utils/log.h"
+
 namespace apl {
 
 class DumpVisitor : public Visitor<Object> {

@@ -269,3 +269,53 @@ TEST_F(SGAccessibilityTest, InteractionCheckedEnabled)
                                         .disabled()
                                         .dirty(sg::Layer::kFlagInteractionChanged)));
 }
+
+TEST_F(SGAccessibilityTest, Serialize)
+{
+    auto a = std::make_shared<sg::Accessibility>([](const std::string&){});
+    a->setLabel("The Label");
+    a->setRole(Role::kRoleAlert);
+    a->appendAction("bounce", "this is a bounce", true);
+    a->appendAction("debounce", "this is not a bounce", false);
+
+    rapidjson::Document document;
+    ASSERT_TRUE(IsEqual(a->serialize(document.GetAllocator()), StringToMapObject(R"apl(
+        {
+            "label": "The Label",
+            "role": "alert",
+            "actions": [
+                {
+                    "name": "bounce",
+                    "label": "this is a bounce",
+                    "enabled": true
+                },
+                {
+                    "name": "debounce",
+                    "label": "this is not a bounce",
+                    "enabled": false
+                }
+            ]
+        }
+    )apl")));
+}
+
+TEST_F(SGAccessibilityTest, Comparisons)
+{
+    auto a = std::make_shared<sg::Accessibility>([](const std::string&){});
+    auto b = std::make_shared<sg::Accessibility>([](const std::string&){});
+
+    ASSERT_EQ(*a, *b);
+    b->setRole(Role::kRoleAlert);
+    ASSERT_NE(*a, *b);
+    a->setRole(Role::kRoleAlert);
+    ASSERT_EQ(*a, *b);
+
+    b->setLabel("I am an alert");
+    ASSERT_NE(*a, *b);
+    a->setLabel("I am an alert");
+    ASSERT_EQ(*a, *b);
+
+    b->appendAction("bounce", "this is a bounce", true);
+    a->appendAction("bounce", "this is a bounce", false);
+    ASSERT_NE(*a, *b);
+}

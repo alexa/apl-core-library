@@ -606,13 +606,13 @@ TEST_F(AnimateItemTest, OpacityAndTransform)
     ASSERT_TRUE(goButton);
 
     ASSERT_EQ(Object(1), frame->getCalculated(kPropertyOpacity));
-    ASSERT_EQ(Object::IDENTITY_2D(), frame->getCalculated(kPropertyTransform));
+    ASSERT_EQ(Object(Transform2D()), frame->getCalculated(kPropertyTransform));
 
     performClick(1, 100);
     root->clearPending();
 
     ASSERT_EQ(Object(0), frame->getCalculated(kPropertyOpacity));
-    ASSERT_EQ(Transform2D::translateX(metrics.getWidth()), frame->getCalculated(kPropertyTransform).getTransform2D());
+    ASSERT_EQ(Transform2D::translateX(metrics.getWidth()), frame->getCalculated(kPropertyTransform).get<Transform2D>());
     ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform, kPropertyVisualHash));
 
     for (int repeat = 0 ; repeat <= 3 ; repeat++) {
@@ -628,7 +628,7 @@ TEST_F(AnimateItemTest, OpacityAndTransform)
 
             ASSERT_EQ(Object(expectedOpacity), frame->getCalculated(kPropertyOpacity));
             ASSERT_TRUE(IsEqual(Transform2D::translateX(expectedX),
-                        frame->getCalculated(kPropertyTransform).getTransform2D()));
+                        frame->getCalculated(kPropertyTransform).get<Transform2D>()));
             ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform, kPropertyVisualHash));
         }
     }
@@ -647,13 +647,13 @@ TEST_F(AnimateItemTest, OpacityAndTransformTerminate)
     ASSERT_TRUE(goButton);
 
     ASSERT_EQ(Object(1), frame->getCalculated(kPropertyOpacity));
-    ASSERT_EQ(Object::IDENTITY_2D(), frame->getCalculated(kPropertyTransform));
+    ASSERT_EQ(Object(Transform2D()), frame->getCalculated(kPropertyTransform));
 
     performClick(1, 100);
     root->clearPending();
 
     ASSERT_EQ(Object(0), frame->getCalculated(kPropertyOpacity));
-    ASSERT_EQ(Transform2D::translateX(metrics.getWidth()), frame->getCalculated(kPropertyTransform).getTransform2D());
+    ASSERT_EQ(Transform2D::translateX(metrics.getWidth()), frame->getCalculated(kPropertyTransform).get<Transform2D>());
     ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform, kPropertyVisualHash));
 
     auto startTime = loop->currentTime();
@@ -663,7 +663,7 @@ TEST_F(AnimateItemTest, OpacityAndTransformTerminate)
         float expectedX = metrics.getWidth() * (1000 - i) * .001;
         ASSERT_EQ(Object(expectedOpacity), frame->getCalculated(kPropertyOpacity));
         ASSERT_TRUE(IsEqual(Transform2D::translateX(expectedX),
-                            frame->getCalculated(kPropertyTransform).getTransform2D()));
+                            frame->getCalculated(kPropertyTransform).get<Transform2D>()));
         ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform, kPropertyVisualHash));
     }
 
@@ -672,7 +672,7 @@ TEST_F(AnimateItemTest, OpacityAndTransformTerminate)
     ASSERT_EQ(0, loop->size());
 
     ASSERT_EQ(Object(1), frame->getCalculated(kPropertyOpacity));
-    ASSERT_EQ(Object::IDENTITY_2D(), frame->getCalculated(kPropertyTransform));
+    ASSERT_EQ(Object(Transform2D()), frame->getCalculated(kPropertyTransform));
     ASSERT_TRUE(CheckDirty(frame, kPropertyTransform,  kPropertyOpacity, kPropertyVisualHash));
 }
 
@@ -746,7 +746,7 @@ TEST_F(AnimateItemTest, OpacityAndRichTransform)
     ASSERT_TRUE(goButton);
 
     ASSERT_EQ(Object(1), frame->getCalculated(kPropertyOpacity));
-    ASSERT_EQ(Object::IDENTITY_2D(), frame->getCalculated(kPropertyTransform));
+    ASSERT_EQ(Object(Transform2D()), frame->getCalculated(kPropertyTransform));
 
     performClick(1, 100);
     root->clearPending();
@@ -766,7 +766,7 @@ TEST_F(AnimateItemTest, OpacityAndRichTransform)
             Transform2D::translate(-50, -50);
 
         ASSERT_EQ(Object(expectedOpacity), frame->getCalculated(kPropertyOpacity));
-        ASSERT_TRUE(IsEqual(expectedTransform, frame->getCalculated(kPropertyTransform).getTransform2D()))
+        ASSERT_TRUE(IsEqual(expectedTransform, frame->getCalculated(kPropertyTransform).get<Transform2D>()))
             << " time=" << i << " tx=" << expectedX << " scale=" << expectedScale << " rotate=" << expectedAngle;
         ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyTransform, kPropertyVisualHash));
     }
@@ -838,7 +838,7 @@ TEST_F(AnimateItemTest, ResourceTest)
     ASSERT_TRUE(goButton);
 
     ASSERT_EQ(Object(1), frame->getCalculated(kPropertyOpacity));
-    ASSERT_EQ(Object::IDENTITY_2D(), frame->getCalculated(kPropertyTransform));
+    ASSERT_EQ(Object(Transform2D()), frame->getCalculated(kPropertyTransform));
 
     performClick(1, 100);
     root->clearPending();
@@ -851,7 +851,7 @@ TEST_F(AnimateItemTest, ResourceTest)
         Transform2D expectedTransform = Transform2D::translateX(expectedX);
 
         ASSERT_NEAR(expectedOpacity, frame->getCalculated(kPropertyOpacity).asNumber(), 0.0001);
-        ASSERT_TRUE(IsEqual(expectedTransform, frame->getCalculated(kPropertyTransform).getTransform2D()));
+        ASSERT_TRUE(IsEqual(expectedTransform, frame->getCalculated(kPropertyTransform).get<Transform2D>()));
         ASSERT_TRUE(CheckDirty(frame, kPropertyTransform, kPropertyOpacity, kPropertyVisualHash));
     }
 
@@ -907,7 +907,7 @@ TEST_F(AnimateItemTest, MissingTransformFrom)
     ASSERT_TRUE(frame);
     ASSERT_TRUE(goButton);
 
-    ASSERT_EQ(Object::IDENTITY_2D(), frame->getCalculated(kPropertyTransform));
+    ASSERT_EQ(Object(Transform2D()), frame->getCalculated(kPropertyTransform));
 
     performClick(1, 100);
     root->clearPending();
@@ -974,7 +974,7 @@ TEST_F(AnimateItemTest, MissingTransformRotate)
     ASSERT_TRUE(goButton);
 
     ASSERT_EQ(Object(1), frame->getCalculated(kPropertyOpacity));
-    ASSERT_EQ(Object::IDENTITY_2D(), frame->getCalculated(kPropertyTransform));
+    ASSERT_EQ(Object(Transform2D()), frame->getCalculated(kPropertyTransform));
 
     performClick(1, 100);
     root->clearPending();
@@ -987,7 +987,7 @@ TEST_F(AnimateItemTest, MissingTransformRotate)
         Transform2D expectedTransform = Transform2D::translateX(expectedX);
 
         // The Rotation transformation only showed up in the "from" list, so it is ignored
-        ASSERT_TRUE(IsEqual(expectedTransform, frame->getCalculated(kPropertyTransform).getTransform2D()));
+        ASSERT_TRUE(IsEqual(expectedTransform, frame->getCalculated(kPropertyTransform).get<Transform2D>()));
         ASSERT_TRUE(CheckDirty(frame, kPropertyTransform));
     }
 

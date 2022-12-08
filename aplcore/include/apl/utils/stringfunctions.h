@@ -79,6 +79,28 @@ std::string lpad(const std::string &str, std::size_t minWidth, char padChar = ' 
  */
 std::string tolower(const std::string& str);
 
+/**
+ * Return a formatted double for display. The formatted double follows the APL syntax for
+ * floating-point numbers. Additionally, we drop trailing zeros for decimal numbers.  If the number
+ * is an integer or rounds to an integer, we drop the decimal point as well.
+ * Scientific notation numbers are not handled attractively.
+ *
+ * @param value The value to format
+ * @return A suitable string
+ */
+std::string doubleToAplFormattedString(double value);
+
+/**
+ * Parse string into double. The formatted double follows the APL syntax for
+ * floating-point numbers. Additionally, we drop trailing zeros for decimal numbers.  If the number
+ * is an integer or rounds to an integer, we drop the decimal point as well.
+ * Scientific notation numbers are not handled attractively.
+ *
+ * @param string string value
+ * @return A suitable double.
+ */
+double aplFormattedStringToDouble(const std::string& string);
+
 
 /**
  * sutil:: functions are intended to be locale-independent versions of std:: functions of the same
@@ -124,6 +146,29 @@ double stod(const std::string& str, std::size_t* pos = nullptr);
  */
 long double stold(const std::string& str, std::size_t* pos = nullptr);
 
+/**
+ * Internal utility to convert parse the textual representation of a simple number.
+ * Intended to be used as an exception-safe alternative to std::stoi.
+ *
+ * @param str  The string value to parse
+ * @param pos  If non-null, will be set to the index of the first non-parsed character in the input
+ *             string.
+ * @param base The number base.
+ * @return the parsed value, or 0 if the string could not be parsed.
+ */
+int stoi(const std::string& str, std::size_t* pos = nullptr, int base = 10);
+
+/**
+ * Internal utility to convert parse the textual representation of a simple number.
+ * Intended to be used as an exception-safe alternative to std::stoll.
+ *
+ * @param str  The string value to parse
+ * @param pos  If non-null, will be set to the index of the first non-parsed character in the input
+ *             string.
+ * @param base The number base.
+ * @return the parsed value, or 0 if the string could not be parsed.
+ */
+long long stoll(const std::string& str, std::size_t* pos = nullptr, int base = 10);
 
 /**
  * Internal utility to format a single-precision value as a string. Intended to be used as a

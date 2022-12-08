@@ -2441,7 +2441,7 @@ TEST_F(ScrollTest, DeepNestedStickyComponents)
     auto stickyCompInner1 = context->findComponentById("innerSticky1");
     auto stickyCompInner2 = context->findComponentById("innerSticky2");
     auto stickyCompInner3 =
-        std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("innerSticky3"));
+        CoreComponent::cast(context->findComponentById("innerSticky3"));
     auto stickyCompInner4 = context->findComponentById("innerSticky4");
     ASSERT_TRUE(scroll);
     ASSERT_TRUE(stickyComp);
@@ -2660,7 +2660,7 @@ TEST_F(ScrollTest, StickyTestSkipRightOffset)
 {
     loadDocument(TEST_BASIC_LEFT_RIGHT_OFFSET_STICKY);
     auto scroll = context->findComponentById("scrollone");
-    auto stickyComp = std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("rightsticky"));
+    auto stickyComp = CoreComponent::cast(context->findComponentById("rightsticky"));
     ASSERT_TRUE(scroll);
     ASSERT_TRUE(stickyComp);
 
@@ -3156,7 +3156,7 @@ TEST_F(ScrollTest, SetUnsetStickyChildTest)
 
     JsonData dataTop(NON_STICKY_CHILD_TOP_WITH_OFFSET);
     auto childTop = context->inflate(dataTop.get());
-    auto coreChildTop = std::dynamic_pointer_cast<CoreComponent>(childTop);
+    auto coreChildTop = CoreComponent::cast(childTop);
     ASSERT_TRUE(coreChildTop);
 
     auto scroll = context->findComponentById("scrollone");
@@ -3206,7 +3206,7 @@ TEST_F(ScrollTest, SetUnsetStickyChildTest)
     //Check it also works with a second child
     JsonData dataBottom(NON_STICKY_CHILD_BOTTOM_WITHOUT_OFFSET);
     auto childBottom = context->inflate(dataBottom.get());
-    auto coreChildBottom = std::dynamic_pointer_cast<CoreComponent>(childBottom);
+    auto coreChildBottom = CoreComponent::cast(childBottom);
     ASSERT_TRUE(childBottom);
 
     stickyCont->insertChild(childBottom, 2);
@@ -3527,7 +3527,7 @@ TEST_F(ScrollTest, NestedScrollablesSameAndDifferntTypeWithStickies)
 
     auto stickyTop = context->findComponentById("topSticky");
     auto deepestSticky =
-        std::dynamic_pointer_cast<CoreComponent>(context->findComponentById("deepestSticky"));
+        CoreComponent::cast(context->findComponentById("deepestSticky"));
     assert(stickyTop);
     assert(deepestSticky);
 

@@ -1,6 +1,14 @@
 # Changelog
 
-## [2022.2]
+## [2022.2.1]
+
+### Changed
+
+- Bug fixes.
+- Performance improvements.
+- Build improvements.
+
+## [2022.2.0]
 
 This release adds support for version 2022.2 of the APL specification.
 

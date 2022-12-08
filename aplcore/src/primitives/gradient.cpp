@@ -17,7 +17,7 @@
 #include "apl/engine/arrayify.h"
 #include "apl/utils/log.h"
 #include "apl/utils/session.h"
-#include "apl/primitives/object.h"
+#include "apl/primitives/objectdata.h"
 #include "apl/primitives/gradient.h"
 
 namespace apl {
@@ -91,7 +91,7 @@ inline void convertAngleToCoordinates(double angle, double& x1, double& x2, doub
 Object
 Gradient::create(const Context& context, const Object& object, bool avg)
 {
-    if (object.isGradient())
+    if (object.is<Gradient>())
         return object;
 
     if (!object.isMap())

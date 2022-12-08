@@ -101,7 +101,7 @@ StickyChildrenTree::handleChildInsert(const CoreComponentPtr& component) {
     // the every child of our ancestor scrollables each time we insert a child. Instead of rebuilding
     // the entire tree we just add the extra nodes and only traverse the children of the inserted child
 
-    auto parent = std::dynamic_pointer_cast<CoreComponent>(component->getParent());
+    auto parent = CoreComponent::cast(component->getParent());
 
     // Find the StickyNode we need to change by finding all the ancestors with position: sticky
     // and their corresponding sticky nodes
@@ -117,7 +117,7 @@ StickyChildrenTree::handleChildInsert(const CoreComponentPtr& component) {
         if (ancestor->getCalculated(kPropertyPosition) == kPositionSticky)
             parentNodeComponents.push(ancestor);
 
-        ancestor = std::dynamic_pointer_cast<CoreComponent>(ancestor->getParent());
+        ancestor = CoreComponent::cast(ancestor->getParent());
     }
     assert(ancestor && ancestor->scrollType() == mScrollable.scrollType());
 

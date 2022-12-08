@@ -425,7 +425,7 @@ public:
             prefixByActivity.emplace(activity, prefix);
         }
 
-        rapidjson::Document response = RegistrationSuccess("1.0")
+        return RegistrationSuccess("1.0")
             .uri(uri)
             .token(useAutoToken ? "<AUTO_TOKEN>" : TOKEN)
             .schema("1.0", [uri, prefix](ExtensionSchema schema) {
@@ -443,19 +443,9 @@ public:
                     })
                     .liveDataArray(prefix + "liveArray", [](LiveDataSchema &liveDataSchema) {
                         liveDataSchema.dataType("liveArraySchema");
-                    });
+                    })
+                    .component("Component");
             });
-
-        // The schema API doesn't support component definitions yet, so we amend the response
-        // directly here instead
-        rapidjson::Value component;
-        component.SetObject();
-        component.AddMember("name", "Component", response.GetAllocator());
-        rapidjson::Value components;
-        components.SetArray();
-        components.PushBack(component, response.GetAllocator());
-        response["schema"].AddMember("components", components, response.GetAllocator());
-        return response;
     }
 
     void onSessionStarted(const SessionDescriptor& session) override {
@@ -967,8 +957,8 @@ TEST_F(ExtensionMediatorTest, ExtensionParseEventDataBindings) {
     ASSERT_EQ(2, liveDataMap.size());
     auto arr = liveDataMap.at("entityList");
     auto map = liveDataMap.at("deviceState");
-    ASSERT_EQ(Object::ObjectType::kArrayType, arr->getType());
-    ASSERT_EQ(Object::ObjectType::kMapType, map->getType());
+    ASSERT_EQ(LiveObject::ObjectType::kArrayType, arr->getType());
+    ASSERT_EQ(LiveObject::ObjectType::kMapType, map->getType());
 }
 
 
@@ -1444,8 +1434,8 @@ TEST_F(ExtensionMediatorTest, AudioPlayerIntegration) {
     ASSERT_TRUE(touch);
 
     // Basic data is loaded
-    ASSERT_TRUE(IsEqual("PLAYING", activityText->getCalculated(kPropertyText).getStyledText().getText()));
-    ASSERT_TRUE(IsEqual("123", activityOffset->getCalculated(kPropertyText).getStyledText().getText()));
+    ASSERT_TRUE(IsEqual("PLAYING", activityText->getCalculated(kPropertyText).get<StyledText>().getText()));
+    ASSERT_TRUE(IsEqual("123", activityOffset->getCalculated(kPropertyText).get<StyledText>().getText()));
 }
 
 class SimpleExtensionTestAdapter : public ExtensionBase {
@@ -3677,6 +3667,234 @@ TEST_F(ExtensionMediatorTest, LifecycleAPIsRespectExtensionToken) {
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
 
     ASSERT_TRUE(CheckSendEvent(root, "ExtensionReadyReceived"));
+}
+
+class ComponentExtension : public alexaext::ExtensionBase {
+public:
+    static const char* URI;
+
+    explicit ComponentExtension() : ExtensionBase(URI),
+          mActivityDescriptor(URI, nullptr, "") {};
+
+    rapidjson::Document createRegistration(const ActivityDescriptor& activity,
+                                           const rapidjson::Value& registrationRequest) override {
+      mActivityDescriptor = activity;
+      const auto& uri = activity.getURI();
+        return RegistrationSuccess("1.0")
+            .uri(uri)
+            .token("<AUTO_TOKEN>")
+            .schema("1.0", [uri](ExtensionSchema schema) {
+              schema
+                  .uri(uri)
+                  .component("Simple")
+                  .component("ResourceType", [](ComponentSchema componentSchema) {
+                      componentSchema
+                          .resourceType("SURFACE")
+                          .context("video");
+                  })
+                  .component("Properties", [](ComponentSchema componentSchema) {
+                      componentSchema
+                          .property("propA", "bool")
+                          .property("propB", [](TypePropertySchema propertySchema) {
+                              propertySchema
+                                  .type("number")
+                                  .required(true);
+                          })
+                          .property("propC", [](TypePropertySchema propertySchema) {
+                             propertySchema
+                                  .type("string")
+                                  .defaultValue("George");
+                          });
+                  })
+                  .component("Events", [](ComponentSchema componentSchema) {
+                      componentSchema
+                          .event("EventA")
+                          .event("EventB", [](EventSchema eventSchema) {
+                              eventSchema.fastMode(false);
+                          });
+                  });
+            });
+    }
+
+    void onResourceReady(const ActivityDescriptor& activity,
+                         const ResourceHolderPtr& resourceHolder) override {
+      mResourceIds.emplace_back(resourceHolder->resourceId());
+    }
+
+    void invokeEvent(const rapidjson::Value& event) {
+        invokeExtensionEventHandler(mActivityDescriptor, event);
+    }
+
+    std::string
+    getMessage(const std::string& resourceId) {
+      auto it = mPayloads.find(resourceId);
+      if (it != mPayloads.end()) {
+        return it->second;
+      }
+      return "";
+    }
+
+protected:
+    bool updateComponent(const ActivityDescriptor& activity,
+                         const rapidjson::Value& command) override {
+      auto resourceId = command["resourceId"].GetString();
+      rapidjson::Document document(rapidjson::kObjectType);
+      document.CopyFrom(command, document.GetAllocator());
+      rapidjson::Value* payload = rapidjson::Pointer("/payload").Get(document);
+      rapidjson::StringBuffer sb;
+      rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+      payload->Accept(writer);
+      mPayloads.insert({resourceId, sb.GetString()});
+      return true;
+    }
+
+private:
+    std::vector<std::string> mResourceIds;
+    std::map<std::string, std::string> mPayloads;
+    ActivityDescriptor mActivityDescriptor;
+};
+
+const char* ComponentExtension::URI = "test:component:1.0";
+
+const char* COMPONENT_DOC = R"({
+"type": "APL",
+"version": "1.9",
+"theme": "dark",
+"extensions": [
+  {
+    "uri": "test:component:1.0",
+    "name": "Component"
+  }
+],
+"mainTemplate": {
+  "item": {
+    "type": "Container",
+    "width": "100%",
+    "height": "100%",
+    "items": [
+      {
+        "type": "Component:Simple",
+        "id": "simple",
+        "width": 100,
+        "height": 100
+      },
+      {
+        "type": "Component:ResourceType",
+        "id": "resourceType",
+        "width": 100,
+        "height": 100,
+        "entities": [ "foo" ]
+      },
+      {
+        "type": "Component:Properties",
+        "id": "properties",
+        "width": 100,
+        "height": 100,
+        "propA": true,
+        "propB": 42
+      },
+      {
+        "type": "Component:Events",
+        "id": "events",
+        "width": 100,
+        "height": 100,
+        "EventA": {
+          "type": "SetValue",
+          "property": "disabled",
+          "value": true
+        },
+        "EventB": {
+          "type": "SendEvent",
+          "arguments": [ "do it" ]
+        }
+      }
+    ]
+  }
+}
+})";
+
+TEST_F(ExtensionMediatorTest, ExtensionComponentSchema) {
+    auto session = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    resourceProvider = std::make_shared<TestResourceProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         resourceProvider,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         session);
+
+    auto extension = std::make_shared<ComponentExtension>();
+    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    extensionProvider->registerExtension(proxy);
+
+    createContent(COMPONENT_DOC, nullptr);
+
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+    ASSERT_TRUE(content->isReady());
+    mediator->initializeExtensions(config, content);
+    mediator->loadExtensions(config, content);
+
+    inflate();
+
+    auto simpleComponent = root->findComponentById("simple");
+    ASSERT_TRUE(simpleComponent);
+
+    // Check resource type
+    auto resourceTypeComponent = root->findComponentById("resourceType");
+    ASSERT_TRUE(resourceTypeComponent);
+    ASSERT_EQ("SURFACE", resourceTypeComponent->getCalculated(apl::kPropertyResourceType).asString());
+
+    // Check video type is reported in context
+    rapidjson::Document context(rapidjson::kObjectType);
+    auto visualContext = root->serializeVisualContext(context.GetAllocator());
+    auto children = visualContext.FindMember("children")->value.GetArray();
+    auto child = children[0].GetObject();
+    ASSERT_EQ("resourceType", std::string(child["id"].GetString()));
+    ASSERT_EQ("video", std::string(child["type"].GetString()));
+
+
+    // Check custom properties (passed in payload of Component message)
+    auto propertiesComponent = root->findComponentById("properties");
+    ASSERT_TRUE(propertiesComponent);
+    auto payload = extension->getMessage(propertiesComponent->getCalculated(apl::kPropertyResourceId).asString());
+    rapidjson::Document document;
+    document.Parse(payload.c_str());
+    ASSERT_EQ(true, document["propA"].GetBool());
+    ASSERT_EQ(42.0, document["propB"].GetDouble());
+    ASSERT_EQ("George", std::string(document["propC"].GetString()));
+
+    // Check component events
+    auto eventsComponent = root->findComponentById("events");
+    auto resourceId = eventsComponent->getCalculated(apl::kPropertyResourceId).asString();
+    ASSERT_TRUE(eventsComponent);
+
+    ASSERT_EQ(false, eventsComponent->getCalculated(apl::kPropertyDisabled).asBoolean());
+
+    auto eventA = alexaext::Event("1.0")
+                      .uri(ComponentExtension::URI)
+                      .target(ComponentExtension::URI)
+                      .resourceId(resourceId)
+                      .name("EventA");
+    extension->invokeEvent(eventA);
+    root->updateTime(1);
+    root->clearPending();
+
+    ASSERT_EQ(true, eventsComponent->getCalculated(apl::kPropertyDisabled).asBoolean());
+
+    auto eventB = alexaext::Event("1.0")
+                      .uri(ComponentExtension::URI)
+                      .target(ComponentExtension::URI)
+                      .resourceId(resourceId)
+                      .name("EventB");
+    extension->invokeEvent(eventB);
+    root->updateTime(1);
+    root->clearPending();
+    auto sendEvent = root->popEvent();
+    ASSERT_EQ(apl::kEventTypeSendEvent, sendEvent.getType());
+    auto args = sendEvent.getValue(apl::kEventPropertyArguments).getArray();
+    ASSERT_EQ("do it", args[0].asString());
 }
 
 #endif

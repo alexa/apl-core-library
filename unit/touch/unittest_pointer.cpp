@@ -210,7 +210,7 @@ TEST_F(PointerTest, Overlapping) {
     ASSERT_TRUE(TransformComponent(root, "HidingContainer", "translateX", 200));
 
     auto hiding = root->topComponent()->findComponentById("HidingContainer");
-    auto transform = hiding->getCalculated(kPropertyTransform).getTransform2D();
+    auto transform = hiding->getCalculated(kPropertyTransform).get<Transform2D>();
     ASSERT_EQ(Point(200,0), transform * Point(0,0));
 
     // Poking the same point should hit the TouchWrapper
@@ -255,7 +255,7 @@ static const char *SCROLLING_CONTAINER =
 TEST_F(PointerTest, ScrollView)
 {
     loadDocument(SCROLLING_CONTAINER);
-    auto touch = std::static_pointer_cast<CoreComponent>(component->findComponentById("MyTouch"));
+    auto touch = CoreComponent::cast(component->findComponentById("MyTouch"));
 
     // Verify you can hit the target at the starting location
     ASSERT_TRUE(MouseClick(root, touch, 25, 25));

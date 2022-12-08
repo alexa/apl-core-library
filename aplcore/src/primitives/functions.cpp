@@ -24,7 +24,6 @@
 #include "apl/animation/coreeasing.h"
 #include "apl/engine/context.h"
 #include "apl/primitives/functions.h"
-#include "apl/primitives/object.h"
 #include "apl/primitives/rangegenerator.h"
 #include "apl/primitives/slicegenerator.h"
 #include "apl/primitives/timefunctions.h"

@@ -36,6 +36,12 @@ public:
      */
     virtual bool shouldForceSnap() const { return false; }
 
+    /**
+     * @param component Pointer to cast.
+     * @return Casted pointer to this type, nullptr if not possible.
+     */
+    static std::shared_ptr<ScrollableComponent> cast(const std::shared_ptr<Component>& component);
+
     void update(UpdateType type, float value) override;
     bool canConsumeFocusDirectionEvent(FocusDirection direction, bool fromInside) override;
     CoreComponentPtr takeFocusFromChild(FocusDirection direction, const Rect& origin) override;

@@ -37,7 +37,7 @@ protected:
         ASSERT_EQ(component->getUniqueId(), json["id"].GetString());
         ASSERT_EQ(component->getType(), json["type"].GetInt());
         ASSERT_EQ(component->getCalculated(kPropertyAccessibilityLabel), json["accessibilityLabel"].GetString());
-        auto bounds = component->getCalculated(kPropertyBounds).getRect();
+        auto bounds = component->getCalculated(kPropertyBounds).get<Rect>();
         ASSERT_EQ(bounds.getX(), json["_bounds"][0].GetFloat());
         ASSERT_EQ(bounds.getY(), json["_bounds"][1].GetFloat());
         ASSERT_EQ(bounds.getWidth(), json["_bounds"][2].GetFloat());
@@ -45,13 +45,13 @@ protected:
         ASSERT_EQ(component->getCalculated(kPropertyChecked), json["checked"].GetBool());
         ASSERT_EQ(component->getCalculated(kPropertyDisabled), json["disabled"].GetBool());
         ASSERT_EQ(component->getCalculated(kPropertyDisplay), json["display"].GetDouble());
-        auto innerBounds = component->getCalculated(kPropertyInnerBounds).getRect();
+        auto innerBounds = component->getCalculated(kPropertyInnerBounds).get<Rect>();
         ASSERT_EQ(innerBounds.getX(), json["_innerBounds"][0].GetFloat());
         ASSERT_EQ(innerBounds.getY(), json["_innerBounds"][1].GetFloat());
         ASSERT_EQ(innerBounds.getWidth(), json["_innerBounds"][2].GetFloat());
         ASSERT_EQ(innerBounds.getHeight(), json["_innerBounds"][3].GetFloat());
         ASSERT_EQ(component->getCalculated(kPropertyOpacity), json["opacity"].GetDouble());
-        auto transform = component->getCalculated(kPropertyTransform).getTransform2D();
+        auto transform = component->getCalculated(kPropertyTransform).get<Transform2D>();
         ASSERT_EQ(transform.get().at(0), json["_transform"][0].GetFloat());
         ASSERT_EQ(transform.get().at(1), json["_transform"][1].GetFloat());
         ASSERT_EQ(transform.get().at(2), json["_transform"][2].GetFloat());
@@ -216,11 +216,11 @@ TEST_F(SerializeTest, Components)
     checkCommonProperties(image, imageJson);
     ASSERT_EQ(image->getCalculated(kPropertyAlign), imageJson["align"].GetDouble());
     ASSERT_EQ(image->getCalculated(kPropertyBorderRadius).getAbsoluteDimension(), imageJson["borderRadius"].GetDouble());
-    auto filter = image->getCalculated(kPropertyFilters).getArray().at(0).getFilter();
+    auto filter = image->getCalculated(kPropertyFilters).getArray().at(0).get<Filter>();
     ASSERT_EQ(filter.getType(), imageJson["filters"][0]["type"]);
     ASSERT_EQ(filter.getValue(FilterProperty::kFilterPropertyRadius).getAbsoluteDimension(), imageJson["filters"][0]["radius"].GetDouble());
     ASSERT_EQ(image->getCalculated(kPropertyOverlayColor).getColor(), Color(session, imageJson["overlayColor"].GetString()));
-    auto gradient = image->getCalculated(kPropertyOverlayGradient).getGradient();
+    auto gradient = image->getCalculated(kPropertyOverlayGradient).get<Gradient>();
     ASSERT_EQ(gradient.getType(), imageJson["overlayGradient"]["type"].GetDouble());
     ASSERT_EQ(gradient.getProperty(kGradientPropertyAngle), imageJson["overlayGradient"]["angle"].GetDouble());
     ASSERT_EQ(gradient.getProperty(kGradientPropertyColorRange).size(), imageJson["overlayGradient"]["colorRange"].Size());
@@ -241,7 +241,7 @@ TEST_F(SerializeTest, Components)
     ASSERT_EQ(text->getCalculated(kPropertyLetterSpacing).getAbsoluteDimension(), textJson["letterSpacing"].GetDouble());
     ASSERT_EQ(text->getCalculated(kPropertyLineHeight), textJson["lineHeight"].GetDouble());
     ASSERT_EQ(text->getCalculated(kPropertyMaxLines), textJson["maxLines"].GetDouble());
-    auto styledText = text->getCalculated(kPropertyText).getStyledText();
+    auto styledText = text->getCalculated(kPropertyText).get<StyledText>();
     ASSERT_EQ(styledText.getText(), textJson["text"]["text"].GetString());
     auto styledTextIt = StyledText::Iterator(styledText);
     styledTextIt.next();
@@ -261,14 +261,14 @@ TEST_F(SerializeTest, Components)
     auto& frameJson = json["children"][3];
     checkCommonProperties(frame, frameJson);
     ASSERT_EQ(frame->getCalculated(kPropertyBackgroundColor).getColor(), Color(session, frameJson["backgroundColor"].GetString()));
-    auto radii = frame->getCalculated(kPropertyBorderRadii).getRadii();
+    const auto& radii = frame->getCalculated(kPropertyBorderRadii).get<Radii>();
     ASSERT_EQ(radii.get().at(0), frameJson["_borderRadii"][0].GetFloat());
     ASSERT_EQ(radii.get().at(1), frameJson["_borderRadii"][1].GetFloat());
     ASSERT_EQ(radii.get().at(2), frameJson["_borderRadii"][2].GetFloat());
     ASSERT_EQ(radii.get().at(3), frameJson["_borderRadii"][3].GetFloat());
     ASSERT_EQ(frame->getCalculated(kPropertyBorderColor).getColor(), Color(session, frameJson["borderColor"].GetString()));
     ASSERT_EQ(frame->getCalculated(kPropertyBorderWidth).getAbsoluteDimension(), frameJson["borderWidth"].GetDouble());
-    auto action = frame->getCalculated(kPropertyAccessibilityActions).at(0).getAccessibilityAction();
+    auto action = frame->getCalculated(kPropertyAccessibilityActions).at(0).get<AccessibilityAction>();
     ASSERT_EQ(action->getName(), frameJson["action"][0]["name"].GetString());
     ASSERT_EQ(action->getLabel(), frameJson["action"][0]["label"].GetString());
     ASSERT_EQ(action->enabled(), frameJson["action"][0]["enabled"].GetBool());
@@ -314,7 +314,7 @@ TEST_F(SerializeTest, Components)
     auto videoSource = video->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(3, videoSource.size());
     ASSERT_EQ(videoSource.size(), videoJson["source"].Size());
-    auto source3 = videoSource.at(2).getMediaSource();
+    auto source3 = videoSource.at(2).get<MediaSource>();
     ASSERT_EQ(source3.getUrl(), videoJson["source"][2]["url"].GetString());
     ASSERT_EQ(source3.getDescription(), videoJson["source"][2]["description"].GetString());
     ASSERT_EQ(source3.getDuration(), videoJson["source"][2]["duration"].GetInt());
@@ -329,7 +329,7 @@ TEST_F(SerializeTest, Dirty)
     loadDocument(SERIALIZE_COMPONENTS);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
-    auto text = std::static_pointer_cast<CoreComponent>(context->findComponentById("text"));
+    auto text = CoreComponent::cast(context->findComponentById("text"));
     ASSERT_TRUE(text);
 
     text->setProperty(kPropertyText, "Not very styled text.");
@@ -348,7 +348,7 @@ TEST_F(SerializeTest, Event)
     loadDocument(SERIALIZE_COMPONENTS);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
-    auto text = std::static_pointer_cast<CoreComponent>(context->findComponentById("text"));
+    auto text = CoreComponent::cast(context->findComponentById("text"));
     ASSERT_TRUE(text);
 
     auto touch = context->findComponentById("touch");
@@ -768,7 +768,7 @@ TEST_F(SerializeTest, AVG)
 
     checkCommonProperties(component, json);
 
-    auto graphic = component->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
     auto& graphicJson = json["graphic"];
 
     ASSERT_EQ(graphicJson["isValid"].GetBool(), true);
@@ -816,7 +816,7 @@ TEST_F(SerializeTest, AVG)
     ASSERT_TRUE(pathJson["props"]["_strokeTransform"].IsArray());
     ASSERT_EQ(pathJson["props"]["strokeWidth"].GetDouble(), path->getValue(kGraphicPropertyStrokeWidth).getDouble());
 
-    auto gradient = path->getValue(kGraphicPropertyStroke).getGradient();
+    auto gradient = path->getValue(kGraphicPropertyStroke).get<Gradient>();
     auto& gradientJson = pathJson["props"]["stroke"];
 
     ASSERT_EQ(gradientJson["type"].GetDouble(), gradient.getType());
@@ -829,7 +829,7 @@ TEST_F(SerializeTest, AVG)
     ASSERT_EQ(gradientJson["y2"].GetDouble(), gradient.getProperty(kGradientPropertyY2).getDouble());
 
 
-    auto pattern = path->getValue(kGraphicPropertyFill).getGraphicPattern();
+    auto pattern = path->getValue(kGraphicPropertyFill).get<GraphicPattern>();
     auto& patternJson = pathJson["props"]["fill"];
 
     ASSERT_EQ(patternJson["id"].GetString(), pattern->getUniqueId());
@@ -1064,11 +1064,11 @@ TEST_F(SerializeTest, SerializeHeaders) {
     checkCommonProperties(video, videoJson);
     auto videoSource = video->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(1, videoSource.size());
-    ASSERT_TRUE(videoSource.at(0).isMediaSource());
-    ASSERT_EQ(videoSource.at(0).getMediaSource().getUrl(), videoJson["source"][0]["url"].GetString());
-    ASSERT_EQ(videoSource.at(0).getMediaSource().getDescription(), videoJson["source"][0]["description"].GetString());
+    ASSERT_TRUE(videoSource.at(0).is<MediaSource>());
+    ASSERT_EQ(videoSource.at(0).get<MediaSource>().getUrl(), videoJson["source"][0]["url"].GetString());
+    ASSERT_EQ(videoSource.at(0).get<MediaSource>().getDescription(), videoJson["source"][0]["description"].GetString());
     auto videoSerializedHeaders = videoJson["source"][0]["headers"].GetArray();
-    auto videoHeaders = videoSource.at(0).getMediaSource().getHeaders();
+    auto videoHeaders = videoSource.at(0).get<MediaSource>().getHeaders();
     ASSERT_EQ(videoSerializedHeaders.Size(), videoHeaders.size());
     for(auto i = 0; i < videoHeaders.size(); ++i) {
         ASSERT_EQ(videoHeaders[i], videoSerializedHeaders[i].GetString());
@@ -1080,10 +1080,10 @@ TEST_F(SerializeTest, SerializeHeaders) {
     checkCommonProperties(image, imageJson);
     auto imageSource = image->getCalculated(kPropertySource).getArray();
     ASSERT_EQ(1, imageSource.size());
-    ASSERT_TRUE(imageSource.at(0).isURLRequest());
-    ASSERT_EQ(imageSource.at(0).getURLRequest().getUrl(), imageJson["source"][0]["url"].GetString());
+    ASSERT_TRUE(imageSource.at(0).is<URLRequest>());
+    ASSERT_EQ(imageSource.at(0).get<URLRequest>().getUrl(), imageJson["source"][0]["url"].GetString());
     auto serializedHeaders = imageJson["source"][0]["headers"].GetArray();
-    auto imageHeaders = imageSource.at(0).getURLRequest().getHeaders();
+    auto imageHeaders = imageSource.at(0).get<URLRequest>().getHeaders();
     ASSERT_EQ(serializedHeaders.Size(), imageHeaders.size());
     for(auto i = 0; i < imageHeaders.size(); ++i) {
         ASSERT_EQ(imageHeaders[i], serializedHeaders[i].GetString());

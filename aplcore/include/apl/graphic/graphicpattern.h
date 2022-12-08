@@ -18,7 +18,7 @@
 
 #include "apl/common.h"
 #include "apl/engine/uidobject.h"
-#include "apl/primitives/objectdata.h"
+#include "apl/primitives/objecttype.h"
 #include "apl/utils/counter.h"
 
 namespace apl {
@@ -74,6 +74,8 @@ public:
     bool empty() const override { return false; }
     bool truthy() const override { return true; }
     std::uint64_t size() const override { return mItems.size(); }
+
+    class ObjectType final : public PointerHolderObjectType<GraphicPattern> {};
 
 private:
     std::string mDescription;

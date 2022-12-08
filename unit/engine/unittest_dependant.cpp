@@ -542,7 +542,7 @@ TEST_F(DependantTest, Nested)
     loadDocument(NESTED);
     ASSERT_TRUE(component);
 
-    auto wrapper = std::dynamic_pointer_cast<TouchWrapperComponent>(component->findComponentById("TouchId"));
+    auto wrapper = TouchWrapperComponent::cast(component->findComponentById("TouchId"));
     ASSERT_TRUE(wrapper);
 
     auto text = component->findComponentById("TextId");
@@ -996,7 +996,7 @@ TEST_F(DependantTest, AVGDependency)
     loadDocument(document.c_str());
     ASSERT_TRUE(component);
 
-    auto graphic = component->getCoreChildAt(0)->getCalculated(kPropertyGraphic).getGraphic();
+    auto graphic = component->getCoreChildAt(0)->getCalculated(kPropertyGraphic).get<Graphic>();
     ASSERT_TRUE(graphic);
 
     ASSERT_FALSE(root->hasEvent());

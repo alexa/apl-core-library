@@ -451,7 +451,7 @@ ExtensionClient::reportLiveMapChanges(const LiveDataRef& ref, const std::vector<
     std::string updateTriggerEvent = ref.updateEvent.name;
     std::string removeTriggerEvent = ref.removeEvent.name;
 
-    auto liveMap = std::dynamic_pointer_cast<LiveMap>(ref.objectPtr);
+    auto liveMap = std::static_pointer_cast<LiveMap>(ref.objectPtr);
     auto mapPtr = std::make_shared<ObjectMap>(liveMap->getMap());
     for (auto& change : changes) {
         auto key = change.key();
@@ -507,7 +507,7 @@ ExtensionClient::reportLiveArrayChanges(const LiveDataRef& ref, const std::vecto
     std::string updateTriggerEvent;
     std::string removeTriggerEvent;
 
-    auto arrayPtr = std::make_shared<ObjectArray>(std::dynamic_pointer_cast<LiveArray>(ref.objectPtr)->getArray());
+    auto arrayPtr = std::make_shared<ObjectArray>(std::static_pointer_cast<LiveArray>(ref.objectPtr)->getArray());
     for (auto& change : changes) {
         switch (change.command()) {
             case LiveArrayChange::Command::INSERT :
@@ -616,7 +616,7 @@ ExtensionClient::updateLiveMap(ExtensionLiveDataUpdateType type, const LiveDataR
     auto typeDef = mTypes.at(dataRef.type);
     auto item = operation.get("item");
 
-    auto liveMap = std::dynamic_pointer_cast<LiveMap>(dataRef.objectPtr);
+    auto liveMap = std::static_pointer_cast<LiveMap>(dataRef.objectPtr);
     auto result = true;
 
     switch (type) {
@@ -658,7 +658,7 @@ ExtensionClient::updateLiveArray(ExtensionLiveDataUpdateType type, const LiveDat
     }
     auto index = indexObj.getInteger();
     auto count = operation.get("count");
-    auto liveArray = std::dynamic_pointer_cast<LiveArray>(dataRef.objectPtr);
+    auto liveArray = std::static_pointer_cast<LiveArray>(dataRef.objectPtr);
     auto result = true;
 
     switch (type) {
@@ -1354,12 +1354,12 @@ ExtensionClient::flushPendingEvents(const RootContextPtr& rootContext)
         // Generate changelist based on notion of nothing been there initially
         if (ref.objectType == kExtensionLiveDataTypeArray) {
             std::vector<LiveArrayChange> changes;
-            auto& array = std::dynamic_pointer_cast<LiveArray>(ref.objectPtr)->getArray();
+            auto& array = std::static_pointer_cast<LiveArray>(ref.objectPtr)->getArray();
             changes.emplace_back(LiveArrayChange::insert(0, array.size()));
             reportLiveArrayChanges(ref, changes);
         } else {
             std::vector<LiveMapChange> changes;
-            auto& map = std::dynamic_pointer_cast<LiveMap>(ref.objectPtr)->getMap();
+            auto& map = std::static_pointer_cast<LiveMap>(ref.objectPtr)->getMap();
             for (auto& item : map) {
                 changes.emplace_back(LiveMapChange::set(item.first));
             }

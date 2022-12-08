@@ -53,17 +53,17 @@ Easing::parse(const SessionPtr& session, const std::string& easing)
     if (ptr)
         return ptr;
 
-    try {
-        easinggrammar::easing_state state;
-        pegtl::string_input<> in(s, "");
-        pegtl::parse<easinggrammar::grammar, easinggrammar::action>(in, state);
-
-        auto easingCurve = CoreEasing::create(std::move(state.segments),
-                                              std::move(state.args),
-                                              s);
+    easinggrammar::easing_state state;
+    pegtl::string_input<> in(s, "");
+    if (!pegtl::parse<easinggrammar::grammar, easinggrammar::action, apl_control>(in, state) || state.failed) {
+        CONSOLE(session) << "Parse error in " << easing << " - " << state.what();
+    } else {
+        auto easingCurve =
+            CoreEasing::create(std::move(state.segments), std::move(state.args), s);
         if (!easingCurve) {
             CONSOLE(session) << "Unable to create easing curve " << easing;
-        } else {
+        }
+        else {
             if (sEasingCacheDirty) {
                 sEasingCache.clean();
                 sEasingCacheDirty = false;
@@ -72,9 +72,6 @@ Easing::parse(const SessionPtr& session, const std::string& easing)
             sEasingCache.insert(s, easingCurve);
             return easingCurve;
         }
-    }
-    catch (pegtl::parse_error& e) {
-        CONSOLE(session) << "Parse error in " << easing << " - " << e.what();
     }
 
     return Easing::linear();
@@ -111,7 +108,7 @@ Easing::call(const ObjectArray& args) const
 
 bool
 Easing::operator==(const ObjectData& other) const {
-    return *this == dynamic_cast<const Easing&>(other);
+    return *this == static_cast<const Easing&>(other);
 }
 
 } // namespace apl

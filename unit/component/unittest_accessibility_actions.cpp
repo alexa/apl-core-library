@@ -53,7 +53,7 @@ TEST_F(AccessibilityActionTest, Basic)
     auto actions = component->getCalculated(kPropertyAccessibilityActions);
     ASSERT_TRUE(actions.isArray());
     ASSERT_EQ(1, actions.size());
-    auto action = actions.at(0).getAccessibilityAction();
+    auto action = actions.at(0).get<AccessibilityAction>();
     ASSERT_STREQ("MakeRed", action->getName().c_str());
     ASSERT_STREQ("Make the background red", action->getLabel().c_str());
     ASSERT_TRUE(action->enabled());
@@ -562,7 +562,7 @@ TEST_F(AccessibilityActionTest, Enabled)
     const auto& actions = component->getCalculated(kPropertyAccessibilityActions);
     ASSERT_TRUE(actions.isArray());
     ASSERT_EQ(1, actions.size());
-    ASSERT_FALSE(actions.at(0).getAccessibilityAction()->enabled());
+    ASSERT_FALSE(actions.at(0).get<AccessibilityAction>()->enabled());
 
     // Attempt to invoke the disabled gesture
     component->update(kUpdateAccessibilityAction, "test");
@@ -573,7 +573,7 @@ TEST_F(AccessibilityActionTest, Enabled)
     component->update(kUpdatePressed, 1);
     root->clearPending();
     ASSERT_TRUE(IsEqual("1", text->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(component->getCalculated(kPropertyAccessibilityActions).at(0).getAccessibilityAction()->enabled());
+    ASSERT_TRUE(component->getCalculated(kPropertyAccessibilityActions).at(0).get<AccessibilityAction>()->enabled());
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(component, kPropertyAccessibilityActions));
     ASSERT_TRUE(CheckDirty(root, text, component));
@@ -582,7 +582,7 @@ TEST_F(AccessibilityActionTest, Enabled)
     component->update(kUpdateAccessibilityAction, "test");
     root->clearPending();
     ASSERT_TRUE(IsEqual("10", text->getCalculated(kPropertyText).asString()));
-    ASSERT_FALSE(component->getCalculated(kPropertyAccessibilityActions).at(0).getAccessibilityAction()->enabled());
+    ASSERT_FALSE(component->getCalculated(kPropertyAccessibilityActions).at(0).get<AccessibilityAction>()->enabled());
     ASSERT_TRUE(CheckDirty(text, kPropertyText, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(component, kPropertyAccessibilityActions));
     ASSERT_TRUE(CheckDirty(root, text, component));
@@ -784,11 +784,11 @@ TEST_F(AccessibilityActionTest, ArgumentPassing)
     ASSERT_TRUE(actions.isArray());
     ASSERT_EQ(2, actions.size());
 
-    auto a0 = actions.at(0).getAccessibilityAction();
+    auto a0 = actions.at(0).get<AccessibilityAction>();
     ASSERT_STREQ("testAction", a0->getName().c_str());
     ASSERT_STREQ("This is a test action", a0->getLabel().c_str());
 
-    auto a1 = actions.at(1).getAccessibilityAction();
+    auto a1 = actions.at(1).get<AccessibilityAction>();
     ASSERT_STREQ("testAction2", a1->getName().c_str());
     ASSERT_STREQ("This is another test action", a1->getLabel().c_str());
 

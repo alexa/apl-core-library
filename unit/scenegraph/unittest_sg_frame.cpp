@@ -72,13 +72,12 @@ TEST_F(SGFrameTest, FrameWithBorder)
     ASSERT_TRUE(sg);
 
     ASSERT_TRUE(sg->getLayer()->visible());
-    ASSERT_TRUE(CheckSceneGraph(
-        sg,
-        IsLayer(Rect{0, 0, 200, 300})
-            .childClip(IsRoundRectPath(10, 10, 180, 280, 0))
-            .content(IsDrawNode()
-                         .path(IsFramePath(RoundedRect({0, 0, 200, 300}, 0), 4))
-                         .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))));
+    ASSERT_TRUE(
+        CheckSceneGraph(sg, IsLayer(Rect{0, 0, 200, 300})
+                                .childClip(IsRoundRectPath(10, 10, 180, 280, 0))
+                                .content(IsDrawNode()
+                                             .path(IsFramePath(RoundedRect({0, 0, 200, 300}, 0), 4))
+                                             .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))));
 }
 
 
@@ -108,15 +107,14 @@ TEST_F(SGFrameTest, FrameWithBorderAndFill)
     ASSERT_TRUE(sg);
 
     ASSERT_TRUE(CheckSceneGraph(
-        sg,
-        IsLayer(Rect{0, 0, 200, 300}, "checking group")
-            .childClip(IsRoundRectPath(10, 10, 180, 280, 0))
-            .contents({IsDrawNode()
-                           .path(IsRoundRectPath(10, 10, 180, 280, 0))
-                           .pathOp(IsFillOp(IsColorPaint(Color::WHITE))),
-                       IsDrawNode()
-                           .path(IsFramePath(RoundedRect({0, 0, 200, 300}, 0), 10))
-                           .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))})));
+        sg, IsLayer(Rect{0, 0, 200, 300}, "checking group")
+                .childClip(IsRoundRectPath(10, 10, 180, 280, 0))
+                .content(IsDrawNode()
+                             .path(IsRoundRectPath(10, 10, 180, 280, 0))
+                             .pathOp(IsFillOp(IsColorPaint(Color::WHITE)))
+                             .next(IsDrawNode()
+                                       .path(IsFramePath(RoundedRect({0, 0, 200, 300}, 0), 10))
+                                       .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))));
 }
 
 

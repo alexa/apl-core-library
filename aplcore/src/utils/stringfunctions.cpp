@@ -81,6 +81,44 @@ tolower(const std::string& str)
     return output;
 }
 
+std::string
+doubleToAplFormattedString(double value)
+{
+    if (value < static_cast<double>(std::numeric_limits<std::int64_t>::max())
+        && value > static_cast<double>(std::numeric_limits<std::int64_t>::min())) {
+        auto iValue = static_cast<std::int64_t>(value);
+        if (value == iValue)
+            return std::to_string(iValue);
+    }
+
+    auto s = sutil::to_string(value);
+    auto it = s.find_last_not_of('0');
+    if (it != s.find(sutil::DECIMAL_POINT))   // Remove a trailing decimal point
+        it++;
+    s.erase(it, std::string::npos);
+    return s;
+}
+
+double
+aplFormattedStringToDouble(const std::string& string)
+{
+    auto len = string.size();
+    auto idx = len;
+    double result = sutil::stod(string, &idx);
+    // Handle percentages.  We skip over whitespace and stop on any other character
+    while (idx < len) {
+        auto c = string[idx];
+        if (c == '%') {
+            result *= 0.01;
+            break;
+        }
+        if (!sutil::isspace(c))
+            break;
+        idx++;
+    }
+    return result;
+}
+
 namespace sutil {
 
 // ---- Internal utilities for parsing/formatting floating-point values
@@ -314,6 +352,70 @@ stold(const std::string& str, std::size_t* pos)
 {
     return parseFloatingPointLiteral<long double>(str, pos);
 }
+
+/// Naive implementation of Numeric Conversions [string.conversions] spec.
+
+struct ErrnoPreserve {
+    ErrnoPreserve() : mErrno(errno) { errno = 0; }
+    ~ErrnoPreserve() { if (errno == 0) errno = mErrno; }
+    int mErrno;
+};
+
+int
+stoi(const std::string& str, std::size_t* pos, int base)
+{
+    ErrnoPreserve _errnoPreserve;
+
+    int result;
+    char* tEnd;
+    const char* cStr = str.c_str();
+    // On success, the function returns the converted integral number as a long int value.
+    // If no valid conversion could be performed, a zero value is returned (0L).
+    // If the value read is out of the range of representable values by a long int, the function
+    // returns LONG_MAX or LONG_MIN (defined in <climits>), and errno is set to ERANGE.
+    // Additionally we account for integer range.
+    const auto temp = std::strtol(str.c_str(), &tEnd, base);
+    if (tEnd == cStr ||
+        errno == ERANGE ||
+        (temp < (long)std::numeric_limits<int>::min() || temp > (long)std::numeric_limits<int>::max())) {
+        return 0;
+    }
+
+    result = (int)temp;
+
+    if (pos) {
+        *pos = tEnd - cStr;
+    }
+
+    return result;
+}
+
+long long
+stoll(const std::string& str, std::size_t* pos, int base)
+{
+    ErrnoPreserve _errnoPreserve;
+
+    char* tEnd;
+    const char* cStr = str.c_str();
+
+    // On success, the function returns the converted integral number as a long long int value.
+    // If no valid conversion could be performed, a zero value is returned (0LL).
+    // If the value read is out of the range of representable values by a long long int, the
+    // function returns LLONG_MAX or LLONG_MIN (defined in <climits>), and errno is set to ERANGE.
+    const auto result = std::strtoll(cStr, &tEnd, base);
+    if (tEnd == cStr ||
+        errno == ERANGE) {
+        return 0;
+    }
+
+    if (pos) {
+        *pos = tEnd - cStr;
+    }
+
+    return result;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
 
 std::string
 to_string(float value)

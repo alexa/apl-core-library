@@ -112,13 +112,13 @@ TEST_F(SetStateTest, BasicStateChange)
 
     // Try to explicitly set state on the child fails because of the inheritParentState value
     ASSERT_FALSE(ConsoleMessage());
-    std::static_pointer_cast<CoreComponent>(text)->setState(kStatePressed, true);
+    CoreComponent::cast(text)->setState(kStatePressed, true);
     ASSERT_TRUE(CheckDirty(root));
     ASSERT_TRUE(CheckState(text));
     ASSERT_TRUE(ConsoleMessage());
 
     // Explicitly set the color and then try changing state
-    std::dynamic_pointer_cast<CoreComponent>(text)->setProperty(kPropertyColor, Color(0x112233ff));
+    CoreComponent::cast(text)->setProperty(kPropertyColor, Color(0x112233ff));
     component->setState(kStatePressed, true);
     ASSERT_TRUE(CheckDirty(text, kPropertyFontStyle, kPropertyColor, kPropertyColorKaraokeTarget,
                            kPropertyColorNonKaraoke, kPropertyVisualHash));
@@ -139,7 +139,7 @@ TEST_F(SetStateTest, StateAndPropertyChange)
     ASSERT_TRUE(text);
 
     // Explicitly set the color and then try changing state
-    std::dynamic_pointer_cast<CoreComponent>(text)->setProperty(kPropertyColor, Color(0x112233ff));
+    CoreComponent::cast(text)->setProperty(kPropertyColor, Color(0x112233ff));
     ASSERT_TRUE(CheckDirty(text, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyColorNonKaraoke,
                            kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, text));
@@ -162,7 +162,7 @@ TEST_F(SetStateTest, PropertyMatchesState)
 
     // Explicitly set the color to the existing color
     Object origColor = text->getCalculated(kPropertyColor);
-    std::dynamic_pointer_cast<CoreComponent>(text)->setProperty(kPropertyColor, origColor);
+    CoreComponent::cast(text)->setProperty(kPropertyColor, origColor);
     // Because the value didn't change, we should not get a dirty flag
     ASSERT_TRUE(CheckDirty(root));
 

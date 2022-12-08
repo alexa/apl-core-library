@@ -22,6 +22,13 @@
 namespace apl {
 namespace sg {
 
+/**
+ * Given an AVG pathData string, calculate an optimal GeneralPath.  If the path data is
+ * malformed the GeneralPath will be empty.
+ *
+ * @param path The AVG pathData string
+ * @return A GeneralPath
+ */
 std::shared_ptr<GeneralPath> parsePathString(const std::string& path);
 
 } // namespace sg

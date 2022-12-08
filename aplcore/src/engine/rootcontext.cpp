@@ -612,7 +612,7 @@ void
 RootContext::scrollToRectInComponent(const ComponentPtr& component, const Rect &bounds, CommandScrollAlign align)
 {
     auto scrollToAction = ScrollToAction::make(
-            mTimeManager, align, bounds, mContext, std::static_pointer_cast<CoreComponent>(component));
+            mTimeManager, align, bounds, mContext, CoreComponent::cast(component));
     if (scrollToAction && scrollToAction->isPending()) {
         mCore->sequencer().attachToSequencer(scrollToAction, SCROLL_TO_RECT_SEQUENCER);
     }
@@ -953,9 +953,9 @@ RootContext::findComponentById(const std::string& id) const
     assert(mCore);
 
     // Fast path search for uid value
-    auto *ptr = dynamic_cast<Component *>(mCore->uniqueIdManager().find(id));
-    if (ptr)
-        return ptr->shared_from_this();
+    auto *ptr = findByUniqueId(id);
+    if (ptr && ptr->objectType() == UIDObject::UIDObjectType::COMPONENT)
+        return static_cast<Component*>(ptr)->shared_from_this();
 
     // Depth-first search
     auto top = mCore->top();
@@ -981,7 +981,7 @@ RootContext::setFocus(FocusDirection direction, const Rect& origin, const std::s
 {
     assert(mCore);
     auto top = mCore->top();
-    auto target = std::dynamic_pointer_cast<CoreComponent>(findComponentById(targetId));
+    auto target = CoreComponent::cast(findComponentById(targetId));
 
     if (!target) {
         LOG(LogLevel::kWarn).session(getSession()) << "Don't have component: " << targetId;
@@ -1063,7 +1063,7 @@ RootContext::getSceneGraph()
     if (mSceneGraph->getLayer()) {
         mSceneGraph->updates().clear();
         for (auto& component : mCore->dirty)
-            std::static_pointer_cast<CoreComponent>(component)->updateSceneGraph(mSceneGraph->updates());
+            CoreComponent::cast(component)->updateSceneGraph(mSceneGraph->updates());
     } else {
         auto top = mCore->top();
         if (top)

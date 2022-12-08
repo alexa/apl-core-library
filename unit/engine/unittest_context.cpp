@@ -15,6 +15,8 @@
 
 #include "../testeventloop.h"
 
+#include "apl/primitives/functions.h"
+
 using namespace apl;
 
 class ContextTest : public MemoryWrapper {
@@ -76,7 +78,7 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ("green", viewport.get("theme").asString());
     EXPECT_EQ(Object("tv"), viewport.get("mode"));
 
-    EXPECT_TRUE(c->opt("Math").get("asin").isFunction());
+    EXPECT_TRUE(c->opt("Math").get("asin").is<Function>());
 
     EXPECT_EQ(256, c->vhToDp(25));
     EXPECT_EQ(128, c->vwToDp(12.5));

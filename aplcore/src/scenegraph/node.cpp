@@ -32,47 +32,24 @@ namespace sg {
 
 Node::~Node()
 {
-    assert(!mNextSibling);
-
-    auto child = mFirstChild;
-    while (child) {
-        auto nextChild = child->mNextSibling;
-        child->mNextSibling.reset();
-        child = nextChild;
-    }
-
-    mFirstChild.reset();
 }
 
-// TODO: Performance here is linear, but this is rarely called
 void
-Node::appendChild(const NodePtr& child)   // NOLINT(performance-unnecessary-value-param)
+Node::setChild(const NodePtr& child)
 {
-    assert(child);
+    mFirstChild = child;
+}
 
-    if (mFirstChild) {
-        auto ptr = mFirstChild;
-        while (ptr->next())
-            ptr = ptr->next();
-        ptr->mNextSibling = child;
-    }
-    else
-        mFirstChild = child;
+NodePtr
+Node::setNext(const NodePtr& sibling)
+{
+    mNextSibling = sibling;
+    return shared_from_this();
 }
 
 void
 Node::removeAllChildren()
 {
-    if (!mFirstChild)
-        return;
-
-    auto child = mFirstChild;
-    while (child) {
-        auto nextChild = child->mNextSibling;
-        child->mNextSibling.reset();
-        child = nextChild;
-    }
-
     mFirstChild.reset();
 }
 
@@ -117,6 +94,24 @@ Node::visible() const
     return false;
 }
 
+Rect
+Node::boundingBox(const Transform2D& transform) const
+{
+    Rect result;
+    for (auto child = mFirstChild ; child ; child = child->mNextSibling)
+        result = result.extend(child->boundingBox(transform));
+    return result;
+}
+
+Rect
+Node::calculateBoundingBox(const NodePtr& node, const Transform2D& transform)
+{
+    Rect result;
+    for (auto n = node ; n ; n = n->next())
+        result = result.extend(n->boundingBox(transform));
+    return result;
+}
+
 rapidjson::Value
 Node::serialize(rapidjson::Document::AllocatorType& allocator) const
 {
@@ -127,23 +122,6 @@ Node::serialize(rapidjson::Document::AllocatorType& allocator) const
             children.PushBack(child->serialize(allocator), allocator);
         result.AddMember("children", children, allocator);
     }
-    return result;
-}
-
-/************************************************************************************************/
-
-std::string
-GenericNode::toDebugString() const
-{
-    return "GenericNode";
-}
-
-
-rapidjson::Value
-GenericNode::serialize(rapidjson::Document::AllocatorType& allocator) const
-{
-    auto result = Node::serialize(allocator);
-    result.AddMember("type", rapidjson::StringRef("generic"), allocator);
     return result;
 }
 
@@ -193,6 +171,26 @@ DrawNode::visible() const
     return false;
 }
 
+Rect
+DrawNode::boundingBox(const Transform2D& transform) const
+{
+    if (!mPath)
+        return {};
+
+    auto result = mPath->boundingBox(transform);
+    float width = 0.0f;
+    for (auto op = mOp ; op ; op = op->nextSibling)
+        width = std::max(width, op->maxWidth() * 0.5f);
+
+    // Scale the pen width
+    if (width > 0) {
+        auto s = transform.scaleExpansion();
+        result = result.inset(-s.getX() * width, -s.getY() * width);
+    }
+
+    return result;
+}
+
 rapidjson::Value
 DrawNode::serialize(rapidjson::Document::AllocatorType& allocator) const
 {
@@ -200,8 +198,12 @@ DrawNode::serialize(rapidjson::Document::AllocatorType& allocator) const
     result.AddMember("type", rapidjson::StringRef("draw"), allocator);
     if (mPath)
         result.AddMember("path", mPath->serialize(allocator), allocator);
-    if (mOp)
-        result.AddMember("op", mOp->serialize(allocator), allocator);
+    if (mOp) {
+        auto opArray = rapidjson::Value(rapidjson::kArrayType);
+        for (auto op = mOp ; op ; op = op->nextSibling)
+            opArray.PushBack(op->serialize(allocator), allocator);
+        result.AddMember("op", opArray, allocator);
+    }
     return result;
 }
 
@@ -270,13 +272,37 @@ TextNode::visible() const
     return false;
 }
 
+Rect
+TextNode::boundingBox(const Transform2D& transform) const
+{
+    if (!mTextLayout)
+        return {};
+
+    auto result = mTextLayout->getBoundingBoxForLines(mRange).boundingBox(transform);
+    float width = 0.0f;
+    for (auto op = mOp ; op ; op = op->nextSibling)
+        width = std::max(width, op->maxWidth() * 0.5f);
+
+    // Scale the pen width
+    if (width > 0) {
+        auto s = transform.scaleExpansion();
+        result = result.inset(-s.getX() * width, -s.getY() * width);
+    }
+
+    return result;
+}
+
 rapidjson::Value
 TextNode::serialize(rapidjson::Document::AllocatorType& allocator) const
 {
     auto result = Node::serialize(allocator);
     result.AddMember("type", rapidjson::StringRef("text"), allocator);
-    if (mOp)
-        result.AddMember("op", mOp->serialize(allocator), allocator);
+    if (mOp) {
+        auto opArray = rapidjson::Value(rapidjson::kArrayType);
+        for (auto op = mOp ; op ; op = op->nextSibling)
+            opArray.PushBack(op->serialize(allocator), allocator);
+        result.AddMember("op", opArray, allocator);
+    }
     if (!mRange.empty())
         result.AddMember("range", mRange.serialize(allocator), allocator);
     if (mTextLayout && !mTextLayout->empty())
@@ -302,6 +328,12 @@ TransformNode::toDebugString() const
     return std::string("TransformNode transform="+ mTransform.toDebugString());
 }
 
+Rect
+TransformNode::boundingBox(const Transform2D& transform) const
+{
+    return Node::boundingBox(transform * mTransform);
+}
+
 rapidjson::Value
 TransformNode::serialize(rapidjson::Document::AllocatorType& allocator) const
 {
@@ -310,6 +342,7 @@ TransformNode::serialize(rapidjson::Document::AllocatorType& allocator) const
     result.AddMember("transform", mTransform.serialize(allocator), allocator);
     return result;
 }
+
 
 /************************************************************************************************/
 
@@ -327,6 +360,15 @@ std::string
 ClipNode::toDebugString() const
 {
     return "ClipNode";
+}
+
+Rect
+ClipNode::boundingBox(const Transform2D& transform) const
+{
+    auto bb = Node::boundingBox(transform);
+    if (mPath)
+        bb = bb.intersect(mPath->boundingBox(transform));
+    return bb;
 }
 
 rapidjson::Value
@@ -450,6 +492,12 @@ ImageNode::visible() const
     return mImage != nullptr;
 }
 
+Rect
+ImageNode::boundingBox(const Transform2D& transform) const
+{
+    return mTarget.boundingBox(transform);
+}
+
 rapidjson::Value
 ImageNode::serialize(rapidjson::Document::AllocatorType& allocator) const
 {
@@ -516,6 +564,12 @@ VideoNode::visible() const
     return mPlayer != nullptr;
 }
 
+Rect
+VideoNode::boundingBox(const Transform2D& transform) const
+{
+    return mTarget.boundingBox(transform);
+}
+
 rapidjson::Value
 VideoNode::serialize(rapidjson::Document::AllocatorType& allocator) const
 {
@@ -544,6 +598,27 @@ std::string
 ShadowNode::toDebugString() const
 {
     return "ShadowNode";
+}
+
+Rect
+ShadowNode::boundingBox(const Transform2D& transform) const
+{
+    if (!mShadow)
+        return Node::boundingBox(transform);
+
+    // Calculate the content size in the local coordinate system
+    auto inner = Node::boundingBox(Transform2D());
+    auto offset = mShadow->getOffset();
+    auto delta = mShadow->getRadius();
+
+    // Apply the shadow offset to all four sides
+    auto x1 = inner.getLeft() + std::min(0.0f, offset.getX() - delta);
+    auto y1 = inner.getTop() + std::min(0.0f, offset.getY() - delta);
+    auto x2 = inner.getRight() + std::max(0.0f, offset.getX() + delta);
+    auto y2 = inner.getBottom() + std::max(0.0f, offset.getY() + delta);
+
+    // Calculate the transform of the shadowed box and return that
+    return Rect{x1, y1, x2 - x1, y2 - y1}.boundingBox(transform);
 }
 
 rapidjson::Value
@@ -618,6 +693,14 @@ bool
 EditTextNode::visible() const
 {
     return true;
+}
+
+Rect
+EditTextNode::boundingBox(const Transform2D& transform) const
+{
+    // Note: The EditTextNode has no intrinsic size.  An EditTextNode is required to
+    // be directly under a layer and the layer sets the size of the edit text box.
+    return {};
 }
 
 rapidjson::Value

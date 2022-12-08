@@ -70,7 +70,6 @@ public:
     Role getRole() const { return mRole; }
 
     void appendAction(const std::string& name, const std::string& label, bool enabled);
-    void removeAllActions();
 
     const std::vector<Action>& actions() const { return mActions; }
 

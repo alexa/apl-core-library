@@ -52,7 +52,7 @@ TEST_F(FrameComponentTest, ComponentDefaults) {
     ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), frame->getCalculated(kPropertyBorderTopLeftRadius)));
     ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), frame->getCalculated(kPropertyBorderTopRightRadius)));
     // kpropertyBorderRadii is calculated from all kpropertyBorderXXXRadius values
-    ASSERT_TRUE(IsEqual(Object::EMPTY_RADII(), frame->getCalculated(kPropertyBorderRadii)));
+    ASSERT_TRUE(IsEqual(Radii(), frame->getCalculated(kPropertyBorderRadii)));
 
     ASSERT_TRUE(IsEqual(Dimension(0), frame->getCalculated(kPropertyBorderWidth)));
     ASSERT_TRUE(frame->getCalculated(kPropertyBorderStrokeWidth).isNull());
@@ -291,7 +291,7 @@ TEST_F(FrameComponentTest, SimpleFrame)
 
     // Frame properties
     ASSERT_EQ(0x00000000, component->getCalculated(kPropertyBackgroundColor).getColor());
-    ASSERT_EQ(Object::EMPTY_RADII(), component->getCalculated(kPropertyBorderRadii));
+    ASSERT_EQ(Object(Radii()), component->getCalculated(kPropertyBorderRadii));
     ASSERT_EQ(0x00000000, component->getCalculated(kPropertyBorderColor).getColor());
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyBorderRadius));
     ASSERT_EQ(Object(Dimension(0)), component->getCalculated(kPropertyBorderWidth));
@@ -326,7 +326,7 @@ TEST_F(FrameComponentTest, Borders)
     ASSERT_EQ(Object::NULL_OBJECT(), map.get(kPropertyBorderBottomRightRadius));
 
     // The output values match the border radius
-    ASSERT_EQ(Radii(10), map.get(kPropertyBorderRadii).getRadii());
+    ASSERT_EQ(Radii(10), map.get(kPropertyBorderRadii).get<Radii>());
 }
 
 static const char *BORDER_TEST_2 = R"({
@@ -565,12 +565,12 @@ TEST_F(FrameComponentTest, StyleFrameInnerBounds)
     auto width = metrics.getWidth();
     auto height = metrics.getHeight();
 
-    ASSERT_EQ(Rect(0, 0, width, height), component->getCalculated(kPropertyInnerBounds).getRect());
-    ASSERT_EQ(Rect(100, 100, width - 200, height - 200), image->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(0, 0, width, height), component->getCalculated(kPropertyInnerBounds).get<Rect>());
+    ASSERT_EQ(Rect(100, 100, width - 200, height - 200), image->getCalculated(kPropertyInnerBounds).get<Rect>());
 
     component->setState(kStatePressed, true);
     root->clearPending();
 
-    ASSERT_EQ(Rect(100, 100, width - 200, height - 200), component->getCalculated(kPropertyInnerBounds).getRect());
-    ASSERT_EQ(Rect(100, 100, width - 400, height - 400), image->getCalculated(kPropertyInnerBounds).getRect());
+    ASSERT_EQ(Rect(100, 100, width - 200, height - 200), component->getCalculated(kPropertyInnerBounds).get<Rect>());
+    ASSERT_EQ(Rect(100, 100, width - 400, height - 400), image->getCalculated(kPropertyInnerBounds).get<Rect>());
 }

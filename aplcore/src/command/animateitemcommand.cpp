@@ -23,7 +23,7 @@ AnimateItemCommand::propDefSet() const {
     static CommandPropDefSet sAnimateItemCommandProperties(CoreCommand::propDefSet(), {
             {kCommandPropertyComponentId, "",                        asString,             kPropRequiredId},
             {kCommandPropertyDuration,    0,                         asNonNegativeInteger, kPropRequired},
-            {kCommandPropertyEasing,      Object::LINEAR_EASING(),   asEasing},
+            {kCommandPropertyEasing,      Easing::linear(),          asEasing},
             {kCommandPropertyRepeatCount, 0,                         asNonNegativeInteger},
             {kCommandPropertyRepeatMode,  kCommandRepeatModeRestart, sCommandRepeatModeMap},
             {kCommandPropertyValue,       Object::EMPTY_ARRAY(),     asArray,              kPropRequired}

@@ -35,13 +35,26 @@ namespace apl {
  */
 class UIDObject {
 public:
-    UIDObject(const ContextPtr& context);
+    // Not ideal, but required to distinguish extending class without RTTI.
+    enum class UIDObjectType {
+        COMPONENT,
+        GRAPHIC,
+        GRAPHIC_ELEMENT,
+        GRAPHIC_PATTERN
+    };
+
+    UIDObject(const ContextPtr& context, apl::UIDObject::UIDObjectType type);
     virtual ~UIDObject();
 
     /**
      * @return The unique ID assigned to this component by the system.
      */
     std::string getUniqueId() const { return mUniqueId; }
+
+    /**
+     * @return Type of the object.
+     */
+    UIDObject::UIDObjectType objectType() const { return mType; }
 
     /**
      * Equality operator override
@@ -59,6 +72,9 @@ public:
 protected:
     std::string mUniqueId;
     ContextPtr  mContext;
+
+private:
+    UIDObject::UIDObjectType mType;
 };
 
 } // namespace apl

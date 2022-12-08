@@ -95,7 +95,7 @@ public:
     explicit LiveArray(ObjectArray&& array) : mArray(std::move(array)) {}
 
     // Override from LiveObject
-    Object::ObjectType getType() const override { return Object::ObjectType::kArrayType; }
+    LiveObject::ObjectType getType() const override { return LiveObject::ObjectType::kArrayType; }
 
     /**
      * Check to see if there are no elements in the array.

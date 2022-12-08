@@ -979,7 +979,7 @@ TEST_F(SequencerTest, AnimateInParalell)
 
     ASSERT_TRUE(CheckDirty(component, kPropertyTransform));
 
-    ASSERT_EQ(Transform2D::translateX(512), component->getCalculated(kPropertyTransform).getTransform2D());
+    ASSERT_EQ(Transform2D::translateX(512), component->getCalculated(kPropertyTransform).get<Transform2D>());
 
     execute(SET_OPACITY, false);
 
@@ -987,7 +987,7 @@ TEST_F(SequencerTest, AnimateInParalell)
 
     ASSERT_TRUE(CheckDirty(component, kPropertyOpacity, kPropertyTransform, kPropertyVisualHash));
 
-    ASSERT_EQ(Transform2D::translateX(0), component->getCalculated(kPropertyTransform).getTransform2D());
+    ASSERT_EQ(Transform2D::translateX(0), component->getCalculated(kPropertyTransform).get<Transform2D>());
     ASSERT_EQ(0.75, component->getCalculated(kPropertyOpacity).asNumber());
 }
 

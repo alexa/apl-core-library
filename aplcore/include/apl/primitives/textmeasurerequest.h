@@ -36,7 +36,7 @@ struct TextMeasureRequest {
     YGMeasureMode heightMode;
     std::string paramHash;
 
-    size_t hash() const {
+    std::size_t hash() const {
         auto result = std::hash<std::string>{}(paramHash);
         hashCombine<float>(result, width);
         hashCombine<int>(result, widthMode);

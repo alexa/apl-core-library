@@ -66,12 +66,12 @@ TEST_F(OptimizeTest, Basic)
         auto result = parseDataBinding(*context, m.first);
         ASSERT_TRUE(result.isEvaluable());
         ASSERT_TRUE(IsEqual(m.second, result.eval())) << m.first;
-        ASSERT_FALSE(result.getByteCode()->isOptimized());
+        ASSERT_FALSE(result.get<datagrammar::ByteCode>()->isOptimized());
 
         SymbolReferenceMap symbols;
         result.symbols(symbols);
         ASSERT_TRUE(IsEqual(m.second, result.eval())) << m.first;
-        ASSERT_TRUE(result.getByteCode()->isOptimized());
+        ASSERT_TRUE(result.get<datagrammar::ByteCode>()->isOptimized());
     }
 }
 
@@ -98,7 +98,7 @@ TEST_F(OptimizeTest, DeadCodeRemoval)
 {
     context->putUserWriteable("a", 23);
     auto result = parseDataBinding(*context, "${a?(1!=2? 10:3):4}");
-    ASSERT_TRUE(result.isByteCode());
+    ASSERT_TRUE(result.is<datagrammar::ByteCode>());
     ASSERT_TRUE(IsEqual(10, result.eval()));
 
     context->userUpdateAndRecalculate("a", 0, false);

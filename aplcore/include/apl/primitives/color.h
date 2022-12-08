@@ -22,8 +22,9 @@
 
 #include <rapidjson/document.h>
 
-#include "apl/utils/streamer.h"
 #include "apl/common.h"
+#include "apl/utils/streamer.h"
+#include "apl/primitives/objecttype.h"
 
 namespace apl {
 
@@ -157,6 +158,40 @@ public:
             return { false, 0 };
         return { true, it->second };
     }
+
+    class ObjectType final : public TrueObjectType<Color> {
+    public:
+        std::string asString(const Object::DataHolder& dataHolder) const override {
+            return Color(dataHolder.value).asString();
+        }
+
+        Color asColor(const Object::DataHolder& dataHolder, const SessionPtr&) const override {
+            return Color(dataHolder.value);
+        }
+
+        uint32_t getColor(const Object::DataHolder& dataHolder) const override {
+            return static_cast<uint32_t>(dataHolder.value);
+        }
+
+        std::size_t hash(const Object::DataHolder& dataHolder) const override {
+            return std::hash<double>{}(dataHolder.value);
+        }
+
+        rapidjson::Value serialize(
+            const Object::DataHolder& dataHolder,
+            rapidjson::Document::AllocatorType& allocator) const override
+        {
+            return rapidjson::Value(asString(dataHolder).c_str(), allocator);
+        }
+
+        std::string toDebugString(const Object::DataHolder& dataHolder) const override {
+            return asString(dataHolder);
+        }
+
+        bool equals(const Object::DataHolder& lhs, const Object::DataHolder& rhs) const override {
+            return lhs.value == rhs.value;
+        }
+    };
 
 private:
     /**

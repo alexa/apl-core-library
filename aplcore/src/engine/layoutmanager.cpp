@@ -188,7 +188,7 @@ LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyF
                                  << " dirty_flag=" << useDirtyFlag
                                  << " parent=" << (parent ? parent->toDebugSimpleString() : "none");
 
-    Size size = parent ? parent->getCalculated(kPropertyInnerBounds).getRect().getSize() : mConfiguredSize;
+    Size size = parent ? parent->getCalculated(kPropertyInnerBounds).get<Rect>().getSize() : mConfiguredSize;
     if (size.empty())
         return;
 
@@ -264,7 +264,7 @@ LayoutManager::ensure(const CoreComponentPtr& component)
     bool attachedYogaNodeNeedsLayout = false;
     auto child = component;
     while (child->getParent()) {
-        auto parent = std::dynamic_pointer_cast<CoreComponent>(child->getParent());
+        auto parent = CoreComponent::cast(child->getParent());
 
         // If the child is attached to its parent, we don't need to do anything
         if (!child->getNode()->getOwner()) {

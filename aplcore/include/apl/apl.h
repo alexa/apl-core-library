@@ -67,6 +67,7 @@
 #include "apl/primitives/range.h"
 #include "apl/primitives/roundedrect.h"
 #include "apl/primitives/styledtext.h"
+#include "apl/primitives/transform2d.h"
 #include "apl/scaling/metricstransform.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/accessibility.h"

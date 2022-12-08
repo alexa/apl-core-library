@@ -80,7 +80,7 @@ public:
     explicit LiveMap(ObjectMap&& map) : mMap(std::move(map)) {}
 
     // Override from LiveObject
-    Object::ObjectType getType() const override { return Object::ObjectType::kMapType; }
+    LiveObject::ObjectType getType() const override { return LiveObject::ObjectType::kMapType; }
 
     /**
      * Check to see if there are no elements in the map

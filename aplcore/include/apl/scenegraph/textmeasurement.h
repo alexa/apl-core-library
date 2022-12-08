@@ -47,6 +47,10 @@ public:
                        float height, MeasureMode heightMode) override { return {0,0}; }
 
     float baseline(Component *component, float width, float height) override { return 0; }
+
+#ifdef SCENEGRAPH
+    bool sceneGraphCompatible() const override { return true; }
+#endif // SCENEGRAPH
 };
 
 } // namespace sg

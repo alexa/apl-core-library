@@ -3984,13 +3984,13 @@ TEST_F(DynamicIndexListTest, SequenceRecreate)
     auto sequence = component->getCoreChildAt(0)->getCoreChildAt(0);
     ASSERT_EQ(5, sequence->getChildCount());
 
-    ASSERT_EQ(Rect(0,  0, 300, 300), component->getCoreChildAt(0)->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 0, 300, 150), sequence->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0,  0, 300, 10), sequence->getCoreChildAt(0)->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 10, 300, 10), sequence->getCoreChildAt(1)->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 20, 300, 10), sequence->getCoreChildAt(2)->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 30, 300, 10), sequence->getCoreChildAt(3)->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 40, 300, 10), sequence->getCoreChildAt(4)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,  0, 300, 300), component->getCoreChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 0, 300, 150), sequence->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0,  0, 300, 10), sequence->getCoreChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 10, 300, 10), sequence->getCoreChildAt(1)->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 20, 300, 10), sequence->getCoreChildAt(2)->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 30, 300, 10), sequence->getCoreChildAt(3)->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 40, 300, 10), sequence->getCoreChildAt(4)->getCalculated(kPropertyBounds).get<Rect>());
 
     ASSERT_TRUE(ds->processUpdate(REPLACE_SEQUENCE_CRUD));
     root->clearPending();
@@ -3998,13 +3998,13 @@ TEST_F(DynamicIndexListTest, SequenceRecreate)
     sequence = component->getCoreChildAt(0)->getCoreChildAt(0);
     ASSERT_EQ(5, sequence->getChildCount());
 
-    ASSERT_EQ(Rect(0,  0, 300, 300).toDebugString(), component->getCoreChildAt(0)->getCalculated(kPropertyBounds).getRect().toDebugString());
-    ASSERT_EQ(Rect(0,  0, 300, 150), sequence->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0,   0, 300, 10), sequence->getCoreChildAt(0)->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 10, 300, 10), sequence->getCoreChildAt(1)->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 20, 300, 10), sequence->getCoreChildAt(2)->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 30, 300, 10), sequence->getCoreChildAt(3)->getCalculated(kPropertyBounds).getRect());
-    ASSERT_EQ(Rect(0, 40, 300, 10), sequence->getCoreChildAt(4)->getCalculated(kPropertyBounds).getRect());
+    ASSERT_EQ(Rect(0,  0, 300, 300).toDebugString(), component->getCoreChildAt(0)->getCalculated(kPropertyBounds).get<Rect>().toDebugString());
+    ASSERT_EQ(Rect(0,  0, 300, 150), sequence->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0,   0, 300, 10), sequence->getCoreChildAt(0)->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 10, 300, 10), sequence->getCoreChildAt(1)->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 20, 300, 10), sequence->getCoreChildAt(2)->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 30, 300, 10), sequence->getCoreChildAt(3)->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 40, 300, 10), sequence->getCoreChildAt(4)->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *FILLED_DATA = R"({

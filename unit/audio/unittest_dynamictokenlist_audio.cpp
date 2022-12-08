@@ -226,7 +226,7 @@ TEST_F(DynamicTokenListAudioTest, DeepProgressive) {
     config->dataSourceProvider("testList", source);
 
     loadDocument(BIT_BY_A_BIT_DEEP, BIT_BY_A_BIT_DATA);
-    auto sequence = std::static_pointer_cast<CoreComponent>(root->findComponentById("dynamicSequence"));
+    auto sequence = CoreComponent::cast(root->findComponentById("dynamicSequence"));
     ASSERT_TRUE(sequence);
     ASSERT_EQ(1, sequence->getChildCount());
 

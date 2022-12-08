@@ -288,12 +288,12 @@ TEST_F(BuilderPreserveTest, SetDynamicProperties)
         {"TEXT",      "color",              Color(Color::LIME),                     nullptr},
         {"TEXT",      "text",               "This is another test",                 [](const Object& target,
                                                                                        const Object& x) {
-            return x.isStyledText() && x.getStyledText().asString() == target.asString();
+            return x.is<StyledText>() && x.get<StyledText>().asString() == target.asString();
         }},
         {"VIDEO",     "source",             "http://www.videostuff.fake/dog.mp3",   [](const Object& target,
                                                                                        const Object& x) {
-            return x.isArray() && x.size() == 1 && x.at(0).isMediaSource() &&
-                   x.at(0).getMediaSource().getUrl() == target.asString();
+            return x.isArray() && x.size() == 1 && x.at(0).is<MediaSource>() &&
+                   x.at(0).get<MediaSource>().getUrl() == target.asString();
         }},
     };
 
@@ -972,8 +972,8 @@ TEST_F(BuilderPreserveTest, VideoComponentSource)
     auto sources = component->getCalculated(kPropertySource);
     ASSERT_TRUE(sources.isArray());
     ASSERT_EQ(2, sources.size());
-    ASSERT_TRUE(IsEqual("FOO1", sources.at(0).getMediaSource().getUrl()));
-    ASSERT_TRUE(IsEqual("FOO2", sources.at(1).getMediaSource().getUrl()));
+    ASSERT_TRUE(IsEqual("FOO1", sources.at(0).get<MediaSource>().getUrl()));
+    ASSERT_TRUE(IsEqual("FOO2", sources.at(1).get<MediaSource>().getUrl()));
 }
 
 static const char *PRESERVE_BOUND_VALUES = R"apl(

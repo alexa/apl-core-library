@@ -531,7 +531,7 @@ TEST_F(ComponentEventsTest, TouchWrapperSendEvent)
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
 
     auto arguments = event.getValue(kEventPropertyArguments);
-    ASSERT_EQ(apl::Object::kArrayType, arguments.getType());
+    ASSERT_TRUE(arguments.isArray());
     ASSERT_EQ("Press", arguments.at(0).asString());
     ASSERT_EQ(false, arguments.at(1).asBoolean());
     ASSERT_EQ("1", arguments.at(2).asString());
@@ -546,7 +546,7 @@ TEST_F(ComponentEventsTest, TouchWrapperSendEvent)
     ASSERT_EQ(false, source.get("value").asBoolean());
 
     auto components = event.getValue(kEventPropertyComponents);
-    ASSERT_EQ(apl::Object::kMapType, components.getType());
+    ASSERT_TRUE(components.isMap());
     ASSERT_EQ("<b>One</b>", components.get("textComp").asString());
 }
 
@@ -609,7 +609,7 @@ TEST_F(ComponentEventsTest, PagerSendEvent)
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
 
     auto arguments = event.getValue(kEventPropertyArguments);
-    ASSERT_EQ(apl::Object::kArrayType, arguments.getType());
+    ASSERT_TRUE(arguments.isArray());
     ASSERT_EQ("Page", arguments.at(0).asString());
     ASSERT_EQ("2", arguments.at(1).asString());
     ASSERT_EQ("1", arguments.at(2).asString());
@@ -628,7 +628,7 @@ TEST_F(ComponentEventsTest, PagerSendEvent)
     auto text3 = context->findComponentById("text3");
 
     auto components = event.getValue(kEventPropertyComponents);
-    ASSERT_EQ(apl::Object::kMapType, components.getType());
+    ASSERT_TRUE(components.isMap());
     ASSERT_EQ("One", components.get(text1->getId()).asString());
     ASSERT_EQ("Two", components.get(text2->getId()).asString());
     ASSERT_EQ("Three", components.get(text3->getId()).asString());
@@ -681,7 +681,7 @@ TEST_F(ComponentEventsTest, ScrollableSendCustomEvent)
     ASSERT_EQ(sEventTypeBimap.at("CustomEvent"), event.getType());
 
     auto arguments = event.getValue(kEventPropertyArguments);
-    ASSERT_EQ(apl::Object::kArrayType, arguments.getType());
+    ASSERT_TRUE(arguments.isArray());
     ASSERT_EQ("Scroll", arguments.at(0).asString());
     ASSERT_EQ("1.5", arguments.at(1).asString());
     ASSERT_EQ("1", arguments.at(2).asString());
@@ -843,7 +843,7 @@ validateMediaEvent(RootContextPtr root,
     ASSERT_EQ(TestEventCommand::eventType(), event.getType());
 
     auto arguments = event.getValue(kEventPropertyArguments);
-    ASSERT_EQ(apl::Object::kArrayType, arguments.getType());
+    ASSERT_TRUE(arguments.isArray());
     ASSERT_EQ(handler, arguments.at(0).asString());
     ASSERT_TRUE(IsEqual(value, arguments.at(1))) << handler;
     ASSERT_EQ("1", arguments.at(2).asString());
@@ -873,7 +873,7 @@ validateMediaEvent(RootContextPtr root,
     auto text = root->context().findComponentById("textComp");
 
     auto components = event.getValue(kEventPropertyComponents);
-    ASSERT_EQ(apl::Object::kMapType, components.getType());
+    ASSERT_TRUE(components.isMap());
     ASSERT_TRUE(IsEqual("One", components.get("textComp").asString()));
 }
 
@@ -1025,7 +1025,7 @@ TEST_F(ComponentEventsTest, MediaOnTimeUpdate)
     ASSERT_EQ(sEventTypeBimap.at("CustomEvent"), event.getType());
 
     auto arguments = event.getValue(kEventPropertyArguments);
-    ASSERT_EQ(apl::Object::kArrayType, arguments.getType());
+    ASSERT_TRUE(arguments.isArray());
     ASSERT_EQ(Object("TimeUpdate"), arguments.at(0));  // Handler
     ASSERT_EQ(Object(5), arguments.at(1));  // Value (current time)
     ASSERT_EQ(Object(1), arguments.at(2));  // Opacity

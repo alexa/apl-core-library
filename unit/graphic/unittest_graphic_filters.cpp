@@ -34,12 +34,12 @@ TEST(GraphicFilterTest, Basic)
     JsonData json(R"({"type":"DropShadow"})");
     auto f = GraphicFilter::create(*context, json.get());
 
-    ASSERT_TRUE(f.isGraphicFilter());
-    ASSERT_EQ(kGraphicFilterTypeDropShadow, f.getGraphicFilter().getType());
-    ASSERT_TRUE(IsEqual(Color::BLACK, f.getGraphicFilter().getValue(kGraphicPropertyFilterColor)));
-    ASSERT_TRUE(IsEqual(Object(0), f.getGraphicFilter().getValue(kGraphicPropertyFilterHorizontalOffset)));
-    ASSERT_TRUE(IsEqual(Object(0), f.getGraphicFilter().getValue(kGraphicPropertyFilterRadius)));
-    ASSERT_TRUE(IsEqual(Object(0), f.getGraphicFilter().getValue(kGraphicPropertyFilterVerticalOffset)));
+    ASSERT_TRUE(f.is<GraphicFilter>());
+    ASSERT_EQ(kGraphicFilterTypeDropShadow, f.get<GraphicFilter>().getType());
+    ASSERT_TRUE(IsEqual(Color::BLACK, f.get<GraphicFilter>().getValue(kGraphicPropertyFilterColor)));
+    ASSERT_TRUE(IsEqual(Object(0), f.get<GraphicFilter>().getValue(kGraphicPropertyFilterHorizontalOffset)));
+    ASSERT_TRUE(IsEqual(Object(0), f.get<GraphicFilter>().getValue(kGraphicPropertyFilterRadius)));
+    ASSERT_TRUE(IsEqual(Object(0), f.get<GraphicFilter>().getValue(kGraphicPropertyFilterVerticalOffset)));
 }
 
 TEST(GraphicFilterTest, BadGraphicFilter)
@@ -49,7 +49,7 @@ TEST(GraphicFilterTest, BadGraphicFilter)
     JsonData json(R"({"type":"DropShadoww"})");
     auto f = GraphicFilter::create(*context, json.get());
 
-    ASSERT_FALSE(f.isGraphicFilter());
+    ASSERT_FALSE(f.is<GraphicFilter>());
     ASSERT_EQ(Object::NULL_OBJECT(), f);
 }
 
@@ -91,8 +91,8 @@ TEST(GraphicFilterTest, DropShadowGraphicFilter)
     for (auto& m : DROP_SHADOW_TESTS) {
         JsonData json(m.json);
         auto filterObject = GraphicFilter::create(*context, json.get());
-        ASSERT_TRUE(filterObject.isGraphicFilter()) << m.json;
-        const auto& filter = filterObject.getGraphicFilter();
+        ASSERT_TRUE(filterObject.is<GraphicFilter>()) << m.json;
+        const auto& filter = filterObject.get<GraphicFilter>();
         ASSERT_EQ(kGraphicFilterTypeDropShadow, filter.getType()) << m.json;
         ASSERT_TRUE(IsEqual(m.color, filter.getValue(kGraphicPropertyFilterColor).asColor(*context))) << m.json;
         ASSERT_TRUE(IsEqual(m.horizontalOffset, filter.getValue(kGraphicPropertyFilterHorizontalOffset))) << m.json;
@@ -108,11 +108,11 @@ TEST(GraphicFilterTest, ResourceSubstitution)
 
     JsonData json1(R"({"type": "DropShadow", "radius": "@filterSize"})");
     auto f = GraphicFilter::create(*context, json1.get());
-    ASSERT_TRUE(f.isGraphicFilter());
-    ASSERT_EQ(Object(10), f.getGraphicFilter().getValue(kGraphicPropertyFilterRadius));
+    ASSERT_TRUE(f.is<GraphicFilter>());
+    ASSERT_EQ(Object(10), f.get<GraphicFilter>().getValue(kGraphicPropertyFilterRadius));
 
     JsonData json2(R"({"type": "DropShadow", "radius": "${@filterSize * 2}"})");
     f = GraphicFilter::create(*context, json2.get());
-    ASSERT_TRUE(f.isGraphicFilter());
-    ASSERT_EQ(Object(20), f.getGraphicFilter().getValue(kGraphicPropertyFilterRadius));
+    ASSERT_TRUE(f.is<GraphicFilter>());
+    ASSERT_EQ(Object(20), f.get<GraphicFilter>().getValue(kGraphicPropertyFilterRadius));
 }

@@ -17,14 +17,24 @@ target_sources_local(unittest
         testedittext.cpp
         unittest_sg_accessibility.cpp
         unittest_sg_edit_text.cpp
+        unittest_sg_edit_text_config.cpp
+        unittest_sg_filter.cpp
         unittest_sg_frame.cpp
         unittest_sg_graphic.cpp
         unittest_sg_graphic_component.cpp
+        unittest_sg_graphic_loading.cpp
         unittest_sg_image.cpp
+        unittest_sg_layer.cpp
         unittest_sg_line_highlighting.cpp
+        unittest_sg_node.cpp
+        unittest_sg_nodebounds.cpp
         unittest_sg_pager.cpp
+        unittest_sg_paint.cpp
         unittest_sg_path.cpp
+        unittest_sg_pathbounds.cpp
+        unittest_sg_pathop.cpp
         unittest_sg_pathparser.cpp
         unittest_sg_text.cpp
+        unittest_sg_text_properties.cpp
         unittest_sg_touch.cpp
         )

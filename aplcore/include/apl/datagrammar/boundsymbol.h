@@ -16,7 +16,7 @@
 #ifndef _APL_BOUND_SYMBOL_H
 #define _APL_BOUND_SYMBOL_H
 
-#include "apl/primitives/objectdata.h"
+#include "apl/primitives/objecttype.h"
 #include "apl/primitives/symbolreferencemap.h"
 
 namespace apl {
@@ -47,6 +47,16 @@ public:
     bool operator==(const BoundSymbol& rhs) const;
 
     friend streamer& operator<<(streamer&, const BoundSymbol&);
+
+    class ObjectType final : public EvaluableObjectType<BoundSymbol> {
+    public:
+        rapidjson::Value serialize(
+            const Object::DataHolder&,
+            rapidjson::Document::AllocatorType& allocator) const override
+        {
+            return rapidjson::Value("BOUND SYMBOL", allocator);
+        }
+    };
 
 private:
     std::weak_ptr<Context> mContext;

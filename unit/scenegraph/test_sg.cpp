@@ -22,6 +22,44 @@
 #include "apl/scenegraph/textchunk.h"
 #include "apl/scenegraph/textproperties.h"
 
+
+
+/**
+ * Template to convert an array of objects into a single string, where each object
+ * is converted into a string using the "convert" method.  This is useful for printing
+ * debugging information
+ */
+template<typename T>
+std::string asString(const std::vector<T>& array, std::function<std::string(T)> convert, std::string join = ",")
+{
+    std::string result;
+    auto len = array.size();
+    if (len)
+        result = convert(array.at(0));
+
+    for (int i = 1 ; i < len ; i++)
+        result += join + convert(array.at(i));
+
+    return result;
+}
+
+/**
+ * Convert an array of objects into a single comma-separated string.  These objects must
+ * be convertable into a std::string using the std::to_string<T>(x) function.
+ */
+template<typename T>
+std::string asArray(const std::vector<T>& array) {
+    return asString<T>(array, static_cast<std::string(*)(T)>(std::to_string));
+}
+
+/**
+ * Convert an array of color values into a comma-separated string
+ */
+inline std::string asColorArray(const std::vector<Color>& array) {
+    return asString<Color>(array, [](Color color) { return color.asString(); });
+}
+
+
 /*
  * Macro for testing a condition and returning the ::testing::AssertionFailure() from the
  * function if it, in fact, fails.  Use this inside of larger testing functions.
@@ -94,6 +132,24 @@ CompareGeneral(T actual, T expected, const char *name, std::string (*f)(const T&
     if (actual != expected)
         return ::testing::AssertionFailure() << name << " mismatch; actual=" << (*f)(actual)
                                              << " expected=" << (*f)(expected);
+    return ::testing::AssertionSuccess();
+}
+
+template<typename T>
+::testing::AssertionResult
+CompareNumericArray(const std::vector<T>& actual, const std::vector<T>& expected,
+                    const char *name, T epsilon=1e-3)
+{
+    if (actual.size() != expected.size())
+        return ::testing::AssertionFailure() << name << " mismatch size; actual=" << asArray(actual)
+                                             << " expected=" << asArray(expected);
+
+    for (size_t i = 0; i < actual.size(); i++)
+        if (std::abs(actual.at(i) - expected.at(i)) > epsilon)
+            return ::testing::AssertionFailure()
+                   << name << " mismatched elements at index=" << i << " actual=" << asArray(actual)
+                   << " expected=" << asArray(expected);
+
     return ::testing::AssertionSuccess();
 }
 
@@ -219,42 +275,6 @@ CompareOptional(ItemType item, TestType test, const char *name) {
     return ::testing::AssertionSuccess();
 }
 
-
-/**
- * Template to convert an array of objects into a single string, where each object
- * is converted into a string using the "convert" method.  This is useful for printing
- * debugging information
- */
-template<typename T>
-std::string asString(const std::vector<T>& array, std::function<std::string(T)> convert, std::string join = ",")
-{
-    std::string result;
-    auto len = array.size();
-    if (len)
-        result = convert(array.at(0));
-
-    for (int i = 1 ; i < len ; i++)
-        result += join + convert(array.at(i));
-
-    return result;
-}
-
-/**
- * Convert an array of objects into a single comma-separated string.  These objects must
- * be convertable into a std::string using the std::to_string<T>(x) function.
- */
-template<typename T>
-std::string asArray(const std::vector<T>& array) {
-    return asString<T>(array, static_cast<std::string(*)(T)>(std::to_string));
-}
-
-/**
- * Convert an array of color values into a comma-separated string
- */
-inline std::string asColorArray(const std::vector<Color>& array) {
-    return asString<Color>(array, [](Color color) { return color.asString(); });
-}
-
 /**
  * Convert a boolean value into the string "true" or "false".
  */
@@ -270,45 +290,8 @@ CheckNode(const sg::NodePtr& node, const NodeTest& nodeTest)
             return ::testing::AssertionFailure() << "Found a node where no node expected";
     }
 
-    if (!node->visible())
-        return ::testing::AssertionFailure() << "Testing on an invisible node";
-
     return nodeTest(node);
 }
-
-::testing::AssertionResult
-checkChildNodes(const sg::NodePtr& node, const std::vector<NodeTest>& nodeTests)
-{
-    if (!node) {
-        if (nodeTests.empty())
-            return ::testing::AssertionSuccess();
-        return ::testing::AssertionFailure() << "Missing child node doesn't match node test size";
-    }
-
-    auto child = node->child();
-    while (child && !child->visible())
-        child = child->next();
-
-    for (const auto& m : nodeTests) {
-        if (!child)
-            return ::testing::AssertionFailure() << "More tests than child nodes";
-
-        auto result = m(child);
-        if (!result)
-            return result;
-
-        child = child->next();
-
-        while (child && !child->visible())
-            child = child->next();
-    }
-
-    if (child)
-        return ::testing::AssertionFailure() << "More child nodes than tests";
-
-    return ::testing::AssertionSuccess();
-}
-
 
 ::testing::AssertionResult
 checkPathOps(const sg::NodePtr& node, const std::vector<PathOpTest>& pathTests)
@@ -367,6 +350,21 @@ CheckPathOps(sg::PathOpPtr pathOp, const std::vector<PathOpTest>& pathTests)
     return ::testing::AssertionSuccess();
 }
 
+::testing::AssertionResult
+CheckPath(sg::PathPtr path, const PathTest& pathTest) {
+    if (!path) {
+        if (pathTest)
+            return ::testing::AssertionFailure() << "Path test without a path";
+
+        return ::testing::AssertionSuccess();
+    }
+
+    if (!pathTest)
+        return ::testing::AssertionFailure() << "Path provided but no path test";
+
+    return pathTest(path);
+}
+
 
 ::testing::AssertionResult
 checkPaintProps( const sg::PaintPtr& paint, float opacity, Transform2D transform)
@@ -402,7 +400,7 @@ checkGradientProps( const sg::GradientPaint *paint,
                     Gradient::GradientSpreadMethod spreadMethod,
                     bool useBoundingBox )
 {
-    SGASSERT(CompareGeneral(paint->getPoints(), points, "Points", asArray), "");
+    SGASSERT(CompareNumericArray(paint->getPoints(), points, "Points"), "");
     SGASSERT(CompareGeneral(paint->getColors(), colors, "Colors", asColorArray), "");
     SGASSERT(CompareBasic(paint->getSpreadMethod(), spreadMethod, "SpreadMethod"), "");
     SGASSERT(CompareBasic(paint->getUseBoundingBox(), useBoundingBox, "useBoundingBox"), "");
@@ -538,7 +536,7 @@ IsGeneralPath( std::string value, std::vector<float> points, const std::string& 
         SGASSERT(CheckTrue(sg::GeneralPath::is_type(path), "general path"), msg);
         auto ptr = sg::GeneralPath::cast(path);
         SGASSERT(CompareBasic(ptr->getValue(), value, "value"), msg);
-        SGASSERT(CompareGeneral(ptr->getPoints(), points, "points", asArray), msg);
+        SGASSERT(CompareNumericArray(ptr->getPoints(), points, "points"), msg);
         return ::testing::AssertionSuccess();
     };
 }
@@ -565,7 +563,7 @@ PathOpTest IsStrokeOp( PaintTest paintTest,
         SGASSERT(CompareBasic(ptr->dashOffset, dashOffset, "dashOffset"), msg);
         SGASSERT(CompareBasic(ptr->lineCap, lineCap, "lineCap"), msg);
         SGASSERT(CompareBasic(ptr->lineJoin, lineJoin, "lineJoin"), msg);
-        SGASSERT(CompareGeneral(ptr->dashes, dashes, "dashes", asArray), msg);
+        SGASSERT(CompareNumericArray(ptr->dashes, dashes, "dashes"), msg);
         return ::testing::AssertionSuccess();
     };
 }
@@ -614,19 +612,26 @@ IsNode::CheckBase(sg::NodePtr node)
 ::testing::AssertionResult
 IsNode::CheckChildren(sg::NodePtr node)
 {
-    return checkChildNodes(node, mChildTests) << mMsg;
+    SGASSERT(CheckNode(node->child(), mChildTest), mMsg);
+    return CheckNode(node->next(), mNextTest);
 }
 
-::testing::AssertionResult
-IsGenericNode::operator()(sg::NodePtr node)
+/**
+ * To simplify writing unit tests, nodes that are not visible are ignored in the `CheckSceneGraph`
+ * method.  This method advances the node pointer until it finds a visible node.
+ */
+sg::NodePtr
+AdvanceToVisibleNode(sg::NodePtr node)
 {
-    SGASSERT(CheckBase(node), mMsg);
-    return CheckChildren(node);
+    while (node && !node->visible())
+        node = node->next();
+    return node;
 }
 
 ::testing::AssertionResult
 IsClipNode::operator()(sg::NodePtr node)
 {
+    node = AdvanceToVisibleNode(node);
     SGASSERT(CheckBase(node), mMsg);
     auto *clip = sg::ClipNode::cast(node);
     SGASSERT(mPathTest(clip->getPath()), mMsg);
@@ -636,6 +641,7 @@ IsClipNode::operator()(sg::NodePtr node)
 ::testing::AssertionResult
 IsOpacityNode::operator()(sg::NodePtr node)
 {
+    node = AdvanceToVisibleNode(node);
     SGASSERT(CheckBase(node), mMsg);
     auto *opacity = sg::OpacityNode::cast(node);
     SGASSERT(CompareBasic(opacity->getOpacity(), mOpacity, "Opacity"), mMsg);
@@ -645,6 +651,7 @@ IsOpacityNode::operator()(sg::NodePtr node)
 ::testing::AssertionResult
 IsTransformNode::operator()(sg::NodePtr node)
 {
+    node = AdvanceToVisibleNode(node);
     SGASSERT(CheckBase(node), mMsg);
     auto *tnode = sg::TransformNode::cast(node);
     SGASSERT(CompareDebug(tnode->getTransform(), mTransform, "Transform"), mMsg);
@@ -654,16 +661,20 @@ IsTransformNode::operator()(sg::NodePtr node)
 ::testing::AssertionResult
 IsDrawNode::operator()(sg::NodePtr node)
 {
+    node = AdvanceToVisibleNode(node);
     SGASSERT(CheckBase(node), mMsg);
     auto *dnode = sg::DrawNode::cast(node);
-    SGASSERT(mPathTest(dnode->getPath()), mMsg);
-    SGASSERT(CheckPathOps(dnode->getOp(), mPathOpTests), mMsg);
+    if (dnode->visible() || mPathTest || !mPathOpTests.empty()) {
+        SGASSERT(CheckPath(dnode->getPath(), mPathTest), mMsg);
+        SGASSERT(CheckPathOps(dnode->getOp(), mPathOpTests), mMsg);
+    }
     return CheckChildren(node);
 }
 
 ::testing::AssertionResult
 IsEditNode::operator()(sg::NodePtr node)
 {
+    node = AdvanceToVisibleNode(node);
     SGASSERT(CheckBase(node), mMsg);
     auto *enode = sg::EditTextNode::cast(node);
     SGASSERT(CompareBasic(enode->getText(), mText, "Text"), mMsg);
@@ -674,6 +685,7 @@ IsEditNode::operator()(sg::NodePtr node)
 ::testing::AssertionResult
 IsTextNode::operator()(sg::NodePtr node)
 {
+    node = AdvanceToVisibleNode(node);
     SGASSERT(CheckBase(node), mMsg);
     auto *tnode = sg::TextNode::cast(node);
 
@@ -695,6 +707,7 @@ IsTextNode::operator()(sg::NodePtr node)
 ::testing::AssertionResult
 IsImageNode::operator()(sg::NodePtr node)
 {
+    node = AdvanceToVisibleNode(node);
     SGASSERT(CheckBase(node), mMsg);
     auto *ptr = sg::ImageNode::cast(node);
     SGASSERT(mFilterTest(ptr->getImage()), mMsg);
@@ -706,6 +719,7 @@ IsImageNode::operator()(sg::NodePtr node)
 ::testing::AssertionResult
 IsVideoNode::operator()(sg::NodePtr node)
 {
+    node = AdvanceToVisibleNode(node);
     SGASSERT(CheckBase(node), mMsg);
     auto *ptr = sg::VideoNode::cast(node);
     // TODO: Fix the URL
@@ -717,6 +731,7 @@ IsVideoNode::operator()(sg::NodePtr node)
 ::testing::AssertionResult
 IsShadowNode::operator()(sg::NodePtr node)
 {
+    node = AdvanceToVisibleNode(node);
     SGASSERT(CheckBase(node), mMsg);
     auto *ptr = sg::ShadowNode::cast(node);
     SGASSERT(mShadowTest(ptr->getShadow()), mMsg);
@@ -737,7 +752,7 @@ IsLayer::operator()(sg::LayerPtr layer)
     SGASSERT(CompareOptional(layer->getAccessibility(), mAccessibilityTest, "Layer Accessibility"), mMsg);
     SGASSERT(CompareDebug(layer->getChildOffset(), mChildOffset, "Layer Child Offset"), mMsg);
     SGASSERT(CompareBasic(layer->getInteraction(), mInteraction, "Interaction"), mMsg);
-    SGASSERT(CompareVisible(layer->content(), mContentTests, "Layer Content"), mMsg);
+    SGASSERT(CheckNode(layer->content(), mContentTest), std::string("Layer Content") + mMsg);
     SGASSERT(CompareDebug(layer->children(), mLayerTests, "Layer Children"), mMsg);
 
     // Check dirty flags
@@ -947,8 +962,11 @@ DumpSceneGraph(const sg::NodePtr& ptr, int inset)     // NOLINT(misc-no-recursio
             break;
     }
 
-    for (auto child = ptr->child() ; child ; child = child->next())
-        DumpSceneGraph(child, inset+2);
+    if (ptr->child())
+        DumpSceneGraph(ptr->child(), inset + 2);
+
+    if (ptr->next())
+        DumpSceneGraph(ptr->next(), inset);
 }
 
 void
@@ -996,10 +1014,9 @@ DumpSceneGraph(const sg::LayerPtr& ptr, int inset)     // NOLINT(misc-no-recursi
     if (ptr->getShadow())
         std::cout << p << "Shadow " << ptr->getShadow()->toDebugString() << std::endl;
 
-    if (!ptr->content().empty()) {
+    if (ptr->content()) {
         std::cout << p << "Content" << std::endl;
-        for (const auto& content : ptr->content())
-            DumpSceneGraph(content, inset + 4);
+        DumpSceneGraph(ptr->content(), inset + 4);
     }
 
     if (!ptr->children().empty()) {

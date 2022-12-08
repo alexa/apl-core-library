@@ -62,6 +62,15 @@ public:
     }
 
     /**
+     * Return true if this key is driven by one or more upstream dependants
+     * @param key The key
+     * @return True if there is at least one upstream dependant.
+     */
+    bool hasUpstream(T key) {
+        return mUpstream.find(key) != mUpstream.end();
+    }
+
+    /**
      * Return how many upstream dependants are connected to this key.
      * @param key The key
      * @return The number of upstream dependants.

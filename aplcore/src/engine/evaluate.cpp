@@ -35,7 +35,7 @@ parseDataBinding(const Context& context, const std::string& value)
 {
     auto result = datagrammar::ByteCodeAssembler::parse(context, value);
     if (result.isEvaluable())
-        return result.getByteCode()->simplify();
+        return result.get<datagrammar::ByteCode>()->simplify();
 
     return result;
 }

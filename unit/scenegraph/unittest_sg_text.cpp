@@ -493,7 +493,6 @@ TEST_F(SGTextTest, Resize) {
     configChange(ConfigurationChange(200, 200));
     root->clearPending();
     sg = root->getSceneGraph();
-    DumpSceneGraph(sg);
     ASSERT_TRUE(
         CheckSceneGraph(sg, IsLayer(Rect{0, 0, 200, 200})
                                 .dirty(sg::Layer::kFlagSizeChanged | sg::Layer::kFlagRedrawContent)

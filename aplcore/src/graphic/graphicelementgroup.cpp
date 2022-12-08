@@ -46,7 +46,7 @@ GraphicElementGroup::propDefSet() const
                  {kGraphicPropertyClipPath,          "",                    asString,  kPropInOut | kPropDynamic},
                  {kGraphicPropertyFilters,           Object::EMPTY_ARRAY(), asGraphicFilterArray,    kPropInOut },
                  {kGraphicPropertyOpacity,           1.0,                   asOpacity, kPropInOut | kPropDynamic},
-                 {kGraphicPropertyTransform,         Object::IDENTITY_2D(), nullptr,   kPropOut},
+                 {kGraphicPropertyTransform,         Transform2D(),         nullptr,   kPropOut},
                  {kGraphicPropertyTransformAssigned, "",                    asString,  kPropIn    | kPropDynamic, fixTransform},
                  {kGraphicPropertyRotation,          0,                     asNumber,  kPropIn    | kPropDynamic, fixTransform},
                  {kGraphicPropertyPivotX,            0,                     asNumber,  kPropIn    | kPropDynamic, fixTransform},
@@ -104,7 +104,7 @@ GraphicElementGroup::updateTransform(const Context& context, bool useDirtyFlag)
         outTransform *= Transform2D::translate(-pivotX, -pivotY);
     }
 
-    if (outTransform != mValues.get(kGraphicPropertyTransform).getTransform2D()) {
+    if (outTransform != mValues.get(kGraphicPropertyTransform).get<Transform2D>()) {
         // TODO: We do not explicitly update "single property" values as going to deprecate them to kPropIn-only
         //  after viewhosts act on that.
         mValues.set(kGraphicPropertyTransform, Object(std::move(outTransform)));
@@ -119,13 +119,14 @@ GraphicElementGroup::updateTransform(const Context& context, bool useDirtyFlag)
 sg::NodePtr
 GraphicElementGroup::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
 {
-    auto clip = sg::clip(sg::path(getValue(kGraphicPropertyClipPath).asString()), nullptr);
-
-    for (const auto& m : mChildren) {
-        auto child = m->getSceneGraph(sceneGraph);
+    sg::NodePtr node = nullptr;
+    for (auto it = mChildren.rbegin() ; it != mChildren.rend() ; it++) {
+        auto child = (*it)->getSceneGraph(sceneGraph);
         if (child)
-            clip->appendChild(child);
+            node = child->setNext(node);
     }
+
+    auto clip = sg::clip(sg::path(getValue(kGraphicPropertyClipPath).asString()), node);
 
     return sg::opacity(
         getValue(kGraphicPropertyOpacity),
@@ -150,7 +151,7 @@ GraphicElementGroup::updateSceneGraphInternal(sg::ModifiedNodeList& modList, con
 
     auto* transform = sg::TransformNode::cast(opacity->child());
     if (transformChanged &&
-        transform->setTransform(getValue(kGraphicPropertyTransform).getTransform2D()))
+        transform->setTransform(getValue(kGraphicPropertyTransform).get<Transform2D>()))
         modList.contentChanged(transform);
 
     auto* clip = sg::ClipNode::cast(transform->child());

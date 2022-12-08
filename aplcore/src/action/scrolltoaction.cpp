@@ -140,7 +140,7 @@ ScrollToAction::make(const TimersPtr& timers,
             context,
             scrollToSubBounds,
             target,
-            std::dynamic_pointer_cast<CoreComponent>(container),
+            CoreComponent::cast(container),
             duration >= 0 ? duration : context->getRootConfig().getScrollCommandDuration());
 
     context->sequencer().claimResource({kExecutionResourcePosition, container}, ptr);
@@ -193,7 +193,7 @@ ScrollToAction::scrollTo()
                 mSubBounds.getHeight());
     }
 
-    Rect parentInnerBounds = mContainer->getCalculated(kPropertyInnerBounds).getRect();
+    const auto& parentInnerBounds = mContainer->getCalculated(kPropertyInnerBounds).get<Rect>();
     bool vertical = (mContainer->scrollType() == kScrollTypeVertical);
     bool isLTR = mContainer->getCalculated(kPropertyLayoutDirection) == kLayoutDirectionLTR;
 
@@ -271,7 +271,7 @@ ScrollToAction::pageTo()
     // the component WITHIN the pager that is either the target or the ancestor of the target.
     auto component = mTarget;
     while (component->getParent() != mContainer)
-        component = std::static_pointer_cast<CoreComponent>(component->getParent());
+        component = CoreComponent::cast(component->getParent());
 
     int targetPage = -1;
     for (int i = 0 ; i < mContainer->getChildCount() ; i++) {
@@ -320,15 +320,15 @@ ScrollToAction::rehydrate(const RootContext& context)
 {
     if (!ResourceHoldingAction::rehydrate(context)) return false;
 
-    mTarget = std::dynamic_pointer_cast<CoreComponent>(context.findComponentById(mFrozenTargetId));
+    mTarget = CoreComponent::cast(context.findComponentById(mFrozenTargetId));
 
-    mContainer = std::dynamic_pointer_cast<CoreComponent>(context.findComponentById(mFrozenContainerId));
+    mContainer = CoreComponent::cast(context.findComponentById(mFrozenContainerId));
     if (!mContainer) {
         // If not here, rely on mTarget to get the container with usual "scrollable parent" rule,
         // if no  mTarget id is here - we can't restore.
         if (!mTarget) return false;
 
-        mContainer = std::dynamic_pointer_cast<CoreComponent>(getScrollableParent(mTarget));
+        mContainer = CoreComponent::cast(getScrollableParent(mTarget));
         if (!mContainer) return false;
     }
 

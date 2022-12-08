@@ -45,7 +45,7 @@ GraphicElementPath::propDefSet() const
         .add({
                  {kGraphicPropertyFill,                    Color(),               asAvgFill,             kPropInOut | kPropDynamic | kPropEvaluated},
                  {kGraphicPropertyFillOpacity,             1.0,                   asOpacity,             kPropInOut | kPropDynamic},
-                 {kGraphicPropertyFillTransform,           Object::IDENTITY_2D(), nullptr,               kPropOut},
+                 {kGraphicPropertyFillTransform,           Transform2D(),         nullptr,               kPropOut},
                  {kGraphicPropertyFillTransformAssigned,   "",                    asString,              kPropIn | kPropDynamic, fixFillTransform},
                  {kGraphicPropertyFilters,                 Object::EMPTY_ARRAY(), asGraphicFilterArray,  kPropInOut},
                  {kGraphicPropertyPathData,                "",                    asString,              kPropInOut | kPropRequired | kPropDynamic},
@@ -57,7 +57,7 @@ GraphicElementPath::propDefSet() const
                  {kGraphicPropertyStrokeLineJoin,          kGraphicLineJoinMiter, sGraphicLineJoinBimap, kPropInOut | kPropDynamic},
                  {kGraphicPropertyStrokeMiterLimit,        4,                     asNumber,              kPropInOut | kPropDynamic},
                  {kGraphicPropertyStrokeOpacity,           1.0,                   asOpacity,             kPropInOut | kPropDynamic},
-                 {kGraphicPropertyStrokeTransform,         Object::IDENTITY_2D(), nullptr,               kPropOut},
+                 {kGraphicPropertyStrokeTransform,         Transform2D(),         nullptr,               kPropOut},
                  {kGraphicPropertyStrokeTransformAssigned, "",                    asString,              kPropIn | kPropDynamic, fixStrokeTransform},
                  {kGraphicPropertyStrokeWidth,             1.0,                   asNonNegativeNumber,   kPropInOut | kPropDynamic}
              });
@@ -85,11 +85,11 @@ GraphicElementPath::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
     auto path = sg::path(getValue(kGraphicPropertyPathData).asString());
     auto fill = sg::fill(sg::paint(getValue(kGraphicPropertyFill),
                                    getValue(kGraphicPropertyFillOpacity).asFloat(),
-                                   getValue(kGraphicPropertyFillTransform).getTransform2D()));
+                                   getValue(kGraphicPropertyFillTransform).get<Transform2D>()));
     auto stroke =
         sg::stroke(sg::paint(getValue(kGraphicPropertyStroke),
                              getValue(kGraphicPropertyStrokeOpacity).asFloat(),
-                             getValue(kGraphicPropertyStrokeTransform).getTransform2D()))
+                             getValue(kGraphicPropertyStrokeTransform).get<Transform2D>()))
             .strokeWidth(getValue(kGraphicPropertyStrokeWidth).asFloat())
             .miterLimit(getValue(kGraphicPropertyStrokeMiterLimit).asFloat())
             .pathLength(getValue(kGraphicPropertyPathLength).asFloat())
@@ -100,8 +100,31 @@ GraphicElementPath::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
             .dashes(getValue(kGraphicPropertyStrokeDashArray))
             .get();
 
-    fill->nextSibling = stroke;
-    return sg::draw(path, fill);
+    // Return nothing if there is no path and the path never mutates
+    const auto pathMutates = hasUpstream(kGraphicPropertyPathData);
+    if (path->empty() && !pathMutates)
+        return nullptr;
+
+    // Include the fill operation if it is visible or if it can change to be visible
+    const auto includeFill = fill->visible() ||
+                             hasUpstream(kGraphicPropertyFill) ||
+                             hasUpstream(kGraphicPropertyFillOpacity);
+
+    // Include the stroke operation if it is visible or if it can change to be visible
+    const auto includeStroke = stroke->visible() ||
+                               hasUpstream(kGraphicPropertyStroke) ||
+                               hasUpstream(kGraphicPropertyStrokeOpacity) ||
+                               hasUpstream(kGraphicPropertyStrokeWidth);
+
+    // Assemble the operations list in reverse order so that fill occurs before stroke.
+    auto op = includeStroke ? stroke : nullptr;
+    if (includeFill) {
+        fill->nextSibling = op;
+        op = fill;
+    }
+
+    // If there are no drawing operations, return a null node.
+    return op ? sg::draw(path, op) : nullptr;
 }
 
 void
@@ -127,54 +150,59 @@ GraphicElementPath::updateSceneGraphInternal(sg::ModifiedNodeList& modList, cons
         if (pathChanged && draw->setPath(sg::path(getValue(kGraphicPropertyPathData).asString())))
             modList.contentChanged(draw);
 
-        auto* fill = draw->getOp().get();
-        if (fillChanged) {
+        auto op = draw->getOp();
+        if (sg::FillPathOp::is_type(op) && fillChanged) {
             if (isDirty(kGraphicPropertyFill)) {
                 // If the fill changes, we create a new paint object.
                 // TODO: Shouldn't allocate memory here if the paint hasn't changed type
-                fill->paint = sg::paint(getValue(kGraphicPropertyFill),
-                                        getValue(kGraphicPropertyFillOpacity).asFloat(),
-                                        getValue(kGraphicPropertyFillTransform).getTransform2D());
+                op->paint = sg::paint(getValue(kGraphicPropertyFill),
+                                      getValue(kGraphicPropertyFillOpacity).asFloat(),
+                                      getValue(kGraphicPropertyFillTransform).get<Transform2D>());
             }
             else {
-                fill->paint->setOpacity(getValue(kGraphicPropertyFillOpacity).asFloat());
-                fill->paint->setTransform(getValue(kGraphicPropertyFillTransform).getTransform2D());
+                op->paint->setOpacity(getValue(kGraphicPropertyFillOpacity).asFloat());
+                op->paint->setTransform(getValue(kGraphicPropertyFillTransform).get<Transform2D>());
             }
 
             // TODO: Do a fine-grained check to see if the fill actually changed
             modList.contentChanged(draw);
         }
 
-        auto* stroke = fill->nextSibling.get();
-        if (strokePaintChanged) {
-            if (isDirty(kGraphicPropertyStroke)) {
-                // If the stroke changes, we create a new paint object.
-                // TODO: Shouldn't allocate memory here if the paint hasn't changed type
-                stroke->paint =
-                    sg::paint(getValue(kGraphicPropertyStroke),
-                              getValue(kGraphicPropertyStrokeOpacity).asFloat(),
-                              getValue(kGraphicPropertyStrokeTransform).getTransform2D());
-            }
-            else {
-                stroke->paint->setOpacity(getValue(kGraphicPropertyStrokeOpacity).asFloat());
-                stroke->paint->setTransform(
-                    getValue(kGraphicPropertyStrokeTransform).getTransform2D());
-            }
-            modList.contentChanged(draw);
-        }
+        // Advance to the stroke operation if the fill was defined.
+        if (op->nextSibling)
+            op = op->nextSibling;
 
-        if (strokeChanged) {
-            sg::stroke(sg::StrokePathOp::castptr(fill->nextSibling))
-                .strokeWidth(getValue(kGraphicPropertyStrokeWidth).asFloat())
-                .miterLimit(getValue(kGraphicPropertyStrokeMiterLimit).asFloat())
-                .pathLength(getValue(kGraphicPropertyPathLength).asFloat())
-                .dashOffset(getValue(kGraphicPropertyStrokeDashOffset).asFloat())
-                .lineCap(
-                    static_cast<GraphicLineCap>(getValue(kGraphicPropertyStrokeLineCap).asInt()))
-                .lineJoin(
-                    static_cast<GraphicLineJoin>(getValue(kGraphicPropertyStrokeLineJoin).asInt()))
-                .dashes(getValue(kGraphicPropertyStrokeDashArray));
-            modList.contentChanged(draw);
+        if (sg::StrokePathOp::is_type(op)) {
+            if (strokePaintChanged) {
+                if (isDirty(kGraphicPropertyStroke)) {
+                    // If the stroke changes, we create a new paint object.
+                    // TODO: Shouldn't allocate memory here if the paint hasn't changed type
+                    op->paint =
+                        sg::paint(getValue(kGraphicPropertyStroke),
+                                  getValue(kGraphicPropertyStrokeOpacity).asFloat(),
+                                  getValue(kGraphicPropertyStrokeTransform).get<Transform2D>());
+                }
+                else {
+                    op->paint->setOpacity(getValue(kGraphicPropertyStrokeOpacity).asFloat());
+                    op->paint->setTransform(
+                        getValue(kGraphicPropertyStrokeTransform).get<Transform2D>());
+                }
+                modList.contentChanged(draw);
+            }
+
+            if (strokeChanged) {
+                sg::stroke(sg::StrokePathOp::castptr(op))
+                    .strokeWidth(getValue(kGraphicPropertyStrokeWidth).asFloat())
+                    .miterLimit(getValue(kGraphicPropertyStrokeMiterLimit).asFloat())
+                    .pathLength(getValue(kGraphicPropertyPathLength).asFloat())
+                    .dashOffset(getValue(kGraphicPropertyStrokeDashOffset).asFloat())
+                    .lineCap(static_cast<GraphicLineCap>(
+                        getValue(kGraphicPropertyStrokeLineCap).asInt()))
+                    .lineJoin(static_cast<GraphicLineJoin>(
+                        getValue(kGraphicPropertyStrokeLineJoin).asInt()))
+                    .dashes(getValue(kGraphicPropertyStrokeDashArray));
+                modList.contentChanged(draw);
+            }
         }
     }
 }

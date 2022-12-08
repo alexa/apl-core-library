@@ -51,12 +51,6 @@ Accessibility::appendAction(const std::string& name, const std::string& label, b
     mActions.emplace_back(Action{name, label, enabled});
 }
 
-void
-Accessibility::removeAllActions()
-{
-    mActions.clear();
-}
-
 rapidjson::Value
 Accessibility::serialize(rapidjson::Document::AllocatorType& allocator) const {
     auto out = rapidjson::Value(rapidjson::kObjectType);

@@ -358,9 +358,9 @@ TEST_F(ResourceTest, LinearGradient)
     ASSERT_EQ(1, root->info().resources().size());
 
     auto object = context->opt("@myLinear");
-    ASSERT_TRUE(object.isGradient());
+    ASSERT_TRUE(object.is<Gradient>());
 
-    auto& grad = object.getGradient();
+    auto& grad = object.get<Gradient>();
     ASSERT_EQ(Gradient::LINEAR, grad.getType());
     ASSERT_EQ(Object(0), grad.getProperty(kGradientPropertyAngle));
 
@@ -410,9 +410,9 @@ TEST_F(ResourceTest, RadialGradient)
     ASSERT_EQ(1, root->info().resources().size());
 
     auto object = context->opt("@myRadial");
-    ASSERT_TRUE(object.isGradient());
+    ASSERT_TRUE(object.is<Gradient>());
 
-    auto& grad = object.getGradient();
+    auto& grad = object.get<Gradient>();
     ASSERT_EQ(Gradient::RADIAL, grad.getType());
 
     auto colorRange = grad.getProperty(kGradientPropertyColorRange);
@@ -472,9 +472,9 @@ TEST_F(ResourceTest, RichLinearGradient)
     loadDocument(RICH_LINEAR);
 
     auto object = context->opt("@myLinear");
-    ASSERT_TRUE(object.isGradient());
+    ASSERT_TRUE(object.is<Gradient>());
 
-    auto& grad = object.getGradient();
+    auto& grad = object.get<Gradient>();
     ASSERT_EQ(Gradient::LINEAR, grad.getType());
     ASSERT_EQ(Object(45), grad.getProperty(kGradientPropertyAngle));
 
@@ -609,9 +609,9 @@ TEST_F(ResourceTest, GradientAngle)
     for (auto& t : GRADIENT_ANGLE_TESTS) {
         LOG(LogLevel::kWarn) << t.at(0).toDebugString();
         auto object = context->opt(t.at(0).asString());
-        ASSERT_TRUE(object.isGradient());
+        ASSERT_TRUE(object.is<Gradient>());
 
-        auto& grad = object.getGradient();
+        auto& grad = object.get<Gradient>();
         ASSERT_EQ(Gradient::LINEAR, grad.getType());
 
         auto colorRange = grad.getProperty(kGradientPropertyColorRange);
@@ -663,9 +663,9 @@ TEST_F(ResourceTest, GradientRadialFull)
     loadDocument(GRADIENT_RADIAL_FULL);
 
     auto object = context->opt("@rad");
-    ASSERT_TRUE(object.isGradient());
+    ASSERT_TRUE(object.is<Gradient>());
 
-    auto& grad = object.getGradient();
+    auto& grad = object.get<Gradient>();
     ASSERT_EQ(Gradient::RADIAL, grad.getType());
 
     auto colorRange = grad.getProperty(kGradientPropertyColorRange);
@@ -705,9 +705,9 @@ TEST_F(ResourceTest, Easing)
 {
     loadDocument(EASING);
     auto object = context->opt("@jagged");
-    ASSERT_TRUE(object.isEasing());
+    ASSERT_TRUE(object.is<Easing>());
 
-    auto easing = object.getEasing();
+    auto easing = object.get<Easing>();
     ASSERT_EQ(0.75, easing->calc(0.25));
 
     ASSERT_TRUE(IsEqual("0.75", component->getCalculated(kPropertyText).asString()));

@@ -28,9 +28,9 @@ protected:
 
     void createAndVerifyStyledText(const std::string& rawText, const std::string& expectedText, size_t spansCount) {
         styledText = StyledText::create(*context, rawText);
-        ASSERT_EQ(Object::kStyledTextType, styledText.getType());
-        auto iterator = StyledText::Iterator(styledText.getStyledText());
-        ASSERT_EQ(expectedText, styledText.getStyledText().getText());
+        ASSERT_TRUE(styledText.is<StyledText>());
+        auto iterator = StyledText::Iterator(styledText.get<StyledText>());
+        ASSERT_EQ(expectedText, styledText.get<StyledText>().getText());
         ASSERT_EQ(spansCount, iterator.spanCount());
     }
 
@@ -80,7 +80,7 @@ protected:
     verifyColorAttribute(StyledText::Iterator& it, size_t attributeIndex, const std::string& attributeValue) {
         auto attribute = it.getSpanAttributes().at(attributeIndex);
         if (attribute.name != 0) return ::testing::AssertionFailure() << "Wrong attribute name.";
-        if (!attribute.value.isColor()) return ::testing::AssertionFailure() << "Not a color.";
+        if (!attribute.value.is<Color>()) return ::testing::AssertionFailure() << "Not a color.";
         if (attribute.value.asString() != attributeValue) return ::testing::AssertionFailure() << "Wron value.";
 
         return ::testing::AssertionSuccess();
@@ -151,7 +151,7 @@ TEST_F(StyledTextTest, NotStyled)
 TEST_F(StyledTextTest, Simple)
 {
     createAndVerifyStyledText(u8"Simple <i>styled</i> text.", u8"Simple styled text.", 1);
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "Simple "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifyText(iterator, "styled"));
@@ -162,7 +162,7 @@ TEST_F(StyledTextTest, Simple)
 TEST_F(StyledTextTest, Multiple)
 {
     createAndVerifyStyledText(u8"Simple <i>somewhat</i> <u>styled</u> text.", u8"Simple somewhat styled text.", 2);
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "Simple "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifyText(iterator, "somewhat"));
@@ -177,7 +177,7 @@ TEST_F(StyledTextTest, Multiple)
 TEST_F(StyledTextTest, LineBreak)
 {
     createAndVerifyStyledText(u8"Line <br/>break<br> text.", u8"Linebreaktext.", 2);
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "Line"));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeLineBreak));
     ASSERT_TRUE(verifySpanEnd(iterator, StyledText::kSpanTypeLineBreak));
@@ -196,7 +196,7 @@ TEST_F(StyledTextTest, Wchar)
 {
     createAndVerifyStyledText(u8"\u524D\u9031\n\u672B<i>\u6BD434\u5186</i>80\u92AD",
 		u8"\u524D\u9031 \u672B\u6BD434\u518680\u92AD", 1);
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, u8"\u524D\u9031 \u672B"));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifyText(iterator, u8"\u6BD434\u5186"));
@@ -209,7 +209,7 @@ TEST_F(StyledTextTest, Cyrillics) {
     createAndVerifyStyledText(u8"\u0440\0443\u0441\u043a\u0438\u0439 <b>\u044F\u0437\u044B\u043a</b>",
 		u8"\u0440\0443\u0441\u043a\u0438\u0439 \u044F\u0437\u044B\u043a", 1);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, u8"\u0440\0443\u0441\u043a\u0438\u0439 "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeStrong));
     ASSERT_TRUE(verifyText(iterator, u8"\u044F\u0437\u044B\u043a"));
@@ -219,7 +219,7 @@ TEST_F(StyledTextTest, Cyrillics) {
 TEST_F(StyledTextTest, UnclosedTag)
 {
     createAndVerifyStyledText(u8"Unclosed<i> tag.", u8"Unclosed tag.", 1);
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "Unclosed"));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifyText(iterator, " tag."));
@@ -230,7 +230,7 @@ TEST_F(StyledTextTest, UnclosedTagIntersect)
     createAndVerifyStyledText(u8"This is<b> bold text,<i> this is bold-italic</b> and </i>plain.",
                               u8"This is bold text, this is bold-italic and plain.", 3);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "This is"));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeStrong));
     ASSERT_TRUE(verifyText(iterator, " bold text,"));
@@ -254,7 +254,7 @@ TEST_F(StyledTextTest, UnopenedTagComplex)
     createAndVerifyStyledText(u8"<b>Hello, <i>I'm a turtle</sub> who likes lettuce.</i></b>",
                               u8"Hello, I'm a turtle who likes lettuce.", 2);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeStrong));
     ASSERT_TRUE(verifyText(iterator, "Hello, "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
@@ -267,7 +267,7 @@ TEST_F(StyledTextTest, UnopenedTagNested)
 {
     createAndVerifyStyledText(u8"<i>Unopened</i></i> tag.", u8"Unopened tag.", 1);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifyText(iterator, "Unopened"));
     ASSERT_TRUE(verifySpanEnd(iterator, StyledText::kSpanTypeItalic));
@@ -278,7 +278,7 @@ TEST_F(StyledTextTest, UnopenedTagDeepNested)
 {
     createAndVerifyStyledText(u8"<i><i>Unopened</i></i></i></i></i></i> tag.", u8"Unopened tag.", 2);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifyText(iterator, "Unopened"));
@@ -292,7 +292,7 @@ TEST_F(StyledTextTest, UnclosedTagComplex)
     createAndVerifyStyledText(u8"Multiple <b>very <u>unclosed<i> tags</b>. And few <tt>unclosed <strike>at the end.",
                               u8"Multiple very unclosed tags. And few unclosed at the end.", 7);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "Multiple "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeStrong));
     ASSERT_TRUE(verifyText(iterator, "very "));
@@ -322,7 +322,7 @@ TEST_F(StyledTextTest, UnclosedSameTypeTagNested)
     createAndVerifyStyledText(u8"Multiple nested <b><b><b><b>very</b></b> unclosed tags.",
     u8"Multiple nested very unclosed tags.", 4);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "Multiple nested "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeStrong));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeStrong));
@@ -341,7 +341,7 @@ TEST_F(StyledTextTest, UnclosedSameTypeTagNestedComplex)
     createAndVerifyStyledText(u8"Multiple <b><b>very <u>unclosed<i> tags</b>. And few <tt>unclosed <strike>at the end.",
     u8"Multiple very unclosed tags. And few unclosed at the end.", 8);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "Multiple "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeStrong));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeStrong));
@@ -377,7 +377,7 @@ TEST_F(StyledTextTest, SingleChildStyle)
 {
     createAndVerifyStyledText(u8"Text <i>with <b>one</b> child</i>.", u8"Text with one child.", 2);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "Text "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifyText(iterator, "with "));
@@ -394,7 +394,7 @@ TEST_F(StyledTextTest, SeveralChildStyles)
     createAndVerifyStyledText(u8"Text <i>with <b>child</b> and another <u>child</u></i>.",
                               u8"Text with child and another child.", 3);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "Text "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifyText(iterator, "with "));
@@ -425,7 +425,7 @@ TEST_F(StyledTextTest, Complex)
                               u8"Since you are not going on a? holiday this year! Boss,I thought I should give your office "
                               "a holiday; \u524D\u9031\u672B\u6BD434\u518680\u92ad look.", 12);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "Since "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifyText(iterator, "you"));
@@ -490,7 +490,7 @@ TEST_F(StyledTextTest, LongSpecialEntity)
 {
     createAndVerifyStyledText(u8"go &#8594; <i>right</i>", u8"go \u2192 right", 1);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, u8"go \u2192 "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifyText(iterator, "right"));
@@ -501,7 +501,7 @@ TEST_F(StyledTextTest, UppercaseTags)
 {
     createAndVerifyStyledText(u8"Simple <I>styled</i> text.", u8"Simple styled text.", 1);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "Simple "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifyText(iterator, "styled"));
@@ -515,7 +515,7 @@ TEST_F(StyledTextTest, UnneededSpansSimple)
     createAndVerifyStyledText(u8"<i><b></b></i>", u8"", 0);
     createAndVerifyStyledText(u8"<i><br></i>", u8"", 1);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeLineBreak));
 }
 
@@ -523,7 +523,7 @@ TEST_F(StyledTextTest, UnneededSpansCollapse)
 {
     createAndVerifyStyledText(u8"<i>span</i><i>calypse</i>", u8"spancalypse", 1);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifyText(iterator, "spancalypse"));
     ASSERT_TRUE(verifySpanEnd(iterator, StyledText::kSpanTypeItalic));
@@ -532,7 +532,7 @@ TEST_F(StyledTextTest, UnneededSpansCollapseComplex)
 {
     createAndVerifyStyledText(u8"<b><i>span</i><i>ca</i></b><i>lypse</i>", u8"spancalypse", 3);
 
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeStrong));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_TRUE(verifyText(iterator, "spanca"));
@@ -551,7 +551,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // single attr
     createAndVerifyStyledText(u8"Hello <i foo='bar'>this</i> is an attr", u8"Hello this is an attr", 1);
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeItalic));
     ASSERT_EQ(0, iterator.getSpanAttributes().size());
@@ -561,7 +561,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // multiple attributes
     createAndVerifyStyledText(u8"Hello <i foo='bar' baz = \"biz\" fee='fi' fo='fum'>this</i> is an attr", u8"Hello this is an attr", 1);
-    auto iterator2 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator2 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator2, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator2, StyledText::kSpanTypeItalic));
     ASSERT_EQ(0, iterator2.getSpanAttributes().size());
@@ -571,7 +571,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // special allowed characters for attribute name and value
     createAndVerifyStyledText(u8"Hello <i _.-..=\"&:--asd;\">this</i> is an attr", u8"Hello this is an attr", 1);
-    auto iterator3 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator3 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator3, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator3, StyledText::kSpanTypeItalic));
     ASSERT_EQ(0, iterator.getSpanAttributes().size());
@@ -581,7 +581,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // special allowed characters for break tag's attribute name and value
     createAndVerifyStyledText(u8"Hello <br :.a.2.3=\"&:--asd;\">this</br> is an attr", u8"Hellothis is an attr", 1);
-    auto iterator4 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator4 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator4, "Hello"));
     ASSERT_TRUE(verifySpanStart(iterator4, StyledText::kSpanTypeLineBreak));
     ASSERT_EQ(0, iterator4.getSpanAttributes().size());
@@ -590,7 +590,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // using special start character and all three types of entity references
     createAndVerifyStyledText(u8"Hello <br _foo=\"$:my^ref;\" />this is an <i :attr1='&#xaB23;' :attr2='&#23;' :attr3='&mystringref;'>attr</i>", u8"Hellothis is an attr", 2);
-    auto iterator5 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator5 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator5, "Hello"));
     ASSERT_TRUE(verifySpanStart(iterator5, StyledText::kSpanTypeLineBreak));
     ASSERT_EQ(0, iterator5.getSpanAttributes().size());
@@ -603,7 +603,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // Checking for dec entity collisions
     createAndVerifyStyledText(u8"go &#8594; <i attr='&#8594;'>right</i>", u8"go \u2192 right", 1);
-    auto iterator6 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator6 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator6, u8"go \u2192 "));
     ASSERT_TRUE(verifySpanStart(iterator6, StyledText::kSpanTypeItalic));
     ASSERT_EQ(0, iterator6.getSpanAttributes().size());
@@ -622,7 +622,7 @@ TEST_F(StyledTextTest, TagAttribute)
     createAndVerifyStyledText(u8"hello<br 3459dfiuwcr9ergh da lia e  =ar -e 89q3 403i4 ''\"<<<<''' << k'asd \" />world", u8"helloworld", 1);
 
     createAndVerifyStyledText(u8"hello<span color='red' 3459dfiuwcr9ergh da lia e  =ar -e 89q3 403i4 ''\"<<<<''' << k'asd \" >world</span>", u8"helloworld", 1);
-    auto iterator7 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator7 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator7, "hello"));
     ASSERT_TRUE(verifySpanStart(iterator7, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator7, "world"));
@@ -631,7 +631,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // span tag with attributes
     createAndVerifyStyledText(u8"Hello <span color='red'>this is an attr</span>", u8"Hello this is an attr", 1);
-    auto iterator8 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator8 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator8, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator8, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator8, "this is an attr"));
@@ -639,7 +639,7 @@ TEST_F(StyledTextTest, TagAttribute)
     ASSERT_TRUE(verifyColorAttribute(iterator8, 0, "#ff0000ff"));
 
     createAndVerifyStyledText(u8"Hello <span fontSize='48dp'>this is an attr</span>", u8"Hello this is an attr", 1);
-    auto iterator9 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator9 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator9, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator9, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator9, "this is an attr"));
@@ -648,7 +648,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // span tag with attribute name with resource binding
     createAndVerifyStyledText(u8"Hello <span fontSize='@testFontSize'>this is an attr</span>", u8"Hello this is an attr", 1);
-    auto iterator10 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator10 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator10, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator10, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator10, "this is an attr"));
@@ -657,7 +657,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // span tag with multiple attributes
     createAndVerifyStyledText(u8"Hello <span color='red' fontSize='48dp'>this is an attr</span>", u8"Hello this is an attr", 1);
-    auto iterator11 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator11 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator11, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator11, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator11, "this is an attr"));
@@ -667,7 +667,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // span tag with different kinds of color attributes
     createAndVerifyStyledText(u8"Hello <span color='#edb'>this is an attr</span>", u8"Hello this is an attr", 1);
-    auto iterator12 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator12 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator12, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator12, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator12, "this is an attr"));
@@ -675,7 +675,7 @@ TEST_F(StyledTextTest, TagAttribute)
     ASSERT_TRUE(verifyColorAttribute(iterator12, 0, "#eeddbbff"));
 
     createAndVerifyStyledText(u8"Hello <span color='rgba(blue, 50%)'>this is an attr</span>", u8"Hello this is an attr", 1);
-    auto iterator13 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator13 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator13, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator13, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator13, "this is an attr"));
@@ -683,7 +683,7 @@ TEST_F(StyledTextTest, TagAttribute)
     ASSERT_TRUE(verifyColorAttribute(iterator13, 0, "#0000ff7f"));
 
     createAndVerifyStyledText(u8"Hello <span color='rgb(rgba(green, 50%), 50%)'>this is an attr</span>", u8"Hello this is an attr", 1);
-    auto iterator14 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator14 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator14, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator14, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator14, "this is an attr"));
@@ -691,7 +691,7 @@ TEST_F(StyledTextTest, TagAttribute)
     ASSERT_TRUE(verifyColorAttribute(iterator14, 0, "#0080003f"));
 
     createAndVerifyStyledText(u8"Hello <span color='hsl(0, 100%, 50%)'>this is an attr</span>", u8"Hello this is an attr", 1);
-    auto iterator15 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator15 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator15, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator15, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator15, "this is an attr"));
@@ -699,7 +699,7 @@ TEST_F(StyledTextTest, TagAttribute)
     ASSERT_TRUE(verifyColorAttribute(iterator15, 0, "#ff0000ff"));
 
     createAndVerifyStyledText(u8"Hello <span color='hsla(120, 0, 50%, 25%)'>this is an attr</span>", u8"Hello this is an attr", 1);
-    auto iterator16 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator16 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator16, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator16, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator16, "this is an attr"));
@@ -708,7 +708,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // span tag with inherit attribute value
     createAndVerifyStyledText(u8"Hello <span color='inherit'>this is an attr</span>", u8"Hello this is an attr", 1);
-    auto iterator17 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator17 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator17, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator17, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator17, "this is an attr"));
@@ -716,7 +716,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // span tag with same attributes
     createAndVerifyStyledText(u8"Hello <span color='blue' fontSize='50' color='red' fontSize='7'>this is an attr</span>", u8"Hello this is an attr", 1);
-    auto iterator18 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator18 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator18, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator18, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator18, "this is an attr"));
@@ -726,7 +726,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // span tag without attributes
     createAndVerifyStyledText(u8"Hello <span>this is an attr</span>", u8"Hello this is an attr", 1);
-    auto iterator19 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator19 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator19, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator19, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator19, "this is an attr"));
@@ -734,7 +734,7 @@ TEST_F(StyledTextTest, TagAttribute)
 
     // span tag with non-supported attributes
     createAndVerifyStyledText(u8"Hello <span foo='bar'>this is an attr</span>", u8"Hello this is an attr", 1);
-    auto iterator20 = StyledText::Iterator(styledText.getStyledText());
+    auto iterator20 = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator20, "Hello "));
     ASSERT_TRUE(verifySpanStart(iterator20, StyledText::kSpanTypeSpan));
     ASSERT_TRUE(verifyText(iterator20, "this is an attr"));
@@ -745,7 +745,7 @@ TEST_F(StyledTextTest, NobrSimple)
 {
     createAndVerifyStyledText(u8"He screamed \"Run <NOBR>faster</nobr>the<noBR>tiger is</NObr>right<nobr/><nobr />behind<nobr>you!!!</nobr>\"",
                               u8"He screamed \"Run fasterthetiger isrightbehindyou!!!\"", 3);
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, u8"He screamed \"Run "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeNoBreak));
     ASSERT_TRUE(verifyText(iterator, "faster"));
@@ -766,7 +766,7 @@ TEST_F(StyledTextTest, NobrMerge)
     // Only some tags can be merged. For example "<b>te</b><b>xt</b>" can become "<b>text</b>"
     createAndVerifyStyledText(u8"<nobr>This should not</nobr><nobr> merge</nobr> into one big tag",
                               u8"This should not merge into one big tag", 2);
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeNoBreak));
     ASSERT_TRUE(verifyText(iterator, "This should not"));
     ASSERT_TRUE(verifySpanEnd(iterator, StyledText::kSpanTypeNoBreak));
@@ -781,7 +781,7 @@ TEST_F(StyledTextTest, NobrNested)
     createAndVerifyStyledText(u8"He screamed \"Run <NOBR><nobr><nobr>faster</nobr></nobr></nobr>the<noBR>tig<nobr>er </nobr>is</NObr>"
                               "right<nobr/><nobr />behind<nobr><nobr>you!</nobr>!!</nobr>\"",
                               u8"He screamed \"Run fasterthetiger isrightbehindyou!!!\"", 7);
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, "He screamed \"Run "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeNoBreak));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeNoBreak));
@@ -813,7 +813,7 @@ TEST_F(StyledTextTest, NobrComplex)
     createAndVerifyStyledText(u8"He screamed \"Run <NOBR><nobr><br>fas<br>ter</nobr></nobr><b>the<noBR>tig<nobr>er </nobr>i</b>s</NObr>"
                               "right<nobr/><nobr />behind<nobr><nobr>you!</nobr>!!</nobr>\"",
                               u8"He screamed \"Run fasterthetiger isrightbehindyou!!!\"", 10);
-    auto iterator = StyledText::Iterator(styledText.getStyledText());
+    auto iterator = StyledText::Iterator(styledText.get<StyledText>());
     ASSERT_TRUE(verifyText(iterator, u8"He screamed \"Run "));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeNoBreak));
     ASSERT_TRUE(verifySpanStart(iterator, StyledText::kSpanTypeNoBreak));
@@ -853,7 +853,7 @@ TEST_F(StyledTextTest, StyledTextIteratorBasic)
     createAndVerifyStyledText(u8"He screamed \"<span color='red'>Run</span><u>faster<i>thetigerisbehind</i></u><i>you</i>!!!\"",
             u8"He screamed \"Runfasterthetigerisbehindyou!!!\"", 4);
 
-    StyledText st = styledText.getStyledText();
+    StyledText st = styledText.get<StyledText>();
     StyledText::Iterator it(st);
 
     EXPECT_EQ(it.next(), StyledText::Iterator::kString);
@@ -863,7 +863,7 @@ TEST_F(StyledTextTest, StyledTextIteratorBasic)
     EXPECT_EQ(it.getSpanType(), StyledText::kSpanTypeSpan);
     auto attribute = it.getSpanAttributes().at(0);
     EXPECT_EQ(attribute.name, 0);
-    EXPECT_TRUE(attribute.value.isColor());
+    EXPECT_TRUE(attribute.value.is<Color>());
     EXPECT_EQ(attribute.value.asString(), "#ff0000ff");
 
     EXPECT_EQ(it.next(), StyledText::Iterator::kString);
@@ -909,7 +909,7 @@ TEST_F(StyledTextTest, StyledTextIteratorEmpty)
 {
     createAndVerifyStyledText("", "", 0);
 
-    StyledText st = styledText.getStyledText();
+    StyledText st = styledText.get<StyledText>();
     StyledText::Iterator it(st);
 
     EXPECT_EQ(it.next(), StyledText::Iterator::kEnd);
@@ -1013,19 +1013,19 @@ TEST_F(StyledTextTest, StyledTextTruthy)
     createAndVerifyStyledText(u8"He screamed \"Runfasterthetigerisbehindyou!!!\"",
                               u8"He screamed \"Runfasterthetigerisbehindyou!!!\"", 0);
 
-    StyledText st = styledText.getStyledText();
+    StyledText st = styledText.get<StyledText>();
     EXPECT_TRUE(st.truthy());
 
     createAndVerifyStyledText(u8"He screamed <b>\"Runfasterthetigerisbehindyou!!!\"</b>",
                               u8"He screamed \"Runfasterthetigerisbehindyou!!!\"", 1);
 
-    st = styledText.getStyledText();
+    st = styledText.get<StyledText>();
     EXPECT_TRUE(st.truthy());
 
     createAndVerifyStyledText(u8"",
                               u8"", 0);
 
-    st = styledText.getStyledText();
+    st = styledText.get<StyledText>();
     EXPECT_FALSE(st.truthy());
 }
 
@@ -1034,7 +1034,7 @@ TEST_F(StyledTextTest, StyledTextIteratorNoTags)
     createAndVerifyStyledText(u8"He screamed \"Runfasterthetigerisbehindyou!!!\"",
                               u8"He screamed \"Runfasterthetigerisbehindyou!!!\"", 0);
 
-    StyledText st = styledText.getStyledText();
+    StyledText st = styledText.get<StyledText>();
     StyledText::Iterator it(st);
 
     EXPECT_EQ(it.next(), StyledText::Iterator::kString);
@@ -1071,7 +1071,7 @@ TEST_F(StyledTextTest, SpanMultipleBreaklines)
 {
     createAndVerifyStyledText(u8"Example 1:<b>hello</b> <b>world</b><br>Example 2: <b> hola</b> <b>mundo</b><br>Example 3:<b> hallo </b> <b>welt</b><br>Example 4: <b> ciao   </b> <b>    mondo</b>",
                               u8"Example 1:hello worldExample 2: hola mundoExample 3: hallo weltExample 4: ciao mondo", 11 /* 2 per line + 3 break lines 2 * 4 + 3 = 11*/);
-    auto st = styledText.getStyledText();
+    auto st = styledText.get<StyledText>();
     StyledText::Iterator it(st);
 
     EXPECT_EQ(it.next(), StyledText::Iterator::kString);
@@ -1188,7 +1188,7 @@ TEST_F(StyledTextTest, SpanTransitionUnicodes)
     createAndVerifyStyledText(u8"\u524D\u9031\n\u672B<i>\u6BD434\u5186</i>80\u92AD<br>",
                               u8"\u524D\u9031 \u672B\u6BD434\u518680\u92AD", 2);
 
-    StyledText st = styledText.getStyledText();
+    StyledText st = styledText.get<StyledText>();
     StyledText::Iterator it(st);
 
     EXPECT_EQ(it.next(), StyledText::Iterator::kString);

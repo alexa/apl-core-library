@@ -29,7 +29,7 @@ public:
     Object getProp(const std::string& name, PropertyKey key) {
         auto component = root->findComponentById(name);
         auto keyName = sComponentPropertyBimap.at(key);
-        return std::dynamic_pointer_cast<CoreComponent>(component)->getProperty(keyName);
+        return CoreComponent::cast(component)->getProperty(keyName);
     }
 
     // Set the scroll position of a named component
@@ -854,7 +854,7 @@ TEST_F(BuilderPreserveScrollTest, HorizontalWithPadding)
     metrics.size(300,300);
     loadDocument(HORIZONTAL_WITH_PADDING);
     ASSERT_TRUE(component);
-    auto c = std::dynamic_pointer_cast<CoreComponent>(component);
+    auto c = CoreComponent::cast(component);
 
     // Access the "getProperty" method to check the positions we are reading
     // The width of the sequence inner bounds is 150, so 7.5 Text blocks should fit, putting
@@ -917,7 +917,7 @@ TEST_F(BuilderPreserveScrollTest, VerticalWithPadding)
     metrics.size(300,300);
     loadDocument(VERTICAL_WITH_PADDING);
     ASSERT_TRUE(component);
-    auto c = std::dynamic_pointer_cast<CoreComponent>(component);
+    auto c = CoreComponent::cast(component);
 
     // Access the "getProperty" method to check the positions we are reading
     // The width of the sequence inner bounds is 150, so 7.5 Text blocks should fit, putting
@@ -988,7 +988,7 @@ TEST_F(BuilderPreserveScrollTest, VerticalWithPaddingAndSpacing)
     metrics.size(300,300);
     loadDocument(VERTICAL_WITH_PADDING_AND_SPACING);
     ASSERT_TRUE(component);
-    auto c = std::dynamic_pointer_cast<CoreComponent>(component);
+    auto c = CoreComponent::cast(component);
 
     // Access the "getProperty" method to check the positions we are reading
     ASSERT_TRUE(IsEqual(ObjectArray{0, 0}, c->getProperty("firstIndex")));
@@ -1095,7 +1095,7 @@ TEST_F(BuilderPreserveScrollTest, SwitchSequenceType)
 
     component->update(kUpdateScrollPosition, 25);   // Move 25dp over
     ASSERT_EQ(25, component->getCalculated(kPropertyScrollPosition).asNumber());
-    auto c = std::dynamic_pointer_cast<CoreComponent>(component);
+    auto c = CoreComponent::cast(component);
     ASSERT_TRUE(IsEqual(ObjectArray{"TEXT-C", +0.25}, c->getProperty("centerId")));
 
     // When we switch to vertical two-column format, will try to put TEXT-B in the center, which is not possible
@@ -1105,7 +1105,7 @@ TEST_F(BuilderPreserveScrollTest, SwitchSequenceType)
 
     // Move 25 dp.  TEXT-E should now be the "centered" component
     component->update(kUpdateScrollPosition, 25);
-    c = std::dynamic_pointer_cast<CoreComponent>(component);
+    c = CoreComponent::cast(component);
     ASSERT_TRUE(IsEqual(ObjectArray{"TEXT-E", +0.25}, c->getProperty("centerId")));
 
     // Switch back to horizontal

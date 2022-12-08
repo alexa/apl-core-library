@@ -63,7 +63,7 @@ SequenceComponent::layoutPropDefSet() const {
 size_t
 SequenceComponent::estimateChildrenToCover(float distance, size_t baseChild)
 {
-    auto size = mChildren.at(baseChild)->getCalculated(kPropertyBounds).getRect();
+    const auto& size = mChildren.at(baseChild)->getCalculated(kPropertyBounds).get<Rect>();
     auto vertical = isVertical();
     return std::ceil(std::abs(distance) / (vertical ? size.getHeight() : size.getWidth()));
 }
