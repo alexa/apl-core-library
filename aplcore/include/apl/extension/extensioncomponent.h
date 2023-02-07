@@ -16,9 +16,9 @@
 #ifndef _APL_EXTENSION_COMPONENT_H
 #define _APL_EXTENSION_COMPONENT_H
 
+#include "apl/component/componentpropdef.h"
 #include "apl/component/touchablecomponent.h"
 #include "apl/content/extensioncomponentdefinition.h"
-#include "apl/component/componentpropdef.h"
 
 namespace apl {
 

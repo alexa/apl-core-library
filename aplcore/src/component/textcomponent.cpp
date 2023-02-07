@@ -14,9 +14,13 @@
  */
 
 #include "apl/component/textcomponent.h"
+
 #include "apl/component/componentpropdef.h"
 #include "apl/component/textmeasurement.h"
 #include "apl/content/rootconfig.h"
+#include "apl/primitives/styledtext.h"
+#include "apl/utils/session.h"
+
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
 #include "apl/scenegraph/scenegraph.h"
@@ -26,7 +30,6 @@
 #include "apl/scenegraph/textproperties.h"
 #include "apl/scenegraph/utilities.h"
 #endif // SCENEGRAPH
-#include "apl/utils/session.h"
 
 namespace apl {
 

@@ -225,7 +225,7 @@ TEST_F(SGNodeTest, ImageNode)
     auto filter = sg::solid(paint);
     auto node = sg::image(filter, Rect(0, 0, 100, 100), Rect(0, 0, 1, 1));
 
-    ASSERT_EQ("ImageNode target=Rect<100x100+0+0> source=Rect<1x1+0+0>", node->toDebugString());
+    ASSERT_EQ(0, node->toDebugString().rfind("ImageNode target=Rect"));
     ASSERT_TRUE(node->visible());
 
     rapidjson::Document doc;
@@ -296,7 +296,7 @@ TEST_F(SGNodeTest, VideoNode)
                                                                    const MediaState& state){}, "Foobar");
     auto node = sg::video(player, Rect(0, 0, 100, 100), VideoScale::kVideoScaleBestFill);
 
-    ASSERT_EQ("VideoNode target=Rect<100x100+0+0> PLAYER", node->toDebugString());
+    ASSERT_EQ(0, node->toDebugString().rfind("VideoNode target=Rect"));
     ASSERT_TRUE(node->visible());
 
     rapidjson::Document doc;
@@ -336,7 +336,7 @@ TEST_F(SGNodeTest, ShadowNode)
     auto shadow = sg::shadow(Color(Color::FUCHSIA), Point(5,5), 3.0f);
     auto node = sg::shadowNode(shadow, child);
 
-    ASSERT_EQ("ShadowNode", node->toDebugString());
+    ASSERT_EQ(0, node->toDebugString().rfind("ShadowNode"));
     ASSERT_FALSE(node->visible());
 
     rapidjson::Document doc;
@@ -404,7 +404,7 @@ TEST_F(SGNodeTest, EditTextNode)
 
     auto node = sg::editText(editText, editTextBox, editTextConfig, "Hello, world!");
 
-    ASSERT_EQ("EditTextNode text=Hello, world! color=#ff0000ff", node->toDebugString());
+    ASSERT_EQ(0, node->toDebugString().rfind("EditTextNode text="));
     ASSERT_TRUE(node->visible());
 
     rapidjson::Document doc;

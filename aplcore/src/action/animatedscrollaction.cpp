@@ -15,8 +15,6 @@
 
 #include "apl/action/animatedscrollaction.h"
 
-#include "apl/animation/animatedproperty.h"
-#include "apl/command/corecommand.h"
 #include "apl/component/scrollablecomponent.h"
 #include "apl/engine/rootcontext.h"
 #include "apl/time/sequencer.h"

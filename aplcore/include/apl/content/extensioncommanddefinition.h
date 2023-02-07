@@ -18,8 +18,6 @@
 
 #include "apl/content/extensionproperty.h"
 
-#include "apl/utils/log.h"
-
 namespace apl {
 
 /**
@@ -121,13 +119,7 @@ public:
      * @param prop Extension property definition.
      * @return This object for chaining.
      */
-    ExtensionCommandDefinition& property(const std::string& name, ExtensionProperty&& prop) {
-        if (name == "when" || name == "type")
-            LOG(LogLevel::kWarn) << "Unable to register property '" << name << "' in custom command " << mName;
-        else
-            mPropertyMap.emplace(name, std::move(prop));
-        return *this;
-    }
+    ExtensionCommandDefinition& property(const std::string& name, ExtensionProperty&& prop);
 
     /**
      * Add a named array-ified property. The property will be converted into an array of values. The names "when"
@@ -136,13 +128,7 @@ public:
      * @param required If true and the property is not provided, the command will not execute.
      * @return This object for chaining.
      */
-    ExtensionCommandDefinition& arrayProperty(std::string property, bool required) {
-        if (property == "when" || property == "type")
-            LOG(LogLevel::kWarn) << "Unable to register array-ified property '" << property << "' in custom command " << mName;
-        else
-            mPropertyMap.emplace(property, ExtensionProperty{kBindingTypeArray, Object::EMPTY_ARRAY(), required});
-        return *this;
-    }
+    ExtensionCommandDefinition& arrayProperty(std::string property, bool required);
 
     /**
      * @return The URI of the extension

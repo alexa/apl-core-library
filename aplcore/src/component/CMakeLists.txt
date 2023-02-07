@@ -15,9 +15,9 @@ target_sources_local(apl
     PRIVATE
     actionablecomponent.cpp
     component.cpp
-    componenteventwrapper.cpp
     componenteventsourcewrapper.cpp
     componenteventtargetwrapper.cpp
+    componenteventwrapper.cpp
     componentproperties.cpp
     containercomponent.cpp
     corecomponent.cpp
@@ -30,6 +30,7 @@ target_sources_local(apl
     pagercomponent.cpp
     scrollablecomponent.cpp
     scrollviewcomponent.cpp
+    selector.cpp
     sequencecomponent.cpp
     textcomponent.cpp
     textmeasurement.cpp

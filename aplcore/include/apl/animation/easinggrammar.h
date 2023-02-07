@@ -18,7 +18,6 @@
 
 #include "apl/animation/coreeasing.h"
 #include "apl/datagrammar/grammarpolyfill.h"
-#include "apl/utils/log.h"
 #include "apl/utils/stringfunctions.h"
 
 namespace apl {

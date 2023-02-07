@@ -39,7 +39,7 @@ CheckAdvance( FakePlayer::FakeEvent event, int advanceTime, std::pair<FakePlayer
 
 TEST_F(FakePlayerTest, Basic)
 {
-    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com", HeaderArray(),
+    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com",
                                                     0,  // offset
                                                     0,  // duration
                                                     0}, // repeat count
@@ -85,7 +85,7 @@ TEST_F(FakePlayerTest, Basic)
 
 TEST_F(FakePlayerTest, BasicWithPause)
 {
-    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com", HeaderArray(),
+    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com",
                                                     0,  // offset
                                                     0,  // duration
                                                     0}, // repeat count
@@ -119,7 +119,7 @@ TEST_F(FakePlayerTest, BasicWithPause)
 
 TEST_F(FakePlayerTest, Complex)
 {
-    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com", HeaderArray(),
+    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com",
                                                     150, // offset
                                                     0,   // duration
                                                     2},  // repeat count
@@ -166,7 +166,7 @@ TEST_F(FakePlayerTest, Complex)
 
 TEST_F(FakePlayerTest, Fail)
 {
-    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com", HeaderArray(),
+    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com",
                                                     500, // offset
                                                     500, // duration
                                                     -1}, // repeat count
@@ -202,7 +202,7 @@ TEST_F(FakePlayerTest, Fail)
 
 TEST_F(FakePlayerTest, FailImmediately)
 {
-    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com", HeaderArray(),
+    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com",
                                                     500, // offset
                                                     500, // duration
                                                     -1}, // repeat count
@@ -227,7 +227,7 @@ TEST_F(FakePlayerTest, FailImmediately)
 
 TEST_F(FakePlayerTest, ZeroDuration)
 {
-    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com", HeaderArray(),
+    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com",
                                                     500, // offset
                                                     500, // duration
                                                     -1}, // repeat count
@@ -253,7 +253,7 @@ TEST_F(FakePlayerTest, ZeroDuration)
 
 TEST_F(FakePlayerTest, BothDurationsClippedToActual)
 {
-    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com", HeaderArray(),
+    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com",
                                                     500, // offset
                                                     500, // duration
                                                     0},  // repeat count
@@ -275,7 +275,7 @@ TEST_F(FakePlayerTest, BothDurationsClippedToActual)
 
 TEST_F(FakePlayerTest, BothDurationsClippedToRequested)
 {
-    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com", HeaderArray(),
+    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com", 
                                                     500, // offset
                                                     500, // duration
                                                     0},  // repeat count
@@ -297,7 +297,7 @@ TEST_F(FakePlayerTest, BothDurationsClippedToRequested)
 
 TEST_F(FakePlayerTest, BothDurationsInfinite)
 {
-    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com", HeaderArray(),
+    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com",
                                                     500, // offset
                                                     0,   // duration
                                                     0},  // repeat count
@@ -327,7 +327,7 @@ TEST_F(FakePlayerTest, BothDurationsInfinite)
 
 TEST_F(FakePlayerTest, ClippedTrack)
 {
-    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com", HeaderArray(),
+    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com",
                                                     500, // offset
                                                     0,   // duration
                                                     0},  // repeat count
@@ -349,7 +349,7 @@ TEST_F(FakePlayerTest, ClippedTrack)
 
 TEST_F(FakePlayerTest, SeekTests)
 {
-    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com", HeaderArray(),
+    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com",
                                                     0,  // offset
                                                     0,  // duration
                                                     2}, // repeat count
@@ -393,7 +393,7 @@ TEST_F(FakePlayerTest, SeekTests)
 
 TEST_F(FakePlayerTest, InfiniteZero)
 {
-    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com", HeaderArray(),
+    auto fakePlayer = FakePlayer::create(MediaTrack{"https://foo.com",
                                                     2000, // offset
                                                     0,    // duration
                                                     -1},  // repeat count

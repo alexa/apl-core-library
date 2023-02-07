@@ -13,18 +13,21 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/utils/url.h"
-#include "apl/component/componentpropdef.h"
 #include "apl/component/vectorgraphiccomponent.h"
+
+#include "apl/component/componentpropdef.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/graphic/graphic.h"
 #include "apl/media/mediamanager.h"
 #include "apl/media/mediaobject.h"
+#include "apl/time/sequencer.h"
+#include "apl/utils/url.h"
 #ifdef SCENEGRAPH
+#include "apl/content/rootconfig.h"
 #include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/graphicfragment.h"
 #include "apl/scenegraph/scenegraph.h"
 #endif // SCENEGRAPH
-#include "apl/time/sequencer.h"
 
 namespace apl {
 
@@ -454,7 +457,7 @@ VectorGraphicComponent::postProcessLayoutChanges() {
  *
  * Layer (CoreComponent)
  *   Layer (MediaLayer)   [bounds match the vector graphic]
- *     Transform (within MediaLayer)
+ *     Transform (within MediaLayer - scales the coordinate system from graphic to screen)
  *       Graphic
  *
  * If the graphic is not valid, we still construct the mediaLayer and transform for later use.
@@ -467,6 +470,7 @@ VectorGraphicComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGra
 
     // Build the basic data structures
     auto mediaLayer = sg::layer(mUniqueId + "-mediaLayer", Rect{0,0,1,1}, 1.0f, Transform2D());
+    mediaLayer->setCharacteristic(sg::Layer::kCharacteristicRenderOnly);
     auto transform = sg::transform();
     mediaLayer->setContent(transform);
     layer->appendChild(mediaLayer);
@@ -492,18 +496,18 @@ VectorGraphicComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGra
     auto validGraphic = fixMediaLayer(sceneGraph, mediaLayer);
 
     // If the media layer size changed, then we also need to redraw its content
-    if (mediaLayer->isFlagSet(sg::Layer::kFlagSizeChanged))
+    if (mediaLayer->isFlagSet(sg::Layer::kFlagSizeChanged) && mediaLayer->content())
         mediaLayer->setFlag(sg::Layer::kFlagRedrawContent);
 
     // If we changed the graphic, we definitely need to redraw the content
     if (mGraphicReplaced) {
-        mediaLayer->setFlag(sg::Layer::kFlagRedrawContent);
+        if (mediaLayer->content())
+           mediaLayer->setFlag(sg::Layer::kFlagRedrawContent);
         mGraphicReplaced = false;
     }
     else if (graphicDirty && validGraphic) {  // If it didn't change but was dirty, let the update routine decide
         auto graphic = getCalculated(kPropertyGraphic).get<Graphic>();
-        if (graphic->updateSceneGraph(sceneGraph))
-            mediaLayer->setFlag(sg::Layer::kFlagRedrawContent);
+        graphic->updateSceneGraph(sceneGraph);
     }
 
     // Copy over media layer flags, if set
@@ -522,26 +526,68 @@ bool
 VectorGraphicComponent::fixMediaLayer(sg::SceneGraphUpdates& sceneGraph,
                                       const sg::LayerPtr& mediaLayer)
 {
-    auto* transform = sg::TransformNode::cast(mediaLayer->content());
-    transform->removeAllChildren();
-
     auto object = getCalculated(kPropertyGraphic);
-    if (!object.is<Graphic>())
+    if (!object.is<Graphic>()) {
+        mediaLayer->setContent(nullptr);
+        mediaLayer->removeAllChildren();
         return false;
+    }
 
     auto graphic = object.get<Graphic>();
-    if (!graphic || !graphic->isValid())
+    if (!graphic || !graphic->isValid()) {
+        mediaLayer->setContent(nullptr);
+        mediaLayer->removeAllChildren();
         return false;
+    }
 
     const auto& mediaBounds = getCalculated(kPropertyMediaBounds).get<Rect>();
     mediaLayer->setBounds(mediaBounds);
-    sg::TransformNode::cast(transform)->setTransform(
-        Transform2D::scale(mediaBounds.getWidth() / graphic->getViewportWidth(),
-                           mediaBounds.getHeight() / graphic->getViewportHeight()));
 
-    transform->setChild(graphic->getSceneGraph(sceneGraph));
+    auto transform = Transform2D::scale(mediaBounds.getWidth() / graphic->getViewportWidth(),
+                                        mediaBounds.getHeight() / graphic->getViewportHeight());
+    auto useLayers = getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureGraphicLayers);
+    auto fragment = graphic->getSceneGraph(useLayers, sceneGraph, mediaLayer);
+    assert(fragment);
 
-    return true;
+    if (fragment->isLayer()) {
+        // The graphic is a layer
+        auto layer = fragment->layer();
+
+        transform = Transform2D::translate(-layer->getContentOffset()) * transform *
+                    Transform2D::translate(layer->getContentOffset());
+        layer->setTransform(transform);
+        mediaLayer->setContent(nullptr);
+
+        // Fix up the child layers. There should be only one.
+        if (mediaLayer->children().size() != 1 || mediaLayer->children().at(0) != layer) {
+            mediaLayer->removeAllChildren();
+            mediaLayer->appendChild(layer);
+        }
+        return true;   // We have a valid graphic
+    }
+    else if (fragment->isNode()) {
+        // Check to see if we already have a transform node in place
+        auto node = fragment->node();  // The child node we're expecting
+
+        // If we already have content, then this should be a transform node
+        if (mediaLayer->content()) {
+            assert(sg::TransformNode::is_type(mediaLayer->content()));
+            auto t = sg::TransformNode::cast(mediaLayer->content());
+            auto result = t->setTransform(transform);
+            result |= t->setChild(node);
+            if (result)
+                mediaLayer->setFlag(sg::Layer::kFlagRedrawContent);
+        }
+        else {
+            mediaLayer->setContent(sg::transform(transform, node));
+        }
+        return true;
+    }
+    else {  // Clear any existing content
+        mediaLayer->setContent(nullptr);
+        mediaLayer->removeAllChildren();
+        return false;
+    }
 }
 #endif // SCENEGRAPH
 

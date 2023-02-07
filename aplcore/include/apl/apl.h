@@ -24,14 +24,13 @@
 
 #include "rapidjson/document.h"
 
-#include "apl/apl_config.h"
+#include "apl/buildTimeConstants.h"
 #include "apl/common.h"
 
 #include "apl/action/action.h"
 #include "apl/audio/audioplayer.h"
 #include "apl/audio/audioplayerfactory.h"
 #include "apl/audio/speechmark.h"
-#include "apl/buildTimeConstants.h"
 #include "apl/component/component.h"
 #include "apl/component/textmeasurement.h"
 #include "apl/content/configurationchange.h"
@@ -69,6 +68,10 @@
 #include "apl/primitives/styledtext.h"
 #include "apl/primitives/transform2d.h"
 #include "apl/scaling/metricstransform.h"
+#include "apl/touch/pointerevent.h"
+#include "apl/utils/localemethods.h"
+#include "apl/utils/log.h"
+#include "apl/utils/session.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/accessibility.h"
 #include "apl/scenegraph/edittextconfig.h"
@@ -87,10 +90,6 @@
 #include "apl/scenegraph/textmeasurement.h"
 #include "apl/scenegraph/textproperties.h"
 #endif // SCENEGRAPH
-#include "apl/touch/pointerevent.h"
-#include "apl/utils/localemethods.h"
-#include "apl/utils/log.h"
-#include "apl/utils/session.h"
 
 #ifdef ALEXAEXTENSIONS
 #include "apl/extension/extensionmediator.h"

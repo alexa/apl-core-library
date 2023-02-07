@@ -15,8 +15,7 @@
  * Construct a virtual DOM hierarchy
  */
 
-
-#include <cmath>
+#include "apl/engine/builder.h"
 
 #include "apl/component/containercomponent.h"
 #include "apl/component/edittextcomponent.h"
@@ -33,18 +32,18 @@
 #include "apl/content/rootconfig.h"
 #include "apl/engine/arrayify.h"
 #include "apl/engine/binding.h"
-#include "apl/engine/builder.h"
 #include "apl/engine/context.h"
 #include "apl/engine/contextdependant.h"
 #include "apl/engine/evaluate.h"
 #include "apl/engine/parameterarray.h"
-#include "apl/livedata/livearray.h"
-#include "apl/livedata/livearrayobject.h"
 #include "apl/engine/properties.h"
 #include "apl/extension/extensioncomponent.h"
 #include "apl/extension/extensionmanager.h"
 #include "apl/livedata/layoutrebuilder.h"
+#include "apl/livedata/livearray.h"
+#include "apl/livedata/livearrayobject.h"
 #include "apl/primitives/object.h"
+#include "apl/utils/identifier.h"
 #include "apl/utils/log.h"
 #include "apl/utils/path.h"
 #include "apl/utils/session.h"
@@ -54,7 +53,7 @@ namespace apl {
 
 const bool DEBUG_BUILDER = false;
 
-static std::map<std::string, MakeComponentFunc> sComponentMap = {
+static const std::map<std::string, MakeComponentFunc> sComponentMap = {
     {"Container",     ContainerComponent::create},
     {"Text",          TextComponent::create},
     {"Image",         ImageComponent::create},
@@ -153,6 +152,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
                 for (int i = 0; i < length; i++) {
                     const auto& element = items.at(i);
                     auto childContext = Context::createFromParent(context);
+                    childContext->putConstant("__source", "index");
                     childContext->putConstant("index", index);
                     childContext->putConstant("length", length);
                     if (numbered)
@@ -250,6 +250,8 @@ Builder::expandSingleComponent(const ContextPtr& context,
 
         // Create a new context and fill out the binding
         ContextPtr expanded = Context::createFromParent(context);
+        expanded->putConstant("__source", "component");
+        expanded->putConstant("__name", type);
         attachBindings(expanded, item);
 
         // Construct the component
@@ -291,7 +293,7 @@ Builder::expandSingleComponent(const ContextPtr& context,
     auto resource = context->getLayout(type);
     if (!resource.empty()) {
         properties.emplace(item);
-        return expandLayout(context, properties, resource.json(), parent, resource.path(), fullBuild, useDirtyFlag);
+        return expandLayout(type, context, properties, resource.json(), parent, resource.path(), fullBuild, useDirtyFlag);
     }
 
     CONSOLE(context) << "Unable to find layout or component '" << type << "'";
@@ -310,8 +312,15 @@ Builder::attachBindings(const apl::ContextPtr& context, const apl::Object& item)
     auto bindings = arrayifyProperty(*context, item, "bind");
     for (const auto& binding : bindings) {
         auto name = propertyAsString(*context, binding, "name");
-        if (name.empty() || !binding.has("value"))
+        if (!isValidIdentifier(name)) {
+            CONSOLE(context) << "Invalid binding name '" << name << "'";
             continue;
+        }
+
+        if (!binding.has("value")) {
+            CONSOLE(context) << "Binding '" << name << "' did not specify a value";
+            continue;
+        }
 
         if (context->hasLocal(name)) {
             CONSOLE(context) << "Attempted to bind to pre-existing property '" << name << "'";
@@ -371,6 +380,7 @@ Builder::expandSingleComponentFromArray(const ContextPtr& context,
  * Expand a layout defined either as the "mainTemplate" or a named layout
  * from the "layouts" section of a package.
  *
+ * @param name The name of the layout
  * @param context Current data-binding context.
  * @param properties The user-specified properties for this layout.
  * @param layout The JSON definition of the layout object.
@@ -379,7 +389,8 @@ Builder::expandSingleComponentFromArray(const ContextPtr& context,
  * @param useDirtyFlag true to notify runtime about changes with dirty properties
  */
 CoreComponentPtr
-Builder::expandLayout(const ContextPtr& context,
+Builder::expandLayout(const std::string& name,
+                      const ContextPtr& context,
                       Properties& properties,
                       const rapidjson::Value& layout,
                       const CoreComponentPtr& parent,
@@ -397,6 +408,8 @@ Builder::expandLayout(const ContextPtr& context,
 
     // Build a new context for this layout.
     ContextPtr cptr = Context::createFromParent(context);
+    cptr->putConstant("__source", "layout");
+    cptr->putConstant("__name", name);
 
     // Add each parameter to the context.  It's either going to come from
     // a property or its default value.  This will remove the matching property from
@@ -494,7 +507,7 @@ Builder::inflate(const ContextPtr& context,
                  const rapidjson::Value& mainDocument)
 {
     APL_TRACE_BLOCK("Builder:inflate");
-    return expandLayout(context, mainProperties, mainDocument, nullptr,
+    return expandLayout("mainTemplate", context, mainProperties, mainDocument, nullptr,
         Path(context->getRootConfig().getTrackProvenance() ? std::string(Path::MAIN) + "/mainTemplate" : ""), true, false);
 }
 

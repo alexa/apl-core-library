@@ -14,6 +14,7 @@
  */
 
 #include "apl/component/component.h"
+
 #include "apl/engine/context.h"
 #include "apl/utils/log.h"
 

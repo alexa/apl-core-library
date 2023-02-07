@@ -14,10 +14,15 @@
  */
 
 #include "apl/graphic/graphicelementcontainer.h"
+
 #include "apl/graphic/graphicpropdef.h"
+#include "apl/primitives/dimension.h"
+
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
 #include "apl/scenegraph/node.h"
+#include "apl/scenegraph/graphicfragment.h"
+#include "apl/scenegraph/scenegraphupdates.h"
 #endif // SCENEGRAPH
 
 #include "apl/utils/session.h"
@@ -109,24 +114,26 @@ GraphicElementContainer::initialize(const GraphicPtr& graphic, const Object& jso
 }
 
 #ifdef SCENEGRAPH
-sg::NodePtr
-GraphicElementContainer::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
-{
-    sg::NodePtr node = nullptr;
-    for (auto it = mChildren.rbegin() ; it != mChildren.rend() ; it++) {
-        auto child = (*it)->getSceneGraph(sceneGraph);
-        if (child)
-            node = child->setNext(node);
+sg::GraphicFragmentPtr
+GraphicElementContainer::buildSceneGraph(bool allowLayers,
+                                         sg::SceneGraphUpdates& sceneGraph) {
+    auto result = ensureSceneGraphChildren(allowLayers, sceneGraph);
+
+    // Enforce a layer if possible.  The transform on this layer will be set
+    // by the VectorGraphic component to position the container.  Note: If the
+    // ensureSceneGraphChildren method returned a layer, the transform on that layer
+    // will be used for positioning
+    if (allowLayers && !result->empty())
+        result->ensureLayer(sceneGraph);
+
+    if (result->isLayer()) {
+        mContainingLayer = result->layer();
+        result->fixBoundingBox();
     }
 
-    return node;
+    return result;
 }
 
-void
-GraphicElementContainer::updateSceneGraphInternal(sg::ModifiedNodeList& modList, const sg::NodePtr& node)
-{
-    // Graphic property nodes are fixed
-}
 #endif // SCENEGRAPH
 
 } // namespace apl

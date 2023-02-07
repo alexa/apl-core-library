@@ -14,19 +14,22 @@
  */
 
 #include "apl/action/speakitemaction.h"
+
 #include "apl/action/scrolltoaction.h"
 #include "apl/audio/audioplayerfactory.h"
 #include "apl/command/commandproperties.h"
 #include "apl/command/corecommand.h"
 #include "apl/component/textcomponent.h"
 #include "apl/engine/rootcontext.h"
+#include "apl/primitives/styledtext.h"
+#include "apl/time/sequencer.h"
+#include "apl/utils/make_unique.h"
+#include "apl/utils/principal_ptr.h"
+
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/textlayout.h"
 #include "apl/scenegraph/textmeasurement.h"
 #endif // SCENEGRAPH
-#include "apl/time/sequencer.h"
-#include "apl/utils/make_unique.h"
-#include "apl/utils/principal_ptr.h"
 
 static const bool DEBUG_SPEAK_ITEM = false;
 
@@ -142,7 +145,6 @@ public:
             if (mAudioPlayer) {
                 mAudioPlayer->setTrack(MediaTrack{
                     action.mSource, // URL
-                    {},             // Headers
                     0,              // Start
                     0,              // Duration (play the entire track)
                     0,              // Repeat count

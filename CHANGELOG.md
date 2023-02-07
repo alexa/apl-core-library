@@ -1,5 +1,17 @@
 # Changelog
 
+## [2023.1]
+
+### Added
+
+- Three Porter-Duff operations to the Blend filter
+- Selector syntax for choosing the target of a command
+- TextTrack property for closed captions
+
+### Changed
+
+- Bug fixes.
+
 ## [2022.2.1]
 
 ### Changed

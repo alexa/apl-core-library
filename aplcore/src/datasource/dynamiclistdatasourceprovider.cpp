@@ -14,7 +14,12 @@
  */
 
 #include "apl/datasource/dynamiclistdatasourceprovider.h"
+
+#include "rapidjson/error/en.h"
+
+#include "apl/content/rootconfig.h"
 #include "apl/datasource/datasource.h"
+#include "apl/engine/event.h"
 #include "apl/time/timemanager.h"
 
 using namespace apl;

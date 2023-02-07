@@ -18,7 +18,6 @@
 #include "apl/engine/evaluate.h"
 #include "apl/datagrammar/bytecodeassembler.h"
 #include "apl/engine/context.h"
-#include "apl/primitives/dimension.h"
 #include "apl/utils/log.h"
 #include "apl/utils/session.h"
 

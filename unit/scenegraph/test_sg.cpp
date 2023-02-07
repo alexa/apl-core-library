@@ -13,16 +13,14 @@
  * permissions and limitations under the License.
  */
 
-#include "gtest/gtest.h"
 #include "test_sg.h"
+#include "../test_comparisons.h"
 
 #include "apl/media/mediaobject.h"
 #include "apl/scenegraph/edittextconfig.h"
 #include "apl/scenegraph/edittext.h"
 #include "apl/scenegraph/textchunk.h"
 #include "apl/scenegraph/textproperties.h"
-
-
 
 /**
  * Template to convert an array of objects into a single string, where each object
@@ -743,14 +741,18 @@ IsLayer::operator()(sg::LayerPtr layer)
 {
     SGASSERT(CheckNotNull(layer, "Missing layer"), mMsg);
 
-    SGASSERT(CompareDebug(layer->getBounds(), mBounds, "Layer Bounds"), mMsg);
+    SGASSERT(IsEqual(layer->getBounds(), mBounds) << " Layer Bounds", mMsg);
     SGASSERT(CompareVisible(layer->getShadow(), mShadowTest, "Layer Shadow"), mMsg);
     SGASSERT(CompareOptional(layer->getOutline(), mOutlineTest, "Layer Outline"), mMsg);
     SGASSERT(CompareOptional(layer->getChildClip(), mChildClipTest, "Layer ChildClip"), mMsg);
-    SGASSERT(CompareBasic(layer->getOpacity(), mOpacity, "Layer Opacity"), mMsg);
-    SGASSERT(CompareDebug(layer->getTransform(), mTransform, "Layer Transform"), mMsg);
+    SGASSERT(IsEqual(layer->getOpacity(), mOpacity) <<  " Layer Opacity", mMsg);
+    SGASSERT(IsEqual(layer->getTransform(), mTransform) << " Layer Transform", mMsg);
     SGASSERT(CompareOptional(layer->getAccessibility(), mAccessibilityTest, "Layer Accessibility"), mMsg);
-    SGASSERT(CompareDebug(layer->getChildOffset(), mChildOffset, "Layer Child Offset"), mMsg);
+    if (!layer->children().empty())
+        SGASSERT(IsEqual(layer->getChildOffset(), mChildOffset) << " Layer Child Offset", mMsg);
+    if (layer->content())
+        SGASSERT(IsEqual(layer->getContentOffset(), mContentOffset) << " Layer Content Offset",
+                 mMsg);
     SGASSERT(CompareBasic(layer->getInteraction(), mInteraction, "Interaction"), mMsg);
     SGASSERT(CheckNode(layer->content(), mContentTest), std::string("Layer Content") + mMsg);
     SGASSERT(CompareDebug(layer->children(), mLayerTests, "Layer Children"), mMsg);
@@ -860,7 +862,6 @@ IsSolidFilter( PaintTest paintTest, const std::string& msg)
 ::testing::AssertionResult
 CheckSceneGraph(const sg::SceneGraphPtr& sg, const LayerTest& layerTest)
 {
-    sg->updates().mapCreated([](const sg::LayerPtr& layer) { layer->clearFlags(); });
     return layerTest(sg->getLayer());
 }
 
@@ -875,6 +876,15 @@ CheckSceneGraph(sg::SceneGraphUpdates& updates, const sg::NodePtr& node, const N
     return result;
 }
 
+::testing::AssertionResult
+CheckSceneGraph(sg::SceneGraphUpdates& updates, const sg::LayerPtr& layer, const LayerTest& layerTest)
+{
+    auto result = layerTest(layer);
+    if (!result)
+        return result;
+    updates.clear();
+    return result;
+}
 
 void
 DumpSceneGraph(const sg::PaintPtr& ptr, int inset)   // NOLINT(misc-no-recursion)
@@ -987,6 +997,10 @@ DumpSceneGraph(const sg::LayerPtr& ptr, int inset)     // NOLINT(misc-no-recursi
     if (!flags.empty())
         std::cout << p << "Dirty flags " << flags << std::endl;
 
+    auto fixed = ptr->debugCharacteristicString();
+    if (!fixed.empty())
+        std::cout << p << "Fixed flags " << fixed << std::endl;
+
     if (ptr->getOutline())
         std::cout << p << "Outline " << ptr->getOutline()->toDebugString() << std::endl;
 
@@ -1008,11 +1022,14 @@ DumpSceneGraph(const sg::LayerPtr& ptr, int inset)     // NOLINT(misc-no-recursi
     if (ptr->getInteraction())
         std::cout << p << "Interaction: " << ptr->debugInteractionString() << std::endl;
 
-    if (!ptr->getChildOffset().empty())
-        std::cout << p << "ChildTransform " << ptr->getChildOffset().toString() << std::endl;
-
     if (ptr->getShadow())
         std::cout << p << "Shadow " << ptr->getShadow()->toDebugString() << std::endl;
+
+    if (!ptr->getChildOffset().empty())
+        std::cout << p << "ChildOffset " << ptr->getChildOffset().toString() << std::endl;
+
+    if (!ptr->getContentOffset().empty())
+        std::cout << p << "ContentOffset " << ptr->getContentOffset().toString() << std::endl;
 
     if (ptr->content()) {
         std::cout << p << "Content" << std::endl;
@@ -1026,6 +1043,14 @@ DumpSceneGraph(const sg::LayerPtr& ptr, int inset)     // NOLINT(misc-no-recursi
     }
 }
 
+void
+DumpSceneGraph(const sg::GraphicFragmentPtr& fragment, int inset)
+{
+    if (fragment->layer())
+        DumpSceneGraph(fragment->layer(), inset);
+    else if (fragment->node())
+        DumpSceneGraph(fragment->node(), inset);
+}
 
 void
 DumpSceneGraph(const sg::FilterPtr& ptr, int inset)     // NOLINT(misc-no-recursion)

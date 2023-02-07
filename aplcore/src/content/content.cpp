@@ -13,19 +13,21 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/content/content.h"
+
 #include <algorithm>
 
 #include "apl/buildTimeConstants.h"
-#include "apl/engine/arrayify.h"
-#include "apl/engine/parameterarray.h"
-#include "apl/content/package.h"
-#include "apl/engine/propdef.h"
-#include "apl/content/settings.h"
+#include "apl/command/arraycommand.h"
 #include "apl/content/importrequest.h"
-#include "apl/content/content.h"
 #include "apl/content/jsondata.h"
 #include "apl/content/metrics.h"
-#include "apl/command/arraycommand.h"
+#include "apl/content/package.h"
+#include "apl/content/settings.h"
+#include "apl/engine/arrayify.h"
+#include "apl/engine/parameterarray.h"
+#include "apl/engine/propdef.h"
+#include "apl/utils/identifier.h"
 #include "apl/utils/log.h"
 #include "apl/utils/session.h"
 
@@ -450,12 +452,17 @@ Content::getEnvironment(const RootConfig& config) const
         }
     }
 
-    // If the document has defined a "environment" section, we parse that
+    // If the document has defined an "environment" section, we parse that
     auto envIter = json.FindMember(DOCUMENT_ENVIRONMENT);
     if (envIter != json.MemberEnd() && envIter->value.IsObject()) {
         auto context = Context::createTypeEvaluationContext(config);
-        for (const auto& m : mEnvironmentParameters)
-            context->putUserWriteable(m, mParameterValues.at(m).get());
+        for (const auto& m : mEnvironmentParameters) {
+            if (!isValidIdentifier(m))
+                CONSOLE(context) << "Unable to add environment parameter '" << m
+                                 << "' to context. Invalid identifier.";
+            else
+                context->putUserWriteable(m, mParameterValues.at(m).get());
+        }
 
         // Update the language, if it is defined
         language = propertyAsString(*context, envIter->value, DOCUMENT_LANGUAGE, language);

@@ -18,17 +18,15 @@
 #include <cmath>
 #include <algorithm>
 
+#include "apl/action/action.h"
+#include "apl/animation/coreeasing.h"
 #include "apl/component/pagercomponent.h"
 #include "apl/content/rootconfig.h"
+#include "apl/engine/builder.h"
+#include "apl/primitives/timefunctions.h"
 #include "apl/time/sequencer.h"
 #include "apl/time/timemanager.h"
-
-#include "apl/engine/builder.h"
-#include "apl/action/action.h"
-
-#include "apl/animation/coreeasing.h"
 #include "apl/touch/utils/velocitytracker.h"
-#include "apl/primitives/timefunctions.h"
 #include "apl/utils/session.h"
 
 namespace apl {

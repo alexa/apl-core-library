@@ -156,7 +156,9 @@ Rect::serialize(rapidjson::Document::AllocatorType& allocator) const {
 
 std::string
 Rect::toDebugString() const{
-    return "Rect<" + toString() + ">";
+    return "Rect<" + std::to_string(mWidth) + "x" + std::to_string(mHeight)
+           + (mX >= 0 ? "+" : "") + std::to_string(mX)
+           + (mY >= 0 ? "+" : "") + std::to_string(mY) + ">";
 }
 
 }  // namespace apl

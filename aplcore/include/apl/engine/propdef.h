@@ -18,18 +18,7 @@
 
 #include "apl/engine/arrayify.h"
 #include "apl/engine/properties.h"
-
-#include "apl/animation/easing.h"
-#include "apl/graphic/graphicfilter.h"
-#include "apl/graphic/graphicpattern.h"
-#include "apl/primitives/filter.h"
-#include "apl/primitives/gradient.h"
-#include "apl/primitives/mediasource.h"
-#include "apl/primitives/object.h"
-#include "apl/primitives/styledtext.h"
-#include "apl/primitives/transform.h"
-#include "apl/primitives/urlrequest.h"
-
+#include "apl/primitives/dimension.h"
 #include "apl/utils/bimap.h"
 
 namespace apl {
@@ -114,9 +103,33 @@ inline Object asNonAutoRelativeDimension(const Context& context, const Object& o
     return object.asNonAutoRelativeDimension(context);
 }
 
-inline Object asColor(const Context& context, const Object& object) {
-    return object.asColor(context);
-}
+extern Object asStyledText(const Context& context, const Object& object);
+
+extern Object asColor(const Context& context, const Object& object);
+
+extern Object asFilterArray(const Context& context, const Object& object);
+
+extern Object asGraphicFilterArray(const Context& context, const Object& object);
+
+extern Object asGradient(const Context& context, const Object& object);
+
+extern Object asFill(const Context& context, const Object& object);
+
+extern Object asVectorGraphicSource(const Context& context, const Object& object);
+
+extern Object asImageSourceArray(const Context& context, const Object& object);
+
+extern Object asMediaSourceArray(const Context& context, const Object& object);
+
+extern Object asFilteredText(const Context& context, const Object& object);
+
+extern Object asTransformOrArray(const Context& context, const Object& object);
+
+extern Object asEasing(const Context& context, const Object& object);
+
+extern Object asGraphicPattern(const Context& context, const Object& object);
+
+extern Object asAvgGradient(const Context& context, const Object& object);
 
 inline Object asOpacity(const Context&, const Object& object) {
     double value = object.asNumber();
@@ -125,29 +138,10 @@ inline Object asOpacity(const Context&, const Object& object) {
     return value;
 }
 
+extern Object asPaddingArray(const Context& context, const Object& object);
+
 inline Object asCommand(const Context& context, const Object& object) {
     return Object(arrayify(context, object));
-}
-
-
-inline Object asFilterArray(const Context& context, const Object& object) {
-    std::vector<Object> data;
-    for (auto& m : arrayify(context, object)) {
-        auto f = Filter::create(context, m);
-        if (f.is<Filter>())
-            data.push_back(std::move(f));
-    }
-    return Object(std::move(data));
-}
-
-inline Object asGraphicFilterArray(const Context& context, const Object& object) {
-    std::vector<Object> data;
-    for (auto& m : arrayify(context, object)) {
-        auto f = GraphicFilter::create(context, m);
-        if (f.is<GraphicFilter>())
-            data.push_back(std::move(f));
-    }
-    return Object(std::move(data));
 }
 
 inline Object asStringOrArray(const Context& context, const Object& object) {
@@ -174,49 +168,6 @@ inline Object asMapped(const Context& context, const Object& object,
     return defvalue;
 }
 
-inline Object asGradient(const Context& context, const Object& object) {
-    return Gradient::create(context, object);
-}
-
-inline Object asFill(const Context& context, const Object& object) {
-    auto gradient = asGradient(context, object);
-    return gradient.is<Gradient>() ? gradient : asColor(context, object);
-}
-
-inline Object asVectorGraphicSource(const Context& context, const Object& object) {
-    return object.isString() ? object : URLRequest::create(context, object);
-}
-
-inline Object asImageSourceArray(const Context& context, const Object& object) {
-    std::vector<Object> data;
-    for (auto& m : arrayify(context, object)) {
-        auto request = m.isString() ? m : URLRequest::create(context, m);
-        if (!request.isNull())
-            data.emplace_back(std::move(request));
-    }
-
-    if (data.empty())
-        return "";
-
-    // In case of URLs the spec enforces an array of elements.
-    // We don't want to break runtimes that are not using urls and depend
-    // on the old logic that evaluates the strings via arrayify
-    if (data.size() == 1 && data.front().isString())
-        return data.front();
-
-    return Object(std::move(data));
-}
-
-inline Object asMediaSourceArray(const Context& context, const Object& object) {
-    std::vector<Object> data;
-    for (auto& m : arrayify(context, object)) {
-        auto ms = MediaSource::create(context, m);
-        if (ms.is<MediaSource>())
-            data.push_back(std::move(ms));
-    }
-    return Object(std::move(data));
-}
-
 inline Object asDashArray(const Context& context, const Object& object) {
     std::vector<Object> data = arrayify(context, object);
     auto size = data.size();
@@ -227,42 +178,9 @@ inline Object asDashArray(const Context& context, const Object& object) {
     return Object(std::move(data));
 }
 
-inline Object asStyledText(const Context& context, const Object& object) {
-    return StyledText::create(context, object);
-}
-
-inline Object asFilteredText(const Context& context, const Object& object) {
-    return StyledText::create(context, object).getText();
-}
-
-inline Object asTransformOrArray(const Context& context, const Object& object) {
-    if (object.is<Transformation>())
-        return object;
-
-    return evaluateRecursive(context, arrayify(context, object));
-}
-
-inline Object asEasing(const Context& context, const Object& object) {
-    if (object.is<Easing>())
-        return object;
-
-    return Easing::parse(context.session(), object.asString());
-}
-
 inline Object asDeepArray(const Context &context, const Object &object) {
     return evaluateRecursive(context, arrayify(context, object));
 }
-
-inline Object asGraphicPattern(const Context& context, const Object& object) {
-    return GraphicPattern::create(context, object);
-}
-
-inline Object asAvgGradient(const Context& context, const Object& object) {
-    return Gradient::createAVG(context, object);
-}
-
-Object asPaddingArray(const Context& context, const Object& object);
-
 
 /**
  * Flags that specify how the property definition will be used.

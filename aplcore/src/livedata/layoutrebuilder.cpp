@@ -13,11 +13,12 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/livedata/livearraychange.h"
 #include "apl/livedata/layoutrebuilder.h"
+
 #include "apl/component/corecomponent.h"
-#include "apl/livedata/livearrayobject.h"
 #include "apl/engine/builder.h"
+#include "apl/livedata/livearraychange.h"
+#include "apl/livedata/livearrayobject.h"
 
 namespace apl {
 

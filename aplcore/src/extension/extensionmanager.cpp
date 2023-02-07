@@ -13,8 +13,9 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/content/rootconfig.h"
 #include "apl/extension/extensionmanager.h"
+
+#include "apl/content/rootconfig.h"
 #include "apl/extension/extensionmediator.h"
 
 namespace apl {

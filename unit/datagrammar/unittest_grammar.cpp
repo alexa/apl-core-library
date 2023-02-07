@@ -13,23 +13,23 @@
  * permissions and limitations under the License.
  */
 
+#include "../testeventloop.h"
+
 #include <clocale>
 #include <iostream>
 #include <iomanip>
 
 #include "gtest/gtest.h"
 
-#include "apl/datagrammar/bytecode.h"
-#include "apl/engine/evaluate.h"
-#include "apl/content/metrics.h"
+#include "apl/animation/easing.h"
 #include "apl/content/content.h"
-#include "apl/engine/rootcontext.h"
+#include "apl/content/metrics.h"
+#include "apl/datagrammar/bytecode.h"
 #include "apl/engine/context.h"
-#include "apl/primitives/symbolreferencemap.h"
-
+#include "apl/engine/evaluate.h"
+#include "apl/engine/rootcontext.h"
 #include "apl/primitives/functions.h"
-
-#include "../testeventloop.h"
+#include "apl/primitives/symbolreferencemap.h"
 
 using namespace apl;
 

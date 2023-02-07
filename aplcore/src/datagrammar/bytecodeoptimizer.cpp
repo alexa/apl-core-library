@@ -102,7 +102,7 @@ ByteCodeOptimizer::simplifyOperands()
 using UnaryFunction = Object (*)(const Object&);
 using BinaryFunction = Object (*)(const Object&, const Object&);
 
-static bool DEBUG_OPTIMIZER = false;
+static const bool DEBUG_OPTIMIZER = false;
 
 /**
  * Peephole optimization

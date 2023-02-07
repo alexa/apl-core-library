@@ -13,15 +13,16 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/component/scrollablecomponent.h"
+
 #include "apl/action/scrollaction.h"
 #include "apl/component/componentpropdef.h"
-#include "apl/component/scrollablecomponent.h"
 #include "apl/component/yogaproperties.h"
+#include "apl/content/rootconfig.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/time/sequencer.h"
-#include "apl/content/rootconfig.h"
-#include "apl/touch/gestures/scrollgesture.h"
 #include "apl/time/timemanager.h"
+#include "apl/touch/gestures/scrollgesture.h"
 #include "apl/utils/stickychildrentree.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"

@@ -43,7 +43,7 @@ private:
     bool mFastMode;
     bool mStateFinally;
 
-    int mNextIndex;
+    size_t mNextIndex;
     int mRepeatCounter;
 
     CommandPtr mCurrentCommand;

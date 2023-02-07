@@ -35,6 +35,11 @@ static float angleToSlope(float degrees) {
     return std::tan(degrees * M_PI / 180);
 }
 
+inline Object asSlope(const Context& context, const Object& object) {
+    assert(object.isNumber());
+    return angleToSlope(object.getDouble());
+}
+
 static bool isAllowedEnvironmentName(const std::string &name) {
     static std::set<std::string> sReserved;
     if (sReserved.empty()) {
@@ -122,11 +127,6 @@ const Context&
 RootConfig::evaluationContext()
 {
     return *mContext;
-}
-
-inline Object asSlope(const Context& context, const Object& object) {
-    assert(object.isNumber());
-    return angleToSlope(object.getDouble());
 }
 
 const RootPropDefSet&
@@ -275,7 +275,7 @@ RootConfig::setEnvironmentValue(const std::string& name, const Object& value) {
 }
 
 /**
-     * @return Animation easing for SwipeAway gesture.
+ * @return Animation easing for SwipeAway gesture.
  */
 EasingPtr
 RootConfig::getSwipeAwayAnimationEasing() const {

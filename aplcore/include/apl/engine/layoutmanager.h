@@ -20,9 +20,9 @@
 #include <map>
 
 #include "apl/common.h"
+#include "apl/component/componentproperties.h"
 #include "apl/primitives/object.h"
 #include "apl/primitives/size.h"
-#include "apl/component/componentproperties.h"
 
 namespace apl {
 

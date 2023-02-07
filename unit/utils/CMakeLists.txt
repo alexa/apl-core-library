@@ -24,4 +24,5 @@ target_sources_local(unittest
         unittest_url.cpp
         unittest_userdata.cpp
         unittest_weakcache.cpp
+        unittest_synchronizedweakcache.cpp
         )

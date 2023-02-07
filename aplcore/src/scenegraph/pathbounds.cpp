@@ -57,67 +57,74 @@ private:
 };
 
 /**
- * Given the cubic polynomial f(t) = a*(1-t)^3 + 3*b*t*(1-t)^2 + 3*c*t^2*(1-t) + d*t^3,
+ * Given the cubic polynomial f(t) = p1*(1-t)^3 + 3*p2*t*(1-t)^2 + 3*p3*t^2*(1-t) + p4*t^3,
  * calculate the values of t where f'(t) = 0 and 0 < t < 1.  Return the number of roots
  * found and store the values of those roots in the provided array.
- * @param a The starting point, a = f(0)
- * @param b The first control point
- * @param c The second control point
- * @param d The ending point, d = f(1)
+ * @param p1 The starting point, p1 = f(0)
+ * @param p2 The first control point
+ * @param p3 The second control point
+ * @param p4 The ending point, p4 = f(1)
  * @param root An reference to an array with at least two elements.  Return the value of t where
  *             f'(t) = 0 if it exists and is in the interval (0,1)
  * @return The number of valid roots found.  May be 0, 1, or 2.
  */
-int findCubicZeros(float a, float b, float c, float d, float roots[])
+int findCubicZeros(float p1, float p2, float p3, float p4, float roots[])
 {
-    // Reduce f'(t) down to e*t^2 + 2*f*t + g
-    auto e = -a + 3*b - 3*c + d;
-    auto f = a - 2*b + c;
-    auto g = b - a;
+    // Reduce b'(t) down to a*t^2 + b*t + c
+    auto a = -p1 + 3*p2 - 3*p3 + p4;
+    auto b = 2 * (p1 - 2*p2 + p3);
+    auto c = p2 - p1;
 
-    if (std::abs(e) < 1e-12) {  // If e is zero we have a simple linear equation
-        if (std::abs(f) < 1e-12)  // If f is also zero we have straight line
-            return 0;
-
-        auto t = -g/(2*f);
-        if (t < 0.0f || t >= 1.0f)
-            return 0;
-        roots[0] = t;
-        return 1;
-    }
-
-    auto discriminant = f*f - e*g;
+    // Following Numerical Recipes in C (section 5.6)
+    auto discriminant = b*b - 4*a*c;
     if (discriminant < 0.0f)
         return 0;  // Imaginary roots
-    auto h = sqrt(discriminant);
-    auto t1 = (-f + h) / e;
-    auto t2 = (-f - h) / e;
+    auto sqrt_d = std::sqrt(discriminant);
+    if (b < 0.0)
+        sqrt_d = -sqrt_d;
+    auto q = -0.5 * (b + sqrt_d);
 
     int i = 0;
-    if (t1 > 0 && t1 < 1.0f)
-        roots[i++] = t1;
-    if (t2 > 0 && t2 < 1.0f)
-        roots[i++] = t2;
+
+    // The roots are q/a and c/q.
+    if (std::abs(a) > std::abs(q)) {
+        auto t = q / a;
+        if (t > 0 && t < 1.0f)
+            roots[i++] = static_cast<float>(t);
+    }
+
+    if (std::abs(q) > std::abs(c)) {
+        auto t = c / q;
+        if (t > 0 && t < 1.0f)
+            roots[i++] = static_cast<float>(t);
+    }
+
     return i;
 }
 
 /**
- * Given the quadratic polynomial f(t) = a*(1-t)^2 + 2*b*t*(1-t) + c*t^2, calculate
+ * Given the quadratic polynomial f(t) = p1*(1-t)^2 + 2*p2*t*(1-t) + p3*t^2, calculate
  * the values of t where f'(t) = 0 and 0 < t < 1.
- * @param a The starting point, a = f(0)
- * @param b The control point.
- * @param c The ending point, c = f(1)
+ * @param p1 The starting point, p1 = f(0)
+ * @param p2 The control point.
+ * @param p3 The ending point, p3 = f(1)
  * @param root Return the value of t where f'(t) = 0 if it exists and is in the interval (0,1)
- * @return True if a root was found.
+ * @return True if p1 root was found.
  */
-bool findQuadraticZero(float a, float b, float c, float& root)
+bool findQuadraticZero(float p1, float p2, float p3, float& root)
 {
-    auto d = a - 2 * b + c;
-    if (std::abs(d) < 1e-12)
-        return 0;
+    // f'(t) = -a + b*t  [or (p2 - p1) + (p1 - 2*p2 + p3)t ]
+    // Root is a / b
+    auto a = p1 - p2;
+    auto b = p1 - 2 * p2 + p3;
 
-    root = (a-b)/d;
-    return root > 0 && root < 1.0f;
+    if (std::abs(b) > std::abs(a)) {
+        root = a / b;
+        if (root > 0 && root < 1.0f)
+            return true;
+    }
+
+    return false;
 }
 
 /**

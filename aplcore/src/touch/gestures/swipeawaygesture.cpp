@@ -17,19 +17,19 @@
 
 #include <cmath>
 
-#include "apl/engine/evaluate.h"
+#include "apl/action/action.h"
+#include "apl/animation/easing.h"
 #include "apl/component/touchwrappercomponent.h"
-#include "apl/utils/log.h"
-#include "apl/utils/session.h"
-#include "apl/engine/propdef.h"
-
 #include "apl/content/rootconfig.h"
+#include "apl/engine/builder.h"
+#include "apl/engine/evaluate.h"
+#include "apl/engine/propdef.h"
 #include "apl/primitives/timefunctions.h"
+#include "apl/primitives/transform.h"
 #include "apl/time/timemanager.h"
 #include "apl/touch/utils/velocitytracker.h"
-
-#include "apl/engine/builder.h"
-#include "apl/action/action.h"
+#include "apl/utils/log.h"
+#include "apl/utils/session.h"
 
 namespace apl {
 

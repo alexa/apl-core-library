@@ -13,29 +13,18 @@
  * permissions and limitations under the License.
  */
 
-#include "gtest/gtest.h"
-
-/**
- * The purpose of this unit test is to verify that apl/apl.h includes
- * all of the files that a consumer will need in order to use the core
- * of APL.
- *
- * Do NOT add any more include files here!!!!
- */
+#include "../testeventloop.h"
 
 #include "rapidjson/document.h"
 
 #include "apl/apl.h"
-#include "apl/engine/evaluate.h"
-#include "apl/engine/rootcontext.h"
-#include "apl/engine/styles.h"
-
-#include "apl/primitives/dimension.h"
-#include "apl/engine/hovermanager.h"
 #include "apl/component/scrollviewcomponent.h"
 #include "apl/component/sequencecomponent.h"
-
-#include "../testeventloop.h"
+#include "apl/engine/evaluate.h"
+#include "apl/engine/hovermanager.h"
+#include "apl/engine/rootcontext.h"
+#include "apl/engine/styles.h"
+#include "apl/primitives/dimension.h"
 
 using namespace apl;
 

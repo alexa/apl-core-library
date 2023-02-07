@@ -21,16 +21,17 @@
 #include <set>
 
 #include "apl/common.h"
-#include "componentproperties.h"
-#include "apl/utils/counter.h"
+
+#include "apl/component/componentproperties.h"
 #include "apl/engine/propertymap.h"
+#include "apl/engine/state.h"
 #include "apl/engine/uidobject.h"
 #include "apl/primitives/rect.h"
-#include "apl/engine/state.h"
+#include "apl/utils/counter.h"
 #include "apl/utils/deprecated.h"
 #include "apl/utils/noncopyable.h"
-#include "apl/utils/visitor.h"
 #include "apl/utils/userdata.h"
+#include "apl/utils/visitor.h"
 
 namespace apl {
 
@@ -295,8 +296,8 @@ public:
      * @param error Error message used when the state is kResourceError
      */
     virtual void updateResourceState(const ExtensionComponentResourceState& state,
-                             int errorCode = 0,
-                             const std::string& error = "");
+                                     int errorCode = 0,
+                                     const std::string& error = "");
 
     /*
     * @return The number of children displayed.

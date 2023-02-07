@@ -16,15 +16,15 @@
 #ifndef _APL_TIME_GRAMMAR_H
 #define _APL_TIME_GRAMMAR_H
 
-#include <tao/pegtl.hpp>
-#include <tao/pegtl/contrib/abnf.hpp>
+#include <algorithm>
 #include <cstdint>
 #include <stack>
-#include <algorithm>
+
+#include <tao/pegtl.hpp>
+#include <tao/pegtl/contrib/abnf.hpp>
 
 #include "apl/datagrammar/grammarpolyfill.h"
 #include "apl/primitives/timefunctions.h"
-#include "apl/utils/log.h"
 
 namespace apl {
 

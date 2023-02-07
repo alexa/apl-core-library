@@ -31,6 +31,7 @@ target_sources_local(unittest
         unittest_layouts.cpp
         unittest_memory.cpp
         unittest_propdef.cpp
+        unittest_queue_event_manager.cpp
         unittest_resources.cpp
         unittest_styles.cpp
         unittest_viewhost.cpp

@@ -14,9 +14,10 @@
  */
 
 #include "apl/command/sendeventcommand.h"
+#include "apl/component/selector.h"
 #include "apl/content/rootconfig.h"
-#include "apl/utils/log.h"
 #include "apl/utils/dump_object.h"
+#include "apl/utils/log.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -62,9 +63,11 @@ SendEventCommand::execute(const TimersPtr& timers, bool fastMode) {
 
     // Calculate the component map
     auto componentsMap = std::make_shared<ObjectMap>();
-    for (auto& compId : mValues.at(kCommandPropertyComponents).getArray()) {
+    auto arrays = mValues.at(kCommandPropertyComponents).getArray();
+    for (auto& compId : arrays) {
         if (compId.isString()) {
-            auto comp = CoreComponent::cast(mContext->findComponentById(compId.getString()));
+            auto selector = evaluate(*mContext, compId).asString();
+            auto comp = Selector::resolve(selector, mContext, mBase);
             if (comp) {
                 componentsMap->emplace(compId.getString(), comp->getValue());
             }

@@ -182,8 +182,31 @@ following:
  apl-check-core
 ```
 
+Mac Note: The CMake build generates the file `CMakeCache.txt` which contains paths to the system SDKROOT and build tools. 
+New installations of XCode or Mac Command Line tools often modify the "Active Developer Directory" changing the location
+of the SDK.  This may result in build failures.  Most often this issue can be characterized by a failure to find the 
+`SYSROOT` path.  
+An example of the path from `CMakeCache.txt` may look like:
+`CMAKE_OSX_SYSROOT:PATH=/Library/Developer/CommandLineTools/SDKs/MacOSX13.0.sdk`
+The "Active Developer Directory" can be identified as follows:
+```shell
+> xcode-select -p
+/Library/Developer/CommandLineTools
+```
+
+
+To resolve, any of the following options are possible
+- To use the `SYSROOT` derived from the new "Active Developer Directory":
+Delete the build folder and regenerate the build.  A "clean" build is not sufficient for `CmakeCache.txt`
+to be recreated.
+- To modify the "Active Developer Directory" to the desired SDK and tools paths
+Use `xcode-select` to set the new path or reset to the default.
+- To specify the explicit location of the SDK and tools rather than use the "Active Developer Directory"
+Modify the `CMakeCache.txt` SDK and tool paths. This option is not recommended, as it must be repeated any time the
+build folder is absent.
+
 # Building APL Core + Tests (Windows)
-To build `apl.lib` and tests in in a Windows or UWP environment, do the
+To build `apl.lib` and tests in a Windows or UWP environment, do the
 following:
 
 ```

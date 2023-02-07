@@ -19,9 +19,9 @@
 #include <memory>
 
 #include "apl/action/action.h"
+#include "apl/command/commandproperties.h"
 #include "apl/component/component.h"
 #include "apl/primitives/objectbag.h"
-#include "apl/command/commandproperties.h"
 
 namespace apl {
 

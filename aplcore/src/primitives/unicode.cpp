@@ -261,7 +261,7 @@ utf8StringTrim(std::string& utf8String, int maxLength)
 
     auto it = utf8String.begin();
     for (int i = 0 ; i < maxLength ; i++) {
-        if (*it == 0)
+        if (it == utf8String.end())
             return false;
         it += countUTF8TrailingBytes(*it) + 1;
     }

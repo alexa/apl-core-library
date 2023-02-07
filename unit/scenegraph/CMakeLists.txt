@@ -22,6 +22,7 @@ target_sources_local(unittest
         unittest_sg_frame.cpp
         unittest_sg_graphic.cpp
         unittest_sg_graphic_component.cpp
+        unittest_sg_graphic_layers.cpp
         unittest_sg_graphic_loading.cpp
         unittest_sg_image.cpp
         unittest_sg_layer.cpp

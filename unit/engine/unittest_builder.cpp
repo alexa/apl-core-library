@@ -1654,7 +1654,7 @@ static const char *MEDIA_SOURCE = R"(
                                              "entity": [ "Entity." ],
                                              "offset": 100
                                            }
-                                         },
+                                         },      
                                          {
                                            "type": "Video",
                                            "source": [ "URL1", { "url": "URL2" } ]
@@ -1692,6 +1692,7 @@ TEST_F(BuilderTest, MediaSource)
     auto source = sources.at(0).get<MediaSource>();
     ASSERT_EQ("", source.getDescription());
     ASSERT_EQ(0, source.getDuration());
+    ASSERT_EQ(0, source.getTextTracks().size());
     ASSERT_EQ("URL1", source.getUrl());
     ASSERT_EQ(0, source.getRepeatCount());
     ASSERT_TRUE(source.getEntities().empty());
@@ -1702,6 +1703,7 @@ TEST_F(BuilderTest, MediaSource)
     ASSERT_EQ(1, sources.size());
     source = sources.at(0).get<MediaSource>();
     ASSERT_EQ("Sample video.", source.getDescription());
+    ASSERT_EQ(0, source.getTextTracks().size());
     ASSERT_EQ(1000, source.getDuration());
     ASSERT_EQ("URL1", source.getUrl());
     ASSERT_EQ(2, source.getRepeatCount());
@@ -1714,16 +1716,102 @@ TEST_F(BuilderTest, MediaSource)
     source = sources.at(0).get<MediaSource>();
     ASSERT_EQ("", source.getDescription());
     ASSERT_EQ(0, source.getDuration());
+    ASSERT_EQ(0, source.getTextTracks().size());
     ASSERT_EQ("URL1", source.getUrl());
     ASSERT_EQ(0, source.getRepeatCount());
     ASSERT_EQ(0, source.getOffset());
     source = sources.at(1).get<MediaSource>();
     ASSERT_EQ("", source.getDescription());
     ASSERT_EQ(0, source.getDuration());
+    ASSERT_EQ(0, source.getTextTracks().size());
     ASSERT_EQ("URL2", source.getUrl());
     ASSERT_EQ(0, source.getRepeatCount());
     ASSERT_TRUE(source.getEntities().empty());
     ASSERT_EQ(0, source.getOffset());
+}
+
+static const char *MEDIA_SOURCE_WITH_TEXTTRACK = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": 
+    {
+      "type": "Container",
+      "items":
+      [
+        {
+          "type": "Video",
+          "source":
+          {
+            "url": "URL1",
+            "textTrack": [{ "description": "foo", "url": "URL1", "type": "caption" }]
+          }
+        },
+        {
+          "type": "Video",
+          "source": {
+          "url": "URL1",
+          "textTrack": [{ "url": "URL1", "type": "caption" }]
+          }
+        },
+        {
+          "type": "Video",
+          "source": {
+          "url": "URL1",
+          "textTrack": [{ "url": "URL1", "type": "notcaption" }]
+          }
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(BuilderTest, MediaSourceWithTextTrack)
+{
+    loadDocument(MEDIA_SOURCE_WITH_TEXTTRACK);
+
+    ASSERT_EQ(kComponentTypeContainer, component->getType());
+    ASSERT_EQ(3, component->getChildCount());
+
+    auto video0 = component->getCoreChildAt(0);
+    auto video1 = component->getCoreChildAt(1);
+    auto video2 = component->getCoreChildAt(2);
+
+    ASSERT_EQ(kComponentTypeVideo, video0->getType());
+    ASSERT_EQ(kComponentTypeVideo, video1->getType());
+    ASSERT_EQ(kComponentTypeVideo, video2->getType());
+
+    auto sources = video0->getCalculated(kPropertySource);
+    ASSERT_TRUE(sources.isArray());
+    ASSERT_EQ(1, sources.size());
+    auto source = sources.at(0).get<MediaSource>();
+    auto tracks = source.getTextTracks();
+    ASSERT_EQ(1, tracks.size());
+    auto track = tracks[0];
+    ASSERT_EQ("foo", track.description);
+    ASSERT_EQ("URL1", track.url);
+    ASSERT_EQ(kTextTrackTypeCaption, track.type);
+
+    //4 - Testing textTrack with no description.
+    sources = video1->getCalculated(kPropertySource);
+    ASSERT_TRUE(sources.isArray());
+    ASSERT_EQ(1, sources.size());
+    source = sources.at(0).get<MediaSource>();
+    tracks = source.getTextTracks();
+    ASSERT_EQ(1, tracks.size());
+    track = tracks[0];
+    ASSERT_EQ("", track.description);
+    ASSERT_EQ("URL1", track.url);
+    ASSERT_EQ(kTextTrackTypeCaption, track.type);
+
+    //5 - Testing textTrack with invalid type.
+    ASSERT_TRUE(ConsoleMessage());
+    sources = video2->getCalculated(kPropertySource);
+    ASSERT_TRUE(sources.isArray());
+    ASSERT_EQ(1, sources.size());
+    source = sources.at(0).get<MediaSource>();
+    tracks = source.getTextTracks();
+    ASSERT_EQ(0, tracks.size());
 }
 
 static const char *MEDIA_SOURCE_2 = R"(

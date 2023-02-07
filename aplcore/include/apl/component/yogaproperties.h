@@ -18,7 +18,7 @@
 
 #include <yoga/YGNode.h>
 
-#include "componentproperties.h"
+#include "apl/component/componentproperties.h"
 
 namespace apl {
 

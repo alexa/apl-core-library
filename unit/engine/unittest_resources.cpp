@@ -15,6 +15,8 @@
 
 #include "../testeventloop.h"
 
+#include "apl/animation/easing.h"
+
 using namespace apl;
 
 class ResourceTest : public DocumentWrapper {};

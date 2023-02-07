@@ -20,7 +20,7 @@
 
 namespace apl {
 
-static Bimap<APLVersion::Value, std::string> sVersionMap = {
+static const Bimap<APLVersion::Value, std::string> sVersionMap = {
         { APLVersion::kAPLVersion10,  "1.0" },
         { APLVersion::kAPLVersion11,  "1.1" },
         { APLVersion::kAPLVersion12,  "1.2" },
@@ -33,6 +33,7 @@ static Bimap<APLVersion::Value, std::string> sVersionMap = {
         { APLVersion::kAPLVersion19,  "1.9" },
         { APLVersion::kAPLVersion20221, "2022.1" },
         { APLVersion::kAPLVersion20222, "2022.2" },
+        { APLVersion::kAPLVersion20231, "2023.1" },
 };
 
 bool

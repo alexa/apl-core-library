@@ -35,11 +35,11 @@ target_sources_local(apl
     scrolltoindexcommand.cpp
     selectcommand.cpp
     sendeventcommand.cpp
+    sequentialcommand.cpp
     setfocuscommand.cpp
     setpagecommand.cpp
     setstatecommand.cpp
     setvaluecommand.cpp
-    sequentialcommand.cpp
     speakitemcommand.cpp
     speaklistcommand.cpp
 )

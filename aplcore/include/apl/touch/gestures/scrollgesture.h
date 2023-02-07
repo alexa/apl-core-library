@@ -19,9 +19,9 @@
 #include "apl/common.h"
 #include "apl/component/scrollablecomponent.h"
 #include "apl/primitives/object.h"
+#include "apl/time/executionresourceholder.h"
 #include "apl/touch/gestures/flinggesture.h"
 #include "apl/touch/utils/autoscroller.h"
-#include "apl/time/executionresourceholder.h"
 
 namespace apl {
 

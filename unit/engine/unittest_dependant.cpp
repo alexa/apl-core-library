@@ -14,8 +14,9 @@
  */
 
 #include "../testeventloop.h"
+
+#include "apl/component/touchwrappercomponent.h"
 #include "apl/engine/contextdependant.h"
-#include <apl/component/touchwrappercomponent.h>
 
 using namespace apl;
 

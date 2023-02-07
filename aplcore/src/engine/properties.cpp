@@ -13,16 +13,18 @@
  * permissions and limitations under the License.
  */
 
-#include <cmath>
+#include "apl/engine/properties.h"
+
 #include <functional>
 
 #include "apl/content/rootconfig.h"
+#include "apl/datasource/datasource.h"
 #include "apl/engine/context.h"
 #include "apl/engine/contextdependant.h"
-#include "apl/engine/properties.h"
 #include "apl/engine/evaluate.h"
 #include "apl/primitives/dimension.h"
-#include "apl/datasource/datasource.h"
+#include "apl/utils/identifier.h"
+#include "apl/utils/session.h"
 #include "apl/utils/stringfunctions.h"
 
 namespace apl {
@@ -103,7 +105,6 @@ Properties::emplace(const Object& item)
 void
 Properties::addToContext(const ContextPtr &context, const Parameter &parameter, bool userWriteable)
 {
-    bool validNamedProperty = false;
     Object tmp;
     Object result;
     auto bindingFunc = sBindingFunctions.at(parameter.type);
@@ -111,30 +112,33 @@ Properties::addToContext(const ContextPtr &context, const Parameter &parameter, 
     auto it = mProperties.find(parameter.name);
     if (it != mProperties.end()) {
         tmp = it->second;
-        mProperties.erase(it);   // Remove the property from the list
-
-        // Extract as an optional node tree for dependant
-        tmp = tmp.isString() ? parseDataBinding(*context, tmp.getString()) : tmp;
-
-        auto value = evaluate(*context, tmp);
-        if (!value.isNull()) {
-            result = bindingFunc(*context, value);
-
-            // If type explicitly specified we may want to "enrich" the object.
-            if (value.isMap() && value.has("type")) {
-                std::string type = value.get("type").getString();
-                if (sBindingMap.has(type)) {
-                    bindingFunc = sBindingFunctions.at(sBindingMap.at(type));
-                    result = bindingFunc(*context, value);
-                } else if (context->getRootConfig().isDataSource(type)) {
-                    result = DataSource::create(context, value, parameter.name);
-                }
-            }
-            validNamedProperty = true;
-        }
+        mProperties.erase(it); // Remove the property from the list
     }
 
-    if (!validNamedProperty) {
+    // Parameter names are only added to the data-binding context if they are valid identifiers.
+    if (!isValidIdentifier(parameter.name)) {
+        CONSOLE(context) << "Unable to add parameter '" << parameter.name
+                         << "' to context. Invalid identifier.";
+        return;
+    }
+
+    // Extract as an optional node tree for dependant
+    tmp = tmp.isString() ? parseDataBinding(*context, tmp.getString()) : tmp;
+    auto value = evaluate(*context, tmp);
+    if (!value.isNull()) {
+        result = bindingFunc(*context, value);
+
+        // If type explicitly specified we may want to "enrich" the object.
+        if (value.isMap() && value.has("type")) {
+            std::string type = value.get("type").getString();
+            if (sBindingMap.has(type)) {
+                bindingFunc = sBindingFunctions.at(sBindingMap.at(type));
+                result = bindingFunc(*context, value);
+            } else if (context->getRootConfig().isDataSource(type)) {
+                result = DataSource::create(context, value, parameter.name);
+            }
+        }
+    } else {
         result = bindingFunc(*context, evaluate(*context, parameter.defvalue));
     }
 

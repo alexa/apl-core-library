@@ -19,4 +19,5 @@ target_sources_local(unittest
         unittest_media_manager.cpp
         unittest_media_player.cpp
         unittest_media_preservation.cpp
+        unittest_media_utils.cpp
         )

@@ -13,14 +13,16 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/engine/evaluate.h"
-#include "apl/primitives/color.h"
 #include "apl/primitives/styledtextstate.h"
-#include "apl/utils/stringfunctions.h"
 
 #include <codecvt>
 #include <locale>
 #include <set>
+
+#include "apl/engine/evaluate.h"
+#include "apl/primitives/color.h"
+#include "apl/primitives/dimension.h"
+#include "apl/utils/stringfunctions.h"
 
 namespace apl {
 

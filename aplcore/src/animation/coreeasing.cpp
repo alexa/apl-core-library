@@ -19,27 +19,8 @@
 #include "apl/animation/coreeasing.h"
 #include "apl/animation/easingapproximation.h"
 #include "apl/utils/stringfunctions.h"
-#include "apl/utils/weakcache.h"
 
 namespace apl {
-
-// TODO: This is not thread safe
-static WeakCache<std::string, EasingApproximation> sEasingAppoxCache;
-
-std::string
-dofSig(int dof, const float* array) {
-    std::string result = "x" + sutil::to_string(array[0]);
-    for (int i = 1; i < dof; i++)
-        result += "," + sutil::to_string(array[i]);
-    return result;
-}
-
-std::string
-easingApproxSignature(int dof, const float* start, const float* tout, const float* tin,
-                      const float* end) {
-    return std::to_string(dof) + dofSig(dof, start) + dofSig(dof, tout) + dofSig(dof, tin) +
-           dofSig(dof, end);
-}
 
 // Cubic
 static inline float
@@ -192,16 +173,7 @@ CoreEasing::ensureApproximation(std::vector<EasingSegment>::iterator it)
     const float* tin = segment.tin();
     const float* end = segment.end();
 
-    auto sig = easingApproxSignature(segment.dof(), start, tout, tin, end);
-    auto ptr = sEasingAppoxCache.find(sig);
-    if (ptr)
-        return ptr;
-
-    ptr = EasingApproximation::create(segment.dof(), start, tout, tin, end, EASING_POINTS);
-    it->data = ptr;
-
-    sEasingAppoxCache.insert(sig, ptr);
-    return ptr;
+    return EasingApproximation::getOrCreate(segment.dof(), start, tout, tin, end, EASING_POINTS);
 }
 
 float

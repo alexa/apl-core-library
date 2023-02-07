@@ -14,13 +14,13 @@
  */
 
 #include "apl/touch/utils/autoscroller.h"
-#include "apl/touch/utils/unidirectionaleasingscroller.h"
 
 #include "apl/animation/coreeasing.h"
-#include "apl/content/rootconfig.h"
 #include "apl/component/scrollablecomponent.h"
+#include "apl/content/rootconfig.h"
 #include "apl/primitives/timefunctions.h"
 #include "apl/time/timemanager.h"
+#include "apl/touch/utils/unidirectionaleasingscroller.h"
 
 namespace apl {
 

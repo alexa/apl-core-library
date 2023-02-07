@@ -14,8 +14,10 @@
  */
 
 #include "apl/graphic/graphicfilter.h"
+
 #include "apl/engine/evaluate.h"
 #include "apl/engine/propdef.h"
+#include "apl/primitives/color.h"
 #include "apl/utils/session.h"
 
 namespace apl {

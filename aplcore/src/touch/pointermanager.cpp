@@ -13,11 +13,12 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/touch/pointermanager.h"
+
 #include "apl/component/corecomponent.h"
 #include "apl/component/touchablecomponent.h"
 #include "apl/engine/rootcontextdata.h"
 #include "apl/touch/pointer.h"
-#include "apl/touch/pointermanager.h"
 #include "apl/utils/log.h"
 #include "apl/utils/searchvisitor.h"
 

@@ -48,12 +48,12 @@ add_subdirectory(livedata)
 add_subdirectory(media)
 add_subdirectory(primitives)
 add_subdirectory(scaling)
-if(ENABLE_SCENEGRAPH)
-    add_subdirectory(scenegraph)
-endif(ENABLE_SCENEGRAPH)
 add_subdirectory(time)
 add_subdirectory(touch)
 add_subdirectory(utils)
+if(ENABLE_SCENEGRAPH)
+add_subdirectory(scenegraph)
+endif(ENABLE_SCENEGRAPH)
 
 # Add googletest directly to our build. This defines
 # the gtest and gtest_main targets.

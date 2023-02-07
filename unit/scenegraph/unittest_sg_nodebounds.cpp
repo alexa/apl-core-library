@@ -255,10 +255,7 @@ TEST_F(SGNodeBoundsTest, NodeSiblings)
     n3->setNext(n4);
 
     // Measuring the size of a node just gets that node itself and any children
-    ASSERT_TRUE(IsEqual(Rect(0, 0, 10, 20), n1->boundingBox(Transform2D())));
-
-    // Use the calculate method to include siblings
-    ASSERT_TRUE(IsEqual(Rect(-14, 0, 35, 50), sg::Node::calculateBoundingBox(n1, Transform2D())));
+    ASSERT_TRUE(IsEqual(Rect(-14, 0, 35, 50), n1->boundingBox(Transform2D())));
 
     // Adding a parent node captures just the siblings in the chain.  In this case, n3 & n4
     auto t = sg::transform(Transform2D::scale(0.5), n3);
@@ -266,4 +263,53 @@ TEST_F(SGNodeBoundsTest, NodeSiblings)
     ASSERT_TRUE(IsEqual(Rect(-14, 0, 24, 50), t->boundingBox(Transform2D::scale(2))));
 }
 
+TEST_F(SGNodeBoundsTest, Nested)
+{
+    auto paint = sg::paint(Color(Color::BLACK));
 
+    auto n1 = sg::draw(sg::path("l10,20"), sg::fill(paint));
+    ASSERT_TRUE(IsEqual(Rect(0, 0, 10, 20), sg::Node::calculateBoundingBox(n1)));
+
+    auto n2 = sg::draw(sg::path("M6,2 l15,25"), sg::fill(paint));
+    ASSERT_TRUE(IsEqual(Rect(6, 2, 15, 25), sg::Node::calculateBoundingBox(n2)));
+
+    // Attach siblings.  Now the size of n1 will include n2
+    n1->setNext(n2);
+    ASSERT_TRUE(IsEqual(Rect(0, 0, 21, 27), sg::Node::calculateBoundingBox(n1)));
+
+    auto n3 = sg::draw(sg::path("l10,50"), sg::fill(paint));
+    ASSERT_TRUE(IsEqual(Rect(0, 0, 10, 50), sg::Node::calculateBoundingBox(n3)));
+
+    auto n4 = sg::draw(sg::path("M-14,18 l15,15"), sg::fill(paint));
+    ASSERT_TRUE(IsEqual(Rect(-14, 18, 15, 15), sg::Node::calculateBoundingBox(n4)));
+
+    n3->setNext(n4);
+    ASSERT_TRUE(IsEqual(Rect(-14, 0, 24, 50), sg::Node::calculateBoundingBox(n3)));
+
+    auto g1 = sg::transform(Transform2D::translate(-10,-12), n1);
+    ASSERT_TRUE(IsEqual(Rect(-10, -12, 21, 27), sg::Node::calculateBoundingBox(g1)));
+
+    auto g2 = sg::transform(Transform2D::scale(0.5), n3);
+    ASSERT_TRUE(IsEqual(Rect(-7, 0, 12, 25), sg::Node::calculateBoundingBox(g2)));
+
+    g1->setNext(g2);
+    ASSERT_TRUE(IsEqual(Rect(-10, -12, 21, 37), sg::Node::calculateBoundingBox(g1)));
+}
+
+// This test case came from a design tool that exported an AVG file where subtle variations in
+// a spline's endpoint caused the bounding box calculation to fail.
+const char * BAD_TEST = "M94.0774256,67.9984627 C188.476854,-22.6660248 341.527998,-22.6660248 435.926415,67.9984627";
+const char * GOOD_TEST = "M94.0774256,67.9983657 C188.476854,-22.6661219 341.527998,-22.6661219 435.926415,67.9983657";
+const char * ROUND_TEST = "M94.08,67.99846 C188.476854,-22.6660248 341.527998,-22.6660248 435.926415,67.9984627";
+
+TEST_F(SGNodeBoundsTest, OddCase)
+{
+    auto paint = sg::paint(Color(Color::BLACK));
+
+    auto bad = sg::draw(sg::path(BAD_TEST), sg::fill(paint))->boundingBox(Transform2D());
+    auto good = sg::draw(sg::path(GOOD_TEST), sg::fill(paint))->boundingBox(Transform2D());
+    auto rounded = sg::draw(sg::path(ROUND_TEST), sg::fill(paint))->boundingBox(Transform2D());
+
+    ASSERT_TRUE(IsEqual(bad,good,0.1));
+    ASSERT_TRUE(IsEqual(bad,rounded,0.1));
+}

@@ -83,12 +83,12 @@ add_subdirectory(src/livedata)
 add_subdirectory(src/media)
 add_subdirectory(src/primitives)
 add_subdirectory(src/scaling)
-if(ENABLE_SCENEGRAPH)
-    add_subdirectory(src/scenegraph)
-endif(ENABLE_SCENEGRAPH)
 add_subdirectory(src/time)
 add_subdirectory(src/touch)
 add_subdirectory(src/utils)
+if(ENABLE_SCENEGRAPH)
+    add_subdirectory(src/scenegraph)
+endif(ENABLE_SCENEGRAPH)
 
 set(
     PUBLIC_HEADER_LIST

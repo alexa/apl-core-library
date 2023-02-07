@@ -46,7 +46,7 @@ TEST_F(SGLayerTest, Basic)
     ASSERT_FALSE(layer->getShadow());
     ASSERT_FALSE(layer->getAccessibility());
     ASSERT_FALSE(layer->visible());
-    ASSERT_EQ(layer->toDebugString(), "Layer");
+    ASSERT_EQ(layer->toDebugString(), "Layer Test");
 
     rapidjson::Document doc;
     ASSERT_TRUE(IsEqual(layer->serialize(doc.GetAllocator()),
@@ -57,7 +57,9 @@ TEST_F(SGLayerTest, Basic)
             "bounds": [ 10, 20, 200, 300 ],
             "transform": [ 2, 0, 0, 2, 0, 0],
             "childOffset": [ 0, 0 ],
-            "interaction": 0
+            "contentOffset": [ 0, 0 ],
+            "interaction": 0,
+            "characteristics": 0
         }
     )apl")));
 }
@@ -123,6 +125,7 @@ TEST_F(SGLayerTest, Rich)
             "bounds": [ 0, 0, 100, 100 ],
             "transform": [ 1, 0, 0, 1, 0, 0],
             "childOffset": [ 20, 20 ],
+            "contentOffset": [ 0, 0 ],
             "outline": {
                 "type": "roundedRectPath",
                 "rect": [ 0, 0, 100, 100 ],
@@ -153,7 +156,8 @@ TEST_F(SGLayerTest, Rich)
                     ]
                 }
             ],
-            "interaction": 0
+            "interaction": 0,
+            "characteristics": 0
         }
     )apl")));
 }
@@ -206,7 +210,9 @@ TEST_F(SGLayerTest, Children)
             "bounds": [ 0, 0, 100, 100 ],
             "transform": [ 1, 0, 0, 1, 0, 0],
             "childOffset": [ 0, 0 ],
-            "interaction": 0
+            "contentOffset": [ 0, 0 ],
+            "interaction": 0,
+            "characteristics": 0
         }
     )apl")));
 
@@ -237,7 +243,9 @@ TEST_F(SGLayerTest, Children)
             "bounds": [ 0, 0, 100, 100 ],
             "transform": [ 1, 0, 0, 1, 0, 0],
             "childOffset": [ 0, 0 ],
+            "contentOffset": [ 0, 0 ],
             "interaction": 0,
+            "characteristics": 0,
             "children": [
                 {
                     "name": "Child1",
@@ -245,7 +253,9 @@ TEST_F(SGLayerTest, Children)
                     "bounds": [ 20, 20, 60, 10 ],
                     "transform": [ 1, 0, 0, 1, 0, 0],
                     "childOffset": [ 0, 0 ],
-                    "interaction": 0
+                    "contentOffset": [ 0, 0 ],
+                    "interaction": 0,
+                    "characteristics": 0
                 },
                 {
                     "name": "Child2",
@@ -253,7 +263,9 @@ TEST_F(SGLayerTest, Children)
                     "bounds": [ 20, 50, 60, 10 ],
                     "transform": [ 1, 0, 0, 1, 0, 0],
                     "childOffset": [ 0, 0 ],
+                    "contentOffset": [ 0, 0 ],
                     "interaction": 0,
+                    "characteristics": 0,
                     "shadow": {
                         "color": "#000000ff",
                         "offset": [2, 2],
@@ -264,4 +276,28 @@ TEST_F(SGLayerTest, Children)
         }
     )apl")));
 
+}
+
+TEST_F(SGLayerTest, Characteristics)
+{
+    auto layer = sg::layer("Test", Rect(0, 0, 100, 100), 1.0f, Transform2D());
+    ASSERT_EQ(0, layer->getCharacteristic());
+    ASSERT_EQ(layer->debugCharacteristicString().find("DO_NOT_CLIP_CHILDREN"), std::string::npos);
+    ASSERT_EQ(layer->debugCharacteristicString().find("RENDER_ONLY"), std::string::npos);
+    ASSERT_FALSE(layer->isCharacteristicSet(sg::Layer::kCharacteristicRenderOnly));
+    ASSERT_FALSE(layer->isCharacteristicSet(sg::Layer::kCharacteristicDoNotClipChildren));
+
+    layer->setCharacteristic(sg::Layer::kCharacteristicRenderOnly);
+    ASSERT_EQ(sg::Layer::kCharacteristicRenderOnly, layer->getCharacteristic());
+    ASSERT_EQ(layer->debugCharacteristicString().find("DO_NOT_CLIP_CHILDREN"), std::string::npos);
+    ASSERT_NE(layer->debugCharacteristicString().find("RENDER_ONLY"), std::string::npos);
+    ASSERT_TRUE(layer->isCharacteristicSet(sg::Layer::kCharacteristicRenderOnly));
+    ASSERT_FALSE(layer->isCharacteristicSet(sg::Layer::kCharacteristicDoNotClipChildren));
+
+    layer->setCharacteristic(sg::Layer::kCharacteristicDoNotClipChildren);
+    ASSERT_EQ(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren, layer->getCharacteristic());
+    ASSERT_NE(layer->debugCharacteristicString().find("DO_NOT_CLIP_CHILDREN"), std::string::npos);
+    ASSERT_NE(layer->debugCharacteristicString().find("RENDER_ONLY"), std::string::npos);
+    ASSERT_TRUE(layer->isCharacteristicSet(sg::Layer::kCharacteristicRenderOnly));
+    ASSERT_TRUE(layer->isCharacteristicSet(sg::Layer::kCharacteristicDoNotClipChildren));
 }

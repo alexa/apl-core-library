@@ -28,7 +28,7 @@ namespace t2grammar {  // Isolate the PEGTL to a local namespace
 namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 using namespace pegtl;
 
-static bool DEBUG_GRAMMAR = false;
+static const bool DEBUG_GRAMMAR = false;
 
 /**
  * \cond Showt2grammar

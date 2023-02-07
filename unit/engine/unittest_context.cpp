@@ -49,7 +49,7 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ("1.0", env.get("agentVersion").asString());
     EXPECT_EQ("normal", env.get("animation").asString());
     EXPECT_FALSE(env.get("allowOpenURL").asBoolean());
-    EXPECT_EQ("2022.2", env.get("aplVersion").asString());
+    EXPECT_EQ("2023.1", env.get("aplVersion").asString());
     EXPECT_FALSE(env.get("disallowDialog").asBoolean());
     EXPECT_FALSE(env.get("disallowEditText").asBoolean());
     EXPECT_FALSE(env.get("disallowVideo").asBoolean());
@@ -414,10 +414,39 @@ static const char *ENVIRONMENT_PAYLOAD = R"apl(
 TEST_F(ContextTest, EnvironmentPayload)
 {
     auto rootConfig = RootConfig();
-    auto content = Content::create(ENVIRONMENT_PAYLOAD); //, );
+    auto content = Content::create(ENVIRONMENT_PAYLOAD);
     content->addData("payload", R"({"lang": "en-ES", "layoutDirection": "RTL"})" );
     auto root = RootContext::create(Metrics(), content, rootConfig);
     auto component = root->topComponent();
 
     ASSERT_EQ("Document Lang: en-ES LayoutDirection: RTL", component->getCalculated(kPropertyText).asString());
+}
+
+
+static const char *INVALID_ENVIRONMENT_PARAMETER = R"apl(
+{
+  "type": "APL",
+  "version": "2022.2",
+  "environment": {
+    "parameters": "0_payload"
+  },
+  "mainTemplate": {
+    "parameters": "0_payload",
+    "item": {
+      "type": "Text",
+      "text": "Document language ${environment.lang}"
+    }
+  }
+}
+)apl";
+
+TEST_F(ContextTest, InvalidEnvironmentParameter)
+{
+    auto rootConfig = RootConfig();
+    rootConfig.session(session);
+    auto content = Content::create(INVALID_ENVIRONMENT_PARAMETER);
+    content->addData("0_payload", R"({"lang": "en-ES", "layoutDirection": "RTL"})" );
+    auto root = RootContext::create(Metrics(), content, rootConfig);
+    ASSERT_TRUE(root);
+    ASSERT_TRUE(ConsoleMessage());
 }

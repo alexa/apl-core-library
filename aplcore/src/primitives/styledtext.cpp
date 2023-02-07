@@ -13,18 +13,19 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/primitives/styledtext.h"
+
 #include <set>
 #include <locale>
 #include <codecvt>
 
 #include <tao/pegtl.hpp>
 
-#include "apl/primitives/objectdata.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
-#include "apl/primitives/unicode.h"
-#include "apl/primitives/styledtext.h"
+#include "apl/primitives/objectdata.h"
 #include "apl/primitives/styledtextstate.h"
+#include "apl/primitives/unicode.h"
 #include "apl/utils/stringfunctions.h"
 
 namespace apl {

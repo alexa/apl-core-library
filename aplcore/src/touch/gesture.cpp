@@ -15,14 +15,13 @@
 
 #include "apl/touch/gesture.h"
 
-#include "apl/engine/evaluate.h"
 #include "apl/component/touchablecomponent.h"
-#include "apl/utils/session.h"
-
+#include "apl/engine/evaluate.h"
 #include "apl/touch/gestures/doublepressgesture.h"
 #include "apl/touch/gestures/longpressgesture.h"
 #include "apl/touch/gestures/swipeawaygesture.h"
 #include "apl/touch/gestures/tapgesture.h"
+#include "apl/utils/session.h"
 
 namespace apl {
 
@@ -41,7 +40,7 @@ Bimap<GestureType, std::string> sGestureTypeBimap = {
         {kGestureTypeTap,         "Tap"}
 };
 
-static std::map<GestureType, GestureFunc> sGestureFunctions =
+static const std::map<GestureType, GestureFunc> sGestureFunctions =
     {
         {kGestureTypeDoublePress, DoublePressGesture::create},
         {kGestureTypeLongPress,   LongPressGesture::create},

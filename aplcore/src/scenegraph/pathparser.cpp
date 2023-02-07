@@ -179,7 +179,7 @@ MutablePath::getGeneralPath() {
     }
 
     // Drop any move commands from the end of the command list
-    while (mCommands.back() == 'M') {
+    while (!mCommands.empty() && mCommands.back() == 'M') {
         mCommands.resize(mCommands.size() - 1);
         mPoints.resize(mPoints.size() - 2);
     }

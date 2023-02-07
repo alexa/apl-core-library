@@ -13,41 +13,42 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/engine/rootcontext.h"
+
 #include <algorithm>
 
 #include "rapidjson/stringbuffer.h"
 
-#include "apl/engine/evaluate.h"
-#include "apl/engine/styles.h"
-#include "apl/engine/propdef.h"
 #include "apl/action/scrolltoaction.h"
 #include "apl/command/arraycommand.h"
 #include "apl/command/configchangecommand.h"
 #include "apl/command/displaystatechangecommand.h"
 #include "apl/command/documentcommand.h"
 #include "apl/component/yogaproperties.h"
+#include "apl/content/configurationchange.h"
 #include "apl/content/content.h"
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
-#include "apl/content/configurationchange.h"
 #include "apl/datasource/datasource.h"
 #include "apl/datasource/datasourceprovider.h"
 #include "apl/engine/builder.h"
-#include "apl/extension/extensionmanager.h"
-#include "apl/engine/rootcontext.h"
+#include "apl/engine/queueeventmanager.h"
 #include "apl/engine/resources.h"
 #include "apl/engine/rootcontextdata.h"
+#include "apl/engine/styles.h"
 #include "apl/engine/uidmanager.h"
+#include "apl/extension/extensionmanager.h"
 #include "apl/graphic/graphic.h"
 #include "apl/livedata/livedataobject.h"
 #include "apl/livedata/livedataobjectwatcher.h"
+#include "apl/time/timemanager.h"
+#include "apl/utils/log.h"
+#include "apl/utils/tracing.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
 #include "apl/scenegraph/scenegraph.h"
 #endif // SCENEGRAPH
-#include "apl/time/timemanager.h"
-#include "apl/utils/log.h"
-#include "apl/utils/tracing.h"
+
 
 namespace apl {
 
@@ -76,12 +77,20 @@ RootContextPtr
 RootContext::create(const Metrics& metrics, const ContentPtr& content,
                     const RootConfig& config, std::function<void(const RootContextPtr&)> callback)
 {
+    return create(metrics, content, config, callback, std::make_shared<QueueEventManager>());
+}
+
+RootContextPtr
+RootContext::create(const Metrics& metrics, const ContentPtr& content,
+                    const RootConfig& config, std::function<void(const RootContextPtr&)> callback,
+                    const EventManagerPtr& eventManager)
+{
     if (!content->isReady()) {
         LOG(LogLevel::kError).session(content->getSession()) << "Attempting to create root context with illegal content";
         return nullptr;
     }
 
-    auto root = std::make_shared<RootContext>(metrics, content, config);
+    auto root = std::make_shared<RootContext>(metrics, content, config, eventManager);
     if (callback)
         callback(root);
     if (!root->setup(nullptr))
@@ -90,12 +99,21 @@ RootContext::create(const Metrics& metrics, const ContentPtr& content,
     return root;
 }
 
-RootContext::RootContext(const Metrics& metrics, const ContentPtr& content, const RootConfig& config)
+RootContext::RootContext(const Metrics& metrics,
+                         const ContentPtr& content,
+                         const RootConfig& config)
+    : RootContext(metrics, content, config, std::make_shared<QueueEventManager>())
+{}
+
+RootContext::RootContext(const Metrics& metrics,
+                         const ContentPtr& content,
+                         const RootConfig& config,
+                         const EventManagerPtr& eventManager)
     : mContent(content),
       mTimeManager(config.getTimeManager()),
       mDisplayState(static_cast<DisplayState>(config.getProperty(RootProperty::kInitialDisplayState).getInteger()))
 {
-    init(metrics, config, false);
+    init(metrics, config, false, eventManager);
 }
 
 RootContext::~RootContext() {
@@ -187,7 +205,7 @@ RootContext::reinflate()
     assert(mTimeManager->size() == 0);
 
     // The initialization routine replaces mCore with a new core
-    init(metrics, config, true);
+    init(metrics, config, true, std::make_shared<QueueEventManager>());
     setup(oldTop);  // Pass the old top component
 
     // If there was a previous top component, release it and its children to free memory
@@ -215,7 +233,10 @@ RootContext::resize()
 
 
 void
-RootContext::init(const Metrics& metrics, const RootConfig& config, bool reinflation)
+RootContext::init(const Metrics& metrics,
+                  const RootConfig& config,
+                  bool reinflation,
+                  const EventManagerPtr& eventManager)
 {
     APL_TRACE_BLOCK("RootContext:init");
     std::string theme = metrics.getTheme();
@@ -235,7 +256,8 @@ RootContext::init(const Metrics& metrics, const RootConfig& config, bool reinfla
                                                            reinflation),
                                               mContent->getDocumentSettings(),
                                               session,
-                                              mContent->mExtensionRequests);
+                                              mContent->mExtensionRequests,
+                                              eventManager);
 
     auto env = mContent->getEnvironment(config);
     mCore->lang(env.language)
@@ -331,7 +353,7 @@ RootContext::hasEvent() const
 {
     assert(mCore);
     clearPending();
-    return !mCore->events.empty();
+    return !mCore->events->empty();
 }
 
 Event
@@ -340,9 +362,9 @@ RootContext::popEvent()
     assert(mCore);
     clearPending();
 
-    if (!mCore->events.empty()) {
-        Event event = mCore->events.front();
-        mCore->events.pop();
+    if (!mCore->events->empty()) {
+        Event event = mCore->events->front();
+        mCore->events->pop();
         return event;
     }
 
@@ -1070,6 +1092,7 @@ RootContext::getSceneGraph()
             mSceneGraph->setLayer(top->getSceneGraph(mSceneGraph->updates()));
     }
 
+    mSceneGraph->updates().fixCreatedFlags();
     clearDirty();
     return mSceneGraph;
 }

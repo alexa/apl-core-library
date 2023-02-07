@@ -14,7 +14,6 @@
  */
 
 #include "apl/touch/utils/pagemovehandler.h"
-#include "apl/utils/bimap.h"
 
 #include "apl/animation/easing.h"
 #include "apl/component/component.h"
@@ -24,6 +23,7 @@
 #include "apl/engine/evaluate.h"
 #include "apl/primitives/transform.h"
 #include "apl/time/sequencer.h"
+#include "apl/utils/bimap.h"
 #include "apl/utils/make_unique.h"
 
 namespace apl {

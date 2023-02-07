@@ -156,22 +156,20 @@ TEST_F(SGPathParserTest, Path)
     ASSERT_TRUE(CheckSceneGraph(
         sg,
         IsLayer(Rect{0, 0, 1024, 800}, "..VectorGraphic")
-            .child(IsLayer(Rect{112, 0, 800, 800}, "...Graphic")
-                       .content(
-                           IsTransformNode()
-                               .transform(Transform2D::scale(2))
-                               .child(
-                                   IsOpacityNode().child(IsTransformNode().child(
-                                       IsClipNode()
-                                           .path(IsGeneralPath(
-                                               "MLLLZ", {0, 200, 200, 0, 400, 200, 200, 400}))
-                                           .child(IsDrawNode()
-                                                      .path(IsGeneralPath(
-                                                          "MLLLZ",
-                                                          {40, 40, 360, 40, 360, 360, 40, 360}))
-                                                      .pathOp(IsFillOp(IsColorPaint(Color::RED)))
-                                                      .pathOp(IsStrokeOp(IsColorPaint(Color::BLUE),
-                                                                         10))))))))));
+            .child(
+                IsLayer(Rect{112, 0, 800, 800}, "...Graphic")
+                    .content(
+                        IsTransformNode()
+                            .transform(Transform2D::scale(2))
+                            .child(IsClipNode()
+                                       .path(IsGeneralPath("MLLLZ",
+                                                           {0, 200, 200, 0, 400, 200, 200, 400}))
+                                       .child(IsDrawNode()
+                                                  .path(IsGeneralPath("MLLLZ", {40, 40, 360, 40,
+                                                                                360, 360, 40, 360}))
+                                                  .pathOp(IsFillOp(IsColorPaint(Color::RED)))
+                                                  .pathOp(IsStrokeOp(IsColorPaint(Color::BLUE),
+                                                                     10))))))));
 }
 
 static const char *PATTERN = R"apl(

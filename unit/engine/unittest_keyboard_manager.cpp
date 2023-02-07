@@ -13,17 +13,16 @@
  * permissions and limitations under the License.
  */
 
+#include "../testeventloop.h"
+
 #include <algorithm>
 
-#include "apl/time/sequencer.h"
-
-#include "../testeventloop.h"
 #include "apl/component/component.h"
 #include "apl/component/pagercomponent.h"
 #include "apl/engine/keyboardmanager.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/primitives/object.h"
-#include "gtest/gtest.h"
+#include "apl/time/sequencer.h"
 
 using namespace apl;
 

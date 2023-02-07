@@ -34,10 +34,10 @@ public:
     }
 
 #ifdef SCENEGRAPH
-protected:
-    sg::NodePtr buildSceneGraph(sg::SceneGraphUpdates& sceneGraph) override;
-    void updateSceneGraphInternal(sg::ModifiedNodeList& sceneGraph, const sg::NodePtr& node) override;
-#endif // SCENEGRAPH
+    sg::GraphicFragmentPtr buildSceneGraph(bool allowLayers,
+                                           sg::SceneGraphUpdates& sceneGraph) override;
+    void updateSceneGraph(sg::SceneGraphUpdates& sceneGraph) override {}
+#endif
 
 protected:
     const GraphicPropDefSet& propDefSet() const override;

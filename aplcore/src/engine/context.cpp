@@ -15,13 +15,14 @@
 
 #include <queue>
 
+#include "apl/engine/context.h"
+
 #include "apl/buildTimeConstants.h"
 #include "apl/component/textmeasurement.h"
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
 #include "apl/content/viewport.h"
 #include "apl/engine/builder.h"
-#include "apl/engine/context.h"
 #include "apl/engine/event.h"
 #include "apl/engine/resources.h"
 #include "apl/engine/rootcontextdata.h"
@@ -294,10 +295,18 @@ Context::findComponentById(const std::string& id) const
     return top ? top->findComponentById(id) : nullptr;
 }
 
-void
-Context::pushEvent(Event&& event) {
+ComponentPtr
+Context::topComponent() const
+{
     assert(mCore);
-    mCore->events.push(event);
+    return mCore->top();
+}
+
+void
+Context::pushEvent(Event&& event)
+{
+    assert(mCore);
+    mCore->events->push(event);
 }
 
 #ifdef ALEXAEXTENSIONS
@@ -310,7 +319,8 @@ Context::pushExtensionEvent(Event&& event)
 #endif
 
 void
-Context::setDirty(const ComponentPtr& ptr) {
+Context::setDirty(const ComponentPtr& ptr)
+{
     assert(mCore);
     mCore->dirty.emplace(ptr);
 }
@@ -323,19 +333,22 @@ Context::clearDirty(const ComponentPtr& ptr)
 }
 
 void
-Context::setDirtyVisualContext(const ComponentPtr& ptr) {
+Context::setDirtyVisualContext(const ComponentPtr& ptr)
+{
     assert(mCore);
     mCore->dirtyVisualContext.emplace(ptr);
 }
 
 bool
-Context::isVisualContextDirty(const ComponentPtr& ptr) {
+Context::isVisualContextDirty(const ComponentPtr& ptr)
+{
     auto found = mCore->dirtyVisualContext.find(ptr);
     return found != mCore->dirtyVisualContext.end();
 }
 
 void
-Context::setDirtyDataSourceContext(const DataSourceConnectionPtr& ptr) {
+Context::setDirtyDataSourceContext(const DataSourceConnectionPtr& ptr)
+{
     assert(mCore);
     mCore->dirtyDatasourceContext.emplace(ptr);
 }
@@ -353,47 +366,56 @@ Context::focusManager() const
 }
 
 HoverManager&
-Context::hoverManager() const {
+Context::hoverManager() const
+{
     return mCore->hoverManager();
 }
 
 KeyboardManager &
-Context::keyboardManager() const {
+Context::keyboardManager() const
+{
     return mCore->keyboardManager();
 }
 
 LiveDataManager&
-Context::dataManager() const {
+Context::dataManager() const
+{
     return mCore->dataManager();
 }
 
 ExtensionManager&
-Context::extensionManager() const {
+Context::extensionManager() const
+{
     return mCore->extensionManager();
 }
 
 LayoutManager&
-Context::layoutManager() const {
+Context::layoutManager() const
+{
     return mCore->layoutManager();
 }
 
 MediaManager&
-Context::mediaManager() const {
+Context::mediaManager() const
+{
     return mCore->mediaManager();
 }
 
 MediaPlayerFactory&
-Context::mediaPlayerFactory() const {
+Context::mediaPlayerFactory() const
+{
     return mCore->mediaPlayerFactory();
 }
 
 UIDManager&
-Context::uniqueIdManager() const {
+Context::uniqueIdManager() const
+{
     return mCore->uniqueIdManager();
 }
 
 const SessionPtr&
-Context::session() const {
+Context::session() const
+{
     return mCore->session();
 }
 
@@ -455,7 +477,8 @@ Context::inflate(const rapidjson::Value& component)
 }
 
 rapidjson::Value
-Context::serialize(rapidjson::Document::AllocatorType& allocator) {
+Context::serialize(rapidjson::Document::AllocatorType& allocator)
+{
     rapidjson::Value out(rapidjson::kArrayType);
 
     for (const auto& m : mMap) {
@@ -491,7 +514,8 @@ operator<<(streamer& os, const Context& context)
 }
 
 
-bool Context::userUpdateAndRecalculate(const std::string& key, const Object& value, bool useDirtyFlag) {
+bool Context::userUpdateAndRecalculate(const std::string& key, const Object& value, bool useDirtyFlag)
+{
     auto it = mMap.find(key);
     if (it != mMap.end()) {
         if (it->second.isUserWriteable()) {
@@ -511,7 +535,8 @@ bool Context::userUpdateAndRecalculate(const std::string& key, const Object& val
     return false;
 }
 
-bool Context::systemUpdateAndRecalculate(const std::string& key, const Object& value, bool useDirtyFlag) {
+bool Context::systemUpdateAndRecalculate(const std::string& key, const Object& value, bool useDirtyFlag)
+{
     auto it = mMap.find(key);
     if (it == mMap.end())
         return false;

@@ -14,8 +14,9 @@
  */
 
 #include "apl/content/viewport.h"
-#include "apl/content/metrics.h"
+
 #include "apl/content/content.h"
+#include "apl/content/metrics.h"
 
 namespace apl {
 

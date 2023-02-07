@@ -15,6 +15,8 @@
 
 #include "apl/primitives/timegrammar.h"
 
+#include "apl/utils/log.h"
+
 namespace apl {
 namespace timegrammar {
 

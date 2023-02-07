@@ -14,14 +14,14 @@
 target_sources_local(apl
     PRIVATE
     action.cpp
-    animateitemaction.cpp
     animatedscrollaction.cpp
-    autopageaction.cpp
+    animateitemaction.cpp
     arrayaction.cpp
+    autopageaction.cpp
     controlmediaaction.cpp
     delayaction.cpp
-    extensioneventaction.cpp
     documentaction.cpp
+    extensioneventaction.cpp
     openurlaction.cpp
     playmediaaction.cpp
     resourceholdingaction.cpp

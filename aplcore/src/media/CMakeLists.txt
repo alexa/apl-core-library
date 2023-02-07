@@ -16,4 +16,5 @@ target_sources_local(apl
         coremediamanager.cpp
         mediaplayer.cpp
         mediautils.cpp
+        mediatrack.cpp
         )

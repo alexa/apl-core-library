@@ -16,29 +16,26 @@
 #include "apl/animation/coreeasing.h"
 #include "apl/animation/easinggrammar.h"
 #include "apl/utils/session.h"
-#include "apl/utils/weakcache.h"
+#include "apl/utils/synchronizedweakcache.h"
 
 namespace apl {
 
 namespace pegtl = tao::TAO_PEGTL_NAMESPACE;
 
 // These easing curves are predefined and available at all times
-static auto sLinear = CoreEasing::linear();
-static auto sEase = CoreEasing::bezier(0.25, 0.10, 0.25, 1);
-static auto sEaseIn = CoreEasing::bezier(0.42, 0, 1, 1);
-static auto sEaseOut = CoreEasing::bezier(0, 0, 0.58, 1);
-static auto sEaseInOut = CoreEasing::bezier(0.42, 0, 0.58, 1);
+static const auto sLinear = CoreEasing::linear();
+static const auto sEase = CoreEasing::bezier(0.25, 0.10, 0.25, 1);
+static const auto sEaseIn = CoreEasing::bezier(0.42, 0, 1, 1);
+static const auto sEaseOut = CoreEasing::bezier(0, 0, 0.58, 1);
+static const auto sEaseInOut = CoreEasing::bezier(0.42, 0, 0.58, 1);
 
-// TODO: This is not thread safe
-static WeakCache<std::string, Easing> sEasingCache = {
+static SynchronizedWeakCache<std::string, Easing> sEasingCache = {
     {"linear",      sLinear},
     {"ease",        sEase},
     {"ease-in",     sEaseIn},
     {"ease-out",    sEaseOut},
     {"ease-in-out", sEaseInOut}
 };
-
-static bool sEasingCacheDirty = false;  // Mark the cache as dirty when an easing curve is deleted
 
 EasingPtr
 Easing::parse(const SessionPtr& session, const std::string& easing)
@@ -64,11 +61,6 @@ Easing::parse(const SessionPtr& session, const std::string& easing)
             CONSOLE(session) << "Unable to create easing curve " << easing;
         }
         else {
-            if (sEasingCacheDirty) {
-                sEasingCache.clean();
-                sEasingCacheDirty = false;
-            }
-
             sEasingCache.insert(s, easingCurve);
             return easingCurve;
         }
@@ -93,8 +85,7 @@ Easing::has(const char *easing)
 }
 
 Easing::~Easing() noexcept {
-    sEasingCacheDirty = true;
-
+    sEasingCache.markDirty();
 }
 
 Object

@@ -13,9 +13,11 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/component/componentpropdef.h"
 #include "apl/component/framecomponent.h"
+
+#include "apl/component/componentpropdef.h"
 #include "apl/component/yogaproperties.h"
+#include "apl/primitives/color.h"
 #include "apl/primitives/radii.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"

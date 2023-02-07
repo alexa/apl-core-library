@@ -177,14 +177,10 @@ public:
     }
 
 #ifdef SCENEGRAPH
-    sg::NodePtr getSceneGraph(sg::SceneGraphUpdates& sceneGraph);
-
-    /**
-     * Update the scene graph with any changes
-     * @param sceneGraph The scene graph to update
-     * @return True if the scene graph needs to be redrawn
-     */
-    bool updateSceneGraph(sg::SceneGraphUpdates& sceneGraph);
+    sg::GraphicFragmentPtr getSceneGraph(bool allowLayers,
+                                         sg::SceneGraphUpdates& sceneGraph,
+                                         const sg::LayerPtr& containingLayer = nullptr);
+    void updateSceneGraph(sg::SceneGraphUpdates& sceneGraph);
 #endif // SCENEGRAPH
 
     class ObjectType final : public PointerHolderObjectType<Graphic> {};
@@ -221,6 +217,11 @@ private:
 
     std::weak_ptr<CoreComponent> mComponent;
     std::shared_ptr<Styles>      mStyles;
+
+#ifdef SCENEGRAPH
+    sg::GraphicFragmentPtr mSceneGraphFragment;
+    bool                   mHasSceneGraph = false;
+#endif
 };
 
 } // namespace apl

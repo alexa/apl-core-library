@@ -13,12 +13,14 @@
  * permissions and limitations under the License.
  */
 
-#include "gtest/gtest.h"
-
 #include "../testeventloop.h"
 
 #include <clocale>
 #include <cmath>
+
+#include "gtest/gtest.h"
+
+#include "apl/primitives/transform.h"
 
 using namespace apl;
 

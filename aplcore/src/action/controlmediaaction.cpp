@@ -14,6 +14,7 @@
  */
 
 #include "apl/action/controlmediaaction.h"
+
 #include "apl/command/corecommand.h"
 #include "apl/component/videocomponent.h"
 #include "apl/media/mediaplayer.h"

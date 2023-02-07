@@ -14,6 +14,7 @@
  */
 
 #include "../testeventloop.h"
+
 #include "apl/component/pagercomponent.h"
 
 /**

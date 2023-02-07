@@ -13,10 +13,12 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/extension/extensionmanager.h"
 #include "apl/primitives/filter.h"
+
 #include "apl/engine/evaluate.h"
 #include "apl/engine/propdef.h"
+#include "apl/extension/extensionmanager.h"
+#include "apl/primitives/color.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -74,6 +76,12 @@ Bimap<int, std::string> sBlendModeBimap = {
     {kBlendModeSaturation, "saturation"},
     {kBlendModeColor,      "color"},
     {kBlendModeLuminosity, "luminosity"},
+    {kBlendModeSourceAtop, "source-atop"},
+    {kBlendModeSourceAtop, "sourceAtop"},
+    {kBlendModeSourceIn,   "source-in"},
+    {kBlendModeSourceIn,   "sourceIn"},
+    {kBlendModeSourceOut,  "source-out"},
+    {kBlendModeSourceOut,  "sourceOut"},
 };
 
 using FilterPropDef = PropDef<FilterProperty, sFilterPropertyBimap>;

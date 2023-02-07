@@ -13,8 +13,9 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/component/componentpropdef.h"
 #include "apl/component/touchablecomponent.h"
+
+#include "apl/component/componentpropdef.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/keyboardmanager.h"
 #include "apl/engine/propdef.h"
@@ -23,7 +24,7 @@
 
 namespace apl {
 
-static std::map<PropertyKey, std::string> sPropertyHandlers = {
+static const std::map<PropertyKey, std::string> sPropertyHandlers = {
     {kPropertyOnCancel, "Cancel"},
     {kPropertyOnDown,   "Down"},
     {kPropertyOnMove,   "Move"},
@@ -31,7 +32,7 @@ static std::map<PropertyKey, std::string> sPropertyHandlers = {
     {kPropertyOnUp,     "Up"}
 };
 
-static std::map<PropertyKey, bool> sPropertyExecutesFast = {
+static const std::map<PropertyKey, bool> sPropertyExecutesFast = {
     {kPropertyOnCancel, true},
     {kPropertyOnDown,   true},
     {kPropertyOnMove,   true},

@@ -16,7 +16,7 @@
 #ifndef _APL_CONTAINER_COMPONENT_H
 #define _APL_CONTAINER_COMPONENT_H
 
-#include "corecomponent.h"
+#include "apl/component/corecomponent.h"
 
 namespace apl {
 

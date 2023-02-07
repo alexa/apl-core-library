@@ -24,6 +24,7 @@
 #include "apl/graphic/graphicelementgroup.h"
 #include "apl/graphic/graphicelementtext.h"
 
+#include "apl/utils/identifier.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -150,8 +151,15 @@ GraphicBuilder::createChild(const ContextPtr& context, const Object& json)
     auto bindings = arrayifyProperty(*context, json, "bind");
     for (const auto& binding : bindings) {
         auto name = propertyAsString(*expanded, binding, "name");
-        if (name.empty() || !binding.has("value"))
+        if (!isValidIdentifier(name)) {
+            CONSOLE(context) << "Invalid binding name '" << name << "'";
             continue;
+        }
+
+        if (!binding.has("value")) {
+            CONSOLE(context) << "Binding '" << name << "' did not specify a value";
+            continue;
+        }
 
         // Extract the binding as an optional node tree.
         auto tmp = propertyAsNode(*expanded, binding, "value");

@@ -20,6 +20,7 @@
 
 #include "apl/primitives/objecttype.h"
 #include "apl/media/mediaobject.h"
+#include "apl/media/mediatrack.h"
 #include "apl/primitives/urlrequest.h"
 
 namespace apl {
@@ -46,6 +47,11 @@ public:
      * @return Optional source description.
      */
     std::string getDescription() const { return mDescription; }
+
+    /**
+     * @return Text tracks
+     */
+    TextTrackArray getTextTracks() const { return mTextTracks; }
 
     /**
      * @return Media duration.
@@ -89,7 +95,8 @@ private:
                 int duration,
                 int repeatCount,
                 Object entities,
-                int offset);
+                int offset,
+                TextTrackArray textTracks);
 
 private:
     URLRequest mUrlRequest;
@@ -98,6 +105,7 @@ private:
     int mRepeatCount;
     Object mEntities;
     int mOffset;
+    TextTrackArray mTextTracks;
 };
 
 } // namespace apl

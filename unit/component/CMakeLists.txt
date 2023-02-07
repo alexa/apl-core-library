@@ -31,6 +31,7 @@ target_sources_local(unittest
         unittest_pager.cpp
         unittest_properties.cpp
         unittest_scroll.cpp
+        unittest_selector.cpp
         unittest_serialize.cpp
         unittest_signature.cpp
         unittest_state.cpp

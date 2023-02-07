@@ -130,7 +130,7 @@ The basic drawing node has the following properties:
 * A pointer to the **next modified** drawing node.  This is the *dirty* list of nodes
   that have changed since the last scene graph retrieval.
 * A set of boolean **flags**.  The two supported flags are:
-  * `kNodeFlagChildrenChanged`: The sibling child list has been modified
+  * `kNodeFlagChildChanged`: The sibling child list has been modified
   * `kNodeFlagModified`: Some property of this node has changed.
 
 Drawing nodes come in the following types:

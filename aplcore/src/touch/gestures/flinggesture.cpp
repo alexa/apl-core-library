@@ -15,17 +15,15 @@
 
 #include "apl/touch/gestures/flinggesture.h"
 
+#include "apl/action/action.h"
+#include "apl/animation/coreeasing.h"
 #include "apl/component/actionablecomponent.h"
 #include "apl/content/rootconfig.h"
-
 #include "apl/engine/builder.h"
-#include "apl/action/action.h"
-
-#include "apl/animation/coreeasing.h"
 #include "apl/primitives/timefunctions.h"
+#include "apl/time/sequencer.h"
 #include "apl/touch/utils/velocitytracker.h"
 #include "apl/utils/session.h"
-#include "apl/time/sequencer.h"
 
 namespace apl {
 

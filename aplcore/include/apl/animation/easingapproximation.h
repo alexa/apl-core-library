@@ -29,7 +29,7 @@ class EasingApproximation : public EasingSegment::Data,
 
 public:
     /**
-     * Create an easing curve approximation.
+     * Create an easing curve approximation or return an equivalent one from cache if possible.
      * @param dof The number of entries in the start, tout, tin, and end arrays
      * @param start An array of starting values
      * @param tout An array of tangent-out values (relative to the start value)
@@ -38,12 +38,12 @@ public:
      * @param blockCount The total number of subsegments to create.
      * @return A pointer to the easing approximation.
      */
-    static std::shared_ptr<EasingApproximation> create(int dof,
-                                                       const float *start,
-                                                       const float *tout,
-                                                       const float *tin,
-                                                       const float *end,
-                                                       int blockCount);
+    static std::shared_ptr<EasingApproximation> getOrCreate(int dof,
+                                                            const float *start,
+                                                            const float *tout,
+                                                            const float *tin,
+                                                            const float *end,
+                                                            int blockCount);
 
     // Private constructor - use the "create" method instead.
     EasingApproximation(int dof,
@@ -52,6 +52,8 @@ public:
         : mDOF(dof),
           mData(std::move(data)),
           mCumulative(std::move(cumulative)) {}
+
+    ~EasingApproximation();
 
     /**
      * Calculate a position along the easing curve.

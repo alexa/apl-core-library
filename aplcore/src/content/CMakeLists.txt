@@ -17,6 +17,8 @@ target_sources_local(apl
     configurationchange.cpp
     content.cpp
     directive.cpp
+    extensioncommanddefinition.cpp
+    extensionfilterdefinition.cpp
     importrequest.cpp
     jsondata.cpp
     metrics.cpp

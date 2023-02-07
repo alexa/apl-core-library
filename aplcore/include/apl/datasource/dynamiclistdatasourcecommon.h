@@ -16,7 +16,7 @@
 #ifndef _APL_DYNAMIC_LIST_DATA_SOURCE_COMMON_H
 #define _APL_DYNAMIC_LIST_DATA_SOURCE_COMMON_H
 
-#include "apl/apl.h"
+#include "apl/common.h"
 
 namespace apl {
 

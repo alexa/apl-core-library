@@ -14,26 +14,27 @@
  */
 
 #include "apl/component/edittextcomponent.h"
+
 #include "apl/component/componentpropdef.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/event.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/primitives/unicode.h"
+#include "apl/time/sequencer.h"
+#include "apl/touch/pointerevent.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
-#include "apl/scenegraph/edittextconfig.h"
 #include "apl/scenegraph/edittext.h"
+#include "apl/scenegraph/edittextbox.h"
+#include "apl/scenegraph/edittextconfig.h"
 #include "apl/scenegraph/edittextfactory.h"
 #include "apl/scenegraph/scenegraphupdates.h"
-#include "apl/scenegraph/edittextbox.h"
 #include "apl/scenegraph/textchunk.h"
 #include "apl/scenegraph/textlayout.h"
 #include "apl/scenegraph/textmeasurement.h"
 #include "apl/scenegraph/utilities.h"
 #endif // SCENEGRAPH
-#include "apl/time/sequencer.h"
-#include "apl/touch/pointerevent.h"
 
 namespace apl {
 
@@ -503,6 +504,8 @@ EditTextComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
 
     // Construct an inner layer for the actual edit text
     auto innerLayer = sg::layer(mUniqueId + "-innerEditText", innerBounds, 1.0, Transform2D());
+    sceneGraph.created(innerLayer);
+
     innerLayer->setContent(sg::editText(mEditText.getPtr(), mEditTextBox,
                                         mEditTextConfig, getCalculated(kPropertyText).getString()));
     innerLayer->clearFlags();

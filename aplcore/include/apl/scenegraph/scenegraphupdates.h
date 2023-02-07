@@ -41,17 +41,18 @@ public:
     bool empty() { return mChanged.empty() && mCreated.empty(); }
 
     void changed(const LayerPtr& layer);
-    void changed(Layer *layer);
-
     void created(const LayerPtr& layer);
-    void created(Layer *layer);
+    void resize(const LayerPtr& layer);
 
-    void mapChanged(std::function<void(const LayerPtr&)> func);
-    void mapCreated(std::function<void(const LayerPtr&)> func);
+    void mapChanged(const std::function<void(const LayerPtr&)>& func);
+
+    void fixCreatedFlags();
+    void processResize();
 
 private:
     std::set<LayerPtr> mChanged;
     std::set<LayerPtr> mCreated;
+    std::set<LayerPtr> mResize;
 };
 
 } // namespace sg

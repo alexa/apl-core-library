@@ -16,8 +16,10 @@
 #ifndef _APL_COMPONENT_PROP_DEF_H
 #define _APL_COMPONENT_PROP_DEF_H
 
-#include "component.h"
+#include "apl/component/component.h"
 #include "apl/engine/propdef.h"
+
+#include <yoga/YGNode.h>
 
 namespace apl {
 

@@ -14,10 +14,16 @@
  */
 
 #include "apl/graphic/graphicelementpath.h"
+
 #include "apl/graphic/graphicpropdef.h"
+#include "apl/primitives/color.h"
+#include "apl/primitives/transform2d.h"
+
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/graphicfragment.h"
 #include "apl/scenegraph/scenegraph.h"
+#include "apl/scenegraph/scenegraphupdates.h"
 #endif // SCENEGRAPH
 
 namespace apl {
@@ -78,11 +84,32 @@ GraphicElementPath::initialize(const GraphicPtr& graphic, const Object& json)
     return true;
 }
 
-#ifdef SCENEGRAPH
-sg::NodePtr
-GraphicElementPath::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
+void
+GraphicElementPath::release()
 {
+#ifdef SCENEGRAPH
+    mSceneGraphNode = nullptr;
+#endif
+
+    GraphicElement::release();
+}
+
+#ifdef SCENEGRAPH
+sg::GraphicFragmentPtr
+GraphicElementPath::buildSceneGraph(bool allowLayers, sg::SceneGraphUpdates& sceneGraph)
+{
+    // Clear cached items
+    mSceneGraphNode = nullptr;
+
     auto path = sg::path(getValue(kGraphicPropertyPathData).asString());
+
+    // Return nothing if there is no path and the path never mutates
+    const auto pathMutates = hasUpstream(kGraphicPropertyPathData);
+    const auto hasStyle = !mStyle.empty();
+    if (path->empty() && !pathMutates && !hasStyle)
+        return {};
+
+    // Calculate the current fill and stroke
     auto fill = sg::fill(sg::paint(getValue(kGraphicPropertyFill),
                                    getValue(kGraphicPropertyFillOpacity).asFloat(),
                                    getValue(kGraphicPropertyFillTransform).get<Transform2D>()));
@@ -100,21 +127,16 @@ GraphicElementPath::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
             .dashes(getValue(kGraphicPropertyStrokeDashArray))
             .get();
 
-    // Return nothing if there is no path and the path never mutates
-    const auto pathMutates = hasUpstream(kGraphicPropertyPathData);
-    if (path->empty() && !pathMutates)
-        return nullptr;
-
     // Include the fill operation if it is visible or if it can change to be visible
-    const auto includeFill = fill->visible() ||
-                             hasUpstream(kGraphicPropertyFill) ||
-                             hasUpstream(kGraphicPropertyFillOpacity);
+    const auto includeFill = hasStyle ||
+        (includeInSceneGraph(kGraphicPropertyFill) &&
+                                          includeInSceneGraph(kGraphicPropertyFillOpacity));
 
     // Include the stroke operation if it is visible or if it can change to be visible
-    const auto includeStroke = stroke->visible() ||
-                               hasUpstream(kGraphicPropertyStroke) ||
-                               hasUpstream(kGraphicPropertyStrokeOpacity) ||
-                               hasUpstream(kGraphicPropertyStrokeWidth);
+    const auto includeStroke = hasStyle ||
+                               (includeInSceneGraph(kGraphicPropertyStroke) &&
+                                            includeInSceneGraph(kGraphicPropertyStrokeOpacity) &&
+                                            includeInSceneGraph(kGraphicPropertyStrokeWidth));
 
     // Assemble the operations list in reverse order so that fill occurs before stroke.
     auto op = includeStroke ? stroke : nullptr;
@@ -123,32 +145,71 @@ GraphicElementPath::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
         op = fill;
     }
 
-    // If there are no drawing operations, return a null node.
-    return op ? sg::draw(path, op) : nullptr;
+    // If there are no drawing operations, leave this node empty
+    if (!op)
+        return {};
+
+    auto node = sg::draw(path, op);
+
+    // The content is mutable if there is an upstream dependency OR a style that can change the
+    // properties.
+    // TODO: Check what properties the style can change for a more fine-grained test.
+    const auto pathMutable = hasStyle || hasUpstream();
+    if (pathMutable)
+        mSceneGraphNode = node;
+
+    // If mutable and layers are allowed, set up a layer
+    sg::GraphicFragmentPtr result;
+    if (allowLayers && pathMutable) {
+        auto layer = sg::layer(getUniqueId() + "_path", Rect(), 1.0f, Transform2D());
+        layer->setCharacteristic(sg::Layer::kCharacteristicRenderOnly |
+                                            sg::Layer::kCharacteristicDoNotClipChildren);
+        sceneGraph.created(layer);
+        layer->setContent(node);
+        mContainingLayer = layer;
+
+        auto bounds = node->boundingBox(Transform2D());
+        layer->setContentOffset(bounds.getTopLeft());
+        layer->setBounds(bounds);
+        result = sg::GraphicFragment::create(shared_from_this(), layer,
+                                             sg::GraphicFragment::kLayerFixedContentMutable);
+    }
+    else {
+        result =
+            sg::GraphicFragment::create(shared_from_this(), node,
+                                             pathMutable ? sg::GraphicFragment::kNodeContentMutable
+                                                       : sg::GraphicFragment::kNodeContentFixed);
+    }
+
+    result->applyFilters(mValues.get(kGraphicPropertyFilters));
+    return result;
 }
 
 void
-GraphicElementPath::updateSceneGraphInternal(sg::ModifiedNodeList& modList, const sg::NodePtr& node)
+GraphicElementPath::updateSceneGraph(sg::SceneGraphUpdates& sceneGraph)
 {
+    if (!mSceneGraphNode)
+        return;
+
     const auto pathChanged = isDirty(kGraphicPropertyPathData);
-    const auto fillChanged = isDirty(kGraphicPropertyFill) ||
-                             isDirty(kGraphicPropertyFillOpacity) ||
-                             isDirty(kGraphicPropertyFillTransform);
-    const auto strokePaintChanged = isDirty(kGraphicPropertyStroke) ||
-                                    isDirty(kGraphicPropertyStrokeOpacity) ||
-                                    isDirty(kGraphicPropertyStrokeTransform);
+    const auto fillChanged =
+        isDirty({kGraphicPropertyFill, kGraphicPropertyFillOpacity, kGraphicPropertyFillTransform});
+    const auto strokePaintChanged = isDirty(
+        {kGraphicPropertyStroke, kGraphicPropertyStrokeOpacity, kGraphicPropertyStrokeTransform});
 
-    const auto strokeChanged =
-        isDirty(kGraphicPropertyStrokeWidth) || isDirty(kGraphicPropertyStrokeMiterLimit) ||
-        isDirty(kGraphicPropertyPathLength) || isDirty(kGraphicPropertyStrokeDashOffset) ||
-        isDirty(kGraphicPropertyStrokeLineCap) || isDirty(kGraphicPropertyStrokeLineJoin) ||
-        isDirty(kGraphicPropertyStrokeDashArray);
+    const auto strokeChanged = isDirty(
+        {kGraphicPropertyStrokeWidth, kGraphicPropertyStrokeMiterLimit, kGraphicPropertyPathLength,
+         kGraphicPropertyStrokeDashOffset, kGraphicPropertyStrokeLineCap,
+         kGraphicPropertyStrokeLineJoin, kGraphicPropertyStrokeDashArray});
 
+    // Fix up the drawing content
     if (pathChanged || fillChanged || strokePaintChanged || strokeChanged) {
-        auto* draw = sg::DrawNode::cast(node);
+        auto* draw = sg::DrawNode::cast(mSceneGraphNode);
 
-        if (pathChanged && draw->setPath(sg::path(getValue(kGraphicPropertyPathData).asString())))
-            modList.contentChanged(draw);
+        if (pathChanged && draw->setPath(sg::path(getValue(kGraphicPropertyPathData).asString()))) {
+            requestRedraw(sceneGraph);
+            requestSizeCheck(sceneGraph);
+        }
 
         auto op = draw->getOp();
         if (sg::FillPathOp::is_type(op) && fillChanged) {
@@ -165,7 +226,7 @@ GraphicElementPath::updateSceneGraphInternal(sg::ModifiedNodeList& modList, cons
             }
 
             // TODO: Do a fine-grained check to see if the fill actually changed
-            modList.contentChanged(draw);
+            requestRedraw(sceneGraph);
         }
 
         // Advance to the stroke operation if the fill was defined.
@@ -187,7 +248,7 @@ GraphicElementPath::updateSceneGraphInternal(sg::ModifiedNodeList& modList, cons
                     op->paint->setTransform(
                         getValue(kGraphicPropertyStrokeTransform).get<Transform2D>());
                 }
-                modList.contentChanged(draw);
+                requestRedraw(sceneGraph);
             }
 
             if (strokeChanged) {
@@ -201,10 +262,12 @@ GraphicElementPath::updateSceneGraphInternal(sg::ModifiedNodeList& modList, cons
                     .lineJoin(static_cast<GraphicLineJoin>(
                         getValue(kGraphicPropertyStrokeLineJoin).asInt()))
                     .dashes(getValue(kGraphicPropertyStrokeDashArray));
-                modList.contentChanged(draw);
+                requestRedraw(sceneGraph);
+                requestSizeCheck(sceneGraph);
             }
         }
     }
 }
+
 #endif // SCENEGRAPH
 }  // namespace apl

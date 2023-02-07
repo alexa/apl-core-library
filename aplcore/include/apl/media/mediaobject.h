@@ -21,9 +21,10 @@
 
 #include "apl/apl_config.h"
 #include "apl/common.h"
+
 #include "apl/engine/event.h"
+#include "apl/primitives/header.h"
 #include "apl/primitives/size.h"
-#include "apl/primitives/urlrequest.h"
 #include "apl/utils/noncopyable.h"
 
 namespace apl {

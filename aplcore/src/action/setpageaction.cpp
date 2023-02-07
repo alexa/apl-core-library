@@ -14,9 +14,10 @@
  */
 
 #include "apl/action/setpageaction.h"
+
 #include "apl/command/corecommand.h"
-#include "apl/time/sequencer.h"
 #include "apl/component/pagercomponent.h"
+#include "apl/time/sequencer.h"
 
 namespace apl {
 

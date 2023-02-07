@@ -15,25 +15,25 @@ target_sources_local(apl
     PRIVATE
     accessibilityaction.cpp
     color.cpp
-    range.cpp
     dimension.cpp
     filter.cpp
     functions.cpp
     gradient.cpp
     keyboard.cpp
     mediasource.cpp
+    object.cpp
+    objecttype.cpp
     radii.cpp
+    range.cpp
     rect.cpp
     roundedrect.cpp
-    symbolreferencemap.cpp
     styledtext.cpp
     styledtextstate.cpp
+    symbolreferencemap.cpp
     timefunctions.cpp
     timegrammar.cpp
     transform.cpp
     transform2d.cpp
-    object.cpp
-    objecttype.cpp
     unicode.cpp
     urlrequest.cpp
 )

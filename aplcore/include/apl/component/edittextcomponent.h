@@ -21,8 +21,8 @@
 #include "apl/apl_config.h"
 #include "apl/component/actionablecomponent.h"
 #ifdef SCENEGRAPH
-#include "apl/scenegraph/textproperties.h"
 #include "apl/scenegraph/edittext.h"
+#include "apl/scenegraph/textproperties.h"
 #include "apl/utils/principal_ptr.h"
 #endif // SCENEGRAPH
 

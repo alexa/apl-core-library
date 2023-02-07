@@ -13,17 +13,18 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/component/componentpropdef.h"
 #include "apl/component/imagecomponent.h"
+
+#include "apl/component/componentpropdef.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/event.h"
 #include "apl/media/mediamanager.h"
+#include "apl/time/sequencer.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
 #include "apl/scenegraph/scenegraph.h"
 #endif // SCENEGRAPH
-#include "apl/time/sequencer.h"
 
 namespace apl {
 

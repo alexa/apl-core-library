@@ -75,7 +75,8 @@ private:
                                  bool fullBuild,
                                  bool useDirtyFlag);
 
-    CoreComponentPtr expandLayout(const ContextPtr& context,
+    CoreComponentPtr expandLayout(const std::string& name,
+                                  const ContextPtr& context,
                                   Properties& properties,
                                   const rapidjson::Value& layout,
                                   const CoreComponentPtr& parent,

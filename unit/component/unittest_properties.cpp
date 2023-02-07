@@ -108,11 +108,13 @@ TEST_F(PropertyTest, Roles)
 /**
  * Verify all of the blending modes
  */
-TEST_F(PropertyTest, BlendMode) {
-    ASSERT_TRUE(CheckBimap(sBlendModeBimap,
-                           {"normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge",
-                            "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue",
-                            "saturation", "color", "luminosity"},
-                           {"colorDodge", "colorBurn", "hardLight", "softLight"})
-    );
+TEST_F(PropertyTest, BlendMode)
+{
+    ASSERT_TRUE(
+        CheckBimap(sBlendModeBimap,
+                   {"normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge",
+                    "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue",
+                    "saturation", "color", "luminosity", "source-atop", "source-in", "source-out"},
+                   {"colorDodge", "colorBurn", "hardLight", "softLight", "sourceAtop", "sourceIn",
+                    "sourceOut"}));
 }

@@ -14,6 +14,7 @@
  */
 
 #include "testeventloop.h"
+
 #include "apl/livedata/livearrayobject.h"
 #include "apl/livedata/livemapobject.h"
 #include "apl/graphic/graphicelementcontainer.h"

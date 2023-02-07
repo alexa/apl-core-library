@@ -34,6 +34,10 @@ public:
     }
 };
 
+/**
+ * By design, this is a global. We expect a single TextMeasurement to be shared
+ * across all root contexts.
+ */
 static TextMeasurementPtr sTextMeasurement = std::make_shared<DummyTextMeasurement>();
 
 void

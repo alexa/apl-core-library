@@ -96,7 +96,7 @@ struct number     : sor<seq<number_int, sym_decimal, star<digit>>,    // INTEGER
                         seq<sym_decimal, plus<digit>>,                // . DIGITS+
                         number_int> {};                               // INTEGER
 
-struct symbol : seq< not_at<keyword>, alpha, star<identifier_other> > {};
+struct symbol : seq< not_at<keyword>, identifier> {};
 
 // Inline Arrays (e.g., [1,2,3])
 struct array_comma : one<','> {};

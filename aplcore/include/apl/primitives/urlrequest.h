@@ -16,15 +16,13 @@
 #ifndef APL_URLREQUEST_H
 #define APL_URLREQUEST_H
 
-#include "apl/primitives/objecttype.h"
-
 #include <string>
 #include <vector>
 
-namespace apl {
+#include "apl/primitives/header.h"
+#include "apl/primitives/objecttype.h"
 
-using HeaderItem = std::string;
-using HeaderArray = std::vector<HeaderItem>;
+namespace apl {
 
 /**
  * URLRequest class stores the common elements required for any media source.

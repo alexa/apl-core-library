@@ -17,9 +17,9 @@
 #define _APL_SYMBOL_REFERENCE_MAP_H
 
 #include <map>
+#include <string>
 
 #include "apl/common.h"
-#include "apl/utils/log.h"
 
 namespace apl {
 

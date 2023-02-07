@@ -13,15 +13,16 @@
  * permissions and limitations under the License.
  */
 
-#include <yoga/YGNode.h>
+#include "apl/component/corecomponent.h"
 
 #include <cmath>
+#include <yoga/YGNode.h>
 
 #include "apl/common.h"
+
 #include "apl/component/componenteventsourcewrapper.h"
 #include "apl/component/componenteventtargetwrapper.h"
 #include "apl/component/componentpropdef.h"
-#include "apl/component/corecomponent.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/builder.h"
@@ -36,19 +37,21 @@
 #include "apl/livedata/livearrayobject.h"
 #include "apl/primitives/accessibilityaction.h"
 #include "apl/primitives/keyboard.h"
-#ifdef SCENEGRAPH
-#include "apl/scenegraph/builder.h"
-#include "apl/scenegraph/scenegraph.h"
-#endif // SCENEGRAPH
+#include "apl/primitives/transform.h"
 #include "apl/time/sequencer.h"
 #include "apl/time/timemanager.h"
 #include "apl/touch/pointerevent.h"
 #include "apl/utils/hash.h"
 #include "apl/utils/searchvisitor.h"
 #include "apl/utils/session.h"
-#include "apl/utils/stickyfunctions.h"
 #include "apl/utils/stickychildrentree.h"
+#include "apl/utils/stickyfunctions.h"
 #include "apl/utils/tracing.h"
+
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/scenegraph.h"
+#endif // SCENEGRAPH
 
 namespace apl {
 
@@ -732,7 +735,6 @@ CoreComponent::getSceneGraph(sg::SceneGraphUpdates& sceneGraph)
             mSceneGraphLayer->appendChild(m->getSceneGraph(sceneGraph));
 
         mSceneGraphLayer->clearFlags();
-        sceneGraph.created(mSceneGraphLayer);
     }
 
     return mSceneGraphLayer;
@@ -805,7 +807,7 @@ CoreComponent::updateSceneGraph(sg::SceneGraphUpdates& sceneGraph)
         layer->setFlag(sg::Layer::kFlagRedrawContent);
 
     // Transfer any layer changes to the change map
-    sceneGraph.changed(layer);
+    sceneGraph.changed(mSceneGraphLayer);
 
     // Clear all of the dirty flags on the component
     clearDirty();
@@ -817,6 +819,7 @@ CoreComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
     auto layer = sg::layer(mUniqueId, getCalculated(kPropertyBounds).get<Rect>(),
                            static_cast<float>(getCalculated(kPropertyOpacity).asNumber()),
                            getCalculated(kPropertyTransform).get<Transform2D>());
+    sceneGraph.created(layer);
 
     if (getCalculated(kPropertyDisabled).truthy())
         layer->setInteraction(sg::Layer::kInteractionDisabled);

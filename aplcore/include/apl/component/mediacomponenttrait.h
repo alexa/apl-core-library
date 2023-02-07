@@ -19,6 +19,7 @@
 #include "apl/component/componenttrait.h"
 #include "apl/engine/event.h"
 #include "apl/media/mediaobject.h"
+#include "apl/primitives/urlrequest.h"
 
 namespace apl {
 

@@ -13,9 +13,8 @@
  * permissions and limitations under the License.
  */
 
-#include <cassert>
-
 #include "apl/engine/event.h"
+
 #include "apl/command/command.h"
 #include "apl/command/corecommand.h"
 

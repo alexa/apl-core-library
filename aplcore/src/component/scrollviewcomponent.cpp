@@ -13,10 +13,11 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/component/scrollviewcomponent.h"
+
 #include "apl/command/commandproperties.h"
 #include "apl/command/scrollcommand.h"
 #include "apl/component/componentpropdef.h"
-#include "apl/component/scrollviewcomponent.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/time/sequencer.h"
 

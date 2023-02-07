@@ -13,8 +13,9 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/component/componentpropdef.h"
 #include "apl/component/pagercomponent.h"
+
+#include "apl/component/componentpropdef.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/layoutmanager.h"
@@ -23,10 +24,9 @@
 #include "apl/livedata/livearrayobject.h"
 #include "apl/primitives/keyboard.h"
 #include "apl/time/sequencer.h"
-
+#include "apl/time/timemanager.h"
 #include "apl/touch/gestures/pagerflinggesture.h"
 #include "apl/touch/utils/pagemovehandler.h"
-#include "apl/time/timemanager.h"
 
 namespace apl {
 

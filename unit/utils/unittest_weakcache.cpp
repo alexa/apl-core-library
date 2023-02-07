@@ -16,6 +16,7 @@
 #include "../testeventloop.h"
 
 #include "apl/utils/weakcache.h"
+#include "apl/utils/synchronizedweakcache.h"
 
 using namespace apl;
 
@@ -70,4 +71,44 @@ TEST(WeakCache, Prepopulate)
     }
 
     ASSERT_EQ(2, cache.size());
+}
+
+TEST(WeakCache, CleansOnDemand)
+{
+    WeakCache<std::string, Foo> cache;
+
+    ASSERT_EQ(0, cache.size());
+
+    {
+        cache.insert("f1", Foo::create(1));
+        cache.insert("f2", Foo::create(2));
+    }
+
+    // Cache contains two expired items (trust me)
+
+    // Clean them up
+    cache.clean();
+    ASSERT_EQ(0, cache.size());
+
+    // Add a mix of expired and non-expired items
+    auto f3 = Foo::create(3);
+    cache.insert("f3", f3);
+    {
+        cache.insert("f4", Foo::create(4));
+        cache.insert("f5", Foo::create(5));
+    }
+    auto f6 = Foo::create(6);
+    cache.insert("f6", f6);
+
+    // Clean up the expired ones
+    cache.clean();
+
+    // This leaves behind exactly two non-expired ones
+    ASSERT_EQ(2, cache.size());
+    auto f3b = cache.find("f3");
+    auto f6b = cache.find("f6");
+    ASSERT_TRUE(f3b);
+    ASSERT_TRUE(f6b);
+    ASSERT_EQ(3, f3b->value);
+    ASSERT_EQ(6, f6b->value);
 }

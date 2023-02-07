@@ -14,6 +14,7 @@
  */
 
 #include "apl/extension/extensioncomponent.h"
+
 #include "apl/component/componentpropdef.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/extension/extensionmanager.h"
@@ -22,7 +23,7 @@
 
 namespace apl {
 
-static std::map<PropertyKey, std::string> sPropertyHandlers = {
+static const std::map<PropertyKey, std::string> sPropertyHandlers = {
     {kPropertyResourceOnFatalError, "FatalError"}
 };
 

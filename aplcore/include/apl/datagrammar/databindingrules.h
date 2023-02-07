@@ -19,12 +19,11 @@
 #define _APL_DATA_BINDING_RULES_H
 
 #include <tao/pegtl.hpp>
-#include "databindinggrammar.h"
-#include "bytecodeassembler.h"
 
-
-#include "apl/primitives/object.h"
+#include "apl/datagrammar/bytecodeassembler.h"
+#include "apl/datagrammar/databindinggrammar.h"
 #include "apl/primitives/dimension.h"
+#include "apl/primitives/object.h"
 #include "apl/utils/stringfunctions.h"
 
 #ifdef APL_CORE_UWP

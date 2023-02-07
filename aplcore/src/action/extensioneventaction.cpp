@@ -14,6 +14,7 @@
  */
 
 #include "apl/action/extensioneventaction.h"
+
 #include "apl/command/extensioneventcommand.h"
 #include "apl/content/extensioncommanddefinition.h"
 #include "apl/content/rootconfig.h"

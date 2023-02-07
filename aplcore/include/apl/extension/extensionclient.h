@@ -17,14 +17,14 @@
 #define _APL_EXTENSION_CLIENT_H
 
 #include "apl/common.h"
-#include "apl/content/jsondata.h"
-#include "apl/content/extensionproperty.h"
 #include "apl/content/extensioncomponentdefinition.h"
+#include "apl/content/extensionproperty.h"
+#include "apl/content/jsondata.h"
 #include "apl/engine/event.h"
+#include "apl/livedata/livedataobjectwatcher.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/noncopyable.h"
 #include "apl/utils/session.h"
-#include "apl/livedata/livedataobjectwatcher.h"
 
 namespace apl {
 

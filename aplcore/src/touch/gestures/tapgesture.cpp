@@ -13,10 +13,9 @@
  * permissions and limitations under the License.
  */
 
-#include <cmath>
-#include <limits>
-
 #include "apl/touch/gestures/tapgesture.h"
+
+#include <cmath>
 
 #include "apl/component/touchablecomponent.h"
 #include "apl/content/rootconfig.h"

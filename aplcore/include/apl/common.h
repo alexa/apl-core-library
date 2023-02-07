@@ -20,6 +20,8 @@
 #include <memory>
 #include <set>
 
+#include "apl/apl_config.h"
+
 namespace apl {
 
 /**
@@ -57,13 +59,14 @@ class CoreComponent;
 class DataSource;
 class DataSourceProvider;
 class Easing;
+class EventManager;
 class ExtensionClient;
 class ExtensionCommandDefinition;
 class ExtensionComponent;
 class ExtensionMediator;
+class Graphic;
 class GraphicContent;
 class GraphicElement;
-class Graphic;
 class GraphicPattern;
 class LiveArray;
 class LiveMap;
@@ -84,17 +87,17 @@ class Timers;
 class UIDObject;
 
 using ActionPtr = std::shared_ptr<Action>;
-using AudioPlayerPtr = std::shared_ptr<AudioPlayer>;
 using AudioPlayerFactoryPtr = std::shared_ptr<AudioPlayerFactory>;
+using AudioPlayerPtr = std::shared_ptr<AudioPlayer>;
 using CommandPtr = std::shared_ptr<Command>;
-using ConstCommandPtr = std::shared_ptr<const Command>;
 using ComponentPtr = std::shared_ptr<Component>;
+using ConstCommandPtr = std::shared_ptr<const Command>;
+using ConstContextPtr = std::shared_ptr<const Context>;
 using ContentPtr = std::shared_ptr<Content>;
 using ContextPtr = std::shared_ptr<Context>;
-using ConstContextPtr = std::shared_ptr<const Context>;
 using CoreComponentPtr = std::shared_ptr<CoreComponent>;
-using DataSourcePtr = std::shared_ptr<DataSource>;
 using DataSourceProviderPtr = std::shared_ptr<DataSourceProvider>;
+using DataSourcePtr = std::shared_ptr<DataSource>;
 using EasingPtr = std::shared_ptr<Easing>;
 using ExtensionClientPtr = std::shared_ptr<ExtensionClient>;
 using ExtensionCommandDefinitionPtr = std::shared_ptr<ExtensionCommandDefinition>;
@@ -102,8 +105,8 @@ using ExtensionComponentPtr = std::shared_ptr<ExtensionComponent>;
 using ExtensionMediatorPtr = std::shared_ptr<ExtensionMediator>;
 using GraphicContentPtr = std::shared_ptr<GraphicContent>;
 using GraphicElementPtr = std::shared_ptr<GraphicElement>;
-using GraphicPtr = std::shared_ptr<Graphic>;
 using GraphicPatternPtr = std::shared_ptr<GraphicPattern>;
+using GraphicPtr = std::shared_ptr<Graphic>;
 using LiveArrayPtr = std::shared_ptr<LiveArray>;
 using LiveMapPtr = std::shared_ptr<LiveMap>;
 using LiveObjectPtr = std::shared_ptr<LiveObject>;
@@ -122,8 +125,8 @@ using TextMeasurementPtr = std::shared_ptr<TextMeasurement>;
 using TimersPtr = std::shared_ptr<Timers>;
 
 // Convenience templates for creating sets of weak and strong pointers
-template<class T> using WeakPtrSet = std::set<std::weak_ptr<T>, std::owner_less<std::weak_ptr<T>>>;
 template<class T> using SharedPtrSet = std::set<std::shared_ptr<T>, std::owner_less<std::shared_ptr<T>>>;
+template<class T> using WeakPtrSet = std::set<std::weak_ptr<T>, std::owner_less<std::weak_ptr<T>>>;
 
 } // namespace apl
 

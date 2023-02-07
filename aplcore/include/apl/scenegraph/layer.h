@@ -16,6 +16,8 @@
 #ifndef _APL_LAYER_H
 #define _APL_LAYER_H
 
+#include <cstdint>
+
 #include "apl/common.h"
 #include "apl/primitives/transform2d.h"
 #include "apl/scenegraph/path.h"
@@ -57,6 +59,8 @@ public:
         kFlagInteractionChanged = 1u << 11,
     };
 
+    using FlagType = std::uint16_t;
+
     // WARNING: If you changed these, update the layers.cpp file to fix the constant array
     enum Interaction {
         kInteractionNone = 0,
@@ -67,29 +71,52 @@ public:
         kInteractionScrollVertical = 1u << 4,     // Can be scrolled vertically
     };
 
+    using InteractionType = std::uint8_t;
+
+    // WARNING: If you changed these, update the layers.cpp file to fix the constant array
+    enum Characteristics {
+        kCharacteristicDoNotClipChildren = 1u << 0,    // Do not clip children to the layer outline or clip path
+        kCharacteristicRenderOnly = 1u << 1,           // This layer is only for rendering (no text input or touch events)
+    };
+
+    using CharacteristicsType = std::uint8_t;
+
     Layer(const std::string& name, Rect bounds, float opacity, Transform2D transform);
     ~Layer() override;
 
     const std::string& getName() const { return mName; }
 
-    void setFlag(unsigned flag) { mFlags |= flag; }
-    bool isFlagSet(unsigned flag) const { return (mFlags & flag) != 0; }
+    void setFlag(FlagType flag) { mFlags |= flag; }
+    bool isFlagSet(FlagType flag) const { return (mFlags & flag) != 0; }
     bool anyFlagSet() const { return mFlags != 0; }
     void clearFlags() { mFlags = 0; }
-    unsigned getAndClearFlags() { auto result = mFlags; mFlags = 0; return result; }
+    FlagType getAndClearFlags() { auto result = mFlags; mFlags = 0; return result; }
     std::string debugFlagString() const;
 
-    void setInteraction(unsigned interaction) { mInteraction |= interaction; }
-    void updateInteraction(unsigned interaction, bool isSet);
-    unsigned getInteraction() const { return mInteraction; }
+    void setInteraction(InteractionType interaction) { mInteraction |= interaction; }
+    void updateInteraction(InteractionType interaction, bool isSet);
+    InteractionType getInteraction() const { return mInteraction; }
     std::string debugInteractionString() const;
+
+    void setCharacteristic(CharacteristicsType characteristic) {
+        mCharacteristics |= characteristic; }
+    CharacteristicsType getCharacteristic() const { return mCharacteristics; }
+    bool isCharacteristicSet(CharacteristicsType characteristic) const { return (mCharacteristics & characteristic) != 0; }
+    std::string debugCharacteristicString() const;
 
     void removeAllChildren();
     void appendChild(const LayerPtr& layer);
+    void appendChildren(const std::vector<LayerPtr>& children);
     const std::vector<LayerPtr>& children() const { return mChildren; }
 
     void setContent(const NodePtr& node);
     const NodePtr& content() const { return mContent; }
+
+    /**
+     * The content node does not always have the same origin as the layer.
+     */
+    void setContentOffset(const Point& offset);
+    Point getContentOffset() const { return mContentOffset; }
 
     /**
      * The bounds of the layer are its outline and position relative to the containing layer.
@@ -149,6 +176,7 @@ private:
     std::string mName;
     std::vector<LayerPtr> mChildren;
     NodePtr mContent;
+    Point mContentOffset;  // Local transform applied before drawing content
 
     Rect mBounds;     // The bounds of the layer.  The position is the top-left corner in the parent
 
@@ -162,8 +190,9 @@ private:
     AccessibilityPtr mAccessibility;   // Accessibility information
 
     float mOpacity = 1.0f;   // Common layer opacity
-    unsigned mFlags = 0;
-    unsigned mInteraction = 0;
+    FlagType mFlags = 0;
+    InteractionType mInteraction = 0;
+    CharacteristicsType mCharacteristics = 0;
 };
 
 

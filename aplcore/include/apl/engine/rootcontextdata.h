@@ -18,12 +18,8 @@
 
 #include <map>
 #include <string>
-#include <queue>
 
 #include "apl/apl_config.h"
-#ifdef SCENEGRAPH
-#include "apl/scenegraph/common.h"
-#endif // SCENEGRAPH
 
 #include "apl/content/content.h"
 #include "apl/content/metrics.h"
@@ -31,6 +27,7 @@
 #include "apl/content/settings.h"
 #include "apl/datasource/datasourceconnection.h"
 #include "apl/engine/event.h"
+#include "apl/engine/queueeventmanager.h"
 #include "apl/engine/hovermanager.h"
 #include "apl/engine/jsonresource.h"
 #include "apl/engine/keyboardmanager.h"
@@ -41,12 +38,16 @@
 #include "apl/focus/focusmanager.h"
 #include "apl/livedata/livedatamanager.h"
 #include "apl/media/mediamanager.h"
-#include "apl/primitives/textmeasurerequest.h"
 #include "apl/primitives/size.h"
+#include "apl/primitives/textmeasurerequest.h"
 #include "apl/time/sequencer.h"
 #include "apl/touch/pointermanager.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/lrucache.h"
+
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/common.h"
+#endif // SCENEGRAPH
 
 namespace apl {
 
@@ -62,13 +63,15 @@ public:
      * @param settings Document settings
      * @param session Session information for logging messages and warnings
      * @param extensions Mapping of requested extensions NAME -> URI
+     * @param eventManager Responsible for managing all published events.
      */
     RootContextData(const Metrics& metrics,
                     const RootConfig& config,
                     RuntimeState runtimeState,
                     const SettingsPtr& settings,
                     const SessionPtr& session,
-                    const std::vector<std::pair<std::string, std::string>>& extensions);
+                    const std::vector<std::pair<std::string, std::string>>& extensions,
+                    const EventManagerPtr& eventManager = std::make_shared<QueueEventManager>());
 
     ~RootContextData();
 
@@ -168,7 +171,7 @@ public:
     LayoutDirection getLayoutDirection() const { return mLayoutDirection; }
     bool getReinflationFlag() const { return mRuntimeState.getReinflation(); }
 
-    std::queue<Event> events;
+    const EventManagerPtr events;
 #ifdef ALEXAEXTENSIONS
     std::queue<Event> extesnionEvents;
 #endif

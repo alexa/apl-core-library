@@ -16,19 +16,17 @@
 #include <utility>
 
 #include "apl/command/corecommand.h"
-#include "apl/component/componenteventtargetwrapper.h"
-
-#include "apl/utils/dump_object.h"
-#include "apl/utils/session.h"
 
 #include "apl/command/animateitemcommand.h"
 #include "apl/command/autopagecommand.h"
 #include "apl/command/clearfocuscommand.h"
 #include "apl/command/controlmediacommand.h"
+#include "apl/command/finishcommand.h"
 #include "apl/command/idlecommand.h"
 #include "apl/command/openurlcommand.h"
 #include "apl/command/parallelcommand.h"
 #include "apl/command/playmediacommand.h"
+#include "apl/command/reinflatecommand.h"
 #include "apl/command/scrollcommand.h"
 #include "apl/command/scrolltocomponentcommand.h"
 #include "apl/command/scrolltoindexcommand.h"
@@ -41,11 +39,12 @@
 #include "apl/command/setvaluecommand.h"
 #include "apl/command/speakitemcommand.h"
 #include "apl/command/speaklistcommand.h"
-#include "apl/command/finishcommand.h"
-#include "apl/command/reinflatecommand.h"
-
+#include "apl/component/componenteventtargetwrapper.h"
+#include "apl/component/selector.h"
 #include "apl/engine/layoutmanager.h"
 #include "apl/engine/rootcontext.h"
+#include "apl/utils/dump_object.h"
+#include "apl/utils/session.h"
 
 namespace apl {
 
@@ -128,6 +127,8 @@ CoreCommand::freeze()
         mTargetId = mTarget->getId();
     }
 
+    mMissingTargetId = mTarget && mTargetId.empty();
+
     // TODO: Need to see if any "better" re-evaluation required. We effectively keep copy of current
     //  context, so any bindings may be "obsolete" after rehydration.
     auto event = mContext->opt("event");
@@ -158,6 +159,10 @@ CoreCommand::rehydrate(const RootContext& context)
     if (!mTargetId.empty()) {
         mTarget = CoreComponent::cast(context.findComponentById(mTargetId));
         if (!mTarget) return false;
+    }
+
+    if (mMissingTargetId) {
+        return false;
     }
 
     mFrozenEventContext = nullptr;
@@ -229,7 +234,7 @@ CoreCommand::calculateProperties()
         std::string id;
         if (p != mProperties.end()) {
             id = evaluate(*mContext, p->second).asString();
-            mTarget = CoreComponent::cast(mContext->findComponentById(id));
+            mTarget = Selector::resolve(id, mContext, mBase);
         }
 
         if (mTarget == nullptr && (cpd->second.flags & kPropRequired)) {
@@ -238,7 +243,7 @@ CoreCommand::calculateProperties()
             LOG(LogLevel::kWarn).session(mContext) << "Trying to scroll to uninflated component. Flushing pending layouts.";
             auto& lm = mContext->layoutManager();
             lm.flushLazyInflation();
-            mTarget = CoreComponent::cast(mContext->findComponentById(id));
+            mTarget = Selector::resolve(id, mContext, mBase);
             if (mTarget == nullptr) {
                 CONSOLE(mContext) << "Illegal command " << name() << " - need to specify a target componentId";
                 return false;

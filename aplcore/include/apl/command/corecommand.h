@@ -17,12 +17,12 @@
 #define _APL_COMMAND_CORE_COMMAND_H
 
 #include "apl/command/command.h"
-#include "apl/utils/bimap.h"
-#include "apl/primitives/objectbag.h"
-#include "apl/engine/context.h"
 #include "apl/component/corecomponent.h"
+#include "apl/engine/context.h"
 #include "apl/engine/event.h"
 #include "apl/engine/propdef.h"
+#include "apl/primitives/objectbag.h"
+#include "apl/utils/bimap.h"
 
 namespace apl {
 
@@ -115,6 +115,7 @@ private:
     std::string mTargetId;
     rapidjson::Document mFrozenEventContext;
     bool mFrozen = false;
+    bool mMissingTargetId = false;
 };
 
 } // namespace apl

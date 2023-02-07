@@ -18,8 +18,9 @@
 
 #include <string>
 
-#include "grammarerror.h"
-#include "databindingrules.h"
+#include "apl/datagrammar/databindingrules.h"
+#include "apl/datagrammar/grammarerror.h"
+#include "apl/utils/log.h"
 
 namespace apl {
 namespace datagrammar {

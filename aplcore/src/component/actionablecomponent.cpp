@@ -14,16 +14,18 @@
  */
 
 #include "apl/component/actionablecomponent.h"
+
 #include "apl/component/componentpropdef.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/keyboardmanager.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/primitives/keyboard.h"
+#include "apl/time/sequencer.h"
+#include "apl/touch/gesture.h"
+
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/layer.h"
 #endif // SCENEGRAPH
-#include "apl/time/sequencer.h"
-#include "apl/touch/gesture.h"
 
 namespace apl {
 

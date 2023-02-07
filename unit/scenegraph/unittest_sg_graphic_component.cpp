@@ -59,7 +59,6 @@ TEST_F(SGGraphicComponentTest, Basic)
 {
     loadDocument(BASIC);
     auto sg = root->getSceneGraph();
-
     ASSERT_TRUE(CheckSceneGraph(
         sg,
         IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
@@ -73,7 +72,6 @@ TEST_F(SGGraphicComponentTest, Basic)
     executeCommand("SetValue",
                    {{"componentId", "VG"}, {"property", "align"}, {"value", "top-right"}}, true);
     sg = root->getSceneGraph();
-
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
                 .child(IsLayer(Rect{100, 0, 100, 100}, ".MediaLayer")
@@ -112,6 +110,103 @@ TEST_F(SGGraphicComponentTest, Missing)
             .child(IsLayer(Rect{0, 0, 1, 1}, ".MediaLayer"))));  // No content is visible
 }
 
+static const char * TOGGLE_OFF_AND_ON = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "graphics": {
+        "Diamond": {
+          "type": "AVG",
+          "version": "1.2",
+          "height": 100,
+          "width": 100,
+          "items": {
+            "type": "path",
+            "fill": "green",
+            "pathData": "M0,50 L50,0 L100,50 L50,100 z"
+          }
+        },
+        "Bad": {
+          "type": "AVG",
+          "version": "1.2",
+          "height": 0,
+          "width": 0
+        },
+        "Empty": {
+          "type": "AVG",
+          "version": "1.2",
+          "height": 100,
+          "width": 100
+        }
+      },
+      "mainTemplate": {
+        "items": {
+          "type": "VectorGraphic",
+          "id": "VG",
+          "width": 200,
+          "height": 200,
+          "source": "Diamond"
+        }
+      }
+    }
+)apl";
+
+TEST_F(SGGraphicComponentTest, ToggleOffAndOn)
+{
+    loadDocument(TOGGLE_OFF_AND_ON);
+    auto sg = root->getSceneGraph();
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg,
+        IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
+            .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer")
+                       .content(IsTransformNode(".transform")
+                                    .child(IsDrawNode(".draw")
+                                               .path(IsGeneralPath(
+                                                   "MLLLZ", {0, 50, 50, 0, 100, 50, 50, 100}))
+                                               .pathOp(IsFillOp(IsColorPaint(Color::GREEN))))))));
+
+    // Set an invalid vector graphic
+    executeCommand("SetValue",
+                   {{"componentId", "VG"}, {"property", "source"}, {"value", "Missing"}}, true);
+    sg = root->getSceneGraph();
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
+                .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer")
+                           .dirty(sg::Layer::kFlagRedrawContent)))); // No content is visible
+
+    // Set to a bad vector graphic - one with an illegal height/width
+    executeCommand("SetValue",
+                   {{"componentId", "VG"}, {"property", "source"}, {"value", "Bad"}}, true);
+    ASSERT_TRUE(ConsoleMessage());  // It should complain about the invalid graphic
+    sg = root->getSceneGraph();
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
+                .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer"))));
+
+    // Set to an empty vector graphic - one with no content
+    executeCommand("SetValue",
+                   {{"componentId", "VG"}, {"property", "source"}, {"value", "Empty"}}, true);
+    sg = root->getSceneGraph();
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
+                .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer"))));
+
+    // Set it back to the original
+    executeCommand("SetValue",
+                   {{"componentId", "VG"}, {"property", "source"}, {"value", "Diamond"}}, true);
+    sg = root->getSceneGraph();
+    ASSERT_TRUE(CheckSceneGraph(
+        sg,
+        IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
+            .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .content(IsTransformNode(".transform")
+                                    .child(IsDrawNode(".draw")
+                                               .path(IsGeneralPath(
+                                                   "MLLLZ", {0, 50, 50, 0, 100, 50, 50, 100}))
+                                               .pathOp(IsFillOp(IsColorPaint(Color::GREEN))))))));
+}
 
 static const char *MULTI_TEXT = R"apl(
 {
@@ -215,43 +310,143 @@ TEST_F(SGGraphicComponentTest, Moving)
 {
     loadDocument(MOVING);
     auto sg = root->getSceneGraph();
-
-    ASSERT_TRUE(CheckSceneGraph(
-        sg, IsLayer(Rect{0, 0, 200, 200})
-                .child(IsLayer(Rect{0, 0, 200, 200})
-                           .content(IsTransformNode(".alignment")
-                                        .child(IsOpacityNode(".groupOpacity")
-                                                   .child(IsTransformNode(".group").child(
-                                                       IsClipNode(".groupClip")
-                                                           .path(IsGeneralPath("", {}))
-                                                           .child(IsDrawNode()
-                                                                      .path(IsGeneralPath(
-                                                                          "MLLLZ", {0, 0, 10, 0, 10,
-                                                                                    10, 0, 10}))
-                                                                      .pathOp(IsFillOp(IsColorPaint(
-                                                                          Color::BLUE)))))))))));
-
-    root->updateTime(100);
-    root->clearPending();
-
-    sg = root->getSceneGraph();
-
     ASSERT_TRUE(CheckSceneGraph(
         sg,
         IsLayer(Rect{0, 0, 200, 200})
             .child(
                 IsLayer(Rect{0, 0, 200, 200})
+                    .content(IsTransformNode(".alignment")
+                                 .child(IsTransformNode(".group").child(
+                                     IsDrawNode()
+                                         .path(IsGeneralPath("MLLLZ", {0, 0, 10, 0, 10, 10, 0, 10}))
+                                         .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))))));
+
+    root->updateTime(100);
+    root->clearPending();
+
+    sg = root->getSceneGraph();
+    ASSERT_TRUE(CheckSceneGraph(
+        sg,
+        IsLayer(Rect{0, 0, 200, 200}, "...vector graphic")
+            .child(
+                IsLayer(Rect{0, 0, 200, 200}, "...media layer")
                     .dirty(sg::Layer::kFlagRedrawContent)
-                    .content(
-                        IsTransformNode(".alignment")
-                            .child(
-                                IsOpacityNode(".groupOpacity")
-                                    .child(IsTransformNode(".group").translate({100, 0}).child(
-                                        IsClipNode(".groupClip")
-                                            .path(IsGeneralPath("", {}))
-                                            .child(IsDrawNode()
-                                                       .path(IsGeneralPath(
-                                                           "MLLLZ", {0, 0, 10, 0, 10, 10, 0, 10}))
-                                                       .pathOp(IsFillOp(
-                                                           IsColorPaint(Color::BLUE)))))))))));
+                    .content(IsTransformNode(".alignment")
+                                 .child(IsTransformNode(".group").translate({100, 0}).child(
+                                     IsDrawNode()
+                                         .path(IsGeneralPath("MLLLZ", {0, 0, 10, 0, 10, 10, 0, 10}))
+                                         .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))))));
+}
+
+/**
+ * Turning on the experimental feature to generate layers for parameterized AVG puts the
+ * group in its own layer.
+ */
+TEST_F(SGGraphicComponentTest, MovingLayers)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureGraphicLayers);
+    loadDocument(MOVING);
+    auto sg = root->getSceneGraph();
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 200, 200}, "...vector graphic")
+                .child(IsLayer(Rect{0, 0, 200, 200}, "...media layer")
+                           .child(IsLayer(Rect(0,0,0,0), "...container")
+                                      .child(IsLayer(Rect(0,0,10,10), "...group")
+                                                 .content(
+                                                     IsDrawNode()
+                                                         .path(IsGeneralPath(
+                                                             "MLLLZ", {0, 0, 10, 0, 10, 10, 0, 10}))
+                                                         .pathOp(IsFillOp(
+                                                             IsColorPaint(Color::BLUE)))))))));
+
+    root->updateTime(100);
+    root->clearPending();
+
+    sg = root->getSceneGraph();
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 200, 200})
+                .child(IsLayer(Rect{0, 0, 200, 200})
+                           .child(IsLayer(Rect(0,0,0,0), "...container")
+                                      .child(IsLayer(Rect(0,0,10,10), "...group")
+                                                 .dirty(sg::Layer::kFlagTransformChanged)
+                                                 .transform(Transform2D::translate({100,0}))
+                                                 .content(
+                                                     IsDrawNode()
+                                                         .path(IsGeneralPath(
+                                                             "MLLLZ", {0, 0, 10, 0, 10, 10, 0, 10}))
+                                                         .pathOp(IsFillOp(
+                                                             IsColorPaint(Color::BLUE)))))))));
+}
+
+
+static const char *REPLACE_SOURCE = R"apl(
+{
+  "type": "APL",
+  "version": "2022.1",
+  "graphics": {
+    "BlueBox": {
+      "type": "AVG",
+      "version": "1.2",
+      "width": 200,
+      "height": 200,
+      "items": {
+        "type": "path",
+        "fill": "blue",
+        "pathData": "h200 v200 h-200 z"
+      }
+    },
+    "RedBox": {
+      "type": "AVG",
+      "version": "1.2",
+      "width": 200,
+      "height": 200,
+      "items": {
+        "type": "path",
+        "fill": "red",
+        "pathData": "h200 v200 h-200 z"
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "VectorGraphic",
+      "source": "BlueBox",
+      "scale": "best-fit",
+      "width": "200",
+      "height": "200"
+    }
+  }
+}
+)apl";
+
+TEST_F(SGGraphicComponentTest, ReplaceSource)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureGraphicLayers);
+    loadDocument(REPLACE_SOURCE);
+    auto sg = root->getSceneGraph();
+    ASSERT_TRUE(CheckSceneGraph(
+        sg,
+        IsLayer(Rect{0, 0, 200, 200}, "...vector graphic")
+            .child(IsLayer(Rect{0, 0, 200, 200}, "...media layer")
+                       .child(IsLayer(Rect(0, 0, 200, 200), "...container")
+                                  .content(IsDrawNode()
+                                               .path(IsGeneralPath(
+                                                   "MLLLZ", {0, 0, 200, 0, 200, 200, 0, 200}))
+                                               .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))));
+
+    component->setProperty(apl::kPropertySource, "RedBox");
+    ASSERT_TRUE(CheckDirty(component, kPropertySource, kPropertyGraphic, kPropertyVisualHash));
+
+    root->clearPending();
+    sg = root->getSceneGraph();
+    ASSERT_TRUE(CheckSceneGraph(
+        sg,
+        IsLayer(Rect{0, 0, 200, 200}, "...vector graphic")
+            .child(IsLayer(Rect{0, 0, 200, 200}, "...media layer")
+                       .dirty(sg::Layer::kFlagChildrenChanged)
+                       .child(IsLayer(Rect(0, 0, 200, 200), "...container")
+                                  .content(IsDrawNode()
+                                               .path(IsGeneralPath(
+                                                   "MLLLZ", {0, 0, 200, 0, 200, 200, 0, 200}))
+                                               .pathOp(IsFillOp(IsColorPaint(Color::RED))))))));
 }

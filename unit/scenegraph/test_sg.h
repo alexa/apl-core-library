@@ -21,6 +21,7 @@
 #include "apl/scenegraph/filter.h"
 #include "apl/scenegraph/layer.h"
 #include "apl/scenegraph/node.h"
+#include "apl/scenegraph/graphicfragment.h"
 #include "apl/scenegraph/paint.h"
 #include "apl/scenegraph/path.h"
 #include "apl/scenegraph/pathop.h"
@@ -155,6 +156,7 @@ public:
     explicit IsTransformNode(std::string msg="") : IsWrapper(sg::Node::kTransform, std::move(msg)) {}
     IsTransformNode& transform(Transform2D transform) { mTransform = transform; return *this; }
     IsTransformNode& translate(Point point) { mTransform = Transform2D::translate(point); return *this; }
+    IsTransformNode& translate(float x, float y) { return translate({x,y}); }
 
     ::testing::AssertionResult operator()(sg::NodePtr node);
 private:
@@ -266,8 +268,11 @@ public:
     IsLayer& shadow(ShadowTest test) { mShadowTest = std::move(test); return *this; }
     IsLayer& outline(PathTest test) { mOutlineTest = std::move(test); return *this; }
     IsLayer& childClip(PathTest test) { mChildClipTest = std::move(test); return *this; }
-    IsLayer& transform(Transform2D transform) { mTransform = std::move(transform); return *this; }
-    IsLayer& childOffset(Point offset) { mChildOffset = std::move(offset); return *this; }
+    IsLayer& transform(Transform2D transform) { mTransform = transform; return *this; }
+    IsLayer& childOffset(Point offset) { mChildOffset = offset; return *this; }
+    IsLayer& childOffset(float x, float y) { mChildOffset = {x,y}; return *this; }
+    IsLayer& contentOffset(Point offset) { mContentOffset = offset; return *this; }
+    IsLayer& contentOffset(float x, float y) { mContentOffset = {x,y}; return *this; }
     IsLayer& opacity(float opacity) { mOpacity = opacity; return *this; }
     IsLayer& accessibility(AccessibilityTest test) { mAccessibilityTest = std::move(test); return *this; }
 
@@ -277,11 +282,11 @@ public:
     IsLayer& horizontal() { mInteraction |= sg::Layer::kInteractionScrollHorizontal; return *this; }
     IsLayer& vertical() { mInteraction |= sg::Layer::kInteractionScrollVertical; return *this; }
 
-    IsLayer& content(NodeTest test) { assert(!mContentTest); mContentTest = test; return *this; }
+    IsLayer& content(NodeTest test) { assert(!mContentTest); mContentTest = std::move(test); return *this; }
     IsLayer& child(LayerTest test) { mLayerTests.emplace_back(std::move(test)); return *this; }
     IsLayer& children(std::vector<LayerTest> tests) { mLayerTests = std::move(tests); return *this; }
 
-    IsLayer& dirty(unsigned flags) { mDirtyFlags = flags; return *this; }
+    IsLayer& dirty(sg::Layer::FlagType flags) { mDirtyFlags = flags; return *this; }
 
     ::testing::AssertionResult operator()(sg::LayerPtr layer);
 
@@ -293,24 +298,29 @@ private:
     PathTest mChildClipTest;
     Transform2D mTransform;
     Point mChildOffset;
+    Point mContentOffset;
     float mOpacity = 1.0f;
     NodeTest mContentTest;
     std::vector<LayerTest> mLayerTests;
     std::string mMsg;
-    unsigned mDirtyFlags = 0;
-    unsigned mInteraction = 0;
+    sg::Layer::FlagType mDirtyFlags = 0;
+    sg::Layer::InteractionType mInteraction = 0;
 };
 
 
 ::testing::AssertionResult CheckSceneGraph(const sg::SceneGraphPtr& sg, const LayerTest& layerTest);
 ::testing::AssertionResult CheckSceneGraph(sg::SceneGraphUpdates& updates,
                 const sg::NodePtr& node, const NodeTest& nodeTest);
+::testing::AssertionResult CheckSceneGraph(sg::SceneGraphUpdates& updates,
+                const sg::LayerPtr& layer, const LayerTest& layerTest);
 
 void DumpSceneGraph(const sg::PaintPtr& ptr, int inset=0);
 void DumpSceneGraph(const sg::PathOpPtr& ptr, int inset=0);
 void DumpSceneGraph(const sg::PathPtr& ptr, int inset=0);
 void DumpSceneGraph(const sg::NodePtr& ptr, int inset=0);
 void DumpSceneGraph(const sg::FilterPtr& ptr, int inset=0);
+void DumpSceneGraph(const sg::LayerPtr& ptr, int inset=0);
+void DumpSceneGraph(const sg::GraphicFragmentPtr& fragment, int inset=0);
 void DumpSceneGraph(const sg::SceneGraphPtr& ptr);
 
 // Test classes for text layout
@@ -422,8 +432,15 @@ public:
     }
 
     Rect getBoundingBoxForLines(Range lineRange) const override {
+        if (mLines.empty())
+            return {};
+
+        auto range = Range(0, mLines.size() - 1);
+        if (!lineRange.empty())
+            range = range.intersectWith(lineRange);
+
         Rect result;
-        for (auto line : lineRange)
+        for (auto line : range)
             result = result.extend(mLines.at(line).rect);
 
         return result;

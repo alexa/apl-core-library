@@ -16,9 +16,12 @@
 #ifndef _APL_DYNAMIC_LIST_DATA_SOURCE_PROVIDER_H
 #define _APL_DYNAMIC_LIST_DATA_SOURCE_PROVIDER_H
 
-#include "apl/apl.h"
-#include "apl/datasource/offsetindexdatasourceconnection.h"
+#include "apl/common.h"
+#include "apl/datasource/datasourceprovider.h"
 #include "apl/datasource/dynamiclistdatasourcecommon.h"
+#include "apl/datasource/offsetindexdatasourceconnection.h"
+#include "apl/primitives/object.h"
+#include "apl/utils/noncopyable.h"
 
 namespace apl {
 

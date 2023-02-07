@@ -16,18 +16,19 @@
 #ifndef _APL_TEST_EVENT_LOOP_H
 #define _APL_TEST_EVENT_LOOP_H
 
-#include <chrono>
-#include <queue>
-#include <vector>
-#include <iostream>
-#include <regex>
 #include <algorithm>
+#include <chrono>
+#include <iostream>
+#include <queue>
+#include <regex>
 #include <type_traits>
+#include <vector>
 
 #include "rapidjson/error/en.h"
 #include "rapidjson/pointer.h"
 
 #include "gtest/gtest.h"
+#include "test_comparisons.h"
 
 #include "apl/apl.h"
 #include "apl/command/commandfactory.h"
@@ -920,82 +921,6 @@ template<class... Args>
 
     root->executeCommands(ObjectArray{event}, true);
     root->clearPending();
-
-    return ::testing::AssertionSuccess();
-}
-
-inline
-::testing::AssertionResult IsEqual(const Transform2D& lhs, const Transform2D& rhs, float epsilon=0.0001)
-{
-    for (int i = 0 ; i < 6 ; i++)
-        if (std::abs(lhs.get()[i] - rhs.get()[i]) > epsilon) {
-            streamer s;
-            s << "[" << lhs << "] != [" << rhs << "]";
-            return ::testing::AssertionFailure() << s.str();
-        }
-
-    return ::testing::AssertionSuccess();
-}
-
-inline
-::testing::AssertionResult IsEqual(const Point& lhs, const Point& rhs, float epsilon=0.0001)
-{
-    if (std::abs(lhs.getX() - rhs.getX()) > epsilon ||
-        std::abs(lhs.getY() - rhs.getY()) > epsilon)
-        return ::testing::AssertionFailure() << lhs.toDebugString() << " != " << rhs.toDebugString();
-
-    return ::testing::AssertionSuccess();
-}
-
-inline
-::testing::AssertionResult IsEqual(const Rect& lhs, const Rect& rhs, float epsilon=0.0001)
-{
-    if (std::abs(lhs.getX() - rhs.getX()) > epsilon ||
-        std::abs(lhs.getY() - rhs.getY()) > epsilon ||
-        std::abs(lhs.getWidth() - rhs.getWidth()) > epsilon ||
-        std::abs(lhs.getHeight() - rhs.getHeight()) > epsilon)
-        return ::testing::AssertionFailure() << lhs.toDebugString() << " != " << rhs.toDebugString();
-
-    return ::testing::AssertionSuccess();
-}
-
-// This template compares two vectors of floating point numbers (doubles, floats, etc)
-template<typename T,
-         typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
-::testing::AssertionResult IsEqual(const std::vector<T>& a, const std::vector<T>& b, float epsilon=1e-6)
-{
-    if (a.size() != b.size())
-        return ::testing::AssertionFailure() << "Size mismatch a=" << a.size() << " b=" << b.size();
-
-    for (int i = 0; i < a.size(); i++)
-        if (std::abs(a.at(i)-b.at(i)) > epsilon)
-            return ::testing::AssertionFailure()
-                   << "Element mismatch index=" << i << " a=" << a.at(i) << " b=" << b.at(i);
-
-    return ::testing::AssertionSuccess();
-}
-
-// This template compares two vectors of items that support the '!=' operator
-template<class T,
-          typename std::enable_if<!std::is_floating_point<T>::value, bool>::type = true>
-::testing::AssertionResult IsEqual(const std::vector<T>& a, const std::vector<T>& b)
-{
-    if (a.size() != b.size())
-        return ::testing::AssertionFailure() << "Size mismatch a=" << a.size() << " b=" << b.size();
-
-    for (int i = 0; i < a.size(); i++)
-        if (a.at(i) != b.at(i))
-            return ::testing::AssertionFailure()
-                   << "Element mismatch index=" << i << " a=" << a.at(i) << " b=" << b.at(i);
-
-    return ::testing::AssertionSuccess();
-}
-
-inline
-::testing::AssertionResult IsEqual(const Object& lhs, const Object& rhs)
-{
-    if (lhs != rhs)
-        return ::testing::AssertionFailure() << lhs.toDebugString() << " != " << rhs.toDebugString();
 
     return ::testing::AssertionSuccess();
 }

@@ -13,25 +13,28 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/engine/contextdependant.h"
-#include "apl/engine/resources.h"
-#include "apl/engine/arrayify.h"
 #include "apl/graphic/graphic.h"
+
+#include "apl/component/vectorgraphiccomponent.h"
+#include "apl/engine/arrayify.h"
+#include "apl/engine/contextdependant.h"
+#include "apl/engine/propdef.h"
+#include "apl/engine/resources.h"
 #include "apl/graphic/graphicbuilder.h"
+#include "apl/utils/identifier.h"
 #include "apl/utils/log.h"
 #include "apl/utils/session.h"
-#include "apl/engine/propdef.h"
-#include "apl/component/vectorgraphiccomponent.h"
 #ifdef SCENEGRAPH
-#include "apl/scenegraph/scenegraphupdates.h"
+#include "apl/scenegraph/graphicfragment.h"
 #include "apl/scenegraph/node.h"
+#include "apl/scenegraph/scenegraphupdates.h"
 #endif // SCENEGRAPH
 
 namespace apl {
 
 const bool DEBUG_GRAPHIC = false;
 
-static ResourceOperators sGraphicResourceOperators = {
+static const ResourceOperators sGraphicResourceOperators = {
     {"number",    asNumber},
     {"numbers",   asNumber},
     {"string",    asString},
@@ -110,6 +113,12 @@ void
 Graphic::release()
 {
     clearDirty();
+
+#ifdef SCENEGRAPH
+    mSceneGraphFragment = {};
+    mHasSceneGraph = false;
+#endif
+
     if (mRootElement)
         mRootElement->release();
     if (mContext)
@@ -172,6 +181,12 @@ Graphic::initialize(const ContextPtr& sourceContext,
     // Populate the data-binding context with parameters
     for (const auto& param : mParameterArray) {
         LOG_IF(DEBUG_GRAPHIC).session(sourceContext) << "Parse parameter: " << param.name;
+        if (!isValidIdentifier(param.name)) {
+            CONSOLE(mContext) << "Unable to add graphic parameter '" << param.name
+                << "' to context.  Invalid identifier";
+            continue;
+        }
+
         const auto& conversionFunc = sBindingFunctions.at(param.type);
         auto value = conversionFunc(*sourceContext, evaluate(*mContext, param.defvalue));
         Object parsed;
@@ -207,6 +222,9 @@ Graphic::initialize(const ContextPtr& sourceContext,
 
     auto self = std::static_pointer_cast<Graphic>(shared_from_this());
     mRootElement = GraphicBuilder::build(self, json);
+#ifdef SCENEGRAPH
+    mHasSceneGraph = false;
+#endif
 }
 
 bool
@@ -388,32 +406,40 @@ Graphic::serialize(rapidjson::Document::AllocatorType& allocator) const {
 }
 
 #ifdef SCENEGRAPH
-sg::NodePtr
-Graphic::getSceneGraph(sg::SceneGraphUpdates& sceneGraph)
+
+sg::GraphicFragmentPtr
+Graphic::getSceneGraph(bool allowLayers,
+                       sg::SceneGraphUpdates& sceneGraph,
+                       const sg::LayerPtr& containingLayer)
 {
     if (!mRootElement)
-        return nullptr;
+        return {};
 
-    return mRootElement->getSceneGraph(sceneGraph);
+    if (!mHasSceneGraph) {
+        mSceneGraphFragment = mRootElement->buildSceneGraph(allowLayers, sceneGraph);
+        if (mSceneGraphFragment && mSceneGraphFragment->isNode())
+            mSceneGraphFragment->assignToLayer(containingLayer);
+        mSceneGraphFragment->clearElements(); // These are no longer needed
+        mHasSceneGraph = true;
+    }
+
+    return mSceneGraphFragment;
 }
 
-bool
+void
 Graphic::updateSceneGraph(sg::SceneGraphUpdates& sceneGraph)
 {
-    if (!mRootElement)
-        return false;
+    assert(mHasSceneGraph);
+    if (!mSceneGraphFragment)
+        return;
 
-    sg::ModifiedNodeList list;
     for (const auto& element : mDirty)
-        element->updateSceneGraph(list);
+        element->updateSceneGraph(sceneGraph);
+
+    if (mSceneGraphFragment->isLayer())
+        sceneGraph.processResize();
 
     clearDirty();
-
-    for (auto node = mRootElement->getSceneGraphNode() ; node ; node = node->next())
-        if (node->needsRedraw())
-            return true;
-
-    return false;
 }
 #endif // SCENEGRAPH
 

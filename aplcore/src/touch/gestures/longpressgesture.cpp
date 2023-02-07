@@ -15,12 +15,10 @@
 
 #include "apl/touch/gestures/longpressgesture.h"
 
-#include "apl/engine/evaluate.h"
 #include "apl/component/touchwrappercomponent.h"
-#include "apl/utils/session.h"
-#include "apl/engine/propdef.h"
-
 #include "apl/content/rootconfig.h"
+#include "apl/engine/propdef.h"
+#include "apl/utils/session.h"
 
 namespace apl {
 

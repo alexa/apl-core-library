@@ -34,10 +34,14 @@ Node::~Node()
 {
 }
 
-void
+bool
 Node::setChild(const NodePtr& child)
 {
+    if (mFirstChild == child)
+        return false;
+
     mFirstChild = child;
+    return true;
 }
 
 NodePtr
@@ -45,6 +49,19 @@ Node::setNext(const NodePtr& sibling)
 {
     mNextSibling = sibling;
     return shared_from_this();
+}
+
+NodePtr
+Node::appendSiblingToNode(const NodePtr& head, const NodePtr& sibling)
+{
+    if (!head)
+        return sibling;
+
+    auto n = head;
+    while (n->mNextSibling)
+        n = n->mNextSibling;
+    n->mNextSibling = sibling;
+    return head;
 }
 
 void
@@ -66,25 +83,6 @@ Node::childCount() const
 }
 
 bool
-Node::needsRedraw() const
-{
-    // If there are no children and the children haven't changed, there is nothing to draw.
-    // Note: this must be overridden by classes that actually draw something.
-    if (!mFirstChild && !isFlagSet(kNodeFlagChildrenChanged))
-        return false;
-
-    // If something changed, we need to be drawn
-    if (anyFlagSet())
-        return true;
-
-    for (auto child = mFirstChild ; child ; child = child->mNextSibling)
-        if (child->needsRedraw())
-            return true;
-
-    return false;
-}
-
-bool
 Node::visible() const
 {
     for (auto child = mFirstChild ; child ; child = child->mNextSibling)
@@ -97,19 +95,19 @@ Node::visible() const
 Rect
 Node::boundingBox(const Transform2D& transform) const
 {
-    Rect result;
-    for (auto child = mFirstChild ; child ; child = child->mNextSibling)
-        result = result.extend(child->boundingBox(transform));
+    Rect result = localBoundingBox(transform);
+    if (mNextSibling)
+        result = result.extend(mNextSibling->boundingBox(transform));
     return result;
 }
 
 Rect
-Node::calculateBoundingBox(const NodePtr& node, const Transform2D& transform)
+Node::localBoundingBox(const apl::Transform2D& transform) const
 {
-    Rect result;
-    for (auto n = node ; n ; n = n->next())
-        result = result.extend(n->boundingBox(transform));
-    return result;
+    if (!mFirstChild)
+        return {};
+
+    return mFirstChild->boundingBox(transform);
 }
 
 rapidjson::Value
@@ -154,13 +152,6 @@ DrawNode::toDebugString() const
 }
 
 bool
-DrawNode::needsRedraw() const
-{
-    // TODO: Do something smarter with the paint
-    return anyFlagSet();
-}
-
-bool
 DrawNode::visible() const
 {
     // Check to ensure that at least one path operation is visible
@@ -172,7 +163,7 @@ DrawNode::visible() const
 }
 
 Rect
-DrawNode::boundingBox(const Transform2D& transform) const
+DrawNode::localBoundingBox(const Transform2D& transform) const
 {
     if (!mPath)
         return {};
@@ -252,13 +243,6 @@ TextNode::toDebugString() const
 }
 
 bool
-TextNode::needsRedraw() const
-{
-    // TODO: Do something smarter with the paint
-    return anyFlagSet();
-}
-
-bool
 TextNode::visible() const
 {
     if (mTextLayout->empty())
@@ -273,7 +257,7 @@ TextNode::visible() const
 }
 
 Rect
-TextNode::boundingBox(const Transform2D& transform) const
+TextNode::localBoundingBox(const Transform2D& transform) const
 {
     if (!mTextLayout)
         return {};
@@ -329,9 +313,9 @@ TransformNode::toDebugString() const
 }
 
 Rect
-TransformNode::boundingBox(const Transform2D& transform) const
+TransformNode::localBoundingBox(const Transform2D& transform) const
 {
-    return Node::boundingBox(transform * mTransform);
+    return Node::localBoundingBox(transform * mTransform);
 }
 
 rapidjson::Value
@@ -363,9 +347,9 @@ ClipNode::toDebugString() const
 }
 
 Rect
-ClipNode::boundingBox(const Transform2D& transform) const
+ClipNode::localBoundingBox(const Transform2D& transform) const
 {
-    auto bb = Node::boundingBox(transform);
+    auto bb = Node::localBoundingBox(transform);
     if (mPath)
         bb = bb.intersect(mPath->boundingBox(transform));
     return bb;
@@ -398,29 +382,6 @@ std::string
 OpacityNode::toDebugString() const
 {
     return "OpacityNode opacity=" + std::to_string(mOpacity);
-}
-
-bool
-OpacityNode::needsRedraw() const
-{
-    // If there are no children and the children haven't changed, there is nothing to draw.
-    // Note: this must be overridden by classes that actually draw something.
-    if (!mFirstChild && !isFlagSet(kNodeFlagChildrenChanged))
-        return false;
-
-    if (mOpacity == 0.0f && !isFlagSet(kNodeFlagModified))
-        return false;
-
-    // Ask the children if they need to be drawn
-    if (mOpacity > 0.0f && !anyFlagSet()) {
-        for (auto child = mFirstChild ; child ; child = child->next())
-            if (child->needsRedraw())
-                return true;
-
-        return false;
-    }
-
-    return true;
 }
 
 bool
@@ -480,20 +441,13 @@ ImageNode::toDebugString() const
 }
 
 bool
-ImageNode::needsRedraw() const
-{
-    // TODO: Do something smarter with the paint
-    return anyFlagSet();
-}
-
-bool
 ImageNode::visible() const
 {
     return mImage != nullptr;
 }
 
 Rect
-ImageNode::boundingBox(const Transform2D& transform) const
+ImageNode::localBoundingBox(const Transform2D& transform) const
 {
     return mTarget.boundingBox(transform);
 }
@@ -552,20 +506,13 @@ VideoNode::toDebugString() const
 }
 
 bool
-VideoNode::needsRedraw() const
-{
-    // TODO: Do something smarter with the paint
-    return anyFlagSet();
-}
-
-bool
 VideoNode::visible() const
 {
     return mPlayer != nullptr;
 }
 
 Rect
-VideoNode::boundingBox(const Transform2D& transform) const
+VideoNode::localBoundingBox(const Transform2D& transform) const
 {
     return mTarget.boundingBox(transform);
 }
@@ -601,13 +548,16 @@ ShadowNode::toDebugString() const
 }
 
 Rect
-ShadowNode::boundingBox(const Transform2D& transform) const
+ShadowNode::localBoundingBox(const Transform2D& transform) const
 {
     if (!mShadow)
-        return Node::boundingBox(transform);
+        return Node::localBoundingBox(transform);
+
+    if (!mFirstChild)
+        return {};
 
     // Calculate the content size in the local coordinate system
-    auto inner = Node::boundingBox(Transform2D());
+    auto inner = mFirstChild->boundingBox(Transform2D());
     auto offset = mShadow->getOffset();
     auto delta = mShadow->getRadius();
 
@@ -683,24 +633,9 @@ EditTextNode::toDebugString() const
 }
 
 bool
-EditTextNode::needsRedraw() const
-{
-    // TODO: Do something smarter with the paint
-    return anyFlagSet();
-}
-
-bool
 EditTextNode::visible() const
 {
     return true;
-}
-
-Rect
-EditTextNode::boundingBox(const Transform2D& transform) const
-{
-    // Note: The EditTextNode has no intrinsic size.  An EditTextNode is required to
-    // be directly under a layer and the layer sets the size of the edit text box.
-    return {};
 }
 
 rapidjson::Value

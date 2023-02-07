@@ -14,6 +14,7 @@
  */
 
 #include "apl/component/yogaproperties.h"
+
 #include "apl/component/corecomponent.h"
 #include "apl/primitives/dimension.h"
 #include "apl/primitives/object.h"

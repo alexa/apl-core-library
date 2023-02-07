@@ -13,13 +13,14 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/engine/resources.h"
+
 #include "rapidjson/document.h"
 
 #include "apl/engine/context.h"
 #include "apl/engine/evaluate.h"
-#include "apl/engine/resources.h"
-#include "apl/utils/log.h"
 #include "apl/engine/propdef.h"
+#include "apl/utils/log.h"
 
 namespace apl {
 

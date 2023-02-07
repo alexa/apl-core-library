@@ -179,7 +179,11 @@ CoreMediaManager::mediaLoadComplete(
     mediaObject->mState = isReady ? MediaObject::kReady : MediaObject::kError;
     mediaObject->mMediaErrorCode = isReady ? 0 : errorCode;
     mediaObject->mMediaErrorText = isReady ? std::string() : errorReason;
-    for (const auto& m : mediaObject->mCallbacks)
+
+    // Make a copy first because the callbacks can trigger commands that result in more callbacks
+    const std::map<MediaObject::CallbackID , MediaObjectCallback> callbacks(mediaObject->mCallbacks);
+
+    for (const auto& m : callbacks)
         m.second(ptr);
     mediaObject->mCallbacks.clear();
 }

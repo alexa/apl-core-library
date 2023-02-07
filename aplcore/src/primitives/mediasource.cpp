@@ -18,6 +18,7 @@
 #include "apl/content/rootconfig.h"
 #include "apl/primitives/mediasource.h"
 #include "apl/primitives/objectdata.h"
+#include "apl/media/mediatrack.h"
 #include "apl/utils/log.h"
 #include "apl/utils/session.h"
 
@@ -28,12 +29,14 @@ MediaSource::MediaSource(URLRequest urlRequest,
         int duration,
         int repeatCount,
         Object entities,
-        int offset) : mUrlRequest(std::move(urlRequest)),
+        int offset,
+        TextTrackArray textTracks) : mUrlRequest(std::move(urlRequest)),
     mDescription(std::move(description)),
     mDuration(duration),
     mRepeatCount(repeatCount),
     mEntities(std::move(entities)),
-    mOffset(offset)
+    mOffset(offset),
+    mTextTracks(textTracks)
 {}
 
 Object
@@ -53,7 +56,8 @@ MediaSource::create(const Context& context, const Object& object)
                                   0,
                                   0,
                                   std::vector<Object>(),
-                                  0));
+                                  0,
+                                  TextTrackArray()));
     }
 
     if (!object.isMap())
@@ -71,12 +75,41 @@ MediaSource::create(const Context& context, const Object& object)
     int offset = propertyAsInt(context, object, "offset", 0);
     auto entities = Object(arrayifyProperty(context, object, "entities", "entity"));
 
+    TextTrackArray tracks;
+    for (auto& m : arrayifyProperty(context, object, "textTrack")) {
+        if (!m.isMap()) {
+            CONSOLE(context) << "Text Track is not an object.";
+            continue;
+        }
+
+        auto type = propertyAsMapped<TextTrackType>(context, m, "type", static_cast<TextTrackType>(-1), sTextTrackTypeMap);
+        if (type < 0) {
+            CONSOLE(context) << "Unrecognized type field in Text Track";
+            continue;
+        }
+
+        std::string url = propertyAsString(context, m, "url");
+        if (url.empty()) {
+            CONSOLE(context) << "Text Track has no URL defined.";
+            continue;
+        }
+
+        std::string description = propertyAsString(context, m, "description");
+
+        tracks.push_back(TextTrack{
+            static_cast<TextTrackType>(type),
+            URLRequest::create(context, m).get<URLRequest>().getUrl(),
+            description
+        });
+    }
+
     return Object(MediaSource(URLRequest::create(context, object).get<URLRequest>(),
                               description,
                               duration,
                               repeatCount,
                               entities,
-                              offset));
+                              offset,
+                              tracks));
 }
 
 std::string
@@ -101,6 +134,15 @@ MediaSource::serialize(rapidjson::Document::AllocatorType& allocator) const {
     for(const auto& header : getHeaders())
         vHeaders.PushBack(Value(header.c_str(), allocator).Move(), allocator);
     v.AddMember("headers", vHeaders, allocator);
+    rapidjson::Value vTextTracks(rapidjson::kArrayType);
+    for(const auto& track : getTextTracks()) {
+        rapidjson::Value t(rapidjson::kObjectType);
+        t.AddMember("url", Value(track.url.c_str(), allocator).Move(), allocator);
+        t.AddMember("description", Value(track.description.c_str(), allocator).Move(), allocator);
+        t.AddMember("type", Value(sTextTrackTypeMap.at(track.type).c_str(), allocator), allocator);
+        vTextTracks.PushBack(t, allocator);
+    }
+    v.AddMember("textTracks", vTextTracks, allocator);
     return v;
 }
 

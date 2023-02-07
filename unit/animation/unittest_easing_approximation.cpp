@@ -46,7 +46,7 @@ TEST(EasingApproximation, StraightLine)
     float tout[] = {0.33333};   // b - a
     float tin[] = {-0.33333};    // c - d
 
-    auto approx = EasingApproximation::create(1, start, tout, tin, end, 11);
+    auto approx = EasingApproximation::getOrCreate(1, start, tout, tin, end, 11);
     ASSERT_TRUE(approx);
 
     ASSERT_EQ(0, approx->getPosition(0, 0));
@@ -69,7 +69,7 @@ TEST(EasingApproximation, OffsetStraightLine)
     float tout[] = {3};  // b - a
     float tin[] = {-3};   // c - d
 
-    auto approx = EasingApproximation::create(1, start, tout, tin, end, 101);
+    auto approx = EasingApproximation::getOrCreate(1, start, tout, tin, end, 101);
     ASSERT_TRUE(approx);
 
     ASSERT_EQ(6, approx->getPosition(0, 0));
@@ -92,7 +92,7 @@ TEST(EasingApproximation, Parabola)
     float tout[] = {0.33333,-1.33333};  // b - a
     float tin[] = {-0.33333,-1.33333};   // c - d
 
-    auto approx = EasingApproximation::create(2, start, tout, tin, end, 101);
+    auto approx = EasingApproximation::getOrCreate(2, start, tout, tin, end, 101);
     ASSERT_TRUE(approx);
 
     ASSERT_EQ(0, approx->getPosition(0, 0));  // x(0) = 0
@@ -117,4 +117,42 @@ TEST(EasingApproximation, Parabola)
     ASSERT_TRUE(compareCurve(std::vector<Cubic>{Cubic(0, 1, 0, 1./3, 2./3, 1),
                                                 Cubic(0, 1, 1,-1./3,-1./3,1)},
                              approx, 0.02, 0.02));
+}
+
+TEST(EasingApproximation, BuiltInCacheReusesEquivalentObjects)
+{
+    float start[] = {0,1};
+    float end[] = {1,1};
+    float tout[] = {0.33333,-1.33333};
+    float tin[] = {-0.33333,-1.33333};
+
+    auto approx = EasingApproximation::getOrCreate(2, start, tout, tin, end, 101);
+    ASSERT_TRUE(approx);
+
+    auto approxSame = EasingApproximation::getOrCreate(2, start, tout, tin, end, 101);
+    ASSERT_EQ(approx, approxSame);
+
+    auto approxOther = EasingApproximation::getOrCreate(3, start, tout, tin, end, 101);
+    ASSERT_NE(approx, approxOther);
+}
+
+TEST(EasingApproximation, BuiltInCacheIsWeak)
+{
+    float start[] = {0,1};
+    float end[] = {1,1};
+    float tout[] = {0.33333,-1.33333};
+    float tin[] = {-0.33333,-1.33333};
+
+    std::weak_ptr<EasingApproximation> approxWeak;
+    {
+        auto approx = EasingApproximation::getOrCreate(2, start, tout, tin, end, 101);
+        auto approxSame = EasingApproximation::getOrCreate(2, start, tout, tin, end, 101);
+        approxWeak = approx;
+
+        ASSERT_FALSE(approxWeak.expired());
+        ASSERT_EQ(approxWeak.lock(), approx);
+        ASSERT_EQ(approxWeak.lock(), approxSame);
+    }
+
+    ASSERT_TRUE(approxWeak.expired());
 }

@@ -62,12 +62,32 @@ public:
     }
 
     /**
+     * Return true if there is at least one upstream that can change this target
+     * @return True if there is at least one upstream dependant
+     */
+    bool hasUpstream() {
+        return !mUpstream.empty();
+    }
+
+    /**
      * Return true if this key is driven by one or more upstream dependants
      * @param key The key
      * @return True if there is at least one upstream dependant.
      */
     bool hasUpstream(T key) {
         return mUpstream.find(key) != mUpstream.end();
+    }
+
+    /**
+     * Return true if at least one of these keys is driven by one or more upstream dependents
+     * @param keys The vector of keys
+     * @return True if there is at least one upstream dependant that matches
+     */
+    bool hasUpstream(const std::vector<T>& keys) {
+        for (const auto& m : keys)
+            if (mUpstream.find(m) != mUpstream.end())
+                return true;
+        return false;
     }
 
     /**

@@ -16,6 +16,8 @@
 #ifndef _APL_OFFSET_INDEX_DATA_SOURCE_PROVIDER_H
 #define _APL_OFFSET_INDEX_DATA_SOURCE_PROVIDER_H
 
+#include <vector>
+
 #include "apl/datasource/datasourceconnection.h"
 
 namespace apl {

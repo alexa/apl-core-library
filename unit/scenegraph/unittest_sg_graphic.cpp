@@ -38,6 +38,8 @@ public:
 
     void TearDown() override {
         graphic = nullptr;
+        gc = nullptr;
+        updates.clear();
         DocumentWrapper::TearDown();
     }
 
@@ -56,7 +58,7 @@ static const char *BASIC_RECT = R"apl(
       "items": {
         "type": "path",
         "fill": "red",
-        "pathData": "M0,0 L100,0 L100,100 L0,100 z"
+        "pathData": "M10,10 L100,10 L100,100 L10,100 z"
       }
     }
 )apl";
@@ -65,13 +67,48 @@ TEST_F(SGGraphicTest, BasicRect)
 {
     loadGraphic(BASIC_RECT);
 
-    auto node = graphic->getSceneGraph(updates);
+    auto node = graphic->getSceneGraph(false, updates)->node();
     ASSERT_TRUE(CheckSceneGraph(updates, node,
                                 IsDrawNode()
-                                    .path(IsGeneralPath("MLLLZ", {0, 0, 100, 0, 100, 100, 0, 100}))
+                                    .path(IsGeneralPath("MLLLZ", {10, 10, 100, 10, 100, 100, 10, 100}))
                                     .pathOp(IsFillOp(IsColorPaint(Color::RED)))));
 }
 
+TEST_F(SGGraphicTest, BasicRectLayers)
+{
+    loadGraphic(BASIC_RECT);
+
+    auto sg = graphic->getSceneGraph(true, updates);
+    updates.clear();
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, sg->layer(),
+        IsLayer(Rect(10, 10, 90, 90))
+            .contentOffset(Point(10, 10))
+            .content(IsDrawNode()
+                         .path(IsGeneralPath("MLLLZ", {10, 10, 100, 10, 100, 100, 10, 100}))
+                         .pathOp(IsFillOp(IsColorPaint(Color::RED))))));
+}
+
+static const char *ILLEGAL_GRAPHIC = R"apl(
+    {
+      "type": "AVG",
+      "version": "2.3",
+      "height": 100,
+      "width": 100,
+      "items": {
+        "type": "path",
+        "fill": "red",
+        "pathData": "M10,10 L100,10 L100,100 L10,100 z"
+      }
+    }
+)apl";
+
+TEST_F(SGGraphicTest, IllegalGraphic)
+{
+    gc = GraphicContent::create(session, ILLEGAL_GRAPHIC);
+    ASSERT_FALSE(gc);
+    ASSERT_TRUE(ConsoleMessage());
+}
 
 static const char *TWO_RECTS = R"apl(
 {
@@ -97,7 +134,7 @@ static const char *TWO_RECTS = R"apl(
 TEST_F(SGGraphicTest, TwoRects)
 {
     loadGraphic(TWO_RECTS);
-    auto node = graphic->getSceneGraph(updates);
+    auto node = graphic->getSceneGraph(false, updates)->node();
     ASSERT_TRUE(CheckSceneGraph(
         updates, node,
         IsDrawNode()
@@ -106,11 +143,24 @@ TEST_F(SGGraphicTest, TwoRects)
             .next(IsDrawNode()
                       .path(IsGeneralPath("MLLLZ", {20, 20, 60, 20, 60, 60, 20, 60}))
                       .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))));
-
-
 }
 
+TEST_F(SGGraphicTest, TwoRectsLayers)
+{
+    loadGraphic(TWO_RECTS);
 
+    auto sg = graphic->getSceneGraph(true, updates);
+    updates.clear();
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, sg->layer(),
+        IsLayer(Rect(0, 0, 100, 100)).content(
+            IsDrawNode()
+                .path(IsGeneralPath("MLLLZ", {0, 0, 100, 0, 100, 100, 0, 100}))
+                .pathOp(IsFillOp(IsColorPaint(Color::RED)))
+                .next(IsDrawNode()
+                          .path(IsGeneralPath("MLLLZ", {20, 20, 60, 20, 60, 60, 20, 60}))
+                          .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))));
+}
 
 
 static const char *COMPLICATED_RECT = R"apl(
@@ -160,7 +210,7 @@ static const char *COMPLICATED_RECT = R"apl(
 TEST_F(SGGraphicTest, ComplicatedRect)
 {
     loadGraphic(COMPLICATED_RECT);
-    auto node = graphic->getSceneGraph(updates);
+    auto node = graphic->getSceneGraph(false, updates)->node();
 
     ASSERT_TRUE(CheckSceneGraph(
         updates, node,
@@ -176,6 +226,30 @@ TEST_F(SGGraphicTest, ComplicatedRect)
                             {1.0f, 2.0f, 3.0f, 1.0f, 2.0f, 3.0f})
 
                 })));
+}
+
+TEST_F(SGGraphicTest, ComplicatedRectLayers)
+{
+    loadGraphic(COMPLICATED_RECT);
+    auto sg = graphic->getSceneGraph(true, updates);
+    updates.clear();
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, sg->layer(),
+        IsLayer(Rect(-1, -1, 102, 102))
+            .contentOffset(Point(-1,-1))
+            .content(
+            IsDrawNode()
+                .path(IsGeneralPath("MLLLZ", {0, 0, 100, 0, 100, 100, 0, 100}))
+                .pathOp({IsFillOp(IsColorPaint(Color::RED, 0.5)),
+                         IsStrokeOp(IsLinearGradientPaint({0, 1}, {Color::RED, Color::WHITE},
+                                                          Gradient::GradientSpreadMethod::PAD, true,
+                                                          {0, 0}, {1, 1}, 0.25f,
+                                                          Transform2D::rotate(90.f)),
+                                    2.0f, 10.0f, 100.0f, 1.0f, GraphicLineCap::kGraphicLineCapRound,
+                                    GraphicLineJoin::kGraphicLineJoinRound,
+                                    {1.0f, 2.0f, 3.0f, 1.0f, 2.0f, 3.0f})
+
+                }))));
 }
 
 
@@ -206,35 +280,21 @@ static const char *PARAMETERIZED = R"apl(
       "parameters":
       [
         "color",
-        {
-          "name": "opacity",
-          "default": 1.0
-        },
+        { "name": "strokeWidth", "default": 1.0 },
+        { "name": "opacity", "default": 1.0 },
         "transform",
-        {
-          "name": "pathLength",
-          "default": 10.0
-        },
-        {
-          "name": "dashArray",
-          "default":
-          []
-        },
-        {
-          "name": "dashOffset",
-          "default": 0
-        },
+        { "name": "pathLength", "default": 10.0 },
+        { "name": "dashArray", "default": [] },
+        { "name": "dashOffset", "default": 0 },
         "lineCap",
         "lineJoin",
-        {
-          "name": "miterLimit",
-          "default": "5.0"
-        },
+        { "name": "miterLimit", "default": "5.0" },
         "path"
       ],
       "items": {
         "type": "path",
         "stroke": "${color}",
+        "strokeWidth": "${strokeWidth}",
         "strokeOpacity": "${opacity}",
         "strokeTransform": "${transform}",
         "pathLength": "${pathLength}",
@@ -251,13 +311,14 @@ static const char *PARAMETERIZED = R"apl(
 TEST_F(SGGraphicTest, Parameterized)
 {
     loadGraphic(PARAMETERIZED);
-    auto node = graphic->getSceneGraph(updates);
-
+    auto result = graphic->getSceneGraph(false, updates);
+    auto node = result->node();
     ASSERT_FALSE(node->visible());
 
     graphic->setProperty("color", Color::GREEN);
     graphic->setProperty("path", "M0,0 L100,100");
     graphic->setProperty("opacity", 1.0f);
+    graphic->setProperty("strokeWidth", 1.0f);
 
     graphic->updateSceneGraph(updates);
     ASSERT_TRUE(
@@ -362,6 +423,183 @@ TEST_F(SGGraphicTest, Parameterized)
     ASSERT_FALSE(node->visible());
 }
 
+TEST_F(SGGraphicTest, ParameterizedLayers)
+{
+    loadGraphic(PARAMETERIZED);
+    auto result = graphic->getSceneGraph(true, updates);
+    updates.clear();
+    auto layer = result->layer();
+
+    graphic->setProperty("color", Color::GREEN);
+    graphic->setProperty("path", "M0,0 L100,100");
+    graphic->setProperty("opacity", 1.0f);
+
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(-2.5f, -2.5f, 105, 105),
+                           "...path") // Miter limit leaves 5 unit padding
+                       .dirty(sg::Layer::kFlagRedrawContent | sg::Layer::kFlagPositionChanged |
+                              sg::Layer::kFlagSizeChanged | sg::Layer::kFlagChildOffsetChanged)
+                       .contentOffset(Point(-2.5f, -2.5f))
+                       .childOffset(Point(-2.5f, -2.5f))
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("ML", {0, 0, 100, 100}))
+                                    .pathOp(IsStrokeOp(IsColorPaint(Color::GREEN), 1.0f, 5.0f,
+                                                       10.0f, 0.0f, kGraphicLineCapButt,
+                                                       kGraphicLineJoinMiter, {}))))));
+
+    graphic->setProperty("lineJoin", "round");  // This will change the size of the layer
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .dirty(sg::Layer::kFlagRedrawContent | sg::Layer::kFlagPositionChanged |
+                              sg::Layer::kFlagSizeChanged | sg::Layer::kFlagChildOffsetChanged)
+                       .contentOffset(Point(-0.5f, -0.5f))
+                       .childOffset(Point(-0.5f, -0.5f))
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("ML", {0, 0, 100, 100}))
+                                    .pathOp(IsStrokeOp(IsColorPaint(Color::GREEN), 1.0f, 5.0f,
+                                                       10.0f, 0.0f, kGraphicLineCapButt,
+                                                       kGraphicLineJoinRound, {}))))));
+
+    graphic->setProperty("pathLength", 20);
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .contentOffset(Point(-0.5f, -0.5f))
+                       .childOffset(Point(-0.5f, -0.5f))
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("ML", {0, 0, 100, 100}))
+                                    .pathOp(IsStrokeOp(IsColorPaint(Color::GREEN), 1.0f, 5.0f,
+                                                       20.0f, 0.0f, kGraphicLineCapButt,
+                                                       kGraphicLineJoinRound, {}))))));
+
+    graphic->setProperty("dashArray", std::vector<Object>(2, 2));
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .contentOffset(Point(-0.5f, -0.5f))
+                       .childOffset(Point(-0.5f, -0.5f))
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("ML", {0, 0, 100, 100}))
+                                    .pathOp(IsStrokeOp(IsColorPaint(Color::GREEN), 1.0f, 5.0f,
+                                                       20.0f, 0.0f, kGraphicLineCapButt,
+                                                       kGraphicLineJoinRound, {2.0f, 2.0f}))))));
+
+    graphic->setProperty("dashOffset", 1.5f);
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .contentOffset(Point(-0.5f, -0.5f))
+                       .childOffset(Point(-0.5f, -0.5f))
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("ML", {0, 0, 100, 100}))
+                                    .pathOp(IsStrokeOp(IsColorPaint(Color::GREEN), 1.0f, 5.0f,
+                                                       20.0f, 1.5f, kGraphicLineCapButt,
+                                                       kGraphicLineJoinRound, {2.0f, 2.0f}))))));
+
+    graphic->setProperty("lineCap", "square");
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .contentOffset(Point(-0.5f, -0.5f))
+                       .childOffset(Point(-0.5f, -0.5f))
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("ML", {0, 0, 100, 100}))
+                                    .pathOp(IsStrokeOp(IsColorPaint(Color::GREEN), 1.0f, 5.0f,
+                                                       20.0f, 1.5f, kGraphicLineCapSquare,
+                                                       kGraphicLineJoinRound, {2.0f, 2.0f}))))));
+
+    graphic->setProperty("miterLimit", 23.0f);
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .contentOffset(Point(-0.5f, -0.5f))
+                       .childOffset(Point(-0.5f, -0.5f))
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("ML", {0, 0, 100, 100}))
+                                    .pathOp(IsStrokeOp(IsColorPaint(Color::GREEN), 1.0f, 23.0f,
+                                                       20.0f, 1.5f, kGraphicLineCapSquare,
+                                                       kGraphicLineJoinRound, {2.0f, 2.0f}))))));
+
+    graphic->setProperty("opacity", 0.5f);
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .contentOffset(Point(-0.5f, -0.5f))
+                       .childOffset(Point(-0.5f, -0.5f))
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("ML", {0, 0, 100, 100}))
+                                    .pathOp(IsStrokeOp(IsColorPaint(Color::GREEN, 0.5f), 1.0f,
+                                                       23.0f, 20.0f, 1.5f, kGraphicLineCapSquare,
+                                                       kGraphicLineJoinRound, {2.0f, 2.0f}))))));
+
+    // Update the transform - but color paint doesn't use transform, so nothing changes
+    // However, the draw node is marked as modified because the transform did actually change
+    graphic->setProperty("transform", "translate(1 2)");
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .contentOffset(Point(-0.5f, -0.5f))
+                       .childOffset(Point(-0.5f, -0.5f))
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("ML", {0, 0, 100, 100}))
+                                    .pathOp(IsStrokeOp(IsColorPaint(Color::GREEN, 0.5f), 1.0f,
+                                                       23.0f, 20.0f, 1.5f, kGraphicLineCapSquare,
+                                                       kGraphicLineJoinRound, {2.0f, 2.0f}))))));
+
+    // Assign a gradient.  This will pick up the translate
+    graphic->setProperty("color", "@FOO");
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .contentOffset(Point(-0.5f, -0.5f))
+                       .childOffset(Point(-0.5f, -0.5f))
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("ML", {0, 0, 100, 100}))
+                                    .pathOp(IsStrokeOp(
+                                        IsLinearGradientPaint({0, 1}, {Color::RED, Color::WHITE},
+                                                              Gradient::GradientSpreadMethod::PAD,
+                                                              true, {0, 0}, {1, 1}, 0.5f,
+                                                              Transform2D::translate({1, 2})),
+                                        1.0f, 23.0f, 20.0f, 1.5f, kGraphicLineCapSquare,
+                                        kGraphicLineJoinRound, {2.0f, 2.0f}))))));
+
+    // Clear the opacity
+    graphic->setProperty("opacity", 0);
+    graphic->updateSceneGraph(updates);
+
+    ASSERT_FALSE(layer->visible());
+}
+
 
 static const char *BASIC_GROUP = R"apl(
     {
@@ -371,11 +609,18 @@ static const char *BASIC_GROUP = R"apl(
       "width": 100,
       "items": {
         "type": "group",
-        "item": {
-          "type": "path",
-          "fill": "blue",
-          "pathData": "M0,0 L100,50 L50,100 z"
-        }
+        "item": [
+          {
+            "type": "path",
+            "fill": "blue",
+            "pathData": "M0,0 L100,50 L50,100 z"
+          },
+          {
+            "type": "path",
+            "fill": "red",
+            "pathData": "M10,10 L110,60 L60,110 z"
+          }
+        ]
       }
     }
 )apl";
@@ -384,17 +629,32 @@ static const char *BASIC_GROUP = R"apl(
 TEST_F(SGGraphicTest, BasicGroup)
 {
     loadGraphic(BASIC_GROUP);
-    auto node = graphic->getSceneGraph(updates);
+    auto node = graphic->getSceneGraph(false, updates)->node();
 
-    ASSERT_TRUE(CheckSceneGraph(
-        updates, node,
-        IsOpacityNode("...opacity")
-            .child(IsTransformNode().child(
-                IsClipNode("...clip")
-                    .path(IsGeneralPath("", {}))
-                    .child(IsDrawNode("...draw")
-                               .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
-                               .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))));
+    ASSERT_TRUE(
+        CheckSceneGraph(updates, node,
+                        IsDrawNode("...draw")
+                            .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
+                            .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))
+                            .next(IsDrawNode("...path2")
+                                      .path(IsGeneralPath("MLLZ", {10, 10, 110, 60, 60, 110}))
+                                      .pathOp(IsFillOp(IsColorPaint(Color::RED))))));
+}
+
+TEST_F(SGGraphicTest, BasicGroupLayers)
+{
+    loadGraphic(BASIC_GROUP);
+    auto layer = graphic->getSceneGraph(true, updates)->layer();
+    updates.clear();
+    ASSERT_TRUE(
+        CheckSceneGraph(updates, layer,
+                        IsLayer(Rect(0,0,110,110)).content(
+                            IsDrawNode("...draw")
+                                .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
+                                .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))
+                                .next(IsDrawNode("...path2")
+                                          .path(IsGeneralPath("MLLZ", {10, 10, 110, 60, 60, 110}))
+                                          .pathOp(IsFillOp(IsColorPaint(Color::RED)))))));
 }
 
 
@@ -421,7 +681,7 @@ static const char *FULL_GROUP = R"apl(
 TEST_F(SGGraphicTest, FullGroup)
 {
     loadGraphic(FULL_GROUP);
-    auto node = graphic->getSceneGraph(updates);
+    auto node = graphic->getSceneGraph(false, updates)->node();
 
     ASSERT_TRUE(CheckSceneGraph(
         updates, node,
@@ -433,6 +693,27 @@ TEST_F(SGGraphicTest, FullGroup)
                            .child(IsDrawNode()
                                       .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
                                       .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))));
+}
+
+TEST_F(SGGraphicTest, FullGroupLayer) {
+    loadGraphic(FULL_GROUP);
+    auto layer = graphic->getSceneGraph(true, updates)->layer();
+    updates.clear();
+
+    auto p = 50.0f / M_SQRT2; // The length of one-half of the side of the clipping square
+
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(-p, p, 2 * p, 2 * p))
+            .contentOffset(Point(-p, p))
+            .content(IsOpacityNode().opacity(0.5f).child(
+                IsTransformNode()
+                    .transform(Transform2D::rotate(45))
+                    .child(IsClipNode()
+                               .path(IsGeneralPath("MLLLZ", {0, 50, 50, 0, 100, 50, 50, 100}))
+                               .child(IsDrawNode()
+                                          .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
+                                          .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))))));
 }
 
 
@@ -468,7 +749,7 @@ static const char *PARAMETERIZED_GROUP = R"apl(
 TEST_F(SGGraphicTest, ParameterizedGroup)
 {
     loadGraphic(PARAMETERIZED_GROUP);
-    auto node = graphic->getSceneGraph(updates);
+    auto node = graphic->getSceneGraph(false, updates)->node();
 
     ASSERT_TRUE(
         CheckSceneGraph(updates, node,
@@ -481,6 +762,7 @@ TEST_F(SGGraphicTest, ParameterizedGroup)
 
     graphic->setProperty("clipPath", "M50,0 L100,100 L0,50 z");
     graphic->updateSceneGraph(updates);
+
     ASSERT_TRUE(
         CheckSceneGraph(updates, node,
                         IsOpacityNode().opacity(0.5f).child(IsTransformNode().child(
@@ -522,6 +804,67 @@ TEST_F(SGGraphicTest, ParameterizedGroup)
     ASSERT_FALSE(node->visible());
 }
 
+TEST_F(SGGraphicTest, ParameterizedGroupLayouts)
+{
+    loadGraphic(PARAMETERIZED_GROUP);
+    auto layer = graphic->getSceneGraph(true, updates)->layer();
+    updates.clear();
+
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0,0,0,0), "...container")
+            .child(IsLayer(Rect(0,0,100,100), "...group")
+                       .opacity(0.5f) // Opacity pulled into the layer
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
+                                    .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))));
+
+    graphic->setProperty("clipPath", "M50,0 L100,100 L0,50 z");
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0,0,0,0), "...container")
+            .child(IsLayer(Rect(0,0,100,100), "...group")
+                       .dirty(sg::Layer::kFlagOutlineChanged)
+                       .opacity(0.5f) // Opacity pulled into the layer
+                       .outline(IsGeneralPath("MLLZ", {50, 0, 100, 100, 0, 50}))
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
+                                    .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))));
+
+    graphic->setProperty("transform", "scale(2)");
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0,0,0,0), "...container")
+            .child(IsLayer(Rect(0,0,100,100), "...group")
+                       .dirty(sg::Layer::kFlagTransformChanged)
+                       .opacity(0.5f) // Opacity pulled into the layer
+                       .outline(IsGeneralPath("MLLZ", {50, 0, 100, 100, 0, 50}))
+                       .transform(Transform2D::scale(2.0f))
+                       .content(IsDrawNode("..draw")
+                                    .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
+                                    .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))));
+
+    graphic->setProperty("opacity", 1.0);
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0,0,0,0), "...container")
+            .child(IsLayer(Rect(0,0,100,100), "...group")
+                       .dirty(sg::Layer::kFlagOpacityChanged)
+                       .opacity(1.0f) // Opacity pulled into the layer
+                       .outline(IsGeneralPath("MLLZ", {50, 0, 100, 100, 0, 50}))
+                       .transform(Transform2D::scale(2.0f))
+                       .content(IsDrawNode("..draw")
+                                    .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
+                                    .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))));
+
+    graphic->setProperty("opacity", 0.0);
+    graphic->updateSceneGraph(updates);
+    ASSERT_FALSE(layer->visible());
+}
+
 
 static const char *MULTI_CHILD_ONE = R"apl(
     {
@@ -557,21 +900,38 @@ static const char *MULTI_CHILD_ONE = R"apl(
 TEST_F(SGGraphicTest, MultiChild)
 {
     loadGraphic(MULTI_CHILD_ONE);
-    auto node = graphic->getSceneGraph(updates);
+    auto node = graphic->getSceneGraph(false, updates)->node();
 
-    ASSERT_TRUE(
-        CheckSceneGraph(updates, node,
-                        IsOpacityNode().child(IsTransformNode().child(
-                            IsClipNode()
-                                .path(IsGeneralPath("", {}))
-                                .child(IsDrawNode()
-                                           .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
-                                           .pathOp(IsFillOp(IsColorPaint(Color::BLUE, 0.5f))))))));
+    ASSERT_TRUE(CheckSceneGraph(updates, node,
+                                IsDrawNode()
+                                    .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
+                                    .pathOp(IsFillOp(IsColorPaint(Color::BLUE, 0.5f)))));
 
     graphic->setProperty("opacity", 0.0f);
     graphic->updateSceneGraph(updates);
 
     ASSERT_FALSE(node->visible());
+}
+
+TEST_F(SGGraphicTest, MultiChildLayer)
+{
+    loadGraphic(MULTI_CHILD_ONE);
+    auto layer = graphic->getSceneGraph(true, updates)->layer();
+    updates.clear();
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0,0,0,0), "...container")
+            .child(
+                IsLayer(Rect(0,0,0,0), "...group")
+                    .child(IsLayer(Rect(0,0,100,100), "...path")
+                               .content(IsDrawNode()
+                                            .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
+                                            .pathOp(IsFillOp(IsColorPaint(Color::BLUE, 0.5f))))))));
+
+    graphic->setProperty("opacity", 0.0f);
+    graphic->updateSceneGraph(updates);
+
+    ASSERT_FALSE(layer->visible());
 }
 
 
@@ -593,13 +953,30 @@ static const char *BASIC_TEXT = R"apl(
 TEST_F(SGGraphicTest, BasicText)
 {
     loadGraphic(BASIC_TEXT);
-    auto node = graphic->getSceneGraph(updates);
+    auto node = graphic->getSceneGraph(false, updates)->node();
 
     ASSERT_TRUE(CheckSceneGraph(
         updates, node,
         IsTransformNode()
             .translate(Point{0, -8})
             .child(IsTextNode().text("Hello, World!").pathOp(IsFillOp(IsColorPaint(Color::RED))))));
+}
+
+TEST_F(SGGraphicTest, BasicTextLayer)
+{
+    loadGraphic(BASIC_TEXT);
+    auto layer = graphic->getSceneGraph(true, updates)->layer();
+    updates.clear();
+    ASSERT_TRUE(
+        CheckSceneGraph(updates, layer,
+                        IsLayer(Rect(0, -8, 130, 10))
+                            .contentOffset(Point(0, -8))
+                            .childOffset(Point(0, -8))
+                            .content(IsTransformNode()
+                                         .translate(Point{0, -8})
+                                         .child(IsTextNode()
+                                                    .text("Hello, World!")
+                                                    .pathOp(IsFillOp(IsColorPaint(Color::RED)))))));
 }
 
 
@@ -643,7 +1020,7 @@ static const char *COMPLICATED_TEXT = R"apl(
 TEST_F(SGGraphicTest, ComplicatedText)
 {
     loadGraphic(COMPLICATED_TEXT);
-    auto node = graphic->getSceneGraph(updates);
+    auto node = graphic->getSceneGraph(false, updates)->node();
 
     ASSERT_TRUE(CheckSceneGraph(
         updates, node,
@@ -659,6 +1036,31 @@ TEST_F(SGGraphicTest, ComplicatedText)
                                           2.0f)))));
 }
 
+TEST_F(SGGraphicTest, ComplicatedTextLayer)
+{
+    loadGraphic(COMPLICATED_TEXT);
+    auto layer = graphic->getSceneGraph(true, updates)->layer();
+    updates.clear();
+     // Text width = 15 characters * 10 per character + 2 strokeWidth * 4 miterlimit = 158
+    // Text height = 10 + 2 strokeWidth * 4 miterLimit = 18
+    // Vertical offset = 0.5 * (2 strokeWidth * 4 miterLimit) + 8 ascender = 12
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(-4, -12, 158, 18))
+            .contentOffset(Point(-4, -12))
+            .childOffset(Point(-4, -8))
+            .content(IsTransformNode()
+                         .translate(Point{0, -8})
+                         .child(IsTextNode()
+                                    .text("Fill and Stroke")
+                                    .pathOp(IsFillOp(IsColorPaint(Color::RED, 0.5)))
+                                    .pathOp(IsStrokeOp(
+                                        IsLinearGradientPaint({0, 1}, {Color::RED, Color::WHITE},
+                                                              Gradient::GradientSpreadMethod::PAD,
+                                                              true, {0, 0}, {1, 1}, 0.25f,
+                                                              Transform2D::rotate(90.f)),
+                                        2.0f))))));
+}
 
 static const char *PARAMETERIZED_TEXT = R"apl(
     {
@@ -708,7 +1110,7 @@ static const char *PARAMETERIZED_TEXT = R"apl(
 TEST_F(SGGraphicTest, ParameterizedText)
 {
     loadGraphic(PARAMETERIZED_TEXT);
-    auto node = graphic->getSceneGraph(updates);
+    auto node = graphic->getSceneGraph(false, updates)->node();
 
     ASSERT_FALSE(node->visible());
 
@@ -795,6 +1197,140 @@ TEST_F(SGGraphicTest, ParameterizedText)
 }
 
 
+TEST_F(SGGraphicTest, ParameterizedTextLayout)
+{
+    loadGraphic(PARAMETERIZED_TEXT);
+    auto layer = graphic->getSceneGraph(true, updates)->layer();
+    updates.clear();
+
+    ASSERT_FALSE(layer->visible());
+
+    graphic->setProperty("color", Color::GREEN);
+    graphic->setProperty("text", "Woof!");
+
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(0, -8, 50, 10), "...text")
+                       .dirty(sg::Layer::kFlagRedrawContent | sg::Layer::kFlagPositionChanged |
+                              sg::Layer::kFlagSizeChanged | sg::Layer::kFlagChildOffsetChanged)
+                       .contentOffset(0, -8)
+                       .content(IsTransformNode()
+                                    .translate(Point(0, -8))
+                                    .child(IsTextNode(".text").text("Woof!").pathOp(
+                                        IsFillOp(IsColorPaint(Color::GREEN))))))));
+
+    graphic->setProperty("opacity", 0.5f);
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(0, -8, 50, 10), "...text")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .contentOffset(0, -8)
+                       .content(IsTransformNode()
+                                    .translate(Point(0, -8))
+                                    .child(IsTextNode(".text").text("Woof!").pathOp(
+                                        IsFillOp(IsColorPaint(Color::GREEN, 0.5f))))))));
+
+    graphic->setProperty("color", "@FOO");
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(0, -8, 50, 10), "...text")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .contentOffset(0, -8)
+                       .content(IsTransformNode()
+                                    .translate(Point(0, -8))
+                                    .child(IsTextNode(".text").text("Woof!").pathOp(IsFillOp(
+                                        IsLinearGradientPaint({0, 1}, {Color::RED, Color::WHITE},
+                                                              Gradient::GradientSpreadMethod::PAD,
+                                                              true, {0, 0}, {1, 1}, 0.5f,
+                                                              Transform2D()))))))));
+
+    graphic->setProperty("transform", "translate(1,2)");
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(0, -8, 50, 10), "...text")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .contentOffset(0, -8)
+                       .content(IsTransformNode()
+                                    .translate(Point(0, -8))
+                                    .child(IsTextNode(".text").text("Woof!").pathOp(IsFillOp(
+                                        IsLinearGradientPaint({0, 1}, {Color::RED, Color::WHITE},
+                                                              Gradient::GradientSpreadMethod::PAD,
+                                                              true, {0, 0}, {1, 1}, 0.5f,
+                                                              Transform2D::translate(1, 2)))))))));
+
+    graphic->setProperty("text", "");
+    graphic->updateSceneGraph(updates);
+    ASSERT_FALSE(layer->visible());
+
+    graphic->setProperty("text", "Once upon a time");
+    graphic->setProperty("opacity", 0);
+    graphic->updateSceneGraph(updates);
+    ASSERT_FALSE(layer->visible());
+
+    graphic->setProperty("opacity", 1.0f);
+    graphic->setProperty("color", "blue");
+    graphic->setProperty("text", "123");
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(0, -8, 30, 10), "...text")
+                       .dirty(sg::Layer::kFlagChildOffsetChanged | sg::Layer::kFlagRedrawContent |
+                              sg::Layer::kFlagSizeChanged | sg::Layer::kFlagPositionChanged)
+                       .contentOffset(0, -8)
+                       .content(IsTransformNode().translate(0, -8).child(
+                           IsTextNode(".text").text("123").pathOp(
+                               IsFillOp(IsColorPaint(Color::BLUE))))))));
+
+    graphic->setProperty("x", 10);
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(10, -8, 30, 10), "...text")
+                       .dirty(sg::Layer::kFlagChildOffsetChanged | sg::Layer::kFlagRedrawContent |
+                              sg::Layer::kFlagPositionChanged)
+                       .contentOffset(10, -8)
+                       .content(IsTransformNode().translate(10, -8).child(
+                           IsTextNode(".text").text("123").pathOp(
+                               IsFillOp(IsColorPaint(Color::BLUE))))))));
+
+    graphic->setProperty("y", 20);
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(10, 12, 30, 10), "...text")
+                       .dirty(sg::Layer::kFlagChildOffsetChanged | sg::Layer::kFlagRedrawContent |
+                              sg::Layer::kFlagPositionChanged)
+                       .contentOffset(10, 12)
+                       .content(IsTransformNode().translate(10, 12).child(
+                           IsTextNode(".text").text("123").pathOp(
+                               IsFillOp(IsColorPaint(Color::BLUE))))))));
+
+    graphic->setProperty("anchor", "end");
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(-20, 12, 30, 10), "...text")
+                       .dirty(sg::Layer::kFlagChildOffsetChanged | sg::Layer::kFlagRedrawContent |
+                              sg::Layer::kFlagPositionChanged)
+                       .contentOffset(-20, 12)
+                       .content(IsTransformNode().translate(-20, 12).child(
+                           IsTextNode(".text").text("123").pathOp(
+                               IsFillOp(IsColorPaint(Color::BLUE))))))));
+}
+
+
 static const char *PARAMETERIZED_TEXT_STROKE = R"apl(
     {
       "type": "AVG",
@@ -840,7 +1376,7 @@ static const char *PARAMETERIZED_TEXT_STROKE = R"apl(
 TEST_F(SGGraphicTest, ParameterizedTextStroke)
 {
     loadGraphic(PARAMETERIZED_TEXT_STROKE);
-    auto node = graphic->getSceneGraph(updates);
+    auto node = graphic->getSceneGraph(false, updates)->node();
 
     ASSERT_FALSE(node->visible());
 
@@ -894,6 +1430,87 @@ TEST_F(SGGraphicTest, ParameterizedTextStroke)
     ASSERT_FALSE(node->visible());
 }
 
+TEST_F(SGGraphicTest, ParameterizedTextStrokeLayouts)
+{
+    loadGraphic(PARAMETERIZED_TEXT_STROKE);
+    auto layer = graphic->getSceneGraph(true, updates)->layer();
+    updates.clear();
+
+    ASSERT_FALSE(layer->visible());
+
+    graphic->setProperty("color", Color::GREEN);
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(
+        CheckSceneGraph(updates, layer,
+                        IsLayer(Rect(0, 0, 0, 0), "...container")
+                            .child(IsLayer(Rect(-2, -10, 54, 14), "....text")
+                                       .dirty(sg::Layer::kFlagRedrawContent)
+                                       .contentOffset(Point(-2, -10))
+                                       .content(IsTransformNode().translate(0, -8).child(
+                                           IsTextNode(".text").text("HELLO").pathOp(
+                                               IsStrokeOp(IsColorPaint(Color::GREEN), 1)))))));
+
+    graphic->setProperty("opacity", 0.5f);
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(
+        CheckSceneGraph(updates, layer,
+                        IsLayer(Rect(0, 0, 0, 0), "...container")
+                            .child(IsLayer(Rect(-2, -10, 54, 14), "....text")
+                                       .dirty(sg::Layer::kFlagRedrawContent)
+                                       .contentOffset(Point(-2, -10))
+                                       .content(IsTransformNode().translate(0, -8).child(
+                                           IsTextNode(".text").text("HELLO").pathOp(IsStrokeOp(
+                                               IsColorPaint(Color::GREEN, 0.5f), 1)))))));
+
+    graphic->setProperty("color", "@FOO");
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(IsLayer(Rect(-2, -10, 54, 14), "....text")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .contentOffset(Point(-2, -10))
+                       .content(IsTransformNode().translate(0, -8).child(
+                           IsTextNode(".text").text("HELLO").pathOp(IsStrokeOp(
+                               IsLinearGradientPaint({0, 1}, {Color::RED, Color::WHITE},
+                                                     Gradient::GradientSpreadMethod::PAD, true,
+                                                     {0, 0}, {1, 1}, 0.5f, Transform2D()),
+                               1.0f)))))));
+
+    graphic->setProperty("transform", "translate(1,2)");
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0, 0, 0, 0), "...container")
+            .child(
+                IsLayer(Rect(-2, -10, 54, 14), "....text")
+                    .dirty(sg::Layer::kFlagRedrawContent)
+                    .contentOffset(Point(-2, -10))
+                    .content(IsTransformNode().translate(0, -8).child(
+                        IsTextNode(".text").text("HELLO").pathOp(IsStrokeOp(
+                            IsLinearGradientPaint({0, 1}, {Color::RED, Color::WHITE},
+                                                  Gradient::GradientSpreadMethod::PAD, true, {0, 0},
+                                                  {1, 1}, 0.5f, Transform2D::translate(1, 2)),
+                            1.0f)))))));
+
+    graphic->setProperty("opacity", 1.0f);
+    graphic->setProperty("color", "blue");
+    graphic->updateSceneGraph(updates);
+    ASSERT_TRUE(
+        CheckSceneGraph(updates, layer,
+                        IsLayer(Rect(0, 0, 0, 0), "...container")
+                            .child(IsLayer(Rect(-2, -10, 54, 14), "....text")
+                                       .dirty(sg::Layer::kFlagRedrawContent)
+                                       .contentOffset(Point(-2, -10))
+                                       .content(IsTransformNode().translate(0, -8).child(
+                                           IsTextNode(".text").text("HELLO").pathOp(
+                                               IsStrokeOp(IsColorPaint(Color::BLUE), 1)))))));
+
+    graphic->setProperty("swidth", 0);
+    graphic->updateSceneGraph(updates);
+    ASSERT_FALSE(layer->visible());
+}
+
 
 static const char *SHADOW = R"apl(
 {
@@ -926,7 +1543,7 @@ static const char *SHADOW = R"apl(
 TEST_F(SGGraphicTest, Shadow)
 {
     loadGraphic(SHADOW);
-    auto node = graphic->getSceneGraph(updates);
+    auto node = graphic->getSceneGraph(false, updates)->node();
 
     ASSERT_TRUE(CheckSceneGraph(
         updates, node,
@@ -949,259 +1566,36 @@ TEST_F(SGGraphicTest, Shadow)
                        .pathOp(IsFillOp(IsColorPaint(Color::RED))))));
 }
 
-// Use a custom test for checking the nodes.  The regular test_sg.h code skips over operations
-// that are not visible. But we want to verify that we have exactly the correct operations.
-static ::testing::AssertionResult
-checkOps(sg::PathOp *op, bool hasFill, Color fillColor, bool hasStroke, Color strokeColor) {
-    if (hasFill) {
-        if (!sg::FillPathOp::is_type(op))
-            return ::testing::AssertionFailure() << "Expected a fill operation";
-        auto *fill = sg::FillPathOp::cast(op);
-        auto *paint = sg::ColorPaint::cast(fill->paint);
-        if (!paint || paint->getColor() != fillColor)
-            return ::testing::AssertionFailure() << "Fill color mismatch";
-        op = op->nextSibling.get();
-    }
-
-    if (hasStroke) {
-        if (!sg::StrokePathOp::is_type(op))
-            return ::testing::AssertionFailure() << "Missing stroke operation";
-        auto *stroke = sg::StrokePathOp::cast(op);
-        auto *paint = sg::ColorPaint::cast(stroke->paint);
-        if (!paint || paint->getColor() != strokeColor)
-            return ::testing::AssertionFailure() << "Stroke color mismatch";
-        op = op->nextSibling.get();
-    }
-
-    if (op)
-        return ::testing::AssertionFailure() << "Extra operation";
-
-    return ::testing::AssertionSuccess();
-}
-
-static ::testing::AssertionResult
-checkDraw(sg::NodePtr node, float x, bool hasFill, Color fillColor, bool hasStroke, Color strokeColor) {
-    auto *draw = sg::DrawNode::cast(node);
-    if (!draw)
-        return ::testing::AssertionFailure() << "not a draw node";
-
-    auto *path = sg::GeneralPath::cast(draw->getPath());
-    if (!path)
-        return ::testing::AssertionFailure() << "missing path node";
-
-    // negative x used to indicate no points
-    if (path->getPoints() != (x < 0 ? std::vector<float>{} : std::vector<float>{0,0,0,x,x,x}))
-        return ::testing::AssertionFailure() << "mismatched points";
-
-    return checkOps(draw->getOp().get(), hasFill, fillColor, hasStroke, strokeColor);
-}
-
-static ::testing::AssertionResult
-checkText(sg::NodePtr node, std::string textString, bool hasFill, Color fillColor, bool hasStroke, Color strokeColor) {
-    auto *text = sg::TextNode::cast(node);
-    if (!text)
-        return ::testing::AssertionFailure() << "not a text node";
-
-    if (text->getTextLayout()->toDebugString() != textString)
-        return ::testing::AssertionFailure() << "text mismatch";
-
-    return checkOps(text->getOp().get(), hasFill, fillColor, hasStroke, strokeColor);
-}
-
-static const char *DRAW_OPTIMIZATION = R"apl(
+TEST_F(SGGraphicTest, ShadowLayers)
 {
-  "type": "AVG",
-  "version": "1.2",
-  "height": 100,
-  "width": 100,
-  "parameters": [
-    {
-      "name": "X",
-      "default": false
-    }
-  ],
-  "items": [
-    {
-      "type": "path",
-      "description": "Empty path",
-      "fill": "red",
-      "pathData": "M10,10 M20,20"
-    },
-    {
-      "type": "path",
-      "description": "Just fill",
-      "fill": "blue",
-      "pathData": "M0,0 L0,1 L1,1 z"
-    },
-    {
-      "type": "path",
-      "description": "Just stroke",
-      "stroke": "red",
-      "pathData": "M0,0 L0,2 L2,2 z"
-    },
-    {
-      "type": "path",
-      "description": "Stroke, but no width",
-      "stroke": "green",
-      "strokeWidth": 0,
-      "pathData": "M0,0 L0,3 L3,3 z"
-    },
-    {
-      "type": "path",
-      "description": "Stroke and fill",
-      "stroke": "yellow",
-      "fill": "black",
-      "strokeWidth": 5,
-      "pathData": "M0,0 L0,4 L4,4 z"
-    },
-    {
-      "type": "path",
-      "description": "Stroke and fill opacity zero",
-      "stroke": "pink",
-      "strokeOpacity": 0,
-      "fill": "blue",
-      "fillOpacity": 0,
-      "strokeWidth": 5,
-      "pathData": "M0,0 L0,5 L5,5 z"
-    },
-    {
-      "type": "path",
-      "description": "Path depends on X",
-      "pathData": "${X ? 'M0,0 L0,6 L6,6 z' : 'M0,0'}",
-      "fill": "purple"
-    },
-    {
-      "type": "path",
-      "description": "Fill depends on X",
-      "pathData": "M0,0 L0,7 L7,7 z",
-      "fill": "${X ? 'blue' : 'transparent'}"
-    },
-    {
-      "type": "path",
-      "description": "Stroke depends on X",
-      "pathData": "M0,0 L0,8 L8,8 z",
-      "stroke": "${X ? 'red' : 'transparent'}"
-    }
-  ]
-}
-)apl";
+    loadGraphic(SHADOW);
+    auto layer = graphic->getSceneGraph(true, updates)->layer();
+    updates.clear();
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0,0,0,0), "...container")
+            .child(IsLayer(Rect(10,10,80,80), "...path")
+                       .shadow(IsShadow(Color::BLUE, Point{3, 3}, 5))
+                       .contentOffset(Point(10,10))
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("MLLLZ", {10, 10, 90, 10, 90, 90, 10, 90}))
+                                    .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))));
 
-TEST_F(SGGraphicTest, DrawOptimization)
-{
-    loadGraphic(DRAW_OPTIMIZATION);
-    auto node = graphic->getSceneGraph(updates);
+    graphic->setProperty("COLOR", "red");
+    graphic->updateSceneGraph(updates);
 
-    // Skip the empty path - there is no path data
-
-    // Fill blue
-    ASSERT_TRUE(checkDraw(node, 1, true, Color::BLUE, false, Color::TRANSPARENT));
-    node = node->next();
-
-    // Stroke red
-    ASSERT_TRUE(checkDraw(node, 2, false, Color::TRANSPARENT, true, Color::RED));
-    node = node->next();
-
-    // Skip the stroke with green because there is no stroke width
-
-    // Stroke yellow, fill black
-    ASSERT_TRUE(checkDraw(node, 4, true, Color::BLACK, true, Color::YELLOW));
-    node = node->next();
-
-    // Skip stroke pink, fill blue because the opacities hide all colors
-
-    // Allow the fill purple even though there is no path because the path is mutable
-    ASSERT_TRUE(checkDraw(node, -1, true, Color::PURPLE, false, Color::TRANSPARENT));
-    node = node->next();
-
-    // Allow the 7th case - the fill color can be changed
-    ASSERT_TRUE(checkDraw(node, 7, true, Color::TRANSPARENT, false, Color::TRANSPARENT));
-    node = node->next();
-
-    // Allow the 8th case - the stroke color can be changed
-    ASSERT_TRUE(checkDraw(node, 8, false, Color::TRANSPARENT, true, Color::TRANSPARENT));
-    node = node->next();
-
-    ASSERT_FALSE(node);
+    // Note: The shadow color does not change despite the data-binding.  That is because graphic
+    //       element filters are not dynamic.  This may change in the future.
+    ASSERT_TRUE(CheckSceneGraph(
+        updates, layer,
+        IsLayer(Rect(0,0,0,0), "...container")
+            .child(IsLayer(Rect(10,10,80,80), "...path")
+                       .dirty(sg::Layer::kFlagRedrawContent)
+                       .shadow(IsShadow(Color::BLUE, Point{3, 3}, 5))
+                       .contentOffset(Point(10,10))
+                       .content(IsDrawNode()
+                                    .path(IsGeneralPath("MLLLZ", {10, 10, 90, 10, 90, 90, 10, 90}))
+                                    .pathOp(IsFillOp(IsColorPaint(Color::RED)))))));
 }
 
-
-static const char *TEXT_OPTIMIZATION = R"apl(
-{
-  "type": "AVG",
-  "version": "1.2",
-  "height": 100,
-  "width": 100,
-  "parameters": [
-    {
-      "name": "X",
-      "default": false
-    }
-  ],
-  "items": [
-    {
-      "type": "text",
-      "text": "Just fill",
-      "fill": "red"
-    },
-    {
-      "type": "text",
-      "text": "Just stroke",
-      "stroke": "yellow",
-      "fillOpacity": 0,
-      "strokeWidth": 1
-    },
-    {
-      "type": "text",
-      "text": "Stroke and fill",
-      "stroke": "green",
-      "strokeWidth": 2,
-      "fill": "blue"
-    },
-    {
-      "type": "text",
-      "text": "Nothing to draw",
-      "fillOpacity": 0
-    },
-    {
-      "type": "text",
-      "text": "",
-      "fill": "purple"
-    },
-    {
-      "type": "text",
-      "text": "Default"
-    }
-  ]
-}
-)apl";
-
-TEST_F(SGGraphicTest, TextOptimization)
-{
-    loadGraphic(TEXT_OPTIMIZATION);
-    auto node = graphic->getSceneGraph(updates);
-
-    // Fill red (well, it's hidden under a transform)
-    ASSERT_TRUE(checkText(node->child(), "Just fill", true, Color::RED, false, Color::TRANSPARENT));
-    node = node->next();
-
-    // Stroke yellow
-    ASSERT_TRUE(checkText(node->child(), "Just stroke", false, Color::TRANSPARENT, true, Color::YELLOW));
-    node = node->next();
-
-    // Stroke green, fill blue
-    ASSERT_TRUE(checkText(node->child(), "Stroke and fill", true, Color::BLUE, true, Color::GREEN));
-    node = node->next();
-
-    // Skip the "Nothing to draw" - there is no fill or stroke
-
-    // Fill purple (even though there is no text to draw.  Fix this?)
-    ASSERT_TRUE(checkText(node->child(), "", true, Color::PURPLE, false, Color::TRANSPARENT));
-    node = node->next();
-
-    // Fill with black (the default color)
-    ASSERT_TRUE(checkText(node->child(), "Default", true, Color::BLACK, false, Color::TRANSPARENT));
-    node = node->next();
-
-    ASSERT_FALSE(node);
-}
 // TODO: Check style changes - they should update properties as appropriate

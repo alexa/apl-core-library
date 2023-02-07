@@ -84,9 +84,29 @@ Layer::debugInteractionString() const
     return result;
 }
 
+std::string
+Layer::debugCharacteristicString() const
+{
+    static const char *FIXED_NAMES[] = {
+        "DO_NOT_CLIP_CHILDREN", // 1u << 0
+        "RENDER_ONLY",          // 1u << 1
+        nullptr
+    };
+
+    std::string result;
+    for (int i = 0 ; FIXED_NAMES[i] ; i++) {
+        if ((mCharacteristics & (1u << i)) != 0) {
+            if (!result.empty())
+                result += ' ';
+            result += FIXED_NAMES[i];
+        }
+    }
+    return result;
+}
+
 
 void
-Layer::updateInteraction(unsigned int interaction, bool isSet)
+Layer::updateInteraction(InteractionType interaction, bool isSet)
 {
     auto old = mInteraction;
     if (isSet)
@@ -118,10 +138,25 @@ Layer::appendChild(const LayerPtr& child)
 }
 
 void
+Layer::appendChildren(const std::vector<LayerPtr>& children)
+{
+    mChildren.insert(mChildren.end(), children.begin(), children.end());
+}
+
+void
 Layer::setContent(const NodePtr& node)
 {
     if (node != mContent) {
         mContent = node;
+        setFlag(kFlagRedrawContent);
+    }
+}
+
+void
+Layer::setContentOffset(const apl::Point& offset)
+{
+    if (mContentOffset != offset) {
+        mContentOffset = offset;
         setFlag(kFlagRedrawContent);
     }
 }
@@ -145,10 +180,12 @@ Layer::setBounds(const Rect& bounds)
 bool
 Layer::setOutline(const PathPtr& outline)
 {
-    if (outline == mOutline)
+    // Empty outlines are treated as nullptr
+    auto path = outline && !outline->empty() ? outline : nullptr;
+    if (path == mOutline)
         return false;
 
-    mOutline = outline;
+    mOutline = path;
     setFlag(kFlagOutlineChanged);
     return true;
 }
@@ -156,10 +193,12 @@ Layer::setOutline(const PathPtr& outline)
 bool
 Layer::setChildClip(const PathPtr& childClip)
 {
-    if (childClip == mChildClip)
+    // Empty clipping paths are treated as nullptr
+    auto path = childClip && !childClip->empty() ? childClip : nullptr;
+    if (path == mChildClip)
         return false;
 
-    mChildClip = childClip;
+    mChildClip = path;
     setFlag(kFlagChildClipChanged);
     return true;
 }
@@ -201,10 +240,12 @@ Layer::setChildOffset(Point childOffset)
 bool
 Layer::setShadow(const ShadowPtr& shadow)
 {
-    if (shadow == mShadow)
+    // An invisible shadow is treated as a nullptr
+    auto s = shadow && shadow->visible() ? shadow : nullptr;
+    if (s == mShadow)
         return false;
 
-    mShadow = std::move(shadow);
+    mShadow = std::move(s);
     setFlag(kFlagRedrawShadow);
     return true;
 }
@@ -223,7 +264,7 @@ Layer::setAccessibility(const AccessibilityPtr& accessibility)
 std::string
 Layer::toDebugString() const
 {
-    return "Layer";
+    return "Layer " + mName;
 }
 
 bool
@@ -256,6 +297,7 @@ Layer::serialize(rapidjson::Document::AllocatorType& allocator) const
     out.AddMember("bounds", mBounds.serialize(allocator), allocator);
     out.AddMember("transform", mTransform.serialize(allocator), allocator);
     out.AddMember("childOffset", mChildOffset.serialize(allocator), allocator);
+    out.AddMember("contentOffset", mContentOffset.serialize(allocator), allocator);
 
     if (mAccessibility)
         out.AddMember("accessibility", mAccessibility->serialize(allocator), allocator);
@@ -281,6 +323,7 @@ Layer::serialize(rapidjson::Document::AllocatorType& allocator) const
     }
 
     out.AddMember("interaction", mInteraction, allocator);
+    out.AddMember("characteristics", mCharacteristics, allocator);
 
     return out;
 }

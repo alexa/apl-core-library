@@ -85,7 +85,10 @@ enum BlendMode {
     kBlendModeHue,
     kBlendModeSaturation,
     kBlendModeColor,
-    kBlendModeLuminosity
+    kBlendModeLuminosity,
+    kBlendModeSourceAtop,
+    kBlendModeSourceIn,
+    kBlendModeSourceOut,
 };
 
 extern Bimap<FilterType, std::string> sFilterTypeBimap;

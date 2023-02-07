@@ -19,12 +19,11 @@
 #include <set>
 #include <map>
 
-#include "apl/apl_config.h"
 #include "apl/common.h"
-#include "apl/utils/counter.h"
 #include "apl/content/package.h"
 #include "apl/content/settings.h"
 #include "apl/engine/properties.h"
+#include "apl/utils/counter.h"
 #include "apl/utils/session.h"
 
 namespace apl {

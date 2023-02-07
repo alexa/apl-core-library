@@ -232,7 +232,7 @@ public:
 
         auto flags = RegistrationRequest::FLAGS().Get(registerRequest);
         if (flags->IsString())
-            mFlags = flags->GetString();
+            mType = flags->GetString();
         auto settings = RegistrationRequest::SETTINGS().Get(registerRequest);
         if (settings->IsObject()) {
             auto find = settings->FindMember("authorizationCode");
@@ -285,7 +285,7 @@ public:
     int lastCommandId;
     std::string lastCommandName;
     bool registered = false;
-    std::string mFlags;
+    std::string mType;
     std::string mAuthorizationCode;
     ResourceHolderPtr mResource;
 };
@@ -856,7 +856,7 @@ TEST_F(ExtensionMediatorTest, RegistrationFlags) {
     auto hello = testExtensions["aplext:hello:10"].lock();
     ASSERT_TRUE(hello);
 
-    ASSERT_EQ("--hello", hello->mFlags);
+    ASSERT_EQ("--hello", hello->mType);
 }
 
 /**

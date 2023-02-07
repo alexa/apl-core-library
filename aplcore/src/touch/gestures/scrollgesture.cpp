@@ -17,19 +17,15 @@
 
 #include <cmath>
 
-#include "apl/component/scrollablecomponent.h"
-#include "apl/content/rootconfig.h"
-
-#include "apl/engine/builder.h"
-#include "apl/action/action.h"
-
 #include "apl/animation/coreeasing.h"
+#include "apl/content/rootconfig.h"
+#include "apl/engine/builder.h"
 #include "apl/primitives/timefunctions.h"
+#include "apl/time/sequencer.h"
 #include "apl/touch/utils/autoscroller.h"
 #include "apl/touch/utils/velocitytracker.h"
 #include "apl/utils/make_unique.h"
 #include "apl/utils/session.h"
-#include "apl/time/sequencer.h"
 
 namespace apl {
 

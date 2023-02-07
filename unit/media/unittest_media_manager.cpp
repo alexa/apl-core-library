@@ -14,6 +14,7 @@
  */
 
 #include "../testeventloop.h"
+
 #include "apl/component/imagecomponent.h"
 #include "apl/component/textcomponent.h"
 #include "apl/engine/event.h"
@@ -2610,4 +2611,39 @@ TEST_F(MediaManagerTest, DeepEvaluationSource) {
 
     // We don't care about events on this test
     root.reset();
+}
+
+static const char* IMAGE_ON_FAIL_CHANGES_SOURCE = R"({
+  "type": "APL",
+  "version": "2023.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Image",
+      "id": "myImageWithFallback",
+      "sources": [
+        "original"
+      ],
+      "onFail": {
+        "type": "SetValue",
+        "componentId": "myImageWithFallback",
+        "property": "source",
+        "value": "fallback"
+      }
+    }
+  }
+}
+)";
+
+TEST_F(MediaManagerTest, ImageOnLoadFailChangesSource)
+{
+    metrics.size(800, 600);
+    loadDocument(IMAGE_ON_FAIL_CHANGES_SOURCE);
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "original"));
+    advanceTime(100);
+
+    root->mediaLoadFailed("original", 2, "Invalid image");
+
+    ASSERT_TRUE(MediaRequested(kEventMediaTypeImage, "fallback"));
+    advanceTime(100);
 }

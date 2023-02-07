@@ -13,21 +13,23 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/engine/rootcontextdata.h"
+
 #include "apl/component/corecomponent.h"
 #include "apl/component/textmeasurement.h"
 #include "apl/content/metrics.h"
+#include "apl/engine/queueeventmanager.h"
 #include "apl/content/rootconfig.h"
-#include "apl/engine/rootcontextdata.h"
 #include "apl/engine/keyboardmanager.h"
 #include "apl/engine/styles.h"
 #include "apl/engine/uidmanager.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/livedata/livedatamanager.h"
+#include "apl/time/timemanager.h"
+
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/textpropertiescache.h"
 #endif // SCENEGRAPH
-#include "apl/time/timemanager.h"
-#include "apl/utils/log.h"
 
 namespace apl {
 
@@ -79,8 +81,10 @@ RootContextData::RootContextData(const Metrics& metrics,
                                  RuntimeState runtimeState,
                                  const SettingsPtr& settings,
                                  const SessionPtr& session,
-                                 const std::vector<std::pair<std::string, std::string>>& extensions)
-    : mRuntimeState(std::move(runtimeState)),
+                                 const std::vector<std::pair<std::string, std::string>>& extensions,
+                                 const EventManagerPtr& eventManager)
+    : events(eventManager),
+      mRuntimeState(std::move(runtimeState)),
       mMetrics(metrics),
       mStyles(new Styles()),
       mSequencer(new Sequencer(config.getTimeManager(), mRuntimeState.getRequestedAPLVersion())),
@@ -135,7 +139,7 @@ RootContextData::halt()
     }
 
     // Clear any pending events and dirty components
-    events = std::queue<Event>();
+    events->clear();
     dirty.clear();
     dirtyVisualContext.clear();
 

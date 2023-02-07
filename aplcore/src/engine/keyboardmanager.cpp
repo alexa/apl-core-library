@@ -31,12 +31,12 @@ namespace apl {
 static const bool DEBUG_KEYBOARD_MANAGER = false;
 
 
-static std::map<int, std::string> sHandlerIds = { // NOLINT(cert-err58-cpp)
+static const std::map<int, std::string> sHandlerIds = { // NOLINT(cert-err58-cpp)
         {kKeyUp,   "KeyUp"},
         {kKeyDown, "KeyDown"}
 };
 
-static std::map<int, PropertyKey> sHandlerProperty = { // NOLINT(cert-err58-cpp)
+static const std::map<int, PropertyKey> sHandlerProperty = { // NOLINT(cert-err58-cpp)
         {kKeyUp,   kPropertyHandleKeyUp},
         {kKeyDown, kPropertyHandleKeyDown}
 };

@@ -32,7 +32,7 @@
 
 #include "apl/graphic/graphicproperties.h"
 #ifdef SCENEGRAPH
-#include "apl/scenegraph/modifiednodelist.h"
+#include "apl/scenegraph/common.h"
 #endif // SCENEGRAPH
 
 namespace apl {
@@ -107,6 +107,18 @@ public:
     bool isDirty(GraphicPropertyKey key) const { return mDirtyProperties.find(key) != mDirtyProperties.end(); }
 
     /**
+     * Check to see if any of these graphic properties have been marked as dirty.
+     * @param keys The vector of properties to check.
+     * @return True if at least one of them is dirty
+     */
+    bool isDirty(std::vector<GraphicPropertyKey> keys) const {
+        for (const auto& m : keys)
+            if (mDirtyProperties.find(m) != mDirtyProperties.end())
+                return true;
+        return false;
+    }
+
+    /**
      * @return The set of properties which are marked as dirty for this element.
      */
     const std::set<GraphicPropertyKey>& getDirtyProperties() const { return mDirtyProperties; }
@@ -139,23 +151,25 @@ public:
     /**
      * Do any VectorGraphic or context dependent clean-up.
      */
-    void release();
+    virtual void release();
 
 #ifdef SCENEGRAPH
     /**
-     * @return The current scene graph
+     * Ensure that a scene graph has been constructed for this element.
      */
-    sg::NodePtr getSceneGraph(sg::SceneGraphUpdates& sceneGraph);
+    virtual sg::GraphicFragmentPtr buildSceneGraph(bool allowLayers,
+                                                   sg::SceneGraphUpdates& sceneGraph) = 0;
 
     /**
-     * @return The first scene graph node
+     * Store a reference to the layer that needs to be redrawn if a content
+     * node in the element's scene graph needs to be redrawn
      */
-    sg::NodePtr getSceneGraphNode() const { return mSceneGraphNode; }
+    void assignSceneGraphLayer(const sg::LayerPtr& containingLayer);
 
     /**
      * Update the scene graph based on dirty properties.
      */
-    void updateSceneGraph(sg::ModifiedNodeList& modList);
+    virtual void updateSceneGraph(sg::SceneGraphUpdates& sceneGraph) = 0;
 #endif // SCENEGRAPH
 
     virtual std::string toDebugString() const = 0;
@@ -175,8 +189,10 @@ protected:
     void updateTransform(const Context& context, GraphicPropertyKey inKey, GraphicPropertyKey outKey, bool useDirtyFlag);
 
 #ifdef SCENEGRAPH
-    virtual sg::NodePtr buildSceneGraph(sg::SceneGraphUpdates& sceneGraph) = 0;
-    virtual void updateSceneGraphInternal(sg::ModifiedNodeList& modList, const sg::NodePtr& node) = 0;
+    sg::GraphicFragmentPtr ensureSceneGraphChildren(bool allowLayers, sg::SceneGraphUpdates& sceneGraph);
+    void requestRedraw(sg::SceneGraphUpdates& sceneGraph);
+    void requestSizeCheck(sg::SceneGraphUpdates& sceneGraph);
+    bool includeInSceneGraph(GraphicPropertyKey key);
 #endif // SCENEGRAPH
 
     static void fixFillTransform(GraphicElement& element);
@@ -193,10 +209,9 @@ protected:
     mutable id_type mCachedTempId = 0;
 
 #ifdef SCENEGRAPH
-private:
-    sg::NodePtr            mSceneGraphNode;
-    sg::NodePtr            mInnerSceneGraphNode;
-#endif // SCENEGRAPH
+    sg::LayerPtr  mContainingLayer;  // The layer that this element will render in
+    sg::NodePtr   mSceneGraphNode;  // Rendering node used for update operations
+#endif
 };
 
 } // namespace apl

@@ -13,17 +13,18 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/primitives/functions.h"
+
 #include <algorithm>
 #include <cmath>
+#include <stdint.h>
+#include <stdlib.h>
 #ifdef APL_CORE_UWP
 #include <random>
 #endif
-#include <stdint.h>
-#include <stdlib.h>
 
 #include "apl/animation/coreeasing.h"
 #include "apl/engine/context.h"
-#include "apl/primitives/functions.h"
 #include "apl/primitives/rangegenerator.h"
 #include "apl/primitives/slicegenerator.h"
 #include "apl/primitives/timefunctions.h"

@@ -17,8 +17,8 @@
 #define _APL_ACTION_ARRAY_ACTION_H
 
 #include "apl/action/action.h"
-#include "apl/command/command.h"
 #include "apl/command/arraycommand.h"
+#include "apl/command/command.h"
 
 namespace apl {
 
@@ -41,7 +41,7 @@ private:
     const std::shared_ptr<const ArrayCommand> mCommand;
     const bool mFastMode;
 
-    int mNextIndex;
+    size_t mNextIndex;
 
     CommandPtr mCurrentCommand;
     ActionPtr mCurrentAction;

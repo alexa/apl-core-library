@@ -18,6 +18,7 @@
 #include "test_sg.h"
 #include "apl/scenegraph/builder.h"
 #include "apl/scenegraph/pathparser.h"
+#include "apl/scenegraph/pathbounds.h"
 
 using namespace apl;
 
@@ -99,3 +100,33 @@ TEST_F(SGPathBoundsTest, StrokePathMaxWidth)
     ASSERT_EQ(24.0, op->maxWidth());
 }
 
+const std::vector<float> T1 = {
+    94.077423,
+    67.9983673,
+    188.476852,
+    -22.6661224,
+    341.527985,
+    -22.6661224,
+    435.926422,
+    67.9983673,};
+
+const std::vector<float> T2 = {
+    94.077423,
+    67.9984665,
+    188.476852,
+    -22.6660252,
+    341.527985,
+    -22.6660252,
+    435.926422,
+    67.9984665,
+};
+
+/**
+ * This test case checks for numerical instability in the calculation of the bounding box
+ * of a cubic spline.  The two splines differ only slightly, but one of them triggered a
+ * "can't find root" condition and resulted in a straight line instead of an arc.
+ */
+TEST_F(SGPathBoundsTest, NumericalInstability)
+{
+    ASSERT_TRUE(IsEqual(sg::calculatePathBounds("MC", T1), sg::calculatePathBounds("MC", T2)));
+}

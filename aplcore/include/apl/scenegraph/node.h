@@ -52,7 +52,6 @@ class Node : public Counter<Node>,
              public NonCopyable,
              public std::enable_shared_from_this<Node> {
     friend class SceneGraphUpdates;
-    friend class ModifiedNodeList;
     friend class Layer;
 
 public:
@@ -79,13 +78,22 @@ public:
      * Set the child of this node.
      * @param child The child
      */
-    void setChild(const NodePtr& child);
+    bool setChild(const NodePtr& child);
 
     /**
      * Set the sibling of this node
      * @param sibling The new sibling
      */
     NodePtr setNext(const NodePtr& sibling);
+
+    /**
+     * Add a sibling to the chain of siblings pointed to by this node.
+     * The sibling is added to the end of the chain.
+     * @param head The head of the sibling chain.  May be null.
+     * @param sibling The sibling to add to the end of the chain
+     * @return The head of the chain
+     */
+    static NodePtr appendSiblingToNode(const NodePtr& head, const NodePtr& sibling);
 
     /**
      * Remove all children from this node
@@ -118,28 +126,28 @@ public:
     size_t childCount() const;
 
     /**
-     * Override this in subclasses if needed.
-     * @return True if this node has changed and needs to be redrawn
-     */
-    virtual bool needsRedraw() const;
-
-    /**
      * @return True if this node draws something on the screen
      */
     virtual bool visible() const;
 
     /**
-     * Calculate the bounding box of this node
-     * @return The bounding box of this node and all of its children
+     * Calculate the bounding box of this node including its children and siblings
+     * @return The bounding box of this node, children, and siblings
      */
-    virtual Rect boundingBox(const Transform2D& transform) const;
+    Rect boundingBox(const Transform2D& transform) const;
 
     /**
-     * Calculate the bounding box of a node and all siblings
+     * Calculate the bounding box of a node and all siblings.  This is a convenience method that
+     * works on nullptr nodes.
+     *
      * @param node The node to start with
      * @return A rectangle that just encloses all of this node, siblings, and children
      */
-    static Rect calculateBoundingBox(const NodePtr& node, const Transform2D& transform = Transform2D());
+    static Rect calculateBoundingBox(const NodePtr& node, const Transform2D& transform = Transform2D()) {
+        if (!node)
+            return {};
+        return node->boundingBox(transform);
+    }
 
     /**
      * Serialize this node
@@ -150,22 +158,13 @@ public:
 
 protected:
     explicit Node(Type type) : mType(type) {}
-    void setFlag(unsigned flag) { mFlags |= flag; }
-    bool isFlagSet(unsigned flag) const { return (mFlags & flag) != 0; }
-    bool anyFlagSet() const { return mFlags != 0; }
-    void clearFlags() { mFlags = 0; }
-
-    enum {
-        kNodeFlagChildrenChanged = 1u << 0,
-        kNodeFlagModified = 1u << 1
-    };
+    virtual Rect localBoundingBox(const Transform2D& transform) const;
 
     const Type mType;
 
     NodePtr mFirstChild;
     NodePtr mNextSibling;
     NodePtr mNextModified;
-    unsigned mFlags = 0;
 };
 
 #define NODE_SUBCLASS(TYPE_NAME, TYPE_ENUM)    \
@@ -200,9 +199,10 @@ class DrawNode : public Node {
     bool setOp(PathOpPtr op);
     PathOpPtr getOp() const { return mOp; }
 
-    bool needsRedraw() const override;
     bool visible() const override;
-    Rect boundingBox(const Transform2D& transform) const override;
+
+protected:
+    Rect localBoundingBox(const Transform2D& transform) const override;
 
 private:
     PathPtr mPath;
@@ -226,9 +226,10 @@ class TextNode : public Node {
     bool setRange(Range range);
     Range getRange() const { return mRange; }
 
-    bool needsRedraw() const override;
     bool visible() const override;
-    Rect boundingBox(const Transform2D& transform) const override;
+
+protected:
+    Rect localBoundingBox(const Transform2D& transform) const override;
 
 private:
     TextLayoutPtr mTextLayout;
@@ -244,7 +245,9 @@ class TransformNode : public Node {
 
     bool setTransform(Transform2D transform);
     const Transform2D& getTransform() const { return mTransform; }
-    Rect boundingBox(const Transform2D& transform) const override;
+
+protected:
+    Rect localBoundingBox(const Transform2D& transform) const override;
 
 private:
     Transform2D mTransform;
@@ -258,7 +261,9 @@ class ClipNode : public Node {
 
     bool setPath(PathPtr path);
     PathPtr getPath() const { return mPath; }
-    Rect boundingBox(const Transform2D& transform) const override;
+
+protected:
+    Rect localBoundingBox(const Transform2D& transform) const override;
 
 private:
     PathPtr mPath;
@@ -273,7 +278,6 @@ class OpacityNode : public Node {
     bool setOpacity(float opacity);
     float getOpacity() const { return mOpacity; }
 
-    bool needsRedraw() const override;
     bool visible() const override;
 
 private:
@@ -296,9 +300,10 @@ class ImageNode : public Node {
     bool setSource(Rect source);
     Rect getSource() const { return mSource; }
 
-    bool needsRedraw() const override;
     bool visible() const override;
-    Rect boundingBox(const Transform2D& transform) const override;
+
+protected:
+    Rect localBoundingBox(const Transform2D& transform) const override;
 
 private:
     FilterPtr mImage;
@@ -321,9 +326,10 @@ class VideoNode : public Node {
     bool setScale(VideoScale scale);
     VideoScale getScale() const { return mScale; }
 
-    bool needsRedraw() const override;
     bool visible() const override;
-    Rect boundingBox(const Transform2D& transform) const override;
+
+protected:
+    Rect localBoundingBox(const Transform2D& transform) const override;
 
 private:
     MediaPlayerPtr mPlayer;
@@ -339,7 +345,9 @@ class ShadowNode : public Node {
 
     bool setShadow(ShadowPtr shadow);
     ShadowPtr getShadow() const { return mShadow; }
-    Rect boundingBox(const Transform2D& transform) const override;
+
+protected:
+    Rect localBoundingBox(const Transform2D& transform) const override;
 
 private:
     ShadowPtr mShadow;
@@ -363,9 +371,7 @@ class EditTextNode : public Node {
     bool setText(const std::string& text);
     std::string getText() const { return mText; }
 
-    bool needsRedraw() const override;
     bool visible() const override;
-    Rect boundingBox(const Transform2D& transform) const override;
 
 private:
     EditTextPtr mEditText;

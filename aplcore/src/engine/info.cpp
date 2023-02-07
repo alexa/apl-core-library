@@ -13,8 +13,9 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/engine/context.h"
 #include "apl/engine/info.h"
+
+#include "apl/engine/context.h"
 #include "apl/engine/rootcontextdata.h"
 #include "apl/engine/styles.h"
 

@@ -14,6 +14,7 @@
  */
 
 #include "apl/component/mediacomponenttrait.h"
+
 #include "apl/component/componentpropdef.h"
 #include "apl/content/rootconfig.h"
 #include "apl/media/mediamanager.h"

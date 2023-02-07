@@ -14,10 +14,11 @@
  */
 
 #include "apl/action/scrolltoaction.h"
+
 #include "apl/command/corecommand.h"
-#include "apl/time/sequencer.h"
 #include "apl/component/pagercomponent.h"
 #include "apl/engine/rootcontext.h"
+#include "apl/time/sequencer.h"
 
 namespace apl {
 

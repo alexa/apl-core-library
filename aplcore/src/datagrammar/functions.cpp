@@ -13,14 +13,14 @@
  * permissions and limitations under the License.
  */
 
-#include <cassert>
+#include "apl/primitives/functions.h"
+
 #include <cmath>
 
 #include "apl/datagrammar/boundsymbol.h"
 #include "apl/engine/context.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
-#include "apl/primitives/functions.h"
 #include "apl/utils/log.h"
 #include "apl/utils/session.h"
 

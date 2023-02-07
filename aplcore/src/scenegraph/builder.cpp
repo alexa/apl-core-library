@@ -21,6 +21,7 @@
 #include "apl/primitives/accessibilityaction.h"
 #include "apl/scenegraph/accessibility.h"
 #include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/graphicfragment.h"
 #include "apl/scenegraph/pathparser.h"
 #include "apl/scenegraph/scenegraphupdates.h"
 
@@ -285,7 +286,7 @@ paint(const GraphicPatternPtr& pattern, float opacity, Transform2D transform)
 
     NodePtr node = nullptr;
     for (auto it = pattern->getItems().rbegin() ; it != pattern->getItems().rend() ; it++) {
-        auto child = (*it)->getSceneGraph(updates);
+        auto child = (*it)->buildSceneGraph(false, updates)->node();
         if (child)
             node = child->setNext(node);
     }

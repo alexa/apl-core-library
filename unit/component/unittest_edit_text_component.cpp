@@ -14,6 +14,7 @@
  */
 
 #include "../testeventloop.h"
+
 #include "apl/component/edittextcomponent.h"
 #include "apl/engine/event.h"
 #include "apl/focus/focusmanager.h"

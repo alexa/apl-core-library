@@ -16,7 +16,7 @@
 #ifndef _APL_IMAGE_COMPONENT_H
 #define _APL_IMAGE_COMPONENT_H
 
-#include "mediacomponenttrait.h"
+#include "apl/component/mediacomponenttrait.h"
 
 namespace apl {
 

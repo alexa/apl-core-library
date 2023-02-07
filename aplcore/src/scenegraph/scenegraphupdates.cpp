@@ -33,6 +33,8 @@ SceneGraphUpdates::clear()
     for (const auto& m : mCreated)
         m->clearFlags();
     mCreated.clear();
+
+    mResize.clear();
 }
 
 void
@@ -48,13 +50,6 @@ SceneGraphUpdates::changed(const LayerPtr& layer)
 }
 
 void
-SceneGraphUpdates::changed(Layer *layer)
-{
-    assert(layer);
-    changed(layer->shared_from_this());
-}
-
-void
 SceneGraphUpdates::created(const LayerPtr& layer)
 {
     // Remove it from the
@@ -66,23 +61,39 @@ SceneGraphUpdates::created(const LayerPtr& layer)
 }
 
 void
-SceneGraphUpdates::created(Layer *layer)
+SceneGraphUpdates::resize(const LayerPtr& layer)
 {
-    assert(layer);
-    created(layer->shared_from_this());
+    mResize.emplace(layer);
 }
 
-void SceneGraphUpdates::mapChanged(std::function<void(const LayerPtr&)> func)
+void
+SceneGraphUpdates::mapChanged(const std::function<void(const LayerPtr&)>& func)
 {
-    std::for_each(mChanged.begin(), mChanged.end(), std::move(func));
+    for (const auto& m : mChanged)
+        func(m);
 }
 
-void SceneGraphUpdates::mapCreated(std::function<void(const LayerPtr&)> func)
+void
+SceneGraphUpdates::fixCreatedFlags()
 {
-    std::for_each(mCreated.begin(), mCreated.end(), std::move(func));
+    for (const auto& m : mCreated)
+        m->clearFlags();
 }
 
+void
+SceneGraphUpdates::processResize()
+{
+    for (const auto& m : mResize) {
+        Rect bb = sg::Node::calculateBoundingBox(m->content());
+        if (m->setBounds(bb)) {
+            m->setContentOffset(bb.getTopLeft());
+            m->setChildOffset(bb.getTopLeft());
+            changed(m);
+        }
+    }
 
+    mResize.clear();
+}
 
 } // namespace sg
 } // namespace apl

@@ -18,7 +18,6 @@
 
 #include "apl/utils/bimap.h"
 #include "apl/primitives/object.h"
-#include "apl/primitives/dimension.h"
 
 namespace apl {
 

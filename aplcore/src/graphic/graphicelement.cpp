@@ -13,18 +13,25 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/graphic/graphicelement.h"
 
 #include "apl/component/corecomponent.h"
 #include "apl/engine/propdef.h"
 #include "apl/graphic/graphic.h"
 #include "apl/graphic/graphicdependant.h"
-#include "apl/graphic/graphicelement.h"
+#include "apl/graphic/graphicpattern.h"
 #include "apl/graphic/graphicpropdef.h"
+#include "apl/primitives/color.h"
+#include "apl/primitives/gradient.h"
+#include "apl/primitives/transform2d.h"
+#include "apl/utils/session.h"
+
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/graphicfragment.h"
 #include "apl/scenegraph/node.h"
+#include "apl/scenegraph/scenegraphupdates.h"
 #endif // SCENEGRAPH
-#include "apl/utils/session.h"
 
 namespace apl {
 
@@ -186,6 +193,9 @@ GraphicElement::serialize(rapidjson::Document::AllocatorType& allocator) const
         children.PushBack(child->serialize(allocator), allocator);
     }
     v.AddMember("children", children.Move(), allocator);
+#ifdef SCENEGRAPH
+    v.AddMember("layer", rapidjson::Value(mContainingLayer ? mContainingLayer->getName().c_str() : "<unset>", allocator), allocator);
+#endif
     return v;
 }
 
@@ -214,9 +224,9 @@ GraphicElement::getStyle(const GraphicPtr& graphic) const
 }
 
 void
-GraphicElement::updateStyleInternal(
-        const StyleInstancePtr& stylePtr,
-        const GraphicPropDefSet& gds) {
+GraphicElement::updateStyleInternal(const StyleInstancePtr& stylePtr,
+                                    const GraphicPropDefSet& gds)
+{
     for (const auto& it : gds) {
         const GraphicPropDef& pd = it.second;
 
@@ -235,7 +245,8 @@ GraphicElement::updateStyleInternal(
 }
 
 void
-GraphicElement::updateStyle(const GraphicPtr& graphic) {
+GraphicElement::updateStyle(const GraphicPtr& graphic)
+{
     auto stylePtr = getStyle(graphic);
     if (stylePtr) {
         updateStyleInternal(stylePtr, propDefSet());
@@ -287,51 +298,108 @@ GraphicElement::fixStrokeTransform(GraphicElement& element) {
 void
 GraphicElement::release() {
     RecalculateTarget::removeUpstreamDependencies();
+
+#ifdef SCENEGRAPH
+    mContainingLayer = nullptr;
+#endif
+
     for (auto& child : mChildren) {
         child->release();
     }
 }
 
 #ifdef SCENEGRAPH
-sg::NodePtr
-GraphicElement::getSceneGraph(sg::SceneGraphUpdates& sceneGraph)
-{
-    if (!mSceneGraphNode) {
-        mInnerSceneGraphNode = buildSceneGraph(sceneGraph);
-        mSceneGraphNode = mInnerSceneGraphNode;
 
-        const auto& filters = mValues.get(kGraphicPropertyFilters);
-        if (!filters.empty()) {
-            // Build up the filter list in reverse order
-            for (int i = 0; i < filters.size(); i++) {
-                const auto& filter = filters.at(i).get<GraphicFilter>();
-                switch (filter.getType()) {
-                    case kGraphicFilterTypeDropShadow:
-                        mSceneGraphNode = sg::shadowNode(
-                            sg::shadow(
-                                filter.getValue(kGraphicPropertyFilterColor).getColor(),
-                                Point{filter.getValue(kGraphicPropertyFilterHorizontalOffset)
-                                          .asFloat(),
-                                      filter.getValue(kGraphicPropertyFilterVerticalOffset)
-                                          .asFloat()},
-                                filter.getValue(kGraphicPropertyFilterRadius).asFloat()),
-                            mSceneGraphNode);
-                        break;
-                }
-            }
+/**
+ * Construct a GraphicFragment for this element that contains all of the GraphicFragments
+ * from child elements.
+ *
+ * Two child fragments may be merged if they match "sufficiently well".  Refer to the
+ * GraphicFragment::mergeWith() method for details.
+ */
+sg::GraphicFragmentPtr
+GraphicElement::ensureSceneGraphChildren(bool allowLayers, sg::SceneGraphUpdates& sceneGraph)
+{
+    auto result = sg::GraphicFragment::create(shared_from_this());
+    sg::GraphicFragmentPtr accumulator;
+
+    for (auto& childElement : mChildren) {
+        auto fragment = childElement->buildSceneGraph(allowLayers, sceneGraph);
+        if (!accumulator)
+            accumulator = fragment;
+        else if (!accumulator->mergeWith(fragment)) {
+            // Failed to merge
+            result->ensureLayer(sceneGraph);
+            result->addChild(accumulator, sceneGraph);
+            accumulator = fragment;
         }
     }
 
-    return mSceneGraphNode;
+    result->addChild(accumulator, sceneGraph);
+    return result;
 }
 
 void
-GraphicElement::updateSceneGraph(sg::ModifiedNodeList& modList)
+GraphicElement::assignSceneGraphLayer(const sg::LayerPtr& containingLayer)
 {
-    if (!mSceneGraphNode)
-        return;
+    mContainingLayer = containingLayer;
+}
 
-    updateSceneGraphInternal(modList, mInnerSceneGraphNode);
+void
+GraphicElement::requestRedraw(sg::SceneGraphUpdates& sceneGraph)
+{
+    if (mContainingLayer) {
+        mContainingLayer->setFlag(sg::Layer::kFlagRedrawContent);
+        sceneGraph.changed(mContainingLayer);
+    }
+}
+
+void
+GraphicElement::requestSizeCheck(sg::SceneGraphUpdates& sceneGraph)
+{
+    if (mContainingLayer)
+        sceneGraph.resize(mContainingLayer);
+}
+
+/**
+ * Decide if a certain graphic property should be included in the scene graph content node.  For
+ * example, a path with a stroke operation should be included in the scene graph iff (a) the
+ * stroke color/gradient/pattern is not transparent, (b) the stroke width is > 0, and (c) the
+ * stroke opacity > 0; if any of these are false, there's no point in adding the stroke to the
+ * scene graph because nothing will be drawn.
+ *
+ * Note that having an upstream driver for one of these properties means that it _could_ be
+ * valid in the future, and so this method will return true without checking the current value.
+ *
+ * This method is not useful for arbitrary keys; it is meaningless for properties like
+ * kGraphicPropertyScaleX or kGraphicPropertyFontStyle.
+ *
+ * @param key The graphic key to examine for this element
+ * @return True if the key doesn't block drawing
+ */
+bool
+GraphicElement::includeInSceneGraph(GraphicPropertyKey key)
+{
+    if (hasUpstream(key))
+        return true;
+
+    auto value = getValue(key);
+
+    // Numbers are used for opacity and stroke width
+    if (value.isNumber())
+        return value.asNumber() > 0;
+
+    // Fills and strokes are either colors, gradients, or patterns
+    if (value.is<Color>())
+        return Color(value.getColor()).alpha() != 0;
+
+    if (value.is<Gradient>()) {
+        auto colors = value.get<Gradient>().getColorRange();
+        return std::any_of(colors.begin(), colors.end(), [](Color c){ return c.alpha() != 0; });
+    }
+
+    // Assume patterns render and everything else doesn't
+    return value.is<GraphicPattern>();
 }
 
 #endif // SCENEGRAPH

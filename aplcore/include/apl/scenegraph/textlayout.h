@@ -43,6 +43,13 @@ public:
 
     virtual unsigned int getByteLength() const = 0;
     virtual Range getLineRangeFromByteRange(Range byteRange) const = 0;
+
+    /**
+     * Calculate the bounding box that surrounds a range of lines in this text layout.
+     * If the range is empty then the bounding box surrounding all lines is returned.
+     * @param lineRange The range of lines to use.
+     * @return The bounding box of those lines or the bounding box of all lines if the range is empty.
+     */
     virtual Rect getBoundingBoxForLines(Range lineRange) const = 0;
 
     virtual rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const {

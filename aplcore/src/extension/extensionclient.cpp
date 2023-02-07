@@ -13,18 +13,19 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/extension/extensionclient.h"
+
 #include <rapidjson/stringbuffer.h>
 
-#include "apl/content/rootconfig.h"
 #include "apl/component/componentpropdef.h"
 #include "apl/component/componentproperties.h"
 #include "apl/content/content.h"
-#include "apl/extension/extensionclient.h"
-#include "apl/extension/extensionmanager.h"
-#include "apl/engine/evaluate.h"
+#include "apl/content/rootconfig.h"
 #include "apl/engine/arrayify.h"
 #include "apl/engine/binding.h"
+#include "apl/engine/evaluate.h"
 #include "apl/engine/rootcontext.h"
+#include "apl/extension/extensionmanager.h"
 #include "apl/livedata/livearray.h"
 #include "apl/livedata/livearrayobject.h"
 #include "apl/livedata/livemap.h"

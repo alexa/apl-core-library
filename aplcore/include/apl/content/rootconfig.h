@@ -20,11 +20,8 @@
 #include <regex>
 #include <string>
 
-#include "apl/apl_config.h"
 #include "apl/common.h"
-#ifdef SCENEGRAPH
-#include "apl/scenegraph/common.h"
-#endif // SCENEGRAPH
+
 #include "apl/component/componentproperties.h"
 #include "apl/content/aplversion.h"
 #include "apl/content/extensioncommanddefinition.h"
@@ -38,6 +35,10 @@
 #include "apl/primitives/dimension.h"
 #include "apl/utils/deprecated.h"
 #include "apl/utils/stringfunctions.h"
+
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/common.h"
+#endif // SCENEGRAPH
 
 #ifdef ALEXAEXTENSIONS
 #include <alexaext/alexaext.h>
@@ -96,6 +97,8 @@ public:
         kExperimentalFeatureFocusEditTextOnTap,
         /// Send event when core assumes keyboard input is required
         kExperimentalFeatureRequestKeyboard,
+        /// AVG should use layers for parameterized elements
+        kExperimentalFeatureGraphicLayers,
     };
 
     /**
@@ -903,12 +906,12 @@ public:
     /**
      * @return The configured media manager object
      */
-     MediaManagerPtr getMediaManager() const { return mMediaManager; }
+    MediaManagerPtr getMediaManager() const { return mMediaManager; }
 
-     /**
-      * @return The configured media player factory
-      */
-     MediaPlayerFactoryPtr getMediaPlayerFactory() const { return mMediaPlayerFactory; }
+    /**
+     * @return The configured media player factory
+     */
+    MediaPlayerFactoryPtr getMediaPlayerFactory() const { return mMediaPlayerFactory; }
 
     /**
      * @return The configured audio player factory

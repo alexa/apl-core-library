@@ -15,15 +15,16 @@
 
 #ifdef ALEXAEXTENSIONS
 
-#include <cassert>
+#include "apl/extension/extensionmediator.h"
+
 #include <functional>
 #include <memory>
 #include <unordered_map>
 #include <vector>
 
+#include <alexaext/alexaext.h>
 #include <rapidjson/document.h>
 
-#include <alexaext/alexaext.h>
 #include "apl/extension/extensioncomponent.h"
 #include "apl/extension/extensionmediator.h"
 #include "apl/primitives/objectdata.h"

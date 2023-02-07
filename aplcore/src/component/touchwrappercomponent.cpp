@@ -13,8 +13,9 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/component/componentpropdef.h"
 #include "apl/component/touchwrappercomponent.h"
+
+#include "apl/component/componentpropdef.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/primitives/keyboard.h"
 #include "apl/time/sequencer.h"

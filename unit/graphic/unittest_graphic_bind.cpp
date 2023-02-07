@@ -192,3 +192,118 @@ TEST_F(GraphicBindTest, Nested)
                             first->getValue(kGraphicPropertyFill).getColor()));
     }
 }
+
+
+static const char *BIND_NAMING = R"apl(
+{
+  "type": "APL",
+  "version": "2022.2",
+  "graphics": {
+    "BOX": {
+      "type": "AVG",
+      "version": "1.2",
+      "width": 100,
+      "height": 100,
+      "items": {
+        "type": "text",
+        "bind": { "name": "NAME", "value": "VALUE" },
+        "text": "${NAME}"
+      }
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "VectorGraphic",
+      "source": "BOX"
+    }
+  }
+}
+)apl";
+
+static std::map<std::string, std::string> GOOD_NAME_TESTS = {
+    {"_foo", "A"},
+    {"__bar__", "B"},
+    {"_234", "C"},
+    {"a", "D"},
+    {"a99_____", "E"},
+    {"_", "F"},
+};
+
+TEST_F(GraphicBindTest, GoodNameCheck)
+{
+    for (const auto& it : GOOD_NAME_TESTS) {
+        auto doc = std::regex_replace(BIND_NAMING, std::regex("NAME"), it.first);
+        doc = std::regex_replace(doc, std::regex("VALUE"), it.second);
+        loadDocument(doc.c_str());
+        ASSERT_TRUE(component);
+
+        auto graphic = component->getCalculated(apl::kPropertyGraphic).get<Graphic>();
+        auto container = graphic->getRoot();
+        ASSERT_EQ(kGraphicElementTypeContainer, container->getType());
+        ASSERT_EQ(1, container->getChildCount());
+        auto text = container->getChildAt(0);
+        ASSERT_TRUE(IsEqual(it.second, text->getValue(apl::kGraphicPropertyText).asString()));
+    }
+}
+
+static std::map<std::string, Object> BAD_NAME_TESTS = {
+    { "234_foo", "${234_foo}" },
+    { "åbc", "${åbc}" },
+    { "abç", "${abç}" },
+    { "a-b", "nan" },
+    { "0", "0" },
+    { "", "" },
+};
+
+TEST_F(GraphicBindTest, BadNameCheck)
+{
+    for (const auto& it : BAD_NAME_TESTS) {
+        auto doc = std::regex_replace(BIND_NAMING, std::regex("NAME"), it.first);
+        loadDocument(doc.c_str());
+        auto graphic = component->getCalculated(apl::kPropertyGraphic).get<Graphic>();
+        auto container = graphic->getRoot();
+        ASSERT_EQ(kGraphicElementTypeContainer, container->getType());
+        ASSERT_EQ(1, container->getChildCount());
+        auto text = container->getChildAt(0);
+        ASSERT_TRUE(IsEqual(it.second, text->getValue(apl::kGraphicPropertyText)));
+        ASSERT_TRUE(ConsoleMessage());
+    }
+}
+
+static const char *MISSING_VALUE = R"apl(
+{
+  "type": "APL",
+  "version": "2022.2",
+  "graphics": {
+    "BOX": {
+      "type": "AVG",
+      "version": "1.2",
+      "width": 100,
+      "height": 100,
+      "items": {
+        "type": "text",
+        "bind": { "name": "NAME" },
+        "text": "${NAME}"
+      }
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "VectorGraphic",
+      "source": "BOX"
+    }
+  }
+}
+)apl";
+
+TEST_F(GraphicBindTest, MissingValue)
+{
+    loadDocument(MISSING_VALUE);
+    auto graphic = component->getCalculated(apl::kPropertyGraphic).get<Graphic>();
+    auto container = graphic->getRoot();
+    ASSERT_EQ(kGraphicElementTypeContainer, container->getType());
+    ASSERT_EQ(1, container->getChildCount());
+    auto text = container->getChildAt(0);
+    ASSERT_TRUE(IsEqual("", text->getValue(apl::kGraphicPropertyText)));
+    ASSERT_TRUE(ConsoleMessage());
+}

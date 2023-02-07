@@ -21,9 +21,11 @@
 #include <vector>
 
 #include "apl/common.h"
+
 #include "apl/audio/audiostate.h"
 #include "apl/audio/speechmark.h"
-#include "apl/media/mediaplayer.h"
+#include "apl/engine/event.h"
+#include "apl/media/mediatrack.h"
 
 namespace apl {
 

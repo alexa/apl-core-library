@@ -18,21 +18,23 @@
 
 #include <climits>
 #include <stack>
-
 #include <yoga/YGNode.h>
+
 #include "apl/apl_config.h"
-#ifdef SCENEGRAPH
-#include "apl/scenegraph/common.h"
-#endif // SCENEGRAPH
+
 #include "apl/component/component.h"
 #include "apl/component/textmeasurement.h"
-#include "apl/engine/properties.h"
 #include "apl/engine/context.h"
+#include "apl/engine/properties.h"
 #include "apl/engine/recalculatetarget.h"
 #include "apl/focus/focusdirection.h"
 #include "apl/primitives/keyboard.h"
 #include "apl/primitives/size.h"
 #include "apl/primitives/transform2d.h"
+
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/common.h"
+#endif // SCENEGRAPH
 
 namespace apl {
 
@@ -644,10 +646,10 @@ public:
     bool isDisplayable() const;
 
     /**
-    * Calculate real opacity of component.
-    * @param parentRealOpacity parent component real opacity.
-    * @return component cumulative opacity.
-    */
+     * Calculate real opacity of component.
+     * @param parentRealOpacity parent component real opacity.
+     * @return component cumulative opacity.
+     */
     float calculateRealOpacity(float parentRealOpacity) const;
 
     /**

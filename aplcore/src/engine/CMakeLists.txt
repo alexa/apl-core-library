@@ -16,8 +16,8 @@ target_sources_local(apl
     arrayify.cpp
     binding.cpp
     builder.cpp
-    context.cpp
     componentdependant.cpp
+    context.cpp
     contextdependant.cpp
     contextobject.cpp
     contextwrapper.cpp
@@ -35,9 +35,9 @@ target_sources_local(apl
     rootcontext.cpp
     rootcontextdata.cpp
     state.cpp
-    styleinstance.cpp
     styledefinition.cpp
+    styleinstance.cpp
     styles.cpp
-    uidobject.cpp
     uidmanager.cpp
+    uidobject.cpp
 )

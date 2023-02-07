@@ -19,22 +19,20 @@
 #include <map>
 #include <set>
 
-#include "apl/apl_config.h"
-#include "apl/content/configurationchange.h"
-#include "apl/content/settings.h"
 #include "apl/common.h"
+#include "apl/content/configurationchange.h"
+#include "apl/content/rootconfig.h"
+#include "apl/content/settings.h"
 #include "apl/document/displaystate.h"
 #include "apl/engine/event.h"
 #include "apl/engine/info.h"
-#include "apl/content/rootconfig.h"
 #include "apl/focus/focusdirection.h"
-#include "apl/media/mediaobject.h"
+#include "apl/primitives/keyboard.h"
+#include "apl/utils/noncopyable.h"
+#include "apl/utils/userdata.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/common.h"
 #endif // SCENEGRAPH
-#include "apl/utils/noncopyable.h"
-#include "apl/utils/userdata.h"
-#include "apl/primitives/keyboard.h"
 
 #ifdef ALEXAEXTENSIONS
 #include "apl/extension/extensionmediator.h"
@@ -42,6 +40,7 @@
 
 namespace apl {
 
+class EventManager;
 class Metrics;
 class RootConfig;
 class RootContextData;
@@ -125,6 +124,21 @@ public:
                                  std::function<void(const RootContextPtr&)> callback);
 
     /**
+     * Construct a top-level root context.
+     * @param metrics Display metrics
+     * @param content Content to display
+     * @param config Configuration information
+     * @param callback Pre-layout callback
+     * @param eventManager Manages published events
+     * @return A pointer to the root context.
+     */
+    static RootContextPtr create(const Metrics& metrics,
+                                 const ContentPtr& content,
+                                 const RootConfig& config,
+                                 std::function<void(const RootContextPtr&)> callback,
+                                 const std::shared_ptr<EventManager>& eventManager);
+
+    /**
      * Notify core of a configuration change. Internally this method will trigger the "onConfigChange"
      * event handler in the APL document.  A common behavior in the onConfigChange event handler is to
      * send a Reinflate (kEventTypeReinflate) event.
@@ -180,6 +194,18 @@ public:
      * @param config Configuration information
      */
     RootContext(const Metrics& metrics, const ContentPtr& content, const RootConfig& config);
+
+    /**
+     * Public constructor.  Use the ::create method instead.
+     * @param metrics Display metrics
+     * @param content Processed APL content data
+     * @param config Configuration information
+     * @param eventManager Manages published events
+     */
+    RootContext(const Metrics& metrics,
+                const ContentPtr& content,
+                const RootConfig& config,
+                const std::shared_ptr<EventManager>& eventManager);
 
     ~RootContext() override;
 
@@ -528,7 +554,7 @@ private:
      */
     DisplayState getDisplayState() const { return mDisplayState; }
 
-    void init(const Metrics& metrics, const RootConfig& config, bool reinflation);
+    void init(const Metrics& metrics, const RootConfig& config, bool reinflation, const std::shared_ptr<EventManager>& eventManager);
     bool setup(const CoreComponentPtr& top);
     bool verifyAPLVersionCompatibility(const std::vector<std::shared_ptr<Package>>& ordered,
                                        const APLVersion& compatibilityVersion);

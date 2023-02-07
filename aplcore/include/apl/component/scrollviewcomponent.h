@@ -16,7 +16,7 @@
 #ifndef _APL_SCROLL_VIEW_COMPONENT_H
 #define _APL_SCROLL_VIEW_COMPONENT_H
 
-#include "scrollablecomponent.h"
+#include "apl/component/scrollablecomponent.h"
 
 namespace apl {
 

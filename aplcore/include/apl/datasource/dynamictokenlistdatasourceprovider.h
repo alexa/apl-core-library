@@ -16,7 +16,6 @@
 #ifndef _APL_DYNAMIC_TOKEN_LIST_DATA_SOURCE_PROVIDER_H
 #define _APL_DYNAMIC_TOKEN_LIST_DATA_SOURCE_PROVIDER_H
 
-#include "apl/apl.h"
 #include "apl/datasource/dynamiclistdatasourceprovider.h"
 
 namespace apl {

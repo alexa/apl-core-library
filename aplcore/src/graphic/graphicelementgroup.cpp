@@ -14,10 +14,15 @@
  */
 
 #include "apl/graphic/graphicelementgroup.h"
+
 #include "apl/graphic/graphicpropdef.h"
+#include "apl/primitives/transform2d.h"
+
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/graphicfragment.h"
 #include "apl/scenegraph/scenegraph.h"
+#include "apl/scenegraph/scenegraphupdates.h"
 #endif // SCENEGRAPH
 
 namespace apl {
@@ -115,29 +120,99 @@ GraphicElementGroup::updateTransform(const Context& context, bool useDirtyFlag)
     }
 }
 
-#ifdef SCENEGRAPH
-sg::NodePtr
-GraphicElementGroup::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
+
+void
+GraphicElementGroup::release()
 {
-    sg::NodePtr node = nullptr;
-    for (auto it = mChildren.rbegin() ; it != mChildren.rend() ; it++) {
-        auto child = (*it)->getSceneGraph(sceneGraph);
-        if (child)
-            node = child->setNext(node);
+    GraphicElement::release();
+#ifdef SCENEGRAPH
+    mSceneGraphLayer = nullptr;
+    mSceneGraphNode = nullptr;
+#endif
+}
+
+
+#ifdef SCENEGRAPH
+sg::GraphicFragmentPtr
+GraphicElementGroup::buildSceneGraph(bool allowLayers, sg::SceneGraphUpdates& sceneGraph)
+{
+    // Clear cached items
+    mSceneGraphLayer = nullptr;
+    mSceneGraphNode = nullptr;
+
+    const auto hasStyle = !mStyle.empty();
+
+    // A group with zero opacity will never be rendered, so we can ignore it - unless it has
+    // an upstream driver or a style assigned, in which case it may be toggled to be visible
+    // in the future.
+    auto opacity = static_cast<float>(getValue(kGraphicPropertyOpacity).asNumber());
+    if (opacity == 0 && !hasUpstream(kGraphicPropertyOpacity) && !hasStyle)
+        return {};
+
+    // No children?  Ignore the group
+    auto result = ensureSceneGraphChildren(allowLayers, sceneGraph);
+    if (result->empty())
+        return {};
+
+    auto clipPath = sg::path(getValue(kGraphicPropertyClipPath).asString());
+    auto transform = getValue(kGraphicPropertyTransform).get<Transform2D>();
+
+    // Force a layer if this group can be modified
+    const auto groupMutable = hasStyle || hasUpstream();
+    if (allowLayers && groupMutable)
+        result->ensureLayer(sceneGraph);
+
+    if (result->isLayer()) {
+        auto layer = result->layer();
+        mContainingLayer = layer;
+
+        result->fixBoundingBox();
+        auto offset = layer->getContentOffset();
+        if (!offset.empty())
+            transform = Transform2D::translate(-offset) * transform * Transform2D::translate(offset);
+
+        layer->setOutline(clipPath);
+        layer->setOpacity(opacity);
+        layer->setTransform(transform);
+
+        if (groupMutable) {
+            result->setType(sg::GraphicFragment::kLayerMutable);
+            mSceneGraphLayer = layer;
+        }
+    }
+    else {
+        // Not a layer; configure as a node
+        auto node = result->node();
+
+        if (!clipPath->empty() || hasUpstream(kGraphicPropertyClipPath))
+            node = sg::clip(clipPath, node);
+        if (!transform.empty() || hasUpstream(kGraphicPropertyTransformAssigned) ||
+            hasUpstream(kGraphicPropertyRotation) || hasUpstream(kGraphicPropertyPivotX) ||
+            hasUpstream(kGraphicPropertyPivotY) || hasUpstream(kGraphicPropertyScaleX) ||
+            hasUpstream(kGraphicPropertyScaleY) || hasUpstream(kGraphicPropertyTranslateX) ||
+            hasUpstream(kGraphicPropertyTranslateY))
+            node = sg::transform(transform, node);
+        if (opacity < 1.0f || hasUpstream(kGraphicPropertyOpacity))
+            node = sg::opacity(opacity, node);
+
+        result->setNode(node);
+
+        if (groupMutable) {
+            result->setType(sg::GraphicFragment::kNodeContentMutable);
+            mSceneGraphNode = node;
+        }
     }
 
-    auto clip = sg::clip(sg::path(getValue(kGraphicPropertyClipPath).asString()), node);
-
-    return sg::opacity(
-        getValue(kGraphicPropertyOpacity),
-        sg::transform(
-            getValue(kGraphicPropertyTransform),
-            clip));
+    result->applyFilters(mValues.get(kGraphicPropertyFilters));
+    return result;
 }
 
 void
-GraphicElementGroup::updateSceneGraphInternal(sg::ModifiedNodeList& modList, const sg::NodePtr& node)
+GraphicElementGroup::updateSceneGraph(sg::SceneGraphUpdates& sceneGraph)
 {
+    if (!mSceneGraphLayer && !mSceneGraphNode)
+        return;
+
     const auto clipChanged = isDirty(kGraphicPropertyClipPath);
     const auto opacityChanged = isDirty(kGraphicPropertyOpacity);
     const auto transformChanged = isDirty(kGraphicPropertyTransform);
@@ -145,18 +220,55 @@ GraphicElementGroup::updateSceneGraphInternal(sg::ModifiedNodeList& modList, con
     if (!clipChanged && !opacityChanged && !transformChanged)
         return;
 
-    auto* opacity = sg::OpacityNode::cast(node);
-    if (opacityChanged && opacity->setOpacity(getValue(kGraphicPropertyOpacity).asFloat()))
-        modList.contentChanged(opacity);
+    if (mSceneGraphLayer) {
+        auto layer = mSceneGraphLayer;
 
-    auto* transform = sg::TransformNode::cast(opacity->child());
-    if (transformChanged &&
-        transform->setTransform(getValue(kGraphicPropertyTransform).get<Transform2D>()))
-        modList.contentChanged(transform);
+        if (opacityChanged && layer->setOpacity(getValue(kGraphicPropertyOpacity).asFloat()))
+            sceneGraph.changed(layer);
 
-    auto* clip = sg::ClipNode::cast(transform->child());
-    if (clipChanged && clip->setPath(sg::path(getValue(kGraphicPropertyClipPath).asString())))
-        modList.contentChanged(clip);
+        if (transformChanged) {
+            auto offset = mSceneGraphLayer->getContentOffset();
+            auto transform = getValue(kGraphicPropertyTransform).get<Transform2D>();
+            transform = Transform2D::translate(-offset) * transform * Transform2D::translate(offset);
+            if (layer->setTransform(transform))
+                sceneGraph.changed(layer);
+        }
+
+        if (clipChanged &&
+            layer->setOutline(sg::path(getValue(kGraphicPropertyClipPath).asString()))) {
+            sceneGraph.changed(layer);
+            requestSizeCheck(sceneGraph);
+        }
+    }
+    else {
+        auto node = mSceneGraphNode;
+
+        if (sg::OpacityNode::is_type(node)) {
+            auto* opacity = sg::OpacityNode::cast(node);
+            if (opacityChanged && opacity->setOpacity(getValue(kGraphicPropertyOpacity).asFloat()))
+                requestRedraw(sceneGraph);
+            node = node->child();
+        }
+
+        if (sg::TransformNode::is_type(node)) {
+            auto* transform = sg::TransformNode::cast(node);
+            if (transformChanged &&
+                transform->setTransform(getValue(kGraphicPropertyTransform).get<Transform2D>())) {
+                requestRedraw(sceneGraph);
+                requestSizeCheck(sceneGraph);
+            }
+            node = node->child();
+        }
+
+        if (sg::ClipNode::is_type(node)) {
+            auto* clip = sg::ClipNode::cast(node);
+            if (clipChanged &&
+                clip->setPath(sg::path(getValue(kGraphicPropertyClipPath).asString()))) {
+                requestRedraw(sceneGraph);
+                requestSizeCheck(sceneGraph);
+            }
+        }
+    }
 }
 #endif // SCENEGRAPH
 } // namespace apl

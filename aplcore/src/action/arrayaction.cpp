@@ -14,9 +14,10 @@
  */
 
 #include "apl/action/arrayaction.h"
+
 #include "apl/action/delayaction.h"
-#include "apl/command/commandfactory.h"
 #include "apl/command/arraycommand.h"
+#include "apl/command/commandfactory.h"
 #include "apl/time/sequencer.h"
 
 namespace apl {
@@ -36,7 +37,7 @@ ArrayAction::ArrayAction(const TimersPtr& timers, std::shared_ptr<const ArrayCom
         if (mCommand->finishAllOnTerminate()) {
             auto& commands = mCommand->commands();
             std::vector<Object> remaining;
-            for (int i = mNextIndex ; i < commands.size() ; i++)
+            for (size_t i = mNextIndex ; i < commands.size() ; i++)
                 remaining.push_back(commands.at(i));
 
             auto context = mCommand->context();

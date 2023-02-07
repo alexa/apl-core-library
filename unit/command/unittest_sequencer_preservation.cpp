@@ -1113,3 +1113,55 @@ TEST_F(SequencerPreservationTest, ScrollToComponentSequenceNoTargetComponent)
     // complaint about failed preserve
     ASSERT_TRUE(ConsoleMessage());
 }
+
+static const char *COMMAND_NO_ID = R"apl({
+ "type": "APL",
+ "version": "2022.1",
+ "theme": "dark",
+ "onConfigChange": {
+   "type": "Reinflate",
+   "preservedSequencers": ["MAGIC"]
+ },
+ "mainTemplate": {
+   "items": [
+     {
+       "type": "Container",
+       "items": {
+         "type": "Frame",
+         "opacity": 1,
+         "onMount": {
+           "sequencer": "MAGIC",
+           "type": "AnimateItem",
+           "duration": 1000,
+           "easing": "linear",
+           "value": {
+             "property": "opacity",
+             "from": 1,
+             "to": 0
+           }
+         }
+       }
+     }
+   ]
+ }
+})apl";
+
+TEST_F(SequencerPreservationTest, AnimateItemNoTargetComponent)
+{
+    loadDocument(COMMAND_NO_ID);
+
+    auto framy = component->getCoreChildAt(0);
+
+    advanceTime(250);
+
+    ASSERT_EQ(0.75, framy->getCalculated(kPropertyOpacity).asFloat());
+
+    configChange(ConfigurationChange(1000,1000));
+    processReinflate();
+
+    auto reinflatedFramy = component->getCoreChildAt(0);
+    ASSERT_EQ(0, reinflatedFramy->getCalculated(kPropertyOpacity).asFloat());
+
+    // complaint about failed preserve
+    ASSERT_TRUE(ConsoleMessage());
+}

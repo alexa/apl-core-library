@@ -15,9 +15,26 @@
 
 #include "apl/animation/easingapproximation.h"
 
+#include "apl/utils/synchronizedweakcache.h"
 #include "apl/utils/log.h"
 
 namespace apl {
+static SynchronizedWeakCache<std::string, EasingApproximation> sEasingAppoxCache;
+
+std::string
+dofSig(int dof, const float* array) {
+    std::string result = "x" + sutil::to_string(array[0]);
+    for (int i = 1; i < dof; i++)
+        result += "," + sutil::to_string(array[i]);
+    return result;
+}
+
+std::string
+easingApproxSignature(int dof, const float* start, const float* tout, const float* tin,
+                      const float* end) {
+    return std::to_string(dof) + dofSig(dof, start) + dofSig(dof, tout) + dofSig(dof, tin) +
+           dofSig(dof, end);
+}
 
 static float cubic( float a, float b, float c, float d, float t)
 {
@@ -47,13 +64,17 @@ static float cubic( float a, float b, float c, float d, float t)
  *                 ... ]
  */
 std::shared_ptr<EasingApproximation>
-EasingApproximation::create(int dof,
-                            const float *start,
-                            const float *tout,
-                            const float *tin,
-                            const float *end,
-                            int divisions)
+EasingApproximation::getOrCreate(int dof,
+                                 const float *start,
+                                 const float *tout,
+                                 const float *tin,
+                                 const float *end,
+                                 int divisions)
 {
+    auto sig = easingApproxSignature(dof, start, tout, tin, end);
+    if (auto ptr = sEasingAppoxCache.find(sig))
+        return ptr;
+
     assert(dof >= 1);
     assert(divisions >= 2);
 
@@ -91,7 +112,9 @@ EasingApproximation::create(int dof,
         *cptr++ += cumulativeLength;
     }
 
-    return std::make_shared<EasingApproximation>(dof, std::move(data), std::move(cumulative));
+    auto ptr = std::make_shared<EasingApproximation>(dof, std::move(data), std::move(cumulative));
+    sEasingAppoxCache.insert(sig, ptr);
+    return ptr;
 }
 
 /**
@@ -142,6 +165,10 @@ EasingApproximation::getPosition(float percentage, int coordinate)
     auto startValue = mData[offset];
     auto endValue = mData[offset + mDOF];  // Look into the next segment
     return startValue + (endValue - startValue) * segmentFraction;
+}
+
+EasingApproximation::~EasingApproximation() {
+    sEasingAppoxCache.markDirty();
 }
 
 } // namespace apl

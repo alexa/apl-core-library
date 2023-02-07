@@ -16,8 +16,11 @@
 #ifndef _APL_INFO_H
 #define _APL_INFO_H
 
+#include <map>
 #include <memory>
 #include <string>
+
+#include "apl/common.h"
 
 namespace apl {
 

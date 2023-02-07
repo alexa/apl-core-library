@@ -14,6 +14,7 @@
  */
 
 #include "apl/action/sequentialaction.h"
+
 #include "apl/action/delayaction.h"
 #include "apl/command/commandfactory.h"
 #include "apl/time/sequencer.h"
@@ -51,15 +52,15 @@ SequentialAction::SequentialAction(const TimersPtr& timers,
         std::vector<Object> commands;
         if (!mStateFinally) {
             auto catchCommands = mCommand->getValue(kCommandPropertyCatch);
-            for (int i = 0; i < catchCommands.size(); i++)
+            for (size_t i = 0; i < catchCommands.size(); i++)
                 commands.push_back(catchCommands.at(i));
             auto finallyCommands = mCommand->getValue(kCommandPropertyFinally);
-            for (int i = 0; i < finallyCommands.size() ; i++)
+            for (size_t i = 0; i < finallyCommands.size() ; i++)
                 commands.push_back(finallyCommands.at(i));
         }
         else {
             auto finallyCommands = mCommand->getValue(kCommandPropertyFinally);
-            for (int i = mNextIndex; i < finallyCommands.size() ; i++)
+            for (size_t i = mNextIndex; i < finallyCommands.size() ; i++)
                 commands.push_back(finallyCommands.at(i));
         }
 

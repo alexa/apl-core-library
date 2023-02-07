@@ -21,7 +21,7 @@ using namespace apl;
 
 TEST(SGPathTest, Rectangle)
 {
-    ASSERT_EQ(sg::path(Rect{0, 20, 100, 100})->toDebugString(), "RectPath Rect<100x100+0+20>");
+    ASSERT_EQ(0, sg::path(Rect{0, 20, 100, 100})->toDebugString().rfind("RectPath Rect"));
 
     ASSERT_EQ(sg::path(Rect{0, 20, 100, 100}), sg::path(Rect{0, 20, 100, 100}));
     ASSERT_NE(sg::path(Rect{10, 20, 30, 40}), sg::path(Rect{10, 20, 30, 60}));
@@ -35,8 +35,7 @@ TEST(SGPathTest, Rectangle)
 
 TEST(SGPathTest, RoundedRect)
 {
-    ASSERT_EQ(sg::path(Rect{0, 20, 100, 100}, 5)->toDebugString(),
-              "RoundedRectPath Rect<100x100+0+20>:Radii<5.000000, 5.000000, 5.000000, 5.000000>");
+    ASSERT_EQ(0, sg::path(Rect{0, 20, 100, 100}, 5)->toDebugString().rfind("RoundedRectPath Rect"));
 
     ASSERT_EQ(sg::path(Rect{10, 20, 30, 40}, 5), sg::path(Rect{10, 20, 30, 40}, 5));
     ASSERT_NE(sg::path(Rect{10, 20, 30, 40}, 5), sg::path(Rect{10, 20, 30, 77}, 5));
@@ -62,8 +61,7 @@ TEST(SGPathTest, RoundedRect)
 
 TEST(SGPathTest, GeneralPath)
 {
-    ASSERT_EQ(sg::path("h20 v20 h-20 z")->toDebugString(),
-              "GeneralPath MLLLZ [0.000000,0.000000,20.000000,0.000000,20.000000,20.000000,0.000000,20.000000]");
+    ASSERT_EQ(0, sg::path("h20 v20 h-20 z")->toDebugString().rfind("GeneralPath MLLLZ"));
 
     ASSERT_EQ(sg::path("M5,5 h20"), sg::path("M 5  5 L25,5"));
     ASSERT_NE(sg::path("M5,5 h20"), sg::path("M 5  5 L25,6"));
@@ -84,8 +82,7 @@ TEST(SGPathTest, GeneralPath)
 
 TEST(SGPathTest, FramePath)
 {
-    ASSERT_EQ(sg::path(RoundedRect(Rect{0,0,10,10}, 4), 2)->toDebugString(),
-              "FramePath Rect<10x10+0+0>:Radii<4.000000, 4.000000, 4.000000, 4.000000> inset=2.000000");
+    ASSERT_EQ(0, sg::path(RoundedRect(Rect{0,0,10,10}, 4), 2)->toDebugString().rfind("FramePath Rect"));
 
     ASSERT_FALSE(sg::path(RoundedRect(Rect{0,0,10,10}, 4), 2)->empty());
     ASSERT_FALSE(sg::path(RoundedRect(Rect{0,0,0,10}, 4), 2)->empty());

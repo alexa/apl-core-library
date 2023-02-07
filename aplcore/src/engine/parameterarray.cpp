@@ -14,7 +14,6 @@
  */
 
 #include "apl/engine/parameterarray.h"
-#include "apl/primitives/dimension.h"
 #include "apl/engine/arrayify.h"
 
 namespace apl {

@@ -16,15 +16,14 @@
 #ifndef _APL_CONTEXT_H
 #define _APL_CONTEXT_H
 
+#include <exception>
+#include <map>
 #include <memory>
 #include <string>
-#include <exception>
-#include <memory>
-#include <map>
 #include <yoga/Yoga.h>
 
-#include "apl/apl_config.h"
 #include "apl/common.h"
+
 #include "apl/component/componentproperties.h"
 #include "apl/engine/contextobject.h"
 #include "apl/engine/jsonresource.h"
@@ -33,14 +32,15 @@
 #include "apl/engine/styleinstance.h"
 #include "apl/primitives/object.h"
 #include "apl/primitives/textmeasurerequest.h"
-#ifdef SCENEGRAPH
-#include "apl/scenegraph/common.h"
-#endif // SCENEGRAPH
 #include "apl/utils/counter.h"
 #include "apl/utils/localemethods.h"
 #include "apl/utils/lrucache.h"
 #include "apl/utils/noncopyable.h"
 #include "apl/utils/path.h"
+
+#ifdef SCENEGRAPH
+#include "apl/scenegraph/common.h"
+#endif // SCENEGRAPH
 
 namespace apl {
 
@@ -122,7 +122,7 @@ public:
      * @return The context.
      */
     static ContextPtr createRootEvaluationContext(const Metrics& metrics,
-                                           const std::shared_ptr<RootContextData>& core);
+                                                  const std::shared_ptr<RootContextData>& core);
 
     /**
      * Create a "clean" context.  This shares the same root data, but does not contain any
@@ -511,6 +511,11 @@ public:
      * @return The component or nullptr if it is not found.
      */
     ComponentPtr findComponentById(const std::string& id) const;
+
+    /**
+     * @return The top component
+     */
+    ComponentPtr topComponent() const;
 
     /**
      * @return The current theme

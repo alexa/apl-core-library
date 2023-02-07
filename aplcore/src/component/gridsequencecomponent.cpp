@@ -12,10 +12,11 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-#include <math.h>
+#include "apl/component/gridsequencecomponent.h"
+
+#include <cmath>
 
 #include "apl/component/componentpropdef.h"
-#include "apl/component/gridsequencecomponent.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
 

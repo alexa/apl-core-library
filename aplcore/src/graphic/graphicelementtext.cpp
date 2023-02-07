@@ -14,14 +14,18 @@
  */
 
 #include "apl/graphic/graphicelementtext.h"
-#include "apl/graphic/graphicpropdef.h"
 
 #include "apl/component/componentproperties.h"
 #include "apl/content/rootconfig.h"
+#include "apl/graphic/graphicpropdef.h"
+#include "apl/primitives/color.h"
+#include "apl/primitives/transform2d.h"
 
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
+#include "apl/scenegraph/graphicfragment.h"
 #include "apl/scenegraph/scenegraph.h"
+#include "apl/scenegraph/scenegraphupdates.h"
 #include "apl/scenegraph/textchunk.h"
 #include "apl/scenegraph/textlayout.h"
 #include "apl/scenegraph/textmeasurement.h"
@@ -110,12 +114,33 @@ GraphicElementText::initialize(const GraphicPtr& graphic, const Object& json)
     return true;
 }
 
-#ifdef SCENEGRAPH
-sg::NodePtr
-GraphicElementText::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
+void
+GraphicElementText::release()
 {
+#ifdef SCENEGRAPH
+    mTextChunk = nullptr;
+    mTextProperties = nullptr;
+    mLayout = nullptr;
+    mSceneGraphNode = nullptr;
+#endif
+    GraphicElement::release();
+}
+
+#ifdef SCENEGRAPH
+sg::GraphicFragmentPtr
+GraphicElementText::buildSceneGraph(bool allowLayers, sg::SceneGraphUpdates& sceneGraph)
+{
+    // Clear cached items
+    mSceneGraphNode = nullptr;
+
     ensureSGTextLayout();
 
+    // Return nothing if there is no text and the text never mutates
+    const auto hasStyle = !mStyle.empty();
+    if (mTextChunk->styledText().empty() && !hasStyle && !hasUpstream(kGraphicPropertyText))
+        return {};
+
+    // Calculate the current fill and stroke
     auto fill = sg::fill(sg::paint(getValue(kGraphicPropertyFill),
                                    getValue(kGraphicPropertyFillOpacity).asFloat(),
                                    getValue(kGraphicPropertyFillTransform).get<Transform2D>()));
@@ -126,17 +151,15 @@ GraphicElementText::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
             .strokeWidth(getValue(kGraphicPropertyStrokeWidth).asFloat())
             .get();
 
-
     // Include the fill operation if it is visible or if it can change to be visible
-    const auto includeFill = fill->visible() ||
-                             hasUpstream(kGraphicPropertyFill) ||
-                             hasUpstream(kGraphicPropertyFillOpacity);
+    const auto includeFill =
+        hasStyle || (includeInSceneGraph(kGraphicPropertyFill) &&
+                                          includeInSceneGraph(kGraphicPropertyFillOpacity));
 
     // Include the stroke operation if it is visible or if it can change to be visible
-    const auto includeStroke = stroke->visible() ||
-                               hasUpstream(kGraphicPropertyStroke) ||
-                               hasUpstream(kGraphicPropertyStrokeOpacity) ||
-                               hasUpstream(kGraphicPropertyStrokeWidth);
+    const auto includeStroke = hasStyle || (includeInSceneGraph(kGraphicPropertyStroke) &&
+                                            includeInSceneGraph(kGraphicPropertyStrokeOpacity) &&
+                                            includeInSceneGraph(kGraphicPropertyStrokeWidth));
 
     // Assemble the operations list in reverse order so that fill occurs before stroke.
     auto op = includeStroke ? stroke : nullptr;
@@ -145,9 +168,44 @@ GraphicElementText::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
         op = fill;
     }
 
-    // If there are no drawing operations, return a null node
-    return op ? sg::transform(getPosition(), sg::text(mLayout, op)) : nullptr;
+    // If there are no drawing operations, leave this node empty
+    if (!op)
+        return {};
+
+    auto node = sg::transform(getPosition(), sg::text(mLayout, op));
+    const auto textMutable = hasStyle || hasUpstream();
+    if (textMutable)
+        mSceneGraphNode = node;
+
+    // If this element is mutable create a layer to cache the drawn text.
+    sg::GraphicFragmentPtr result;
+    if (allowLayers && textMutable) {
+        auto layer = sg::layer(getUniqueId() + "_text", Rect(), 1.0f, Transform2D());
+        layer->setCharacteristic(sg::Layer::kCharacteristicRenderOnly |
+                                 sg::Layer::kCharacteristicDoNotClipChildren);
+        sceneGraph.created(layer);
+        layer->setContent(node);
+        mContainingLayer = layer;
+
+        if (mLayout) {
+            auto bb = node->boundingBox(Transform2D());
+            layer->setBounds(bb);
+            layer->setContentOffset(bb.getTopLeft());
+        }
+
+        result = sg::GraphicFragment::create(shared_from_this(), layer,
+                                             sg::GraphicFragment::kLayerFixedContentMutable);
+    }
+    else {
+        result = sg::GraphicFragment::create(shared_from_this(), node,
+                                             textMutable ? sg::GraphicFragment::kNodeContentMutable
+                                                         : sg::GraphicFragment::kNodeContentFixed);
+    }
+
+    result->applyFilters(mValues.get(kGraphicPropertyFilters));
+    return result;
 }
+
 
 /*
  * This method is called if the GraphicElementText has a pre-existing scene graph.
@@ -169,7 +227,6 @@ GraphicElementText::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
  *   kGraphicPropertyFill
  *   kGraphicPropertyFillOpacity
  *   kGraphicPropertyFillTransform
- *   kGraphicPropertyFilters
  *   kGraphicPropertyStroke
  *   kGraphicPropertyStrokeOpacity
  *   kGraphicPropertyStrokeTransform
@@ -181,33 +238,42 @@ GraphicElementText::buildSceneGraph(sg::SceneGraphUpdates& sceneGraph)
  *   kGraphicPropertyFilters is not dynamic, so it doesn't change
  */
 void
-GraphicElementText::updateSceneGraphInternal(sg::ModifiedNodeList& modList, const sg::NodePtr& node)
+GraphicElementText::updateSceneGraph(sg::SceneGraphUpdates& sceneGraph)
 {
+    if (!mSceneGraphNode)
+        return;
+
     const auto textChanged = !mLayout;
-    const auto fillChanged = isDirty(kGraphicPropertyFill) ||
-                             isDirty(kGraphicPropertyFillOpacity) ||
-                             isDirty(kGraphicPropertyFillTransform);
-    const auto strokePaintChanged = isDirty(kGraphicPropertyStroke) ||
-                                    isDirty(kGraphicPropertyStrokeOpacity) ||
-                                    isDirty(kGraphicPropertyStrokeTransform);
+    const auto fillChanged =
+        isDirty({kGraphicPropertyFill, kGraphicPropertyFillOpacity, kGraphicPropertyFillTransform});
+    const auto strokePaintChanged = isDirty(
+        {kGraphicPropertyStroke, kGraphicPropertyStrokeOpacity, kGraphicPropertyStrokeTransform});
     const auto strokeWidthChanged = isDirty(kGraphicPropertyStrokeWidth);
-    const auto transformChanged = isDirty(kGraphicPropertyCoordinateX) ||
-                                  isDirty(kGraphicPropertyCoordinateY) ||
-                                  isDirty(kGraphicPropertyTextAnchor);
+    const auto transformChanged = isDirty(
+        {kGraphicPropertyCoordinateX, kGraphicPropertyCoordinateY, kGraphicPropertyTextAnchor});
 
     ensureSGTextLayout();
 
-    auto* transform = sg::TransformNode::cast(node);
-    if ((textChanged || transformChanged) &&
-        transform->setTransform(Transform2D::translate(getPosition()))) {
-        modList.contentChanged(transform);
+    // Update the transform.
+    auto* transform = sg::TransformNode::cast(mSceneGraphNode);
+    if (textChanged || transformChanged) {
+        if (transform->setTransform(Transform2D::translate(getPosition()))) {
+            // TODO: As a future optimization, if the only change was the X/Y coordinates AND we
+            //       are in a layer, then we won't need to redraw.  But if the text anchor or
+            //       text content change, we must redraw.
+            requestRedraw(sceneGraph);
+            requestSizeCheck(sceneGraph);
+        }
     }
 
+    // Fix up the drawing content.
     if (textChanged || fillChanged || strokePaintChanged || strokeWidthChanged) {
         auto* text = sg::TextNode::cast(transform->child());
 
-        if (textChanged)
+        if (textChanged) {
             text->setTextLayout(mLayout);
+            requestSizeCheck(sceneGraph);
+        }
 
         auto op = text->getOp();
         if (sg::FillPathOp::is_type(op) && fillChanged) {
@@ -245,12 +311,14 @@ GraphicElementText::updateSceneGraphInternal(sg::ModifiedNodeList& modList, cons
                 }
             }
 
-            if (strokeWidthChanged)
+            if (strokeWidthChanged) {
                 sg::stroke(sg::StrokePathOp::castptr(op))
                     .strokeWidth(getValue(kGraphicPropertyStrokeWidth).asFloat());
+                requestSizeCheck(sceneGraph);
+            }
         }
 
-        modList.contentChanged(text);
+        requestRedraw(sceneGraph);
     }
 }
 

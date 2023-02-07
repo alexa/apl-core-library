@@ -18,8 +18,8 @@ target_sources_local(apl
         edittextconfig.cpp
         filter.cpp
         layer.cpp
-        modifiednodelist.cpp
         node.cpp
+        graphicfragment.cpp
         paint.cpp
         path.cpp
         pathop.cpp

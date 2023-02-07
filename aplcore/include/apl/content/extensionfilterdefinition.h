@@ -16,8 +16,8 @@
 #ifndef _APL_EXTENSION_FILTER_DEFINITION_H
 #define _APL_EXTENSION_FILTER_DEFINITION_H
 
-#include "apl/primitives/object.h"
 #include "apl/engine/binding.h"
+#include "apl/primitives/object.h"
 
 namespace apl {
 
@@ -107,13 +107,7 @@ public:
      * @param prop Extension property definition.
      * @return This object for chaining.
      */
-    ExtensionFilterDefinition& property(const std::string& name, Property&& prop) {
-        if (name == "when" || name == "type" || name == "source" || name == "destination")
-            LOG(LogLevel::kWarn) << "Unable to register property '" << name << "' in custom filter extension " << mName;
-        else
-            mPropertyMap.emplace(name, std::move(prop));
-        return *this;
-    }
+    ExtensionFilterDefinition& property(const std::string& name, Property&& prop);
 
     /**
      * @return The URI of the extension

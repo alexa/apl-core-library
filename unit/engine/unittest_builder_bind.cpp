@@ -255,3 +255,82 @@ TEST_F(BuilderBindTest, BindDuplicatesBind)
     ASSERT_TRUE(component);
     ASSERT_TRUE(IsEqual("23", component->getCalculated(kPropertyText).asString()));  // The second bind failed
 }
+
+
+static const char *BIND_NAMING = R"apl(
+{
+  "type": "APL",
+  "version": "2022.2",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "bind": { "name": "NAME", "value": "VALUE" }
+    }
+  }
+}
+)apl";
+
+static std::map<std::string, std::string> GOOD_NAME_TESTS = {
+    {"_foo", "A"},
+    {"__bar__", "B"},
+    {"_234", "C"},
+    {"a", "D"},
+    {"a99_____", "E"},
+    {"_", "F"},
+};
+
+TEST_F(BuilderBindTest, GoodNameCheck)
+{
+    for (const auto& it : GOOD_NAME_TESTS) {
+        auto doc = std::regex_replace(BIND_NAMING, std::regex("NAME"), it.first);
+        doc = std::regex_replace(doc, std::regex("VALUE"), it.second);
+        loadDocument(doc.c_str());
+        ASSERT_TRUE(component);
+        auto context = component->getContext();
+        ASSERT_TRUE(context->hasLocal(it.first));
+        ASSERT_TRUE(IsEqual(it.second, evaluate(*context, "${" + it.first + "}")));
+    }
+}
+
+static std::vector<std::string> BAD_NAME_TESTS = {
+    "234_foo",
+    "åbc",
+    "abç",
+    "a-b",
+    "0",
+    "",
+};
+
+TEST_F(BuilderBindTest, BadNameCheck)
+{
+    for (const auto& m : BAD_NAME_TESTS) {
+        auto doc = std::regex_replace(BIND_NAMING, std::regex("NAME"), m);
+        loadDocument(doc.c_str());
+        ASSERT_TRUE(component);
+        auto context = component->getContext();
+        ASSERT_FALSE(context->hasLocal(m));
+        ASSERT_TRUE(ConsoleMessage());
+    }
+}
+
+static const char *MISSING_VALUE = R"apl(
+{
+  "type": "APL",
+  "version": "2022.2",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "bind": { "name": "NAME" }
+    }
+  }
+}
+)apl";
+
+TEST_F(BuilderBindTest, MissingValue)
+{
+    loadDocument(MISSING_VALUE);
+    ASSERT_TRUE(component);
+    auto context = component->getContext();
+    ASSERT_FALSE(context->hasLocal("NAME"));
+    ASSERT_TRUE(ConsoleMessage());
+}

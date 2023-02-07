@@ -36,14 +36,19 @@ public:
         return std::string("GraphicElementText<") + mUniqueId + ">";
     }
 
+    void release() override;
+
+#ifdef SCENEGRAPH
+    sg::GraphicFragmentPtr buildSceneGraph(bool allowLayers,
+                                           sg::SceneGraphUpdates& sceneGraph) override;
+    void updateSceneGraph(sg::SceneGraphUpdates& sceneGraph) override;
+#endif
+
 protected:
     const GraphicPropDefSet& propDefSet() const override;
     bool initialize(const GraphicPtr& graphic, const Object& json) override;
 
 #ifdef SCENEGRAPH
-    sg::NodePtr buildSceneGraph(sg::SceneGraphUpdates& sceneGraph) override;
-    void updateSceneGraphInternal(sg::ModifiedNodeList& modList, const sg::NodePtr& node) override;
-
 private:
     void ensureSGTextLayout();
     void ensureTextProperties();

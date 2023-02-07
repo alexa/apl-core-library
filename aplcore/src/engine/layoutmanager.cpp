@@ -14,6 +14,7 @@
  */
 
 #include "apl/engine/layoutmanager.h"
+
 #include "apl/component/corecomponent.h"
 #include "apl/content/configurationchange.h"
 #include "apl/engine/rootcontextdata.h"
