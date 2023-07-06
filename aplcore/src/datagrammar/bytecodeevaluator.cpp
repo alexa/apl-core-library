@@ -15,9 +15,10 @@
 
 #include "apl/datagrammar/bytecodeevaluator.h"
 
-#include "apl/datagrammar/boundsymbol.h"
+#include "apl/buildTimeConstants.h"
+
 #include "apl/engine/context.h"
-#include "apl/datagrammar/functions.h"
+#include "apl/engine/evaluate.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -25,8 +26,10 @@ namespace datagrammar {
 
 static const bool DEBUG_BYTE_CODE = false;
 
-ByteCodeEvaluator::ByteCodeEvaluator(const ByteCode& byteCode)
-    : mByteCode(byteCode)
+ByteCodeEvaluator::ByteCodeEvaluator(const ByteCode& byteCode, BoundSymbolSet *symbols, int depth)
+    : mByteCode(byteCode),
+      mSymbols(symbols),
+      mEvaluationDepth(depth)
 {
 }
 
@@ -71,8 +74,6 @@ ByteCodeEvaluator::advance()
                     args[--argCount] = pop();
                 auto f = pop();
                 if (f.isCallable()) {  // Normal function or Easing function
-                    if (!f.isPure())
-                        mIsConstant = false;
                     mStack.emplace_back(f.call(args));
                 } else {
                     CONSOLE(mByteCode.getContext()) << "Invalid function pc=" << mProgramCounter;
@@ -94,8 +95,10 @@ ByteCodeEvaluator::advance()
                 break;
 
             case BC_OPCODE_LOAD_BOUND_SYMBOL:
+                assert(data.at(cmd.value).is<BoundSymbol>());
                 mStack.emplace_back(data.at(cmd.value).eval());
-                mIsConstant = false;
+                if (mSymbols != nullptr)
+                    mSymbols->emplace(data.at(cmd.value).get<BoundSymbol>());
                 break;
 
             case BC_OPCODE_ATTRIBUTE_ACCESS:
@@ -223,6 +226,20 @@ ByteCodeEvaluator::advance()
                 assert(a.isMap());
                 a.getMutableMap().emplace(b.asString(), std::move(c));
                 mStack.emplace_back(std::move(a));
+            }
+                break;
+
+            case BC_OPCODE_EVALUATE: {
+                auto result = pop();
+                auto context = mByteCode.getContext();
+                if (context) {
+                    if (mEvaluationDepth >= kEvaluationDepthLimit)
+                        CONSOLE(context)
+                            << "Evaluation depth limit (" << kEvaluationDepthLimit << ") exceeded";
+                    else
+                        result = evaluateInternal(*context, result, mSymbols, mEvaluationDepth + 1);
+                }
+                mStack.emplace_back(result);
             }
                 break;
         }

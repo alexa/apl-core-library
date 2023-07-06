@@ -16,16 +16,13 @@ set(CMAKE_CXX_STANDARD 11)
 
 ## It is expected that the enclosing project provides GTest dependency.
 
-find_path(RAPIDJSON_INCLUDE
-        NAMES rapidjson/document.h
-        REQUIRED)
-include_directories(${RAPIDJSON_INCLUDE})
-
 add_executable(alexaext-unittest
         unittest_apl_audio_player.cpp
         unittest_apl_e2e_encryption.cpp
+        unittest_apl_metric.cpp
         unittest_apl_webflow.cpp
         unittest_apl_music_alarm.cpp
+        unittest_apl_attention_system.cpp
         unittest_activity_descriptor.cpp
         unittest_extension_lifecycle.cpp
         unittest_extension_message.cpp

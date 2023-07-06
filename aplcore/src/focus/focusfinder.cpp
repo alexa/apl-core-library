@@ -15,10 +15,10 @@
 
 #include "apl/focus/focusfinder.h"
 
+#include "apl/component/corecomponent.h"
+#include "apl/document/documentcontextdata.h"
 #include "apl/focus/beamintersect.h"
 #include "apl/focus/focusvisitor.h"
-#include "apl/engine/rootcontextdata.h"
-#include "apl/component/corecomponent.h"
 
 namespace apl {
 

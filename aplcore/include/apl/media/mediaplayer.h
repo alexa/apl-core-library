@@ -139,6 +139,18 @@ public:
     virtual void seek( int offset ) = 0;
 
     /**
+     * Pause video playback and change the position of the player.  The offset is an absolute value.
+     * If this value is less than the current track offset then we set this value to the current track offset.
+     * If this value is more than the entire track duration then we set this value to the end of current track.
+     * The repeat counter is not changed.
+     *
+     * Events: onPause, onTimeUpdate
+     *
+     * @param offset Offset in milliseconds
+     */
+    virtual void seekTo( int offset ) {}
+
+    /**
      * Pause video playback and change the current track.  This command is ignored if the trackIndex
      * is not valid (but the video will pause).  The repeat counter for the track is reloaded even
      * if the track doesn't change.

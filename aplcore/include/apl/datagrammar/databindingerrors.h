@@ -179,6 +179,7 @@ template<> const GrammarError error_control<ss_end>::error_value = static_cast<G
 template<> const GrammarError error_control<ss_body>::error_value = static_cast<GrammarError>(122);
 template<> const GrammarError error_control<ds_body>::error_value = static_cast<GrammarError>(123);
 template<> const GrammarError error_control<group_end>::error_value = static_cast<GrammarError>(127);
+template<> const GrammarError error_control<eval_end>::error_value = static_cast<GrammarError>(128);
 template<> const GrammarError error_control<os_string>::error_value = static_cast<GrammarError>(131);
 template<> const GrammarError error_control<pad_opt<argument_list, sep>>::error_value = static_cast<GrammarError>(141);
 

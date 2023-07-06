@@ -20,20 +20,9 @@
 
 namespace apl {
 
-class SelectCommand : public CoreCommand {
+class SelectCommand : public TemplatedCommand<SelectCommand> {
 public:
-    static CommandPtr create(const ContextPtr& context,
-                             Properties&& properties,
-                             const CoreComponentPtr& base,
-                             const std::string& parentSequencer) {
-        auto ptr = std::make_shared<SelectCommand>(context, std::move(properties), base, parentSequencer);
-        return ptr->validate() ? ptr : nullptr;
-    }
-
-    SelectCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
-                  const std::string& parentSequencer)
-        : CoreCommand(context, std::move(properties), base, parentSequencer)
-    {}
+    COMMAND_CONSTRUCTOR(SelectCommand);
 
     const CommandPropDefSet& propDefSet() const override;
 

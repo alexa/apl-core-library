@@ -14,11 +14,12 @@
  */
 
 #include "apl/focus/focusmanager.h"
+
 #include "apl/action/scrolltoaction.h"
 #include "apl/component/corecomponent.h"
+#include "apl/engine/corerootcontext.h"
 #include "apl/engine/event.h"
-#include "apl/engine/rootcontextdata.h"
-#include "apl/primitives/rect.h"
+#include "apl/time/sequencer.h"
 #include "apl/time/timemanager.h"
 #include "apl/utils/make_unique.h"
 
@@ -27,7 +28,7 @@ namespace apl {
 static const bool DEBUG_FOCUS = false;
 static const std::string FOCUS_RELEASE_SEQUENCER = "__FOCUS_RELEASE_SEQUENCER";
 
-FocusManager::FocusManager(const RootContextData& core) :
+FocusManager::FocusManager(const CoreRootContext& core) :
     mCore(core), mFinder(std::make_unique<FocusFinder>())
 {}
 
@@ -38,7 +39,8 @@ FocusManager::reportFocusedComponent()
     if (focused) {
         EventBag bag;
         Rect bounds;
-        focused->getBoundsInParent(mCore.top(), bounds);
+        // TODO: Should cross-cut through documents.
+        focused->getBoundsInParent(mCore.topComponent(), bounds);
         bag.emplace(kEventPropertyValue, Object(std::move(bounds)));
         focused->getContext()->pushEvent(Event(kEventTypeFocus, std::move(bag), focused));
     }
@@ -145,7 +147,7 @@ FocusManager::clearFocus(bool notifyViewhost, FocusDirection direction, bool for
         } else {
             auto timers = std::static_pointer_cast<Timers>(mCore.rootConfig().getTimeManager());
             Rect bounds;
-            focused->getBoundsInParent(mCore.top(), bounds);
+            focused->getBoundsInParent(mCore.topComponent(), bounds);
             auto boundsObject = Object(std::move(bounds));
             auto action = Action::make(timers, [focused, boundsObject, direction](ActionRef ref) {
                 EventBag bag;
@@ -214,7 +216,7 @@ FocusManager::focus(FocusDirection direction)
             return true;
         }
         else {
-            auto origin = generateOrigin(direction, mCore.top()->getCalculated(kPropertyBounds).get<Rect>());
+            auto origin = generateOrigin(direction, mCore.topComponent()->getCalculated(kPropertyBounds).get<Rect>());
             return focus(direction, origin);
         }
     }
@@ -268,7 +270,7 @@ FocusManager::find(FocusDirection direction)
 CoreComponentPtr
 FocusManager::find(FocusDirection direction, const Rect& origin)
 {
-    return mFinder->findNext(mFocused.lock(), origin, direction, CoreComponent::cast(mCore.top()));
+    return mFinder->findNext(mFocused.lock(), origin, direction, CoreComponent::cast(mCore.topComponent()));
 }
 
 CoreComponentPtr
@@ -281,7 +283,7 @@ std::map<std::string, Rect>
 FocusManager::getFocusableAreas()
 {
     std::map<std::string, Rect> result;
-    auto root = CoreComponent::cast(mCore.top());
+    auto root = CoreComponent::cast(mCore.topComponent());
     auto focusables = mFinder->getFocusables(root, false);
     if(root->isFocusable()) {
         focusables.push_back(root);

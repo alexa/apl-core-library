@@ -14,6 +14,7 @@
  */
 
 #include "apl/command/reinflatecommand.h"
+#include "apl/component/hostcomponent.h"
 #include "apl/time/sequencer.h"
 
 namespace apl {
@@ -43,6 +44,12 @@ ReinflateCommand::execute(const TimersPtr& timers, bool fastMode)
             }
         }
         mContext->sequencer().setPreservedSequencers(sequencers);
+    }
+
+    if (mContext->embedded()) {
+        // Directly initiate reinflate on relevant document.
+        std::static_pointer_cast<HostComponent>(mContext->topComponent()->getParent())->reinflate();
+        return nullptr;
     }
 
     // Return a simple action that pushes the event and does nothing else.  The view host must

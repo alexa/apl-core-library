@@ -143,7 +143,7 @@ public:
      * Check if data in 2 objects are equal.
      * @param lhs DataHolder of object of current type.
      * @param rhs Other Object's DataHolder.
-     * @return
+     * @return true if equal, false otherwise.
      */
     virtual bool equals(const Object::DataHolder& lhs, const Object::DataHolder& rhs) const { return false; }
 
@@ -340,6 +340,25 @@ public:
     }
 };
 
+/***
+ * Store a referenced class in Object which supports the "eval" method.
+ * @tparam T
+ */
+template<class T>
+class EvaluableReferenceObjectType : public ReferenceHolderObjectType<T> {
+public:
+    bool isEvaluable() const final { return true; }
+
+    Object eval(const Object::DataHolder& dataHolder) const final {
+        return dataHolder.data->eval();
+    }
+
+    static std::shared_ptr<ObjectData> createDirectObjectData(T&& content) {
+        return EvaluableDirectObjectData<T>::create(std::move(content));
+    }
+};
+
+
 /// Primitive types
 
 class Null {
@@ -451,8 +470,20 @@ public:
             const Object::DataHolder& dataHolder,
             rapidjson::Document::AllocatorType& allocator) const override
         {
-            return std::isfinite(dataHolder.value) ? rapidjson::Value(dataHolder.value)
-                                                      : rapidjson::Value();
+            if (!std::isfinite(dataHolder.value))
+                return {};
+
+            // Check to see if this value is an integer
+            double intPart;
+            double remainder = std::modf(dataHolder.value, &intPart);
+
+            // 2^53: Largest integer such that it and all smaller integers can
+            //       be stored in a double without losing precision.
+            if (remainder == 0.0f && std::abs(intPart) <= 2e53)
+                return rapidjson::Value(static_cast<int64_t>(intPart));
+
+            // If all else fails, store it as a double value
+            return rapidjson::Value(dataHolder.value);
         }
 
         std::string toDebugString(const Object::DataHolder& dataHolder) const override {

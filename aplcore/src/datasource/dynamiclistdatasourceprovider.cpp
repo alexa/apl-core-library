@@ -106,7 +106,7 @@ DynamicListDataSourceConnection::scheduleTimeout(const std::string& correlationT
           return;
 
       if (self->retryFetchRequest(correlationToken)) {
-          self->constructAndReportError(ctx->session(), ERROR_REASON_LOAD_TIMEOUT, Object::NULL_OBJECT(),
+          self->constructAndReportError(ctx, ERROR_REASON_LOAD_TIMEOUT, Object::NULL_OBJECT(),
                                         "Retrying timed out request: " + correlationToken);
       }
     }, mConfiguration.fetchTimeout);
@@ -198,7 +198,7 @@ DynamicListDataSourceConnection::reportUpdateExpired(int version) {
     auto it = mUpdatesCache.find(version);
     if (it != mUpdatesCache.end()) {
         context->getRootConfig().getTimeManager()->clearTimeout(it->second.expiryTimeout);
-        constructAndReportError(context->session(), ERROR_REASON_MISSING_LIST_VERSION, Object::NULL_OBJECT(),
+        constructAndReportError(context, ERROR_REASON_MISSING_LIST_VERSION, Object::NULL_OBJECT(),
                                 "Update to version " + std::to_string(version + 1) + " buffered longer than expected.");
     }
 }
@@ -216,7 +216,7 @@ DynamicListDataSourceConnection::putCacheUpdate(int version, const Object& paylo
 
     if (mUpdatesCache.size() >= mConfiguration.listUpdateBufferSize) {
         // Remove highest or discard current one if it's one.
-        constructAndReportError(context->session(), ERROR_REASON_MISSING_LIST_VERSION, Object::NULL_OBJECT(),
+        constructAndReportError(context, ERROR_REASON_MISSING_LIST_VERSION, Object::NULL_OBJECT(),
                                 "Too many updates buffered. Discarding highest version.");
         auto it = mUpdatesCache.rbegin();
         if (it->first > version) {
@@ -231,7 +231,7 @@ DynamicListDataSourceConnection::putCacheUpdate(int version, const Object& paylo
         Update update = {payload, timeoutId};
         mUpdatesCache.emplace(version, update);
     } else {
-        constructAndReportError(context->session(), ERROR_REASON_DUPLICATE_LIST_VERSION, Object::NULL_OBJECT(),
+        constructAndReportError(context, ERROR_REASON_DUPLICATE_LIST_VERSION, Object::NULL_OBJECT(),
                                 "Trying to cache existing list version.");
     }
 }
@@ -255,7 +255,7 @@ DynamicListDataSourceConnection::retrieveCachedUpdate(int version) {
 
 void
 DynamicListDataSourceConnection::constructAndReportError(
-    const SessionPtr& session,
+    const ContextPtr& context,
     const std::string& reason,
     const Object& operationIndex,
     const std::string& message) {
@@ -267,7 +267,7 @@ DynamicListDataSourceConnection::constructAndReportError(
         return;
     }
 
-    provider->constructAndReportError(session, reason, shared_from_this(), operationIndex, message);
+    provider->constructAndReportError(context, reason, shared_from_this(), operationIndex, message);
 }
 
 DynamicListDataSourceProvider::DynamicListDataSourceProvider(const DynamicListConfiguration& config)
@@ -282,7 +282,7 @@ DynamicListDataSourceProvider::create(
     auto ctx = context.lock();
     if (!ctx) return nullptr;
     if (!sourceDefinition.has(LIST_ID) || !sourceDefinition.get(LIST_ID).isString()) {
-        constructAndReportError(ctx->session(), ERROR_REASON_INTERNAL_ERROR, "N/A", "Missing required fields.");
+        constructAndReportError(ctx, ERROR_REASON_INTERNAL_ERROR, "N/A", "Missing required fields.");
         return nullptr;
     }
 
@@ -297,8 +297,8 @@ DynamicListDataSourceProvider::create(
             return existingConnection;
         }
         // Trying to reuse existing listId/DataSource. Should not happen.
-        constructAndReportError(existingConnection->getContext()->session(), ERROR_REASON_INTERNAL_ERROR, listId,
-                                "Trying to reuse existing listId.");
+        constructAndReportError(existingConnection->getContext(), ERROR_REASON_INTERNAL_ERROR, listId,
+                                "Not allowed to reuse existing listId.");
         return nullptr;
     }
 
@@ -408,7 +408,7 @@ DynamicListDataSourceProvider::getPendingErrors() {
 
 void
 DynamicListDataSourceProvider::constructAndReportError(
-    const SessionPtr& session,
+    const ContextPtr& context,
     const std::string& reason,
     const std::string& listId,
     const Object& listVersion,
@@ -429,26 +429,26 @@ DynamicListDataSourceProvider::constructAndReportError(
 
     mPendingErrors.emplace_back(std::move(error));
     // Throw errors into log to help debugging on device
-    LOG(LogLevel::kWarn).session(session) << "Datasource " << listId << "; Error: " << message;
+    LOG(LogLevel::kWarn).session(context) << "Datasource " << listId << "; Error: " << message;
 }
 
 void
 DynamicListDataSourceProvider::constructAndReportError(
-    const SessionPtr& session,
+    const ContextPtr& context,
     const std::string& reason,
     const std::string& listId,
     const std::string& message) {
-    constructAndReportError(session, reason, listId, Object::NULL_OBJECT(), Object::NULL_OBJECT(), message);
+    constructAndReportError(context, reason, listId, Object::NULL_OBJECT(), Object::NULL_OBJECT(), message);
 }
 
 void
 DynamicListDataSourceProvider::constructAndReportError(
-    const SessionPtr& session,
+    const ContextPtr& context,
     const std::string& reason,
     const DLConnectionPtr& connection,
     const Object& operationIndex,
     const std::string& message) {
-    constructAndReportError(session, reason, connection->getListId(), connection->getListVersion(), operationIndex, message);
+    constructAndReportError(context, reason, connection->getListId(), connection->getListVersion(), operationIndex, message);
 }
 
 bool
@@ -462,7 +462,7 @@ DynamicListDataSourceProvider::canFetch(const Object& correlationToken, const DL
         return false;
     }
 
-    constructAndReportError(connection->getContext()->session(), ERROR_REASON_INTERNAL_ERROR, connection,
+    constructAndReportError(connection->getContext(), ERROR_REASON_INTERNAL_ERROR, connection,
                             Object::NULL_OBJECT(), "Wrong correlation token.");
     return false;
 }

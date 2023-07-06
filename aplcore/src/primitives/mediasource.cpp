@@ -76,7 +76,7 @@ MediaSource::create(const Context& context, const Object& object)
     auto entities = Object(arrayifyProperty(context, object, "entities", "entity"));
 
     TextTrackArray tracks;
-    for (auto& m : arrayifyProperty(context, object, "textTrack")) {
+    for (auto& m : arrayifyProperty(context, object, "textTracks", "textTrack")) {
         if (!m.isMap()) {
             CONSOLE(context) << "Text Track is not an object.";
             continue;
@@ -142,7 +142,7 @@ MediaSource::serialize(rapidjson::Document::AllocatorType& allocator) const {
         t.AddMember("type", Value(sTextTrackTypeMap.at(track.type).c_str(), allocator), allocator);
         vTextTracks.PushBack(t, allocator);
     }
-    v.AddMember("textTracks", vTextTracks, allocator);
+    v.AddMember("textTrack", vTextTracks, allocator);
     return v;
 }
 

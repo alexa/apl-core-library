@@ -17,8 +17,8 @@
 
 #include <cmath>
 
-#include "apl/datagrammar/boundsymbol.h"
 #include "apl/engine/context.h"
+#include "apl/primitives/boundsymbol.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
 #include "apl/utils/log.h"

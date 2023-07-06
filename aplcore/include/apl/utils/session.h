@@ -97,9 +97,11 @@ public:
 
     SessionMessage(const Context& context, const char *filename, const char *function);
 
-    SessionMessage(const RootConfigPtr& config, const char *filename, const char *function);
-
     SessionMessage(const std::weak_ptr<Context>& contextPtr, const char *filename, const char *function);
+
+    SessionMessage(const ContentPtr& content, const char *filename, const char *function);
+
+    SessionMessage(const CoreDocumentContextPtr& document, const char *filename, const char *function);
 
     ~SessionMessage();
 

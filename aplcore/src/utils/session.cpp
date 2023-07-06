@@ -13,10 +13,13 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/utils/session.h"
+
+#include "apl/content/content.h"
 #include "apl/content/rootconfig.h"
+#include "apl/document/coredocumentcontext.h"
 #include "apl/engine/context.h"
 #include "apl/utils/random.h"
-#include "apl/utils/session.h"
 
 namespace apl {
 
@@ -69,8 +72,14 @@ SessionMessage::SessionMessage(const std::weak_ptr<Context>& contextPtr, const c
         mSession = context->session();
 }
 
-SessionMessage::SessionMessage(const RootConfigPtr& config, const char *filename, const char *function)
-    : mSession(config->getSession()),
+SessionMessage::SessionMessage(const ContentPtr& content, const char *filename, const char *function)
+    : mSession(content->getSession()),
+      mFilename(filename),
+      mFunction(function),
+      mUncaught(std::uncaught_exception()) {}
+
+SessionMessage::SessionMessage(const CoreDocumentContextPtr& document, const char *filename, const char *function)
+    : mSession(document->getSession()),
       mFilename(filename),
       mFunction(function),
       mUncaught(std::uncaught_exception()) {}

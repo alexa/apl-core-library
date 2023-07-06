@@ -14,13 +14,15 @@
  *
  */
 
+#include "apl/component/selector.h"
+
 #include <tao/pegtl.hpp>
 
 #include "apl/component/corecomponent.h"
-#include "apl/component/selector.h"
 #include "apl/datagrammar/grammarpolyfill.h"
-#include "apl/engine/rootcontextdata.h"
+#include "apl/document/documentcontextdata.h"
 #include "apl/utils/make_unique.h"
+#include "apl/utils/session.h"
 
 namespace apl {
 
@@ -55,7 +57,7 @@ static CoreComponentPtr
 findSibling(const CoreComponentPtr& component, const MatchFunction& matcher, int offset)
 {
     assert(component);
-    auto parent = CoreComponent::cast(component->getParent());
+    auto parent = component->getParentIfInDocument();
     if (!parent)
         return nullptr;
 
@@ -88,11 +90,11 @@ static CoreComponentPtr
 findParent(const CoreComponentPtr& start, const MatchFunction& matcher)
 {
     assert(start);
-    auto parent = CoreComponent::cast(start->getParent());
+    auto parent = start->getParentIfInDocument();
     while (parent) {
         if (matcher(parent))
             return parent;
-        parent = CoreComponent::cast(parent->getParent());
+        parent = parent->getParentIfInDocument();
     }
     return nullptr;
 }
@@ -277,7 +279,7 @@ template<> struct action< uid >
 {
     template< typename Input >
     static void apply( const Input& in, selector_state& state) {
-        state.target = CoreComponent::cast(state.context->findComponentById(in.string()));
+        state.target = CoreComponent::cast(state.context->findComponentById(in.string(), false));
         state.somethingMatched = true;
         LOGF_IF(DEBUG_GRAMMAR, "Find UID: '%s'", in.string().c_str());
     }
@@ -287,7 +289,7 @@ template<> struct action< top_id >
 {
     template< typename Input >
     static void apply( const Input& in, selector_state& state) {
-        state.target = CoreComponent::cast(state.context->findComponentById(in.string()));
+        state.target = CoreComponent::cast(state.context->findComponentById(in.string(), false));
         state.somethingMatched = true;
         LOGF_IF(DEBUG_GRAMMAR, "Find ID: '%s'", in.string().c_str());
     }

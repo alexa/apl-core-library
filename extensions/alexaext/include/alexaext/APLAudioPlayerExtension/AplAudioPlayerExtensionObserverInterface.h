@@ -13,10 +13,11 @@
  * permissions and limitations under the License.
  */
 
-#ifndef ALEXA_SMART_SCREEN_SDK_APPLICATIONUTILITIES_APL_EXTENSIONS_AUDIOPLAYER_APLAUDIOPLAYEREXTENSIONOBSERVERINTERFACE_H
-#define ALEXA_SMART_SCREEN_SDK_APPLICATIONUTILITIES_APL_EXTENSIONS_AUDIOPLAYER_APLAUDIOPLAYEREXTENSIONOBSERVERINTERFACE_H
+#ifndef APL_APLAUDIOPLAYEREXTENSIONOBSERVERINTERFACE_H
+#define APL_APLAUDIOPLAYEREXTENSIONOBSERVERINTERFACE_H
 
-namespace AudioPlayer {
+namespace alexaext {
+namespace audioplayer {
 
 /**
  * This class allows a @c AplAudioPlayerExtensionObserverInterface observer to be notified of changes in the
@@ -100,7 +101,10 @@ public:
     virtual void onAudioPlayerSkipBackward() = 0;
 };
 
-}  // namespace AudioPlayer
+}  // namespace audioplayer
+}  // namespace alexaext
 
+// TODO Remove this: https://tiny.amazon.com/asvt1s36
+namespace AudioPlayer = alexaext::audioplayer;
 
-#endif  // ALEXA_SMART_SCREEN_SDK_APPLICATIONUTILITIES_APL_EXTENSIONS_AUDIOPLAYER_APLAUDIOPLAYEREXTENSIONOBSERVERINTERFACE_H
+#endif  // APL_APLAUDIOPLAYEREXTENSIONOBSERVERINTERFACE_H

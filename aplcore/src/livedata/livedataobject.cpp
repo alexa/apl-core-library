@@ -15,6 +15,7 @@
 
 #include "apl/livedata/livedataobject.h"
 #include "apl/engine/context.h"
+#include "apl/engine/dependantmanager.h"
 #include "apl/livedata/livedatamanager.h"
 #include "apl/livedata/livearrayobject.h"
 #include "apl/livedata/livemapobject.h"
@@ -58,8 +59,10 @@ LiveDataObject::flush()
 {
     auto context = mContext.lock();
     mIsFlushing = true;
-    if (context)
-        context->recalculateDownstream(mKey, true);
+    if (context) {
+        context->enqueueDownstream(mKey);
+        context->dependantManager().processDependencies(true);
+    }
 
     // Make a copy to ensure sane iteration because it's possible that calling a callback will add more callbacks
     std::map<int, FlushCallback> flushCallbacksCopy{mFlushCallbacks};

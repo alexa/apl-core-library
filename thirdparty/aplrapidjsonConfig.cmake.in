@@ -1,0 +1,17 @@
+@PACKAGE_INIT@
+
+set(USE_RAPIDJSON_PACKAGE @USE_RAPIDJSON_PACKAGE@)
+
+if (USE_RAPIDJSON_PACKAGE)
+    if (NOT TARGET rapidjson-apl) # Guard against multiple inclusion
+        # Short circuit the usual mechanism and instead proxy the installed package.
+        # This way we don't accidentally capture the exact path of the system rapidjson library
+        find_package(RapidJSON REQUIRED)
+
+        add_library(rapidjson-apl INTERFACE IMPORTED)
+        target_include_directories(rapidjson-apl INTERFACE ${RAPIDJSON_INCLUDE_DIRS})
+    endif()
+else()
+    include("${CMAKE_CURRENT_LIST_DIR}/aplrapidjsonTargets.cmake")
+endif()
+

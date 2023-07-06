@@ -88,13 +88,12 @@ public:
     Logger& session(const Context& context);
     Logger& session(const ConstContextPtr& context);
     Logger& session(const ContextPtr& context);
-    Logger& session(const RootConfig& config);
-    Logger& session(const RootConfigPtr& config);
-    Logger& session(const RootContextPtr& root);
     Logger& session(const Component& component);
     Logger& session(const ComponentPtr& component);
     Logger& session(const CommandPtr& command);
     Logger& session(const ConstCommandPtr& command);
+    Logger& session(const ContentPtr& content);
+    Logger& session(const CoreDocumentContextPtr& document);
 
     template<class T>
     friend Logger& operator<<(Logger& os, T&& value)

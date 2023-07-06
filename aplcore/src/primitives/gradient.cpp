@@ -126,13 +126,13 @@ Gradient::create(const Context& context, const Object& object, bool avg)
 
     std::map<GradientProperty, Object> properties;
 
-    colorRange = evaluateRecursive(context, colorRange);
+    colorRange = evaluateNested(context, colorRange);
 
     std::vector<Object> colors;
     for (const auto& m : colorRange.getArray())
         colors.emplace_back(m.asColor(context));
 
-    inputRange = evaluateRecursive(context, inputRange);
+    inputRange = evaluateNested(context, inputRange);
 
     std::vector<Object> inputs;
     if (!inputRange.empty()) {

@@ -120,17 +120,15 @@ protected:
     float maxScroll() const override;
     bool shouldAttachChildYogaNode(int index) const override { return false; }
     bool shouldBeFullyInflated(int index) const override;
-
     const EventPropertyMap & eventPropertyMap() const override;
     void handlePropertyChange(const ComponentPropDef& def, const Object& value) override;
-
     void onScrollPositionUpdated() override;
+    void attachYogaNode(const CoreComponentPtr& child) override;
+    void clearActiveStateSelf() override;
 
     virtual size_t getItemsPerCourse() const { return 1; }
 
     virtual void ensureChildAttached(const CoreComponentPtr& child, int targetIdx);
-
-    void attachYogaNode(const CoreComponentPtr& child) override;
 
     /**
      * Estimate number of children required to cover provided distance based on parameters of child provided.

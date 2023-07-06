@@ -263,12 +263,6 @@ To build lib with memory debugging support use:
 $ cmake -DDEBUG_MEMORY_USE=ON
 ```
 
-## Tools
-In order to build the tools use:
-```
-$ cmake -DTOOLS=ON
-```
-
 ## Paranoid build
 In order to build library with -Werror use:
 ```

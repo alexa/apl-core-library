@@ -19,6 +19,7 @@
 
 #include "apl/buildTimeConstants.h"
 #include "apl/command/arraycommand.h"
+#include "apl/content/extensionrequest.h"
 #include "apl/content/importrequest.h"
 #include "apl/content/jsondata.h"
 #include "apl/content/metrics.h"
@@ -42,12 +43,14 @@ const char* DOCUMENT_LANGUAGE = "lang";
 const char* DOCUMENT_LAYOUT_DIRECTION = "layoutDirection";
 
 ContentPtr
-Content::create(JsonData&& document) {
+Content::create(JsonData&& document)
+{
     return create(std::move(document), makeDefaultSession());
 }
 
 ContentPtr
-Content::create(JsonData&& document, const SessionPtr& session) {
+Content::create(JsonData&& document, const SessionPtr& session)
+{
     if (!document) {
         CONSOLE(session).log("Document parse error offset=%u: %s.", document.offset(), document.error());
         return nullptr;
@@ -67,11 +70,11 @@ Content::create(JsonData&& document, const SessionPtr& session) {
     return std::make_shared<Content>(session, ptr, it->value);
 }
 
-Content::Content(SessionPtr session,
-                 PackagePtr mainPackagePtr,
+Content::Content(const SessionPtr& session,
+                 const PackagePtr& mainPackagePtr,
                  const rapidjson::Value& mainTemplate)
-        : mSession(std::move(session)),
-          mMainPackage(std::move(mainPackagePtr)),
+        : mSession(session),
+          mMainPackage(mainPackagePtr),
           mState(LOADING),
           mMainTemplate(mainTemplate)
 {
@@ -106,7 +109,8 @@ Content::Content(SessionPtr session,
 }
 
 PackagePtr
-Content::getPackage(const std::string& name) const {
+Content::getPackage(const std::string& name) const
+{
     if (name == Path::MAIN)
         return mMainPackage;
 
@@ -118,7 +122,8 @@ Content::getPackage(const std::string& name) const {
 }
 
 std::set<ImportRequest>
-Content::getRequestedPackages() {
+Content::getRequestedPackages()
+{
     mPending.insert(mRequested.begin(), mRequested.end());
     auto result = mRequested;
     mRequested.clear();
@@ -126,7 +131,8 @@ Content::getRequestedPackages() {
 }
 
 void
-Content::addPackage(const ImportRequest& request, JsonData&& raw) {
+Content::addPackage(const ImportRequest& request, JsonData&& raw)
+{
     if (mState != LOADING)
         return;
 
@@ -179,15 +185,10 @@ Content::addPackage(const ImportRequest& request, JsonData&& raw) {
     updateStatus();
 }
 
-void Content::addData(const std::string& name, JsonData&& raw) {
-    if (mState != LOADING)
+void Content::addData(const std::string& name, JsonData&& raw)
+{
+    if (!allowAdd(name))
         return;
-
-    if (!mPendingParameters.erase(name)) {
-        CONSOLE(mSession).log("Data parameter '%s' does not exist or is already assigned",
-                                name.c_str());
-        return;
-    }
 
     // If the data is invalid, set the error state
     if (!raw) {
@@ -197,12 +198,38 @@ void Content::addData(const std::string& name, JsonData&& raw) {
         return;
     }
 
-    mParameterValues.emplace(name, std::move(raw));
+    mParameterValues.emplace(name, raw.moveToObject());
     updateStatus();
 }
 
+void
+Content::addObjectData(const std::string& name, const Object& data)
+{
+    if (!allowAdd(name))
+        return;
+
+    mParameterValues.emplace(name, data);
+    updateStatus();
+}
+
+bool
+Content::allowAdd(const std::string& name)
+{
+    if (mState != LOADING)
+        return false;
+
+    if (!mPendingParameters.erase(name)) {
+        CONSOLE(mSession).log("Data parameter '%s' does not exist or is already assigned",
+                              name.c_str());
+        return false;
+    }
+
+    return true;
+}
+
 std::vector<std::string>
-Content::getLoadedPackageNames() const {
+Content::getLoadedPackageNames() const
+{
     std::vector<std::string> result;
     for (const auto& m : mLoaded)
         result.push_back(m.second->name());
@@ -210,13 +237,14 @@ Content::getLoadedPackageNames() const {
 }
 
 bool
-Content::getMainProperties(Properties& out) const {
+Content::getMainProperties(Properties& out) const
+{
     if (!isReady())
         return false;
 
     ParameterArray params(mMainTemplate);
     for (const auto& m : params)
-        out.emplace(m.name, mParameterValues.at(m.name).get());
+        out.emplace(m.name, mParameterValues.at(m.name));
 
     if (DEBUG_CONTENT) {
         LOG(LogLevel::kDebug).session(mSession) << "Main Properties:";
@@ -228,7 +256,8 @@ Content::getMainProperties(Properties& out) const {
 }
 
 void
-Content::addImportList(Package& package) {
+Content::addImportList(Package& package)
+{
     LOG_IF(DEBUG_CONTENT).session(mSession) << "addImportList " << &package;
 
     const rapidjson::Value& value = package.json();
@@ -246,7 +275,8 @@ Content::addImportList(Package& package) {
 }
 
 void
-Content::addImport(Package& package, const rapidjson::Value& value) {
+Content::addImport(Package& package, const rapidjson::Value& value)
+{
     LOG_IF(DEBUG_CONTENT).session(mSession) << "addImport " << &package;
 
     if (!value.IsObject()) {
@@ -273,21 +303,26 @@ Content::addImport(Package& package, const rapidjson::Value& value) {
 }
 
 void
-Content::addExtensions(Package& package) {
-
+Content::addExtensions(Package& package)
+{
     const auto features = arrayifyProperty(package.json(), "extension", "extensions");
-    for (auto it = features.begin(); it != features.end(); it++) {
+    for (const auto& feature : features) {
         std::string uri;
         std::string name;
+        bool required = false;
 
-        if (it->IsObject()) {  // Check for a "uri" property and a "name" property
-            auto iter = it->FindMember("uri");
-            if (iter != it->MemberEnd() && iter->value.IsString())
+        if (feature.IsObject()) {
+            auto iter = feature.FindMember("uri");
+            if (iter != feature.MemberEnd() && iter->value.IsString())
                 uri = iter->value.GetString();
 
-            iter = it->FindMember("name");
-            if (iter != it->MemberEnd() && iter->value.IsString())
+            iter = feature.FindMember("name");
+            if (iter != feature.MemberEnd() && iter->value.IsString())
                 name = iter->value.GetString();
+
+            iter = feature.FindMember("required");
+            if (iter != feature.MemberEnd() && iter->value.IsBool())
+                required = iter->value.GetBool();
         }
 
         // The properties are required
@@ -297,22 +332,25 @@ Content::addExtensions(Package& package) {
         }
 
         auto eit = std::find_if(mExtensionRequests.begin(), mExtensionRequests.end(),
-                [&name](const std::pair<std::string, std::string>& element) {return element.first == name;});
+                [&name](const ExtensionRequest& request) {return request.name == name;});
         if (eit != mExtensionRequests.end()) {
-            if (eit->second == uri)  // The same NAME->URI mapping is ignored
+            if (eit->uri == uri) { // The same NAME->URI mapping is ignored unless required
+                eit->required |= required;
                 continue;
+            }
 
             CONSOLE(mSession).log("The extension name='%s' is referencing different URI values", name.c_str());
             mState = ERROR;
             return;
         } else {
-            mExtensionRequests.emplace_back(std::pair<std::string, std::string>(name, uri));
+            mExtensionRequests.emplace_back(ExtensionRequest{name, uri, required});
         }
     }
 }
 
 void
-Content::updateStatus() {
+Content::updateStatus()
+{
     if (mState == LOADING && mPendingParameters.empty() && mRequested.empty() && mPending.empty()) {
         // Content is ready if the dependency list is successfully ordered, otherwise there is an error.
         if (orderDependencyList()) {
@@ -329,8 +367,8 @@ Content::updateStatus() {
  * the same Extension by multiple names, existing settings are overwritten and new settings augmented.
  */
 void
-Content::loadExtensionSettings() {
-
+Content::loadExtensionSettings()
+{
     // Settings reader per package
     auto sMap = std::map<std::string, SettingsPtr>();
     // uri -> user assigned settings
@@ -338,8 +376,8 @@ Content::loadExtensionSettings() {
 
     // find settings for all requested extensions in packages
     for (auto& extensionRequest : mExtensionRequests) {
-        auto name = extensionRequest.first;
-        auto uri = extensionRequest.second;
+        auto name = extensionRequest.name;
+        auto uri = extensionRequest.uri;
 
         // create a map to hold the settings for the extension
         auto it = tmpMap.find(uri);
@@ -394,7 +432,8 @@ Content::loadExtensionSettings() {
 
 
 Object
-Content::getBackground(const Metrics& metrics, const RootConfig& config) const {
+Content::getBackground(const Metrics& metrics, const RootConfig& config) const
+{
     const auto& json = mMainPackage->json();
     auto backgroundIter = json.FindMember("background");
     if (backgroundIter == json.MemberEnd())
@@ -408,7 +447,12 @@ Content::getBackground(const Metrics& metrics, const RootConfig& config) const {
 
     // Create a working context and evaluate any data-binding expression
     // This is a restricted context because we don't load any resources or styles
-    auto context = Context::createBackgroundEvaluationContext(metrics, config, theme);
+    auto context = Context::createBackgroundEvaluationContext(
+        metrics,
+        config,
+        mMainPackage->version(),
+        theme,
+        getSession());
     auto object = evaluate(*context, backgroundIter->value);
     return asFill(*context, object);
 }
@@ -455,13 +499,13 @@ Content::getEnvironment(const RootConfig& config) const
     // If the document has defined an "environment" section, we parse that
     auto envIter = json.FindMember(DOCUMENT_ENVIRONMENT);
     if (envIter != json.MemberEnd() && envIter->value.IsObject()) {
-        auto context = Context::createTypeEvaluationContext(config);
+        auto context = Context::createTypeEvaluationContext(config, mMainPackage->version(), getSession());
         for (const auto& m : mEnvironmentParameters) {
             if (!isValidIdentifier(m))
                 CONSOLE(context) << "Unable to add environment parameter '" << m
                                  << "' to context. Invalid identifier.";
             else
-                context->putUserWriteable(m, mParameterValues.at(m).get());
+                context->putUserWriteable(m, mParameterValues.at(m));
         }
 
         // Update the language, if it is defined
@@ -480,22 +524,31 @@ Content::getEnvironment(const RootConfig& config) const
 }
 
 const SettingsPtr
-Content::getDocumentSettings() const {
+Content::getDocumentSettings() const
+{
     const rapidjson::Value& settingsValue = Settings::findSettings(*mMainPackage);
     auto settings = std::make_shared<Settings>(Settings(settingsValue));
     return settings;
 }
 
 std::set<std::string>
-Content::getExtensionRequests() const {
+Content::getExtensionRequests() const
+{
     std::set<std::string> result;
     for (const auto& m : mExtensionRequests)
-        result.emplace(m.second);
+        result.emplace(m.uri);
     return result;
 }
 
+const std::vector<ExtensionRequest>&
+Content::getExtensionRequestsV2() const
+{
+    return mExtensionRequests;
+}
+
 Object
-Content::getExtensionSettings(const std::string& uri) {
+Content::getExtensionSettings(const std::string& uri)
+{
     if (!isReady()) {
         CONSOLE(mSession).log("Settings for extension name='%s' cannot be returned.  The document is not Ready.",
                                 uri.c_str());
@@ -520,7 +573,8 @@ Content::getExtensionSettings(const std::string& uri) {
  * Create a deterministic order for all packages.
  */
 bool
-Content::orderDependencyList() {
+Content::orderDependencyList()
+{
     std::set<PackagePtr> inProgress;
     bool isOrdered = addToDependencyList(mOrderedDependencies, inProgress, mMainPackage);
     if (!isOrdered)
@@ -535,7 +589,8 @@ Content::orderDependencyList() {
 bool
 Content::addToDependencyList(std::vector<PackagePtr>& ordered,
                              std::set<PackagePtr>& inProgress,
-                             const PackagePtr& package) {
+                             const PackagePtr& package)
+{
     LOG_IF(DEBUG_CONTENT).session(mSession) << "addToDependencyList " << package << " dependency count="
                           << package->getDependencies().size();
 

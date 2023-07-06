@@ -97,6 +97,9 @@ ControlMediaAction::start()
             case kCommandControlMediaSeek:
                 mediaPlayer->seek(value.getInteger());
                 break;
+            case kCommandControlMediaSeekTo:
+                mediaPlayer->seekTo(value.getInteger());
+                break;
             case kCommandControlMediaSetTrack:
                 mediaPlayer->setTrackIndex(value.getInteger());
                 break;

@@ -20,20 +20,9 @@
 
 namespace apl {
 
-class ScrollToComponentCommand : public CoreCommand {
+class ScrollToComponentCommand : public TemplatedCommand<ScrollToComponentCommand> {
 public:
-    static CommandPtr create(const ContextPtr& context,
-                             Properties&& properties,
-                             const CoreComponentPtr& base,
-                             const std::string& parentSequencer) {
-        auto ptr = std::make_shared<ScrollToComponentCommand>(context, std::move(properties), base, parentSequencer);
-        return ptr->validate() ? ptr : nullptr;
-    }
-
-    ScrollToComponentCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
-            const std::string& parentSequencer)
-            : CoreCommand(context, std::move(properties), base, parentSequencer)
-    {}
+    COMMAND_CONSTRUCTOR(ScrollToComponentCommand);
 
     const CommandPropDefSet& propDefSet() const override;
 

@@ -161,6 +161,26 @@ PageMoveHandler::getTargetPageIndex(const CoreComponentPtr& component) const {
     return -1;
 }
 
+CoreComponentPtr
+PageMoveHandler::getCheckedCurrentPage(const CoreComponentPtr& component) const {
+    if (auto currentPage = mCurrentPage.lock()) {
+        if (component->getChildIndex(currentPage) >= 0) {
+            return currentPage;
+        }
+    }
+    return nullptr;
+}
+
+CoreComponentPtr
+PageMoveHandler::getCheckedTargetPage(const CoreComponentPtr& component) const {
+    if (auto targetPage = mTargetPage.lock()) {
+        if (component->getChildIndex(targetPage) >= 0) {
+            return targetPage;
+        }
+    }
+    return nullptr;
+}
+
 ContextPtr
 PageMoveHandler::createPageMoveContext(float amount, SwipeDirection direction, PageDirection pageDirection,
                                        const CoreComponentPtr& self, const CoreComponentPtr& currentChild,

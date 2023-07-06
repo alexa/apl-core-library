@@ -71,7 +71,7 @@ void setScrollAlignId(CoreComponent& component, const Object& value)
     }
 
     auto id = value.at(0).asString();
-    auto child = CoreComponent::cast(component.findComponentById(id));
+    auto child = CoreComponent::cast(component.findComponentById(id, false));
     if (!child) {
         CONSOLE(component.getContext()) << "Unable to find child with id " << id;
         return;
@@ -130,6 +130,13 @@ MultiChildScrollableComponent::propDefSet() const
     });
 
     return sSequenceComponentProperties;
+}
+
+void
+MultiChildScrollableComponent::clearActiveStateSelf()
+{
+    ScrollableComponent::clearActiveStateSelf();
+    mDelayLayoutAction = nullptr;
 }
 
 bool

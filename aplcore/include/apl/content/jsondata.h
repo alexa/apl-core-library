@@ -23,6 +23,8 @@
 
 namespace apl {
 
+class Object;
+
 /**
  * Wrapper class for holding JSON data.
  *
@@ -130,6 +132,12 @@ public:
                 return "Nullptr";
         }
     }
+
+    /**
+     * Move the rapidjson state of this to a new Object and return that Object.
+     * @return The Object
+     */
+    Object moveToObject();
 
     /**
      * @return A reference to the top-level rapidjson Value.

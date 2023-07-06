@@ -115,7 +115,7 @@ protected:
     void clearTimeouts(const ContextPtr& context, const std::string& correlationToken);
     timeout_id scheduleUpdateExpiry(int version);
     void reportUpdateExpired(int version);
-    void constructAndReportError(const SessionPtr& session, const std::string& reason, const Object& operationIndex,
+    void constructAndReportError(const ContextPtr& context, const std::string& reason, const Object& operationIndex,
                                  const std::string& message);
 
     std::weak_ptr<Context> mContext;
@@ -167,25 +167,26 @@ public:
     std::shared_ptr<DataSourceConnection> create(const Object& sourceDefinition, std::weak_ptr<Context> context,
                                                  std::weak_ptr<LiveArray> liveArray) override;
     bool processUpdate(const Object& payload) override;
+    std::string getType() const override { return mConfiguration.type; }
 
 protected:
     DLConnectionPtr getConnection(const std::string& listId);
     DLConnectionPtr getConnection(const std::string& listId, const Object& correlationToken);
 
     void constructAndReportError(
-        const SessionPtr& session,
+        const ContextPtr& context,
         const std::string& reason,
         const std::string& listId,
         const Object& listVersion,
         const Object& operationIndex,
         const std::string& message);
     void constructAndReportError(
-        const SessionPtr& session,
+        const ContextPtr& context,
         const std::string& reason,
         const std::string& listId,
         const std::string& message);
     void constructAndReportError(
-        const SessionPtr& session,
+        const ContextPtr& context,
         const std::string& reason,
         const DLConnectionPtr& connection,
         const Object& operationIndex,

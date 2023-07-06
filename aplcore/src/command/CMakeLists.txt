@@ -26,10 +26,12 @@ target_sources_local(apl
     documentcommand.cpp
     extensioneventcommand.cpp
     finishcommand.cpp
+    insertitemcommand.cpp
     openurlcommand.cpp
     parallelcommand.cpp
     playmediacommand.cpp
     reinflatecommand.cpp
+    removeitemcommand.cpp
     scrollcommand.cpp
     scrolltocomponentcommand.cpp
     scrolltoindexcommand.cpp

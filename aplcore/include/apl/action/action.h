@@ -16,18 +16,13 @@
 #ifndef _APL_ACTION_H
 #define _APL_ACTION_H
 
-#include <cassert>
-#include <functional>
-#include <memory>
-#include <vector>
-
 #include "apl/common.h"
+#include "apl/primitives/rect.h"
 #include "apl/time/timers.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/noncopyable.h"
 #include "apl/utils/streamer.h"
 #include "apl/utils/userdata.h"
-#include "apl/primitives/rect.h"
 
 namespace apl {
 
@@ -200,10 +195,10 @@ public:
 
     /**
      * Revive an action in the new context.
-     * @param context new RootContext.
+     * @param context new DocumentContext.
      * @return true if successful, false otherwise.
      */
-    virtual bool rehydrate(const RootContext& context);
+    virtual bool rehydrate(const CoreDocumentContext& context);
 
 protected:
     virtual void onFinish() {}

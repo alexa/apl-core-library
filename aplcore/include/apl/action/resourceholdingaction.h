@@ -29,7 +29,7 @@ public:
                           const ContextPtr& context);
 
     void freeze() override;
-    bool rehydrate(const RootContext& context) override;
+    bool rehydrate(const CoreDocumentContext& context) override;
 
 protected:
     void onFinish() override;

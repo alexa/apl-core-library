@@ -32,11 +32,11 @@ public:
                      bool fastMode);
 
     void freeze() override;
-    bool rehydrate(const RootContext& context) override;
+    bool rehydrate(const CoreDocumentContext& context) override;
 
 private:
     void advance();
-    bool doCommand(const Object& command);
+    bool doCommand(CommandData&& commandData);
 
 private:
     std::shared_ptr<CoreCommand> mCommand;

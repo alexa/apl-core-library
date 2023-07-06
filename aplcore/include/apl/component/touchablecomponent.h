@@ -51,10 +51,10 @@ protected:
     const ComponentPropDefSet &propDefSet() const override;
     bool getTags(rapidjson::Value &outMap, rapidjson::Document::AllocatorType &allocator) override;
     bool isTouchable() const override { return true; }
-    // TODO: override to be removed once we support handing intrinsic/reserved keys
+    // TODO: override to be removed once we support handling intrinsic/reserved keys
     void update(UpdateType type, float value) override;
     void setGestureHandlers();
-    PointerCaptureStatus processPointerEvent(const PointerEvent& event, apl_time_t timestamp) override;
+    PointerCaptureStatus processPointerEvent(const PointerEvent& event, apl_time_t timestamp, bool onlyProcessGestures) override;
     void invokeStandardAccessibilityAction(const std::string& name) override;
 
 private:

@@ -13,15 +13,17 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/engine/keyboardmanager.h"
+
 #include "apl/common.h"
 #include "apl/command/documentcommand.h"
 #include "apl/component/corecomponent.h"
 #include "apl/content/content.h"
-#include "apl/engine/evaluate.h"
+#include "apl/document/coredocumentcontext.h"
 #include "apl/engine/arrayify.h"
+#include "apl/engine/corerootcontext.h"
+#include "apl/engine/evaluate.h"
 #include "apl/engine/event.h"
-#include "apl/engine/rootcontext.h"
-#include "apl/engine/keyboardmanager.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/primitives/keyboard.h"
 #include "apl/time/sequencer.h"
@@ -52,9 +54,11 @@ KeyboardManager::getHandlerPropertyKey(KeyHandlerType type) {
 }
 
 bool
-KeyboardManager::handleKeyboard(KeyHandlerType type, const CoreComponentPtr& component,
-                                const Keyboard& keyboard, const RootContextPtr& rootContext) {
-    LOG_IF(DEBUG_KEYBOARD_MANAGER).session(rootContext) << "type:" << type << ", keyboard:" << keyboard.toDebugString();
+KeyboardManager::handleKeyboard(KeyHandlerType type,
+                                const CoreComponentPtr& component,
+                                const Keyboard& keyboard,
+                                const CoreRootContextPtr& rootContext) {
+    LOG_IF(DEBUG_KEYBOARD_MANAGER) << "type:" << type << ", keyboard:" << keyboard.toDebugString();
 
     if (keyboard.isReservedKey()) {
         // do not process handlers when is key reserved for future use by APL
@@ -68,7 +72,7 @@ KeyboardManager::handleKeyboard(KeyHandlerType type, const CoreComponentPtr& com
     while (!consumed && target) {
         consumed = target->processKeyPress(type, keyboard);
         if (consumed) {
-            LOG_IF(DEBUG_KEYBOARD_MANAGER).session(rootContext) << target->getUniqueId() << " " << type << " consumed.";
+            LOG_IF(DEBUG_KEYBOARD_MANAGER) << target->getUniqueId() << " " << type << " consumed.";
         } else {
             // propagate
             target = CoreComponent::cast(target->getParent());
@@ -77,26 +81,27 @@ KeyboardManager::handleKeyboard(KeyHandlerType type, const CoreComponentPtr& com
 
     // TODO:Having intrinsic handler does not really mean blocking from "document handling". Should split those.
     if (!consumed && !isIntrinsic) {
-        consumed = executeDocumentKeyHandlers(rootContext, type, keyboard);
+        consumed = executeDocumentKeyHandlers(CoreDocumentContext::cast(rootContext->topDocument()),
+                                              type, keyboard);
     }
 
     return consumed;
 }
 
 bool
-KeyboardManager::executeDocumentKeyHandlers(const RootContextPtr& rootContext,
+KeyboardManager::executeDocumentKeyHandlers(const CoreDocumentContextPtr& documentContext,
                                             KeyHandlerType type,
                                             const Keyboard& keyboard)
 {
     const auto& property = sComponentPropertyBimap.at(getHandlerPropertyKey(type));
     auto handlerId = getHandlerId(type);
 
-    const auto& json = rootContext->content()->getDocument()->json();
+    const auto& json = documentContext->content()->getDocument()->json();
     auto handlers = arrayifyProperty(json, property.c_str());
     if (handlers.empty())
         return false;
 
-    ContextPtr eventContext = rootContext->createKeyboardDocumentContext(handlerId, keyboard.serialize());
+    ContextPtr eventContext = documentContext->createKeyEventContext(handlerId, keyboard.serialize());
 
     for (const auto& handler : handlers) {
         if (propertyAsBoolean(*eventContext, handler, "when", true)) {
@@ -104,7 +109,6 @@ KeyboardManager::executeDocumentKeyHandlers(const RootContextPtr& rootContext,
             if (!commands.empty())
                 eventContext->sequencer().executeCommands(commands, eventContext, nullptr, false);
 
-            // NOTE: Checking for propagation at the document level is useless, except for debugging
             return !propertyAsBoolean(*eventContext, handler, "propagate", false);
         }
     }

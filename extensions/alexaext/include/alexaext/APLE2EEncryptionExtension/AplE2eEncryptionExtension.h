@@ -22,13 +22,15 @@
 
 #include "AplE2eEncryptionExtensionObserverInterface.h"
 
-namespace E2EEncryption {
+namespace alexaext {
+namespace e2eencryption {
 
 static const std::string URI = "aplext:e2eencryption:10";
 static const std::string ENVIRONMENT_VERSION = "APLE2EEncryptionExtension-1.0";
 
 class AplE2eEncryptionExtension
-    : public alexaext::ExtensionBase, public std::enable_shared_from_this<AplE2eEncryptionExtension> {
+    : public alexaext::ExtensionBase,
+      public std::enable_shared_from_this<AplE2eEncryptionExtension> {
 
 public:
 
@@ -37,7 +39,7 @@ public:
         alexaext::ExecutorPtr executor,
         alexaext::uuid::UUIDFunction uuidGenerator = alexaext::uuid::generateUUIDV4);
 
-    virtual ~AplE2eEncryptionExtension() = default;
+    ~AplE2eEncryptionExtension() override = default;
 
     /// @name alexaext::Extension Functions
     /// @{
@@ -58,6 +60,7 @@ private:
 
 using AplE2eEncryptionExtensionPtr = std::shared_ptr<AplE2eEncryptionExtension>;
 
-} // namespace E2EEncryption
+}  // namespace e2eencryption
+}  // namespace alexaext
 
 #endif // APL_APLE2EENCRYPTIONEXTENSION_H

@@ -13,9 +13,9 @@
  * permissions and limitations under the License.
  */
 
-#include <utility>
-
 #include "apl/command/corecommand.h"
+
+#include <utility>
 
 #include "apl/command/animateitemcommand.h"
 #include "apl/command/autopagecommand.h"
@@ -23,10 +23,12 @@
 #include "apl/command/controlmediacommand.h"
 #include "apl/command/finishcommand.h"
 #include "apl/command/idlecommand.h"
+#include "apl/command/insertitemcommand.h"
 #include "apl/command/openurlcommand.h"
 #include "apl/command/parallelcommand.h"
 #include "apl/command/playmediacommand.h"
 #include "apl/command/reinflatecommand.h"
+#include "apl/command/removeitemcommand.h"
 #include "apl/command/scrollcommand.h"
 #include "apl/command/scrolltocomponentcommand.h"
 #include "apl/command/scrolltoindexcommand.h"
@@ -67,8 +69,7 @@ calculate(const CommandPropDef& def,
     auto p = properties.find(def.names);
 
     if (p != properties.end()) {
-        Object tmp = (def.flags & kPropEvaluated) != 0 ?
-            evaluateRecursive(*context, p->second) :
+        Object tmp = (def.flags & kPropEvaluated) != 0 ? evaluateNested(*context, p->second) :
             evaluate(*context, p->second);
 
         if (def.map) {
@@ -86,9 +87,11 @@ calculate(const CommandPropDef& def,
 
 /*************************************************************/
 
-CoreCommand::CoreCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
-        const std::string& parentSequencer)
+CoreCommand::CoreCommand(const ContextPtr& context, CommandData&& commandData,
+                         Properties&& properties, const CoreComponentPtr& base,
+                         const std::string& parentSequencer)
     : mContext(context),
+      mCommandData(std::move(commandData)),
       mProperties(std::move(properties)),
       mBase(base),
       mTarget(base),
@@ -145,7 +148,7 @@ CoreCommand::freeze()
 }
 
 bool
-CoreCommand::rehydrate(const RootContext& context)
+CoreCommand::rehydrate(const CoreDocumentContext& context)
 {
     if (!mFrozen) return true;
 
@@ -318,6 +321,8 @@ std::map<int, CommandCreateFunc> sCommandCreatorMap = {
     {kCommandTypeClearFocus,        ClearFocusCommand::create},
     {kCommandTypeFinish,            FinishCommand::create},
     {kCommandTypeReinflate,         ReinflateCommand::create},
+    {kCommandTypeInsertItem,        InsertItemCommand::create},
+    {kCommandTypeRemoveItem,        RemoveItemCommand::create},
 };
 
 }

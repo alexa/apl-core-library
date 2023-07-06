@@ -108,6 +108,11 @@ public:
     void release() override;
 
     /**
+     * Clear any active component state. This may include animations/timers/caches/etc.
+     */
+    void clearActiveState();
+
+    /**
      * Visitor pattern for walking the component hierarchy. We are interested in the components
      * that the user can see/interact with.  Overrides that have knowledge about which children are off screen or otherwise
      * invalid/unattached should use that knowledge to reduce the number of nodes walked or avoid walking otherwise invalid
@@ -127,10 +132,22 @@ public:
 
     /**
      * Find a component at or below this point in the hierarchy with the given id or uniqueId.
+     * This variant of findComponentById must only be used by clients of Core, and not Core itself.
+     * Core code must use the variant accepting 'traverseHost', setting 'traverseHost' to false.
      * @param id The id or uniqueId to search for.
      * @return The component or nullptr if it is not found.
+     * @deprecated Use @see CoreComponent::findComponentById(const std::string&, bool)
      */
-    ComponentPtr findComponentById(const std::string& id) const override;
+    APL_DEPRECATED ComponentPtr findComponentById(const std::string& id) const override;
+
+    /**
+     * Special variant of findComponentId providing a signal to HostComponent indicating whether or
+     * not the 'child' of the HostComponent should be included in the search.
+     * @param id The id or uniqueId to search for.
+     * @param traverseHost the 'child' of HostComponent will be included iff true
+     * @return The component or nullptr if it is not found.
+     */
+    virtual ComponentPtr findComponentById(const std::string& id, bool traverseHost) const;
 
     /**
      * Find a visible component at or below this point in the hierarchy containing the given position.
@@ -149,7 +166,7 @@ public:
      * @param index The zero-based index of the child.
      * @return The child.
      */
-    ComponentPtr getChildAt(size_t index) const override { return mChildren.at(index); }
+    ComponentPtr getChildAt(size_t index) const override { return std::static_pointer_cast<Component>(mChildren.at(index)); }
 
     /**
      * Return the index of a particular child.
@@ -190,6 +207,7 @@ public:
     bool insertChild(const ComponentPtr& child, size_t index) override;
     bool appendChild(const ComponentPtr& child) override;
     bool remove() override;
+    bool remove(bool useDirtyFlag);
     bool canInsertChild() const override {
         // Child insertion is permitted if (a) there isn't a layout rebuilder and (b) there is space for a child.
         return !mRebuilder && ((singleChild() && mChildren.empty()) || multiChild());
@@ -271,13 +289,7 @@ public:
      */
     void markProperty(PropertyKey key);
 
-    /**
-     * A context that this property depends upon has changed value.  Update the
-     * value of the property and set the dirty flag if it changes.
-     * @param key The property to recalculate
-     * @param value The new value to assign
-     */
-    void updateProperty(PropertyKey key, const Object& value);
+    void setValue(PropertyKey key, const Object& value, bool useDirtyFlag) override;
 
     /**
      * Change the state of the component.  This may trigger a style change in
@@ -311,7 +323,12 @@ public:
     /**
      * @return The current parent of this component.  May be nullptr.
      */
-    ComponentPtr getParent() const override { return mParent; }
+    ComponentPtr getParent() const override { return std::static_pointer_cast<Component>(mParent); }
+
+    /**
+     * @return The current parent of this component if it is in the same document. May be nullptr.
+     */
+    CoreComponentPtr getParentIfInDocument() const;
 
     /**
      * Guarantees that this component has been laid out, so that layout bounds are fully calculated.
@@ -535,7 +552,7 @@ public:
      * @param keyboard The keyboard update.
      * @return The event data-binding context.
      */
-    ContextPtr createKeyboardEventContext(const std::string& handler, const ObjectMapPtr& keyboard) const;
+    ContextPtr createKeyEventContext(const std::string& handler, const ObjectMapPtr& keyboard) const;
 
     virtual const ComponentPropDefSet& propDefSet() const;
 
@@ -711,6 +728,8 @@ public:
     bool isAttached() const;
 
     /**
+     * Determines whether a component is laid out. This cannot be reliably used before the initial layout pass.
+     *
      * @return True if the component is attached to the yoga hierarchy and there are no dirty ancestor nodes
      */
     bool isLaidOut() const;
@@ -841,9 +860,10 @@ public:
      * Defer pointer processing to component.
      * @param event pointer event.
      * @param timestamp event timestamp.
+     * @param onlyProcessGestures specify whether we only process gestures.
      * @return the status of the pointer following processing by this component
      */
-    virtual PointerCaptureStatus processPointerEvent(const PointerEvent& event, apl_time_t timestamp);
+    virtual PointerCaptureStatus processPointerEvent(const PointerEvent& event, apl_time_t timestamp, bool onlyProcessGestures);
 
     /**
      * @return The root configuration provided by the viewhost
@@ -1041,10 +1061,20 @@ protected:
     void traverse(const Pre& pre) { traverse(pre, [](CoreComponent& c) {}); };
 
     /**
+     * Operation to perform before actual component release.
+     */
+    virtual void preRelease() {};
+
+    /**
      * Release this component. This component may still be in its parent's child list. This does
      * not release children of this component, nor does it clear this component's list of children.
      */
     virtual void releaseSelf();
+
+    /**
+     * Clear any component specific delayed processing (timers/animations/etc)
+     */
+    virtual void clearActiveStateSelf();
 
     virtual void removeChildAfterMarkedRemoved(const CoreComponentPtr& child, size_t index, bool useDirtyFlag);
 
@@ -1085,6 +1115,13 @@ protected:
         return { Object::NULL_OBJECT(), false };
     }
 
+protected:
+    /**
+     * @return true if children of this component should be included in the visual context, false
+     * otherwise.
+     */
+    virtual bool includeChildrenInVisualContext() const { return true; }
+
 private:
     friend streamer& operator<<(streamer&, const Component&);
 
@@ -1092,6 +1129,7 @@ private:
     friend class LayoutRebuilder;
     friend class LayoutManager;
     friend class ChildWalker;
+    friend class HostComponent; // for access to attachedToParent
 
     bool appendChild(const ComponentPtr& child, bool useDirtyFlag);
 
@@ -1122,8 +1160,9 @@ private:
 
     virtual const ComponentPropDefSet* layoutPropDefSet() const { return nullptr; };
 
-    void serializeVisualContextInternal(rapidjson::Value& outArray, rapidjson::Document::AllocatorType& allocator,
-                                        float realOpacity, float visibility, const Rect& visibleRect, int visualLayer);
+    void serializeVisualContextInternal(
+        rapidjson::Value& outArray, rapidjson::Document::AllocatorType& allocator, float realOpacity,
+        float visibility, const Rect& visibleRect, int visualLayer);
 
     void attachRebuilder(const std::shared_ptr<LayoutRebuilder>& rebuilder) { mRebuilder = rebuilder; }
 
@@ -1131,6 +1170,10 @@ private:
 
     void notifyChildChanged(size_t index, const std::string& uid, const std::string& action);
 
+    /**
+     * The default behavior of the child insertion is to attach the child when it happens.
+     * Override this function for cases when such behavior is not required.
+     */
     virtual void attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index);
 
     void scheduleTickHandler(const Object& handler, double delay);
@@ -1172,6 +1215,7 @@ private:
     bool                             mTextMeasurementHashStale;
     bool                             mVisualHashStale;
     std::string                      mTextMeasurementHash;
+    timeout_id                       mTickHandlerId = 0;
 };
 
 }  // namespace apl

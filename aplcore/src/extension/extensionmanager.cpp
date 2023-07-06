@@ -17,22 +17,78 @@
 
 #include "apl/content/rootconfig.h"
 #include "apl/extension/extensionmediator.h"
+#include "apl/extension/extensionclient.h"
 
 namespace apl {
 
 static const bool DEBUG_EXTENSION_MANAGER = false;
 
-ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std::string>>& requests,
-                                   const RootConfig& rootConfig) {
-
-#ifdef ALEXAEXTENSIONS
-    mMediator = rootConfig.getExtensionMediator();
-#endif
-    
+ExtensionManager::ExtensionManager(const std::vector<ExtensionRequest>& requests,
+                                   const RootConfig& rootConfig,
+                                   const SessionPtr& session) {
     auto uriToNamespace = std::multimap<std::string, std::string>();
     for (const auto& m : requests) {
-        uriToNamespace.emplace(m.second, m.first);
-        LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "URI to Namespace: " << m.second << "->" << m.first;
+        uriToNamespace.emplace(m.uri, m.name);
+        LOG_IF(DEBUG_EXTENSION_MANAGER).session(session) << "URI to Namespace: " << m.uri << "->" << m.name;
+    }
+
+    // The following map contains keys representing the extension URIs and
+    // values representing the environment that those extensions registered
+    ObjectMap supported = rootConfig.getSupportedExtensions();
+
+    auto clients = rootConfig.getLegacyExtensionClients();
+
+#ifdef ALEXAEXTENSIONS
+    auto mediator = rootConfig.getExtensionMediator();
+    if (mediator) {
+        const auto& mediatorClients = mediator->getClients();
+        clients.insert(mediatorClients.begin(), mediatorClients.end());
+    }
+
+    // Save weak mediator for later
+    mMediator = mediator;
+#endif
+
+    for (auto& client : clients) {
+        if (!client.second->registered()) continue;
+
+        const auto& schema = client.second->extensionSchema();
+
+        // Mark extension as supported and save environment
+        supported[client.first] = schema.environment;
+
+        // There may be multiple namespaces for the same extension, so register each of them.
+        auto range = uriToNamespace.equal_range(client.first);
+        for (auto it = range.first; it != range.second; ++it) {
+            for (const auto& m : schema.commandDefinitions) {
+                auto qualifiedName = it->second + ":" + m.getName();
+                mCommandDefinitions.emplace(qualifiedName, m);
+                LOG_IF(DEBUG_EXTENSION_MANAGER).session(session)
+                    << "extension commands: " << qualifiedName << "->" + m.toDebugString();
+            }
+
+            for (const auto& m : schema.filterDefinitions) {
+                auto qualifiedName = it->second + ":" + m.getName();
+                mFilterDefinitions.emplace(qualifiedName, m);
+                LOG_IF(DEBUG_EXTENSION_MANAGER).session(session)
+                    << "extension filters: " << qualifiedName << "->" + m.toDebugString();
+            }
+
+            for (const auto& m : schema.eventHandlers) {
+                auto qualifiedName = it->second + ":" + m.getName();
+                mEventHandlers.emplace(it->second + ":" + m.getName(), m);
+                LOG_IF(DEBUG_EXTENSION_MANAGER).session(session)
+                    << "qualified handlers: " << it->second + ":" + m.getName() << "->"
+                    << m.toDebugString();
+            }
+
+            for (const auto& m : schema.componentDefinitions) {
+                auto qualifiedName = it->second + ":" + m.getName();
+                mComponentDefinitions.emplace(qualifiedName, m);
+                LOG_IF(DEBUG_EXTENSION_MANAGER).session(session)
+                    << "extension component: " << qualifiedName << "->" + m.toDebugString();
+            }
+        }
     }
 
     // Extensions that define custom commands
@@ -41,8 +97,8 @@ ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std:
         auto range = uriToNamespace.equal_range(m.getURI());
         for (auto it = range.first; it != range.second; ++it) {
             auto qualifiedName = it->second + ":" + m.getName();
-            mExtensionCommands.emplace(qualifiedName, m);
-            LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "extension commands: " << qualifiedName
+            mCommandDefinitions.emplace(qualifiedName, m);
+            LOG_IF(DEBUG_EXTENSION_MANAGER).session(session) << "extension commands: " << qualifiedName
                 << "->" + m.toDebugString();
         }
     }
@@ -53,8 +109,8 @@ ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std:
         auto range = uriToNamespace.equal_range(m.getURI());
         for (auto it = range.first ; it != range.second ; ++it) {
             auto qualifiedName = it->second + ":" + m.getName();
-            mExtensionFilters.emplace(qualifiedName, m);
-            LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "extension filters: " << qualifiedName
+            mFilterDefinitions.emplace(qualifiedName, m);
+            LOG_IF(DEBUG_EXTENSION_MANAGER).session(session) << "extension filters: " << qualifiedName
                 << "->" + m.toDebugString();
         }
     }
@@ -63,26 +119,23 @@ ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std:
     for (const auto& m : rootConfig.getExtensionEventHandlers()) {
         auto range = uriToNamespace.equal_range(m.getURI());
         for (auto it = range.first; it != range.second; ++it) {
-            mQualifiedEventHandlerMap.emplace(it->second + ":" + m.getName(), m);
-            LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "qualified handlers: "
+            mEventHandlers.emplace(it->second + ":" + m.getName(), m);
+            LOG_IF(DEBUG_EXTENSION_MANAGER).session(session) << "qualified handlers: "
                 << it->second + ":" + m.getName() << "->" << m.toDebugString();
         }
     }
-
-    // Construct the data-binding environmental information for indicating which extensions are installed
-    const auto& supported = rootConfig.getSupportedExtensions();
+ 
     mEnvironment = std::make_shared<ObjectMap>();
 
     for (const auto& m : requests) {
-        auto it = supported.find(m.second);
+        auto it = supported.find(m.uri);
         if (it != supported.end()) {
-            auto cfg = Object(rootConfig.getExtensionEnvironment(m.second));
-            mEnvironment->emplace(m.first, cfg);// Add the NAME.  The URI should already be there.
-            LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "requestedEnvironment: " << m.first
-                << "->" << cfg.toDebugString();
+            mEnvironment->emplace(m.name, it->second);// Add the NAME.  The URI should already be there.
+            LOG_IF(DEBUG_EXTENSION_MANAGER).session(session) << "requestedEnvironment: " << m.name
+                 << "->" << it->second.toDebugString();
         } else {
-            mEnvironment->emplace(m.first, Object::FALSE_OBJECT());
-            LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "requestedEnvironment: " << m.first
+            mEnvironment->emplace(m.name, Object::FALSE_OBJECT());
+            LOG_IF(DEBUG_EXTENSION_MANAGER).session(session) << "requestedEnvironment: " << m.name
                 << "->" << false;
         }
     }
@@ -93,8 +146,8 @@ ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std:
         auto range = uriToNamespace.equal_range(m.getURI());
         for (auto it = range.first; it != range.second; ++it) {
             auto qualifiedName = it->second + ":" + m.getName();
-            mExtensionComponentDefs.emplace(qualifiedName, m);
-            LOG_IF(DEBUG_EXTENSION_MANAGER).session(rootConfig) << "extension component: " << qualifiedName
+            mComponentDefinitions.emplace(qualifiedName, m);
+            LOG_IF(DEBUG_EXTENSION_MANAGER).session(session) << "extension component: " << qualifiedName
                 << "->" + m.toDebugString();
         }
     }
@@ -102,7 +155,7 @@ ExtensionManager::ExtensionManager(const std::vector<std::pair<std::string, std:
 
 void
 ExtensionManager::addEventHandler(const ExtensionEventHandler& handler, Object command) {
-    mExtensionEventHandlers[handler] = std::move(command);
+    mEventHandlerCommandMap[handler] = std::move(command);
 }
 
 void
@@ -117,8 +170,8 @@ void ExtensionManager::removeExtensionComponent(const std::string& resourceId) {
 ExtensionCommandDefinition*
 ExtensionManager::findCommandDefinition(const std::string& qualifiedName) {
     // If the custom handler doesn't exist
-    auto it = mExtensionCommands.find(qualifiedName);
-    if (it != mExtensionCommands.end())
+    auto it = mCommandDefinitions.find(qualifiedName);
+    if (it != mCommandDefinitions.end())
         return &it->second;
 
     return nullptr;
@@ -127,8 +180,8 @@ ExtensionManager::findCommandDefinition(const std::string& qualifiedName) {
 ExtensionComponentDefinition*
 ExtensionManager::findComponentDefinition(const std::string& qualifiedName) {
     // If the custom handler doesn't exist
-    auto it = mExtensionComponentDefs.find(qualifiedName);
-    if (it != mExtensionComponentDefs.end())
+    auto it = mComponentDefinitions.find(qualifiedName);
+    if (it != mComponentDefinitions.end())
         return &it->second;
 
     return nullptr;
@@ -136,8 +189,8 @@ ExtensionManager::findComponentDefinition(const std::string& qualifiedName) {
 
 ExtensionFilterDefinition*
 ExtensionManager::findFilterDefinition(const std::string& qualifiedName) {
-    auto it = mExtensionFilters.find(qualifiedName);
-    if (it != mExtensionFilters.end())
+    auto it = mFilterDefinitions.find(qualifiedName);
+    if (it != mFilterDefinitions.end())
         return &it->second;
 
     return nullptr;
@@ -146,8 +199,8 @@ ExtensionManager::findFilterDefinition(const std::string& qualifiedName) {
 Object
 ExtensionManager::findHandler(const ExtensionEventHandler& handler) {
 
-    auto it = mExtensionEventHandlers.find(handler);
-    if (it != mExtensionEventHandlers.end())
+    auto it = mEventHandlerCommandMap.find(handler);
+    if (it != mEventHandlerCommandMap.end())
         return it->second;
 
     return Object::NULL_OBJECT();

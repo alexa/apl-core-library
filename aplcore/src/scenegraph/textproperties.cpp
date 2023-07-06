@@ -25,6 +25,7 @@ TextProperties::create(TextPropertiesCache& cache,
                        std::vector<std::string>&& fontFamily,
                        float fontSize,
                        FontStyle fontStyle,
+                       const std::string& language,
                        int fontWeight,
                        float letterSpacing,
                        float lineHeight,
@@ -37,6 +38,7 @@ TextProperties::create(TextPropertiesCache& cache,
         hashCombine(hash, m);
     hashCombine(hash, fontSize);
     hashCombine(hash, static_cast<int>(fontStyle));
+    hashCombine(hash, language);
     hashCombine(hash, fontWeight);
     hashCombine(hash, letterSpacing);
     hashCombine(hash, lineHeight);
@@ -53,6 +55,7 @@ TextProperties::create(TextPropertiesCache& cache,
         if (p->fontFamily() != fontFamily ||
             p->fontSize() != fontSize ||
             p->fontStyle() != fontStyle ||
+            p->language() != language ||
             p->fontWeight() != fontWeight ||
             p->letterSpacing() != letterSpacing ||
             p->lineHeight() != lineHeight ||
@@ -70,6 +73,7 @@ TextProperties::create(TextPropertiesCache& cache,
         p->mFontFamily = std::move(fontFamily);
         p->mFontSize = fontSize;
         p->mFontStyle = fontStyle;
+        p->mLanguage = language;
         p->mFontWeight = fontWeight;
         p->mLetterSpacing = letterSpacing;
         p->mLineHeight = lineHeight;
@@ -89,6 +93,7 @@ operator==(const TextProperties& lhs, const TextProperties& rhs)
     return lhs.mFontFamily == rhs.mFontFamily &&
            lhs.mFontSize == rhs.mFontSize &&
            lhs.mFontStyle == rhs.mFontStyle &&
+           lhs.mLanguage == rhs.mLanguage &&
            lhs.mFontWeight == rhs.mFontWeight &&
            lhs.mLetterSpacing == rhs.mLetterSpacing &&
            lhs.mLineHeight == rhs.mLineHeight &&
@@ -113,6 +118,7 @@ TextProperties::serialize(rapidjson::Document::AllocatorType& allocator) const
     result.AddMember("fontFamily", fonts, allocator);
     result.AddMember("fontSize", mFontSize, allocator);
     result.AddMember("fontStyle", rapidjson::Value(sFontStyleMap.at(mFontStyle).c_str(), allocator), allocator);
+    result.AddMember("lang", rapidjson::Value(mLanguage.c_str(), allocator), allocator);
     result.AddMember("fontWeight", mFontWeight, allocator);
     result.AddMember("letterSpacing", mLetterSpacing, allocator);
     result.AddMember("lineHeight", mLineHeight, allocator);

@@ -63,27 +63,6 @@ CommandFactory::get(const char *name) const
 }
 
 /**
- * Evaluate the command and return an action.  This may return a nullptr!
- * @param context The data-binding context.
- * @param command The JSON representation of the command
- * @param base The base component that started this action.  May be null.
- * @param fastMode If the command should run in fast mode.
- * @return An action pointer or nullptr if there is nothing to execute.
- */
-ActionPtr
-CommandFactory::execute(const TimersPtr& timers,
-                        const ContextPtr& context,
-                        const Object& command,
-                        const CoreComponentPtr& base,
-                        bool fastMode)
-{
-    CommandPtr ptr = inflate(context, command, base);
-    if (!ptr)
-        return nullptr;
-    return ptr->execute(timers, fastMode);
-}
-
-/**
  * Inflate macro command.
  * @param context The data-binding context.
  * @param properties Properties passed in from outside.
@@ -93,7 +72,8 @@ CommandFactory::execute(const TimersPtr& timers,
  */
 CommandPtr
 CommandFactory::expandMacro(const ContextPtr& context,
-                            Properties& properties,
+                            CommandData&& commandData,
+                            Properties&& properties,
                             const rapidjson::Value& definition,
                             const CoreComponentPtr& base,
                             const std::string& parentSequencer) {
@@ -113,9 +93,9 @@ CommandFactory::expandMacro(const ContextPtr& context,
     }
 
     return ArrayCommand::create(cptr,
-                                arrayifyProperty(*cptr, definition, "command", "commands"),
+                                {arrayifyProperty(*cptr, definition, "command", "commands"), commandData},
                                 base,
-                                properties,
+                                std::move(properties),
                                 parentSequencer
     );
 }
@@ -130,11 +110,12 @@ CommandFactory::expandMacro(const ContextPtr& context,
  */
 CommandPtr
 CommandFactory::inflate(const ContextPtr& context,
-                        const Object& command,
-                        const Properties& properties,
+                        CommandData&& commandData,
+                        Properties&& properties,
                         const CoreComponentPtr& base,
                         const std::string& parentSequencer)
 {
+    auto command = commandData.get();
     if (!command.isMap())
         return nullptr;
 
@@ -155,17 +136,18 @@ CommandFactory::inflate(const ContextPtr& context,
     // If this is a standard command type, use that logic to expand.
     auto method = mCommandMap.find(type);
     if (method != mCommandMap.end())
-        return method->second(context, std::move(props), base, parentSequencer);
+        return method->second(context, std::move(commandData), std::move(props), base, parentSequencer);
 
     // Check to see if it is an extension command
     auto extensionCommand = context->extensionManager().findCommandDefinition(type);
     if (extensionCommand != nullptr)
-        return ExtensionEventCommand::create(*extensionCommand, context, std::move(props), base, parentSequencer);
+        return ExtensionEventCommand::create(*extensionCommand, context, std::move(commandData),
+                                             std::move(props), base, parentSequencer);
 
     // Look up a command macro.
     const auto& resource = context->getCommand(type);
     if (!resource.empty())
-        return expandMacro(context, props, resource.json(), base, parentSequencer);
+        return expandMacro(context, std::move(commandData), std::move(props), resource.json(), base, parentSequencer);
 
     CONSOLE(context) << "Unable to find command '" << type << "'";
     return nullptr;
@@ -180,18 +162,16 @@ CommandFactory::inflate(const ContextPtr& context,
  */
 CommandPtr
 CommandFactory::inflate(const ContextPtr& context,
-                        const Object& command,
+                        CommandData&& commandData,
                         const CoreComponentPtr& base)
 {
-    Properties properties;
-    return inflate(context, command, properties, base);
+    return inflate(context, std::move(commandData), Properties(), base);
 }
 
 CommandPtr
-CommandFactory::inflate(const Object& command, const std::shared_ptr<const CoreCommand>& parent)
+CommandFactory::inflate(CommandData&& commandData, const std::shared_ptr<const CoreCommand>& parent)
 {
-    Properties properties;
-    return inflate(parent->context(), command, properties, parent->base(), parent->sequencer());
+    return inflate(parent->context(), std::move(commandData), Properties(), parent->base(), parent->sequencer());
 }
 
 } // namespace apl

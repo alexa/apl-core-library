@@ -18,7 +18,6 @@
 #include "apl/command/corecommand.h"
 #include "apl/component/corecomponent.h"
 #include "apl/component/pagercomponent.h"
-#include "apl/content/rootconfig.h"
 #include "apl/time/sequencer.h"
 
 namespace apl {
@@ -116,7 +115,7 @@ AutoPageAction::freeze()
 }
 
 bool
-AutoPageAction::rehydrate(const RootContext& context)
+AutoPageAction::rehydrate(const CoreDocumentContext& context)
 {
     if (!ResourceHoldingAction::rehydrate(context)) return false;
 

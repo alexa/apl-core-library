@@ -61,9 +61,9 @@ OpenURLAction::handleFailure(int argument)
     context->putConstant("event", event);
 
     auto array = ArrayCommand::create(context,
-                                      mCommand->getValue(kCommandPropertyOnFail),
+                                      {mCommand->getValue(kCommandPropertyOnFail), mCommand->data()},
                                       mCommand->target(),
-                                      mCommand->properties(),
+                                      Properties(mCommand->properties()),
                                       mCommand->sequencer());
     // Run these in normal mode
     mCurrentAction = array->execute(timers(), false);

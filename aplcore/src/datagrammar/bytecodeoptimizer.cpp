@@ -16,13 +16,15 @@
 #include "apl/datagrammar/bytecodeoptimizer.h"
 #include "apl/datagrammar/bytecode.h"
 #include "apl/datagrammar/functions.h"
-#include "apl/datagrammar/boundsymbol.h"
 #include "apl/engine/context.h"
+#include "apl/primitives/boundsymbol.h"
 #include "apl/primitives/functions.h"
 #include "apl/utils/log.h"
 
 namespace apl {
 namespace datagrammar {
+
+static const bool DEBUG_OPTIMIZER = false;
 
 struct BasicBlock {
     int entry;  // The starting point of the basic block after code reduction
@@ -84,9 +86,9 @@ ByteCodeOptimizer::simplifyOperands()
                 // If the value is already in an operand, use that one
                 auto it = std::find(operands.begin(), operands.end(), object);
                 if (it != operands.end())
-                    cmd.value = std::distance(operands.begin(), it);
+                    cmd.value = static_cast<bciValueType>(std::distance(operands.begin(), it));
                 else {
-                    cmd.value = operands.size();
+                    cmd.value = static_cast<bciValueType>(operands.size());
                     operands.emplace_back(std::move(object));
                 }
             }
@@ -101,8 +103,6 @@ ByteCodeOptimizer::simplifyOperands()
 
 using UnaryFunction = Object (*)(const Object&);
 using BinaryFunction = Object (*)(const Object&, const Object&);
-
-static const bool DEBUG_OPTIMIZER = false;
 
 /**
  * Peephole optimization
@@ -393,6 +393,10 @@ ByteCodeOptimizer::simplifyOperations()
                 break;
             case BC_OPCODE_APPEND_ARRAY:
             case BC_OPCODE_APPEND_MAP:
+                output.emplace_back(cmd);
+                out_constants = 0;
+                break;
+            case BC_OPCODE_EVALUATE:
                 output.emplace_back(cmd);
                 out_constants = 0;
                 break;

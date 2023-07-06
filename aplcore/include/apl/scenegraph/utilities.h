@@ -29,7 +29,7 @@ namespace sg {
  * @param text
  * @return
  */
-std::vector<std::string> splitFontString(const RootConfig& rootConfig, const std::string& text);
+std::vector<std::string> splitFontString(const RootConfig& rootConfig, const SessionPtr& session, const std::string& text);
 
 } // namespace sg
 } // namespace apl

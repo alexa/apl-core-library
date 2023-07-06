@@ -22,9 +22,9 @@
 
 namespace apl {
 
-ArrayAction::ArrayAction(const TimersPtr& timers, std::shared_ptr<const ArrayCommand> command, bool fastMode)
+ArrayAction::ArrayAction(const TimersPtr& timers, std::shared_ptr<const ArrayCommand>&& command, bool fastMode)
     : Action(timers),
-      mCommand(command),
+      mCommand(std::move(command)),
       mFastMode(fastMode),
       mNextIndex(0)
 {
@@ -35,13 +35,13 @@ ArrayAction::ArrayAction(const TimersPtr& timers, std::shared_ptr<const ArrayCom
         }
 
         if (mCommand->finishAllOnTerminate()) {
-            auto& commands = mCommand->commands();
+            const auto& commands = mCommand->data().get();
             std::vector<Object> remaining;
             for (size_t i = mNextIndex ; i < commands.size() ; i++)
                 remaining.push_back(commands.at(i));
 
             auto context = mCommand->context();
-            context->sequencer().executeCommands(Object(std::move(remaining)), context, mCommand->base(), true);
+            context->sequencer().executeCommands({std::move(remaining), mCommand->data()}, context, mCommand->base(), true);
         }
     });
 }
@@ -55,12 +55,10 @@ ArrayAction::advance() {
     if (isTerminated())
         return;
 
-    auto commands = mCommand->commands();
+    const auto& commands = mCommand->data();
 
     while (mNextIndex < commands.size()) {
-        Object command = commands.at(mNextIndex++);
-        auto commandPtr = CommandFactory::instance().inflate(command,
-                                                             mCommand);
+        auto commandPtr = CommandFactory::instance().inflate(commands.at(mNextIndex++), mCommand);
         if (!commandPtr)
             continue;
 

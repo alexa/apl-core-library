@@ -196,6 +196,17 @@ VideoComponent::remove()
     return CoreComponent::remove();
 }
 
+void
+VideoComponent::releaseSelf()
+{
+    if (mMediaPlayer) {
+        mMediaPlayer->halt();
+        mMediaPlayer = nullptr;
+    }
+
+    CoreComponent::releaseSelf();
+}
+
 const ComponentPropDefSet&
 VideoComponent::propDefSet() const
 {

@@ -84,6 +84,81 @@ static const std::vector<std::string> PLAYER_ACTIVITY = {
         "BUFFER_UNDERRUN"
 };
 
+/**
+ * Utility object for tracking ActivityState
+ */
+struct AplAudioPlayerExtension::ActivityState {
+    /**
+     * Constructor.
+     *
+     * @param token the identifier of the track displaying lyrics.
+     */
+    explicit ActivityState(std::string token = "") : token{std::move(token)}
+    {
+        lyricData = std::make_shared<rapidjson::Document>();
+        lyricData->SetArray();
+    };
+
+    /// The playback state name
+    std::string playbackStateName;
+
+    /// The identifier of the track displaying lyrics.
+    std::string token;
+
+    /// The total time in milliseconds that lyrics were viewed.
+    long durationInMilliseconds = 0;
+
+    /// The lyrics viewed data array.
+    std::shared_ptr<rapidjson::Document> lyricData;
+
+    /**
+     * Add Lyric lines to the data array.
+     * @param lines The lines of lyrics to append.
+     */
+    void addLyricLinesData(const rapidjson::Value &lyricLines)
+    {
+        using namespace rapidjson;
+        if (!lyricLines.IsArray())
+            return;
+
+        auto &alloc = lyricData->GetAllocator();
+        for (auto &line: lyricLines.GetArray()) {
+            // verify data integrity and adjust
+            // received line data from double format, store the int values
+            std::string text = alexaext::GetWithDefault<const char *>("text", line, "");
+            auto startTime = alexaext::GetWithDefault<int>("startTime", line, -1);
+            auto endTime = alexaext::GetWithDefault<int>("endTime", line, -1);
+            if (text.empty() || startTime < 0 || endTime < 0 || endTime < startTime)
+                continue;
+            Value value(kObjectType);
+            value.AddMember("text", Value(text.c_str(), alloc).Move(), alloc)
+                .AddMember("startTime", startTime, alloc)
+                .AddMember("endTime", endTime, alloc);
+            lyricData->PushBack(value.Move(), alloc);
+        }
+    }
+
+    /**
+     * Clear the Lyrics object
+     */
+    void clearLyrics()
+    {
+        token = "";
+        durationInMilliseconds = 0;
+        lyricData = std::make_shared<rapidjson::Document>();
+        lyricData->SetArray();
+    }
+
+    /**
+     * Returns string payload of the lyricData object.
+     * @return the lyricData object payload.
+     */
+    std::string getLyricDataPayload() const
+    {
+        return alexaext::AsString(*lyricData);
+    }
+};
+
 // Registration token for unique client identifier
 // TODO use UID gen
 static std::atomic_int sToken(53);
@@ -91,31 +166,28 @@ static std::atomic_int sToken(53);
 AplAudioPlayerExtension::AplAudioPlayerExtension(std::shared_ptr<AplAudioPlayerExtensionObserverInterface> observer)
         : alexaext::ExtensionBase(URI), mObserver(std::move(observer))
 {
-    mPlaybackStateName = "";
-    mActiveClientToken = "";
     mPlaybackStateActivity = "STOPPED";
     mPlaybackStateOffset = 0;
 }
 
 void
-AplAudioPlayerExtension::applySettings(const rapidjson::Value &settings)
+AplAudioPlayerExtension::applySettings(const ActivityDescriptor &activity, const rapidjson::Value &settings)
 {
-    // Reset to defaults
-    mPlaybackStateName = "";
     if (!settings.IsObject())
         return;
 
     /// Apply document assigned settings
     auto playbackStateName = settings.FindMember(SETTING_PLAYBACK_STATE_NAME);
     if (playbackStateName != settings.MemberEnd() && playbackStateName->value.IsString()) {
-        mPlaybackStateName = settings[SETTING_PLAYBACK_STATE_NAME].GetString();
+        getOrCreateActivityState(activity)->playbackStateName = settings[SETTING_PLAYBACK_STATE_NAME].GetString();
     }
 }
 
 rapidjson::Document
-AplAudioPlayerExtension::createRegistration(const std::string &uri,
+AplAudioPlayerExtension::createRegistration(const ActivityDescriptor& activity,
                                             const rapidjson::Value &registrationRequest)
 {
+    auto uri = activity.getURI();
     if (uri != URI) {
         return  RegistrationFailure::forUnknownURI(uri);
     }
@@ -123,11 +195,10 @@ AplAudioPlayerExtension::createRegistration(const std::string &uri,
     // extract document assigned settings
     const auto *settingsValue = RegistrationRequest::SETTINGS().Get(registrationRequest);
     if (settingsValue)
-        applySettings(*settingsValue);
+        applySettings(activity, *settingsValue);
 
     // session token
     auto clientToken = TAG + std::to_string(sToken++);
-    setActivePresentationSession(clientToken, clientToken);
 
     // return success with the schema and environment
     return RegistrationSuccess(SCHEMA_VERSION)
@@ -226,9 +297,11 @@ AplAudioPlayerExtension::createRegistration(const std::string &uri,
                                        .dataType(DATA_TYPE_ADD_LYRICS_DURATION);
                       })
                       .command(COMMAND_FLUSH_LYRIC_DATA);
+
                 // live data is not used if it has not been named
-                if (!mPlaybackStateName.empty()) {
-                    schema.liveDataMap(mPlaybackStateName, [](LiveDataSchema &liveDataSchema) {
+                auto playbackStateName = getOrCreateActivityState(activity)->playbackStateName;
+                if (!playbackStateName.empty()) {
+                    schema.liveDataMap(playbackStateName, [](LiveDataSchema &liveDataSchema) {
                         liveDataSchema.dataType(DATA_TYPE_PLAYBACK_STATE);
                     });
                 }
@@ -236,8 +309,10 @@ AplAudioPlayerExtension::createRegistration(const std::string &uri,
 }
 
 bool
-AplAudioPlayerExtension::invokeCommand(const std::string &uri, const rapidjson::Value &command)
+AplAudioPlayerExtension::invokeCommand(const ActivityDescriptor& activity, const rapidjson::Value &command)
 {
+    auto uri = activity.getURI();
+
     // unknown URI
     if (uri != URI)
         return false;
@@ -313,12 +388,16 @@ AplAudioPlayerExtension::invokeCommand(const std::string &uri, const rapidjson::
         std::string token = GetWithDefault<const char *>(PROPERTY_TOKEN, *params, "");
         if (token.empty())
             return false;
-        auto lyricData = getActiveLyricsViewedData(true, token);
-        if (!lyricData)
-            return false;
+        auto state = getOrCreateActivityState(activity);
+        auto &activeToken = state->token;
+        // Flush lyric data if tokens are changing
+        if (token != activeToken) {
+            flushLyricData(state);
+        }
+        state->token = token;
         // Validation of lines is handled by lyricData, invalid values are ignored
         const auto &lines = (*params)[PROPERTY_LINES];
-        lyricData->addLyricLinesData(lines);
+        state->addLyricLinesData(lines);
         return true;
     }
 
@@ -329,59 +408,58 @@ AplAudioPlayerExtension::invokeCommand(const std::string &uri, const rapidjson::
         std::string token = GetWithDefault<const char *>(PROPERTY_TOKEN, *params, "");
         if (token.empty())
             return false;
-        auto lyricData = getActiveLyricsViewedData(true, token);
-        if (!lyricData)
-            return false;
         auto duration = GetWithDefault<int>(PROPERTY_DURATION_IN_MILLISECONDS, *params, -1);
         if (duration < 0)
             return false;
-        lyricData->durationInMilliseconds += duration;
+        getOrCreateActivityState(activity)->durationInMilliseconds += duration;
         return true;
     }
 
     if (COMMAND_FLUSH_LYRIC_DATA == name) {
-        if (auto lyricData = getActiveLyricsViewedData()) {
-            flushLyricData(lyricData);
-        }
+        flushLyricData(getOrCreateActivityState(activity));
         return true;
     }
 
     return false;
 }
 
-std::shared_ptr<AplAudioPlayerExtension::LyricsViewedData>
-AplAudioPlayerExtension::getActiveLyricsViewedData(bool initIfNull, const std::string &token)
+void
+AplAudioPlayerExtension::onActivityRegistered(const ActivityDescriptor &activity)
 {
-    if (!mActiveClientToken.empty()) {
-        auto lvdi = mLyricsViewedData.find(mActiveClientToken);
-        if (lvdi != mLyricsViewedData.end()) {
-            auto lyricsViewedData = lvdi->second;
-            // If token has changed for the active skill's lyric data, flush the data and set the new token.
-            if (!token.empty() && lyricsViewedData->token != token) {
-                flushLyricData(lyricsViewedData);
-                lyricsViewedData->token = token;
-            }
-            return lyricsViewedData;
-        }
-    }
-
-    if (initIfNull) {
-        mLyricsViewedData[mActiveClientToken] = std::make_shared<LyricsViewedData>(token);
-        return mLyricsViewedData[mActiveClientToken];
-    }
-
-    return nullptr;
+    getOrCreateActivityState(activity);
 }
 
 void
-AplAudioPlayerExtension::flushLyricData(const std::shared_ptr<LyricsViewedData> &lyricsViewedData)
+AplAudioPlayerExtension::onActivityUnregistered(const ActivityDescriptor &activity)
 {
-    if (!lyricsViewedData->lyricData->Empty()) {
-        mObserver->onAudioPlayerLyricDataFlushed(lyricsViewedData->token,
-                                                 lyricsViewedData->durationInMilliseconds,
-                                                 lyricsViewedData->getLyricDataPayload());
+    flushLyricData(getOrCreateActivityState(activity));
+    std::lock_guard<std::mutex> lock(mStateMutex);
+    mActivityStateMap.erase(activity);
+}
+
+std::shared_ptr<AplAudioPlayerExtension::ActivityState>
+AplAudioPlayerExtension::getOrCreateActivityState(const ActivityDescriptor &activity)
+{
+    std::lock_guard<std::mutex> lock(mStateMutex);
+    auto it = mActivityStateMap.find(activity);
+    if (it != mActivityStateMap.end()) {
+        return it->second;
+    } else {
+        auto state = std::make_shared<ActivityState>();
+        mActivityStateMap.emplace(activity, state);
+        return state;
     }
-    lyricsViewedData->reset();
+}
+
+void
+AplAudioPlayerExtension::flushLyricData(const std::shared_ptr<ActivityState> &activityState)
+{
+    if (!activityState->lyricData->Empty()) {
+        mObserver->onAudioPlayerLyricDataFlushed(activityState->token,
+                                                 activityState->durationInMilliseconds,
+                                                 activityState->getLyricDataPayload());
+    }
+    activityState->clearLyrics();
 }
 
 void
@@ -391,57 +469,78 @@ AplAudioPlayerExtension::updatePlayerActivity(const std::string &state, int offs
         return;
     }
 
-    mPlaybackStateActivity = state;
-    mPlaybackStateOffset = offset;
+    {
+        std::lock_guard<std::mutex> lock(mStateMutex);
+        mPlaybackStateActivity = state;
+        mPlaybackStateOffset = offset;
+    }
 
     auto event = Event("1.0").uri(URI).target(URI)
                              .name(EVENTHANDLER_ON_PLAYER_ACTIVITY_UPDATED_NAME)
                              .property(PROPERTY_PLAYER_ACTIVITY, state)
                              .property(PROPERTY_OFFSET, offset);
     publishLiveData();
-    invokeExtensionEventHandler(URI, event);
+
+    // Make a list of activities to update with the lock
+    std::vector<ActivityDescriptor> activitiesToUpdate;
+    {
+        std::lock_guard<std::mutex> lock(mStateMutex);
+        for (const auto &it: mActivityStateMap) {
+            activitiesToUpdate.emplace_back(it.first);
+        }
+    }
+
+    for (const auto &activity: activitiesToUpdate) {
+        invokeExtensionEventHandler(activity, event);
+    }
 }
 
 void
 AplAudioPlayerExtension::updatePlaybackProgress(int offset)
 {
-    mPlaybackStateOffset = offset;
+    {
+        std::lock_guard<std::mutex> lock(mStateMutex);
+        mPlaybackStateOffset = offset;
+    }
     publishLiveData();
 }
 
 void
 AplAudioPlayerExtension::setActivePresentationSession(const std::string &id, const std::string &skillId)
 {
-    mActiveClientToken = skillId;
-    /// If there's available lyricsViewedData for the newly active skillId, report it immediately
-    if (auto lyricsViewedData = getActiveLyricsViewedData()) {
-        flushLyricData(lyricsViewedData);
-    }
+    // no-op
 }
 
 void
 AplAudioPlayerExtension::publishLiveData()
 {
-    // live data is not used if it has not been named
-    if (mPlaybackStateName.empty())
-        return;
+    // Make a list of updates with the lock
+    std::unordered_map<ActivityDescriptor, std::shared_ptr<LiveDataUpdate>, ActivityDescriptor::Hash> updates;
+    {
+        std::lock_guard<std::mutex> lock(mStateMutex);
+        for (const auto &it: mActivityStateMap) {
+            const auto playbackStateName = it.second->playbackStateName;
+            // Publish live data for activities that set the playback state name
+            if (!playbackStateName.empty()) {
+                auto liveDataUpdate = std::make_shared<LiveDataUpdate>("1.0");
+                liveDataUpdate->uri(URI)
+                        .objectName(playbackStateName)
+                        .target(URI)
+                        .liveDataMapUpdate([&](LiveDataMapOperation& operation) {
+                            operation.type("Set")
+                                .key(PROPERTY_PLAYER_ACTIVITY)
+                                .item(mPlaybackStateActivity);
+                        })
+                        .liveDataMapUpdate([&](LiveDataMapOperation& operation) {
+                            operation.type("Set").key(PROPERTY_OFFSET).item(mPlaybackStateOffset);
+                        });
 
-    //  Publish playback state
-    auto liveDataUpdate = LiveDataUpdate("1.0")
-            .uri(URI)
-            .objectName(mPlaybackStateName)
-            .target(URI)
-            .liveDataMapUpdate([&](LiveDataMapOperation &operation) {
-                operation
-                        .type("Set")
-                        .key(PROPERTY_PLAYER_ACTIVITY)
-                        .item(mPlaybackStateActivity);
-            })
-            .liveDataMapUpdate([&](LiveDataMapOperation &operation) {
-                operation
-                        .type("Set")
-                        .key(PROPERTY_OFFSET)
-                        .item(mPlaybackStateOffset);
-            });
-    invokeLiveDataUpdate(URI, liveDataUpdate);
+                updates.emplace(it.first, liveDataUpdate);
+            }
+        }
+    }
+
+    for (const auto& it: updates) {
+        invokeLiveDataUpdate(it.first, it.second->getDocument());
+    }
 }

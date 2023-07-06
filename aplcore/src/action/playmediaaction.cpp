@@ -108,7 +108,7 @@ PlayMediaAction::freeze()
 }
 
 bool
-PlayMediaAction::rehydrate(const RootContext& context)
+PlayMediaAction::rehydrate(const CoreDocumentContext& context)
 {
     if (!ResourceHoldingAction::rehydrate(context)) return false;
 

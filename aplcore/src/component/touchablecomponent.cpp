@@ -53,9 +53,9 @@ TouchableComponent::setGestureHandlers()
 }
 
 PointerCaptureStatus
-TouchableComponent::processPointerEvent(const PointerEvent& event, apl_time_t timestamp)
+TouchableComponent::processPointerEvent(const PointerEvent& event, apl_time_t timestamp, bool onlyProcessGestures)
 {
-    auto pointerStatus = ActionableComponent::processPointerEvent(event, timestamp);
+    auto pointerStatus = ActionableComponent::processPointerEvent(event, timestamp, onlyProcessGestures);
     if (pointerStatus != kPointerStatusNotCaptured)
         return pointerStatus;
 

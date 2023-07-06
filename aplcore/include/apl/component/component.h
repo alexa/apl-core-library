@@ -29,7 +29,6 @@
 #include "apl/primitives/rect.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/deprecated.h"
-#include "apl/utils/noncopyable.h"
 #include "apl/utils/userdata.h"
 #include "apl/utils/visitor.h"
 
@@ -71,16 +70,19 @@ enum UpdateType {
      * Update the current scroll position.  The argument is the updated scroll position in dp.
      * Scroll positions are non-negative.
      */
+    ///@deprecated
     kUpdateScrollPosition,
 
     /**
      * A pager has been moved by the user.  The argument is the new page number (0-based index).
      */
+    ///@deprecated
     kUpdatePagerPosition,
 
     /**
      * A pager has been moved in response to a SetPage event.  The argument is the new page number (0-based index).
      */
+    ///@deprecated
     kUpdatePagerByEvent,
 
     /**
@@ -138,7 +140,6 @@ enum PageDirection {
 class Component : public UIDObject,
                   public Counter<Component>,
                   public UserData<Component>,
-                  public NonCopyable,
                   public std::enable_shared_from_this<Component> {
 
 public:
@@ -466,8 +467,9 @@ public:
      * Find a component at or below this point in the hierarchy with the given id or uniqueId.
      * @param id The id or uniqueId to search for.
      * @return The component or nullptr if it is not found.
+     * @deprecated Should not be used. Refer to RootContext::findComponentById
      */
-    virtual ComponentPtr findComponentById(const std::string& id) const = 0;
+    APL_DEPRECATED virtual ComponentPtr findComponentById(const std::string& id) const = 0;
 
     /**
      * Find a visible component at or below this point in the hierarchy containing the given position.

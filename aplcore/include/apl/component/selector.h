@@ -16,6 +16,8 @@
 #ifndef _APL_SELECTOR_H
 #define _APL_SELECTOR_H
 
+#include <string>
+
 #include "apl/common.h"
 
 namespace apl {

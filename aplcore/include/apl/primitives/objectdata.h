@@ -596,6 +596,7 @@ private:
  *   std::string toDebugString() const;
  *   bool operator==( const T& other ) const;
  *   bool empty() const;
+ *   bool truthy() const;
  *   rapidjson::Value serialize(rapidjson::document::AllocatorType& allocator) const;
  *
  * @tparam T The type of the stored object.
@@ -624,6 +625,50 @@ public:
 
     bool operator==(const ObjectData& other) const override {
         return mData == static_cast<const DirectObjectData<T> &>(other).mData;
+    }
+
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override {
+        return mData.serialize(allocator);
+    }
+
+private:
+    T mData;
+};
+
+/****************************************************************************/
+
+/**
+ * The EvaluableDirectObjectData is based on DirectObjectData with support
+ * for the eval() object method.
+ *
+ * @tparam T The type of the stored object.
+ */
+template<typename T>
+class EvaluableDirectObjectData : public ObjectData {
+public:
+    static std::shared_ptr<EvaluableDirectObjectData<T>> create(T &&data) {
+        return std::make_shared<EvaluableDirectObjectData<T>>(std::move(data));
+    }
+
+    explicit EvaluableDirectObjectData(T &&data) : mData(std::move(data)) {}
+
+    /**
+     * Internal method for accessing the inner object stored here.
+     * Eventually we will shift this to return const T&
+     * @return a pointer to the raw data stored in this object
+     */
+    const void *inner() const override { return &mData; }
+
+    bool empty() const override { return mData.empty(); }
+
+    bool truthy() const override { return mData.truthy(); }
+
+    Object eval() const override { return mData.eval(); }
+
+    std::string toDebugString() const override { return mData.toDebugString(); }
+
+    bool operator==(const ObjectData& other) const override {
+        return mData == static_cast<const EvaluableDirectObjectData<T> &>(other).mData;
     }
 
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override {

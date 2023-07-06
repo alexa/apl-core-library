@@ -14,10 +14,10 @@
  */
 
 #include "apl/datagrammar/bytecode.h"
-#include "apl/datagrammar/bytecodeoptimizer.h"
 #include "apl/datagrammar/bytecodeevaluator.h"
-#include "apl/datagrammar/boundsymbol.h"
+#include "apl/datagrammar/bytecodeoptimizer.h"
 #include "apl/engine/context.h"
+#include "apl/primitives/boundsymbol.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -26,11 +26,19 @@ namespace datagrammar {
 Object
 ByteCode::eval() const
 {
+    return ByteCode::evaluate(nullptr, 0);
+}
+
+Object
+ByteCode::evaluate(BoundSymbolSet* symbols, int depth) const
+{
     // Check for a trivial instruction
     if (mInstructions.size() == 1) {
         const auto& cmd = mInstructions.at(0);
         switch (cmd.type) {
             case BC_OPCODE_LOAD_BOUND_SYMBOL:
+                if (symbols != nullptr)
+                    symbols->emplace(mData.at(cmd.value).get<BoundSymbol>());
                 return mData.at(cmd.value).eval();
 
             case BC_OPCODE_LOAD_DATA:
@@ -48,92 +56,13 @@ ByteCode::eval() const
         }
     }
 
-    ByteCodeEvaluator evaluator(*this);
+    ByteCodeEvaluator evaluator(*this, symbols, depth);
     evaluator.advance();
-
     if (evaluator.isDone())
         return evaluator.getResult();
 
     CONSOLE(mContext) << "Unable to evaluate byte code data";
     return Object::NULL_OBJECT();
-}
-
-Object
-ByteCode::simplify()
-{
-    ByteCodeEvaluator evaluator(*this);
-    evaluator.advance();
-    if (evaluator.isDone() && evaluator.isConstant())
-        return evaluator.getResult();
-
-    return shared_from_this();
-}
-
-void
-ByteCode::symbols(SymbolReferenceMap& symbols)
-{
-    auto context = mContext.lock();
-    if (!context)
-        return;
-
-    if (!mOptimized) {
-        ByteCodeOptimizer::optimize(*this);
-        mOptimized = true;
-    }
-
-    // Find all symbol references by searching the opcodes.
-    SymbolReference ref;
-    Object operand;
-
-    for (auto &cmd : mInstructions) {
-        switch (cmd.type) {
-            case BC_OPCODE_LOAD_DATA:
-                operand = mData[cmd.value].asString();
-                break;
-
-            case BC_OPCODE_LOAD_IMMEDIATE:
-                operand = cmd.value;
-                break;
-
-            case BC_OPCODE_LOAD_BOUND_SYMBOL:
-                // Store the old symbol
-                if (!ref.first.empty())
-                    symbols.emplace(ref);
-
-                ref = mData[cmd.value].get<datagrammar::BoundSymbol>()->getSymbol();
-                operand = Object::NULL_OBJECT();
-                break;
-
-            case BC_OPCODE_ATTRIBUTE_ACCESS:
-                if (!ref.first.empty())
-                    ref.first += mData[cmd.value].asString() + "/";
-                operand = Object::NULL_OBJECT();
-                break;
-
-            case BC_OPCODE_ARRAY_ACCESS:
-                if (!ref.first.empty()) {
-                    if (operand.isString() || operand.isNumber())
-                        ref.first += operand.asString() + "/";
-                    else {
-                        symbols.emplace(ref);
-                        ref.first.clear();
-                    }
-                }
-                operand = Object::NULL_OBJECT();
-                break;
-
-            default:
-                if (!ref.first.empty()) {
-                    symbols.emplace(ref);
-                    ref.first.clear();
-                }
-                operand = Object::NULL_OBJECT();
-                break;
-        }
-    }
-
-    if (!ref.first.empty())
-        symbols.emplace(ref);
 }
 
 ContextPtr
@@ -143,15 +72,12 @@ ByteCode::getContext() const
 }
 
 void
-ByteCode::dump() const
+ByteCode::optimize()
 {
-    LOG(LogLevel::kDebug).session(getContext()) << "Data";
-    for (int i = 0; i < mData.size(); i++)
-        LOG(LogLevel::kDebug).session(getContext()) << "  [" << i << "] " << mData.at(i).toDebugString();
-
-    LOG(LogLevel::kDebug).session(getContext()) << "Instructions";
-    for (int pc = 0; pc < mInstructions.size(); pc++)
-        LOG(LogLevel::kDebug).session(getContext()) << instructionAsString(pc);
+    if (!mOptimized) {
+        ByteCodeOptimizer::optimize(*this);
+        mOptimized = true;
+    }
 }
 
 
@@ -182,6 +108,7 @@ static const char *BYTE_CODE_COMMAND_STRING[] = {
         "MERGE_AS_STRING        ",
         "APPEND_ARRAY           ",
         "APPEND_MAP             ",
+        "EVALUATE               ",
 };
 
 // This must match the enumerated ByteCodeComparison values
@@ -213,6 +140,24 @@ lineNumber(int i, int num)
     return std::string(offset, ' ') + result;
 }
 
+/**
+ * Convert a generic Object into something that looks good in disassembly
+ *
+ * Null    -> null
+ * Boolean -> true / false
+ * Number  -> normal conversion
+ * String  -> 'VALUE'
+ */
+static std::string
+prettyPrint(const Object& object)
+{
+    if (object.isNull()) return "null";
+    if (object.isString()) return "'" + object.asString() + "'";
+    if (object.isMap()) return "BuiltInMap<>";
+    if (object.isArray()) return "BuiltInArray<>";
+    if (object.is<BoundSymbol>()) return object.toDebugString();
+    return object.asString();
+}
 
 std::string
 ByteCode::instructionAsString(int pc) const
@@ -230,10 +175,13 @@ ByteCode::instructionAsString(int pc) const
         case BC_OPCODE_LOAD_CONSTANT:
             result += std::string(" ") + BYTE_CODE_CONSTANT_STRING[cmd.value];
             break;
+        case BC_OPCODE_LOAD_IMMEDIATE:
+            result += std::string(" ") + std::to_string(cmd.value);
+            break;
         case BC_OPCODE_LOAD_DATA:
         case BC_OPCODE_ATTRIBUTE_ACCESS:
         case BC_OPCODE_LOAD_BOUND_SYMBOL:
-            result += " [" + mData.at(cmd.value).toDebugString() + "]";
+            result += " [" + prettyPrint(mData.at(cmd.value)) + "]";
             break;
         case BC_OPCODE_COMPARE_OP:
             result += std::string(" ") + BYTE_CODE_COMPARE_STRING[cmd.value];
@@ -258,6 +206,63 @@ ByteCodeInstruction::toString() const
 {
     return std::string(BYTE_CODE_COMMAND_STRING[type]) + " (" + std::to_string(value) + ")";
 }
+
+/************* Disassembly routines **************/
+
+Disassembly::Iterator::Iterator(const ByteCode& byteCode, size_t lineNumber)
+    : mByteCode(byteCode), mLineNumber(lineNumber)
+{}
+
+Disassembly::Iterator::reference
+Disassembly::Iterator::operator*() const
+{
+    if (mLineNumber == 0)  // Line 0 is the "Data" label
+        return "DATA";
+    const auto count = mByteCode.dataCount() + 1;  // Line 1-n are the data items
+    if (mLineNumber < count) {
+        auto index = mLineNumber - 1;
+        return lineNumber(index, 6) + "  " + prettyPrint(mByteCode.dataAt(index));
+    }
+    if (mLineNumber == count)
+        return "INSTRUCTIONS";
+    auto pc = mLineNumber - count - 1;
+    if (pc < mByteCode.instructionCount())
+        return mByteCode.instructionAsString(pc);
+
+    return "";   // Should never reach this line
+}
+
+Disassembly::Iterator&
+Disassembly::Iterator::operator++()
+{
+    mLineNumber++;
+    return *this;
+}
+
+bool
+operator== (const Disassembly::Iterator& lhs, const Disassembly::Iterator& rhs)
+{
+    return &lhs.mByteCode == &rhs.mByteCode && lhs.mLineNumber == rhs.mLineNumber;
+}
+
+bool
+operator!= (const Disassembly::Iterator& lhs, const Disassembly::Iterator& rhs)
+{
+    return &lhs.mByteCode != &rhs.mByteCode || lhs.mLineNumber != rhs.mLineNumber;
+}
+
+Disassembly::Iterator
+Disassembly::begin() const
+{
+    return {mByteCode, 0};
+}
+
+Disassembly::Iterator
+Disassembly::end() const
+{
+    return {mByteCode, 2 + mByteCode.instructionCount() + mByteCode.dataCount()};
+}
+
 
 
 } // namespace datagrammar

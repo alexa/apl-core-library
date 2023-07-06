@@ -321,6 +321,11 @@ public:
     Event(EventType eventType, EventBag&& bag, const ComponentPtr& component, ActionRef actionRef);
 
     /**
+     * @return Originating document. Returns null if the underlying document context has been freed.
+     */
+    DocumentContextPtr getDocument() const { return mDocument.lock(); }
+
+    /**
      * @return The type of the event
      */
     EventType getType() const;
@@ -354,16 +359,21 @@ public:
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
     /**
-     * Equality test.  Used primarily by unit testing code; this does not guarantee
-     * that two events are exactly the same, but does check to make sure they look
-     * "approximately" the same
-     * @param rhs The event to compare to
-     * @return True if the two events match
+     * Equality test. Does not guarantee that it's the same event object, but contents are equal.
      */
-    bool matches(const Event& rhs) const;
+    bool operator==(const Event& other) const;
 
 private:
+    friend class DocumentContextData;
+
+    /**
+     * Tag the event with originating document. Called internally.
+     * @param document originating document.
+     */
+    void setDocument(const std::weak_ptr<DocumentContext>& document) { mDocument = document;}
+
     std::shared_ptr<const EventData> mData;
+    std::weak_ptr<DocumentContext> mDocument;
 };
 
 }  // namespace apl

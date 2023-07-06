@@ -17,12 +17,14 @@
 #define _APL_DEPENDANT_H
 
 #include <memory>
+#include <string>
 
 #include "apl/common.h"
+#include "apl/engine/binding.h"
+#include "apl/primitives/boundsymbolset.h"
+#include "apl/primitives/object.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/noncopyable.h"
-#include "apl/primitives/object.h"
-#include "apl/engine/binding.h"
 
 namespace apl {
 
@@ -38,11 +40,11 @@ class Dependant : public Counter<Dependant>,
                   public NonCopyable,
                   public std::enable_shared_from_this<Dependant> {
 public:
-    Dependant(const Object& equation, const ContextPtr& bindingContext, BindingFunction bindingFunction)
-        : mEquation(equation),
-          mBindingContext(bindingContext),
-          mBindingFunction(std::move(bindingFunction))
-        {}
+    Dependant(Object expression,
+              const ContextPtr& bindingContext,
+              BindingFunction bindingFunction,
+              BoundSymbolSet symbols);
+
     virtual ~Dependant() = default;
 
     /**
@@ -54,12 +56,33 @@ public:
      * Recalculate the values in the target object.
      * @param useDirtyFlag If true, mark downstream changes as dirty
      */
-    virtual void recalculate(bool useDirtyFlag) const = 0;
+    virtual void recalculate(bool useDirtyFlag) = 0;
+
+    /**
+     * Enqueue this dependency for recalculation
+     * @return True if the enqueue worked.  False if this dependent should be dropped.
+     */
+    bool enqueue();
+
+    bool friend operator<(const Dependant& lhs, const Dependant& rhs) {
+        return lhs.mOrder < rhs.mOrder;
+    }
+
+    virtual std::string toDebugString() const {
+        return std::string("Dependant<"+std::to_string(mOrder)+">");
+    }
 
 protected:
-    Object mEquation;                        // The equation or expression to be evaluated
-    std::weak_ptr<Context> mBindingContext;  // The context the BindingFunction will be applied in
-    BindingFunction mBindingFunction;        // The function to be applied after evaluation
+    void attach();
+    void detach();
+    void reattach(const BoundSymbolSet& symbols);
+
+protected:
+    Object mExpression;
+    std::weak_ptr<Context> mBindingContext;
+    BindingFunction mBindingFunction;
+    BoundSymbolSet mSymbols;
+    size_t mOrder;
 };
 
 }  // namespace apl

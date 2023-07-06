@@ -13,13 +13,12 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/command/arraycommand.h"
 #include "apl/command/configchangecommand.h"
+
+#include "apl/command/arraycommand.h"
 #include "apl/content/content.h"
 #include "apl/document/documentproperties.h"
-#include "apl/engine/evaluate.h"
-#include "apl/engine/propdef.h"
-#include "apl/engine/rootcontext.h"
+#include "apl/engine/corerootcontext.h"
 
 namespace apl {
 
@@ -28,25 +27,25 @@ const char * ConfigChangeCommand::SEQUENCER = "__CONFIG_CHANGE_SEQUENCER";
 ActionPtr
 ConfigChangeCommand::execute(const TimersPtr& timers, bool fastMode)
 {
-    auto root = mRootContext.lock();
-    if (!root)
+    auto document = mDocumentContext.lock();
+    if (!document)
         return nullptr;
 
     // Extract the event handler commands.  If none exist, we immediately execute the resize and return.
-    auto& json = root->content()->getDocument()->json();
+    auto& json = document->content()->getDocument()->json();
     auto it = json.FindMember(sDocumentPropertyBimap.at(kDocumentPropertyOnConfigChange).c_str());
     if (it == json.MemberEnd()) {
-        root->resize();
+        document->resize();
         return nullptr;
     }
 
-    auto context = root->createDocumentContext("ConfigChange", mProperties);
+    auto context = document->createDocumentContext("ConfigChange", mProperties);
     auto commands = asCommand(*context, evaluate(*context, it->value));
     auto cmd = ArrayCommand::create(context, commands, nullptr, Properties(), "", true);
 
     // The subcommands of the ConfigChangeCommand always run in fast mode
     auto action = cmd->execute(timers, true);
-    auto weak = mRootContext;
+    auto weak = mDocumentContext;
 
     // When all commands have finished executing call RootContext::resize().
     return Action::wrapWithCallback(timers, action, [weak](bool isResolved, const ActionPtr& actionPtr) {

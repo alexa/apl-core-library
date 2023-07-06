@@ -69,7 +69,7 @@ DynamicIndexListDataSourceConnection::processLazyLoad(int index, const Object& d
     if (!context)
         return false;
 
-    auto items = evaluateRecursive(*context, data);
+    auto items = evaluateNested(*context, data);
 
     bool result = false;
     bool outOfRange = false;
@@ -94,12 +94,12 @@ DynamicIndexListDataSourceConnection::processLazyLoad(int index, const Object& d
 
         size_t idx = index - mMinimumInclusiveIndex;
         if (overlaps(idx, dataArray.size())) {
-            constructAndReportError(context->session(), ERROR_REASON_OCCUPIED_LIST_INDEX, index,
+            constructAndReportError(context, ERROR_REASON_OCCUPIED_LIST_INDEX, index,
                     "Load range overlaps existing items. New items for existing range discarded.");
         }
         result = update(idx, dataArray, false);
     } else {
-        constructAndReportError(context->session(), ERROR_REASON_MISSING_LIST_ITEMS, index,
+        constructAndReportError(context, ERROR_REASON_MISSING_LIST_ITEMS, index,
                 "No items provided to load.");
         retryFetchRequest(correlationToken.asString());
         return result;
@@ -109,7 +109,7 @@ DynamicIndexListDataSourceConnection::processLazyLoad(int index, const Object& d
         clearTimeouts(context, correlationToken.asString());
 
     if (!result || outOfRange) {
-        constructAndReportError(context->session(), ERROR_REASON_LOAD_INDEX_OUT_OF_RANGE, index,
+        constructAndReportError(context, ERROR_REASON_LOAD_INDEX_OUT_OF_RANGE, index,
                 "Requested index out of bounds.");
     }
     return result;
@@ -124,13 +124,13 @@ DynamicIndexListDataSourceConnection::processUpdate(DynamicIndexListUpdateType t
     }
 
     if (index < mMinimumInclusiveIndex) {
-        constructAndReportError(context->session(), ERROR_REASON_LIST_INDEX_OUT_OF_RANGE, index,
+        constructAndReportError(context, ERROR_REASON_LIST_INDEX_OUT_OF_RANGE, index,
                                 "Requested index out of bounds.");
         return false;
     }
 
     size_t idx = index - mMinimumInclusiveIndex;
-    auto items = evaluateRecursive(*context, data);
+    auto items = evaluateNested(*context, data);
 
     bool result = false;
 
@@ -160,7 +160,7 @@ DynamicIndexListDataSourceConnection::processUpdate(DynamicIndexListUpdateType t
             }
 
             if (!items.isArray()) {
-                constructAndReportError(context->session(), ERROR_REASON_INTERNAL_ERROR, index,
+                constructAndReportError(context, ERROR_REASON_INTERNAL_ERROR, index,
                         "No array provided for range insert.");
                 return false;
             }
@@ -182,7 +182,7 @@ DynamicIndexListDataSourceConnection::processUpdate(DynamicIndexListUpdateType t
             break;
     }
     if (!result) {
-        constructAndReportError(context->session(), ERROR_REASON_LIST_INDEX_OUT_OF_RANGE, index,
+        constructAndReportError(context, ERROR_REASON_LIST_INDEX_OUT_OF_RANGE, index,
                 "Requested index out of bounds.");
     }
     return result;
@@ -258,7 +258,7 @@ DynamicIndexListDataSourceProvider::createConnection(
     auto ctx = context.lock();
     if (!ctx) return nullptr;
     if (!sourceDefinition.has(START_INDEX) || !sourceDefinition.get(START_INDEX).isNumber()) {
-        constructAndReportError(ctx->session(), ERROR_REASON_INTERNAL_ERROR, "N/A", "Missing required fields.");
+        constructAndReportError(ctx, ERROR_REASON_INTERNAL_ERROR, "N/A", "Missing required fields.");
         return nullptr;
     }
 
@@ -273,7 +273,7 @@ DynamicIndexListDataSourceProvider::createConnection(
     //  * As an exception we allow for all of properties to be equal for proactive loading case.
     if (!(minimumInclusiveIndex == startIndex && maximumExclusiveIndex == startIndex) &&
          (minimumInclusiveIndex > startIndex || maximumExclusiveIndex < startIndex)) {
-        constructAndReportError(ctx->session(), ERROR_REASON_INTERNAL_ERROR, listId, "DataSource bounds configuration is wrong.");
+        constructAndReportError(ctx, ERROR_REASON_INTERNAL_ERROR, listId, "DataSource bounds configuration is wrong.");
         return nullptr;
     }
 
@@ -311,18 +311,18 @@ DynamicIndexListDataSourceProvider::processLazyLoadInternal(
     if (!ctx) return false;
 
     if(connection->updateBounds(minimumInclusiveIndex, maximumExclusiveIndex)) {
-        constructAndReportError(connection->getContext()->session(), ERROR_REASON_INCONSISTENT_RANGE, connection, startIndex,
+        constructAndReportError(connection->getContext(), ERROR_REASON_INCONSISTENT_RANGE, connection, startIndex,
                 "Bounds were changed in runtime.");
     }
 
     if (!responseMap.has(ITEMS)) {
-        constructAndReportError(connection->getContext()->session(), ERROR_REASON_MISSING_LIST_ITEMS, connection,
+        constructAndReportError(connection->getContext(), ERROR_REASON_MISSING_LIST_ITEMS, connection,
                                 Object::NULL_OBJECT(), "No items defined.");
         return true;
     }
 
     if (!connection->changesAllowed()) {
-        constructAndReportError(connection->getContext()->session(), ERROR_REASON_INTERNAL_ERROR, connection,
+        constructAndReportError(connection->getContext(), ERROR_REASON_INTERNAL_ERROR, connection,
                                 Object::NULL_OBJECT(), "Payload has unexpected fields.");
         return true;
     }
@@ -335,7 +335,7 @@ bool
 DynamicIndexListDataSourceProvider::processUpdateInternal(
         const DILConnectionPtr& connection, const Object& responseMap) {
     if (connection->isLazyLoadingOnly()) {
-        constructAndReportError(connection->getContext()->session(), ERROR_REASON_MISSING_LIST_VERSION_IN_SEND_DATA,
+        constructAndReportError(connection->getContext(), ERROR_REASON_MISSING_LIST_VERSION_IN_SEND_DATA,
                                 connection, Object::NULL_OBJECT(), "List supports only lazy loading.");
         connection->setFailed();
         return false;
@@ -347,7 +347,7 @@ DynamicIndexListDataSourceProvider::processUpdateInternal(
     for (const auto& operation : operations) {
         if (!operation.has(UPDATE_TYPE) || !operation.get(UPDATE_TYPE).isString() ||
             !operation.has(UPDATE_INDEX) || !operation.get(UPDATE_INDEX).isNumber()) {
-            constructAndReportError(connection->getContext()->session(), ERROR_REASON_INVALID_OPERATION, connection,
+            constructAndReportError(connection->getContext(), ERROR_REASON_INVALID_OPERATION, connection,
                                     Object::NULL_OBJECT(), "Operation malformed.");
             result = false;
             break;
@@ -355,7 +355,7 @@ DynamicIndexListDataSourceProvider::processUpdateInternal(
 
         auto typeName = operation.get(UPDATE_TYPE).asString();
         if (!sDatasourceUpdateType.count(typeName)) {
-            constructAndReportError(connection->getContext()->session(), ERROR_REASON_INVALID_OPERATION, connection,
+            constructAndReportError(connection->getContext(), ERROR_REASON_INVALID_OPERATION, connection,
                                     Object::NULL_OBJECT(), "Wrong update type.");
             result = false;
             break;
@@ -401,7 +401,7 @@ DynamicIndexListDataSourceProvider::process(const Object& responseMap) {
         return false;
 
     if(connection->inFailState()) {
-        constructAndReportError(context->session(), ERROR_REASON_INTERNAL_ERROR, listId, "List in fail state.");
+        constructAndReportError(context, ERROR_REASON_INTERNAL_ERROR, listId, "List in fail state.");
         return false;
     }
 
@@ -415,7 +415,7 @@ DynamicIndexListDataSourceProvider::process(const Object& responseMap) {
     } else if (responseMap.has(OPERATIONS) && responseMap.get(OPERATIONS).isArray()) {
         isLazyLoading = false;
     } else {
-        constructAndReportError(context->session(), ERROR_REASON_INTERNAL_ERROR, connection,
+        constructAndReportError(context, ERROR_REASON_INTERNAL_ERROR, connection,
                                 Object::NULL_OBJECT(), "Payload missing required fields.");
         return false;
     }
@@ -427,11 +427,11 @@ DynamicIndexListDataSourceProvider::process(const Object& responseMap) {
         if (listVersion > currentListVersion + 1) {
             connection->putCacheUpdate(listVersion - 1, responseMap);
         } else if (listVersion < 0) {
-            constructAndReportError(context->session(), ERROR_REASON_MISSING_LIST_VERSION_IN_SEND_DATA,
+            constructAndReportError(context, ERROR_REASON_MISSING_LIST_VERSION_IN_SEND_DATA,
                                     connection, Object::NULL_OBJECT(), "Missing list version.");
             connection->setFailed();
         } else {
-            constructAndReportError(context->session(), ERROR_REASON_DUPLICATE_LIST_VERSION, connection,
+            constructAndReportError(context, ERROR_REASON_DUPLICATE_LIST_VERSION, connection,
                     Object::NULL_OBJECT(), "Duplicate list version.");
         }
 

@@ -64,6 +64,11 @@ public:
      */
     static Object parse(const Context& context, const std::string& value);
 
+    /**
+     * @return True if we support the #{...} syntax.
+     */
+    bool canDeferAndEval() const { return mCanDeferAndEval; }
+
 private:
     Object retrieve() const;
 
@@ -90,9 +95,12 @@ private:
     void pushGroup();
     void popGroup();
 
+    // Evaluation call
+    void evaluate();
+
     // DB-group
-    void pushDBGroup();
-    void popDBGroup();
+    void pushDBGroup(bool defer);
+    bool popDBGroup(); // Return true if is a #{...} group that should be replaced with ${...}
 
     // AND/OR/NULLC-statement
     void pushAnd();
@@ -130,6 +138,7 @@ private:
     void endString();
 
     std::string toString() const;
+    bool deferred() const { return mDeferredDepth > 0; }
 
     ContextPtr context() const { return mContext; }
 
@@ -161,6 +170,8 @@ private:
     std::vector<ByteCodeInstruction>* mInstructionRef;
     std::vector<Object>* mDataRef;
     std::vector<Operator>* mOperatorsRef;
+    int mDeferredDepth = 0;  // Track the stack of nested deferred evaluation #{..#{..${...}..}..}
+    bool mCanDeferAndEval = false;  // Set to true if this assembler supports deferred evaluation (2023.2 or later)
 };
 
 } // namespace datagrammar

@@ -99,12 +99,12 @@ template<> struct action< quoted >
 
 
 std::vector<std::string>
-splitFontString(const RootConfig& rootConfig, const std::string& text)
+splitFontString(const RootConfig& rootConfig, const SessionPtr& session, const std::string& text)
 {
     grammar::split_state state;
     pegtl::string_input<> in(text, "");
     if (!pegtl::parse<grammar::textlist, grammar::action, apl_control>(in, state) || state.failed) {
-        CONSOLE(rootConfig.getSession()) << "Parse error in '" << text << "' - " << state.what();
+        CONSOLE(session) << "Parse error in '" << text << "' - " << state.what();
         state.strings.clear();  // Throw away any partial data that was parsed
     }
 

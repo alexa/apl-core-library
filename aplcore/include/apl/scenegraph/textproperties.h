@@ -35,6 +35,7 @@ public:
                                     std::vector<std::string>&& fontFamily,
                                     float fontSize,
                                     FontStyle fontStyle,
+                                    const std::string& language,
                                     int fontWeight,
                                     float letterSpacing = 0,
                                     float lineHeight = 1.25f,
@@ -47,6 +48,7 @@ public:
     const std::vector<std::string>& fontFamily() const { return mFontFamily; }
     float fontSize() const { return mFontSize; }
     FontStyle fontStyle() const { return mFontStyle; }
+    std::string language() const { return mLanguage; }
     int fontWeight() const { return mFontWeight; }
     float letterSpacing() const { return mLetterSpacing; }
 
@@ -64,6 +66,7 @@ private:
     std::vector<std::string> mFontFamily;
     float mFontSize;
     FontStyle mFontStyle;
+    std::string mLanguage;
     int mFontWeight;
     float mLetterSpacing;
 

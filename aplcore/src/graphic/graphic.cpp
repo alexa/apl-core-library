@@ -17,7 +17,7 @@
 
 #include "apl/component/vectorgraphiccomponent.h"
 #include "apl/engine/arrayify.h"
-#include "apl/engine/contextdependant.h"
+#include "apl/engine/typeddependant.h"
 #include "apl/engine/propdef.h"
 #include "apl/engine/resources.h"
 #include "apl/graphic/graphicbuilder.h"
@@ -194,16 +194,14 @@ Graphic::initialize(const ContextPtr& sourceContext,
         // Check if there is an assigned property
         auto it = properties.find(param.name);
         if (it != properties.end()) {
-            mAssigned.emplace(param.name);  // Mark this as an assigned property
+            mAssigned.emplace(param.name); // Mark this as an assigned property
+            auto result = parseAndEvaluate(*sourceContext, it->second);
+            value = conversionFunc(*sourceContext, result.value);
 
-            // If the assigned property is a string, check for data-binding
-            if (it->second.isString()) {
-                parsed = parseDataBinding(*sourceContext, it->second.getString());
-                value = conversionFunc(*sourceContext, evaluate(*sourceContext, parsed));
-            }
-            else {
-                value = conversionFunc(*sourceContext, evaluate(*sourceContext, it->second));
-            }
+            if (!result.symbols.empty())
+                ContextDependant::create(mContext, param.name, std::move(result.expression),
+                                         sourceContext, conversionFunc,
+                                         std::move(result.symbols));
         }
         else if (styledPtr) {  // Look for a styled value
             auto itStyle = styledPtr->find(param.name);
@@ -214,10 +212,6 @@ Graphic::initialize(const ContextPtr& sourceContext,
         // Store the calculated value in the data-binding context
         LOG_IF(DEBUG_GRAPHIC).session(sourceContext) << "Storing parameter '" << param.name << "' = " << value;
         mContext->putUserWriteable(param.name, value);
-
-        // After storing the parameter we can wire up any necessary data dependant
-        if (parsed.isEvaluable())
-            ContextDependant::create(mContext, param.name, parsed, sourceContext, conversionFunc);
     }
 
     auto self = std::static_pointer_cast<Graphic>(shared_from_this());

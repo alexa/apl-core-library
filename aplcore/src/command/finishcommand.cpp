@@ -29,6 +29,9 @@ FinishCommand::propDefSet() const {
 
 ActionPtr
 FinishCommand::execute(const TimersPtr& timers, bool fastMode) {
+    // TODO: Not supported for now.
+    if (mContext->embedded()) return nullptr;
+
     if (!calculateProperties())
         return nullptr;
 

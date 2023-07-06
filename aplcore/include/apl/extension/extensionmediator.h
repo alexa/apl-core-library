@@ -26,16 +26,17 @@
 
 #include "apl/content/content.h"
 #include "apl/content/rootconfig.h"
-#include "apl/engine/rootcontext.h"
+#include "apl/document/displaystate.h"
 #include "apl/extension/extensionclient.h"
 #include "apl/extension/extensionsession.h"
 
 namespace apl {
 
-class RootContext;
 class ExtensionSessionState;
 
 using ExtensionsLoadedCallback = std::function<void()>;
+
+using ExtensionsLoadedCallbackV2 = std::function<void(bool)>;
 
 /**
  * This class mediates message passing between "local" alexaext::Extension and the APL engine.  It
@@ -131,36 +132,74 @@ public:
                                                              ExtensionGrantResult deny)>;
 
     /**
-     * Initialize extensions available in provided content. Performance gains can be made
-     * by initializing extensions as each apl::Content package is loaded. Once Content is ready,
-     * and all packages have been initialized, @c loadExtensions should be used to register the
-     * extensions for use.
-     *
-     * An optional grant request handler is used to grant/deny use of the extension.  In the
-     * absence of the grant handler use of the extension is automatically granted.  Calling
-     * loadExtensions before a grant/deny response results in the extension being unavailable for
-     * use.
-     *
-     * @param rootConfig The RootConfig receiving the registered extensions.
-     * @param content The document content, contains requested extensions
-     * @param grantHandler Callback that grants use of the extension.
+     * @deprecated Use ExtensionMediator::initializeExtensions(const ObjectMap& flagMap, const
+     *             ContentPtr& content, const ExtensionGrantRequestCallback& grantHandler) instead
      */
     void initializeExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content,
                               const ExtensionGrantRequestCallback& grantHandler = nullptr);
 
     /**
-     * Register the extensions found in the associated  alexaext::ExtensionProvider.  This method
-     * should be used in conjunction with @c initializeExtensions.  Performance gains can be made
-     * by initializing extensions as each Content package is loaded.  @c initializeExtensions.
+     * @deprecated Use ExtensionMediator::loadExtensions(const ObjectMap& flagMap, const ContentPtr&
+     *             content, ExtensionsLoadedCallbackV2 loaded) instead
+     */
+    void loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content, ExtensionsLoadedCallback loaded);
+
+    /**
+     * @deprecated Use ExtensionMediator::loadExtensions(const ObjectMap& flagMap, const ContentPtr&
+     *             content, ExtensionsLoadedCallbackV2 loaded) instead
+     */
+    void loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content,
+                        ExtensionsLoadedCallbackV2 loaded);
+
+    /**
+     * @deprecated Use ExtensionMediator::loadExtensions(const ObjectMap& flagMap, const ContentPtr&
+     *             content, const std::set<std::string>* grantedExtensions) instead
+     */
+    void loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content,
+                        const std::set<std::string>* grantedExtensions = nullptr);
+
+    /**
+     * Initialize extensions available in provided content. Performance gains can be made by
+     * initializing extensions as each apl::Content package is loaded. Once Content is ready, and
+     * all packages have been initialized, @c loadExtensions should be used to register the
+     * extensions for use.
+     *
+     * An optional grant request handler is used to grant/deny use of the extension. In the absence
+     * of the grant handler use of the extension is automatically granted. Calling loadExtensions
+     * before a grant/deny response results in the extension being unavailable for use.
+     *
+     * @param flagMap A map of runtime-provided flags in the form uri->flags
+     * @param content The document content, contains requested extensions
+     * @param grantHandler Callback that grants use of the extension.
+     */
+    void initializeExtensions(const ObjectMap& flagMap, const ContentPtr& content,
+                              const ExtensionGrantRequestCallback& grantHandler = nullptr);
+
+    /**
+     * Register the extensions found in the associated alexaext::ExtensionProvider.  This method
+     * should be used in conjunction with @c initializeExtensions. Performance gains can be made by
+     * initializing extensions as each Content package is loaded. @c initializeExtensions.
      *
      * Must be called before RootContext::create();
      *
-     * @param rootConfig The RootConfig receiving the registered extensions.
+     * @param flagMap A map of runtime-provided flags in the form uri->flags
      * @param content The document content, contains requested extensions and extension settings.
      * @param loaded Callback to be called when all extensions required by the doc are loaded.
      */
-    void loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content,
-                        ExtensionsLoadedCallback loaded);
+    void loadExtensions(const ObjectMap& flagMap, const ContentPtr& content, ExtensionsLoadedCallback loaded);
+
+    /**
+     * Register the extensions found in the associated alexaext::ExtensionProvider.  This method
+     * should be used in conjunction with @c initializeExtensions. Performance gains can be made by
+     * initializing extensions as each Content package is loaded. @c initializeExtensions.
+     *
+     * Must be called before RootContext::create();
+     *
+     * @param flagMap A map of runtime-provided flags in the form uri->flags
+     * @param content The document content, contains requested extensions and extension settings.
+     * @param loaded Callback to be called when all extensions required by the doc are loaded.
+     */
+    void loadExtensions(const ObjectMap& flagMap, const ContentPtr& content, ExtensionsLoadedCallbackV2 loaded);
 
     /**
      * Register the extensions found in the associated  alexaext::ExtensionProvider. This method
@@ -173,13 +212,12 @@ public:
      *
      * Must be called before RootContext::create();
      *
-     * @param rootConfig The RootConfig receiving the registered extensions.
+     * @param flagMap A map of runtime-provided flags in the form uri->flags
      * @param content The document content, contains requested extensions and extension settings.
      * @param grantedExtensions Pre-granted extensions, may be null.
      */
-    void loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content,
+    void loadExtensions(const ObjectMap& flagMap, const ContentPtr& content,
                         const std::set<std::string>* grantedExtensions = nullptr);
-
 
     /**
      * Process an extension event. The extension must be registered in the associated
@@ -189,7 +227,7 @@ public:
      * @param root The root context.
      * @return true if the command was invoked.
      */
-    bool invokeCommand(const Event& even);
+    bool invokeCommand(const Event& event);
 
     /**
      * Notify the extension that the component has changed.  Changes may be a result of document
@@ -257,31 +295,32 @@ public:
     void onDisplayStateChanged(DisplayState displayState);
 
 private:
-    friend class RootContext;
+    friend class CoreDocumentContext;
+    friend class ExtensionManager;
 
     /**
      * Initialize an extension that was granted approval for use.
      */
-    void grantExtension(const RootConfigPtr& rootConfig, const std::string& uri);
+    void grantExtension(const Object& flags, const std::string& uri);
 
     /**
      * Stop initialization on a denied extension.
      */
-    void denyExtension(const RootConfigPtr& rootConfig, const std::string& uri);
+    void denyExtension(const std::string& uri);
 
     /**
      * Perform extension registration requests.
      */
-    void loadExtensionsInternal(const RootConfigPtr& rootConfig, const ContentPtr& content);
+    void loadExtensionsInternal(const ObjectMap& flagMap, const ContentPtr& content);
 
     /**
-     * Associate a RootContext to the mediator for event and live data updates.
+     * Associate a CoreDocumentContext to the mediator for event and live data updates.
+     * @param context Pointer to the DocumentContext.
      */
-    void bindContext(const RootContextPtr& context);
+    void bindContext(const CoreDocumentContextPtr& context);
 
     /**
-     * Registers the extensions found in the ExtensionProvider by calling
-     * RootConfig::registerExtensionXXX().
+     * Registers an extensions found in the ExtensionProvider
      */
     void registerExtension(const std::string& uri,
                            const alexaext::ExtensionProxyPtr& extension,
@@ -311,6 +350,12 @@ private:
      * @return ExtensionClient, if exists, null otherwise.
      */
     ExtensionClientPtr getClient(const std::string& uri);
+
+    /**
+     * Get the clients associated with this mediator
+     * @return a map of extension URIs to clients
+     */
+    const std::map<std::string, ExtensionClientPtr>& getClients();
 
     /**
      * Send a resource to an extension.
@@ -358,7 +403,7 @@ private:
      */
     void unregister(const alexaext::ActivityDescriptorPtr& activity);
 
- private:
+private:
     // access to the extensions
     std::weak_ptr<alexaext::ExtensionProvider> mProvider;
     // access to the extension resources
@@ -368,9 +413,9 @@ private:
     // Extension session, if provided (nullptr otherwise)
     ExtensionSessionPtr mExtensionSession;
     // the context that events and data updates are forwarded to
-    std::weak_ptr<RootContext> mRootContext;
-    // reference to associated config
-    std::weak_ptr<RootConfig> mRootConfig;
+    std::weak_ptr<CoreDocumentContext> mDocumentContext;
+    // session extracted from loaded content
+    SessionPtr mSession;
     // retro extension wrapper used for message passing
     std::map<std::string, std::shared_ptr<ExtensionClient>> mClients;
     // Determines whether incoming messages from extensions should be processed.
@@ -379,8 +424,12 @@ private:
     std::set<std::string> mPendingGrants;
     // Pending Extensions to register.
     std::set<std::string> mPendingRegistrations;
+    // Required extensions list
+    std::set<std::string> mRequired;
+    // Mediator is in fail state if true
+    bool mFailState = false;
     // Extensions loaded callback
-    ExtensionsLoadedCallback mLoadedCallback;
+    ExtensionsLoadedCallbackV2 mLoadedCallback;
     std::unordered_map<std::string, alexaext::ActivityDescriptorPtr> mActivitiesByURI;
 };
 

@@ -25,14 +25,14 @@ namespace apl {
 class ArrayAction : public Action {
 public:
     static std::shared_ptr<ArrayAction> make(const TimersPtr& timers,
-                                             std::shared_ptr<const ArrayCommand> command,
+                                             std::shared_ptr<const ArrayCommand>&& command,
                                              bool fastMode) {
-        auto ptr = std::make_shared<ArrayAction>(timers, command, fastMode);
+        auto ptr = std::make_shared<ArrayAction>(timers, std::move(command), fastMode);
         ptr->advance();
         return ptr;
     }
 
-    ArrayAction(const TimersPtr& timers, std::shared_ptr<const ArrayCommand> command, bool fastMode);
+    ArrayAction(const TimersPtr& timers, std::shared_ptr<const ArrayCommand>&& command, bool fastMode);
 
 private:
     void advance();

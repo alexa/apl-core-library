@@ -56,7 +56,6 @@
 namespace apl {
 
 namespace datagrammar {
-    class BoundSymbol;
     class ByteCode;
 }
 
@@ -66,7 +65,6 @@ class Dimension;
 class LiveDataObject;
 class RangeGenerator;
 class SliceGenerator;
-class SymbolReferenceMap;
 class ObjectData;
 class ObjectType;
 
@@ -307,9 +305,6 @@ public:
 
     // BoundSymbol, and compiled ByteCodeInstruction objects
     bool isPure() const;
-
-    // BoundSymbol, ByteCode: Add any symbols defined by this node to the "symbols" set
-    void symbols(SymbolReferenceMap& symbols) const;
 
     // FUNCTION & Easing objects
     Object call(const ObjectArray& args) const;

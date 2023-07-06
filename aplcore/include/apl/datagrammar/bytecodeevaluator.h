@@ -20,6 +20,7 @@
 #include <memory>
 
 #include "apl/datagrammar/bytecode.h"
+#include "apl/primitives/boundsymbolset.h"
 
 namespace apl {
 namespace datagrammar {
@@ -30,7 +31,7 @@ namespace datagrammar {
  */
 class ByteCodeEvaluator {
 public:
-    explicit ByteCodeEvaluator(const ByteCode& byteCode);
+    ByteCodeEvaluator(const ByteCode& byteCode, BoundSymbolSet *symbols, int depth);
 
     /**
      * Start or continue executing the byte code.
@@ -43,17 +44,6 @@ public:
     bool isDone() const { return mState == DONE; }
 
     /**
-     * @return True if the byte code is an error state
-     */
-    bool isError() const { return mState == ERROR; }
-
-    /**
-     * Only valid after the byte code has run to completion.
-     * @return True if the byte code does not depend on any mutable methods or data.
-     */
-    bool isConstant() const { assert(mState == DONE); return mIsConstant; }
-
-    /**
      * @return The result of executing the byte code.  If the return type is void, this
      *         method will return null.
      */
@@ -64,9 +54,10 @@ private:
 
     const ByteCode& mByteCode;
     std::vector<Object> mStack;
+    BoundSymbolSet *mSymbols;
     int mProgramCounter = 0;
+    int mEvaluationDepth;
     State mState = INIT;
-    bool mIsConstant = true;
 };
 
 } // namespace datagrammar

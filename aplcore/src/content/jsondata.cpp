@@ -16,6 +16,8 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
+#include "apl/primitives/object.h"
+
 namespace apl {
 
 std::string
@@ -35,6 +37,21 @@ JsonData::toString() const
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     get().Accept(writer);
     return buffer.GetString();
+}
+
+Object
+JsonData::moveToObject()
+{
+    if (mType == kValue) {
+        mType = kNullPtr;
+        Object obj(*mValuePtr);
+        mValuePtr = nullptr;
+        return obj;
+    }
+    else {
+        mType = kNullPtr;
+        return {std::move(mDocument) };
+    }
 }
 
 } // namespace apl

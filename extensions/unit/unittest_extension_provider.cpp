@@ -24,7 +24,6 @@ using namespace rapidjson;
 class SimpleExtension final : public ExtensionBase {
 
 public:
-
     explicit SimpleExtension(const std::string& uri) : ExtensionBase(uri) {};
 
     explicit SimpleExtension(const std::set<std::string>& uris) : ExtensionBase(uris) {};
@@ -52,6 +51,8 @@ public:
                 settingA = obj["A"].GetInt();
             if (obj.HasMember("B"))
                 settingsB = obj["B"].GetString();
+            if (obj.HasMember("WantsInitialLiveData") && obj["WantsInitialLiveData"].GetBool())
+                needsInitialLiveData = true;
         }
 
         Document environment;
@@ -59,9 +60,24 @@ public:
 
         auto registration = RegistrationSuccess("1.0").uri(uri).token("SessionToken1")
                 .environment(environment)
-                .schema("1.0", [uri](ExtensionSchema schema) {
+                .schema("1.0", [&, uri](ExtensionSchema schema) {
                     schema.uri(uri).event("boo");
+                    if (needsInitialLiveData) {
+                        schema
+                            .dataType("SampleData", [](TypeSchema &dataTypeSchema) {
+                                  dataTypeSchema
+                                      .property("label", "string");
+                              })
+                            .liveDataMap("IAmData", [](LiveDataSchema &liveDataSchema) {
+                                liveDataSchema.dataType("SampleData");
+                                Document doc;
+                                doc.Parse(R"({"label": "example"})");
+                                liveDataSchema.data(doc);
+                            });
+                    }
                 });
+
+
 
         return registration;
     }
@@ -78,6 +94,7 @@ public:
 
     int settingA;
     std::string settingsB;
+    bool needsInitialLiveData = false;
 };
 
 /**
@@ -329,6 +346,80 @@ TEST_F(ExtensionProviderTest, RegistrationSuccessSettings) {
     auto simple = std::static_pointer_cast<SimpleExtension>(ext);
     ASSERT_EQ(64, simple->settingA);
     ASSERT_EQ("hello", simple->settingsB);
+}
+
+static const char* REGISTRATION_SUCCESS_WITH_LIVE_DATA = R"({
+  "version": "1.0",
+  "method": "RegisterSuccess",
+  "uri": "aplext:foo:10",
+  "target": "aplext:foo:10",
+  "token": "SessionToken1",
+  "environment": {
+    "WantsInitialLiveData": true
+  },
+  "schema": {
+    "type": "Schema",
+    "version": "1.0",
+    "events": [
+      {
+        "name": "boo"
+      }
+    ],
+    "types": [
+      {
+        "name": "SampleData",
+        "properties": {
+          "label": "string"
+        }
+      }
+    ],
+    "commands": [],
+    "liveData": [
+      {
+        "name": "IAmData",
+        "events": [],
+        "type": "SampleData",
+        "data": {
+          "label": "example"
+        }
+      }
+    ],
+    "components": [],
+    "uri": "aplext:foo:10"
+  }
+})";
+
+/**
+ * Example of settings for LiveData
+ */
+TEST_F(ExtensionProviderTest, RegistrationSuccessWithLiveSettings) {
+    ASSERT_TRUE(extPro->hasExtension("aplext:foo:10"));
+    auto foo = extPro->getExtension("aplext:foo:10");
+    ASSERT_TRUE(foo);
+
+    document.Parse(R"({
+        "WantsInitialLiveData": true
+    })");
+    Document req = RegistrationRequest("aplext:foo:10").settings(document);
+
+    bool gotsuccess = false;
+    auto invoke = foo->getRegistration(
+        "aplext:foo:10", req,
+        [this, &gotsuccess](const std::string& uri, const rapidjson::Value& registerSuccess) {
+            gotsuccess = true;
+            ASSERT_EQ("aplext:foo:10", uri);
+            AssertMessage(uri, "RegisterSuccess", registerSuccess);
+
+            rapidjson::Document document(rapidjson::kObjectType);
+            rapidjson::Document result;
+            rapidjson::ParseResult ok = result.Parse(REGISTRATION_SUCCESS_WITH_LIVE_DATA);
+            ASSERT_TRUE(ok);
+
+            ASSERT_TRUE(registerSuccess == result);
+        },
+        nullptr);
+    ASSERT_TRUE(invoke);
+    ASSERT_TRUE(gotsuccess);
 }
 
 /**

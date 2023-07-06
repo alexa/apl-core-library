@@ -130,7 +130,9 @@ function apl-test-core {  # Run unit tests in the core build
         apl-switch-to-build-directory build $@ && \
         $CMAKE -DBUILD_TESTS=ON  -DCOVERAGE=OFF .. && \
         make -j$APL_BUILD_PROCS && \
-        unit/unittest
+        aplcore/unit/unittest && \
+        tools/unit/tools-unittest && \
+        extensions/unit/alexaext-unittest
     )
 }
 
@@ -139,7 +141,9 @@ function apl-memcheck-core {  # Run unit tests in the core build
         apl-switch-to-build-directory build $@ && \
         $CMAKE -DBUILD_TESTS=ON  -DCOVERAGE=OFF .. && \
         make -j$APL_BUILD_PROCS && \
-        valgrind --tool=memcheck --gen-suppressions=all --track-origins=yes --leak-check=full --num-callers=50 ./unit/unittest
+        valgrind --tool=memcheck --gen-suppressions=all --track-origins=yes --leak-check=full --num-callers=50 ./aplcore/unit/unittest && \
+        valgrind --tool=memcheck --gen-suppressions=all --track-origins=yes --leak-check=full --num-callers=50 ./tools/unit/tools-unittest && \
+        valgrind --tool=memcheck --gen-suppressions=all --track-origins=yes --leak-check=full --num-callers=50 ./extensions/unit/alexaext-unittest
     )
 }
 

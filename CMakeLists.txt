@@ -19,6 +19,11 @@ cmake_minimum_required(VERSION 3.11)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(POLICY CMP0135)
+    # If available, use the new timestamp policy for FetchContent
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 project(APLCoreEngine
         VERSION 1.0.0
         LANGUAGES CXX)
@@ -32,3 +37,13 @@ include(options.cmake)
 set(APL_PATCH_DIR "${CMAKE_CURRENT_SOURCE_DIR}/patches")
 
 include(components.cmake)
+
+if (BUILD_UNIT_TESTS)
+    include(CTest)
+
+    set(MEMCHECK_OPTIONS "--tool=memcheck --leak-check=full --show-reachable=no --error-exitcode=1 --errors-for-leak-kinds=definite,possible")
+    add_custom_target(unittest_memcheck
+        COMMAND ${CMAKE_CTEST_COMMAND} -VV
+        --overwrite MemoryCheckCommandOptions=${MEMCHECK_OPTIONS}
+        -T memcheck)
+endif()

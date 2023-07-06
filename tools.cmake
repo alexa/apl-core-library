@@ -12,6 +12,8 @@
 # permissions and limitations under the License.
 
 if (BUILD_ENUMGEN)
+    message("Building enumgen")
+
     set(ENUMGEN_INSTALL_DIR "${CMAKE_BINARY_DIR}/tools")
     set(ENUMGEN_BIN "${ENUMGEN_INSTALL_DIR}/enumgen")
 
@@ -20,4 +22,10 @@ if (BUILD_ENUMGEN)
         SOURCE_DIR ${APL_PROJECT_DIR}/tools
         CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX=${ENUMGEN_INSTALL_DIR}"
     )
+
+    if (BUILD_UNIT_TESTS)
+        message("tools - Unit test build enabled.")
+        enable_testing()
+        add_subdirectory(tools/unit)
+    endif()
 endif()

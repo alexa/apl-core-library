@@ -20,21 +20,9 @@
 
 namespace apl {
 
-class ClearFocusCommand : public CoreCommand {
+class ClearFocusCommand : public TemplatedCommand<ClearFocusCommand> {
 public:
-    static CommandPtr create(const ContextPtr& context,
-                             Properties&& properties,
-                             const CoreComponentPtr& base,
-                             const std::string& parentSequencer) {
-        auto ptr = std::make_shared<ClearFocusCommand>(context, std::move(properties), base, parentSequencer);
-        return ptr->validate() ? ptr : nullptr;
-    }
-
-    ClearFocusCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
-            const std::string& parentSequencer)
-            : CoreCommand(context, std::move(properties), base, parentSequencer)
-    {
-    }
+    COMMAND_CONSTRUCTOR(ClearFocusCommand);
 
     const CommandPropDefSet& propDefSet() const override;
 

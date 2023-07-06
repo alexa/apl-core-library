@@ -81,15 +81,13 @@ public:
     /**
      * The "key" local element has changed.  Recalculate all downstream objects that depend on key.
      * @param key The key that has changed.
-     * @param useDirtyFlag If true, mark downstream changes with the dirty flag
      */
-    void recalculateDownstream(T key, bool useDirtyFlag) {
+    void enqueueDownstream(T key) {
         auto dependants = mDownstream.equal_range(key);
         auto it = dependants.first;
         while (it != dependants.second) {
             auto ptr = it->second.lock();
-            if (ptr) {
-                ptr->recalculate(useDirtyFlag);
+            if (ptr && ptr->enqueue()) {
                 it++;
             }
             else {

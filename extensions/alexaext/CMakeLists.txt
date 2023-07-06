@@ -27,9 +27,11 @@ project(AlexaExt
 add_library(alexaext STATIC
             src/APLAudioPlayerExtension/AplAudioPlayerExtension.cpp
             src/APLE2EEncryptionExtension/AplE2eEncryptionExtension.cpp
-        src/APLWebflowExtension/AplWebflowBase.cpp
-        src/APLWebflowExtension/AplWebflowExtension.cpp
-        src/APLMusicAlarmExtension/AplMusicAlarmExtension.cpp
+            src/APLMetricsExtension/AplMetricsExtension.cpp
+            src/APLWebflowExtension/AplWebflowBase.cpp
+            src/APLWebflowExtension/AplWebflowExtension.cpp
+            src/APLMusicAlarmExtension/AplMusicAlarmExtension.cpp
+            src/APLAttentionSystemExtension/AplAttentionSystemExtension.cpp
             src/executor.cpp
             src/extensionmessage.cpp
             src/extensionregistrar.cpp
@@ -40,9 +42,9 @@ add_library(alexaext STATIC
 
 if (BUILD_SHARED OR ENABLE_PIC)
     set_target_properties(alexaext
-                PROPERTIES
-                POSITION_INDEPENDENT_CODE ON
-                )
+        PROPERTIES
+            POSITION_INDEPENDENT_CODE ON
+)
 endif()
 
 set_target_properties(alexaext
@@ -54,8 +56,9 @@ target_include_directories(alexaext
     PUBLIC
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-        $<BUILD_INTERFACE:${RAPIDJSON_INCLUDE}>
 )
+
+target_link_libraries(alexaext PUBLIC rapidjson-apl)
 
 target_compile_options(alexaext
     PRIVATE
@@ -98,8 +101,20 @@ install(
     DESTINATION
         lib/cmake/alexaext
     FILE
-        alexaextConfig.cmake
+        alexaextTargets.cmake
 )
 
 add_library(alexa::extensions ALIAS alexaext)
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(alexaextConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/alexaextConfig.cmake
+    INSTALL_DESTINATION
+        lib/cmake/alexaext
+    NO_CHECK_REQUIRED_COMPONENTS_MACRO)
+install(
+    FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/alexaextConfig.cmake
+    DESTINATION
+        lib/cmake/alexaext
+)
 

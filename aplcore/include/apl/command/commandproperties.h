@@ -46,6 +46,8 @@ enum CommandType {
     kCommandTypeFinish,
     kCommandTypeReinflate,
     kCommandTypeCustomEvent,
+    kCommandTypeInsertItem,
+    kCommandTypeRemoveItem,
 };
 
 enum CommandScrollAlign {
@@ -78,6 +80,7 @@ enum CommandControlMedia {
     kCommandControlMediaPrevious,
     kCommandControlMediaRewind,
     kCommandControlMediaSeek,
+    kCommandControlMediaSeekTo,
     kCommandControlMediaSetTrack
 };
 
@@ -94,6 +97,7 @@ enum CommandReason {
 enum CommandPropertyKey {
     kCommandPropertyAlign,
     kCommandPropertyArguments,
+    kCommandPropertyAt,
     kCommandPropertyAudioTrack,
     kCommandPropertyCatch,
     kCommandPropertyCommand,
@@ -111,6 +115,7 @@ enum CommandPropertyKey {
     kCommandPropertyFlags,
     kCommandPropertyHighlightMode,
     kCommandPropertyIndex,
+    kCommandPropertyItem,
     kCommandPropertyMinimumDwellTime,
     kCommandPropertyOnFail,
     kCommandPropertyOtherwise,

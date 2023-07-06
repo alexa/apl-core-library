@@ -45,7 +45,6 @@ public:
     std::string asString(const Context& context, const char *name, const char *defvalue);
     bool asBoolean(const Context& context, const char *name, bool defvalue);
     double asNumber(const Context& context, const char *name, double defvalue);
-    Dimension asAbsoluteDimension(const Context& context, const char *name, double defvalue);
 
     void emplace(const Object& item);
     void emplace(const std::string& name, const Object& value) { mProperties.emplace(name, value); }

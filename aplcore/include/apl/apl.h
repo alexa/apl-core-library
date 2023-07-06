@@ -25,7 +25,7 @@
 #include "rapidjson/document.h"
 
 #include "apl/buildTimeConstants.h"
-#include "apl/common.h"
+#include "apl/apl_config.h"
 
 #include "apl/action/action.h"
 #include "apl/audio/audioplayer.h"
@@ -43,6 +43,9 @@
 #include "apl/content/rootconfig.h"
 #include "apl/datasource/datasourceconnection.h"
 #include "apl/datasource/datasourceprovider.h"
+#include "apl/document/documentcontext.h"
+#include "apl/embed/documentmanager.h"
+#include "apl/embed/embedrequest.h"
 #include "apl/engine/event.h"
 #include "apl/engine/rootcontext.h"
 #include "apl/extension/extensionclient.h"
@@ -67,6 +70,7 @@
 #include "apl/primitives/roundedrect.h"
 #include "apl/primitives/styledtext.h"
 #include "apl/primitives/transform2d.h"
+#include "apl/primitives/urlrequest.h"
 #include "apl/scaling/metricstransform.h"
 #include "apl/touch/pointerevent.h"
 #include "apl/utils/localemethods.h"

@@ -1,30 +1,51 @@
 @PACKAGE_INIT@
 
+set(USE_PROVIDED_YOGA_INLINE @USE_PROVIDED_YOGA_INLINE@)
 set(YOGA_EXTERNAL_LIB @YOGA_EXTERNAL_LIB@)
-
-if(YOGA_EXTERNAL_LIB)
-    set_and_check(aplcore_yoga_LIBRARY "${YOGA_EXTERNAL_LIB}")
-else()
-    # This file gets installed at ${APL_CORE_INSTALL_DIR}/lib/cmake/aplcore/aplcoreConfig.cmake, so go up 3 directories
-    # to find the root
-    get_filename_component(APL_CORE_INSTALL_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../" ABSOLUTE)
-
-    set_and_check(aplcore_yoga_LIBRARY "${APL_CORE_INSTALL_DIR}/lib/@YOGA_LIB_NAME@")
-
-endif()
+set(USE_SYSTEM_RAPIDJSON @USE_SYSTEM_RAPIDJSON@)
 
 set(ENABLE_ALEXAEXTENSIONS @ENABLE_ALEXAEXTENSIONS@)
-set(USE_INTERNAL_ALEXAEXT @BUILD_ALEXAEXTENSIONS@)
 
 if(ENABLE_ALEXAEXTENSIONS)
-    if(NOT USE_INTERNAL_ALEXAEXT)
-        find_package(alexaext REQUIRED)
-    endif()
+    find_package(alexaext REQUIRED)
 endif(ENABLE_ALEXAEXTENSIONS)
+
+# For backwards-compatibility with the old build logic, try to locate RapidJSON on the system if the
+# new CMake package is not found
+if (NOT TARGET rapidjson-apl)
+    if (USE_SYSTEM_RAPIDJSON)
+        find_package(aplrapidjson QUIET)
+        if (NOT aplrapidjson_FOUND)
+            # Try to locate RapidJSON on the system
+            find_package(RapidJSON QUIET)
+
+            if (NOT RapidJSON_FOUND)
+                # Try to find the headers directly on the system
+                find_path(RAPIDJSON_INCLUDE_DIRS
+                NAMES rapidjson/document.h
+                REQUIRED)
+            endif()
+
+            add_library(rapidjson-apl INTERFACE IMPORTED)
+            target_include_directories(rapidjson-apl INTERFACE ${RAPIDJSON_INCLUDE_DIRS})
+        endif()
+    else()
+        find_package(aplrapidjson REQUIRED)
+    endif()
+endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/aplcoreTargets.cmake")
 
-set_target_properties(apl::core
-    PROPERTIES
-        INTERFACE_LINK_LIBRARIES "${aplcore_yoga_LIBRARY}"
-)
+if (NOT USE_PROVIDED_YOGA_INLINE)
+    # Yoga is not built into core, so add the dependency here
+    if(YOGA_EXTERNAL_LIB)
+        set_and_check(aplcore_yoga_LIBRARY "${YOGA_EXTERNAL_LIB}")
+    else()
+        # This file gets installed at ${APL_CORE_INSTALL_DIR}/lib/cmake/aplcore/aplcoreConfig.cmake, so go up 3 directories
+        # to find the root
+        get_filename_component(APL_CORE_INSTALL_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../" ABSOLUTE)
+
+        set_and_check(aplcore_yoga_LIBRARY "${APL_CORE_INSTALL_DIR}/lib/@YOGA_LIB_NAME@")
+    endif()
+    target_link_libraries(apl::core INTERFACE "${aplcore_yoga_LIBRARY}")
+endif()

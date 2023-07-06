@@ -24,6 +24,7 @@ target_sources_local(apl
     edittextcomponent.cpp
     framecomponent.cpp
     gridsequencecomponent.cpp
+    hostcomponent.cpp
     imagecomponent.cpp
     mediacomponenttrait.cpp
     multichildscrollablecomponent.cpp

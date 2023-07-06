@@ -20,9 +20,9 @@
 
 #include "rapidjson/document.h"
 
-#include "apl/primitives/object.h"
-#include "apl/content/rootconfig.h"
 #include "apl/content/package.h"
+#include "apl/content/rootconfig.h"
+#include "apl/primitives/object.h"
 #include "apl/utils/deprecated.h"
 
 namespace apl {
@@ -32,7 +32,7 @@ namespace apl {
  * override device values.
  */
 class Settings {
-    friend class RootContext;
+    friend class CoreDocumentContext;
     friend class Content;
 
 public:

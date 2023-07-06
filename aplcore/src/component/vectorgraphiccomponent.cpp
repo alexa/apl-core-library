@@ -401,10 +401,9 @@ VectorGraphicComponent::isFocusable() const
     // According to the APL specification, a Vector Graphic component should only receive keyboard
     // focus if at least one of the following handlers are defined:  onFocus, onBlur, handleKeyDown, handleKeyUp,
     // onDown, and onPress.
-    return !getCalculated(kPropertyOnFocus).empty()       || !getCalculated(kPropertyOnBlur).empty() ||
-           !getCalculated(kPropertyHandleKeyDown).empty() || !getCalculated(kPropertyHandleKeyUp).empty() ||
-           !getCalculated(kPropertyOnDown).empty()        || !getCalculated(kPropertyOnPress).empty() ||
-           !getCalculated(kPropertyGestures).empty();
+    return isTouchable() ||
+           !getCalculated(kPropertyOnFocus).empty()       || !getCalculated(kPropertyOnBlur).empty() ||
+           !getCalculated(kPropertyHandleKeyDown).empty() || !getCalculated(kPropertyHandleKeyUp).empty();
 }
 
 bool
@@ -417,8 +416,8 @@ VectorGraphicComponent::isActionable() const
 bool
 VectorGraphicComponent::isTouchable() const
 {
-    // Same rules as for focus
-    return isFocusable();
+    return !getCalculated(kPropertyOnDown).empty() || !getCalculated(kPropertyOnPress).empty() ||
+           !getCalculated(kPropertyGestures).empty();
 }
 
 std::vector<URLRequest>

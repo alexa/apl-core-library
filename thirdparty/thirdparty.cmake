@@ -28,6 +28,9 @@ list(APPEND CMAKE_ARGS -DCMAKE_CXX_FLAGS=${EXT_CXX_ARGS})
 list(APPEND CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/lib)
 list(APPEND CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
 
+
+include(${CMAKE_CURRENT_LIST_DIR}/rapidjson-apl.cmake)
+
 ############################################################
 # Build yoga locally or use an external library
 ############################################################
@@ -130,41 +133,9 @@ endif()
 
 message(VERBOSE "PEGTL include directory ${PEGTL_INCLUDE}")
 
-############################################################
-# RapidJSON is a header-only library
-############################################################
-
-set(RAPIDJSON_SOURCE_URL "${APL_PROJECT_DIR}/thirdparty/rapidjson-v1.1.0.tar.gz")
-set(RAPIDJSON_SOURCE_MD5 "badd12c511e081fec6c89c43a7027bce")
-
-if (USE_SYSTEM_RAPIDJSON)
-    find_path(RAPIDJSON_INCLUDE
-        NAMES rapidjson/document.h
-        REQUIRED)
-elseif (HAS_FETCH_CONTENT)
-    FetchContent_Declare(rapidjson
-            URL ${RAPIDJSON_SOURCE_URL}
-            URL_MD5 ${RAPIDJSON_SOURCE_MD5}
-            PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/rapidjson.patch
-            )
-    FetchContent_Populate(rapidjson)
-    set(RAPIDJSON_INCLUDE ${rapidjson_SOURCE_DIR}/include)
-else()
-    ExternalProject_Add(rapidjson
-            URL ${RAPIDJSON_SOURCE_URL}
-            URL_MD5 ${RAPIDJSON_SOURCE_MD5}
-            PATCH_COMMAND patch ${PATCH_FLAGS} -p1 < ${APL_PATCH_DIR}/rapidjson.patch
-            STEP_TARGETS build
-            EXCLUDE_FROM_ALL TRUE
-            CONFIGURE_COMMAND ""
-            BUILD_COMMAND ""
-            CMAKE_ARGS ${CMAKE_ARGS}
-            )
-    ExternalProject_Get_Property(rapidjson install_dir)
-    set(RAPIDJSON_INCLUDE ${install_dir}/src/rapidjson/include)
-endif()
-
-message(VERBOSE "Rapidjson include directory ${RAPIDJSON_INCLUDE}")
+# Prevent overriding the parent project's compiler/linker
+# settings on Windows
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
 ############################################################
 # Unpack googletest at configure time.  This is copied from the googletest README.md file
@@ -185,6 +156,8 @@ if(result)
     message(FATAL_ERROR "Build step for googletest failed: ${result}")
 endif()
 
-# Prevent overriding the parent project's compiler/linker
-# settings on Windows
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+# Add googletest directly to our build. This defines
+# the gtest and gtest_main targets.
+add_subdirectory(${CMAKE_BINARY_DIR}/googletest-src
+    ${CMAKE_BINARY_DIR}/googletest-build
+    EXCLUDE_FROM_ALL)

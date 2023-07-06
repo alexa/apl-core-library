@@ -548,9 +548,11 @@ TextComponent::ensureTextProperties()
         mTextProperties = sg::TextProperties::create(
             mContext->textPropertiesCache(),
             sg::splitFontString(mContext->getRootConfig(),
+                                mContext->session(),
                                 getCalculated(kPropertyFontFamily).getString()),
             getCalculated(kPropertyFontSize).asFloat(),
             getCalculated(kPropertyFontStyle).asEnum<FontStyle>(),
+            getCalculated(kPropertyLang).getString(),
             getCalculated(kPropertyFontWeight).getInteger(),
             getCalculated(kPropertyLetterSpacing).asFloat(),
             getCalculated(kPropertyLineHeight).asFloat(),

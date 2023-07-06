@@ -51,18 +51,18 @@ Package::create(const SessionPtr& session, const std::string& name, JsonData&& j
     return std::make_shared<Package>(name, std::move(json));
 }
 
-const std::string
+std::string
 Package::version()
 {
     auto it_version = mJson.get().FindMember(DOCUMENT_VERSION);
-    return std::string(it_version->value.GetString());
+    return { it_version->value.GetString() };
 }
 
-const std::string
+std::string
 Package::type()
 {
     auto it_type = mJson.get().FindMember(DOCUMENT_TYPE);
-    return std::string(it_type->value.GetString());
+    return { it_type->value.GetString() };
 }
 
 } // namespace apl

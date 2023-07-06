@@ -13,11 +13,8 @@
  * permissions and limitations under the License.
  */
 
-#ifndef _APL_DOCUMENT_H
-#define _APL_DOCUMENT_H
-
-#include <map>
-#include <set>
+#ifndef _APL_ROOT_CONTEXT_H
+#define _APL_ROOT_CONTEXT_H
 
 #include "apl/common.h"
 #include "apl/content/configurationchange.h"
@@ -43,7 +40,6 @@ namespace apl {
 class EventManager;
 class Metrics;
 class RootConfig;
-class RootContextData;
 class TimeManager;
 struct PointerEvent;
 
@@ -85,8 +81,7 @@ struct PointerEvent;
  *
  * To cancel any currently running commands, use cancelExecution().
  */
-class RootContext : public std::enable_shared_from_this<RootContext>,
-                    public UserData<RootContext>,
+class RootContext : public UserData<RootContext>,
                     public NonCopyable {
 public:
     /**
@@ -110,8 +105,7 @@ public:
                                  const RootConfig& config);
 
     /**
-     * Construct a top-level root context.  This static method is mainly for testing
-     * to support modifying the context before layout inflation.
+     * Construct a top-level root context.
      * @param metrics Display metrics
      * @param content Content to display
      * @param config Configuration information
@@ -124,36 +118,21 @@ public:
                                  std::function<void(const RootContextPtr&)> callback);
 
     /**
-     * Construct a top-level root context.
-     * @param metrics Display metrics
-     * @param content Content to display
-     * @param config Configuration information
-     * @param callback Pre-layout callback
-     * @param eventManager Manages published events
-     * @return A pointer to the root context.
-     */
-    static RootContextPtr create(const Metrics& metrics,
-                                 const ContentPtr& content,
-                                 const RootConfig& config,
-                                 std::function<void(const RootContextPtr&)> callback,
-                                 const std::shared_ptr<EventManager>& eventManager);
-
-    /**
      * Notify core of a configuration change. Internally this method will trigger the "onConfigChange"
      * event handler in the APL document.  A common behavior in the onConfigChange event handler is to
      * send a Reinflate (kEventTypeReinflate) event.
      *
      * @param change Configuration change information
      */
-    void configurationChange(const ConfigurationChange& change);
-    
+    virtual void configurationChange(const ConfigurationChange& change) = 0;
+
     /**
      * Update the display state of the document. Internally this method will trigger the
      * "onDisplayStateChange" event handler in the APL document, if the display state changed.
      *
      * @param displayState The new display state
      */
-    void updateDisplayState(DisplayState displayState);
+    virtual void updateDisplayState(DisplayState displayState) = 0;
 
     /**
      * Reinflate this context using the internally cached configuration changes.  This will terminate any
@@ -162,128 +141,105 @@ public:
      *
      * This method should be called by the view host when it receives a Reinflate (kEventTypeReinflate) event.
      */
-    void reinflate();
-
-    /**
-     * Trigger a resize based on stored configuration changes.  This is normally not called by the view host; the
-     * RootContext::configurationChange() method handles resizing automatically.
-     */
-    void resize();
+    virtual void reinflate() = 0;
 
     /**
      * Clear any pending timers that need to be processed and execute any layout passes that are required.
      * This method is called internally by hasEvent(), popEvent(), and isDirty() so you normally don't need
      * to call this directly.
      */
-    void clearPending() const;
+    virtual void clearPending() const = 0;
 
     /**
      * @return True if there is at least one queued event to be processed.
      */
-    bool hasEvent() const;
+    virtual bool hasEvent() const = 0;
 
     /**
      * @return The top event from the event queue.
      */
-    Event popEvent();
+    virtual Event popEvent() = 0;
 
-    /**
-     * Public constructor.  Use the ::create method instead.
-     * @param metrics Display metrics
-     * @param content Processed APL content data
-     * @param config Configuration information
-     */
-    RootContext(const Metrics& metrics, const ContentPtr& content, const RootConfig& config);
-
-    /**
-     * Public constructor.  Use the ::create method instead.
-     * @param metrics Display metrics
-     * @param content Processed APL content data
-     * @param config Configuration information
-     * @param eventManager Manages published events
-     */
-    RootContext(const Metrics& metrics,
-                const ContentPtr& content,
-                const RootConfig& config,
-                const std::shared_ptr<EventManager>& eventManager);
-
-    ~RootContext() override;
+    ~RootContext() override = default;
 
     /**
      * @return The top-level context.
      */
-    Context& context() const { return *mContext; }
+    virtual Context& context() const = 0;
 
     /**
      * @return The top-level context as a shared pointer
      */
-    ContextPtr contextPtr() const { return mContext; }
+    virtual ContextPtr contextPtr() const = 0;
 
     /**
      * @return The top-level component
      */
-    ComponentPtr topComponent();
+    virtual ComponentPtr topComponent() const = 0;
 
     /**
-     * @return The top-level context with payload binding. This context is used when executing document-level
-     *         commands.
+     * @return Top Document context
      */
-    ContextPtr payloadContext() const;
+    virtual DocumentContextPtr topDocument() const = 0;
 
     /**
      * @return True if one or more components needs to be updated.
      */
-    bool isDirty() const;
+    virtual bool isDirty() const = 0;
 
     /**
      * External routine to get the set of components that are dirty.
      * @return The dirty set.
      */
-    const std::set<ComponentPtr>& getDirty();
+    virtual const std::set<ComponentPtr>& getDirty() = 0;
 
     /**
      * Clear all of the dirty flags.  This routine will clear all dirty
      * flags from child components.
      */
-    void clearDirty();
+    virtual void clearDirty() {}
 
     /**
-     * Identifies when the visual context may have changed.  A call to serializeVisualContext resets this value to false.
-     * @return true if the visual context has changed since the last call to serializeVisualContext, false otherwise.
+     * Identifies when the visual context of the top document may have changed. A call to
+     * serializeVisualContext resets this value to false.
+     * @return true if the visual context has changed since the last call to serializeVisualContext,
+     * false otherwise.
      */
-    bool isVisualContextDirty() const;
+    virtual bool isVisualContextDirty() const = 0;
 
     /**
-     * Clear the visual context dirty flag
+     * Clear the top document's visual context dirty flag
      */
-    void clearVisualContextDirty();
+    virtual void clearVisualContextDirty() = 0;
 
     /**
-     * Retrieve component's visual context as a JSON object. This method also clears the
-     * visual context dirty flag
+     * Retrieve top document's visual context as a JSON object. This method also clears
+     * the visual context dirty flag
      * @param allocator Rapidjson allocator
      * @return The serialized visual context
      */
-    rapidjson::Value serializeVisualContext(rapidjson::Document::AllocatorType& allocator);
+    virtual rapidjson::Value serializeVisualContext(rapidjson::Document::AllocatorType& allocator) = 0;
 
     /**
-     * Identifies when the datasource context may have changed.  A call to serializeDatasourceContext resets this value to false.
-     * @return true if the datasource context has changed since the last call to serializeDatasourceContext, false otherwise.
+     * Identifies when the datasource context for the top document may have changed.  A call to
+     * serializeDatasourceContext resets this value to false.
+     * @return true if the datasource context has changed since the last call to
+     * serializeDatasourceContext, false otherwise.
      */
-    bool isDataSourceContextDirty() const;
+    virtual bool isDataSourceContextDirty() const = 0;
 
     /**
-     * Clear the datasource context dirty flag
+     * Clear the top document's datasource context dirty flag
      */
-    void clearDataSourceContextDirty();
+    virtual void clearDataSourceContextDirty() = 0;
 
     /**
-     * Retrieve datasource context as a JSON array object. This method also clears the
+     * Retrieve top document's datasource context as a JSON array object. This method also clears the
      * datasource context dirty flag
      * @param allocator Rapidjson allocator
      * @return The serialized datasource context
      */
-    rapidjson::Value serializeDataSourceContext(rapidjson::Document::AllocatorType& allocator);
+    virtual rapidjson::Value serializeDataSourceContext(rapidjson::Document::AllocatorType& allocator) = 0;
 
     /**
      * Serialize a complete version of the DOM
@@ -291,21 +247,22 @@ public:
      * @param allocator Rapidjson allocator
      * @return The serialized DOM
      */
-    rapidjson::Value serializeDOM(bool extended, rapidjson::Document::AllocatorType& allocator);
+    virtual rapidjson::Value serializeDOM(bool extended, rapidjson::Document::AllocatorType& allocator) = 0;
 
     /**
      * Serialize the global values for developer tools
      * @param allocator Rapidjson allocator
      * @return The serialized global values
      */
-    rapidjson::Value serializeContext(rapidjson::Document::AllocatorType& allocator);
+    virtual rapidjson::Value serializeContext(rapidjson::Document::AllocatorType& allocator) = 0;
 
     /**
      * Execute an externally-driven command
      * @param commands The commands to execute
      * @param fastMode If true this handler will be invoked in fast mode
+     * @deprecated Use corresponding API on top document's DocumentContext.
      */
-    ActionPtr executeCommands(const Object& commands, bool fastMode);
+    APL_DEPRECATED virtual ActionPtr executeCommands(const Object& commands, bool fastMode) = 0;
 
     /**
      * Invoke an extension event handler.
@@ -314,40 +271,41 @@ public:
      * @param data The data to associate with the handler
      * @param fastMode If true, this handler will be invoked in fast mode
      * @param resourceId handle associated with extension component if present
+     * @deprecated Should not be used, consider switching to ExtensionRegistrar/Extension Proxy.
      * @return An ActionPtr
      */
-    ActionPtr invokeExtensionEventHandler(const std::string& uri, const std::string& name,
-                                          const ObjectMap& data, bool fastMode,
-                                          std::string resourceId = "");
+    APL_DEPRECATED virtual ActionPtr invokeExtensionEventHandler(const std::string& uri,
+                                                                 const std::string& name,
+                                                                 const ObjectMap& data,
+                                                                 bool fastMode,
+                                                                 std::string resourceId = "") = 0;
 
     /**
      * Cancel any current commands in execution.  This is typically called
      * as a result of the user touching on the screen to interrupt.
      */
-    void cancelExecution();
+    virtual void cancelExecution() = 0;
 
     /**
      * Move forward in time. This method also advances UTC and Local time by the
      * same amount.
      * @param elapsedTime The time to move forward to.
      */
-    void updateTime(apl_time_t elapsedTime);
+    virtual void updateTime(apl_time_t elapsedTime) = 0;
 
     /**
      * Move forward in time and separately update local/UTC time.
      * @param elapsedTime The time to move forward to
      * @param utcTime The current UTC time on your system
      */
-    void updateTime(apl_time_t elapsedTime, apl_time_t utcTime);
+    virtual void updateTime(apl_time_t elapsedTime, apl_time_t utcTime) = 0;
 
     /**
      * Set the local time zone adjustment.  This is the number of milliseconds added to the UTC time
      * that gives the correct local time including any DST changes.
      * @param adjustment The adjustment time in milliseconds
      */
-    void setLocalTimeAdjustment(apl_duration_t adjustment) {
-        mLocalTimeAdjustment = adjustment;
-    }
+    virtual void setLocalTimeAdjustment(apl_duration_t adjustment) = 0;
 
     /**
      * Generates a scroll event that will scroll the target component's sub bounds
@@ -356,77 +314,60 @@ public:
      * @param bounds The relative bounds within the target to scroll to.
      * @param align The alignment to scroll to.
      */
-    void scrollToRectInComponent(const ComponentPtr& component, const Rect &bounds,
-                                 CommandScrollAlign align);
+    virtual void scrollToRectInComponent(const ComponentPtr& component, const Rect &bounds,
+                                         CommandScrollAlign align) = 0;
 
     /**
      * @return The next time an internal timer is scheduled to fire.  This may
      *         be as short as 1 tick past the currentTime().
      */
-    apl_time_t nextTime();
+    virtual apl_time_t nextTime() = 0;
 
     /**
      * @return The current internal time of the system.
      */
-    apl_time_t currentTime();
+    virtual apl_time_t currentTime() const = 0;
 
     /**
      * @return True if a command is executing that holds the screen lock.
      */
-    bool screenLock();
+    virtual bool screenLock() const = 0;
 
     /**
      * @return the RootConfig used to initialize this context.
      */
-     const RootConfig&  rootConfig();
+    virtual const RootConfig& rootConfig() const = 0;
 
     /**
-     * @deprecated Use Content->getDocumentSettings()
      * @return document-wide properties.
+     * @deprecated Use Content->getDocumentSettings()
      */
-    APL_DEPRECATED const Settings& settings();
+    APL_DEPRECATED virtual const Settings& settings() const = 0;
 
     /**
      * @return The content
+     * @deprecated Use corresponding API on top document's DocumentContext
      */
-    const ContentPtr& content() const { return mContent; }
-
-    /**
-     * Create a suitable document-level data-binding context for evaluating a document-level
-     * event.
-     * @param handler The name of the handler.
-     * @param optional optional data to add to the event.
-     * @return The document-level data-binding context.
-     */
-    ContextPtr createDocumentContext(const std::string& handler, const ObjectMap& optional = {});
-
-    /**
-     * Create a suitable document-level data-binding context for evaluating a document-level
-     * keyboard event.
-     * @param handler The name of the handler.
-     * @param keyboard The keyboard event.
-     * @return The document-level data-binding context.
-     */
-    ContextPtr createKeyboardDocumentContext(const std::string& handler, const ObjectMapPtr& keyboard);
+    APL_DEPRECATED virtual const ContentPtr& content() const = 0;
 
     /**
      * @return Information about the elements defined within the content
      */
-    Info info() const { return Info(mContext, mCore); }
+    virtual Info info() const = 0;
 
     /**
      * Update cursor position.
      * @param cursorPosition Cursor positon.
      * @deprecated use handlePointerEvent instead
      */
-    APL_DEPRECATED void updateCursorPosition(Point cursorPosition);
+    APL_DEPRECATED virtual void updateCursorPosition(Point cursorPosition) = 0;
 
     /**
      * Handle a given PointerEvent with coordinates relative to the viewport.
      * @param pointerEvent The pointer event to handle.
      * @return true if was consumed and should not be passed through any platform handling.
      */
-    bool handlePointerEvent(const PointerEvent& pointerEvent);
+    virtual bool handlePointerEvent(const PointerEvent& pointerEvent) = 0;
 
     /**
      * An update message from the viewhost called when a key is pressed.  The
@@ -438,41 +379,31 @@ public:
      * @param keyboard The keyboard message.
      * @return True, if the key was consumed.
      */
-    virtual bool handleKeyboard(KeyHandlerType type, const Keyboard &keyboard);
-
-    /**
-     * @return The current logging session
-     */
-    const SessionPtr& getSession() const;
+    virtual bool handleKeyboard(KeyHandlerType type, const Keyboard &keyboard) = 0;
 
     /**
      * @return The root configuration provided by the viewhost
      */
-    const RootConfig& getRootConfig() const;
-
-    /**
-     * @return The current theme
-     */
-    std::string getTheme() const;
-
-    /**
-     * @return Text measurement pointer reference
-     */
-    const TextMeasurementPtr& measure() const;
+    virtual const RootConfig& getRootConfig() const = 0;
 
     /**
      * Find a component somewhere in the DOM with the given id or uniqueId.
      * @param id The id or uniqueID to search for.
      * @return The component or nullptr if it is not found.
      */
-    ComponentPtr findComponentById(const std::string& id) const;
+    virtual ComponentPtr findComponentById(const std::string& id) const = 0;
 
     /**
      * Find a UID object
      * @param uid The uniqueId to search for.
      * @return The object or nullptr if it is not found.
      */
-    UIDObject * findByUniqueId(const std::string& uid) const;
+    virtual UIDObject* findByUniqueId(const std::string& uid) const = 0;
+
+    /**
+     * @return The current theme
+     */
+    virtual std::string getTheme() const = 0;
 
     /**
      * Get top level focusable areas available from APL Core. It's up to engine to decide if it needs to pass focus to
@@ -480,7 +411,7 @@ public:
      * All dimensions is in APL viewport coordinate space.
      * @return map from ID to focusable area.
      */
-    std::map<std::string, Rect> getFocusableAreas();
+    virtual std::map<std::string, Rect> getFocusableAreas() = 0;
 
     /**
      * Pass focus from runtime to APL Core.
@@ -489,7 +420,7 @@ public:
      * @param targetId ID of area selected by runtime from list provided by getFocusableAreas().
      * @return true if focus was accepted, false otherwise.
      */
-    bool setFocus(FocusDirection direction, const Rect& origin, const std::string& targetId);
+    virtual bool setFocus(FocusDirection direction, const Rect& origin, const std::string& targetId) = 0;
 
     /**
      * Request to switch focus in provided direction. Different from setFocus above as actually defers decision on what
@@ -498,7 +429,7 @@ public:
      * @param origin previously focused area in APL viewport coordinate space.
      * @return true if processed successfully, false otherwise.
      */
-    bool nextFocus(FocusDirection direction, const Rect& origin);
+    virtual bool nextFocus(FocusDirection direction, const Rect& origin) = 0;
 
     /**
      * Request to switch focus in provided direction. If nothing is focused works similarly to
@@ -506,24 +437,24 @@ public:
      * @param direction focus movement direction.
      * @return true if processed successfully, false otherwise.
      */
-    bool nextFocus(FocusDirection direction);
+    virtual bool nextFocus(FocusDirection direction) = 0;
 
     /**
      * Force APL to release focus. Always succeeds.
      */
-    void clearFocus();
+    virtual void clearFocus() = 0;
 
     /**
      * Check if core has anything focused.
      * @return ID of focused element if something focused, empty if not.
      */
-    std::string getFocused();
+    virtual std::string getFocused() = 0;
 
     /**
      * Notify core about requested media being loaded.
      * @param source requested source.
      */
-    void mediaLoaded(const std::string& source);
+    virtual void mediaLoaded(const std::string& source) = 0;
 
     /**
      * Notify core about requested media fail to load.
@@ -531,54 +462,19 @@ public:
      * @param errorCode integer with the errorValue, to determine by the runtime.
      * @param error string with the error description.
      */
-    void mediaLoadFailed(const std::string& source, int errorCode = -1, const std::string& error = std::string());
+    virtual void mediaLoadFailed(const std::string& source, int errorCode = -1, const std::string& error = std::string()) = 0;
 
 #ifdef SCENEGRAPH
     /**
      * This method returns the current scene graph.  It will clear all dirty properties as well.
      * @return The current scene graph
      */
-    sg::SceneGraphPtr getSceneGraph();
+    virtual sg::SceneGraphPtr getSceneGraph() = 0;
 #endif // SCENEGRAPH
 
     friend streamer& operator<<(streamer& os, const RootContext& root);
-
-private:
-    #ifdef ALEXAEXTENSIONS
-        friend class ExtensionMediator;
-    #endif
-
-    /**
-     * @return The current display state for this root context. Only exposed internally to friend
-     *         classes.
-     */
-    DisplayState getDisplayState() const { return mDisplayState; }
-
-    void init(const Metrics& metrics, const RootConfig& config, bool reinflation, const std::shared_ptr<EventManager>& eventManager);
-    bool setup(const CoreComponentPtr& top);
-    bool verifyAPLVersionCompatibility(const std::vector<std::shared_ptr<Package>>& ordered,
-                                       const APLVersion& compatibilityVersion);
-    bool verifyTypeField(const std::vector<std::shared_ptr<Package>>& ordered, bool enforce);
-    ObjectMapPtr createDocumentEventProperties(const std::string& handler) const;
-    void scheduleTickHandler(const Object& handler, double delay);
-    void processTickHandlers();
-    void clearPendingInternal(bool first) const;
-    void updateTimeInternal(apl_time_t elapsedTime, apl_time_t utcTime);
-
-private:
-    ContentPtr mContent;
-    ContextPtr mContext;
-    std::shared_ptr<RootContextData> mCore;  // When you die, make sure to tell the data to terminate itself.
-    std::shared_ptr<TimeManager> mTimeManager;
-    apl_time_t mUTCTime;  // Track the system UTC time
-    apl_duration_t mLocalTimeAdjustment;
-    ConfigurationChange mActiveConfigurationChanges;
-    DisplayState mDisplayState;
-#ifdef SCENEGRAPH
-    sg::SceneGraphPtr mSceneGraph;
-#endif // SCENEGRAPH
 };
 
 } // namespace apl
 
-#endif //_APL_DOCUMENT_H
+#endif //_APL_ROOT_CONTEXT_H

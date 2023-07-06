@@ -41,11 +41,14 @@ Bimap<int, std::string> sCommandNameBimap = {
     {kCommandTypeClearFocus,        "ClearFocus"},
     {kCommandTypeFinish,            "Finish"},
     {kCommandTypeReinflate,         "Reinflate"},
+    {kCommandTypeInsertItem,        "InsertItem"},
+    {kCommandTypeRemoveItem,        "RemoveItem"},
 };
 
 Bimap<int, std::string> sCommandPropertyBimap = {
     {kCommandPropertyAlign,               "align"},
     {kCommandPropertyArguments,           "arguments"},
+    {kCommandPropertyAt,                  "at"},
     {kCommandPropertyAudioTrack,          "audioTrack"},
     {kCommandPropertyCatch,               "catch"},
     {kCommandPropertyCommand,             "command"},
@@ -63,6 +66,8 @@ Bimap<int, std::string> sCommandPropertyBimap = {
     {kCommandPropertyFlags,               "flags"},
     {kCommandPropertyHighlightMode,       "highlightMode"},
     {kCommandPropertyIndex,               "index"},
+    {kCommandPropertyItem,                "item"},
+    {kCommandPropertyItem,                "items"},
     {kCommandPropertyMinimumDwellTime,    "minimumDwellTime"},
     {kCommandPropertyOnFail,              "onFail"},
     {kCommandPropertyOtherwise,           "otherwise"},
@@ -112,6 +117,7 @@ Bimap<int, std::string> sControlMediaMap = {
     {kCommandControlMediaPrevious, "previous"},
     {kCommandControlMediaRewind,   "rewind"},
     {kCommandControlMediaSeek,     "seek"},
+    {kCommandControlMediaSeekTo,   "seekTo"},
     {kCommandControlMediaSetTrack, "setTrack"}
 };
 

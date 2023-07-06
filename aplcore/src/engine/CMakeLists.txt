@@ -16,12 +16,12 @@ target_sources_local(apl
     arrayify.cpp
     binding.cpp
     builder.cpp
-    componentdependant.cpp
     context.cpp
-    contextdependant.cpp
     contextobject.cpp
     contextwrapper.cpp
+    corerootcontext.cpp
     dependant.cpp
+    dependantmanager.cpp
     evaluate.cpp
     event.cpp
     hovermanager.cpp
@@ -33,11 +33,13 @@ target_sources_local(apl
     properties.cpp
     resources.cpp
     rootcontext.cpp
-    rootcontextdata.cpp
+    sharedcontextdata.cpp
     state.cpp
     styledefinition.cpp
     styleinstance.cpp
     styles.cpp
+    tickscheduler.cpp
+    uidgenerator.cpp
     uidmanager.cpp
     uidobject.cpp
 )

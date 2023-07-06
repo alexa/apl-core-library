@@ -503,6 +503,11 @@ public:
         return *this;
     }
 
+    LiveDataSchema& data(const rapidjson::Value& value) {
+        DATA().Set(*mValue, rapidjson::Value().CopyFrom(value, *mAllocator), *mAllocator);
+        return *this;
+    }
+
     static const rapidjson::Pointer& DATA_TYPE() {
         static const rapidjson::Pointer ptr("/type");
         return ptr;
@@ -539,6 +544,10 @@ public:
         return ptr;
     }
 
+    static const rapidjson::Pointer& DATA() {
+        static const rapidjson::Pointer ptr("/data");
+        return ptr;
+    }
 
 private:
     bool mIsDataArray;

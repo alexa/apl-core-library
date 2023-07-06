@@ -32,20 +32,9 @@ namespace apl {
  * Executing the finish command stops all other processing in APL, including any commands that are still executing.
  * The finish command executes in both normal and fast mode.
  */
-class FinishCommand : public CoreCommand {
+class FinishCommand : public TemplatedCommand<FinishCommand> {
 public:
-    static CommandPtr create(const ContextPtr& context,
-                             Properties&& properties,
-                             const CoreComponentPtr& base,
-                             const std::string& parentSequencer) {
-        auto ptr = std::make_shared<FinishCommand>(context, std::move(properties), base, parentSequencer);
-        return ptr->validate() ? ptr : nullptr;
-    }
-
-    FinishCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
-                  const std::string& parentSequencer)
-            : CoreCommand(context, std::move(properties), base, parentSequencer)
-    {}
+    COMMAND_CONSTRUCTOR(FinishCommand);
 
     const CommandPropDefSet& propDefSet() const override;
 

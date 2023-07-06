@@ -103,18 +103,15 @@ public:
 
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override;
 
+    void setValue(AccessibilityActionKey key, const Object& value, bool useDirtyFlag) override;
+
     /**
      * Internal constructor.  Do not use directly; instead, use the "create" static method.
      */
     AccessibilityAction(const CoreComponentPtr& component, std::string name, std::string label)
         : mComponent(component), mName(std::move(name)), mLabel(std::move(label)), mEnabled(true) {}
 
-    class ObjectType final : public PointerHolderObjectType<AccessibilityAction> {
-    public:
-        bool equals(const Object::DataHolder& lhs, const Object::DataHolder& rhs) const override {
-            return *lhs.data == *rhs.data;
-        }
-    };
+    class ObjectType final : public PointerHolderObjectType<AccessibilityAction> {};
 
 protected:
     void initialize(const ContextPtr& context, const Object& object);

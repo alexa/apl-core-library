@@ -25,7 +25,7 @@
 namespace apl {
 
 /**
- * Standard type for unique IDs in components
+ * Standard type for unique IDs in components and dependents
  */
 using id_type = unsigned int;
 
@@ -55,11 +55,20 @@ class Command;
 class Component;
 class Content;
 class Context;
+class ContextData;
 class CoreComponent;
+class CoreDocumentContext;
+class CoreRootContext;
 class DataSource;
 class DataSourceProvider;
+class Dependant;
+class DependantManager;
+class DocumentConfig;
+class DocumentContext;
+class DocumentContextData;
+class DocumentManager;
 class Easing;
-class EventManager;
+class EmbedRequest;
 class ExtensionClient;
 class ExtensionCommandDefinition;
 class ExtensionComponent;
@@ -80,6 +89,7 @@ class RootConfig;
 class RootContext;
 class Session;
 class Settings;
+class SharedContextData;
 class StyleDefinition;
 class StyleInstance;
 class TextMeasurement;
@@ -95,10 +105,20 @@ using ConstCommandPtr = std::shared_ptr<const Command>;
 using ConstContextPtr = std::shared_ptr<const Context>;
 using ContentPtr = std::shared_ptr<Content>;
 using ContextPtr = std::shared_ptr<Context>;
+using ContextDataPtr = std::shared_ptr<ContextData>;
 using CoreComponentPtr = std::shared_ptr<CoreComponent>;
+using CoreDocumentContextPtr = std::shared_ptr<CoreDocumentContext>;
+using CoreRootContextPtr = std::shared_ptr<CoreRootContext>;
 using DataSourceProviderPtr = std::shared_ptr<DataSourceProvider>;
 using DataSourcePtr = std::shared_ptr<DataSource>;
+using DependantPtr = std::shared_ptr<Dependant>;
+using DocumentConfigPtr = std::shared_ptr<DocumentConfig>;
+using DocumentContextDataPtr = std::shared_ptr<DocumentContextData>;
+using DocumentContextPtr = std::shared_ptr<DocumentContext>;
+using DocumentContextWeakPtr = std::weak_ptr<DocumentContext>;
+using DocumentManagerPtr = std::shared_ptr<DocumentManager>;
 using EasingPtr = std::shared_ptr<Easing>;
+using EmbedRequestPtr = std::shared_ptr<EmbedRequest>;
 using ExtensionClientPtr = std::shared_ptr<ExtensionClient>;
 using ExtensionCommandDefinitionPtr = std::shared_ptr<ExtensionCommandDefinition>;
 using ExtensionComponentPtr = std::shared_ptr<ExtensionComponent>;
@@ -119,6 +139,7 @@ using RootConfigPtr = std::shared_ptr<RootConfig>;
 using RootContextPtr = std::shared_ptr<RootContext>;
 using SessionPtr = std::shared_ptr<Session>;
 using SettingsPtr = std::shared_ptr<Settings>;
+using SharedContextDataPtr = std::shared_ptr<SharedContextData>;
 using StyleDefinitionPtr = std::shared_ptr<StyleDefinition>;
 using StyleInstancePtr = std::shared_ptr<StyleInstance>;
 using TextMeasurementPtr = std::shared_ptr<TextMeasurement>;

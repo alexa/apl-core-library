@@ -20,7 +20,6 @@
 #include "apl/command/commandproperties.h"
 #include "apl/command/corecommand.h"
 #include "apl/component/textcomponent.h"
-#include "apl/engine/rootcontext.h"
 #include "apl/primitives/styledtext.h"
 #include "apl/time/sequencer.h"
 #include "apl/utils/make_unique.h"
@@ -302,6 +301,11 @@ public:
 
     virtual void highlight(SpeakItemAction& action, Range byteRange) = 0;
 
+    void freeze() {
+        mScrollAction = nullptr;
+        mDwellAction = nullptr;
+    }
+
     void rehydrate(SpeakItemAction& action) {
         // Don't need it for line by line - time update will scroll appropriately
         if (!mText.empty()) return;
@@ -311,7 +315,7 @@ public:
             start(action);
         } else {
             auto align = static_cast<CommandScrollAlign>(action.mCommand->getValue(kCommandPropertyAlign).getInteger());
-            ScrollToAction::make(
+            mScrollAction = ScrollToAction::make(
                 action.timers(),
                 align,
                 Rect(),
@@ -769,11 +773,13 @@ SpeakItemAction::freeze()
         mCommand->freeze();
     }
 
+    mPrivate->freeze();
+
     ResourceHoldingAction::freeze();
 }
 
 bool
-SpeakItemAction::rehydrate(const RootContext& context)
+SpeakItemAction::rehydrate(const CoreDocumentContext& context)
 {
     if (!mPrivate) return false;
 

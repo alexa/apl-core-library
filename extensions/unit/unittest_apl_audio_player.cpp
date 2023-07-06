@@ -94,16 +94,29 @@ public:
     }
 
     /**
+     * Simple utility to create activity descriptors accross the tests
+     */
+    ActivityDescriptor createActivityDescriptor(std::string uri = URI) {
+        // Create Activity
+        SessionDescriptorPtr sessionPtr = SessionDescriptor::create("TestSessionId");
+        ActivityDescriptor activityDescriptor(
+            uri,
+            sessionPtr);
+        return activityDescriptor;
+    }
+
+    /**
      * Simple registration for testing event/command/data.
      */
-    ::testing::AssertionResult registerExtension()
+    ::testing::AssertionResult registerExtension(const alexaext::ActivityDescriptor& activity)
     {
         Document settings(kObjectType);
         settings.AddMember("playbackStateName", Value("MyPlayBackState"), settings.GetAllocator());
 
-        Document regReq = RegistrationRequest("1.0").uri("aplext:audioplayer:10")
+        Document regReq = RegistrationRequest("1.0").uri(URI)
                                                     .settings(settings);
-        auto registration = mExtension->createRegistration("aplext:audioplayer:10", regReq);
+        auto registration = mExtension->createRegistration(activity, regReq);
+        mExtension->onActivityRegistered(activity);
         auto method = GetWithDefault<const char *>(RegistrationSuccess::METHOD(), registration, "Fail");
         if (std::strcmp("RegisterSuccess", method) != 0)
             return testing::AssertionFailure() << "Failed Registration:" << method;
@@ -213,7 +226,7 @@ TEST_F(AplAudioPlayerExtensionTest, CreateExtension)
     ASSERT_TRUE(mExtension);
     auto supported = mExtension->getURIs();
     ASSERT_EQ(1, supported.size());
-    ASSERT_NE(supported.end(), supported.find("aplext:audioplayer:10"));
+    ASSERT_NE(supported.end(), supported.find(URI));
 }
 
 /**
@@ -221,8 +234,10 @@ TEST_F(AplAudioPlayerExtensionTest, CreateExtension)
  */
 TEST_F(AplAudioPlayerExtensionTest, RegistrationURIBad)
 {
+    SessionDescriptorPtr sessionPtr = SessionDescriptor::create("TestSessionId");
+    ActivityDescriptor badActivity("aplext:audioplayer:BAD", sessionPtr);
     Document regReq = RegistrationRequest("aplext:audioplayer:BAD");
-    auto registration = mExtension->createRegistration("aplext:audioplayer:BAD", regReq);
+    auto registration = mExtension->createRegistration(badActivity, regReq);
     ASSERT_FALSE(registration.HasParseError());
     ASSERT_FALSE(registration.IsNull());
     ASSERT_STREQ("RegisterFailure",
@@ -234,8 +249,9 @@ TEST_F(AplAudioPlayerExtensionTest, RegistrationURIBad)
  */
 TEST_F(AplAudioPlayerExtensionTest, RegistrationSuccess)
 {
-    Document regReq = RegistrationRequest("1.0").uri("aplext:audioplayer:10");
-    auto registration = mExtension->createRegistration("aplext:audioplayer:10", regReq);
+    auto activity = createActivityDescriptor();
+    Document regReq = RegistrationRequest("1.0").uri(URI);
+    auto registration = mExtension->createRegistration(activity, regReq);
     ASSERT_STREQ("RegisterSuccess",
                  GetWithDefault<const char *>(RegistrationSuccess::METHOD(), registration, ""));
     ASSERT_STREQ("aplext:audioplayer:10",
@@ -252,8 +268,9 @@ TEST_F(AplAudioPlayerExtensionTest, RegistrationSuccess)
  */
 TEST_F(AplAudioPlayerExtensionTest, RegistrationEnvironmentVersion)
 {
-    Document regReq = RegistrationRequest("1.0").uri("aplext:audioplayer:10");
-    auto registration = mExtension->createRegistration("aplext:audioplayer:10", regReq);
+    auto activity = createActivityDescriptor();
+    Document regReq = RegistrationRequest("1.0").uri(URI);
+    auto registration = mExtension->createRegistration(activity, regReq);
     ASSERT_STREQ("RegisterSuccess",
                  GetWithDefault<const char *>(RegistrationSuccess::METHOD(), registration, ""));
     Value *environment = RegistrationSuccess::ENVIRONMENT().Get(registration);
@@ -267,9 +284,9 @@ TEST_F(AplAudioPlayerExtensionTest, RegistrationEnvironmentVersion)
  */
 TEST_F(AplAudioPlayerExtensionTest, RegistrationCommands)
 {
-    Document regReq = RegistrationRequest("1.0").uri("aplext:audioplayer:10");
-
-    auto registration = mExtension->createRegistration("aplext:audioplayer:10", regReq);
+    auto activity = createActivityDescriptor();
+    Document regReq = RegistrationRequest("1.0").uri(URI);
+    auto registration = mExtension->createRegistration(activity, regReq);
     ASSERT_STREQ("RegisterSuccess",
                  GetWithDefault<const char *>(RegistrationSuccess::METHOD(), registration, ""));
     Value *schema = RegistrationSuccess::SCHEMA().Get(registration);
@@ -306,8 +323,9 @@ TEST_F(AplAudioPlayerExtensionTest, RegistrationCommands)
  */
 TEST_F(AplAudioPlayerExtensionTest, RegistrationEvents)
 {
-    Document regReq = RegistrationRequest("1.0").uri("aplext:audioplayer:10");
-    auto registration = mExtension->createRegistration("aplext:audioplayer:10", regReq);
+    auto activity = createActivityDescriptor();
+    Document regReq = RegistrationRequest("1.0").uri(URI);
+    auto registration = mExtension->createRegistration(activity, regReq);
     ASSERT_STREQ("RegisterSuccess",
                  GetWithDefault<const char *>(RegistrationSuccess::METHOD(), registration, ""));
     Value *schema = RegistrationSuccess::SCHEMA().Get(registration);
@@ -336,8 +354,9 @@ TEST_F(AplAudioPlayerExtensionTest, RegistrationEvents)
  */
 TEST_F(AplAudioPlayerExtensionTest, RegistrationSettingsEmpty)
 {
-    Document regReq = RegistrationRequest("1.0").uri("aplext:audioplayer:10");
-    auto registration = mExtension->createRegistration("aplext:audioplayer:10", regReq);
+    auto activity = createActivityDescriptor();
+    Document regReq = RegistrationRequest("1.0").uri(URI);
+    auto registration = mExtension->createRegistration(activity, regReq);
     ASSERT_STREQ("RegisterSuccess",
                  GetWithDefault<const char *>(RegistrationSuccess::METHOD(), registration, ""));
     Value *schema = RegistrationSuccess::SCHEMA().Get(registration);
@@ -357,9 +376,10 @@ TEST_F(AplAudioPlayerExtensionTest, RegistrationSettingsHasLiveData)
     Document settings(kObjectType);
     settings.AddMember("playbackStateName", Value("MyPlayBackState"), settings.GetAllocator());
 
-    Document regReq = RegistrationRequest("1.0").uri("aplext:audioplayer:10")
+    auto activity = createActivityDescriptor();
+    Document regReq = RegistrationRequest("1.0").uri(URI)
                                                 .settings(settings);
-    auto registration = mExtension->createRegistration("aplext:audioplayer:10", regReq);
+    auto registration = mExtension->createRegistration(activity, regReq);
     ASSERT_STREQ("RegisterSuccess",
                  GetWithDefault<const char *>(RegistrationSuccess::METHOD(), registration, ""));
     Value *schema = RegistrationSuccess::SCHEMA().Get(registration);
@@ -405,9 +425,10 @@ TEST_F(AplAudioPlayerExtensionTest, RegistrationSettingsHasLiveData)
 **/
 TEST_F(AplAudioPlayerExtensionTest, RegistrationSettingsBad)
 {
-    Document regReq = RegistrationRequest("1.0").uri("aplext:audioplayer:10")
+    auto activity = createActivityDescriptor();
+    Document regReq = RegistrationRequest("1.0").uri(URI)
                                                 .settings(Value());
-    auto registration = mExtension->createRegistration("aplext:audioplayer:10", regReq);
+    auto registration = mExtension->createRegistration(activity, regReq);
     ASSERT_STREQ("RegisterSuccess",
                  GetWithDefault<const char *>(RegistrationSuccess::METHOD(), registration, ""));
     Value *schema = RegistrationSuccess::SCHEMA().Get(registration);
@@ -423,11 +444,12 @@ TEST_F(AplAudioPlayerExtensionTest, RegistrationSettingsBad)
  */
 TEST_F(AplAudioPlayerExtensionTest, GetLiveDataObjectsSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     bool gotUpdate = false;
     mExtension->registerLiveDataUpdateCallback(
-            [&](const std::string &uri, const rapidjson::Value &liveDataUpdate) {
+            [&](const ActivityDescriptor& activity, const rapidjson::Value &liveDataUpdate) {
                 gotUpdate = true;
                 ASSERT_STREQ("LiveDataUpdate",
                              GetWithDefault<const char *>(RegistrationSuccess::METHOD(), liveDataUpdate, ""));
@@ -446,12 +468,13 @@ TEST_F(AplAudioPlayerExtensionTest, GetLiveDataObjectsSuccess)
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandPlaySuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("Play");
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
     ASSERT_EQ("PLAY", mObserver->mCommand);
 }
@@ -461,12 +484,13 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandPlaySuccess)
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandPauseSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("Pause");
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
     ASSERT_EQ("PAUSE", mObserver->mCommand);
 }
@@ -476,12 +500,13 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandPauseSuccess)
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandPreviousSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("Previous");
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
     ASSERT_EQ("PREVIOUS", mObserver->mCommand);
 }
@@ -491,12 +516,13 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandPreviousSuccess)
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandNextSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("Next");
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
     ASSERT_EQ("NEXT", mObserver->mCommand);
 }
@@ -506,12 +532,13 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandNextSuccess)
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandSeekToPositionMissingParamFailure)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("SeekToPosition");
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_FALSE(invoke);
     ASSERT_EQ("", mObserver->mCommand);
 }
@@ -521,13 +548,14 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandSeekToPositionMissingParamFailu
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandSeekToPositionBadParamFailure)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("SeekToPosition")
                                  .property("offset", "wrong");
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_FALSE(invoke);
     ASSERT_EQ("", mObserver->mCommand);
 }
@@ -537,26 +565,27 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandSeekToPositionBadParamFailure)
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandSeekToPositionSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("SeekToPosition")
                                  .property("offset", 42);
     bool gotUpdate = false;
     mExtension->registerLiveDataUpdateCallback(
-            [&](const std::string &uri, const rapidjson::Value &liveDataUpdate) {
+            [&](const ActivityDescriptor& activity, const rapidjson::Value &liveDataUpdate) {
                 gotUpdate = true;
                 ASSERT_STREQ("LiveDataUpdate",
                              GetWithDefault<const char *>(RegistrationSuccess::METHOD(), liveDataUpdate, ""));
-              ASSERT_STREQ("aplext:audioplayer:10",
-                           GetWithDefault<const char *>(RegistrationSuccess::TARGET(), liveDataUpdate, ""));
+                ASSERT_STREQ("aplext:audioplayer:10",
+                             GetWithDefault<const char *>(RegistrationSuccess::TARGET(), liveDataUpdate, ""));
                 const Value *ops = LiveDataUpdate::OPERATIONS().Get(liveDataUpdate);
                 ASSERT_TRUE(ops);
                 ASSERT_TRUE(ops->IsArray() && ops->Size() == 2);
                 ASSERT_TRUE(CheckLiveData(ops->GetArray()[1], "Set", "offset", 42));
             });
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     
     ASSERT_TRUE(gotUpdate);
     ASSERT_TRUE(invoke);
@@ -569,12 +598,13 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandSeekToPositionSuccess)
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandSkipForwardSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("SkipForward");
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
     ASSERT_EQ("FORWARD", mObserver->mCommand);
 }
@@ -584,12 +614,13 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandSkipForwardSuccess)
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandSkipBackwardSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("SkipBackward");
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
     ASSERT_EQ("BACKWARD", mObserver->mCommand);
 }
@@ -599,23 +630,24 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandSkipBackwardSuccess)
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandToggleMissingParamFailure)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     // missing checked param
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("Toggle")
                                  .property("name", "value");
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_FALSE(invoke);
     ASSERT_EQ("", mObserver->mCommand);
 
     // missing name param
     command = Command("1.0").target(mClientToken)
-                            .uri("aplext:audioplayer:10")
+                            .uri(URI)
                             .name("Toggle")
                             .property("checked", true);
-    invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    invoke = mExtension->invokeCommand(activity, command);
     ASSERT_FALSE(invoke);
     ASSERT_EQ("", mObserver->mCommand);
 }
@@ -625,25 +657,26 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandToggleMissingParamFailure)
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandToggleBadParamFailure)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     // missing checked param
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("Toggle")
                                  .property("name", 0)
                                  .property("checked", true);
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_FALSE(invoke);
     ASSERT_EQ("", mObserver->mCommand);
 
     // missing name param
     command = Command("1.0").target(mClientToken)
-                            .uri("aplext:audioplayer:10")
+                            .uri(URI)
                             .name("Toggle")
                             .property("name", "thumbsUp")
                             .property("checked", -10);
-    invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    invoke = mExtension->invokeCommand(activity, command);
     ASSERT_FALSE(invoke);
     ASSERT_EQ("", mObserver->mCommand);
 }
@@ -653,14 +686,15 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandToggleBadParamFailure)
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandToggleSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("Toggle")
                                  .property("name", "thumbsUp")
                                  .property("checked", true);
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
     ASSERT_EQ("TOGGLE", mObserver->mCommand);
     ASSERT_EQ("thumbsUp", mObserver->mParamString);
@@ -689,7 +723,8 @@ const char *LINES = R"(
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsViewedMissingParamFailure)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     Document lines;
     lines.Parse(LINES);
@@ -697,18 +732,18 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsViewedMissingParamFail
 
     // missing "lines"
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("AddLyricsViewed")
                                  .property("token", "SONG-TOKEN");
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_FALSE(invoke);
 
     // missing "token"
     command = Command("1.0").target(mClientToken)
-                            .uri("aplext:audioplayer:10")
+                            .uri(URI)
                             .name("AddLyricsViewed")
                             .property("lines", lines["lines"].Move());
-    invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    invoke = mExtension->invokeCommand(activity, command);
     ASSERT_FALSE(invoke);
 }
 
@@ -717,7 +752,8 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsViewedMissingParamFail
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsViewedBadParamFailure)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     Document lines;
     lines.Parse(LINES);
@@ -725,11 +761,11 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsViewedBadParamFailure)
 
     // bad token
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("AddLyricsViewed")
                                  .property("token", "")
                                  .property("lines", lines["lines"]);
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_FALSE(invoke);
 
     // bad lines param handled in folllow-on test
@@ -740,26 +776,27 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsViewedBadParamFailure)
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsViewedSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     Document lines;
     lines.Parse(LINES);
     ASSERT_FALSE(lines.HasParseError());
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("AddLyricsViewed")
                                  .property("token", "SONG-TOKEN")
                                  .property("lines", lines["lines"]);
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
 
-    // verify line data
-    auto data = mExtension->getActiveLyricsViewedData()->lyricData;
-    ASSERT_TRUE(data->IsArray());
-    ASSERT_EQ(2, data->Size());
+    mExtension->onActivityUnregistered(activity);
     lines.Parse(LINES);
-    ASSERT_TRUE(IsEqual(lines["lines"], *data));
+    // Observer is notified of flush.
+    ASSERT_EQ("FLUSHED", mObserver->mCommand);
+    ASSERT_EQ(AsString(lines["lines"]), mObserver->mParamJson);
+    ASSERT_EQ(0, mObserver->mParaNum);
 }
 
 //  Invalid line data in additon to valid data from LINES
@@ -804,86 +841,145 @@ const char *BAD_LINES = R"(
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsIgnoreBadLines)
 {
-    ASSERT_TRUE(registerExtension());
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     Document lines;
     lines.Parse(BAD_LINES);
     ASSERT_FALSE(lines.HasParseError());
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("AddLyricsViewed")
                                  .property("token", "SONG-TOKEN")
                                  .property("lines", lines["lines"]);
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
 
-    // verify only good line data recorded
-    auto data = mExtension->getActiveLyricsViewedData()->lyricData;
-    ASSERT_TRUE(data->IsArray());
-    ASSERT_EQ(2, data->Size());
     lines.Parse(LINES);
-    ASSERT_TRUE(IsEqual(lines["lines"], *data));
+    // verify only good line data recorded
+    mExtension->onActivityUnregistered(activity);
+    ASSERT_EQ("FLUSHED", mObserver->mCommand);
+    ASSERT_EQ(AsString(lines["lines"]), mObserver->mParamJson);
+    ASSERT_EQ(0, mObserver->mParaNum);
 }
 
 TEST_F(AplAudioPlayerExtensionTest, InvokeFlushLyricsSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     Document lines;
     lines.Parse(LINES);
     ASSERT_FALSE(lines.HasParseError());
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("AddLyricsViewed")
                                  .property("token", "SONG-TOKEN")
                                  .property("lines", lines["lines"]);
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
-    // verify line data
-    auto data = mExtension->getActiveLyricsViewedData()->lyricData;
-    ASSERT_TRUE(data->IsArray());
-    ASSERT_EQ(2, data->Size());
-    lines.Parse(LINES);
-    ASSERT_TRUE(IsEqual(lines["lines"], *data));
 
     // Flush data
     command = Command("1.0").target(mClientToken)
-                            .uri("aplext:audioplayer:10")
+                            .uri(URI)
                             .name("FlushLyricData")
                             .property("token", "SONG-TOKEN");
-    invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
 
+    lines.Parse(LINES);
     // Observer is notified of flush.
     ASSERT_EQ("FLUSHED", mObserver->mCommand);
     ASSERT_EQ(AsString(lines["lines"]), mObserver->mParamJson);
     ASSERT_EQ(0, mObserver->mParaNum);
 }
 
+TEST_F(AplAudioPlayerExtensionTest, ShouldFlushLyricsOnUnregister)
+{
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
+
+    Document lines;
+    lines.Parse(LINES);
+    ASSERT_FALSE(lines.HasParseError());
+
+    auto command = Command("1.0").target(mClientToken)
+                                 .uri(URI)
+                                 .name("AddLyricsViewed")
+                                 .property("token", "SONG-TOKEN")
+                                 .property("lines", lines["lines"]);
+    auto invoke = mExtension->invokeCommand(activity, command);
+    ASSERT_TRUE(invoke);
+
+    // Unregister activity
+    mExtension->onActivityUnregistered(activity);
+
+    lines.Parse(LINES);
+    // Observer is notified of flush.
+    ASSERT_EQ("FLUSHED", mObserver->mCommand);
+    ASSERT_EQ(AsString(lines["lines"]), mObserver->mParamJson);
+    ASSERT_EQ(0, mObserver->mParaNum);
+}
+
+TEST_F(AplAudioPlayerExtensionTest, ShouldFlushLyricsOnTokenChange)
+{
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
+
+    Document lines;
+    lines.Parse(LINES);
+    ASSERT_FALSE(lines.HasParseError());
+
+    auto command = Command("1.0").target(mClientToken)
+                       .uri(URI)
+                       .name("AddLyricsViewed")
+                       .property("token", "SONG-TOKEN")
+                       .property("lines", lines["lines"]);
+    auto invoke = mExtension->invokeCommand(activity, command);
+    ASSERT_TRUE(invoke);
+
+    // Changing token causes lyrics to get flushed
+    lines.Parse(LINES);
+    auto newCommand = Command("1.0").target(mClientToken)
+                        .uri(URI)
+                        .name("AddLyricsViewed")
+                        .property("token", "OTHER_TOKEN")
+                        .property("lines", lines["lines"]);
+    invoke = mExtension->invokeCommand(activity, newCommand);
+    ASSERT_TRUE(invoke);
+
+    lines.Parse(LINES);
+    // Observer is notified of flush.
+    ASSERT_EQ("FLUSHED", mObserver->mCommand);
+    ASSERT_EQ(AsString(lines["lines"]), mObserver->mParamJson);
+    ASSERT_EQ(0, mObserver->mParaNum);
+}
+
+
 /**
  * Command AddLyricsDurationInMilliseconds handles missing params and properly fails.
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsDurationInMillisecondsMissingParamFailure)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     // missing token
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("AddLyricsDurationInMilliseconds")
                                  .property("durationInMilliseconds", 100);
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_FALSE(invoke);
 
     // missing duration
     command = Command("1.0").target(mClientToken)
-                            .uri("aplext:audioplayer:10")
+                            .uri(URI)
                             .name("AddLyricsDurationInMilliseconds")
                             .property("token", "SONG-TOKEN");
-    invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    invoke = mExtension->invokeCommand(activity, command);
     ASSERT_FALSE(invoke);
 }
 
@@ -892,24 +988,25 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsDurationInMilliseconds
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsDurationInMillisecondsBadParamFailure)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     // bad token
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("AddLyricsDurationInMilliseconds")
                                  .property("token", "")
                                  .property("durationInMilliseconds", 100);
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_FALSE(invoke);
 
     // bad duration
     command = Command("1.0").target(mClientToken)
-                            .uri("aplext:audioplayer:10")
+                            .uri(URI)
                             .name("AddLyricsDurationInMilliseconds")
                             .property("token", "SONG-TOKEN")
                             .property("durationInMilliseconds", -1);
-    invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    invoke = mExtension->invokeCommand(activity, command);
     ASSERT_FALSE(invoke);
 }
 
@@ -918,41 +1015,37 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsDurationInMilliseconds
  */
 TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsDurationInMillisecondsSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     Document lines;
     lines.Parse(LINES);
     ASSERT_FALSE(lines.HasParseError());
 
     auto command = Command("1.0").target(mClientToken)
-                                 .uri("aplext:audioplayer:10")
+                                 .uri(URI)
                                  .name("AddLyricsViewed")
                                  .property("token", "SONG-TOKEN")
                                  .property("lines", lines["lines"]);
-    auto invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
-    // verify line data
-    auto data = mExtension->getActiveLyricsViewedData()->lyricData;
-    ASSERT_TRUE(data->IsArray());
-    ASSERT_EQ(2, data->Size());
     lines.Parse(LINES);
-    ASSERT_TRUE(IsEqual(lines["lines"], *data));
 
     // add duration
     command = Command("1.0").target(mClientToken)
-                            .uri("aplext:audioplayer:10")
+                            .uri(URI)
                             .name("AddLyricsDurationInMilliseconds")
                             .property("token", "SONG-TOKEN")
                             .property("durationInMilliseconds", 53);
-    invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
 
     // Flush data
     command = Command("1.0").target(mClientToken)
-                            .uri("aplext:audioplayer:10")
+                            .uri(URI)
                             .name("FlushLyricData")
                             .property("token", "SONG-TOKEN");
-    invoke = mExtension->invokeCommand("aplext:audioplayer:10", command);
+    invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
 
 
@@ -967,15 +1060,16 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsDurationInMilliseconds
  */
 TEST_F(AplAudioPlayerExtensionTest, UpdatePlaybackProgressSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     bool gotUpdate = false;
     mExtension->registerLiveDataUpdateCallback(
-            [&](const std::string &uri, const rapidjson::Value &liveDataUpdate) {
+            [&](const ActivityDescriptor& activity, const rapidjson::Value &liveDataUpdate) {
                 gotUpdate = true;
                 ASSERT_STREQ("LiveDataUpdate",
                              GetWithDefault<const char *>(RegistrationSuccess::METHOD(), liveDataUpdate, ""));
-              ASSERT_STREQ("aplext:audioplayer:10",
+                ASSERT_STREQ("aplext:audioplayer:10",
                            GetWithDefault<const char *>(RegistrationSuccess::TARGET(), liveDataUpdate, ""));
                 const Value *ops = LiveDataUpdate::OPERATIONS().Get(liveDataUpdate);
                 ASSERT_TRUE(ops);
@@ -993,15 +1087,16 @@ TEST_F(AplAudioPlayerExtensionTest, UpdatePlaybackProgressSuccess)
  */
 TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivityLiveDataSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     bool gotUpdate = false;
     mExtension->registerLiveDataUpdateCallback(
-            [&](const std::string &uri, const rapidjson::Value &liveDataUpdate) {
+            [&](const ActivityDescriptor& activity, const rapidjson::Value &liveDataUpdate) {
                 gotUpdate = true;
                 ASSERT_STREQ("LiveDataUpdate",
                              GetWithDefault<const char *>(LiveDataUpdate::METHOD(), liveDataUpdate, ""));
-              ASSERT_STREQ("aplext:audioplayer:10",
+                ASSERT_STREQ("aplext:audioplayer:10",
                            GetWithDefault<const char *>(LiveDataUpdate::TARGET(), liveDataUpdate, ""));
                 const Value *ops = LiveDataUpdate::OPERATIONS().Get(liveDataUpdate);
                 ASSERT_TRUE(ops);
@@ -1019,21 +1114,22 @@ TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivityLiveDataSuccess)
  */
 TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivityEventSuccess)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     bool gotUpdate = false;
     mExtension->registerEventCallback(
         [&](const std::string &uri, const rapidjson::Value &event) {
-          gotUpdate = true;
-          ASSERT_STREQ("Event",
-                       GetWithDefault<const char *>(Event::METHOD(), event, ""));
-          ASSERT_STREQ("aplext:audioplayer:10",
-                       GetWithDefault<const char *>(Event::TARGET(), event, ""));
-          auto payload = Event::PAYLOAD().Get(event);
-          ASSERT_STREQ("PLAYING",
-                       GetWithDefault<const char *>("playerActivity", payload, ""));
-          ASSERT_EQ(100,
-                       GetWithDefault<int>("offset", payload, -1));
+            gotUpdate = true;
+            ASSERT_STREQ("Event",
+                         GetWithDefault<const char *>(Event::METHOD(), event, ""));
+            ASSERT_STREQ("aplext:audioplayer:10",
+                         GetWithDefault<const char *>(Event::TARGET(), event, ""));
+            auto payload = Event::PAYLOAD().Get(event);
+            ASSERT_STREQ("PLAYING",
+                         GetWithDefault<const char *>("playerActivity", payload, ""));
+            ASSERT_EQ(100,
+                      GetWithDefault<int>("offset", payload, -1));
         });
 
     mExtension->updatePlayerActivity("PLAYING", 100);
@@ -1045,11 +1141,12 @@ TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivityEventSuccess)
  */
 TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivityFailure)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     bool gotUpdate = false;
     mExtension->registerLiveDataUpdateCallback(
-            [&](const std::string &uri, const rapidjson::Value &liveDataUpdate) {
+            [&](const ActivityDescriptor& activity, const rapidjson::Value &liveDataUpdate) {
                 gotUpdate = true;
             });
 
@@ -1066,11 +1163,12 @@ TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivityFailure)
  */
 TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivityStateChange)
 {
-    ASSERT_TRUE(registerExtension());
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
 
     int updateCount = 0;
     mExtension->registerLiveDataUpdateCallback(
-        [&](const std::string &uri, const rapidjson::Value &liveDataUpdate) {
+        [&](const ActivityDescriptor& activity, const rapidjson::Value &liveDataUpdate) {
             updateCount++;
         });
 

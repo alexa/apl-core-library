@@ -26,7 +26,6 @@
 
 namespace apl {
 
-class RootContextData;
 class ConfigurationChange;
 
 /**
@@ -64,12 +63,23 @@ class ConfigurationChange;
 
 class LayoutManager {
 public:
-    explicit LayoutManager(const RootContextData& core);
+    /**
+     * Instantiate a LayoutManager for the given CoreRootContext.
+     * @param coreRootContext the CoreRootContext for which layouts will be managed
+     * @param size Initial configured size.
+     */
+    LayoutManager(const CoreRootContext& coreRootContext, const Size& size);
 
     /**
      * Stop all layout processing (and future layout processing)
      */
     void terminate();
+
+    /**
+     * Set new viewport size
+     * @param size new viewport size
+     */
+    void setSize(const Size& size);
 
     /**
      * @return True if there are components that need a layout pass
@@ -98,8 +108,16 @@ public:
      * Inform the layout manager of a configuration change.  If the configuration change
      * affects the layout, this will schedule a layout pass.
      * @param change The configuration change
+     * @param document The document being reconfigured
      */
-    void configChange(const ConfigurationChange& change);
+    void configChange(const ConfigurationChange& change, const CoreDocumentContextPtr& document);
+
+    /**
+     * Determines whether the specified component is a Yoga hierarchy top node.
+     *
+     * @return @c true if the node is a top node, @c false otherwise
+     */
+    bool isTopNode(const std::shared_ptr<const CoreComponent>& component) const;
 
     /**
      * Mark this component as the top of a Yoga hierarchy
@@ -149,20 +167,31 @@ public:
      */
     void needToReProcessLayoutChanges() { mNeedToReProcessLayoutChanges = true; }
 
+    using PPKey = std::pair<std::weak_ptr<CoreComponent>, PropertyKey>;
+    class PPKeyLess final {
+    public:
+        bool operator()(const PPKey& lhs, const PPKey& rhs) const
+        {
+            if (lhs.first.owner_before(rhs.first)) return true;
+            if (rhs.first.owner_before(lhs.first)) return false;
+
+            // Components are equal, break the tie with the property key
+            return lhs.second < rhs.second;
+        }
+    };
+
 private:
     void layoutComponent(const CoreComponentPtr& component, bool useDirtyFlag, bool first);
     void flushLazyInflationInternal(const CoreComponentPtr& comp);
 
 private:
-    using PPKey = std::pair<CoreComponentPtr, PropertyKey>;
-
-    const RootContextData& mCore;
+    const CoreRootContext& mRoot;
     std::set<CoreComponentPtr> mPendingLayout;
     Size mConfiguredSize;
     bool mTerminated = false;
     bool mInLayout = false;    // Guard against recursive calls to layout
     bool mNeedToReProcessLayoutChanges = false;
-    std::map<PPKey, Object> mPostProcess;   // Collection of elements to post-process
+    std::map<PPKey, Object, LayoutManager::PPKeyLess> mPostProcess;   // Collection of elements to post-process
 };
 
 } // namespace apl

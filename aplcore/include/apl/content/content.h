@@ -16,10 +16,8 @@
 #ifndef _APL_CONTENT_H
 #define _APL_CONTENT_H
 
-#include <set>
-#include <map>
-
 #include "apl/common.h"
+#include "apl/content/extensionrequest.h"
 #include "apl/content/package.h"
 #include "apl/content/settings.h"
 #include "apl/engine/properties.h"
@@ -131,6 +129,13 @@ public:
     void addData(const std::string& name, JsonData&& data);
 
     /**
+     * Add data
+     * @param name The name of the data source
+     * @param data The raw data source
+     */
+    void addObjectData(const std::string& name, const Object& data);
+
+    /**
      * @return The number of parameters
      */
     size_t getParameterCount() const { return mAllParameters.size(); }
@@ -182,6 +187,11 @@ public:
     std::set<std::string> getExtensionRequests() const;
 
     /**
+     * @return The ordered collection of extension requests
+     */
+    const std::vector<ExtensionRequest>& getExtensionRequestsV2() const;
+
+    /**
      * Retrieve the settings associated with an extension request.
      * @param uri The uri of the extension.
      * @return Map of settings, Object::NULL_OBJECT() if no settings are specified in the document.
@@ -204,7 +214,7 @@ public:
     std::set<std::string> getPendingParameters() const { return mPendingParameters; }
 
 private:  // Non-public methods used by other classes
-    friend class RootContext;
+    friend class CoreDocumentContext;
 
     const std::vector<PackagePtr>& ordered() const {return mOrderedDependencies;};
     const rapidjson::Value& getMainTemplate() const { return mMainTemplate; }
@@ -217,8 +227,8 @@ public:
      * @param mainPackagePtr The main package
      * @param mainTemplate The RapidJSON main template object
      */
-    Content(SessionPtr session,
-            PackagePtr mainPackagePtr,
+    Content(const SessionPtr& session,
+            const PackagePtr& mainPackagePtr,
             const rapidjson::Value& mainTemplate);
 
 private:  // Private internal methods
@@ -229,6 +239,7 @@ private:  // Private internal methods
     void loadExtensionSettings();
     bool orderDependencyList();
     bool addToDependencyList(std::vector<PackagePtr>& ordered, std::set<PackagePtr>& inProgress, const PackagePtr& package);
+    bool allowAdd(const std::string& name);
 
 private:
     enum State {
@@ -241,7 +252,7 @@ private:
     SessionPtr mSession;
     PackagePtr mMainPackage;
 
-    std::vector<std::pair<std::string, std::string>> mExtensionRequests;  // ordered <NAME,URI>
+    std::vector<ExtensionRequest> mExtensionRequests;
     ObjectMapPtr mExtensionSettings; // Map Name -> <settingKey, settingValue> may be null
 
     State mState;
@@ -252,7 +263,7 @@ private:
     std::map<ImportRef, PackagePtr> mLoaded;
     std::vector<PackagePtr> mOrderedDependencies;
 
-    std::map<std::string, JsonData> mParameterValues;
+    std::map<std::string, Object> mParameterValues;
     std::vector<std::string> mMainParameters;  // Requested by the main template
     std::vector<std::string> mEnvironmentParameters;  // Requested by the environment block
     std::set<std::string> mPendingParameters;  // Union of main and environment parameters

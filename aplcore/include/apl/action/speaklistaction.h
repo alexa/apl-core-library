@@ -37,7 +37,7 @@ public:
                     size_t startIndex, size_t endIndex);
 
     void freeze() override;
-    bool rehydrate(const RootContext& context) override;
+    bool rehydrate(const CoreDocumentContext& context) override;
 
 private:
     void advance();

@@ -22,10 +22,21 @@
 
 #include "apl/datagrammar/bytecode.h"
 #include "apl/engine/evaluate.h"
-#include "apl/primitives/symbolreferencemap.h"
 #include "apl/utils/dump_object.h"
 
 static const char *USAGE_STRING = "parseExpression [OPTIONS] EXPRESSION*";
+
+void showSymbols(const apl::BoundSymbolSet& symbols)
+{
+    if (symbols.empty())
+        std::cout << "No symbols referenced";
+    else {
+        std::cout << "Symbols referenced:";
+        for (const auto& symbol : symbols)
+            std::cout << " " << symbol.getName();
+        std::cout << std::endl;
+    }
+}
 
 int
 main(int argc, char *argv[])
@@ -36,6 +47,8 @@ main(int argc, char *argv[])
     bool optimize = false;
     long repetitions = 0;
     bool verbose = false;
+    bool show_symbols = false;
+    bool decompile = false;
 
     argumentSet.add({
         Argument("-o",
@@ -63,7 +76,23 @@ main(int argc, char *argv[])
                  "",
                  [&](const std::vector<std::string>&) {
                      verbose = true;
-                 })
+                 }),
+        Argument("-S",
+                 "--symbols",
+                 Argument::NONE,
+                 "Show referenced symbols used when evaluating the expression",
+                 "",
+                 [&](const std::vector<std::string>&) {
+                     show_symbols = true;
+                 }),
+        Argument("-D",
+                 "--decompile",
+                 Argument::NONE,
+                 "Decompile the byte code and display",
+                 "",
+                 [&](const std::vector<std::string>&) {
+                decompile = true;
+            }),
     });
 
     std::vector<std::string> args(argv + 1, argv + argc);
@@ -79,22 +108,9 @@ main(int argc, char *argv[])
         auto start = std::chrono::high_resolution_clock::now();
 
         for (const auto& m : args) {
-            // When the optimize flag is turned on, we optimize the expression once
-            // and evaluate it "N" times
-            if (optimize) {
-                auto cbc = apl::getDataBinding(*c, m);
-                if (cbc.is<apl::datagrammar::ByteCode>()) {
-                    apl::SymbolReferenceMap map;
-                    cbc.symbols(map);
-                }
-
-                for (long i = 0 ; i < repetitions ; i++)
-                    cbc.eval();
-            }
-            else {  // When the optimize flag is turned off, we evaluated the expression "N" times.
-                for (long i = 0 ; i < repetitions ; i++)
-                    apl::evaluate(*c, m);
-            }
+            auto result = apl::parseAndEvaluate(*c, m, optimize);
+            for (long i = 0; i < repetitions; i++)
+                result.expression.eval();
         }
 
         auto stop = std::chrono::high_resolution_clock::now();
@@ -108,20 +124,17 @@ main(int argc, char *argv[])
             if (verbose)
                 std::cout << "parsing '" << m << "'" << std::endl;
 
-            auto cbc = apl::getDataBinding(*c, m);
+            auto result = apl::parseAndEvaluate(*c, m, optimize);
 
-            if (verbose && cbc.is<apl::datagrammar::ByteCode>())
-                cbc.get<apl::datagrammar::ByteCode>()->dump();
-
-            std::cout << "Evaluates to " << cbc.eval().asString() << std::endl;
-
-            if (optimize && cbc.is<apl::datagrammar::ByteCode>()) {
-                apl::SymbolReferenceMap map;
-                cbc.symbols(map);
-                std::cout << std::endl << "Optimized version" << std::endl;
-                cbc.get<apl::datagrammar::ByteCode>()->dump();
-                std::cout << "optimized version evaluates to " << cbc.eval().asString() << std::endl;
+            if (decompile && result.expression.is<apl::datagrammar::ByteCode>()) {
+                for (const auto& m : result.expression.get<apl::datagrammar::ByteCode>()->disassemble()) {
+                    std::cout << m << std::endl;
+                }
             }
+
+            std::cout << "Evaluates to " << result.value.toDebugString() << std::endl;
+            if (show_symbols)
+                showSymbols(result.symbols);
         }
     }
 }

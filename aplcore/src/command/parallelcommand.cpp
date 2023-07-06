@@ -39,7 +39,7 @@ ParallelCommand::execute(const TimersPtr& timers, bool fastMode) {
 
     for (auto& command : commands.getArray()) {
         auto self = std::static_pointer_cast<CoreCommand>(shared_from_this());
-        auto commandPtr = CommandFactory::instance().inflate(command, self);
+        auto commandPtr = CommandFactory::instance().inflate({command, data()}, self);
         if (commandPtr) {
             auto childSeq = commandPtr->sequencer();
             if (childSeq != sequencer()) {

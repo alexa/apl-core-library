@@ -15,12 +15,13 @@
 
 #include <tao/pegtl.hpp>
 
-#include "apl/datagrammar/boundsymbol.h"
-#include "apl/datagrammar/bytecodeassembler.h"
 #include "apl/datagrammar/bytecode.h"
+#include "apl/datagrammar/bytecodeassembler.h"
 #include "apl/datagrammar/bytecodeevaluator.h"
-#include "apl/datagrammar/databindingrules.h"
 #include "apl/datagrammar/databindingerrors.h"
+#include "apl/datagrammar/databindingrules.h"
+
+#include "apl/primitives/boundsymbol.h"
 
 #include "apl/engine/context.h"
 #include "apl/utils/log.h"
@@ -67,12 +68,16 @@ Object
 ByteCodeAssembler::parse(const Context& context, const std::string& value)
 {
     // Short-circuit the parser if there are no embedded expressions
-    if (value.find("${") == std::string::npos)
+    if (value.find("${") == std::string::npos && value.find("#{") == std::string::npos)
         return value;
 
     pegtl::string_input<> in(value, "");
     datagrammar::ByteCodeAssembler assembler(context);
     fail_state failState;
+
+    // Only support #{...} evaluation in version 2023.2 and higher.
+    if (context.getRequestedAPLVersion().compare("2023.2") >= 0)
+        assembler.mCanDeferAndEval = true;
 
     if (!pegtl::parse<datagrammar::grammar, datagrammar::action, PEGTL_ERROR_CTRL>(in, failState, assembler) || failState.failed) {
         if (failState.failed) {
@@ -147,7 +152,7 @@ ByteCodeAssembler::loadGlobal(const std::string& name)
     }
 
     // Mutable globals have a bound symbol
-    mDataRef->emplace_back(Object(std::make_shared<BoundSymbol>(cr.context(), name)));
+    mDataRef->emplace_back(BoundSymbol(cr.context(), name));
     mInstructionRef->emplace_back(ByteCodeInstruction{BC_OPCODE_LOAD_BOUND_SYMBOL, len});
 }
 
@@ -438,18 +443,33 @@ ByteCodeAssembler::popGroup()
 }
 
 void
-ByteCodeAssembler::pushDBGroup()
+ByteCodeAssembler::evaluate()
 {
-    mOperatorsRef->emplace_back(Operator{BC_ORDER_DB, BC_OPCODE_NOP, 0});
+    mInstructionRef->emplace_back(ByteCodeInstruction{BC_OPCODE_EVALUATE, 0});
 }
 
 void
+ByteCodeAssembler::pushDBGroup(bool defer)
+{
+    if (defer || mDeferredDepth > 0)
+        mDeferredDepth++;
+    else
+        mOperatorsRef->emplace_back(Operator{BC_ORDER_DB, BC_OPCODE_NOP, 0});
+}
+
+bool
 ByteCodeAssembler::popDBGroup()
 {
+    if (mDeferredDepth > 0) {
+        mDeferredDepth--;
+        return mDeferredDepth == 0;  // True if we've popped the last defer
+    }
+
     assert(!mOperatorsRef->empty());
     assert(mOperatorsRef->back().order == BC_ORDER_DB);
     mOperatorsRef->pop_back();
     mOperatorsRef->push_back(Operator{BC_ORDER_STRING_ELEMENT, BC_OPCODE_NOP, 0});
+    return false;
 }
 
 void

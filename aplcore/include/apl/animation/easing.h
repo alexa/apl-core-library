@@ -72,10 +72,6 @@ public:
     public:
         bool isCallable() const override { return true; }
 
-        bool equals(const Object::DataHolder& lhs, const Object::DataHolder& rhs) const override {
-            return *lhs.data == *rhs.data;
-        }
-
         Object call(const Object::DataHolder& dataHolder, const ObjectArray& args) const override {
             return dataHolder.data->call(args);
         }

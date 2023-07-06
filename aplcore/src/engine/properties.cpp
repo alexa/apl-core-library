@@ -20,8 +20,8 @@
 #include "apl/content/rootconfig.h"
 #include "apl/datasource/datasource.h"
 #include "apl/engine/context.h"
-#include "apl/engine/contextdependant.h"
 #include "apl/engine/evaluate.h"
+#include "apl/engine/typeddependant.h"
 #include "apl/primitives/dimension.h"
 #include "apl/utils/identifier.h"
 #include "apl/utils/session.h"
@@ -77,16 +77,6 @@ Properties::asNumber(const Context& context, const char *name, double defvalue)
     return evaluate(context, s->second).asNumber();
 }
 
-Dimension
-Properties::asAbsoluteDimension(const Context& context, const char *name, double defvalue)
-{
-    auto s = mProperties.find(name);
-    if (s == mProperties.end())
-        return Dimension(DimensionType::Absolute, defvalue);
-
-    return evaluate(context, s->second).asAbsoluteDimension(context);
-}
-
 void
 Properties::emplace(const Object& item)
 {
@@ -103,51 +93,54 @@ Properties::emplace(const Object& item)
 }
 
 void
-Properties::addToContext(const ContextPtr &context, const Parameter &parameter, bool userWriteable)
-{
-    Object tmp;
-    Object result;
-    auto bindingFunc = sBindingFunctions.at(parameter.type);
-
+Properties::addToContext(const ContextPtr &context, const Parameter &parameter, bool userWriteable) {
     auto it = mProperties.find(parameter.name);
-    if (it != mProperties.end()) {
-        tmp = it->second;
-        mProperties.erase(it); // Remove the property from the list
-    }
 
     // Parameter names are only added to the data-binding context if they are valid identifiers.
     if (!isValidIdentifier(parameter.name)) {
         CONSOLE(context) << "Unable to add parameter '" << parameter.name
                          << "' to context. Invalid identifier.";
+        if (it != mProperties.end()) mProperties.erase(it); // Remove it just in case
         return;
     }
 
-    // Extract as an optional node tree for dependant
-    tmp = tmp.isString() ? parseDataBinding(*context, tmp.getString()) : tmp;
-    auto value = evaluate(*context, tmp);
-    if (!value.isNull()) {
-        result = bindingFunc(*context, value);
+    auto bindingFunc = sBindingFunctions.at(parameter.type);
+    Object result = bindingFunc(*context, evaluate(*context, parameter.defvalue));
+    if (it != mProperties.end()) {
+        Object value = it->second;
+        mProperties.erase(it); // Remove the property from the list
 
-        // If type explicitly specified we may want to "enrich" the object.
-        if (value.isMap() && value.has("type")) {
-            std::string type = value.get("type").getString();
-            if (sBindingMap.has(type)) {
-                bindingFunc = sBindingFunctions.at(sBindingMap.at(type));
-                result = bindingFunc(*context, value);
-            } else if (context->getRootConfig().isDataSource(type)) {
-                result = DataSource::create(context, value, parameter.name);
+        if (value.isString()) {
+            auto v = parseAndEvaluate(*context, value);
+            if (!v.symbols.empty()) {
+                ContextDependant::create(context, parameter.name, std::move(v.expression), context,
+                                         bindingFunc, std::move(v.symbols));
+            }
+
+            // We allow any (not only direct) binding to be "enriched".
+            value = v.value;
+        }
+
+        if (!value.isNull()) {
+            result = bindingFunc(*context, value);
+            // If type explicitly specified we may want to "enrich" the object.
+            if (value.isMap() && value.has("type")) {
+                std::string type = value.get("type").getString();
+                if (sBindingMap.has(type)) {
+                    bindingFunc = sBindingFunctions.at(sBindingMap.at(type));
+                    result = bindingFunc(*context, value);
+                }
+                else if (auto provider = context->getRootConfig().getDataSourceProvider(type)) {
+                    result = DataSource::create(context, provider, value, parameter.name);
+                }
             }
         }
-    } else {
-        result = bindingFunc(*context, evaluate(*context, parameter.defvalue));
     }
 
     if (userWriteable) {
         context->putUserWriteable(parameter.name, result);
-        // Even if not valid at this point it could become one
-        if (tmp.isEvaluable())
-            ContextDependant::create(context, parameter.name, tmp, context, bindingFunc);
-    } else {
+    }
+    else {
         context->putConstant(parameter.name, result);
     }
 }

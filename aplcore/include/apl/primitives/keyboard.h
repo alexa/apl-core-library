@@ -20,7 +20,8 @@
 #include <string>
 
 #include "rapidjson/document.h"
-#include "object.h"
+
+#include "apl/primitives/object.h"
 
 namespace apl {
 

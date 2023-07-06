@@ -19,6 +19,7 @@
 #include "apl/engine/arrayify.h"
 #include "apl/engine/properties.h"
 #include "apl/primitives/dimension.h"
+#include "apl/primitives/urlrequest.h"
 #include "apl/utils/bimap.h"
 
 namespace apl {
@@ -168,6 +169,10 @@ inline Object asMapped(const Context& context, const Object& object,
     return defvalue;
 }
 
+inline Object asUrlRequest(const Context& context, const Object& object) {
+    return URLRequest::create(context, object);
+}
+
 inline Object asDashArray(const Context& context, const Object& object) {
     std::vector<Object> data = arrayify(context, object);
     auto size = data.size();
@@ -179,7 +184,7 @@ inline Object asDashArray(const Context& context, const Object& object) {
 }
 
 inline Object asDeepArray(const Context &context, const Object &object) {
-    return evaluateRecursive(context, arrayify(context, object));
+    return evaluateNested(context, arrayify(context, object));
 }
 
 /**

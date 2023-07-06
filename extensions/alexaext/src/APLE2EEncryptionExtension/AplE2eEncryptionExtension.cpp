@@ -69,7 +69,8 @@ AplE2eEncryptionExtension::AplE2eEncryptionExtension(
 
 rapidjson::Document
 AplE2eEncryptionExtension::createRegistration(const std::string& uri,
-                                              const rapidjson::Value& registrationRequest) {
+                                              const rapidjson::Value& registrationRequest)
+{
     if (uri != URI)
         return RegistrationFailure::forUnknownURI(uri);
 
@@ -133,7 +134,8 @@ AplE2eEncryptionExtension::createRegistration(const std::string& uri,
 }
 
 bool
-AplE2eEncryptionExtension::invokeCommand(const std::string& uri, const rapidjson::Value& command) {
+AplE2eEncryptionExtension::invokeCommand(const std::string& uri, const rapidjson::Value& command)
+{
     if (uri != URI)
         return false;
 

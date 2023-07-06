@@ -280,6 +280,7 @@ MediaPlayer : next()
 MediaPlayer : previous()
 MediaPlayer : rewind()
 MediaPlayer : seek(int offset)
+MediaPlayer : seekTo(int offset)
 MediaPlayer : setTrackIndex(int index)
 MediaPlayer : setAudioTrack( AudioTrack )
 MediaPlayer : callback : function

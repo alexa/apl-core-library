@@ -24,6 +24,8 @@ Object makeViewport( const Metrics& metrics, const std::string& theme ) {
     auto viewport = std::make_shared<ObjectMap>();
     viewport->emplace("width", metrics.getWidth());
     viewport->emplace("height", metrics.getHeight());
+    viewport->emplace("autoWidth", metrics.getAutoWidth());
+    viewport->emplace("autoHeight", metrics.getAutoHeight());
     viewport->emplace("dpi", metrics.getDpi());
     viewport->emplace("shape", metrics.getShape());
     viewport->emplace("pixelWidth", metrics.getPixelWidth());

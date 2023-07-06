@@ -22,8 +22,7 @@
 
 #include "alexaext/APLWebflowExtension/AplWebflowExtension.h"
 
-using namespace Webflow;
-using namespace alexaext;
+using namespace alexaext::webflow;
 
 // Data types
 static const char* PAYLOAD_START_FLOW = "StartFlowPayload";
@@ -52,10 +51,11 @@ AplWebflowExtension::AplWebflowExtension(
       mExecutor(executor) {}
 
 rapidjson::Document
-AplWebflowExtension::createRegistration(const std::string& uri,
-                                        const rapidjson::Value& registrationRequest) {
-    if (uri != URI) {
-        return RegistrationFailure::forUnknownURI(uri);
+AplWebflowExtension::createRegistration(const ActivityDescriptor &activity,
+                                        const rapidjson::Value& registrationRequest)
+{
+    if (activity.getURI() != URI) {
+        return RegistrationFailure::forUnknownURI(activity.getURI());
     }
 
     // return success with the schema and environment
@@ -85,9 +85,10 @@ AplWebflowExtension::createRegistration(const std::string& uri,
 }
 
 bool
-AplWebflowExtension::invokeCommand(const std::string& uri, const rapidjson::Value& command) {
+AplWebflowExtension::invokeCommand(const ActivityDescriptor& activity, const rapidjson::Value& command)
+{
     // unknown URI
-    if (uri != URI)
+    if (activity.getURI() != URI)
         return false;
 
     if (!mObserver)
@@ -112,7 +113,7 @@ AplWebflowExtension::invokeCommand(const std::string& uri, const rapidjson::Valu
         std::string flowId = GetWithDefault<const char *>(PROPERTY_FLOW_ID, *params, "");
 
         if (flowId.empty()) {
-            executor->enqueueTask([&]() { mObserver->onStartFlow(token, url, flowId); });
+            executor->enqueueTask([&]() { mObserver->onStartFlow(activity, token, url, flowId); });
         }
         else {
             std::weak_ptr<AplWebflowExtension> thisWeak = shared_from_this();
@@ -128,7 +129,7 @@ AplWebflowExtension::invokeCommand(const std::string& uri, const rapidjson::Valu
                     lockPtr->invokeExtensionEventHandler(URI, event);
                 }
             };
-            executor->enqueueTask([&]() { mObserver->onStartFlow(token, url, flowId, onFlowEnd); });
+            executor->enqueueTask([&]() { mObserver->onStartFlow(activity, token, url, flowId, onFlowEnd); });
         }
         return true;
     }

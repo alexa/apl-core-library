@@ -17,100 +17,12 @@
 
 #include "apl/engine/evaluate.h"
 #include "apl/datagrammar/bytecodeassembler.h"
+#include "apl/datagrammar/bytecodeoptimizer.h"
 #include "apl/engine/context.h"
 #include "apl/utils/log.h"
 #include "apl/utils/session.h"
 
 namespace apl {
-
-Object
-getDataBinding(const Context& context, const std::string& value)
-{
-    return datagrammar::ByteCodeAssembler::parse(context, value);
-}
-
-Object
-parseDataBinding(const Context& context, const std::string& value)
-{
-    auto result = datagrammar::ByteCodeAssembler::parse(context, value);
-    if (result.isEvaluable())
-        return result.get<datagrammar::ByteCode>()->simplify();
-
-    return result;
-}
-
-Object
-parseDataBindingRecursive(const Context& context, const Object& object)
-{
-    if (object.isString()) {
-        return parseDataBinding(context, object.getString());
-    }
-    else if (object.isTrueMap()) {
-        auto result = std::make_shared<std::map<std::string, Object>>();
-        for (const auto &m : object.getMap())
-            result->emplace(m.first, parseDataBindingRecursive(context, m.second));
-        return Object(result);
-    } else if (object.isArray()) {
-        auto v = std::make_shared<std::vector<Object>>();
-        for (auto index = 0; index < object.size(); index++)
-            v->push_back(parseDataBindingRecursive(context, object.at(index)));
-        return Object(v);
-    }
-
-    return object;
-}
-
-Object
-applyDataBinding(const Context& context, const std::string& value)
-{
-    Object parsed = getDataBinding(context, value);
-    if (parsed.isEvaluable())
-        return parsed.eval();
-
-    return parsed;
-}
-
-Object
-evaluate(const Context& context, const Object& object)
-{
-    // If it is a string, we check for data-binding
-    auto result = object.isString() ? getDataBinding(context, object.getString()) : object;
-
-    // Nodes get evaluated
-    if (result.isEvaluable())
-        result = result.eval();
-
-    // Strings get a resource check
-    if (result.isString()) {
-        std::string s = result.getString();
-        if (!s.empty() && s[0] == '@' && context.has(s))
-            return context.opt(s);    // This isn't efficient because we do a has() and a get().
-    }
-
-    return result;
-}
-
-Object
-evaluate(const Context& context, const char *expression)
-{
-    return evaluate(context, Object(expression));
-}
-
-Object
-reevaluate(const Context& context, const Object& equation)
-{
-    // An evaluable equation is re-calculated.  Otherwise, we try a recursive evaluation.
-    auto result = equation.isEvaluable() ? equation.eval() : evaluateRecursive(context, equation);
-
-    // Strings get a resource check
-    if (result.isString()) {
-        std::string s = result.getString();
-        if (!s.empty() && s[0] == '@' && context.has(s))
-            return context.opt(s);    // This isn't efficient because we do a has() and a get().
-    }
-
-    return result;
-}
 
 /**
  * Resource lookup on object if it is of string type. Otherwise original object will be returned.
@@ -128,38 +40,125 @@ resourceLookup(const Context& context, const Object& result)
 }
 
 Object
-evaluateRecursive(const Context& context, const Object& object)
+parseDataBinding(const Context& context, const std::string& value, bool optimize)
+{
+    auto result = datagrammar::ByteCodeAssembler::parse(context, value);
+    if (optimize && result.is<datagrammar::ByteCode>())
+        result.get<datagrammar::ByteCode>()->optimize();
+
+    return result;
+}
+
+Object
+parseDataBindingNested(const Context& context, const Object& object, bool optimize) // NOLINT(misc-no-recursion)
 {
     if (object.isString()) {
-        auto result = applyDataBinding(context, object.getString());
-        return resourceLookup(context, result);
+        return parseDataBinding(context, object.getString(), optimize);
     }
     else if (object.isTrueMap()) {
         auto result = std::make_shared<std::map<std::string, Object>>();
-        for (const auto& m : object.getMap())
-            result->emplace(m.first, evaluateRecursive(context, m.second));
-        return Object(result);
+        for (const auto &m : object.getMap())
+            result->emplace(m.first, parseDataBindingNested(context, m.second, optimize));
+        return { result };
+    } else if (object.isArray()) {
+        auto v = std::make_shared<std::vector<Object>>();
+        for (auto index = 0; index < object.size(); index++)
+            v->push_back(parseDataBindingNested(context, object.at(index), optimize));
+        return { v };
     }
-    else if (object.isArray()) {  // Embedded data-bound strings are inserted in-line: E.g., [ 1, "${b}" ]
+
+    return object;
+}
+
+Object
+applyDataBindingNested(const Context& context, // NOLINT(misc-no-recursion)
+                       const Object& object,
+                       BoundSymbolSet *symbols,
+                       int depth)
+{
+    if (object.is<datagrammar::ByteCode>())
+        return resourceLookup(context, object.get<datagrammar::ByteCode>()->evaluate(symbols, depth));
+
+    if (object.isTrueMap()) {
+        auto result = std::make_shared<std::map<std::string, Object>>();
+        for (const auto& m : object.getMap())
+            result->emplace(m.first, applyDataBindingNested(context, m.second, symbols, depth));
+        return { result };
+    }
+
+    if (object.isArray()) {  // Embedded data-bound strings are inserted in-line: E.g., [ 1, "${b}" ]
         std::vector<Object> v;
         for (auto index = 0 ; index < object.size() ; index++) {
             auto item = object.at(index);
-            auto itemEvaluated = evaluateRecursive(context, item);
-            if (item.isString() && itemEvaluated.isArray()) {  // Insert the results into the array
+            auto itemEvaluated = applyDataBindingNested(context, item, symbols, depth);
+            if (item.is<datagrammar::ByteCode>() && itemEvaluated.isArray()) {  // Insert the results into the array
                 for (const auto& n : itemEvaluated.getArray())
                     v.push_back(n);
             } else {
                 v.push_back(itemEvaluated);
             }
         }
-        return Object(std::move(v));
-    }
-    else if (object.isEvaluable()) {
-        auto result = object.eval();
-        return resourceLookup(context, result);
+        return { std::move(v) };
     }
 
-    return object;
+    return resourceLookup(context, object);
+}
+
+ApplyResult
+applyDataBinding(const Context& context,
+                 const Object& object,
+                 const BindingFunction& bindingFunction)
+{
+    BoundSymbolSet symbols;
+    auto result = applyDataBindingNested(context, object, &symbols, 0);
+    if (bindingFunction)
+        result = bindingFunction(context, result);
+    return { result, std::move(symbols) };
+}
+
+Object
+evaluate(const Context& context, const Object& object)
+{
+    // If it is a string, we check for data-binding
+    auto result = object.isString() ? parseDataBinding(context, object.getString(), false) : object;
+
+    // Expressions and bound symbols are evaluated
+    if (result.isEvaluable())
+        result = result.eval();
+
+    // Strings get a resource check
+    return resourceLookup(context, result);
+}
+
+Object
+evaluate(const Context& context, const char *expression)
+{
+    return evaluate(context, Object(expression));
+}
+
+Object
+evaluateNested(const Context& context, const Object& object, BoundSymbolSet *symbolSet)
+{
+    auto result = parseDataBindingNested(context, object, false);
+    return applyDataBindingNested(context, result, symbolSet, 0);
+}
+
+Object
+evaluateInternal(const Context& context, const Object& object, BoundSymbolSet *symbolSet, int depth)
+{
+    auto result = parseDataBindingNested(context, object, false);
+    return applyDataBindingNested(context, result, symbolSet, depth);
+}
+
+ParseResult
+parseAndEvaluate(const Context& context,
+                 const Object& object,
+                 bool optimize)
+{
+    BoundSymbolSet symbols;
+    auto parsed = parseDataBindingNested(context, object, optimize);
+    auto evaluated = applyDataBindingNested(context, parsed, &symbols, 0);
+    return { std::move(evaluated), std::move(parsed), std::move(symbols) };
 }
 
 bool
@@ -240,19 +239,7 @@ propertyAsRecursive(const Context& context,
     if (!item.isMap() || !item.has(name))
         return Object::NULL_OBJECT();
 
-    return evaluateRecursive(context, item.get(name));
-}
-
-Object
-propertyAsNode(const Context& context,
-               const Object& item,
-               const char *name)
-{
-    if (!item.isMap() || !item.has(name))
-        return Object::NULL_OBJECT();
-
-    auto object = item.get(name);
-    return object.isString() ? parseDataBinding(context, object.getString()) : object;
+    return evaluateNested(context, item.get(name));
 }
 
 } // namespace apl

@@ -85,12 +85,6 @@ endif()
 # Do not move. It requires WASM_FLAGS while defining targets and generates part of environment required by next target.
 include(thirdparty/thirdparty.cmake)
 
-# We treat enumgen as an external project because it needs to be built using the host toolchain
-include(tools.cmake)
-
-# The core library
-add_subdirectory(aplcore)
-
 if(BUILD_DOC)
     include(doxygen.cmake)
 endif(BUILD_DOC)
@@ -104,23 +98,13 @@ endif (BUILD_TESTS)
 if (BUILD_ALEXAEXTENSIONS)
     add_subdirectory(extensions)
     target_compile_definitions(alexaext PUBLIC ALEXAEXTENSIONS BUILD_UNIT_TESTS=${BUILD_UNIT_TESTS})
-    if (NOT USE_SYSTEM_RAPIDJSON AND NOT HAS_FETCH_CONTENT)
-        add_dependencies(alexaext rapidjson-build)
-    endif()
 endif(BUILD_ALEXAEXTENSIONS)
 
-# Test cases are built conditionally. Only affect core do not build them for everything else.
-if (BUILD_UNIT_TESTS)
-    include(CTest)
-    include_directories(${GTEST_INCLUDE})
-    add_subdirectory(unit)
+# The core library
+add_subdirectory(aplcore)
 
-    set(MEMCHECK_OPTIONS "--tool=memcheck --leak-check=full --show-reachable=no --error-exitcode=1 --errors-for-leak-kinds=definite,possible")
-    add_custom_target(unittest_memcheck
-            COMMAND ${CMAKE_CTEST_COMMAND} -VV
-            --overwrite MemoryCheckCommandOptions=${MEMCHECK_OPTIONS}
-            -T memcheck)
-endif (BUILD_UNIT_TESTS)
+# We treat enumgen as an external project because it needs to be built using the host toolchain
+include(tools.cmake)
 
 if (BUILD_TEST_PROGRAMS)
     add_subdirectory(test)

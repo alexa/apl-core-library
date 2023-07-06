@@ -16,15 +16,11 @@
 #ifndef _APL_CONTEXT_H
 #define _APL_CONTEXT_H
 
-#include <exception>
-#include <map>
-#include <memory>
-#include <string>
 #include <yoga/Yoga.h>
 
 #include "apl/common.h"
-
 #include "apl/component/componentproperties.h"
+#include "apl/content/metrics.h"
 #include "apl/engine/contextobject.h"
 #include "apl/engine/jsonresource.h"
 #include "apl/engine/recalculatesource.h"
@@ -44,21 +40,19 @@
 
 namespace apl {
 
-class Metrics;
-class Styles;
-class RootContextData;
-class State;
-class Event;
-class Sequencer;
-class RootConfig;
 class DataSourceConnection;
+class Event;
+class RootConfig;
+class Sequencer;
+class State;
+class Styles;
 
+class ExtensionManager;
 class FocusManager;
 class HoverManager;
 class KeyboardManager;
-class LiveDataManager;
-class ExtensionManager;
 class LayoutManager;
+class LiveDataManager;
 class UIDManager;
 
 using DataSourceConnectionPtr = std::shared_ptr<DataSourceConnection>;
@@ -100,29 +94,48 @@ public:
     static ContextPtr createTestContext(const Metrics& metrics, const RootConfig& config);
 
     /**
+     * Create a top-level context for testing. Do not use this for production.
+     * @param metrics Display metrics.
+     * @param config Root configuration
+     * @param session The logging session
+     * @return The context
+     */
+    static ContextPtr createTestContext(const Metrics& metrics, const RootConfig& config, const SessionPtr& session);
+
+    /**
      * Create a top-level context for the document background extraction.
      * @param metrics Display metrics.
      * @param config Root configuration
      * @param theme Theme
+     * @param session Session
      * @return The context
      */
-    static ContextPtr createBackgroundEvaluationContext(const Metrics& metrics, const RootConfig& config, const std::string& theme);
+    static ContextPtr createBackgroundEvaluationContext(
+        const Metrics& metrics,
+        const RootConfig& config,
+        const std::string& aplVersion,
+        const std::string& theme,
+        const SessionPtr& session);
 
     /**
      * Create a top-level context for extension definition.
      * @param config Root configuration
+     * @param session Session
      * @return The context
      */
-    static ContextPtr createTypeEvaluationContext(const RootConfig& config);
+    static ContextPtr createTypeEvaluationContext(
+        const RootConfig& config,
+        const std::string& aplVersion,
+        const SessionPtr& session);
 
     /**
      * Create a top-level context.  Only used by RootContext
      * @param metrics Display metrics
-     * @param core Internal core data.
+     * @param core Internal document data.
      * @return The context.
      */
     static ContextPtr createRootEvaluationContext(const Metrics& metrics,
-                                                  const std::shared_ptr<RootContextData>& core);
+                                                  const ContextDataPtr& core);
 
     /**
      * Create a "clean" context.  This shares the same root data, but does not contain any
@@ -143,19 +156,9 @@ public:
     /**
      * Construct a free-standing context.  Do not call this directly; use the ::create* method instead
      * @param metrics The display metrics.
-     * @param core A pointer to the common core data.
+     * @param core A pointer to the document data.
      */
-    Context(const Metrics& metrics, const std::shared_ptr<RootContextData>& core);
-
-    /**
-     * Construct a free-standing context with simulated runtime state and document parameters.  It should
-     * only be used for context or type evaluation not in data binding context hierarchy.  Do not call
-     * this directly; use the ::create* method instead
-     * @param metrics Display metrics.
-     * @param config Root configuration
-     * @param theme Theme
-     */
-    Context(const Metrics& metrics, const RootConfig& config, const std::string& theme);
+    Context(const Metrics& metrics, const ContextDataPtr& core);
 
     /**
      * Standard destructor
@@ -270,24 +273,13 @@ public:
         return cr.context();
     }
 
-    /**
-     * Propagate a changed value in the context.  This can only be called if the value already exists. Updating
-     * a value will also cause all dependants of this value to be updated.  This method should only be called
-     * by an upstream dependant
-     * @param key The string key name
-     * @param value The new value to assign
-     * @param useDirtyFlag If true, mark downstream changes as dirty
-     * @return True if the key name exists in this context; false if there is no binding value with this name.
-     */
-    bool propagate(const std::string& key, const Object& value, bool useDirtyFlag) {
+    void setValue(std::string key, const Object& value, bool) override {
         auto it = mMap.find(key);
         if (it == mMap.end())
-            return false;
+            return;
 
         if (it->second.set(value))
-            recalculateDownstream(key, useDirtyFlag);
-
-        return true;
+            enqueueDownstream(key);
     }
 
     /**
@@ -506,11 +498,13 @@ public:
     const JsonResource getGraphic(const std::string& name) const;
 
     /**
-     * Find a component somewhere in the DOM with the given id or uniqueId.
+     * Find a component with the given id or uniqueId somewhere in the DOM of the document identified by documentId.
+     * To find a component in the top-level document, use the variant accepting only id.
      * @param id The id or uniqueID to search for.
-     * @return The component or nullptr if it is not found.
+     * @param documentId The document to search in.
+     * @return The component or nullptr if either documentId is not registered or id is not found within the registered document.
      */
-    ComponentPtr findComponentById(const std::string& id) const;
+    ComponentPtr findComponentById(const std::string& id, bool traverseHost = true) const;
 
     /**
      * @return The top component
@@ -546,6 +540,26 @@ public:
      * @return The APL version requested by the document
      */
     std::string getRequestedAPLVersion() const;
+
+    /**
+     * @return The dpi of the screen.
+     */
+    int getDpi() const;
+
+    /**
+     * @return The screen shape
+     */
+    ScreenShape getScreenShape() const;
+
+    /**
+     * @return The SharedContextData.
+     */
+    SharedContextDataPtr getShared() const;
+
+    /**
+     * @return The human-readable mode of the viewport
+     */
+    ViewportMode getViewportMode() const;
 
     /**
      * Internal routine used by components to mark themselves as changed.
@@ -592,6 +606,16 @@ public:
      */
     WeakPtrSet<CoreComponent>& pendingOnMounts();
 
+    /**
+     * @return true if embedded document context, false if host one.
+     */
+    bool embedded() const;
+
+    /**
+     * @return Relevant DocumentContext.
+     */
+    DocumentContextPtr documentContext() const;
+
 #ifdef SCENEGRAPH
     /**
      * @return A cache of TextProperties
@@ -609,13 +633,13 @@ public:
     FocusManager& focusManager() const;
     HoverManager& hoverManager() const;
 
-    KeyboardManager& keyboardManager() const;
     LiveDataManager& dataManager() const;
     ExtensionManager& extensionManager() const;
     LayoutManager& layoutManager() const;
     MediaManager& mediaManager() const;
     MediaPlayerFactory& mediaPlayerFactory() const;
     UIDManager& uniqueIdManager() const;
+    DependantManager& dependantManager() const;
 
     std::shared_ptr<Styles> styles() const;
 
@@ -641,16 +665,16 @@ public:
 protected:
     ContextPtr mParent;
     ContextPtr mTop;
-    std::shared_ptr<RootContextData> mCore;
+    ContextDataPtr mCore;
     std::map<std::string, ContextObject> mMap;
 
 private:
     /**
      * Initialize environment parameters for the context
      * @param metrics The display metrics.
-     * @param core A pointer to the common core data.
+     * @param core A pointer to the document data.
      */
-    void init(const Metrics& metrics, const std::shared_ptr<RootContextData>& core);
+    void init(const Metrics& metrics, const ContextDataPtr& core);
 };
 
 }  // namespace apl

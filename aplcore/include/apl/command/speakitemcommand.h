@@ -20,20 +20,9 @@
 
 namespace apl {
 
-class SpeakItemCommand : public CoreCommand {
+class SpeakItemCommand : public TemplatedCommand<SpeakItemCommand> {
 public:
-    static CommandPtr create(const ContextPtr& context,
-                             Properties&& properties,
-                             const CoreComponentPtr& base,
-                             const std::string& parentSequencer) {
-        auto ptr = std::make_shared<SpeakItemCommand>(context, std::move(properties), base, parentSequencer);
-        return ptr->validate() ? ptr : nullptr;
-    }
-
-    SpeakItemCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
-                     const std::string& parentSequencer)
-            : CoreCommand(context, std::move(properties), base, parentSequencer)
-    {}
+    COMMAND_CONSTRUCTOR(SpeakItemCommand);
 
     const CommandPropDefSet& propDefSet() const override;
 

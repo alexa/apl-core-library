@@ -38,41 +38,24 @@ DataSource::toDebugString() const
 }
 
 Object
-DataSource::create(const ContextPtr& context, const Object& object, const std::string& name)
+DataSource::create(const ContextPtr& context, const DataSourceProviderPtr& provider,
+                   const Object& object, const std::string& name)
 {
-    if (object.getLiveDataObject())
-        return object;
-
-    if (!object.isMap())
-        return Object::NULL_OBJECT();
-
-    std::string type = propertyAsString(*context, object, "type");
-    if (type.empty()) {
-        CONSOLE(context) << "Unrecognized type field in DataSource";
-        return Object::NULL_OBJECT();
-    }
-
-    auto dataSourceProvider = context->getRootConfig().getDataSourceProvider(type);
-    if(!dataSourceProvider) {
-        CONSOLE(context) << "Unrecognized DataSource type";
-        return Object::NULL_OBJECT();
-    }
-
     // If no items specified (even empty ones) - propertyAsRecursive + arrayify() will give us [NULL] which is an item.
     // Check for this condition and go with empty LiveArray instead to avoid creating empty one.
     auto items = propertyAsRecursive(*context, object, "items");
     auto liveDataSourceArray = items.isNull() ? LiveArray::create() : LiveArray::create(arrayify(*context, items));
-    auto dataSourceConnection = dataSourceProvider->create(object, context, liveDataSourceArray);
+    auto dataSourceConnection = provider->create(object, context, liveDataSourceArray);
     if (!dataSourceConnection) {
         CONSOLE(context) << "DataSourceConnection failed to initialize.";
         return Object::NULL_OBJECT();
     }
     liveDataSourceArray = dataSourceConnection->getLiveArray();
     auto dataSource = std::make_shared<DataSource>(
-            liveDataSourceArray,
-            context,
-            dataSourceConnection,
-            name);
+        liveDataSourceArray,
+        context,
+        dataSourceConnection,
+        name);
     context->dataManager().add(dataSource);
 
     // If provided with empty initial array - ask for items straight away.
@@ -80,7 +63,7 @@ DataSource::create(const ContextPtr& context, const Object& object, const std::s
         dataSource->ensure(0);
     }
 
-    return Object(dataSource);
+    return {dataSource};
 }
 
 DataSource::DataSource(

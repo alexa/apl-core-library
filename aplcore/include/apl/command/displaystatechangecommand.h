@@ -30,24 +30,24 @@ public:
     // Sequencer reserved for executing the onDisplayStateChange command
     static const char *SEQUENCER;
 
-    static CommandPtr create(const RootContextPtr& rootContext,
+    static CommandPtr create(const CoreDocumentContextPtr& document,
                              ObjectMap&& properties) {
-        return std::make_shared<DisplayStateChangeCommand>(rootContext, std::move(properties));
+        return std::make_shared<DisplayStateChangeCommand>(document, std::move(properties));
     }
 
-    DisplayStateChangeCommand(const RootContextPtr& rootContext,
-                        ObjectMap&& properties)
-    : mRootContext(rootContext),
+    DisplayStateChangeCommand(
+        const CoreDocumentContextPtr& document,
+        ObjectMap&& properties)
+    : mDocument(document),
       mProperties(std::move(properties))
-    {
-    }
+    {}
 
     unsigned long delay() const override { return 0; }
     std::string name() const override { return "DisplayStateChangeCommand"; }
     ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
 
 private:
-    const std::weak_ptr<RootContext> mRootContext;
+    const std::weak_ptr<CoreDocumentContext> mDocument;
     ObjectMap mProperties;
 };
 

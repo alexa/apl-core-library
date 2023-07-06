@@ -21,20 +21,9 @@
 namespace apl {
 
 
-class SequentialCommand : public CoreCommand {
+class SequentialCommand : public TemplatedCommand<SequentialCommand> {
 public:
-    static CommandPtr create(const ContextPtr& context,
-                             Properties&& properties,
-                             const CoreComponentPtr& base,
-                             const std::string& parentSequencer) {
-        auto ptr = std::make_shared<SequentialCommand>(context, std::move(properties), base, parentSequencer);
-        return ptr->validate() ? ptr : nullptr;
-    }
-
-    SequentialCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
-                      const std::string& parentSequencer)
-            : CoreCommand(context, std::move(properties), base, parentSequencer)
-    {}
+    COMMAND_CONSTRUCTOR(SequentialCommand);
 
     const CommandPropDefSet& propDefSet() const override;
 

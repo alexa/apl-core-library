@@ -17,6 +17,7 @@
 
 #include <cmath>
 #include <set>
+#include <vector>
 
 #include "apl/animation/coreeasing.h"
 #include "apl/component/textmeasurement.h"
@@ -28,6 +29,33 @@
 #include "apl/media/mediaplayerfactory.h"
 #include "apl/time/coretimemanager.h"
 #include "apl/utils/corelocalemethods.h"
+#include "apl/utils/session.h"
+
+namespace {
+
+using namespace apl;
+
+const std::vector<RootProperty> sCopyableConfigProperties = {
+    RootProperty::kAgentName,
+    RootProperty::kAgentVersion,
+    RootProperty::kAllowOpenUrl,
+    RootProperty::kFontScale,
+    RootProperty::kScreenMode,
+    RootProperty::kScreenReader,
+    RootProperty::kUTCTime,
+    RootProperty::kInitialDisplayState,
+    RootProperty::kLocalTimeAdjustment,
+    RootProperty::kAnimationQuality,
+    RootProperty::kReportedVersion,
+    RootProperty::kDoublePressTimeout,
+    RootProperty::kLongPressTimeout,
+    RootProperty::kMinimumFlingVelocity,
+    RootProperty::kPressedDuration,
+    RootProperty::kTapOrScrollTimeout,
+    RootProperty::kMaximumTapVelocity
+};
+
+} // unnamed namespace
 
 namespace apl {
 
@@ -38,41 +66,6 @@ static float angleToSlope(float degrees) {
 inline Object asSlope(const Context& context, const Object& object) {
     assert(object.isNumber());
     return angleToSlope(object.getDouble());
-}
-
-static bool isAllowedEnvironmentName(const std::string &name) {
-    static std::set<std::string> sReserved;
-    if (sReserved.empty()) {
-        // Don't allow custom env properties to shadow synthesized configuration change event props
-        for (const auto &synthesizedName : ConfigurationChange::getSynthesizedPropertyNames()) {
-            sReserved.emplace(synthesizedName);
-        }
-
-        // Check the name against a clean envaluation context
-        auto context = Context::createTypeEvaluationContext(RootConfig());
-        assert(context);
-
-        // Don't allow custom env properties to shadow top-level names (e.g. "environment")
-        for (const auto &entry : *context) {
-            sReserved.emplace(entry.first);
-        }
-
-        // Don't allow custom env properties to shadow built-in environment properties
-        auto env = context->opt("environment");
-        assert(env.isMap());
-        for (const auto &entry : env.getMap()) {
-            sReserved.emplace(entry.first);
-        }
-
-        // Don't allow custom env properties to shadow built-in viewport properties
-        auto viewport = context->opt("viewport");
-        assert(viewport.isMap());
-        for (const auto &entry : viewport.getMap()) {
-            sReserved.emplace(entry.first);
-        }
-    }
-
-    return sReserved.find(name) == sReserved.end();
 }
 
 Bimap<int, std::string> sScreenModeBimap = {
@@ -105,6 +98,7 @@ RootConfig::RootConfig()
       mLocaleMethods(std::static_pointer_cast<LocaleMethods>(std::make_shared<CoreLocaleMethods>())),
       mDefaultComponentSize({
           // Set default sizes for components that aren't "auto" width and "auto" height.
+        {{kComponentTypeHost, true}, {Dimension(100), Dimension(100)}},
         {{kComponentTypeImage, true}, {Dimension(100), Dimension(100)}},
         {{kComponentTypePager, true}, {Dimension(100), Dimension(100)}},
         {{kComponentTypeScrollView, true}, {Dimension(), Dimension(100)}},
@@ -120,7 +114,12 @@ RootConfig::RootConfig()
         const auto& pd = cpd.second;
         mProperties.set(pd.key, pd.defvalue);
     }
-    mContext = Context::createTypeEvaluationContext(*this);
+    // Separate session as RootConfig owned by viewhost and errors in it should not be exposed to
+    // the skill.
+    mConfigSession = makeDefaultSession();
+    mContext = Context::createTypeEvaluationContext(*this,
+                                                    APLVersion::getDefaultReportedVersionString(),
+                                                    mConfigSession);
 }
 
 const Context&
@@ -194,11 +193,47 @@ RootConfig::propDefSet() const
     return sRootProperties;
 }
 
+bool
+RootConfig::isAllowedEnvironmentName(const std::string &name) const
+{
+    static std::set<std::string> sReserved;
+    if (sReserved.empty()) {
+        // Don't allow custom env properties to shadow synthesized configuration change event props
+        for (const auto &synthesizedName : ConfigurationChange::getSynthesizedPropertyNames()) {
+            sReserved.emplace(synthesizedName);
+        }
+
+        // Check the name against a clean evaluation context
+        auto context = Context::createTypeEvaluationContext(RootConfig(),
+                                                            APLVersion::getDefaultReportedVersionString(),
+                                                            mConfigSession);
+        assert(context);
+
+        // Don't allow custom env properties to shadow top-level names (e.g. "environment")
+        for (const auto &entry : *context) {
+            sReserved.emplace(entry.first);
+        }
+
+        // Don't allow custom env properties to shadow built-in environment properties
+        auto env = context->opt("environment");
+        assert(env.isMap());
+        for (const auto &entry : env.getMap()) {
+            sReserved.emplace(entry.first);
+        }
+
+        // Don't allow custom env properties to shadow built-in viewport properties
+        auto viewport = context->opt("viewport");
+        assert(viewport.isMap());
+        for (const auto &entry : viewport.getMap()) {
+            sReserved.emplace(entry.first);
+        }
+    }
+
+    return sReserved.find(name) == sReserved.end();
+}
+
 RootConfig&
 RootConfig::session(const SessionPtr& session) {
-    mSession = session;
-    // Recreate dummy context to use new session.
-    mContext = Context::createTypeEvaluationContext(*this);
     return *this;
 }
 
@@ -210,7 +245,7 @@ RootConfig::set(const std::string& name, const Object& object)
         auto propertyKey = static_cast<RootProperty>(it->second);
         return set(propertyKey, object);
     } else {
-        LOG(LogLevel::kInfo).session(mSession) << "Unable to find property " << name;
+        LOG(LogLevel::kInfo).session(mConfigSession) << "Unable to find property " << name;
     }
 
     return *this;
@@ -269,7 +304,7 @@ RootConfig::setEnvironmentValue(const std::string& name, const Object& value) {
     if (isAllowedEnvironmentName(name)) {
         mEnvironmentValues[name] = value;
     } else {
-        LOG(LogLevel::kWarn).session(mSession) << "Ignoring attempt to set environment value: " << name;
+        LOG(LogLevel::kWarn).session(mConfigSession) << "Ignoring attempt to set environment value: " << name;
     }
     return *this;
 }
@@ -280,6 +315,23 @@ RootConfig::setEnvironmentValue(const std::string& name, const Object& value) {
 EasingPtr
 RootConfig::getSwipeAwayAnimationEasing() const {
     return getProperty(RootProperty::kSwipeAwayAnimationEasing).get<Easing>();
+}
+
+RootConfigPtr
+RootConfig::copy() const
+{
+    auto copy = std::make_shared<RootConfig>();
+    copy->timeManager(getTimeManager());
+    copy->audioPlayerFactory(getAudioPlayerFactory());
+    copy->documentManager(getDocumentManager());
+    copy->mediaPlayerFactory(getMediaPlayerFactory());
+    copy->measure(getMeasure());
+
+    for (auto key : sCopyableConfigProperties) {
+        copy->set(key, getProperty(key));
+    }
+
+    return copy;
 }
 
 } // namespace apl

@@ -14,27 +14,12 @@
 set(CMAKE_CXX_STANDARD 11)
 
 include_directories(../aplcore/include)
-include_directories(${RAPIDJSON_INCLUDE})
 include_directories(${PEGTL_INCLUDE})
 include_directories(${YOGA_INCLUDE})
 
 if (ANDROID)
     set(OTHER_LIBS log)
 endif (ANDROID)
-
-if (ENABLE_ALEXAEXTENSIONS)
-    if (NOT BUILD_ALEXAEXTENSIONS)
-        # Check to see if it's available from the system.
-        find_package(alexaext REQUIRED)
-    endif (NOT BUILD_ALEXAEXTENSIONS)
-
-    if(OTHER_LIBS)
-        set(OTHER_LIBS "${OTHER_LIBS} alexa::extensions")
-    else()
-        set(OTHER_LIBS alexa::extensions)
-    endif(OTHER_LIBS)
-
-endif(ENABLE_ALEXAEXTENSIONS)
 
 add_executable(parseColor parseColor.cpp)
 target_link_libraries(parseColor apl ${OTHER_LIBS})

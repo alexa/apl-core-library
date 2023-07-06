@@ -17,4 +17,6 @@ namespace apl {
 
 const char *sCoreRepositoryVersion = "@CORE_REPOSITORY_VERSION@";
 
+int kEvaluationDepthLimit = @EVALUATION_DEPTH_LIMIT@;
+
 } // namespace apl

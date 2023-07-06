@@ -98,17 +98,6 @@ ConfigurationChange::mergeConfigurationChange(const ConfigurationChange& other)
     }
 }
 
-Size
-ConfigurationChange::mergeSize(const Size& oldSize) const
-{
-    auto size = oldSize;
-
-    if ((mFlags & kConfigurationChangeSize))
-        size = { static_cast<float>(mPixelWidth), static_cast<float>(mPixelHeight) };
-
-    return size;
-}
-
 ConfigurationChange&
 ConfigurationChange::environmentValue(const std::string &name, const Object &newValue) {
     mFlags |= kConfigurationChangeEnvironment;
@@ -119,7 +108,7 @@ ConfigurationChange::environmentValue(const std::string &name, const Object &new
 ObjectMap
 ConfigurationChange::asEventProperties(const RootConfig& rootConfig, const Metrics& metrics) const
 {
-    auto sizeChanged = mPixelHeight != metrics.getPixelHeight() || mPixelWidth != metrics.getPixelWidth();
+    auto sizeChanged = hasSizeChange() && (mPixelHeight != metrics.getPixelHeight() || mPixelWidth != metrics.getPixelWidth());
     auto rotated = sizeChanged && mPixelWidth == metrics.getPixelHeight() && mPixelHeight == metrics.getPixelWidth();
 
     // Populate the event with any custom env properties from the root config. If a property

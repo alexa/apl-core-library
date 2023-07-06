@@ -29,6 +29,14 @@ namespace apl {
 int utf8StringLength(const std::string& utf8String);
 
 /**
+ * Count the number of code points in a uint8_t byte range containing UTF-8 data.
+ * @param utf8StringPtr A pointer to the beginning of the uint8_t byte range where UTF-8 code points should be counted.
+ * @param count The number of bytes in the uint8_t byte range to check when counting UTF-8 code points.
+ * @return The number of code points in the string.  Return -1 if the string is malformed.
+ */
+int utf8StringLength(const uint8_t* utf8StringPtr, int count);
+
+/**
  * Slice a UTF-8 string
  * @param utf8String A reference to a std::string holding UTF-8 data
  * @param start The offset of the first code point

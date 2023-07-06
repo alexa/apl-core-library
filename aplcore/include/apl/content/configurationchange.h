@@ -21,6 +21,7 @@
 #include "apl/content/rootconfig.h"
 #include "apl/content/metrics.h"
 #include "apl/primitives/size.h"
+#include "apl/utils/log.h"
 
 namespace apl {
 
@@ -83,6 +84,22 @@ public:
     }
 
     /**
+     * Set the viewport mode.
+     * @param viewportMode The viewport mode
+     * @return This object for chaining
+     */
+    ConfigurationChange& mode(const std::string &viewportMode)
+    {
+        auto it = sViewportModeBimap.find(viewportMode);
+        if (it != sViewportModeBimap.endBtoA()) {
+            return mode(static_cast<ViewportMode>(it->second));
+        }
+
+        LOG(LogLevel::kWarn) << "Ignoring invalid viewport mode for configuration change: " << viewportMode;
+        return *this;
+    }
+
+    /**
      * Set the requested font scaling factor for the document.
      * @param scale The scaling factor.  Default is 1.0
      * @return This object for chaining
@@ -112,6 +129,21 @@ public:
     ConfigurationChange& screenMode(RootConfig::ScreenMode screenMode) {
         mFlags |= kConfigurationChangeScreenMode;
         mScreenMode = screenMode;
+        return *this;
+    }
+
+    /**
+     * Set the screen display mode for accessibility (normal or high-contrast)
+     * @param mode The screen display mode
+     * @return This object for chaining
+     */
+    ConfigurationChange& screenMode(const std::string &mode) {
+        auto it = sScreenModeBimap.find(mode);
+        if (it != sScreenModeBimap.endBtoA()) {
+            return screenMode(static_cast<RootConfig::ScreenMode>(it->second));
+        }
+
+        LOG(LogLevel::kWarn) << "Ignoring invalid screen mode for configuration change: " << mode;
         return *this;
     }
 
@@ -156,13 +188,6 @@ public:
     RootConfig mergeRootConfig(const RootConfig& oldRootConfig) const;
 
     /**
-     * Merge this configuration change into a new size object
-     * @param oldSize The old size to merge with this change
-     * @return A new size object with these changes
-     */
-    Size mergeSize(const Size& oldSize) const;
-
-    /**
      * Merge a new configuration change into this one.
      * @param other The old configuration change to merge with this change
      */
@@ -175,6 +200,16 @@ public:
      * @return A key-value map of properties
      */
     ObjectMap asEventProperties(const RootConfig& rootConfig, const Metrics& metrics) const;
+
+    /**
+     * @return True if configuration change contains size change, false otherwise.
+     */
+    bool hasSizeChange() const { return (mFlags & kConfigurationChangeSize); }
+
+    /**
+     * @return New pixel size from this change.
+     */
+    Size getSize() const { return { static_cast<float>(mPixelWidth), static_cast<float>(mPixelHeight) }; }
 
     /**
      * @return True if the configuration change is empty

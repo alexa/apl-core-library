@@ -42,7 +42,9 @@ public:
      * @param type The type of media requested.  This should be removed in the future.
      * @return the media object
      */
-    virtual MediaObjectPtr request(const std::string& url, EventMediaType type) = 0;
+    virtual MediaObjectPtr request(const std::string& url, EventMediaType type) {
+        return request(url, type, HeaderArray());
+    }
 
     /**
      * Request a media object

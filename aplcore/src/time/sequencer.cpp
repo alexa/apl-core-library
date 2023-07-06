@@ -14,10 +14,12 @@
  */
 
 #include "apl/time/sequencer.h"
-#include "apl/utils/log.h"
-#include "apl/command/arraycommand.h"
+
 #include "apl/action/delayaction.h"
+#include "apl/command/arraycommand.h"
+#include "apl/document/documentcontext.h"
 #include "apl/time/timemanager.h"
+#include "apl/utils/log.h"
 
 namespace apl {
 
@@ -145,7 +147,7 @@ Sequencer::execute(const CommandPtr& commandPtr, bool fastMode)
 }
 
 ActionPtr
-Sequencer::executeCommands(const Object& commands,
+Sequencer::executeCommands(CommandData&& commandData,
                            const ContextPtr& context,
                            const CoreComponentPtr& baseComponent,
                            bool fastMode)
@@ -153,25 +155,24 @@ Sequencer::executeCommands(const Object& commands,
     if (mTerminated)
         return nullptr;
 
-    if (!commands.isArray()) {
+    if (!commandData.get().isArray()) {
         LOG(LogLevel::kError).session(context) << "executeCommands: invalid command list";
         return nullptr;
     }
 
-    if (commands.empty())
+    if (commandData.get().empty())
         return nullptr;
 
     if (!context->has("event") && !fastMode)
         LOG(LogLevel::kWarn).session(context) << "missing event in context";
 
-    Properties props;
-    auto commandPtr = ArrayCommand::create(context, commands, baseComponent, props, "");
+    auto commandPtr = ArrayCommand::create(context, std::move(commandData), baseComponent, Properties(), "");
     return execute(commandPtr, fastMode);
 }
 
 
 ActionPtr
-Sequencer::executeCommandsOnSequencer(const Object& commands,
+Sequencer::executeCommandsOnSequencer(CommandData&& commandData,
                                       const ContextPtr& context,
                                       const CoreComponentPtr& baseComponent,
                                       const std::string& sequencer)
@@ -179,19 +180,18 @@ Sequencer::executeCommandsOnSequencer(const Object& commands,
     if (mTerminated)
         return nullptr;
 
-    if (!commands.isArray()) {
+    if (!commandData.get().isArray()) {
         LOG(LogLevel::kError).session(context) << "executeCommands: invalid command list";
         return nullptr;
     }
 
-    if (commands.empty())
+    if (commandData.get().empty())
         return nullptr;
 
     if (!context->has("event"))
         LOG(LogLevel::kWarn).session(context) << "missing event in context";
 
-    Properties props;
-    auto commandPtr = ArrayCommand::create(context, commands, baseComponent, props, "");
+    auto commandPtr = ArrayCommand::create(context, std::move(commandData), baseComponent, Properties(), "");
     return executeOnSequencer(commandPtr, sequencer);
 }
 
@@ -361,10 +361,10 @@ Sequencer::detachSequencer(const std::string& sequencerName)
 }
 
 bool
-Sequencer::reattachSequencer(const std::string& sequencerName, const ActionPtr& action, const RootContext& root)
+Sequencer::reattachSequencer(const std::string& sequencerName, const ActionPtr& action, const CoreDocumentContext& context)
 {
     terminateSequencer(sequencerName);
-    if (!action->rehydrate(root)) return false;
+    if (!action->rehydrate(context)) return false;
     attachToSequencer(action, sequencerName);
     return true;
 }

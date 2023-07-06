@@ -76,7 +76,7 @@ ActionableComponent::executeKeyHandlers(KeyHandlerType type, const Keyboard& key
     if (!handlers.isArray())
         return false;
 
-    ContextPtr eventContext = createKeyboardEventContext(handlerId, keyboard.serialize());
+    ContextPtr eventContext = createKeyEventContext(handlerId, keyboard.serialize());
 
     for (const auto& handler: handlers.getArray()) {
         if (handler.isMap() && propertyAsBoolean(*eventContext, handler, "when", true)) {
@@ -216,7 +216,7 @@ ActionableComponent::getUserSpecifiedNextFocus(FocusDirection direction)
     if (it != focusDirectionToNextProperty().end()) {
         auto componentId = getCalculated(it->second).getString();
         if (!componentId.empty()) {
-            return CoreComponent::cast(getContext()->findComponentById(componentId));
+            return CoreComponent::cast(getContext()->findComponentById(componentId, false));
         }
     }
     return nullptr;

@@ -14,6 +14,7 @@
  */
 
 #include "apl/action/delayaction.h"
+
 #include "apl/command/command.h"
 
 namespace apl {
@@ -130,7 +131,7 @@ DelayAction::freeze()
 }
 
 bool
-DelayAction::rehydrate(const RootContext& context)
+DelayAction::rehydrate(const CoreDocumentContext& context)
 {
     if (!Action::rehydrate(context)) return false;
 

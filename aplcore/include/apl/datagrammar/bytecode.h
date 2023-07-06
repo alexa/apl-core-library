@@ -19,11 +19,13 @@
 #include <vector>
 
 #include "apl/datagrammar/functions.h"
+#include "apl/primitives/boundsymbolset.h"
 #include "apl/primitives/objecttype.h"
-
 
 namespace apl {
 namespace datagrammar {
+
+class Disassembly;
 
 using bciValueType = std::int32_t;
 const unsigned OPCODE_BITS = 8;
@@ -78,6 +80,7 @@ enum ByteCodeOpcode {
     BC_OPCODE_MERGE_STRING,     // TOS = TOS_n + ... + TOS where n = value - 1
     BC_OPCODE_APPEND_ARRAY,     // TOS = TOS_1.append(TOS)
     BC_OPCODE_APPEND_MAP,       // TOS = TOS_2.append(TOS_1, TOS)
+    BC_OPCODE_EVALUATE,         // TOS = eval(TOS)
 };
 
 /**
@@ -118,7 +121,7 @@ inline Object getConstant(ByteCodeConstant value) {
         case BC_CONSTANT_TRUE:
             return Object::TRUE_OBJECT();
         case BC_CONSTANT_EMPTY_STRING:
-            return Object("");
+            return {""};
         case BC_CONSTANT_EMPTY_ARRAY:
             return Object::EMPTY_MUTABLE_ARRAY();
         case BC_CONSTANT_EMPTY_MAP:
@@ -172,6 +175,46 @@ struct ByteCodeInstruction {
 
 static_assert(sizeof(ByteCodeInstruction) == 4, "Wrong size of ByteCodeInstruction");
 
+
+/**
+ * The Disassembly class is a convenience class for ByteCode that provides an iterator
+ * to output the disassembly of the bytecode into one string per line.
+ * @code
+ *    for (const auto& m : byteCode.disassemble())
+ *       std::cout << m << std::endl;
+ * @endcode
+ */
+class Disassembly {
+public:
+    class Iterator {
+    public:
+        Iterator(const ByteCode& byteCode, size_t lineNumber);
+
+        using iterator_category = std::forward_iterator_tag;
+        using difference_type = size_t;
+        using value_type = std::string;
+        using pointer    = value_type*;
+        using reference  = std::string;
+
+        reference operator*() const;
+
+        Iterator& operator++();
+        friend bool operator== (const Iterator& lhs, const Iterator& rhs);
+        friend bool operator!= (const Iterator& lhs, const Iterator& rhs);
+
+    private:
+        const ByteCode& mByteCode;
+        size_t mLineNumber = 0;
+    };
+
+    explicit Disassembly(const ByteCode& byteCode) : mByteCode(byteCode) {}
+    Iterator begin() const;
+    Iterator end() const;
+
+private:
+    const ByteCode& mByteCode;
+};
+
 /**
  * Store an expression that has been compiled into byte code.
  */
@@ -189,22 +232,17 @@ public:
     Object eval() const override;
 
     /**
-     * @return A simplified version of this byte code.  This may be a constant expression.
+     * Evaluate this byte code and return the result and the symbols that were used
+     * @param symbols If not null, this set will be populated with the found symbols
+     * @param depth The current evaluation depth (used to prevent infinite "eval()" recursion)
+     * @return The evaluation result
      */
-    Object simplify();
+    Object evaluate(BoundSymbolSet *symbols, int depth) const;
 
     /**
-     * Retrieve the list of mutable global symbols used by this byte code and suitable
-     * for building data-binding dependencies.  This method also optimizes the underlying
-     * byte code for higher performance.
-     * @param symbols An empty symbols map to be populated.
+     * Optimize this byte code.
      */
-    void symbols(SymbolReferenceMap& symbols);
-
-    /**
-     * Decompile the byte code and write the disassembled code to the LOG.
-     */
-    void dump() const;
+    void optimize();
 
     /**
      * @return True if this byte code has been passed through the optimizer
@@ -228,6 +266,17 @@ public:
      */
     size_t instructionCount() const { return mInstructions.size(); }
 
+    /**
+     * Return the data item at a particular index.
+     * @param index The index
+     * @return The data item at that index.
+     */
+    Object dataAt(size_t index) const { return mData.at(index); }
+    /**
+     * @return Number of data items
+     */
+    size_t dataCount() const { return mData.size(); }
+
     std::string toDebugString() const override { return "Compiled Byte Code"; }
 
     friend class ByteCodeAssembler;
@@ -236,13 +285,15 @@ public:
 
     class ObjectType final : public EvaluableObjectType<ByteCode> {
     public:
-        rapidjson::Value serialize(
-            const Object::DataHolder&,
-            rapidjson::Document::AllocatorType& allocator) const override
-        {
-            return rapidjson::Value("COMPILED BYTE CODE", allocator);
+        rapidjson::Value serialize(const Object::DataHolder&,
+                                   rapidjson::Document::AllocatorType& allocator) const override {
+            return {"COMPILED BYTE CODE", allocator};
         }
     };
+
+    Disassembly disassemble() const {
+        return Disassembly(*this);
+    }
 
 private:
     std::weak_ptr<Context> mContext;
@@ -251,6 +302,8 @@ private:
 
     bool mOptimized = false;
 };
+
+
 
 } // namespace datagrammar
 } // namespace apl

@@ -13,34 +13,95 @@
  * permissions and limitations under the License.
  */
 
-#include <queue>
-
 #include "apl/engine/context.h"
+
+#include <queue>
 
 #include "apl/buildTimeConstants.h"
 #include "apl/component/textmeasurement.h"
 #include "apl/content/metrics.h"
 #include "apl/content/rootconfig.h"
+#include "apl/content/settings.h"
 #include "apl/content/viewport.h"
+#include "apl/document/documentcontextdata.h"
 #include "apl/engine/builder.h"
+#include "apl/engine/dependantmanager.h"
 #include "apl/engine/event.h"
 #include "apl/engine/resources.h"
-#include "apl/engine/rootcontextdata.h"
+#include "apl/engine/sharedcontextdata.h"
 #include "apl/engine/styles.h"
+#include "apl/extension/extensionmanager.h"
 #include "apl/primitives/functions.h"
-#include "apl/primitives/object.h"
-#include "apl/utils/log.h"
-#include "apl/utils/lrucache.h"
 #include "apl/utils/session.h"
 
 namespace apl {
 
+class EvaluationContextData : public ContextData {
+public:
+    EvaluationContextData(
+        const RootConfig& config,
+        RuntimeState runtimeState,
+        const SettingsPtr& settings,
+        const SessionPtr& session)
+        : ContextData(config, std::move(runtimeState), settings, "", kLayoutDirectionInherit),
+          mSession(session)
+    {}
+
+    const SessionPtr& session() const override { return mSession; }
+    bool embedded() const override { return false; }
+
+private:
+    SessionPtr mSession;
+};
+
+inline ContextDataPtr createEvaluationContextData(
+    const RootConfig& config,
+    const std::string& aplVersion,
+    const std::string& theme,
+    const SessionPtr& session)
+{
+    auto contextData = std::make_shared<EvaluationContextData>(
+        config,
+        RuntimeState(theme, aplVersion, false),
+        std::make_shared<Settings>(),
+        session);
+
+    auto layoutDirection = static_cast<LayoutDirection>(config.getProperty(RootProperty::kLayoutDirection).asInt());
+    contextData->lang(config.getProperty(RootProperty::kLang).asString())
+        .layoutDirection(layoutDirection);
+
+    return contextData;
+}
+
+inline ContextDataPtr createTestContextData(
+    const Metrics& metrics,
+    const RootConfig& config,
+    const std::string& theme,
+    const SessionPtr& session)
+{
+    auto sharedContext = std::make_shared<SharedContextData>(config);
+    auto contextData = std::make_shared<DocumentContextData>(nullptr,
+                                                 metrics,
+                                                 config,
+                                                 RuntimeState(theme, config.getReportedAPLVersion(), false),
+                                                 std::make_shared<Settings>(),
+                                                 session,
+                                                 std::vector<ExtensionRequest>(),
+                                                 sharedContext);
+
+    auto layoutDirection = static_cast<LayoutDirection>(config.getProperty(RootProperty::kLayoutDirection).asInt());
+    contextData->lang(config.getProperty(RootProperty::kLang).asString())
+        .layoutDirection(layoutDirection);
+
+    return contextData;
+}
+
 // Use this to create a free-standing context.  Used for testing
 ContextPtr
-Context::createTestContext(const Metrics& metrics, const SessionPtr& session)
+Context::createTestContext(const Metrics& metrics, const RootConfig& config, const SessionPtr& session)
 {
-    auto config = RootConfig().session(session);
-    auto contextPtr = std::make_shared<Context>(metrics, config, metrics.getTheme());
+    auto contextData = createTestContextData(metrics, config, metrics.getTheme(), session);
+    auto contextPtr = std::make_shared<Context>(metrics, contextData);
     createStandardFunctions(*contextPtr);
     return contextPtr;
 }
@@ -49,32 +110,45 @@ Context::createTestContext(const Metrics& metrics, const SessionPtr& session)
 ContextPtr
 Context::createTestContext(const Metrics& metrics, const RootConfig& config)
 {
-    auto contextPtr = std::make_shared<Context>(metrics, config, metrics.getTheme());
-    createStandardFunctions(*contextPtr);
-    return contextPtr;
+    return createTestContext(metrics, config, makeDefaultSession());
+}
+
+// Use this to create a free-standing context.  Used for testing
+ContextPtr
+Context::createTestContext(const Metrics& metrics, const SessionPtr& session)
+{
+    auto config = RootConfig();
+    return createTestContext(metrics, config, session);
 }
 
 // Use this to create a free-standing context.  Used for type conversion and basic environment access.
 // This method should never add custom enviroment properties to the newly created context as it is
 // also used to detect collisions with the built-in variables.
 ContextPtr
-Context::createTypeEvaluationContext(const RootConfig& config)
+Context::createTypeEvaluationContext(const RootConfig& config, const std::string& aplVersion, const SessionPtr& session)
 {
     auto metrics = Metrics();
-    auto contextPtr = std::make_shared<Context>(metrics, config, metrics.getTheme());
+    auto contextData = createEvaluationContextData(config, aplVersion, metrics.getTheme(), session);
+    auto contextPtr = std::make_shared<Context>(metrics, contextData);
     createStandardFunctions(*contextPtr);
     return contextPtr;
 }
 
 // Use this to create a free-standing context.  Only used for background extraction
 ContextPtr
-Context::createBackgroundEvaluationContext(const Metrics& metrics, const RootConfig& config, const std::string& theme)
+Context::createBackgroundEvaluationContext(
+    const Metrics& metrics,
+    const RootConfig& config,
+    const std::string& aplVersion,
+    const std::string& theme,
+    const SessionPtr& session)
 {
-    return std::make_shared<Context>(metrics, config, theme);
+    auto contextData = createEvaluationContextData(config, aplVersion, theme, session);
+    return std::make_shared<Context>(metrics, contextData);
 }
 
 ContextPtr
-Context::createRootEvaluationContext(const Metrics& metrics, const std::shared_ptr<RootContextData>& core)
+Context::createRootEvaluationContext(const Metrics& metrics, const ContextDataPtr& core)
 {
     auto contextPtr =  std::make_shared<Context>(metrics, core);
     createStandardFunctions(*contextPtr);
@@ -88,8 +162,13 @@ Context::createClean(const ContextPtr& other)
     return std::make_shared<Context>(context);
 }
 
+DocumentContextDataPtr documentContextData(const ContextDataPtr& data) {
+    assert(data && data->fullContext());
+    return std::static_pointer_cast<DocumentContextData>(data);
+}
+
 void
-Context::init(const Metrics& metrics, const std::shared_ptr<RootContextData>& core)
+Context::init(const Metrics& metrics, const ContextDataPtr& core)
 {
     auto env = std::make_shared<ObjectMap>();
     auto& config = core->rootConfig();
@@ -101,13 +180,16 @@ Context::init(const Metrics& metrics, const std::shared_ptr<RootContextData>& co
     env->emplace("disallowDialog", config.getProperty(RootProperty::kDisallowDialog).getBoolean());
     env->emplace("disallowEditText", config.getProperty(RootProperty::kDisallowEditText).getBoolean());
     env->emplace("disallowVideo", config.getDisallowVideo());
-    env->emplace("extension", core->extensionManager().getEnvironment());
+    if (core->fullContext()) {
+        env->emplace("extension", documentContextData(core)->extensionManager().getEnvironment());
+    }
     env->emplace("fontScale", config.getFontScale());
     env->emplace("lang", core->getLang());
     env->emplace("layoutDirection", sLayoutDirectionMap.get(core->getLayoutDirection(), ""));
     env->emplace("screenMode", config.getScreenMode());
     env->emplace("screenReader", config.getScreenReaderEnabled());
     env->emplace("reason", core->getReinflationFlag() ? "reinflation" : "initial");
+    env->emplace("documentAPLVersion", core->getRequestedAPLVersion());
 
     auto timing = std::make_shared<ObjectMap>();
     timing->emplace("doublePressTimeout", config.getDoublePressTimeout());
@@ -125,69 +207,47 @@ Context::init(const Metrics& metrics, const std::shared_ptr<RootContextData>& co
     putConstant("viewport", makeViewport(metrics, core->getTheme()));
 }
 
-Context::Context( const Metrics& metrics, const std::shared_ptr<RootContextData>& core )
+Context::Context( const Metrics& metrics, const ContextDataPtr& core )
     : mCore(core)
 {
+    assert(mCore);
     init(metrics, core);
-}
-
-Context::Context(const Metrics& metrics, const RootConfig& config, const std::string& theme)
-{
-    auto session = config.getSession() ? config.getSession() : makeDefaultSession();
-    mCore = std::make_shared<RootContextData>(metrics,
-                                              config,
-                                              RuntimeState(theme, config.getReportedAPLVersion(),
-                                                           false),
-                                              std::make_shared<Settings>(), session,
-                                              std::vector<std::pair<std::string, std::string>>());
-
-    auto layoutDirection = static_cast<LayoutDirection>(config.getProperty(RootProperty::kLayoutDirection).asInt());
-    mCore->lang(config.getProperty(RootProperty::kLang).asString())
-          .layoutDirection(layoutDirection);
-
-    init(metrics, mCore);
 }
 
 double
 Context::vwToDp(double vw) const
 {
-    assert(mCore);
-    return mCore->getWidth() * vw / 100;
+    return documentContextData(mCore)->getWidth() * vw / 100;
 }
 
 double
 Context::vhToDp(double vh) const
 {
-    assert(mCore);
-    return mCore->getHeight() * vh / 100;
+    return documentContextData(mCore)->getHeight() * vh / 100;
 }
 
 double
 Context::pxToDp(double px) const
 {
-    assert(mCore);
-    return mCore->getPxToDp() * px;
+    return documentContextData(mCore)->getPxToDp() * px;
 }
 
 double
 Context::dpToPx(double dp) const
 {
-    assert(mCore);
-    return dp / mCore->getPxToDp();
+    return dp / documentContextData(mCore)->getPxToDp();
 }
 
 double
 Context::width() const
 {
-    assert(mCore);
-    return mCore->getWidth();
+    return documentContextData(mCore)->getWidth();
 }
 
 double
 Context::height() const
 {
-    assert(mCore);
-    return mCore->getHeight();
+    return documentContextData(mCore)->getHeight();
 }
 
 const RootConfig&
@@ -200,15 +260,13 @@ Context::getRootConfig() const
 StyleInstancePtr
 Context::getStyle(const std::string& name, const State& state)
 {
-    assert(mCore);
-    return mCore->styles()->get(shared_from_this(), name, state);
+    return documentContextData(mCore)->styles()->get(shared_from_this(), name, state);
 }
 
 const JsonResource
 Context::getLayout(const std::string& name) const
 {
-    assert(mCore);
-    const auto& layouts = mCore->layouts();
+    const auto& layouts = documentContextData(mCore)->layouts();
     auto it = layouts.find(name);
     if (it != layouts.end())
         return it->second;
@@ -218,8 +276,7 @@ Context::getLayout(const std::string& name) const
 const JsonResource
 Context::getCommand(const std::string& name) const
 {
-    assert(mCore);
-    const auto& commands = mCore->commands();
+    const auto& commands = documentContextData(mCore)->commands();
     auto it = commands.find(name);
     if (it != commands.end())
         return it->second;
@@ -229,9 +286,7 @@ Context::getCommand(const std::string& name) const
 const JsonResource
 Context::getGraphic(const std::string& name) const
 {
-    assert(mCore);
-
-    const auto& graphics = mCore->graphics();
+    const auto& graphics = documentContextData(mCore)->graphics();
     auto it = graphics.find(name);
     if (it != graphics.end())
         return it->second;
@@ -276,141 +331,155 @@ Context::getReinflationFlag() const
 std::string
 Context::getRequestedAPLVersion() const
 {
-    assert(mCore);
     return mCore->getRequestedAPLVersion();
+}
+
+int
+Context::getDpi() const
+{
+    return documentContextData(mCore)->getDpi();
+}
+
+ScreenShape
+Context::getScreenShape() const
+{
+    return documentContextData(mCore)->getScreenShape();
+}
+
+SharedContextDataPtr
+Context::getShared() const
+{
+    return documentContextData(mCore)->getShared();
+}
+
+ViewportMode
+Context::getViewportMode() const
+{
+    return documentContextData(mCore)->getViewportMode();
 }
 
 std::shared_ptr<Styles>
 Context::styles() const {
-    assert(mCore);
-    return mCore->styles();
+    return documentContextData(mCore)->styles();
 }
 
 ComponentPtr
-Context::findComponentById(const std::string& id) const
+Context::findComponentById(const std::string& id, bool traverseHost) const
 {
-    assert(mCore);
-
-    auto top = mCore->top();
-    return top ? top->findComponentById(id) : nullptr;
+    auto top = documentContextData(mCore)->top();
+    return top ? top->findComponentById(id, traverseHost) : nullptr;
 }
 
 ComponentPtr
 Context::topComponent() const
 {
-    assert(mCore);
-    return mCore->top();
+    return documentContextData(mCore)->top();
 }
 
 void
 Context::pushEvent(Event&& event)
 {
-    assert(mCore);
-    mCore->events->push(event);
+    documentContextData(mCore)->pushEvent(std::move(event));
 }
 
 #ifdef ALEXAEXTENSIONS
 void
 Context::pushExtensionEvent(Event&& event)
 {
-    assert(mCore);
-    mCore->extesnionEvents.push(event);
+    documentContextData(mCore)->getExtensionEvents().push(event);
 }
 #endif
 
 void
 Context::setDirty(const ComponentPtr& ptr)
 {
-    assert(mCore);
-    mCore->dirty.emplace(ptr);
+    documentContextData(mCore)->setDirty(ptr);
 }
 
 void
 Context::clearDirty(const ComponentPtr& ptr)
 {
-    assert(mCore);
-    mCore->dirty.erase(ptr);
+    documentContextData(mCore)->clearDirty(ptr);
 }
 
 void
 Context::setDirtyVisualContext(const ComponentPtr& ptr)
 {
-    assert(mCore);
-    mCore->dirtyVisualContext.emplace(ptr);
+    documentContextData(mCore)->getDirtyVisualContext().emplace(ptr);
 }
 
 bool
 Context::isVisualContextDirty(const ComponentPtr& ptr)
 {
-    auto found = mCore->dirtyVisualContext.find(ptr);
-    return found != mCore->dirtyVisualContext.end();
+    auto found = documentContextData(mCore)->getDirtyVisualContext().find(ptr);
+    return found != documentContextData(mCore)->getDirtyVisualContext().end();
 }
 
 void
 Context::setDirtyDataSourceContext(const DataSourceConnectionPtr& ptr)
 {
-    assert(mCore);
-    mCore->dirtyDatasourceContext.emplace(ptr);
+    documentContextData(mCore)->getDirtyDatasourceContext().emplace(ptr);
 }
 
 Sequencer&
 Context::sequencer() const
 {
-    return mCore->sequencer();
+    return documentContextData(mCore)->sequencer();
 }
 
 FocusManager&
 Context::focusManager() const
 {
-    return mCore->focusManager();
+    return documentContextData(mCore)->focusManager();
 }
 
 HoverManager&
 Context::hoverManager() const
 {
-    return mCore->hoverManager();
+    return documentContextData(mCore)->hoverManager();
 }
 
-KeyboardManager &
-Context::keyboardManager() const
-{
-    return mCore->keyboardManager();
-}
 
 LiveDataManager&
 Context::dataManager() const
 {
-    return mCore->dataManager();
+    return documentContextData(mCore)->dataManager();
 }
 
 ExtensionManager&
 Context::extensionManager() const
 {
-    return mCore->extensionManager();
+    return documentContextData(mCore)->extensionManager();
 }
 
 LayoutManager&
 Context::layoutManager() const
 {
-    return mCore->layoutManager();
+    return documentContextData(mCore)->layoutManager();
 }
 
 MediaManager&
 Context::mediaManager() const
 {
-    return mCore->mediaManager();
+    return documentContextData(mCore)->mediaManager();
 }
 
 MediaPlayerFactory&
 Context::mediaPlayerFactory() const
 {
-    return mCore->mediaPlayerFactory();
+    return documentContextData(mCore)->mediaPlayerFactory();
 }
 
 UIDManager&
 Context::uniqueIdManager() const
 {
-    return mCore->uniqueIdManager();
+    return documentContextData(mCore)->uniqueIdManager();
+}
+
+DependantManager&
+Context::dependantManager() const
+{
+    return documentContextData(mCore)->dependantManager();
 }
 
 const SessionPtr&
@@ -422,48 +491,60 @@ Context::session() const
 YGConfigRef
 Context::ygconfig() const
 {
-    return mCore->ygconfig();
+    return documentContextData(mCore)->ygconfig();
 }
 
 const TextMeasurementPtr&
 Context::measure() const
 {
-    return mCore->measure();
+    return documentContextData(mCore)->measure();
 }
 
 void Context::takeScreenLock() const
 {
-    mCore->takeScreenLock();
+    documentContextData(mCore)->takeScreenLock();
 }
 
 void Context::releaseScreenLock() const
 {
-    mCore->releaseScreenLock();
+    documentContextData(mCore)->releaseScreenLock();
 }
 
 LruCache<TextMeasureRequest, YGSize>&
 Context::cachedMeasures()
 {
-    return mCore->cachedMeasures();
+    return documentContextData(mCore)->cachedMeasures();
 }
 
 LruCache<TextMeasureRequest, float>&
 Context::cachedBaselines()
 {
-    return mCore->cachedBaselines();
+    return documentContextData(mCore)->cachedBaselines();
 }
 
 WeakPtrSet<CoreComponent>&
 Context::pendingOnMounts()
 {
-    return mCore->pendingOnMounts();
+    return documentContextData(mCore)->pendingOnMounts();
+}
+
+bool
+Context::embedded() const
+{
+    return documentContextData(mCore)->embedded();
+}
+
+DocumentContextPtr
+Context::documentContext() const
+{
+    return documentContextData(mCore)->documentContext();
 }
 
 #ifdef SCENEGRAPH
 sg::TextPropertiesCache&
 Context::textPropertiesCache() const
 {
-    return mCore->textPropertiesCache();
+    return documentContextData(mCore)->textPropertiesCache();
 }
 #endif // SCENEGRAPH
 
@@ -499,12 +580,11 @@ Context::serialize(rapidjson::Document::AllocatorType& allocator)
     return out;
 }
 
-
 streamer&
 operator<<(streamer& os, const Context& context)
 {
-    for (auto it = context.mMap.begin() ; it != context.mMap.end() ; it++) {
-        os << it->first << ": " << it->second << "\n";
+    for (const auto & it : context.mMap) {
+        os << it.first << ": " << it.second << "\n";
     }
 
     if (context.mParent)
@@ -514,14 +594,17 @@ operator<<(streamer& os, const Context& context)
 }
 
 
-bool Context::userUpdateAndRecalculate(const std::string& key, const Object& value, bool useDirtyFlag)
+bool
+Context::userUpdateAndRecalculate(const std::string& key, const Object& value, bool useDirtyFlag)
 {
     auto it = mMap.find(key);
     if (it != mMap.end()) {
         if (it->second.isUserWriteable()) {
             removeUpstream(key);  // Break any dependency chain
-            if (it->second.set(value))  // If the value changes, recalculate downstream values
-                recalculateDownstream(key, useDirtyFlag);
+            if (it->second.set(value)) { // If the value changes, recalculate downstream values
+                enqueueDownstream(key);
+                dependantManager().processDependencies(useDirtyFlag);
+            }
         } else {
             CONSOLE(mCore->session()) << "Data-binding field '" << key << "' is read-only";
         }
@@ -535,7 +618,8 @@ bool Context::userUpdateAndRecalculate(const std::string& key, const Object& val
     return false;
 }
 
-bool Context::systemUpdateAndRecalculate(const std::string& key, const Object& value, bool useDirtyFlag)
+bool
+Context::systemUpdateAndRecalculate(const std::string& key, const Object& value, bool useDirtyFlag)
 {
     auto it = mMap.find(key);
     if (it == mMap.end())
@@ -543,8 +627,10 @@ bool Context::systemUpdateAndRecalculate(const std::string& key, const Object& v
 
     if (it->second.isMutable()) {
         removeUpstream(key);  // Break any dependency chain
-        if (it->second.set(value))  // If the value changes, recalculate downstream values
-            recalculateDownstream(key, useDirtyFlag);
+        if (it->second.set(value)) { // If the value changes, recalculate downstream values
+            enqueueDownstream(key);
+            dependantManager().processDependencies(useDirtyFlag);
+        }
     }
 
     return true;

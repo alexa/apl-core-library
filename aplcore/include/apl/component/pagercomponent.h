@@ -104,6 +104,7 @@ protected:
     void finalizePopulate() override;
     void ensureDisplayedChildren() override;
     void releaseSelf() override;
+    void clearActiveStateSelf() override;
 
 private:
     bool multiChild() const override { return true; }

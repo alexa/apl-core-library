@@ -34,4 +34,8 @@ endif()
 
 include_directories(${PEGTL_INCLUDE})
 
+if(MSVC)
+        SET_TARGET_PROPERTIES(enumgen PROPERTIES LINK_FLAGS "/link setargv.obj")
+endif()
+
 install(TARGETS enumgen RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})

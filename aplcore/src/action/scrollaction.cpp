@@ -14,6 +14,7 @@
  */
 
 #include "apl/action/scrollaction.h"
+
 #include "apl/command/corecommand.h"
 #include "apl/time/sequencer.h"
 
@@ -87,7 +88,7 @@ ScrollAction::freeze()
 }
 
 bool
-ScrollAction::rehydrate(const RootContext& context)
+ScrollAction::rehydrate(const CoreDocumentContext& context)
 {
     if (!AnimatedScrollAction::rehydrate(context)) return false;
 

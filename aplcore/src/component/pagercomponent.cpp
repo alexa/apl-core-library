@@ -50,8 +50,17 @@ PagerComponent::PagerComponent(const ContextPtr& context,
 void
 PagerComponent::releaseSelf()
 {
-    mCurrentAnimation = nullptr;
+    clearActiveStateSelf();
     ActionableComponent::releaseSelf();
+}
+
+void
+PagerComponent::clearActiveStateSelf()
+{
+    ActionableComponent::clearActiveStateSelf();
+    mPageMoveHandler = nullptr;
+    mCurrentAnimation = nullptr;
+    mDelayLayoutAction = nullptr;
 }
 
 inline Object
@@ -463,7 +472,7 @@ PagerComponent::ensureDisplayedChildren() {
     // current page is in the viewport
     CoreComponentPtr currentPage = nullptr;
     if (mPageMoveHandler) { 
-        currentPage = mPageMoveHandler->getCurrentPage().lock();
+        currentPage = mPageMoveHandler->getCheckedCurrentPage(shared_from_corecomponent());
     } else {
         currentPage = mChildren.at(pagePosition());
     }
@@ -474,7 +483,7 @@ PagerComponent::ensureDisplayedChildren() {
     // when in a page move transition, add the target next page
     if (mPageMoveHandler) {
         // current page
-        auto nextPage = mPageMoveHandler->getTargetPage().lock();
+        auto nextPage = mPageMoveHandler->getCheckedTargetPage(shared_from_corecomponent());
         if (nextPage && nextPage->isDisplayable()) {
 
             // get the gesture direction by working backwards from swipe direction

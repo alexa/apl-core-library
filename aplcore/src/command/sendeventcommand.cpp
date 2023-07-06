@@ -24,22 +24,6 @@ namespace apl {
 
 const static bool DEBUG_SEND_EVENT = false;
 
-CommandPtr
-SendEventCommand::create(const ContextPtr& context,
-                         Properties&& properties,
-                         const CoreComponentPtr& base,
-                         const std::string& parentSequencer) {
-    auto ptr = std::make_shared<SendEventCommand>(context, std::move(properties), base, parentSequencer);
-    return ptr->validate() ? ptr : nullptr;
-}
-
-SendEventCommand::SendEventCommand(const ContextPtr& context,
-                                   Properties&& properties,
-                                   const CoreComponentPtr& base,
-                                   const std::string& parentSequencer)
-    : CoreCommand(context, std::move(properties), base, parentSequencer)
-{}
-
 const CommandPropDefSet&
 SendEventCommand::propDefSet() const {
     static CommandPropDefSet sSendEventCommandProperties(CoreCommand::propDefSet(), {

@@ -31,13 +31,15 @@ Bimap<int, std::string> sViewportModeBimap = {
 };
 
 std::string Metrics::toDebugString() const {
-    return  "Metrics<"
-            "theme=" + mTheme + ", "
-            "size=" + std::to_string(static_cast<int>(mPixelWidth)) + "x"
-                    + std::to_string(static_cast<int>(mPixelHeight)) + ", "
-            "dpi=" + std::to_string(static_cast<int>(mDpi)) + ", "
-            "shape=" + (mShape == ROUND ? "round" : "rectangle") + ", "
-            "mode=" + sViewportModeBimap.at(mMode) + ">";
+    return "Metrics<"
+           "theme=" + mTheme + ", "
+           "size=" + std::to_string(static_cast<int>(mPixelWidth)) + "x"
+                   + std::to_string(static_cast<int>(mPixelHeight)) + ", "
+           "autoSizeWidth=" + (mAutoSizeWidth ? "true ": "false ") +
+           "autoSizeHeight=" + (mAutoSizeHeight ? "true ": "false ") +
+           "dpi=" + std::to_string(static_cast<int>(mDpi)) + ", "
+           "shape=" + sScreenShapeBimap.at(mShape) + ", "
+           "mode=" + sViewportModeBimap.at(mMode) + ">";
 }
 
 }

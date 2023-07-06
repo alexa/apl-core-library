@@ -44,7 +44,7 @@ SelectCommand::execute(const TimersPtr& timers, bool fastMode) {
         // If there is no data, we look for the first valid command
         if (data.empty()) {
             for (const auto& command : commands) {
-                auto ptr = CommandFactory::instance().inflate(context(), command, mBase);
+                auto ptr = CommandFactory::instance().inflate(context(), {command, this->data()}, mBase);
                 if (ptr)
                     return DelayAction::make(timers, ptr, fastMode);
             }
@@ -59,7 +59,7 @@ SelectCommand::execute(const TimersPtr& timers, bool fastMode) {
 
                 // Look for an executable command
                 for (const auto& command : commands) {
-                    auto ptr = CommandFactory::instance().inflate(childContext, command, mBase);
+                    auto ptr = CommandFactory::instance().inflate(childContext, {command, this->data()}, mBase);
                     if (ptr)
                         return DelayAction::make(timers, ptr, fastMode);
                 }
@@ -73,7 +73,7 @@ SelectCommand::execute(const TimersPtr& timers, bool fastMode) {
     if (otherwise.empty())
         return nullptr;
 
-    auto arrayCommand = ArrayCommand::create(context(), otherwise, base(), Properties(), sequencer());
+    auto arrayCommand = ArrayCommand::create(context(), {otherwise, this->data()}, base(), Properties(), sequencer());
     return arrayCommand->execute(timers, fastMode);
 }
 

@@ -20,6 +20,7 @@
 
 #include "apl/utils/streamer.h"
 #include "apl/utils/bimap.h"
+#include "apl/utils/log.h"
 #include "apl/utils/userdata.h"
 
 namespace apl {
@@ -58,21 +59,12 @@ extern Bimap<int, std::string> sViewportModeBimap;
  */
 class Metrics : public UserData<Metrics> {
 public:
-
     static constexpr float CORE_DPI = 160.0f;
 
     /**
      * Construct default metrics.
      */
-    Metrics() :
-        mTheme("dark"),
-        mPixelWidth(1024),
-        mPixelHeight(800),
-        mDpi(CORE_DPI),
-        mShape(RECTANGLE),
-        mMode(kViewportModeHub)
-    {
-    }
+    Metrics() = default;
 
     /**
      * Set the color theme.
@@ -85,14 +77,36 @@ public:
     }
 
     /**
-     * Set the pixel dimensions of the screen.
+     * Set the pixel dimensions of the screen or view.  When using auto-sizing, this
+     * should be set to the nominal or target dimension of the view.
      * @param pixelWidth The width of the screen, in pixels.
      * @param pixelHeight The height of the screen, in pixels.
      * @return This object for chaining.
      */
     Metrics& size(int pixelWidth, int pixelHeight) {
+        assert(pixelWidth > 0 && pixelHeight > 0);
         mPixelWidth = pixelWidth;
         mPixelHeight = pixelHeight;
+        return *this;
+    }
+
+    /**
+     * Set if the width of the view can be automatically sized by the APL document
+     * @param value True if the view width can be auto-sized.
+     * @return This object for chaining
+     */
+    Metrics& autoSizeWidth(bool value) {
+        mAutoSizeWidth = value;
+        return *this;
+    }
+
+    /**
+     * Set if the height of the view can be automatically sized by the APL document
+     * @param value True if the view height can be auto-sized.
+     * @return This object for chaining
+     */
+    Metrics& autoSizeHeight(bool value) {
+        mAutoSizeHeight = value;
         return *this;
     }
 
@@ -118,12 +132,42 @@ public:
     }
 
     /**
+     * Set the shape of the screen.
+     * @param screenShape The screen shape.
+     * @return This object, for chaining.
+     */
+    Metrics& shape(const std::string& screenShape) {
+        auto it = sScreenShapeBimap.find(screenShape);
+        if (it != sScreenShapeBimap.endBtoA()) {
+            return shape(static_cast<ScreenShape>(it->second));
+        }
+
+        LOG(LogLevel::kWarn) << "Ignoring invalid screen shape for metrics: " << screenShape;
+        return *this;
+    }
+
+    /**
      * Set the operating mode of the viewport
      * @param mode The viewport mode.
      * @return This object, for chaining.
      */
     Metrics& mode(ViewportMode mode) {
         mMode = mode;
+        return *this;
+    }
+
+    /**
+     * Set the operating mode of the viewport
+     * @param viewportMode The viewport mode.
+     * @return This object, for chaining.
+     */
+    Metrics& mode(const std::string& viewportMode) {
+        auto it = sViewportModeBimap.find(viewportMode);
+        if (it != sViewportModeBimap.endBtoA()) {
+            return mode(static_cast<ViewportMode>(it->second));
+        }
+
+        LOG(LogLevel::kWarn) << "Ignoring invalid viewport mode for metrics: " << viewportMode;
         return *this;
     }
 
@@ -141,6 +185,16 @@ public:
      * @return The width of the screen in "dp"
      */
     float getWidth() const { return pxToDp(mPixelWidth); }
+
+    /**
+     * @return True if the width should auto-size
+     */
+    bool getAutoWidth() const { return mAutoSizeWidth; }
+
+    /**
+     * @return True if the height should auto-size
+     */
+    bool getAutoHeight() const { return mAutoSizeHeight; }
 
     /**
      * Convert Display Pixels to Pixels
@@ -194,12 +248,14 @@ public:
     std::string toDebugString() const;
 
 private:
-    std::string mTheme;
-    int mPixelWidth;
-    int mPixelHeight;
-    int mDpi;
-    ScreenShape mShape;
-    ViewportMode mMode;
+    std::string mTheme = "dark";
+    int mPixelWidth = 1024;
+    int mPixelHeight = 800;
+    int mDpi = CORE_DPI;
+    ScreenShape mShape = RECTANGLE;
+    ViewportMode mMode = kViewportModeHub;
+    bool mAutoSizeWidth = false;
+    bool mAutoSizeHeight = false;
 };
 
 }  // namespace apl

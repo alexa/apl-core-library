@@ -13,12 +13,11 @@
  * permissions and limitations under the License.
  */
 
-#include <chrono>
-
-#include "apl/engine/event.h"
 #include "apl/engine/hovermanager.h"
-#include "apl/engine/rootcontextdata.h"
+
 #include "apl/component/corecomponent.h"
+#include "apl/engine/corerootcontext.h"
+#include "apl/engine/event.h"
 
 namespace apl {
 
@@ -61,16 +60,16 @@ HoverManager::setCursorPosition(const Point& cursorPosition) {
 
     if (previous && !previous->getState().get(kStateDisabled)) {
         previous->executeOnCursorExit();
-        LOG_IF(DEBUG_HOVER).session(mCore.session()) << "Execute OnCursorExit: " << previous->toDebugSimpleString();
+        LOG_IF(DEBUG_HOVER) << "Execute OnCursorExit: " << previous->toDebugSimpleString();
     }
 
     if (target && !target->getState().get(kStateDisabled)) {
         target->executeOnCursorEnter();
-        LOG_IF(DEBUG_HOVER).session(mCore.session()) << "Execute OnCursorEnter: " << target->toDebugSimpleString();
+        LOG_IF(DEBUG_HOVER) << "Execute OnCursorEnter: " << target->toDebugSimpleString();
     }
 
     // store the new hover component, if any
-    LOG_IF(DEBUG_HOVER).session(mCore.session()) << "hover change -\n\tfrom:  " << previous << "\n\t  to:" << target;
+    LOG_IF(DEBUG_HOVER) << "hover change -\n\tfrom:  " << previous << "\n\t  to:" << target;
     mHover = target;
 
 }
@@ -83,7 +82,7 @@ HoverManager::setCursorPosition(const Point& cursorPosition) {
  */
 CoreComponentPtr
 HoverManager::findHoverByPosition(const Point& position) const {
-    auto top = mCore.top();
+    auto top = mCore.topComponent();
     if (!top)
         return nullptr;
 
@@ -112,10 +111,10 @@ HoverManager::componentToggledDisabled(const CoreComponentPtr& component) {
         // execute the OnCursor commands
         if (target->getState().get(kStateDisabled)) {
             target->executeOnCursorExit();
-            LOG_IF(DEBUG_HOVER).session(mCore.session()) << "Execute OnCursorExit: " << target->toDebugSimpleString();
+            LOG_IF(DEBUG_HOVER) << "Execute OnCursorExit: " << target->toDebugSimpleString();
         } else {
             target->executeOnCursorEnter();
-            LOG_IF(DEBUG_HOVER).session(mCore.session()) << "Execute OnCursorEnter: " << target->toDebugSimpleString();
+            LOG_IF(DEBUG_HOVER) << "Execute OnCursorEnter: " << target->toDebugSimpleString();
         }
 
     }
@@ -142,14 +141,14 @@ HoverManager::update(const CoreComponentPtr& previous, const CoreComponentPtr& t
     // UnSet the previous Component's hover state, and the ancestors it inherits state from, if any.
     if (previousStateOwner) {
         previousStateOwner->setState(kStateHover, false);
-        LOG_IF(DEBUG_HOVER).session(mCore.session()) << "Hover Previous:  " << previous->toDebugSimpleString() << " state: " << previous->getState();
+        LOG_IF(DEBUG_HOVER) << "Hover Previous:  " << previous->toDebugSimpleString() << " state: " << previous->getState();
     }
 
     // Set the target Components's hover state, and the ancestors it inherits state from, if any.
     if (targetStateOwner) {
         bool isHover = !targetStateOwner->getState().get(kStateDisabled);
         targetStateOwner->setState(kStateHover, isHover);
-        LOG_IF(DEBUG_HOVER).session(mCore.session()) << "Hover Target: " << target->toDebugSimpleString() << " state: " << target->getState();
+        LOG_IF(DEBUG_HOVER) << "Hover Target: " << target->toDebugSimpleString() << " state: " << target->getState();
     }
 
 }

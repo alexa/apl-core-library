@@ -18,6 +18,7 @@
 
 #include "apl/command/corecommand.h"
 #include "apl/engine/properties.h"
+#include "apl/primitives/commanddata.h"
 
 namespace apl {
 
@@ -27,9 +28,9 @@ namespace apl {
 class ArrayCommand : public CoreCommand {
 public:
     static CommandPtr create(const ContextPtr& context,
-                             const Object& commands,
+                             CommandData&& commands,
                              const CoreComponentPtr& base,
-                             const Properties& properties,
+                             Properties&& properties,
                              const std::string& parentSequencer = "",
                              bool finishAllOnTerminate = false);
 
@@ -42,7 +43,7 @@ public:
      * @param properties Additional properties to apply to each command.
      */
     ArrayCommand(const ContextPtr& context,
-                 const Object& commands,
+                 CommandData&& commands,
                  const CoreComponentPtr& base,
                  Properties&& properties,
                  const std::string& parentSequencer,
@@ -53,11 +54,9 @@ public:
     std::string name() const override { return "ArrayCommand"; }
     ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
 
-    const std::vector<Object>& commands() const { return mCommands.getArray(); }
     bool finishAllOnTerminate() const { return mFinishAllOnTerminate; }
 
 private:
-    const Object mCommands;
     bool mFinishAllOnTerminate;
 };
 

@@ -22,7 +22,8 @@
 
 #include "AplMusicAlarmExtensionObserverInterface.h"
 
-namespace MusicAlarm {
+namespace alexaext {
+namespace musicalarm {
 
 static const std::string URI = "aplext:musicalarm:10";
 
@@ -40,7 +41,7 @@ public:
         alexaext::ExecutorPtr executor,
         alexaext::uuid::UUIDFunction uuidGenerator = alexaext::uuid::generateUUIDV4);
 
-    virtual ~AplMusicAlarmExtension() = default;
+    ~AplMusicAlarmExtension() override = default;
 
     /// @name alexaext::Extension Functions
     /// @{
@@ -58,6 +59,7 @@ private:
     alexaext::uuid::UUIDFunction mUuidGenerator;
 };
 
-} // MusicAlarm
+}  // namespace musicalarm
+}  // namespace alexaext
 
 #endif // APL_APLMUSICALARMEXTENSION_H

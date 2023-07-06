@@ -16,16 +16,12 @@
 #ifndef _APL_FOCUS_MANAGER_H
 #define _APL_FOCUS_MANAGER_H
 
-#include <memory>
-#include <map>
 #include "apl/common.h"
 #include "apl/focus/focusdirection.h"
 #include "apl/focus/focusfinder.h"
 
 namespace apl {
 
-class CoreComponent;
-class RootContextData;
 class Rect;
 
 static const std::string FOCUS_SEQUENCER = "__FOCUS_SEQUENCER";
@@ -59,7 +55,7 @@ static const std::string FOCUS_SEQUENCER = "__FOCUS_SEQUENCER";
  */
 class FocusManager {
 public:
-    explicit FocusManager(const RootContextData& core);
+    explicit FocusManager(const CoreRootContext& core);
 
     /**
      * Focus next available component based on provided parameters. Requires some component to be focused.
@@ -145,7 +141,7 @@ public:
     CoreComponentPtr getFocus() { return mFocused.lock(); }
 
 private:
-    const RootContextData& mCore;
+    const CoreRootContext& mCore;
     std::unique_ptr<FocusFinder> mFinder;
     std::weak_ptr<CoreComponent> mFocused;
 

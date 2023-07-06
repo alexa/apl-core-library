@@ -57,7 +57,7 @@ if(COVERAGE)
                     -instr-profile=${TARGET_NAME}.profdata
                     -output-dir=${CMAKE_BINARY_DIR}/coverage
                     ${CMAKE_SOURCE_DIR}/aplcore
-                DEPENDS ${TARGET_NAME} ${EXEC_NAME}
+                DEPENDS ${EXEC_NAME}
                 )
         add_custom_command(TARGET coverage-${TARGET_NAME} POST_BUILD
                 COMMAND ;

@@ -40,7 +40,6 @@ class Graphic : public UIDObject,
                 public UserData<Graphic>,
                 public ObjectData {
     friend class GraphicElement;
-    friend class GraphicDependant;
     friend class VectorGraphicComponent;
 
 public:

@@ -53,7 +53,7 @@ DynamicTokenListDataSourceConnection::processLazyLoad(
     if (!context) {
         return false;
     }
-    auto items = evaluateRecursive(*context, data);
+    auto items = evaluateNested(*context, data);
 
     bool result = false;
     if (items.isArray() && !items.empty()) {
@@ -62,7 +62,7 @@ DynamicTokenListDataSourceConnection::processLazyLoad(
         result = updateLiveArray(dataArray, pageToken, nextPageToken);
     }
     else {
-        constructAndReportError(getContext()->session(), ERROR_REASON_MISSING_LIST_ITEMS, Object::NULL_OBJECT(),
+        constructAndReportError(getContext(), ERROR_REASON_MISSING_LIST_ITEMS, Object::NULL_OBJECT(),
                                           "No items provided to load.");
         retryFetchRequest(correlationToken.asString());
         return result;
@@ -136,7 +136,7 @@ DynamicTokenListDataSourceProvider::createConnection(
 
     if (!sourceDefinition.has(LIST_ID) || !sourceDefinition.get(LIST_ID).isString()||
         !sourceDefinition.has(PAGE_TOKEN) || !sourceDefinition.get(PAGE_TOKEN).isString()) {
-        constructAndReportError(ctx->session(), ERROR_REASON_INTERNAL_ERROR, "N/A", "Missing required fields.");
+        constructAndReportError(ctx, ERROR_REASON_INTERNAL_ERROR, "N/A", "Missing required fields.");
         return nullptr;
     }
 
@@ -158,7 +158,7 @@ DynamicTokenListDataSourceProvider::processLazyLoadInternal(
         return false;
 
     if (!responseMap.has(ITEMS)) {
-        constructAndReportError(connection->getContext()->session(), ERROR_REASON_INTERNAL_ERROR, connection->getListId(),
+        constructAndReportError(connection->getContext(), ERROR_REASON_INTERNAL_ERROR, connection->getListId(),
                                 "Missing required fields.");
         return true;
     }

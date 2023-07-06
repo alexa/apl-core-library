@@ -37,7 +37,7 @@ if(COVERAGE)
                 COMMAND ${LCOV_PATH} --remove ${COVERAGE_INFO} '**/unit/*' '/usr/*' '**/*build/*' '**/thirdparty/*' --output-file ${COVERAGE_CLEANED}
                 COMMAND ${GENHTML_PATH} -o ${CMAKE_BINARY_DIR}/coverage ${COVERAGE_CLEANED}
                 COMMAND ${CMAKE_COMMAND} -E remove ${COVERAGE_INFO}
-                DEPENDS ${TARGET_NAME} ${EXEC_NAME}
+                DEPENDS ${EXEC_NAME}
                 )
         add_custom_command(TARGET coverage-${TARGET_NAME} POST_BUILD
                 COMMAND ;

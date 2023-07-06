@@ -154,12 +154,12 @@ Event::serialize(rapidjson::Document::AllocatorType& allocator) const
 }
 
 bool
-Event::matches(const Event& rhs) const
+Event::operator==(const Event& other) const
 {
-    return mData->eventType == rhs.mData->eventType &&
-            mData->component == rhs.mData->component &&
-            mData->bag == rhs.mData->bag;
+    return mData->eventType == other.mData->eventType &&
+           mData->component == other.mData->component &&
+           !mDocument.owner_before(other.mDocument) &&
+           mData->bag == other.mData->bag;
 }
-
 
 } // namespace apl

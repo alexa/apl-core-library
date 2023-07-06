@@ -20,15 +20,9 @@
 
 namespace apl {
 
-class SendEventCommand : public CoreCommand {
+class SendEventCommand : public TemplatedCommand<SendEventCommand> {
 public:
-    static CommandPtr create(const ContextPtr& context,
-                             Properties&& properties,
-                             const CoreComponentPtr& base,
-                             const std::string& parentSequencer);
-
-    SendEventCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
-                     const std::string& parentSequencer);
+    COMMAND_CONSTRUCTOR(SendEventCommand);
 
     const CommandPropDefSet& propDefSet() const override;
 

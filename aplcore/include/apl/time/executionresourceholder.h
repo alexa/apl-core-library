@@ -17,6 +17,7 @@
 #define _APL_EXECUTION_RESOURCE_HOLDER_H
 
 #include "apl/time/executionresource.h"
+#include "apl/utils/counter.h"
 #include "apl/utils/noncopyable.h"
 
 namespace apl {
@@ -30,6 +31,7 @@ class Sequencer;
  * function is invoked to warn that the resource has been taken away.
  */
 class ExecutionResourceHolder : public NonCopyable,
+                                public Counter<ExecutionResourceHolder>,
                                 public std::enable_shared_from_this<ExecutionResourceHolder> {
 public:
     /**

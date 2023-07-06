@@ -13,12 +13,13 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/command/arraycommand.h"
 #include "apl/command/displaystatechangecommand.h"
+
+#include "apl/command/arraycommand.h"
 #include "apl/content/content.h"
 #include "apl/document/documentproperties.h"
+#include "apl/engine/corerootcontext.h"
 #include "apl/engine/evaluate.h"
-#include "apl/engine/rootcontext.h"
 
 namespace apl {
 
@@ -27,18 +28,18 @@ const char * DisplayStateChangeCommand::SEQUENCER = "__DISPLAY_STATE_CHANGE_SEQU
 ActionPtr
 DisplayStateChangeCommand::execute(const TimersPtr& timers, bool fastMode)
 {
-    auto root = mRootContext.lock();
-    if (!root)
+    auto document = mDocument.lock();
+    if (!document)
         return nullptr;
 
     // Extract the event handler commands, if provided in the document
-    auto& json = root->content()->getDocument()->json();
+    auto& json = document->content()->getDocument()->json();
     auto it = json.FindMember(sDocumentPropertyBimap.at(kDocumentPropertyOnDisplayStateChange).c_str());
     if (it == json.MemberEnd()) {
         return nullptr;
     }
 
-    auto context = root->createDocumentContext("DisplayStateChange", mProperties);
+    auto context = document->createDocumentContext("DisplayStateChange", mProperties);
     auto commands = asCommand(*context, evaluate(*context, it->value));
     auto cmd = ArrayCommand::create(context, commands, nullptr, Properties(), "", true);
 

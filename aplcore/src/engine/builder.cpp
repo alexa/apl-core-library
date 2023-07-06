@@ -21,6 +21,7 @@
 #include "apl/component/edittextcomponent.h"
 #include "apl/component/framecomponent.h"
 #include "apl/component/gridsequencecomponent.h"
+#include "apl/component/hostcomponent.h"
 #include "apl/component/imagecomponent.h"
 #include "apl/component/pagercomponent.h"
 #include "apl/component/scrollviewcomponent.h"
@@ -33,10 +34,10 @@
 #include "apl/engine/arrayify.h"
 #include "apl/engine/binding.h"
 #include "apl/engine/context.h"
-#include "apl/engine/contextdependant.h"
 #include "apl/engine/evaluate.h"
 #include "apl/engine/parameterarray.h"
 #include "apl/engine/properties.h"
+#include "apl/engine/typeddependant.h"
 #include "apl/extension/extensioncomponent.h"
 #include "apl/extension/extensionmanager.h"
 #include "apl/livedata/layoutrebuilder.h"
@@ -65,7 +66,8 @@ static const std::map<std::string, MakeComponentFunc> sComponentMap = {
     {"TouchWrapper",  TouchWrapperComponent::create},
     {"Pager",         PagerComponent::create},
     {"VectorGraphic", VectorGraphicComponent::create},
-    {"Video",         VideoComponent::create}
+    {"Video",         VideoComponent::create},
+    {"Host",          HostComponent::create}
 };
 
 void
@@ -129,7 +131,7 @@ Builder::populateLayoutComponent(const ContextPtr& context,
             layoutBuilder->build(useDirtyFlag);
         }
         else {
-            auto dataItems = evaluateRecursive(*context, data);
+            auto dataItems = evaluateNested(*context, data);
             if (!dataItems.empty()) {
                 LOG_IF(DEBUG_BUILDER).session(context) << "data size=" << dataItems.size();
 
@@ -266,7 +268,7 @@ Builder::expandSingleComponent(const ContextPtr& context,
         CoreComponentPtr oldComponent;
         if(mOld) {
             oldComponent = CoreComponent::cast(
-                mOld->findComponentById(component->getId()));
+                mOld->findComponentById(component->getId(), false));
             copyPreservedBindings(component, oldComponent);
         }
 
@@ -306,7 +308,7 @@ Builder::expandSingleComponent(const ContextPtr& context,
  * @param item The item that contains a "bind" property.
  */
 void
-Builder::attachBindings(const apl::ContextPtr& context, const apl::Object& item)
+Builder::attachBindings(const ContextPtr& context, const Object& item)
 {
     APL_TRACE_BLOCK("Builder:attachBindings");
     auto bindings = arrayifyProperty(*context, item, "bind");
@@ -328,17 +330,16 @@ Builder::attachBindings(const apl::ContextPtr& context, const apl::Object& item)
         }
 
         // Extract the binding as an optional node tree.
-        auto tmp = propertyAsNode(*context, binding, "value");
-        auto value = evaluateRecursive(*context, tmp);
-        auto bindingType = propertyAsMapped<BindingType>(*context, binding, "type", kBindingTypeAny, sBindingMap);
+        auto result = parseAndEvaluate(*context, binding.get("value"));
+        auto bindingType =
+            propertyAsMapped<BindingType>(*context, binding, "type", kBindingTypeAny, sBindingMap);
         auto bindingFunc = sBindingFunctions.at(bindingType);
 
         // Store the value in the new context.  Binding values are mutable; they can be changed later.
-        context->putUserWriteable(name, bindingFunc(*context, value));
-
-        // If it is a node, we connect up the symbols that it is dependant upon
-        if (tmp.isEvaluable())
-            ContextDependant::create(context, name, tmp, context, bindingFunc);
+        context->putUserWriteable(name, bindingFunc(*context, result.value));
+        if (!result.symbols.empty())
+            ContextDependant::create(context, name, std::move(result.expression), context,
+                                     std::move(bindingFunc), std::move(result.symbols));
     }
 }
 

@@ -26,7 +26,7 @@
 #include "alexaext/extensionmessage.h"
 
 using namespace alexaext;
-using namespace Webflow;
+using namespace alexaext::webflow;
 using namespace rapidjson;
 
 static int uuidValue = 1;
@@ -42,7 +42,7 @@ public:
 
     ~SimpleTestWebflowObserver() override = default;
 
-    void onStartFlow(const std::string& token, const std::string& url, const std::string& flowId,
+    void onStartFlow(const ActivityDescriptor &activity, const std::string& token, const std::string& url, const std::string& flowId,
                      std::function<void(const std::string&, const std::string&)> onFlowEndEvent) override {
         mCommand = "START_FLOW";
         mUrl = url;
@@ -62,6 +62,31 @@ public:
     std::string mUrl;
     std::string mFlowId;
     std::string mToken;
+};
+
+class SimpleLifecycleTestWebflowObserver : public AplWebflowExtensionObserverInterface {
+public:
+    SimpleLifecycleTestWebflowObserver() : AplWebflowExtensionObserverInterface() {}
+
+    ~SimpleLifecycleTestWebflowObserver() override = default;
+
+    // no-op
+    void onStartFlow(const ActivityDescriptor &activity, const std::string& token, const std::string& url, const std::string& flowId,
+                     std::function<void(const std::string&, const std::string&)> onFlowEndEvent) override {}
+
+    void onForeground(const ActivityDescriptor &activity) override {
+        mLifecycleState = "FOREGROUND";
+    }
+
+    void onBackground(const ActivityDescriptor &activity) override {
+        mLifecycleState = "BACKGROUND";
+    }
+
+    void onHidden(const ActivityDescriptor &activity) override {
+        mLifecycleState = "HIDDEN";
+    }
+
+    std::string mLifecycleState = "CREATED";
 };
 
 class SimpleTestWebflowExtension : public AplWebflowExtension {
@@ -100,7 +125,7 @@ public:
      */
     ::testing::AssertionResult registerExtension() {
         Document regReq = RegistrationRequest("1.0").uri("aplext:webflow:10");
-        auto registration = mExtension->createRegistration("aplext:webflow:10", regReq);
+        auto registration = mExtension->createRegistration(createActivityDescriptor(), regReq);
         auto method =
             GetWithDefault<const char*>(RegistrationSuccess::METHOD(), registration, "Fail");
         if (std::strcmp("RegisterSuccess", method) != 0)
@@ -110,6 +135,18 @@ public:
             return testing::AssertionFailure() << "Failed Token:" << mClientToken;
 
         return ::testing::AssertionSuccess();
+    }
+
+    /**
+     * Simple utility to create activity descriptors accross the tests
+     */
+    ActivityDescriptor createActivityDescriptor(std::string uri = URI) {
+        // Create Activity
+        SessionDescriptorPtr sessionPtr = SessionDescriptor::create("TestSessionId");
+        ActivityDescriptor activityDescriptor(
+            uri,
+            sessionPtr);
+        return activityDescriptor;
     }
 
     void resetTestData() {
@@ -141,7 +178,7 @@ TEST_F(SimpleAplWebflowExtensionTest, CreateExtension) {
  */
 TEST_F(SimpleAplWebflowExtensionTest, RegistrationURIBad) {
     Document regReq = RegistrationRequest("aplext:webflow:BAD");
-    auto registration = mExtension->createRegistration("aplext:webflow:BAD", regReq);
+    auto registration = mExtension->createRegistration(createActivityDescriptor("aplext:webflow:BAD"), regReq);
     ASSERT_FALSE(registration.HasParseError());
     ASSERT_FALSE(registration.IsNull());
     ASSERT_STREQ("RegisterFailure",
@@ -153,7 +190,7 @@ TEST_F(SimpleAplWebflowExtensionTest, RegistrationURIBad) {
  */
 TEST_F(SimpleAplWebflowExtensionTest, RegistrationSuccess) {
     Document regReq = RegistrationRequest("1.0").uri("aplext:webflow:10");
-    auto registration = mExtension->createRegistration("aplext:webflow:10", regReq);
+    auto registration = mExtension->createRegistration(createActivityDescriptor(), regReq);
     ASSERT_STREQ("RegisterSuccess",
                  GetWithDefault<const char*>(RegistrationSuccess::METHOD(), registration, ""));
     ASSERT_STREQ("aplext:webflow:10",
@@ -171,7 +208,7 @@ TEST_F(SimpleAplWebflowExtensionTest, RegistrationSuccess) {
 TEST_F(SimpleAplWebflowExtensionTest, RegistrationCommands) {
     Document regReq = RegistrationRequest("1.0").uri("aplext:webflow:10");
 
-    auto registration = mExtension->createRegistration("aplext:webflow:10", regReq);
+    auto registration = mExtension->createRegistration(createActivityDescriptor(), regReq);
     ASSERT_STREQ("RegisterSuccess",
                  GetWithDefault<const char*>(RegistrationSuccess::METHOD(), registration, ""));
     Value* schema = RegistrationSuccess::SCHEMA().Get(registration);
@@ -198,7 +235,7 @@ TEST_F(SimpleAplWebflowExtensionTest, RegistrationCommands) {
  */
 TEST_F(SimpleAplWebflowExtensionTest, RegistrationEvents) {
     Document regReq = RegistrationRequest("1.0").uri("aplext:webflow:10");
-    auto registration = mExtension->createRegistration("aplext:webflow:10", regReq);
+    auto registration = mExtension->createRegistration(createActivityDescriptor(), regReq);
     ASSERT_STREQ("RegisterSuccess",
                  GetWithDefault<const char*>(RegistrationSuccess::METHOD(), registration, ""));
     Value* schema = RegistrationSuccess::SCHEMA().Get(registration);
@@ -233,7 +270,7 @@ TEST_F(SimpleAplWebflowExtensionTest, InvokeCommandStartFlowSuccess) {
                        .uri("aplext:webflow:10")
                        .name("StartFlow")
                        .property("url", "test_url");
-    auto invoke = mExtension->invokeCommand("aplext:webflow:10", command);
+    auto invoke = mExtension->invokeCommand(createActivityDescriptor(), command);
     ASSERT_TRUE(invoke);
     ASSERT_EQ("START_FLOW", mObserver->mCommand);
     ASSERT_EQ("test_url", mObserver->mUrl);
@@ -252,10 +289,48 @@ TEST_F(SimpleAplWebflowExtensionTest, InvokeCommandStartFlowWithFlowIdSuccess) {
                        .name("StartFlow")
                        .property("url", "test_url")
                        .property("flowId", "test_flow");
-    auto invoke = mExtension->invokeCommand("aplext:webflow:10", command);
+    auto invoke = mExtension->invokeCommand(createActivityDescriptor(), command);
     ASSERT_TRUE(invoke);
     ASSERT_EQ("START_FLOW", mObserver->mCommand);
     ASSERT_EQ("test_url", mObserver->mUrl);
     ASSERT_EQ("test_flow", mObserver->mFlowId);
     ASSERT_EQ("test_flow", mEventFlow);
+}
+
+/**
+ * Ensure base implementation of lifecycle callbacks in the observer run with no effect
+ */
+ TEST_F(SimpleAplWebflowExtensionTest, VerifyLifecycleCallbacksRun) {
+     auto activity = createActivityDescriptor();
+
+     ASSERT_TRUE(registerExtension());
+
+     mExtension->onForeground(activity);
+     mExtension->onBackground(activity);
+     mExtension->onHidden(activity);
+
+     ASSERT_TRUE(mObserver->mCommand.empty());
+     ASSERT_TRUE(mObserver->mUrl.empty());
+     ASSERT_TRUE(mObserver->mFlowId.empty());
+ }
+
+/**
+ * Lifecycle callbacks are forwarded to observer.
+ */
+TEST_F(SimpleAplWebflowExtensionTest, LifecycleCallbacksForwardToObserver) {
+    auto activity = createActivityDescriptor();
+
+    auto lifecycleObserver = std::make_shared<SimpleLifecycleTestWebflowObserver>();
+    auto extension = std::make_shared<SimpleTestWebflowExtension>(testGenUuid, lifecycleObserver);
+
+    ASSERT_EQ("CREATED", lifecycleObserver->mLifecycleState);
+
+    extension->onForeground(activity);
+    ASSERT_EQ("FOREGROUND", lifecycleObserver->mLifecycleState);
+
+    extension->onBackground(activity);
+    ASSERT_EQ("BACKGROUND", lifecycleObserver->mLifecycleState);
+
+    extension->onHidden(activity);
+    ASSERT_EQ("HIDDEN", lifecycleObserver->mLifecycleState);
 }

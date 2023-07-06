@@ -13,9 +13,11 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/action/action.h"
+
 #include <algorithm>
 
-#include "apl/action/action.h"
+#include "apl/document/documentcontext.h"
 #include "apl/time/timers.h"
 #include "apl/utils/log.h"
 
@@ -228,7 +230,7 @@ Action::freeze()
 }
 
 bool
-Action::rehydrate(const RootContext& context)
+Action::rehydrate(const CoreDocumentContext& context)
 {
     if (mTimeoutId != 0 && !mTimers->rehydrate(mTimeoutId)) return false;
     return true;
@@ -273,7 +275,7 @@ public:
         Action::freeze();
     }
 
-    bool rehydrate(const RootContext& context) override {
+    bool rehydrate(const CoreDocumentContext& context) override {
         if (!Action::rehydrate(context)) return false;
 
         auto it = mActions.cbegin();

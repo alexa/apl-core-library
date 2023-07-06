@@ -34,7 +34,6 @@ public:
     static EditTextConfigPtr create(Color textColor,
                                     Color highlightColor,
                                     KeyboardType keyboardType,
-                                    const std::string& language,
                                     unsigned int maxLength,
                                     bool secureInput,
                                     SubmitKeyType submitKeyType,
@@ -48,7 +47,6 @@ public:
     Color textColor() const { return mTextColor; }
     Color highlightColor() const { return mHighlightColor; }
     KeyboardType keyboardType() const { return mKeyboardType; }
-    std::string language() const { return mLanguage; }
     bool secureInput() const { return mSecureInput; }
     SubmitKeyType submitKeyType() const { return mSubmitKeyType; }
     bool selectOnFocus() const { return mSelectOnFocus; }
@@ -76,7 +74,6 @@ private:
     Color mTextColor;
     Color mHighlightColor;
     KeyboardType mKeyboardType;
-    std::string mLanguage;
     unsigned int mMaxLength;
     SubmitKeyType mSubmitKeyType;
     std::string mValidCharacters;

@@ -58,12 +58,12 @@ public:
     /**
      * @return package APL spec version.
      */
-    const std::string version();
+    std::string version();
 
     /**
      * @return package type field
      */
-    const std::string type();
+    std::string type();
 
     Package(const std::string& name, JsonData&& json)
             : mName(name),

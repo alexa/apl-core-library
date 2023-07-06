@@ -18,7 +18,11 @@
 
 namespace apl {
 
+/// The string version of the current git HEAD
 extern const char *sCoreRepositoryVersion;
+
+/// Compile-time constant for how many nested eval() statements will be evaluated
+extern int kEvaluationDepthLimit;
 
 } // namespace apl
 

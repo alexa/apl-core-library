@@ -14,12 +14,13 @@
  */
 
 #include "apl/utils/log.h"
-#include "apl/utils/session.h"
-#include "apl/component/corecomponent.h"
+
 #include "apl/command/corecommand.h"
+#include "apl/component/corecomponent.h"
+#include "apl/content/content.h"
 #include "apl/engine/context.h"
 #include "apl/engine/rootcontext.h"
-#include "apl/content/rootconfig.h"
+#include "apl/utils/session.h"
 
 namespace apl {
 
@@ -77,24 +78,6 @@ Logger::session(const ContextPtr& context)
 }
 
 Logger&
-Logger::session(const RootConfigPtr& config)
-{
-    return config ? session(config->getSession()) : *this;
-}
-
-Logger&
-Logger::session(const RootConfig& config)
-{
-    return session(config.getSession());
-}
-
-Logger&
-Logger::session(const RootContextPtr& root)
-{
-    return root ? session(root->getSession()) : *this;
-}
-
-Logger&
 Logger::session(const Component& component)
 {
     return session(component.getContext()->session());
@@ -110,6 +93,18 @@ Logger&
 Logger::session(const ConstCommandPtr& command)
 {
     return command ? session(std::static_pointer_cast<const CoreCommand>(command)->context()->session()) : *this;
+}
+
+Logger&
+Logger::session(const ContentPtr& content)
+{
+    return content ? session(content->getSession()) : *this;
+}
+
+Logger&
+Logger::session(const CoreDocumentContextPtr& document)
+{
+    return document ? session(document->getSession()) : *this;
 }
 
 void

@@ -23,6 +23,7 @@
 #include "apl/content/extensioncomponentdefinition.h"
 #include "apl/content/extensioneventhandler.h"
 #include "apl/content/extensionfilterdefinition.h"
+#include "apl/content/extensionrequest.h"
 #include "apl/engine/builder.h"
 #include "apl/extension/extensioncomponent.h"
 #include "apl/primitives/object.h"
@@ -37,12 +38,30 @@ class ExtensionMediator;
  */
 class ExtensionManager {
 public:
-    ExtensionManager(const std::vector<std::pair<std::string, std::string>>& requests, const RootConfig& rootConfig);
+    ExtensionManager(
+        const std::vector<ExtensionRequest>& requests,
+        const RootConfig& rootConfig,
+        const SessionPtr& session);
 
     /**
-     * @return A map of qualified name to the extension event handler definition.
+     * @return A map of qualified names to event handler definitions.
      */
-    const std::map<std::string, ExtensionEventHandler>& qualifiedHandlerMap() const { return mQualifiedEventHandlerMap; }
+    const std::map<std::string, ExtensionEventHandler>& getEventHandlerDefinitions() const { return mEventHandlers; }
+
+    /**
+     * @return A map of qualified names to command definitions.
+     */
+    const std::map<std::string, ExtensionCommandDefinition>& getCommandDefinitions() const { return mCommandDefinitions; }
+
+    /**
+     * @return A map of qualified names to component definitions.
+     */
+    const std::map<std::string, ExtensionComponentDefinition>& getComponentDefinitions() const { return mComponentDefinitions; }
+
+    /**
+     * @return A map of qualified names to filter definitions.
+     */
+    const std::map<std::string, ExtensionFilterDefinition>& getFilterDefinitions() const { return mFilterDefinitions; }
 
     /**
      * Add a document or package-level event handler by name.  These are added as
@@ -77,7 +96,7 @@ public:
      * @param qualifiedName The name of the custom component in the form EXT_NAME:COMPONENT_NAME
      * @return The component definition or nullptr if it is not found
      */
-     ExtensionComponentDefinition* findComponentDefinition(const std::string& qualifiedName);
+    ExtensionComponentDefinition* findComponentDefinition(const std::string& qualifiedName);
 
     /**
      * Search the custom filters for one with the given name.
@@ -124,7 +143,7 @@ public:
      * Returns the map of extension component definitions maintained by the manager.
      * @return Map of extension component definitions.
      */
-    const std::map<std::string, ExtensionComponentDefinition>& getExtensionComponentDefinitions() const { return mExtensionComponentDefs; }
+    const std::map<std::string, ExtensionComponentDefinition>& getExtensionComponentDefinitions() const { return mComponentDefinitions; }
 
     /**
      * Notify extensions that the component has changed state or has a property update.
@@ -135,11 +154,11 @@ public:
     void notifyComponentUpdate(const ExtensionComponentPtr& component, bool resourceNeeded);
 
 private:
-    std::map<std::string, ExtensionEventHandler> mQualifiedEventHandlerMap;  // Qualified name to extension event handler
-    std::map<std::string, ExtensionCommandDefinition> mExtensionCommands;  // Qualified name to extension command definition
-    std::map<std::string, ExtensionComponentDefinition> mExtensionComponentDefs; // Qualified name to extension component definition
-    std::map<std::string, ExtensionFilterDefinition> mExtensionFilters;  // Qualified name to extension filter definition
-    std::map<ExtensionEventHandler, Object> mExtensionEventHandlers;
+    std::map<std::string, ExtensionEventHandler> mEventHandlers;  // Qualified name to extension event handler
+    std::map<std::string, ExtensionCommandDefinition> mCommandDefinitions;  // Qualified name to extension command definition
+    std::map<std::string, ExtensionComponentDefinition> mComponentDefinitions; // Qualified name to extension component definition
+    std::map<std::string, ExtensionFilterDefinition> mFilterDefinitions;  // Qualified name to extension filter definition
+    std::map<ExtensionEventHandler, Object> mEventHandlerCommandMap;
     std::map<std::string, ExtensionComponentPtr> mExtensionComponents; // ResourceId to extension component
     ObjectMapPtr mEnvironment;
     // mediator processes extension messages

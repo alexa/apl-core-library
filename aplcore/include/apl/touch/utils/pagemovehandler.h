@@ -97,7 +97,6 @@ public:
 
     PageMoveDrawOrder getDrawOrder() const { return mDrawOrder; }
     std::weak_ptr<CoreComponent> getCurrentPage() const { return mCurrentPage; }
-    std::weak_ptr<CoreComponent> getTargetPage() const { return mTargetPage; }
     SwipeDirection getSwipeDirection() const { return mSwipeDirection; }
 
     /**
@@ -109,6 +108,26 @@ public:
      *         component is gone or not a direct child of the supplied parent
      */
     int getTargetPageIndex(const CoreComponentPtr& component) const;
+
+    /**
+     * Get the current page component, verified to (still) be a child of the specified pager.
+     *
+     * @param component parent pager component
+     *
+     * @return the current page or nullptr if the is no longer a current page that is a child of the
+     * specified pager.
+     */
+    CoreComponentPtr getCheckedCurrentPage(const CoreComponentPtr& component) const;
+
+    /**
+     * Get the target page component, verified to (still) be a child of the specified pager.
+     *
+     * @param component parent pager component
+     *
+     * @return the target page or nullptr if the is no longer a target page that is a child of the
+     * specified pager.
+     */
+    CoreComponentPtr getCheckedTargetPage(const CoreComponentPtr& component) const;
 
 private:
     static ContextPtr createPageMoveContext(

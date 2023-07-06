@@ -20,11 +20,15 @@
 namespace apl {
 
 std::string
-UIDManager::create(UIDObject*element)
+UIDManager::create(UIDObject* element)
 {
+    if (mTerminated) {
+        LOG(LogLevel::kError).session(mSession) << "Trying to create new object on terminated state.";
+        return "";
+    }
+
     assert(element != nullptr);
-    static int sIdGenerator = 1000;
-    auto id = ':'+std::to_string(sIdGenerator++);
+    auto id = mGenerator.get();
     mMap.emplace(id, element);
     return id;
 }
@@ -32,23 +36,46 @@ UIDManager::create(UIDObject*element)
 void
 UIDManager::remove(const std::string& id, UIDObject* element)
 {
+    if (mTerminated) {
+        LOG(LogLevel::kError).session(mSession) << "Trying to remove an object on terminated state.";
+        // Handled by map clear, nothing to do.
+        return;
+    }
+
     assert(!id.empty());
     assert(element != nullptr);
 
     auto it = mMap.find(id);
-    assert(it != mMap.end());
-    assert(it->second == element);
+    if (it == mMap.end()) {
+        LOG(LogLevel::kError).session(mSession)
+            << "Should not happen. Check for double destruction of UIDObject based class. ID: " << id;
+
+        assert(false);
+        return;
+    }
+
+    if(it->second != element) {
+        LOG(LogLevel::kError).session(mSession)
+            << "Should not happen. UIDObject ID should not be reused. ID: " << id;
+
+        assert(false);
+        return;
+    }
 
     mMap.erase(it);
 }
 
 UIDObject*
 UIDManager::find(const std::string& id) {
+    if (mTerminated) {
+        LOG(LogLevel::kError).session(mSession) << "Trying to find an object on terminated state.";
+        return nullptr;
+    }
+
     auto it = mMap.find(id);
     if (it != mMap.end())
         return it->second;
     return nullptr;
 }
-
 
 }

@@ -20,21 +20,9 @@
 
 namespace apl {
 
-class SetFocusCommand : public CoreCommand {
+class SetFocusCommand : public TemplatedCommand<SetFocusCommand> {
 public:
-    static CommandPtr create(const ContextPtr& context,
-                             Properties&& properties,
-                             const CoreComponentPtr& base,
-                             const std::string& parentSequencer) {
-        auto ptr = std::make_shared<SetFocusCommand>(context, std::move(properties), base, parentSequencer);
-        return ptr->validate() ? ptr : nullptr;
-    }
-
-    SetFocusCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
-                    const std::string& parentSequencer)
-            : CoreCommand(context, std::move(properties), base, parentSequencer)
-    {
-    }
+    COMMAND_CONSTRUCTOR(SetFocusCommand);
 
     const CommandPropDefSet& propDefSet() const override;
 

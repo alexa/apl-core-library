@@ -95,20 +95,25 @@ compareUTF8(const uint8_t *lhs, const uint8_t *rhs, const int trailing)
     return 0;
 }
 
-
 int
 utf8StringLength(const std::string& utf8String) {
-    uint8_t *ptr = (uint8_t *) utf8String.c_str();
+    return utf8StringLength((uint8_t *) utf8String.data(), utf8String.length());
+}
+
+int
+utf8StringLength(const uint8_t* utf8StringPtr, int count) {
+    const uint8_t *endPtr = utf8StringPtr + count;
     int length = 0;
 
-    while (*ptr) {
-        auto byte = *ptr++;
+    // While it's *NOT* the null terminated and currently before the end pointer.
+    while (*utf8StringPtr && utf8StringPtr < endPtr) {
+        auto byte = *utf8StringPtr++;
         if (!isValidUTF8StartingByte(byte))
             return -1;
 
         length += 1;
         for (auto trailing = countUTF8TrailingBytes(byte) ; trailing > 0 ; trailing--) {
-            if (!isValidUTF8TrailingByte(*ptr++))
+            if (utf8StringPtr >= endPtr || !isValidUTF8TrailingByte(*utf8StringPtr++))
                 return -1;
         }
     }

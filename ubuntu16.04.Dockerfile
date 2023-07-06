@@ -32,7 +32,9 @@ RUN cd apl-core \
 
 # RUN APL Core Tests with gcc
 RUN cd apl-core/build \
-	&& unit/unittest
+	&& aplcore/unit/unittest \
+	&& tools/unit/tools-unittest \
+	&& extensions/unit/alexaext-unittest
 
 # Make APL Core with clang
 ADD . /apl-core
@@ -45,4 +47,6 @@ RUN cd apl-core \
 
 # RUN APL Core Tests with clang
 RUN cd apl-core/build-clang \
-	&& unit/unittest
+	&& aplcore/unit/unittest \
+	&& tools/unit/tools-unittest \
+	&& extensions/unit/alexaext-unittest

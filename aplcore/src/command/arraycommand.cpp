@@ -18,31 +18,34 @@
 
 namespace apl {
 
-ArrayCommand::ArrayCommand(const ContextPtr& context, const Object& commands, const CoreComponentPtr& base,
-        Properties&& properties, const std::string& parentSequencer, bool finishAllOnTerminate)
-        : CoreCommand(context, std::move(properties), base, parentSequencer),
-          mCommands(commands),
+ArrayCommand::ArrayCommand(const ContextPtr& context,
+                           CommandData&& commands,
+                           const CoreComponentPtr& base,
+                           Properties&& properties,
+                           const std::string& parentSequencer,
+                           bool finishAllOnTerminate)
+        : CoreCommand(context, std::move(commands), std::move(properties), base, parentSequencer),
           mFinishAllOnTerminate(finishAllOnTerminate)
 {}
 
 CommandPtr
 ArrayCommand::create(const ContextPtr& context,
-                     const Object& commands,
+                     CommandData&& commands,
                      const CoreComponentPtr& base,
-                     const Properties& properties,
+                     Properties&& properties,
                      const std::string& parentSequencer,
                      bool finishAllOnTerminate)
 {
-    return std::make_shared<ArrayCommand>(context, commands, base, Properties(properties), parentSequencer, finishAllOnTerminate);
+    return std::make_shared<ArrayCommand>(context, std::move(commands), base, std::move(properties),
+                                          parentSequencer, finishAllOnTerminate);
 }
 
 ActionPtr
 ArrayCommand::execute(const TimersPtr& timers, bool fastMode) {
-    if (mCommands.size() <= 0)
+    if (mCommandData.size() <= 0)
         return nullptr;
 
-    auto self = std::static_pointer_cast<const ArrayCommand>(shared_from_this());
-    return ArrayAction::make(timers, self, fastMode);
+    return ArrayAction::make(timers, std::static_pointer_cast<const ArrayCommand>(shared_from_this()), fastMode);
 }
 
 } // namespace apl

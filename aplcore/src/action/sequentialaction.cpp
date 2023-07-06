@@ -64,7 +64,7 @@ SequentialAction::SequentialAction(const TimersPtr& timers,
                 commands.push_back(finallyCommands.at(i));
         }
 
-        context->sequencer().executeCommands(Object(std::move(commands)), context, mCommand->base(), true);
+        context->sequencer().executeCommands({std::move(commands), mCommand->data()}, context, mCommand->base(), true);
     });
 }
 
@@ -85,8 +85,8 @@ SequentialAction::advance() {
 
         while (mRepeatCounter <= repeatCount) {
             while (mNextIndex < commands.size()) {
-                Object command = commands.at(mNextIndex++);
-                if (doCommand(command))
+                const auto& command = commands.at(mNextIndex++);
+                if (doCommand({command, mCommand->data()}))
                     return;  // Done advancing until the current action resolves
             }
             mRepeatCounter++;
@@ -97,8 +97,8 @@ SequentialAction::advance() {
 
     auto commands = mCommand->getValue(kCommandPropertyFinally);
     while (mNextIndex < commands.size()) {
-        Object command = commands.at(mNextIndex++);
-        if (doCommand(command))
+        const auto& command = commands.at(mNextIndex++);
+        if (doCommand({command, mCommand->data()}))
             return;
     }
 
@@ -106,9 +106,9 @@ SequentialAction::advance() {
 }
 
 bool
-SequentialAction::doCommand(const Object& command)
+SequentialAction::doCommand(CommandData&& commandData)
 {
-    auto commandPtr = CommandFactory::instance().inflate(command, mCommand);
+    auto commandPtr = CommandFactory::instance().inflate(std::move(commandData), mCommand);
     if (commandPtr) {
         auto childSeq = commandPtr->sequencer();
         if (childSeq != mCommand->sequencer()) {
@@ -149,7 +149,7 @@ SequentialAction::freeze()
 }
 
 bool
-SequentialAction::rehydrate(const RootContext& context)
+SequentialAction::rehydrate(const CoreDocumentContext& context)
 {
     if (!Action::rehydrate(context)) return false;
 

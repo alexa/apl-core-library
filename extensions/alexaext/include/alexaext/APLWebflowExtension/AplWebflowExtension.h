@@ -26,7 +26,8 @@
 #include "AplWebflowBase.h"
 #include "AplWebflowExtensionObserverInterface.h"
 
-namespace Webflow {
+namespace alexaext {
+namespace webflow {
 
 static const std::string URI = "aplext:webflow:10";
 static const std::string ENVIRONMENT_VERSION = "APLWebflowExtension-1.0";
@@ -36,7 +37,7 @@ static const std::string ENVIRONMENT_VERSION = "APLWebflowExtension-1.0";
  * to a URL. This is useful for authentication and verification flows.
  *
  * This extension follows the observer model, where a common logic delegates to an observer
- * the underlaying behavior.
+ * the underlying behavior.
  *
  * Because of the flow nature of the webflow extension, flows can be runtime dependant. The current model
  * allows two level of indirection.
@@ -44,7 +45,8 @@ static const std::string ENVIRONMENT_VERSION = "APLWebflowExtension-1.0";
  * Extension->Observer->Flow where Observer and Flow need to implement their interfaces.
  */
 class AplWebflowExtension
-    : public alexaext::ExtensionBase, public std::enable_shared_from_this<AplWebflowExtension> {
+    : public alexaext::ExtensionBase,
+      public std::enable_shared_from_this<AplWebflowExtension> {
 public:
 
     /**
@@ -55,16 +57,27 @@ public:
         std::shared_ptr<AplWebflowExtensionObserverInterface> observer,
         const std::shared_ptr<alexaext::Executor>& executor);
 
-    virtual ~AplWebflowExtension() = default;
+    ~AplWebflowExtension() override = default;
 
     /// @name alexaext::Extension Functions
     /// @{
 
-    rapidjson::Document createRegistration(const std::string &uri,
+    rapidjson::Document createRegistration(const ActivityDescriptor &activity,
                                            const rapidjson::Value &registrationRequest) override;
 
-    bool invokeCommand(const std::string &uri, const rapidjson::Value &command) override;
+    bool invokeCommand(const ActivityDescriptor &activity, const rapidjson::Value &command) override;
 
+    void onForeground(const ActivityDescriptor& activity) override {
+        mObserver->onForeground(activity);
+    }
+
+    void onBackground(const ActivityDescriptor& activity) override {
+        mObserver->onBackground(activity);
+    }
+
+    void onHidden(const ActivityDescriptor& activity) override {
+        mObserver->onHidden(activity);
+    }
     /// @}
 
 private:
@@ -80,6 +93,7 @@ private:
 
 using AplWebflowExtensionPtr = std::shared_ptr<AplWebflowExtension>;
 
-} // Webflow
+}  // namespace webflow
+}  // namespace alexaext
 
 #endif // APL_APLWEBFLOWEXTENSION_H

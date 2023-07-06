@@ -18,7 +18,8 @@
 #include <memory>
 #include <string>
 
-namespace E2EEncryption {
+namespace alexaext {
+namespace e2eencryption {
 
 /**
  * Callback to run when the encryption of a value finishes successfully
@@ -102,6 +103,10 @@ public:
 using AplE2eEncryptionExtensionObserverInterfacePtr =
     std::shared_ptr<AplE2eEncryptionExtensionObserverInterface>;
 
-} // namespace E2EEncryption
+}  // namespace e2eencryption
+}  // namespace alexaext
+
+// TODO Remove this: https://tiny.amazon.com/asvt1s36
+namespace E2EEncryption = alexaext::e2eencryption;
 
 #endif // APL_APLE2EENCRYPTIONEXTENSIONOBSERVERINTERFACE_H

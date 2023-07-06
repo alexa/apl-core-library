@@ -16,7 +16,7 @@
 #include "apl/action/animatedscrollaction.h"
 
 #include "apl/component/scrollablecomponent.h"
-#include "apl/engine/rootcontext.h"
+#include "apl/document/coredocumentcontext.h"
 #include "apl/time/sequencer.h"
 #include "apl/touch/utils/autoscroller.h"
 
@@ -84,7 +84,7 @@ AnimatedScrollAction::advance()
 void
 AnimatedScrollAction::freeze()
 {
-    mCurrentAction->freeze();
+    if (mCurrentAction) mCurrentAction->freeze();
 
     mFrozenContainerId = mContainer->getId();
 
@@ -92,13 +92,13 @@ AnimatedScrollAction::freeze()
 }
 
 bool
-AnimatedScrollAction::rehydrate(const RootContext& context)
+AnimatedScrollAction::rehydrate(const CoreDocumentContext& context)
 {
+    if (!ResourceHoldingAction::rehydrate(context)) return false;
+
     if (!mCurrentAction) {
         return true;
     }
-
-    if (!ResourceHoldingAction::rehydrate(context)) return false;
 
     mContainer = CoreComponent::cast(context.findComponentById(mFrozenContainerId));
     if (!mContainer) return false;

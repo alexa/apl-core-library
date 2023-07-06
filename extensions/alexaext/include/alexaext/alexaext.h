@@ -50,5 +50,7 @@
 #include "APLE2EEncryptionExtension/AplE2eEncryptionExtension.h"
 #include "APLWebflowExtension/AplWebflowExtension.h"
 #include "APLMusicAlarmExtension/AplMusicAlarmExtension.h"
+#include "APLMetricsExtension/AplMetricsExtension.h"
+#include "APLAttentionSystemExtension/AplAttentionSystemExtension.h"
 
 #endif //_ALEXAEXT_H

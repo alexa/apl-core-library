@@ -15,8 +15,8 @@
 
 #include "apl/engine/info.h"
 
+#include "apl/document/documentcontextdata.h"
 #include "apl/engine/context.h"
-#include "apl/engine/rootcontextdata.h"
 #include "apl/engine/styles.h"
 
 namespace apl {

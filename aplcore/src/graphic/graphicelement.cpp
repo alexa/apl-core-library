@@ -17,8 +17,8 @@
 
 #include "apl/component/corecomponent.h"
 #include "apl/engine/propdef.h"
+#include "apl/engine/typeddependant.h"
 #include "apl/graphic/graphic.h"
-#include "apl/graphic/graphicdependant.h"
 #include "apl/graphic/graphicpattern.h"
 #include "apl/graphic/graphicpropdef.h"
 #include "apl/primitives/color.h"
@@ -29,12 +29,12 @@
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
 #include "apl/scenegraph/graphicfragment.h"
-#include "apl/scenegraph/node.h"
 #include "apl/scenegraph/scenegraphupdates.h"
 #endif // SCENEGRAPH
 
 namespace apl {
 
+using GraphicDependant = TypedDependant<GraphicElement, GraphicPropertyKey>;
 
 Object
 GraphicElement::asAvgFill(const Context& context, const Object& object) {
@@ -84,23 +84,16 @@ GraphicElement::initialize(const GraphicPtr& graphic, const Object& json)
         if ((pd.flags & kPropIn) != 0) {
             auto p = mProperties.find(pd.names);
             if (p != mProperties.end()) {
-                // If the user assigned a string, we need to check for data-binding
-                if (p->second.isString()) {
-                    auto tmp = parseDataBinding(*mContext, p->second.getString());
-                    // Can be standalone without parent -> no dependency in such case.
-                    if (mGraphic.lock() && tmp.isEvaluable()) {
-                        auto self = std::static_pointer_cast<GraphicElement>(shared_from_this());
-                        GraphicDependant::create(self, pd.key, tmp, mContext, pd.getBindingFunction());
-                    }
-                    value = pd.calculate(*mContext, evaluate(*mContext, tmp));
-                } else if (mGraphic.lock() && (pd.flags & kPropEvaluated) != 0) {
-                    // Explicitly marked for evaluation, so do it.
-                    // Will not attach dependant if no valid symbols.
-                    auto tmp = parseDataBindingRecursive(*mContext, p->second);
-                    auto self = std::static_pointer_cast<GraphicElement>(shared_from_this());
-                    GraphicDependant::create(self, pd.key, tmp, mContext, pd.getBindingFunction());
-                    value = pd.calculate(*mContext, p->second);
-                } else {  // Not a string - just calculate it directly
+                if (p->second.isString() || (pd.flags & kPropEvaluated) != 0) {
+                    auto result = parseAndEvaluate(*mContext, p->second);
+                    if (!result.symbols.empty() && mGraphic.lock())
+                        GraphicDependant::create(shared_from_this(), pd.key,
+                                                 std::move(result.expression),
+                                                 mContext, pd.getBindingFunction(),
+                                                 std::move(result.symbols));
+                    value = pd.calculate(*mContext, result.value);
+                }
+                else {
                     value = pd.calculate(*mContext, p->second);
                 }
                 mAssigned.emplace(pd.key);
@@ -118,8 +111,6 @@ GraphicElement::initialize(const GraphicPtr& graphic, const Object& json)
                     CONSOLE(mContext) << "Missing required graphic property: " << pd.names;
                     return false;
                 }
-
-
             }
         }
 
@@ -146,12 +137,12 @@ GraphicElement::getLayoutDirection() const {
         graphic->getRoot()->getValue(kGraphicPropertyLayoutDirection).asInt());
 }
 
-bool
+void
 GraphicElement::setValue(GraphicPropertyKey key, const Object& value, bool useDirtyFlag)
 {
     // Assume that the property already exists
     if (mValues.get(key) == value)
-        return false;
+        return;
 
     // See if we have it at all
     const auto& pds = propDefSet();
@@ -168,8 +159,6 @@ GraphicElement::setValue(GraphicPropertyKey key, const Object& value, bool useDi
     if (useDirtyFlag && (it->second.flags & kPropOut) && mDirtyProperties.emplace(key).second) {
         markAsDirty();
     }
-
-    return true;
 }
 
 rapidjson::Value

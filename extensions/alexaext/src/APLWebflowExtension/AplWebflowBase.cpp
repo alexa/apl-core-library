@@ -15,24 +15,27 @@
 
 #include "alexaext/APLWebflowExtension/AplWebflowBase.h"
 
-using namespace Webflow;
+using namespace alexaext::webflow;
 
-AplWebflowBase::AplWebflowBase(std::string token, std::string uri, std::string flowId)
+AplWebflowBase::AplWebflowBase(std::string token, std::string url, std::string flowId)
     : mToken(std::move(token)),
-      mUri(std::move(uri)),
+      mUrl(std::move(url)),
       mFlowId(std::move(flowId)) {}
 
 const std::string&
-AplWebflowBase::getUri() const {
-    return mUri;
+AplWebflowBase::getUrl() const
+{
+    return mUrl;
 }
 
 const std::string&
-AplWebflowBase::getFlowId() const {
+AplWebflowBase::getFlowId() const
+{
     return mFlowId;
 }
 
 const std::string&
-AplWebflowBase::getToken() const {
+AplWebflowBase::getToken() const
+{
     return mToken;
 }

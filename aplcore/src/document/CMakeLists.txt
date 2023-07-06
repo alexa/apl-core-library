@@ -13,6 +13,8 @@
 
 target_sources_local(apl
     PRIVATE
+    coredocumentcontext.cpp
+    documentcontextdata.cpp
     displaystate.cpp
     documentproperties.cpp
 )

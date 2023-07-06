@@ -18,7 +18,8 @@
 #include <string>
 #include <memory>
 
-namespace Webflow {
+namespace alexaext {
+namespace webflow {
 
 /**
  * Webflow base class. It handles the launch and event processing.
@@ -31,10 +32,10 @@ public:
      * Constructor of the webflow
      *
      * @param token Meta information about the webflow
-     * @param uri URI we want to connect
+     * @param url URL we want to open
      * @param flowId flow identier of this object
      */
-    AplWebflowBase(std::string token, std::string uri, std::string flowId);
+    AplWebflowBase(std::string token, std::string url, std::string flowId);
 
     /**
      * Destructor
@@ -47,11 +48,11 @@ public:
     virtual bool launch() = 0;
 
     /**
-     * Gets the Uri of the webflow
+     * Gets the Url of the webflow
      *
-     * @return string with the uri of the webflow
+     * @return string with the url of the webflow
      */
-    const std::string& getUri() const;
+    const std::string& getUrl() const;
 
 
     /**
@@ -70,12 +71,16 @@ public:
     const std::string& getToken() const;
 protected:
     std::string mToken;
-    std::string mUri;
+    std::string mUrl;
     std::string mFlowId;
 };
 
 using AplWebflowBasePtr = std::shared_ptr<AplWebflowBase>;
 
-}
+}  // namespace webflow
+}  // namespace alexaext
+
+// TODO Remove this: https://tiny.amazon.com/asvt1s36
+namespace Webflow = alexaext::webflow;
 
 #endif // APL_APLWEBFLOW_H

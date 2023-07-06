@@ -18,7 +18,8 @@
 
 #include "AplWebflowBase.h"
 
-namespace Webflow {
+namespace alexaext {
+namespace webflow {
 
 /**
  * This class allows a @c AplWebflowExtensionObserverInterface observer to be notified of changes in the
@@ -35,21 +36,42 @@ public:
     /**
      * Used to notify the observer when the extension has issued a StartFlow command.
      *
+     * @param activity Descriptor to give information about the activity.
      * @param token Meta-information about the webflow client.
      * @param url The https url to open in the webflow.
      * @param flowId An optional id that will be returned in OnFlowEnd event.
      * @param onFlowEndEvent when flowId is passed as parameter to the StartFlow command, EndEvent gets sent
      */
     virtual void onStartFlow(
+        const ActivityDescriptor &activity,
         const std::string& token,
         const std::string& url,
         const std::string& flowId,
         std::function<void(const std::string&, const std::string&)> onFlowEndEvent =
             [](const std::string&, const std::string&){}) = 0;
+
+    /**
+     * Notifies observer when the document has come to the foreground.
+     * @param activity gives information about the activity
+     */
+    virtual void onForeground(const ActivityDescriptor &activity) {}
+
+    /**
+     * Notifies observer when the document has gone to the background.
+     * @param activity gives information about the activity
+     */
+    virtual void onBackground(const ActivityDescriptor &activity) {}
+
+    /**
+     * Notifies observer when the document has been hidden.
+     * @param activity gives information about the activity
+     */
+    virtual void onHidden(const ActivityDescriptor &activity) {}
 };
 
 using AplWebflowExtensionObserverInterfacePtr = std::shared_ptr<AplWebflowExtensionObserverInterface>;
 
-} // namespace Webflow
+}  // namespace webflow
+}  // namespace alexaext
 
 #endif // APL_APLWEBFLOWEXTENSIONOBSERVERINTERFACE_H

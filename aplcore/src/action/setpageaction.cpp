@@ -117,7 +117,7 @@ SetPageAction::freeze()
 }
 
 bool
-SetPageAction::rehydrate(const RootContext& context)
+SetPageAction::rehydrate(const CoreDocumentContext& context)
 {
     if (!ResourceHoldingAction::rehydrate(context)) return false;
 

@@ -20,6 +20,8 @@
 #include <map>
 
 #include "apl/common.h"
+#include "apl/engine/uidgenerator.h"
+#include "apl/utils/log.h"
 
 namespace apl {
 
@@ -32,13 +34,25 @@ namespace apl {
  */
 class UIDManager {
 public:
-    std::string create(UIDObject*element);
-    void remove(const std::string& id, UIDObject* element);
+    UIDManager(UIDGenerator& generator, const SessionPtr& session) :
+          mSession(session), mGenerator(generator) {}
 
-    UIDObject*find(const std::string& id);
+    std::string create(UIDObject* element);
+    UIDObject* find(const std::string& id);
+
+    void terminate() { mTerminated = true; }
 
 private:
+    SessionPtr mSession;
+    UIDGenerator& mGenerator;
     std::map<std::string, UIDObject*> mMap;
+    bool mTerminated = false;
+
+private:
+    friend class UIDObject;
+
+    // Only used in UIDObject destructor
+    void remove(const std::string& id, UIDObject* element);
 };
 
 } // namespace apl

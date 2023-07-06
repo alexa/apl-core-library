@@ -1,0 +1,947 @@
+/**
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://aws.amazon.com/apache2.0/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+#include "../testeventloop.h"
+
+#include "apl/component/edittextcomponent.h"
+#include "apl/engine/event.h"
+#include "apl/focus/focusmanager.h"
+#include "apl/primitives/object.h"
+
+using namespace apl;
+
+class EditTextComponentTest : public DocumentWrapper {};
+
+static const char* DEFAULT_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText"
+    }
+  }
+})";
+
+/**
+ * Test that the defaults are as expected when no values are set.
+ */
+TEST_F(EditTextComponentTest, ComponentDefaults) {
+    loadDocument(DEFAULT_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, et->getType());
+
+    ASSERT_TRUE(IsEqual(Color(Color::TRANSPARENT), et->getCalculated(kPropertyBorderColor)));
+
+    ASSERT_TRUE(et->getCalculated(kPropertyBorderStrokeWidth).isNull());
+    ASSERT_TRUE(IsEqual(Dimension(0), et->getCalculated(kPropertyBorderWidth)));
+    ASSERT_TRUE(IsEqual(Dimension(0), et->getCalculated(kPropertyDrawnBorderWidth)));
+
+    ASSERT_TRUE(IsEqual(Color(0xfafafaff), et->getCalculated(kPropertyColor)));
+    ASSERT_TRUE(IsEqual("sans-serif", et->getCalculated(kPropertyFontFamily)));
+    ASSERT_TRUE(IsEqual(Dimension(40), et->getCalculated(kPropertyFontSize)));
+    ASSERT_TRUE(IsEqual(kFontStyleNormal, et->getCalculated(kPropertyFontStyle)));
+    ASSERT_TRUE(IsEqual(400, et->getCalculated(kPropertyFontWeight)));
+    ASSERT_TRUE(IsEqual(Color(0x00caff4d), et->getCalculated(kPropertyHighlightColor)));
+    ASSERT_TRUE(IsEqual("", et->getCalculated(kPropertyHint)));
+    ASSERT_TRUE(IsEqual(Color(0xfafafaff), et->getCalculated(kPropertyHintColor)));
+    ASSERT_TRUE(IsEqual(kFontStyleNormal, et->getCalculated(kPropertyHintStyle)));
+    ASSERT_TRUE(IsEqual(400, et->getCalculated(kPropertyHintWeight)));
+    ASSERT_TRUE(IsEqual(kKeyboardTypeNormal, et->getCalculated(kPropertyKeyboardType)));
+    ASSERT_TRUE(IsEqual(0, et->getCalculated(kPropertyMaxLength)));
+    ASSERT_TRUE(IsEqual(Object::EMPTY_ARRAY(), et->getCalculated(kPropertyOnSubmit)));
+    ASSERT_TRUE(IsEqual(Object::EMPTY_ARRAY(), et->getCalculated(kPropertyOnTextChange)));
+    ASSERT_TRUE(IsEqual(false, et->getCalculated(kPropertySecureInput)));
+    ASSERT_TRUE(IsEqual(false, et->getCalculated(kPropertySelectOnFocus)));
+    ASSERT_TRUE(IsEqual(8, et->getCalculated(kPropertySize)));
+    ASSERT_TRUE(IsEqual(kSubmitKeyTypeDone, et->getCalculated(kPropertySubmitKeyType)));
+    ASSERT_TRUE(IsEqual("", et->getCalculated(kPropertyText)));
+    ASSERT_TRUE(IsEqual("", et->getCalculated(kPropertyValidCharacters)));
+    ASSERT_TRUE(IsEqual("", et->getCalculated(kPropertyLang)));
+
+    // Should not have scrollable moves
+    ASSERT_FALSE(component->allowForward());
+    ASSERT_FALSE(component->allowBackwards());
+
+    ASSERT_TRUE(IsEqual(kBehaviorOnFocusSystemDefault, et->getCalculated(kPropertyKeyboardBehaviorOnFocus)));
+}
+
+
+static const char* THEMED_DEFAULT_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "theme": "light",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText"
+    }
+  }
+})";
+
+/**
+ * Test that the defaults are as expected when no values are set.
+ */
+TEST_F(EditTextComponentTest, ComponentThemedDefaults) {
+    loadDocument(THEMED_DEFAULT_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, et->getType());
+
+    ASSERT_TRUE(IsEqual(Color(0x1e2222ff), et->getCalculated(kPropertyColor)));
+    ASSERT_TRUE(IsEqual(Color(0x0070ba4d), et->getCalculated(kPropertyHighlightColor)));
+    ASSERT_TRUE(IsEqual(Color(0x1e2222ff), et->getCalculated(kPropertyHintColor)));
+}
+
+static const char* LANG_DEFAULT_DOC = R"({
+  "type": "APL",
+  "version": "1.7",
+  "lang": "en-US",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText"
+    }
+  }
+})";
+
+/**
+ * Enforce that the value is "" if rootconfig and doc level lang properties are not set
+ */
+TEST_F(EditTextComponentTest, ComponentLangDefaults) {
+    loadDocument(THEMED_DEFAULT_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_EQ("", et->getCalculated(kPropertyLang).asString());
+}
+
+/**
+ * Enforce that we are shadowing the rootconfig value if doc level lang property is not set
+ */
+TEST_F(EditTextComponentTest, ComponentLangDefaultsRootConfig) {
+    config->set(RootProperty::kLang, "en-US");
+    loadDocument(THEMED_DEFAULT_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_EQ("en-US", et->getCalculated(kPropertyLang).asString());
+}
+
+/**
+ * Enforce that we are shadowing the doc level lang property
+ */
+TEST_F(EditTextComponentTest, ComponentLangDefaultsDocumentLevel) {
+    loadDocument(LANG_DEFAULT_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_EQ("en-US", et->getCalculated(kPropertyLang).asString());
+}
+
+static const char* LANG_TEXT_DEFAULT_DOC = R"({
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "item": {
+      "lang": "en-US",
+      "type": "EditText"
+    }
+  }
+})";
+
+/**
+ * Check the lang property is set and dynamic
+ */
+TEST_F(EditTextComponentTest, ComponentTextLangDefaults) {
+    loadDocument(LANG_TEXT_DEFAULT_DOC);
+
+    auto et = CoreComponent::cast(root->topComponent());
+    ASSERT_EQ("en-US", et->getCalculated(kPropertyLang).asString());
+
+    et->setProperty(kPropertyLang, "ja-jp");
+
+    ASSERT_EQ("ja-jp", et->getCalculated(kPropertyLang).asString());
+}
+
+
+static const char* NON_DEFAULT_DOC = R"({
+  "type": "APL",
+  "version": "1.r",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "borderColor": "blue",
+      "borderStrokeWidth": 20,
+      "borderWidth": 30,
+      "color": "yellow",
+      "fontFamily": "ember",
+      "fontSize": 24,
+      "fontStyle": "italic",
+      "fontWeight": 600,
+      "hint": "hint",
+      "highlightColor": "green",
+      "hintColor": "gray",
+      "hintStyle": "italic",
+      "hintWeight": 500,
+      "keyboardType": "numberPad",
+      "maxLength": 4,
+      "onSubmit": [
+        {
+          "type": "SetValue",
+          "componentId": "myEditText",
+          "property": "color",
+          "value": "blue"
+        }
+      ],
+      "onTextChange": [
+        {
+          "type": "SetValue",
+          "componentId": "myEditText",
+          "property": "color",
+          "value": "red"
+        }
+      ],
+      "secureInput": true,
+      "selectOnFocus": true,
+      "size": 4,
+      "submitKeyType": "go",
+      "text": "1234",
+      "validCharacters": "0-9"
+    }
+  }
+})";
+
+/**
+ * Test the setting of all properties to non default values.
+ */
+TEST_F(EditTextComponentTest, NonDefaults) {
+
+    loadDocument(NON_DEFAULT_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_TRUE(et);
+    ASSERT_EQ(kComponentTypeEditText, et->getType());
+
+    ASSERT_TRUE(IsEqual(Color(Color::BLUE), et->getCalculated(kPropertyBorderColor)));
+    ASSERT_TRUE(IsEqual(Dimension(20), et->getCalculated(kPropertyBorderStrokeWidth)));
+    ASSERT_TRUE(IsEqual(Dimension(30), et->getCalculated(kPropertyBorderWidth)));
+    // kPropertyDrawnBorderWidth is calculated from kPropertyBorderStrokeWidth (inputOnly) and (kPropertyBorderWidth)
+    // it is the minimum of the two
+    ASSERT_TRUE(IsEqual(et->getCalculated(kPropertyBorderStrokeWidth), et->getCalculated(kPropertyDrawnBorderWidth)));
+    ASSERT_TRUE(IsEqual(Color(Color::YELLOW), et->getCalculated(kPropertyColor)));
+    ASSERT_TRUE(IsEqual("ember", et->getCalculated(kPropertyFontFamily)));
+    ASSERT_TRUE(IsEqual(Dimension(24), et->getCalculated(kPropertyFontSize)));
+    ASSERT_TRUE(IsEqual(kFontStyleItalic, et->getCalculated(kPropertyFontStyle)));
+    ASSERT_TRUE(IsEqual(600, et->getCalculated(kPropertyFontWeight)));
+    ASSERT_TRUE(IsEqual(Color(Color::GREEN), et->getCalculated(kPropertyHighlightColor)));
+    ASSERT_TRUE(IsEqual("hint", et->getCalculated(kPropertyHint)));
+    ASSERT_TRUE(IsEqual(Color(Color::GRAY), et->getCalculated(kPropertyHintColor)));
+    ASSERT_TRUE(IsEqual(kFontStyleItalic, et->getCalculated(kPropertyHintStyle)));
+    ASSERT_TRUE(IsEqual(500, et->getCalculated(kPropertyHintWeight)));
+    ASSERT_TRUE(IsEqual(kKeyboardTypeNumberPad, et->getCalculated(kPropertyKeyboardType)));
+    ASSERT_TRUE(IsEqual(4, et->getCalculated(kPropertyMaxLength)));
+    auto submit = et->getCalculated(kPropertyOnSubmit);
+    ASSERT_TRUE(submit.isArray());
+    ASSERT_EQ(1, submit.getArray().size());
+    auto change = et->getCalculated(kPropertyOnTextChange);
+    ASSERT_TRUE(submit.isArray());
+    ASSERT_EQ(1, change.getArray().size());
+    ASSERT_TRUE(IsEqual(true, et->getCalculated(kPropertySecureInput)));
+    ASSERT_TRUE(IsEqual(true, et->getCalculated(kPropertySelectOnFocus)));
+    ASSERT_TRUE(IsEqual(4, et->getCalculated(kPropertySize)));
+    ASSERT_TRUE(IsEqual(kSubmitKeyTypeGo, et->getCalculated(kPropertySubmitKeyType)));
+    ASSERT_TRUE(IsEqual("1234", et->getCalculated(kPropertyText)));
+    ASSERT_TRUE(IsEqual("0-9", et->getCalculated(kPropertyValidCharacters)));
+    ASSERT_TRUE(IsEqual(kBehaviorOnFocusSystemDefault, et->getCalculated(kPropertyKeyboardBehaviorOnFocus)));
+}
+
+static const char* VALID_CHARACTER_RANGES_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "validCharacters": "0-9a-yA-Y:-@"
+    }
+  }
+})";
+
+/**
+ * Test the isCharacterValid method, valid ranges
+ */
+TEST_F(EditTextComponentTest, ValidCharacterRanges) {
+
+    loadDocument(VALID_CHARACTER_RANGES_DOC);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
+
+    ASSERT_TRUE(component->isCharacterValid(L'0'));
+    ASSERT_TRUE(component->isCharacterValid(L'9'));
+    ASSERT_TRUE(component->isCharacterValid(L'A'));
+    ASSERT_TRUE(component->isCharacterValid(L'Y'));
+    ASSERT_TRUE(component->isCharacterValid(L'a'));
+    ASSERT_TRUE(component->isCharacterValid(L'y'));
+    ASSERT_FALSE(component->isCharacterValid(L'-'));
+    ASSERT_TRUE(component->isCharacterValid(L'@'));
+    ASSERT_TRUE(component->isCharacterValid(L':'));
+    ASSERT_TRUE(component->isCharacterValid(L'?'));
+    ASSERT_FALSE(component->isCharacterValid(L'z'));
+    ASSERT_FALSE(component->isCharacterValid(L'Z'));
+    ASSERT_FALSE(component->isCharacterValid(L'{'));
+    ASSERT_FALSE(component->isCharacterValid(L'\u2192'));
+}
+
+static const char* VALID_CHARACTER_RANGES_UNICODE_DOC =
+        u8"{"
+        u8"  \"type\": \"APL\","
+        u8"  \"version\": \"1.4\","
+        u8"  \"theme\": \"light\","
+        u8"  \"mainTemplate\": {"
+        u8"    \"item\": {"
+        u8"      \"type\": \"EditText\","
+        u8"      \"validCharacters\": \"\u2192-\u2195\""
+        u8"    }"
+        u8"  }"
+        u8"}";
+
+/**
+ * Test the isCharacterValid method, valid ranges
+ */
+TEST_F(EditTextComponentTest, ValidCharacterRangesUnicode) {
+
+    loadDocument(VALID_CHARACTER_RANGES_UNICODE_DOC);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
+
+    ASSERT_TRUE(component->isCharacterValid(L'\u2192'));
+    ASSERT_TRUE(component->isCharacterValid(L'\u2193'));
+    ASSERT_TRUE(component->isCharacterValid(L'\u2195'));
+    ASSERT_FALSE(component->isCharacterValid(L'\u2196'));
+}
+
+static const char* EMPTY_CHARACTER_RANGES_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "theme": "light",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText"
+    }
+  }
+})";
+
+TEST_F(EditTextComponentTest, EmptyCharacterRanges) {
+
+    loadDocument(EMPTY_CHARACTER_RANGES_DOC);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
+
+    // everything should be valid
+    ASSERT_TRUE(component->isCharacterValid(L'\u2192'));
+    ASSERT_TRUE(component->isCharacterValid(L'-'));
+    ASSERT_TRUE(component->isCharacterValid(L'A'));
+    ASSERT_TRUE(component->isCharacterValid(L'0'));
+
+    session->clear();
+}
+
+static const char* INVALID_CHARACTER_RANGES_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "theme": "light",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "validCharacters": "Q--"
+    }
+  }
+})";
+
+// The range "Q--" is U+0051 through U+002D
+// Since the range is reversed, we accept the Q, but ignore everything else
+TEST_F(EditTextComponentTest, InvalidCharacterRanges) {
+
+    loadDocument(INVALID_CHARACTER_RANGES_DOC);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
+
+    // everything should be valid
+    ASSERT_FALSE(component->isCharacterValid(L'\u2192'));
+    ASSERT_FALSE(component->isCharacterValid(L'-'));
+    ASSERT_TRUE(component->isCharacterValid(L'Q'));
+    ASSERT_FALSE(component->isCharacterValid(L'A'));
+    ASSERT_FALSE(component->isCharacterValid(L'0'));
+
+    session->clear();
+}
+
+static const char* INVALID_DASH_CHARACTER_RANGES_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "validCharacters": "0-9a-yA-Y--@"
+    }
+  }
+})";
+
+// The range is 0-9, a-y, A-Y, '-' to '@' (that's U+002D through U+0040)
+TEST_F(EditTextComponentTest, InvalidDashCharacterRanges) {
+
+    loadDocument(INVALID_DASH_CHARACTER_RANGES_DOC);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
+
+    // everything should be valid
+    ASSERT_FALSE(component->isCharacterValid(L'\u2192'));
+    ASSERT_TRUE(component->isCharacterValid(L'-'));
+    ASSERT_TRUE(component->isCharacterValid(L'A'));
+    ASSERT_FALSE(component->isCharacterValid(L'Z'));
+    ASSERT_TRUE(component->isCharacterValid(L'0'));
+    ASSERT_TRUE(component->isCharacterValid(L'?'));  // U+003F
+    ASSERT_TRUE(component->isCharacterValid(L'@'));  // U+0040
+    ASSERT_FALSE(component->isCharacterValid(L'}'));  // U+007D
+
+    session->clear();
+}
+
+static const char* AMOUNT_CHARACTER_RANGES_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "validCharacters": "0-9."
+    }
+  }
+})";
+
+TEST_F(EditTextComponentTest, AmountCharacterRanges) {
+
+    loadDocument(AMOUNT_CHARACTER_RANGES_DOC);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
+
+    ASSERT_TRUE(component->isCharacterValid(L'0'));
+    ASSERT_TRUE(component->isCharacterValid(L'5'));
+    ASSERT_TRUE(component->isCharacterValid(L'7'));
+    ASSERT_TRUE(component->isCharacterValid(L'9'));
+    ASSERT_TRUE(component->isCharacterValid(L'.'));
+    ASSERT_FALSE(component->isCharacterValid(L'A'));
+    ASSERT_FALSE(component->isCharacterValid(L'@'));
+    ASSERT_FALSE(component->isCharacterValid(L'-'));
+    ASSERT_FALSE(component->isCharacterValid(L'\u2192'));
+}
+
+static const char* EMAIL_CHARACTER_RANGES_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "validCharacters": "-+a-zA-Z0-9_@."
+    }
+  }
+})";
+
+TEST_F(EditTextComponentTest, EmailCharacterRanges) {
+
+    loadDocument(EMAIL_CHARACTER_RANGES_DOC);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, component->getType());
+
+    ASSERT_TRUE(component->isCharacterValid(L'-'));
+    ASSERT_TRUE(component->isCharacterValid(L'+'));
+    ASSERT_TRUE(component->isCharacterValid(L'a'));
+    ASSERT_TRUE(component->isCharacterValid(L'p'));
+    ASSERT_TRUE(component->isCharacterValid(L'z'));
+    ASSERT_TRUE(component->isCharacterValid(L'A'));
+    ASSERT_TRUE(component->isCharacterValid(L'P'));
+    ASSERT_TRUE(component->isCharacterValid(L'Z'));
+    ASSERT_TRUE(component->isCharacterValid(L'0'));
+    ASSERT_TRUE(component->isCharacterValid(L'5'));
+    ASSERT_TRUE(component->isCharacterValid(L'7'));
+    ASSERT_TRUE(component->isCharacterValid(L'9'));
+    ASSERT_TRUE(component->isCharacterValid(L'_'));
+    ASSERT_TRUE(component->isCharacterValid(L'@'));
+    ASSERT_TRUE(component->isCharacterValid(L'.'));
+    ASSERT_FALSE(component->isCharacterValid(L':'));
+    ASSERT_FALSE(component->isCharacterValid(L'\u2192'));
+}
+
+static const char* INVALID_DIMENSIONS_DOC = R"({
+  "type": "APL",
+  "version": "1.r",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "borderStrokeWidth": -20,
+      "borderWidth": -30,
+      "size": -44
+    }
+  }
+})";
+
+/**
+ * Test the setting of all properties to non default values.
+ */
+TEST_F(EditTextComponentTest, InvalidDimensions) {
+
+    loadDocument(INVALID_DIMENSIONS_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_TRUE(et);
+    ASSERT_EQ(kComponentTypeEditText, et->getType());
+
+    ASSERT_TRUE(IsEqual(Dimension(0), et->getCalculated(kPropertyBorderStrokeWidth)));
+    ASSERT_TRUE(IsEqual(Dimension(0), et->getCalculated(kPropertyBorderWidth)));
+    // kPropertyDrawnBorderWidth is calculated from kPropertyBorderStrokeWidth (inputOnly) and (kPropertyBorderWidth)
+    // it is the minimum of the two
+    ASSERT_TRUE(IsEqual(Dimension(0), et->getCalculated(kPropertyDrawnBorderWidth)));
+    ASSERT_TRUE(IsEqual(1, et->getCalculated(kPropertySize)));
+}
+
+
+static const char* BORDER_STROKE_CLAMP_DOC = R"({
+  "type": "APL",
+  "version": "1.r",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "id": "myEditText",
+      "borderStrokeWidth": 64,
+      "borderWidth": 30
+    }
+  }
+})";
+
+/**
+ * Test the setting of all properties to non default values.
+ */
+TEST_F(EditTextComponentTest, ClampDrawnBorder) {
+
+    loadDocument(BORDER_STROKE_CLAMP_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_TRUE(et);
+    ASSERT_EQ(kComponentTypeEditText, et->getType());
+
+    ASSERT_TRUE(IsEqual(Dimension(30), et->getCalculated(kPropertyBorderWidth)));
+    ASSERT_TRUE(IsEqual(Dimension(64), et->getCalculated(kPropertyBorderStrokeWidth)));
+    // kPropertyDrawnBorderWidth is calculated from kPropertyBorderStrokeWidth (inputOnly) and (kPropertyBorderWidth)
+    // and is clamped to kPropertyBorderWidth
+    ASSERT_TRUE(IsEqual(Dimension(30), et->getCalculated(kPropertyDrawnBorderWidth)));
+
+    // execute command to set kPropertyBorderStrokeWidth within border bounds,
+    // the drawn border should update
+    executeCommand("SetValue", {{"componentId", "myEditText"}, {"property", "borderStrokeWidth"}, {"value", 17}}, false);
+    ASSERT_TRUE(IsEqual(Dimension(17), et->getCalculated(kPropertyBorderStrokeWidth)));
+    ASSERT_TRUE(IsEqual(Dimension(17), et->getCalculated(kPropertyDrawnBorderWidth)));
+
+    // execute command to set kPropertyBorderWidth to something smaller.  Drawn border width should update
+    executeCommand("SetValue", {{"componentId", "myEditText"}, {"property", "borderWidth"}, {"value", 5}}, false);
+    ASSERT_TRUE(IsEqual(Dimension(5), et->getCalculated(kPropertyBorderWidth)));
+    ASSERT_TRUE(IsEqual(Dimension(17), et->getCalculated(kPropertyBorderStrokeWidth)));
+    ASSERT_TRUE(IsEqual(Dimension(5), et->getCalculated(kPropertyDrawnBorderWidth)));
+}
+
+static const char* HANDLERS_DOC = R"({
+  "type": "APL",
+  "version": "1.r",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "EditText",
+          "id": "myEditText",
+          "text": "hello",
+          "onSubmit": [
+            {
+              "type": "SetValue",
+              "componentId": "myEditText",
+              "property": "color",
+              "value": "blue"
+            },
+            {
+              "type": "SetValue",
+              "componentId": "myResult",
+              "property": "text",
+              "value": "${event.source.handler}:${event.source.value}"
+            }
+          ],
+          "onTextChange": [
+            {
+              "type": "SetValue",
+              "componentId": "myEditText",
+              "property": "color",
+              "value": "red"
+            },
+            {
+              "type": "SetValue",
+              "componentId": "myResult",
+              "property": "text",
+              "value": "${event.source.handler}:${event.source.value}"
+            }
+          ]
+        },
+        {
+          "type": "Text",
+          "id": "myResult"
+        }
+      ]
+    }
+  }
+})";
+
+/**
+ * Test the event handlers for onSubmit and onTextChange
+ */
+TEST_F(EditTextComponentTest, Handlers) {
+    loadDocument(HANDLERS_DOC);
+
+    auto top = root->topComponent();
+    ASSERT_TRUE(top);
+    auto et = root->findComponentById("myEditText");
+    ASSERT_TRUE(et);
+    ASSERT_EQ(kComponentTypeEditText, et->getType());
+    auto result = root->findComponentById("myResult");
+    ASSERT_TRUE(result);
+    ASSERT_EQ((kComponentTypeText), result->getType());
+
+    // press the submit button and advance time
+    et->update(kUpdateSubmit);
+    loop->advanceToEnd();
+
+    CheckDirty(root, et, result);
+    CheckDirty(et, kPropertyColor);
+    CheckDirty(result, kPropertyText);
+    ASSERT_TRUE(IsEqual(Color(Color::BLUE), et->getCalculated(kPropertyColor)));
+    auto resultTxt = result->getCalculated(kPropertyText);
+    ASSERT_TRUE(resultTxt.is<StyledText>());
+    ASSERT_TRUE(IsEqual("Submit:hello", resultTxt.get<StyledText>().getRawText()));
+    root->clearDirty();
+
+    et->update(kUpdateTextChange, "goodbye");
+    loop->advanceToEnd();
+
+    CheckDirty(root, et, result);
+    CheckDirty(et, kPropertyText, kPropertyColor);
+    CheckDirty(result, kPropertyText);
+    ASSERT_TRUE(IsEqual("goodbye", et->getCalculated(kPropertyText)));
+    ASSERT_TRUE(IsEqual(Color(Color::RED), et->getCalculated(kPropertyColor)));
+    resultTxt = result->getCalculated(kPropertyText);
+    ASSERT_TRUE(resultTxt.is<StyledText>());
+    ASSERT_TRUE(IsEqual("TextChange:goodbye", resultTxt.get<StyledText>().getRawText()));
+    root->clearDirty();
+}
+
+
+static const char* STYLED_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "styles": {
+    "myStyle": {
+      "values": [
+        {
+          "borderColor": "blue",
+          "borderStrokeWidth": 20,
+          "borderWidth": 30,
+          "color": "yellow",
+          "fontFamily": "ember",
+          "fontSize": 24,
+          "fontStyle": "italic",
+          "fontWeight": 600,
+          "hint": "hint",
+          "highlightColor": "green",
+          "hintColor": "gray",
+          "hintStyle": "italic",
+          "hintWeight": 500,
+          "keyboardType": "numberPad",
+          "maxLength": 4,
+          "secureInput": true,
+          "selectOnFocus": true,
+          "size": 4,
+          "submitKeyType": "go",
+          "text": "1234",
+          "validCharacters": "0-9"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "style": "myStyle"
+    }
+  }
+})";
+
+/**
+ * Verify styled properties can be set via style, and non-styled properties cannot be set via style
+ */
+TEST_F(EditTextComponentTest, Styled) {
+    loadDocument(STYLED_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, et->getType());
+
+    // These are styled
+    ASSERT_TRUE(IsEqual(Color(Color::BLUE), et->getCalculated(kPropertyBorderColor)));
+    // kPropertyDrawnBorderWidth is calculated from kPropertyBorderStrokeWidth (inputOnly) and (kPropertyBorderWidth)
+    ASSERT_TRUE(IsEqual(Dimension(20), et->getCalculated(kPropertyDrawnBorderWidth)));
+    ASSERT_TRUE(IsEqual(Dimension(30), et->getCalculated(kPropertyBorderWidth)));
+    ASSERT_TRUE(IsEqual(Color(Color::YELLOW), et->getCalculated(kPropertyColor)));
+    ASSERT_TRUE(IsEqual("ember", et->getCalculated(kPropertyFontFamily)));
+    ASSERT_TRUE(IsEqual(Dimension(24), et->getCalculated(kPropertyFontSize)));
+    ASSERT_TRUE(IsEqual(kFontStyleItalic, et->getCalculated(kPropertyFontStyle)));
+    ASSERT_TRUE(IsEqual(600, et->getCalculated(kPropertyFontWeight)));
+    ASSERT_TRUE(IsEqual(Color(Color::GREEN), et->getCalculated(kPropertyHighlightColor)));
+    ASSERT_TRUE(IsEqual("hint", et->getCalculated(kPropertyHint)));
+    ASSERT_TRUE(IsEqual(Color(Color::GRAY), et->getCalculated(kPropertyHintColor)));
+    ASSERT_TRUE(IsEqual(kFontStyleItalic, et->getCalculated(kPropertyHintStyle)));
+    ASSERT_TRUE(IsEqual(500, et->getCalculated(kPropertyHintWeight)));
+    ASSERT_TRUE(IsEqual(kKeyboardTypeNumberPad, et->getCalculated(kPropertyKeyboardType)));
+    ASSERT_TRUE(IsEqual(4, et->getCalculated(kPropertyMaxLength)));
+    auto submit = et->getCalculated(kPropertyOnSubmit);
+    ASSERT_TRUE(IsEqual(true, et->getCalculated(kPropertySecureInput)));
+    ASSERT_TRUE(IsEqual(true, et->getCalculated(kPropertySelectOnFocus)));
+    ASSERT_TRUE(IsEqual(4, et->getCalculated(kPropertySize)));
+    ASSERT_TRUE(IsEqual(kSubmitKeyTypeGo, et->getCalculated(kPropertySubmitKeyType)));
+    ASSERT_TRUE(IsEqual("0-9", et->getCalculated(kPropertyValidCharacters)));
+
+    // Style should be ignored
+    ASSERT_FALSE(IsEqual("1234", et->getCalculated(kPropertyText)));
+}
+
+class DummyTextMeasure : public TextMeasurement {
+public:
+    LayoutSize measure(Component *component, float width, MeasureMode widthMode, float height,
+                       MeasureMode heightMode) override {
+        int size = component->getCalculated(kPropertySize).asInt();
+        int componentWidth = component->getCalculated(kPropertyWidth).asInt();
+        int componentHeight = component->getCalculated(kPropertyHeight).asInt();
+
+        float resultingWidth = size > 0 ? size*20 : componentWidth;
+        float resultingHeight = componentHeight > 0 ? componentHeight : 120;
+
+        return LayoutSize({ resultingWidth, resultingHeight});
+    }
+
+    float baseline(Component *component, float width, float height) override {
+        return 0;
+    }
+};
+
+static const char* EDITTEXT_MEASUREMENT_DOC = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "Frame",
+      "borderWidth": 2,
+      "item": {
+        "type": "EditText",
+        "text": "Hello",
+        "size": 3,
+        "color": "#000000"
+      }
+    }
+  }
+})";
+
+/**
+ * Test text measurement for EditText component
+ */
+TEST_F(EditTextComponentTest, EditTextMeasurement) {
+
+    // Load the main document
+    auto content = Content::create(EDITTEXT_MEASUREMENT_DOC, makeDefaultSession());
+    ASSERT_TRUE(content);
+
+    // Inflate the document
+    auto metrics = Metrics().size(800,800).dpi(320);
+    auto measure = std::make_shared<DummyTextMeasure>();
+    RootConfig rootConfig = RootConfig().measure(measure);
+    auto root = RootContext::create( metrics, content, rootConfig );
+    ASSERT_TRUE(root);
+
+    // Check the layout
+    auto top = root->topComponent().get();
+    ASSERT_EQ(Rect(0, 0, 400, 400), top->getCalculated(kPropertyBounds).get<Rect>());
+    auto editText = top->getChildAt(0);
+    ASSERT_EQ(Rect(2, 2, 60, 120), editText->getCalculated(kPropertyBounds).get<Rect>());
+}
+
+/**
+ * Test that when update of text done - component marked as dirty.
+ */
+TEST_F(EditTextComponentTest, UpdateMarksDirty) {
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureMarkEditTextDirtyOnUpdate);
+    loadDocument(DEFAULT_DOC);
+
+    auto et = root->topComponent();
+    ASSERT_TRUE(component);
+    ASSERT_EQ(kComponentTypeEditText, et->getType());
+
+    et->update(kUpdateTextChange, "test");
+    ASSERT_TRUE(CheckDirty(et, kPropertyText, kPropertyVisualHash));
+}
+
+static const char* OPEN_KEYBOARD_EVENT_DOC = R"(
+{
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "btn",
+          "item": {
+            "type": "Text",
+            "text": "Edit"
+          },
+          "onPress":[
+            {
+              "type": "SetFocus",
+              "componentId": "stickyNote"
+            }
+          ]
+        },
+        {
+          "type": "EditText",
+          "id": "stickyNote",
+          "size": 10,
+          "selectOnFocus": false,
+          "-keyboardBehaviorOnFocus": "openKeyboard",
+          "text": "MyText"
+        }
+      ]
+    }
+  }
+}
+)";
+
+/**
+ * Verify OpenKeyboard type event is generated at a time of setting focus on edittext component
+ */
+TEST_F(EditTextComponentTest, OpenKeyboardEventOnFocus) {
+
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureRequestKeyboard);
+    loadDocument(OPEN_KEYBOARD_EVENT_DOC);
+
+    performClick(0, 0);
+    loop->advanceToEnd();
+
+    auto edittext = root->findComponentById("stickyNote");
+    ASSERT_TRUE(edittext);
+    ASSERT_EQ(kComponentTypeEditText, edittext->getType());
+    ASSERT_TRUE(IsEqual(kBehaviorOnFocusOpenKeyboard, edittext->getCalculated(kPropertyKeyboardBehaviorOnFocus)));
+
+    auto hasEvent = root->hasEvent();
+    ASSERT_TRUE(hasEvent);
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeOpenKeyboard, event.getType());
+    ASSERT_EQ(edittext, event.getComponent());
+
+    hasEvent = root->hasEvent();
+    ASSERT_TRUE(hasEvent);
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(edittext, event.getComponent());
+}
+
+static const char *VALID_CHARACTERS = R"apl(
+{
+  "type": "APL",
+  "version": "1.8",
+  "styles": {
+    "base": {
+      "values": [
+        {
+          "validCharacters": " 0-9a-z"
+        },
+        {
+          "when": "${state.checked}",
+          "validCharacters": " 0-9a-nA-Z"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "EditText",
+      "style": "base",
+      "id": "TEST",
+      "text": "ab43,5%"
+    }
+  }
+}
+)apl";
+
+TEST_F(EditTextComponentTest, ValidCharacters) {
+    loadDocument(VALID_CHARACTERS);
+
+    ASSERT_TRUE(component);
+    ASSERT_TRUE(IsEqual("ab435", component->getCalculated(kPropertyText)));
+
+    executeCommand("SetValue", {{"componentId", "TEST"}, {"property", "text"}, {"value", "##4"}},
+                   false);
+    ASSERT_TRUE(IsEqual("4", component->getCalculated(kPropertyText)));
+
+    executeCommand(
+        "SetValue",
+        {{"componentId", "TEST"}, {"property", "text"}, {"value", "Now it is 12:00 O'Clock"}},
+        false);
+    ASSERT_TRUE(IsEqual("ow it is 1200 lock", component->getCalculated(kPropertyText)));
+
+    // Change the state - that will switch the valid characters
+    component->setState(apl::kStateChecked, true);
+    ASSERT_TRUE(IsEqual(" i i 1200 lck", component->getCalculated(kPropertyText)));
+
+    // Set the same string again; a new set results
+    executeCommand(
+        "SetValue",
+        {{"componentId", "TEST"}, {"property", "text"}, {"value", "Now it is 12:00 O'Clock"}},
+        false);
+    ASSERT_TRUE(IsEqual("N i i 1200 OClck", component->getCalculated(kPropertyText)));
+
+    // Unset the state
+    component->setState(kStateChecked, false);
+    ASSERT_TRUE(IsEqual(" i i 1200 lck", component->getCalculated(kPropertyText)));
+}
+
+TEST_F(EditTextComponentTest, NoOpWhenAlreadyInFocus) {
+
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureFocusEditTextOnTap);
+    loadDocument(DEFAULT_DOC);
+
+    performClick(0, 0);
+    loop->advanceToEnd();
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(component, event.getComponent());
+
+    ASSERT_EQ(component, context->focusManager().getFocus());
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(0, 0), false));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(0, 0), false));
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+

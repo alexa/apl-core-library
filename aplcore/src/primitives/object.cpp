@@ -17,9 +17,8 @@
 
 #include <stack>
 
-#include "apl/datagrammar/boundsymbol.h"
-#include "apl/datagrammar/bytecode.h"
 #include "apl/engine/context.h"
+#include "apl/primitives/boundsymbol.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
 #include "apl/primitives/functions.h"
@@ -358,7 +357,7 @@ Object::Object(rapidjson::Document&& value) : mType(Null::ObjectType::instance()
             break;
         case rapidjson::kStringType:
             mType = String::ObjectType::instance();
-            mU.string = value.GetString();  // TODO: Should we keep the string in place?
+            new(&mU.string) std::string(value.GetString());
             break;
         case rapidjson::kObjectType:
             mType = Map::ObjectType::instance();
@@ -518,79 +517,6 @@ Object::isPure() const
     PureVisitor visitor;
     accept(visitor);
     return visitor.isPure();
-}
-
-const bool DEBUG_SYMBOL_VISITOR = false;
-
-/**
- * Internal visitor class used to extract all symbols and symbol paths from within
- * an equation.
- */
-class SymbolVisitor : public Visitor<Object> {
-public:
-    SymbolVisitor(SymbolReferenceMap& map) : mMap(map) {}
-
-    /**
-     * Visit an individual object.  At the end of this visit, the mCurrentSuffix
-     * should be set to a valid suffix (either a continuation of the parent or empty).
-     * @param object The object to visit
-     */
-    void visit(const Object& object) override {
-        LOG_IF(DEBUG_SYMBOL_VISITOR) << object.toDebugString()
-                                     << " mParentSuffix=" << mParentSuffix
-                                     << " mIndex=" << mIndex;
-
-        mCurrentSuffix.clear();  // In the majority of cases there will be no suffix
-
-        if (object.is<datagrammar::BoundSymbol>()) {  // A bound symbol should be added to the map with existing suffixes
-            auto symbol = object.get<datagrammar::BoundSymbol>()->getSymbol();
-            if (symbol.second)  // An invalid bound symbol will not have a context
-                mMap.emplace(symbol.first + (mIndex == 0 ? mParentSuffix : ""), symbol.second);
-        }
-        else if (object.is<datagrammar::ByteCode>()) {
-            object.symbols(mMap);
-        }
-
-        mIndex++;
-    }
-
-    /**
-     * Move down to the child nodes below the current node.  Stash information on the
-     * stack so we can recover state
-     */
-    void push() override {
-        mStack.push({mIndex, mParentSuffix});
-        mParentSuffix = mCurrentSuffix;
-        mIndex = 0;
-    }
-
-    /**
-     * Pop up one level, restoring the state
-     */
-    void pop() override {
-        const auto& ref = mStack.top();
-        mIndex = ref.first;
-        mParentSuffix = ref.second;
-        mStack.pop();
-    }
-
-private:
-    SymbolReferenceMap& mMap;
-    int mIndex = 0;              // The index of the child being visited.
-    std::string mParentSuffix;   // The suffix created by the parent of this object
-    std::string mCurrentSuffix;  // The suffix calculated visiting the current object
-    std::stack<std::pair<int, std::string>> mStack;  // Old indexes and parent suffixes
-};
-
-void
-Object::symbols(SymbolReferenceMap& symbols) const
-{
-    if (mType == datagrammar::ByteCode::ObjectType::instance())
-        get<datagrammar::ByteCode>()->symbols(symbols);
-    else {
-        SymbolVisitor visitor(symbols);
-        accept(visitor);
-    }
 }
 
 Object Object::call(const ObjectArray& args) const { return mType->call(mU, args); }

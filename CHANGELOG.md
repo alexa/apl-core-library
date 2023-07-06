@@ -1,5 +1,22 @@
 # Changelog
 
+## [2023.2]
+
+This release adds support for version 2023.2 of the APL specification.
+
+### Added
+
+- Deferred evaluation
+- SeekTo command for video
+- Alpha feature: Host component
+- Alpha feature: Support for viewport autosize
+- Alpha feature: InsertItem and RemoveItem command
+
+### Changed
+
+- Bug fixes
+- Performance improvements.
+
 ## [2023.1]
 
 ### Added

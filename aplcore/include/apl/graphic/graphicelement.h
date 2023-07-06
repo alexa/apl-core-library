@@ -53,10 +53,8 @@ class GraphicElement : public UIDObject,
                        public std::enable_shared_from_this<GraphicElement>,
                        public RecalculateTarget<GraphicPropertyKey>,
                        public UserData<GraphicElement>,
-                       public NonCopyable,
                        public Counter<GraphicElement> {
     friend class Graphic;
-    friend class GraphicDependant;
     friend class GraphicBuilder;
 
 public:
@@ -177,10 +175,11 @@ public:
 
     static Object asAvgFill(const Context& context, const Object& object);
 
+    void setValue(GraphicPropertyKey key, const Object& value, bool useDirtyFlag) override;
+
 protected:
     virtual bool initialize(const GraphicPtr& graphic, const Object& json);
     virtual const GraphicPropDefSet& propDefSet() const = 0;
-    bool setValue(GraphicPropertyKey key, const Object& value, bool useDirtyFlag);
 
     StyleInstancePtr getStyle(const GraphicPtr& graphic) const;
     void updateStyleInternal(const StyleInstancePtr& stylePtr, const GraphicPropDefSet& gds);

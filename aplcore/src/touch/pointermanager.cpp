@@ -17,9 +17,9 @@
 
 #include "apl/component/corecomponent.h"
 #include "apl/component/touchablecomponent.h"
-#include "apl/engine/rootcontextdata.h"
-#include "apl/touch/pointer.h"
-#include "apl/utils/log.h"
+#include "apl/engine/corerootcontext.h"
+#include "apl/engine/hovermanager.h"
+#include "apl/time/sequencer.h"
 #include "apl/utils/searchvisitor.h"
 
 namespace apl {
@@ -36,7 +36,7 @@ sendEventToComponent(PointerEventType type,
 
     PointerEvent event(type, pointer->getPosition(), pointer->getId(), pointer->getPointerType());
 
-    component->processPointerEvent(event, timestamp);
+    component->processPointerEvent(event, timestamp, false);
 }
 
 static inline void
@@ -64,7 +64,8 @@ Bimap<PointerEventType, PropertyKey> sEventHandlers = {{kPointerCancel, kPropert
                                                        {kPointerMove, kPropertyOnMove},
                                                        {kPointerUp, kPropertyOnUp}};
 
-PointerManager::PointerManager(const RootContextData& core) : mCore(core)
+PointerManager::PointerManager(const CoreRootContext& core, HoverManager& hover) :
+      mCore(core), mHoverManager(hover)
 {}
 
 /**
@@ -79,13 +80,18 @@ public:
         reset();
     }
 
+    struct HitTarget {
+        CoreComponentPtr ptr;
+        bool onlyProcessGestures;
+    };
+
     void reset() {
         mCurrent = mTarget;
-        mTouchableFound = mCurrent->isTouchable();
+        mFirstTouchable = (mCurrent && mCurrent->isTouchable()) ? mCurrent : nullptr;
     }
 
-    CoreComponentPtr next() {
-        auto result = mCurrent;
+    HitTarget next() {
+        HitTarget result = {mCurrent, mCurrent && mCurrent->isTouchable() && mCurrent != mFirstTouchable};
         advance();
         return result;
     }
@@ -95,11 +101,8 @@ private:
         while (mCurrent) {
             mCurrent = CoreComponent::cast(mCurrent->getParent());
             if (mCurrent && mCurrent->isActionable()) {
-                if (mCurrent->isTouchable()) {
-                    // Skip this component because we already found a touchable component
-                    if (mTouchableFound)
-                        continue;
-                    mTouchableFound = true;
+                if (mFirstTouchable == nullptr && mCurrent->isTouchable()) {
+                     mFirstTouchable = mCurrent;
                 }
                 // mCurrent is pointing to an actionable component
                 return;
@@ -109,7 +112,7 @@ private:
 
     CoreComponentPtr mTarget;
     CoreComponentPtr mCurrent;
-    bool mTouchableFound;
+    CoreComponentPtr mFirstTouchable;
 };
 
 bool
@@ -134,8 +137,8 @@ PointerManager::handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t 
             break;
         case kPointerTargetChanged:
         default:
-            LOG(LogLevel::kWarn).session(mCore.session()) << "Unknown pointer event type ignored"
-                                << pointerEvent.pointerEventType;
+            LOG(LogLevel::kWarn) << "Unknown pointer event type ignored"
+                                 << pointerEvent.pointerEventType;
             return false;
     }
 
@@ -148,7 +151,7 @@ PointerManager::handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t 
     }
 
     if (pointer->isCaptured()) {
-        target->processPointerEvent(pointerEvent, timestamp);
+        target->processPointerEvent(pointerEvent, timestamp, false);
     } else {
         auto hitListIt = HitListIterator(target);
         // Each component in the list in turn receives the event.
@@ -159,12 +162,15 @@ PointerManager::handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t 
         // and subsequent hit targets will not be given a chance to process the event. In the
         // case of kPointerStatusPendingCapture, the event will be allowed to keep bubbling up
         // through the component hierarchy.
-        while (auto hitTarget = hitListIt.next()) {
-            PointerCaptureStatus pointerStatus = hitTarget->processPointerEvent(pointerEvent, timestamp);
+        while (true) {
+            auto hitTarget = hitListIt.next();
+            if (!hitTarget.ptr) break;
+            PointerCaptureStatus pointerStatus = hitTarget.ptr->processPointerEvent(
+                pointerEvent, timestamp, hitTarget.onlyProcessGestures);
             // If component claims the event - pointer should be captured by it.
             if (pointerStatus != kPointerStatusNotCaptured) {
                 if (!pointer->isCaptured())
-                    pointer->setCapture(ActionableComponent::cast(hitTarget));
+                    pointer->setCapture(ActionableComponent::cast(hitTarget.ptr));
                 if (pointerStatus == kPointerStatusCaptured)
                     break;
             }
@@ -173,9 +179,11 @@ PointerManager::handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t 
         // If pointer was captured - cancel events to all the other components on the list.
         if (pointer->isCaptured()) {
             hitListIt.reset();
-            while (auto hitTarget = hitListIt.next()) {
-                if (hitTarget != pointer->getTarget()) {
-                    sendEventToComponent(kPointerCancel, mActivePointer, hitTarget, timestamp);
+            while (true) {
+                auto hitTarget = hitListIt.next();
+                if (!hitTarget.ptr) break;
+                if (hitTarget.ptr != pointer->getTarget()) {
+                    sendEventToComponent(kPointerCancel, mActivePointer, hitTarget.ptr, timestamp);
                 }
             }
         }
@@ -217,7 +225,7 @@ PointerManager::handlePointerStart(const std::shared_ptr<Pointer>& pointer,
     if (mActivePointer != nullptr)
         return nullptr;
 
-    auto top = CoreComponent::cast(mCore.top());
+    auto top = CoreComponent::cast(mCore.topComponent());
     if (!top)
         return nullptr;
 
@@ -238,7 +246,7 @@ PointerManager::handlePointerUpdate(const std::shared_ptr<Pointer>& pointer,
 {
     auto target = pointer->getTarget();
     if (pointer->getPointerType() == kMousePointer && !target) {
-        mCore.hoverManager().setCursorPosition(pointerEvent.pointerEventPosition);
+        mHoverManager.setCursorPosition(pointerEvent.pointerEventPosition);
     }
     pointer->setPosition(pointerEvent.pointerEventPosition);
     return target;
@@ -253,7 +261,7 @@ PointerManager::handlePointerEnd(const std::shared_ptr<Pointer>& pointer,
             case kTouchPointer:
                 break;
             case kMousePointer:
-                mCore.hoverManager().setCursorPosition(pointerEvent.pointerEventPosition);
+                mHoverManager.setCursorPosition(pointerEvent.pointerEventPosition);
                 break;
         }
 

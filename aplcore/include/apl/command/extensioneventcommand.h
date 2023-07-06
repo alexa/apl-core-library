@@ -31,18 +31,21 @@ class ExtensionEventCommand : public CoreCommand {
 public:
     static CommandPtr create(const ExtensionCommandDefinition& def,
                              const ContextPtr& context,
+                             CommandData&& commandData,
                              Properties&& properties,
                              const CoreComponentPtr& base,
                              const std::string& parentSequencer) {
-        return std::make_shared<ExtensionEventCommand>(def, context, std::move(properties), base, parentSequencer);
+        return std::make_shared<ExtensionEventCommand>(def, context, std::move(commandData),
+                                                       std::move(properties), base, parentSequencer);
     }
 
     ExtensionEventCommand(const ExtensionCommandDefinition& def,
                           const ContextPtr& context,
+                          CommandData&& commandData,
                           Properties&& properties,
                           const CoreComponentPtr& base,
                           const std::string& parentSequencer)
-        : CoreCommand(context, std::move(properties), base, parentSequencer),
+        : CoreCommand(context, std::move(commandData), std::move(properties), base, parentSequencer),
           mDefinition(def) {}
 
     const CommandPropDefSet& propDefSet() const override;

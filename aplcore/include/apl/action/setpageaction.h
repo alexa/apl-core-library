@@ -36,7 +36,7 @@ public:
                   const CoreComponentPtr& target);
 
     void freeze() override;
-    bool rehydrate(const RootContext& context) override;
+    bool rehydrate(const CoreDocumentContext& context) override;
 
 private:
     void start();

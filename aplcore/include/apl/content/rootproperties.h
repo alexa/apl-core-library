@@ -22,6 +22,7 @@
 
 namespace apl {
 
+// Note: If any per-document properties added here, also update sCopyableConfigProperties
 enum RootProperty {
     /// Agent name
     kAgentName,

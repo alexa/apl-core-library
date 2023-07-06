@@ -109,7 +109,7 @@ functions_pattern=$(buildPattern)
 #   - specify the classic locale (for locale-dependent functions)
 #   - are followed by '// disable_forbidden_check'
 
-violations=$(find . \( -iname "*.h" -or -iname "*.cpp" \) -exec 'grep' '-Hn' "$functions_pattern" '{}' \; | grep -v 'std::locale::classic\(\)')
+violations=$(find include src \( -iname "*.h" -or -iname "*.cpp" \) -exec 'grep' '-Hn' "$functions_pattern" '{}' \; | grep -v 'std::locale::classic\(\)')
 
 if [ -z "$violations" ]; then
     exit 0

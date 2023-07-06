@@ -13,14 +13,14 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/action/documentaction.h"
 #include "apl/command/documentcommand.h"
-#include "apl/component/corecomponent.h"
+
+#include "apl/action/documentaction.h"
 #include "apl/command/arraycommand.h"
+#include "apl/component/corecomponent.h"
 #include "apl/content/content.h"
 #include "apl/engine/evaluate.h"
 #include "apl/engine/propdef.h"
-#include "apl/engine/rootcontext.h"
 
 namespace apl {
 
@@ -44,16 +44,16 @@ DocumentCommand::getDocumentCommand()
 {
     // NOTE: We make the large assumption that the name of the document property
     //       is the same name as the component property.
-    auto root = mRootContext.lock();
-    if (!root)
+    auto document = mDocumentContext.lock();
+    if (!document)
         return nullptr;
 
-    auto& json = root->content()->getDocument()->json();
+    auto& json = document->content()->getDocument()->json();
     auto it = json.FindMember(sComponentPropertyBimap.at(mPropertyKey).c_str());
     if (it == json.MemberEnd())
         return nullptr;
 
-    auto context = root->createDocumentContext(mHandler);
+    auto context = document->createDocumentContext(mHandler);
     auto commands = asCommand(*context, evaluate(*context, it->value));
     auto cmd = ArrayCommand::create(context, commands, nullptr, Properties(), "", true);
     return cmd;
@@ -62,13 +62,13 @@ DocumentCommand::getDocumentCommand()
 ActionPtr
 DocumentCommand::getComponentActions(const TimersPtr& timers, bool fastMode)
 {
-    auto root = mRootContext.lock();
-    if (!root)
+    auto document = mDocumentContext.lock();
+    if (!document)
         return nullptr;
 
     // Extract the commands from the components
     std::vector<CommandPtr> parallelCommands;
-    collectChildCommands(root->topComponent(), parallelCommands);
+    collectChildCommands(document->topComponent(), parallelCommands);
 
     if (parallelCommands.empty())
         return nullptr;
@@ -89,11 +89,11 @@ DocumentCommand::getComponentActions(const TimersPtr& timers, bool fastMode)
 ContextPtr
 DocumentCommand::context()
 {
-    auto root = mRootContext.lock();
-    if (!root)
+    auto document = mDocumentContext.lock();
+    if (!document)
         return nullptr;
 
-    return root->payloadContext();
+    return document->payloadContext();
 }
 
 /**

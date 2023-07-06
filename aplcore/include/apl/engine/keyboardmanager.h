@@ -19,10 +19,9 @@
 #include <memory>
 
 #include "apl/primitives/keyboard.h"
+#include "apl/component/componentproperties.h"
 
 namespace apl {
-
-class CoreComponent;
 
 class KeyboardManager {
 public:
@@ -32,10 +31,12 @@ public:
      * @param type The keyboard handler type
      * @param component The component receiving the key press.  If null, ignored.
      * @param keyboard The key press definition.
+     * @param rootContext pointer to RootContext.
+
      * @result True, if the key was consumed.
      */
-    bool handleKeyboard(KeyHandlerType type, const CoreComponentPtr& component, const Keyboard& keyboard,
-                        const RootContextPtr& rootContext);
+    bool handleKeyboard(KeyHandlerType type, const CoreComponentPtr& component,
+                        const Keyboard& keyboard, const CoreRootContextPtr& rootContext);
 
     /**
      * @param type The Keyboard handler type.
@@ -49,9 +50,16 @@ public:
      */
     static std::string getHandlerId(KeyHandlerType type);
 
-private:
-    bool executeDocumentKeyHandlers(const RootContextPtr& rootContext,  KeyHandlerType type, const Keyboard& keyboard);
-
+    /**
+     * Handle a keyboard update on a document.
+     * @param documentContext pointer to DocumentContext.
+     * @param type The keyboard handler type
+     * @param keyboard The key press definition.
+     * @return True, if the key was consumed.
+     */
+    bool executeDocumentKeyHandlers(const CoreDocumentContextPtr& documentContext,
+                                    KeyHandlerType type,
+                                    const Keyboard& keyboard);
 };
 
 } // namespace apl

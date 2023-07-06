@@ -24,6 +24,17 @@
 
 namespace apl {
 
+/**
+ * Document errors structure.
+ * @param documentContext document context weak pointer.
+ * @param Object of error
+ * @deprecated Providers are per document.
+ */
+struct DocumentError {
+    DocumentContextWeakPtr documentContext;
+    Object error;
+};
+
 class DataSourceConnection;
 
 class DataSourceProvider : public NonCopyable {
@@ -43,6 +54,11 @@ public:
                                                          std::weak_ptr<LiveArray> liveArray) = 0;
 
     /**
+     * @return DataSource type name.
+     */
+    virtual std::string getType() const { return ""; }
+
+    /**
      * Parse update payload and pass it to relevant connection.
      * @param payload update payload.
      * @return true if successful, false otherwise.
@@ -55,6 +71,15 @@ public:
      *
      */
     virtual Object getPendingErrors() { return Object::EMPTY_ARRAY(); }
+
+    /**
+     * Retrieve any errors pending.
+     * @return vector of errors.
+     * @deprecated Providers are per document
+     */
+    APL_DEPRECATED virtual std::vector<DocumentError> getPendingDocumentErrors() {
+        return {};
+    }
 };
 
 } // namespace apl

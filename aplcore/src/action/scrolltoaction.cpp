@@ -17,7 +17,6 @@
 
 #include "apl/command/corecommand.h"
 #include "apl/component/pagercomponent.h"
-#include "apl/engine/rootcontext.h"
 #include "apl/time/sequencer.h"
 
 namespace apl {
@@ -313,13 +312,13 @@ ScrollToAction::freeze()
     }
 
     // Intentionally higher level, we don't need to freeze underlying scroller
-    ResourceHoldingAction::freeze();
+    AnimatedScrollAction::freeze();
 }
 
 bool
-ScrollToAction::rehydrate(const RootContext& context)
+ScrollToAction::rehydrate(const CoreDocumentContext& context)
 {
-    if (!ResourceHoldingAction::rehydrate(context)) return false;
+    if (!AnimatedScrollAction::rehydrate(context)) return false;
 
     mTarget = CoreComponent::cast(context.findComponentById(mFrozenTargetId));
 
@@ -347,7 +346,7 @@ ScrollToAction::rehydrate(const RootContext& context)
 
     // TODO: We don't preserve time, so it takes full duration for the remainder of scrolling.
     //  Considering the need to recalculate the target it's fine for now, but we may consider
-    //  improving in future.
+    //  improving it in the future.
 
     return true;
 }

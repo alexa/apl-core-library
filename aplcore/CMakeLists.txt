@@ -57,13 +57,12 @@ if (TARGET yoga)
     add_dependencies(apl yoga)
 endif()
 
-if (NOT HAS_FETCH_CONTENT)
-    add_dependencies(apl pegtl-build)
+if (NOT USE_PROVIDED_YOGA_INLINE)
+    target_link_libraries(apl PUBLIC $<BUILD_INTERFACE:libyoga>)
 endif()
 
-# When not using the system rapidjson build the library, add a dependency on the build step
-if (NOT USE_SYSTEM_RAPIDJSON AND NOT HAS_FETCH_CONTENT)
-    add_dependencies(apl rapidjson-build)
+if (NOT HAS_FETCH_CONTENT)
+    add_dependencies(apl pegtl-build)
 endif()
 
 add_subdirectory(src/action)
@@ -75,6 +74,7 @@ add_subdirectory(src/content)
 add_subdirectory(src/datagrammar)
 add_subdirectory(src/datasource)
 add_subdirectory(src/document)
+add_subdirectory(src/embed)
 add_subdirectory(src/engine)
 add_subdirectory(src/extension)
 add_subdirectory(src/focus)
@@ -100,7 +100,9 @@ set_target_properties(apl
     PROPERTIES
         VERSION "${PROJECT_VERSION}"
         SOVERSION 1
-        PUBLIC_HEADER "${PUBLIC_HEADER_LIST}")
+        PUBLIC_HEADER "${PUBLIC_HEADER_LIST}"
+        EXPORT_NAME "core"
+)
 
 if (ENABLE_PIC)
   set_target_properties(apl
@@ -116,19 +118,16 @@ target_include_directories(apl
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
         $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/aplcore/include>
-        $<BUILD_INTERFACE:${RAPIDJSON_INCLUDE}>
         $<INSTALL_INTERFACE:include>
     PRIVATE
         $<BUILD_INTERFACE:${PEGTL_INCLUDE}>
         $<BUILD_INTERFACE:${YOGA_INCLUDE}>
 )
 
+target_link_libraries(apl PUBLIC rapidjson-apl)
+
 if (USE_PROVIDED_YOGA_INLINE)
     target_sources(apl PRIVATE ${YOGA_SRC})
-else()
-    target_link_libraries(apl
-        PRIVATE
-            libyoga)
 endif()
 
 # include the alexa extensions library
@@ -159,6 +158,12 @@ target_link_libraries(apl PRIVATE ${log-lib})
 
 endif(ANDROID)
 
+# Test cases are built conditionally. Only affect core do not build them for everything else.
+if (BUILD_UNIT_TESTS)
+    include_directories(${GTEST_INCLUDE})
+    add_subdirectory(unit)
+endif (BUILD_UNIT_TESTS)
+
 install(TARGETS apl
         EXPORT apl-targets
         ARCHIVE DESTINATION lib
@@ -173,12 +178,6 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/aplcore/include/apl
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/apl.pc
         DESTINATION lib/pkgconfig)
 
-if (NOT USE_SYSTEM_RAPIDJSON)
-install(DIRECTORY ${RAPIDJSON_INCLUDE}/rapidjson
-        DESTINATION include
-        FILES_MATCHING PATTERN "*.h")
-endif()
-
 if (USE_PROVIDED_YOGA_AS_LIB)
     # We built the bundled yoga lib, install it
     install(FILES ${YOGA_LIB}
@@ -187,16 +186,6 @@ if (USE_PROVIDED_YOGA_AS_LIB)
         DESTINATION include
         FILES_MATCHING PATTERN "*.h")
     set(YOGA_EXTERNAL_LIB ${YOGA_LIB}) # used by aplcoreConfig.cmake.in
-endif()
-
-if (NOT USE_PROVIDED_YOGA_INLINE)
-set_target_properties(apl PROPERTIES
-    EXPORT_NAME
-        core
-    INTERFACE_LINK_LIBRARIES
-        # Only set this for builds, the find module will handle the other cases
-        $<BUILD_INTERFACE:${YOGA_LIB}>
-)
 endif()
 
 export(

@@ -34,7 +34,7 @@
 namespace apl {
 
 Object asOldArray(const Context &context, const Object &object) {
-    auto result = evaluateRecursive(context, arrayify(context, object));
+    auto result = evaluateNested(context, arrayify(context, object));
     if (context.getRequestedAPLVersion() != "1.0")
         return result;
 
@@ -156,7 +156,7 @@ Object asTransformOrArray(const Context& context, const Object& object)
     if (object.is<Transformation>())
         return object;
 
-    return evaluateRecursive(context, arrayify(context, object));
+    return evaluateNested(context, arrayify(context, object));
 }
 
 Object asEasing(const Context& context, const Object& object)

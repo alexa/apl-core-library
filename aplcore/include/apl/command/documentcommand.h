@@ -22,7 +22,6 @@
 namespace apl {
 
 class Content;
-class RootContext;
 
 /**
  * Run a large number of commands in parallel with a "finally" clause.
@@ -31,16 +30,16 @@ class DocumentCommand : public Command {
 public:
     static CommandPtr create(PropertyKey propertyKey,
                              const std::string& handler,
-                             const RootContextPtr& rootContext) {
-        return std::make_shared<DocumentCommand>(propertyKey, handler, rootContext);
+                             const CoreDocumentContextPtr& documentContext) {
+        return std::make_shared<DocumentCommand>(propertyKey, handler, documentContext);
     }
 
     DocumentCommand(PropertyKey propertyKey,
                      const std::string& handler,
-                     const RootContextPtr& rootContext)
+                     const CoreDocumentContextPtr& documentContext)
         : mPropertyKey(propertyKey),
           mHandler(handler),
-          mRootContext(rootContext)
+          mDocumentContext(documentContext)
     {
     }
 
@@ -59,7 +58,7 @@ private:
 private:
     PropertyKey mPropertyKey;    // Which property we will extract
     std::string mHandler;
-    const std::weak_ptr<RootContext> mRootContext;
+    const std::weak_ptr<CoreDocumentContext> mDocumentContext;
 };
 
 using TransitionCommandPtr = std::shared_ptr<DocumentCommand>;

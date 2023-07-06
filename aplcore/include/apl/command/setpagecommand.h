@@ -20,20 +20,9 @@
 
 namespace apl {
 
-class SetPageCommand : public CoreCommand {
+class SetPageCommand : public TemplatedCommand<SetPageCommand> {
 public:
-    static CommandPtr create(const ContextPtr& context,
-                             Properties&& properties,
-                             const CoreComponentPtr& base,
-                             const std::string& parentSequencer) {
-        auto ptr = std::make_shared<SetPageCommand>(context, std::move(properties), base, parentSequencer);
-        return ptr->validate() ? ptr : nullptr;
-    }
-
-    SetPageCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
-                   const std::string& parentSequencer)
-            : CoreCommand(context, std::move(properties), base, parentSequencer)
-    {}
+    COMMAND_CONSTRUCTOR(SetPageCommand);
 
     const CommandPropDefSet& propDefSet() const override;
 

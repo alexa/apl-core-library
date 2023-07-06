@@ -14,9 +14,9 @@
  */
 
 #include "apl/action/resourceholdingaction.h"
+
 #include "apl/command/corecommand.h"
 #include "apl/time/sequencer.h"
-#include "apl/engine/rootcontext.h"
 
 namespace apl {
 
@@ -40,7 +40,7 @@ ResourceHoldingAction::freeze()
 }
 
 bool
-ResourceHoldingAction::rehydrate(const RootContext& context)
+ResourceHoldingAction::rehydrate(const CoreDocumentContext& context)
 {
     if (!Action::rehydrate(context)) return false;
     mContext = context.contextPtr();

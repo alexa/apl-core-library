@@ -13,12 +13,13 @@
  * permissions and limitations under the License.
  */
 
+#include "apl/primitives/accessibilityaction.h"
 #include "apl/component/corecomponent.h"
-#include "apl/engine/componentdependant.h"
+#include "apl/engine/typeddependant.h"
+#include "apl/engine/dependantmanager.h"
 #include "apl/engine/evaluate.h"
 #include "apl/engine/propdef.h"
-#include "apl/primitives/accessibilityaction.h"
-#include "apl/primitives/symbolreferencemap.h"
+#include "apl/primitives/boundsymbolset.h"
 #include "apl/time/sequencer.h"
 #include "apl/utils/session.h"
 
@@ -30,45 +31,8 @@ namespace apl {
  * action properties dynamic in the future (such as "label"), this class will need to be modified
  * so that we can differentiate which property is being driven.
  */
-class AccessibilityActionDependant : public Dependant {
-public:
-    static void create(const std::shared_ptr<AccessibilityAction>& downstreamAccessibilityAction,
-                       const Object& equation,
-                       const ContextPtr& bindingContext)
-    {
-        SymbolReferenceMap symbols;
-        equation.symbols(symbols);
-        if (symbols.empty())
-            return;
 
-        auto dependant = std::make_shared<AccessibilityActionDependant>(downstreamAccessibilityAction,
-                                                                        equation,
-                                                                        bindingContext);
-
-        for (const auto& symbol : symbols.get())
-            symbol.second->addDownstream(symbol.first, dependant);
-
-        downstreamAccessibilityAction->addUpstream(kAccessibilityActionEnabled, dependant);
-    }
-
-    AccessibilityActionDependant(const std::shared_ptr<AccessibilityAction>& downstreamAccessibilityAction,
-                                 const Object& equation,
-                                 const ContextPtr& bindingContext)
-                                 : Dependant(equation, bindingContext, asBoolean),
-                                 mDownstreamAccessibilityAction(downstreamAccessibilityAction) {}
-
-    void recalculate(bool useDirtyFlag) const override {
-        auto downstream = mDownstreamAccessibilityAction.lock();
-        auto bindingContext = mBindingContext.lock();
-        if (downstream && bindingContext) {
-            auto value = reevaluate(*bindingContext, mEquation).asBoolean();
-            downstream->setEnabled(value, useDirtyFlag);
-        }
-    }
-private:
-    std::weak_ptr<AccessibilityAction> mDownstreamAccessibilityAction;
-};
-
+using AccessibilityActionDependent = TypedDependant<AccessibilityAction, AccessibilityActionKey>;
 
 std::shared_ptr<AccessibilityAction>
 AccessibilityAction::create(const CoreComponentPtr& component, const Object& object)
@@ -109,14 +73,15 @@ AccessibilityAction::initialize(const ContextPtr& context, const Object& object)
     if (object.has("enabled")) {
         auto assigned = object.get("enabled");
         if (assigned.isString()) {  // It may be a data-binding
-            auto tmp = parseDataBinding(*context, assigned.getString());
-            if (tmp.isEvaluable()) {
-                AccessibilityActionDependant::create(shared_from_this(), tmp, context);
-                mEnabled = evaluate(*context, tmp).asBoolean();
-            }
-            else {
-                mEnabled = tmp.asBoolean();
-            }
+            auto result = parseAndEvaluate(*context, assigned);
+            if (!result.symbols.empty())
+                AccessibilityActionDependent::create(shared_from_this(),
+                                                     kAccessibilityActionEnabled,
+                                                     std::move(result.expression),
+                                                     context,
+                                                     sBindingFunctions.at(kBindingTypeBoolean),
+                                                     std::move(result.symbols));
+            mEnabled = result.value.asBoolean();
         }
         else {
             mEnabled = assigned.asBoolean();
@@ -144,8 +109,10 @@ AccessibilityAction::serialize(rapidjson::Document::AllocatorType& allocator) co
 }
 
 void
-AccessibilityAction::setEnabled(bool enabled, bool useDirtyFlag)
+AccessibilityAction::setValue(AccessibilityActionKey key, const Object& value, bool useDirtyFlag)
 {
+    assert(key == kAccessibilityActionEnabled);
+    auto enabled = value.getBoolean();
     if (enabled != mEnabled) {
         mEnabled = enabled;
         if (useDirtyFlag) {

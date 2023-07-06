@@ -20,20 +20,9 @@
 
 namespace apl {
 
-class ScrollCommand : public CoreCommand {
+class ScrollCommand : public TemplatedCommand<ScrollCommand> {
 public:
-    static CommandPtr create(const ContextPtr& context,
-                             Properties&& properties,
-                             const CoreComponentPtr& base,
-                             const std::string& parentSequencer) {
-        auto ptr = std::make_shared<ScrollCommand>(context, std::move(properties), base, parentSequencer);
-        return ptr->validate() ? ptr : nullptr;
-    }
-
-    ScrollCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
-                  const std::string& parentSequencer)
-            : CoreCommand(context, std::move(properties), base, parentSequencer)
-    {}
+    COMMAND_CONSTRUCTOR(ScrollCommand);
 
     const CommandPropDefSet& propDefSet() const override;
 

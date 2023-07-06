@@ -115,6 +115,15 @@ public:
         }
     }
 
+    /**
+     * Update the value of the key based on a change from an upstream dependency.  This method
+     * should only be called by an upstream dependant.
+     * @param key The key to modify
+     * @param value The value to assign
+     * @param useDirtyFlag If true, mark downstream changes as dirty
+     */
+    virtual void setValue(T key, const Object& value, bool useDirtyFlag) = 0;
+
 private:
     std::multimap<T, std::shared_ptr<Dependant>> mUpstream;
 };

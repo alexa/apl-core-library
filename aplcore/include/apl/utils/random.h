@@ -18,6 +18,8 @@
 
 #include <random>
 
+#include "apl/utils/streamer.h"
+
 namespace apl {
 
 /**

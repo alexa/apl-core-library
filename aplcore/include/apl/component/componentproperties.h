@@ -429,10 +429,14 @@ enum PropertyKey {
     kPropertyDisplay,
     /// FrameComponent | EditTextComponent drawn border width (output only)
     kPropertyDrawnBorderWidth,
+    /// Embedded document state
+    kPropertyEmbeddedDocument,
     /// ContainerComponent child absolute right position for LTR layout or left position for RTL layout
     kPropertyEnd,
     /// Component array of opaque entity data
     kPropertyEntities,
+    /// HostComponent Environment overrides applicable to the embedded document
+    kPropertyEnvironment,
     /// SequenceComponent fast scroll scaling setting
     kPropertyFastScrollScale,
     /// ImageComponent array of filters
@@ -724,6 +728,7 @@ enum ComponentType {
     kComponentTypeExtension,
     kComponentTypeFrame,
     kComponentTypeGridSequence,
+    kComponentTypeHost,
     kComponentTypeImage,
     kComponentTypePager,
     kComponentTypeScrollView,

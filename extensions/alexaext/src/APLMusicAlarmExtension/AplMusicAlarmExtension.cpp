@@ -37,7 +37,8 @@ AplMusicAlarmExtension::AplMusicAlarmExtension(AplMusicAlarmExtensionObserverInt
 
 rapidjson::Document
 AplMusicAlarmExtension::createRegistration(const std::string& uri,
-                                           const rapidjson::Value& registrationRequest) {
+                                           const rapidjson::Value& registrationRequest)
+{
     if (uri != URI)
         return RegistrationFailure::forUnknownURI(uri);
 
@@ -55,7 +56,8 @@ AplMusicAlarmExtension::createRegistration(const std::string& uri,
 }
 
 bool
-AplMusicAlarmExtension::invokeCommand(const std::string& uri, const rapidjson::Value& command) {
+AplMusicAlarmExtension::invokeCommand(const std::string& uri, const rapidjson::Value& command)
+{
     if (!mObserver)
         return false;
 

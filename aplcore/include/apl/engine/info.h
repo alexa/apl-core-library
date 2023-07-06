@@ -24,7 +24,6 @@
 
 namespace apl {
 
-class RootContextData;
 class Context;
 
 /**
@@ -46,7 +45,7 @@ public:
         kInfoTypeStyle
     };
 
-    Info(const ContextPtr& context, const std::shared_ptr<RootContextData>& core)
+    Info(const ContextPtr& context, const DocumentContextDataPtr& core)
         : mContext(context), mCore(core) {}
 
     /**
@@ -71,7 +70,7 @@ public:
 
 private:
     ContextPtr mContext;
-    std::shared_ptr<RootContextData> mCore;
+    DocumentContextDataPtr mCore;
 };
 
 } // namespace apl

@@ -16,7 +16,6 @@ target_sources_local(apl
     graphic.cpp
     graphicbuilder.cpp
     graphiccontent.cpp
-    graphicdependant.cpp
     graphicelement.cpp
     graphicelementcontainer.cpp
     graphicelementgroup.cpp

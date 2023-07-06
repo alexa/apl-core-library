@@ -13,14 +13,15 @@
  * permissions and limitations under the License.
  */
 
-#ifndef _APL_UNIQUEID_H
-#define _APL_UNIQUEID_H
+#ifndef _APL_UNIQUEIDOBJECT_H
+#define _APL_UNIQUEIDOBJECT_H
 
 #include "rapidjson/document.h"
 
-#include "apl/common.h"
-
 #include <string>
+
+#include "apl/common.h"
+#include "apl/utils/noncopyable.h"
 
 namespace apl {
 
@@ -33,7 +34,7 @@ namespace apl {
  * The object also contains a unique type field which is used for run-time type identification
  * handled by the UIDObjectWrapper template.
  */
-class UIDObject {
+class UIDObject : public NonCopyable {
 public:
     // Not ideal, but required to distinguish extending class without RTTI.
     enum class UIDObjectType {
@@ -79,4 +80,4 @@ private:
 
 } // namespace apl
 
-#endif // _APL_UNIQUEID_H
+#endif // _APL_UNIQUEIDOBJECT_H

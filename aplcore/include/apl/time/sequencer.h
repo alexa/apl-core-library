@@ -16,12 +16,13 @@
 #ifndef _APL_SEQUENCER_H
 #define _APL_SEQUENCER_H
 
-#include "apl/utils/counter.h"
 #include "apl/action/action.h"
-#include "apl/engine/context.h"
 #include "apl/command/command.h"
+#include "apl/engine/context.h"
+#include "apl/primitives/commanddata.h"
 #include "apl/time/executionresource.h"
 #include "apl/time/executionresourceholder.h"
+#include "apl/utils/counter.h"
 
 namespace apl {
 
@@ -48,14 +49,14 @@ public:
      * Convenience routine that takes an array object of commands and a data-binding context,
      * inflates an ArrayCommand, and then executes it.
      *
-     * @param commands An array of commands to execute.
+     * @param commandData An array of commands to execute.
      * @param context The data-binding context.
      * @param baseComponent The base component that these commands execute from.
      * @param fastMode True if the commands should run in fast mode.
      * @return The action pointer of the command or nullptr if there is nothing to execute.
      *         A nullptr will be returned in fast mode.
      */
-    ActionPtr executeCommands(const Object& commands,
+    ActionPtr executeCommands(CommandData&& commandData,
                               const ContextPtr& context,
                               const CoreComponentPtr& baseComponent,
                               bool fastMode);
@@ -74,14 +75,14 @@ public:
      * Convenience routine that takes an array object of commands and a data-binding context,
      * inflates an ArrayCommand, and then executes it on the named sequencer.
      *
-     * @param commands An array of commands to execute.
+     * @param commandData An array of commands to execute.
      * @param context The data-binding context.
      * @param baseComponent The base component that these commands execute from.
      * @param sequencer Name of the sequencer to use.
      * @return The action pointer of the command or nullptr if there is nothing to execute.
      *         A nullptr will be returned in fast mode.
      */
-    ActionPtr executeCommandsOnSequencer(const Object& commands,
+    ActionPtr executeCommandsOnSequencer(CommandData&& commandData,
                                          const ContextPtr& context,
                                          const CoreComponentPtr& baseComponent,
                                          const std::string& sequencer);
@@ -178,7 +179,7 @@ public:
      * @param root new root context.
      * @return true if successful, false otherwise.
      */
-    bool reattachSequencer(const std::string& sequencerName, const ActionPtr& action, const RootContext& root);
+    bool reattachSequencer(const std::string& sequencerName, const ActionPtr& action, const CoreDocumentContext& context);
 
 private:
     friend class ReinflateCommand;

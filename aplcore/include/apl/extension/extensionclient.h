@@ -17,18 +17,21 @@
 #define _APL_EXTENSION_CLIENT_H
 
 #include "apl/common.h"
+#include "apl/content/extensioncommanddefinition.h"
 #include "apl/content/extensioncomponentdefinition.h"
+#include "apl/content/extensioneventhandler.h"
+#include "apl/content/extensionfilterdefinition.h"
 #include "apl/content/extensionproperty.h"
 #include "apl/content/jsondata.h"
 #include "apl/engine/event.h"
 #include "apl/livedata/livedataobjectwatcher.h"
+#include "apl/livedata/liveobject.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/noncopyable.h"
 #include "apl/utils/session.h"
 
 namespace apl {
 
-class RootConfig;
 class LiveArrayChange;
 class LiveMapChange;
 
@@ -115,7 +118,22 @@ public:
 };
 
 /**
- * Extension processing client. Refer to unittest_extension.client.cpp for suggested lifecycle.
+ * Encapsulate schema information that ExtensionClient is responsible for collecting during
+ * registration. This information can be retrieved via @see ExtensionClient::extensionSchema
+ */
+struct ParsedExtensionSchema {
+    Object environment;
+    std::map<std::string, TypePropertiesPtr> types;
+    std::vector<ExtensionEventHandler> eventHandlers;
+    std::vector<ExtensionCommandDefinition> commandDefinitions;
+    std::vector<ExtensionFilterDefinition> filterDefinitions;
+    std::vector<ExtensionComponentDefinition> componentDefinitions;
+    std::map<std::string, LiveObjectPtr> liveData;
+    std::map<std::string, bool> eventModes;
+};
+
+/**
+ * Extension processing client. Refer to unittest_extension_client.cpp for suggested lifecycle.
  */
 class ExtensionClient : public Counter<ExtensionClient>,
                         public LiveDataObjectWatcher,
@@ -126,13 +144,24 @@ public:
      * @param rootConfig rootConfig pointer.
      * @param uri Requested extension URI.
      * @return ExtensionClient pointer.
+     * @deprecated Extensions should be managed via ExtensionMediator
+     * uri, const SessionPtr& session);
      */
-    static ExtensionClientPtr create(const RootConfigPtr& rootConfig, const std::string& uri);
+    APL_DEPRECATED static ExtensionClientPtr create(const RootConfigPtr& rootConfig, const std::string& uri);
 
     /**
-     * Constructor. Do not use - use create() instead.
+     * @param rootConfig rootConfig pointer.
+     * @param uri Requested extension URI.
+     * @param session Session
+     * @return ExtensionClient pointer.
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
-    ExtensionClient(const RootConfigPtr& rootConfig, const std::string& connectionToken);
+    static ExtensionClientPtr create(const RootConfigPtr& rootConfig, const std::string& uri, const SessionPtr& session);
+
+    /**
+     * Constructor. Do not use - let ExtensionMediator create clients instead.
+     */
+    ExtensionClient(const std::string& uri, const SessionPtr& session, const Object& flags);
 
     /**
      * Destructor
@@ -174,20 +203,30 @@ public:
                                             ExtensionComponent& component);
 
     /**
+     * @return The URI of the extension
+     */
+    std::string getUri() const;
+
+    /**
      * @return True if RegisterSuccess or RegisterFailure was processed. False otherwise.
      */
-    bool registrationMessageProcessed();
+    bool registrationMessageProcessed() const;
 
     /**
      * @return True if extension was successfully registered. False otherwise.
      */
-    bool registered();
+    bool registered() const;
 
     /**
      * @return True if extension failed to register (i.e. registration was processed but failed).
      *         False otherwise.
      */
-    bool registrationFailed();
+    bool registrationFailed() const;
+
+    /**
+     * @return Extension-related information collected during registration
+     */
+    const ParsedExtensionSchema& extensionSchema() const;
 
     /**
      * @return The assigned connection token.
@@ -206,7 +245,7 @@ public:
      * Associate a RootContext to the mediator for events and live data triggers.
      * @param rootContext ctx to bind.
      */
-    void bindContext(const RootContextPtr& rootContext);
+    void bindContext(const CoreRootContextPtr& rootContext);
 
     /**
      * Process extension command into serialized command request.
@@ -248,6 +287,9 @@ protected:
     void liveDataObjectFlushed(const std::string& key, LiveDataObject& liveDataObject) override;
 
 private:
+    friend class ExtensionMediator;
+    friend class ExtensionManager;
+
     // Parse an extension from json
     bool readExtension(const Context& context, const Object& extension);
     bool readExtensionTypes(const Context& context, const Object& types);
@@ -271,26 +313,30 @@ private:
     void reportLiveArrayChanges(const LiveDataRef& ref, const std::vector<LiveArrayChange>& changes);
 
     void sendLiveDataEvent(const std::string& event, const Object& current, const Object& changed);
-    void flushPendingEvents(const RootContextPtr& rootContext);
+    void flushPendingEvents(const CoreDocumentContextPtr& rootContext);
 
     std::map<std::string, bool> readPropertyTriggers(const Context& context, const TypePropertiesPtr& type, const Object& triggers);
 
     void invokeExtensionHandler(const std::string& uri, const std::string& name,
                                 const ObjectMap& data, bool fastMode,
                                 std::string resourceId = "");
+    void bindContextInternal(const CoreDocumentContextPtr& documentContext);
+    bool processMessageInternal(const CoreDocumentContextPtr& documentContext, JsonData&& message);
+    bool handleDisconnectionInternal(const CoreDocumentContextPtr& documentContext, int errorCode, const std::string& message);
 
     static id_type sCommandIdGenerator;
 
     bool mRegistrationProcessed;
     bool mRegistered;
     std::string mUri;
-    std::weak_ptr<RootConfig> mRootConfig;
+    ParsedExtensionSchema mSchema;
+    SessionPtr mSession;
+    Object mFlags;
+    std::shared_ptr<RootConfig> mInternalRootConfig;
     std::string mConnectionToken;
     std::map<std::string, LiveDataRef> mLiveData;
     std::map<id_type, ActionRef> mActionRefs;
-    std::map<std::string, TypePropertiesPtr> mTypes;
-    std::map<std::string, bool> mEventModes;
-    std::weak_ptr<RootContext> mCachedContext;
+    std::weak_ptr<CoreDocumentContext> mCachedContext;
     std::vector<ExtensionEvent> mPendingEvents;
 };
 

@@ -16,8 +16,8 @@
 #ifndef _APL_AUTO_PAGE_ACTION_H
 #define _APL_AUTO_PAGE_ACTION_H
 
-#include "apl/action/resourceholdingaction.h"
 #include "apl/common.h"
+#include "apl/action/resourceholdingaction.h"
 
 namespace apl {
 
@@ -40,7 +40,7 @@ public:
                    apl_time_t duration);
 
     void freeze() override;
-    bool rehydrate(const RootContext& context) override;
+    bool rehydrate(const CoreDocumentContext& context) override;
 
 private:
     void advance();

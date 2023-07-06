@@ -17,7 +17,8 @@
 
 #include "apl/component/corecomponent.h"
 #include "apl/content/configurationchange.h"
-#include "apl/engine/rootcontextdata.h"
+#include "apl/document/coredocumentcontext.h"
+#include "apl/engine/corerootcontext.h"
 #include "apl/livedata/layoutrebuilder.h"
 #include "apl/primitives/size.h"
 #include "apl/utils/tracing.h"
@@ -35,9 +36,9 @@ yogaNodeDirtiedCallback(YGNodeRef node)
     component->getContext()->layoutManager().requestLayout(component->shared_from_corecomponent(), false);
 }
 
-LayoutManager::LayoutManager(const apl::RootContextData& core)
-    : mCore(core),
-      mConfiguredSize(mCore.getSize())
+LayoutManager::LayoutManager(const CoreRootContext& coreRootContext, const Size& size)
+    : mRoot(coreRootContext),
+      mConfiguredSize(size)
 {
 }
 
@@ -46,6 +47,12 @@ LayoutManager::terminate()
 {
     mTerminated = true;
     mPendingLayout.clear();
+}
+
+void
+LayoutManager::setSize(const Size& size)
+{
+    mConfiguredSize = size;
 }
 
 bool
@@ -60,32 +67,40 @@ LayoutManager::needsLayout() const
 void
 LayoutManager::firstLayout()
 {
-    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << mTerminated;
+    LOG_IF(DEBUG_LAYOUT_MANAGER) << mTerminated;
 
     if (mTerminated)
         return;
 
     APL_TRACE_BLOCK("LayoutManager:firstLayout");
 
-    assert(mCore.top());
-    YGNodeSetDirtiedFunc(mCore.top()->getNode(), yogaNodeDirtiedCallback);
-    mPendingLayout.emplace(mCore.top());
+    auto top = CoreComponent::cast(mRoot.topComponent());
+    setAsTopNode(top);
+    mPendingLayout.emplace(top);
     layout(false, true);
 }
 
 void
-LayoutManager::configChange(const ConfigurationChange& change)
+LayoutManager::configChange(const ConfigurationChange& change,
+                            const CoreDocumentContextPtr& document)
 {
     if (mTerminated)
         return;
 
+    auto top = CoreComponent::cast(document->topComponent());
+    Size size = top->getLayoutSize();
+
     // Update the global size to match the configuration change
-    mConfiguredSize = change.mergeSize(mConfiguredSize) * mCore.getPxToDp();
+    if (change.hasSizeChange()) {
+        size = change.getSize() * mRoot.getPxToDp();
+        if (!document->isEmbedded()) {
+            mConfiguredSize = size;
+        }
+    }
 
     // If there is a size mismatch, schedule a layout
-    auto top = mCore.top();
-    if (top && top->getLayoutSize() != mConfiguredSize)
-        mPendingLayout.emplace(top);
+    if (top && top->getLayoutSize() != size)
+        requestLayout(top, false);
 }
 
 static bool
@@ -108,7 +123,7 @@ compareComponents(const CoreComponentPtr& a, const CoreComponentPtr& b)
 void
 LayoutManager::layout(bool useDirtyFlag, bool first)
 {
-    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << mTerminated << " dirty_flag=" << useDirtyFlag;
+    LOG_IF(DEBUG_LAYOUT_MANAGER) << mTerminated << " dirty_flag=" << useDirtyFlag;
 
     if (mTerminated || mInLayout)
         return;
@@ -119,7 +134,7 @@ LayoutManager::layout(bool useDirtyFlag, bool first)
 
     mInLayout = true;
     while (needsLayout()) {
-        LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << "Laying out " << mPendingLayout.size() << " component(s)";
+        LOG_IF(DEBUG_LAYOUT_MANAGER) << "Laying out " << mPendingLayout.size() << " component(s)";
 
         // Copy the pending components into a vector and sort them from top to bottom
         std::vector<CoreComponentPtr> dirty(mPendingLayout.begin(), mPendingLayout.end());
@@ -138,8 +153,11 @@ LayoutManager::layout(bool useDirtyFlag, bool first)
     auto postProcess = mPostProcess;
     mPostProcess.clear();
 
-    for (const auto& m : postProcess)
-        m.first.first->setProperty(m.first.second, m.second);
+    for (const auto& m : postProcess) {
+        auto component = m.first.first.lock();
+        if (component)
+            component->setProperty(m.first.second, m.second);
+    }
 
     // After layout has completed we mark individual components as allowing event handlers
     for (const auto& m : laidOut)
@@ -149,7 +167,7 @@ LayoutManager::layout(bool useDirtyFlag, bool first)
 void
 LayoutManager::flushLazyInflation()
 {
-    flushLazyInflationInternal(mCore.top());
+    flushLazyInflationInternal(CoreComponent::cast(mRoot.topComponent()));
 }
 
 void
@@ -166,17 +184,28 @@ LayoutManager::flushLazyInflationInternal(const CoreComponentPtr& comp)
 void
 LayoutManager::setAsTopNode(const CoreComponentPtr& component)
 {
-    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << component->toDebugSimpleString();
     assert(component);
+    LOG_IF(DEBUG_LAYOUT_MANAGER) << component->toDebugSimpleString();
     YGNodeSetDirtiedFunc(component->getNode(), yogaNodeDirtiedCallback);
 }
 
 void
 LayoutManager::removeAsTopNode(const CoreComponentPtr& component)
 {
-    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << component->toDebugSimpleString();
     assert(component);
+    LOG_IF(DEBUG_LAYOUT_MANAGER) << component->toDebugSimpleString();
     YGNodeSetDirtiedFunc(component->getNode(), nullptr);
+
+    // Also remove from pending list
+    remove(component);
+}
+
+bool
+LayoutManager::isTopNode(const std::shared_ptr<const CoreComponent>& component) const
+{
+    assert(component);
+
+    return YGNodeGetDirtiedFunc(component->getNode());
 }
 
 void
@@ -185,26 +214,38 @@ LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyF
     APL_TRACE_BLOCK("LayoutManager:layoutComponent");
     auto parent = component->getParent();
 
-    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << "component=" << component->toDebugSimpleString()
+    LOG_IF(DEBUG_LAYOUT_MANAGER) << "component=" << component->toDebugSimpleString()
                                  << " dirty_flag=" << useDirtyFlag
                                  << " parent=" << (parent ? parent->toDebugSimpleString() : "none");
 
-    Size size = parent ? parent->getCalculated(kPropertyInnerBounds).get<Rect>().getSize() : mConfiguredSize;
-    if (size.empty())
-        return;
+    Size size;
+    float width, height;
+
+    if (!parent) { // Top component
+        size = mConfiguredSize;
+        width = mRoot.getAutoWidth() ? YGUndefined : size.getWidth();
+        height = mRoot.getAutoHeight() ? YGUndefined : size.getHeight();
+    } else {
+        size = parent->getCalculated(kPropertyInnerBounds).get<Rect>().getSize();
+        if (size == Size())
+            return;
+        width = size.getWidth();
+        height = size.getHeight();
+    }
 
     auto node = component->getNode();
 
     // Layout the component if it has a dirty Yoga node OR if the cached size doesn't match the target size
+    // Note that the top-level component may get laid out multiple times if it auto sizes.
     if (YGNodeIsDirty(node) || size != component->getLayoutSize()) {
         component->preLayoutProcessing(useDirtyFlag);
         APL_TRACE_BEGIN("LayoutManager:YGNodeCalculateLayout");
-        YGNodeCalculateLayout(node, size.getWidth(), size.getHeight(), component->getLayoutDirection());
+        YGNodeCalculateLayout(node, width, height, component->getLayoutDirection());
         APL_TRACE_END("LayoutManager:YGNodeCalculateLayout");
         component->processLayoutChanges(useDirtyFlag, first);
 
         if (mNeedToReProcessLayoutChanges) {
-            // Previous call may have changed sizes for auto-sized components if any lazyness involved. Apply this changes.
+            // Previous call may have changed sizes for auto-sized components if any laziness involved. Apply this changes.
             component->processLayoutChanges(useDirtyFlag, first);
             mNeedToReProcessLayoutChanges = false;
         }
@@ -218,13 +259,13 @@ LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyF
 void
 LayoutManager::requestLayout(const CoreComponentPtr& component, bool force)
 {
-    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << component->toDebugSimpleString() << " force=" << force;
+    LOG_IF(DEBUG_LAYOUT_MANAGER) << component->toDebugSimpleString() << " force=" << force;
     assert(component);
 
     if (mTerminated)
         return;
 
-    assert(YGNodeGetDirtiedFunc(component->getNode()));
+    assert(isTopNode(component));
     mPendingLayout.emplace(component);
     if (force)
         component->setLayoutSize({});
@@ -258,7 +299,7 @@ LayoutManager::remove(const CoreComponentPtr& component)
 bool
 LayoutManager::ensure(const CoreComponentPtr& component)
 {
-    LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << component->toDebugSimpleString();
+    LOG_IF(DEBUG_LAYOUT_MANAGER) << component->toDebugSimpleString();
 
     // Walk up the component hierarchy and ensure that Yoga nodes are correctly attached
     bool result = false;
@@ -277,7 +318,7 @@ LayoutManager::ensure(const CoreComponentPtr& component)
                     attachedYogaNodeNeedsLayout = false;
                 }
             } else {   // This child needs to be attached to its parent
-                LOG_IF(DEBUG_LAYOUT_MANAGER).session(mCore.session()) << "Attaching yoga node from: " << child->toDebugSimpleString();
+                LOG_IF(DEBUG_LAYOUT_MANAGER) << "Attaching yoga node from: " << child->toDebugSimpleString();
                 parent->attachYogaNode(child);
                 attachedYogaNodeNeedsLayout = true;
             }

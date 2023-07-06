@@ -70,6 +70,28 @@ struct sym_attribute : one<'.'> {};
 struct sym_array_access_start : one<'['> {};
 struct sym_array_access_end : one<']'> {};
 
+// The "#{...}" starting symbol is only available in 2023.2 and higher
+// struct sym_delaystart : string<'#', '{'>{};
+// template<typename... Rules>
+struct sym_delaystart
+{
+    template< apply_mode A,
+              rewind_mode M,
+              template< typename... > class Action,
+              template< typename... > class Control,
+              typename Input >
+    static bool match( Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (assembler.canDeferAndEval() && in.size(2) >= 2) {
+            const auto *ptr = in.current();
+            if (ptr[0] == '#' && ptr[1] == '{') {
+                in.bump(2);
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
 struct sep : space {};
 struct ws : star<sep> {};
 
@@ -136,12 +158,36 @@ struct group_start : one<'('> {};
 struct group_end : one<')'> {};
 struct grouping : if_must<group_start, ws, expression, ws, group_end > {};
 
+// The "eval()" built-in function is only available in 2023.2 and higher.
+// struct eval_start : string<'e','v','a','l','('> {};
+struct eval_start
+{
+    template< apply_mode A,
+              rewind_mode M,
+              template< typename... > class Action,
+              template< typename... > class Control,
+              typename Input >
+    static bool match( Input& in, fail_state& failState, ByteCodeAssembler& assembler ) {
+        if (assembler.canDeferAndEval() && in.size(5) >= 5) {
+            const auto *ptr = in.current();
+            if (ptr[0] == 'e' && ptr[1] == 'v' && ptr[2] == 'a' && ptr[3] == 'l' && ptr[4] == '(') {
+                in.bump(5);
+                return true;
+            }
+        }
+        return false;
+    }
+};
+struct eval_end : one<')'> {};
+struct evaluation : if_must<eval_start, ws, expression, ws, eval_end> {};
+
 struct factor : sor<
     grouping,
     key_true,
     key_false,
     key_null,
     dimension,
+    evaluation,
     postfix_expression,
     number,
     ss_string,
@@ -164,7 +210,8 @@ struct expression : ternary_expression {};
 
 struct db_empty : success {};    // No expression - by default we insert an empty string
 struct db_body : pad_opt<sor<expression, db_empty>, sep> {};
-struct db : if_must<sym_dbstart, db_body, sym_dbend> {};
+struct db_head : sor<sym_dbstart, sym_delaystart> {};
+struct db : if_must<db_head, db_body, sym_dbend> {};
 
 // TODO: This assumes UTF-8 encoding.  We're relying on RapidJSON to return UTF-8
 struct char_ : utf8::any {};
@@ -172,7 +219,7 @@ struct char_ : utf8::any {};
 // Double-quoted string.  E.g.: ${"foo"}
 struct sym_double_quote : one<'"'> {};
 struct ds_char : char_ {};
-struct ds_raw : until<sor<at<sym_double_quote>, at<sym_dbstart> >, must<ds_char> > {};
+struct ds_raw : until<sor<at<sym_double_quote>, at<sym_dbstart>, at<sym_delaystart> >, must<ds_char> > {};
 struct ds_start : sym_double_quote {};
 struct ds_end : sym_double_quote {};
 struct ds_body : list<ds_raw, db> {};
@@ -181,15 +228,15 @@ struct ds_string : if_must<ds_start, ds_body, ds_end> {};
 // Single-quoted string.  E.g.: ${'foo'}
 struct sym_single_quote : one<'\''> {};
 struct ss_char : char_ {};
-struct ss_raw : until<sor<at<sym_single_quote>, at<sym_dbstart> >, must<ss_char> > {};
+struct ss_raw : until<sor<at<sym_single_quote>, at<sym_dbstart>, at<sym_delaystart> >, must<ss_char> > {};
 struct ss_start : sym_single_quote {};
 struct ss_end : sym_single_quote {};
 struct ss_body : list<ss_raw, db> {};
 struct ss_string : if_must<ss_start, ss_body, ss_end> {};
 
-// NOTE: Probably can change this to until< at<sym_dbstart>, char_ > {};
+// NOTE: Probably can change this to until< sor<at<sym_dbstart>, at<sym_delaystart>> >, char_ > {};
 // Open-string:  E.g. "this is a ${1+3} generic string"
-struct os_raw : until<sor<at<eof>, at<sym_dbstart> >, must<char_> > {};
+struct os_raw : until<sor<at<eof>, at<sym_dbstart>, at<sym_delaystart> >, must<char_> > {};
 struct os_start : success {};
 struct os_string : seq<os_start, list<os_raw, db>> {};
 

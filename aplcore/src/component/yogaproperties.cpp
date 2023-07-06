@@ -177,7 +177,7 @@ void setPosition(YGNodeRef nodeRef, YGEdge edge, const Object& value, const Cont
 
 void
 setFlexDirection(YGNodeRef nodeRef, const Object& value, const Context& context) {
-    LOG_IF(DEBUG_FLEXBOX).session(context) << sScrollDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
+    LOG_IF(DEBUG_FLEXBOX).session(context) << sContainerDirectionMap.at(value.asInt()) << " [" << nodeRef << "]";
     auto flexDirection = static_cast<ContainerDirection>(value.asInt());
     switch (flexDirection) {
         case kContainerDirectionColumn:

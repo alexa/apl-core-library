@@ -334,9 +334,9 @@ EditTextComponent::isCharacterValid(const wchar_t wc) const
 }
 
 PointerCaptureStatus
-EditTextComponent::processPointerEvent(const PointerEvent& event, apl_time_t timestamp)
+EditTextComponent::processPointerEvent(const PointerEvent& event, apl_time_t timestamp, bool onlyProcessGestures)
 {
-    auto pointerStatus = ActionableComponent::processPointerEvent(event, timestamp);
+    auto pointerStatus = ActionableComponent::processPointerEvent(event, timestamp, onlyProcessGestures);
     if (pointerStatus != kPointerStatusNotCaptured)
         return pointerStatus;
 
@@ -636,7 +636,6 @@ EditTextComponent::ensureEditConfig()
         getCalculated(kPropertyColor).getColor(),
         getCalculated(kPropertyHighlightColor).getColor(),
         getCalculated(kPropertyKeyboardType).asEnum<KeyboardType>(),
-        getCalculated(kPropertyLang).asString(),
         getCalculated(kPropertyMaxLength).asInt(),
         getCalculated(kPropertySecureInput).asBoolean(),
         getCalculated(kPropertySubmitKeyType).asEnum<SubmitKeyType>(),
@@ -657,9 +656,11 @@ EditTextComponent::ensureEditTextProperties()
     mEditTextProperties = sg::TextProperties::create(
         mContext->textPropertiesCache(),
         sg::splitFontString(mContext->getRootConfig(),
+                            mContext->session(),
                             getCalculated(kPropertyFontFamily).getString()),
         getCalculated(kPropertyFontSize).asFloat(),
         getCalculated(kPropertyFontStyle).asEnum<FontStyle>(),
+        getCalculated(kPropertyLang).getString(),
         getCalculated(kPropertyFontWeight).getInteger());
 
     return true;
@@ -685,9 +686,11 @@ EditTextComponent::ensureHintLayout()
         mHintTextProperties = sg::TextProperties::create(
             context->textPropertiesCache(),
             sg::splitFontString(context->getRootConfig(),
+                                context->session(),
                                 getCalculated(kPropertyFontFamily).getString()),
             getCalculated(kPropertyFontSize).asFloat(),
             getCalculated(kPropertyHintStyle).asEnum<FontStyle>(),
+            getCalculated(kPropertyLang).getString(),
             getCalculated(kPropertyHintWeight).getInteger(),
             0,     // Letter spacing
             1.25f, // Line height

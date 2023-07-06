@@ -46,8 +46,7 @@ public:
     bool operator<(const ImportRequest& other) const { return this->compare(other) < 0; }
 
     int compare(const ImportRequest& other) const {
-        int result = mReference.compare(other.reference());
-        return result == 0 ? mSource.compare(other.mSource) : result;
+        return mReference.compare(other.reference());
     }
     uint32_t getUniqueId() const { return mUniqueId; }
     const std::string& source() const { return mSource; }

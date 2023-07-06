@@ -18,9 +18,11 @@
 
 #include "apl/command/command.h"
 #include "apl/component/corecomponent.h"
+#include "apl/document/coredocumentcontext.h"
 #include "apl/engine/context.h"
 #include "apl/engine/event.h"
 #include "apl/engine/propdef.h"
+#include "apl/primitives/commanddata.h"
 #include "apl/primitives/objectbag.h"
 #include "apl/utils/bimap.h"
 
@@ -28,7 +30,8 @@ namespace apl {
 
 extern Bimap<int, std::string> sCommandNameBimap;
 
-using CommandCreateFunc = std::function<CommandPtr(const ContextPtr&, Properties&&, const CoreComponentPtr&, const std::string&)>;
+using CommandCreateFunc = std::function<CommandPtr(
+    const ContextPtr&, CommandData&&, Properties&&, const CoreComponentPtr&, const std::string&)>;
 extern std::map<int, CommandCreateFunc> sCommandCreatorMap;
 
 class CoreCommand;
@@ -73,6 +76,7 @@ class CoreCommand : public Command {
 
 public:
     CoreCommand(const ContextPtr& context,
+                CommandData&& commandData,
                 Properties&& properties,
                 const CoreComponentPtr& base,
                 const std::string& parentSequencer);
@@ -94,7 +98,9 @@ public:
     virtual const CommandPropDefSet& propDefSet() const;
 
     void freeze() final;
-    bool rehydrate(const RootContext& context) final;
+    bool rehydrate(const CoreDocumentContext& context) final;
+
+    const CommandData& data() const { return mCommandData; }
 
 protected:
     bool validate();
@@ -102,6 +108,8 @@ protected:
 
 protected:
     ContextPtr        mContext;
+    // Data that this command was created from and requires to operate properly.
+    CommandData       mCommandData;
     Properties        mProperties;
     CoreComponentPtr  mBase;
     CommandBag        mValues;
@@ -118,6 +126,48 @@ private:
     bool mMissingTargetId = false;
 };
 
+/**
+ * Template for command definition in order to avoid copying creation and constructor primitives.
+ * @tparam Name Command name.
+ */
+template<class Name>
+class TemplatedCommand : public CoreCommand {
+public:
+    static CommandPtr create(const ContextPtr& context,
+                             CommandData&& commandData,
+                             Properties&& properties,
+                             const CoreComponentPtr& base,
+                             const std::string& parentSequencer) {
+        auto ptr = std::make_shared<Name>(context, std::move(commandData), std::move(properties), base, parentSequencer);
+        return ptr->validate() ? ptr : nullptr;
+    }
+
+    TemplatedCommand<Name>(
+        const ContextPtr& context,
+        CommandData&& commandData,
+        Properties&& properties,
+        const CoreComponentPtr& base,
+        const std::string& parentSequencer)
+        : CoreCommand(context, std::move(commandData), std::move(properties), base, parentSequencer)
+    {}
+};
+
+/// Constructor helper to use in conjunction with template above (templates can't properly define
+/// constructors in C++11).
+#define COMMAND_CONSTRUCTOR(NAME)           \
+    NAME(                                   \
+        const ContextPtr& context,          \
+        CommandData&& commandData,          \
+        Properties&& properties,            \
+        const CoreComponentPtr& base,       \
+        const std::string& parentSequencer) \
+            : TemplatedCommand<NAME>(       \
+              context,                      \
+              std::move(commandData),       \
+              std::move(properties),        \
+              base,                         \
+              parentSequencer)              \
+    {}
 } // namespace apl
 
 #endif //_APL_COMMAND_CORE_COMMAND_H

@@ -14,6 +14,7 @@
  */
 
 #include "apl/action/animateitemaction.h"
+
 #include "apl/animation/animatedproperty.h"
 #include "apl/command/corecommand.h"
 #include "apl/content/rootconfig.h"
@@ -154,7 +155,7 @@ AnimateItemAction::freeze()
 }
 
 bool
-AnimateItemAction::rehydrate(const RootContext& context)
+AnimateItemAction::rehydrate(const CoreDocumentContext& context)
 {
     if (!ResourceHoldingAction::rehydrate(context)) return false;
 

@@ -16,10 +16,10 @@
 #ifndef _APL_COMMAND_H
 #define _APL_COMMAND_H
 
-#include "apl/utils/counter.h"
-#include "apl/utils/noncopyable.h"
 #include "apl/action/action.h"
 #include "apl/command/commandproperties.h"
+#include "apl/utils/counter.h"
+#include "apl/utils/noncopyable.h"
 
 namespace apl {
 
@@ -92,7 +92,7 @@ public:
      * @param context new RootContext.
      * @return true if successful, false otherwise.
      */
-    virtual bool rehydrate(const RootContext& context) { return false; }
+    virtual bool rehydrate(const CoreDocumentContext& context) { return false; }
 };
 
 } // namespace apl

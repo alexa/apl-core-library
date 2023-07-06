@@ -18,7 +18,8 @@
 #include <memory>
 #include <string>
 
-namespace MusicAlarm {
+namespace alexaext {
+namespace musicalarm {
 
 class AplMusicAlarmExtensionObserverInterface {
 public:
@@ -40,6 +41,10 @@ public:
 
 using AplMusicAlarmExtensionObserverInterfacePtr = std::shared_ptr<AplMusicAlarmExtensionObserverInterface>;
 
-} // MusicAlarm
+}  // namespace musicalarm
+}  // namespace alexaext
+
+// TODO Remove this: https://tiny.amazon.com/asvt1s36
+namespace MusicAlarm = alexaext::musicalarm;
 
 #endif // APL_APLMUSICALARMEXTENSIONOBSERVERINTERFACE_H

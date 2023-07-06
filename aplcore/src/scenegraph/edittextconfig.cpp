@@ -24,7 +24,6 @@ EditTextConfigPtr
 EditTextConfig::create(Color textColor,
                         Color highlightColor,
                         KeyboardType keyboardType,
-                        const std::string& language,
                         unsigned int maxLength,
                         bool secureInput,
                         SubmitKeyType submitKeyType,
@@ -39,7 +38,6 @@ EditTextConfig::create(Color textColor,
     ptr->mTextColor = textColor;
     ptr->mHighlightColor = highlightColor;
     ptr->mKeyboardType = keyboardType;
-    ptr->mLanguage = language;
     ptr->mMaxLength = maxLength;
     ptr->mSecureInput = secureInput;
     ptr->mSubmitKeyType = submitKeyType;
@@ -82,7 +80,6 @@ EditTextConfig::serialize(rapidjson::Document::AllocatorType& allocator) const
         rapidjson::Value(sKeyboardBehaviorOnFocusMap.at(mKeyboardBehaviorOnFocus).c_str(),
                          allocator),
         allocator);
-    result.AddMember("language", rapidjson::Value(mLanguage.c_str(), allocator), allocator);
     result.AddMember("maxLength", mMaxLength, allocator);
     result.AddMember("secureInput", static_cast<bool>(mSecureInput), allocator);
     result.AddMember("selectOnFocus", static_cast<bool>(mSelectOnFocus), allocator);

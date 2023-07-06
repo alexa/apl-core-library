@@ -14,6 +14,8 @@
 target_sources_local(apl
     PRIVATE
     accessibilityaction.cpp
+    boundsymbol.cpp
+    boundsymbolset.cpp
     color.cpp
     dimension.cpp
     filter.cpp
@@ -29,7 +31,6 @@ target_sources_local(apl
     roundedrect.cpp
     styledtext.cpp
     styledtextstate.cpp
-    symbolreferencemap.cpp
     timefunctions.cpp
     timegrammar.cpp
     transform.cpp

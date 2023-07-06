@@ -18,12 +18,10 @@
 
 #include <memory>
 
+#include "apl/common.h"
+#include "apl/primitives/point.h"
+
 namespace apl {
-
-class CoreComponent;
-
-class RootContextData;
-
 
 /// HoveManager is responsible for managing the hover state of a Component and
 /// executing the OnCursorEnter and OnCursorExit handlers of the component.
@@ -58,14 +56,7 @@ class RootContextData;
 ///
 class HoverManager {
 public:
-    explicit HoverManager(const RootContextData& core) : mCore(core) {}
-
-    /**
-     * @return The cursor position.
-     */
-    Point cursorPosition() const {
-        return mCursorPosition;
-    }
+    explicit HoverManager(const CoreRootContext& core) : mCore(core) {}
 
     /**
      * Set cursor position
@@ -93,7 +84,7 @@ public:
     void componentToggledDisabled(const CoreComponentPtr& component);
 
 private:
-    const RootContextData& mCore;
+    const CoreRootContext& mCore;
     std::weak_ptr<CoreComponent> mHover;
     Point mCursorPosition;
 

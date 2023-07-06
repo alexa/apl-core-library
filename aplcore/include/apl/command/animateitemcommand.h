@@ -20,20 +20,9 @@
 
 namespace apl {
 
-class AnimateItemCommand : public CoreCommand {
+class AnimateItemCommand : public TemplatedCommand<AnimateItemCommand> {
 public:
-    static CommandPtr create(const ContextPtr& context,
-                             Properties&& properties,
-                             const CoreComponentPtr& base,
-                             const std::string& parentSequencer) {
-        auto ptr = std::make_shared<AnimateItemCommand>(context, std::move(properties), base, parentSequencer);
-        return ptr->validate() ? ptr : nullptr;
-    }
-
-    AnimateItemCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base, const std::string& parentSequencer)
-            : CoreCommand(context, std::move(properties), base, parentSequencer)
-    {
-    }
+    COMMAND_CONSTRUCTOR(AnimateItemCommand);
 
     const CommandPropDefSet& propDefSet() const override;
 

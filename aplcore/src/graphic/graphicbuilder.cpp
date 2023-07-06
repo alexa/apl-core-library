@@ -16,7 +16,7 @@
 #include "apl/graphic/graphicbuilder.h"
 
 #include "apl/engine/arrayify.h"
-#include "apl/engine/contextdependant.h"
+#include "apl/engine/typeddependant.h"
 
 #include "apl/graphic/graphic.h"
 #include "apl/graphic/graphicelementcontainer.h"
@@ -93,7 +93,7 @@ GraphicBuilder::addChildren(GraphicElement& element, const Object& json)
     // TODO: Add live data object later (maybe).  Right now LiveData isn't quite exposed to AVG.
     if (mMultichildSupport) {
         const auto data = arrayifyPropertyAsObject(context, json, "data");
-        const auto dataItems = evaluateRecursive(context, data);
+        const auto dataItems = evaluateNested(context, data);
         if (!dataItems.empty()) {
             LOG_IF(DEBUG_GRAPHIC_BUILDER).session(context) << "Data child inflation: " << dataItems;
             const auto length = dataItems.size();
@@ -162,17 +162,14 @@ GraphicBuilder::createChild(const ContextPtr& context, const Object& json)
         }
 
         // Extract the binding as an optional node tree.
-        auto tmp = propertyAsNode(*expanded, binding, "value");
-        auto value = evaluateRecursive(*expanded, tmp);
-        auto bindingType = propertyAsMapped<BindingType>(*expanded, binding, "type", kBindingTypeAny, sBindingMap);
+        auto result = parseAndEvaluate(*context, binding.get("value"));
+        auto bindingType =
+            propertyAsMapped<BindingType>(*expanded, binding, "type", kBindingTypeAny, sBindingMap);
         auto bindingFunc = sBindingFunctions.at(bindingType);
-
-        // Store the value in the new context.  Binding values are mutable; they can be changed later.
-        expanded->putUserWriteable(name, bindingFunc(*expanded, value));
-
-        // If it is a node, we connect up the symbols that it is dependant upon
-        if (tmp.isEvaluable())
-            ContextDependant::create(expanded, name, tmp, expanded, bindingFunc);
+        context->putUserWriteable(name, bindingFunc(*context, result.value));
+        if (!result.symbols.empty())
+            ContextDependant::create(context, name, std::move(result.expression), context,
+                                     std::move(bindingFunc), std::move(result.symbols));
     }
 
     // Inflate the child

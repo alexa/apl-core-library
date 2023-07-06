@@ -25,9 +25,10 @@
 #include <alexaext/alexaext.h>
 #include <rapidjson/document.h>
 
+#include "apl/content/extensionrequest.h"
+#include "apl/document/coredocumentcontext.h"
 #include "apl/extension/extensioncomponent.h"
 #include "apl/extension/extensionmediator.h"
-#include "apl/primitives/objectdata.h"
 
 using namespace alexaext;
 
@@ -316,80 +317,100 @@ ExtensionMediator::ExtensionMediator(const ExtensionProviderPtr& provider,
 // TODO
 
 void
-ExtensionMediator::bindContext(const RootContextPtr& context)
+ExtensionMediator::bindContext(const CoreDocumentContextPtr& context)
 {
     // Called by RootContext on create to create an association for event and data updates.
     // This goes away when ExtensionManager registers callbacks directly.
-    mRootContext = context;
+    mDocumentContext = context;
     for (auto& client : mClients) {
-        client.second->bindContext(context);
+        client.second->bindContextInternal(context);
     }
-    onDisplayStateChanged(context->getDisplayState());
+    onDisplayStateChanged(context->mDisplayState);
 }
 
 void
 ExtensionMediator::initializeExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content,
                                         const ExtensionGrantRequestCallback& grantHandler) {
+    if (rootConfig == nullptr) {
+        return;
+    }
+    initializeExtensions(rootConfig->getExtensionFlags(), content, grantHandler);
+}
 
-    auto uris = content->getExtensionRequests();
+void
+ExtensionMediator::initializeExtensions(const ObjectMap& flagMap, const ContentPtr& content,
+                                        const ExtensionGrantRequestCallback& grantHandler) {
+    const auto& extensionRequests = content->getExtensionRequestsV2();
     auto extensionProvider = mProvider.lock();
-    if (rootConfig == nullptr || uris.empty() || extensionProvider == nullptr) {
+    if (extensionRequests.empty() || extensionProvider == nullptr) {
         return;
     }
 
+    mSession = content->getSession();
+
     std::weak_ptr<ExtensionMediator> weak_this = shared_from_this();
-    std::weak_ptr<RootConfig> weak_config = rootConfig;
-    for (const auto& uri : uris) {
-        if (mPendingRegistrations.count(uri)) continue;
+    for (const auto& request : extensionRequests) {
+        if (request.required) mRequired.emplace(request.uri);
+        if (mPendingRegistrations.count(request.uri)) continue;
 
-        LOG_IF(DEBUG_EXTENSION_MEDIATOR).session(rootConfig) << "initialize extension: " << uri
-                                         << " has extension: " << extensionProvider->hasExtension(uri);
+        LOG_IF(DEBUG_EXTENSION_MEDIATOR).session(mSession) << "initialize extension: " << request.uri
+                                         << " has extension: " << extensionProvider->hasExtension(request.uri);
 
-        mPendingGrants.insert(uri);
+        mPendingGrants.insert(request.uri);
+
+        // Check if we've been given flags for this specific extension
+        Object flags;
+        auto it = flagMap.find(request.uri);
+        if (it != flagMap.end())
+            flags = it->second;
+
         if (grantHandler) {
             // callback to grant/deny access to extension
             grantHandler(
-                uri,
-                [weak_this, weak_config](const std::string& grantedUri) {
+                request.uri,
+                [weak_this, flags](const std::string& grantedUri) {
                     if (auto mediator = weak_this.lock())
-                        mediator->grantExtension(weak_config.lock(), grantedUri);
+                        mediator->grantExtension(flags, grantedUri);
                 },
-                [weak_this, weak_config](const std::string& deniedUri) {
+                [weak_this](const std::string& deniedUri) {
                   if (auto mediator = weak_this.lock())
-                      mediator->denyExtension(weak_config.lock(), deniedUri);
+                      mediator->denyExtension(deniedUri);
                 });
         } else {
             // auto-grant when no grant handler
-            grantExtension(rootConfig, uri);
+            grantExtension(flags, request.uri);
         }
     }
 }
 
 void
-ExtensionMediator::grantExtension(const RootConfigPtr& rootConfig, const std::string& uri) {
-
+ExtensionMediator::grantExtension(const Object& flags, const std::string& uri)
+{
     if (!mPendingGrants.count(uri))
         return;
-    LOG_IF(DEBUG_EXTENSION_MEDIATOR).session(rootConfig) << "Extension granted: " << uri;
+    LOG_IF(DEBUG_EXTENSION_MEDIATOR).session(mSession) << "Extension granted: " << uri;
 
     mPendingGrants.erase(uri);
     auto extensionProvider = mProvider.lock();
-    if (rootConfig == nullptr  || extensionProvider == nullptr) {
+    if (extensionProvider == nullptr) {
         return;
     }
 
     if (extensionProvider->hasExtension(uri)) {
+        auto required = mRequired.count(uri);
         // First get will call initialize.
         auto proxy = extensionProvider->getExtension(uri);
         if (!proxy) {
-            CONSOLE(rootConfig) << "Failed to retrieve proxy for extension: " << uri;
+            if (required) mFailState = true;
+            CONSOLE(mSession) << "Failed to retrieve proxy for extension: " << uri;
             return;
         }
 
         // create a client for message processing
-        auto client = ExtensionClient::create(rootConfig, uri);
+        auto client = std::make_shared<ExtensionClient>(uri, mSession, flags);
         if (!client) {
-            CONSOLE(rootConfig) << "Failed to create client for extension: " << uri;
+            if (required) mFailState = true;
+            CONSOLE(mSession) << "Failed to create client for extension: " << uri;
             return;
         }
         auto activity = getActivity(uri);
@@ -403,35 +424,46 @@ ExtensionMediator::grantExtension(const RootConfigPtr& rootConfig, const std::st
 }
 
 void
-ExtensionMediator::denyExtension(const RootConfigPtr& rootConfig, const std::string& uri) {
+ExtensionMediator::denyExtension(const std::string& uri)
+{
     mPendingGrants.erase(uri);
-    LOG_IF(DEBUG_EXTENSION_MEDIATOR).session(rootConfig) << "Extension denied: " << uri;
+    if (mRequired.count(uri)) {
+        mFailState = true;
+        LOG(LogLevel::kError) << "Required extension " << uri << " denied.";
+    }
+    LOG_IF(DEBUG_EXTENSION_MEDIATOR).session(mSession) << "Extension denied: " << uri;
 }
 
 void
-ExtensionMediator::loadExtensionsInternal(const RootConfigPtr& rootConfig, const ContentPtr& content)
+ExtensionMediator::loadExtensionsInternal(const ObjectMap& flagMap, const ContentPtr& content)
 {
+    if (mFailState) {
+        if (mLoadedCallback) {
+            mLoadedCallback(false);
+        }
+        return;
+    }
 
     if (!mPendingGrants.empty()) {
-        LOG(LogLevel::kWarn).session(content->getSession()) << "Loading extensions with pending grant requests.  "
+        LOG(LogLevel::kWarn).session(mSession) << "Loading extensions with pending grant requests.  "
             << "Failure to grant extension use makes the extension unavailable for the session.";
         mPendingGrants.clear();
     }
 
     // No extensions to load
     auto extensionProvider = mProvider.lock();
-    if (rootConfig == nullptr || mPendingRegistrations.empty() || extensionProvider == nullptr) {
+    if (mPendingRegistrations.empty() || extensionProvider == nullptr) {
         if (mLoadedCallback) {
-            mLoadedCallback();
+            mLoadedCallback(true);
         }
         return;
     }
 
-    auto session = rootConfig->getSession();
     auto pendingRegistrations = mPendingRegistrations;
     for (const auto& uri : pendingRegistrations) {
-        LOG_IF(DEBUG_EXTENSION_MEDIATOR).session(rootConfig) << "load extension: " << uri
+        LOG_IF(DEBUG_EXTENSION_MEDIATOR).session(mSession) << "load extension: " << uri
                                          << " has extension: " << extensionProvider->hasExtension(uri);
+        bool required = mRequired.count(uri);
 
         auto activity = getActivity(uri);
         auto sessionState = getExtensionSessionState();
@@ -439,19 +471,32 @@ ExtensionMediator::loadExtensionsInternal(const RootConfigPtr& rootConfig, const
         if (sessionState && sessionState->getState(activity) != ExtensionLifecycleStage::kExtensionInitialized) {
             LOG(LogLevel::kError) << "Ignoring registration for uninitialized extension: " << uri;
             mPendingRegistrations.erase(uri);
+
+            if (required) {
+                mFailState = true;
+                CONSOLE(mSession) << "Required extension " << uri << " not initialized.";
+                break;
+            }
+
             continue;
         }
 
         // Get the extension from the registration
         auto proxy = extensionProvider->getExtension(uri);
         if (!proxy) {
-            CONSOLE(session) << "Failed to retrieve proxy for extension: " << uri;
+            CONSOLE(mSession) << "Failed to retrieve proxy for extension: " << uri;
             mPendingRegistrations.erase(uri);
             if (sessionState) {
                 // The update shouldn't fail because we know that the activity is known and
                 // the transition should be allowed.
                 sessionState->updateState(activity, ExtensionLifecycleStage::kExtensionFinalized);
             }
+
+            if (required) {
+                mFailState = true;
+                break;
+            }
+
             continue;
         }
 
@@ -459,10 +504,16 @@ ExtensionMediator::loadExtensionsInternal(const RootConfigPtr& rootConfig, const
         rapidjson::Document settingsDoc;
         auto settings = content->getExtensionSettings(uri).serialize(settingsDoc.GetAllocator());
         rapidjson::Document flagsDoc;
-        auto flags = rootConfig->getExtensionFlags(uri).serialize(flagsDoc.GetAllocator());
+
+        Object flags;
+        auto it = flagMap.find(uri);
+        if (it != flagMap.end())
+            flags = it->second;
+        auto serializedFlags = flags.serialize(flagsDoc.GetAllocator());
+
         rapidjson::Document regReq;
         // TODO: It was uri instead of the version here. Funny. We need to figure if it's schema or interface here.
-        regReq.Swap(RegistrationRequest("1.0").uri(uri).settings(settings).flags(flags).getDocument());
+        regReq.Swap(RegistrationRequest("1.0").uri(uri).settings(settings).flags(serializedFlags).getDocument());
         std::weak_ptr<ExtensionMediator> weak_this(shared_from_this());
 
         auto success = proxy->getRegistration(*activity, regReq,
@@ -478,7 +529,7 @@ ExtensionMediator::loadExtensionsInternal(const RootConfigPtr& rootConfig, const
 
         if (!success) {
             // call to extension failed without failure callback
-            CONSOLE(session) << "Extension registration failure - code: " << kErrorInvalidMessage
+            CONSOLE(mSession) << "Extension registration failure - code: " << kErrorInvalidMessage
                              << " message: " << sErrorMessage[kErrorInvalidMessage] + uri;
             mPendingRegistrations.erase(uri);
             if (sessionState) {
@@ -486,11 +537,16 @@ ExtensionMediator::loadExtensionsInternal(const RootConfigPtr& rootConfig, const
                 // the transition should be allowed.
                 sessionState->updateState(activity, ExtensionLifecycleStage::kExtensionFinalized);
             }
+
+            if (required) {
+                mFailState = true;
+                break;
+            }
         }
     }
 
     if (mPendingRegistrations.empty() && mLoadedCallback) {
-        mLoadedCallback();
+        mLoadedCallback(!mFailState);
         mLoadedCallback = nullptr;
     }
 }
@@ -499,13 +555,24 @@ void
 ExtensionMediator::loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content,
                                   const std::set<std::string>* grantedExtensions)
 {
-    mRootConfig = rootConfig;
-    if (!content->isReady()) {
-        CONSOLE(rootConfig) << "Cannot load extensions when Content is not ready";
+    if (rootConfig == nullptr) {
         return;
     }
 
-    initializeExtensions(rootConfig, content,
+    loadExtensions(rootConfig->getExtensionFlags(), content, grantedExtensions);
+}
+
+void
+ExtensionMediator::loadExtensions(const ObjectMap& flagMap, const ContentPtr& content,
+                                  const std::set<std::string>* grantedExtensions) {
+    if (!content->isReady()) {
+        CONSOLE(content) << "Cannot load extensions when Content is not ready";
+        return;
+    }
+
+    mSession = content->getSession();
+
+    initializeExtensions(flagMap, content,
                          [&grantedExtensions](const std::string& uri, ExtensionMediator::ExtensionGrantResult grant,
                                              ExtensionMediator::ExtensionGrantResult deny) {
                            if (grantedExtensions == nullptr) {
@@ -520,8 +587,10 @@ ExtensionMediator::loadExtensions(const RootConfigPtr& rootConfig, const Content
                                deny(uri);
                            }
                          });
-    loadExtensionsInternal(rootConfig, content);
+
+    loadExtensionsInternal(flagMap, content);
 }
+
 
 void
 ExtensionMediator::loadExtensions(
@@ -529,17 +598,48 @@ ExtensionMediator::loadExtensions(
         const ContentPtr& content,
         ExtensionsLoadedCallback loaded)
 {
-    mRootConfig = rootConfig;
+    auto callbackV2 = [loaded](bool) { loaded(); };
+    loadExtensions(rootConfig, content, std::move(callbackV2));
+}
+
+void
+ExtensionMediator::loadExtensions(
+    const RootConfigPtr& rootConfig,
+    const ContentPtr& content,
+    ExtensionsLoadedCallbackV2 loaded)
+{
     mLoadedCallback = std::move(loaded);
-    loadExtensionsInternal(rootConfig, content);
+
+    // Immediately mark extensions as loaded without a root config
+    if (rootConfig == nullptr) {
+        if (mLoadedCallback) {
+            mLoadedCallback(true);
+        }
+    }
+
+    loadExtensionsInternal(rootConfig->getExtensionFlags(), content);
+}
+
+void
+ExtensionMediator::loadExtensions(const ObjectMap& flagMap, const ContentPtr& content,
+                                  ExtensionsLoadedCallback loaded) {
+    auto callbackV2 = [loaded](bool) { loaded(); };
+    loadExtensions(flagMap, content, std::move(callbackV2));
+}
+
+void
+ExtensionMediator::loadExtensions(const ObjectMap& flagMap, const ContentPtr& content,
+                                  ExtensionsLoadedCallbackV2 loaded) {
+    mLoadedCallback = std::move(loaded);
+    loadExtensionsInternal(flagMap, content);
 }
 
 bool
 ExtensionMediator::invokeCommand(const apl::Event& event)
 {
-    auto root = mRootContext.lock();
+    auto documentContext = mDocumentContext.lock();
 
-    if (event.getType() != kEventTypeExtension || !root)
+    if (event.getType() != kEventTypeExtension || !documentContext)
         return false;
 
     auto uri = event.getValue(EventProperty::kEventPropertyExtensionURI).asString();
@@ -548,7 +648,7 @@ ExtensionMediator::invokeCommand(const apl::Event& event)
     auto itr = mClients.find(uri);
     auto extPro = mProvider.lock();
     if (itr == mClients.end() || extPro == nullptr || !extPro->hasExtension(uri)) {
-        CONSOLE(root->getSession()) << "Attempt to execute command on unavailable extension - uri: " << uri;
+        CONSOLE(documentContext) << "Attempt to execute command on unavailable extension - uri: " << uri;
         return false;
     }
     auto client = itr->second;
@@ -556,7 +656,7 @@ ExtensionMediator::invokeCommand(const apl::Event& event)
     // Get the Extension
     auto proxy = extPro->getExtension(uri);
     if (!proxy) {
-        CONSOLE(root->getSession()) << "Attempt to execute command on unavailable extension - uri: " << uri;
+        CONSOLE(documentContext) << "Attempt to execute command on unavailable extension - uri: " << uri;
         return false;
     }
 
@@ -578,8 +678,9 @@ ExtensionMediator::invokeCommand(const apl::Event& event)
         });
 
     if (!invoke) {
-        CONSOLE(root->getSession()) << "Extension command failure - code: " << kErrorInvalidMessage
-                                      << " message: " << sErrorMessage[kErrorInvalidMessage] + uri;
+        CONSOLE(documentContext)
+            << "Extension command failure - code: " << kErrorInvalidMessage
+            << " message: " << sErrorMessage[kErrorInvalidMessage] + uri;
     }
 
     return invoke;
@@ -590,8 +691,7 @@ ExtensionMediator::getProxy(const std::string &uri)
 {
     auto extPro = mProvider.lock();
     if (extPro == nullptr || !extPro->hasExtension(uri)) {
-        auto config = mRootConfig.lock();
-        CONSOLE(config) << "Proxy does not exist for uri: " << uri;
+        CONSOLE(mSession) << "Proxy does not exist for uri: " << uri;
         return nullptr;
     }
     return extPro->getExtension(uri);
@@ -602,11 +702,16 @@ ExtensionMediator::getClient(const std::string &uri)
 {
     auto itr = mClients.find(uri);
     if (itr == mClients.end()) {
-        auto config = mRootConfig.lock();
-        CONSOLE(config) << "Attempt to use an unavailable extension - uri: " << uri;
+        CONSOLE(mSession) << "Attempt to use an unavailable extension - uri: " << uri;
         return nullptr;
     }
-    return  itr->second;
+    return itr->second;
+}
+
+const std::map<std::string, ExtensionClientPtr>&
+ExtensionMediator::getClients()
+{
+    return mClients;
 }
 
 void
@@ -628,9 +733,8 @@ ExtensionMediator::notifyComponentUpdate(const ExtensionComponentPtr& component,
     // Notify the extension of the component change
     auto sent = proxy->sendComponentMessage(*activity, message);
     if (!sent) {
-        auto config = mRootConfig.lock();
-        CONSOLE(config) << "Extension message failure - code: " << kErrorInvalidMessage
-                                      << " message: " << sErrorMessage[kErrorInvalidMessage] + uri;
+        CONSOLE(mSession) << "Extension message failure - code: " << kErrorInvalidMessage
+                          << " message: " << sErrorMessage[kErrorInvalidMessage] + uri;
         return;
     }
 
@@ -672,11 +776,11 @@ ExtensionMediator::sendResourceReady(const std::string& uri, const alexaext::Res
 
 void
 ExtensionMediator::resourceFail(const ExtensionComponentPtr& component, int errorCode, const std::string& error) {
-    auto root = mRootContext.lock();
+    auto document = mDocumentContext.lock();
     if (!component)
         return;
-    CONSOLE(root->getSession()) << "Extension resource failure - uri:"
-                                  << component->getUri() << " resourceId:" << component->getResourceID();
+    CONSOLE(document) << "Extension resource failure - uri:" << component->getUri()
+                      << " resourceId:" << component->getResourceID();
     component->updateResourceState(kResourceError, errorCode, error);
 }
 
@@ -749,7 +853,8 @@ ExtensionMediator::registerExtension(const std::string& uri, const ExtensionProx
 
     extension->onRegistered(*activity);
 
-    LOG_IF(DEBUG_EXTENSION_MEDIATOR).session(mRootContext.lock()) << "registered: " << uri << " clients: " << mClients.size();
+    LOG_IF(DEBUG_EXTENSION_MEDIATOR).session(mDocumentContext.lock())
+        << "registered: " << uri << " clients: " << mClients.size();
 }
 
 void
@@ -768,7 +873,8 @@ ExtensionMediator::enqueueResponse(const alexaext::ActivityDescriptorPtr& activi
         }
     });
     if (!enqueued)
-        LOG(LogLevel::kWarn).session(mRootContext.lock()) << "failed to process message for extension, uri:" << uri;
+        LOG(LogLevel::kWarn).session(mDocumentContext.lock())
+            << "failed to process message for extension, uri:" << uri;
 }
 
 void
@@ -785,8 +891,8 @@ ExtensionMediator::processMessage(const alexaext::ActivityDescriptorPtr& activit
     bool needsRegistration = !client->second->registered() && !client->second->registrationMessageProcessed();
 
     // client handles null root
-    auto root = mRootContext.lock();
-    client->second->processMessage(root, std::move(processMessage));
+    auto root = mDocumentContext.lock();
+    client->second->processMessageInternal(root, std::move(processMessage));
 
     // register handlers if registered for first time
     if (needsRegistration) {
@@ -796,7 +902,11 @@ ExtensionMediator::processMessage(const alexaext::ActivityDescriptorPtr& activit
                 registerExtension(uri, proxy, client->second);
             }
         } else if (client->second->registrationFailed()) {
-            // Registration failed, since registration was processed but th
+            if (mRequired.count(uri)) {
+                mFailState = true;
+            }
+
+            // Registration failed, since registration was processed but extension returned fail
             if (auto state = getExtensionSessionState()) {
                 // The update shouldn't fail because we know that the activity is known and
                 // the transition should be allowed.
@@ -807,7 +917,7 @@ ExtensionMediator::processMessage(const alexaext::ActivityDescriptorPtr& activit
         if (mPendingRegistrations.count(uri)) {
             mPendingRegistrations.erase(uri);
             if (mPendingRegistrations.empty() && mLoadedCallback) {
-                mLoadedCallback();
+                mLoadedCallback(!mFailState);
                 mLoadedCallback = nullptr;
             }
         }
@@ -929,6 +1039,7 @@ ExtensionMediator::unregister(const alexaext::ActivityDescriptorPtr& activity) {
         }
     }
 }
+
 
 } // namespace apl
 

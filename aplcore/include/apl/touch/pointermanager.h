@@ -23,7 +23,7 @@
 
 namespace apl {
 
-class RootContextData;
+class HoverManager;
 
 /**
  * PointerManager holds onto all active pointers.  For touch pointers, these are ephemeral and come and go as users press
@@ -44,9 +44,9 @@ class PointerManager {
 public:
     /**
      * Constructs a PointerManager with no pointers.
-     * @param core Reference to RootContextData, used to delegate touch events to hover manager when applicable
+     * @param core Reference to CoreRootContext, used to delegate touch events to hover manager when applicable
      */
-    explicit PointerManager(const RootContextData& core);
+    explicit PointerManager(const CoreRootContext& core, HoverManager& hover);
 
     /**
      * Handles a PointerEvent.  If the pointer has never been seen, it will create a new pointer for the id in the associated
@@ -140,7 +140,8 @@ private:
                          apl_time_t timestamp);
 
 private:
-    const RootContextData& mCore;
+    const CoreRootContext& mCore;
+    HoverManager& mHoverManager;
     std::shared_ptr<Pointer> mActivePointer;
     std::shared_ptr<Pointer> mLastActivePointer;
 };

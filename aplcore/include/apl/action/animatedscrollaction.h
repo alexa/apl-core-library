@@ -30,7 +30,7 @@ public:
 
 
     void freeze() override;
-    bool rehydrate(const RootContext& context) override;
+    bool rehydrate(const CoreDocumentContext& context) override;
 
 protected:
     AnimatedScrollAction(const TimersPtr& timers,

@@ -31,10 +31,12 @@ public:
     /**
      * Create DataSource object from provided object.
      * @param context data binding context.
+     * @param provider DDS provider to use.
      * @param object object to create from.
      * @return DataSource object or NULL_OBJECT if failed.
      */
-    static Object create(const ContextPtr& context, const Object& object, const std::string& name);
+    static Object create(const ContextPtr& context, const DataSourceProviderPtr& provider,
+                         const Object& object, const std::string& name);
 
     /// LiveArrayObject override
     void ensure(size_t idx) override;

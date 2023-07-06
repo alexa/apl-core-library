@@ -14,10 +14,10 @@
  */
 
 #include "apl/action/speaklistaction.h"
-#include "apl/action/speakitemaction.h"
+
 #include "apl/action/scrolltoaction.h"
+#include "apl/action/speakitemaction.h"
 #include "apl/command/corecommand.h"
-#include "apl/engine/rootcontext.h"
 
 namespace apl {
 
@@ -105,7 +105,7 @@ SpeakListAction::freeze()
 }
 
 bool
-SpeakListAction::rehydrate(const RootContext& context)
+SpeakListAction::rehydrate(const CoreDocumentContext& context)
 {
     if (!Action::rehydrate(context)) return false;
 

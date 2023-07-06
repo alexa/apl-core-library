@@ -28,7 +28,9 @@ public:
     VideoComponent(const ContextPtr& context, Properties&& properties, const Path& path);
     virtual ~VideoComponent() noexcept;
 
-    ComponentType getType() const override { return kComponentTypeVideo; };
+    ComponentType getType() const override { return kComponentTypeVideo; }
+
+    void releaseSelf() override;
     bool remove() override;
 
     void updateMediaState(const MediaState& state, bool fromEvent) override;

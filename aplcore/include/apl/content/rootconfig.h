@@ -151,6 +151,16 @@ public:
     }
 
     /**
+     * Specify the document manager used for loading embedded documents.
+     * @param documentManager The document manager object.
+     * @return This object for chaining.
+     */
+    RootConfig& documentManager(const DocumentManagerPtr& documentManager) {
+        mDocumentManager = documentManager;
+        return *this;
+    }
+
+    /**
      * Specify the media manager used for loading images, videos, and vector graphics.
      * @param mediaManager The media manager object.
      * @return This object for chaining.
@@ -270,8 +280,9 @@ public:
      * Set the session
      * @param session The session
      * @return This object for chaining.
+     * @deprecated Session used for content creation will be used instead.
      */
-    RootConfig& session(const SessionPtr& session);
+    APL_DEPRECATED RootConfig& session(const SessionPtr& session);
 
     /**
      * Assign a LiveObject to the top-level context
@@ -341,12 +352,8 @@ public:
      * Assign a Alexa Extension mediator.
      * Requires kExperimentalFeatureExtensionProvider feature be enabled.
      *
-     * IMPORTANT: ExtensionMediator is a class that is expected to be eliminated.  It
-     * can only be used with a single document/RootContext.  It is expected the viewhost call ExtensionMediator.loadExtensions()
-     * prior to calling RootContext::create(). RootContext will bind to the mediator obtained from this assignment.
-     *
      * @param extensionMediator Message mediator manages messages between Extension and APL engine.
-     * and the APL engine.
+     *        and the APL engine.
      * @return This object for chaining
      */
     RootConfig& extensionMediator(const ExtensionMediatorPtr &extensionMediator) {
@@ -362,6 +369,7 @@ public:
      * This method will also register the extension as a supported extension.
      * @param handler The name of the handler to support.
      * @return This object for chaining.
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     RootConfig& registerExtensionEventHandler(ExtensionEventHandler handler) {
         auto uri = handler.getURI();
@@ -377,6 +385,7 @@ public:
      * This method will also register the extension as a supported extension.
      * @param commandDef The definition of the custom command (includes the name, URI, etc).
      * @return This object for chaining
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     RootConfig& registerExtensionCommand(ExtensionCommandDefinition commandDef) {
         auto uri = commandDef.getURI();
@@ -392,6 +401,7 @@ public:
      * This method will also register the extension as a supported extension.
      * @param filterDef The definition of the custom filter (includes the name, URI, properties)
      * @return This object for chaining
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     RootConfig& registerExtensionFilter(ExtensionFilterDefinition filterDef) {
         const auto& uri = filterDef.getURI();
@@ -407,6 +417,7 @@ public:
      * This method will also register the extension as a supported extension.
      * @param componentDef The definition of the custom component (includes the name, URI, etc).
      * @return This object for chaining
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     RootConfig& registerExtensionComponent(ExtensionComponentDefinition componentDef) {
         auto uri = componentDef.getURI();
@@ -426,6 +437,7 @@ public:
      * @param uri The URI of the extension
      * @param environment values
      * @return This object for chaining
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     RootConfig& registerExtensionEnvironment(const std::string& uri, const Object& environment) {
         registerExtension(uri, environment);
@@ -437,6 +449,7 @@ public:
      * @param uri The URI of the extension
      * @param config Configuration value(s) supported by this extension.
      * @return This object for chaining
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     RootConfig& registerExtension(const std::string& uri, const Object& config = Object::TRUE_OBJECT()) {
         if (!config.truthy()) {
@@ -454,6 +467,7 @@ public:
      * @param uri The URI of the extension
      * @param flags The extension flags
      * @return This object for chaining
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     RootConfig& registerExtensionFlags(const std::string& uri, const Object& flags) {
         if (mSupportedExtensions.find(uri) == mSupportedExtensions.end()) {
@@ -904,6 +918,11 @@ public:
     TextMeasurementPtr getMeasure() const { return mTextMeasurement; }
 
     /**
+     * @return The configured document manager object
+     */
+    DocumentManagerPtr getDocumentManager() const { return mDocumentManager; }
+
+    /**
      * @return The configured media manager object
      */
     MediaManagerPtr getMediaManager() const { return mMediaManager; }
@@ -1059,8 +1078,9 @@ public:
 
     /**
      * @return The current session pointer
+     * @deprecated Always null
      */
-    SessionPtr getSession() const { return mSession; }
+    APL_DEPRECATED SessionPtr getSession() const { return nullptr; }
 
     /**
      * @return The starting UTC time in milliseconds past the epoch.
@@ -1112,14 +1132,6 @@ public:
         return mHeaderFilters;
     }
 
-    /**
-     * @param type DataSource type.
-     * @return true if registered, false otherwise.
-     */
-    bool isDataSource(const std::string& type) const {
-        return (mDataSources.find(type) != mDataSources.end());
-    }
-
 #ifdef ALEXAEXTENSIONS
     /**
      * Requires kExperimentalExtensionProvider.
@@ -1139,7 +1151,30 @@ public:
 #endif
 
     /**
+     * Extension clients should only be created by the mediator, but if they are created
+     * independently (legacy pathway), they need to be registered with RootConfig.
+     *
+     * Note: Self-registration happens automatically in the legacy ExtensionClient::create()
+     *
+     * @return The root config
+     * @deprecated Extensions should be managed via ExtensionMediator
+     */
+    RootConfig& registerLegacyExtensionClient(const std::string& uri, const ExtensionClientPtr& client) {
+        mLegacyExtensionClients.emplace(uri, client);
+        return *this;
+    }
+
+    /**
+     * @return Any extension clients registered with the RootConfig for legacy support.
+     * @deprecated Extensions should be managed via ExtensionMediator
+     */
+    const std::map<std::string, std::shared_ptr<ExtensionClient>> getLegacyExtensionClients() const {
+        return mLegacyExtensionClients;
+    }
+
+    /**
      * @return The registered extension commands
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     const std::vector<ExtensionCommandDefinition>& getExtensionCommands() const {
         return mExtensionCommands;
@@ -1147,6 +1182,7 @@ public:
 
     /**
      * @return The registered extension events
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     const std::vector<ExtensionEventHandler>& getExtensionEventHandlers() const {
         return mExtensionHandlers;
@@ -1154,6 +1190,7 @@ public:
 
     /**
      * @return The registered extension filters
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     const std::vector<ExtensionFilterDefinition>& getExtensionFilters() const {
         return mExtensionFilters;
@@ -1161,6 +1198,7 @@ public:
 
     /**
      * @return The registered extension components
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     const std::vector<ExtensionComponentDefinition>& getExtensionComponentDefinitions() const {
         return mExtensionComponentDefinitions;
@@ -1169,6 +1207,7 @@ public:
     /**
      * @return The collection of supported extensions and their config values. These are the extensions that have
      *         been marked in the root config as "supported".
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     const ObjectMap& getSupportedExtensions() const {
         return mSupportedExtensions;
@@ -1177,6 +1216,7 @@ public:
     /**
      * @param uri The URI of the extension.
      * @return The environment Object for a supported extensions, Object::NULL_OBJECT if no environment exists.
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     const Object& getExtensionEnvironment(const std::string& uri) const {
         auto it = mSupportedExtensions.find(uri);
@@ -1188,12 +1228,21 @@ public:
     /**
      * @param uri The URI of the extension.
      * @return The registered extension flags, NULL_OBJECT if no flags are registered.
+     * @deprecated Extensions should be managed via ExtensionMediator
      */
     const Object& getExtensionFlags(const std::string& uri) const {
         auto it = mExtensionFlags.find(uri);
         if (it != mExtensionFlags.end())
             return it->second;
         return Object::NULL_OBJECT();
+    }
+
+    /**
+     * @return All extension flags known to RootConfig as an object map (uri->flags)
+     * @deprecated Extensions should be managed via ExtensionMediator
+     */
+    const ObjectMap& getExtensionFlags() const {
+        return mExtensionFlags;
     }
 
     /**
@@ -1377,13 +1426,21 @@ public:
         return mEnabledExperimentalFeatures.count(feature) > 0;
     }
 
+    /**
+     * Create a new RootConfig instance, copying all non-document-specific state from this instance.
+     * @return the copy
+     */
+    RootConfigPtr copy() const;
+
 private:
     const RootPropDefSet& propDefSet() const;
+    bool isAllowedEnvironmentName(const std::string &name) const;
 
 private:
     ContextPtr mContext;
 
     TextMeasurementPtr mTextMeasurement;
+    DocumentManagerPtr mDocumentManager;
     MediaManagerPtr mMediaManager;
     MediaPlayerFactoryPtr mMediaPlayerFactory;
     AudioPlayerFactoryPtr mAudioPlayerFactory;
@@ -1394,7 +1451,7 @@ private:
     std::shared_ptr<LocaleMethods> mLocaleMethods;
     std::map<std::pair<ComponentType, bool>, std::pair<Dimension, Dimension>> mDefaultComponentSize;
 
-    SessionPtr mSession;
+    SessionPtr mConfigSession;
     ObjectMap mEnvironmentValues;
 
     // Data sources and live maps
@@ -1407,6 +1464,11 @@ private:
     alexaext::ExtensionProviderPtr mExtensionProvider;
     ExtensionMediatorPtr mExtensionMediator;
 #endif
+    // Clients should only be created by the mediator, but for legacy reasons clients can be created
+    // on their own. So, we need to keep track of these "standalone" clients so that we can extract
+    // registration information from them later.
+    std::map<std::string, std::shared_ptr<ExtensionClient>> mLegacyExtensionClients;
+
     ObjectMap mSupportedExtensions; // URI -> config
     ObjectMap mExtensionFlags; // URI -> opaque flags
     std::vector<ExtensionEventHandler> mExtensionHandlers;

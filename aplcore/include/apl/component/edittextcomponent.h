@@ -51,7 +51,7 @@ public:
 protected:
     const ComponentPropDefSet& propDefSet() const override;
     const EventPropertyMap& eventPropertyMap() const override;
-    PointerCaptureStatus processPointerEvent(const PointerEvent& event, apl_time_t timestamp) override;
+    PointerCaptureStatus processPointerEvent(const PointerEvent& event, apl_time_t timestamp, bool onlyProcessGestures) override;
     void executeOnBlur() override;
     void executeOnFocus() override;
 

@@ -23,10 +23,12 @@
 #include "apl/engine/context.h"
 #include "apl/component/corecomponent.h"
 #include "apl/primitives/object.h"
+#include "apl/primitives/commanddata.h"
 
 namespace apl {
 
-using CommandFunc = std::function<CommandPtr(const ContextPtr&, Properties&&, const CoreComponentPtr&, const std::string&)>;
+using CommandFunc = std::function<CommandPtr(
+    const ContextPtr&, CommandData&&, Properties&&, const CoreComponentPtr&, const std::string&)>;
 
 class CoreCommand;
 
@@ -35,47 +37,40 @@ class CoreCommand;
  *
  * This class is used by ArrayAction and SequentialAction and ultimately invoked by the sequencer.
  */
-class CommandFactory {
+class CommandFactory : public NonCopyable {
 public:
     static CommandFactory& instance();
-
-    ActionPtr execute(const TimersPtr& timers,
-                      const ContextPtr& context,
-                      const Object& command,
-                      const CoreComponentPtr& base,
-                      bool fastMode);
 
     void reset();
 
     CommandFactory& set(const char *name, CommandFunc func);
     CommandFunc get(const char *name) const;
 
-    CommandPtr inflate(const ContextPtr& context, const Object& command, const Properties& properties,
-                      const CoreComponentPtr& base, const std::string& parentSequencer = "");
+    CommandPtr inflate(const ContextPtr& context, CommandData&& commandData, const CoreComponentPtr& base);
 
-    CommandPtr inflate(const ContextPtr& context, const Object& command,
-                       const CoreComponentPtr& base);
-
-    CommandPtr inflate(const Object& command, const std::shared_ptr<const CoreCommand>& parent);
+    CommandPtr inflate(CommandData&& commandData, const std::shared_ptr<const CoreCommand>& parent);
 protected:
-    CommandFactory() {};
+    CommandFactory() = default;;
 
 private:
-    CommandFactory(const CommandFactory&) = delete;
-    CommandFactory& operator=(const CommandFactory&) = delete;
-
     CommandPtr expandMacro(const ContextPtr& context,
-                          Properties& properties,
-                          const rapidjson::Value& definition,
-                          const CoreComponentPtr& base,
-                          const std::string& parentSequencer);
+                           CommandData&& commandData,
+                           Properties&& properties,
+                           const rapidjson::Value& definition,
+                           const CoreComponentPtr& base,
+                           const std::string& parentSequencer);
+
+    CommandPtr inflate(const ContextPtr& context,
+                       CommandData&& commandData,
+                       Properties&& properties,
+                       const CoreComponentPtr& base,
+                       const std::string& parentSequencer = "");
 
 
-
+private:
     static CommandFactory *sInstance;
 
     std::map<std::string, CommandFunc> mCommandMap;
-
 };
 
 

@@ -14,20 +14,74 @@
  */
 
 #include "apl/engine/dependant.h"
+#include "apl/engine/dependantmanager.h"
 #include "apl/engine/context.h"
-#include "apl/primitives/symbolreferencemap.h"
+#include "apl/engine/evaluate.h"
+#include "apl/primitives/boundsymbolset.h"
 
 namespace apl {
+
+Dependant::Dependant(Object expression,
+                     const ContextPtr& bindingContext,
+                     BindingFunction bindingFunction,
+                     BoundSymbolSet symbols)
+    : mExpression(std::move(expression)),
+      mBindingContext(bindingContext),
+      mBindingFunction(std::move(bindingFunction)),
+      mSymbols(std::move(symbols)),
+      mOrder(bindingContext->dependantManager().getNextSortOrder())
+{
+    assert(bindingContext);
+}
+
+bool
+Dependant::enqueue()
+{
+    auto downstream = mBindingContext.lock();
+    if (!downstream)
+        return false;
+
+    downstream->dependantManager().enqueueDependency(shared_from_this());
+    return true;
+}
 
 void
 Dependant::removeFromSource()
 {
-    SymbolReferenceMap symbols;
-    mEquation.symbols(symbols);
-    for (const auto& symbol : symbols.get())
-        symbol.second->removeDownstream(shared_from_this());
-
-    mEquation = Object::NULL_OBJECT();
+    detach();
 };
+
+void
+Dependant::attach()
+{
+    for (const auto& m : mSymbols) {
+        auto context = m.getContext();
+        if (context)
+            context->addDownstream(m.getName(), shared_from_this());
+    }
+}
+
+void
+Dependant::detach()
+{
+    for (const auto& m : mSymbols) {
+        auto context = m.getContext();
+        if (context)
+            context->removeDownstream(shared_from_this());
+    }
+
+    mSymbols.clear();
+}
+
+void
+Dependant::reattach(const BoundSymbolSet& symbols)
+{
+    if (mSymbols != symbols) {
+        detach();
+        mSymbols = symbols;
+        attach();
+    }
+}
+
 
 }  // namespace apl

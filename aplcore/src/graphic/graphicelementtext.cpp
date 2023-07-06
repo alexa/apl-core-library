@@ -352,9 +352,11 @@ GraphicElementText::ensureTextProperties()
         mTextProperties = sg::TextProperties::create(
             mContext->textPropertiesCache(),
             sg::splitFontString(mContext->getRootConfig(),
+                                mContext->session(),
                                 getValue(kGraphicPropertyFontFamily).getString()),
             getValue(kGraphicPropertyFontSize).asFloat(),
             static_cast<FontStyle>(getValue(kGraphicPropertyFontStyle).getInteger()),
+            getLang(),
             getValue(kGraphicPropertyFontWeight).getInteger(),
             getValue(kGraphicPropertyLetterSpacing).asFloat());
 }

@@ -34,6 +34,15 @@ option(BUILD_ALEXAEXTENSIONS "Build Alexa Extensions library as part of the proj
 
 option(ENABLE_SCENEGRAPH "Build and enable Scene Graph support" OFF)
 
+
+# Enumgen is only built by default for certain platforms
+if (NOT APPLE)
+    set(BUILD_ENUMGEN_DEFAULT ON)
+else()
+    set(BUILD_ENUMGEN_DEFAULT OFF)
+endif()
+option(BUILD_ENUMGEN "Build the enumgen tool" ${BUILD_ENUMGEN_DEFAULT})
+
 # Test options
 option(BUILD_TESTS "Build unit tests and test programs." OFF)
 option(BUILD_TEST_PROGRAMS "Build test programs. Included if BUILD_TESTS=ON" OFF)
@@ -58,13 +67,6 @@ if(ENABLE_SCENEGRAPH)
     set(SCENEGRAPH ON)
 endif(ENABLE_SCENEGRAPH)
 
-# Enumgen is only built for certain platforms
-if (NOT APPLE)
-    set(BUILD_ENUMGEN ON)
-else()
-    set(BUILD_ENUMGEN OFF)
-endif()
-
 # Building Yoga inline depends on having the FetchContent module
 if(USE_PROVIDED_YOGA_INLINE AND NOT HAS_FETCH_CONTENT)
     message(FATAL_ERROR "The FetchContent module is needed to build yoga inline")
@@ -85,6 +87,14 @@ elseif(USE_SYSTEM_YOGA)
 elseif(NOT USE_PROVIDED_YOGA_INLINE)
     set(USE_PROVIDED_YOGA_AS_LIB ON)
 endif()
+
+# Check for evaluation depth limit.  If not set, pick a default
+# To override this value, set it on the command line.  For example:
+#    cmake .. -DEVALUATION_DEPTH_LIMIT=10
+if(NOT EVALUATION_DEPTH_LIMIT)
+    set(EVALUATION_DEPTH_LIMIT 5)
+endif()
+message(STATUS "Evaluation depth limit set to ${EVALUATION_DEPTH_LIMIT}")
 
 
 # Capture the compile-time options to apl_config.h so that headers can be distributed

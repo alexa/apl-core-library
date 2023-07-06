@@ -20,20 +20,9 @@
 
 namespace apl {
 
-class ControlMediaCommand : public CoreCommand {
+class ControlMediaCommand : public TemplatedCommand<ControlMediaCommand> {
 public:
-    static CommandPtr create(const ContextPtr& context,
-                             Properties&& properties,
-                             const CoreComponentPtr& base,
-                             const std::string& parentSequencer) {
-        auto ptr = std::make_shared<ControlMediaCommand>(context, std::move(properties), base, parentSequencer);
-        return ptr->validate() ? ptr : nullptr;
-    }
-
-    ControlMediaCommand(const ContextPtr& context, Properties&& properties, const CoreComponentPtr& base,
-            const std::string& parentSequencer)
-            : CoreCommand(context, std::move(properties), base, parentSequencer)
-    {}
+    COMMAND_CONSTRUCTOR(ControlMediaCommand);
 
     const CommandPropDefSet& propDefSet() const override;
 

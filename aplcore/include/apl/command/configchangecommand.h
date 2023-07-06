@@ -30,14 +30,14 @@ public:
     /// Sequencer reserved for executing the onConfigChange command
     static const char *SEQUENCER;
 
-    static CommandPtr create(const RootContextPtr& rootContext,
+    static CommandPtr create(const CoreDocumentContextPtr& documentContext,
                              ObjectMap&& properties) {
-        return std::make_shared<ConfigChangeCommand>(rootContext, std::move(properties));
+        return std::make_shared<ConfigChangeCommand>(documentContext, std::move(properties));
     }
 
-    ConfigChangeCommand(const RootContextPtr& rootContext,
+    ConfigChangeCommand(const CoreDocumentContextPtr& documentContext,
                         ObjectMap&& properties)
-    : mRootContext(rootContext),
+    : mDocumentContext(documentContext),
       mProperties(std::move(properties))
     {
     }
@@ -47,7 +47,7 @@ public:
     ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
 
 private:
-    const std::weak_ptr<RootContext> mRootContext;
+    const std::weak_ptr<CoreDocumentContext> mDocumentContext;
     ObjectMap mProperties;
 };
 
