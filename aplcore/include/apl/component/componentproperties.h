@@ -363,6 +363,8 @@ enum PropertyKey {
     kPropertyScrollDirection,
     /// An array of accessibility actions associated with this component
     kPropertyAccessibilityActions,
+    /// An array of assigned accessibility actions
+    kPropertyAccessibilityActionsAssigned,
     /// Component accessibility label
     kPropertyAccessibilityLabel,
     /// ImageComponent and VectorGraphicComponent alignment (see #ImageAlign, #VectorGraphicAlign)
@@ -379,6 +381,10 @@ enum PropertyKey {
     kPropertyMuted,
     /// FrameComponent background color
     kPropertyBackgroundColor,
+    /// FrameComponent background assigned
+    kPropertyBackgroundAssigned,
+    /// FrameComponent background
+    kPropertyBackground,
     /// FrameComponent border bottom-left radius (input only)
     kPropertyBorderBottomLeftRadius,
     /// FrameComponent border bottom-right radius (input only)
@@ -541,6 +547,8 @@ enum PropertyKey {
     kPropertyOnBlur,
     /// TouchableComponent handler for cancel
     kPropertyOnCancel,
+    /// Multi-child component children changed
+    kPropertyOnChildrenChanged,
     /// TouchableComponent handler for down
     kPropertyOnDown,
     /// VideoComponent handler for video end
@@ -609,6 +617,8 @@ enum PropertyKey {
     kPropertyPageId,
     /// Pager virtual property for the index of the current page
     kPropertyPageIndex,
+    /// Explicit parameter-passing property map for HostComponent and VectorGraphicComponent
+    kPropertyParameters,
     /// VideoComponent current playing state
     kPropertyPlayingState,
     /// ContainerComponent child absolute or relative position (see #Position)

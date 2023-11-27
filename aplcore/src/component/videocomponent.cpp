@@ -16,6 +16,7 @@
 #include "apl/component/videocomponent.h"
 
 #include "apl/component/componentpropdef.h"
+#include "apl/content/rootconfig.h"
 #include "apl/component/yogaproperties.h"
 #include "apl/media/mediautils.h"
 #include "apl/primitives/mediasource.h"
@@ -62,7 +63,7 @@ VideoComponent::create(const ContextPtr& context,
 }
 
 std::shared_ptr<VideoComponent>
-VideoComponent::cast(const std::shared_ptr<Component>& component) {
+VideoComponent::cast(const ComponentPtr& component) {
     return component && component->getType() == ComponentType::kComponentTypeVideo
                ? std::static_pointer_cast<VideoComponent>(component) : nullptr;
 }
@@ -173,10 +174,14 @@ VideoComponent::VideoComponent(const ContextPtr& context,
     : CoreComponent(context, std::move(properties), path),
       mMediaSequencer("VIDEO"+getUniqueId())
 {
-    mMediaPlayer = mContext->mediaPlayerFactory().createPlayer(
-        [this] (MediaPlayerEventType eventType, const MediaState& mediaState) {
-            playerCallback(eventType, mediaState);
-        });
+    mIsDisallowed = context->getRootConfig().getProperty(RootProperty::kDisallowVideo).asBoolean();
+
+    if (!mIsDisallowed) {
+        mMediaPlayer = mContext->mediaPlayerFactory().createPlayer(
+            [this] (MediaPlayerEventType eventType, const MediaState& mediaState) {
+                playerCallback(eventType, mediaState);
+            });
+    }
 }
 
 VideoComponent::~VideoComponent() noexcept
@@ -565,6 +570,8 @@ VideoComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
 {
     auto top = CoreComponent::constructSceneGraphLayer(sceneGraph);
     assert(top);
+
+    top->setCharacteristic(sg::Layer::kCharacteristicHasMedia);
 
     // Find the target bounding box of the image.  This is where we will be drawing the image.  This is in DP.
     const auto& innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();

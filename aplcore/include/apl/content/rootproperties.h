@@ -23,7 +23,13 @@
 namespace apl {
 
 // Note: If any per-document properties added here, also update sCopyableConfigProperties
+// Note: If any configurable property added here, also update sRootPropertyBimap
+// Note: RootProperty must be added after kRootPropertySetBegin and before kRootPropertySetEnd,
+//       since they are tested for completeness
 enum RootProperty {
+    /// The Begin key marks the beginning of the enum members.
+    /// All new enum values should be added *after* this
+    kRootPropertySetBegin,
     /// Agent name
     kAgentName,
     /// Agent version
@@ -137,6 +143,9 @@ enum RootProperty {
     kTextMeasurementCacheLimit,
     /// Initial display state of the document, used by core prior to any display state updates
     kInitialDisplayState,
+    /// The End key marks the end of the enum members.
+    /// All new enum values should be added *before* this
+    kRootPropertySetEnd
 };
 
 extern Bimap<int, std::string> sRootPropertyBimap;

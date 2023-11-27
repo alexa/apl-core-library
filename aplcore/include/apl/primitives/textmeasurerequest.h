@@ -54,11 +54,11 @@ struct TextMeasureRequest {
     }
 
     bool operator==(const TextMeasureRequest& rhs) const {
-        return width == rhs.width &&
-               widthMode == rhs.widthMode &&
-               height == rhs.height &&
+        return widthMode == rhs.widthMode &&
                heightMode == rhs.heightMode &&
-               paramHash == rhs.paramHash;
+               paramHash == rhs.paramHash &&
+               (widthMode == YGMeasureMode::YGMeasureModeUndefined || (width == rhs.width)) &&
+               (heightMode == YGMeasureMode::YGMeasureModeUndefined || (height == rhs.height));
     }
 
     std::string toString() const {

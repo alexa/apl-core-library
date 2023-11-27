@@ -22,9 +22,10 @@ namespace apl {
 const CommandPropDefSet&
 SetPageCommand::propDefSet() const {
     static CommandPropDefSet sSetPageCommandProperties(CoreCommand::propDefSet(), {
-            {kCommandPropertyComponentId, "",                       asString,               kPropRequiredId},
-            {kCommandPropertyPosition,    kCommandPositionAbsolute, sCommandPositionMap },
-            {kCommandPropertyValue,       0,                        asInteger,              kPropRequired}
+            {kCommandPropertyComponentId,        "",                       asString,               kPropRequiredId},
+            {kCommandPropertyPosition,           kCommandPositionAbsolute, sCommandPositionMap },
+            {kCommandPropertyTransitionDuration, -1,                       asInteger},
+            {kCommandPropertyValue,              0,                        asInteger,              kPropRequired}
     });
 
     return sSetPageCommandProperties;

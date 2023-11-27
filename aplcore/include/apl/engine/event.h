@@ -201,6 +201,12 @@ enum EventType {
      * Does not have an ActionRef
      */
     kEventTypeOpenKeyboard,
+
+    /**
+     * Document config requires to be refreshed. This usually includes checking if content isWaiting()
+     * and subsequently resolving required packages.
+     */
+    kEventTypeContentRefresh,
 };
 
 enum EventProperty {
@@ -370,10 +376,10 @@ private:
      * Tag the event with originating document. Called internally.
      * @param document originating document.
      */
-    void setDocument(const std::weak_ptr<DocumentContext>& document) { mDocument = document;}
+    void setDocument(const DocumentContextWeakPtr& document) { mDocument = document;}
 
     std::shared_ptr<const EventData> mData;
-    std::weak_ptr<DocumentContext> mDocument;
+    DocumentContextWeakPtr mDocument;
 };
 
 }  // namespace apl

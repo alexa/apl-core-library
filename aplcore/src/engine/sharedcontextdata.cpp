@@ -67,17 +67,16 @@ ygLogger(const YGConfigRef config,
     return 1; // Does this matter?
 }
 
-SharedContextData::SharedContextData(const CoreRootContextPtr& root, const Metrics& metrics,
+SharedContextData::SharedContextData(const CoreRootContextPtr& root,
+                                     const Metrics& metrics,
                                      const RootConfig& config)
-    : mRequestedVersion(config.getReportedAPLVersion()),
+    : mRequestedVersion(config.getProperty(RootProperty::kReportedVersion).getString()),
       mDocumentRegistrar(std::make_unique<DocumentRegistrar>()),
       mFocusManager(std::make_unique<FocusManager>(*root)),
       mHoverManager(std::make_unique<HoverManager>(*root)),
       mPointerManager(std::make_unique<PointerManager>(*root, *mHoverManager)),
       mKeyboardManager(std::make_unique<KeyboardManager>()),
-      mLayoutManager(std::make_unique<LayoutManager>(
-         *root,
-         Size(static_cast<float>(metrics.getWidth()), static_cast<float>(metrics.getHeight())))),
+      mLayoutManager(std::make_unique<LayoutManager>(*root, metrics.getViewportSize())),
       mTickScheduler(std::make_unique<TickScheduler>(config.getTimeManager())),
       mDirtyComponents(std::make_unique<DirtyComponents>()),
       mUniqueIdGenerator(std::make_unique<UIDGenerator>()),
@@ -102,7 +101,7 @@ SharedContextData::SharedContextData(const CoreRootContextPtr& root, const Metri
 }
 
 SharedContextData::SharedContextData(const RootConfig& config)
-    : mRequestedVersion(config.getReportedAPLVersion()),
+    : mRequestedVersion(config.getProperty(RootProperty::kReportedVersion).getString()),
       mUniqueIdGenerator(std::make_unique<UIDGenerator>()),
       mDependantManager(std::make_unique<DependantManager>()),
       mYGConfigRef(YGConfigNew()),
@@ -122,6 +121,7 @@ SharedContextData::~SharedContextData() {
 void
 SharedContextData::halt()
 {
+    mFocusManager->terminate();
     mLayoutManager->terminate();
     mTimeManager->clear();
     mEventManager->clear();

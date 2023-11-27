@@ -2145,7 +2145,7 @@ TEST_F(NativeGesturesScrollableTest, ScrollTriggersScroll)
     // Skip ahead TWO scroll delays.  The first scroll command will complete in a single step and trigger
     // the second scroll command, which will ALSO complete in a single step.  The second scroll command
     // will trigger a THIRD scroll command.
-    auto delta = config->getScrollCommandDuration();   // How long the scroll command should take
+    auto delta = config->getProperty(RootProperty::kScrollCommandDuration).getDouble();   // How long the scroll command should take
     advanceTime(delta * 2);
     ASSERT_EQ(Point(0,300), component->scrollPosition());  // distance = 100% + 50% = 300 dp
     ASSERT_FALSE(action->isPending());
@@ -2180,7 +2180,7 @@ TEST_F(NativeGesturesScrollableTest, ScrollViewCancelNativeScrolling)
     ASSERT_EQ(Point(0,140), component->scrollPosition());
 
     // Now delay until the Scroll command has finished
-    auto delta = config->getScrollCommandDuration();   // How long the scroll command should take
+    auto delta = config->getProperty(RootProperty::kScrollCommandDuration).getDouble();   // How long the scroll command should take
     advanceTime(delta);
     ASSERT_EQ(Point(0,240), component->scrollPosition());
 

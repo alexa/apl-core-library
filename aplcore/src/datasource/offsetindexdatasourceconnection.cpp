@@ -196,7 +196,7 @@ OffsetIndexDataSourceConnection::ensure(size_t index) {
     }
 }
 
-std::shared_ptr<LiveArray>
+LiveArrayPtr
 OffsetIndexDataSourceConnection::getLiveArray() {
     return mLiveArray.lock();
 }

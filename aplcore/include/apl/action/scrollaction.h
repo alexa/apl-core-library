@@ -32,24 +32,26 @@ public:
     /**
      * @param timers Timer reference.
      * @param command Command that spawned this action.
+     * @param duration scrolling duration, -1 to use runtime-default.
      * @return A scroll action or null if not needed.
      */
     static std::shared_ptr<ScrollAction> make(const TimersPtr& timers,
-                                              const std::shared_ptr<CoreCommand>& command);
+                                              const std::shared_ptr<CoreCommand>& command,
+                                              apl_duration_t duration);
 
     /**
      * @param timers Timer reference.
      * @param context context ot run this action in.
      * @param target component to perform action on.
      * @param targetDistance Object containing Dimension representing distance to be scrolled.
-     * @param duration scrolling duration.
+     * @param duration scrolling duration, -1 to use runtime-default.
      * @return The scroll action or null if it is not needed.
      */
     static std::shared_ptr<ScrollAction> make(const TimersPtr& timers,
                                               const ContextPtr& context,
                                               const CoreComponentPtr& target,
                                               const Object& targetDistance,
-                                              apl_duration_t duration = -1);
+                                              apl_duration_t duration);
 
     ScrollAction(const TimersPtr& timers,
                  const ContextPtr& context,

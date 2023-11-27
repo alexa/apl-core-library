@@ -201,7 +201,7 @@ Sequencer::terminate()
     if (DEBUG_SEQUENCER) {
         LOG(LogLevel::kDebug) << "Sequencer terminate";
 
-        for (auto t : mSequencers)
+        for (const auto& t : mSequencers)
             LOG(LogLevel::kDebug) << "Thread: " << t.first;
 
         LOG(LogLevel::kDebug) << "OneShots: " << mOneShotSet.size();

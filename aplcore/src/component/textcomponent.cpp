@@ -80,7 +80,7 @@ const ComponentPropDefSet&
 TextComponent::propDefSet() const
 {
     static auto defaultFontFamily = [](Component& component, const RootConfig& rootConfig) -> Object {
-      return Object(rootConfig.getDefaultFontFamily());
+      return rootConfig.getProperty(RootProperty::kDefaultFontFamily);
     };
 
     static auto defaultFontColor = [](Component& component, const RootConfig& rootConfig) -> Object {

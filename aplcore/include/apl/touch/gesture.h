@@ -84,6 +84,11 @@ public:
      */
     virtual bool invokeAccessibilityAction(const std::string& name) { return false; }
 
+    /**
+     * @return Gesture-supported accessibility actions.
+     */
+    virtual const std::vector<std::string>& getAccessibilityActions() const;
+
 protected:
     Gesture(const ActionablePtr& actionable) : mActionable(actionable), mStarted(false), mTriggered(false) {}
 

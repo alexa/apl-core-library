@@ -103,14 +103,14 @@ public:
     static ContextPtr createTestContext(const Metrics& metrics, const RootConfig& config, const SessionPtr& session);
 
     /**
-     * Create a top-level context for the document background extraction.
+     * Create a top-level context for the Content evaluation.
      * @param metrics Display metrics.
      * @param config Root configuration
      * @param theme Theme
      * @param session Session
      * @return The context
      */
-    static ContextPtr createBackgroundEvaluationContext(
+    static ContextPtr createContentEvaluationContext(
         const Metrics& metrics,
         const RootConfig& config,
         const std::string& aplVersion,

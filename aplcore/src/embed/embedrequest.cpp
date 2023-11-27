@@ -17,17 +17,18 @@
 
 #include "apl/embed/embedrequest.h"
 
+#include "apl/component/hostcomponent.h"
 #include "apl/document/documentcontext.h"
 
 namespace apl {
 
 EmbedRequestPtr
-EmbedRequest::create(URLRequest url, const DocumentContextPtr& origin) {
-    return std::make_shared<EmbedRequest>(std::move(url), origin);
+EmbedRequest::create(URLRequest url, const DocumentContextPtr& origin, const ComponentPtr& originComponent) {
+    return std::make_shared<EmbedRequest>(std::move(url), origin, originComponent);
 }
 
-EmbedRequest::EmbedRequest(URLRequest url, const DocumentContextPtr& origin)
-    : mUrl(std::move(url)), mOrigin(origin)
+EmbedRequest::EmbedRequest(URLRequest url, const DocumentContextPtr& origin, const ComponentPtr& originComponent)
+    : mUrl(std::move(url)), mOrigin(origin), mOriginComponent(originComponent)
 {}
 
 const URLRequest&

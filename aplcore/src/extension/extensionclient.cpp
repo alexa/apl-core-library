@@ -782,7 +782,7 @@ ExtensionClient::readExtensionTypes(const Context& context, const Object& types)
                         name.getString().c_str(), mUri.c_str());
                 continue;
             } else {
-                defValue = propertyAsObject(context, ps, "default");
+                defValue = propertyAsRecursive(context, ps, "default");
                 ptype = propertyAsMapped<BindingType>(context, ps, "type", kBindingTypeAny, sBindingMap);
                 if (!sBindingMap.has(ptype)) {
                     ptype = kBindingTypeAny;

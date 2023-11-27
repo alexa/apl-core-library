@@ -46,6 +46,14 @@ int utf8StringLength(const uint8_t* utf8StringPtr, int count);
 std::string utf8StringSlice(const std::string& utf8String, int start, int end = std::numeric_limits<int>::max());
 
 /**
+ * Return a single character from a UTF-8 string
+ * @param utf8String A reference to a std::string holding UTF-8 data
+ * @param index The offset of the code point.  If negative, count from the end of the string
+ * @return The extracted code point.  May be empty.
+ */
+std::string utf8StringCharAt(const std::string& utf8String, int index);
+
+/**
  * Strip invalid characters out of a UTF-8 string.  The "validCharacters" property in the EditText
  * component defines the schema for the valid character string.
  *

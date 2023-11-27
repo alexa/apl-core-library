@@ -15,29 +15,104 @@
 
 #include "apl/content/importrequest.h"
 
+#include "apl/engine/context.h"
+#include "apl/engine/evaluate.h"
+
 namespace apl {
 
 static const char *IMPORT_NAME = "name";
 static const char *IMPORT_VERSION = "version";
 static const char *IMPORT_SOURCE = "source";
+static const char *IMPORT_LOAD_AFTER = "loadAfter";
 
-
-ImportRequest::ImportRequest(const rapidjson::Value& value)
-    : mValid(false), mUniqueId(ImportRequest::sNextId++)
+ImportRequest
+ImportRequest::create(const rapidjson::Value& value,
+                      const ContextPtr& context,
+                      const std::string& commonName,
+                      const std::string& commonVersion,
+                      const std::set<std::string>& commonLoadAfter)
 {
     if (value.IsObject()) {
-        auto it_name = value.FindMember(IMPORT_NAME);
-        auto it_version = value.FindMember(IMPORT_VERSION);
+        auto nameAndVersion = extractNameAndVersion(value, context);
+        // Prefer specific name and version, use common if not provided
+        auto name = nameAndVersion.first;
+        name = name.empty() ? commonName : name;
+        auto version = nameAndVersion.second;
+        version = version.empty() ? commonVersion : version;
 
-        if (it_name != value.MemberEnd() && it_version != value.MemberEnd()) {
-            mReference = ImportRef(it_name->value.GetString(), it_version->value.GetString());
-            mValid = true;
+        if (name.empty() || version.empty()) return {};
+
+        // Source is always specific, if exists
+        std::string source;
+        auto it_source = value.FindMember(IMPORT_SOURCE);
+        if (it_source != value.MemberEnd()) {
+            source = it_source->value.GetString();
+            if (!source.empty() && context) source = evaluate(*context, source).asString();
         }
 
-        auto it_source = value.FindMember(IMPORT_SOURCE);
-        if (it_source != value.MemberEnd())
-            mSource = it_source->value.GetString();
+        // Load after can also be common
+        auto loadAfter = extractLoadAfter(value, context);
+        loadAfter = loadAfter.empty() ? commonLoadAfter : loadAfter;
+        if (loadAfter.count(nameAndVersion.first)) return {};
+
+        return {name, version, source, loadAfter};
     }
+
+    return {};
+}
+
+ImportRequest::ImportRequest() : mValid(false), mUniqueId(ImportRequest::sNextId++) {}
+
+ImportRequest::ImportRequest(const std::string& name,
+                             const std::string& version,
+                             const std::string& source,
+                             const std::set<std::string>& loadAfter)
+    : mReference(name, version, source, loadAfter), mValid(true), mUniqueId(ImportRequest::sNextId++)
+{
+}
+
+std::pair<std::string, std::string>
+ImportRequest::extractNameAndVersion(const rapidjson::Value& value, const ContextPtr& context)
+{
+    std::string name;
+    std::string version;
+
+    auto it_name = value.FindMember(IMPORT_NAME);
+    if (it_name != value.MemberEnd()) {
+        name = it_name->value.GetString();
+        if (context) name = evaluate(*context, name).asString();
+    }
+
+    auto it_version = value.FindMember(IMPORT_VERSION);
+    if (it_version != value.MemberEnd()) {
+        version = it_version->value.GetString();
+        if (context) version = evaluate(*context, version).asString();
+    }
+    return std::make_pair(name, version);
+}
+
+std::set<std::string>
+ImportRequest::extractLoadAfter(const rapidjson::Value& value, const ContextPtr& context)
+{
+    std::set<std::string> result;
+
+    auto it_load_after = value.FindMember(IMPORT_LOAD_AFTER);
+    if (it_load_after != value.MemberEnd()) {
+        auto& tmpValue = it_load_after->value;
+        if (tmpValue.IsString()) {
+            auto loadString = context ? evaluate(*context, tmpValue.GetString()).asString() : tmpValue.GetString();
+            result.emplace(loadString);
+        } else if (tmpValue.IsArray()) {
+            for (const auto& load : tmpValue.GetArray()) {
+                if (load.IsString()) {
+                    auto depString = context ? evaluate(*context, load.GetString()).asString() : load.GetString();
+                    result.emplace(depString);
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 uint32_t ImportRequest::sNextId = 0;

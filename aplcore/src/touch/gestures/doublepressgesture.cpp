@@ -18,12 +18,14 @@
 #include "apl/component/touchablecomponent.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/propdef.h"
+#include "apl/primitives/accessibilityaction.h"
 #include "apl/utils/session.h"
 
 namespace apl {
 
 std::shared_ptr<DoublePressGesture>
-DoublePressGesture::create(const ActionablePtr& actionable, const Context& context, const Object& object) {
+DoublePressGesture::create(const ActionablePtr& actionable, const Context& context, const Object& object)
+{
     Object onDoublePress = arrayifyPropertyAsObject(context, object, "onDoublePress");
     Object onSinglePress = arrayifyPropertyAsObject(context, object, "onSinglePress");
 
@@ -36,10 +38,12 @@ DoublePressGesture::DoublePressGesture(const ActionablePtr& actionable, Object&&
         mOnSinglePress(std::move(onSinglePress)),
         mStartTime(0),
         mBetweenPresses(false),
-        mDoublePressTimeout(actionable->getRootConfig().getDoublePressTimeout()) {}
+        mDoublePressTimeout(actionable->getRootConfig().getProperty(RootProperty::kDoublePressTimeout).getDouble())
+{}
 
 void
-DoublePressGesture::reset() {
+DoublePressGesture::reset()
+{
     Gesture::reset();
     mBetweenPresses = false;
 }
@@ -47,7 +51,7 @@ DoublePressGesture::reset() {
 bool
 DoublePressGesture::invokeAccessibilityAction(const std::string& name)
 {
-    if (name == "doubletap") {
+    if (name == AccessibilityAction::ACCESSIBILITY_ACTION_DOUBLETAP) {
         mActionable->executeEventHandler("DoublePress", mOnDoublePress, false,
                                          mActionable->createTouchEventProperties(Point()));
         return true;
@@ -55,8 +59,16 @@ DoublePressGesture::invokeAccessibilityAction(const std::string& name)
     return false;
 }
 
+const std::vector<std::string>&
+DoublePressGesture::getAccessibilityActions() const
+{
+    static std::vector<std::string> sActionsList = {AccessibilityAction::ACCESSIBILITY_ACTION_DOUBLETAP};
+    return sActionsList;
+}
+
 void
-DoublePressGesture::onFirstUpInternal(const PointerEvent& event, apl_time_t timestamp) {
+DoublePressGesture::onFirstUpInternal(const PointerEvent& event, apl_time_t timestamp)
+{
     mBetweenPresses = true;
 
     if (timestamp >= mStartTime + mDoublePressTimeout) {
@@ -72,14 +84,16 @@ DoublePressGesture::onFirstUpInternal(const PointerEvent& event, apl_time_t time
 
 }
 void
-DoublePressGesture::onSecondDownInternal(const PointerEvent& event, apl_time_t timestamp) {
+DoublePressGesture::onSecondDownInternal(const PointerEvent& event, apl_time_t timestamp)
+{
     mBetweenPresses = false;
     // Pass through
     passPointerEventThrough(event);
 }
 
 void
-DoublePressGesture::onSecondUpInternal(const PointerEvent& event, apl_time_t timestamp) {
+DoublePressGesture::onSecondUpInternal(const PointerEvent& event, apl_time_t timestamp)
+{
     Point localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
 
     // Send cancel as we found double press at this point
@@ -93,7 +107,8 @@ DoublePressGesture::onSecondUpInternal(const PointerEvent& event, apl_time_t tim
 }
 
 bool
-DoublePressGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
+DoublePressGesture::onDown(const PointerEvent& event, apl_time_t timestamp)
+{
     mStartTime = timestamp;
     if (mBetweenPresses) {
         onSecondDownInternal(event, timestamp);
@@ -102,7 +117,8 @@ DoublePressGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
 }
 
 bool
-DoublePressGesture::onTimeUpdate(const apl::PointerEvent& event, apl::apl_time_t timestamp) {
+DoublePressGesture::onTimeUpdate(const apl::PointerEvent& event, apl::apl_time_t timestamp)
+{
     // Will only do something when in between presses
     if (timestamp >= mStartTime + mDoublePressTimeout && mBetweenPresses) {
         Point localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
@@ -114,7 +130,8 @@ DoublePressGesture::onTimeUpdate(const apl::PointerEvent& event, apl::apl_time_t
 }
 
 bool
-DoublePressGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
+DoublePressGesture::onUp(const PointerEvent& event, apl_time_t timestamp)
+{
     if (mTriggered) {
         onSecondUpInternal(event, timestamp);
     } else {

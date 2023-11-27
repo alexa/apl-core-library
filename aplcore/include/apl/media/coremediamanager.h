@@ -54,7 +54,7 @@ public:
 
 protected:
     std::map<std::string, std::weak_ptr<MediaObject>> mObjectMap;
-    std::set<std::weak_ptr<MediaObject>, std::owner_less<std::weak_ptr<MediaObject>>> mPending;
+    WeakPtrSet<MediaObject> mPending;
 };
 
 } // namespace apl

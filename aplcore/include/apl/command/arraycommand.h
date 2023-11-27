@@ -54,7 +54,7 @@ public:
     std::string name() const override { return "ArrayCommand"; }
     ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
 
-    bool finishAllOnTerminate() const { return mFinishAllOnTerminate; }
+    bool finishAllOnTerminate() const override { return mFinishAllOnTerminate; }
 
 private:
     bool mFinishAllOnTerminate;

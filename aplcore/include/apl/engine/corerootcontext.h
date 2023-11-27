@@ -26,6 +26,14 @@ namespace apl {
  */
 class CoreRootContext : public std::enable_shared_from_this<CoreRootContext>, public RootContext {
 public:
+    /**
+     * Construct a top-level root context.
+     * @param metrics Display metrics
+     * @param content Content to display
+     * @param config Configuration information
+     * @param callback Pre-layout callback
+     * @return A pointer to the root context.
+     */
     static RootContextPtr create(const Metrics& metrics,
                                  const ContentPtr& content,
                                  const RootConfig& config,
@@ -101,8 +109,7 @@ public:
     void mediaLoadFailed(const std::string& source,
                          int errorCode = -1,
                          const std::string& error = std::string()) override;
-    bool getAutoWidth() const;
-    bool getAutoHeight() const;
+    Size getViewportSize() const override;
 
 #ifdef SCENEGRAPH
     sg::SceneGraphPtr getSceneGraph() override;
@@ -138,6 +145,13 @@ public:
      */
     double getPxToDp() const;
 
+    /**
+     * Update the viewport size
+     * @param width Width of the viewport in dp
+     * @param height Height of the viewport in dp
+     */
+    void setViewportSize(float width, float height) const;
+
 private:
     friend class CoreDocumentContext;
     friend class ExtensionClient; // TODO: Required for backwards compatibility with V1 extension interface
@@ -167,6 +181,7 @@ private:
     apl_duration_t mLocalTimeAdjustment = 0;
     DisplayState mDisplayState;
     CoreDocumentContextPtr mTopDocument;
+    mutable Size mViewportSize;  // Viewport size in dp; mutable so that LayoutManager can change it
 #ifdef SCENEGRAPH
     sg::SceneGraphPtr mSceneGraph;
 #endif // SCENEGRAPH

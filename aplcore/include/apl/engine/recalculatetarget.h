@@ -43,7 +43,7 @@ public:
      * @param key The key the target downstream property that will be recalculated.
      * @param dependant The dependant object.
      */
-    void addUpstream(T key, const std::shared_ptr<Dependant>& dependant) {
+    void addUpstream(T key, const DependantPtr& dependant) {
         mUpstream.emplace(key, dependant);
     }
 
@@ -125,7 +125,7 @@ public:
     virtual void setValue(T key, const Object& value, bool useDirtyFlag) = 0;
 
 private:
-    std::multimap<T, std::shared_ptr<Dependant>> mUpstream;
+    std::multimap<T, DependantPtr> mUpstream;
 };
 
 } // namespace apl

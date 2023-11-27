@@ -37,7 +37,7 @@ public:
      * @param key The key of the local element.  When this element is changed, the downstream dependant should recalculate.
      * @param dependant The dependant object connecting to the downstream dependant object.
      */
-    void addDownstream(T key, const std::shared_ptr<Dependant>& dependant) {
+    void addDownstream(T key, const DependantPtr& dependant) {
         // For now, we strip off the "/" section of the keys
         auto name = key.substr(0, key.find("/", 0));
 
@@ -67,7 +67,7 @@ public:
      * any released weak_ptrs at the same time.
      * @param dependant The object to remove
      */
-    void removeDownstream(const std::shared_ptr<Dependant>& dependant) {
+    void removeDownstream(const DependantPtr& dependant) {
         auto it = mDownstream.begin();
         while (it != mDownstream.end()) {
             // TODO: Possible optimization by using owner_before comparison

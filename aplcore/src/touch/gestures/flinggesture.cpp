@@ -75,7 +75,8 @@ bool
 FlingGesture::passedScrollOrTapTimeout(apl_time_t timestamp)
 {
     // Wait for tap or scroll timeout to start checking for moves
-    return (timestamp - mStartTime) >= mActionable->getRootConfig().getTapOrScrollTimeout();
+    return (timestamp - mStartTime) >=
+           mActionable->getRootConfig().getProperty(RootProperty::kTapOrScrollTimeout).getDouble();
 }
 
 bool
@@ -86,7 +87,7 @@ FlingGesture::isSlopeWithinTolerance(Point localPosition, bool horizontal)
     }
 
     auto pointerDelta = localPosition - mStartPosition;
-    auto maxSlope = mActionable->getRootConfig().getSwipeAngleSlope();
+    auto maxSlope = mActionable->getRootConfig().getProperty(RootProperty::kSwipeAngleTolerance).getDouble();
     if (horizontal) {
         return std::abs(pointerDelta.getX()) * maxSlope >= std::abs(pointerDelta.getY());
     } else {

@@ -90,7 +90,8 @@ ScrollGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
 
     if (!isTriggered()) {
         auto triggerDistance = scrollable->isHorizontal() ? delta.getX() : delta.getY();
-        auto flingTriggerDistanceThreshold = toLocalThreshold(scrollable->getRootConfig().getPointerSlopThreshold());
+        auto flingTriggerDistanceThreshold =
+            toLocalThreshold(scrollable->getRootConfig().getProperty(RootProperty::kPointerSlopThreshold).getDouble());
         if (std::abs(triggerDistance) > flingTriggerDistanceThreshold) {
             if (!isSlopeWithinTolerance(position)) {
                 reset();
@@ -176,8 +177,8 @@ ScrollGesture::onUp(const PointerEvent& event, apl_time_t timestamp)
     // TODO: Acting on "significant" direction. Will will need this to be changed when we have
     //  multidirectional scrolling.
     const auto& rootConfig = scrollable->getRootConfig();
-    if (std::abs(velocity) >= toLocalThreshold(rootConfig.getMinimumFlingVelocity()) /
-    time::MS_PER_SECOND) {
+    if (std::abs(velocity) >= toLocalThreshold(rootConfig.getProperty(RootProperty::kMinimumFlingVelocity).getDouble()) /
+        time::MS_PER_SECOND) {
         auto position =  scrollable->toLocalPoint(event.pointerEventPosition);
         auto delta = position - mStartPosition;
         auto velocityLimit = getVelocityLimit(delta);
@@ -237,7 +238,7 @@ ScrollGesture::scrollToSnap()
       if (self) {
           self->reset();
       }
-    }, snapOffset, rootConfig.getScrollSnapDuration());
+    }, snapOffset, rootConfig.getProperty(RootProperty::kScrollSnapDuration).getDouble());
 }
 
 float

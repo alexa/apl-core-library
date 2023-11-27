@@ -21,6 +21,8 @@
 
 #include "apl/primitives/header.h"
 #include "apl/utils/bimap.h"
+#include "apl/utils/session.h"
+#include "apl/primitives/object.h"
 
 namespace apl {
 
@@ -52,9 +54,14 @@ struct MediaTrack {
     int repeatCount;           // Number of times to repeat this track before moving to the next. Negative numbers repeat forever.
     HeaderArray headers;       // HeaderArray required for the track
     TextTrackArray textTracks; // Distinct subtitle tracks to render
+    bool valid() const{
+        return !url.empty();
+    }
 };
 
 extern Bimap<TextTrackType, std::string> sTextTrackTypeMap;
+
+MediaTrack createMediaTrack(const Object &speech, const std::shared_ptr<Context> &context);
 
 } // namespace apl
 

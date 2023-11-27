@@ -53,6 +53,7 @@ EditTextComponent::EditTextComponent(const ContextPtr& context,
                                      const Path& path)
         : ActionableComponent(context, std::move(properties), path)
 {
+    mIsDisallowed = context->getRootConfig().getProperty(RootProperty::kDisallowEditText).asBoolean();
 #ifdef SCENEGRAPH
     static auto sgTextMeasureFunc = [](YGNodeRef node, float width, YGMeasureMode widthMode,
                                        float height, YGMeasureMode heightMode) -> YGSize {
@@ -123,7 +124,7 @@ static inline Object defaultFontColor(Component& component, const RootConfig& ro
 
 static inline Object defaultFontFamily(Component& component, const RootConfig& rootConfig)
 {
-    return Object(rootConfig.getDefaultFontFamily());
+    return rootConfig.getProperty(RootProperty::kDefaultFontFamily);
 }
 
 static inline Object inheritLang(Component& comp, const RootConfig& rconfig)

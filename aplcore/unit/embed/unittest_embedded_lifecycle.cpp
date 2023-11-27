@@ -84,7 +84,7 @@ static const char* EMBEDDED_DOC = R"({
 
 static const char* PSEUDO_LOG_COMMAND = R"apl([
   {
-    "type": "Log"
+    "type": "PseudoLog"
   }
 ])apl";
 
@@ -442,7 +442,11 @@ const static char *PARENT_VC = R"({
         "HOST"
       ],
       "tags": {
-        "focused": false
+        "focused": false,
+        "embedded": {
+          "attached": false,
+          "source": "embeddedDocumentUrl"
+        }
       },
       "id": "hostComponent",
       "uid": "HOSTID",
@@ -534,7 +538,11 @@ const static char *FULL_VC = R"({
           "HOST"
         ],
         "tags": {
-          "focused": false
+          "focused": false,
+          "embedded": {
+            "attached": true,
+            "source": "embeddedDocumentUrl"
+          }
         },
         "id": "hostComponent",
         "uid": "HOSTID",
@@ -685,11 +693,11 @@ TEST_F(EmbeddedLifecycleTest, ContentAndSourceReuse)
     auto content = Content::create(EMBEDDED_DOC, session);
     ASSERT_TRUE(content->isReady());
 
-    auto embeddedDocumentContext1 = documentManager->succeed("embeddedDocumentUrl", content, true, std::make_shared<DocumentConfig>(), true);
+    auto embeddedDocumentContext1 = documentManager->succeed("embeddedDocumentUrl", content, true, DocumentConfig::create(), true);
     ASSERT_TRUE(embeddedDocumentContext1);
     ASSERT_TRUE(CheckSendEvent(root, "LOADED1"));
 
-    auto embeddedDocumentContext2 = documentManager->succeed("embeddedDocumentUrl", content, true, std::make_shared<DocumentConfig>(), true);
+    auto embeddedDocumentContext2 = documentManager->succeed("embeddedDocumentUrl", content, true, DocumentConfig::create(), true);
     ASSERT_TRUE(embeddedDocumentContext2);
     ASSERT_TRUE(CheckSendEvent(root, "LOADED2"));
 }
@@ -727,7 +735,712 @@ TEST_F(EmbeddedLifecycleTest, SingleHost)
     auto content = Content::create(EMBEDDED_DOC, session);
     ASSERT_TRUE(content->isReady());
 
-    auto embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl", content, true, std::make_shared<DocumentConfig>(), true);
+    auto embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl", content, true, DocumentConfig::create(), true);
     ASSERT_TRUE(embeddedDocumentContext);
     ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+}
+
+TEST_F(EmbeddedLifecycleTest, ChangeSourceAfterDocumentLoaded)
+{
+    loadDocument(HOST_DOC);
+
+    // Host component has no children at the beginning
+    auto host = component->getCoreChildAt(0);
+    ASSERT_EQ(0, host->getChildCount());
+
+    auto content = Content::create(EMBEDDED_DOC, session);
+    ASSERT_TRUE(content->isReady());
+
+    auto embeddedDocument = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_TRUE(embeddedDocument);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    // Now there is one child (due to embedded document Text component)
+    ASSERT_EQ(1, host->getChildCount());
+
+    auto text = root->findComponentById("embeddedText");
+    ASSERT_EQ("Hello, World!", text->getCalculated(kPropertyText).asString());
+
+    // Change the source to something else
+    auto action = executeCommand(
+        rootDocument,
+        "SetValue", {
+                        {"componentId", "hostComponent"},
+                        {"property", "source"},
+                        {"value", "anotherEmbeddedDocumentUrl"}
+                    }, false);
+
+    // Back to no children (Host is empty)
+    ASSERT_EQ(0, host->getChildCount());
+
+    auto embeddedDocument2 = documentManager->succeed("anotherEmbeddedDocumentUrl", content, true);
+    ASSERT_TRUE(embeddedDocument2);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    // Again there is one child (due to embedded document Text component)
+    ASSERT_EQ(1, host->getChildCount());
+}
+
+TEST_F(EmbeddedLifecycleTest, ChangeSourceBeforeDocumentLoaded) {
+    loadDocument(HOST_DOC);
+
+    // Host component has no children at the beginning
+    auto host = component->getCoreChildAt(0);
+    ASSERT_EQ(0, host->getChildCount());
+
+    // Change the source to something else
+    auto action = executeCommand(rootDocument, "SetValue",
+                                 {{"componentId", "hostComponent"},
+                                  {"property", "source"},
+                                  {"value", "anotherEmbeddedDocumentUrl"}},
+                                 false);
+
+    auto content = Content::create(EMBEDDED_DOC, session);
+    ASSERT_TRUE(content->isReady());
+
+    // Original request is no longer needed
+    auto embeddedDocument = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_FALSE(embeddedDocument);
+    ASSERT_FALSE(CheckSendEvent(root, "LOADED"));
+
+    // Still no children
+    ASSERT_EQ(0, host->getChildCount());
+    auto text = root->findComponentById("embeddedText");
+    ASSERT_FALSE(text);
+
+    auto embeddedDocument2 = documentManager->succeed("anotherEmbeddedDocumentUrl", content, true);
+    ASSERT_TRUE(embeddedDocument2);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    // Now there's one child (due to embedded document Text component)
+    ASSERT_EQ(1, host->getChildCount());
+    text = root->findComponentById("embeddedText");
+    ASSERT_TRUE(text);
+    ASSERT_EQ("Hello, World!", text->getCalculated(kPropertyText).asString());
+}
+
+static const char* CUSTOM_EMBEDDED_ENV = R"({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "item": {
+      "type": "Text",
+      "id": "embeddedText",
+      "text": "${environment.magic}"
+    }
+  }
+})";
+
+TEST_F(EmbeddedLifecycleTest, CustomEnv)
+{
+    // Host document inflates
+    loadDocument(SINGLE_HOST_DOC);
+
+    auto content = Content::create(CUSTOM_EMBEDDED_ENV, session);
+    ASSERT_TRUE(content->isReady());
+
+    auto documentConfig = DocumentConfig::create();
+    documentConfig->setEnvironmentValue("magic", "Very magic.");
+
+    auto embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl", content, true, documentConfig, true);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    ASSERT_EQ("Very magic.", root->findComponentById("embeddedText")->getCalculated(apl::kPropertyText).asString());
+}
+
+static const char* HOST_DOC_AUTO = R"({
+  "type": "APL",
+  "version": "2023.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "item": {
+        "type": "Host",
+        "width": "auto",
+        "height": "auto",
+        "id": "hostComponent",
+        "entities": "HOST",
+        "source": "embeddedDocumentUrl",
+        "onLoad": [
+          {
+            "type": "SendEvent",
+            "sequencer": "SEND_EVENTER",
+            "arguments": ["LOADED"]
+          }
+        ]
+      }
+    }
+  }
+})";
+
+static const char* FIXED_EMBEDDED_DOC = R"({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "item": {
+      "type": "Text",
+      "width": 300,
+      "height": 300,
+      "id": "embeddedText",
+      "text": "Hello, World!",
+      "entities": "EMBEDDED"
+    }
+  }
+})";
+
+TEST_F(EmbeddedLifecycleTest, AutoSizedEmbedded)
+{
+    loadDocument(HOST_DOC_AUTO);
+
+    // While it inflates embedded document requested.
+    auto requestWeak = documentManager->get("embeddedDocumentUrl");
+    ASSERT_TRUE(requestWeak.lock());
+    auto request = requestWeak.lock();
+    ASSERT_EQ(request->getUrlRequest().getUrl(), "embeddedDocumentUrl");
+
+    // When document retrieved - create content with new session (console session management is up
+    // to runtime/viewhost)
+    auto embeddedSession = std::make_shared<TestSession>();
+    auto content = Content::create(FIXED_EMBEDDED_DOC, embeddedSession);
+    // Load any packages if required and check if ready.
+    ASSERT_TRUE(content->isReady());
+
+    // Now request can be answered.
+    auto embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 300, 300));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 300, 300));
+    ASSERT_TRUE(CheckComponent(component, 1024, 800));
+    ASSERT_TRUE(CheckViewport(root, 1024, 800));
+
+    // Change size directly
+    auto action = executeCommand(
+        embeddedDocumentContext,
+        "SetValue", {
+                        {"componentId", "embeddedText"},
+                        {"property", "width"},
+                        {"value", 200}
+                    }, false);
+
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 200, 300));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 200, 300));
+    ASSERT_TRUE(CheckComponent(component, 1024, 800));
+    ASSERT_TRUE(CheckViewport(root, 1024, 800));
+}
+
+static const char* AUTO_EMBEDDED_DOC = R"({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "item": {
+      "type": "Text",
+      "width": "auto",
+      "height": "auto",
+      "id": "embeddedText",
+      "text": "Hello, World!"
+    }
+  }
+})";
+
+TEST_F(EmbeddedLifecycleTest, AutoSizedAutoEmbedded)
+{
+    loadDocument(HOST_DOC_AUTO);
+
+    // While it inflates embedded document requested.
+    auto requestWeak = documentManager->get("embeddedDocumentUrl");
+    ASSERT_TRUE(requestWeak.lock());
+    auto request = requestWeak.lock();
+    ASSERT_EQ(request->getUrlRequest().getUrl(), "embeddedDocumentUrl");
+
+    // When document retrieved - create content with new session (console session management is up
+    // to runtime/viewhost)
+    auto embeddedSession = std::make_shared<TestSession>();
+    auto content = Content::create(AUTO_EMBEDDED_DOC, embeddedSession);
+    // Load any packages if required and check if ready.
+    ASSERT_TRUE(content->isReady());
+
+    // Now request can be answered.
+    auto embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 130, 10));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 130, 10));
+    ASSERT_TRUE(CheckComponent(component, 1024, 800));
+    ASSERT_TRUE(CheckViewport(root, 1024, 800));
+
+
+    executeCommand(
+        embeddedDocumentContext,
+        "SetValue", {
+                        {"componentId", "embeddedText"},
+                        {"property", "text"},
+                        {"value", "Hello, World! Maybe, not sure yet."}
+                    }, false);
+
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 340, 10));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 340, 10));
+    ASSERT_TRUE(CheckComponent(component, 1024, 800));
+    ASSERT_TRUE(CheckViewport(root, 1024, 800));
+}
+
+static const char* HOST_DOC_AUTO_MINMAX_WIDTH = R"({
+  "type": "APL",
+  "version": "2023.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "item": {
+        "type": "Host",
+        "width": "auto",
+        "minWidth": 100,
+        "maxWidth": 200,
+        "height": "auto",
+        "id": "hostComponent",
+        "entities": "HOST",
+        "source": "embeddedDocumentUrl",
+        "onLoad": [
+          {
+            "type": "SendEvent",
+            "sequencer": "SEND_EVENTER",
+            "arguments": ["LOADED"]
+          }
+        ]
+      }
+    }
+  }
+})";
+
+TEST_F(EmbeddedLifecycleTest, AutoSizedEmbeddedMinMaxWidth)
+{
+    loadDocument(HOST_DOC_AUTO_MINMAX_WIDTH);
+
+    // While it inflates embedded document requested.
+    auto requestWeak = documentManager->get("embeddedDocumentUrl");
+    ASSERT_TRUE(requestWeak.lock());
+    auto request = requestWeak.lock();
+    ASSERT_EQ(request->getUrlRequest().getUrl(), "embeddedDocumentUrl");
+
+    // When document retrieved - create content with new session (console session management is up
+    // to runtime/viewhost)
+    auto embeddedSession = std::make_shared<TestSession>();
+    auto content = Content::create(AUTO_EMBEDDED_DOC, embeddedSession);
+    // Load any packages if required and check if ready.
+    ASSERT_TRUE(content->isReady());
+
+    // Now request can be answered.
+    auto embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 130, 10));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 130, 10));
+    ASSERT_TRUE(CheckComponent(component, 1024, 800));
+    ASSERT_TRUE(CheckViewport(root, 1024, 800));
+
+
+    executeCommand(
+        embeddedDocumentContext,
+        "SetValue", {
+                        {"componentId", "embeddedText"},
+                        {"property", "text"},
+                        {"value", "Hello"}
+                    }, false);
+
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 100, 10));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 100, 10));
+    ASSERT_TRUE(CheckComponent(component, 1024, 800));
+    ASSERT_TRUE(CheckViewport(root, 1024, 800));
+
+
+    executeCommand(
+        embeddedDocumentContext,
+        "SetValue", {
+                        {"componentId", "embeddedText"},
+                        {"property", "text"},
+                        {"value", "Hello, World! Maybe, not sure yet."}
+                    }, false);
+
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 200, 20));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 200, 20));
+    ASSERT_TRUE(CheckComponent(component, 1024, 800));
+    ASSERT_TRUE(CheckViewport(root, 1024, 800));
+}
+
+static const char* HOST_DOC_AUTO_MINMAX_HEIGHT = R"({
+  "type": "APL",
+  "version": "2023.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "item": {
+        "type": "Host",
+        "width": 50,
+        "height": "auto",
+        "minHeight": 20,
+        "maxHeight": 60,
+        "id": "hostComponent",
+        "entities": "HOST",
+        "source": "embeddedDocumentUrl",
+        "onLoad": [
+          {
+            "type": "SendEvent",
+            "sequencer": "SEND_EVENTER",
+            "arguments": ["LOADED"]
+          }
+        ]
+      }
+    }
+  }
+})";
+
+TEST_F(EmbeddedLifecycleTest, AutoSizedEmbeddedMinMaxHeight)
+{
+    loadDocument(HOST_DOC_AUTO_MINMAX_HEIGHT);
+
+    // While it inflates embedded document requested.
+    auto requestWeak = documentManager->get("embeddedDocumentUrl");
+    ASSERT_TRUE(requestWeak.lock());
+    auto request = requestWeak.lock();
+    ASSERT_EQ(request->getUrlRequest().getUrl(), "embeddedDocumentUrl");
+
+    // When document retrieved - create content with new session (console session management is up
+    // to runtime/viewhost)
+    auto embeddedSession = std::make_shared<TestSession>();
+    auto content = Content::create(AUTO_EMBEDDED_DOC, embeddedSession);
+    // Load any packages if required and check if ready.
+    ASSERT_TRUE(content->isReady());
+
+    // Now request can be answered.
+    auto embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 50, 30));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 50, 30));
+    ASSERT_TRUE(CheckComponent(component, 1024, 800));
+    ASSERT_TRUE(CheckViewport(root, 1024, 800));
+
+
+    executeCommand(
+        embeddedDocumentContext,
+        "SetValue", {
+                        {"componentId", "embeddedText"},
+                        {"property", "text"},
+                        {"value", "Hello"}
+                    }, false);
+
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 50, 20));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 50, 20));
+    ASSERT_TRUE(CheckComponent(component, 1024, 800));
+    ASSERT_TRUE(CheckViewport(root, 1024, 800));
+
+
+    executeCommand(
+        embeddedDocumentContext,
+        "SetValue", {
+                        {"componentId", "embeddedText"},
+                        {"property", "text"},
+                        {"value", "Hello, World! Maybe, not sure yet."}
+                    }, false);
+
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 50, 60));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 50, 60));
+    ASSERT_TRUE(CheckComponent(component, 1024, 800));
+    ASSERT_TRUE(CheckViewport(root, 1024, 800));
+}
+
+static const char* HOST_DOC_AUTO_MINMAX = R"({
+  "type": "APL",
+  "version": "2023.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "item": {
+        "type": "Host",
+        "width": "auto",
+        "height": "auto",
+        "minWidth": 60,
+        "maxWidth": 150,
+        "minHeight": 20,
+        "maxHeight": 25,
+        "id": "hostComponent",
+        "entities": "HOST",
+        "source": "embeddedDocumentUrl",
+        "onLoad": [
+          {
+            "type": "SendEvent",
+            "sequencer": "SEND_EVENTER",
+            "arguments": ["LOADED"]
+          }
+        ]
+      }
+    }
+  }
+})";
+
+TEST_F(EmbeddedLifecycleTest, AutoSizedEmbeddedMinMax)
+{
+    loadDocument(HOST_DOC_AUTO_MINMAX);
+
+    // While it inflates embedded document requested.
+    auto requestWeak = documentManager->get("embeddedDocumentUrl");
+    ASSERT_TRUE(requestWeak.lock());
+    auto request = requestWeak.lock();
+    ASSERT_EQ(request->getUrlRequest().getUrl(), "embeddedDocumentUrl");
+
+    // When document retrieved - create content with new session (console session management is up
+    // to runtime/viewhost)
+    auto embeddedSession = std::make_shared<TestSession>();
+    auto content = Content::create(AUTO_EMBEDDED_DOC, embeddedSession);
+    // Load any packages if required and check if ready.
+    ASSERT_TRUE(content->isReady());
+
+    // Now request can be answered.
+    auto embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 130, 20));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 130, 20));
+    ASSERT_TRUE(CheckComponent(component, 1024, 800));
+    ASSERT_TRUE(CheckViewport(root, 1024, 800));
+
+
+    executeCommand(
+        embeddedDocumentContext,
+        "SetValue", {
+                        {"componentId", "embeddedText"},
+                        {"property", "text"},
+                        {"value", "Hello"}
+                    }, false);
+
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 60, 20));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 60, 20));
+    ASSERT_TRUE(CheckComponent(component, 1024, 800));
+    ASSERT_TRUE(CheckViewport(root, 1024, 800));
+
+
+    executeCommand(
+        embeddedDocumentContext,
+        "SetValue", {
+                        {"componentId", "embeddedText"},
+                        {"property", "text"},
+                        {"value", "Hello, World! Maybe, not sure yet."}
+                    }, false);
+
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 150, 25));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 150, 25));
+    ASSERT_TRUE(CheckComponent(component, 1024, 800));
+    ASSERT_TRUE(CheckViewport(root, 1024, 800));
+}
+
+static const char* HOST_AUTO_DOC_AUTO = R"({
+  "type": "APL",
+  "version": "2023.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "auto",
+      "height": "auto",
+      "item": {
+        "type": "Host",
+        "width": "auto",
+        "height": "auto",
+        "id": "hostComponent",
+        "entities": "HOST",
+        "source": "embeddedDocumentUrl",
+        "onLoad": [
+          {
+            "type": "SendEvent",
+            "sequencer": "SEND_EVENTER",
+            "arguments": ["LOADED"]
+          }
+        ]
+      }
+    }
+  }
+})";
+
+TEST_F(EmbeddedLifecycleTest, AutoSizedAutoEmbeddedAutoHost)
+{
+    metrics = Metrics().size(100, 100).minAndMaxHeight(50, 100).minAndMaxWidth(100, 500);
+    loadDocument(HOST_AUTO_DOC_AUTO);
+
+    // While it inflates embedded document requested.
+    auto requestWeak = documentManager->get("embeddedDocumentUrl");
+    ASSERT_TRUE(requestWeak.lock());
+    auto request = requestWeak.lock();
+    ASSERT_EQ(request->getUrlRequest().getUrl(), "embeddedDocumentUrl");
+
+    // When document retrieved - create content with new session (console session management is up
+    // to runtime/viewhost)
+    auto embeddedSession = std::make_shared<TestSession>();
+    auto content = Content::create(AUTO_EMBEDDED_DOC, embeddedSession);
+    // Load any packages if required and check if ready.
+    ASSERT_TRUE(content->isReady());
+
+    // Now request can be answered.
+    auto embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 130, 10));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 130, 10));
+    ASSERT_TRUE(CheckComponent(component, 130, 50));
+    ASSERT_TRUE(CheckViewport(root, 130, 50));
+
+
+    executeCommand(
+        embeddedDocumentContext,
+        "SetValue", {
+                        {"componentId", "embeddedText"},
+                        {"property", "text"},
+                        {"value", "Hello, World! Maybe, not sure yet."}
+                    }, false);
+
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckComponent(root->findComponentById("embeddedText"), 340, 10));
+    ASSERT_TRUE(CheckComponent(root->findComponentById("hostComponent"), 340, 10));
+    ASSERT_TRUE(CheckComponent(component, 340, 50));
+    ASSERT_TRUE(CheckViewport(root, 340, 50));
+}
+
+static const char* SCROLLABLE_MULTI_HOST = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "width": "auto",
+      "height": 100,
+      "data": [
+        "Hello first time.",
+        "Hello very second time. For real. Not kidding now.",
+        "Hello third time time.",
+        "Bye now"
+      ],
+      "item": {
+        "type": "Host",
+        "width": "auto",
+        "height": "auto",
+        "entities": "HOST",
+        "minWidth": 100,
+        "maxWidth": 200,
+        "source": "embeddedDocumentUrl${index}",
+        "Input": "${data}",
+        "onLoad": [
+          {
+            "type": "SendEvent",
+            "sequencer": "SEND_EVENTER",
+            "arguments": ["LOADED"]
+          }
+        ]
+      }
+    }
+  }
+})";
+
+static const char* PARAMETERIZED_EMBEDDED_TEXT = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "parameters": [ "Input" ],
+    "item": {
+      "type": "Text",
+      "width": "auto",
+      "height": "auto",
+      "text": "${Input}"
+    }
+  }
+})";
+
+TEST_F(EmbeddedLifecycleTest, ComplexScrollable)
+{
+    metrics = Metrics().size(100, 100).minAndMaxHeight(50, 200).minAndMaxWidth(50, 500);
+    loadDocument(SCROLLABLE_MULTI_HOST);
+
+    // When document retrieved - create content with new session (console session management is up
+    // to runtime/viewhost)
+    auto embeddedSession = std::make_shared<TestSession>();
+    auto embeddedContent = Content::create(PARAMETERIZED_EMBEDDED_TEXT, embeddedSession);
+
+    auto requestWeak = documentManager->get("embeddedDocumentUrl0");
+    ASSERT_TRUE(requestWeak.lock());
+    auto request = requestWeak.lock();
+    ASSERT_EQ(request->getUrlRequest().getUrl(), "embeddedDocumentUrl0");
+
+    auto embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl0", embeddedContent, true);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+
+    requestWeak = documentManager->get("embeddedDocumentUrl1");
+    ASSERT_TRUE(requestWeak.lock());
+    request = requestWeak.lock();
+    ASSERT_EQ(request->getUrlRequest().getUrl(), "embeddedDocumentUrl1");
+
+    embeddedContent = Content::create(PARAMETERIZED_EMBEDDED_TEXT, embeddedSession);
+    embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl1", embeddedContent, true);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+
+    requestWeak = documentManager->get("embeddedDocumentUrl2");
+    ASSERT_TRUE(requestWeak.lock());
+    request = requestWeak.lock();
+    ASSERT_EQ(request->getUrlRequest().getUrl(), "embeddedDocumentUrl2");
+
+    embeddedContent = Content::create(PARAMETERIZED_EMBEDDED_TEXT, embeddedSession);
+    embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl2", embeddedContent, true);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+
+    requestWeak = documentManager->get("embeddedDocumentUrl3");
+    ASSERT_TRUE(requestWeak.lock());
+    request = requestWeak.lock();
+    ASSERT_EQ(request->getUrlRequest().getUrl(), "embeddedDocumentUrl3");
+
+    embeddedContent = Content::create(PARAMETERIZED_EMBEDDED_TEXT, embeddedSession);
+    embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl3", embeddedContent, true);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+
+    ASSERT_TRUE(CheckComponent(component, 200, 100));
+    ASSERT_TRUE(CheckViewport(root, 200, 100));
+
+    ASSERT_TRUE(CheckComponent(component->getCoreChildAt(0)->getCoreChildAt(0), 170, 10));
+    ASSERT_TRUE(CheckComponent(component->getCoreChildAt(1)->getCoreChildAt(0), 200, 30));
+    ASSERT_TRUE(CheckComponent(component->getCoreChildAt(2)->getCoreChildAt(0), 200, 20));
+    ASSERT_TRUE(CheckComponent(component->getCoreChildAt(3)->getCoreChildAt(0), 100, 10));
 }

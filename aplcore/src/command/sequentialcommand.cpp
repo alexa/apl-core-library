@@ -22,6 +22,7 @@ const CommandPropDefSet&
 SequentialCommand::propDefSet() const {
     static CommandPropDefSet sSequentialCommandProperties(CoreCommand::propDefSet(), {
             {kCommandPropertyCommands,    Object::EMPTY_ARRAY(), asArray },
+            {kCommandPropertyData,        Object::EMPTY_ARRAY(), asArray },
             {kCommandPropertyRepeatCount, 0,                     asNonNegativeInteger },
             {kCommandPropertyCatch,       Object::EMPTY_ARRAY(), asArray },
             {kCommandPropertyFinally,     Object::EMPTY_ARRAY(), asArray }

@@ -112,7 +112,7 @@ private:
     /**
      * @deprecated use Content->getDocumentSettings()
      */
-    void read(const RootConfig& config) {
+    APL_DEPRECATED void read(const RootConfig& config) {
         mDefaultIdleTimeout = config.getDefaultIdleTimeout();
     }
 

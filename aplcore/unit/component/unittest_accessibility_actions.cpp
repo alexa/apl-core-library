@@ -15,6 +15,8 @@
 
 #include "../testeventloop.h"
 
+#include "apl/focus/focusmanager.h"
+
 using namespace apl;
 
 class AccessibilityActionTest : public DocumentWrapper {};
@@ -60,7 +62,7 @@ TEST_F(AccessibilityActionTest, Basic)
 
     // Invoke the action and verify that it changes the background color
     component->update(kUpdateAccessibilityAction, "MakeRed");
-    ASSERT_TRUE(CheckDirty(component, kPropertyBackgroundColor, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(component, kPropertyBackgroundColor, kPropertyBackground, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(IsEqual(Color(Color::RED), component->getCalculated(kPropertyBackgroundColor)));
 
@@ -372,6 +374,196 @@ TEST_F(AccessibilityActionTest, Gestures)
     ASSERT_TRUE(IsEqual("Tap", text->getCalculated(kPropertyText).asString()));
 }
 
+static const char *PAGER_SCROLLING_TEST = R"apl({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "height": "100%",
+      "navigation": "wrap",
+      "items": {
+        "type": "Text",
+        "text": "${data}"
+      },
+      "data": ["one", "two", "three"]
+    }
+  }
+})apl";
+
+TEST_F(AccessibilityActionTest, PagerScrolling)
+{
+    loadDocument(PAGER_SCROLLING_TEST);
+    ASSERT_TRUE(component);
+    auto text = component->getChildAt(component->pagePosition());
+    ASSERT_TRUE(text);
+    ASSERT_TRUE(IsEqual("one", text->getCalculated(kPropertyText).asString()));
+
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+
+    text = component->getChildAt(component->pagePosition());
+    ASSERT_TRUE(IsEqual("two", text->getCalculated(kPropertyText).asString()));
+
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+
+    text = component->getChildAt(component->pagePosition());
+    ASSERT_TRUE(IsEqual("one", text->getCalculated(kPropertyText).asString()));
+
+    component->update(kUpdateAccessibilityAction, "scrollbackward");
+    root->clearPending();
+
+    text = component->getChildAt(component->pagePosition());
+    ASSERT_TRUE(IsEqual("three", text->getCalculated(kPropertyText).asString()));
+}
+
+static const char *PAGER_SCROLLING_EXPLICIT = R"apl({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "height": "100%",
+      "navigation": "wrap",
+      "items": {
+        "type": "Text",
+        "text": "${data}"
+      },
+      "data": ["one", "two", "three"],
+      "actions": [
+        {
+          "name": "scrollforward",
+          "label": "scrollforward Test",
+          "enabled": false
+        },
+        {
+          "name": "scrollbackward",
+          "label": "scrollbackward Test",
+          "commands": {
+            "type": "SendEvent",
+            "arguments": [ "scrollbackward" ]
+          }
+        }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(AccessibilityActionTest, PagerScrollingExplicit)
+{
+    loadDocument(PAGER_SCROLLING_EXPLICIT);
+    ASSERT_TRUE(component);
+    auto text = component->getChildAt(component->pagePosition());
+    ASSERT_TRUE(text);
+    ASSERT_TRUE(IsEqual("one", text->getCalculated(kPropertyText).asString()));
+
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+
+    text = component->getChildAt(component->pagePosition());
+    ASSERT_TRUE(IsEqual("one", text->getCalculated(kPropertyText).asString()));
+
+    component->update(kUpdateAccessibilityAction, "scrollbackward");
+    root->clearPending();
+
+    text = component->getChildAt(component->pagePosition());
+    ASSERT_TRUE(IsEqual("one", text->getCalculated(kPropertyText).asString()));
+    ASSERT_TRUE(CheckSendEvent(root, "scrollbackward"));
+}
+
+static const char *SEQUENCE_SCROLLING_TEST = R"apl({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "height": 100,
+      "items": {
+        "type": "Text",
+        "height": 100,
+        "text": "${data}"
+      },
+      "data": ["one", "two", "three", "four"]
+    }
+  }
+})apl";
+
+TEST_F(AccessibilityActionTest, SequenceScrolling)
+{
+    loadDocument(SEQUENCE_SCROLLING_TEST);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(0, component->scrollPosition().getY());
+
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+
+    ASSERT_EQ(100, component->scrollPosition().getY());
+
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+
+    ASSERT_EQ(300, component->scrollPosition().getY());
+
+    component->update(kUpdateAccessibilityAction, "scrollbackward");
+    root->clearPending();
+
+    ASSERT_EQ(200, component->scrollPosition().getY());
+}
+
+static const char *SEQUENCE_SCROLLING_EXPLICIT = R"apl({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "height": "100%",
+      "navigation": "wrap",
+      "items": {
+        "type": "Text",
+        "text": "${data}"
+      },
+      "data": ["one", "two", "three"],
+      "actions": [
+        {
+          "name": "scrollforward",
+          "label": "scrollforward Test",
+          "enabled": false
+        },
+        {
+          "name": "scrollbackward",
+          "label": "scrollbackward Test",
+          "commands": {
+            "type": "SendEvent",
+            "arguments": [ "scrollbackward" ]
+          }
+        }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(AccessibilityActionTest, SequenceScrollingExplicit)
+{
+    loadDocument(SEQUENCE_SCROLLING_EXPLICIT);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(0, component->scrollPosition().getY());
+
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+
+    ASSERT_EQ(0, component->scrollPosition().getY());
+
+    component->update(kUpdateAccessibilityAction, "scrollbackward");
+    root->clearPending();
+
+    ASSERT_TRUE(CheckSendEvent(root, "scrollbackward"));
+}
+
 static const char *ACTIVATE_PREFERS_ON_PRESS_OVER_TAP_TEST = R"apl(
     {
       "type": "APL",
@@ -396,10 +588,16 @@ static const char *ACTIVATE_PREFERS_ON_PRESS_OVER_TAP_TEST = R"apl(
               }
             }
           ],
-          "actions": {
-            "name": "activate",
-            "label": "Activate Test"
-          }
+          "actions": [
+            {
+              "name": "activate",
+              "label": "Activate Test"
+            },
+            {
+              "name": "tap",
+              "label": "Tap Test"
+            }
+          ]
         }
       }
     }
@@ -417,6 +615,17 @@ TEST_F(AccessibilityActionTest, ActivatePrefersOnPressOverOnTap)
     component->update(kUpdateAccessibilityAction, "activate");
     root->clearPending();
     ASSERT_TRUE(CheckSendEvent(root, "onPress"));
+    ASSERT_FALSE(root->hasEvent());
+}
+
+TEST_F(AccessibilityActionTest, TapIsSeparateAction)
+{
+    loadDocument(ACTIVATE_PREFERS_ON_PRESS_OVER_TAP_TEST);
+    ASSERT_TRUE(component);
+
+    component->update(kUpdateAccessibilityAction, "tap");
+    root->clearPending();
+    ASSERT_TRUE(CheckSendEvent(root, "onTap"));
     ASSERT_FALSE(root->hasEvent());
 }
 
@@ -800,3 +1009,952 @@ TEST_F(AccessibilityActionTest, ArgumentPassing)
     ASSERT_TRUE(CheckSendEvent(root, "Another Command Argument", "testAction2"));
 }
 
+static const char *TOUCHABLE_DYNAMIC_ACTIONS = R"apl({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "height": "100%",
+      "navigation": "normal",
+      "bind": [
+        { "name": "ActionToggler", "type": "boolean", "value": false }
+      ],
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "actions": [{ "name": "activate", "label": "Activate with no onPress" }]
+        },
+        {
+          "type": "TouchWrapper",
+          "actions": [{ "name": "activate", "label": "Activate with onPress" }],
+          "onPress": { "type": "SendEvent" }
+        },
+        {
+          "type": "TouchWrapper",
+          "actions": [{ "name": "activate", "label": "Activate with Tap" }],
+          "gestures": { "type": "Tap", "onTap": { "type": "SendEvent" }}
+        },
+        {
+          "type": "TouchWrapper",
+          "actions": [{ "name": "activate", "label": "Activate with onPress, disabled component" }],
+          "onPress": { "type": "SendEvent" },
+          "disabled": true
+        },
+        {
+          "type": "TouchWrapper",
+          "actions": [{ "name": "activate", "label": "Activate with disabled action", "enabled": "${ActionToggler}" }],
+          "onPress": { "type": "SendEvent" }
+        },
+        {
+          "type": "TouchWrapper",
+          "actions": [
+            {
+              "name": "activate",
+              "label": "Activate action with commands",
+              "commands": { "type": "SendEvent" }
+            }
+          ]
+        }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(AccessibilityActionTest, TouchableDynamicActionsOld)
+{
+    loadDocument(TOUCHABLE_DYNAMIC_ACTIONS);
+    ASSERT_TRUE(component);
+
+    // In old "style" actions always reported if explicitly requested
+    ASSERT_EQ(1, component->getChildAt(0)->getCalculated(apl::kPropertyAccessibilityActions).size());
+    ASSERT_EQ(1, component->getChildAt(1)->getCalculated(apl::kPropertyAccessibilityActions).size());
+    ASSERT_EQ(1, component->getChildAt(2)->getCalculated(apl::kPropertyAccessibilityActions).size());
+    ASSERT_EQ(1, component->getChildAt(3)->getCalculated(apl::kPropertyAccessibilityActions).size());
+    ASSERT_EQ(1, component->getChildAt(4)->getCalculated(apl::kPropertyAccessibilityActions).size());
+    ASSERT_EQ(1, component->getChildAt(5)->getCalculated(apl::kPropertyAccessibilityActions).size());
+}
+
+TEST_F(AccessibilityActionTest, TouchableDynamicActions)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
+
+    loadDocument(TOUCHABLE_DYNAMIC_ACTIONS);
+    ASSERT_TRUE(component);
+
+    // No onPress/commands or onTap available
+    ASSERT_EQ(0, component->getChildAt(0)->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    // Reported from onPress
+    ASSERT_EQ(1, component->getChildAt(1)->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    // Reported from Tap
+    ASSERT_EQ(1, component->getChildAt(2)->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    // Disabled component
+    ASSERT_EQ(0, component->getChildAt(3)->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    // Disabled action
+    ASSERT_EQ(0, component->getChildAt(4)->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    // Explicit command
+    ASSERT_EQ(1, component->getChildAt(5)->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    // Enabling disabled component should refresh actions
+    component->getCoreChildAt(3)->setProperty(apl::kPropertyDisabled, false);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component->getCoreChildAt(3), kPropertyAccessibilityActions, kPropertyDisabled));
+    ASSERT_EQ(1, component->getChildAt(3)->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    // Disabling enabled component should refresh actions too
+    component->getCoreChildAt(3)->setProperty(apl::kPropertyDisabled, true);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component->getCoreChildAt(3), kPropertyAccessibilityActions, kPropertyDisabled));
+    ASSERT_EQ(0, component->getChildAt(3)->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    // Changing bound "enabled" in the action enables it
+    component->setProperty("ActionToggler", true);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component->getCoreChildAt(4), kPropertyAccessibilityActions));
+    ASSERT_EQ(1, component->getChildAt(4)->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    // Changing bound "enabled" in the action also can disable it
+    component->setProperty("ActionToggler", false);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component->getCoreChildAt(4), kPropertyAccessibilityActions));
+    ASSERT_EQ(0, component->getChildAt(4)->getCalculated(apl::kPropertyAccessibilityActions).size());
+}
+
+static const char *TOUCHABLE_DYNAMIC_GESTURES = R"apl({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "TouchWrapper",
+      "actions": [
+        { "name": "tap", "label": "Enable Tap gesture accessibility" },
+        { "name": "doubletap", "label": "Enable DoubleTap gesture accessibility" },
+        { "name": "longpress", "label": "Enable LongPress gesture accessibility" },
+        { "name": "swipeaway", "label": "Enable SwipeAway gesture accessibility" }
+      ],
+      "gestures": [
+        { "type": "DoublePress", "onDoublePress": { "type": "SendEvent" } },
+        { "type": "LongPress", "onLongPressEnd": { "type": "SendEvent" } },
+        { "type": "SwipeAway", "direction": "left", "onSwipeDone": { "type": "SendEvent" } },
+        { "type": "Tap", "onTap": { "type": "SendEvent" } }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(AccessibilityActionTest, TouchableDynamicGesturesOld)
+{
+    loadDocument(TOUCHABLE_DYNAMIC_GESTURES);
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ(4, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+}
+
+TEST_F(AccessibilityActionTest, TouchableDynamicGestures)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
+
+    loadDocument(TOUCHABLE_DYNAMIC_GESTURES);
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ(4, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+}
+
+static const char *TOUCHABLE_DYNAMIC_GESTURES_DISABLED = R"apl({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "TouchWrapper",
+      "actions": [
+        { "name": "tap", "label": "Enable Tap gesture accessibility", "enabled": false },
+        { "name": "doubletap", "label": "Enable DoubleTap gesture accessibility", "enabled": false },
+        { "name": "longpress", "label": "Enable LongPress gesture accessibility", "enabled": false },
+        { "name": "swipeaway", "label": "Enable SwipeAway gesture accessibility", "enabled": false }
+      ],
+      "gestures": [
+        { "type": "DoublePress", "onDoublePress": { "type": "SendEvent" } },
+        { "type": "LongPress", "onLongPressEnd": { "type": "SendEvent" } },
+        { "type": "SwipeAway", "direction": "left", "onSwipeDone": { "type": "SendEvent" } },
+        { "type": "Tap", "onTap": { "type": "SendEvent" } }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(AccessibilityActionTest, TouchableDynamicGesturesDisabledOld)
+{
+    loadDocument(TOUCHABLE_DYNAMIC_GESTURES_DISABLED);
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ(4, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+}
+
+TEST_F(AccessibilityActionTest, TouchableDynamicGesturesDisabled)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
+
+    loadDocument(TOUCHABLE_DYNAMIC_GESTURES_DISABLED);
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ(0, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+}
+
+static const char *PAGER_DYNAMIC_ACTIONS = R"apl({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "height": "100%",
+      "navigation": "normal",
+      "items": {
+        "type": "TouchWrapper",
+        "actions": [ { "name": "activate", "label": "Activate" } ],
+        "onPress": { "type": "SendEvent" }
+      },
+      "data": ["one", "two"],
+      "actions": [
+        {
+          "name": "scrollbackward",
+          "label": "scrollbackward disabled Test",
+          "enabled": false
+        }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(AccessibilityActionTest, PagerDynamicActions)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
+
+    loadDocument(PAGER_DYNAMIC_ACTIONS);
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ(1, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    auto laidOutChild = component->getChildAt(component->pagePosition());
+    ASSERT_TRUE(laidOutChild->getCalculated(apl::kPropertyLaidOut).asBoolean());
+    ASSERT_TRUE(laidOutChild);
+    ASSERT_EQ(1, laidOutChild->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    auto nonLaidOutChild = component->getChildAt(1);
+    ASSERT_FALSE(nonLaidOutChild->getCalculated(apl::kPropertyLaidOut).asBoolean());
+    ASSERT_TRUE(nonLaidOutChild);
+    ASSERT_EQ(0, nonLaidOutChild->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    // Switch page, newly laid-out components gets action published
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(nonLaidOutChild,
+                           kPropertyLaidOut, kPropertyAccessibilityActions, kPropertyBounds,
+                           kPropertyInnerBounds, kPropertyVisualHash,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_TRUE(nonLaidOutChild->getCalculated(apl::kPropertyLaidOut).asBoolean());
+    ASSERT_TRUE(nonLaidOutChild);
+    ASSERT_EQ(1, nonLaidOutChild->getCalculated(apl::kPropertyAccessibilityActions).size());
+}
+
+static const char *PAGER_DYNAMIC_SIMPLE_ACTIONS = R"apl({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "height": "100%",
+      "navigation": "normal",
+      "items": {
+        "type": "TouchWrapper"
+      },
+      "data": ["one", "two", "three"]
+    }
+  }
+})apl";
+
+TEST_F(AccessibilityActionTest, PagerDynamicSimpleActions)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
+
+    loadDocument(PAGER_DYNAMIC_SIMPLE_ACTIONS);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(1, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+    ASSERT_EQ(0, component->pagePosition());
+
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+    ASSERT_EQ(1, component->pagePosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyCurrentPage,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+    ASSERT_EQ(2, component->pagePosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyCurrentPage,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(1, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    component->update(kUpdateAccessibilityAction, "scrollbackward");
+    root->clearPending();
+    ASSERT_EQ(1, component->pagePosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyCurrentPage,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+}
+
+TEST_F(AccessibilityActionTest, PagerDynamicSimpleActionsFromCommands)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
+
+    loadDocument(PAGER_DYNAMIC_SIMPLE_ACTIONS);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(1, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+    ASSERT_EQ(0, component->pagePosition());
+
+    rapidjson::Document scrollForwards;
+    scrollForwards.Parse(R"([{"type": "SetPage", "componentId": ":root", "position": "relative", "value": 1}])");
+    rootDocument->executeCommands(scrollForwards, false);
+    advanceTime(1000);
+    root->clearPending();
+    ASSERT_EQ(1, component->pagePosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyCurrentPage,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    rootDocument->executeCommands(scrollForwards, false);
+    advanceTime(1000);
+    root->clearPending();
+    ASSERT_EQ(2, component->pagePosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyCurrentPage,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(1, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    rapidjson::Document scrollBackwards;
+    scrollBackwards.Parse(R"([{"type": "SetPage", "componentId": ":root", "position": "relative", "value": -1}])");
+    rootDocument->executeCommands(scrollBackwards, false);
+    advanceTime(1000);
+    root->clearPending();
+    ASSERT_EQ(1, component->pagePosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyCurrentPage,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+}
+
+static const char *SEQUENCE_DYNAMIC_SIMPLE_ACTIONS = R"apl({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "height": 100,
+      "items": {
+        "type": "TouchWrapper",
+        "height": "100%"
+      },
+      "data": ["one", "two", "three"]
+    }
+  }
+})apl";
+
+TEST_F(AccessibilityActionTest, SequenceDynamicSimpleActions)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
+
+    loadDocument(SEQUENCE_DYNAMIC_SIMPLE_ACTIONS);
+
+    advanceTime(10);
+
+    root->clearDirty();
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(1, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+    ASSERT_EQ(Point(0, 0), component->scrollPosition());
+
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyScrollPosition,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+    ASSERT_EQ(Point(0, 200), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyScrollPosition,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(1, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    component->update(kUpdateAccessibilityAction, "scrollbackward");
+    root->clearPending();
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyScrollPosition,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+}
+
+TEST_F(AccessibilityActionTest, SequenceDynamicSimpleActionsFromCommands)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
+
+    loadDocument(SEQUENCE_DYNAMIC_SIMPLE_ACTIONS);
+
+    advanceTime(10);
+
+    root->clearDirty();
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(1, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+    ASSERT_EQ(Point(0, 0), component->scrollPosition());
+
+    rapidjson::Document scrollForwards;
+    scrollForwards.Parse(R"([{"type": "Scroll", "componentId": ":root", "distance": 1}])");
+    rootDocument->executeCommands(scrollForwards, false);
+    advanceTime(1000);
+    root->clearPending();
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyScrollPosition,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    rootDocument->executeCommands(scrollForwards, false);
+    advanceTime(1000);
+    root->clearPending();
+    ASSERT_EQ(Point(0, 200), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyScrollPosition,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(1, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    rapidjson::Document scrollBackwards;
+    scrollBackwards.Parse(R"([{"type": "Scroll", "componentId": ":root", "distance": -1}])");
+    rootDocument->executeCommands(scrollBackwards, false);
+    advanceTime(1000);
+    root->clearPending();
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyScrollPosition,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+}
+
+static const char *SCROLLVIEW_DYNAMIC_SIMPLE_ACTIONS = R"apl({
+"type": "APL",
+"version": "2023.2",
+"mainTemplate": {
+  "items": {
+    "type": "ScrollView",
+    "height": 100,
+    "item": {
+      "type": "Container",
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "height": 100,
+        "backgroundColor": "${data}"
+      },
+      "data": [
+        "blue",
+        "green",
+        "red"
+      ]
+    }
+  }
+}
+})apl";
+
+TEST_F(AccessibilityActionTest, ScrollviewDynamicSimpleActions)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
+
+    loadDocument(SCROLLVIEW_DYNAMIC_SIMPLE_ACTIONS);
+
+    root->clearDirty();
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(1, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+    ASSERT_EQ(Point(0, 0), component->scrollPosition());
+
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyScrollPosition,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    root->clearPending();
+    ASSERT_EQ(Point(0, 200), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyScrollPosition,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(1, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    component->update(kUpdateAccessibilityAction, "scrollbackward");
+    root->clearPending();
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyScrollPosition,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+}
+
+TEST_F(AccessibilityActionTest, ScrollviewDynamicSimpleActionsFromCommands)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
+
+    loadDocument(SCROLLVIEW_DYNAMIC_SIMPLE_ACTIONS);
+
+    root->clearDirty();
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(1, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+    ASSERT_EQ(Point(0, 0), component->scrollPosition());
+
+    rapidjson::Document scrollForwards;
+    scrollForwards.Parse(R"([{"type": "Scroll", "componentId": ":root", "distance": 1}])");
+    rootDocument->executeCommands(scrollForwards, false);
+    advanceTime(1000);
+    root->clearPending();
+
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyScrollPosition,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    rootDocument->executeCommands(scrollForwards, false);
+    advanceTime(1000);
+    root->clearPending();
+
+    ASSERT_EQ(Point(0, 200), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyScrollPosition,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(1, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    rapidjson::Document scrollBackwards;
+    scrollBackwards.Parse(R"([{"type": "Scroll", "componentId": ":root", "distance": -1}])");
+    rootDocument->executeCommands(scrollBackwards, false);
+    advanceTime(1000);
+    root->clearPending();
+
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
+    ASSERT_TRUE(CheckDirty(component,
+                           kPropertyAccessibilityActions, kPropertyScrollPosition,
+                           kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(2, component->getCalculated(apl::kPropertyAccessibilityActions).size());
+}
+
+static const char *PAGER_DYNAMIC_ACTIONS_FOCUS = R"apl({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "direction": "column",
+      "height": 400,
+      "width": 100,
+      "items": [
+        {
+          "type": "Pager",
+          "id": "focusableChildren",
+          "height": "25%",
+          "width": "100%",
+          "items": {
+            "id": "${data}Wrapper",
+            "type": "TouchWrapper"
+          },
+          "data": ["one", "two"]
+        },
+        {
+          "type": "Pager",
+          "id": "nonFocusableChildren",
+          "height": "25%",
+          "width": "100%",
+          "items": {
+            "type": "Frame",
+            "backgroundColor": "${data}"
+          },
+          "data": ["blue", "red"]
+        },
+        {
+          "type": "Pager",
+          "id": "mixedChildren",
+          "height": "25%",
+          "width": "100%",
+          "items": [
+            {
+              "id": "mixedWrapper",
+              "type": "TouchWrapper"
+            },
+            {
+              "type": "Frame",
+              "backgroundColor": "red"
+            }
+          ]
+        },
+        {
+          "type": "Pager",
+          "id": "deepChildren",
+          "height": "25%",
+          "width": "100%",
+          "items": [
+            {
+              "type": "Frame",
+              "backgroundColor": "${data}",
+              "item": {
+                "id": "${data}Wrapper",
+                "type": "TouchWrapper",
+                "height": "100%",
+                "width": "100%"
+              },
+              "height": "100%",
+              "width": "100%"
+            }
+          ],
+          "data": ["blue", "red"]
+        }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(AccessibilityActionTest, PagerDynamicActionsFocus)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
+
+    loadDocument(PAGER_DYNAMIC_ACTIONS_FOCUS);
+    ASSERT_TRUE(component);
+
+    advanceTime(10);
+
+    auto fcPager = component->getCoreChildAt(0);
+    auto nfcPager = component->getCoreChildAt(1);
+    auto mcPager = component->getCoreChildAt(2);
+    auto dcPager = component->getCoreChildAt(3);
+
+    ASSERT_EQ(kComponentTypePager, fcPager->getType());
+    ASSERT_EQ(kComponentTypePager, nfcPager->getType());
+    ASSERT_EQ(kComponentTypePager, mcPager->getType());
+    ASSERT_EQ(kComponentTypePager, dcPager->getType());
+    auto& fm = root->context().focusManager();
+
+    ASSERT_FALSE(fm.getFocus());
+
+    // Accessibility page switch should switch to the next focusable child on the new page
+    root->setFocus(apl::kFocusDirectionNone, Rect(), "oneWrapper");
+    ASSERT_TRUE(fm.getFocus());
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(root->findComponentById("oneWrapper"), event.getComponent());
+
+    fcPager->update(kUpdateAccessibilityAction, "scrollforward");
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(root->findComponentById("twoWrapper"), event.getComponent());
+    ASSERT_EQ(root->findComponentById("twoWrapper"), fm.getFocus());
+
+
+    // Focused pager don't move focus
+    root->setFocus(apl::kFocusDirectionNone, Rect(), "nonFocusableChildren");
+    ASSERT_TRUE(fm.getFocus());
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(nfcPager, event.getComponent());
+
+    nfcPager->update(kUpdateAccessibilityAction, "scrollforward");
+
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_EQ(nfcPager, fm.getFocus());
+
+
+    // Switch to the page without focusable leads to pager focus
+    root->setFocus(apl::kFocusDirectionNone, Rect(), "mixedWrapper");
+    ASSERT_TRUE(fm.getFocus());
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(root->findComponentById("mixedWrapper"), event.getComponent());
+
+    mcPager->update(kUpdateAccessibilityAction, "scrollforward");
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(mcPager, event.getComponent());
+    ASSERT_EQ(mcPager, fm.getFocus());
+
+
+    // Deeper children switches work similarly to directs
+    root->setFocus(apl::kFocusDirectionNone, Rect(), "blueWrapper");
+    ASSERT_TRUE(fm.getFocus());
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(root->findComponentById("blueWrapper"), event.getComponent());
+
+    dcPager->update(kUpdateAccessibilityAction, "scrollforward");
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(root->findComponentById("redWrapper"), event.getComponent());
+    ASSERT_EQ(root->findComponentById("redWrapper"), fm.getFocus());
+}
+
+static const char *SEQUENCE_DYNAMIC_ACTIONS_FOCUS = R"apl({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "height": 100,
+      "width": 100,
+      "items": [
+        {
+          "type": "Frame",
+          "height": "100%",
+          "width": "100%",
+          "items": {
+            "id": "deepWrapperStart",
+            "type": "TouchWrapper",
+            "height": "100%",
+            "width": "100%"
+          }
+        },
+        {
+          "type": "Frame",
+          "height": "100%",
+          "width": "100%",
+          "items": {
+            "id": "deepWrapperEnd",
+            "type": "TouchWrapper",
+            "height": "100%",
+            "width": "100%"
+          }
+        },
+        {
+          "type": "TouchWrapper",
+          "id": "shallowWrapperStart",
+          "height": "100%",
+          "width": "100%"
+        },
+        {
+          "type": "Frame",
+          "id": "emptyFrame",
+          "height": "100%",
+          "width": "100%"
+        },
+        {
+          "type": "TouchWrapper",
+          "id": "shallowWrapperEnd",
+          "height": "100%",
+          "width": "100%"
+        }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(AccessibilityActionTest, SequenceDynamicActionsFocus)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
+
+    loadDocument(SEQUENCE_DYNAMIC_ACTIONS_FOCUS);
+    ASSERT_TRUE(component);
+
+    advanceTime(10);
+
+    auto& fm = root->context().focusManager();
+
+    ASSERT_FALSE(fm.getFocus());
+
+    root->setFocus(apl::kFocusDirectionNone, Rect(), "deepWrapperStart");
+    ASSERT_TRUE(fm.getFocus());
+
+    ASSERT_TRUE(root->hasEvent());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(root->findComponentById("deepWrapperStart"), event.getComponent());
+    ASSERT_EQ(root->findComponentById("deepWrapperStart"), fm.getFocus());
+
+
+    // Accessibility scroll should switch to the next focusable child on the new screen (deep)
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    ASSERT_TRUE(fm.getFocus());
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(root->findComponentById("deepWrapperEnd"), event.getComponent());
+    ASSERT_EQ(root->findComponentById("deepWrapperEnd"), fm.getFocus());
+
+
+    // Accessibility scroll should switch to the next focusable child on the new screen (deep)
+    component->update(kUpdateAccessibilityAction, "scrollbackward");
+    ASSERT_TRUE(fm.getFocus());
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(root->findComponentById("deepWrapperStart"), event.getComponent());
+    ASSERT_EQ(root->findComponentById("deepWrapperStart"), fm.getFocus());
+
+
+    // Accessibility scroll should switch to the next focusable child on the new screen (deep)
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    ASSERT_TRUE(fm.getFocus());
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(root->findComponentById("deepWrapperEnd"), event.getComponent());
+    ASSERT_EQ(root->findComponentById("deepWrapperEnd"), fm.getFocus());
+
+
+    // Accessibility scroll should switch to the next focusable child on the new screen (shallow)
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    ASSERT_TRUE(fm.getFocus());
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(root->findComponentById("shallowWrapperStart"), event.getComponent());
+    ASSERT_EQ(root->findComponentById("shallowWrapperStart"), fm.getFocus());
+
+
+    // Accessibility scroll should switch to the scrollable if focusable child no available
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    ASSERT_TRUE(fm.getFocus());
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeFocus, event.getType());
+    ASSERT_EQ(component, event.getComponent());
+    ASSERT_EQ(component, fm.getFocus());
+
+
+    // Accessibility scroll should not switch focus from itself
+    component->update(kUpdateAccessibilityAction, "scrollforward");
+    ASSERT_TRUE(fm.getFocus());
+
+    ASSERT_EQ(component, fm.getFocus());
+}
+
+static const char *CUSTOM_ACTIONS_ON_MULTICHILD = R"apl({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "direction": "column",
+      "height": 400,
+      "width": 100,
+      "items": [
+        {
+          "type": "Pager",
+          "id": "pagerio",
+          "height": "50%",
+          "width": "100%",
+          "items": {
+            "type": "Frame",
+            "backgroundColor": "${data}"
+          },
+          "data": [
+            "blue",
+            "red"
+          ],
+          "actions": [
+            {
+              "name": "quitecustom",
+              "label": "Quite custom",
+              "command": {
+                "type": "SendEvent"
+              }
+            }
+          ]
+        },
+        {
+          "type": "Sequence",
+          "id": "sequencio",
+          "height": "50%",
+          "width": "100%",
+          "items": {
+            "type": "Frame",
+            "backgroundColor": "${data}",
+            "height": 200,
+            "width": "100%"
+          },
+          "data": [
+            "blue",
+            "red"
+          ],
+          "actions": [
+            {
+              "name": "verycustom",
+              "label": "Very custom",
+              "command": {
+                "type": "SendEvent"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(AccessibilityActionTest, CustomActionsOnMultichild)
+{
+    config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
+
+    loadDocument(CUSTOM_ACTIONS_ON_MULTICHILD);
+    ASSERT_TRUE(component);
+
+    advanceTime(10);
+
+    auto pager = component->getCoreChildAt(0);
+    auto sequence = component->getCoreChildAt(1);
+
+    ASSERT_EQ(kComponentTypePager, pager->getType());
+    ASSERT_EQ(kComponentTypeSequence, sequence->getType());
+
+    ASSERT_EQ(3, pager->getCalculated(apl::kPropertyAccessibilityActions).size());
+    ASSERT_EQ(2, sequence->getCalculated(apl::kPropertyAccessibilityActions).size());
+
+    pager->update(apl::kUpdateAccessibilityAction, "quitecustom");
+    ASSERT_TRUE(CheckSendEvent(root));
+
+    sequence->update(apl::kUpdateAccessibilityAction, "verycustom");
+    ASSERT_TRUE(CheckSendEvent(root));
+}

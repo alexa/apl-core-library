@@ -18,7 +18,7 @@
 
 namespace apl {
 
-ComponentEventWrapper::ComponentEventWrapper(const std::shared_ptr<const CoreComponent>& component)
+ComponentEventWrapper::ComponentEventWrapper(const ConstCoreComponentPtr& component)
     : mComponent(component)
 {
 }

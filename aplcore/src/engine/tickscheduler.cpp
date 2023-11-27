@@ -44,7 +44,7 @@ TickScheduler::processTickHandlers(const CoreDocumentContextPtr& documentContext
 
     for (const auto& handler : tickHandlers.getArray()) {
         auto delay = std::max(propertyAsDouble(documentContext->context(), handler, "minimumDelay", 1000),
-                              documentContext->rootConfig().getTickHandlerUpdateLimit());
+                              documentContext->rootConfig().getProperty(RootProperty::kTickHandlerUpdateLimit).getDouble());
         scheduleTickHandler(std::weak_ptr<CoreDocumentContext>(documentContext), handler, delay);
     }
 }

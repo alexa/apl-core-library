@@ -33,7 +33,7 @@ class ComponentEventTargetWrapper;
  */
 class ComponentEventWrapper : public ObjectData {
 public:
-    explicit ComponentEventWrapper(const std::shared_ptr<const CoreComponent>& component);
+    explicit ComponentEventWrapper(const ConstCoreComponentPtr& component);
 
     Object get(const std::string& key) const override;
     Object opt(const std::string& key, const Object& def) const override;
@@ -42,7 +42,7 @@ public:
 
     const ObjectMap& getMap() const override;
 
-    std::shared_ptr<const CoreComponent> getComponent() const { return mComponent.lock(); }
+    ConstCoreComponentPtr getComponent() const { return mComponent.lock(); }
 
     virtual bool operator==(const ComponentEventWrapper& rhs) const = 0;
     virtual bool operator==(const ComponentEventSourceWrapper& rhs) const { return false; }

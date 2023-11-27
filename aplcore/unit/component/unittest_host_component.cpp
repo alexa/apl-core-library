@@ -233,6 +233,10 @@ TEST_F(HostComponentTest, TestSuccessAndFailDoNothingAfterDelete)
         weak = host;
         host = nullptr;
     }
+
+    root->clearPending();
+    root->clearDirty();
+
     // nobody has a reference to "host" anymore
     ASSERT_TRUE(weak.lock() == nullptr);
 
@@ -352,7 +356,7 @@ TEST_F(HostComponentTest, TestSetSourcePropertyCancelsRequestAndNewRequestFails)
     ASSERT_TRUE(root->findComponentById(onFailArtifactId));
 }
 
-TEST_F(HostComponentTest, TestResolvedContentWithPendingParamterSuccess)
+TEST_F(HostComponentTest, TestResolvedContentWithPendingParameterSuccess)
 {
     auto content = Content::create(
         R"({
@@ -383,9 +387,7 @@ TEST_F(HostComponentTest, TestResolvedContentWithPendingParamterSuccess)
     ASSERT_FALSE(root->findComponentById("onFailArtifact"));
     auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
 
-    // onLoadHandle runs before the pending parameters are resolved, so its artifact is not sufficient
     ASSERT_TRUE(root->findComponentById("onLoadArtifact"));
-    // If the pending parameter is not resolved, onFail would be invoked; verify onFail did not run
     ASSERT_FALSE(root->findComponentById("onFailArtifact"));
     ASSERT_EQ(
         std::static_pointer_cast<TextComponent>(
@@ -393,7 +395,7 @@ TEST_F(HostComponentTest, TestResolvedContentWithPendingParamterSuccess)
         "Hello, World!");
 }
 
-TEST_F(HostComponentTest, TestResolvedContentWithPendingParamterFailure)
+TEST_F(HostComponentTest, TestResolvedContentWithMissingParameterBecomesNull)
 {
     auto content = Content::create(
         R"({
@@ -408,7 +410,8 @@ TEST_F(HostComponentTest, TestResolvedContentWithPendingParamterFailure)
               "type": "Container",
               "item": {
                 "type": "Text",
-                "value": "${EmbeddedParameter}"
+                "id": "embeddedText",
+                "text": "${EmbeddedParameter} - ${MissingParameter}"
               }
             }
           }
@@ -420,18 +423,19 @@ TEST_F(HostComponentTest, TestResolvedContentWithPendingParamterFailure)
     ASSERT_EQ(pendingParameters.size(), 2);
     ASSERT_NE(pendingParameters.find("EmbeddedParameter"), pendingParameters.end());
     ASSERT_NE(pendingParameters.find("MissingParameter"), pendingParameters.end());
+    ASSERT_FALSE(content->isReady());
 
     loadDocument();
     ASSERT_FALSE(root->findComponentById("onLoadArtifact"));
     ASSERT_FALSE(root->findComponentById("onFailArtifact"));
-    documentManager->succeed("embeddedDocumentUrl", content, true);
 
-    ASSERT_TRUE(session->checkAndClear("Missing value for parameter MissingParameter"));
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_TRUE(content->isReady());
 
-    // onLoadHandle runs before the pending parameters are resolved, so its artifact is not sufficient
     ASSERT_TRUE(root->findComponentById("onLoadArtifact"));
-    // onFailHandler should run because the "Missing" parameter will not be resolved
-    ASSERT_TRUE(root->findComponentById("onFailArtifact"));
+    ASSERT_FALSE(root->findComponentById("onFailArtifact"));
+    auto embeddedTextComponent = CoreDocumentContext::cast(embeddedDoc)->findComponentById("embeddedText");
+    ASSERT_EQ("Hello, World! - ", embeddedTextComponent->getCalculated(kPropertyText).asString());
 }
 
 TEST_F(HostComponentTest, TestFindComponentByIdTraversingHostForHostById)
@@ -582,3 +586,524 @@ TEST_F(HostComponentTest, TestHostSizeChangeSendsConfigurationChangeToEmbedded)
     ASSERT_NE(embeddedTopInitialBounds, embeddedNewBounds);
     ASSERT_EQ(hostNewBounds, embeddedNewBounds);
 }
+
+static const char* HOST_ENVIRONMENT_ENV_DISALLOW_TRUE = R"({
+  "type": "APL",
+  "version": "2022.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "id": "top",
+      "width": 200,
+      "height": 200,
+      "item": {
+        "type": "Host",
+        "id": "hostComponent",
+        "source": "embeddedDocumentUrl",
+        "environment": {
+          "disallowEditText": true,
+          "disallowVideo": true
+        }
+      }
+    }
+  }
+})";
+
+static const char* HOST_ENVIRONMENT_ENV_DISALLOW_FALSE = R"({
+  "type": "APL",
+  "version": "2022.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "id": "top",
+      "width": 200,
+      "height": 200,
+      "item": {
+        "type": "Host",
+        "id": "hostComponent",
+        "source": "embeddedDocumentUrl",
+        "environment": {
+          "disallowEditText": false,
+          "disallowVideo": false
+        }
+      }
+    }
+  }
+})";
+
+static const char* EDIT_TEXT_EMBEDDED = R"({
+  "type": "APL",
+  "version": "2022.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "id": "embeddedTop",
+      "item": {
+        "type": "EditText",
+        "width": "100%",
+        "height": "100%",
+        "id": "embeddedEditText"
+      }
+    }
+  }
+})";
+
+static const char* VIDEO_EMBEDDED = R"({
+  "type": "APL",
+  "version": "2022.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "id": "embeddedTop",
+      "item": {
+        "type": "Video",
+        "width": "100%",
+        "height": "100%",
+        "id": "embeddedVideo"
+      }
+    }
+  }
+})";
+
+TEST_F(HostComponentTest, EmbeddedEditTextNotDisplayedWhenEmbeddedDisallowEditTextTrue) {
+    config->set(RootProperty::kDisallowEditText, false);
+    loadDocument(HOST_ENVIRONMENT_ENV_DISALLOW_TRUE);
+
+    auto content = Content::create(EDIT_TEXT_EMBEDDED, makeDefaultSession());
+    ASSERT_TRUE(content->isReady());
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+
+    advanceTime(10);
+
+    ASSERT_EQ(host->getChildCount(), 1);
+    auto c = host->getChildAt(0);
+    ASSERT_EQ(kComponentTypeContainer, c->getType());
+    // Component not displayed
+    ASSERT_EQ(1, c->getChildCount());
+    ASSERT_EQ(kComponentTypeEditText, c->getChildAt(0)->getType());
+    ASSERT_EQ(0, c->getDisplayedChildCount());
+}
+
+TEST_F(HostComponentTest, EmbeddedEditTextDisplayedWhenEmbeddedDisallowEditTextFalse) {
+    config->set(RootProperty::kDisallowEditText, false);
+    loadDocument(HOST_ENVIRONMENT_ENV_DISALLOW_FALSE);
+
+    auto content = Content::create(EDIT_TEXT_EMBEDDED, makeDefaultSession());
+    ASSERT_TRUE(content->isReady());
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+
+    advanceTime(10);
+
+    ASSERT_EQ(host->getChildCount(), 1);
+    auto c = host->getChildAt(0);
+    ASSERT_EQ(kComponentTypeContainer, c->getType());
+    // Component displayed
+    ASSERT_EQ(1, c->getChildCount());
+    ASSERT_EQ(kComponentTypeEditText, c->getChildAt(0)->getType());
+    ASSERT_EQ(1, c->getDisplayedChildCount());
+}
+
+TEST_F(HostComponentTest, EmbeddedVideoNotDisplayedWhenEmbeddedDisallowVideoTrue) {
+    config->set(RootProperty::kDisallowVideo, false);
+    loadDocument(HOST_ENVIRONMENT_ENV_DISALLOW_TRUE);
+
+    auto content = Content::create(VIDEO_EMBEDDED, makeDefaultSession());
+    ASSERT_TRUE(content->isReady());
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+
+    advanceTime(10);
+
+    ASSERT_EQ(host->getChildCount(), 1);
+    auto c = host->getChildAt(0);
+    ASSERT_EQ(kComponentTypeContainer, c->getType());
+    // Component not displayed
+    ASSERT_EQ(1, c->getChildCount());
+    ASSERT_EQ(kComponentTypeVideo, c->getChildAt(0)->getType());
+    ASSERT_EQ(0, c->getDisplayedChildCount());
+}
+
+TEST_F(HostComponentTest, EmbeddedVideoDisplayedWhenEmbeddedDisallowVideoFalse) {
+    config->set(RootProperty::kDisallowVideo, false);
+    loadDocument(HOST_ENVIRONMENT_ENV_DISALLOW_FALSE);
+
+    auto content = Content::create(VIDEO_EMBEDDED, makeDefaultSession());
+    ASSERT_TRUE(content->isReady());
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+
+    advanceTime(10);
+
+    ASSERT_EQ(host->getChildCount(), 1);
+    auto c = host->getChildAt(0);
+    ASSERT_EQ(kComponentTypeContainer, c->getType());
+    // Component displayed
+    ASSERT_EQ(1, c->getChildCount());
+    ASSERT_EQ(kComponentTypeVideo, c->getChildAt(0)->getType());
+    ASSERT_EQ(1, c->getDisplayedChildCount());
+}
+
+static const char* EXPLICIT_PARAMETER_HOST = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "item": {
+        "type": "Host",
+        "id": "hostComponent",
+        "source": "embeddedDocumentUrl",
+        "parameters": {
+          "ExplicitParameter": "Hello, World!"
+        },
+        "onLoad": [
+          {
+            "type": "SendEvent",
+            "sequencer": "LOAD_SEQUENCER",
+            "arguments": "Loaded"
+          }
+        ],
+        "onFail": [
+          {
+            "type": "SendEvent",
+            "sequencer": "FAIL_SEQUENCER",
+            "arguments": "Failed"
+          }
+        ]
+      }
+    }
+  }
+})";
+
+static const char* EXPLICIT_PARAMETER_EMBEDDED = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "parameters": "ExplicitParameter",
+    "item": {
+      "type": "Container",
+      "item": {
+        "type": "Text",
+        "id": "embeddedText",
+        "text": "${ExplicitParameter}"
+      }
+    }
+  }
+})";
+
+TEST_F(HostComponentTest, TestExplicitParameterPassing)
+{
+    loadDocument(EXPLICIT_PARAMETER_HOST);
+    ASSERT_TRUE(host);
+    ASSERT_FALSE(CheckSendEvent(root, "Loaded"));
+    ASSERT_FALSE(CheckSendEvent(root, "Failed"));
+
+    auto content = Content::create(EXPLICIT_PARAMETER_EMBEDDED, makeDefaultSession());
+
+    std::set<std::string> pendingParameters = content->getPendingParameters();
+    ASSERT_EQ(pendingParameters.size(), 1);
+    ASSERT_NE(pendingParameters.find("ExplicitParameter"), pendingParameters.end());
+
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_TRUE(CheckSendEvent(root, "Loaded"));
+    ASSERT_FALSE(CheckSendEvent(root, "Failed"));
+
+    auto embeddedTextComponent = CoreDocumentContext::cast(embeddedDoc)->findComponentById("embeddedText");
+    ASSERT_EQ("Hello, World!", embeddedTextComponent->getCalculated(kPropertyText).asString());
+
+    // Verify plural version of parameter is chosen in DOM serialization
+    rapidjson::Document doc;
+    auto json = root->serializeDOM(true, doc.GetAllocator());
+    auto& hostJson = json["children"][0];
+    auto& param = hostJson["parameters"]["ExplicitParameter"];
+    ASSERT_EQ(std::string("Hello, World!"), param.GetString());
+}
+
+static const char* EXPLICIT_PARAMETER_HOST_WITH_PLURAL_AND_SINGULAR = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "item": {
+        "type": "Host",
+        "id": "hostComponent",
+        "source": "embeddedDocumentUrl",
+        "parameter": {
+          "SingularOnly": "One",
+          "Both": "SingularWins"
+        },
+        "parameters": {
+          "PluralOnly": "Many",
+          "Both": "PluralWins"
+        }
+      }
+    }
+  }
+})";
+
+static const char* EXPLICIT_PARAMETER_EMBEDDED_WITH_PLURAL_AND_SINGULAR = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "parameters": [
+      "SingularOnly",
+      "PluralOnly",
+      "Both"
+    ],
+    "item": {
+      "type": "Container",
+      "item": {
+        "type": "Text",
+        "id": "embeddedText",
+        "text": "${SingularOnly} - ${PluralOnly} - ${Both}"
+      }
+    }
+  }
+})";
+
+TEST_F(HostComponentTest, TestPluralVariantPreferred)
+{
+    loadDocument(EXPLICIT_PARAMETER_HOST_WITH_PLURAL_AND_SINGULAR);
+    ASSERT_TRUE(host);
+
+    auto content = Content::create(EXPLICIT_PARAMETER_EMBEDDED_WITH_PLURAL_AND_SINGULAR, makeDefaultSession());
+
+    std::set<std::string> pendingParameters = content->getPendingParameters();
+    ASSERT_EQ(pendingParameters.size(), 3);
+    ASSERT_NE(pendingParameters.find("SingularOnly"), pendingParameters.end());
+    ASSERT_NE(pendingParameters.find("PluralOnly"), pendingParameters.end());
+    ASSERT_NE(pendingParameters.find("Both"), pendingParameters.end());
+
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+
+    auto embeddedTextComponent = CoreDocumentContext::cast(embeddedDoc)->findComponentById("embeddedText");
+    ASSERT_EQ(" - Many - PluralWins", embeddedTextComponent->getCalculated(kPropertyText).asString());
+
+    // Verify plural version of parameter is chosen in DOM serialization
+    rapidjson::Document doc;
+    auto json = root->serializeDOM(true, doc.GetAllocator());
+    auto& hostJson = json["children"][0];
+    ASSERT_FALSE(hostJson.HasMember("parameter"));
+    ASSERT_TRUE(hostJson.HasMember("parameters"));
+    ASSERT_EQ(std::string("Many"), hostJson["parameters"]["PluralOnly"].GetString());
+    ASSERT_EQ(std::string("PluralWins"), hostJson["parameters"]["Both"].GetString());
+    ASSERT_FALSE(hostJson["parameters"].HasMember("SinglarOnly"));
+}
+
+static const char* EXPLICIT_PARAMETER_HOST_WITH_SINGULAR = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "item": {
+        "type": "Host",
+        "id": "hostComponent",
+        "source": "embeddedDocumentUrl",
+        "parameter": {
+          "Singular": "One"
+        }
+      }
+    }
+  }
+})";
+
+static const char* EXPLICIT_PARAMETER_EMBEDDED_WITH_SINGULAR = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "parameters": [
+      "Singular"
+    ],
+    "item": {
+      "type": "Container",
+      "item": {
+        "type": "Text",
+        "id": "embeddedText",
+        "text": "${Singular}"
+      }
+    }
+  }
+})";
+
+TEST_F(HostComponentTest, TestSingularVariantWorks)
+{
+    loadDocument(EXPLICIT_PARAMETER_HOST_WITH_SINGULAR);
+    ASSERT_TRUE(host);
+
+    auto content = Content::create(EXPLICIT_PARAMETER_EMBEDDED_WITH_SINGULAR, makeDefaultSession());
+
+    std::set<std::string> pendingParameters = content->getPendingParameters();
+    ASSERT_EQ(pendingParameters.size(), 1);
+    ASSERT_NE(pendingParameters.find("Singular"), pendingParameters.end());
+
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+
+    auto embeddedTextComponent = CoreDocumentContext::cast(embeddedDoc)->findComponentById("embeddedText");
+    ASSERT_EQ("One", embeddedTextComponent->getCalculated(kPropertyText).asString());
+
+    // Verify plural version of parameter is chosen in DOM serialization
+    rapidjson::Document doc;
+    auto json = root->serializeDOM(true, doc.GetAllocator());
+    auto& hostJson = json["children"][0];
+    auto& param = hostJson["parameters"]["Singular"];
+    ASSERT_EQ(std::string("One"), param.GetString());
+}
+
+static const char* EXPLICIT_AND_IMPLICIT_PARAMETER_HOST = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "item": {
+        "type": "Host",
+        "id": "hostComponent",
+        "source": "embeddedDocumentUrl",
+        "ImplicitParameter": "Implicit value",
+        "parameters": {
+          "ExplicitParameter": "Explicit value"
+        },
+        "onLoad": [
+          {
+            "type": "SendEvent",
+            "sequencer": "LOAD_SEQUENCER",
+            "arguments": "Loaded"
+          }
+        ],
+        "onFail": [
+          {
+            "type": "SendEvent",
+            "sequencer": "FAIL_SEQUENCER",
+            "arguments": "Failed"
+          }
+        ]
+      }
+    }
+  }
+})";
+
+static const char* EXPLICIT_AND_IMPLICIT_PARAMETER_EMBEDDED = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "parameters": [
+      "ExplicitParameter",
+      "ImplicitParameter"
+    ],
+    "item": {
+      "type": "Container",
+      "item": {
+        "type": "Text",
+        "id": "embeddedText",
+        "text": "${ExplicitParameter} - ${ImplicitParameter}"
+      }
+    }
+  }
+})";
+
+TEST_F(HostComponentTest, TestDisallowImplicitParametersWhenUsingExplicitParameters)
+{
+    loadDocument(EXPLICIT_AND_IMPLICIT_PARAMETER_HOST);
+    ASSERT_TRUE(host);
+    ASSERT_FALSE(CheckSendEvent(root, "Loaded"));
+    ASSERT_FALSE(CheckSendEvent(root, "Failed"));
+
+    auto content = Content::create(EXPLICIT_AND_IMPLICIT_PARAMETER_EMBEDDED, makeDefaultSession());
+
+    std::set<std::string> pendingParameters = content->getPendingParameters();
+    ASSERT_EQ(pendingParameters.size(), 2);
+    ASSERT_NE(pendingParameters.find("ExplicitParameter"), pendingParameters.end());
+    ASSERT_NE(pendingParameters.find("ImplicitParameter"), pendingParameters.end());
+
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_TRUE(CheckSendEvent(root, "Loaded"));
+    ASSERT_FALSE(CheckSendEvent(root, "Failed"));
+
+    auto embeddedTextComponent = CoreDocumentContext::cast(embeddedDoc)->findComponentById("embeddedText");
+    ASSERT_EQ("Explicit value - ", embeddedTextComponent->getCalculated(kPropertyText).asString());
+}
+
+static const char* IMPLICIT_INTRINSIC_PROPERTY_PARAMETER_HOST = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "item": {
+        "type": "Host",
+        "id": "hostComponent",
+        "source": "embeddedDocumentUrl",
+        "ImplicitParameter": "Implicit value",
+        "speech": "URL",
+        "onLoad": [
+          {
+            "type": "SendEvent",
+            "sequencer": "LOAD_SEQUENCER",
+            "arguments": "Loaded"
+          }
+        ],
+        "onFail": [
+          {
+            "type": "SendEvent",
+            "sequencer": "FAIL_SEQUENCER",
+            "arguments": "Failed"
+          }
+        ]
+      }
+    }
+  }
+})";
+
+static const char* IMPLICIT_INTRINSIC_PROPERTY_PARAMETER_EMBEDDED = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "parameters": [
+      "ImplicitParameter",
+      "speech"
+    ],
+    "item": {
+      "type": "Container",
+      "item": {
+        "type": "Text",
+        "id": "embeddedText",
+        "text": "${ImplicitParameter} - ${speech}"
+      }
+    }
+  }
+})";
+
+TEST_F(HostComponentTest, TestDisallowReadingIntrinsicPropertiesAsImplicitParameters)
+{
+    loadDocument(IMPLICIT_INTRINSIC_PROPERTY_PARAMETER_HOST);
+    ASSERT_TRUE(host);
+    ASSERT_FALSE(CheckSendEvent(root, "Loaded"));
+    ASSERT_FALSE(CheckSendEvent(root, "Failed"));
+
+    auto content = Content::create(IMPLICIT_INTRINSIC_PROPERTY_PARAMETER_EMBEDDED, makeDefaultSession());
+
+    std::set<std::string> pendingParameters = content->getPendingParameters();
+    ASSERT_EQ(pendingParameters.size(), 2);
+    ASSERT_NE(pendingParameters.find("ImplicitParameter"), pendingParameters.end());
+    ASSERT_NE(pendingParameters.find("speech"), pendingParameters.end());
+
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_TRUE(CheckSendEvent(root, "Loaded"));
+    ASSERT_FALSE(CheckSendEvent(root, "Failed"));
+
+    auto embeddedTextComponent = CoreDocumentContext::cast(embeddedDoc)->findComponentById("embeddedText");
+    ASSERT_EQ("Implicit value - ", embeddedTextComponent->getCalculated(kPropertyText).asString());
+}
+
+TEST_F(HostComponentTest, ExperimentalFeaturesCopiedCorrectly) {
+    nominalLoadHostAndEmbedded();
+    auto child = host->getChildAt(0);
+    auto hostExperimentalFeatures = host->getContext()->getRootConfig().getExperimentalFeatures();
+    auto childExperimentalFeatures = child->getContext()->getRootConfig().getExperimentalFeatures();
+    ASSERT_EQ(hostExperimentalFeatures, childExperimentalFeatures);
+}
+

@@ -18,6 +18,7 @@
 
 #include "apl/common.h"
 #include "apl/content/extensionrequest.h"
+#include "apl/content/metrics.h"
 #include "apl/content/package.h"
 #include "apl/content/settings.h"
 #include "apl/engine/properties.h"
@@ -30,7 +31,6 @@ class JsonData;
 class ImportRequest;
 class ImportRef;
 class RootConfig;
-class Metrics;
 
 /**
  * Hold all of the documents and data necessary to inflate an APL component hierarchy.
@@ -60,14 +60,18 @@ class Metrics;
  * with actual data sets.  Use the addData() method to wire up parameter names
  * with JSON data.
  */
-class Content : public Counter<Content> {
+class Content : public Counter<Content>,
+                public std::enable_shared_from_this<Content> {
 public:
     /**
      * Construct the working Content object from a document.
      * @param document The JSON document.
      * @return A pointer to the content or nullptr if invalid.
+     * @deprecated Use #create(JsonData&&, const SessionPtr&, const Metrics&, const RootConfig&)
+     *             for root document and #create(JsonData&& document, const SessionPtr& session) for
+     *             embedded document.
      */
-    static ContentPtr create(JsonData&& document);
+    static APL_DEPRECATED ContentPtr create(JsonData&& document);
 
     /**
      * Construct the working Content object from a document, including a session for
@@ -75,8 +79,34 @@ public:
      * @param document The JSON document
      * @param session A logging session
      * @return A pointer to the content or nullptr if invalid
+     * @note Should be used only for Embedded documents.
      */
     static ContentPtr create(JsonData&& document, const SessionPtr& session);
+
+    /**
+     * Construct the working Content object.
+     * @param document The JSON document
+     * @param session A logging session
+     * @param metrics Viewport metrics.
+     * @param config Document config.
+     * @return A pointer to the content or nullptr if invalid
+     */
+    static ContentPtr create(JsonData&& document, const SessionPtr& session,
+                             const Metrics& metrics, const RootConfig& config);
+
+    /**
+     * Refresh content with new (or finally known) parameters.
+     * @param metrics Viewport metrics.
+     * @param config Document config.
+     */
+    void refresh(const Metrics& metrics, const RootConfig& config);
+
+    /**
+     * Refresh content with embedded document request.
+     * @param request request.
+     * @param documentConfig DocumentConfig.
+     */
+    void refresh(const EmbedRequest& request, const DocumentConfigPtr& documentConfig);
 
     /**
      * @return The main document package
@@ -157,8 +187,17 @@ public:
     /**
      * @return The background object (color or gradient) for this document.  Returns
      *         the transparent color if no background is defined.
+     * @deprecated Use #getBackground(). This method will create temporary evaluation context.
      */
     Object getBackground(const Metrics& metrics, const RootConfig& config) const;
+
+    /**
+     * @return The background object (color or gradient) for this document.  Returns
+     *         the transparent color if no background is defined.
+     * @note Usable only if full (#create(JsonData&&, const SessionPtr&, const Metrics&, const RootConfig&))
+     *       constructor used as it requires stable evaluation context.
+     */
+    Object getBackground() const;
 
     /**
      * Returned object for the getEnvironment method.  Defined as a structure for
@@ -213,6 +252,11 @@ public:
      */
     std::set<std::string> getPendingParameters() const { return mPendingParameters; }
 
+    /**
+     * @return True if content can change due to evaluation support, false otherwise.
+     */
+    bool isMutable() const { return mEvaluationContext != nullptr; }
+
 private:  // Non-public methods used by other classes
     friend class CoreDocumentContext;
 
@@ -229,17 +273,30 @@ public:
      */
     Content(const SessionPtr& session,
             const PackagePtr& mainPackagePtr,
-            const rapidjson::Value& mainTemplate);
+            const rapidjson::Value& mainTemplate,
+            const Metrics& metrics,
+            const RootConfig& rootConfig);
 
 private:  // Private internal methods
+    void init(bool supportsEvaluation);
     void addImportList(Package& package);
-    void addImport(Package& package, const rapidjson::Value& value);
+    bool addImport(
+        Package& package,
+        const rapidjson::Value& value,
+        const std::string& name = "",
+        const std::string& version = "",
+        const std::set<std::string>& loadAfter = {});
     void addExtensions(Package& package);
     void updateStatus();
     void loadExtensionSettings();
     bool orderDependencyList();
     bool addToDependencyList(std::vector<PackagePtr>& ordered, std::set<PackagePtr>& inProgress, const PackagePtr& package);
     bool allowAdd(const std::string& name);
+    std::string extractTheme(const Metrics& metrics) const;
+    static ContentPtr create(JsonData&& document, const SessionPtr& session, const Metrics& metrics,
+                             const RootConfig& config, bool supportsEvaluation);
+    Object extractBackground(const Context& evaluationContext) const;
+    void loadPackage(const ImportRef& ref, const PackagePtr& package);
 
 private:
     enum State {
@@ -257,10 +314,14 @@ private:
 
     State mState;
     const rapidjson::Value& mMainTemplate;
+    Metrics mMetrics;
+    RootConfig mConfig;
+    ContextPtr mEvaluationContext;
 
     std::set<ImportRequest> mRequested;
     std::set<ImportRequest> mPending;
     std::map<ImportRef, PackagePtr> mLoaded;
+    std::map<ImportRef, PackagePtr> mStashed;
     std::vector<PackagePtr> mOrderedDependencies;
 
     std::map<std::string, Object> mParameterValues;

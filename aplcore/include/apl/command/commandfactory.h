@@ -49,6 +49,11 @@ public:
     CommandPtr inflate(const ContextPtr& context, CommandData&& commandData, const CoreComponentPtr& base);
 
     CommandPtr inflate(CommandData&& commandData, const std::shared_ptr<const CoreCommand>& parent);
+
+    CommandPtr inflate(
+        const ContextPtr& context,
+        CommandData&& commandData,
+        const std::shared_ptr<const CoreCommand>& parent);
 protected:
     CommandFactory() = default;;
 

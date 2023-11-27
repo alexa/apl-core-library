@@ -52,8 +52,8 @@ static const char* HOST_DOC_CONFIG_CHANGE = R"({
       "items": [
         {
           "type": "Host",
-          "width": "100%",
-          "height": "100%",
+          "width": "80%",
+          "height": "80%",
           "id": "hostComponent",
           "entities": "HOST",
           "source": "embeddedDocumentUrl",
@@ -178,6 +178,8 @@ static const char* EMBEDDED_DOC_REINFLATE = R"({
   },
   "mainTemplate": {
     "item": {
+      "height": "100%",
+      "width": "100%",
       "type": "Text",
       "id": "embeddedText",
       "text": "${viewport.theme}",
@@ -248,7 +250,7 @@ TEST_F(EmbeddedReinflateTest, ConfigChangeSize)
     ASSERT_TRUE(CheckSendEvent(root, 500, 500, "dark", "hub", 1, "normal", false, true, false));
 
     advanceTime(100);
-    ASSERT_TRUE(CheckSendEvent(root, 500, 500, "dark", "hub", 1, "normal", false, true, false));
+    ASSERT_TRUE(CheckSendEvent(root, 400, 400, "dark", "hub", 1, "normal", false, true, false));
 }
 
 // Size change without config change causes one only in Embedded document
@@ -276,7 +278,7 @@ TEST_F(EmbeddedReinflateTest, DirectChangeSize)
     ASSERT_FALSE(root->hasEvent());
 
     advanceTime(100);
-    ASSERT_TRUE(CheckSendEvent(root, 300, 400, "dark", "hub", 1, "normal", false, true, false));
+    ASSERT_TRUE(CheckSendEvent(root, 300, 320, "dark", "hub", 1, "normal", false, true, false));
 }
 
 // Relevant config change passed over to the embedded doc
@@ -352,6 +354,66 @@ TEST_F(EmbeddedReinflateTest, ConfigChangeThemeEmbedded)
     ASSERT_EQ("light", embeddedText->getCalculated(kPropertyText).asString());
 }
 
+// Size change or environment ConfigChange shouldn't lead to reinflate of embedded doc
+TEST_F(EmbeddedReinflateTest, ConfigChangeSizeEmbeddedNope)
+{
+    metrics.size(400, 400);
+
+    // Host document inflates
+    session = std::make_shared<TestSession>();
+    loadDocument(HOST_DOC_CONFIG_CHANGE);
+
+    advanceTime(100);
+
+    auto content = Content::create(EMBEDDED_DOC_REINFLATE, session);
+    ASSERT_TRUE(content->isReady());
+
+    // Now request can be answered.
+    auto embeddedDocumentContext = documentManager->succeed(content);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    auto embed = CoreComponent::cast(root->findComponentById("embeddedText"));
+    auto actualBounds = embed->getCalculated(apl::kPropertyBounds).get<Rect>();
+    ASSERT_EQ(Rect(0, 0, 320, 320), actualBounds) << "Actual: " << actualBounds.toString();
+
+    auto configChange = ConfigurationChange(500, 500);
+    root->configurationChange(configChange);
+    ASSERT_TRUE(CheckSendEvent(root, 500, 500, "dark", "hub", 1, "normal", false, true, false));
+
+    advanceTime(100);
+    root->clearPending();
+    embed = CoreComponent::cast(root->findComponentById("embeddedText"));
+    actualBounds = embed->getCalculated(apl::kPropertyBounds).get<Rect>();
+    ASSERT_EQ(Rect(0, 0, 400, 400), actualBounds) << "Actual: " << actualBounds.toString();
+}
+
+// Size change or environment ConfigChange shouldn't lead to reinflate of embedded doc
+TEST_F(EmbeddedReinflateTest, ConfigChangeEnvEmbeddedNope)
+{
+    metrics.size(400, 400);
+
+    // Host document inflates
+    session = std::make_shared<TestSession>();
+    loadDocument(HOST_DOC_CONFIG_CHANGE);
+
+    advanceTime(100);
+
+    auto content = Content::create(EMBEDDED_DOC_CONFIG, session);
+    ASSERT_TRUE(content->isReady());
+
+    // Now request can be answered.
+    auto embeddedDocumentContext = documentManager->succeed(content);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    auto configChange = ConfigurationChange().environmentValue("someEnvironment", true);
+    root->configurationChange(configChange);
+    ASSERT_TRUE(CheckSendEvent(root, 100, 100, "dark", "hub", 1, "normal", false, false, false));
+
+    advanceTime(100);
+    ASSERT_FALSE(root->hasEvent());
+}
 
 // Config change may lead to Embedded document reinflate
 TEST_F(EmbeddedReinflateTest, ConfigChangeThemeHostNonResolved)
@@ -536,4 +598,105 @@ TEST_F(EmbeddedReinflateTest, ConfigChangeThemeHostNoPreserve)
     ASSERT_EQ("light", hostText->getCalculated(kPropertyText).asString());
     embeddedText = root->findComponentById("embeddedText");
     ASSERT_EQ("light", embeddedText->getCalculated(kPropertyText).asString());
+}
+
+static const char* HOST_DOC_ENVIRONMENT_PASS = R"({
+  "type": "APL",
+  "version": "2023.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Host",
+      "width": "100%",
+      "height": "100%",
+      "id": "hostComponent",
+      "source": "embeddedDocumentUrl",
+      "onLoad": [
+        {
+          "type": "SendEvent",
+          "sequencer": "SEND_EVENTER",
+          "arguments": ["LOADED"]
+        }
+      ],
+      "bind": [
+        { "name": "BoundEnvPasser", "value": "${environment.magic}" }
+      ],
+      "environment": {
+        "BoundEnv": "${BoundEnvPasser}",
+        "Magic": "${environment.magic}",
+        "ViewportEnv": "${viewport.mode}",
+        "Reason": "${environment.reason}",
+        "ScreenMode": "${environment.screenMode}",
+        "FontScale": "${environment.fontScale}",
+        "ScreenReader": "${environment.screenReader}",
+        "DisallowVideo": "${environment.disallowVideo}"
+      }
+    }
+  }
+})";
+
+static const char* EMBEDDED_DOC_CONFIG_ENVIRONMENT = R"({
+  "type": "APL",
+  "version": "2023.2",
+  "onConfigChange": [
+    {
+      "type": "SendEvent",
+      "sequencer": "SEND_EVENTER_EMBEDDED",
+      "delay": 100,
+      "arguments": [
+        "${event.environment.BoundEnv}", "${event.environment.DisallowVideo}",
+        "${event.environment.FontScale}", "${event.environment.Magic}",
+        "${event.environment.Reason}", "${event.environment.ScreenMode}",
+        "${event.environment.ScreenReader}", "${event.environment.ViewportEnv}"
+      ]
+    },
+    {
+      "type": "Reinflate",
+      "sequencer": "REINFLATE_EMBEDDED",
+      "delay": 200
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Text",
+      "id": "embeddedText",
+      "text": "${environment.BoundEnv} ${environment.DisallowVideo} ${environment.FontScale} ${environment.Magic} ${environment.Reason} ${environment.ScreenMode} ${environment.ScreenReader} ${environment.ViewportEnv}"
+    }
+  }
+})";
+
+TEST_F(EmbeddedReinflateTest, EnvironmentPassing)
+{
+    metrics.size(400, 400);
+    config->setEnvironmentValue("magic", false);
+
+    loadDocument(HOST_DOC_ENVIRONMENT_PASS);
+
+    advanceTime(100);
+
+    auto content = Content::create(EMBEDDED_DOC_CONFIG_ENVIRONMENT, session);
+    ASSERT_TRUE(content->isReady());
+
+    // Now request can be answered.
+    auto embeddedDocumentContext = documentManager->succeed(content);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    auto textComp = root->findComponentById("embeddedText");
+    ASSERT_EQ("false false 1 false initial normal false hub", textComp->getCalculated(apl::kPropertyText).asString());
+
+    auto configChange = ConfigurationChange()
+                            .environmentValue("magic", true)
+                            .mode(ViewportMode::kViewportModeMobile)
+                            .screenMode(RootConfig::ScreenMode::kScreenModeHighContrast)
+                            .fontScale(54)
+                            .screenReader(true)
+                            .disallowVideo(true);
+    root->configurationChange(configChange);
+
+    advanceTime(100);
+    ASSERT_TRUE(CheckSendEvent(root, false, true, 54.000000, true, "reinflation", 1, true, "mobile"));
+
+    advanceTime(100);
+    textComp = root->findComponentById("embeddedText");
+    ASSERT_EQ("false true 54 true reinflation 1 true mobile", textComp->getCalculated(apl::kPropertyText).asString());
 }

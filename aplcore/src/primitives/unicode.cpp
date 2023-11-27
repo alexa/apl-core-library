@@ -145,6 +145,25 @@ utf8StringSlice(const std::string& utf8String, int start, int end)
     return std::string((char *)startPtr, endPtr - startPtr);
 }
 
+std::string
+utf8StringCharAt(const std::string& utf8String, int index)
+{
+    auto len = utf8StringLength(utf8String);
+    if (len <= 0)
+        return "";
+
+    // Handle a negative starting offset.  Note that we don't support multiple wraps
+    if (index < 0)
+        index += len;
+
+    if (index < 0 || index >= len)
+        return "";
+
+    auto startPtr = utf8AdvanceCodePointsUnsafe((uint8_t*)utf8String.c_str(), index);
+    auto endPtr = utf8AdvanceCodePointsUnsafe(startPtr, 1);
+    return std::string((char *)startPtr, endPtr - startPtr);
+}
+
 /**
  * Internal method to check a single UTF-8 character and see if it appears in a
  * string of valid characters.  This method assumes that the inputs are valid UTF-8 strings

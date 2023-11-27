@@ -22,6 +22,7 @@ class PathTest : public DocumentWrapper {
 public:
     void checkPaths(const char *filename, const std::map<std::string, std::string>& map) {
         loadDocument(filename);
+        advanceTime(10);
         checkPaths(map);
     }
 

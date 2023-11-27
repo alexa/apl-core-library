@@ -54,13 +54,14 @@ ScrollToAction::make(const TimersPtr& timers,
 std::shared_ptr<ScrollToAction>
 ScrollToAction::make(const TimersPtr& timers,
                      const std::shared_ptr<CoreCommand>& command,
-                     const CoreComponentPtr& target)
+                     const CoreComponentPtr& target,
+                     apl_duration_t duration)
 {
     auto t = target ? target : command->target();
     if (!t)
         return nullptr;
     auto align = static_cast<CommandScrollAlign>(command->getValue(kCommandPropertyAlign).getInteger());
-    return make(timers, align, Rect(), command->context(), false, t);
+    return make(timers, align, Rect(), command->context(), false, t, duration);
 }
 
 std::shared_ptr<ScrollToAction>
@@ -141,7 +142,9 @@ ScrollToAction::make(const TimersPtr& timers,
             scrollToSubBounds,
             target,
             CoreComponent::cast(container),
-            duration >= 0 ? duration : context->getRootConfig().getScrollCommandDuration());
+            duration >= 0
+                ? duration
+                : context->getRootConfig().getProperty(RootProperty::kScrollCommandDuration).getDouble());
 
     context->sequencer().claimResource({kExecutionResourcePosition, container}, ptr);
 
@@ -296,7 +299,7 @@ ScrollToAction::pageTo()
 
     // We assume we were invoked from a ScrollToComponent/Index command.  We use absolute
     // positioning.
-    PagerComponent::setPageUtil(mContext, mContainer, targetPage,
+    PagerComponent::setPageUtil(mContainer, targetPage,
         targetPage < currentPage ? kPageDirectionBack : kPageDirectionForward, shared_from_this(),
         mContext->getRequestedAPLVersion().compare("1.6") < 0);
 }

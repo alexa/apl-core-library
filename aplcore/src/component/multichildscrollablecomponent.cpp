@@ -504,7 +504,7 @@ MultiChildScrollableComponent::trimScroll(const Point& point)
     if (mAvailableRange.contains(isVertical() ? point.getY() : point.getX())) return point;
 
     // Break out early. If there are no children - no scrolling possible
-    if (shouldNotPropagateLayoutChanges() ||
+    if (!shouldPropagateLayoutChanges() ||
         getCalculated(kPropertyBounds).empty())
         return Point();
 
@@ -889,6 +889,7 @@ MultiChildScrollableComponent::scheduleDelayedLayout() {
         if (self) {
             self->processLayoutChangesInternal(true, false, true, false);
             self->mDelayLayoutAction = nullptr;
+            self->markAccessibilityDirty();
         }
     });
 }
@@ -928,7 +929,7 @@ MultiChildScrollableComponent::processLayoutChangesInternal(bool useDirtyFlag, b
         mRebuilder->notifyEndEdgeReached();
     }
 
-    if (shouldNotPropagateLayoutChanges()) {
+    if (!shouldPropagateLayoutChanges()) {
         // Starting with empty or invalid sequence
         return;
     }
@@ -968,19 +969,19 @@ MultiChildScrollableComponent::processLayoutChangesInternal(bool useDirtyFlag, b
     }
 
     const auto& sequenceBounds = mCalculated.get(kPropertyBounds).get<Rect>();
-    float childCache = mContext->getRootConfig().getSequenceChildCache();
+    float childCache = mContext->getRootConfig().getProperty(RootProperty::kSequenceChildCache).getDouble();
     float pageSize = horizontal ? sequenceBounds.getWidth() : sequenceBounds.getHeight();
 
     // Try to figure majority of layout as a bulk
     //
     // TODO: Layout heuristics are good for performance but not essential. In
-    // an earlier version, the heuristic looked at the size of the first child
-    // to estimate how many children need to be laid out. In a later version we
-    // looked at the second child instead, to avoid cases where a narrow first
-    // child resulted in over-estimation of the number of children that needed
-    // to be laid out. This change had unintended consequences for certain
-    // layouts that counted on the original heuristic. We need to re-engineer
-    // the heuristic and in the mean time, we can disable it.
+    //  an earlier version, the heuristic looked at the size of the first child
+    //  to estimate how many children need to be laid out. In a later version we
+    //  looked at the second child instead, to avoid cases where a narrow first
+    //  child resulted in over-estimation of the number of children that needed
+    //  to be laid out. This change had unintended consequences for certain
+    //  layouts that counted on the original heuristic. We need to re-engineer
+    //  the heuristic and in the mean time, we can disable it.
     //
     // runLayoutHeuristics(anchorIdx, childCache, pageSize, useDirtyFlag, first);
     //

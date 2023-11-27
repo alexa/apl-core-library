@@ -2867,3 +2867,94 @@ TEST_F(GraphicComponentTest, Characteristics)
     ASSERT_TRUE(vg->isTouchable());
     ASSERT_TRUE(vg->isActionable());
 }
+
+static const char* PARAMETER_PASSING_VARIANTS = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "graphics": {
+    "SpeechBubble": {
+      "type": "AVG",
+      "version": "1.0",
+      "height": 100,
+      "width": 100,
+      "lang": "en-US",
+      "parameters": [
+        "MyColor",
+        "speech"
+      ],
+      "items": [
+        {
+          "type": "text",
+          "fill": "${MyColor}",
+          "fontSize": 20,
+          "text": "${speech}",
+          "x": 50,
+          "y": 50,
+          "textAnchor": "middle"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "VectorGraphic",
+          "id": "ImplicitParameters",
+          "source": "SpeechBubble",
+          "MyColor": "red",
+          "speech": "A"
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "ExplicitParameters",
+          "source": "SpeechBubble",
+          "parameters": {
+            "MyColor": "blue",
+            "speech": "B"
+          }
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "MixedParameters",
+          "source": "SpeechBubble",
+          "parameters": {
+            "MyColor": "blue"
+          },
+          "MyColor": "red",
+          "speech": "C"
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(GraphicComponentTest, ParameterPassingVariants) {
+    loadDocument(PARAMETER_PASSING_VARIANTS);
+
+    {
+        auto component = context->findComponentById("ImplicitParameters");
+        auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
+        auto text = graphic->getRoot()->getChildAt(0);
+        ASSERT_EQ(kGraphicElementTypeText, text->getType());
+        ASSERT_EQ(Object(Color(Color::RED)), text->getValue(kGraphicPropertyFill));
+        ASSERT_EQ("A", text->getValue(kGraphicPropertyText).asString());
+    }
+    
+    {
+        auto component = context->findComponentById("ExplicitParameters");
+        auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
+        auto text = graphic->getRoot()->getChildAt(0);
+        ASSERT_EQ(Object(Color(Color::BLUE)), text->getValue(kGraphicPropertyFill));
+        ASSERT_EQ("B", text->getValue(kGraphicPropertyText).asString());
+    }
+
+    {
+        auto component = context->findComponentById("MixedParameters");
+        auto graphic = component->getCalculated(kPropertyGraphic).get<Graphic>();
+        auto text = graphic->getRoot()->getChildAt(0);
+        ASSERT_EQ(Object(Color(Color::BLUE)), text->getValue(kGraphicPropertyFill));
+        ASSERT_EQ("", text->getValue(kGraphicPropertyText).asString());
+    }
+}

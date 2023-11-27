@@ -18,6 +18,7 @@
 
 #include <cassert>
 
+#include "apl/primitives/size.h"
 #include "apl/utils/streamer.h"
 #include "apl/utils/bimap.h"
 #include "apl/utils/log.h"
@@ -54,6 +55,19 @@ enum ViewportMode {
 
 extern Bimap<int, std::string> sViewportModeBimap;
 
+struct ViewportSize {
+    float width, minWidth, maxWidth;
+    float height, minHeight, maxHeight;
+
+    bool isFixed() const { return minWidth == maxWidth && minHeight == maxHeight; }
+    bool isAutoWidth() const { return minWidth != maxWidth; }
+    bool isAutoHeight() const { return minHeight != maxHeight; }
+    Size nominalSize() const { return { width, height }; }
+    Size layoutSize() const {
+        return {minWidth == maxWidth ? width : -1, minHeight == maxHeight ? height : -1};
+    }
+};
+
 /**
  * Store information about the viewport
  */
@@ -79,8 +93,8 @@ public:
     /**
      * Set the pixel dimensions of the screen or view.  When using auto-sizing, this
      * should be set to the nominal or target dimension of the view.
-     * @param pixelWidth The width of the screen, in pixels.
-     * @param pixelHeight The height of the screen, in pixels.
+     * @param pixelWidth The width of the viewport, in pixels.
+     * @param pixelHeight The height of the viewport, in pixels.
      * @return This object for chaining.
      */
     Metrics& size(int pixelWidth, int pixelHeight) {
@@ -91,22 +105,30 @@ public:
     }
 
     /**
-     * Set if the width of the view can be automatically sized by the APL document
-     * @param value True if the view width can be auto-sized.
+     * Set the minimum and maximum pixel width of the viewport.
+     * @param minPixelWidth The minimum width of the viewport, in pixels
+     * @param maxPixelWidth The maximum width of the viewport, in pixels
      * @return This object for chaining
      */
-    Metrics& autoSizeWidth(bool value) {
-        mAutoSizeWidth = value;
+    Metrics& minAndMaxWidth(int minPixelWidth, int maxPixelWidth) {
+        assert(minPixelWidth > 0 && minPixelWidth <= maxPixelWidth);
+        mMinPixelWidth = minPixelWidth;
+        mMaxPixelWidth = maxPixelWidth;
+        mFlags |= kMinMaxPixelWidth;
         return *this;
     }
 
     /**
-     * Set if the height of the view can be automatically sized by the APL document
-     * @param value True if the view height can be auto-sized.
+     * Set the minimum and maximum pixel height of the viewport.
+     * @param minPixelHeight The minimum height of the viewport, in pixels
+     * @param maxPixelHeight The maximum height of the viewport, in pixels
      * @return This object for chaining
      */
-    Metrics& autoSizeHeight(bool value) {
-        mAutoSizeHeight = value;
+    Metrics& minAndMaxHeight(int minPixelHeight, int maxPixelHeight) {
+        assert(minPixelHeight > 0 && minPixelHeight <= maxPixelHeight);
+        mMinPixelHeight = minPixelHeight;
+        mMaxPixelHeight = maxPixelHeight;
+        mFlags |= kMinMaxPixelHeight;
         return *this;
     }
 
@@ -172,43 +194,96 @@ public:
     }
 
     /**
-     * @return The dpi of the screen.
+     * @return The dpi of the viewport.
      */
     int getDpi() const { return mDpi; }
 
     /**
-     * @return The height of the screen in "dp"
+     * @return The complete viewport information needed for layout
+     */
+    ViewportSize getViewportSize() const {
+        return {
+            getWidth(),
+            getMinWidth(),
+            getMaxWidth(),
+            getHeight(),
+            getMinHeight(),
+            getMaxHeight()
+        };
+    }
+
+    /**
+     * @return The height of the viewport in dp
      */
     float getHeight() const { return pxToDp(mPixelHeight); }
 
     /**
-     * @return The width of the screen in "dp"
+     * @return The width of the viewport in dp
      */
     float getWidth() const { return pxToDp(mPixelWidth); }
 
     /**
+     * @return The minimum height of the viewport in dp
+     */
+    float getMinHeight() const {
+        return pxToDp((mFlags & kMinMaxPixelHeight) != 0 ? mMinPixelHeight : mPixelHeight);
+    }
+
+    /**
+     * @return The maximum height of the viewport in dp
+     */
+    float getMaxHeight() const {
+        return pxToDp((mFlags & kMinMaxPixelHeight) != 0 ? mMaxPixelHeight : mPixelHeight);
+    }
+
+    /**
+     * @return The minimum width of the viewport in dp
+     */
+    float getMinWidth() const {
+        return pxToDp((mFlags & kMinMaxPixelWidth) != 0 ? mMinPixelWidth : mPixelWidth);
+    }
+
+    /**
+     * @return The maximum height of the viewport in dp
+     */
+    float getMaxWidth() const {
+        return pxToDp((mFlags & kMinMaxPixelWidth) != 0 ? mMaxPixelWidth : mPixelWidth);
+    }
+
+    /**
      * @return True if the width should auto-size
      */
-    bool getAutoWidth() const { return mAutoSizeWidth; }
+    bool getAutoWidth() const {
+        return (mFlags & kMinMaxPixelWidth) != 0 && mMinPixelWidth < mMaxPixelWidth;
+    }
 
     /**
      * @return True if the height should auto-size
      */
-    bool getAutoHeight() const { return mAutoSizeHeight; }
+    bool getAutoHeight() const {
+        return (mFlags & kMinMaxPixelHeight) != 0 && mMinPixelHeight < mMaxPixelHeight;
+    }
 
     /**
      * Convert Display Pixels to Pixels
      * @param dp Display Pixels
      * @return Pixels
      */
-    float dpToPx(float dp) const { return dp * mDpi / CORE_DPI; }
+    float dpToPx(float dp) const { return dp * static_cast<float>(mDpi) / CORE_DPI; }
 
     /**
      * Convert Pixels to Display Pixels
      * @param px Pixels
      * @return Display Pixels
      */
-    float pxToDp(float px) const { return px * CORE_DPI / mDpi; }
+    float pxToDp(float px) const { return px * CORE_DPI / static_cast<float>(mDpi); }
+
+    /**
+     * Convert pixels to display pixels
+     * @param px Pixels
+     * @return Display pixels
+     */
+    float pxToDp(int px) const { return static_cast<float>(px) * CORE_DPI / static_cast<float>(mDpi); }
 
     /**
      * @return The human-readable shape of the screen (either "rectangle" or "round")
@@ -248,14 +323,25 @@ public:
     std::string toDebugString() const;
 
 private:
+
+    enum SetFlags : unsigned int {
+        kMinMaxPixelWidth = 1u << 0,
+        kMinMaxPixelHeight = 1u << 1,
+    };
+
     std::string mTheme = "dark";
     int mPixelWidth = 1024;
     int mPixelHeight = 800;
     int mDpi = CORE_DPI;
     ScreenShape mShape = RECTANGLE;
     ViewportMode mMode = kViewportModeHub;
-    bool mAutoSizeWidth = false;
-    bool mAutoSizeHeight = false;
+
+    int mMinPixelWidth = 1024;
+    int mMaxPixelWidth = 1024;
+    int mMinPixelHeight = 800;
+    int mMaxPixelHeight = 800;
+
+    unsigned int mFlags = 0;
 };
 
 }  // namespace apl

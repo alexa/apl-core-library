@@ -63,6 +63,7 @@ TEST_F(SGGraphicComponentTest, Basic)
         sg,
         IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
             .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly)
                        .content(IsTransformNode(".transform")
                                     .child(IsDrawNode(".draw")
                                                .path(IsGeneralPath(
@@ -75,6 +76,7 @@ TEST_F(SGGraphicComponentTest, Basic)
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
                 .child(IsLayer(Rect{100, 0, 100, 100}, ".MediaLayer")
+                           .characteristic(sg::Layer::kCharacteristicRenderOnly)
                            .dirty(sg::Layer::kFlagPositionChanged)
                            .content(IsTransformNode().child(
                                IsDrawNode()
@@ -107,7 +109,8 @@ TEST_F(SGGraphicComponentTest, Missing)
     ASSERT_TRUE(CheckSceneGraph(
         sg,
         IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
-            .child(IsLayer(Rect{0, 0, 1, 1}, ".MediaLayer"))));  // No content is visible
+            .child(IsLayer(Rect{0, 0, 1, 1}, ".MediaLayer")
+                    .characteristic(sg::Layer::kCharacteristicRenderOnly))));  // No content is visible
 }
 
 static const char * TOGGLE_OFF_AND_ON = R"apl(
@@ -160,6 +163,7 @@ TEST_F(SGGraphicComponentTest, ToggleOffAndOn)
         sg,
         IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
             .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly)
                        .content(IsTransformNode(".transform")
                                     .child(IsDrawNode(".draw")
                                                .path(IsGeneralPath(
@@ -173,6 +177,7 @@ TEST_F(SGGraphicComponentTest, ToggleOffAndOn)
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
                 .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer")
+                           .characteristic(sg::Layer::kCharacteristicRenderOnly)
                            .dirty(sg::Layer::kFlagRedrawContent)))); // No content is visible
 
     // Set to a bad vector graphic - one with an illegal height/width
@@ -182,7 +187,8 @@ TEST_F(SGGraphicComponentTest, ToggleOffAndOn)
     sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
-                .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer"))));
+                .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer")
+                        .characteristic(sg::Layer::kCharacteristicRenderOnly))));
 
     // Set to an empty vector graphic - one with no content
     executeCommand("SetValue",
@@ -190,7 +196,8 @@ TEST_F(SGGraphicComponentTest, ToggleOffAndOn)
     sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
-                .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer"))));
+                .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer")
+                          .characteristic(sg::Layer::kCharacteristicRenderOnly))));
 
     // Set it back to the original
     executeCommand("SetValue",
@@ -200,6 +207,7 @@ TEST_F(SGGraphicComponentTest, ToggleOffAndOn)
         sg,
         IsLayer(Rect{0, 0, 200, 200}, ".VectorGraphic")
             .child(IsLayer(Rect{50, 50, 100, 100}, ".MediaLayer")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .content(IsTransformNode(".transform")
                                     .child(IsDrawNode(".draw")
@@ -257,6 +265,7 @@ TEST_F(SGGraphicComponentTest, MultiText)
         IsLayer(Rect{0, 0, 800, 800}, "...Frame")
             .child(IsLayer(Rect{0, 0, 800, 800}, "...VectorGraphic")
                        .child(IsLayer(Rect{0, 0, 800, 800}, "...Graphic")
+                                  .characteristic(sg::Layer::kCharacteristicRenderOnly)
                                   .content(IsTransformNode()
                                                .transform(Transform2D::scale(4. / 3.))
                                                .child(IsTransformNode()
@@ -315,6 +324,7 @@ TEST_F(SGGraphicComponentTest, Moving)
         IsLayer(Rect{0, 0, 200, 200})
             .child(
                 IsLayer(Rect{0, 0, 200, 200})
+                    .characteristic(sg::Layer::kCharacteristicRenderOnly)
                     .content(IsTransformNode(".alignment")
                                  .child(IsTransformNode(".group").child(
                                      IsDrawNode()
@@ -330,6 +340,7 @@ TEST_F(SGGraphicComponentTest, Moving)
         IsLayer(Rect{0, 0, 200, 200}, "...vector graphic")
             .child(
                 IsLayer(Rect{0, 0, 200, 200}, "...media layer")
+                    .characteristic(sg::Layer::kCharacteristicRenderOnly)
                     .dirty(sg::Layer::kFlagRedrawContent)
                     .content(IsTransformNode(".alignment")
                                  .child(IsTransformNode(".group").translate({100, 0}).child(
@@ -350,8 +361,11 @@ TEST_F(SGGraphicComponentTest, MovingLayers)
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200}, "...vector graphic")
                 .child(IsLayer(Rect{0, 0, 200, 200}, "...media layer")
+                           .characteristic(sg::Layer::kCharacteristicRenderOnly)
                            .child(IsLayer(Rect(0,0,0,0), "...container")
+                                      .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                                       .child(IsLayer(Rect(0,0,10,10), "...group")
+                                                 .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                                                  .content(
                                                      IsDrawNode()
                                                          .path(IsGeneralPath(
@@ -366,8 +380,11 @@ TEST_F(SGGraphicComponentTest, MovingLayers)
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200})
                 .child(IsLayer(Rect{0, 0, 200, 200})
+                           .characteristic(sg::Layer::kCharacteristicRenderOnly)
                            .child(IsLayer(Rect(0,0,0,0), "...container")
+                                      .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                                       .child(IsLayer(Rect(0,0,10,10), "...group")
+                                                 .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                                                  .dirty(sg::Layer::kFlagTransformChanged)
                                                  .transform(Transform2D::translate({100,0}))
                                                  .content(
@@ -428,7 +445,9 @@ TEST_F(SGGraphicComponentTest, ReplaceSource)
         sg,
         IsLayer(Rect{0, 0, 200, 200}, "...vector graphic")
             .child(IsLayer(Rect{0, 0, 200, 200}, "...media layer")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly)
                        .child(IsLayer(Rect(0, 0, 200, 200), "...container")
+                                  .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                                   .content(IsDrawNode()
                                                .path(IsGeneralPath(
                                                    "MLLLZ", {0, 0, 200, 0, 200, 200, 0, 200}))
@@ -443,8 +462,10 @@ TEST_F(SGGraphicComponentTest, ReplaceSource)
         sg,
         IsLayer(Rect{0, 0, 200, 200}, "...vector graphic")
             .child(IsLayer(Rect{0, 0, 200, 200}, "...media layer")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly)
                        .dirty(sg::Layer::kFlagChildrenChanged)
                        .child(IsLayer(Rect(0, 0, 200, 200), "...container")
+                                  .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                                   .content(IsDrawNode()
                                                .path(IsGeneralPath(
                                                    "MLLLZ", {0, 0, 200, 0, 200, 200, 0, 200}))

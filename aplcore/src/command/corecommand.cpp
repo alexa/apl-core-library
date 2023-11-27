@@ -21,6 +21,7 @@
 #include "apl/command/autopagecommand.h"
 #include "apl/command/clearfocuscommand.h"
 #include "apl/command/controlmediacommand.h"
+#include "apl/command/logcommand.h"
 #include "apl/command/finishcommand.h"
 #include "apl/command/idlecommand.h"
 #include "apl/command/insertitemcommand.h"
@@ -253,7 +254,15 @@ CoreCommand::calculateProperties()
             }
         }
 
-        if (mTarget != nullptr) mValues.emplace(kCommandPropertyComponentId, mTarget->getUniqueId());
+        if (mTarget != nullptr) {
+            // Can't target a disallowed component
+            if (mTarget->isDisallowed()) {
+                CONSOLE(mContext) << "Component type " << mTarget->name() << " is disallowed, ignoring command " << name();
+                return false;
+            }
+
+            mValues.emplace(kCommandPropertyComponentId, mTarget->getUniqueId());
+        }
     }
 
     // When we have a target component, we need to update the context "event" property to include
@@ -302,6 +311,7 @@ std::map<int, CommandCreateFunc> sCommandCreatorMap = {
     {kCommandTypeAutoPage,          AutoPageCommand::create},
     {kCommandTypeControlMedia,      ControlMediaCommand::create},
     {kCommandTypeIdle,              IdleCommand::create},
+    {kCommandTypeLog,               LogCommand::create},
     {kCommandTypeOpenURL,           OpenURLCommand::create},
     {kCommandTypeParallel,          ParallelCommand::create},
     {kCommandTypePlayMedia,         PlayMediaCommand::create},

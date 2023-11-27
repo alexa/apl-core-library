@@ -26,7 +26,15 @@
 namespace apl {
 namespace sg {
 
-class Filter : public NonCopyable {
+/**
+ * Filters are a tree of image transformations that are recursively applied to their children until the end filter 
+ * is reached which can be either a MediaObjectFilter (image) or a SolidFilter (solid color or gradient).
+ * The Filter chain is immutable after being created, Core will not modify it. 
+ * UserData support is provided so that viewhosts can store Filter-related data such as
+ * a rendered bitmap that represents the output of the Filter chain.
+ */
+class Filter : public NonCopyable,
+               public UserData<Filter> {
 public:
     enum Type {
         kBlend,

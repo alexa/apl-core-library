@@ -24,6 +24,8 @@
 #include "apl/time/sequencer.h"
 #include "apl/utils/make_unique.h"
 #include "apl/utils/principal_ptr.h"
+#include "apl/utils/session.h"
+#include "apl/media/mediatrack.h"
 
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/textlayout.h"
@@ -75,6 +77,16 @@ public:
     virtual void start(SpeakItemAction& action) {
         auto context = action.mCommand->context();
 
+        // Create a MediaTrack from Speech Property
+        MediaTrack track = createMediaTrack(action.mTarget->getCalculated(kPropertySpeech), context);
+        if(!track.valid()){
+            CONSOLE(context).log("Audio source missing in playback");
+            return;
+        }
+        action.mSource = track.url;
+        LOG_IF(DEBUG_SPEAK_ITEM) << "source: " << action.mSource
+                                 << ", lineMode: " << !mText.empty();
+
         // If we are doing line highlighting, grab a copy of the text in the component
         if (action.mTarget->getType() == kComponentTypeText &&
             action.mCommand->getValue(kCommandPropertyHighlightMode) == kCommandHighlightModeLine) {
@@ -84,11 +96,6 @@ public:
         }
 
         // Create an audio player and queue up the TTS as the track
-        action.mSource = action.mTarget->getCalculated(kPropertySpeech).asString();
-
-        LOG_IF(DEBUG_SPEAK_ITEM) << "source: " << action.mSource
-                                 << ", lineMode: " << !mText.empty();
-
         const auto& factory = context->getRootConfig().getAudioPlayerFactory();
         std::weak_ptr<SpeakItemAction> weak_ptr(
             std::static_pointer_cast<SpeakItemAction>(action.shared_from_this()));
@@ -142,12 +149,7 @@ public:
 
             // Effectively preroll
             if (mAudioPlayer) {
-                mAudioPlayer->setTrack(MediaTrack{
-                    action.mSource, // URL
-                    0,              // Start
-                    0,              // Duration (play the entire track)
-                    0,              // Repeat count
-                });
+                mAudioPlayer->setTrack(track);
             }
         }
     }

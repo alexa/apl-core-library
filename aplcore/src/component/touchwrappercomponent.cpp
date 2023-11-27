@@ -38,7 +38,7 @@ TouchWrapperComponent::TouchWrapperComponent(const ContextPtr& context,
 }
 
 std::shared_ptr<TouchWrapperComponent>
-TouchWrapperComponent::cast(const std::shared_ptr<Component>& component) {
+TouchWrapperComponent::cast(const ComponentPtr& component) {
     return component && component->getType() == ComponentType::kComponentTypeTouchWrapper
         ? std::static_pointer_cast<TouchWrapperComponent>(component) : nullptr;
 }

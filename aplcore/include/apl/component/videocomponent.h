@@ -57,7 +57,7 @@ public:
      * @param component Pointer to cast.
      * @return Casted pointer to this type, nullptr if not possible.
      */
-    static std::shared_ptr<VideoComponent> cast(const std::shared_ptr<Component>& component);
+    static std::shared_ptr<VideoComponent> cast(const ComponentPtr& component);
 
 protected:
     const EventPropertyMap & eventPropertyMap() const override;

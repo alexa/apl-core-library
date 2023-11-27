@@ -166,7 +166,8 @@ PagerFlingGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
     auto horizontal = mActionable->isHorizontal();
     auto availableDirection = pager->pageDirection();
     auto globalToLocal = mActionable->getGlobalToLocalTransform();
-    auto flingDistanceThreshold = mActionable->getRootConfig().getPointerSlopThreshold() *
+    auto flingDistanceThreshold =
+        mActionable->getRootConfig().getProperty(RootProperty::kPointerSlopThreshold).getDouble() *
         (horizontal ? globalToLocal.getXScaling() : globalToLocal.getYScaling());
 
     // Trigger only if distance is above the threshold AND navigation direction available
@@ -222,7 +223,7 @@ PagerFlingGesture::onMove(const PointerEvent& event, apl_time_t timestamp)
 void
 PagerFlingGesture::animateRemainder(bool fulfill)
 {
-    auto duration = mActionable->getRootConfig().getDefaultPagerAnimationDuration();
+    auto duration = mActionable->getRootConfig().getProperty(RootProperty::kDefaultPagerAnimationDuration).getDouble();
     auto remainder = fulfill ? 1.0f - mAmount : -mAmount;
 
     std::weak_ptr<PagerFlingGesture> weak_ptr(std::static_pointer_cast<PagerFlingGesture>(shared_from_this()));
@@ -313,7 +314,8 @@ PagerFlingGesture::finishUp()
 
     auto velocities = toLocalVector(mVelocityTracker->getEstimatedVelocity());
     auto velocity = horizontal ? velocities.getX() : velocities.getY();
-    auto minFlingVelocity = std::abs(mActionable->getRootConfig().getMinimumFlingVelocity() * scaleFactor);
+    auto minFlingVelocity =
+        std::abs(mActionable->getRootConfig().getProperty(RootProperty::kMinimumFlingVelocity).asFloat() * scaleFactor);
     auto fulfill = true;
     auto direction = (mActionable->isHorizontal() && mLayoutDirection == kLayoutDirectionRTL)
                      ? (velocity < 0 ? kPageDirectionBack    : kPageDirectionForward)

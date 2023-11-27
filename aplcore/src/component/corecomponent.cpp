@@ -62,6 +62,13 @@ const std::string VISUAL_CONTEXT_TYPE_EMPTY = "empty";
 
 /*****************************************************************/
 
+const std::string CHILDREN_CHANGE_UID = "uid";
+const std::string CHILDREN_CHANGE_INDEX = "index";
+const std::string CHILDREN_CHANGE_ACTION = "action";
+const std::string CHILDREN_CHANGE_CHANGES = "changes";
+
+/*****************************************************************/
+
 const static bool DEBUG_BOUNDS = false;
 const static bool DEBUG_ENSURE = false;
 const static bool DEBUG_LAYOUTDIRECTION = false;
@@ -112,14 +119,15 @@ CoreComponent::CoreComponent(const ContextPtr& context,
       mYGNodeRef(YGNodeNewWithConfig(context->ygconfig())),
       mPath(path),
       mDisplayedChildrenStale(true),
+      mIsDisallowed(false),
       mGlobalToLocalIsStale(true),
       mTextMeasurementHashStale(true),
       mVisualHashStale(true) {
     YGNodeSetContext(mYGNodeRef, this);
 }
 
-std::shared_ptr<CoreComponent>
-CoreComponent::cast( const std::shared_ptr<Component>& component) {
+CoreComponentPtr
+CoreComponent::cast( const ComponentPtr& component) {
     return std::static_pointer_cast<CoreComponent>(component);
 }
 
@@ -152,7 +160,7 @@ CoreComponent::processTickHandlers() {
 
     for (const auto& handler : tickHandlers.getArray()) {
         auto delay = std::max(propertyAsDouble(*mContext, handler, "minimumDelay", 1000),
-                mContext->getRootConfig().getTickHandlerUpdateLimit());
+                mContext->getRootConfig().getProperty(RootProperty::kTickHandlerUpdateLimit).getDouble());
         scheduleTickHandler(handler, delay);
     }
 }
@@ -194,15 +202,19 @@ CoreComponent::initialize()
     // Set notion of focusability. Here as we actually may need to know all other properties.
     mCalculated.set(kPropertyFocusable, isFocusable());
 
-    // The component property definition set returns an array of raw accessibility action objects.  This code
-    // processes the raw array, sets up dependancy relationships, and stores the processed array under the same key.
+    // The component property definition set returns an array of raw accessibility action objects.
+    // This code processes the raw array, sets up dependancy relationships, if any, and stores the
+    // processed array under the same key.
     ObjectArray actions;
-    for (const auto& m : mCalculated.get(kPropertyAccessibilityActions).getArray() ) {
+    for (const auto& m : mCalculated.get(kPropertyAccessibilityActionsAssigned).getArray() ) {
         auto aa = AccessibilityAction::create(shared_from_corecomponent(), m);
         if (aa)
             actions.emplace_back(std::move(aa));
     }
-    mCalculated.set(kPropertyAccessibilityActions, Object(std::move(actions)));
+    mCalculated.set(kPropertyAccessibilityActionsAssigned, Object(std::move(actions)));
+
+    if (!getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureDynamicAccessibilityActions))
+        fixAccessibilityActions();
 
     // Process tick handlers here. Not same as onMount as it's a bad idea to go through every component on every tick
     // to collect handlers and run them on mass.
@@ -400,16 +412,11 @@ CoreComponent::appendChild(const ComponentPtr& child, bool useDirtyFlag)
 }
 
 void
-CoreComponent::notifyChildChanged(size_t index, const std::string& uid, const std::string& action)
+CoreComponent::notifyChildChanged(size_t index, const CoreComponentPtr& component, ChildChangeAction action)
 {
-    auto &changes = mCalculated.get(kPropertyNotifyChildrenChanged).getMutableArray();
-    auto change = std::make_shared<ObjectMap>();
-    change->emplace("index", index);
-    change->emplace("uid", uid);
-    change->emplace("action", action);
-    changes.emplace_back(change);
-
-    setDirty(kPropertyNotifyChildrenChanged);
+    mChildrenChanges.emplace_back(ChildChange{component, action, index});
+    // Mark component as dirty so required processing will take place
+    mContext->setDirty(shared_from_this());
 }
 
 void
@@ -544,13 +551,13 @@ CoreComponent::insertChild(const CoreComponentPtr& child, size_t index, bool use
 
     mChildren.insert(mChildren.begin() + index, coreChild);
 
+    coreChild->attachedToParent(shared_from_corecomponent());
     if (useDirtyFlag) {
-        notifyChildChanged(index, child->getUniqueId(), "insert");
+        notifyChildChanged(index, child, kChildChangeActionInsert);
         // If we add a view hierarchy with dirty flags, we need to update the context
         coreChild->markAdded();
     }
 
-    coreChild->attachedToParent(shared_from_corecomponent());
     coreChild->markGlobalToLocalTransformStale();
     markDisplayedChildrenStale(useDirtyFlag);
     setVisualContextDirty();
@@ -605,7 +612,7 @@ CoreComponent::removeChildAfterMarkedRemoved(const CoreComponentPtr& child, size
 
     // The parent component has changed the number of children
     if (useDirtyFlag)
-        notifyChildChanged(index, child->getUniqueId(), "remove");
+        notifyChildChanged(index, child, kChildChangeActionRemove);
 
     markDisplayedChildrenStale(useDirtyFlag);
     mDisplayedChildren.clear();
@@ -867,6 +874,19 @@ CoreComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
 }
 #endif // SCENEGRAPH
 
+bool
+CoreComponent::isParentOf(const CoreComponentPtr& child)
+{
+    auto self = shared_from_this();
+
+    ComponentPtr parent = child->getParent();
+    while (parent && parent != self) {
+        parent = parent->getParent();
+    }
+
+    return self == parent;
+}
+
 /**
  * Initial assignment of properties.  Don't set any dirty flags here; this
  * all should be running in the constructor.
@@ -990,6 +1010,9 @@ CoreComponent::handlePropertyChange(const ComponentPropDef& def, const Object& v
         // Properties with kPropVisualHash flag the visual hash is dirty
         if ((def.flags & kPropVisualHash) != 0)
             mVisualHashStale = true;
+
+        if ((def.flags & kPropAccessibility) != 0)
+            markAccessibilityDirty();
 
         // Properties with the kPropOut flag mark the property as dirty
         if ((def.flags & kPropOut) != 0)
@@ -1191,7 +1214,7 @@ CoreComponent::getPropertyAndWriteableState(const std::string& key) const
 }
 
 Object
-CoreComponent::getProperty(PropertyKey key)
+CoreComponent::getProperty(PropertyKey key) const
 {
     if (sComponentPropertyBimap.has(key)) {
         auto findRef = find(key);
@@ -1402,6 +1425,10 @@ CoreComponent::setDirty( PropertyKey key )
             if (!mVisualHashStale && (def->second.flags & kPropVisualHash)) {
                 mVisualHashStale = true;
             }
+
+            if (def->second.flags & kPropAccessibility) {
+                markAccessibilityDirty();
+            }
         }
     }
 }
@@ -1496,9 +1523,9 @@ CoreComponent::needsLayout() const
 }
 
 bool
-CoreComponent::shouldNotPropagateLayoutChanges() const
+CoreComponent::shouldPropagateLayoutChanges() const
 {
-    return mChildren.empty() || static_cast<Display>(getCalculated(kPropertyDisplay).getInteger()) == kDisplayNone;
+    return !mChildren.empty() && static_cast<Display>(getCalculated(kPropertyDisplay).getInteger()) != kDisplayNone;
 }
 
 std::string
@@ -1627,22 +1654,86 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag, bool first)
             setDirty(kPropertyInnerBounds);
     }
 
+    if (shouldPropagateLayoutChanges()) {
+        // Inform all children that they should re-check their bounds. No need to do that for not
+        // attached ones. Note that children of a Pager are not attached, and hence they will not
+        // be processed.
+        for (auto& child : mChildren)
+            if (child->isAttached())
+                child->processLayoutChanges(useDirtyFlag, first);
+    }
+
     if (!mCalculated.get(kPropertyLaidOut).asBoolean() && !mCalculated.get(kPropertyBounds).get<Rect>().empty()) {
         mCalculated.set(kPropertyLaidOut, true);
         if (useDirtyFlag)
             setDirty(kPropertyLaidOut);
+        markAccessibilityDirty();
     }
-
-    // Break out early if possible - there are no need to propagate to children
-    if (shouldNotPropagateLayoutChanges()) return;
-
-    // Inform all children that they should re-check their bounds. No need to do that for not attached ones.
-    // Note that children of a Pager are not attached, and hence they will not be processed.
-    for (auto& child : mChildren)
-        if (child->isAttached())
-            child->processLayoutChanges(useDirtyFlag, first);
 }
 
+/**
+ * Note: It may be relatively expensive to run this operation, as it's executed for every dirty
+ * component on clearPending. Any operation performed has to break out early if no change is
+ * required.
+ */
+void
+CoreComponent::postClearPending()
+{
+    // Process and report DOM (not layout) changes.
+    processChildrenChanges();
+    refreshAccessibilityActions(true);
+}
+
+std::string
+CoreComponent::toStringAction(ChildChangeAction action) {
+    return action == kChildChangeActionInsert ? "insert" : "remove";
+}
+
+void
+CoreComponent::processChildrenChanges() {
+    if (mChildrenChanges.empty())
+        return;
+
+    // Report children changes to the runtime
+    {
+        auto& changes = mCalculated.get(kPropertyNotifyChildrenChanged).getMutableArray();
+        for (const auto& c : mChildrenChanges) {
+            auto change = std::make_shared<ObjectMap>();
+            change->emplace(CHILDREN_CHANGE_INDEX, c.index);
+            change->emplace(CHILDREN_CHANGE_UID, c.component->getUniqueId());
+            change->emplace(CHILDREN_CHANGE_ACTION, toStringAction(c.action));
+            changes.emplace_back(change);
+        }
+
+        setDirty(kPropertyNotifyChildrenChanged);
+    }
+
+    // Execute ChildrenChanged handler, if defined
+    auto commands = mCalculated.get(kPropertyOnChildrenChanged);
+    if (multiChild() && !commands.empty()) {
+        auto handlerChanges = std::make_shared<ObjectArray>();
+        for (const auto& c : mChildrenChanges) {
+            auto change = std::make_shared<ObjectMap>();
+            if (c.action == kChildChangeActionInsert)
+                change->emplace(
+                    CHILDREN_CHANGE_INDEX,
+                    getChildIndex(c.component)
+                );
+            change->emplace(CHILDREN_CHANGE_UID, c.component->getUniqueId());
+            change->emplace(CHILDREN_CHANGE_ACTION, toStringAction(c.action));
+            handlerChanges->emplace_back(change);
+        }
+
+        auto changesMap = std::make_shared<ObjectMap>();
+        changesMap->emplace(CHILDREN_CHANGE_CHANGES, handlerChanges);
+        mContext->sequencer().executeCommands(
+            commands,
+            createEventContext("ChildrenChanged", changesMap, getValue()),
+            shared_from_corecomponent(), true);
+
+    }
+    mChildrenChanges.clear();
+}
 
 void
 CoreComponent::postProcessLayoutChanges()
@@ -2196,7 +2287,8 @@ CoreComponent::calculateRealOpacity() const
 bool
 CoreComponent::isDisplayable() const {
     return (getCalculated(kPropertyDisplay).asInt() == kDisplayNormal)
-    && (getCalculated(kPropertyOpacity).asNumber() > 0);
+    && (getCalculated(kPropertyOpacity).asNumber() > 0)
+    && !mIsDisallowed;
 }
 
 void
@@ -2410,123 +2502,217 @@ CoreComponent::textBaselineFunc( YGNodeRef node, float width, float height )
     return component->textBaselineInternal(width, height);
 }
 
+// Old style static actions. Just copy defined and implicit to the output.
+void
+CoreComponent::fixAccessibilityActions() {
+    auto current = getCalculated(kPropertyAccessibilityActionsAssigned).getArray();
+
+    ObjectArray result;
+    // Copy all defined
+    for (const auto& ao : current) {
+        result.emplace_back(ao);
+    }
+
+    std::map<std::string, bool> supportedActions;
+    getSupportedStandardAccessibilityActions(supportedActions);
+
+    // Copy all implicit
+    for (const auto& a : supportedActions) {
+        if (a.second)
+            result.emplace_back(AccessibilityAction::create(shared_from_corecomponent(),
+                                                            a.first, a.first));
+    }
+
+    setCalculated(kPropertyAccessibilityActions, std::move(result));
+}
+
+void
+CoreComponent::markAccessibilityDirty()
+{
+    if (!getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureDynamicAccessibilityActions))
+        return;
+
+    mContext->setDirty(shared_from_this());
+    mAccessibilityDirty = true;
+}
+
+// New style dynamic actions
+void
+CoreComponent::refreshAccessibilityActions(bool useDirtyFlag)
+{
+    if (!getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureDynamicAccessibilityActions))
+        return;
+
+    if (!mAccessibilityDirty) return;
+    mAccessibilityDirty = false;
+
+    auto current = getCalculated(kPropertyAccessibilityActions).getArray();
+    if (getCalculated(kPropertyDisabled).asBoolean()) {
+        if (!current.empty()) {
+            mCalculated.set(kPropertyAccessibilityActions, Object::EMPTY_ARRAY());
+            if (useDirtyFlag) setDirty(kPropertyAccessibilityActions);
+        }
+        return;
+    }
+
+    auto cmp = [](const AccessibilityActionPtr& left, const AccessibilityActionPtr& right) {
+        return left->getName() < right->getName();
+    };
+
+    // Dedupe the list by the Action name, only first definition considered valid
+    std::set<AccessibilityActionPtr, decltype(cmp)> deduped(cmp);
+
+    // Add defined actions
+    for (const auto& m : mCalculated.get(kPropertyAccessibilityActionsAssigned).getArray() ) {
+        deduped.emplace(m.get<AccessibilityAction>());
+    }
+
+    // Get component supported standard actions (may be based on component state)
+    std::map<std::string, bool> supportedActions;
+    getSupportedStandardAccessibilityActions(supportedActions);
+
+    // Add supported actions if implicit (does not have to be defined)
+    for (const auto& m : supportedActions) {
+        if (m.second)
+            deduped.emplace(AccessibilityAction::create(shared_from_corecomponent(), m.first, m.first));
+    }
+
+    // There are 3 types of valid actions:
+    // 1. Enabled custom
+    // 2. Enabled standard action (component or gesture)
+    // 3. Implicit actions (like scrolling), unless disabled
+    ObjectArray result;
+    for (const auto& aa : deduped) {
+        if (aa->enabled() && (!aa->getCommands().empty() || supportedActions.count(aa->getName())))
+            result.emplace_back(aa);
+    }
+
+    if (current != result) {
+        mCalculated.set(kPropertyAccessibilityActions, Object(std::move(result)));
+        if (useDirtyFlag) setDirty(kPropertyAccessibilityActions);
+    }
+}
+
 const ComponentPropDefSet&
 CoreComponent::propDefSet() const {
     static ComponentPropDefSet sCommonComponentProperties = ComponentPropDefSet().add({
-      {kPropertyAccessibilityLabel,       "",                      asString,                   kPropInOut |
-                                                                                               kPropDynamic},
-      {kPropertyAccessibilityActions,     Object::EMPTY_ARRAY(),   asArray,                    kPropInOut},
-      {kPropertyBounds,                   Rect(0,0,0,0),           nullptr,                    kPropOut |
-                                                                                               kPropVisualContext |
-                                                                                               kPropVisualHash},
-      {kPropertyChecked,                  false,                   asBoolean,                  kPropInOut |
-                                                                                               kPropDynamic |
-                                                                                               kPropMixedState |
-                                                                                               kPropVisualContext},
-      {kPropertyDescription,              "",                      asString,                   kPropIn},
-      {kPropertyDisplay,                  kDisplayNormal,          sDisplayMap,                kPropInOut |
-                                                                                               kPropStyled |
-                                                                                               kPropDynamic |
-                                                                                               kPropVisualContext,  yn::setDisplay},
-      {kPropertyDisabled,                 false,                   asBoolean,                  kPropInOut |
-                                                                                               kPropDynamic |
-                                                                                               kPropMixedState |
-                                                                                               kPropVisualContext},
-      {kPropertyEntities,                 Object::EMPTY_ARRAY(),   asDeepArray,                kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropEvaluated |
-                                                                                               kPropVisualContext},
-      {kPropertyFocusable,                false,                   nullptr,                    kPropOut},
-      {kPropertyHandleTick,               Object::EMPTY_ARRAY(),   asArray,                    kPropIn},
-      {kPropertyHeight,                   Dimension(),             asDimension,                kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         yn::setHeight, defaultHeight},
-      {kPropertyInnerBounds,              Rect(0,0,0,0),           nullptr,                    kPropOut |
-                                                                                               kPropVisualContext |
-                                                                                               kPropVisualHash},
-      {kPropertyLayoutDirectionAssigned,  kLayoutDirectionInherit, sLayoutDirectionMap,        kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         yn::setLayoutDirection},
-      {kPropertyLayoutDirection,          kLayoutDirectionLTR,     sLayoutDirectionMap,        kPropOut |
-                                                                                               kPropTextHash |
-                                                                                               kPropVisualHash},
-      {kPropertyMaxHeight,                Object::NULL_OBJECT(),   asNonAutoDimension,         kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         yn::setMaxHeight},
-      {kPropertyMaxWidth,                 Object::NULL_OBJECT(),   asNonAutoDimension,         kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         yn::setMaxWidth},
-      {kPropertyMinHeight,                Dimension(0),            asNonAutoDimension,         kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         yn::setMinHeight},
-      {kPropertyMinWidth,                 Dimension(0),            asNonAutoDimension,         kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         yn::setMinWidth},
-      {kPropertyOnMount,                  Object::EMPTY_ARRAY(),   asCommand,                  kPropIn},
-      {kPropertyOnSpeechMark,             Object::EMPTY_ARRAY(),   asCommand,                  kPropIn},
-      {kPropertyOpacity,                  1.0,                     asOpacity,                  kPropInOut |
-                                                                                               kPropStyled |
-                                                                                               kPropDynamic |
-                                                                                               kPropVisualContext |
-                                                                                               kPropVisualHash},
-      {kPropertyPadding,                  Object::EMPTY_ARRAY(),   asPaddingArray,             kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         inlineFixPadding},
-      {kPropertyPaddingBottom,            Object::NULL_OBJECT(),   asAbsoluteDimension,        kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         inlineFixPadding},
-      {kPropertyPaddingLeft,              Object::NULL_OBJECT(),   asAbsoluteDimension,        kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         inlineFixPadding},
-      {kPropertyPaddingRight,             Object::NULL_OBJECT(),   asAbsoluteDimension,        kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         inlineFixPadding},
-      {kPropertyPaddingTop,               Object::NULL_OBJECT(),   asAbsoluteDimension,        kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         inlineFixPadding},
-      {kPropertyPaddingStart,             Object::NULL_OBJECT(),   asAbsoluteDimension,        kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         inlineFixPadding},
-      {kPropertyPaddingEnd,               Object::NULL_OBJECT(),   asAbsoluteDimension,        kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         inlineFixPadding},
-      {kPropertyPreserve,                 Object::EMPTY_ARRAY(),   asArray,                    kPropIn},
-      {kPropertyRole,                     kRoleNone,               sRoleMap,                   kPropInOut |
-                                                                                               kPropStyled},
-      {kPropertyShadowColor,              Color(),                 asColor,                    kPropInOut |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled |
-                                                                                               kPropVisualHash},
-      {kPropertyShadowHorizontalOffset,   Dimension(0),            asAbsoluteDimension,        kPropInOut |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled |
-                                                                                               kPropVisualHash},
-      {kPropertyShadowRadius,             Dimension(0),            asAbsoluteDimension,        kPropInOut |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled |
-                                                                                               kPropVisualHash},
-      {kPropertyShadowVerticalOffset,     Dimension(0),            asAbsoluteDimension,        kPropInOut |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled |
-                                                                                               kPropVisualHash},
-      {kPropertySpeech,                   "",                      asString,                   kPropIn |
-                                                                                               kPropVisualContext},
-      {kPropertyTransformAssigned,        Object::NULL_OBJECT(),   asTransformOrArray,         kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropEvaluated |
-                                                                                               kPropVisualContext,  inlineFixTransform},
-      {kPropertyTransform,                Transform2D(),           nullptr,                    kPropOut |
-                                                                                               kPropVisualContext},
-      {kPropertyUser,                     Object::NULL_OBJECT(),   nullptr,                    kPropOut},
-      {kPropertyWidth,                    Dimension(),             asDimension,                kPropIn |
-                                                                                               kPropDynamic |
-                                                                                               kPropStyled,         yn::setWidth,  defaultWidth},
-      {kPropertyOnCursorEnter,            Object::EMPTY_ARRAY(),   asCommand,                  kPropIn},
-      {kPropertyOnCursorExit,             Object::EMPTY_ARRAY(),   asCommand,                  kPropIn},
-      {kPropertyLaidOut,                  false,                   asBoolean,                  kPropOut |
-                                                                                               kPropVisualContext},
-      {kPropertyVisualHash,               "",                      asString,                   kPropOut |
-                                                                                               kPropRuntimeState},
+      {kPropertyAccessibilityLabel,           "",                      asString,            kPropInOut |
+                                                                                            kPropDynamic},
+      {kPropertyAccessibilityActions,         Object::EMPTY_ARRAY(),   asArray,             kPropOut | kPropAccessibility},
+      {kPropertyAccessibilityActionsAssigned, Object::EMPTY_ARRAY(),   asArray,             kPropIn},
+      {kPropertyBounds,                       Rect(0,0,0,0),           nullptr,             kPropOut |
+                                                                                            kPropVisualContext |
+                                                                                            kPropVisualHash},
+      {kPropertyChecked,                      false,                   asBoolean,           kPropInOut |
+                                                                                            kPropDynamic |
+                                                                                            kPropMixedState |
+                                                                                            kPropVisualContext},
+      {kPropertyDescription,                  "",                      asString,            kPropIn},
+      {kPropertyDisplay,                      kDisplayNormal,          sDisplayMap,         kPropInOut |
+                                                                                            kPropStyled |
+                                                                                            kPropDynamic |
+                                                                                            kPropVisualContext,  yn::setDisplay},
+      {kPropertyDisabled,                     false,                   asBoolean,           kPropInOut |
+                                                                                            kPropDynamic |
+                                                                                            kPropMixedState |
+                                                                                            kPropVisualContext |
+                                                                                            kPropAccessibility},
+      {kPropertyEntities,                     Object::EMPTY_ARRAY(),   asDeepArray,         kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropEvaluated |
+                                                                                            kPropVisualContext},
+      {kPropertyFocusable,                    false,                   nullptr,             kPropOut},
+      {kPropertyHandleTick,                   Object::EMPTY_ARRAY(),   asArray,             kPropIn},
+      {kPropertyHeight,                       Dimension(),             asDimension,         kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         yn::setHeight, defaultHeight},
+      {kPropertyInnerBounds,                  Rect(0,0,0,0),           nullptr,             kPropOut |
+                                                                                            kPropVisualContext |
+                                                                                            kPropVisualHash},
+      {kPropertyLayoutDirectionAssigned,      kLayoutDirectionInherit, sLayoutDirectionMap, kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         yn::setLayoutDirection},
+      {kPropertyLayoutDirection,              kLayoutDirectionLTR,     sLayoutDirectionMap, kPropOut |
+                                                                                            kPropTextHash |
+                                                                                            kPropVisualHash},
+      {kPropertyMaxHeight,                    Object::NULL_OBJECT(),   asNonAutoDimension,  kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         yn::setMaxHeight},
+      {kPropertyMaxWidth,                     Object::NULL_OBJECT(),   asNonAutoDimension,  kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         yn::setMaxWidth},
+      {kPropertyMinHeight,                    Dimension(0),            asNonAutoDimension,  kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         yn::setMinHeight},
+      {kPropertyMinWidth,                     Dimension(0),            asNonAutoDimension,  kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         yn::setMinWidth},
+      {kPropertyOnChildrenChanged,            Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
+      {kPropertyOnMount,                      Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
+      {kPropertyOnSpeechMark,                 Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
+      {kPropertyOpacity,                      1.0,                     asOpacity,           kPropInOut |
+                                                                                            kPropStyled |
+                                                                                            kPropDynamic |
+                                                                                            kPropVisualContext |
+                                                                                            kPropVisualHash},
+      {kPropertyPadding,                      Object::EMPTY_ARRAY(),   asPaddingArray,      kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         inlineFixPadding},
+      {kPropertyPaddingBottom,                Object::NULL_OBJECT(),   asAbsoluteDimension, kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         inlineFixPadding},
+      {kPropertyPaddingLeft,                  Object::NULL_OBJECT(),   asAbsoluteDimension, kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         inlineFixPadding},
+      {kPropertyPaddingRight,                 Object::NULL_OBJECT(),   asAbsoluteDimension, kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         inlineFixPadding},
+      {kPropertyPaddingTop,                   Object::NULL_OBJECT(),   asAbsoluteDimension, kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         inlineFixPadding},
+      {kPropertyPaddingStart,                 Object::NULL_OBJECT(),   asAbsoluteDimension, kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         inlineFixPadding},
+      {kPropertyPaddingEnd,                   Object::NULL_OBJECT(),   asAbsoluteDimension, kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         inlineFixPadding},
+      {kPropertyPreserve,                     Object::EMPTY_ARRAY(),   asArray,             kPropIn},
+      {kPropertyRole,                         kRoleNone,               sRoleMap,            kPropInOut |
+                                                                                            kPropStyled},
+      {kPropertyShadowColor,                  Color(),                 asColor,             kPropInOut |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled |
+                                                                                            kPropVisualHash},
+      {kPropertyShadowHorizontalOffset,       Dimension(0),            asAbsoluteDimension, kPropInOut |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled |
+                                                                                            kPropVisualHash},
+      {kPropertyShadowRadius,                 Dimension(0),            asAbsoluteDimension, kPropInOut |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled |
+                                                                                            kPropVisualHash},
+      {kPropertyShadowVerticalOffset,         Dimension(0),            asAbsoluteDimension, kPropInOut |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled |
+                                                                                            kPropVisualHash},
+      {kPropertySpeech,                       "",                      asAny,               kPropIn |
+                                                                                            kPropVisualContext},
+      {kPropertyTransformAssigned,            Object::NULL_OBJECT(),   asTransformOrArray,  kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropEvaluated |
+                                                                                            kPropVisualContext,  inlineFixTransform},
+      {kPropertyTransform,                    Transform2D(),           nullptr,             kPropOut |
+                                                                                            kPropVisualContext},
+      {kPropertyUser,                         Object::NULL_OBJECT(),   nullptr,             kPropOut},
+      {kPropertyWidth,                        Dimension(),             asDimension,         kPropIn |
+                                                                                            kPropDynamic |
+                                                                                            kPropStyled,         yn::setWidth,  defaultWidth},
+      {kPropertyOnCursorEnter,                Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
+      {kPropertyOnCursorExit,                 Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
+      {kPropertyLaidOut,                      false,                   asBoolean,           kPropOut |
+                                                                                            kPropVisualContext},
+      {kPropertyVisualHash,                   "",                      asString,            kPropOut |
+                                                                                            kPropRuntimeState},
     });
 
     return sCommonComponentProperties;

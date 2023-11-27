@@ -56,12 +56,39 @@ ConfigurationChange::mergeRootConfig(const RootConfig& oldRootConfig) const
 
     if ((mFlags & kConfigurationChangeEnvironment) != 0) {
         for (const auto &prop : mEnvironment) {
-            if (rootConfig.getEnvironmentValues().count(prop.first) > 0)
-                rootConfig.setEnvironmentValue(prop.first, prop.second);
+            rootConfig.setEnvironmentValue(prop.first, prop.second);
         }
     }
 
     return rootConfig;
+}
+
+ObjectMap
+ConfigurationChange::mergeEnvironment(const ObjectMap& oldEnvironment) const
+{
+    auto environment = oldEnvironment;
+
+    environment["reason"] = "reinflation";
+
+    if ((mFlags & kConfigurationChangeScreenMode) != 0)
+        environment["screenMode"] = mScreenMode;
+
+    if ((mFlags & kConfigurationChangeFontScale) != 0)
+        environment["fontScale"] = mFontScale;
+
+    if ((mFlags & kConfigurationChangeScreenReader) != 0)
+        environment["screenReader"] = mScreenReaderEnabled;
+
+    if ((mFlags & kConfigurationChangeDisallowVideo) != 0)
+        environment["disallowVideo"] = mDisallowVideo;
+
+    if ((mFlags & kConfigurationChangeEnvironment) != 0) {
+        for (const auto &prop : mEnvironment) {
+            environment[prop.first] = prop.second;
+        }
+    }
+
+    return environment;
 }
 
 void
@@ -72,6 +99,10 @@ ConfigurationChange::mergeConfigurationChange(const ConfigurationChange& other)
     if ((other.mFlags & kConfigurationChangeSize) != 0) {
         mPixelWidth = other.mPixelWidth;
         mPixelHeight = other.mPixelHeight;
+        mMinPixelWidth = other.mMinPixelWidth;
+        mMinPixelHeight = other.mMinPixelHeight;
+        mMaxPixelWidth = other.mMaxPixelWidth;
+        mMaxPixelHeight = other.mMaxPixelHeight;
     }
 
     if ((other.mFlags & kConfigurationChangeTheme) != 0)
@@ -99,7 +130,8 @@ ConfigurationChange::mergeConfigurationChange(const ConfigurationChange& other)
 }
 
 ConfigurationChange&
-ConfigurationChange::environmentValue(const std::string &name, const Object &newValue) {
+ConfigurationChange::environmentValue(const std::string &name, const Object &newValue)
+{
     mFlags |= kConfigurationChangeEnvironment;
     mEnvironment[name] = newValue;
     return *this;
@@ -140,8 +172,23 @@ ConfigurationChange::asEventProperties(const RootConfig& rootConfig, const Metri
     };
 }
 
+ConfigurationChange
+ConfigurationChange::embeddedDocumentChange() const
+{
+    // Only specific parameters allowed to propagate to embedded change. Everything else is Host-driven.
+    auto embeddedConfigChange = ConfigurationChange();
+    if ((mFlags & kConfigurationChangeTheme) != 0) embeddedConfigChange.theme(mTheme.c_str());
+    if ((mFlags & kConfigurationChangeViewportMode) != 0) embeddedConfigChange.mode(mViewportMode);
+    if ((mFlags & kConfigurationChangeFontScale) != 0) embeddedConfigChange.fontScale(mFontScale);
+    if ((mFlags & kConfigurationChangeScreenMode) != 0) embeddedConfigChange.screenMode(mScreenMode);
+    if ((mFlags & kConfigurationChangeScreenReader) != 0) embeddedConfigChange.screenReader(mScreenReaderEnabled);
+
+    return embeddedConfigChange;
+}
+
 const std::set<std::string> &
-ConfigurationChange::getSynthesizedPropertyNames() {
+ConfigurationChange::getSynthesizedPropertyNames()
+{
     static std::set<std::string> sNames = {
         "rotated",
         "sizeChanged"

@@ -54,6 +54,38 @@ FrameComponent::FrameComponent(const ContextPtr& context,
     YGNodeStyleSetAlignItems(mYGNodeRef, YGAlignFlexStart);
 }
 
+void
+FrameComponent::fixBackgroundByColor(bool useDirtyFlag)
+{
+    if (getCalculated(kPropertyBackgroundAssigned).isNull()) {
+        mCalculated.set(kPropertyBackground, getCalculated(kPropertyBackgroundColor));
+        if (useDirtyFlag) setDirty(kPropertyBackground);
+    }
+}
+
+void
+FrameComponent::fixBackground(bool useDirtyFlag)
+{
+    if (!getCalculated(kPropertyBackgroundAssigned).isNull()) {
+        mCalculated.set(kPropertyBackground, getCalculated(kPropertyBackgroundAssigned));
+        if (useDirtyFlag) setDirty(kPropertyBackground);
+    }
+}
+
+static inline void
+inlineFixBackgroundByColor(Component& component)
+{
+    auto& core = (FrameComponent&)component;
+    core.fixBackgroundByColor(true);
+}
+
+static inline void
+inlineFixBackground(Component& component)
+{
+    auto& core = (FrameComponent&)component;
+    core.fixBackground(true);
+}
+
 const ComponentPropDefSet&
 FrameComponent::propDefSet() const
 {
@@ -61,6 +93,11 @@ FrameComponent::propDefSet() const
         {kPropertyBackgroundColor,         Color(),               asColor,                        kPropInOut |
                                                                                                   kPropStyled |
                                                                                                   kPropDynamic |
+                                                                                                  kPropVisualHash, inlineFixBackgroundByColor},
+        {kPropertyBackgroundAssigned,      Object::NULL_OBJECT(), asFill,                         kPropIn |
+                                                                                                  kPropStyled |
+                                                                                                  kPropDynamic, inlineFixBackground},
+        {kPropertyBackground,              Color(),               asFill,                         kPropOut |
                                                                                                   kPropVisualHash},
         {kPropertyBorderRadii,             Radii(),               nullptr,                        kPropOut |
                                                                                                   kPropVisualHash},
@@ -186,7 +223,7 @@ FrameComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
         layer->setChildClip(sg::path(outline.inset(borderWidth)));
 
     auto background = sg::draw(sg::path(outline.inset(strokeWidth)),
-                               sg::fill(sg::paint(getCalculated(kPropertyBackgroundColor))));
+                               sg::fill(sg::paint(getCalculated(kPropertyBackground))));
     auto border = sg::draw(sg::path(outline, strokeWidth),
                            sg::fill(sg::paint(getCalculated(kPropertyBorderColor))));
 
@@ -204,7 +241,7 @@ FrameComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
 
     auto borderWidthChanged = isDirty(kPropertyBorderWidth);
     auto drawnBorderWidthChanged = isDirty(kPropertyDrawnBorderWidth);
-    auto backgroundChanged = isDirty(kPropertyBackgroundColor);
+    auto backgroundChanged = isDirty(kPropertyBackground);
     auto borderColorChanged = isDirty(kPropertyBorderColor);
     auto strokeWidthChanged = isDirty(kPropertyBorderStrokeWidth);
 
@@ -246,8 +283,9 @@ FrameComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
 
         if (backgroundChanged) {
             auto* fill = sg::FillPathOp::cast(draw->getOp());
-            auto* paint = sg::ColorPaint::cast(fill->paint);
-            result |= paint->setColor(getCalculated(kPropertyBackgroundColor).getColor());
+            fill->paint = sg::paint(getCalculated(kPropertyBackground));
+            // With gradient OR color paint there are no easy way to know if it has changed.
+            result |= true;
         }
     }
 
@@ -283,6 +321,9 @@ void
 FrameComponent::assignProperties(const ComponentPropDefSet& propDefSet)
 {
     CoreComponent::assignProperties(propDefSet);
+    fixBackgroundByColor(false);
+    fixBackground(false);
+
     fixBorder(false);
     calculateDrawnBorder(false);
 }

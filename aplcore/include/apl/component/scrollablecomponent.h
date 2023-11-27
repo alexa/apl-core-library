@@ -40,7 +40,7 @@ public:
      * @param component Pointer to cast.
      * @return Casted pointer to this type, nullptr if not possible.
      */
-    static std::shared_ptr<ScrollableComponent> cast(const std::shared_ptr<Component>& component);
+    static std::shared_ptr<ScrollableComponent> cast(const ComponentPtr& component);
 
     void update(UpdateType type, float value) override;
     bool canConsumeFocusDirectionEvent(FocusDirection direction, bool fromInside) override;
@@ -57,6 +57,8 @@ protected:
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
     bool scrollable() const override { return true; }
     const ComponentPropDefSet& propDefSet() const override;
+    void invokeStandardAccessibilityAction(const std::string& name) override;
+    void getSupportedStandardAccessibilityActions(std::map<std::string, bool>& result) const override;
 
     /**
      * Override this to calculate maximum available scroll position.
@@ -83,6 +85,7 @@ protected:
 #endif // SCENEGRAPH
 
 private:
+    void scroll(bool backwards);
     bool setScrollPositionInternal(float value);
     bool canScroll(FocusDirection direction);
 

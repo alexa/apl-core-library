@@ -19,5 +19,6 @@ target_sources_local(unittest
         unittest_document_background.cpp
         unittest_jsondata.cpp
         unittest_metrics.cpp
+        unittest_packages.cpp
         unittest_rootconfig.cpp
         )

@@ -43,6 +43,7 @@ Bimap<int, std::string> sCommandNameBimap = {
     {kCommandTypeReinflate,         "Reinflate"},
     {kCommandTypeInsertItem,        "InsertItem"},
     {kCommandTypeRemoveItem,        "RemoveItem"},
+    {kCommandTypeLog,               "Log"},
 };
 
 Bimap<int, std::string> sCommandPropertyBimap = {
@@ -68,6 +69,8 @@ Bimap<int, std::string> sCommandPropertyBimap = {
     {kCommandPropertyIndex,               "index"},
     {kCommandPropertyItem,                "item"},
     {kCommandPropertyItem,                "items"},
+    {kCommandPropertyLevel,               "level"},
+    {kCommandPropertyMessage,             "message"},
     {kCommandPropertyMinimumDwellTime,    "minimumDwellTime"},
     {kCommandPropertyOnFail,              "onFail"},
     {kCommandPropertyOtherwise,           "otherwise"},
@@ -82,6 +85,8 @@ Bimap<int, std::string> sCommandPropertyBimap = {
     {kCommandPropertySource,              "source"},
     {kCommandPropertyStart,               "start"},
     {kCommandPropertyState,               "state"},
+    {kCommandPropertyTargetDuration,      "targetDuration"},
+    {kCommandPropertyTransitionDuration,  "transitionDuration"},
     {kCommandPropertyValue,               "value"},
     {kCommandPropertyValue,               "values"},
 };
@@ -129,6 +134,14 @@ Bimap<int, std::string> sCommandRepeatModeMap = {
 Bimap<int, std::string> sCommandReasonMap = {
         {kCommandReasonBack, "back"},
         {kCommandReasonExit, "exit"}
+};
+
+Bimap<int, std::string> sCommandLogLevelMap = {
+        {kCommandLogLevelDebug,    "debug"},
+        {kCommandLogLevelInfo,     "info"},
+        {kCommandLogLevelWarn,     "warn"},
+        {kCommandLogLevelError,    "error"},
+        {kCommandLogLevelCritical, "critical"}
 };
 
 } // namespace apl

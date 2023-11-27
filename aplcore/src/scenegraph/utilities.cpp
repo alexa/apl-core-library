@@ -109,7 +109,7 @@ splitFontString(const RootConfig& rootConfig, const SessionPtr& session, const s
     }
 
     // Append the default font from the root config if it is not already at the end of the list
-    std::string defaultFont = rootConfig.getDefaultFontFamily();
+    std::string defaultFont = rootConfig.getProperty(RootProperty::kDefaultFontFamily).getString();
     if (state.strings.empty() || state.strings.back() != defaultFont)
         state.strings.emplace_back(defaultFont);
 

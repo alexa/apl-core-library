@@ -103,6 +103,43 @@ TEST_F(FocusManagerTest, ManualControl)
     ASSERT_FALSE(root->hasEvent());
 }
 
+static const char *FOCUS_SCROLL_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "id": "foo",
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "TouchWrapper",
+        "id": "item${index}",
+        "width": 100,
+        "height": 100
+      },
+      "data": "${Array.range(1,11)}"
+    }
+  }
+})";
+
+TEST_F(FocusManagerTest, SetFocusTermination)
+{
+    loadDocument(FOCUS_SCROLL_TEST);
+    auto thing1 = CoreComponent::cast(root->context().findComponentById("item5"));
+    ASSERT_TRUE(thing1);
+
+    auto& fm = root->context().focusManager();
+    ASSERT_FALSE(fm.getFocus());
+
+    // This will cause a scroll action to be taken.
+    fm.setFocus(thing1, true);
+    
+    // We need to tear down the root context while the scroll action is active
+    // so that callback runs during the destructor.
+    context = nullptr;
+}
+
 TEST_F(FocusManagerTest, ManualControlDontNotifyViewhost)
 {
     loadDocument(FOCUS_TEST);

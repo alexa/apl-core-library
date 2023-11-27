@@ -19,6 +19,7 @@ target_sources_local(unittest
         unittest_command_document.cpp
         unittest_command_event_binding.cpp
         unittest_command_insertitem.cpp
+        unittest_command_log.cpp
         unittest_command_macros.cpp
         unittest_command_media.cpp
         unittest_command_openurl.cpp
@@ -28,6 +29,8 @@ target_sources_local(unittest
         unittest_command_sendevent.cpp
         unittest_command_setvalue.cpp
         unittest_commands.cpp
+        unittest_commands_parallel.cpp
+        unittest_commands_sequential.cpp
         unittest_screenlock.cpp
         unittest_sequencer_preservation.cpp
         unittest_serialize_event.cpp

@@ -35,9 +35,7 @@ ScrollViewComponent::create(const ContextPtr& context,
 ScrollViewComponent::ScrollViewComponent(const ContextPtr& context,
                                          Properties&& properties,
                                          const Path& path)
-        : ScrollableComponent(context, std::move(properties), path) {
-    YGNodeStyleSetOverflow(mYGNodeRef, YGOverflowScroll);
-}
+        : ScrollableComponent(context, std::move(properties), path) {}
 
 const ComponentPropDefSet&
 ScrollViewComponent::propDefSet() const {

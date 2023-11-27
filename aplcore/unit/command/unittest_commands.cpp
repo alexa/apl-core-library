@@ -362,318 +362,6 @@ TEST_F(CommandTest, OnPressCommandArrayTerminate)
     ASSERT_EQ(0, loop->size());
 }
 
-const char * SEQ_TEST = R"({
-  "type": "APL",
-  "version": "1.0",
-  "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
-    "item": {
-      "type": "TouchWrapper",
-      "onPress": {
-        "type": "Sequential",
-        "delay": 100,
-        "repeatCount": 1,
-        "commands": {
-          "type": "SendEvent"
-        }
-      }
-    }
-  }
-})";
-
-TEST_F(CommandTest, SequentialTest)
-{
-    loadDocument(SEQ_TEST, DATA);
-
-    auto map = component->getCalculated();
-    auto onPress = map["onPress"];
-
-    performClick(1, 1);
-
-    // The sequential command has been created; now we must wait for 100
-    ASSERT_EQ(1, mCommandCount[kCommandTypeSequential]);
-    ASSERT_EQ(0, mCommandCount[kCommandTypeSendEvent]);
-    ASSERT_EQ(0, mActionCount[kCommandTypeSequential]);
-    ASSERT_EQ(0, mActionCount[kCommandTypeSendEvent]);
-
-    loop->advanceToEnd();  // Each command should have fired appropriately
-    ASSERT_EQ(1, mCommandCount[kCommandTypeSequential]);
-    ASSERT_EQ(2, mCommandCount[kCommandTypeSendEvent]);
-    ASSERT_EQ(1, mActionCount[kCommandTypeSequential]);
-    ASSERT_EQ(2, mActionCount[kCommandTypeSendEvent]);
-
-    ASSERT_TRUE(root->hasEvent());
-    root->popEvent();
-    ASSERT_TRUE(root->hasEvent());
-    root->popEvent();
-}
-
-static const char *TRY_CATCH_FINALLY = R"({
-  "type": "APL",
-  "version": "1.1",
-  "mainTemplate": {
-    "item": {
-      "type": "TouchWrapper",
-      "onPress": {
-        "type": "Sequential",
-        "repeatCount": 2,
-        "commands": {
-          "type": "Custom",
-          "delay": 1000,
-          "arguments": [
-            "try"
-          ]
-        },
-        "catch": [
-          {
-            "type": "Custom",
-            "arguments": [
-              "catch1"
-            ],
-            "delay": 1000
-          },
-          {
-            "type": "Custom",
-            "arguments": [
-              "catch2"
-            ],
-            "delay": 1000
-          },
-          {
-            "type": "Custom",
-            "arguments": [
-              "catch3"
-            ],
-            "delay": 1000
-          }
-        ],
-        "finally": [
-          {
-            "type": "Custom",
-            "arguments": [
-              "finally1"
-            ],
-            "delay": 1000
-          },
-          {
-            "type": "Custom",
-            "arguments": [
-              "finally2"
-            ],
-            "delay": 1000
-          },
-          {
-            "type": "Custom",
-            "arguments": [
-              "finally3"
-            ],
-            "delay": 1000
-          }
-        ]
-      }
-    }
-  }
-})";
-
-
-// Let the entire command run normally through the "try" and "finally" parts
-TEST_F(CommandTest, TryCatchFinally)
-{
-    loadDocument(TRY_CATCH_FINALLY);
-    performClick(1, 1);
-
-    // Time 0
-    ASSERT_FALSE(root->hasEvent());
-
-    // Standard commands
-    for (int i = 0 ; i < 3 ; i++) {
-        loop->advanceToTime(1000 + 1000 * i);
-        ASSERT_TRUE(root->hasEvent());
-        auto event = root->popEvent();
-        ASSERT_EQ(Object("try"), event.getValue(kEventPropertyArguments).at(0));
-        ASSERT_FALSE(root->hasEvent());
-    }
-
-    // Finally commands, running in normal mode
-    for (int i = 0 ; i < 3 ; i++) {
-        loop->advanceToTime(4000 + 1000 * i);
-        ASSERT_TRUE(root->hasEvent());
-        auto event = root->popEvent();
-        std::string str = "finally"+std::to_string(i+1);
-        ASSERT_EQ(Object(str), event.getValue(kEventPropertyArguments).at(0));
-        ASSERT_FALSE(root->hasEvent());
-    }
-}
-
-// Abort immediately.  This should run only catch and finally commands
-TEST_F(CommandTest, TryCatchFinallyAbortImmediately)
-{
-    loadDocument(TRY_CATCH_FINALLY);
-    performClick(1, 1);
-
-    ASSERT_FALSE(root->hasEvent());
-    root->cancelExecution();   // Cancel immediately.  This should switch to fastmode catch commands and finally commands
-
-    // Catch commands
-    for (int i = 0 ; i < 3 ; i++) {
-        ASSERT_TRUE(root->hasEvent());
-        auto event = root->popEvent();
-        std::string str = "catch"+std::to_string(i+1);
-        ASSERT_EQ(Object(str), event.getValue(kEventPropertyArguments).at(0));
-    }
-
-    // Finally commands, running in fast mode
-    for (int i = 0 ; i < 3 ; i++) {
-        ASSERT_TRUE(root->hasEvent());
-        auto event = root->popEvent();
-        std::string str = "finally"+std::to_string(i+1);
-        ASSERT_EQ(Object(str), event.getValue(kEventPropertyArguments).at(0));
-    }
-
-    ASSERT_FALSE(root->hasEvent());
-}
-
-// Abort after a few "try" commands have run. This should execute catch and finally.
-TEST_F(CommandTest, TryCatchFinallyAbortAfterOne)
-{
-    loadDocument(TRY_CATCH_FINALLY);
-    performClick(1, 1);
-
-    ASSERT_FALSE(root->hasEvent());
-
-    // Standard commands
-    loop->advanceToTime(1000);
-    ASSERT_TRUE(root->hasEvent());
-    auto evt = root->popEvent();
-    ASSERT_EQ(Object("try"), evt.getValue(kEventPropertyArguments).at(0));
-    ASSERT_FALSE(root->hasEvent());
-
-    root->cancelExecution();   // Cancel.  This should run catch commands
-
-    // Catch commands
-    for (int i = 0 ; i < 3 ; i++) {
-        ASSERT_TRUE(root->hasEvent());
-        auto event = root->popEvent();
-        std::string str = "catch"+std::to_string(i+1);
-        ASSERT_EQ(Object(str), event.getValue(kEventPropertyArguments).at(0));
-    }
-
-    // Finally commands, running in fast mode
-    for (int i = 0 ; i < 3 ; i++) {
-        ASSERT_TRUE(root->hasEvent());
-        auto event = root->popEvent();
-        std::string str = "finally"+std::to_string(i+1);
-        ASSERT_EQ(Object(str), event.getValue(kEventPropertyArguments).at(0));
-    }
-
-    ASSERT_FALSE(root->hasEvent());
-}
-
-// Abort after all of the regular commands, but before finally commands start.
-TEST_F(CommandTest, TryCatchFinallyAbortAfterTry)
-{
-    loadDocument(TRY_CATCH_FINALLY);
-    performClick(1, 1);
-
-    ASSERT_FALSE(root->hasEvent());
-
-    // Standard commands
-    for (int i = 0 ; i < 3 ; i++) {
-        loop->advanceToTime(1000 + 1000 * i);
-        ASSERT_TRUE(root->hasEvent());
-        auto event = root->popEvent();
-        ASSERT_EQ(Object("try"), event.getValue(kEventPropertyArguments).at(0));
-        ASSERT_FALSE(root->hasEvent());
-    }
-
-    root->cancelExecution();
-
-    // The first "finally" command was queued up and has been terminated, so we see the OTHER finally commands
-    for (int i = 1 ; i < 3 ; i++) {
-        ASSERT_TRUE(root->hasEvent());
-        auto event = root->popEvent();
-        std::string str = "finally"+std::to_string(i+1);
-        ASSERT_EQ(Object(str), event.getValue(kEventPropertyArguments).at(0));
-    }
-
-    ASSERT_FALSE(root->hasEvent());
-}
-
-
-
-const char *PARALLEL_TEST = R"({
-  "type": "APL",
-  "version": "1.1",
-  "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
-    "item": {
-      "type": "TouchWrapper",
-      "onPress": {
-        "type": "Parallel",
-        "commands": [
-          {
-            "type": "Idle"
-          },
-          {
-            "type": "Idle",
-            "when": false
-          },
-          {
-            "type": "Idle",
-            "delay": 100
-          },
-          {
-            "type": "Idle",
-            "delay": 150,
-            "when": false
-          },
-          {
-            "type": "Idle",
-            "delay": 200,
-            "when": true
-          }
-        ]
-      }
-    }
-  }
-})";
-
-TEST_F(CommandTest, ParallelTest)
-{
-    loadDocument(PARALLEL_TEST, DATA);
-
-    auto map = component->getCalculated();
-    auto onPress = map["onPress"];
-
-    performClick(1, 1);
-
-    loop->advanceToEnd();
-    ASSERT_EQ(3, mCommandCount[kCommandTypeIdle]);
-    ASSERT_EQ(3, mActionCount[kCommandTypeIdle]);
-    ASSERT_EQ(200, loop->currentTime());
-}
-
-TEST_F(CommandTest, ParallelTestTerminated)
-{
-    loadDocument(PARALLEL_TEST, DATA);
-
-    auto map = component->getCalculated();
-    auto onPress = map["onPress"];
-
-    performClick(1, 1);
-
-    loop->advanceToTime(100);
-    context->sequencer().reset();
-
-    ASSERT_EQ(3, mCommandCount[kCommandTypeIdle]);
-    ASSERT_EQ(2, mActionCount[kCommandTypeIdle]);  // One Idle doesn't fire until 200
-    ASSERT_EQ(100, loop->currentTime());
-}
-
 const char *LARGE_TEST = R"({
   "type": "APL",
   "version": "1.1",
@@ -810,51 +498,6 @@ TEST_F(CommandTest, ParallelSequentialMix)
     ASSERT_TRUE(IsEqual("Hello 2", text2->getCalculated(kPropertyText).asString()));
     ASSERT_TRUE(IsEqual(Color(session, "red"), frame1->getCalculated(kPropertyBackgroundColor)));
     ASSERT_TRUE(IsEqual(Color(session, "yellow"), frame2->getCalculated(kPropertyBackgroundColor)));
-}
-
-
-static const char *REPEATED_SET_VALUE = R"({
-  "type": "APL",
-  "version": "1.1",
-  "mainTemplate": {
-    "item": {
-      "type": "TouchWrapper",
-      "width": 100,
-      "height": 100,
-      "items": {
-        "type": "Text",
-        "text": "Woof",
-        "id": "dogText"
-      },
-      "onPress": {
-        "type": "Sequential",
-        "repeatCount": 6,
-        "commands": {
-          "type": "SetValue",
-          "componentId": "dogText",
-          "property": "opacity",
-          "value": "${event.target.opacity - 0.2}",
-          "delay": 100
-        }
-      }
-    }
-  }
-})";
-
-TEST_F(CommandTest, RepeatedSetValue)
-{
-    loadDocument(REPEATED_SET_VALUE);
-    auto text = component->getChildAt(0);
-
-    performClick(1, 1);
-
-    ASSERT_FALSE(root->hasEvent());
-
-    for (int i = 1 ; i <= 7 ; i++) {
-        loop->advanceToTime(i * 100 + 1);
-        ASSERT_NEAR(std::max(1.0 - i * 0.2, 0.0),
-            text->getCalculated(kPropertyOpacity).asNumber(), .001);
-    }
 }
 
 static const char *SET_STATE_DISABLED = R"({
@@ -1509,4 +1152,132 @@ TEST_F(CommandTest, BindingUpdateTransform){
     executeCommand("SetValue", {{"componentId", "myContainer"}, {"property", "len"}, {"value", "${500}"}}, false);
 
     ASSERT_TRUE(IsEqual(Transform2D().translateX(500), text->getCalculated(kPropertyTransform).get<Transform2D>()));
+}
+
+static const char *SIMPLE_VIDEO_DOCUMENT = R"({
+  "type": "APL",
+  "version": "2023.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": {
+        "type": "Video",
+        "id": "VIDEO"
+      }
+    }
+  }
+})";
+
+TEST_F(CommandTest, DisallowedDoesntExecuteControlMedia) {
+    config->set(RootProperty::kDisallowVideo, true);
+
+    loadDocument(SIMPLE_VIDEO_DOCUMENT);
+    ASSERT_TRUE(component);
+    auto v = std::static_pointer_cast<CoreComponent>(root->findComponentById("VIDEO"));
+    ASSERT_TRUE(v->isDisallowed());
+
+    executeCommand("ControlMedia", {{"componentId", "VIDEO"}, {"command", "play"}}, false);
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+
+    executeCommand("ControlMedia", {{"componentId", "VIDEO"}, {"command", "pause"}}, false);
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+
+    executeCommand("ControlMedia", {{"componentId", "VIDEO"}, {"command", "next"}}, false);
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+
+    executeCommand("ControlMedia", {{"componentId", "VIDEO"}, {"command", "previous"}}, false);
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+
+    executeCommand("ControlMedia", {{"componentId", "VIDEO"}, {"command", "rewind"}}, false);
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+
+    executeCommand("ControlMedia", {{"componentId", "VIDEO"}, {"command", "seek"}, {"value", 900}}, false);
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+
+    executeCommand("ControlMedia", {{"componentId", "VIDEO"}, {"command", "seekTo"}, {"value", 900}}, false);
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+
+    executeCommand("ControlMedia", {{"componentId", "VIDEO"}, {"command", "setTrack"}, {"value", 2}}, false);
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(CommandTest, DisallowedDoesntExecutePlayMedia) {
+    config->set(RootProperty::kDisallowVideo, true);
+
+    loadDocument(SIMPLE_VIDEO_DOCUMENT);
+    ASSERT_TRUE(component);
+
+    executeCommand("PlayMedia", {{"componentId", "VIDEO"}, {"source", "http://music.amazon.com/s3/MAGIC_TRACK_HERE"}, {"audioTrack", "foreground"}}, false);
+
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(CommandTest, DisallowedDoesntExecuteSetValue) {
+    config->set(RootProperty::kDisallowVideo, true);
+
+    loadDocument(SIMPLE_VIDEO_DOCUMENT);
+    ASSERT_TRUE(component);
+
+    component->setProperty(apl::kPropertyOpacity, 0.5);
+    executeCommand("SetValue", {{"componentId", "VIDEO"}, {"property", "opacity"}, {"value", 1}}, false);
+
+    ASSERT_EQ(0.5, component->getProperty(kPropertyOpacity).asFloat());
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(CommandTest, DisallowedDoesntExecuteSetState) {
+    config->set(RootProperty::kDisallowVideo, true);
+
+    loadDocument(SIMPLE_VIDEO_DOCUMENT);
+    ASSERT_TRUE(component);
+
+    component->setState(apl::kStateDisabled, true);
+    executeCommand("SetState", {{"componentId", "VIDEO"}, {"state", "disabled"}, {"value", false}}, false);
+    ASSERT_EQ(true, component->getState().get(kStateDisabled));
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+
+    component->setState(apl::kStateChecked, true);
+    executeCommand("SetState", {{"componentId", "VIDEO"}, {"state", "checked"}, {"value", false}}, false);
+    ASSERT_EQ(true, component->getState().get(kStateChecked));
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(CommandTest, DisallowedDoesntExecuteSetFocus) {
+    config->set(RootProperty::kDisallowVideo, true);
+
+    loadDocument(SIMPLE_VIDEO_DOCUMENT);
+    ASSERT_TRUE(component);
+
+    component->setState(apl::kStateFocused, false);
+    executeCommand("SetFocus", {{"componentId", "VIDEO"}}, false);
+
+    ASSERT_EQ(false, component->getState().get(kStateFocused));
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(CommandTest, DisallowedDoesntExecuteClearFocus) {
+    config->set(RootProperty::kDisallowVideo, true);
+
+    loadDocument(SIMPLE_VIDEO_DOCUMENT);
+    ASSERT_TRUE(component);
+
+    component->setState(apl::kStateFocused, true);
+    executeCommand("ClearFocus", {}, false);
+
+    ASSERT_EQ(true, component->getState().get(kStateFocused));
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_FALSE(ConsoleMessage());
 }

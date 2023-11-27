@@ -98,7 +98,8 @@ private:
 //////////////////////////////////////////////////////////////////////////////////////////
 
 VelocityTracker::VelocityTracker(const RootConfig& rootConfig)
-    : mLastEventTimestamp(0), mPointerInactivityTimeout(rootConfig.getPointerInactivityTimeout()) {
+    : mLastEventTimestamp(0),
+      mPointerInactivityTimeout(rootConfig.getProperty(RootProperty::kPointerInactivityTimeout).getDouble()) {
     // TODO: Basic case here is something that is trivial filter preferring later velocity.
     //  Need to make strategies configurable.
     mEstimationStrategy = std::make_shared<FilterVelocityEstimationStrategy>();

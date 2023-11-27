@@ -79,7 +79,6 @@ private:
     friend class RootContext;
 
     void addDependency(const ImportRef& ref) { mDependencies.push_back(ref); }
-    void addDependency(ImportRef&& ref) { mDependencies.push_back(ref); }
 
     const std::vector<ImportRef>& getDependencies() const { return mDependencies; }
 

@@ -1163,3 +1163,86 @@ TEST_F(ComponentEventsTest, MediaFastNormal)
     auto event = root->popEvent();
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
 }
+
+static const char *CHILDREN_CHANGED = R"apl({
+  "type": "APL",
+  "version": "2023.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "id": "baseContainer",
+      "width": "100%",
+      "height": 100,
+      "items": [],
+      "onChildrenChanged": {
+        "type": "Sequential",
+        "data": "${event.changes}",
+        "commands": {
+          "type": "SendEvent",
+          "sequencer": "SE",
+          "arguments": [
+            "${event.source.handler}",
+            "${data.index ? data.index : 0}",
+            "${data.action}"
+          ],
+          "components": [ "textComp" ]
+        }
+      }
+    }
+  }
+})apl";
+
+TEST_F(ComponentEventsTest, ChildrenChanged)
+{
+    loadDocument(CHILDREN_CHANGED);
+    ASSERT_TRUE(component);
+
+    rapidjson::Document  doc;
+    doc.Parse(R"([
+      {
+        "type": "InsertItem",
+        "componentId": "baseContainer",
+        "at": 10,
+        "item": {
+          "type": "Frame",
+          "height": 200,
+          "width": "100%"
+        }
+      }
+    ])");
+
+    executeCommands(apl::Object(doc), false);
+
+    root->clearPending();
+    advanceTime(500);
+
+    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 0, "insert"));
+
+    executeCommands(apl::Object(doc), false);
+
+    root->clearPending();
+    advanceTime(500);
+
+    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 1, "insert"));
+
+
+    executeCommands(apl::Object(doc), false);
+    executeCommands(apl::Object(doc), false);
+
+    doc.Parse(R"apl([
+      {
+        "type": "RemoveItem",
+        "componentId": "baseContainer:child(0)"
+      }
+    ])apl");
+
+    executeCommands(apl::Object(doc), false);
+
+    root->clearPending();
+    advanceTime(500);
+
+    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 1, "insert"));
+    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 2, "insert"));
+    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 0, "remove"));
+}

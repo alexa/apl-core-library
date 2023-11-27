@@ -741,3 +741,391 @@ TEST_F(SpeakListAudioTest, PreserveShortenedList)
 
     ASSERT_FALSE(factory->hasEvent());
 }
+
+static const char *TEST_STAGES_TEXTTRACK = R"apl(
+{
+  "type": "APL",
+  "version": "1.1",
+  "styles": {
+    "base": {
+      "values": [
+        {
+          "color": "green"
+        },
+        {
+          "when": "${state.karaoke}",
+          "color": "blue"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "width": 500,
+      "height": 300,
+      "item": {
+        "type": "Container",
+        "items": {
+          "type": "Text",
+          "style": "base",
+          "text": "${data.item}",
+          "speech": "${data.speech}",
+          "height": 200
+        },
+        "data": [
+            {
+                "item" : "URL1",
+                "speech" : {
+                    "url": "http://URL1",
+                    "textTrack" : {
+                        "content" : "http://URL1",
+                        "type" : "caption"
+                    }
+                }
+            },
+            {
+                "item" : "URL2",
+                "speech" : "http://URL2"
+            },
+            {
+                "item" : "URL3",
+                "speech" : {
+                    "url": "http://URL3",
+                    "textTrack" : {
+                        "content" : "http://URL3",
+                        "type" : "caption"
+                    }
+                }
+            },
+            {
+                "item" : "URL4",
+                "speech" : {
+                    "url": "http://URL4",
+                    "textTrack" : {
+                        "content" : "http://URL4",
+                        "type" : "caption"
+                    }
+                }
+            }
+        ]
+      }
+    }
+  }
+}
+)apl";
+
+TEST_F(SpeakListAudioTest, TestStagesCaption)
+{
+    factory->addFakeContent({
+           {"http://URL1", 2000, 100, -1, {}, {{kTextTrackTypeCaption,"http://URL1", ""}}}, // 2000 ms duration, 100 ms initial delay
+           {"http://URL2", 2000, 100, -1, {}, {}},
+           {"http://URL3", 2000, 100, -1, {}, {{kTextTrackTypeCaption,"http://URL3", ""}}},
+           {"http://URL4", 2000, 100, -1, {}, {{kTextTrackTypeCaption,"http://URL4", ""}}},
+       });
+
+
+    // Set how long it takes to scroll and make sure that scrolling is linear
+    config->set(RootProperty::kScrollCommandDuration, 200);
+    config->set(RootProperty::kUEScrollerDurationEasing, CoreEasing::linear());
+
+    loadDocument(TEST_STAGES_TEXTTRACK);
+
+    auto container = component->getChildAt(0);
+    const int CHILD_COUNT = 4;
+    ASSERT_EQ(CHILD_COUNT, container->getChildCount());
+
+    // Check the starting colors
+    for (int i = 0 ; i < CHILD_COUNT ; i++)
+        ASSERT_EQ(Object(Color(Color::GREEN)), container->getChildAt(i)->getCalculated(kPropertyColor));
+
+    // Run speak list and pass a big number so we get everyone
+    executeSpeakList(container,                   // The scrollview
+                     kCommandScrollAlignFirst,    // Scroll to align at the top
+                     kCommandHighlightModeBlock,  // Block highlighting
+                     0,        // Start
+                     100000,   // Count
+                     1000,     // Minimum dwell time
+                     500);     // Delay
+
+    // Nothing happens because of the delay (including no preroll)
+    ASSERT_FALSE(root->hasEvent());
+
+    // After the delay has passed, we should get a preroll and the scroll should start
+    advanceTime(500);
+
+    for (int i = 0 ; i < CHILD_COUNT ; i++)
+        CheckScrollAndPlay(component,
+                           container->getChildAt(i),
+                           "http://URL"+std::to_string(i+1),
+                           100,  // preroll duration
+                           200,  // scroll duration
+                           std::min(200 * i, 500), // scroll position
+                           2000,  // play duration
+                           "child["+std::to_string(i+1)+"]");
+
+    ASSERT_FALSE(factory->hasEvent());
+    ASSERT_FALSE(root->hasEvent());
+}
+
+static const char *TEST_STAGES_TEXTTRACK_MISSING = R"apl(
+{
+  "type": "APL",
+  "version": "1.1",
+  "styles": {
+    "base": {
+      "values": [
+        {
+          "color": "green"
+        },
+        {
+          "when": "${state.karaoke}",
+          "color": "blue"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "width": 500,
+      "height": 300,
+      "item": {
+        "type": "Container",
+        "items": {
+          "type": "Text",
+          "style": "base",
+          "text": "${data.item}",
+          "speech": "${data.speech}",
+          "height": 200
+        },
+        "data": [
+            {
+                "item" : "URL1",
+                "speech" : {
+                    "url": "http://URL1",
+                    "textTrack" : {
+                        "type" : "caption"
+                    }
+                }
+            },
+            {
+                "item" : "URL2",
+                "speech" : "http://URL2"
+            },
+            {
+                "item" : "URL3",
+                "speech" : {
+                    "url": "http://URL3",
+                    "textTrack" : {
+                        "content" : "http://URL3"
+                    }
+                }
+            },
+            {
+                "item" : "URL4",
+                "speech" : {
+                    "url": "http://URL4",
+                    "textTrack" : {
+                    }
+                }
+            }
+        ]
+      }
+    }
+  }
+}
+)apl";
+
+TEST_F(SpeakListAudioTest, TestStagesCaptionMissing)
+{
+    factory->addFakeContent({
+           // Missing TextTrack content but type included: Empty TextTrackArray
+           {"http://URL1", 2000, 100, -1, {}, {}},
+           // Regular speech data without captions: Empty TextTrackArray
+           {"http://URL2", 2000, 100, -1, {}, {}},
+           // Missing TextTrack type: Empty TextTrackArray
+           {"http://URL3", 2000, 100, -1, {}, {}},
+           // Missing all TextTrack properties: Empty TextTrackArray
+           {"http://URL4", 2000, 100, -1, {}, {}},
+       });
+
+
+    // Set how long it takes to scroll and make sure that scrolling is linear
+    config->set(RootProperty::kScrollCommandDuration, 200);
+    config->set(RootProperty::kUEScrollerDurationEasing, CoreEasing::linear());
+
+    loadDocument(TEST_STAGES_TEXTTRACK_MISSING);
+
+    auto container = component->getChildAt(0);
+    const int CHILD_COUNT = 4;
+    ASSERT_EQ(CHILD_COUNT, container->getChildCount());
+
+    // Check the starting colors
+    for (int i = 0 ; i < CHILD_COUNT ; i++)
+        ASSERT_EQ(Object(Color(Color::GREEN)), container->getChildAt(i)->getCalculated(kPropertyColor));
+
+    // Run speak list and pass a big number so we get everyone
+    executeSpeakList(container,                   // The scrollview
+                     kCommandScrollAlignFirst,    // Scroll to align at the top
+                     kCommandHighlightModeBlock,  // Block highlighting
+                     0,        // Start
+                     100000,   // Count
+                     1000,     // Minimum dwell time
+                     500);     // Delay
+
+    // Nothing happens because of the delay (including no preroll)
+    ASSERT_FALSE(root->hasEvent());
+
+    // After the delay has passed, we should get a preroll and the scroll should start
+    advanceTime(500);
+
+    for (int i = 0 ; i < CHILD_COUNT ; i++)
+        CheckScrollAndPlay(component,
+                           container->getChildAt(i),
+                           "http://URL"+std::to_string(i+1),
+                           100,  // preroll duration
+                           200,  // scroll duration
+                           std::min(200 * i, 500), // scroll position
+                           2000,  // play duration
+                           "child["+std::to_string(i+1)+"]");
+
+    ASSERT_FALSE(factory->hasEvent());
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+static const char *TEST_STAGES_TEXTTRACK_INCORRECT = R"apl(
+{
+  "type": "APL",
+  "version": "1.1",
+  "styles": {
+    "base": {
+      "values": [
+        {
+          "color": "green"
+        },
+        {
+          "when": "${state.karaoke}",
+          "color": "blue"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "width": 500,
+      "height": 300,
+      "item": {
+        "type": "Container",
+        "items": {
+          "type": "Text",
+          "style": "base",
+          "text": "${data.item}",
+          "speech": "${data.speech}",
+          "height": 200
+        },
+        "data": [
+            {
+                "item" : "URL1",
+                "speech" : {
+                    "url": "http://URL1",
+                    "textTrack" : {
+                        "content": "http://URL1",
+                        "type" : "subtitle"
+                    }
+                }
+            },
+            {
+                "item" : "URL2",
+                "speech" : {
+                    "url": "http://URL2",
+                    "textTrack" : {
+                        "content" : "",
+                        "type": "caption"
+                    }
+                }
+            },
+            {
+                "item" : "URL3",
+                "speech" : {
+                    "url": "http://URL3",
+                    "textTrack" : {
+                        "content" : "http://URL3",
+                        "type": ""
+                    }
+                }
+            },
+            {
+                "item" : "URL4",
+                "speech" : {
+                    "url": "http://URL4",
+                    "textTrack" : {
+                    }
+                }
+            }
+        ]
+      }
+    }
+  }
+}
+)apl";
+
+TEST_F(SpeakListAudioTest, TestStagesCaptionIncorrect)
+{
+    factory->addFakeContent({
+           // Incorrect type of "subtitle": Empty TextTrackArray
+           {"http://URL1", 2000, 100, -1, {}, {}},
+           // Incorrect content is empty: Empty TextTrackArray
+           {"http://URL2", 2000, 100, -1, {}, {}},
+           // Incorrect type is empty: Empty TextTrackArray
+           {"http://URL3", 2000, 100, -1, {}, {}},
+           // Missing all TextTrack properties: Empty TextTrackArray
+           {"http://URL4", 2000, 100, -1, {}, {}},
+       });
+
+
+    // Set how long it takes to scroll and make sure that scrolling is linear
+    config->set(RootProperty::kScrollCommandDuration, 200);
+    config->set(RootProperty::kUEScrollerDurationEasing, CoreEasing::linear());
+
+    loadDocument(TEST_STAGES_TEXTTRACK_INCORRECT);
+
+    auto container = component->getChildAt(0);
+    const int CHILD_COUNT = 4;
+    ASSERT_EQ(CHILD_COUNT, container->getChildCount());
+
+    // Check the starting colors
+    for (int i = 0 ; i < CHILD_COUNT ; i++)
+        ASSERT_EQ(Object(Color(Color::GREEN)), container->getChildAt(i)->getCalculated(kPropertyColor));
+
+    // Run speak list and pass a big number so we get everyone
+    executeSpeakList(container,                   // The scrollview
+                     kCommandScrollAlignFirst,    // Scroll to align at the top
+                     kCommandHighlightModeBlock,  // Block highlighting
+                     0,        // Start
+                     100000,   // Count
+                     1000,     // Minimum dwell time
+                     500);     // Delay
+
+    // Nothing happens because of the delay (including no preroll)
+    ASSERT_FALSE(root->hasEvent());
+
+    // After the delay has passed, we should get a preroll and the scroll should start
+    advanceTime(500);
+
+    for (int i = 0 ; i < CHILD_COUNT ; i++)
+        CheckScrollAndPlay(component,
+                           container->getChildAt(i),
+                           "http://URL"+std::to_string(i+1),
+                           100,  // preroll duration
+                           200,  // scroll duration
+                           std::min(200 * i, 500), // scroll position
+                           2000,  // play duration
+                           "child["+std::to_string(i+1)+"]");
+
+    ASSERT_FALSE(factory->hasEvent());
+    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(ConsoleMessage());
+}

@@ -54,7 +54,7 @@ public:
     static GraphicPtr create(const ContextPtr& context,
                              const JsonResource& jsonResource,
                              Properties&& properties,
-                             const std::shared_ptr<CoreComponent>& component);
+                             const CoreComponentPtr& component);
 
     /**
      * Construct a graphic from raw JSON data
@@ -67,7 +67,7 @@ public:
     static GraphicPtr create(const ContextPtr& context,
                              const rapidjson::Value& json,
                              Properties&& properties,
-                             const std::shared_ptr<CoreComponent>& component,
+                             const CoreComponentPtr& component,
                              const Path& path,
                              const StyleInstancePtr& styledPtr = nullptr);
     /**
@@ -189,7 +189,7 @@ private:
      * Assign this graphic to a VectorGraphicComponent
      * @param component The component
      */
-    void setComponent(const std::shared_ptr<CoreComponent>& component) {
+    void setComponent(const CoreComponentPtr& component) {
         mComponent = component;
     }
 
@@ -201,7 +201,7 @@ private:
     void initialize(const ContextPtr &sourceContext,
                     const rapidjson::Value &json,
                     Properties &&properties,
-                    const std::shared_ptr<CoreComponent> &component,
+                    const CoreComponentPtr &component,
                     const Path& path,
                     const StyleInstancePtr &styledPtr);
     void addDirtyChild(const GraphicElementPtr& child);

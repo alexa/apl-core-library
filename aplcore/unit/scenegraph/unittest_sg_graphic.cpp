@@ -83,6 +83,7 @@ TEST_F(SGGraphicTest, BasicRectLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, sg->layer(),
         IsLayer(Rect(10, 10, 90, 90))
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .contentOffset(Point(10, 10))
             .content(IsDrawNode()
                          .path(IsGeneralPath("MLLLZ", {10, 10, 100, 10, 100, 100, 10, 100}))
@@ -153,8 +154,9 @@ TEST_F(SGGraphicTest, TwoRectsLayers)
     updates.clear();
     ASSERT_TRUE(CheckSceneGraph(
         updates, sg->layer(),
-        IsLayer(Rect(0, 0, 100, 100)).content(
-            IsDrawNode()
+        IsLayer(Rect(0, 0, 100, 100))
+          .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+          .content(IsDrawNode()
                 .path(IsGeneralPath("MLLLZ", {0, 0, 100, 0, 100, 100, 0, 100}))
                 .pathOp(IsFillOp(IsColorPaint(Color::RED)))
                 .next(IsDrawNode()
@@ -236,6 +238,7 @@ TEST_F(SGGraphicTest, ComplicatedRectLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, sg->layer(),
         IsLayer(Rect(-1, -1, 102, 102))
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .contentOffset(Point(-1,-1))
             .content(
             IsDrawNode()
@@ -438,8 +441,10 @@ TEST_F(SGGraphicTest, ParameterizedLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-2.5f, -2.5f, 105, 105),
                            "...path") // Miter limit leaves 5 unit padding
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent | sg::Layer::kFlagPositionChanged |
                               sg::Layer::kFlagSizeChanged | sg::Layer::kFlagChildOffsetChanged)
                        .contentOffset(Point(-2.5f, -2.5f))
@@ -455,7 +460,9 @@ TEST_F(SGGraphicTest, ParameterizedLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent | sg::Layer::kFlagPositionChanged |
                               sg::Layer::kFlagSizeChanged | sg::Layer::kFlagChildOffsetChanged)
                        .contentOffset(Point(-0.5f, -0.5f))
@@ -471,7 +478,9 @@ TEST_F(SGGraphicTest, ParameterizedLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(Point(-0.5f, -0.5f))
                        .childOffset(Point(-0.5f, -0.5f))
@@ -486,7 +495,9 @@ TEST_F(SGGraphicTest, ParameterizedLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(Point(-0.5f, -0.5f))
                        .childOffset(Point(-0.5f, -0.5f))
@@ -501,7 +512,9 @@ TEST_F(SGGraphicTest, ParameterizedLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(Point(-0.5f, -0.5f))
                        .childOffset(Point(-0.5f, -0.5f))
@@ -516,7 +529,9 @@ TEST_F(SGGraphicTest, ParameterizedLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(Point(-0.5f, -0.5f))
                        .childOffset(Point(-0.5f, -0.5f))
@@ -531,7 +546,9 @@ TEST_F(SGGraphicTest, ParameterizedLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(Point(-0.5f, -0.5f))
                        .childOffset(Point(-0.5f, -0.5f))
@@ -546,7 +563,9 @@ TEST_F(SGGraphicTest, ParameterizedLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(Point(-0.5f, -0.5f))
                        .childOffset(Point(-0.5f, -0.5f))
@@ -563,7 +582,9 @@ TEST_F(SGGraphicTest, ParameterizedLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(Point(-0.5f, -0.5f))
                        .childOffset(Point(-0.5f, -0.5f))
@@ -579,7 +600,9 @@ TEST_F(SGGraphicTest, ParameterizedLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-0.5f, -0.5f, 101, 101), "...path")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(Point(-0.5f, -0.5f))
                        .childOffset(Point(-0.5f, -0.5f))
@@ -648,8 +671,9 @@ TEST_F(SGGraphicTest, BasicGroupLayers)
     updates.clear();
     ASSERT_TRUE(
         CheckSceneGraph(updates, layer,
-                        IsLayer(Rect(0,0,110,110)).content(
-                            IsDrawNode("...draw")
+                        IsLayer(Rect(0,0,110,110))
+                          .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                          .content(IsDrawNode("...draw")
                                 .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
                                 .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))
                                 .next(IsDrawNode("...path2")
@@ -705,6 +729,7 @@ TEST_F(SGGraphicTest, FullGroupLayer) {
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(-p, p, 2 * p, 2 * p))
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .contentOffset(Point(-p, p))
             .content(IsOpacityNode().opacity(0.5f).child(
                 IsTransformNode()
@@ -813,7 +838,9 @@ TEST_F(SGGraphicTest, ParameterizedGroupLayouts)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0,0,0,0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0,0,100,100), "...group")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .opacity(0.5f) // Opacity pulled into the layer
                        .content(IsDrawNode()
                                     .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
@@ -824,7 +851,9 @@ TEST_F(SGGraphicTest, ParameterizedGroupLayouts)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0,0,0,0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0,0,100,100), "...group")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagOutlineChanged)
                        .opacity(0.5f) // Opacity pulled into the layer
                        .outline(IsGeneralPath("MLLZ", {50, 0, 100, 100, 0, 50}))
@@ -837,7 +866,9 @@ TEST_F(SGGraphicTest, ParameterizedGroupLayouts)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0,0,0,0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0,0,100,100), "...group")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagTransformChanged)
                        .opacity(0.5f) // Opacity pulled into the layer
                        .outline(IsGeneralPath("MLLZ", {50, 0, 100, 100, 0, 50}))
@@ -851,7 +882,9 @@ TEST_F(SGGraphicTest, ParameterizedGroupLayouts)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0,0,0,0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0,0,100,100), "...group")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagOpacityChanged)
                        .opacity(1.0f) // Opacity pulled into the layer
                        .outline(IsGeneralPath("MLLZ", {50, 0, 100, 100, 0, 50}))
@@ -921,9 +954,12 @@ TEST_F(SGGraphicTest, MultiChildLayer)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0,0,0,0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(
                 IsLayer(Rect(0,0,0,0), "...group")
+                    .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                     .child(IsLayer(Rect(0,0,100,100), "...path")
+                               .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                                .content(IsDrawNode()
                                             .path(IsGeneralPath("MLLZ", {0, 0, 100, 50, 50, 100}))
                                             .pathOp(IsFillOp(IsColorPaint(Color::BLUE, 0.5f))))))));
@@ -970,6 +1006,7 @@ TEST_F(SGGraphicTest, BasicTextLayer)
     ASSERT_TRUE(
         CheckSceneGraph(updates, layer,
                         IsLayer(Rect(0, -8, 130, 10))
+                            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                             .contentOffset(Point(0, -8))
                             .childOffset(Point(0, -8))
                             .content(IsTransformNode()
@@ -1047,6 +1084,7 @@ TEST_F(SGGraphicTest, ComplicatedTextLayer)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(-4, -12, 158, 18))
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .contentOffset(Point(-4, -12))
             .childOffset(Point(-4, -8))
             .content(IsTransformNode()
@@ -1212,7 +1250,9 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0, -8, 50, 10), "...text")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent | sg::Layer::kFlagPositionChanged |
                               sg::Layer::kFlagSizeChanged | sg::Layer::kFlagChildOffsetChanged)
                        .contentOffset(0, -8)
@@ -1226,7 +1266,9 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0, -8, 50, 10), "...text")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(0, -8)
                        .content(IsTransformNode()
@@ -1239,7 +1281,9 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0, -8, 50, 10), "...text")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(0, -8)
                        .content(IsTransformNode()
@@ -1255,7 +1299,9 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0, -8, 50, 10), "...text")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(0, -8)
                        .content(IsTransformNode()
@@ -1282,7 +1328,9 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0, -8, 30, 10), "...text")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagChildOffsetChanged | sg::Layer::kFlagRedrawContent |
                               sg::Layer::kFlagSizeChanged | sg::Layer::kFlagPositionChanged)
                        .contentOffset(0, -8)
@@ -1295,7 +1343,9 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(10, -8, 30, 10), "...text")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagChildOffsetChanged | sg::Layer::kFlagRedrawContent |
                               sg::Layer::kFlagPositionChanged)
                        .contentOffset(10, -8)
@@ -1308,7 +1358,9 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(10, 12, 30, 10), "...text")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagChildOffsetChanged | sg::Layer::kFlagRedrawContent |
                               sg::Layer::kFlagPositionChanged)
                        .contentOffset(10, 12)
@@ -1321,7 +1373,9 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-20, 12, 30, 10), "...text")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagChildOffsetChanged | sg::Layer::kFlagRedrawContent |
                               sg::Layer::kFlagPositionChanged)
                        .contentOffset(-20, 12)
@@ -1443,7 +1497,9 @@ TEST_F(SGGraphicTest, ParameterizedTextStrokeLayouts)
     ASSERT_TRUE(
         CheckSceneGraph(updates, layer,
                         IsLayer(Rect(0, 0, 0, 0), "...container")
+                            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                             .child(IsLayer(Rect(-2, -10, 54, 14), "....text")
+                                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                                        .dirty(sg::Layer::kFlagRedrawContent)
                                        .contentOffset(Point(-2, -10))
                                        .content(IsTransformNode().translate(0, -8).child(
@@ -1455,7 +1511,9 @@ TEST_F(SGGraphicTest, ParameterizedTextStrokeLayouts)
     ASSERT_TRUE(
         CheckSceneGraph(updates, layer,
                         IsLayer(Rect(0, 0, 0, 0), "...container")
+                            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                             .child(IsLayer(Rect(-2, -10, 54, 14), "....text")
+                                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                                        .dirty(sg::Layer::kFlagRedrawContent)
                                        .contentOffset(Point(-2, -10))
                                        .content(IsTransformNode().translate(0, -8).child(
@@ -1467,7 +1525,9 @@ TEST_F(SGGraphicTest, ParameterizedTextStrokeLayouts)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-2, -10, 54, 14), "....text")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(Point(-2, -10))
                        .content(IsTransformNode().translate(0, -8).child(
@@ -1482,8 +1542,10 @@ TEST_F(SGGraphicTest, ParameterizedTextStrokeLayouts)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0, 0, 0, 0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(
                 IsLayer(Rect(-2, -10, 54, 14), "....text")
+                    .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                     .dirty(sg::Layer::kFlagRedrawContent)
                     .contentOffset(Point(-2, -10))
                     .content(IsTransformNode().translate(0, -8).child(
@@ -1499,7 +1561,9 @@ TEST_F(SGGraphicTest, ParameterizedTextStrokeLayouts)
     ASSERT_TRUE(
         CheckSceneGraph(updates, layer,
                         IsLayer(Rect(0, 0, 0, 0), "...container")
+                            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                             .child(IsLayer(Rect(-2, -10, 54, 14), "....text")
+                                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                                        .dirty(sg::Layer::kFlagRedrawContent)
                                        .contentOffset(Point(-2, -10))
                                        .content(IsTransformNode().translate(0, -8).child(
@@ -1574,7 +1638,9 @@ TEST_F(SGGraphicTest, ShadowLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0,0,0,0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(10,10,80,80), "...path")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .shadow(IsShadow(Color::BLUE, Point{3, 3}, 5))
                        .contentOffset(Point(10,10))
                        .content(IsDrawNode()
@@ -1589,7 +1655,9 @@ TEST_F(SGGraphicTest, ShadowLayers)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(0,0,0,0), "...container")
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(10,10,80,80), "...path")
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .shadow(IsShadow(Color::BLUE, Point{3, 3}, 5))
                        .contentOffset(Point(10,10))

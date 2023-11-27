@@ -36,7 +36,7 @@ public:
         ASSERT_TRUE(content->isReady());
     }
 
-    std::shared_ptr<ExtensionClient> createClient(const std::string& extension) {
+    ExtensionClientPtr createClient(const std::string& extension) {
         return ExtensionClient::create(configPtr, extension, session);
     }
 
@@ -49,8 +49,8 @@ public:
         }
     }
 
-    std::shared_ptr<RootConfig> configPtr;
-    std::shared_ptr<ExtensionClient> client;
+    RootConfigPtr configPtr;
+    ExtensionClientPtr client;
     rapidjson::Document doc;
 
     void SetUp() override
@@ -3464,6 +3464,105 @@ TEST_F(ExtensionClientTest, WrongLiveArray) {
     auto text = root->findComponentById("root");
     ASSERT_EQ(kComponentTypeText, text->getType());
     ASSERT_EQ("", text->getCalculated(kPropertyText).asString());
+}
+
+static const char* COMMANDS_EXT_DOC = R"({
+"type": "APL",
+"version": "1.8",
+"extension": {
+  "uri": "aplext:hello:10",
+  "name": "Hello"
+},
+"mainTemplate": {
+  "item": {
+    "type": "Container",
+    "width": 500,
+    "height": 500,
+    "items": [
+      {
+        "type": "TouchWrapper",
+        "width": "100%",
+        "height": "50%",
+        "onPress": [
+          {
+            "type": "Hello:NotifyClasses",
+            "classes": ["English 101", "History", "Gymnastics"]
+          }
+        ]
+      },
+      {
+        "type": "TouchWrapper",
+        "width": "100%",
+        "height": "50%",
+        "onPress": [
+          {
+            "type": "Hello:NotifyClasses"
+          }
+        ]
+      }
+    ]
+    }
+  }
+})";
+
+TEST_F(ExtensionClientTest, DefaultPropertyValues) {
+    createConfigAndClient(COMMANDS_EXT_DOC);
+
+    // Check what document wants.
+    auto extRequests = content->getExtensionRequests();
+    ASSERT_EQ(1, extRequests.size());
+    auto extRequest = *extRequests.begin();
+    ASSERT_EQ("aplext:hello:10", extRequest);
+
+    // Pass request and settings to connection request creation.
+    auto connectionRequest = client->createRegistrationRequest(doc.GetAllocator(), *content);
+    ASSERT_STREQ("aplext:hello:10", connectionRequest["uri"].GetString());
+
+    auto registerSuccessWithDefault = R"(
+    {
+      "method": "RegisterSuccess",
+      "version": "1.0",
+      "token": "TOKEN",
+      "schema": {
+        "type": "Schema",
+        "version": "1.0",
+        "uri": "aplext:hello:10",
+        "types": [
+          {
+            "name": "User",
+            "properties": {
+              "classes": {
+                "type": "object",
+                "required": false,
+                "default": ["Math", "CS", "Physics"]
+              }
+            }
+          }
+        ],
+        "commands": [
+          {
+            "name": "NotifyClasses",
+            "payload": "User"
+          }
+        ]
+      }
+    })";
+
+    // Runtime asked for connection. Process Schema message
+    ASSERT_TRUE(client->processMessage(nullptr, registerSuccessWithDefault));
+    initializeContext();
+
+    // Trigger command with document supplied property
+    performTap(100, 100);
+    auto event = root->popEvent();
+    auto payload = event.getValue(apl::kEventPropertyExtension).getMap();
+    ASSERT_EQ(apl::ObjectArray({"English 101", "History", "Gymnastics"}), payload["classes"].getArray());
+
+    // Trigger command with default property
+    performTap(300, 300);
+    event = root->popEvent();
+    payload = event.getValue(apl::kEventPropertyExtension).getMap();
+    ASSERT_EQ(apl::ObjectArray({"Math", "CS", "Physics"}), payload["classes"].getArray());
 }
 
 #endif

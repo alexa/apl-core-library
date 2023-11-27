@@ -260,7 +260,7 @@ main(int argc, char *argv[]) {
             tree.Accept(writer);
         }
     }
-    catch (std::exception e) {
+    catch (const std::exception& e) {
         std::cerr << "Parse error!" << e.what() << std::endl;
         exit(1);
     }

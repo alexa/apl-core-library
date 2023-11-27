@@ -77,6 +77,7 @@ public:
     enum Characteristics {
         kCharacteristicDoNotClipChildren = 1u << 0,    // Do not clip children to the layer outline or clip path
         kCharacteristicRenderOnly = 1u << 1,           // This layer is only for rendering (no text input or touch events)
+        kCharacteristicHasMedia = 1u << 2              // This layer contains images or videos.
     };
 
     using CharacteristicsType = std::uint8_t;

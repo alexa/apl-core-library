@@ -96,6 +96,7 @@ public:
     const Properties& properties() const { return mProperties; }
 
     virtual const CommandPropDefSet& propDefSet() const;
+    virtual bool finishAllOnTerminate() const { return false; }
 
     void freeze() final;
     bool rehydrate(const CoreDocumentContext& context) final;

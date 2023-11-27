@@ -41,7 +41,7 @@ OpenURLCommand::execute(const TimersPtr& timers, bool fastMode) {
         return nullptr;
 
     auto self = std::static_pointer_cast<CoreCommand>(shared_from_this());
-    auto allowed = mContext->getRootConfig().getAllowOpenUrl();
+    auto allowed = mContext->getRootConfig().getProperty(RootProperty::kAllowOpenUrl).getBoolean();
     if(!allowed) {
         // 405 - HTTP code for web "Method Not Allowed".
         return OpenURLAction::makeFailed(timers, self, 405);

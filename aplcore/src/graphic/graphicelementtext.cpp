@@ -52,7 +52,7 @@ GraphicElementText::create(const GraphicPtr &graphic,
 inline Object
 defaultFontFamily(GraphicElement&, const RootConfig& rootConfig)
 {
-    return Object(rootConfig.getDefaultFontFamily());
+    return rootConfig.getProperty(RootProperty::kDefaultFontFamily);
 }
 
 const GraphicPropDefSet&

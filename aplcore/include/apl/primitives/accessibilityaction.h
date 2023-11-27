@@ -51,7 +51,14 @@ class AccessibilityAction : public ObjectData,
                             public RecalculateTarget<AccessibilityActionKey>,
                             public UserData<AccessibilityAction> {
 public:
-    friend class AccessibilityActionDependant;
+    /// Standard action names
+    static const char* ACCESSIBILITY_ACTION_ACTIVATE;
+    static const char* ACCESSIBILITY_ACTION_TAP;
+    static const char* ACCESSIBILITY_ACTION_DOUBLETAP;
+    static const char* ACCESSIBILITY_ACTION_LONGPRESS;
+    static const char* ACCESSIBILITY_ACTION_SWIPEAWAY;
+    static const char* ACCESSIBILITY_ACTION_SCROLLFORWARD;
+    static const char* ACCESSIBILITY_ACTION_SCROLLBACKWARD;
 
     /**
      * Create an accessibility action from an object description with "name", "label", and other properties.
@@ -59,7 +66,17 @@ public:
      * @param object A map object containing the properties that define the accessibility action.
      * @return The accessibility action or nullptr if the action can't be created.
      */
-    static std::shared_ptr<AccessibilityAction> create(const CoreComponentPtr& component, const Object& object);
+    static AccessibilityActionPtr create(const CoreComponentPtr& component, const Object& object);
+
+    /**
+     * Create simple accessibility action.
+     * @param component The component the accessibility action will be attached to.
+     * @param name Action name.
+     * @param label Action accessibility label.
+     * @return The accessibility action or nullptr if the action can't be created.
+     */
+    static AccessibilityActionPtr create(
+        const CoreComponentPtr& component, const std::string& name, const std::string& label);
 
     /**
      * @return The name of the accessibility action

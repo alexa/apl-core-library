@@ -136,6 +136,8 @@ ImageComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
     auto layer = CoreComponent::constructSceneGraphLayer(sceneGraph);
     assert(layer);
 
+    layer->setCharacteristic(sg::Layer::kCharacteristicHasMedia);
+
     auto filterPtr = getFilteredImage();
     auto rects = getImageRects(filterPtr);
 

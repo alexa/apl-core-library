@@ -19,6 +19,7 @@
 #include <rapidjson/document.h>
 
 #include "apl/common.h"
+#include "apl/primitives/size.h"
 #include "apl/scenegraph/scenegraphupdates.h"
 #include "apl/utils/noncopyable.h"
 
@@ -37,6 +38,9 @@ public:
     void setLayer(const LayerPtr& layer) { mTopLayer = layer; }
     LayerPtr getLayer() const { return mTopLayer; }
 
+    void setViewportSize(const Size& size) { mViewportSize = size; }
+    Size getViewportSize() const { return mViewportSize; }
+
     SceneGraphUpdates& updates() { return mUpdates; }
 
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
@@ -44,6 +48,7 @@ public:
 private:
     LayerPtr mTopLayer;
     SceneGraphUpdates mUpdates;
+    Size mViewportSize;
 };
 
 } // namespace sg

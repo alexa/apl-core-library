@@ -1598,7 +1598,7 @@ TEST_F(LiveArrayRebuildTest, DeepComponentUpdate)
     ASSERT_TRUE(CheckDirty(component));
     ASSERT_TRUE(CheckDirty(component->getChildAt(0)->getChildAt(0), kPropertyText,
                            kPropertyVisualHash));
-    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBackgroundColor, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(component->getChildAt(0), kPropertyBackgroundColor, kPropertyBackground, kPropertyVisualHash));
 
     ASSERT_EQ("update", component->getChildAt(0)->getChildAt(0)->getCalculated(kPropertyText).asString());
     ASSERT_EQ(Color(0x0000FFFF), component->getChildAt(0)->getCalculated(kPropertyBackgroundColor).getColor());

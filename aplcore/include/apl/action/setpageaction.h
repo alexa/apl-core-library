@@ -33,7 +33,8 @@ public:
 
     SetPageAction(const TimersPtr& timers,
                   const std::shared_ptr<CoreCommand>& command,
-                  const CoreComponentPtr& target);
+                  const CoreComponentPtr& target,
+                  apl_duration_t transitionDuration);
 
     void freeze() override;
     bool rehydrate(const CoreDocumentContext& context) override;
@@ -45,6 +46,7 @@ private:
     std::shared_ptr<CoreCommand> mCommand;
     CoreComponentPtr mTarget;
     int mTargetIndex;
+    apl_duration_t mTransitionDuration;
 };
 
 } // namespace apl

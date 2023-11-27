@@ -168,9 +168,23 @@ TEST_F(AplMetricsExtensionTest, RegistrationWithoutApplicationId) {
                  GetWithDefault<const char*>(RegistrationSuccess::METHOD(), registration, ""));
 }
 
-TEST_F(AplMetricsExtensionTest, RegistrationWithoutEmptyApplicationId) {
+TEST_F(AplMetricsExtensionTest, RegistrationWithEmptyApplicationId) {
     Document settings(kObjectType);
     settings.AddMember("applicationId", "", settings.GetAllocator());
+    settings.AddMember("experienceId", "TestExperience", settings.GetAllocator());
+    Document regReq = RegistrationRequest("1.0")
+        .uri(URI)
+        .settings(settings);
+    auto registration = mExtension->createRegistration(createActivityDescriptor(), regReq);
+    ASSERT_FALSE(registration.HasParseError());
+    ASSERT_FALSE(registration.IsNull());
+    ASSERT_STREQ("RegisterFailure",
+                 GetWithDefault<const char*>(RegistrationSuccess::METHOD(), registration, ""));
+}
+
+TEST_F(AplMetricsExtensionTest, RegistrationWithNullApplicationId) {
+    Document settings(kObjectType);
+    settings.AddMember("applicationId", Value(), settings.GetAllocator());
     settings.AddMember("experienceId", "TestExperience", settings.GetAllocator());
     Document regReq = RegistrationRequest("1.0")
         .uri(URI)
@@ -199,6 +213,20 @@ TEST_F(AplMetricsExtensionTest, RegistrationWithEmptyExperienceId) {
     Document settings(kObjectType);
     settings.AddMember("applicationId", "TestApplication", settings.GetAllocator());
     settings.AddMember("experienceId", "", settings.GetAllocator());
+    Document regReq = RegistrationRequest("1.0")
+        .uri(URI)
+        .settings(settings);
+    auto registration = mExtension->createRegistration(createActivityDescriptor(), regReq);
+    ASSERT_FALSE(registration.HasParseError());
+    ASSERT_FALSE(registration.IsNull());
+    ASSERT_STREQ("RegisterSuccess",
+                 GetWithDefault<const char*>(RegistrationSuccess::METHOD(), registration, ""));
+}
+
+TEST_F(AplMetricsExtensionTest, RegistrationWithNullExperienceId) {
+    Document settings(kObjectType);
+    settings.AddMember("applicationId", "TestApplication", settings.GetAllocator());
+    settings.AddMember("experienceId", Value(), settings.GetAllocator());
     Document regReq = RegistrationRequest("1.0")
         .uri(URI)
         .settings(settings);

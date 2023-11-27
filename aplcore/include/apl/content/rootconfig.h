@@ -99,6 +99,8 @@ public:
         kExperimentalFeatureRequestKeyboard,
         /// AVG should use layers for parameterized elements
         kExperimentalFeatureGraphicLayers,
+        /// Accessibility actions reported on component may depend on component state
+        kExperimentalFeatureDynamicAccessibilityActions
     };
 
     /**
@@ -194,6 +196,16 @@ public:
      */
     RootConfig& audioPlayerFactory(const AudioPlayerFactoryPtr& audioPlayerFactory) {
         mAudioPlayerFactory = audioPlayerFactory;
+        return *this;
+    }
+
+    /**
+    * Specify the set of enabled experimental features for this rootConfig
+    * @param enabledExperimentalFeatures The set of enabled experimental features.
+    * @return This object for chaining
+    */
+    RootConfig& experimentalFeatures(const std::set<ExperimentalFeature>& enabledExperimentalFeatures){
+        mEnabledExperimentalFeatures = enabledExperimentalFeatures;
         return *this;
     }
 
@@ -955,14 +967,16 @@ public:
     std::shared_ptr<LocaleMethods> getLocaleMethods() const { return mLocaleMethods; }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kAgentName) instead
      * @return The agent name string
      */
-    std::string getAgentName() const { return getProperty(RootProperty::kAgentName).getString(); }
+    APL_DEPRECATED std::string getAgentName() const { return getProperty(RootProperty::kAgentName).getString(); }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kAgentVersion) instead
      * @return The agent version string
      */
-    std::string getAgentVersion() const { return getProperty(RootProperty::kAgentVersion).getString(); }
+    APL_DEPRECATED std::string getAgentVersion() const { return getProperty(RootProperty::kAgentVersion).getString(); }
 
     /**
      * @return The expected animation quality
@@ -977,14 +991,16 @@ public:
     const char* getAnimationQualityString() const;
 
     /**
+     * @deprecated Use getProperty(RootProperty::kAllowOpenUrl) instead
      * @return True if the OpenURL command is supported
      */
-    bool getAllowOpenUrl() const { return getProperty(RootProperty::kAllowOpenUrl).getBoolean(); }
+    APL_DEPRECATED bool getAllowOpenUrl() const { return getProperty(RootProperty::kAllowOpenUrl).getBoolean(); }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kDisallowVideo) instead
      * @return True if the video component is not supported.
      */
-    bool getDisallowVideo() const { return getProperty(RootProperty::kDisallowVideo).getBoolean(); }
+    APL_DEPRECATED bool getDisallowVideo() const { return getProperty(RootProperty::kDisallowVideo).getBoolean(); }
 
     /**
      * @return Time in ms for default IdleTimeout value.
@@ -997,14 +1013,16 @@ public:
     APLVersion getEnforcedAPLVersion() const { return mEnforcedAPLVersion; }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kReportedVersion) instead
      * @return The reported version of APL used during document inflation
      */
-    std::string getReportedAPLVersion() const { return getProperty(RootProperty::kReportedVersion).getString(); }
+    APL_DEPRECATED std::string getReportedAPLVersion() const { return getProperty(RootProperty::kReportedVersion).getString(); }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kEnforceTypeField) instead
      * @return true if the type field value of an APL doc should be enforced
      */
-    bool getEnforceTypeField() const { return getProperty(RootProperty::kEnforceTypeField).getBoolean(); }
+    APL_DEPRECATED bool getEnforceTypeField() const { return getProperty(RootProperty::kEnforceTypeField).getBoolean(); }
 
     /**
      * @return The default font color
@@ -1027,14 +1045,16 @@ public:
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kDefaultFontFamily) instead
      * @return The default font family
      */
-    std::string getDefaultFontFamily() const { return getProperty(RootProperty::kDefaultFontFamily).getString(); }
+    APL_DEPRECATED std::string getDefaultFontFamily() const { return getProperty(RootProperty::kDefaultFontFamily).getString(); }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kTrackProvenance) instead
      * @return True if provenance of resources, styles, and components will be calculated.
      */
-    bool getTrackProvenance() const { return getProperty(RootProperty::kTrackProvenance).getBoolean(); }
+    APL_DEPRECATED bool getTrackProvenance() const { return getProperty(RootProperty::kTrackProvenance).getBoolean(); }
 
     /**
      * Return the default width for this component type.
@@ -1066,15 +1086,17 @@ public:
 
     /**
      * Return number of pages to ensure around current page.
+     * @deprecated Use getProperty(RootProperty::kPagerChildCache) instead
      * @return number of pages.
      */
-    int getPagerChildCache() const { return getProperty(RootProperty::kPagerChildCache).getInteger(); }
+    APL_DEPRECATED int getPagerChildCache() const { return getProperty(RootProperty::kPagerChildCache).getInteger(); }
 
     /**
      * Return number of pages to ensure around current one.
+     * @deprecated Use getProperty(RootProperty::kSequenceChildCache) instead
      * @return number of pages.
      */
-    int getSequenceChildCache() const { return getProperty(RootProperty::kSequenceChildCache).getInteger(); }
+    APL_DEPRECATED int getSequenceChildCache() const { return getProperty(RootProperty::kSequenceChildCache).getInteger(); }
 
     /**
      * @return The current session pointer
@@ -1083,16 +1105,18 @@ public:
     APL_DEPRECATED SessionPtr getSession() const { return nullptr; }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kUTCTime) instead
      * @return The starting UTC time in milliseconds past the epoch.
      */
-    apl_time_t getUTCTime() const { return getProperty(RootProperty::kUTCTime).getDouble(); }
+    APL_DEPRECATED apl_time_t getUTCTime() const { return getProperty(RootProperty::kUTCTime).getDouble(); }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kLocalTimeAdjustment) instead
      * @return The local time zone adjustment. This is the duration in milliseconds, which added
      *         to the current time in UTC gives the local time.  This includes any daylight saving
      *         adjustment.
      */
-    apl_duration_t getLocalTimeAdjustment() const { return getProperty(RootProperty::kLocalTimeAdjustment).getDouble(); }
+    APL_DEPRECATED apl_duration_t getLocalTimeAdjustment() const { return getProperty(RootProperty::kLocalTimeAdjustment).getDouble(); }
 
     /**
      * @return A reference to the map of live data sources
@@ -1168,7 +1192,7 @@ public:
      * @return Any extension clients registered with the RootConfig for legacy support.
      * @deprecated Extensions should be managed via ExtensionMediator
      */
-    const std::map<std::string, std::shared_ptr<ExtensionClient>> getLegacyExtensionClients() const {
+    const std::map<std::string, ExtensionClientPtr> getLegacyExtensionClients() const {
         return mLegacyExtensionClients;
     }
 
@@ -1253,105 +1277,120 @@ public:
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kDoublePressTimeout) instead
      * @return Double press timeout in milliseconds.
      */
-    apl_duration_t getDoublePressTimeout() const {
+    APL_DEPRECATED apl_duration_t getDoublePressTimeout() const {
         return getProperty(RootProperty::kDoublePressTimeout).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kLongPressTimeout) instead
      * @return Long press timeout in milliseconds.
      */
-    apl_duration_t getLongPressTimeout() const {
+    APL_DEPRECATED apl_duration_t getLongPressTimeout() const {
         return getProperty(RootProperty::kLongPressTimeout).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kPressedDuration) instead
      * @return Duration to show the "pressed" state of a component when programmatically invoked
      */
-    apl_duration_t getPressedDuration() const {
+    APL_DEPRECATED apl_duration_t getPressedDuration() const {
         return getProperty(RootProperty::kPressedDuration).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kTapOrScrollTimeout) instead
      * @return Maximum time to wait before deciding that a touch event starts a scroll or paging gesture.
      */
-    apl_duration_t getTapOrScrollTimeout() const {
+    APL_DEPRECATED apl_duration_t getTapOrScrollTimeout() const {
         return getProperty(RootProperty::kTapOrScrollTimeout).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kPointerSlopThreshold) instead
      * @return SwipeAway trigger distance threshold.
      */
-    float getSwipeAwayTriggerDistanceThreshold() const {
+    APL_DEPRECATED float getSwipeAwayTriggerDistanceThreshold() const {
         return getProperty(RootProperty::kPointerSlopThreshold).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kSwipeAwayFulfillDistancePercentageThreshold) instead
      * @return SwipeAway fulfill distance threshold in percents.
      */
-    float getSwipeAwayFulfillDistancePercentageThreshold() const {
+    APL_DEPRECATED float getSwipeAwayFulfillDistancePercentageThreshold() const {
         return getProperty(RootProperty::kSwipeAwayFulfillDistancePercentageThreshold).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kSwipeAwayAnimationEasing) instead
      * @return Animation easing for SwipeAway gesture.
      */
-    EasingPtr getSwipeAwayAnimationEasing() const;
+    APL_DEPRECATED EasingPtr getSwipeAwayAnimationEasing() const;
 
     /**
+     * @deprecated Use getProperty(RootProperty::kSwipeVelocityThreshold) instead
      * @return Swipe velocity threshold.
      */
-    float getSwipeVelocityThreshold() const {
+    APL_DEPRECATED float getSwipeVelocityThreshold() const {
         return getProperty(RootProperty::kSwipeVelocityThreshold).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kSwipeMaxVelocity) instead
      * @return Maximum swipe velocity.
      */
-    float getSwipeMaxVelocity() const {
+    APL_DEPRECATED float getSwipeMaxVelocity() const {
         return getProperty(RootProperty::kSwipeMaxVelocity).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kSwipeAngleTolerance) instead
      * @return Max allowed pointer movement angle during swipe gestures, as a slope.
      */
-    float getSwipeAngleSlope() const {
+    APL_DEPRECATED float getSwipeAngleSlope() const {
         return getProperty(RootProperty::kSwipeAngleTolerance).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kDefaultSwipeAnimationDuration) instead
      * @return Default animation duration for SwipeAway gestures, in ms.
      */
-    apl_duration_t getDefaultSwipeAnimationDuration() const {
+    APL_DEPRECATED apl_duration_t getDefaultSwipeAnimationDuration() const {
         return getProperty(RootProperty::kDefaultSwipeAnimationDuration).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kMaxSwipeAnimationDuration) instead
      * @return Max animation duration for SwipeAway gestures, in ms.
      */
-    apl_duration_t getMaxSwipeAnimationDuration() const {
+    APL_DEPRECATED apl_duration_t getMaxSwipeAnimationDuration() const {
         return getProperty(RootProperty::kMaxSwipeAnimationDuration).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kMinimumFlingVelocity) instead
      * @return Fling velocity threshold
      */
-    float getMinimumFlingVelocity() const {
+    APL_DEPRECATED float getMinimumFlingVelocity() const {
         return getProperty(RootProperty::kMinimumFlingVelocity).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kTickHandlerUpdateLimit) instead
      * @return Tick handler update limit.
      */
-    apl_duration_t getTickHandlerUpdateLimit() const {
+    APL_DEPRECATED apl_duration_t getTickHandlerUpdateLimit() const {
         return getProperty(RootProperty::kTickHandlerUpdateLimit).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kFontScale) instead
      * @return The requested scaling factor for fonts
      */
-    float getFontScale() const {
+    APL_DEPRECATED float getFontScale() const {
         return getProperty(RootProperty::kFontScale).getDouble();
     }
 
@@ -1370,51 +1409,58 @@ public:
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kScreenReader) instead
      * @return True if an accessibility screen reader is enabled
      */
-    bool getScreenReaderEnabled() const {
+    APL_DEPRECATED bool getScreenReaderEnabled() const {
         return getProperty(RootProperty::kScreenReader).getBoolean();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kPointerInactivityTimeout) instead
      * @return Pointer inactivity timeout.
      */
-    apl_duration_t getPointerInactivityTimeout() const {
+    APL_DEPRECATED apl_duration_t getPointerInactivityTimeout() const {
         return getProperty(RootProperty::kPointerInactivityTimeout).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kMaximumFlingVelocity) instead
      * @return Maximum fling speed.
      */
-    float getMaximumFlingVelocity() const {
+    APL_DEPRECATED float getMaximumFlingVelocity() const {
         return getProperty(RootProperty::kMaximumFlingVelocity).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kPointerSlopThreshold) instead
      * @return Pointer slop threshold.
      */
-    float getPointerSlopThreshold() const {
+    APL_DEPRECATED float getPointerSlopThreshold() const {
         return getProperty(RootProperty::kPointerSlopThreshold).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kScrollCommandDuration) instead
      * @return Scroll command duration.
      */
-    apl_duration_t getScrollCommandDuration() const {
+    APL_DEPRECATED apl_duration_t getScrollCommandDuration() const {
         return getProperty(RootProperty::kScrollCommandDuration).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kScrollSnapDuration) instead
      * @return Scroll snap duration.
      */
-    apl_duration_t getScrollSnapDuration() const {
+    APL_DEPRECATED apl_duration_t getScrollSnapDuration() const {
         return getProperty(RootProperty::kScrollSnapDuration).getDouble();
     }
 
     /**
+     * @deprecated Use getProperty(RootProperty::kDefaultPagerAnimationDuration) instead
      * @return Default pager animation duration.
      */
-    apl_duration_t getDefaultPagerAnimationDuration() const {
+    APL_DEPRECATED apl_duration_t getDefaultPagerAnimationDuration() const {
         return getProperty(RootProperty::kDefaultPagerAnimationDuration).getDouble();
     }
 
@@ -1424,6 +1470,13 @@ public:
      */
     bool experimentalFeatureEnabled(ExperimentalFeature feature) const {
         return mEnabledExperimentalFeatures.count(feature) > 0;
+    }
+
+    /**
+    * @return set of enabled experimental features.
+    */
+    const std::set<ExperimentalFeature> getExperimentalFeatures() const{
+        return mEnabledExperimentalFeatures;
     }
 
     /**
@@ -1467,7 +1520,7 @@ private:
     // Clients should only be created by the mediator, but for legacy reasons clients can be created
     // on their own. So, we need to keep track of these "standalone" clients so that we can extract
     // registration information from them later.
-    std::map<std::string, std::shared_ptr<ExtensionClient>> mLegacyExtensionClients;
+    std::map<std::string, ExtensionClientPtr> mLegacyExtensionClients;
 
     ObjectMap mSupportedExtensions; // URI -> config
     ObjectMap mExtensionFlags; // URI -> opaque flags
@@ -1487,7 +1540,7 @@ private:
     // Set of enabled experimental features
     std::set<ExperimentalFeature> mEnabledExperimentalFeatures;
     RootPropertyMap mProperties;
-};
+    };
 
 }
 

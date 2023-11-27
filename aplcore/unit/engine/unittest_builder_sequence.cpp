@@ -49,7 +49,7 @@ TEST_F(BuilderTestSequence, Simple)
 
     // Standard properties
     ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::EMPTY_ARRAY(), component->getCalculated(kPropertyAccessibilityActions));
+    ASSERT_EQ(2, component->getCalculated(kPropertyAccessibilityActions).size());
     ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
@@ -172,7 +172,7 @@ TEST_F(BuilderTestSequence, Empty)
 
     // Standard properties
     ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::EMPTY_ARRAY(), component->getCalculated(kPropertyAccessibilityActions));
+    ASSERT_EQ(2, component->getCalculated(kPropertyAccessibilityActions).size());
     ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
@@ -821,4 +821,56 @@ TEST_F(BuilderTestSequence, SequenceInflationTestHorizontalLTR)
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(32, 90), true));
 
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(91, 99), false));
+}
+
+const char *AUTO_SIZE_TEXT_CHILD = R"({
+  "type": "APL",
+  "version": "2023.2",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "height": 800,
+      "width": 800,
+      "items": [
+        {
+          "type": "Sequence",
+          "height": 20,
+          "width": 50,
+          "items": {
+            "type": "Text",
+            "width": "auto",
+            "height": "auto",
+            "text": "text text text text text text text text"
+          }
+        },
+        {
+          "type": "ScrollView",
+          "height": 20,
+          "width": 50,
+          "items": {
+            "type": "Text",
+            "width": "auto",
+            "height": "auto",
+            "text": "text text text text text text text text"
+          }
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(BuilderTestSequence, AutoSizeTextChild)
+{
+    loadDocument(AUTO_SIZE_TEXT_CHILD);
+
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ(Rect(0, 0, 50, 20), component->getChildAt(0)->getCalculated(apl::kPropertyBounds).get<Rect>());
+    auto textBounds = component->getChildAt(0)->getChildAt(0)->getCalculated(apl::kPropertyBounds).get<Rect>();
+    ASSERT_EQ(Rect(0, 0, 50, 80), textBounds);
+
+    ASSERT_EQ(Rect(0, 20, 50, 20), component->getChildAt(1)->getCalculated(apl::kPropertyBounds).get<Rect>());
+    textBounds = component->getChildAt(1)->getChildAt(0)->getCalculated(apl::kPropertyBounds).get<Rect>();
+    ASSERT_EQ(Rect(0, 0, 50, 80), textBounds);
 }

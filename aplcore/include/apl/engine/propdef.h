@@ -229,6 +229,8 @@ enum PropertyDefFlags : uint32_t {
     kPropTextHash = 0x4000,
     /// This property takes part in visual hash
     kPropVisualHash = 0x8000,
+    /// Property affects accessibility state of the component
+    kPropAccessibility = 0x10000,
 };
 
 /**

@@ -22,6 +22,7 @@
 #include "apl/component/actionablecomponent.h"
 #include "apl/component/componentpropdef.h"
 #include "apl/component/componentproperties.h"
+#include "apl/content/configurationchange.h"
 #include "apl/embed/documentmanager.h"
 #include "apl/engine/properties.h"
 #include "apl/utils/path.h"
@@ -38,6 +39,8 @@ public:
 
     ComponentType getType() const override { return kComponentTypeHost; };
 
+    bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
+
     ComponentPtr findComponentById(const std::string& id, bool traverseHost) const override;
 
     bool singleChild() const override { return true; }
@@ -48,8 +51,23 @@ public:
 
     /**
      * Reinflate contained document.
+     * @return Action to be resolved by runtime, if any.
      */
     void reinflate();
+
+    /**
+     * Embedded-specific processing for Embedded content to "enhance" it with evaluation
+     * capabilities if required.
+     * @param content Embedded document content.
+     * @param documentConfig Document config.
+     */
+    void refreshContent(const ContentPtr& content, const DocumentConfigPtr& documentConfig) const;
+
+    ConfigurationChange filterConfigurationChange(
+        const ConfigurationChange& configurationChange,
+        const Metrics& metrics) const;
+
+    static std::shared_ptr<HostComponent> cast(const ComponentPtr& component);
 
 protected:
     const ComponentPropDefSet& propDefSet() const override;
@@ -67,7 +85,7 @@ protected:
     bool executeKeyHandlers(KeyHandlerType type, const Keyboard &keyboard) override;
 
 private:
-    DocumentContextPtr onLoad(const EmbeddedRequestSuccessResponse&& response);
+    DocumentContextPtr onLoad(EmbeddedRequestSuccessResponse&& response);
 
     void onLoadHandler();
 
@@ -75,7 +93,7 @@ private:
 
     void onFailHandler(const URLRequest& url, const std::string& failure);
 
-    DocumentContextPtr initializeEmbedded(const EmbeddedRequestSuccessResponse&& response);
+    DocumentContextPtr initializeEmbedded(EmbeddedRequestSuccessResponse&& response);
 
     void detachEmbedded();
 
@@ -83,7 +101,7 @@ private:
 
     void requestEmbedded();
 
-    void resolvePendingParameters(const ContentPtr& content);
+    void resolvePendingParameters(const ContentPtr& content) const;
 
     /**
      * @return Owned document ID, 0 if none.
@@ -92,10 +110,19 @@ private:
 
     void setDocument(int id, bool connectedVC);
 
+    RootConfigPtr generateChildConfig(const DocumentConfigPtr& documentConfig) const;
+    Metrics generateChildMetrics() const;
+
+    void finalizeReinflate(const CoreDocumentContextPtr& document);
+
+    bool isAutoWidth() const;
+    bool isAutoHeight() const;
+
 private:
     EmbedRequestPtr mRequest;
     bool mOnLoadOnFailReported = false;
     bool mNeedToRequestDocument = true;
+    std::pair<CoreComponentPtr, std::map<std::string, ActionPtr>> mReinflationState;
 };
 
 } // namespace apl

@@ -492,6 +492,11 @@ TEST_F(GrammarTest, Functions)
     ASSERT_TRUE(IsEqual("ry", eval("${String.slice('berry', -2)}")));
     ASSERT_TRUE(IsEqual("küss", eval("${String.slice('küssen', 0, -2)}")));
     ASSERT_TRUE(IsEqual(u8"خوارزمی‎", eval(u8"${String.slice('محمد بن موسی خوارزمی‎', 13)}")));
+    ASSERT_TRUE(IsEqual("r", eval("${String.charAt('berry', 2)}")));
+    ASSERT_TRUE(IsEqual("y", eval("${String.charAt('berry', -1)}")));
+    ASSERT_TRUE(IsEqual("ü", eval("${String.charAt('küssen', 1)}")));
+    ASSERT_TRUE(IsEqual(u8"خ", eval(u8"${String.charAt('محمد بن موسی خوارزمی‎', 13)}")));
+
     // TODO: TEST_F LISTS OF 0, 1, and N arguments
 }
 
@@ -1267,4 +1272,34 @@ TEST_F(GrammarTest, Delayed)
                 << " expected=" << m.at(i + 1);
         }
     }
+}
+
+TEST_F(GrammarTest, LogHelpers)
+{
+    ASSERT_EQ(kCommandLogLevelDebug, eval("${Log.DEBUG}").asInt());
+    ASSERT_EQ(kCommandLogLevelInfo, eval("${Log.INFO}").asInt());
+    ASSERT_EQ(kCommandLogLevelWarn, eval("${Log.WARN}").asInt());
+    ASSERT_EQ(kCommandLogLevelError, eval("${Log.ERROR}").asInt());
+    ASSERT_EQ(kCommandLogLevelCritical, eval("${Log.CRITICAL}").asInt());
+
+    ASSERT_EQ(kCommandLogLevelDebug, eval("${Log.levelValue('debug')}").asInt());
+    ASSERT_EQ(kCommandLogLevelInfo, eval("${Log.levelValue('info')}").asInt());
+    ASSERT_EQ(kCommandLogLevelWarn, eval("${Log.levelValue('warn')}").asInt());
+    ASSERT_EQ(kCommandLogLevelError, eval("${Log.levelValue('error')}").asInt());
+    ASSERT_EQ(kCommandLogLevelCritical, eval("${Log.levelValue('critical')}").asInt());
+
+    ASSERT_EQ("debug", eval("${Log.levelName(Log.DEBUG)}").asString());
+    ASSERT_EQ("info", eval("${Log.levelName(Log.INFO)}").asString());
+    ASSERT_EQ("warn", eval("${Log.levelName(Log.WARN)}").asString());
+    ASSERT_EQ("error", eval("${Log.levelName(Log.ERROR)}").asString());
+    ASSERT_EQ("critical", eval("${Log.levelName(Log.CRITICAL)}").asString());
+
+    ASSERT_EQ(Object::NULL_OBJECT(), eval("${Log.levelValue()}"));
+    ASSERT_EQ(Object::NULL_OBJECT(), eval("${Log.levelValue('whatever')}"));
+    ASSERT_EQ(Object::NULL_OBJECT(), eval("${Log.levelValue('info', 'extra param')}"));
+    ASSERT_EQ(Object::NULL_OBJECT(), eval("${Log.levelName()}"));
+    ASSERT_EQ(Object::NULL_OBJECT(), eval("${Log.levelName(-1)}"));
+    ASSERT_EQ(Object::NULL_OBJECT(), eval("${Log.levelName(Log.INFO, 'extra param')}"));
+    ASSERT_EQ(Object::NULL_OBJECT(), eval("${Log.levelName('info', 'extra param')}"));
+    ASSERT_EQ("info", eval("${Log.levelName(Log.DEBUG + 1)}").asString());
 }

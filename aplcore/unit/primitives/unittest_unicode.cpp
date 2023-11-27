@@ -153,6 +153,34 @@ TEST_F(UnicodeTest, StringSlice) {
         ASSERT_EQ(m.expected, utf8StringSlice(m.original, m.start, m.end));
 }
 
+struct StringCharAtTest {
+    std::string original;
+    int index;
+    std::string expected;
+};
+
+static auto STRING_CHAR_AT_TESTS = std::vector<StringCharAtTest> {
+    { u8"", 0, u8"" },
+    { u8"abcde", 0, u8"a" },
+    { u8"abcde", 1, u8"b" },
+    { u8"abcde", 3, u8"d" },
+    { u8"abcde", 10, u8"" },
+    { u8"abcde", -3, u8"c"},   // Negative offset
+    { u8"abcde", -100, u8""},  // Seriously negative offset
+    { u8"hémidécérébellé", 1, u8"é"},
+    { u8"hémidécérébellé", 4, u8"d"},
+    { u8"hémidécérébellé", 8, u8"r"},
+    { u8"é", -1, u8"é"},
+    { u8"عمر خیّام‎", 0, u8"ع" },  // RTL
+};
+
+TEST_F(UnicodeTest, StringCharAt)
+{
+    for (const auto& m : STRING_CHAR_AT_TESTS)
+        ASSERT_EQ(m.expected, utf8StringCharAt(m.original, m.index));
+}
+
+
 struct StripTest {
     std::string original;
     std::string valid;

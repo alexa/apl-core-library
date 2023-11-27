@@ -1,165 +1,351 @@
 @startuml
 
-object RootConfig #CAFFBF
+class RootConfig
+class Context
 
 abstract TextMeasurement #CAFFBF
 abstract MediaManager #CAFFBF
 abstract MediaPlayerFactory #CAFFBF
 abstract AudioPlayerFactory #CAFFBF
 
-abstract Timers #CAFFBF
-Timers : timeout_id setTimeout(Runnable, apl_duration_t);
-Timers : timeout_id setAnimator(Animator, apl_duration_t);
-Timers : bool clearTimeout(timeout_id);
+abstract Timers #CAFFBF {
+ timeout_id setTimeout(Runnable, apl_duration_t);
+ timeout_id setAnimator(Animator, apl_duration_t);
+ bool clearTimeout(timeout_id);
+ void freeze(timeout_id);
+ bool rehydrate(timeout_id)
+}
 
-abstract TimeManager #CAFFBF
-TimeManager <|-- Timers
+abstract TimeManager #CAFFBF {
+    int size() const
+    void updateTime(apl_time_t)
+    apl_time_t nextTimeout()
+    apl_time_t currentTime()
+    void runPending()
+    void clear()
+    void terminate()
+    bool isTerminated()
+}
 
-object Session
+Timers <|-- TimeManager
 
-object Settings #FFC6FF
-Settings : rapidJson::Value mJson
+abstract Session {
+   void write(....)
+   std::string mLogId
+}
 
-object Component #FFADAD
-Component : ContextPtr mContext;
-Component : string mUniqueId;
-Component : string mId;
-Component : CalculatedPropertyMap mCalculated;
-Component : set<PropertyKey> mDirty;
-Component : unsigned int mFlags;
+object Settings #FFC6FF {
+  rapidJson::Value mJson
+}
 
-object CoreComponent #FFADAD
-CoreComponent : bool mInheritParentState;
-CoreComponent : State mState;
-CoreComponent : string mStyle;
-CoreComponent : Properties mProperties;
-CoreComponent : set<PropertyKey> mAssigned;
-CoreComponent : vector<CoreComponentPtr> mChildren;
-CoreComponent : vector<CoreComponentPtr> mDisplayedChildren;
-CoreComponent : CoreComponentPtr mParent;
-CoreComponent : YGNodeRef mYGNodeRef;
-CoreComponent : Path mPath;
-CoreComponent : shared_ptr<LayoutRebuilder> mRebuilder;
-CoreComponent : Size mLayoutSize;
-CoreComponent : bool mDisplayedChildrenStale;
-CoreComponent : sg::LayerPtr mSceneGraphLayer;
-CoreComponent <|-- Component
+object UIDObject {
+  std::string mUniqueId
+  ContextPtr mContext
+  enum UIDObjectType mType
+}
+
+UIDObject *-- Context
+
+'object UserData {
+'  void *mUserData;
+'}
+
+object Component #FFADAD {
+  std::string mId;
+  CalculatedPropertyMap mCalculated;
+  std::set<PropertyKey> mDirty;
+  unsigned int mFlags;
+}
+
+UIDObject <|-- Component
+' UserData <|-- Component
+
+abstract Dependant {
+  Object mExpression;
+  std::weak_ptr<Context> mBindingContext;
+  BindingFunction mBindingFunction;
+  BoundSymbolSet mSymbols;
+  size_t mOrder;
+}
+
+Dependant *.. Context
+
+object RecalculateTarget {
+  std::multimap<T, shared_ptr<Dependant>> mUpstream;
+}
+
+RecalculateTarget "1" *-- "N" Dependant
+
+object RecalculateSource {
+  std::multimap<T, std::weak_ptr<Dependant>> mDownstream;
+}
+
+RecalculateSource "1" *.. "N" Dependant
+
+object CoreComponent #FFADAD {
+  bool mInheritParentState;
+  State mState;
+  string mStyle;
+  Properties mProperties;
+  set<PropertyKey> mAssigned;
+  vector<CoreComponentPtr> mChildren;
+  vector<CoreComponentPtr> mDisplayedChildren;
+  CoreComponentPtr mParent;
+  YGNodeRef mYGNodeRef;
+  Path mPath;
+  shared_ptr<LayoutRebuilder> mRebuilder;
+  Size mLayoutSize;
+  bool mDisplayedChildrenStale;
+  sg::LayerPtr mSceneGraphLayer;
+}
+
+RecalculateTarget <|-- CoreComponent
+Component <|-- CoreComponent
+
+abstract DocumentContext {
+}
 
 
-object RootContextData
-RootContextData : queue<Event> events;
-RootContextData : queue<Event> extensionEvents;
-RootContextData : set<ComponentPtr> dirty;
-RootContextData : set<ComponentPtr> dirtyVisualContext;
-RootContextData : set<DataSourceConnectionPtr> dirtyDatasourceContext;
-RootContextData : RuntimeState mRuntimeState;
-RootContextData : map<string, JsonResource> mLayouts;
-RootContextData : map<string, JsonResource> mCommands;
-RootContextData : map<string, JsonResource> mGraphics;
-RootContextData : Metrics mMetrics;
-RootContextData : shared_ptr<Styles> mStyles;
-RootContextData : unique_ptr<Sequencer> mSequencer;
-RootContextData : unique_ptr<FocusManager> mFocusManager;
-RootContextData : unique_ptr<HoverManager> mHoverManager;
-RootContextData : unique_ptr<PointerManager> mPointerManager;
-RootContextData : unique_ptr<KeyboardManager> mKeyboardManager;
-RootContextData : unique_ptr<LiveDataManager> mDataManager;
-RootContextData : unique_ptr<ExtensionManager> mExtensionManager;
-RootContextData : unique_ptr<LayoutManager> mLayoutManager;
-RootContextData : YGConfigRef mYGConfigRef;
-RootContextData : TextMeasurementPtr mTextMeasurement;
-RootContextData : CoreComponentPtr mTop;
-RootContextData : const RootConfig mConfig;
-RootContextData : int mScreenLockCount;
-RootContextData : SettingsPtr mSettings;
-RootContextData : SessionPtr mSession;
-RootContextData : string mLang;
-RootContextData : LayoutDirection mLayoutDirection;
-RootContextData : LruCache<TextMeasureRequest, YGSize> mCachedMeasures;
-RootContextData : LruCache<TextMeasureRequest, float> mCachedBaselines;
-RootContextData : WeakPtrSet<CoreComponent> mPendingOnMounts;
-RootContextData *-- RootConfig
-RootContextData *-- Session
-RootContextData *-- CoreComponent
-RootContextData *-- Settings
+class ContextData {
+    const RootConfig mConfig;
+    RuntimeState mRuntimeState;
+    SettingsPtr mSettings;
+    std::string mLang;
+    LayoutDirection mLayoutDirection;
+}
 
-object Context
-Context : ContextPtr mParent;
-Context : ContextPtr mTop;
-Context : shared_ptr<RootContextData> mCore;
-Context : map<string, ContextObject> mMap;
-Context *-- RootContextData
+ContextData *-- RootConfig
+ContextData *-- Settings
 
-object Package #FFC6FF
-Package : string mName;
-Package : const JsonData mJson;
-Package : vector<ImportRef> mDependencies;
+class ContextObject {
+    Object mValue;
+    Path mProvenance;
+    bool mMutable;
+    bool mUserWriteable;
+}
 
-object Content #FFC6FF
-Content : SessionPtr mSession;
-Content : PackagePtr mMainPackage;
-Content : vector<pair<string, string>> mExtensionRequests;
-Content : ObjectMapPtr mExtensionSettings;
-Content : State mState;
-Content : const rapidjson::Value& mMainTemplate;
-Content : set<ImportRequest> mRequested;
-Content : set<ImportRequest> mPending;
-Content : map<ImportRef, PackagePtr> mLoaded;
-Content : vector<PackagePtr> mOrderedDependencies;
-Content : map<string, JsonData> mParameterValues;
-Content : vector<string> mMainParameters;
-Content : vector<string> mEnvironmentParameters;
-Content : set<string> mPendingParameters;
-Content : vector<string> mAllParameters;
+class Context {
+   ContextPtr mParent;
+   ContextPtr mTop;
+   ContextDataPtr mCore;
+   map<string, ContextObject> mMap;
+}
+
+RecalculateTarget <|-- Context
+RecalculateSource <|-- Context
+
+Context *-- ContextData
+Context "1" *-- "n" ContextObject
+
+object Package #FFC6FF {
+ string mName;
+ const JsonData mJson;
+ vector<ImportRef> mDependencies;
+}
+
+object Content #FFC6FF {
+  SessionPtr mSession;
+  PackagePtr mMainPackage;
+  vector<pair<string, string>> mExtensionRequests;
+  ObjectMapPtr mExtensionSettings;
+  State mState;
+  const rapidjson::Value& mMainTemplate;
+  set<ImportRequest> mRequested;
+  set<ImportRequest> mPending;
+  map<ImportRef, PackagePtr> mLoaded;
+  vector<PackagePtr> mOrderedDependencies;
+  map<string, JsonData> mParameterValues;
+  vector<string> mMainParameters;
+  vector<string> mEnvironmentParameters;
+  set<string> mPendingParameters;
+  vector<string> mAllParameters;
+}
+
 Content "1" *-- "n" Package
 Content *-- Session
 
 
-object RootContext
-RootContext : ContentPtr mContent;
-RootContext : ContextPtr mContext;
-RootContext : shared_ptr<RootContextData> mCore;
-RootContext : shared_ptr<TimeManager> mTimeManager;
-RootContext : apl_time_t mUTCTime;
-RootContext : apl_duration_t mLocalTimeAdjustment;
-RootContext : ConfigurationChange mActiveConfigurationChanges;
-RootContext : DisplayState mDisplayState;
-RootContext : sg::SceneGraphPtr mSceneGraph;
-RootContext *-- Content
-RootContext *-- Context
-RootContext *-- RootContextData
-RootContext *-- TimeManager
+abstract RootContext {
+    void configurationChange(const ConfigurationChange& change)
+    void updateDisplayState(DisplayState displayState)
+    void reinflate()
+    void clearPending() const
+    bool hasEvent() const
+    Event popEvent()
+    Context& context() const
+    ContextPtr contextPtr() const
+    ComponentPtr topComponent() const
+    DocumentContextPtr topDocument() const
+    bool isDirty() const
+    const std::set<ComponentPtr>& getDirty()
+    void clearDirty() {}
+    bool isVisualContextDirty() const
+    void clearVisualContextDirty()
+    rapidjson::Value serializeVisualContext(rapidjson::Document::AllocatorType& allocator)
+    bool isDataSourceContextDirty() const
+    void clearDataSourceContextDirty()
+    rapidjson::Value serializeDataSourceContext(rapidjson::Document::AllocatorType& allocator)
+    rapidjson::Value serializeDOM(bool extended, rapidjson::Document::AllocatorType& allocator)
+    rapidjson::Value serializeContext(rapidjson::Document::AllocatorType& allocator)
+    void cancelExecution()
+    void updateTime(apl_time_t elapsedTime)
+    void updateTime(apl_time_t elapsedTime, apl_time_t utcTime)
+    void setLocalTimeAdjustment(apl_duration_t adjustment)
+    void scrollToRectInComponent(const ComponentPtr& component, const Rect &bounds,
+                                         CommandScrollAlign align)
+    apl_time_t nextTime()
+    apl_time_t currentTime() const
+    bool screenLock() const
+    const RootConfig& rootConfig() const
+    Info info() const
+
+    bool handlePointerEvent(const PointerEvent& pointerEvent)
+    bool handleKeyboard(KeyHandlerType type, const Keyboard &keyboard)
+    const RootConfig& getRootConfig() const
+    ComponentPtr findComponentById(const std::string& id) const
+    UIDObject* findByUniqueId(const std::string& uid) const
+    std::string getTheme() const
+
+    std::map<std::string, Rect> getFocusableAreas()
+    bool setFocus(FocusDirection direction, const Rect& origin, const std::string& targetId)
+    bool nextFocus(FocusDirection direction, const Rect& origin)
+    bool nextFocus(FocusDirection direction)
+    void clearFocus()
+    std::string getFocused()
+    void mediaLoaded(const std::string& source)
+    void mediaLoadFailed(const std::string& source, int errorCode, const std::string& error)
+    sg::SceneGraphPtr getSceneGraph()
+}
+' UserData <|-- RootContext
+
+class SharedContextData {
+    std::string mRequestedVersion;
+    std::unique_ptr<DocumentRegistrar> mDocumentRegistrar;
+    std::unique_ptr<FocusManager> mFocusManager;
+    std::unique_ptr<HoverManager> mHoverManager;
+    std::unique_ptr<PointerManager> mPointerManager;
+    std::unique_ptr<KeyboardManager> mKeyboardManager;
+    std::unique_ptr<LayoutManager> mLayoutManager;
+    std::unique_ptr<TickScheduler> mTickScheduler;
+    std::unique_ptr<DirtyComponents> mDirtyComponents;
+    std::unique_ptr<UIDGenerator> mUniqueIdGenerator;
+    std::unique_ptr<EventManager> mEventManager;
+    std::unique_ptr<DependantManager> mDependantManager;
+    const DocumentManagerPtr mDocumentManager;
+    std::shared_ptr<TimeManager> mTimeManager;
+    std::shared_ptr<MediaManager> mMediaManager;
+    std::shared_ptr<MediaPlayerFactory> mMediaPlayerFactory;
+    YGConfigRef mYGConfigRef;
+    TextMeasurementPtr mTextMeasurement;
+    int mScreenLockCount
+    LruCache<TextMeasureRequest, YGSize> mCachedMeasures;
+    LruCache<TextMeasureRequest, float> mCachedBaselines;
+    std::unique_ptr<sg::TextPropertiesCache> mTextPropertiesCache;
+}
+
+class LayoutManager {
+    const CoreRootContext& mRoot;
+    std::set<CoreComponentPtr> mPendingLayout;
+    ViewportSize mConfiguredSize;
+    bool mTerminated = false;
+    bool mInLayout = false;    // Guard against recursive calls to layout
+    bool mNeedToReProcessLayoutChanges = false;
+    std::map<PPKey, Object, LayoutManager::PPKeyLess> mPostProcess;   // Collection of elements to post-process
+}
+
+SharedContextData *-- LayoutManager
+LayoutManager *-- CoreRootContext
+
+class DocumentContextData {
+        SharedContextDataPtr mSharedData;
+        std::weak_ptr<DocumentContext> mDocument;
+        Metrics mMetrics;
+        std::map<std::string, JsonResource> mLayouts;
+        std::map<std::string, JsonResource> mCommands;
+        std::map<std::string, JsonResource> mGraphics;
+        std::shared_ptr<Styles> mStyles;
+        std::unique_ptr<Sequencer> mSequencer;
+        std::unique_ptr<LiveDataManager> mDataManager;
+        std::unique_ptr<ExtensionManager> mExtensionManager;
+        std::unique_ptr<UIDManager> mUniqueIdManager;
+        CoreComponentPtr mTop;
+        SessionPtr mSession;
+        WeakPtrSet<CoreComponent> mPendingOnMounts;
+        std::set<ComponentPtr> mDirtyVisualContext;
+        std::set<DataSourceConnectionPtr> mDirtyDatasourceContext;
+        std::queue<Event> mExtensionEvents;
+}
+
+ContextData <|-- DocumentContextData
+DocumentContextData *-- SharedContextData
+DocumentContextData *.. DocumentContext
+DocumentContextData *-- CoreComponent
+DocumentContextData *-- Session
 
 
-' RootConfig
-RootConfig : ContextPtr mContext;
-RootConfig : TextMeasurementPtr mTextMeasurement;
-RootConfig : MediaManagerPtr mMediaManager;
-RootConfig : MediaPlayerFactoryPtr mMediaPlayerFactory;
-RootConfig : AudioPlayerFactoryPtr mAudioPlayerFactory;
-RootConfig : shared_ptr<TimeManager> mTimeManager;
-RootConfig : shared_ptr<LocaleMethods> mLocaleMethods;
-RootConfig : map<pair<ComponentType, bool>, pair<Dimension, Dimension>> mDefaultComponentSize;
-RootConfig : SessionPtr mSession;
-RootConfig : ObjectMap mEnvironmentValues;
-RootConfig : map<string, DataSourceProviderPtr> mDataSources;
-RootConfig : map<string, LiveObjectPtr> mLiveObjectMap;
-RootConfig : multimap<string, LiveDataObjectWatcherWPtr> mLiveDataObjectWatchersMap;
-RootConfig : alexaext::ExtensionProviderPtr mExtensionProvider;
-RootConfig : ExtensionMediatorPtr mExtensionMediator;
-RootConfig : ObjectMap mSupportedExtensions; // URI -> config
-RootConfig : ObjectMap mExtensionFlags; // URI -> opaque flags
-RootConfig : vector<ExtensionEventHandler> mExtensionHandlers;
-RootConfig : vector<ExtensionCommandDefinition> mExtensionCommands;
-RootConfig : vector<ExtensionFilterDefinition> mExtensionFilters;
-RootConfig : vector<ExtensionComponentDefinition> mExtensionComponentDefinitions;
-RootConfig : map<string, Color> mDefaultThemeFontColor;
-RootConfig : map<string, Color> mDefaultThemeHighlightColor;
-RootConfig : APLVersion mEnforcedAPLVersion = APLVersion::kAPLVersionIgnore;
-RootConfig : vector<pair<regex, bool>> mHeaderFilters;
-RootConfig : set<ExperimentalFeature> mEnabledExperimentalFeatures;
-RootConfig : RootPropertyMap mProperties;
-' RootConfig *-- Context : Only used for pre-evaluation
+class CoreDocumentContext {
+    ContentPtr mContent;
+    ContextPtr mContext;
+    DocumentContextDataPtr mCore;
+    ConfigurationChange mActiveConfigurationChanges;
+    DisplayState mDisplayState;
+}
+
+DocumentContext <|-- CoreDocumentContext
+CoreDocumentContext *-- DocumentContextData
+CoreDocumentContext *-- Content
+CoreDocumentContext *-- Context
+
+
+class CoreRootContext {
+    SharedContextDataPtr mShared;
+    std::shared_ptr<TimeManager> mTimeManager;
+    apl_time_t mUTCTime;
+    apl_duration_t mLocalTimeAdjustment;
+    DisplayState mDisplayState;
+    CoreDocumentContextPtr mTopDocument;
+    sg::SceneGraphPtr mSceneGraph;
+}
+
+RootContext <|-- CoreRootContext
+
+CoreRootContext *-- SharedContextData
+CoreRootContext *-- TimeManager
+CoreRootContext *-- CoreDocumentContext
+' CoreRootContext *-- SceneGraph
+
+
+class RootConfig  #CAFFBF {
+   ContextPtr mContext;
+   TextMeasurementPtr mTextMeasurement;
+   MediaManagerPtr mMediaManager;
+   MediaPlayerFactoryPtr mMediaPlayerFactory;
+   AudioPlayerFactoryPtr mAudioPlayerFactory;
+   shared_ptr<TimeManager> mTimeManager;
+   shared_ptr<LocaleMethods> mLocaleMethods;
+   map<pair<ComponentType, bool>, pair<Dimension, Dimension>> mDefaultComponentSize;
+   SessionPtr mSession;
+   ObjectMap mEnvironmentValues;
+   map<string, DataSourceProviderPtr> mDataSources;
+   map<string, LiveObjectPtr> mLiveObjectMap;
+   multimap<string, LiveDataObjectWatcherWPtr> mLiveDataObjectWatchersMap;
+   alexaext::ExtensionProviderPtr mExtensionProvider;
+   ExtensionMediatorPtr mExtensionMediator;
+   ObjectMap mSupportedExtensions; // URI -> config
+   ObjectMap mExtensionFlags; // URI -> opaque flags
+   vector<ExtensionEventHandler> mExtensionHandlers;
+   vector<ExtensionCommandDefinition> mExtensionCommands;
+   vector<ExtensionFilterDefinition> mExtensionFilters;
+   vector<ExtensionComponentDefinition> mExtensionComponentDefinitions;
+   map<string, Color> mDefaultThemeFontColor;
+   map<string, Color> mDefaultThemeHighlightColor;
+   APLVersion mEnforcedAPLVersion;
+   vector<pair<regex, bool>> mHeaderFilters;
+   set<ExperimentalFeature> mEnabledExperimentalFeatures;
+   RootPropertyMap mProperties;
+}
+
+' RootConfig *--    Only used for pre-evaluation
 RootConfig *-- Session
 RootConfig *-- TextMeasurement
 RootConfig *-- MediaManager

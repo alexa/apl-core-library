@@ -57,7 +57,7 @@ GraphicPtr
 Graphic::create(const ContextPtr& context,
                 const JsonResource& jsonResource,
                 Properties&& properties,
-                const std::shared_ptr<CoreComponent>& component)
+                const CoreComponentPtr& component)
 {
     return create(context,
                   jsonResource.json(),
@@ -71,7 +71,7 @@ GraphicPtr
 Graphic::create(const ContextPtr& context,
                 const rapidjson::Value& json,
                 Properties&& properties,
-                const std::shared_ptr<CoreComponent>& component,
+                const CoreComponentPtr& component,
                 const Path& path,
                 const StyleInstancePtr& styledPtr)
 {
@@ -164,7 +164,7 @@ void
 Graphic::initialize(const ContextPtr& sourceContext,
                     const rapidjson::Value& json,
                     Properties&& properties,
-                    const std::shared_ptr<CoreComponent>& component,
+                    const CoreComponentPtr& component,
                     const Path& path,
                     const StyleInstancePtr& styledPtr)
 {

@@ -117,8 +117,9 @@ public:
      * Assign focus to this component.
      * @param component The component to focus.  If null, will clear the focus.
      * @param notifyViewhost Flag to identify if viewhost notification required for this focus change.
+     * @param shouldScrollIntoView scroll the focused component into view if true, do nothing otherwise.
      */
-    void setFocus(const CoreComponentPtr& component, bool notifyViewhost);
+    void setFocus(const CoreComponentPtr& component, bool notifyViewhost, bool shouldScrollIntoView = true);
 
     /**
      * Release the focus if it is set on this component.
@@ -140,10 +141,16 @@ public:
      */
     CoreComponentPtr getFocus() { return mFocused.lock(); }
 
+    /**
+     * Terminates the Focus sequencers and prevents any further operations.
+     */
+    void terminate();
+
 private:
     const CoreRootContext& mCore;
     std::unique_ptr<FocusFinder> mFinder;
     std::weak_ptr<CoreComponent> mFocused;
+    bool mTerminated = false;
 
     void reportFocusedComponent();
     void clearFocusedComponent();

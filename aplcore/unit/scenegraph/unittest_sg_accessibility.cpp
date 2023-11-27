@@ -22,6 +22,7 @@ class SGAccessibilityTest : public DocumentWrapper {
 public:
     SGAccessibilityTest() : DocumentWrapper() {
         config->measure(std::make_shared<MyTestMeasurement>());
+        config->enableExperimentalFeature(apl::RootConfig::kExperimentalFeatureDynamicAccessibilityActions);
     }
 };
 
@@ -62,7 +63,11 @@ TEST_F(SGAccessibilityTest, Basic) {
         sg,
         IsLayer(Rect{0, 0, 300, 100})
             .vertical()
-            .accessibility(IsAccessibility().label("Master Scroll"))
+            .accessibility(IsAccessibility()
+                               .label("Master Scroll")
+                               .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                       AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                       true))
             .child(
                 IsLayer(Rect{0, 0, 300, 120})
                     .child(IsLayer(Rect{0, 0, 300, 40})
@@ -88,7 +93,12 @@ TEST_F(SGAccessibilityTest, Basic) {
         sg,
         IsLayer(Rect{0, 0, 300, 100})
             .vertical()
-            .accessibility(IsAccessibility().label("Master Scroll"))
+            .accessibility(
+                IsAccessibility()
+                    .label("Master Scroll")
+                    .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                            AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                            true))
             .child(
                 IsLayer(Rect{0, 0, 300, 120})
                     .child(IsLayer(Rect{0, 0, 300, 40})
@@ -155,6 +165,7 @@ TEST_F(SGAccessibilityTest, Role) {
                            .content(IsTransformNode().child(IsTextNode().text("Hello").pathOp(
                                IsFillOp(IsColorPaint(Color::BLACK))))))
                 .child(IsLayer(Rect{0, 100, 100, 100})
+                           .characteristic(sg::Layer::kCharacteristicHasMedia)
                            .accessibility(IsAccessibility().role(apl::kRoleImage)))));
 }
 
@@ -206,16 +217,11 @@ TEST_F(SGAccessibilityTest, Actions)
         sg, IsLayer(Rect{0, 0, 300, 300})
                 .pressable()
                 .accessibility(IsAccessibility()
-                                   .action("activate", "Message to Server", true)
-                                   .action("deactivate", "Different message", false))));
+                                   .action("activate", "Message to Server", true))));
 
     // Execute the first action
     sg->getLayer()->getAccessibility()->executeCallback("activate");
     CheckSendEvent(root, "alpha");
-
-    // Try to execute the second (it is disabled)
-    sg->getLayer()->getAccessibility()->executeCallback("deactivate");
-    ASSERT_FALSE(root->hasEvent());
 }
 
 
@@ -318,4 +324,93 @@ TEST_F(SGAccessibilityTest, Comparisons)
     b->appendAction("bounce", "this is a bounce", true);
     a->appendAction("bounce", "this is a bounce", false);
     ASSERT_NE(*a, *b);
+}
+
+static const char *NORMAL_PAGER = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "mainTemplate": {
+        "items": {
+          "type": "Pager",
+          "id": "MyPager",
+          "width": 300,
+          "height": 300,
+          "navigation": "normal",
+          "items": {
+            "type": "Frame",
+            "width": "100%",
+            "height": "100%",
+            "backgroundColor": "${data}"
+          },
+          "data": [
+            "red",
+            "blue",
+            "green"
+          ]
+        }
+      }
+    }
+)apl";
+
+TEST_F(SGAccessibilityTest, NormalPager)
+{
+    loadDocument(NORMAL_PAGER);
+    ASSERT_TRUE(component);
+
+    auto sg = root->getSceneGraph();
+    ASSERT_TRUE(sg);
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 300, 300}, "...Pager")
+                .horizontal()
+                .child(IsLayer(Rect{0, 0, 300, 300}, "...Child1")
+                           .content(IsDrawNode()
+                                        .path(IsRoundRectPath(0, 0, 300, 300, 0))
+                                        .pathOp(IsFillOp(IsColorPaint(Color::RED)))))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
+
+    sg->getLayer()->getAccessibility()->executeCallback(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD);
+    root->clearPending();
+
+    sg = root->getSceneGraph();
+    ASSERT_TRUE(sg);
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 300, 300}, "...Pager")
+                .horizontal()
+                .dirty(sg::Layer::kFlagChildrenChanged | sg::Layer::kFlagAccessibilityChanged)
+                .child(IsLayer(Rect{0, 0, 300, 300}, "...Child1")
+                           .content(IsDrawNode()
+                                        .path(IsRoundRectPath(0, 0, 300, 300, 0))
+                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true)
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
+
+    sg->getLayer()->getAccessibility()->executeCallback(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD);
+    root->clearPending();
+
+    sg = root->getSceneGraph();
+    ASSERT_TRUE(sg);
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 300, 300}, "...Pager")
+                .horizontal()
+                .dirty(sg::Layer::kFlagChildrenChanged | sg::Layer::kFlagAccessibilityChanged)
+                .child(IsLayer(Rect{0, 0, 300, 300}, "...Child1")
+                           .content(IsDrawNode()
+                                        .path(IsRoundRectPath(0, 0, 300, 300, 0))
+                                        .pathOp(IsFillOp(IsColorPaint(Color::GREEN)))))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true))));
 }

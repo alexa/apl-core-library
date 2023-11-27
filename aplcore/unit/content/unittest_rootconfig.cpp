@@ -51,3 +51,14 @@ TEST(RootConfigTest, CannotShadowExistingNames)
     // Check that all invalid names have been rejected, so the environment still appears empty
     ASSERT_TRUE(rootConfig.getEnvironmentValues().empty());
 }
+
+TEST(RootConfigTest, RootPropertyBimapFullySynced)
+{
+    for (int rootProperty = RootProperty::kRootPropertySetBegin + 1; rootProperty != RootProperty::kRootPropertySetEnd; rootProperty++) {
+        auto it = sRootPropertyBimap.find(static_cast<RootProperty>(rootProperty));
+        if (it == sRootPropertyBimap.end()) {
+            LOG(apl::LogLevel::kError) << "Key " << static_cast<RootProperty>(rootProperty) << " has not been assigned a name";
+        }
+        ASSERT_TRUE(it != sRootPropertyBimap.end());
+    }
+}

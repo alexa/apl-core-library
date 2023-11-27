@@ -49,7 +49,8 @@ static const std::map<GestureType, GestureFunc> sGestureFunctions =
     };
 
 std::shared_ptr<Gesture>
-Gesture::create(const ActionablePtr& actionable, const Object& object) {
+Gesture::create(const ActionablePtr& actionable, const Object& object)
+{
     if (!object.isMap())
         return nullptr;
 
@@ -83,7 +84,8 @@ Gesture::reset()
 }
 
 bool
-Gesture::consume(const PointerEvent& event, apl_time_t timestamp) {
+Gesture::consume(const PointerEvent& event, apl_time_t timestamp)
+{
     switch(event.pointerEventType) {
         case PointerEventType::kPointerDown:
             mStarted = true;
@@ -110,16 +112,25 @@ Gesture::consume(const PointerEvent& event, apl_time_t timestamp) {
 }
 
 void
-Gesture::passPointerEventThrough(const PointerEvent& event) {
+Gesture::passPointerEventThrough(const PointerEvent& event)
+{
     Point localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
     mActionable->executePointerEventHandler(sEventHandlers.at(event.pointerEventType), localPoint);
 }
 
 Point
-Gesture::toLocalVector(const Point& vector) {
+Gesture::toLocalVector(const Point& vector)
+{
     // Convert the vector to local space. Because the vector starts at (0,0) in local space, remove
     // the translation to avoid over-compensating for the position.
     return aboutOrigin(mActionable->getGlobalToLocalTransform()) * vector;
+}
+
+const std::vector<std::string>&
+Gesture::getAccessibilityActions() const
+{
+    static std::vector<std::string> sEmptyList = {};
+    return sEmptyList;
 }
 
 } // namespace apl

@@ -326,6 +326,7 @@ RootConfig::copy() const
     copy->documentManager(getDocumentManager());
     copy->mediaPlayerFactory(getMediaPlayerFactory());
     copy->measure(getMeasure());
+    copy->experimentalFeatures(getExperimentalFeatures());
 
     for (auto key : sCopyableConfigProperties) {
         copy->set(key, getProperty(key));

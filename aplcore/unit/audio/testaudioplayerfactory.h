@@ -33,6 +33,7 @@ struct FakeAudioContent {
     int initialDelay; // Initial buffering delay in milliseconds.  This applies to failed tracks as well.
     int failAfter;    // Fail after this many milliseconds.  May be 0.  Negative numbers never fail.
     std::vector<SpeechMark> speechMarks;  // Ordered series of speech marks to send out
+    TextTrackArray trackArray; // TextTrack (Caption) data associated with the Track
 };
 
 class TestAudioPlayerFactory : public AudioPlayerFactory,

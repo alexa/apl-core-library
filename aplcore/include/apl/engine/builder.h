@@ -21,6 +21,7 @@
 namespace apl {
 
 class Path;
+class InsertItemCommand;
 
 using MakeComponentFunc = std::function<CoreComponentPtr(const ContextPtr&, Properties&&, const Path&)>;
 
@@ -30,6 +31,7 @@ using MakeComponentFunc = std::function<CoreComponentPtr(const ContextPtr&, Prop
  */
 class Builder {
     friend LayoutRebuilder;
+    friend InsertItemCommand;
 
 public:
     /**

@@ -31,9 +31,10 @@ ScrollAction::ScrollAction(const TimersPtr& timers,
 
 std::shared_ptr<ScrollAction>
 ScrollAction::make(const TimersPtr& timers,
-                   const std::shared_ptr<CoreCommand>& command)
+                   const std::shared_ptr<CoreCommand>& command,
+                   apl_duration_t duration)
 {
-    return make(timers, command->context(), command->target(),  command->getValue(kCommandPropertyDistance));
+    return make(timers, command->context(), command->target(),  command->getValue(kCommandPropertyDistance), duration);
 }
 
 std::shared_ptr<ScrollAction>

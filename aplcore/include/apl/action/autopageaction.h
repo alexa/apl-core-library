@@ -37,7 +37,8 @@ public:
                    const ComponentPtr& container,
                    int start,
                    int end,
-                   apl_time_t duration);
+                   apl_duration_t duration,
+                   apl_duration_t transitionDuration);
 
     void freeze() override;
     bool rehydrate(const CoreDocumentContext& context) override;
@@ -52,7 +53,8 @@ private:
     size_t mCurrentIndex;
     size_t mNextIndex;
     size_t mEndIndex;
-    apl_time_t mDuration;
+    apl_duration_t mDuration;
+    apl_duration_t mTransitionDuration;
 };
 
 } // namespace apl

@@ -18,6 +18,7 @@
 #include "apl/component/touchwrappercomponent.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/propdef.h"
+#include "apl/primitives/accessibilityaction.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -35,12 +36,12 @@ LongPressGesture::LongPressGesture(const ActionablePtr& actionable, Object&& onL
         mStartTime(0),
         mOnLongPressStart(std::move(onLongPressStart)),
         mOnLongPressEnd(std::move(onLongPressEnd)),
-        mLongPressTimeout(actionable->getRootConfig().getLongPressTimeout()) {}
+        mLongPressTimeout(actionable->getRootConfig().getProperty(RootProperty::kLongPressTimeout).getDouble()) {}
 
 bool
 LongPressGesture::invokeAccessibilityAction(const std::string& name)
 {
-    if (name == "longpress") {
+    if (name == AccessibilityAction::ACCESSIBILITY_ACTION_LONGPRESS) {
         mActionable->executeEventHandler("LongPressEnd", mOnLongPressEnd, false,
                                          mActionable->createTouchEventProperties(Point()));
         return true;
@@ -48,14 +49,23 @@ LongPressGesture::invokeAccessibilityAction(const std::string& name)
     return false;
 }
 
+const std::vector<std::string>&
+LongPressGesture::getAccessibilityActions() const
+{
+    static std::vector<std::string> sActionsList = {AccessibilityAction::ACCESSIBILITY_ACTION_LONGPRESS};
+    return sActionsList;
+}
+
 bool
-LongPressGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
+LongPressGesture::onDown(const PointerEvent& event, apl_time_t timestamp)
+{
     mStartTime = timestamp;
     return true;
 }
 
 bool
-LongPressGesture::onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) {
+LongPressGesture::onTimeUpdate(const PointerEvent& event, apl_time_t timestamp)
+{
     if (!mTriggered && timestamp >= mStartTime + mLongPressTimeout) {
         Point localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
         mActionable->executePointerEventHandler(kPropertyOnCancel, localPoint);
@@ -68,7 +78,8 @@ LongPressGesture::onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) 
 }
 
 bool
-LongPressGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
+LongPressGesture::onUp(const PointerEvent& event, apl_time_t timestamp)
+{
     if (mTriggered) {
         Point localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
         auto params = mActionable->createTouchEventProperties(localPoint);

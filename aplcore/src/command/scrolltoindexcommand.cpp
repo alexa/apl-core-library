@@ -22,9 +22,10 @@ namespace apl {
 const CommandPropDefSet&
 ScrollToIndexCommand::propDefSet() const {
     static CommandPropDefSet sScrollToIndexCommandProperties(CoreCommand::propDefSet(), {
-            {kCommandPropertyAlign,       kCommandScrollAlignVisible, sCommandAlignMap },
-            {kCommandPropertyComponentId, "",                         asString,         kPropRequiredId},
-            {kCommandPropertyIndex,       0,                          asInteger,        kPropRequired},
+            {kCommandPropertyAlign,          kCommandScrollAlignVisible, sCommandAlignMap },
+            {kCommandPropertyComponentId,    "",                         asString,         kPropRequiredId},
+            {kCommandPropertyIndex,          0,                          asInteger,        kPropRequired},
+            {kCommandPropertyTargetDuration, -1,                         asInteger},
     });
 
     return sScrollToIndexCommandProperties;
@@ -51,7 +52,11 @@ ScrollToIndexCommand::execute(const TimersPtr& timers, bool fastMode) {
 
     mTarget = mTarget->getCoreChildAt(childIndex);
 
-    return ScrollToAction::make(timers, std::static_pointer_cast<CoreCommand>(shared_from_this()));
+    return ScrollToAction::make(
+        timers,
+        std::static_pointer_cast<CoreCommand>(shared_from_this()),
+        target(),
+        getValue(kCommandPropertyTargetDuration).getInteger());
 }
 
 } // namespace apl

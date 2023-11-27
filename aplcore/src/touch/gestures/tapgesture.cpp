@@ -20,7 +20,7 @@
 #include "apl/component/touchablecomponent.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/propdef.h"
-#include "apl/primitives/timefunctions.h"
+#include "apl/primitives/accessibilityaction.h"
 
 namespace apl {
 
@@ -50,16 +50,28 @@ TapGesture::reset() {
 bool
 TapGesture::invokeAccessibilityAction(const std::string& name)
 {
-    if (name == "activate") {
-        mActionable->executeEventHandler("Tap", mOnTap, false, mActionable->createTouchEventProperties(Point()));
+    if (name == AccessibilityAction::ACCESSIBILITY_ACTION_ACTIVATE ||
+        name == AccessibilityAction::ACCESSIBILITY_ACTION_TAP) {
+        mActionable->executeEventHandler(
+            "Tap", mOnTap, false, mActionable->createTouchEventProperties(Point()));
         return true;
     }
 
     return false;
 }
 
+const std::vector<std::string>&
+TapGesture::getAccessibilityActions() const
+{
+    static std::vector<std::string> sActionsList = {
+        AccessibilityAction::ACCESSIBILITY_ACTION_TAP,
+        AccessibilityAction::ACCESSIBILITY_ACTION_ACTIVATE};
+    return sActionsList;
+}
+
 bool
-TapGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
+TapGesture::onDown(const PointerEvent& event, apl_time_t timestamp)
+{
     mStartTime = timestamp;
     mStartPoint = mActionable->toLocalPoint(event.pointerEventPosition);
 
@@ -67,7 +79,8 @@ TapGesture::onDown(const PointerEvent& event, apl_time_t timestamp) {
 }
 
 bool
-TapGesture::onUp(const PointerEvent& event, apl_time_t timestamp) {
+TapGesture::onUp(const PointerEvent& event, apl_time_t timestamp)
+{
     float elapsedTimeInSeconds = (timestamp - mStartTime) / 1000;
     Point endPoint = mActionable->toLocalPoint(event.pointerEventPosition);
 

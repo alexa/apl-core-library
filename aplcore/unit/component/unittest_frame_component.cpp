@@ -230,6 +230,7 @@ TEST_F(FrameComponentTest, Styled) {
     // all values are styled
 
     ASSERT_TRUE(IsEqual(Color(Color::YELLOW), frame->getCalculated(kPropertyBackgroundColor)));
+    ASSERT_TRUE(IsEqual(Color(Color::YELLOW), frame->getCalculated(kPropertyBackground)));
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), frame->getCalculated(kPropertyBorderColor)));
 
     ASSERT_TRUE(IsEqual(Dimension(10), frame->getCalculated(kPropertyBorderRadius)));
@@ -573,4 +574,310 @@ TEST_F(FrameComponentTest, StyleFrameInnerBounds)
 
     ASSERT_EQ(Rect(100, 100, width - 200, height - 200), component->getCalculated(kPropertyInnerBounds).get<Rect>());
     ASSERT_EQ(Rect(100, 100, width - 400, height - 400), image->getCalculated(kPropertyInnerBounds).get<Rect>());
+}
+
+static const char *FRAME_BACKGROUND_OPTIONS = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "items": [
+        {
+          "type": "Frame",
+          "width": "33%",
+          "height": "33%",
+          "backgroundColor": "red"
+        },
+        {
+          "type": "Frame",
+          "width": "33%",
+          "height": "33%",
+          "background": "red"
+        },
+        {
+          "type": "Frame",
+          "width": "33%",
+          "height": "33%",
+          "background": {
+            "type": "linear",
+            "colorRange": [ "#FF000066", "#F7C10066", "#6DD40066", "#0091FF66", "#6236FF66"],
+            "inputRange": [ 0, 0.25, 0.55, 0.8, 1.0 ],
+            "angle": 270
+          }
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(FrameComponentTest, FrameBackgroundOptions)
+{
+    loadDocument(FRAME_BACKGROUND_OPTIONS);
+
+    ASSERT_EQ(Color(0xff0000ff), component->getChildAt(0)->getCalculated(apl::kPropertyBackground).asColor(session));
+    ASSERT_EQ(Color(0xff0000ff), component->getChildAt(1)->getCalculated(apl::kPropertyBackground).asColor(session));
+    auto gradient = component->getChildAt(2)->getCalculated(apl::kPropertyBackground).get<Gradient>();
+    ASSERT_EQ(270, gradient.getProperty(apl::kGradientPropertyAngle).getInteger());
+}
+
+static const char *FRAME_BACKGROUND_OVERRIDE = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "items": {
+        "type": "Frame",
+        "width": "100%",
+        "height": "100%",
+        "backgroundColor": "red",
+        "background": "blue"
+      }
+    }
+  }
+})";
+
+TEST_F(FrameComponentTest, FrameBackgroundOverride)
+{
+    loadDocument(FRAME_BACKGROUND_OVERRIDE);
+
+    ASSERT_EQ(Color(0x0000ffff), component->getCalculated(apl::kPropertyBackground).asColor(session));
+}
+
+static const char *STYLE_FRAME_BACKGROUND_FROM_COLOR = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "styles": {
+    "FrameStyle": {
+      "values": [
+        {
+          "backgroundColor": "red"
+        },
+        {
+          "when": "${state.pressed}",
+          "background": "blue"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Frame",
+      "style": "FrameStyle",
+      "width": "100%",
+      "height": "100%"
+    }
+  }
+})";
+
+TEST_F(FrameComponentTest, StyleFrameBackgroundFromColor)
+{
+    loadDocument(STYLE_FRAME_BACKGROUND_FROM_COLOR);
+
+    ASSERT_TRUE(component->getCalculated(apl::kPropertyBackground).is<Color>());
+    ASSERT_EQ(0xff0000ff, component->getCalculated(apl::kPropertyBackground).getColor());
+
+    component->setState(kStatePressed, true);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyBackground, kPropertyVisualHash));
+
+    ASSERT_TRUE(component->getCalculated(apl::kPropertyBackground).is<Color>());
+    ASSERT_EQ(0x0000ffff, component->getCalculated(apl::kPropertyBackground).getColor());
+}
+
+static const char *STYLE_FRAME_BACKGROUND_TO_GRADIENT = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "styles": {
+    "FrameStyle": {
+      "values": [
+        {
+          "background": "red"
+        },
+        {
+          "when": "${state.pressed}",
+          "background": {
+            "type": "linear",
+            "colorRange": [ "#FF000066", "#F7C10066", "#6DD40066", "#0091FF66", "#6236FF66"],
+            "inputRange": [ 0, 0.25, 0.55, 0.8, 1.0 ],
+            "angle": 270
+          }
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Frame",
+      "style": "FrameStyle",
+      "width": "100%",
+      "height": "100%"
+    }
+  }
+})";
+
+TEST_F(FrameComponentTest, StyleFrameBackgroundToGradient)
+{
+    loadDocument(STYLE_FRAME_BACKGROUND_TO_GRADIENT);
+
+    ASSERT_TRUE(component->getCalculated(apl::kPropertyBackground).is<Color>());
+    ASSERT_EQ(0xff0000ff, component->getCalculated(apl::kPropertyBackground).getColor());
+
+    component->setState(kStatePressed, true);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyBackground, kPropertyVisualHash));
+
+    ASSERT_TRUE(component->getCalculated(apl::kPropertyBackground).is<Gradient>());
+}
+
+static const char *STYLE_FRAME_COLOR_TO_BACKGROUND_OVERRIDE = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "styles": {
+    "FrameStyle": {
+      "values": [
+        {
+          "background": "red"
+        },
+        {
+          "when": "${state.pressed}",
+          "backgroundColor": "green",
+          "background": "blue"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Frame",
+      "style": "FrameStyle",
+      "width": "100%",
+      "height": "100%"
+    }
+  }
+})";
+
+TEST_F(FrameComponentTest, StyleFrameColorToBackgroundOverride)
+{
+    loadDocument(STYLE_FRAME_COLOR_TO_BACKGROUND_OVERRIDE);
+
+    ASSERT_TRUE(component->getCalculated(apl::kPropertyBackground).is<Color>());
+    ASSERT_EQ(0xff0000ff, component->getCalculated(apl::kPropertyBackground).getColor());
+
+    component->setState(kStatePressed, true);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyBackgroundColor, kPropertyBackground, kPropertyVisualHash));
+
+    ASSERT_EQ(0x0000ffff, component->getCalculated(apl::kPropertyBackground).getColor());
+}
+
+static const char *STYLE_FRAME_BACKGROUND_TO_COLOR = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "styles": {
+    "FrameStyle": {
+      "values": [
+        {
+          "background": "red"
+        },
+        {
+          "when": "${state.pressed}",
+          "backgroundColor": "green"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Frame",
+      "style": "FrameStyle",
+      "width": "100%",
+      "height": "100%"
+    }
+  }
+})";
+
+TEST_F(FrameComponentTest, StyleFrameBackgroundToColor)
+{
+    loadDocument(STYLE_FRAME_BACKGROUND_TO_COLOR);
+
+    ASSERT_TRUE(component->getCalculated(apl::kPropertyBackground).is<Color>());
+    ASSERT_EQ(0xff0000ff, component->getCalculated(apl::kPropertyBackground).getColor());
+
+    component->setState(kStatePressed, true);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyBackgroundColor, kPropertyVisualHash));
+
+    // Can't override preferred "background", which is defined in the base style.
+    ASSERT_EQ(0xff0000ff, component->getCalculated(apl::kPropertyBackground).getColor());
+}
+
+static const char *STYLE_FRAME_COLOR_TO_TRANSPARENT_BACKGROUND_OVERRIDE = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "styles": {
+    "FrameStyle": {
+      "values": [
+        {
+          "backgroundColor": "red"
+        },
+        {
+          "when": "${state.pressed}",
+          "backgroundColor": "red",
+          "background": "transparent"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Frame",
+      "style": "FrameStyle",
+      "width": "100%",
+      "height": "100%"
+    }
+  }
+})";
+
+TEST_F(FrameComponentTest, StyleFrameColorToTransparentBackgroundOverride)
+{
+    loadDocument(STYLE_FRAME_COLOR_TO_TRANSPARENT_BACKGROUND_OVERRIDE);
+
+    ASSERT_TRUE(component->getCalculated(apl::kPropertyBackground).is<Color>());
+    ASSERT_EQ(0xff0000ff, component->getCalculated(apl::kPropertyBackground).getColor());
+
+    component->setState(kStatePressed, true);
+    root->clearPending();
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyBackground, kPropertyVisualHash));
+
+    ASSERT_EQ(0x00000000, component->getCalculated(apl::kPropertyBackground).getColor());
+}
+
+static const char *FRAME_COLOR_TO_TRANSPARENT_BACKGROUND_OVERRIDE = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "items": {
+      "type": "Frame",
+      "style": "FrameStyle",
+      "width": "100%",
+      "height": "100%",
+      "backgroundColor": "red",
+      "background": "transparent"
+    }
+  }
+})";
+
+TEST_F(FrameComponentTest, FrameColorToTransparentBackgroundOverride)
+{
+    loadDocument(FRAME_COLOR_TO_TRANSPARENT_BACKGROUND_OVERRIDE);
+
+    ASSERT_TRUE(component->getCalculated(apl::kPropertyBackground).is<Color>());
+    ASSERT_EQ(0x00000000, component->getCalculated(apl::kPropertyBackground).getColor());
 }

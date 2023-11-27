@@ -19,7 +19,6 @@
 #include <yoga/Yoga.h>
 
 #include "apl/common.h"
-#include "apl/content/content.h"
 #include "apl/content/metrics.h"
 #include "apl/content/settings.h"
 #include "apl/engine/event.h"
@@ -185,8 +184,8 @@ private:
 
     const DocumentManagerPtr mDocumentManager;
     std::shared_ptr<TimeManager> mTimeManager;
-    std::shared_ptr<MediaManager> mMediaManager;
-    std::shared_ptr<MediaPlayerFactory> mMediaPlayerFactory;
+    MediaManagerPtr mMediaManager;
+    MediaPlayerFactoryPtr mMediaPlayerFactory;
 
     YGConfigRef mYGConfigRef;
     TextMeasurementPtr mTextMeasurement;

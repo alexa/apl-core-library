@@ -285,6 +285,90 @@ TEST_F(SGFrameTest, ModifyFrames) {
                 })));
 }
 
+static const char *MODIFY_GRADIENT_FRAMES = R"apl(
+    {
+      "type": "APL",
+      "version": "1.8",
+      "mainTemplate": {
+        "item": {
+          "type": "Container",
+          "width": 200,
+          "height": 100,
+          "id": "Container",
+          "items": {
+            "type": "Frame",
+            "id": "${data}Frame",
+            "padding": 10,
+            "width": 40,
+            "height": 50,
+            "backgroundColor": "${data}"
+          },
+          "data": [
+            "green",
+            "blue",
+            "red"
+          ]
+        }
+      }
+    }
+)apl";
+
+static const char *SWAP_TO_GRADIENT = R"apl([{
+  "type": "SetValue",
+  "componentId": "greenFrame",
+  "property": "background",
+  "value": {
+    "type": "linear",
+    "colorRange": [ "red", "white" ],
+    "inputRange": [ 0, 1 ]
+  }
+}])apl";
+
+TEST_F(SGFrameTest, ModifyGradientFrames) {
+    loadDocument(MODIFY_GRADIENT_FRAMES);
+    ASSERT_TRUE(component);
+
+    auto sg = root->getSceneGraph();
+    ASSERT_TRUE(sg);
+
+    ASSERT_TRUE(CheckSceneGraph(sg, IsLayer(Rect{0, 0, 200, 100}, "..container")
+        .children({
+            IsLayer(Rect{0, 0, 40, 50}, "..frame1")
+                .content(IsDrawNode()
+                             .path(IsRoundRectPath(0, 0, 40, 50, 0))
+                             .pathOp(IsFillOp(IsColorPaint(Color::GREEN)))),
+            IsLayer(Rect{0, 50, 40, 50}, "..frame2")
+                .content(IsDrawNode()
+                             .path(IsRoundRectPath(0, 0, 40, 50, 0))
+                             .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))),
+            // Note that the third Frame is off the screen and is not drawn
+        })));
+
+    rapidjson::Document doc;
+    doc.Parse(SWAP_TO_GRADIENT);
+    executeCommands(apl::Object(doc), false);
+
+    sg = root->getSceneGraph();
+
+    ASSERT_TRUE(CheckSceneGraph(sg, IsLayer(Rect{0, 0, 200, 100}, "..container")
+        .children({
+            IsLayer(Rect{0, 0, 40, 50}, "..frame1")
+                .dirty(sg::Layer::kFlagRedrawContent)
+                .content(IsDrawNode()
+                             .path(IsRoundRectPath(0, 0, 40, 50, 0))
+                             .pathOp(IsFillOp(IsLinearGradientPaint({0, 1},
+                                                                    {Color::RED, Color::WHITE},
+                                                                    Gradient::GradientSpreadMethod::PAD,
+                                                                    true, {0.5, 0}, {0.5, 1}, 1,
+                                                                    Transform2D())))),
+            IsLayer(Rect{0, 50, 40, 50}, "..frame2")
+                .content(IsDrawNode()
+                             .path(IsRoundRectPath(0, 0, 40, 50, 0))
+                             .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))),
+            // Note that the third Frame is off the screen and is not drawn
+        })));
+}
+
 
 static const char *SHADOW = R"apl(
     {

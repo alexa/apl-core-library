@@ -173,7 +173,7 @@ public:
 
 private:
     SharedContextDataPtr mSharedData;
-    std::weak_ptr<DocumentContext> mDocument;
+    DocumentContextWeakPtr mDocument;
     Metrics mMetrics;
     std::map<std::string, JsonResource> mLayouts;
     std::map<std::string, JsonResource> mCommands;

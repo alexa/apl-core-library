@@ -28,18 +28,20 @@ namespace apl {
  */
 class EmbedRequest final {
 public:
+    static EmbedRequestPtr create(URLRequest url, const DocumentContextPtr& origin, const ComponentPtr& originComponent);
 
-    static EmbedRequestPtr create(URLRequest url, const DocumentContextPtr& origin);
-
-    EmbedRequest(URLRequest url, const DocumentContextPtr& origin);
+    EmbedRequest(URLRequest url, const DocumentContextPtr& origin, const ComponentPtr& parent);
 
     const URLRequest& getUrlRequest() const;
 
     DocumentContextPtr getOrigin() const;
 
 private:
+    friend class Content;
+
     const URLRequest mUrl;
-    std::weak_ptr<DocumentContext> mOrigin;
+    DocumentContextWeakPtr mOrigin;
+    std::weak_ptr<Component> mOriginComponent;
 };
 
 } // namespace apl

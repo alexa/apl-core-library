@@ -18,7 +18,6 @@
 #include <map>
 
 #include "testmediaplayerfactory.h"
-#include "apl/component/videocomponent.h"
 
 using namespace apl;
 
@@ -1632,4 +1631,42 @@ TEST_F(MediaPlayerTest, MuteVideo) {
     executeCommand("SetValue", {{"componentId", "MyVideo"}, {"property", "muted"}, {"value", true}}, false);
     ASSERT_TRUE(testMediaPlayer->isMuted());
 
+}
+
+static const char* VIDEO_IN_CONTAINER_WITH_AUTOPLAY = R"({
+  "type": "APL",
+  "version": "2023.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "width": 200,
+      "height": 200,
+      "items": {
+        "type": "Video",
+        "id": "VIDEO",
+        "autoplay": true,
+        "width": "100%",
+        "height": "100%",
+        "onPlay": {
+          "type": "SendEvent",
+          "sequencer": "FOO",
+          "arguments": [
+            "Handler: ${event.source.handler}"
+          ]
+        }
+      }
+    }
+  }
+})";
+
+TEST_F(MediaPlayerTest, AutoplayDoesntPlayVideoWhenDisallowVideoTrue) {
+    config->set(RootProperty::kDisallowVideo, true);
+    loadDocument(VIDEO_IN_CONTAINER_WITH_AUTOPLAY);
+
+    ASSERT_TRUE(component);
+    auto v = std::static_pointer_cast<CoreComponent>(root->findComponentById("VIDEO"));
+    // No media player when disallow is true
+    ASSERT_EQ(v->getMediaPlayer(), nullptr);
+    // onPlay was not triggered
+    ASSERT_FALSE(root->hasEvent());
 }

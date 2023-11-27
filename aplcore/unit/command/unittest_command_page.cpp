@@ -32,6 +32,18 @@ public:
         return executeCommands(doc, false);
     }
 
+    ActionPtr executeSetPage(const std::string& component, const std::string& position, int value, int transitionDuration) {
+        rapidjson::Value cmd(rapidjson::kObjectType);
+        auto& alloc = doc.GetAllocator();
+        cmd.AddMember("type", "SetPage", alloc);
+        cmd.AddMember("componentId", rapidjson::Value(component.c_str(), alloc).Move(), alloc);
+        cmd.AddMember("position", rapidjson::Value(position.c_str(), alloc).Move(), alloc);
+        cmd.AddMember("transitionDuration", transitionDuration, alloc);
+        cmd.AddMember("value", value, alloc);
+        doc.SetArray().PushBack(cmd, alloc);
+        return executeCommands(doc, false);
+    }
+
     ActionPtr executeAutoPage(const std::string& component, int count, int duration) {
         rapidjson::Value cmd(rapidjson::kObjectType);
         auto& alloc = doc.GetAllocator();
@@ -39,6 +51,18 @@ public:
         cmd.AddMember("componentId", rapidjson::Value(component.c_str(), alloc).Move(), alloc);
         cmd.AddMember("count", count, alloc);
         cmd.AddMember("duration", duration, alloc);
+        doc.SetArray().PushBack(cmd, alloc);
+        return executeCommands(doc, false);
+    }
+
+    ActionPtr executeAutoPage(const std::string& component, int count, int duration, int transitionDuration) {
+        rapidjson::Value cmd(rapidjson::kObjectType);
+        auto& alloc = doc.GetAllocator();
+        cmd.AddMember("type", "AutoPage", alloc);
+        cmd.AddMember("componentId", rapidjson::Value(component.c_str(), alloc).Move(), alloc);
+        cmd.AddMember("count", count, alloc);
+        cmd.AddMember("duration", duration, alloc);
+        cmd.AddMember("transitionDuration", transitionDuration, alloc);
         doc.SetArray().PushBack(cmd, alloc);
         return executeCommands(doc, false);
     }
@@ -717,4 +741,185 @@ TEST_F(CommandPageTest, AutoPagerOnMountWithDelay)
     advanceTime(5000);
     advanceTime(600);
     ASSERT_EQ(0, component->pagePosition());
+}
+
+static const char *SIMPLER_PAGER = R"apl({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Pager",
+      "id": "myPager",
+      "width": "100%",
+      "height": "100%",
+      "data": [ "red", "green", "blue", "orange" ],
+      "items": [
+        {
+          "type": "Frame",
+          "backgroundColor": "${data}"
+        }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(CommandPageTest, SetPageTransitionRelativeDuration)
+{
+    loadDocument(SIMPLER_PAGER);
+    ASSERT_EQ(0, component->pagePosition());
+
+    executeSetPage("myPager", "relative", 1, 300);
+
+    advanceTime(300);
+    ASSERT_EQ(1, component->pagePosition());
+}
+
+TEST_F(CommandPageTest, AutoPageTransitionDuration)
+{
+    loadDocument(SIMPLER_PAGER);
+    ASSERT_EQ(0, component->pagePosition());
+
+    executeAutoPage("myPager", 2, 100, 300);
+
+    advanceTime(300);
+    ASSERT_EQ(1, component->pagePosition());
+
+    advanceTime(100);
+    ASSERT_EQ(1, component->pagePosition());
+
+    advanceTime(300);
+    ASSERT_EQ(2, component->pagePosition());
+}
+
+TEST_F(CommandPageTest, SetPageTransitionDurationAbsolute)
+{
+    loadDocument(SIMPLER_PAGER);
+    ASSERT_EQ(0, component->pagePosition());
+
+    executeSetPage("myPager", "absolute", 2, 300);
+
+    advanceTime(150);
+    ASSERT_EQ(0, component->pagePosition());
+    advanceTime(150);
+    ASSERT_EQ(2, component->pagePosition());
+}
+
+TEST_F(CommandPageTest, SetPageTransitionZeroDurationAbsolute)
+{
+    loadDocument(SIMPLER_PAGER);
+    ASSERT_EQ(0, component->pagePosition());
+
+    executeSetPage("myPager", "absolute", 2, 0);
+
+    advanceTime(1);
+    ASSERT_EQ(2, component->pagePosition());
+}
+
+TEST_F(CommandPageTest, SetPageTransitionZeroDurationRelative)
+{
+    loadDocument(SIMPLER_PAGER);
+    ASSERT_EQ(0, component->pagePosition());
+
+    executeSetPage("myPager", "relative", 2, 0);
+
+    advanceTime(1);
+    ASSERT_EQ(2, component->pagePosition());
+}
+
+static const char *SIMPLER_PAGER_WITH_HANDLER = R"apl({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Pager",
+      "id": "myPager",
+      "width": "100%",
+      "height": "100%",
+      "handlePageMove": [
+        {
+          "drawOrder": "higherAbove",
+          "commands": [
+            {
+              "type": "SetValue",
+              "componentId": "${event.nextChild.uid}",
+              "property": "transform",
+              "value": [
+                { "translateX": "-${100 * event.amount}%" }
+              ]
+            }
+          ]
+        }
+      ],
+      "data": [ "red", "green", "blue", "orange" ],
+      "items": [
+        {
+          "type": "Frame",
+          "backgroundColor": "${data}"
+        }
+      ]
+    }
+  }
+})apl";
+
+TEST_F(CommandPageTest, SetPageTransitionDurationRelativeWithHandler)
+{
+    loadDocument(SIMPLER_PAGER_WITH_HANDLER);
+    ASSERT_EQ(0, component->pagePosition());
+
+    executeSetPage("myPager", "relative", 1, 300);
+
+    advanceTime(300);
+    ASSERT_EQ(1, component->pagePosition());
+}
+
+TEST_F(CommandPageTest, AutoPageTransitionDurationWithHandler)
+{
+    loadDocument(SIMPLER_PAGER_WITH_HANDLER);
+    ASSERT_EQ(0, component->pagePosition());
+
+    executeAutoPage("myPager", 2, 100, 300);
+
+    advanceTime(300);
+    ASSERT_EQ(1, component->pagePosition());
+
+    advanceTime(100);
+    ASSERT_EQ(1, component->pagePosition());
+
+    advanceTime(300);
+    ASSERT_EQ(2, component->pagePosition());
+}
+
+TEST_F(CommandPageTest, SetPageTransitionDurationAbsoluteWithHandler)
+{
+    loadDocument(SIMPLER_PAGER_WITH_HANDLER);
+    ASSERT_EQ(0, component->pagePosition());
+
+    executeSetPage("myPager", "absolute", 2, 300);
+
+    advanceTime(150);
+    ASSERT_EQ(0, component->pagePosition());
+    advanceTime(150);
+    ASSERT_EQ(2, component->pagePosition());
+}
+
+TEST_F(CommandPageTest, SetPageTransitionZeroDurationAbsoluteWithHandler)
+{
+    loadDocument(SIMPLER_PAGER_WITH_HANDLER);
+    ASSERT_EQ(0, component->pagePosition());
+
+    executeSetPage("myPager", "absolute", 2, 0);
+
+    advanceTime(1);
+    ASSERT_EQ(2, component->pagePosition());
+}
+
+TEST_F(CommandPageTest, SetPageTransitionZeroDurationRelativeWithHandler)
+{
+    loadDocument(SIMPLER_PAGER_WITH_HANDLER);
+    ASSERT_EQ(0, component->pagePosition());
+
+    executeSetPage("myPager", "relative", 2, 0);
+
+    advanceTime(1);
+    ASSERT_EQ(2, component->pagePosition());
 }

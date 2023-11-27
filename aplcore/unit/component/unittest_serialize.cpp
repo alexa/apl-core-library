@@ -269,10 +269,10 @@ TEST_F(SerializeTest, Components)
     ASSERT_EQ(frame->getCalculated(kPropertyBorderColor).getColor(), Color(session, frameJson["borderColor"].GetString()));
     ASSERT_EQ(frame->getCalculated(kPropertyBorderWidth).getAbsoluteDimension(), frameJson["borderWidth"].GetDouble());
     auto action = frame->getCalculated(kPropertyAccessibilityActions).at(0).get<AccessibilityAction>();
-    ASSERT_EQ(action->getName(), frameJson["action"][0]["name"].GetString());
-    ASSERT_EQ(action->getLabel(), frameJson["action"][0]["label"].GetString());
-    ASSERT_EQ(action->enabled(), frameJson["action"][0]["enabled"].GetBool());
-    ASSERT_FALSE(frameJson["action"][0].HasMember("commands"));  // Commands don't get serialized
+    ASSERT_EQ(action->getName(), frameJson["_actions"][0]["name"].GetString());
+    ASSERT_EQ(action->getLabel(), frameJson["_actions"][0]["label"].GetString());
+    ASSERT_EQ(action->enabled(), frameJson["_actions"][0]["enabled"].GetBool());
+    ASSERT_FALSE(frameJson["_actions"][0].HasMember("commands"));  // Commands don't get serialized
 
     auto sequence = context->findComponentById("sequence");
     ASSERT_TRUE(sequence);
@@ -414,8 +414,9 @@ const static char *SERIALIZE_ALL_RESULT = R"({
   "__inheritParentState": false,
   "__style": "",
   "__path": "_main/layouts/MyLayout/items",
-  "accessibilityLabel": "",
+  "_actions": [],
   "action": [],
+  "accessibilityLabel": "",
   "_bounds": [
     0,
     0,
@@ -454,6 +455,7 @@ const static char *SERIALIZE_ALL_RESULT = R"({
   "maxWidth": null,
   "minHeight": 0,
   "minWidth": 0,
+  "onChildrenChanged": [],
   "onMount": [],
   "onSpeechMark": [],
   "opacity": 1,
@@ -1088,4 +1090,34 @@ TEST_F(SerializeTest, SerializeHeaders) {
     for(auto i = 0; i < imageHeaders.size(); ++i) {
         ASSERT_EQ(imageHeaders[i], serializedHeaders[i].GetString());
     }
+}
+
+static const char* VIDEO_IN_CONTAINER = R"({
+  "type": "APL",
+  "version": "2023.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "width": 200,
+      "height": 200,
+      "items": {
+        "type": "Video",
+        "id": "VIDEO",
+        "width": "100%",
+        "height": "100%"
+      }
+    }
+  }
+})";
+
+TEST_F(SerializeTest, DisallowedVideoHasNoSerializedMediaPlayer) {
+    config->set(RootProperty::kDisallowVideo, true);
+    loadDocument(VIDEO_IN_CONTAINER);
+    ASSERT_TRUE(component);
+
+    auto v = context->findComponentById("VIDEO");
+    rapidjson::Document doc;
+    auto json = v->serialize(doc.GetAllocator());
+
+    ASSERT_FALSE(json.HasMember("__mediaPlayer"));
 }

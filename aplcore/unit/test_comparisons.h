@@ -60,6 +60,16 @@ IsEqual(const Point& lhs, const Point& rhs, float epsilon = 0.0001) {
 }
 
 inline ::testing::AssertionResult
+IsEqual(const Size& lhs, const Size& rhs, float epsilon = 0.0001) {
+    if (std::abs(lhs.getWidth() - rhs.getWidth()) > epsilon ||
+        std::abs(lhs.getHeight() - rhs.getHeight()) > epsilon)
+        return ::testing::AssertionFailure()
+               << lhs.toDebugString() << " != " << rhs.toDebugString();
+
+    return ::testing::AssertionSuccess();
+}
+
+inline ::testing::AssertionResult
 IsEqual(const Rect& lhs, const Rect& rhs, float epsilon = 0.0001) {
     if (std::abs(lhs.getX() - rhs.getX()) > epsilon ||
         std::abs(lhs.getY() - rhs.getY()) > epsilon ||

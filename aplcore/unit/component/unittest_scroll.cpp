@@ -33,6 +33,17 @@ public:
         executeCommands(doc, false);
     }
 
+    void executeScroll(const std::string& component, float distance, int duration) {
+        rapidjson::Value cmd(rapidjson::kObjectType);
+        auto& alloc = doc.GetAllocator();
+        cmd.AddMember("type", "Scroll", alloc);
+        cmd.AddMember("componentId", rapidjson::Value(component.c_str(), alloc).Move(), alloc);
+        cmd.AddMember("distance", distance, alloc);
+        cmd.AddMember("targetDuration", duration, alloc);
+        doc.SetArray().PushBack(cmd, alloc);
+        executeCommands(doc, false);
+    }
+
     void executeScroll(const std::string& component, const std::string& distance) {
         rapidjson::Value cmd(rapidjson::kObjectType);
         auto& alloc = doc.GetAllocator();
@@ -47,6 +58,12 @@ public:
         ASSERT_FALSE(root->hasEvent());
         executeScroll(component->getId(), distance);
         advanceTime(1000);
+    }
+
+    void completeScroll(const ComponentPtr& component, float distance, int duration) {
+        ASSERT_FALSE(root->hasEvent());
+        executeScroll(component->getId(), distance, duration);
+        advanceTime(duration);
     }
 
     void completeScroll(const ComponentPtr& component, const std::string& distance) {
@@ -66,10 +83,28 @@ public:
         executeCommands(doc, false);
     }
 
+    void executeScrollToIndex(const std::string& component, int index, CommandScrollAlign align, int duration) {
+        rapidjson::Value cmd(rapidjson::kObjectType);
+        auto& alloc = doc.GetAllocator();
+        cmd.AddMember("type", "ScrollToIndex", alloc);
+        cmd.AddMember("componentId", rapidjson::Value(component.c_str(), alloc).Move(), alloc);
+        cmd.AddMember("index", index, alloc);
+        cmd.AddMember("align", rapidjson::StringRef(sCommandAlignMap.at(align).c_str()), alloc);
+        cmd.AddMember("targetDuration", duration, alloc);
+        doc.SetArray().PushBack(cmd, alloc);
+        executeCommands(doc, false);
+    }
+
     void scrollToIndex(const ComponentPtr& component, int index, CommandScrollAlign align) {
         ASSERT_FALSE(root->hasEvent());
         executeScrollToIndex(component->getId(), index, align);
         advanceTime(1000);
+    }
+
+    void scrollToIndex(const ComponentPtr& component, int index, CommandScrollAlign align, int duration) {
+        ASSERT_FALSE(root->hasEvent());
+        executeScrollToIndex(component->getId(), index, align, duration);
+        advanceTime(duration);
     }
 
     void executeScrollToComponent(const std::string& component, CommandScrollAlign align) {
@@ -82,51 +117,67 @@ public:
         executeCommands(doc, false);
     }
 
+    void executeScrollToComponent(const std::string& component, CommandScrollAlign align, int duration) {
+        rapidjson::Value cmd(rapidjson::kObjectType);
+        auto& alloc = doc.GetAllocator();
+        cmd.AddMember("type", "ScrollToComponent", alloc);
+        cmd.AddMember("componentId", rapidjson::Value(component.c_str(), alloc).Move(), alloc);
+        cmd.AddMember("align", rapidjson::StringRef(sCommandAlignMap.at(align).c_str()), alloc);
+        cmd.AddMember("targetDuration", duration, alloc);
+        doc.SetArray().PushBack(cmd, alloc);
+        executeCommands(doc, false);
+    }
+
     void scrollToComponent(const ComponentPtr& component, CommandScrollAlign align) {
         ASSERT_FALSE(root->hasEvent());
         executeScrollToComponent(component->getId(), align);
         advanceTime(1000);
     }
 
+    void scrollToComponent(const ComponentPtr& component, CommandScrollAlign align, int duration) {
+        ASSERT_FALSE(root->hasEvent());
+        executeScrollToComponent(component->getId(), align, duration);
+        advanceTime(duration);
+    }
+
     rapidjson::Document doc;
 };
 
-static const char *SCROLL_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"ScrollView\","
-    "          \"id\": \"myScrollView\","
-    "          \"width\": \"200\","
-    "          \"height\": \"200\","
-    "          \"items\": {"
-    "            \"type\": \"Frame\","
-    "            \"id\": \"myFrame\","
-    "            \"width\": 200,"
-    "            \"height\": 1000"
-    "          }"
-    "        },"
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"myTouch\","
-    "          \"height\": 10,"
-    "          \"onPress\": {"
-    "            \"type\": \"Scroll\","
-    "            \"componentId\": \"myScrollView\","
-    "            \"distance\": 0.5"
-    "          }"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SCROLL_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "width": 200,
+      "height": 300,
+      "items": [
+        {
+          "type": "ScrollView",
+          "id": "myScrollView",
+          "width": "200",
+          "height": "200",
+          "items": {
+            "type": "Frame",
+            "id": "myFrame",
+            "width": 200,
+            "height": 1000
+          }
+        },
+        {
+          "type": "TouchWrapper",
+          "id": "myTouch",
+          "height": 10,
+          "onPress": {
+            "type": "Scroll",
+            "componentId": "myScrollView",
+            "distance": 0.5
+          }
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(ScrollTest, ScrollForward)
 {
@@ -264,27 +315,26 @@ TEST_F(ScrollTest, ScrollTextWithAlignmentNoScrolling)
     advanceTime(1000);
 }
 
-static const char *SCROLLVIEW_WITH_PADDING =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"ScrollView\","
-    "      \"id\": \"myScrollView\","
-    "      \"paddingTop\": 50,"
-    "      \"paddingBottom\": 50,"
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"id\": \"myFrame\","
-    "        \"width\": 100,"
-    "        \"height\": 1000"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *SCROLLVIEW_WITH_PADDING = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "id": "myScrollView",
+      "paddingTop": 50,
+      "paddingBottom": 50,
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "id": "myFrame",
+        "width": 100,
+        "height": 1000
+      }
+    }
+  }
+})";
 
 TEST_F(ScrollTest, ScrollViewPadding)
 {
@@ -308,27 +358,26 @@ TEST_F(ScrollTest, ScrollViewPadding)
     ASSERT_EQ(Rect(0, -750, 100, 1000), frame->getGlobalBounds());
 }
 
-static const char *SCROLLVIEW_SMALL =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"ScrollView\","
-    "      \"id\": \"myScrollView\","
-    "      \"paddingTop\": 50,"
-    "      \"paddingBottom\": 50,"
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"id\": \"myFrame\","
-    "        \"width\": 100,"
-    "        \"height\": 50"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *SCROLLVIEW_SMALL = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "id": "myScrollView",
+      "paddingTop": 50,
+      "paddingBottom": 50,
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "id": "myFrame",
+        "width": 100,
+        "height": 50
+      }
+    }
+  }
+})";
 
 TEST_F(ScrollTest, ScrollViewSmall)
 {
@@ -348,21 +397,20 @@ TEST_F(ScrollTest, ScrollViewSmall)
     ASSERT_EQ(Rect(0, 50, 100, 50), frame->getGlobalBounds());
 }
 
-static const char *SCROLLVIEW_NONE =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"ScrollView\","
-    "      \"id\": \"myScrollView\","
-    "      \"paddingTop\": 50,"
-    "      \"paddingBottom\": 50,"
-    "      \"width\": 200,"
-    "      \"height\": 300"
-    "    }"
-    "  }"
-    "}";
+static const char *SCROLLVIEW_NONE = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "id": "myScrollView",
+      "paddingTop": 50,
+      "paddingBottom": 50,
+      "width": 200,
+      "height": 300
+    }
+  }
+})";
 
 TEST_F(ScrollTest, ScrollViewNone)
 {
@@ -379,37 +427,25 @@ TEST_F(ScrollTest, ScrollViewNone)
 }
 
 
-static const char *SEQUENCE_TEST_HORIZONTAL =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"horizontal\","
-    "      \"id\": \"foo\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"width\": 100,"
-    "        \"height\": 100"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9,"
-    "        10"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE_TEST_HORIZONTAL = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "horizontal",
+      "id": "foo",
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "width": 100,
+        "height": 100
+      },
+      "data": "${Array.range(1,11)}"
+    }
+  }
+})";
 
 TEST_F(ScrollTest, Sequence)
 {
@@ -480,20 +516,7 @@ static const char *GRID_SEQUENCE_TEST_HORIZONTAL = R"({
       "item": {
         "type": "Frame"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12
-      ]
+      "data": "${Array.range(1,13)}"
     }
   }
 })";
@@ -546,30 +569,25 @@ TEST_F(ScrollTest, GridSequenceRTL)
     ASSERT_EQ(Point(0,0), component->scrollPosition());
 }
 
-static const char *SEQUENCE_TEST_HORIZONTAL_SMALL =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"horizontal\","
-    "      \"id\": \"foo\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"width\": 50,"
-    "        \"height\": 100"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE_TEST_HORIZONTAL_SMALL = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "horizontal",
+      "id": "foo",
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "width": 50,
+        "height": 100
+      },
+      "data": [1, 2, 3]
+    }
+  }
+})";
 
 TEST_F(ScrollTest, SequenceSmall)
 {
@@ -602,40 +620,28 @@ TEST_F(ScrollTest, SequenceSmallRTL)
 }
 
 
-static const char *SEQUENCE_TEST_HORIZONTAL_PADDING_SPACING =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"horizontal\","
-    "      \"paddingLeft\": 50,"
-    "      \"paddingRight\": 50,"
-    "      \"id\": \"foo\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"spacing\": 10,"
-    "        \"width\": 100,"
-    "        \"height\": 100"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9,"
-    "        10"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE_TEST_HORIZONTAL_PADDING_SPACING = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "horizontal",
+      "paddingLeft": 50,
+      "paddingRight": 50,
+      "id": "foo",
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "spacing": 10,
+        "width": 100,
+        "height": 100
+      },
+      "data": "${Array.range(1,11)}"
+    }
+  }
+})";
 
 
 TEST_F(ScrollTest, SequenceHorizontalPaddingSpacing)
@@ -665,37 +671,26 @@ TEST_F(ScrollTest, SequenceHorizontalPaddingSpacing)
     ASSERT_EQ(Point(0,0), component->scrollPosition());
 }
 
-static const char *SEQUENCE_TEST_VERTICAL =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"vertical\","
-    "      \"id\": \"foo\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"width\": 100,"
-    "        \"height\": 100"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9,"
-    "        10"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE_TEST_VERTICAL = R"(
+{
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "vertical",
+      "id": "foo",
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "width": 100,
+        "height": 100
+      },
+      "data": "${Array.range(1,11)}"
+    }
+  }
+})";
 
 TEST_F(ScrollTest, SequenceVertical)
 {
@@ -735,20 +730,7 @@ static const char *GRID_SEQUENCE_TEST_VERTICAL = R"({
       "items": {
         "type": "Frame"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12
-      ]
+      "data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     }
   }
 })";
@@ -776,40 +758,28 @@ TEST_F(ScrollTest, GridSequenceVertical)
     ASSERT_EQ(Point(0,0), component->scrollPosition());
 }
 
-static const char *SEQUENCE_TEST_VERTICAL_PADDING_SPACING =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"vertical\","
-    "      \"paddingTop\": 50,"
-    "      \"paddingBottom\": 50,"
-    "      \"id\": \"foo\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"spacing\": 10,"
-    "        \"width\": 100,"
-    "        \"height\": 100"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9,"
-    "        10"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE_TEST_VERTICAL_PADDING_SPACING = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "vertical",
+      "paddingTop": 50,
+      "paddingBottom": 50,
+      "id": "foo",
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "spacing": 10,
+        "width": 100,
+        "height": 100
+      },
+      "data": "${Array.range(1,11)}"
+    }
+  }
+})";
 
 TEST_F(ScrollTest, SequenceVerticalPaddingSpacing)
 {
@@ -838,40 +808,28 @@ TEST_F(ScrollTest, SequenceVerticalPaddingSpacing)
     ASSERT_EQ(Point(0,0), component->scrollPosition());
 }
 
-static const char *SEQUENCE_TEST_VERTICAL_PADDING_SPACING_SMALL =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"vertical\","
-    "      \"paddingTop\": 50,"
-    "      \"paddingBottom\": 50,"
-    "      \"id\": \"foo\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"spacing\": 10,"
-    "        \"width\": 100,"
-    "        \"height\": 10"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9,"
-    "        10"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE_TEST_VERTICAL_PADDING_SPACING_SMALL = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "vertical",
+      "paddingTop": 50,
+      "paddingBottom": 50,
+      "id": "foo",
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "spacing": 10,
+        "width": 100,
+        "height": 10
+      },
+      "data": "${Array.range(1,11)}"
+    }
+  }
+})";
 
 TEST_F(ScrollTest, SequenceVerticalPaddingSpacingSmall)
 {
@@ -891,37 +849,26 @@ TEST_F(ScrollTest, SequenceVerticalPaddingSpacingSmall)
     ASSERT_EQ(Point(0,0), component->scrollPosition());
 }
 
-static const char *SEQUENCE_DIFFERENT_UNITS =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"vertical\","
-    "      \"id\": \"foo\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"width\": 100,"
-    "        \"height\": 200"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9,"
-    "        10"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE_DIFFERENT_UNITS = R"(
+{
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "vertical",
+      "id": "foo",
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "width": 100,
+        "height": 200
+      },
+      "data": "${Array.range(1,11)}"
+    }
+  }
+})";
 
 TEST_F(ScrollTest, DifferentUnits)
 {
@@ -946,20 +893,19 @@ TEST_F(ScrollTest, DifferentUnits)
     ASSERT_EQ(Point(0, 80), component->scrollPosition());
 }
 
-static const char *SEQUENCE_EMPTY =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"mainTemplate\": {"
-        "    \"items\": {"
-        "      \"type\": \"Sequence\","
-        "      \"id\": \"foo\","
-        "      \"width\": 200,"
-        "      \"height\": 300,"
-        "      \"items\": []"
-        "    }"
-        "  }"
-        "}";
+static const char *SEQUENCE_EMPTY = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "id": "foo",
+      "width": 200,
+      "height": 300,
+      "items": []
+    }
+  }
+})";
 
 
 TEST_F(ScrollTest, SequenceEmpty)
@@ -973,37 +919,26 @@ TEST_F(ScrollTest, SequenceEmpty)
     ASSERT_EQ(Point(0,0), component->scrollPosition());
 }
 
-static const char *SEQUENCE_WITH_INDEX =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"vertical\","
-    "      \"id\": \"foo\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"width\": 100,"
-    "        \"height\": 100"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9,"
-    "        10"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE_WITH_INDEX = R"(
+{
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "vertical",
+      "id": "foo",
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "width": 100,
+        "height": 100
+      },
+      "data": "${Array.range(1,11)}"
+    }
+  }
+})";
 
 TEST_F(ScrollTest, ScrollToIndexFirst)
 {
@@ -1136,40 +1071,29 @@ TEST_F(ScrollTest, ScrollToIndexVisible)
 }
 
 
-static const char *SEQUENCE_WITH_INDEX_AND_PADDING =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"vertical\","
-    "      \"id\": \"foo\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"paddingTop\": 50,"
-    "      \"paddingBottom\": 50,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"width\": 100,"
-    "        \"height\": 100,"
-    "        \"spacing\": 10"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9,"
-    "        10"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE_WITH_INDEX_AND_PADDING = R"(
+{
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "vertical",
+      "id": "foo",
+      "width": 200,
+      "height": 300,
+      "paddingTop": 50,
+      "paddingBottom": 50,
+      "items": {
+        "type": "Frame",
+        "width": 100,
+        "height": 100,
+        "spacing": 10
+      },
+      "data": "${Array.range(1,11)}"
+    }
+  }
+})";
 
 TEST_F(ScrollTest, ScrollToIndexFirstPadding)
 {
@@ -1302,40 +1226,29 @@ TEST_F(ScrollTest, ScrollToIndexVisiblePadding)
 }
 
 
-static const char *HORIZONTAL_SEQUENCE_WITH_INDEX_AND_PADDING =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"horizontal\","
-    "      \"id\": \"foo\","
-    "      \"width\": 400,"
-    "      \"height\": 300,"
-    "      \"paddingLeft\": 50,"
-    "      \"paddingRight\": 50,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"width\": 100,"
-    "        \"height\": 100,"
-    "        \"spacing\": 10"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9,"
-    "        10"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *HORIZONTAL_SEQUENCE_WITH_INDEX_AND_PADDING = R"(
+{
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "horizontal",
+      "id": "foo",
+      "width": 400,
+      "height": 300,
+      "paddingLeft": 50,
+      "paddingRight": 50,
+      "items": {
+        "type": "Frame",
+        "width": 100,
+        "height": 100,
+        "spacing": 10
+      },
+      "data": "${Array.range(1,11)}"
+    }
+  }
+})";
 
 TEST_F(ScrollTest, ScrollToIndexHorizontal)
 {
@@ -1377,41 +1290,28 @@ TEST_F(ScrollTest, ScrollToIndexHorizontal)
     ASSERT_EQ(Point(450,0), component->scrollPosition());
 }
 
-static const char *HORIZONTAL_SEQUENCE_WITH_INDEX_RTL = R"(
-    {
-      "type": "APL",
-      "version": "1.7",
-      "mainTemplate": {
-        "items": {
-          "type": "Sequence",
-          "scrollDirection": "horizontal",
-          "layoutDirection": "RTL",
-          "id": "foo",
-          "width": 400,
-          "height": 300,
-          "paddingLeft": 50,
-          "paddingRight": 50,
-          "items": {
-            "type": "Frame",
-            "width": 100,
-            "height": 100
-          },
-          "data": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10
-          ]
-        }
-      }
+static const char *HORIZONTAL_SEQUENCE_WITH_INDEX_RTL = R"({
+  "type": "APL",
+  "version": "1.7",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "horizontal",
+      "layoutDirection": "RTL",
+      "id": "foo",
+      "width": 400,
+      "height": 300,
+      "paddingLeft": 50,
+      "paddingRight": 50,
+      "items": {
+        "type": "Frame",
+        "width": 100,
+        "height": 100
+      },
+      "data": "${Array.range(1,11)}"
     }
-)";
+  }
+})";
 
 TEST_F(ScrollTest, ScrollToIndexHorizontalRTL)
 {
@@ -1446,34 +1346,28 @@ TEST_F(ScrollTest, ScrollToIndexHorizontalRTL)
 }
 
 
-static const char *MISSING_INDEX =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"horizontal\","
-    "      \"id\": \"foo\","
-    "      \"width\": 400,"
-    "      \"height\": 300,"
-    "      \"paddingLeft\": 50,"
-    "      \"paddingRight\": 50,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"width\": 100,"
-    "        \"height\": 100,"
-    "        \"spacing\": 10"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *MISSING_INDEX = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "horizontal",
+      "id": "foo",
+      "width": 400,
+      "height": 300,
+      "paddingLeft": 50,
+      "paddingRight": 50,
+      "items": {
+        "type": "Frame",
+        "width": 100,
+        "height": 100,
+        "spacing": 10
+      },
+      "data": "${Array.range(1,5)}"
+    }
+  }
+})";
 
 TEST_F(ScrollTest, ScrollToMissingIndex)
 {
@@ -1506,62 +1400,61 @@ TEST_F(ScrollTest, ScrollToMissingIndex)
 }
 
 
-static const char *VERTICAL_SCROLLVIEW =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"ScrollView\","
-    "      \"paddingTop\": 50,"
-    "      \"paddingBottom\": 50,"
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": {"
-    "        \"type\": \"Container\","
-    "        \"direction\": \"vertical\","
-    "        \"items\": ["
-    "          {"
-    "            \"type\": \"Frame\","
-    "            \"id\": \"frame1\","
-    "            \"width\": 100,"
-    "            \"height\": 200"
-    "          },"
-    "          {"
-    "            \"type\": \"Frame\","
-    "            \"id\": \"frame2\","
-    "            \"width\": 100,"
-    "            \"height\": 300"
-    "          },"
-    "          {"
-    "            \"type\": \"Frame\","
-    "            \"id\": \"frame3\","
-    "            \"width\": 100,"
-    "            \"height\": 100"
-    "          },"
-    "          {"
-    "            \"type\": \"Frame\","
-    "            \"id\": \"frame4\","
-    "            \"width\": 100,"
-    "            \"height\": 400"
-    "          },"
-    "          {"
-    "            \"type\": \"Frame\","
-    "            \"id\": \"frame5\","
-    "            \"width\": 100,"
-    "            \"height\": 100"
-    "          },"
-    "          {"
-    "            \"type\": \"Frame\","
-    "            \"id\": \"frame6\","
-    "            \"width\": 100,"
-    "            \"height\": 300"
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *VERTICAL_SCROLLVIEW = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "paddingTop": 50,
+      "paddingBottom": 50,
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Container",
+        "direction": "vertical",
+        "items": [
+          {
+            "type": "Frame",
+            "id": "frame1",
+            "width": 100,
+            "height": 200
+          },
+          {
+            "type": "Frame",
+            "id": "frame2",
+            "width": 100,
+            "height": 300
+          },
+          {
+            "type": "Frame",
+            "id": "frame3",
+            "width": 100,
+            "height": 100
+          },
+          {
+            "type": "Frame",
+            "id": "frame4",
+            "width": 100,
+            "height": 400
+          },
+          {
+            "type": "Frame",
+            "id": "frame5",
+            "width": 100,
+            "height": 100
+          },
+          {
+            "type": "Frame",
+            "id": "frame6",
+            "width": 100,
+            "height": 300
+          }
+        ]
+      }
+    }
+  }
+})";
 
 TEST_F(ScrollTest, ScrollToComponent)
 {
@@ -1643,38 +1536,38 @@ TEST_F(ScrollTest, ScrollWithTermination)
     ASSERT_EQ(currentPosition, component->scrollPosition());
 }
 
-static const char *VERTICAL_DEEP_SEQUENCE =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"mainTemplate\": {"
-        "    \"items\": {"
-        "      \"type\": \"Sequence\","
-        "      \"id\": \"seq\","
-        "      \"width\": 600,"
-        "      \"height\": 600,"
-        "      \"data\": [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19],"
-        "      \"scrollDirection\": \"vertical\","
-        "      \"items\": {"
-        "        \"type\": \"TouchWrapper\","
-        "        \"id\": \"item${data}\","
-        "        \"item\": {"
-        "          \"type\": \"Container\","
-        "          \"id\": \"container${data}\","
-        "          \"items\": ["
-        "            {"
-        "              \"type\": \"Text\","
-        "              \"id\": \"text${data}\","
-        "              \"width\": 150,"
-        "              \"height\": 150,"
-        "              \"text\": \"${data}\""
-        "            }"
-        "          ]"
-        "        }"
-        "      }"
-        "    }"
-        "  }"
-        "}";
+static const char *VERTICAL_DEEP_SEQUENCE = R"(
+{
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "id": "seq",
+      "width": 600,
+      "height": 600,
+      "data": "${Array.range(0, 20)}",
+      "scrollDirection": "vertical",
+      "items": {
+        "type": "TouchWrapper",
+        "id": "item${data}",
+        "item": {
+          "type": "Container",
+          "id": "container${data}",
+          "items": [
+            {
+              "type": "Text",
+              "id": "text${data}",
+              "width": 150,
+              "height": 150,
+              "text": "${data}"
+            }
+          ]
+        }
+      }
+    }
+  }
+})";
 
 TEST_F(ScrollTest, SequenceToVerticalComponent)
 {
@@ -1717,34 +1610,34 @@ TEST_F(ScrollTest, SequenceToVerticalSubComponent)
     session->checkAndClear();
 }
 
-static const char *HORIZONTAL_DEEP_SEQUENCE =
-        "{"
-        "  \"type\": \"APL\","
-        "  \"version\": \"1.1\","
-        "  \"mainTemplate\": {"
-        "    \"items\": {"
-        "      \"type\": \"Sequence\","
-        "      \"id\": \"seq\","
-        "      \"width\": 600,"
-        "      \"height\": 500,"
-        "      \"data\": [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19],"
-        "      \"scrollDirection\": \"horizontal\","
-        "      \"items\": {"
-        "        \"type\": \"Container\","
-        "        \"id\": \"item${index}\","
-        "        \"items\": ["
-        "          {"
-        "            \"type\": \"Text\","
-        "            \"id\": \"text${data}\","
-        "            \"width\": 150,"
-        "            \"height\": 150,"
-        "            \"text\": \"${data}\""
-        "          }"
-        "        ]"
-        "      }"
-        "    }"
-        "  }"
-        "}";
+static const char *HORIZONTAL_DEEP_SEQUENCE = R"(
+{
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "id": "seq",
+      "width": 600,
+      "height": 500,
+      "data": "${Array.range(0, 20)}",
+      "scrollDirection": "horizontal",
+      "items": {
+        "type": "Container",
+        "id": "item${index}",
+        "items": [
+          {
+            "type": "Text",
+            "id": "text${data}",
+            "width": 150,
+            "height": 150,
+            "text": "${data}"
+          }
+        ]
+      }
+    }
+  }
+})";
 
 TEST_F(ScrollTest, SequenceToHorizontalComponent)
 {
@@ -1832,38 +1725,32 @@ TEST_F(ScrollTest, SequenceToHorizontalSubComponentRTL)
     session->checkAndClear();
 }
 
-static const char *PAGER_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.6\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Pager\","
-    "      \"id\": \"myPager\","
-    "      \"width\": 100,"
-    "      \"height\": 100,"
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"id\": \"id${data}\","
-    "        \"text\": \"TEXT${data}\","
-    "        \"speech\": \"URL${data}\""
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4"
-    "      ],"
-    "      \"onPageChanged\": {"
-    "        \"type\": \"SendEvent\","
-    "        \"sequencer\": \"SET_PAGE\","
-    "        \"arguments\": ["
-    "          \"${event.target.page}\""
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *PAGER_TEST = R"({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "id": "myPager",
+      "width": 100,
+      "height": 100,
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "text": "TEXT${data}",
+        "speech": "URL${data}"
+      },
+      "data": "${Array.range(1, 5)}",
+      "onPageChanged": {
+        "type": "SendEvent",
+        "sequencer": "SET_PAGE",
+        "arguments": [
+          "${event.target.page}"
+        ]
+      }
+    }
+  }
+})";
 
 TEST_F(ScrollTest, Pager)
 {
@@ -1877,87 +1764,85 @@ TEST_F(ScrollTest, Pager)
 }
 
 
-static const char *TEST_BASIC_TOP_BOTTOM_OFFSET_STICKY = R"apl(
-{
-   "type": "APL",
-   "version": "1.6",
-   "mainTemplate": {
-       "item": [
-           {
-               "type": "Frame",
-               "height": 600,
-               "width": 500,
-               "padding": 40,
-               "backgroundColor": "black",
-               "items": [
-                   {
-                       "id": "scrollone",
-                       "type": "ScrollView",
-                       "width": 400,
-                       "height": 500,
-                       "item" : {
-                           "type": "Container",
-                           "height": 1000,
-                           "width": 400,
-                           "items": [
-                               {
-                                   "type": "Frame",
-                                   "height": 400,
-                                   "width": 200,
-                                   "backgroundColor": "white",
-                                   "items": []
-                               },
-                               {
-                                   "type": "Frame",
-                                   "height": 300,
-                                   "width": 400,
-                                   "backgroundColor": "#1a73e8",
-                                   "items": [
-                                       {
-                                           "type": "Container",
-                                           "height": 300,
-                                           "width": 400,
-                                           "items": [
-                                                   {
-                                                       "id": "topsticky",
-                                                       "position": "sticky",
-                                                       "top": 0,
-                                                       "type": "Frame",
-                                                       "height": 100,
-                                                       "width": 300,
-                                                       "backgroundColor": "#dc3912",
-                                                       "items": []
-                                                   },
-                                                   {
-                                                       "type": "Frame",
-                                                       "height": 100,
-                                                       "width": 200,
-                                                       "backgroundColor": "#4caf50",
-                                                       "items": []
-                                                   },
-                                                   {
-                                                       "id": "bottomsticky",
-                                                       "position": "sticky",
-                                                       "bottom": 0,
-                                                       "type": "Frame",
-                                                       "height": 100,
-                                                       "width": 150,
-                                                       "backgroundColor": "blue",
-                                                       "items": []
-                                                   }
-                                           ]
-                                       }
-                                   ]
-                               }
-                           ]
-                       }
-                   }
-                ]
-           }
-       ]
-   }
-}
-)apl";
+static const char *TEST_BASIC_TOP_BOTTOM_OFFSET_STICKY = R"apl({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": [
+      {
+        "type": "Frame",
+        "height": 600,
+        "width": 500,
+        "padding": 40,
+        "backgroundColor": "black",
+        "items": [
+          {
+            "id": "scrollone",
+            "type": "ScrollView",
+            "width": 400,
+            "height": 500,
+            "item": {
+              "type": "Container",
+              "height": 1000,
+              "width": 400,
+              "items": [
+                {
+                  "type": "Frame",
+                  "height": 400,
+                  "width": 200,
+                  "backgroundColor": "white",
+                  "items": []
+                },
+                {
+                  "type": "Frame",
+                  "height": 300,
+                  "width": 400,
+                  "backgroundColor": "#1a73e8",
+                  "items": [
+                    {
+                      "type": "Container",
+                      "height": 300,
+                      "width": 400,
+                      "items": [
+                        {
+                          "id": "topsticky",
+                          "position": "sticky",
+                          "top": 0,
+                          "type": "Frame",
+                          "height": 100,
+                          "width": 300,
+                          "backgroundColor": "#dc3912",
+                          "items": []
+                        },
+                        {
+                          "type": "Frame",
+                          "height": 100,
+                          "width": 200,
+                          "backgroundColor": "#4caf50",
+                          "items": []
+                        },
+                        {
+                          "id": "bottomsticky",
+                          "position": "sticky",
+                          "bottom": 0,
+                          "type": "Frame",
+                          "height": 100,
+                          "width": 150,
+                          "backgroundColor": "blue",
+                          "items": []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+})apl";
 
 TEST_F(ScrollTest, BasicStickyTestTopOffset)
 {
@@ -2020,85 +1905,83 @@ TEST_F(ScrollTest, BasicStickyTestBottomOffset)
     EXPECT_TRUE(expectBounds(stickyComp, 200, 0, 300, 150));
 }
 
-static const char *TEST_SKIP_BOTTOM_OFFSET_STICKY = R"apl(
-{
-   "type": "APL",
-   "version": "1.6",
-   "mainTemplate": {
-       "item": [
-           {
-               "type": "Frame",
-               "height": 600,
-               "width": 500,
-               "padding": 40,
-               "backgroundColor": "black",
-               "items": [
-                   {
-                       "id": "scrollone",
-                       "type": "ScrollView",
-                       "width": 400,
-                       "height": 500,
-                       "item" : {
-                           "type": "Container",
-                           "height": 1000,
-                           "width": 400,
-                           "items": [
-                               {
-                                   "type": "Frame",
-                                   "height": 400,
-                                   "width": 200,
-                                   "backgroundColor": "white",
-                                   "items": []
-                               },
-                               {
-                                   "type": "Frame",
-                                   "height": 800,
-                                   "width": 400,
-                                   "backgroundColor": "#1a73e8",
-                                   "items": [
-                                       {
-                                           "type": "Container",
-                                           "height": 800,
-                                           "width": 400,
-                                           "items": [
-                                                   {
-                                                       "type": "Frame",
-                                                       "height": 100,
-                                                       "width": 300,
-                                                       "backgroundColor": "#dc3912",
-                                                       "items": []
-                                                   },
-                                                   {
-                                                       "type": "Frame",
-                                                       "height": 100,
-                                                       "width": 200,
-                                                       "backgroundColor": "#4caf50",
-                                                       "items": []
-                                                   },
-                                                   {
-                                                       "id": "bottomsticky",
-                                                       "position": "sticky",
-                                                       "top": 300,
-                                                       "bottom": 300,
-                                                       "type": "Frame",
-                                                       "height": 100,
-                                                       "width": 150,
-                                                       "backgroundColor": "blue",
-                                                       "items": []
-                                                   }
-                                           ]
-                                       }
-                                   ]
-                               }
-                           ]
-                       }
-                   }
-                ]
-           }
-       ]
-   }
-}
-)apl";
+static const char *TEST_SKIP_BOTTOM_OFFSET_STICKY = R"apl({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": [
+      {
+        "type": "Frame",
+        "height": 600,
+        "width": 500,
+        "padding": 40,
+        "backgroundColor": "black",
+        "items": [
+          {
+            "id": "scrollone",
+            "type": "ScrollView",
+            "width": 400,
+            "height": 500,
+            "item": {
+              "type": "Container",
+              "height": 1000,
+              "width": 400,
+              "items": [
+                {
+                  "type": "Frame",
+                  "height": 400,
+                  "width": 200,
+                  "backgroundColor": "white",
+                  "items": []
+                },
+                {
+                  "type": "Frame",
+                  "height": 800,
+                  "width": 400,
+                  "backgroundColor": "#1a73e8",
+                  "items": [
+                    {
+                      "type": "Container",
+                      "height": 800,
+                      "width": 400,
+                      "items": [
+                        {
+                          "type": "Frame",
+                          "height": 100,
+                          "width": 300,
+                          "backgroundColor": "#dc3912",
+                          "items": []
+                        },
+                        {
+                          "type": "Frame",
+                          "height": 100,
+                          "width": 200,
+                          "backgroundColor": "#4caf50",
+                          "items": []
+                        },
+                        {
+                          "id": "bottomsticky",
+                          "position": "sticky",
+                          "top": 300,
+                          "bottom": 300,
+                          "type": "Frame",
+                          "height": 100,
+                          "width": 150,
+                          "backgroundColor": "blue",
+                          "items": []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+})apl";
 
 /**
  * Make sure we skip the bottom offset when top + bottom offset is bigger than the scrollable height
@@ -2133,135 +2016,133 @@ TEST_F(ScrollTest, BasicStickyTestSkipBottomOffset)
 }
 
 
-static const char *TEST_TOP_NESTED_STICKY = R"apl(
-{
-   "type": "APL",
-   "version": "1.6",
-   "mainTemplate": {
-       "item": [
-           {
-               "type": "Frame",
-               "height": 600,
-               "width": 500,
-               "padding": 40,
-               "backgroundColor": "black",
-               "items": [
-                   {
-                       "id": "scrollone",
-                       "type": "ScrollView",
-                       "width": 400,
-                       "height": 500,
-                       "item" : {
-                           "type": "Container",
-                           "height": 1000,
-                           "width": 400,
-                           "items": [
-                               {
-                                   "type": "Frame",
-                                   "height": 300,
-                                   "width": 400,
-                                   "backgroundColor": "#1a73e8",
-                                   "items": [
-                                       {
-                                           "type": "Container",
-                                           "height": 300,
-                                           "width": 400,
-                                           "items": [
-                                                   {
-                                                       "position": "sticky",
-                                                       "top": 0,
-                                                       "bottom": 10,
-                                                       "type": "Frame",
-                                                       "height": 100,
-                                                       "width": 300,
-                                                       "backgroundColor": "#dc3912",
-                                                       "items": []
-                                                   },
-                                                   {
-                                                       "position": "sticky",
-                                                       "top": 10,
-                                                       "type": "Frame",
-                                                       "height": 100,
-                                                       "width": 200,
-                                                       "backgroundColor": "#4caf50",
-                                                       "items": []
-                                                   },
-                                                  {
-                                                       "type": "Frame",
-                                                       "height": 100,
-                                                       "width": 150,
-                                                       "backgroundColor": "blue",
-                                                       "items": []
-                                                   }
-                                           ]
-                                       }
-                                   ]
-                               },
-                               {
-                                   "type": "Frame",
-                                   "height": 100,
-                                   "width": 400,
-                                   "backgroundColor": "white"
-                               },
-                               {
-                                   "type": "Frame",
-                                   "height": 1000,
-                                   "width": 400,
-                                   "backgroundColor": "#1a73e8",
-                                   "items": [
-                                       {
-                                           "type": "Container",
-                                           "height": 1000,
-                                           "width": 400,
-                                           "items": [
-                                                   {
-                                                       "type": "Frame",
-                                                       "height": 100,
-                                                       "width": 400,
-                                                       "backgroundColor": "#dc3912",
-                                                       "items": []
-                                                   },
-                                                   {
-                                                       "position": "sticky",
-                                                       "id": "outerSticky",
-                                                       "top": 100,
-                                                       "type": "Frame",
-                                                       "height": 300,
-                                                       "width": 400,
-                                                       "backgroundColor": "#de7700",
-                                                       "items": [
-                                                            {
-                                                           "type": "Container",
-                                                           "height": 300,
-                                                           "width": 300,
-                                                           "items": [
-                                                                   {
-                                                                       "type": "Frame",
-                                                                       "id": "innnerSticky",
-                                                                       "position": "sticky",
-                                                                       "top": 120,
-                                                                       "height": 100,
-                                                                       "width": 300,
-                                                                       "backgroundColor": "white",
-                                                                       "items": []
-                                                                   }
-                                                               ]
-                                                            }
-                                                       ]
-                                                   }
-                                           ]
-                                       }
-                                   ]
-                               }
-                           ]
-                       }
-                   }
-                ]
-           }
-       ]
-   }
-}
-)apl";
+static const char *TEST_TOP_NESTED_STICKY = R"apl({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": [
+      {
+        "type": "Frame",
+        "height": 600,
+        "width": 500,
+        "padding": 40,
+        "backgroundColor": "black",
+        "items": [
+          {
+            "id": "scrollone",
+            "type": "ScrollView",
+            "width": 400,
+            "height": 500,
+            "item": {
+              "type": "Container",
+              "height": 1000,
+              "width": 400,
+              "items": [
+                {
+                  "type": "Frame",
+                  "height": 300,
+                  "width": 400,
+                  "backgroundColor": "#1a73e8",
+                  "items": [
+                    {
+                      "type": "Container",
+                      "height": 300,
+                      "width": 400,
+                      "items": [
+                        {
+                          "position": "sticky",
+                          "top": 0,
+                          "bottom": 10,
+                          "type": "Frame",
+                          "height": 100,
+                          "width": 300,
+                          "backgroundColor": "#dc3912",
+                          "items": []
+                        },
+                        {
+                          "position": "sticky",
+                          "top": 10,
+                          "type": "Frame",
+                          "height": 100,
+                          "width": 200,
+                          "backgroundColor": "#4caf50",
+                          "items": []
+                        },
+                        {
+                          "type": "Frame",
+                          "height": 100,
+                          "width": 150,
+                          "backgroundColor": "blue",
+                          "items": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "Frame",
+                  "height": 100,
+                  "width": 400,
+                  "backgroundColor": "white"
+                },
+                {
+                  "type": "Frame",
+                  "height": 1000,
+                  "width": 400,
+                  "backgroundColor": "#1a73e8",
+                  "items": [
+                    {
+                      "type": "Container",
+                      "height": 1000,
+                      "width": 400,
+                      "items": [
+                        {
+                          "type": "Frame",
+                          "height": 100,
+                          "width": 400,
+                          "backgroundColor": "#dc3912",
+                          "items": []
+                        },
+                        {
+                          "position": "sticky",
+                          "id": "outerSticky",
+                          "top": 100,
+                          "type": "Frame",
+                          "height": 300,
+                          "width": 400,
+                          "backgroundColor": "#de7700",
+                          "items": [
+                            {
+                              "type": "Container",
+                              "height": 300,
+                              "width": 300,
+                              "items": [
+                                {
+                                  "type": "Frame",
+                                  "id": "innnerSticky",
+                                  "position": "sticky",
+                                  "top": 120,
+                                  "height": 100,
+                                  "width": 300,
+                                  "backgroundColor": "white",
+                                  "items": []
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+})apl";
 
 TEST_F(ScrollTest, NestedStickyComponents)
 {
@@ -2297,8 +2178,7 @@ TEST_F(ScrollTest, NestedStickyComponents)
     EXPECT_TRUE(expectBounds(stickyCompInner, 20, 0, 120, 300));
 }
 
-static const char *DEEP_NESTED_COMPONENTS = R"apl(
-{
+static const char *DEEP_NESTED_COMPONENTS = R"apl({
   "type": "APL",
   "version": "1.6",
   "mainTemplate": {
@@ -2430,8 +2310,7 @@ static const char *DEEP_NESTED_COMPONENTS = R"apl(
       }
     ]
   }
-}
-)apl";
+})apl";
 
 TEST_F(ScrollTest, DeepNestedStickyComponents)
 {
@@ -2507,90 +2386,88 @@ TEST_F(ScrollTest, DeepNestedStickyComponents)
     EXPECT_TRUE(expectBounds(stickyCompInner4, 0, 0, 70, 270));
 }
 
-static const char *TEST_BASIC_LEFT_RIGHT_OFFSET_STICKY = R"apl(
-{
-   "type": "APL",
-   "version": "1.6",
-   "mainTemplate": {
-       "item": [
-           {
-               "type": "Frame",
-               "height": 600,
-               "width": 500,
-               "padding": 40,
-               "backgroundColor": "black",
-               "items": [
-                   {
-                       "id": "scrollone",
-                       "type": "Sequence",
-                       "scrollDirection": "horizontal",
-                       "width": 400,
-                       "height": 400,
-                       "item" : {
-                           "type": "Container",
-                           "height": 400,
-                           "width": 1000,
-                           "direction": "row",
-                           "items": [
-                               {
-                                   "type": "Frame",
-                                   "height": 300,
-                                   "width": 300,
-                                   "backgroundColor": "white",
-                                   "items": []
-                               },
-                               {
-                                   "type": "Frame",
-                                   "height": 300,
-                                   "width": 400,
-                                   "backgroundColor": "#1a73e8",
-                                   "items": [
-                                       {
-                                           "type": "Container",
-                                           "height": 300,
-                                           "width": 400,
-                                           "direction": "row",
-                                           "items": [
-                                                   {
-                                                       "id": "leftsticky",
-                                                       "position": "sticky",
-                                                       "left": 0,
-                                                       "type": "Frame",
-                                                       "height": 300,
-                                                       "width": 100,
-                                                       "backgroundColor": "#dc3912",
-                                                       "items": []
-                                                   },
-                                                   {
-                                                       "type": "Frame",
-                                                       "height": 200,
-                                                       "width": 100,
-                                                       "backgroundColor": "#4caf50",
-                                                       "items": []
-                                                   },
-                                                   {
-                                                       "id": "rightsticky",
-                                                       "position": "sticky",
-                                                       "right": 0,
-                                                       "type": "Frame",
-                                                       "height": 150,
-                                                       "width": 100,
-                                                       "backgroundColor": "blue",
-                                                       "items": []
-                                                   }
-                                           ]
-                                       }
-                                   ]
-                               }
-                           ]
-                       }
-                   }
-                ]
-           }
-       ]
-   }
-}
-)apl";
+static const char *TEST_BASIC_LEFT_RIGHT_OFFSET_STICKY = R"apl({
+  "type": "APL",
+  "version": "1.6",
+  "mainTemplate": {
+    "item": [
+      {
+        "type": "Frame",
+        "height": 600,
+        "width": 500,
+        "padding": 40,
+        "backgroundColor": "black",
+        "items": [
+          {
+            "id": "scrollone",
+            "type": "Sequence",
+            "scrollDirection": "horizontal",
+            "width": 400,
+            "height": 400,
+            "item": {
+              "type": "Container",
+              "height": 400,
+              "width": 1000,
+              "direction": "row",
+              "items": [
+                {
+                  "type": "Frame",
+                  "height": 300,
+                  "width": 300,
+                  "backgroundColor": "white",
+                  "items": []
+                },
+                {
+                  "type": "Frame",
+                  "height": 300,
+                  "width": 400,
+                  "backgroundColor": "#1a73e8",
+                  "items": [
+                    {
+                      "type": "Container",
+                      "height": 300,
+                      "width": 400,
+                      "direction": "row",
+                      "items": [
+                        {
+                          "id": "leftsticky",
+                          "position": "sticky",
+                          "left": 0,
+                          "type": "Frame",
+                          "height": 300,
+                          "width": 100,
+                          "backgroundColor": "#dc3912",
+                          "items": []
+                        },
+                        {
+                          "type": "Frame",
+                          "height": 200,
+                          "width": 100,
+                          "backgroundColor": "#4caf50",
+                          "items": []
+                        },
+                        {
+                          "id": "rightsticky",
+                          "position": "sticky",
+                          "right": 0,
+                          "type": "Frame",
+                          "height": 150,
+                          "width": 100,
+                          "backgroundColor": "blue",
+                          "items": []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+})apl";
 
 TEST_F(ScrollTest, BasicStickyTestLeftOffset)
 {
@@ -2687,8 +2564,7 @@ TEST_F(ScrollTest, StickyTestSkipRightOffset)
     EXPECT_TRUE(expectBounds(stickyComp, 0, 300, 150, 400));
 }
 
-static const char *TEST_LEFT_NESTED_STICKY = R"apl(
-{
+static const char *TEST_LEFT_NESTED_STICKY = R"apl({
   "type": "APL",
   "version": "1.6",
   "mainTemplate": {
@@ -2793,8 +2669,7 @@ static const char *TEST_LEFT_NESTED_STICKY = R"apl(
       }]
     }]
   }
-}
-)apl";
+})apl";
 
 TEST_F(ScrollTest, NestedStickyComponentsLeft)
 {
@@ -2861,8 +2736,7 @@ TEST_F(ScrollTest, DeepNestedStickyComponentsAddRemove)
     EXPECT_TRUE(expectBounds(leafSticky, 0, 10, 300, 110));
 }
 
-static const char *TEST_BASIC_TOP_BOTTOM_OFFSET_STICKY_WITHOUT_STICKIES = R"apl(
-{
+static const char *TEST_BASIC_TOP_BOTTOM_OFFSET_STICKY_WITHOUT_STICKIES = R"apl({
   "type": "APL",
   "version": "1.6",
   "mainTemplate": {
@@ -2929,34 +2803,29 @@ static const char *TEST_BASIC_TOP_BOTTOM_OFFSET_STICKY_WITHOUT_STICKIES = R"apl(
       }
     ]
   }
-}
-)apl";
+})apl";
 
-const static char * STICKY_CHILD_TOP = R"apl(
-    {
-       "id": "topsticky",
-       "position": "sticky",
-       "top": 0,
-       "type": "Frame",
-       "height": 100,
-       "width": 300,
-       "backgroundColor": "#dc3912",
-       "items": []
-    }
-)apl";
+const static char * STICKY_CHILD_TOP = R"apl({
+  "id": "topsticky",
+  "position": "sticky",
+  "top": 0,
+  "type": "Frame",
+  "height": 100,
+  "width": 300,
+  "backgroundColor": "#dc3912",
+  "items": []
+})apl";
 
-const static char * STICKY_CHILD_BOTTOM = R"apl(
-    {
-        "id": "bottomsticky",
-        "position": "sticky",
-        "bottom": 0,
-        "type": "Frame",
-        "height": 100,
-        "width": 150,
-        "backgroundColor": "blue",
-        "items": []
-    }
-)apl";
+const static char * STICKY_CHILD_BOTTOM = R"apl({
+  "id": "bottomsticky",
+  "position": "sticky",
+  "bottom": 0,
+  "type": "Frame",
+  "height": 100,
+  "width": 150,
+  "backgroundColor": "blue",
+  "items": []
+})apl";
 
 /**
  * Check if an inserted child registers it's scroll callback correctly
@@ -3011,26 +2880,24 @@ TEST_F(ScrollTest, InsertStickyChildTest)
     EXPECT_TRUE(expectBounds(stickyBottom, 150, 0, 250, 150));
 }
 
-const static char * NON_STICKY_CHILD_TOP = R"apl(
+const static char * NON_STICKY_CHILD_TOP = R"apl({
+  "type": "Frame",
+  "height": 100,
+  "width": 300,
+  "backgroundColor": "#dc3912",
+  "items": [
     {
-       "type": "Frame",
-       "height": 100,
-       "width": 300,
-       "backgroundColor": "#dc3912",
-       "items": [
-            {
-               "id": "topsticky",
-               "position": "sticky",
-               "top": 0,
-               "type": "Frame",
-               "height": 100,
-               "width": 300,
-               "backgroundColor": "black",
-               "items": []
-            }
-        ]
+      "id": "topsticky",
+      "position": "sticky",
+      "top": 0,
+      "type": "Frame",
+      "height": 100,
+      "width": 300,
+      "backgroundColor": "black",
+      "items": []
     }
-)apl";
+  ]
+})apl";
 
 /**
  * Check inserting child which isn't sticky but contains a sticky child
@@ -3066,8 +2933,7 @@ TEST_F(ScrollTest, InsertStickyChildComplexTest)
     advanceTime(200);
 }
 
-const static char * SCROLLABLE_WITH_STICKY = R"apl(
-{
+const static char * SCROLLABLE_WITH_STICKY = R"apl({
   "id": "scrollableWithStickyChild",
   "type": "ScrollView",
   "height": 300,
@@ -3093,8 +2959,7 @@ const static char * SCROLLABLE_WITH_STICKY = R"apl(
       ]
     }
   ]
-}
-)apl";
+})apl";
 
 /**
  * Check inserting child which is scrollable and contains a sticky child
@@ -3127,28 +2992,24 @@ TEST_F(ScrollTest, InsertScrollableWithStickyChildTest)
     EXPECT_TRUE(expectBounds(stickyTop, 0, 0, 100, 300));
 }
 
-const static char * NON_STICKY_CHILD_TOP_WITH_OFFSET = R"apl(
-    {
-       "id": "topsticky",
-       "top": 100,
-       "type": "Frame",
-       "height": 100,
-       "width": 300,
-       "backgroundColor": "#dc3912",
-       "items": []
-    }
-)apl";
+const static char * NON_STICKY_CHILD_TOP_WITH_OFFSET = R"apl({
+  "id": "topsticky",
+  "top": 100,
+  "type": "Frame",
+  "height": 100,
+  "width": 300,
+  "backgroundColor": "#dc3912",
+  "items": []
+})apl";
 
-const static char * NON_STICKY_CHILD_BOTTOM_WITHOUT_OFFSET = R"apl(
-    {
-        "id": "bottomsticky",
-        "type": "Frame",
-        "height": 100,
-        "width": 150,
-        "backgroundColor": "blue",
-        "items": []
-    }
-)apl";
+const static char * NON_STICKY_CHILD_BOTTOM_WITHOUT_OFFSET = R"apl({
+  "id": "bottomsticky",
+  "type": "Frame",
+  "height": 100,
+  "width": 150,
+  "backgroundColor": "blue",
+  "items": []
+})apl";
 
 TEST_F(ScrollTest, SetUnsetStickyChildTest)
 {
@@ -3228,8 +3089,7 @@ TEST_F(ScrollTest, SetUnsetStickyChildTest)
     EXPECT_TRUE(expectBounds(stickyBottom, 150, 0, 250, 150));
 }
 
-const static char * NESTED_SCROLLABLES_WITH_STICKY = R"apl(
-{
+const static char * NESTED_SCROLLABLES_WITH_STICKY = R"apl({
   "type": "APL",
   "version": "1.6",
   "mainTemplate": {
@@ -3375,8 +3235,7 @@ const static char * NESTED_SCROLLABLES_WITH_STICKY = R"apl(
       }
     ]
   }
-}
-)apl";
+})apl";
 
 /**
  * Make sure a sticky components in a nested scrollable don't react to a scrollable ancestor
@@ -3417,8 +3276,7 @@ TEST_F(ScrollTest, NestedScrollablesSameTypeWithStickies)
 /**
  * Make sure a combination of horizontal and vertical scrollables works
  */
-const static char * NESTED_SCROLLABLES_WITH_SAME_AND_DIFFERENT_TYPES = R"apl(
- {
+const static char * NESTED_SCROLLABLES_WITH_SAME_AND_DIFFERENT_TYPES = R"apl({
   "type": "APL",
   "version": "1.6",
   "mainTemplate": {
@@ -3514,8 +3372,7 @@ const static char * NESTED_SCROLLABLES_WITH_SAME_AND_DIFFERENT_TYPES = R"apl(
       }
     ]
   }
-}
-)apl";
+})apl";
 
 TEST_F(ScrollTest, NestedScrollablesSameAndDifferntTypeWithStickies)
 {
@@ -3583,8 +3440,7 @@ TEST_F(ScrollTest, NestedScrollablesSameAndDifferntTypeWithStickies)
     EXPECT_TRUE(expectBounds(deepestSticky, 420, 500, 570, 650));
 }
 
-const static char * REMOVE_STICKY_COMPONENT_DOC = R"apl(
-{
+const static char * REMOVE_STICKY_COMPONENT_DOC = R"apl({
   "type": "APL",
   "version": "1.6",
   "mainTemplate": {
@@ -3608,8 +3464,7 @@ const static char * REMOVE_STICKY_COMPONENT_DOC = R"apl(
       }
     }
   }
-}
-)apl";
+})apl";
 
 /**
  * Make sure a removed component doesn't react to scrolling
@@ -3649,8 +3504,7 @@ TEST_F(ScrollTest, RemoveAndReplaceStickyComponet)
 }
 
 
-const static char * REPLACE_STICKY_COMPONENT_DOC = R"apl(
-{
+const static char * REPLACE_STICKY_COMPONENT_DOC = R"apl({
   "type": "APL",
   "version": "1.6",
   "mainTemplate": {
@@ -3690,8 +3544,7 @@ const static char * REPLACE_STICKY_COMPONENT_DOC = R"apl(
       ]
     }
   }
-}
-)apl";
+})apl";
 
 /**
  * Move a component from one scrollable to another and check offsets are correct
@@ -3743,3 +3596,176 @@ TEST_F(ScrollTest, ReplaceAndCheckStickyComponent)
     EXPECT_TRUE(expectBounds(stickyTop, 200, 0, 300, 100));
 }
 
+static const char *SEQUENCE_TEST_VERTICAL_DURATION = R"(
+{
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "vertical",
+      "id": "foo",
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "width": 100,
+        "height": 100
+      },
+      "data": "${Array.range(1,11)}"
+    }
+  }
+})";
+
+TEST_F(ScrollTest, SequenceVerticalDuration)
+{
+    loadDocument(SEQUENCE_TEST_VERTICAL_DURATION);
+
+    completeScroll(component, -1, 200);  // Can't scroll backwards
+    ASSERT_EQ(Point(0,0), component->scrollPosition());
+
+    completeScroll(component, 1, 200);
+    ASSERT_EQ(Point(0, 300), component->scrollPosition());
+
+    completeScroll(component, 5, 200);  // This maxes out
+    ASSERT_EQ(Point(0, 700), component->scrollPosition());
+
+    completeScroll(component, 5, 200);
+    ASSERT_EQ(Point(0, 700), component->scrollPosition());
+
+    completeScroll(component, -0.5f, 200);
+    ASSERT_EQ(Point(0, 550), component->scrollPosition());
+
+    completeScroll(component, -20, 200);
+    ASSERT_EQ(Point(0,0), component->scrollPosition());
+}
+
+static const char *SEQUENCE_WITH_INDEX_DURATION = R"(
+{
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "vertical",
+      "id": "foo",
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "width": 100,
+        "height": 100
+      },
+      "data": "${Array.range(1,11)}"
+    }
+  }
+})";
+
+TEST_F(ScrollTest, ScrollToIndexFirstDuration)
+{
+    loadDocument(SEQUENCE_WITH_INDEX_DURATION);
+
+    // Move the second item up to the top of the scroll view.
+    scrollToIndex(component, 1, kCommandScrollAlignFirst, 200);
+    ASSERT_EQ(Point(0,100), component->scrollPosition());
+
+    // Repeat the command - it shouldn't move.
+    scrollToIndex(component, 1, kCommandScrollAlignFirst, 200);
+    ASSERT_EQ(Point(0,100), component->scrollPosition());
+
+    scrollToIndex(component, 5, kCommandScrollAlignFirst, 200);
+    ASSERT_EQ(Point(0,500), component->scrollPosition());
+
+    scrollToIndex(component, 3, kCommandScrollAlignFirst, 200);
+    ASSERT_EQ(Point(0,300), component->scrollPosition());
+
+    // The last component can't scroll all the way to the top
+    scrollToIndex(component, 9, kCommandScrollAlignFirst, 200);
+    ASSERT_EQ(Point(0, 700), component->scrollPosition());
+
+    scrollToIndex(component, 0, kCommandScrollAlignFirst, 200);
+    ASSERT_EQ(Point(0,0), component->scrollPosition());
+
+    scrollToIndex(component, -5, kCommandScrollAlignFirst, 200);
+    ASSERT_EQ(Point(0,500), component->scrollPosition());
+}
+
+TEST_F(ScrollTest, ScrollToComponentDuration)
+{
+    loadDocument(VERTICAL_SCROLLVIEW);
+
+    std::map<std::string, ComponentPtr> map;
+    for (int i = 1 ; i <= 6 ; i++) {
+        std::string name = "frame" + std::to_string(i);
+        map.emplace(name, root->context().findComponentById(name));
+    }
+
+    scrollToComponent(map["frame4"], kCommandScrollAlignFirst, 300);
+    ASSERT_EQ(Point(0,600), component->scrollPosition());
+}
+
+TEST_F(ScrollTest, SequenceVerticalInstant)
+{
+    loadDocument(SEQUENCE_TEST_VERTICAL_DURATION);
+
+    completeScroll(component, -1, 0);  // Can't scroll backwards
+    ASSERT_EQ(Point(0,0), component->scrollPosition());
+
+    completeScroll(component, 1, 0);
+    ASSERT_EQ(Point(0, 300), component->scrollPosition());
+
+    completeScroll(component, 5, 0);  // This maxes out
+    ASSERT_EQ(Point(0, 700), component->scrollPosition());
+
+    completeScroll(component, 5, 0);
+    ASSERT_EQ(Point(0, 700), component->scrollPosition());
+
+    completeScroll(component, -0.5f, 0);
+    ASSERT_EQ(Point(0, 550), component->scrollPosition());
+
+    completeScroll(component, -20, 0);
+    ASSERT_EQ(Point(0,0), component->scrollPosition());
+}
+
+TEST_F(ScrollTest, ScrollToIndexFirstInstant)
+{
+    loadDocument(SEQUENCE_WITH_INDEX_DURATION);
+
+    // Move the second item up to the top of the scroll view.
+    scrollToIndex(component, 1, kCommandScrollAlignFirst, 0);
+    ASSERT_EQ(Point(0,100), component->scrollPosition());
+
+    // Repeat the command - it shouldn't move.
+    scrollToIndex(component, 1, kCommandScrollAlignFirst, 0);
+    ASSERT_EQ(Point(0,100), component->scrollPosition());
+
+    scrollToIndex(component, 5, kCommandScrollAlignFirst, 0);
+    ASSERT_EQ(Point(0,500), component->scrollPosition());
+
+    scrollToIndex(component, 3, kCommandScrollAlignFirst, 0);
+    ASSERT_EQ(Point(0,300), component->scrollPosition());
+
+    // The last component can't scroll all the way to the top
+    scrollToIndex(component, 9, kCommandScrollAlignFirst, 0);
+    ASSERT_EQ(Point(0, 700), component->scrollPosition());
+
+    scrollToIndex(component, 0, kCommandScrollAlignFirst, 0);
+    ASSERT_EQ(Point(0,0), component->scrollPosition());
+
+    scrollToIndex(component, -5, kCommandScrollAlignFirst, 0);
+    ASSERT_EQ(Point(0,500), component->scrollPosition());
+}
+
+TEST_F(ScrollTest, ScrollToComponentInstant)
+{
+    loadDocument(VERTICAL_SCROLLVIEW);
+
+    std::map<std::string, ComponentPtr> map;
+    for (int i = 1 ; i <= 6 ; i++) {
+        std::string name = "frame" + std::to_string(i);
+        map.emplace(name, root->context().findComponentById(name));
+    }
+
+    scrollToComponent(map["frame4"], kCommandScrollAlignFirst, 0);
+    ASSERT_EQ(Point(0,600), component->scrollPosition());
+}

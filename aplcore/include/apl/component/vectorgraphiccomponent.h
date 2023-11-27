@@ -71,6 +71,16 @@ protected:
 #endif // SCENEGRAPH
 
 private:
+    /**
+     * When providing parameters to the graphic, use this component's explicit parameters property,
+     * if specified. Otherwise fall back to exposing properties as implicit parameters.
+     */
+    Properties getGraphicParameters() { 
+        const auto& explicitParameters = getCalculated(kPropertyParameters);
+        return explicitParameters.empty() ? mProperties : Properties(explicitParameters);
+    }
+
+private:
     bool mOnLoadOnFailReported = false;
     bool mGraphicReplaced = false;
 };

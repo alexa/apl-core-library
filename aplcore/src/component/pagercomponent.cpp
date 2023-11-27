@@ -22,7 +22,7 @@
 #include "apl/focus/focusmanager.h"
 #include "apl/livedata/layoutrebuilder.h"
 #include "apl/livedata/livearrayobject.h"
-#include "apl/primitives/keyboard.h"
+#include "apl/primitives/accessibilityaction.h"
 #include "apl/time/sequencer.h"
 #include "apl/time/timemanager.h"
 #include "apl/touch/gestures/pagerflinggesture.h"
@@ -61,6 +61,60 @@ PagerComponent::clearActiveStateSelf()
     mPageMoveHandler = nullptr;
     mCurrentAnimation = nullptr;
     mDelayLayoutAction = nullptr;
+}
+
+void
+PagerComponent::getSupportedStandardAccessibilityActions(std::map<std::string, bool>& result) const
+{
+    ActionableComponent::getSupportedStandardAccessibilityActions(result);
+    if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureDynamicAccessibilityActions)) {
+        auto availableDirection = pageDirection();
+        switch (availableDirection) {
+            case kPageDirectionNone:
+                break;
+            case kPageDirectionForward:
+                result.emplace(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD, true);
+                break;
+            case kPageDirectionBack:
+                result.emplace(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD, true);
+                break;
+            case kPageDirectionBoth:
+                result.emplace(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD, true);
+                result.emplace(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD, true);
+                break;
+        }
+    } else {
+        result.emplace(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD, true);
+        result.emplace(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD, true);
+    }
+}
+
+void
+PagerComponent::invokeStandardAccessibilityAction(const std::string& name)
+{
+    bool pageChange = false;
+    if (name == AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD) {
+        setPageImmediate(kPageDirectionForward);
+        pageChange = true;
+    } else if (name == AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD) {
+        setPageImmediate(kPageDirectionBack);
+        pageChange = true;
+    } else
+        ActionableComponent::invokeStandardAccessibilityAction(name);
+
+    if (pageChange &&
+        getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureDynamicAccessibilityActions)) {
+        // If we have focus set to a CHILD of pager it should go to the next child, or to pager if
+        // no such.
+        auto focused = getContext()->focusManager().getFocus();
+        auto self = shared_from_corecomponent();
+        if (focused && focused != self && isParentOf(focused)) {
+            auto next = getContext()->focusManager().find(kFocusDirectionForward, nullptr, Rect(), self);
+            if (!next) next = self;
+
+            getContext()->focusManager().setFocus(next, true, false);
+        }
+    }
 }
 
 inline Object
@@ -117,7 +171,7 @@ PagerComponent::propDefSet() const {
         {kPropertyPageDirection,  kScrollDirectionHorizontal, sScrollDirectionMap, kPropIn | kPropDynamic},
         {kPropertyHandlePageMove, Object::EMPTY_ARRAY(),      asArray,             kPropIn},
         {kPropertyOnPageChanged,  Object::EMPTY_ARRAY(),      asCommand,           kPropIn},
-        {kPropertyCurrentPage,    0,                          asInteger,           kPropRuntimeState | kPropVisualContext},
+        {kPropertyCurrentPage,    0,                          asInteger,           kPropRuntimeState | kPropVisualContext | kPropAccessibility},
         {kPropertyPageId,         getPageId,                  setPageId,           kPropDynamic },
         {kPropertyPageIndex,      getPageIndex,               setPageIndex,        kPropDynamic },
     });
@@ -126,7 +180,7 @@ PagerComponent::propDefSet() const {
 }
 
 std::shared_ptr<PagerComponent>
-PagerComponent::cast(const std::shared_ptr<Component>& component) {
+PagerComponent::cast(const ComponentPtr& component) {
     return component && component->getType() == ComponentType::kComponentTypePager
                ? std::static_pointer_cast<PagerComponent>(component) : nullptr;
 }
@@ -149,8 +203,8 @@ PagerComponent::update(UpdateType type, float value) {
         // Update is used only in case if change of the page was performed by viewhost implementation (non-native gesture
         // processing). Animations is up to viewhost so we only update core internal state.
         int currentPage = pagePosition();
-        if (value != currentPage) {
-            setPage(value);
+        if (static_cast<int>(value) != currentPage) {
+            setPage(static_cast<int>(value));
             markDisplayedChildrenStale(true);
             executePageChangeEvent(type == kUpdatePagerByEvent);
         }
@@ -186,25 +240,35 @@ PagerComponent::setPageImmediate(int pageIndex)
 
     if (allowEventHandlers())
         executePageChangeEvent(true);
+
+    markDisplayedChildrenStale(true);
 }
 
 void
 PagerComponent::setPageUtil(
-        const apl::ContextPtr& context,
         const apl::ComponentPtr& target,
         int index,
         PageDirection direction,
         const ActionRef& ref,
-        bool skipDefaultAnimation)
+        bool skipDefaultAnimation,
+        apl_duration_t transitionDuration)
 {
-    if (target->getType() == ComponentType::kComponentTypePager) {
-        std::static_pointer_cast<PagerComponent>(target)->handleSetPage(index, direction, ref,
-                                                                         skipDefaultAnimation);
-    }
+    auto pager = PagerComponent::cast(target);
+    if (pager)
+        pager->handleSetPage(index, direction, ref, skipDefaultAnimation, transitionDuration);
 }
 
 void
-PagerComponent::handleSetPage(int index, PageDirection direction, const ActionRef& ref, bool skipDefaultAnimation)
+PagerComponent::setPageImmediate(PageDirection direction)
+{
+    auto index = direction == kPageDirectionForward ? pagePosition() + 1 : pagePosition() - 1;
+    auto pages = static_cast<int>(getChildCount());
+    int result = index % pages;
+    setPageImmediate(result >= 0 ? result : result + pages);
+}
+
+void
+PagerComponent::handleSetPage(int index, PageDirection direction, const ActionRef& ref, bool skipDefaultAnimation, apl_duration_t transitionDuration)
 {
     auto currentPage = pagePosition();
 
@@ -226,20 +290,27 @@ PagerComponent::handleSetPage(int index, PageDirection direction, const ActionRe
     // Set initial state
     startPageMove(direction, currentPage, index);
 
+    if (!mPageMoveHandler) {
+        // Created in the previous step, should not happen
+        assert(false);
+        return;
+    }
+
     // Animate if required.
     std::weak_ptr<PagerComponent> weak_ptr(std::static_pointer_cast<PagerComponent>(shared_from_this()));
     disableGestures();
-    if (mPageMoveHandler && !(mPageMoveHandler->isDefault() && skipDefaultAnimation)) {
-        auto duration = getRootConfig().getDefaultPagerAnimationDuration();
-        mCurrentAnimation = Action::makeAnimation(getRootConfig().getTimeManager(),
-            duration, [weak_ptr, duration](apl_duration_t offset){
-              auto self = weak_ptr.lock();
-              if (self) {
-                  self->executePageMove(offset/duration);
-              }
-            });
-    } else {
+
+    // We skip animation if asked to do so, on default handler and duration was not explicitly set
+    if (mPageMoveHandler->isDefault() && skipDefaultAnimation && transitionDuration <= 0) {
         mCurrentAnimation = Action::makeDelayed(getRootConfig().getTimeManager(), 0);
+    } else {
+        if (transitionDuration < 0)
+            transitionDuration = getRootConfig().getProperty(RootProperty::kDefaultPagerAnimationDuration).getDouble();
+        mCurrentAnimation = Action::makeAnimation(getRootConfig().getTimeManager(),
+          transitionDuration, [weak_ptr, transitionDuration](apl_duration_t offset){
+              auto self = weak_ptr.lock();
+              if (self) self->executePageMove(offset/transitionDuration);
+          });
     }
 
     mCurrentAnimation->then([weak_ptr, ref](const ActionPtr& actionPtr){
@@ -688,6 +759,7 @@ PagerComponent::finalizePopulate()
             }
         }
     }
+    markAccessibilityDirty();
 }
 
 void
@@ -706,7 +778,7 @@ PagerComponent::attachPageAndReportLoaded(int page) {
      * in case the next page needs to lay out complicated text blocks.
      */
     const auto childCount = static_cast<int>(mChildren.size());
-    const auto pagerChildCache = mContext->getRootConfig().getPagerChildCache();
+    const auto pagerChildCache = mContext->getRootConfig().getProperty(RootProperty::kPagerChildCache).getInteger();
     const auto navigation = static_cast<Navigation>(getCalculated(kPropertyNavigation).getInteger());
 
     int start = 0;
@@ -815,7 +887,7 @@ PagerComponent::takeFocusFromChild(FocusDirection direction, const Rect& origin)
             const auto targetPage = (int)((pagePosition() + delta + childCount) % childCount);
             // Reset any running commands that may affect page position.
             getContext()->sequencer().releaseResource({kExecutionResourcePosition, shared_from_this()});
-            setPageUtil(getContext(), shared_from_corecomponent(), targetPage, targetDirection, ActionRef(nullptr));
+            setPageUtil(shared_from_corecomponent(), targetPage, targetDirection, ActionRef(nullptr));
             // Need to have that to base search on what it will be.
             setPage(targetPage);
             auto pager = shared_from_corecomponent();

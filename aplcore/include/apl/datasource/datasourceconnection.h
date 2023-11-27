@@ -48,7 +48,7 @@ public:
      *
      * @return LiveArray used as data storage for this connection.
      */
-    virtual std::shared_ptr<LiveArray> getLiveArray() = 0;
+    virtual LiveArrayPtr getLiveArray() = 0;
 
     /**
      * Retrieve datasource context as a JSON object. Should be called by RootContext->serializeDatasourceContext()

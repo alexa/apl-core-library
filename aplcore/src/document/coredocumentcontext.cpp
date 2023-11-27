@@ -21,8 +21,9 @@
 #include "apl/command/configchangecommand.h"
 #include "apl/command/displaystatechangecommand.h"
 #include "apl/command/documentcommand.h"
+#include "apl/component/hostcomponent.h"
+#include "apl/content/content.h"
 #include "apl/datasource/datasource.h"
-#include "apl/datasource/datasourceprovider.h"
 #include "apl/engine/builder.h"
 #include "apl/engine/corerootcontext.h"
 #include "apl/engine/keyboardmanager.h"
@@ -31,6 +32,7 @@
 #include "apl/engine/sharedcontextdata.h"
 #include "apl/engine/styles.h"
 #include "apl/engine/uidmanager.h"
+#include "apl/extension/extensionclient.h"
 #include "apl/extension/extensionmanager.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/graphic/graphic.h"
@@ -56,56 +58,6 @@ static const char *UTC_TIME = "utcTime";
 static const char *ON_MOUNT_HANDLER_NAME = "Mount";
 
 static const std::string MOUNT_SEQUENCER = "__MOUNT_SEQUENCER";
-
-CoreDocumentContextPtr
-CoreDocumentContext::create(const ContextPtr& context,
-                            const ContentPtr& content,
-                            const Object& env,
-                            const Size& size,
-                            const DocumentConfigPtr& documentConfig)
-{
-    const RootConfig& rootConfig = context->getRootConfig();
-    const RootConfigPtr embeddedRootConfig = rootConfig.copy();
-    embeddedRootConfig->set(RootProperty::kLang, env.opt("lang", context->getLang()));
-    embeddedRootConfig->set(RootProperty::kLayoutDirection,
-                            env.opt("layoutDirection", sLayoutDirectionMap.get(context->getLayoutDirection(), "")));
-
-    embeddedRootConfig->set(RootProperty::kAllowOpenUrl,
-                            rootConfig.getProperty(RootProperty::kAllowOpenUrl).getBoolean()
-                                && env.opt("allowOpenURL", true).asBoolean());
-
-    auto copyDisallowProp = [&]( RootProperty propName, const std::string& envName ) {
-        embeddedRootConfig->set(propName, rootConfig.getProperty(propName).getBoolean() || env.opt(envName, false).asBoolean());
-    };
-
-    copyDisallowProp(RootProperty::kDisallowDialog, "disallowDialog");
-    copyDisallowProp(RootProperty::kDisallowEditText, "disallowEditText");
-    copyDisallowProp(RootProperty::kDisallowVideo, "disallowVideo");
-
-    if (documentConfig != nullptr) {
-#ifdef ALEXAEXTENSIONS
-        embeddedRootConfig->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider);
-        embeddedRootConfig->extensionMediator(documentConfig->getExtensionMediator());
-#endif
-
-        for (const auto& provider : documentConfig->getDataSourceProviders()) {
-            embeddedRootConfig->dataSourceProvider(provider->getType(), provider);
-        }
-    }
-
-    // std::lround use copied from Dimension::AbsoluteDimensionObjectType::asInt
-    const int width = std::lround(context->dpToPx(size.getWidth()));
-    const int height = std::lround(context->dpToPx(size.getHeight()));
-
-    auto metrics = Metrics()
-                       .size(width, height)
-                       .shape(context->getScreenShape())
-                       .theme(context->getTheme().c_str())
-                       .dpi(context->getDpi())
-                       .mode(context->getViewportMode());
-
-    return CoreDocumentContext::create(context->getShared(), metrics, content, *embeddedRootConfig);
-}
 
 CoreDocumentContextPtr
 CoreDocumentContext::create(
@@ -138,18 +90,27 @@ CoreDocumentContext::~CoreDocumentContext() {
 }
 
 void
-CoreDocumentContext::configurationChange(const ConfigurationChange& change)
+CoreDocumentContext::configurationChange(const ConfigurationChange& change, bool embedded)
 {
     // If we're in the middle of a configuration change, drop it
     mCore->sequencer().terminateSequencer(ConfigChangeCommand::SEQUENCER);
 
     mActiveConfigurationChanges.mergeConfigurationChange(change);
-    if (mActiveConfigurationChanges.empty())
+
+    mResultingConfigurationChange = mActiveConfigurationChanges;
+    // Filter/adjust change to what is suitable for embedded document.
+    if (embedded) {
+        auto parentComponent = HostComponent::cast(mContext->topComponent()->getParent());
+        if (parentComponent)
+            mResultingConfigurationChange = parentComponent->filterConfigurationChange(mActiveConfigurationChanges, mCore->mMetrics);
+    }
+
+    if (mResultingConfigurationChange.empty())
         return;
 
     auto cmd = ConfigChangeCommand::create(shared_from_this(),
-                                           mActiveConfigurationChanges.asEventProperties(mCore->rootConfig(),
-                                                                                         mCore->metrics()));
+                                           mResultingConfigurationChange.asEventProperties(mCore->rootConfig(),
+                                                                                           mCore->metrics()));
     mContext->sequencer().executeOnSequencer(cmd, ConfigChangeCommand::SEQUENCER);
 }
 
@@ -186,31 +147,64 @@ CoreDocumentContext::updateDisplayState(DisplayState displayState)
 }
 
 bool
-CoreDocumentContext::reinflate(const LayoutCallbackFunc& layoutCallback)
+CoreDocumentContext::refreshContent()
+{
+    if (mContent->isMutable()) {
+        auto metrics = mActiveConfigurationChanges.mergeMetrics(mCore->mMetrics);
+        auto config = mActiveConfigurationChanges.mergeRootConfig(mCore->mConfig);
+        mContent->refresh(metrics, config);
+        return mContent->isWaiting();
+    }
+
+    return false;
+}
+
+const Metrics&
+CoreDocumentContext::currentMetrics() const
+{
+    return mCore->mMetrics;
+}
+
+const RootConfig&
+CoreDocumentContext::currentConfig() const
+{
+    return mCore->mConfig;
+}
+
+std::pair<bool, CoreComponentPtr>
+CoreDocumentContext::startReinflate(std::map<std::string, ActionPtr>& preservedSequencers)
 {
     // The basic algorithm is to simply re-build CoreDocumentContexData and re-inflate the component hierarchy.
     // TODO: Re-use parts of the hierarchy and to maintain state during reinflation.
     mCore->sequencer().terminateSequencer(ConfigChangeCommand::SEQUENCER);
 
-    auto preservedSequencers = std::map<std::string, ActionPtr>();
     for (auto& stp : mCore->sequencer().getSequencersToPreserve()) {
         preservedSequencers.emplace(stp, mCore->sequencer().detachSequencer(stp));
     }
 
     auto shared = mCore->mSharedData;
-    if (!shared) return false;
+    if (!shared) return std::make_pair(false, nullptr);
 
     auto oldTop = mCore->halt();
     if (oldTop) {
         shared->layoutManager().removeAsTopNode(oldTop);
     }
 
-    auto metrics = mActiveConfigurationChanges.mergeMetrics(mCore->mMetrics);
-    auto config = mActiveConfigurationChanges.mergeRootConfig(mCore->mConfig);
+    return std::make_pair(true, oldTop);
+}
+
+bool
+CoreDocumentContext::finishReinflate(const LayoutCallbackFunc& layoutCallback, const CoreComponentPtr& oldTop, const std::map<std::string, ActionPtr>& preservedSequencers)
+{
+    auto metrics = mResultingConfigurationChange.mergeMetrics(mCore->mMetrics);
+    auto config = mResultingConfigurationChange.mergeRootConfig(mCore->mConfig);
 
     // Update the configuration with the current UTC time and time adjustment
     config.set(RootProperty::kUTCTime, mUTCTime);
     config.set(RootProperty::kLocalTimeAdjustment, mLocalTimeAdjustment);
+
+    auto shared = mCore->mSharedData;
+    if (!shared) return false;
 
     // The initialization routine replaces mCore with a new core
     init(metrics, config, shared, true);
@@ -227,6 +221,7 @@ CoreDocumentContext::reinflate(const LayoutCallbackFunc& layoutCallback)
 
     // Clear the old active configuration; it is reset on a reinflation
     mActiveConfigurationChanges.clear();
+    mResultingConfigurationChange.clear();
 
     for (auto& ps : preservedSequencers) {
         if(!mCore->sequencer().reattachSequencer(ps.first, ps.second, *this)) {
@@ -237,12 +232,22 @@ CoreDocumentContext::reinflate(const LayoutCallbackFunc& layoutCallback)
     return topComponent() != nullptr;
 }
 
+bool
+CoreDocumentContext::reinflate(const LayoutCallbackFunc& layoutCallback)
+{
+    auto preservedSequencers = std::map<std::string, ActionPtr>();
+    auto startResult = startReinflate(preservedSequencers);
+    if (!startResult.first) return false;
+
+    return finishReinflate(layoutCallback, startResult.second, preservedSequencers);
+}
+
 void
 CoreDocumentContext::resize()
 {
     // Release any "onConfigChange" action
     mCore->sequencer().terminateSequencer(ConfigChangeCommand::SEQUENCER);
-    mCore->layoutManager().configChange(mActiveConfigurationChanges, shared_from_this());
+    mCore->layoutManager().configChange(mResultingConfigurationChange, shared_from_this());
     // Note: we do not clear the configuration changes - there may be a reinflate() coming in the future.
 }
 
@@ -278,8 +283,8 @@ CoreDocumentContext::init(const Metrics& metrics,
     mContext->putSystemWriteable(ELAPSED_TIME, config.getTimeManager()->currentTime());
     mContext->putSystemWriteable(DISPLAY_STATE, sDisplayStateMap.at(mDisplayState));
 
-    mUTCTime = config.getUTCTime();
-    mLocalTimeAdjustment = config.getLocalTimeAdjustment();
+    mUTCTime = config.getProperty(RootProperty::kUTCTime).getDouble();
+    mLocalTimeAdjustment = config.getProperty(RootProperty::kLocalTimeAdjustment).getDouble();
     mContext->putSystemWriteable(UTC_TIME, mUTCTime);
     mContext->putSystemWriteable(LOCAL_TIME, mUTCTime + mLocalTimeAdjustment);
 
@@ -293,14 +298,16 @@ CoreDocumentContext::init(const Metrics& metrics,
         }
     }
 
-#ifdef ALEXAEXTENSIONS
     // Get all known extension clients, via legacy pathway and mediator
     auto clients = config.getLegacyExtensionClients();
+#ifdef ALEXAEXTENSIONS
     auto extensionMediator = config.getExtensionMediator();
     if (extensionMediator) {
         const auto& mediatorClients = extensionMediator->getClients();
         clients.insert(mediatorClients.begin(), mediatorClients.end());
     }
+#endif
+
     // Insert extension-defined live data
     for (auto& client : clients) {
         const auto& schema = client.second->extensionSchema();
@@ -309,7 +316,6 @@ CoreDocumentContext::init(const Metrics& metrics,
             client.second->registerObjectWatcher(ldo);
         }
     }
-#endif
 }
 
 void
@@ -549,7 +555,7 @@ CoreDocumentContext::setup(const CoreComponentPtr& top)
     std::vector<PackagePtr> ordered = mContent->ordered();
 
     // check type field of each package
-    auto enforceTypeField = mCore->rootConfig().getEnforceTypeField();
+    auto enforceTypeField = mCore->rootConfig().getProperty(RootProperty::kEnforceTypeField).getBoolean();
     if(!verifyTypeField(ordered, enforceTypeField)) {
         return false;
     }
@@ -559,13 +565,12 @@ CoreDocumentContext::setup(const CoreComponentPtr& top)
         return false;
     }
 
-    bool trackProvenance = mCore->rootConfig().getTrackProvenance();
+    bool trackProvenance = mCore->rootConfig().getProperty(RootProperty::kTrackProvenance).getBoolean();
 
     // Read settings
-    // Deprecated, get settings from Content->getDocumentSettings()
     {
         APL_TRACE_BEGIN("DocumentContext:readSettings");
-        mCore->mSettings->read(mCore->rootConfig());
+        mCore->mSettings = content()->getDocumentSettings();
         APL_TRACE_END("DocumentContext:readSettings");
     }
 
@@ -696,7 +701,7 @@ CoreDocumentContext::verifyAPLVersionCompatibility(const std::vector<PackagePtr>
 }
 
 bool
-CoreDocumentContext::verifyTypeField(const std::vector<std::shared_ptr<Package>>& ordered, bool enforce)
+CoreDocumentContext::verifyTypeField(const std::vector<PackagePtr>& ordered, bool enforce)
 {
     for(auto& child : ordered) {
         auto type = child->type();

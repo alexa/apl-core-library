@@ -29,6 +29,9 @@ public:
     CommandType type() const override { return kCommandTypeInsertItem; }
 
     ActionPtr execute(const TimersPtr& timers, bool fastMode) override;
+
+private:
+    ContextPtr buildBaseChildContext(int insertIndex) const;
 };
 
 } // namespace apl

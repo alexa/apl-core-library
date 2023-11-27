@@ -30,6 +30,7 @@ public:
     virtual ~LongPressGesture() = default;
 
     bool invokeAccessibilityAction(const std::string& name) override;
+    const std::vector<std::string>& getAccessibilityActions() const override;
 
 protected:
     bool onTimeUpdate(const PointerEvent& event, apl_time_t timestamp) override;

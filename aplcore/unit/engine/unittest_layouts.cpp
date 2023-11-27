@@ -778,3 +778,43 @@ TEST_F(LayoutTest, BAD_PARAMETER_NAME)
     ASSERT_TRUE(component);
     ASSERT_TRUE(ConsoleMessage());
 }
+
+static const char *SIMPLE_EDIT_TEXT_TOP = R"apl({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "EditText",
+      "id": "EDITTEXT"
+    }
+  }
+})apl";
+
+static const char *SIMPLE_VIDEO_TOP = R"apl({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "item": {
+      "type": "Video",
+      "id": "VIDEO"
+    }
+  }
+})apl";
+
+TEST_F(LayoutTest, TopLevelDisallowedEditTextFailsInflation) {
+    config->set(RootProperty::kDisallowEditText, true);
+
+    loadDocumentExpectFailure(SIMPLE_EDIT_TEXT_TOP);
+
+    ASSERT_FALSE(component);
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+TEST_F(LayoutTest, TopLevelDisallowedVideoFailsInflation) {
+    config->set(RootProperty::kDisallowVideo, true);
+
+    loadDocumentExpectFailure(SIMPLE_VIDEO_TOP);
+
+    ASSERT_FALSE(component);
+    ASSERT_TRUE(ConsoleMessage());
+}

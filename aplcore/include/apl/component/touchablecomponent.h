@@ -56,6 +56,7 @@ protected:
     void setGestureHandlers();
     PointerCaptureStatus processPointerEvent(const PointerEvent& event, apl_time_t timestamp, bool onlyProcessGestures) override;
     void invokeStandardAccessibilityAction(const std::string& name) override;
+    void getSupportedStandardAccessibilityActions(std::map<std::string, bool>& result) const override;
 
 private:
     void executePreEventActions(PropertyKey handlerKey);

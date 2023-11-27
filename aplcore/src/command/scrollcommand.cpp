@@ -22,8 +22,9 @@ namespace apl {
 const CommandPropDefSet&
 ScrollCommand::propDefSet() const {
     static CommandPropDefSet sScrollCommandProperties(CoreCommand::propDefSet(), {
-            {kCommandPropertyComponentId, "", asString,                   kPropRequiredId},
-            {kCommandPropertyDistance,    0,  asNonAutoRelativeDimension},
+            {kCommandPropertyComponentId,    "", asString,                   kPropRequiredId},
+            {kCommandPropertyDistance,       0,  asNonAutoRelativeDimension},
+            {kCommandPropertyTargetDuration, -1, asInteger},
     });
 
     return sScrollCommandProperties;
@@ -44,7 +45,10 @@ ScrollCommand::execute(const TimersPtr& timers, bool fastMode) {
         return nullptr;
     }
 
-    return ScrollAction::make(timers, std::static_pointer_cast<CoreCommand>(shared_from_this()));
+    return ScrollAction::make(
+        timers,
+        std::static_pointer_cast<CoreCommand>(shared_from_this()),
+        getValue(kCommandPropertyTargetDuration).getInteger());
 }
 
 } // namespace apl

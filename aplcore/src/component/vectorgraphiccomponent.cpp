@@ -79,6 +79,7 @@ VectorGraphicComponent::propDefSet() const
             {kPropertyMediaBounds, Object::NULL_OBJECT(),     nullptr,                kPropOut | kPropVisualHash},
             {kPropertyOnFail,      Object::EMPTY_ARRAY(),     asCommand,              kPropIn},
             {kPropertyOnLoad,      Object::EMPTY_ARRAY(),     asCommand,              kPropIn},
+            {kPropertyParameters,  Object::EMPTY_MAP(),       asAny,                  kPropIn | kPropDynamic},
             {kPropertyScale,       kVectorGraphicScaleNone,   sVectorGraphicScaleMap, kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash, checkLayout},
             {kPropertySource,      "",                        asVectorGraphicSource,  kPropInOut | kPropDynamic | kPropVisualHash | kPropEvaluated, resetMediaState},
     });
@@ -102,7 +103,7 @@ VectorGraphicComponent::initialize()
         if (!graphicResource.empty()) {
             auto graphic = Graphic::create(mContext,
                                            graphicResource,
-                                           Properties(mProperties),
+                                           getGraphicParameters(),
                                            shared_from_corecomponent());
             if (graphic) {
                 mCalculated.set(kPropertyGraphic, graphic);
@@ -166,7 +167,7 @@ VectorGraphicComponent::updateGraphic(const GraphicContentPtr& json)
     auto path = Path("_url").addObject(url);
     auto g = Graphic::create(mContext,
                              json->get(),
-                             Properties(mProperties),
+                             getGraphicParameters(),
                              shared_from_corecomponent(),
                              path,
                              getStyle());
@@ -209,7 +210,7 @@ VectorGraphicComponent::sourcePropertyChanged()
         if (!graphicResource.empty()) {
             auto graphic = Graphic::create(mContext,
                                            graphicResource,
-                                           Properties(mProperties),
+                                           getGraphicParameters(),
                                            shared_from_corecomponent());
             if (graphic) {
                 mCalculated.set(kPropertyGraphic, graphic);

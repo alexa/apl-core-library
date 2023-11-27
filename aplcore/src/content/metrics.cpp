@@ -35,8 +35,12 @@ std::string Metrics::toDebugString() const {
            "theme=" + mTheme + ", "
            "size=" + std::to_string(static_cast<int>(mPixelWidth)) + "x"
                    + std::to_string(static_cast<int>(mPixelHeight)) + ", "
-           "autoSizeWidth=" + (mAutoSizeWidth ? "true ": "false ") +
-           "autoSizeHeight=" + (mAutoSizeHeight ? "true ": "false ") +
+           "autoSizeWidth=" + (getAutoWidth() ? "true ": "false ") +
+           "autoSizeHeight=" + (getAutoHeight() ? "true ": "false ") +
+           "minHeight=" + std::to_string(getMinHeight()) + " " +
+           "maxHeight=" + std::to_string(getMaxHeight()) + " " +
+           "minWidth=" + std::to_string(getMinWidth()) + " " +
+           "maxWidth=" + std::to_string(getMaxWidth()) + " " +
            "dpi=" + std::to_string(static_cast<int>(mDpi)) + ", "
            "shape=" + sScreenShapeBimap.at(mShape) + ", "
            "mode=" + sViewportModeBimap.at(mMode) + ">";

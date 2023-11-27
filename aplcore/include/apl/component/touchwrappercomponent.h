@@ -35,7 +35,7 @@ public:
      * @param component Pointer to cast.
      * @return Casted pointer to this type, nullptr if not possible.
      */
-    static std::shared_ptr<TouchWrapperComponent> cast(const std::shared_ptr<Component>& component);
+    static std::shared_ptr<TouchWrapperComponent> cast(const ComponentPtr& component);
 
     /**
      * Inject component that will replace current child of touch wrapper. While likely short lived - it will exist for

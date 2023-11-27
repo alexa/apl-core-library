@@ -17,7 +17,9 @@
 
 #include "apl/extension/extensionmediator.h"
 
+#include <algorithm>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -25,6 +27,7 @@
 #include <alexaext/alexaext.h>
 #include <rapidjson/document.h>
 
+#include "apl/content/content.h"
 #include "apl/content/extensionrequest.h"
 #include "apl/document/coredocumentcontext.h"
 #include "apl/extension/extensioncomponent.h"
@@ -396,8 +399,13 @@ ExtensionMediator::grantExtension(const Object& flags, const std::string& uri)
         return;
     }
 
-    if (extensionProvider->hasExtension(uri)) {
-        auto required = mRequired.count(uri);
+    auto required = mRequired.count(uri);
+    auto extensionExists = extensionProvider->hasExtension(uri);
+    if (required && !extensionExists) {
+        mFailState = true;
+        CONSOLE(mSession) << "Provider doesn't have required extension: " << uri;
+        return;
+    } else if (extensionExists) {
         // First get will call initialize.
         auto proxy = extensionProvider->getExtension(uri);
         if (!proxy) {
@@ -599,7 +607,7 @@ ExtensionMediator::loadExtensions(
         ExtensionsLoadedCallback loaded)
 {
     auto callbackV2 = [loaded](bool) { loaded(); };
-    loadExtensions(rootConfig, content, std::move(callbackV2));
+    loadExtensions(rootConfig->getExtensionFlags(), content, std::move(callbackV2));
 }
 
 void
@@ -1038,6 +1046,20 @@ ExtensionMediator::unregister(const alexaext::ActivityDescriptorPtr& activity) {
             sessionState->endSession();
         }
     }
+}
+
+std::unordered_map<std::string, alexaext::ActivityDescriptorPtr>
+ExtensionMediator::getLoadedExtensions()
+{
+    std::unordered_map<std::string, alexaext::ActivityDescriptorPtr> loaded;
+    std::copy_if(mActivitiesByURI.begin(), mActivitiesByURI.end(), std::inserter(loaded, loaded.end()), [this](decltype(loaded)::value_type const& kv_pair) {
+      auto client = mClients.find(kv_pair.first);
+      if (client != mClients.end()) {
+          return client->second->registered();
+      }
+      return false;
+    });
+    return loaded;
 }
 
 

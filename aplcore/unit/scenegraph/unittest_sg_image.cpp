@@ -177,6 +177,7 @@ TEST_F(SGImageTest, Preloaded) {
 
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200})
+                .characteristic(sg::Layer::kCharacteristicHasMedia)
                 .content(IsClipNode()
                              .path(IsRoundRectPath(50, 0, 100, 200, 0)) // Clip to target region
                              .child(IsImageNode()
@@ -196,6 +197,7 @@ TEST_F(SGImageTest, FailedLoad)
 
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200})
+                .characteristic(sg::Layer::kCharacteristicHasMedia)
                 .content(IsClipNode()
                              .path(IsRoundRectPath(RoundedRect{})) // Clip to target region
                              .child(IsImageNode().filterTest(IsMediaObjectFilter(
@@ -210,6 +212,7 @@ TEST_F(SGImageTest, FailedLoad)
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200})
                 .dirty(sg::Layer::kFlagRedrawContent) // The image node will have changed
+                .characteristic(sg::Layer::kCharacteristicHasMedia)
                 .content(IsClipNode(".clip")
                              .path(IsRoundRectPath(RoundedRect{})) // Clip to target region
                              .child(IsImageNode(".image")
@@ -227,6 +230,7 @@ TEST_F(SGImageTest, DelayedLoad) {
 
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200})
+                .characteristic(sg::Layer::kCharacteristicHasMedia)
                 .content(IsClipNode()
                              .path(IsRoundRectPath(RoundedRect{})) // Clip to target region
                              .child(IsImageNode().filterTest(IsMediaObjectFilter(
@@ -241,6 +245,7 @@ TEST_F(SGImageTest, DelayedLoad) {
 
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200})
+                .characteristic(sg::Layer::kCharacteristicHasMedia)
                 .dirty(sg::Layer::kFlagRedrawContent)     // The image content changed
                 .content(IsClipNode()
                              .path(IsRoundRectPath(50, 0, 100, 200, 0))
@@ -292,6 +297,7 @@ TEST_F(SGImageTest, FramedImage)
                         .pathOp(IsFillOp(IsColorPaint(Color::RED))))
             .childClip(IsRoundRectPath(10, 10, 180, 180, 0))
             .child(IsLayer(Rect{10, 10, 200, 200})
+                       .characteristic(sg::Layer::kCharacteristicHasMedia)
                        .content(IsClipNode()
                                     .path(IsRoundRectPath(50, 0, 100, 200,
                                                           0)) // Target bounds
@@ -331,6 +337,7 @@ TEST_F(SGImageTest, ColorOverlay) {
     ASSERT_TRUE(CheckSceneGraph(
         sg,
         IsLayer(Rect{0, 0, 400, 400})
+            .characteristic(sg::Layer::kCharacteristicHasMedia)
             .content(IsClipNode()
                          .path(IsRoundRectPath(100, 0, 200, 400,
                                                0)) // Clip to the image size (is this needed?)
@@ -371,6 +378,7 @@ TEST_F(SGImageTest, GradientOverlay) {
     // Default is "center", "best-fit"
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 400, 400})
+                .characteristic(sg::Layer::kCharacteristicHasMedia)
                 .content(IsClipNode()
                              .path(IsRoundRectPath(100, 0, 200, 400,
                                                    0)) // Clip to the image size (is this needed?)
@@ -415,6 +423,7 @@ TEST_F(SGImageTest, GradientColorOverlay) {
     // Default is "center", "best-fit"
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 400, 400})
+                .characteristic(sg::Layer::kCharacteristicHasMedia)
                 .content(IsClipNode()
                              .path(IsRoundRectPath(100, 0, 200, 400,
                                                    0)) // Clip to the image size (is this needed?)
@@ -464,6 +473,7 @@ TEST_F(SGImageTest, TwoImages) {
 
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 250, 310})
+                .characteristic(sg::Layer::kCharacteristicHasMedia)
                 .content(IsClipNode()
                              .path(IsRoundRectPath(0, 130, 40, 50,
                                                    0)) // Clip to the image size (is this needed?)
@@ -507,6 +517,7 @@ TEST_F(SGImageTest, TwoImagesBlend) {
 
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 250, 310})
+                .characteristic(sg::Layer::kCharacteristicHasMedia)
                 .content(IsClipNode()
                              .path(IsRoundRectPath(0, 55, 100, 200, 0)) // Clip to the image size
                              .child(IsImageNode()
@@ -552,6 +563,7 @@ TEST_F(SGImageTest, ManyFilters) {
     ASSERT_TRUE(CheckSceneGraph(
         sg,
         IsLayer(Rect{0, 0, 400, 400})
+            .characteristic(sg::Layer::kCharacteristicHasMedia)
             .content(
                 IsClipNode()
                     .path(IsRoundRectPath(100, 0, 200, 400,

@@ -18,7 +18,7 @@
 #include "apl/component/componentpropdef.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/keyboardmanager.h"
-#include "apl/engine/propdef.h"
+#include "apl/primitives/accessibilityaction.h"
 #include "apl/time/sequencer.h"
 #include "apl/touch/gesture.h"
 
@@ -39,6 +39,16 @@ static const std::map<PropertyKey, bool> sPropertyExecutesFast = {
     {kPropertyOnPress,  false},
     {kPropertyOnUp,     true}
 };
+
+void
+TouchableComponent::getSupportedStandardAccessibilityActions(std::map<std::string, bool>& result) const
+{
+    ActionableComponent::getSupportedStandardAccessibilityActions(result);
+    auto onPressHandler = getCalculated(kPropertyOnPress);
+    if (!onPressHandler.empty()) {
+        result.emplace("activate", false);
+    }
+}
 
 void
 TouchableComponent::setGestureHandlers()
@@ -68,7 +78,7 @@ void
 TouchableComponent::invokeStandardAccessibilityAction(const std::string& name)
 {
     auto onPressHandler = getCalculated(kPropertyOnPress);
-    if (name == "activate" && !onPressHandler.empty())
+    if (name == AccessibilityAction::ACCESSIBILITY_ACTION_ACTIVATE && !onPressHandler.empty())
         executeEventHandler(sPropertyHandlers.at(kPropertyOnPress),
                             onPressHandler, false, createTouchEventProperties(Point()));
     else

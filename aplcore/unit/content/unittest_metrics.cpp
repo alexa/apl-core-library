@@ -24,8 +24,7 @@ TEST_F(MetricsTest, Basic) {
     auto m = Metrics()
                  .theme("floppy")
                  .size(300, 400)
-                 .autoSizeWidth(true)
-                 .autoSizeHeight(false)
+                 .minAndMaxWidth(200, 500)
                  .dpi(320)
                  .shape(ScreenShape::ROUND)
                  .mode(ViewportMode::kViewportModePC);
@@ -35,6 +34,10 @@ TEST_F(MetricsTest, Basic) {
     ASSERT_EQ(150, m.getWidth());  // Scaling factor of 160/320
     ASSERT_TRUE(m.getAutoWidth());
     ASSERT_FALSE(m.getAutoHeight());
+    ASSERT_EQ(100, m.getMinWidth());  // Scaling factor of 160/320
+    ASSERT_EQ(250, m.getMaxWidth());  // Scaling factor of 160/320
+    ASSERT_EQ(200, m.getMinHeight());  // Scaling factor of 160/320
+    ASSERT_EQ(200, m.getMaxHeight());  // Scaling factor of 160/320
     ASSERT_EQ(320, m.getDpi());
     ASSERT_EQ(ScreenShape::ROUND, m.getScreenShape());
     ASSERT_EQ(ViewportMode::kViewportModePC, m.getViewportMode());

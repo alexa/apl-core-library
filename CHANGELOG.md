@@ -1,5 +1,24 @@
 # Changelog
 
+## [2023.3]
+
+This release adds support for version 2023.3 of the APL specification.
+
+### Added
+
+- Add Log command
+- Support conditional imports
+- Support gradient as Frame background
+- Add duration control for scrolling animations 
+- Add onChildrenChanged handler to Multichild component
+- Add data field expansion for Sequential and Parallel commands
+- Alpha feature: Support autosizing of Host component
+
+### Changed
+
+- Bug fixes
+- Performance improvements
+
 ## [2023.2]
 
 This release adds support for version 2023.2 of the APL specification.

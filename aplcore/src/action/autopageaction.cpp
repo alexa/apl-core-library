@@ -27,13 +27,15 @@ AutoPageAction::AutoPageAction(const TimersPtr& timers,
                                const ComponentPtr& container,
                                int start,
                                int end,
-                               apl_time_t duration)
+                               apl_duration_t duration,
+                               apl_duration_t transitionDuration)
         : ResourceHoldingAction(timers, command->context()),
           mCommand(command),
           mContainer(container),
           mNextIndex(start),
           mEndIndex(end),
-          mDuration(duration)
+          mDuration(duration),
+          mTransitionDuration(transitionDuration)
 {
     addTerminateCallback([this](const TimersPtr&) {
         if (mCurrentAction) {
@@ -58,13 +60,14 @@ AutoPageAction::make(const TimersPtr& timers,
     auto len = static_cast<int>(target->getChildCount());
     auto count = command->getValue(kCommandPropertyCount).asInt();
     auto duration = command->getValue(kCommandPropertyDuration).asInt();
+    auto transitionDuration = command->getValue(kCommandPropertyTransitionDuration).asInt();
 
     if (count <= 0 || start >= len)
         return nullptr;
 
     count = std::min(len - start, count);  // Note: Count may be INT_MAX, so be careful with math
 
-    auto ptr = std::make_shared<AutoPageAction>(timers, command, target, start, start + count, duration);
+    auto ptr = std::make_shared<AutoPageAction>(timers, command, target, start, start + count, duration, transitionDuration);
     command->context()->sequencer().claimResource({kExecutionResourcePosition, target}, ptr);
     ptr->advance();
     return ptr;
@@ -89,8 +92,9 @@ AutoPageAction::advance() {
         bool firstTime = (mCurrentAction == nullptr);
 
         mCurrentAction = Action::makeDelayed(timers(), (firstTime ? 0 : mDuration), [this](ActionRef ref) {
-            PagerComponent::setPageUtil(mContext, mContainer, mNextIndex++, kPageDirectionForward, ref,
-                                        mContext->getRequestedAPLVersion().compare("1.6") < 0);
+            PagerComponent::setPageUtil(mContainer, mNextIndex++, kPageDirectionForward, ref,
+                                        mContext->getRequestedAPLVersion().compare("1.6") < 0,
+                                        mTransitionDuration);
         });
     }
 

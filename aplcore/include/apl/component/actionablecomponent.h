@@ -60,7 +60,7 @@ public:
      * @param component Pointer to cast.
      * @return Casted pointer to this type, nullptr if not possible.
      */
-    static std::shared_ptr<ActionableComponent> cast(const std::shared_ptr<Component>& component);
+    static std::shared_ptr<ActionableComponent> cast(const ComponentPtr& component);
 
     /// CoreComponent overrides
     bool isActionable() const override { return true; }
@@ -81,6 +81,7 @@ protected:
             CoreComponent(context, std::move(properties), path), mGesturesDisabled(false) {}
 
     bool processGestures(const PointerEvent& event, apl_time_t timestamp) override;
+    void getSupportedStandardAccessibilityActions(std::map<std::string, bool>& result) const override;
     void invokeStandardAccessibilityAction(const std::string& name) override;
 
 #ifdef SCENEGRAPH

@@ -19,7 +19,7 @@
 namespace apl {
 
 std::shared_ptr<ComponentEventTargetWrapper>
-ComponentEventTargetWrapper::create(const std::shared_ptr<const CoreComponent>& component) {
+ComponentEventTargetWrapper::create(const ConstCoreComponentPtr& component) {
     return std::make_shared<ComponentEventTargetWrapper>(component);
 }
 

@@ -67,7 +67,8 @@ UnidirectionalEasingScroller::make(
 
     // 0 duration means go to it directly.
     if (duration == 0) {
-        auto resultingPosition = scrollable->isVertical() ? target.getY() : target.getX();
+        auto endPosition = scrollable->scrollPosition() + target;
+        auto resultingPosition = scrollable->isVertical() ? endPosition.getY() : endPosition.getX();
         scrollable->update(UpdateType::kUpdateScrollPosition, resultingPosition);
         finish();
         return nullptr;

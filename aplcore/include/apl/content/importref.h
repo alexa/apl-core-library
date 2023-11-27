@@ -17,6 +17,7 @@
 #define _APL_IMPORT_REF_H
 
 #include <string>
+#include <set>
 
 namespace apl {
 
@@ -27,8 +28,19 @@ namespace apl {
 class ImportRef {
 public:
     ImportRef() {}
-    ImportRef(const std::string& name, const std::string& version)
-        : mName(name), mVersion(version)
+
+    ImportRef(
+        const std::string& name,
+        const std::string& version)
+        : ImportRef(name, version, "", std::set<std::string>())
+    {}
+
+    ImportRef(
+        const std::string& name,
+        const std::string& version,
+        const std::string& source,
+        const std::set<std::string>& loadAfter)
+        : mName(name), mVersion(version), mSource(source), mLoadAfter(loadAfter)
     {}
 
     ImportRef(const ImportRef&) = default;
@@ -38,6 +50,8 @@ public:
 
     const std::string& name() const { return mName; }
     const std::string& version() const { return mVersion; }
+    const std::string& source() const { return mSource; }
+    const std::set<std::string>& loadAfter() const { return mLoadAfter; }
     std::string toString() const { return mName + ":" + mVersion; }
 
     bool operator==(const ImportRef& other) const { return this->compare(other) == 0; }
@@ -52,6 +66,8 @@ public:
 private:
     std::string mName;
     std::string mVersion;
+    std::string mSource;
+    std::set<std::string> mLoadAfter;
 };
 
 } // namespace apl

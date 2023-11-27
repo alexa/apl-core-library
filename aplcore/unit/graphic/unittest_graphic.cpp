@@ -3454,8 +3454,9 @@ static const char *GRAPHIC_ELEMENT_MISSING_WIDTH = R"apl(
 // Verify that filters serialize correctly
 TEST_F(GraphicTest, MissingWidthDoesntStop)
 {
-    auto content = apl::Content::create(GRAPHIC_ELEMENT_MISSING_WIDTH);
+    auto content = apl::Content::create(GRAPHIC_ELEMENT_MISSING_WIDTH, session);
     ASSERT_TRUE(content->isReady());
     ASSERT_TRUE(apl::RootContext::create(
         apl::Metrics().size(1280, 800).dpi(160).shape(apl::ScreenShape::ROUND), content));
+    ASSERT_TRUE(session->checkAndClear());
 }

@@ -311,7 +311,14 @@ TEST_F(AudioHighlightTest, Scrolling) {
                            .content(IsTransformNode().child(
                                IsTextNode()
                                    .text("Line1Line2Line3Line4Line5")
-                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))));
+                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true)
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
 
     // Execute SpeakItem with line highlighting.  Align the line to "first"
     executeCommand("SpeakItem",
@@ -336,7 +343,14 @@ TEST_F(AudioHighlightTest, Scrolling) {
                                            .content(IsTransformNode().child(
                                                IsTextNode()
                                                    .text("Line1Line2Line3Line4Line5")
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))))));
+                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))))
+                                .accessibility(IsAccessibility()
+                                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                                   true)
+                                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                                   true))));
 
     ASSERT_FALSE(factory->hasEvent());
 
@@ -357,7 +371,14 @@ TEST_F(AudioHighlightTest, Scrolling) {
                                            .content(IsTransformNode().child(
                                                IsTextNode()
                                                    .text("Line1Line2Line3Line4Line5")
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))))));
+                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))))
+                                .accessibility(IsAccessibility()
+                                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                                   true)
+                                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                                   true))));
 
     // ========== The first karaoke word hits ===========
     advanceTime(100);
@@ -379,7 +400,14 @@ TEST_F(AudioHighlightTest, Scrolling) {
                                              .range({1, 4})
                                              .pathOp(IsFillOp(IsColorPaint(Color::RED))))
 
-                                   )))));
+                                   )))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true)
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
 
     // ========== The second karaoke word hits.  Starts scrolling Line2 ===========
     advanceTime(200);
@@ -405,7 +433,14 @@ TEST_F(AudioHighlightTest, Scrolling) {
                                       .next(IsTextNode()
                                                 .text("Line1Line2Line3Line4Line5")
                                                 .range({2, 4})
-                                                .pathOp(IsFillOp(IsColorPaint(Color::RED))))))))));
+                                                .pathOp(IsFillOp(IsColorPaint(Color::RED))))))))
+            .accessibility(IsAccessibility()
+                   .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                           AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                           true)
+                   .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                           AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                           true))));
 
     // ========== Advance past the initial scrolling but before the next word ===========
     advanceTime(100);
@@ -431,7 +466,14 @@ TEST_F(AudioHighlightTest, Scrolling) {
                                       .next(IsTextNode()
                                                 .text("Line1Line2Line3Line4Line5")
                                                 .range({2, 4})
-                                                .pathOp(IsFillOp(IsColorPaint(Color::RED))))))))));
+                                                .pathOp(IsFillOp(IsColorPaint(Color::RED))))))))
+            .accessibility(IsAccessibility()
+                   .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                           AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                           true)
+                   .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                           AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                           true))));
 
     // ========== Run off until all playback is done ===========
     for (int i = 0; i < 2000; i += 100)
@@ -454,7 +496,14 @@ TEST_F(AudioHighlightTest, Scrolling) {
                            .content(IsTransformNode().child(
                                IsTextNode()
                                    .text("Line1Line2Line3Line4Line5")
-                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))));
+                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true)
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
 }
 
 TEST_F(AudioHighlightTest, ScrollingWithPreserve)
@@ -485,7 +534,14 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
                            .content(IsTransformNode().child(
                                IsTextNode()
                                    .text("Line1Line2Line3Line4Line5")
-                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))));
+                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true)
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
 
     // Execute SpeakItem with line highlighting.  Align the line to "first"
     executeCommand("SpeakItem",
@@ -510,7 +566,14 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
                                            .content(IsTransformNode().child(
                                                IsTextNode()
                                                    .text("Line1Line2Line3Line4Line5")
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))))));
+                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))))
+                                .accessibility(IsAccessibility()
+                                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                                   true)
+                                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                                   true))));
 
     ASSERT_FALSE(factory->hasEvent());
 
@@ -531,7 +594,14 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
                                            .content(IsTransformNode().child(
                                                IsTextNode()
                                                    .text("Line1Line2Line3Line4Line5")
-                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))))));
+                                                   .pathOp(IsFillOp(IsColorPaint(Color::RED))))))
+                                .accessibility(IsAccessibility()
+                                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                                   true)
+                                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                                   true))));
 
     // ========== The first karaoke word hits ===========
     advanceTime(100);
@@ -553,7 +623,14 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
                                              .range({1, 4})
                                              .pathOp(IsFillOp(IsColorPaint(Color::RED))))
 
-                                   )))));
+                                   )))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true)
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
 
     // ========== The second karaoke word hits.  Starts scrolling Line2 ===========
     advanceTime(200);
@@ -579,7 +656,14 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
                                       .next(IsTextNode()
                                                 .text("Line1Line2Line3Line4Line5")
                                                 .range({2, 4})
-                                                .pathOp(IsFillOp(IsColorPaint(Color::RED))))))))));
+                                                .pathOp(IsFillOp(IsColorPaint(Color::RED))))))))
+            .accessibility(IsAccessibility()
+                    .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                            AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                            true)
+                    .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                            AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                            true))));
 
     // ========== Advance past the initial scrolling but before the next word ===========
     advanceTime(100);
@@ -605,7 +689,14 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
                                       .next(IsTextNode()
                                                 .text("Line1Line2Line3Line4Line5")
                                                 .range({2, 4})
-                                                .pathOp(IsFillOp(IsColorPaint(Color::RED))))))))));
+                                                .pathOp(IsFillOp(IsColorPaint(Color::RED))))))))
+            .accessibility(IsAccessibility()
+                    .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                            AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                            true)
+                    .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                            AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                            true))));
 
     auto playerTimer = factory->getPlayers().at(0).lock()->getTimeoutId();
     loop->freeze(playerTimer);
@@ -634,7 +725,14 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
                            .content(IsTransformNode().child(
                                IsTextNode()
                                    .text("Line1Line2Line3Line4Line5")
-                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))));
+                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true)
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
 }
 
 static const char *SPEECH_MARK_HANDLER = R"apl({

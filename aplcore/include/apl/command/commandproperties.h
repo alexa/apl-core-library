@@ -48,6 +48,7 @@ enum CommandType {
     kCommandTypeCustomEvent,
     kCommandTypeInsertItem,
     kCommandTypeRemoveItem,
+    kCommandTypeLog,
 };
 
 enum CommandScrollAlign {
@@ -94,6 +95,14 @@ enum CommandReason {
     kCommandReasonExit
 };
 
+enum CommandLogLevel {
+    kCommandLogLevelDebug,
+    kCommandLogLevelInfo,
+    kCommandLogLevelWarn,
+    kCommandLogLevelError,
+    kCommandLogLevelCritical
+};
+
 enum CommandPropertyKey {
     kCommandPropertyAlign,
     kCommandPropertyArguments,
@@ -116,6 +125,8 @@ enum CommandPropertyKey {
     kCommandPropertyHighlightMode,
     kCommandPropertyIndex,
     kCommandPropertyItem,
+    kCommandPropertyLevel,
+    kCommandPropertyMessage,
     kCommandPropertyMinimumDwellTime,
     kCommandPropertyOnFail,
     kCommandPropertyOtherwise,
@@ -130,6 +141,8 @@ enum CommandPropertyKey {
     kCommandPropertySource,
     kCommandPropertyStart,
     kCommandPropertyState,
+    kCommandPropertyTargetDuration,
+    kCommandPropertyTransitionDuration,
     kCommandPropertyValue,
 };
 
@@ -142,6 +155,7 @@ extern Bimap<int, std::string> sCommandAudioTrackMap;
 extern Bimap<int, std::string> sControlMediaMap;
 extern Bimap<int, std::string> sCommandRepeatModeMap;
 extern Bimap<int, std::string> sCommandReasonMap;
+extern Bimap<int, std::string> sCommandLogLevelMap;
 
 using CommandBag = ObjectBag<sCommandPropertyBimap>;
 

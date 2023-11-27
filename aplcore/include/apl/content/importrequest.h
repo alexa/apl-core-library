@@ -18,7 +18,8 @@
 
 #include <string>
 
-#include "importref.h"
+#include "apl/common.h"
+#include "apl/content/importref.h"
 #include "rapidjson/document.h"
 
 namespace apl {
@@ -31,7 +32,26 @@ class Object;
  */
 class ImportRequest {
 public:
-    ImportRequest(const rapidjson::Value& value);
+    /**
+     * Create ImportRequest.
+     * @param value JSON with package import specification.
+     * @param context data binding context.
+     * @param commonName name to be used if none specified in *value*.
+     * @param commonVersion version to be used if none specified in *value*.
+     * @param commonLoadAfter loadAfter to be used if none specified in *value*.
+     * @return ImportRequest. May be invalid, use #isValid() to check.
+     */
+    static ImportRequest create(const rapidjson::Value& value,
+                                const ContextPtr& context,
+                                const std::string& commonName,
+                                const std::string& commonVersion,
+                                const std::set<std::string>& commonLoadAfter);
+
+    ImportRequest();
+    ImportRequest(const std::string& name,
+                  const std::string& version,
+                  const std::string& source,
+                  const std::set<std::string>& loadAfter);
 
     ImportRequest(const ImportRequest&) = default;
     ImportRequest(ImportRequest&&) = default;
@@ -45,14 +65,15 @@ public:
     bool operator!=(const ImportRequest& other) const { return this->compare(other) != 0; }
     bool operator<(const ImportRequest& other) const { return this->compare(other) < 0; }
 
-    int compare(const ImportRequest& other) const {
-        return mReference.compare(other.reference());
-    }
+    int compare(const ImportRequest& other) const { return mReference.compare(other.reference()); }
     uint32_t getUniqueId() const { return mUniqueId; }
-    const std::string& source() const { return mSource; }
+    const std::string& source() const { return mReference.source(); }
+
+    static std::pair<std::string, std::string> extractNameAndVersion(const rapidjson::Value& value, const ContextPtr& context);
+    static std::set<std::string> extractLoadAfter(const rapidjson::Value& value, const ContextPtr& context);
+
 private:
     ImportRef mReference;
-    std::string mSource;
     bool mValid;
     uint32_t mUniqueId;
     static uint32_t sNextId;

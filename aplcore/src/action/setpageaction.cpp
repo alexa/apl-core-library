@@ -36,10 +36,12 @@ inline int modulus(int a, int b)
 
 SetPageAction::SetPageAction(const TimersPtr& timers,
                              const std::shared_ptr<CoreCommand>& command,
-                             const CoreComponentPtr& target)
+                             const CoreComponentPtr& target,
+                             apl_duration_t transitionDuration)
         : ResourceHoldingAction(timers, command->context()),
           mCommand(command),
-          mTarget(target)
+          mTarget(target),
+          mTransitionDuration(transitionDuration)
 {}
 
 std::shared_ptr<SetPageAction>
@@ -53,7 +55,8 @@ SetPageAction::make(const TimersPtr& timers,
         || target->getChildCount() < 2)
         return nullptr;
 
-    auto ptr = std::make_shared<SetPageAction>(timers, command, target);
+    auto transitionDuration = command->getValue(kCommandPropertyTransitionDuration).getInteger();
+    auto ptr = std::make_shared<SetPageAction>(timers, command, target, transitionDuration);
     command->context()->sequencer().claimResource({kExecutionResourcePosition, target}, ptr);
     ptr->start();
     return ptr;
@@ -101,8 +104,9 @@ SetPageAction::start()
     }
     else {
         mTarget->ensureChildLayout(mTarget->getCoreChildAt(mTargetIndex), true);
-        PagerComponent::setPageUtil(mContext, mTarget, mTargetIndex, direction, shared_from_this(),
-            position == kCommandPositionAbsolute || mContext->getRequestedAPLVersion().compare("1.6") < 0);
+        PagerComponent::setPageUtil(mTarget, mTargetIndex, direction, shared_from_this(),
+            position == kCommandPositionAbsolute || mContext->getRequestedAPLVersion().compare("1.6") < 0,
+            mTransitionDuration);
     }
 }
 

@@ -369,7 +369,7 @@ createContext(std::vector<std::string>& args, const ViewportSettings& settings)
     }
 
     // Parse resources
-    auto content = apl::Content::create(loadFile(args[0]));
+    auto content = apl::Content::create(loadFile(args[0]), apl::makeDefaultSession());
     if (!content) {
         std::cerr << "Content pointer is empty" << std::endl;
         exit(1);

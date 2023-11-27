@@ -674,6 +674,7 @@ TEST_F(SpeakItemAudioTest, MissingSpeech)
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));  // Color change
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
+    ASSERT_TRUE(ConsoleMessage());
 }
 
 /**
@@ -697,6 +698,7 @@ TEST_F(SpeakItemAudioTest, MissingSpeechNoDwell)
     // At this point nothing should be left - without a dwell time or speech, we don't get a change
     ASSERT_FALSE(root->hasEvent());   // No events pending
     ASSERT_TRUE(CheckDirty(root));
+    ASSERT_TRUE(ConsoleMessage());
 }
 
 static const char * MISSING_SPEECH_AND_SCROLL = R"apl(
@@ -763,6 +765,7 @@ TEST_F(SpeakItemAudioTest, MissingSpeechAndScroll)
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));  // Color change
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
+    ASSERT_TRUE(ConsoleMessage());
 }
 
 /**
@@ -779,6 +782,7 @@ TEST_F(SpeakItemAudioTest, MissingSpeechAndScrollNoDwell)
     // Nothing should happen
     ASSERT_FALSE(root->hasEvent());   // No events pending
     ASSERT_TRUE(CheckDirty(root));
+    ASSERT_TRUE(ConsoleMessage());
 }
 
 static const char *MISSING_SCROLL = R"apl(
@@ -1628,4 +1632,140 @@ TEST_F(SpeakItemAudioTest, MarksAfterText)
     ASSERT_EQ(kEventTypeLineHighlight, event.getType());
     ASSERT_EQ(-1, event.getValue(apl::kEventPropertyRangeStart).getInteger());
     ASSERT_EQ(-1, event.getValue(apl::kEventPropertyRangeEnd).getInteger());
+}
+
+static const char *TEST_STAGES_TEXTTRACK = R"apl(
+{
+  "type": "APL",
+  "version": "1.1",
+  "styles": {
+    "base": {
+      "values": [
+        {
+          "color": "green"
+        },
+        {
+          "when": "${state.karaoke}",
+          "color": "blue"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "width": 500,
+      "height": 300,
+      "item": {
+        "type": "Container",
+        "items": {
+          "type": "Text",
+          "style": "base",
+          "text": "${data.item}",
+          "speech": "${data.speech}",
+          "height": 200
+        },
+        "data": [
+            {
+                "item" : "URL1",
+                "speech" : {
+                    "url": "URL1",
+                    "textTrack" : {
+                        "content" : "http://URL1",
+                        "type" : "caption"
+                    }
+                }
+            },
+            {
+                "item" : "URL2",
+                "speech" : "URL2"
+            },
+            {
+                "item" : "URL3",
+                "speech" : {
+                    "url": "URL3",
+                    "textTrack" : {
+                        "content" : "http://URL3",
+                        "type" : "caption"
+                    }
+                }
+            },
+            {
+                "item" : "URL4",
+                "speech" : {
+                    "url": "URL4",
+                    "textTrack" : {
+                        "content" : "http://URL4",
+                        "type" : "caption"
+                    }
+                }
+            }
+        ]
+      }
+    }
+  }
+}
+)apl";
+
+TEST_F(SpeakItemAudioTest, TestStagesCaption)
+{
+    factory->addFakeContent({
+        {"URL1", 1000, 100, -1, {}}, // 1000 ms duration, 100 ms initial delay
+        {"URL2", 1000, 100, -1, {}}, // 1000 ms duration, 100 ms initial delay
+        {"URL3", 1000, 100, -1, {}}, // 1000 ms duration, 100 ms initial delay
+        {"URL4", 1000, 100, -1, {}}, // 1000 ms duration, 100 ms initial delay
+    });
+    // Set how long it takes to scroll
+    config->set(RootProperty::kScrollCommandDuration, 200);
+
+    loadDocument(TEST_STAGES_TEXTTRACK);
+    auto container = component->getChildAt(0);
+    auto child = container->getChildAt(1);
+
+    ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
+
+    executeSpeakItem(child, kCommandScrollAlignFirst, kCommandHighlightModeBlock, 1000);
+
+    // The first thing we should get is a pre-roll event
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kPreroll));
+    ASSERT_FALSE(factory->hasEvent());
+    ASSERT_FALSE(root->hasEvent());
+
+    // Step forward 100 ms.  This takes us past the loading delay, and into the middle of our scrolling
+    advanceTime(100);
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kReady));
+    ASSERT_FALSE(factory->hasEvent());
+
+    ASSERT_EQ(Point(0, 100), component->scrollPosition()); // Halfway through scrolling
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(root, component));
+
+    // Step forward 100 ms.  This finishes the scrolling and kicks off the speech command
+    advanceTime(100);
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kPlay));
+    ASSERT_FALSE(factory->hasEvent());
+
+    ASSERT_EQ(Point(0, 200), component->scrollPosition()); // Finished scrolling
+    ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
+
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_TRUE(CheckDirty(root, component, child));
+
+    // Step forward another 500 ms.  We should still be speaking - nothing visually has changed
+    advanceTime(500);
+    ASSERT_FALSE(factory->hasEvent());
+    ASSERT_TRUE(CheckDirty(root));
+
+    // Another 500 ms takes us to the end of speech.  Everything changes back
+    advanceTime(500);
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kDone));
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kRelease));
+    ASSERT_FALSE(factory->hasEvent());
+
+    ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
+
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(root, child));
 }

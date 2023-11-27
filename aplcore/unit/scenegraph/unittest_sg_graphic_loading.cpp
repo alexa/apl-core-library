@@ -206,6 +206,7 @@ TEST_F(SGGraphicLoadingTest, Preloaded)
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect(0, 0, 200, 200))
                 .child(IsLayer(Rect(0, 0, 200, 200))
+                           .characteristic(sg::Layer::kCharacteristicRenderOnly)
                            .content(IsTransformNode().child(
                                IsDrawNode()
                                    .path(IsGeneralPath("MLLLZ", {0, 0, 200, 0, 200, 200, 0, 200}))
@@ -222,7 +223,8 @@ TEST_F(SGGraphicLoadingTest, Postloaded)
     auto sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect(0, 0, 200, 200))
-                .child(IsLayer(Rect(0, 0, 1, 1)))));
+                .child(IsLayer(Rect(0, 0, 1, 1))
+                        .characteristic(sg::Layer::kCharacteristicRenderOnly))));
 
     addMedia("http://bluebox", BLUE_BOX);
     ASSERT_TRUE(pendingMediaRequests().empty());
@@ -231,6 +233,7 @@ TEST_F(SGGraphicLoadingTest, Postloaded)
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect(0, 0, 200, 200))
                 .child(IsLayer(Rect(0, 0, 200, 200))
+                           .characteristic(sg::Layer::kCharacteristicRenderOnly)
                            .dirty(sg::Layer::kFlagRedrawContent | sg::Layer::kFlagSizeChanged)
                            .content(IsTransformNode().child(
                                IsDrawNode()
@@ -248,7 +251,8 @@ TEST_F(SGGraphicLoadingTest, Change)
     // The initial VectorGraph is looking for "http://bluebox", which hasn't been received
     auto sg = root->getSceneGraph();
     ASSERT_TRUE(
-        CheckSceneGraph(sg, IsLayer(Rect(0, 0, 200, 200)).child(IsLayer(Rect(0, 0, 1, 1)))));
+        CheckSceneGraph(sg, IsLayer(Rect(0, 0, 200, 200)).child(IsLayer(Rect(0, 0, 1, 1))
+                                                                    .characteristic(sg::Layer::kCharacteristicRenderOnly))));
 
     // Change the source to "http://redbox", add it, and verify that the VG inflates correctly
     executeCommand("SetValue",
@@ -262,6 +266,7 @@ TEST_F(SGGraphicLoadingTest, Change)
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect(0, 0, 200, 200))
                 .child(IsLayer(Rect(0, 0, 200, 200))
+                           .characteristic(sg::Layer::kCharacteristicRenderOnly)
                            .dirty(sg::Layer::kFlagRedrawContent | sg::Layer::kFlagSizeChanged)
                            .content(IsTransformNode().child(
                                IsDrawNode()
@@ -282,6 +287,7 @@ TEST_F(SGGraphicLoadingTest, Change)
         sg, IsLayer(Rect(0, 0, 200, 200))
                 .child(IsLayer(Rect(0, 0, 200, 200))
                            .dirty(sg::Layer::kFlagRedrawContent)
+                           .characteristic(sg::Layer::kCharacteristicRenderOnly)
                            .content(IsTransformNode().child(
                                IsDrawNode()
                                    .path(IsGeneralPath("MLLLZ", {0, 0, 200, 0, 200, 200, 0, 200}))
@@ -294,7 +300,7 @@ TEST_F(SGGraphicLoadingTest, Change)
     sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect(0, 0, 200, 200))
-                .child(IsLayer(Rect(0, 0, 200, 200)).dirty(sg::Layer::kFlagRedrawContent))));
+                .child(IsLayer(Rect(0, 0, 200, 200)).characteristic(sg::Layer::kCharacteristicRenderOnly).dirty(sg::Layer::kFlagRedrawContent))));
 }
 
 
@@ -338,7 +344,7 @@ TEST_F(SGGraphicLoadingTest, LocalGraphic)
     // The initial VectorGraph is looking for "http://bluebox", which hasn't been received
     auto sg = root->getSceneGraph();
     ASSERT_TRUE(
-        CheckSceneGraph(sg, IsLayer(Rect(0, 0, 200, 200)).child(IsLayer(Rect(0, 0, 1, 1)))));
+        CheckSceneGraph(sg, IsLayer(Rect(0, 0, 200, 200)).child(IsLayer(Rect(0, 0, 1, 1)).characteristic(sg::Layer::kCharacteristicRenderOnly))));
 
     // Change the source to "yellowBox", add it, and verify that the VG inflates correctly
     executeCommand("SetValue",
@@ -350,6 +356,7 @@ TEST_F(SGGraphicLoadingTest, LocalGraphic)
         sg, IsLayer(Rect(0, 0, 200, 200))
                 .child(IsLayer(Rect(0, 0, 200, 200))
                            .dirty(sg::Layer::kFlagRedrawContent | sg::Layer::kFlagSizeChanged)
+                           .characteristic(sg::Layer::kCharacteristicRenderOnly)
                            .content(IsTransformNode().child(
                                IsDrawNode()
                                    .path(IsGeneralPath("MLLLZ", {0, 0, 200, 0, 200, 200, 0, 200}))
@@ -362,7 +369,7 @@ TEST_F(SGGraphicLoadingTest, LocalGraphic)
     sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect(0, 0, 200, 200))
-                .child(IsLayer(Rect(0, 0, 200, 200)).dirty(sg::Layer::kFlagRedrawContent))));
+                .child(IsLayer(Rect(0, 0, 200, 200)).characteristic(sg::Layer::kCharacteristicRenderOnly).dirty(sg::Layer::kFlagRedrawContent))));
 
     // Set it back
     executeCommand("SetValue",
@@ -373,6 +380,7 @@ TEST_F(SGGraphicLoadingTest, LocalGraphic)
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect(0, 0, 200, 200))
                 .child(IsLayer(Rect(0, 0, 200, 200))
+                           .characteristic(sg::Layer::kCharacteristicRenderOnly)
                            .dirty(sg::Layer::kFlagRedrawContent)
                            .content(IsTransformNode().child(
                                IsDrawNode()

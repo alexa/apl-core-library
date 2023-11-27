@@ -27,6 +27,7 @@ target_sources_local(apl
     extensioneventcommand.cpp
     finishcommand.cpp
     insertitemcommand.cpp
+    logcommand.cpp
     openurlcommand.cpp
     parallelcommand.cpp
     playmediacommand.cpp

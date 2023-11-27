@@ -80,7 +80,7 @@ public:
         ensureRequestedExtensions(content->getExtensionRequests());
 
         // load them into config via the mediator
-        mediator->loadExtensions(config, content);
+        mediator->loadExtensions(config->getExtensionFlags(), content);
     }
 
     void ensureRequestedExtensions(std::set<std::string> requestedExtensions) {

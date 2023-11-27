@@ -30,7 +30,9 @@ public:
     void setHeight(const Dimension& height) override;
     void setWidth(const Dimension& width) override;
 
-    void fixBorder(bool useDirtyFlag=true);
+    void fixBorder(bool useDirtyFlag = true);
+    void fixBackgroundByColor(bool useDirtyFlag = true);
+    void fixBackground(bool useDirtyFlag = true);
 
 protected:
     const ComponentPropDefSet& propDefSet() const override;

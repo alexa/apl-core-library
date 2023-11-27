@@ -21,6 +21,7 @@
 
 #include "apl/common.h"
 #include "apl/component/componentproperties.h"
+#include "apl/content/metrics.h"
 #include "apl/primitives/object.h"
 #include "apl/primitives/size.h"
 
@@ -68,7 +69,7 @@ public:
      * @param coreRootContext the CoreRootContext for which layouts will be managed
      * @param size Initial configured size.
      */
-    LayoutManager(const CoreRootContext& coreRootContext, const Size& size);
+    LayoutManager(const CoreRootContext& coreRootContext, ViewportSize size);
 
     /**
      * Stop all layout processing (and future layout processing)
@@ -79,7 +80,7 @@ public:
      * Set new viewport size
      * @param size new viewport size
      */
-    void setSize(const Size& size);
+    void setSize(ViewportSize size);
 
     /**
      * @return True if there are components that need a layout pass
@@ -117,7 +118,7 @@ public:
      *
      * @return @c true if the node is a top node, @c false otherwise
      */
-    bool isTopNode(const std::shared_ptr<const CoreComponent>& component) const;
+    bool isTopNode(const ConstCoreComponentPtr& component) const;
 
     /**
      * Mark this component as the top of a Yoga hierarchy
@@ -167,6 +168,16 @@ public:
      */
     void needToReProcessLayoutChanges() { mNeedToReProcessLayoutChanges = true; }
 
+    /**
+     * @return Suggested min and max width for provided component.
+     */
+    std::pair<float, float> getMinMaxWidth(const CoreComponent& component) const;
+
+    /**
+     * @return Suggested min and max height for provided component.
+     */
+    std::pair<float, float> getMinMaxHeight(const CoreComponent& component) const;
+
     using PPKey = std::pair<std::weak_ptr<CoreComponent>, PropertyKey>;
     class PPKeyLess final {
     public:
@@ -187,7 +198,7 @@ private:
 private:
     const CoreRootContext& mRoot;
     std::set<CoreComponentPtr> mPendingLayout;
-    Size mConfiguredSize;
+    ViewportSize mConfiguredSize;
     bool mTerminated = false;
     bool mInLayout = false;    // Guard against recursive calls to layout
     bool mNeedToReProcessLayoutChanges = false;

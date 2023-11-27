@@ -70,6 +70,23 @@ TestAudioPlayer::release()
         mActionRef.resolve();
 }
 
+
+bool TextTracksEqual(TextTrackArray track1, TextTrackArray track2){
+
+    if (track1.size() != track2.size()) {
+        return false;
+    }
+
+    for (int i = 0; i < track1.size(); i++) {
+        // Two TextTracks are the same if they have the same source url, type and size
+        if (track1.at(i).type != track2.at(i).type || track1.at(i).url != track2.at(i).url) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void
 TestAudioPlayer::setTrack(MediaTrack track)
 {
@@ -77,7 +94,6 @@ TestAudioPlayer::setTrack(MediaTrack track)
         return;
 
     LOG_IF(DEBUG_TEST_AUDIO_PLAYER) << "track.url=" << track.url;
-
     pause();
 
     if (track.url.empty())
@@ -85,6 +101,7 @@ TestAudioPlayer::setTrack(MediaTrack track)
 
     auto content = mFactory->findContent(track.url);
 
+    assert(TextTracksEqual(track.textTracks, content.trackArray));
     assert(content.initialDelay> 0);
     assert(content.actualDuration > 0);
 

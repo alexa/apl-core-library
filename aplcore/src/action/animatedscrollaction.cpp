@@ -31,7 +31,9 @@ AnimatedScrollAction::AnimatedScrollAction(const TimersPtr& timers,
           mDuration(duration)
 {
     // Default to programmatic duration if not specified
-    mDuration = mDuration >= 0 ? mDuration : context->getRootConfig().getScrollCommandDuration();
+    mDuration = mDuration >= 0
+                    ? mDuration
+                    : context->getRootConfig().getProperty(RootProperty::kScrollCommandDuration).getDouble();
 }
 
 void

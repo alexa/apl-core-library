@@ -20,6 +20,7 @@
 #include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
 #include "apl/focus/focusmanager.h"
+#include "apl/primitives/accessibilityaction.h"
 #include "apl/time/sequencer.h"
 #include "apl/time/timemanager.h"
 #include "apl/touch/gestures/scrollgesture.h"
@@ -34,12 +35,87 @@ namespace apl {
 ScrollableComponent::ScrollableComponent(const ContextPtr& context, Properties&& properties,
                                          const Path& path) :
     ActionableComponent(context, std::move(properties), path),
-    mStickyTree(std::make_shared<StickyChildrenTree>(*this)) {}
+    mStickyTree(std::make_shared<StickyChildrenTree>(*this)) {
+    YGNodeStyleSetOverflow(mYGNodeRef, YGOverflowScroll);
+}
 
 std::shared_ptr<ScrollableComponent>
-ScrollableComponent::cast(const std::shared_ptr<Component>& component) {
+ScrollableComponent::cast(const ComponentPtr& component) {
     return component && CoreComponent::cast(component)->scrollable()
                ? std::static_pointer_cast<ScrollableComponent>(component) : nullptr;
+}
+
+void
+ScrollableComponent::getSupportedStandardAccessibilityActions(std::map<std::string, bool>& result) const
+{
+    ActionableComponent::getSupportedStandardAccessibilityActions(result);
+    if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureDynamicAccessibilityActions)) {
+        if (allowForward()) result.emplace(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD, true);
+        if (allowBackwards()) result.emplace(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD, true);
+    } else {
+        result.emplace(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD, true);
+        result.emplace(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD, true);
+    }
+}
+
+void
+ScrollableComponent::scroll(bool backwards)
+{
+    auto innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();
+    auto distance = (isVertical() ? innerBounds.getHeight() : innerBounds.getWidth());
+
+    if (backwards)
+        distance *= -1.0f;
+    if (!isVertical() && (getCalculated(kPropertyLayoutDirection) == kLayoutDirectionRTL))
+        distance *= -1.0f;
+
+    // Calculate the new position by trimming the old position plus the distance
+    auto position = trimScroll(scrollPosition() + Point(distance, distance));
+    setScrollPositionDirectly(isVertical() ? position.getY() : position.getX());
+}
+
+void
+ScrollableComponent::invokeStandardAccessibilityAction(const std::string& name)
+{
+    auto direction = kFocusDirectionNone;
+    if (name == AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD) {
+        scroll(false);
+        direction = kFocusDirectionForward;
+    } else if (name == AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD) {
+        scroll(true);
+        direction = kFocusDirectionBackwards;
+    } else
+        ActionableComponent::invokeStandardAccessibilityAction(name);
+
+    if (direction != kFocusDirectionNone &&
+        getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureDynamicAccessibilityActions)) {
+        // If we have focus set to a CHILD of scrollable it should go to the next child, or to self
+        // if no such.
+        auto focused = getContext()->focusManager().getFocus();
+        auto self = shared_from_corecomponent();
+        if (focused && focused != self && isParentOf(focused)) {
+            auto next = getContext()->focusManager()
+                            .find(direction,
+                                  focused,
+                                  focused->getCalculated(kPropertyBounds).get<Rect>(),
+                                  self);
+            if (next) {
+                // If New focused element is on the current scrolling page - just focus it, if not -
+                // focus scrollable itself
+                Rect bounds;
+                next->getBoundsInParent(self, bounds);
+                bounds.offset(-scrollPosition());
+
+                auto parentBound = getCalculated(kPropertyInnerBounds).get<Rect>();
+
+                if (bounds.intersect(parentBound).empty())
+                    next = self;
+            } else {
+                next = self;
+            }
+            getContext()->focusManager().setFocus(next, true, false);
+        }
+    }
 }
 
 const ComponentPropDefSet&
@@ -70,7 +146,7 @@ ScrollableComponent::propDefSet() const
     static ComponentPropDefSet sScrollableComponentProperties(ActionableComponent::propDefSet(), {
         {kPropertyScrollOffset,   getScrollOffset,  setScrollOffset,     kPropDynamic | kPropSetAfterLayout },
         {kPropertyScrollPercent,  getScrollPercent, setScrollPercent,    kPropDynamic | kPropSetAfterLayout },
-        {kPropertyScrollPosition, Dimension(0),     asAbsoluteDimension, kPropRuntimeState | kPropVisualContext},
+        {kPropertyScrollPosition, Dimension(0),     asAbsoluteDimension, kPropRuntimeState | kPropVisualContext | kPropAccessibility},
     });
     return sScrollableComponentProperties;
 }

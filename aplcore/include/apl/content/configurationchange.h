@@ -44,19 +44,63 @@ public:
     ConfigurationChange(int pixelWidth, int pixelHeight)
         : mFlags(kConfigurationChangeSize),
           mPixelWidth(pixelWidth),
-          mPixelHeight(pixelHeight)
-    {}
+          mPixelHeight(pixelHeight),
+          mMinPixelWidth(pixelWidth),
+          mMaxPixelWidth(pixelWidth),
+          mMinPixelHeight(pixelHeight),
+          mMaxPixelHeight(pixelHeight)
+    {
+        assert(mPixelWidth >= 0);
+        assert(mPixelHeight >= 0);
+    }
 
     /**
-     * Update the size
+     * Update the size to a new fixed size
      * @param pixelWidth The pixel width of the screen
      * @param pixelHeight The pixel height of the screen
      * @return This object for chaining
      */
     ConfigurationChange& size(int pixelWidth, int pixelHeight) {
+        assert(pixelWidth >= 0);
+        assert(pixelHeight >= 0);
+
         mFlags |= kConfigurationChangeSize;
         mPixelWidth = pixelWidth;
         mPixelHeight = pixelHeight;
+        mMinPixelWidth = pixelWidth;
+        mMinPixelHeight = pixelHeight;
+        mMaxPixelWidth = pixelWidth;
+        mMaxPixelHeight = pixelHeight;
+        return *this;
+    }
+
+    /**
+     * Update the size to a new variable size
+     * @param pixelWidth The default pixel width of the view port
+     * @param minPixelWidth The minimum pixel width of the view port
+     * @param maxPixelWidth The maximum pixel width of the view port
+     * @param pixelHeight The default pixel height of the view port
+     * @param minPixelHeight The minimum pixel height of the view port
+     * @param maxPixelHeight The maximum pixel height of the view port
+     * @return This object for chaining
+     */
+    ConfigurationChange& sizeRange(int pixelWidth, int minPixelWidth, int maxPixelWidth,
+                                   int pixelHeight, int minPixelHeight, int maxPixelHeight) {
+        assert(minPixelHeight >= 0);
+        assert(minPixelHeight <= pixelHeight);
+        assert(pixelHeight <= maxPixelHeight);
+
+        assert(minPixelWidth >= 0);
+        assert(minPixelWidth <= pixelWidth);
+        assert(pixelWidth <= maxPixelWidth);
+
+        mFlags |= kConfigurationChangeSize;
+        mPixelWidth = pixelWidth;
+        mPixelHeight = pixelHeight;
+        mMinPixelWidth = minPixelWidth;
+        mMinPixelHeight = minPixelHeight;
+        mMaxPixelWidth = maxPixelWidth;
+        mMaxPixelHeight = maxPixelHeight;
         return *this;
     }
 
@@ -188,6 +232,13 @@ public:
     RootConfig mergeRootConfig(const RootConfig& oldRootConfig) const;
 
     /**
+     * Merge this configuration change into an environment object bag.
+     * @param oldEnvironment The old environment to merge with this change
+     * @return A new environment object bag.
+     */
+    ObjectMap mergeEnvironment(const ObjectMap& oldEnvironment) const;
+
+    /**
      * Merge a new configuration change into this one.
      * @param other The old configuration change to merge with this change
      */
@@ -209,7 +260,16 @@ public:
     /**
      * @return New pixel size from this change.
      */
-    Size getSize() const { return { static_cast<float>(mPixelWidth), static_cast<float>(mPixelHeight) }; }
+    ViewportSize getSize(double scale) const {
+        return {
+            static_cast<float>(scale * mPixelWidth),
+            static_cast<float>(scale * mMinPixelWidth),
+            static_cast<float>(scale * mMaxPixelWidth),
+            static_cast<float>(scale * mPixelHeight),
+            static_cast<float>(scale * mMinPixelHeight),
+            static_cast<float>(scale * mMaxPixelHeight)
+        };
+    }
 
     /**
      * @return True if the configuration change is empty
@@ -220,6 +280,16 @@ public:
      * Clear the configuration change
      */
     void clear() { mFlags = 0; }
+
+    /**
+     * @return Embedded document-suitable config change.
+     */
+    ConfigurationChange embeddedDocumentChange() const;
+
+    /**
+     * @return Theme contained in this change.
+     */
+    const std::string& theme() const { return mTheme; }
 
     /**
      * @return the full set of synthesized property names that can be added to events (e.g. "rotated").
@@ -243,6 +313,10 @@ private:
     // Metrics properties
     int mPixelWidth = 100;
     int mPixelHeight = 100;
+    int mMinPixelWidth = 100;
+    int mMaxPixelWidth = 100;
+    int mMinPixelHeight = 100;
+    int mMaxPixelHeight = 100;
     std::string mTheme = "dark";
     ViewportMode mViewportMode = kViewportModeHub;
 

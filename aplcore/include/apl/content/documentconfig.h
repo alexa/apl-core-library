@@ -18,6 +18,8 @@
 
 #include "apl/common.h"
 
+#include "apl/primitives/object.h"
+
 #ifdef ALEXAEXTENSIONS
 #include <alexaext/alexaext.h>
 #endif
@@ -75,11 +77,30 @@ public:
      */
     const std::set<DataSourceProviderPtr>& getDataSourceProviders() const { return mDataSources; }
 
+    /**
+     * Set Environment value for the document.
+     * @param name Environment key.
+     * @param value Environment value.
+     * @return This object for chaining.
+     */
+    DocumentConfig& setEnvironmentValue(const std::string& name, const Object& value) {
+        mEnvironmentValues[name] = value;
+        return *this;
+    }
+
+    /**
+     * @return Environment values.
+     */
+    const ObjectMap& getEnvironmentValues() const {
+        return mEnvironmentValues;
+    }
+
 private:
 #ifdef ALEXAEXTENSIONS
     ExtensionMediatorPtr mExtensionMediator;
 #endif
     std::set<DataSourceProviderPtr> mDataSources;
+    ObjectMap mEnvironmentValues;
 };
 
 }

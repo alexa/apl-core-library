@@ -602,7 +602,7 @@ public:
                                              alexaext::Executor::getSynchronousExecutor());
     }
 
-    void loadExtensions(const char* document) {
+    void loadExtensions(const char* document, const ObjectMap& flags = ObjectMap{}) {
         createContent(document, nullptr);
 
         if (!extensionProvider) {
@@ -617,7 +617,7 @@ public:
         ensureRequestedExtensions(content->getExtensionRequests());
 
         // load them into config via the mediator
-        mediator->loadExtensions(config, content);
+        mediator->loadExtensions(flags, content);
     }
 
     void ensureRequestedExtensions(std::set<std::string> requestedExtensions) {
@@ -849,8 +849,7 @@ TEST_F(ExtensionMediatorTest, RegistrationConfig) {
  * Test that runtime flags are passed to the extension.
  */
 TEST_F(ExtensionMediatorTest, RegistrationFlags) {
-    config->registerExtensionFlags("aplext:hello:10", "--hello");
-    loadExtensions(EXT_DOC);
+    loadExtensions(EXT_DOC, ObjectMap{{"aplext:hello:10", "--hello"}});
 
     // direct access to extension for test inspection
     auto hello = testExtensions["aplext:hello:10"].lock();
@@ -1692,9 +1691,9 @@ TEST_F(ExtensionMediatorTest, TestRegistrationSchema) {
     extensionProvider->registerExtension(adapter);
 
     createContent(SIMPLE_EXT_DOC, nullptr);
-    mediator->initializeExtensions(config, content);
-    config->registerExtensionFlags(TEST_EXTENSION_URI, "--testflag");
-    mediator->loadExtensions(config, content, [](){});
+    auto flagsMap = ObjectMap{{TEST_EXTENSION_URI, "--testflag"}};
+    mediator->initializeExtensions(flagsMap, content);
+    mediator->loadExtensions(flagsMap, content, [](){});
 
     ASSERT_TRUE(adapter->hasPendingRequest(TEST_EXTENSION_URI));
     auto registerRequest = adapter->getPendingRequest(TEST_EXTENSION_URI);
@@ -1733,12 +1732,12 @@ TEST_F(ExtensionMediatorTest, FastInitialization) {
             .extensionMediator(mediator);
 
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
 
     ASSERT_TRUE(adapter->isInitialized(TEST_EXTENSION_URI));
 
     auto loaded = std::make_shared<bool>(false);
-    mediator->loadExtensions(config, content, [loaded](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded](){
         *loaded = true;
     });
 
@@ -1752,6 +1751,8 @@ TEST_F(ExtensionMediatorTest, FastInitialization) {
 
     ASSERT_TRUE(adapter->isRegistered(TEST_EXTENSION_URI));
     ASSERT_TRUE(*loaded);
+    ASSERT_EQ(1, mediator->getLoadedExtensions().size());
+    ASSERT_EQ(TEST_EXTENSION_URI, mediator->getLoadedExtensions().find(TEST_EXTENSION_URI)->second->getURI());
 
     // Finalize now
     mediator->finish();
@@ -1772,18 +1773,19 @@ TEST_F(ExtensionMediatorTest, FastInitializationFailInitialize) {
             .extensionMediator(mediator);
 
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
 
     ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
 
     auto loaded = std::make_shared<bool>(false);
-    mediator->loadExtensions(config, content, [loaded](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded](){
         *loaded = true;
     });
 
     ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
     // Still considered loaded. Extension just not available.
     ASSERT_TRUE(*loaded);
+    ASSERT_EQ(0, mediator->getLoadedExtensions().size());
     ASSERT_TRUE(ConsoleMessage());
 }
 
@@ -1801,17 +1803,18 @@ TEST_F(ExtensionMediatorTest, FastInitializationFailRegistrationRequest) {
             .extensionMediator(mediator);
 
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
 
     ASSERT_TRUE(adapter->isInitialized(TEST_EXTENSION_URI));
 
     auto loaded = std::make_shared<bool>(false);
-    mediator->loadExtensions(config, content, [loaded](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded](){
         *loaded = true;
     });
 
     ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
     ASSERT_TRUE(*loaded);
+    ASSERT_EQ(0, mediator->getLoadedExtensions().size());
     ASSERT_TRUE(ConsoleMessage());
 }
 
@@ -1829,12 +1832,12 @@ TEST_F(ExtensionMediatorTest, FastInitializationFailRegistration) {
             .extensionMediator(mediator);
 
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
 
     ASSERT_TRUE(adapter->isInitialized(TEST_EXTENSION_URI));
 
     auto loaded = std::make_shared<bool>(false);
-    mediator->loadExtensions(config, content, [loaded](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded](){
         *loaded = true;
     });
 
@@ -1849,6 +1852,7 @@ TEST_F(ExtensionMediatorTest, FastInitializationFailRegistration) {
 
     ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
     ASSERT_TRUE(*loaded);
+    ASSERT_EQ(0, mediator->getLoadedExtensions().size());
 }
 
 
@@ -1868,7 +1872,7 @@ TEST_F(ExtensionMediatorTest, FastInitializationGranted) {
     ASSERT_TRUE(content->isReady());
 
     // grant extension access
-    mediator->initializeExtensions(config, content,
+    mediator->initializeExtensions(ObjectMap{}, content,
         [](const std::string& uri, ExtensionMediator::ExtensionGrantResult grant,
            ExtensionMediator::ExtensionGrantResult deny) {
           grant(uri);
@@ -1877,7 +1881,7 @@ TEST_F(ExtensionMediatorTest, FastInitializationGranted) {
     ASSERT_TRUE(adapter->isInitialized(TEST_EXTENSION_URI));
 
     auto loaded = std::make_shared<bool>(false);
-    mediator->loadExtensions(config, content, [loaded](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded](){
       *loaded = true;
     });
 
@@ -1891,7 +1895,8 @@ TEST_F(ExtensionMediatorTest, FastInitializationGranted) {
 
     ASSERT_TRUE(adapter->isRegistered(TEST_EXTENSION_URI));
     ASSERT_TRUE(*loaded);
-
+    ASSERT_EQ(1, mediator->getLoadedExtensions().size());
+    ASSERT_EQ(TEST_EXTENSION_URI, mediator->getLoadedExtensions().find(TEST_EXTENSION_URI)->second->getURI());
 }
 
 
@@ -1911,13 +1916,14 @@ TEST_F(ExtensionMediatorTest, FastInitializationDenied) {
     ASSERT_TRUE(content->isReady());
 
     // deny extension access
-    mediator->initializeExtensions(config, content,
+    mediator->initializeExtensions(ObjectMap{}, content,
         [](const std::string& uri, ExtensionMediator::ExtensionGrantResult grant,
            ExtensionMediator::ExtensionGrantResult deny) {
           deny(uri);
         });
 
     ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
+    ASSERT_EQ(0, mediator->getLoadedExtensions().size());
 }
 
 
@@ -1938,7 +1944,7 @@ TEST_F(ExtensionMediatorTest, FastInitializationMissingGrant) {
 
     // grant extension access
     auto grantRequest = std::make_shared<bool>(false);
-    mediator->initializeExtensions(config, content,
+    mediator->initializeExtensions(ObjectMap{}, content,
                                    [grantRequest](const std::string& uri, ExtensionMediator::ExtensionGrantResult grant,
                                       ExtensionMediator::ExtensionGrantResult deny) {
                                       //neither grant nor deny
@@ -1948,13 +1954,14 @@ TEST_F(ExtensionMediatorTest, FastInitializationMissingGrant) {
     ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
 
     auto loaded = std::make_shared<bool>(false);
-    mediator->loadExtensions(config, content, [loaded](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded](){
       *loaded = true;
     });
     ASSERT_TRUE(LogMessage());
 
     ASSERT_TRUE(*loaded);
     ASSERT_FALSE(adapter->isRegistered(TEST_EXTENSION_URI));
+    ASSERT_EQ(0, mediator->getLoadedExtensions().size());
 }
 
 TEST_F(ExtensionMediatorTest, RootConfigNull) {
@@ -1974,7 +1981,7 @@ TEST_F(ExtensionMediatorTest, RootConfigNull) {
 
     // grant extension access
     auto grantRequest = std::make_shared<bool>(false);
-    mediator->initializeExtensions(config, content,
+    mediator->initializeExtensions(ObjectMap{}, content,
                                    [grantRequest](const std::string& uri, ExtensionMediator::ExtensionGrantResult grant,
                                       ExtensionMediator::ExtensionGrantResult deny) {
                                       //neither grant nor deny
@@ -1984,7 +1991,7 @@ TEST_F(ExtensionMediatorTest, RootConfigNull) {
     ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
 
     auto loaded = std::make_shared<bool>(false);
-    mediator->loadExtensions(nullptr, content, [loaded](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded](){
       *loaded = true;
     });
     ASSERT_TRUE(LogMessage());
@@ -2010,7 +2017,7 @@ TEST_F(ExtensionMediatorTest, LoadGranted) {
 
     // explicit grant of test extensions
     auto granted = adapter->getURIs();
-    mediator->loadExtensions(config, content, &granted);
+    mediator->loadExtensions(ObjectMap{}, content, &granted);
 
     ASSERT_TRUE(adapter->isInitialized(TEST_EXTENSION_URI));
 
@@ -2040,7 +2047,7 @@ TEST_F(ExtensionMediatorTest, LoadDenied) {
 
     // empty set results in all extension denied
     std::set<std::string> granted;
-    mediator->loadExtensions(config, content, &granted);
+    mediator->loadExtensions(ObjectMap{}, content, &granted);
 
     ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
 }
@@ -2061,7 +2068,7 @@ TEST_F(ExtensionMediatorTest, LoadAllGranted) {
     ASSERT_TRUE(content->isReady());
 
     // when content ready, unspecified grant list means all extensions granted
-    mediator->loadExtensions(config, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     ASSERT_TRUE(adapter->isInitialized(TEST_EXTENSION_URI));
 
@@ -2105,7 +2112,7 @@ TEST_F(ExtensionMediatorTest, LoadContentNotReady) {
 
     // when content ready, unspecified grant list means all extensions granted
     // without ready content load not attempted
-    mediator->loadExtensions(config, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     ASSERT_TRUE(ConsoleMessage());
     ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
@@ -2214,10 +2221,10 @@ TEST_F(ExtensionMediatorTest, ComponentInteractions) {
             .extensionMediator(mediator);
 
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
 
     auto loaded = std::make_shared<bool>(false);
-    mediator->loadExtensions(config, content, [loaded](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded](){
         *loaded = true;
     });
 
@@ -2331,11 +2338,11 @@ TEST_F(ExtensionMediatorTest, ComponentCommands) {
             .extensionMediator(mediator);
 
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
 
     auto loaded = std::make_shared<bool>(false);
     auto callCount = std::make_shared<int>(0);
-    mediator->loadExtensions(config, content, [loaded, callCount](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded, callCount](){
         *loaded = true;
         (*callCount)++;
     });
@@ -2460,10 +2467,10 @@ TEST_F(ExtensionMediatorTest, ComponentEventCorrect) {
             .extensionMediator(mediator);
 
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
 
     auto loaded = std::make_shared<bool>(false);
-    mediator->loadExtensions(config, content, [loaded](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded](){
         *loaded = true;
     });
 
@@ -2514,10 +2521,10 @@ TEST_F(ExtensionMediatorTest, ComponentEventWithoutResource) {
             .extensionMediator(mediator);
 
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
 
     auto loaded = std::make_shared<bool>(false);
-    mediator->loadExtensions(config, content, [loaded](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded](){
         *loaded = true;
     });
 
@@ -2562,10 +2569,10 @@ TEST_F(ExtensionMediatorTest, DocumentEventCorrect) {
             .extensionMediator(mediator);
 
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
 
     auto loaded = std::make_shared<bool>(false);
-    mediator->loadExtensions(config, content, [loaded](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded](){
         *loaded = true;
     });
 
@@ -2614,10 +2621,10 @@ TEST_F(ExtensionMediatorTest, DocumentEventWithResourceId) {
             .extensionMediator(mediator);
 
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
 
     auto loaded = std::make_shared<bool>(false);
-    mediator->loadExtensions(config, content, [loaded](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded](){
         *loaded = true;
     });
 
@@ -2671,10 +2678,10 @@ TEST_F(ExtensionMediatorTest, DocumentEventBeforeRegistrationFinished) {
             .extensionMediator(mediator);
 
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
 
     auto loaded = std::make_shared<bool>(false);
-    mediator->loadExtensions(config, content, [loaded](){
+    mediator->loadExtensions(ObjectMap{}, content, [loaded](){
         *loaded = true;
     });
 
@@ -2707,7 +2714,7 @@ TEST_F(ExtensionMediatorTest, ExtensionComponentWithoutProxy) {
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
     ASSERT_TRUE(content->isReady());
-    mediator->loadExtensions(config, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     // Provide component definition without registering extension
     ExtensionComponentDefinition componentDef = ExtensionComponentDefinition("alexaext:example:10", "Example");
@@ -2740,7 +2747,7 @@ TEST_F(ExtensionMediatorTest, ExtensionComponentNotifyFailed) {
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
     ASSERT_TRUE(content->isReady());
-    mediator->loadExtensions(config, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     inflate();
     ASSERT_TRUE(ConsoleMessage());
@@ -2761,7 +2768,7 @@ TEST_F(ExtensionMediatorTest, ExtensionComponentResourceProviderError) {
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
     ASSERT_TRUE(content->isReady());
-    mediator->loadExtensions(config, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     inflate();
     ASSERT_TRUE(root);
@@ -2808,11 +2815,11 @@ TEST_F(ExtensionMediatorTest, ExtensionProviderFaultTest) {
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
 
     // To mock a faulty provider that returns null proxy for an initialized extension
     std::static_pointer_cast<TestExtensionProvider>(extensionProvider)->returnNullProxy(true);
-    mediator->loadExtensions(config, content, [](){});
+    mediator->loadExtensions(ObjectMap{}, content, [](){});
 
     inflate();
     ASSERT_TRUE(ConsoleMessage());
@@ -2871,8 +2878,10 @@ TEST_F(ExtensionMediatorTest, BasicExtensionLifecycle) {
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
-    mediator->loadExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
+    mediator->loadExtensions(ObjectMap{}, content);
+    ASSERT_EQ(1, mediator->getLoadedExtensions().size());
+    auto activity = mediator->getLoadedExtensions().at(LifecycleTestExtension::URI);
 
     ASSERT_NE("", extension->lastActivity.getId());
 
@@ -2901,6 +2910,7 @@ TEST_F(ExtensionMediatorTest, BasicExtensionLifecycle) {
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kDisplayStateChanged, extension->lastActivity, DisplayState::kDisplayStateHidden}));
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
+    ASSERT_EQ(*activity, extension->lastActivity);
 
     ASSERT_TRUE(CheckSendEvent(root, "ExtensionReadyReceived"));
 }
@@ -2926,11 +2936,12 @@ TEST_F(ExtensionMediatorTest, SessionUsedAcrossDocuments) {
     config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
-    mediator->initializeExtensions(config, content);
-    mediator->loadExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     ASSERT_NE("", extension->lastActivity.getId());
     auto firstDocumentActivity = extension->lastActivity;
+    ASSERT_EQ(firstDocumentActivity, *mediator->getLoadedExtensions().at(LifecycleTestExtension::URI));
 
     inflate();
     ASSERT_TRUE(root);
@@ -2957,10 +2968,11 @@ TEST_F(ExtensionMediatorTest, SessionUsedAcrossDocuments) {
     config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
-    mediator->initializeExtensions(config, content);
-    mediator->loadExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     ASSERT_NE(firstDocumentActivity, extension->lastActivity);
+    ASSERT_EQ(extension->lastActivity, *mediator->getLoadedExtensions().at(LifecycleTestExtension::URI));
 
     inflate();
     ASSERT_TRUE(root);
@@ -2999,8 +3011,8 @@ TEST_F(ExtensionMediatorTest, SessionEndedBeforeDocumentFinished) {
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
-    mediator->loadExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     ASSERT_NE("", extension->lastActivity.getId());
 
@@ -3039,8 +3051,8 @@ TEST_F(ExtensionMediatorTest, SessionEndedBeforeDocumentRendered) {
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
-    mediator->loadExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     inflate();
 
@@ -3072,8 +3084,8 @@ TEST_F(ExtensionMediatorTest, SessionEndedBeforeExtensionsLoaded) {
     ASSERT_TRUE(content->isReady());
 
     session->end();
-    mediator->initializeExtensions(config, content);
-    mediator->loadExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     inflate();
 
@@ -3151,10 +3163,14 @@ TEST_F(ExtensionMediatorTest, SessionEndsAfterAllActivitiesHaveFinished) {
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
-    mediator->loadExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     ASSERT_NE("", extension->lastActivity.getId());
+    auto activity1 = mediator->getLoadedExtensions().at("test:lifecycle:1.0");
+    auto activity2 = mediator->getLoadedExtensions().at("test:lifecycleOther:2.0");
+    ASSERT_EQ(extension->lastActivity, *activity1);
+    ASSERT_EQ(otherExtension->lastActivity, *activity2);
 
     inflate();
 
@@ -3221,7 +3237,9 @@ TEST_F(ExtensionMediatorTest, RejectedExtensionsDoNotPreventEndingSessions) {
 
     std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
 
-    mediator->loadExtensions(config, content, &grantedExtensions);
+    mediator->loadExtensions(ObjectMap{}, content, &grantedExtensions);
+    auto activity = mediator->getLoadedExtensions().at("test:lifecycle:1.0");
+    ASSERT_EQ(1, mediator->getLoadedExtensions().size());
 
     ASSERT_NE("", extension->lastActivity.getId());
 
@@ -3238,6 +3256,7 @@ TEST_F(ExtensionMediatorTest, RejectedExtensionsDoNotPreventEndingSessions) {
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
     ASSERT_TRUE(extension->verifyNoMoreInteractions());
+    ASSERT_EQ(*activity, extension->lastActivity);
 
     // Check that there were no interactions with the denied extension
     ASSERT_TRUE(otherExtension->verifyNoMoreInteractions());
@@ -3268,8 +3287,9 @@ TEST_F(ExtensionMediatorTest, FailureDuringRegistrationDoesNotPreventEndingSessi
 
     std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
 
-    mediator->loadExtensions(config, content);
-
+    mediator->loadExtensions(ObjectMap{}, content);
+    auto activity = mediator->getLoadedExtensions().at("test:lifecycle:1.0");
+    ASSERT_EQ(1, mediator->getLoadedExtensions().size());
     ASSERT_NE("", extension->lastActivity.getId());
 
     inflate();
@@ -3285,6 +3305,7 @@ TEST_F(ExtensionMediatorTest, FailureDuringRegistrationDoesNotPreventEndingSessi
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
     ASSERT_TRUE(extension->verifyNoMoreInteractions());
+    ASSERT_EQ(*activity, extension->lastActivity);
 
     // Check that there were no interactions with the denied extension
     ASSERT_TRUE(otherExtension->verifyNextInteraction({InteractionKind::kSessionStarted, session->getId()}));
@@ -3316,7 +3337,9 @@ TEST_F(ExtensionMediatorTest, RejectedRegistrationDoesNotPreventEndingSessions) 
 
     std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
 
-    mediator->loadExtensions(config, content);
+    mediator->loadExtensions(ObjectMap{}, content);
+    auto activity = mediator->getLoadedExtensions().at("test:lifecycle:1.0");
+    ASSERT_EQ(1, mediator->getLoadedExtensions().size());
 
     ASSERT_NE("", extension->lastActivity.getId());
 
@@ -3333,6 +3356,7 @@ TEST_F(ExtensionMediatorTest, RejectedRegistrationDoesNotPreventEndingSessions) 
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
     ASSERT_TRUE(extension->verifyNoMoreInteractions());
+    ASSERT_EQ(*activity, extension->lastActivity);
 
     ASSERT_TRUE(ConsoleMessage()); // Consume the failed registration console message
 }
@@ -3363,7 +3387,9 @@ TEST_F(ExtensionMediatorTest, MissingProxyDoesNotPreventEndingSessions) {
 
     std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
 
-    mediator->loadExtensions(config, content);
+    mediator->loadExtensions(ObjectMap{}, content);
+    auto activity = mediator->getLoadedExtensions().at("test:lifecycle:1.0");
+    ASSERT_EQ(1, mediator->getLoadedExtensions().size());
 
     ASSERT_NE("", extension->lastActivity.getId());
 
@@ -3380,6 +3406,7 @@ TEST_F(ExtensionMediatorTest, MissingProxyDoesNotPreventEndingSessions) {
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
     ASSERT_TRUE(extension->verifyNoMoreInteractions());
+    ASSERT_EQ(*activity, extension->lastActivity);
 
     ASSERT_TRUE(ConsoleMessage());
 }
@@ -3406,7 +3433,9 @@ TEST_F(ExtensionMediatorTest, UnknownExtensionDoesNotPreventEndingSessions) {
 
     std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
 
-    mediator->loadExtensions(config, content);
+    mediator->loadExtensions(ObjectMap{}, content);
+    auto activity = mediator->getLoadedExtensions().at("test:lifecycle:1.0");
+    ASSERT_EQ(1, mediator->getLoadedExtensions().size());
 
     ASSERT_NE("", extension->lastActivity.getId());
 
@@ -3423,6 +3452,7 @@ TEST_F(ExtensionMediatorTest, UnknownExtensionDoesNotPreventEndingSessions) {
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
     ASSERT_TRUE(extension->verifyNoMoreInteractions());
+    ASSERT_EQ(*activity, extension->lastActivity);
 }
 
 TEST_F(ExtensionMediatorTest, BrokenProviderDoesNotPreventEndingSessions) {
@@ -3458,7 +3488,9 @@ TEST_F(ExtensionMediatorTest, BrokenProviderDoesNotPreventEndingSessions) {
 
     std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
 
-    mediator->loadExtensions(config, content);
+    mediator->loadExtensions(ObjectMap{}, content);
+    auto activity = mediator->getLoadedExtensions().at("test:lifecycle:1.0");
+    ASSERT_EQ(1, mediator->getLoadedExtensions().size());
 
     ASSERT_NE("", extension->lastActivity.getId());
 
@@ -3475,6 +3507,7 @@ TEST_F(ExtensionMediatorTest, BrokenProviderDoesNotPreventEndingSessions) {
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
     ASSERT_TRUE(extension->verifyNoMoreInteractions());
+    ASSERT_EQ(*activity, extension->lastActivity);
 
     ASSERT_TRUE(ConsoleMessage());
 }
@@ -3503,7 +3536,9 @@ TEST_F(ExtensionMediatorTest, FailureToInitializeDoesNotPreventEndingSessions) {
 
     std::set<std::string> grantedExtensions = {"test:lifecycle:1.0"};
 
-    mediator->loadExtensions(config, content);
+    mediator->loadExtensions(ObjectMap{}, content);
+    auto activity = mediator->getLoadedExtensions().at("test:lifecycle:1.0");
+    ASSERT_EQ(1, mediator->getLoadedExtensions().size());
 
     ASSERT_NE("", extension->lastActivity.getId());
 
@@ -3520,6 +3555,7 @@ TEST_F(ExtensionMediatorTest, FailureToInitializeDoesNotPreventEndingSessions) {
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kActivityUnregistered, extension->lastActivity}));
     ASSERT_TRUE(extension->verifyNextInteraction({InteractionKind::kSessionEnded, session->getId()}));
     ASSERT_TRUE(extension->verifyNoMoreInteractions());
+    ASSERT_EQ(*activity, extension->lastActivity);
 
     ASSERT_TRUE(ConsoleMessage()); // Consume the failed initialization console message
 }
@@ -3570,8 +3606,8 @@ TEST_F(ExtensionMediatorTest, LifecycleWithComponent) {
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
-    mediator->loadExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     ASSERT_NE("", extension->lastActivity.getId());
 
@@ -3668,8 +3704,8 @@ TEST_F(ExtensionMediatorTest, LifecycleWithLiveData) {
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
-    mediator->loadExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     ASSERT_NE("", extension->lastActivity.getId());
 
@@ -3726,8 +3762,8 @@ TEST_F(ExtensionMediatorTest, LifecycleAPIsRespectExtensionToken) {
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
-    mediator->loadExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     inflate();
     ASSERT_TRUE(root);
@@ -3917,8 +3953,8 @@ TEST_F(ExtensionMediatorTest, ExtensionComponentSchema) {
         .extensionProvider(extensionProvider)
         .extensionMediator(mediator);
     ASSERT_TRUE(content->isReady());
-    mediator->initializeExtensions(config, content);
-    mediator->loadExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
+    mediator->loadExtensions(ObjectMap{}, content);
 
     inflate();
 
@@ -4058,9 +4094,9 @@ TEST_F(ExtensionMediatorTest, RequiredExtension) {
 
     ASSERT_TRUE(content->isReady());
 
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
     bool loaded = false;
-    mediator->loadExtensions(config, content, [&](bool result){ loaded = result; });
+    mediator->loadExtensions(ObjectMap{}, content, [&](bool result){ loaded = result; });
 
     inflate();
 
@@ -4124,13 +4160,139 @@ TEST_F(ExtensionMediatorTest, RequiredExtensionRegistrationFail) {
 
     ASSERT_TRUE(content->isReady());
 
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
     bool loaded = false;
-    mediator->loadExtensions(config, content, [&](bool result){ loaded = result; });
+    mediator->loadExtensions(ObjectMap{}, content, [&](bool result){ loaded = result; });
 
     inflate();
 
     ASSERT_FALSE(loaded);
+    ASSERT_EQ("false", component->getCalculated(apl::kPropertyText).asString());
+}
+
+TEST_F(ExtensionMediatorTest, RequiredExtensionUnregistered) {
+    auto extSession = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    resourceProvider = std::make_shared<TestResourceProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         resourceProvider,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         extSession);
+
+    createContent(REQUIRED_EXTENSION, nullptr);
+
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+
+    mediator->initializeExtensions(ObjectMap{}, content);
+    bool loaded = false;
+    mediator->loadExtensions(ObjectMap{}, content, [&](bool result){ loaded = result; });
+
+    inflate();
+
+    ASSERT_FALSE(loaded);
+    ASSERT_EQ("false", component->getCalculated(apl::kPropertyText).asString());
+    session->checkAndClear("Provider doesn't have required extension: test:required:1.0");
+}
+
+const char* EXPLICIT_UNREQUIRED_EXTENSION = R"({
+  "type": "APL",
+  "version": "2023.2",
+  "theme": "dark",
+  "extensions": [
+    {
+      "uri": "test:unrequired:1.0",
+      "name": "Unrequired",
+      "required": false
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Text",
+      "width": "100%",
+      "height": "100%",
+      "text": "${environment.extension.Unrequired}"
+    }
+  }
+})";
+
+TEST_F(ExtensionMediatorTest, ExplicitUnrequiredExtensionUnregistered) {
+    auto extSession = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    resourceProvider = std::make_shared<TestResourceProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         resourceProvider,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         extSession);
+
+    createContent(EXPLICIT_UNREQUIRED_EXTENSION, nullptr);
+
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+
+    mediator->initializeExtensions(ObjectMap{}, content);
+    bool loaded = false;
+    mediator->loadExtensions(ObjectMap{}, content, [&](bool result){ loaded = result; });
+
+    inflate();
+
+    ASSERT_TRUE(loaded);
+    ASSERT_EQ("false", component->getCalculated(apl::kPropertyText).asString());
+}
+
+const char* IMPLICIT_UNREQUIRED_EXTENSION = R"({
+  "type": "APL",
+  "version": "2023.2",
+  "theme": "dark",
+  "extensions": [
+    {
+      "uri": "test:unrequired:1.0",
+      "name": "Unrequired"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Text",
+      "width": "100%",
+      "height": "100%",
+      "text": "${environment.extension.Unrequired}"
+    }
+  }
+})";
+
+TEST_F(ExtensionMediatorTest, ImplicitUnrequiredExtensionUnregistered) {
+    auto extSession = ExtensionSession::create();
+
+    extensionProvider = std::make_shared<TestExtensionProvider>();
+    resourceProvider = std::make_shared<TestResourceProvider>();
+    mediator = ExtensionMediator::create(extensionProvider,
+                                         resourceProvider,
+                                         alexaext::Executor::getSynchronousExecutor(),
+                                         extSession);
+
+    createContent(IMPLICIT_UNREQUIRED_EXTENSION, nullptr);
+
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    ASSERT_TRUE(content->isReady());
+
+    mediator->initializeExtensions(ObjectMap{}, content);
+    bool loaded = false;
+    mediator->loadExtensions(ObjectMap{}, content, [&](bool result){ loaded = result; });
+
+    inflate();
+
+    ASSERT_TRUE(loaded);
     ASSERT_EQ("false", component->getCalculated(apl::kPropertyText).asString());
 }
 
@@ -4155,13 +4317,13 @@ TEST_F(ExtensionMediatorTest, RequiredExtensionDenied) {
 
     ASSERT_TRUE(content->isReady());
 
-    mediator->initializeExtensions(config, content, [](const std::string& uri,
+    mediator->initializeExtensions(ObjectMap{}, content, [](const std::string& uri,
                                                        ExtensionMediator::ExtensionGrantResult grant,
                                                        ExtensionMediator::ExtensionGrantResult deny) {
         deny(REQUIRED_URI);
     });
     bool loaded = false;
-    mediator->loadExtensions(config, content, [&](bool result){ loaded = result; });
+    mediator->loadExtensions(ObjectMap{}, content, [&](bool result){ loaded = result; });
 
     inflate();
 
@@ -4246,9 +4408,9 @@ TEST_F(ExtensionMediatorTest, RequiredExtensionRemote) {
 
     ASSERT_TRUE(content->isReady());
 
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
     bool loaded = false;
-    mediator->loadExtensions(config, content, [&](bool result){ loaded = result; });
+    mediator->loadExtensions(ObjectMap{}, content, [&](bool result){ loaded = result; });
     proxy->processRegistration();
 
     inflate();
@@ -4304,9 +4466,9 @@ TEST_F(ExtensionMediatorTest, RequiredExtensionRemoteDouble) {
 
     ASSERT_TRUE(content->isReady());
 
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
     bool loaded = false;
-    mediator->loadExtensions(config, content, [&](bool result){ loaded = result; });
+    mediator->loadExtensions(ObjectMap{}, content, [&](bool result){ loaded = result; });
 
     inflate();
 
@@ -4363,9 +4525,9 @@ TEST_F(ExtensionMediatorTest, RequiredExtensionRemoteDoubleNamed) {
 
     ASSERT_TRUE(content->isReady());
 
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
     bool loaded = false;
-    mediator->loadExtensions(config, content, [&](bool result){ loaded = result; });
+    mediator->loadExtensions(ObjectMap{}, content, [&](bool result){ loaded = result; });
 
     inflate();
 
@@ -4396,9 +4558,9 @@ TEST_F(ExtensionMediatorTest, RequiredExtensionRemoteInitFail) {
 
     ASSERT_TRUE(content->isReady());
 
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
     bool loaded = false;
-    mediator->loadExtensions(config, content, [&](bool result){ loaded = result; });
+    mediator->loadExtensions(ObjectMap{}, content, [&](bool result){ loaded = result; });
 
     inflate();
 
@@ -4429,9 +4591,9 @@ TEST_F(ExtensionMediatorTest, RequiredExtensionRemoteRequestFail) {
 
     ASSERT_TRUE(content->isReady());
 
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
     bool loaded = false;
-    mediator->loadExtensions(config, content, [&](bool result){ loaded = result; });
+    mediator->loadExtensions(ObjectMap{}, content, [&](bool result){ loaded = result; });
 
     inflate();
 
@@ -4462,9 +4624,9 @@ TEST_F(ExtensionMediatorTest, RequiredExtensionRemoteRegistrationFail) {
 
     ASSERT_TRUE(content->isReady());
 
-    mediator->initializeExtensions(config, content);
+    mediator->initializeExtensions(ObjectMap{}, content);
     bool loaded = false;
-    mediator->loadExtensions(config, content, [&](bool result){ loaded = result; });
+    mediator->loadExtensions(ObjectMap{}, content, [&](bool result){ loaded = result; });
     proxy->processRegistration();
 
     inflate();

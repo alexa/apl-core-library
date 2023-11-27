@@ -34,11 +34,13 @@ public:
      * @param timers Timer reference.
      * @param command Command that spawned this action.
      * @param target Component to scroll to.
+     * @param duration Scrolling duration.
      * @return The scroll to action or null if it is not needed.
      */
     static std::shared_ptr<ScrollToAction> make(const TimersPtr& timers,
                                                 const std::shared_ptr<CoreCommand>& command,
-                                                const CoreComponentPtr& target = nullptr);
+                                                const CoreComponentPtr& target = nullptr,
+                                                apl_duration_t duration = -1);
     /**
      * Called from SpeakItem during line highlight mode.
      * @param timers Timer reference.

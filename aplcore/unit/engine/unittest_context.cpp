@@ -27,8 +27,8 @@ protected:
                      .dpi(320)
                      .theme("green")
                      .shape(apl::ROUND)
-                     .autoSizeWidth(true)
-                     .autoSizeHeight(true)
+                     .minAndMaxWidth(1024, 3072)
+                     .minAndMaxHeight(1800, 2200)
                      .mode(apl::kViewportModeTV);
         auto r = RootConfig().set(RootProperty::kAgentName, "UnitTests");
         r.setEnvironmentValue("testEnvironment", "23.2");
@@ -51,7 +51,7 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ("1.0", env.get("agentVersion").asString());
     EXPECT_EQ("normal", env.get("animation").asString());
     EXPECT_FALSE(env.get("allowOpenURL").asBoolean());
-    EXPECT_EQ("2023.2", env.get("aplVersion").asString());
+    EXPECT_EQ("2023.3", env.get("aplVersion").asString());
     EXPECT_FALSE(env.get("disallowDialog").asBoolean());
     EXPECT_FALSE(env.get("disallowEditText").asBoolean());
     EXPECT_FALSE(env.get("disallowVideo").asBoolean());
@@ -61,7 +61,7 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ("", env.get("lang").asString());
     EXPECT_EQ("LTR", env.get("layoutDirection").asString());
     EXPECT_EQ(false, env.get("screenReader").asBoolean());
-    EXPECT_EQ("2023.2", env.get("documentAPLVersion").asString());
+    EXPECT_EQ("2023.3", env.get("documentAPLVersion").asString());
 
     auto timing = env.get("timing");
     EXPECT_EQ(500, timing.get("doublePressTimeout").asNumber());
@@ -82,6 +82,10 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ(Object("tv"), viewport.get("mode"));
     EXPECT_EQ(true, viewport.get("autoWidth").asBoolean());
     EXPECT_EQ(true, viewport.get("autoHeight").asBoolean());
+    EXPECT_EQ(512, viewport.get("minWidth").asNumber());
+    EXPECT_EQ(1536, viewport.get("maxWidth").asNumber());
+    EXPECT_EQ(900, viewport.get("minHeight").asNumber());
+    EXPECT_EQ(1100, viewport.get("maxHeight").asNumber());
 
     EXPECT_TRUE(env.has("extension"));
 
@@ -109,7 +113,7 @@ TEST_F(ContextTest, Evaluation)
     EXPECT_EQ("1.0", env.get("agentVersion").asString());
     EXPECT_EQ("normal", env.get("animation").asString());
     EXPECT_FALSE(env.get("allowOpenURL").asBoolean());
-    EXPECT_EQ("2023.2", env.get("aplVersion").asString());
+    EXPECT_EQ("2023.3", env.get("aplVersion").asString());
     EXPECT_FALSE(env.get("disallowDialog").asBoolean());
     EXPECT_FALSE(env.get("disallowEditText").asBoolean());
     EXPECT_FALSE(env.get("disallowVideo").asBoolean());
@@ -137,6 +141,12 @@ TEST_F(ContextTest, Evaluation)
     EXPECT_EQ("rectangle", viewport.get("shape").asString());
     EXPECT_EQ("dark", viewport.get("theme").asString());
     EXPECT_EQ(Object("hub"), viewport.get("mode"));
+    EXPECT_EQ(false, viewport.get("autoWidth").asBoolean());
+    EXPECT_EQ(false, viewport.get("autoHeight").asBoolean());
+    EXPECT_EQ(1024, viewport.get("minWidth").asNumber());
+    EXPECT_EQ(1024, viewport.get("maxWidth").asNumber());
+    EXPECT_EQ(800, viewport.get("minHeight").asNumber());
+    EXPECT_EQ(800, viewport.get("maxHeight").asNumber());
 
     EXPECT_FALSE(env.has("extension"));
 
@@ -315,7 +325,10 @@ TEST_F(ContextTest, UnknownModeString)
 
 TEST_F(ContextTest, AutoSize) {
     auto localTest = [&](bool width, bool height) -> ::testing::AssertionResult {
-        auto c = Context::createTestContext(Metrics().autoSizeWidth(width).autoSizeHeight(height), session);
+        Metrics m;
+        if (width) m.minAndMaxWidth(100, 1000);
+        if (height) m.minAndMaxHeight(100, 1000);
+        auto c = Context::createTestContext(m, session);
         if (width != c->opt("viewport").get("autoWidth").asBoolean())
             return ::testing::AssertionFailure() << "Incorrect width";
         if (height != c->opt("viewport").get("autoHeight").asBoolean())
@@ -328,6 +341,7 @@ TEST_F(ContextTest, AutoSize) {
     ASSERT_TRUE(localTest(false, true));
     ASSERT_TRUE(localTest(true, true));
 }
+
 
 static const char * TIME_DOC =
     "{"
@@ -349,10 +363,10 @@ TEST_F(ContextTest, Time)
     const long long deltaTime = 3600 * 1000;
 
     auto rootConfig = RootConfig().set(RootProperty::kUTCTime, utcTime).set(RootProperty::kLocalTimeAdjustment, deltaTime);
-    ASSERT_EQ(utcTime, rootConfig.getUTCTime());
-    ASSERT_EQ(deltaTime, rootConfig.getLocalTimeAdjustment());
+    ASSERT_EQ(utcTime, rootConfig.getProperty(RootProperty::kUTCTime).getDouble());
+    ASSERT_EQ(deltaTime, rootConfig.getProperty(RootProperty::kLocalTimeAdjustment).getDouble());
 
-    auto content = Content::create(TIME_DOC);
+    auto content = Content::create(TIME_DOC, session);
     auto root = RootContext::create(Metrics(), content, rootConfig);
     auto component = root->topComponent();
 
@@ -377,7 +391,7 @@ TEST_F(ContextTest, Time)
         std::chrono::system_clock::now().time_since_epoch());
     rootConfig = RootConfig().set(RootProperty::kUTCTime, now.count());
 
-    ASSERT_EQ(std::chrono::milliseconds{static_cast<long long>(rootConfig.getUTCTime())}, now);
+    ASSERT_EQ(std::chrono::milliseconds{static_cast<long long>(rootConfig.getProperty(RootProperty::kUTCTime).getDouble())}, now);
 
     component = nullptr;
     root = nullptr;
@@ -399,7 +413,7 @@ static const char * DEFAULT_ENV_DOC = R"apl(
 TEST_F(ContextTest, DefaultEnv)
 {
     auto rootConfig = RootConfig();
-    auto content = Content::create(DEFAULT_ENV_DOC);
+    auto content = Content::create(DEFAULT_ENV_DOC, session);
     auto root = RootContext::create(Metrics(), content, rootConfig);
     auto component = root->topComponent();
 
@@ -427,7 +441,7 @@ static const char * BASIC_ENV_DOC = R"apl(
 TEST_F(ContextTest, LangAndLayoutDirectionCheck)
 {
     auto rootConfig = RootConfig();
-    auto content = Content::create(BASIC_ENV_DOC);
+    auto content = Content::create(BASIC_ENV_DOC, session);
     auto root = RootContext::create(Metrics(), content, rootConfig);
     auto component = root->topComponent();
 
@@ -445,7 +459,7 @@ TEST_F(ContextTest, NoStandardFunction) {
 
     auto ctx1 = Context::createTypeEvaluationContext(
         rootConfig, APLVersion::getDefaultReportedVersionString(), session);
-    auto ctx2 = Context::createBackgroundEvaluationContext(
+    auto ctx2 = Context::createContentEvaluationContext(
         metrics, rootConfig, APLVersion::getDefaultReportedVersionString(), metrics.getTheme(),
         session);
 
@@ -463,7 +477,7 @@ TEST_F(ContextTest, NoStandardFunction) {
 TEST_F(ContextTest, TrivialMethodChecks)
 {
     auto rootConfig = RootConfig().set(RootProperty::kLang, "de-DE");
-    auto content = Content::create(BASIC_ENV_DOC);
+    auto content = Content::create(BASIC_ENV_DOC, session);
     auto root = std::static_pointer_cast<CoreRootContext>(RootContext::create(Metrics().theme("dark"), content, rootConfig));
 
     ASSERT_EQ(std::string("de-DE"), root->getRootConfig().getProperty(RootProperty::kLang).asString());
@@ -499,7 +513,7 @@ static const char * OVERRIDE_ENV_DOC = R"apl(
 TEST_F(ContextTest, OverrideCheck)
 {
     auto rootConfig = RootConfig();
-    auto content = Content::create(OVERRIDE_ENV_DOC);
+    auto content = Content::create(OVERRIDE_ENV_DOC, session);
     auto root = RootContext::create(Metrics(), content, rootConfig);
     auto component = root->topComponent();
 
@@ -530,7 +544,7 @@ static const char * CANCEL_OVERRIDE_ENV_DOC = R"apl(
 TEST_F(ContextTest, CancelOverrideCheck)
 {
     auto rootConfig = RootConfig();
-    auto content = Content::create(CANCEL_OVERRIDE_ENV_DOC);
+    auto content = Content::create(CANCEL_OVERRIDE_ENV_DOC, session);
     auto root = RootContext::create(Metrics(), content, rootConfig);
     auto component = root->topComponent();
 
@@ -560,7 +574,7 @@ static const char *ENVIRONMENT_PAYLOAD = R"apl(
 TEST_F(ContextTest, EnvironmentPayload)
 {
     auto rootConfig = RootConfig();
-    auto content = Content::create(ENVIRONMENT_PAYLOAD);
+    auto content = Content::create(ENVIRONMENT_PAYLOAD, session);
     content->addData("payload", R"({"lang": "en-ES", "layoutDirection": "RTL"})" );
     auto root = RootContext::create(Metrics(), content, rootConfig);
     auto component = root->topComponent();

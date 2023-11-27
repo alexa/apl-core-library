@@ -158,6 +158,7 @@ TEST_F(SGPathParserTest, Path)
         IsLayer(Rect{0, 0, 1024, 800}, "..VectorGraphic")
             .child(
                 IsLayer(Rect{112, 0, 800, 800}, "...Graphic")
+                    .characteristic(sg::Layer::kCharacteristicRenderOnly)
                     .content(
                         IsTransformNode()
                             .transform(Transform2D::scale(2))
@@ -228,6 +229,7 @@ TEST_F(SGPathParserTest, Pattern)
         IsLayer(Rect{0, 0, 800, 800}, "..VectorGraphic")
             .child(
                 IsLayer(Rect{0, 0, 800, 800})
+                    .characteristic(sg::Layer::kCharacteristicRenderOnly)
                     .content(
                         IsTransformNode()
                             .transform(Transform2D::scale(20))

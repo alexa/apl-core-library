@@ -40,10 +40,11 @@ public:
 
     SwipeAwayGesture(const ActionablePtr& actionable, SwipeAwayActionType action, SwipeDirection direction,
                      Object&& onSwipeMove, Object&& onSwipeDone, Object&& items);
-    virtual ~SwipeAwayGesture() = default;
+    ~SwipeAwayGesture() override = default;
 
     void reset() override;
     bool invokeAccessibilityAction(const std::string& name) override;
+    const std::vector<std::string>& getAccessibilityActions() const override;
 
 protected:
     bool onMove(const PointerEvent& event, apl_time_t timestamp) override;
@@ -52,7 +53,7 @@ protected:
 
 private:
     float getMove(SwipeDirection direction, Point localPos);
-    int getFulfillMoveDirection();
+    float getFulfillMoveDirection();
     std::shared_ptr<InterpolatedTransformation> getTransformation(bool above);
     void processTransformChange(float alpha);
     void animateRemainder(bool fulfilled, float velocity);

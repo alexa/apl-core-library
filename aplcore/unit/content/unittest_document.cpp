@@ -640,12 +640,12 @@ TEST(DocumentTest, MultipleDependencies)
     // The requested list is cleared
     ASSERT_EQ(0, doc->getRequestedPackages().size());
 
-    for (auto it = requested.begin() ; it != requested.end() ; it++) {
-        auto s = it->reference().name();
+    for (const auto& request : requested) {
+        auto s = request.reference().name();
         if (s == "A")
-            doc->addPackage(*it, DIAMOND_A);
+            doc->addPackage(request, DIAMOND_A);
         else if (s == "B")
-            doc->addPackage(*it, DIAMOND_B);
+            doc->addPackage(request, DIAMOND_B);
         else
             FAIL() << "Unrecognized package " << s;
     }
@@ -740,12 +740,12 @@ TEST(DocumentTest, Duplicate)
     // The requested list is cleared
     ASSERT_EQ(0, doc->getRequestedPackages().size());
 
-    for (auto it = requested.begin() ; it != requested.end() ; it++) {
-        auto s = it->reference().version();
+    for (const auto& it : requested) {
+        auto s = it.reference().version();
         if (s == "1.2")
-            doc->addPackage(*it, DUPLICATE_A_1_2);
+            doc->addPackage(it, DUPLICATE_A_1_2);
         else if (s == "2.2")
-            doc->addPackage(*it, DUPLICATE_A_2_2);
+            doc->addPackage(it, DUPLICATE_A_2_2);
         else
             FAIL() << "Unrecognized package " << s;
     }
@@ -774,7 +774,7 @@ const char *FAKE_MAIN_TEMPLATE = R"apl({
 })apl";
 
 static std::string
-makeTestPackage(std::vector<const char *> dependencies, std::map<const char *, const char *> stringMap)
+makeTestPackage(const std::vector<const char *>& dependencies, std::map<const char *, const char *> stringMap)
 {
     rapidjson::Document doc;
     doc.SetObject();
@@ -813,7 +813,7 @@ makeTestPackage(std::vector<const char *> dependencies, std::map<const char *, c
     buffer.Clear();
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     doc.Accept(writer);
-    return std::string(buffer.GetString());
+    return {buffer.GetString()};
 }
 
 TEST(DocumentTest, Generated)
@@ -883,7 +883,7 @@ TEST(DocumentTest, Loop)
     ASSERT_TRUE(content);
     ASSERT_FALSE(content->isReady());
     ASSERT_TRUE(content->isWaiting());
-    for (auto it : content->getRequestedPackages()) {
+    for (const auto& it : content->getRequestedPackages()) {
         if (it.reference().name() == "A") content->addPackage(it, pkg_a);
         else if (it.reference().name() == "B") content->addPackage(it, pkg_b);
         else FAIL() << "Unknown package " << it.reference().name();
@@ -905,7 +905,7 @@ TEST(DocumentTest, NonReversal)
     ASSERT_TRUE(content);
 
     ASSERT_TRUE(content->isWaiting());
-    for (auto it : content->getRequestedPackages()) {
+    for (const auto& it : content->getRequestedPackages()) {
         if (it.reference().name() == "A") content->addPackage(it, pkg_a);
         else if (it.reference().name() == "B") content->addPackage(it, pkg_b);
         else FAIL() << "Unknown package " << it.reference().name();
@@ -935,7 +935,7 @@ TEST(DocumentTest, Reversal)
     ASSERT_TRUE(content);
 
     ASSERT_TRUE(content->isWaiting());
-    for (auto it : content->getRequestedPackages()) {
+    for (const auto& it : content->getRequestedPackages()) {
         if (it.reference().name() == "A") content->addPackage(it, pkg_a);
         else if (it.reference().name() == "B") content->addPackage(it, pkg_b);
         else FAIL() << "Unknown package " << it.reference().name();
@@ -968,7 +968,7 @@ TEST(DocumentTest, DeepReversal)
     ASSERT_TRUE(content);
 
     while (content->isWaiting()) {
-        for (auto it : content->getRequestedPackages()) {
+        for (const auto& it : content->getRequestedPackages()) {
             auto pkg = packageMap.find(it.reference().name());
             if (pkg == packageMap.end())
                 FAIL() << "Unknown package " << it.reference().name();
@@ -1002,7 +1002,7 @@ TEST(DocumentTest, DeepLoop)
     ASSERT_TRUE(content);
 
     while (content->isWaiting()) {
-        for (auto it : content->getRequestedPackages()) {
+        for (const auto& it : content->getRequestedPackages()) {
             auto pkg = packageMap.find(it.reference().name());
             if (pkg == packageMap.end())
                 FAIL() << "Unknown package " << it.reference().name();
@@ -1223,7 +1223,7 @@ TEST(DocumentTest, LogId)
 
     ASSERT_TRUE(doc);
 
-    ASSERT_EQ(session->getLogId() + ":content.cpp:Content : Initializing experience using " +
+    ASSERT_EQ(session->getLogId() + ":content.cpp:init : Initializing experience using " +
         std::string(sCoreRepositoryVersion), logBridge->mLog);
 
     logBridge->reset();
@@ -1264,7 +1264,7 @@ TEST(DocumentTest, ShortLogId)
     ASSERT_TRUE(doc);
 
     ASSERT_TRUE(session->getLogId().rfind("FOOBAR-", 0) == 0);
-    ASSERT_EQ(session->getLogId() + ":content.cpp:Content : Initializing experience using " + std::string(sCoreRepositoryVersion), logBridge->mLog);
+    ASSERT_EQ(session->getLogId() + ":content.cpp:init : Initializing experience using " + std::string(sCoreRepositoryVersion), logBridge->mLog);
 
     logBridge->reset();
     LOG(LogLevel::kInfo).session(session) << "TEST";
@@ -1283,14 +1283,14 @@ TEST(DocumentTest, TwoDocuments)
     auto content1 = Content::create(LOG_ID_WITH_PREFIX, session1);
     ASSERT_TRUE(content1->isReady());
     ASSERT_TRUE(content1->getSession()->getLogId().rfind("FOOBAR-", 0) == 0);
-    ASSERT_EQ(content1->getSession()->getLogId() + ":content.cpp:Content : Initializing experience using " +
+    ASSERT_EQ(content1->getSession()->getLogId() + ":content.cpp:init : Initializing experience using " +
         std::string(sCoreRepositoryVersion), logBridge->mLog);
 
     auto session2 = makeDefaultSession();
     auto content2 = Content::create(LOG_ID_WITH_PREFIX, session2);
     ASSERT_TRUE(content2->isReady());
     ASSERT_TRUE(content2->getSession()->getLogId().rfind("FOOBAR-", 0) == 0);
-    ASSERT_EQ(content2->getSession()->getLogId() + ":content.cpp:Content : Initializing experience using " +
+    ASSERT_EQ(content2->getSession()->getLogId() + ":content.cpp:init : Initializing experience using " +
         std::string(sCoreRepositoryVersion), logBridge->mLog);
 
 
@@ -1378,19 +1378,19 @@ TEST(DocumentTest, NestedRepeatedImportPendingDoesNotRequest)
     // The requested list is cleared
     ASSERT_EQ(0, doc->getRequestedPackages().size());
 
-    for (auto it = requested.begin() ; it != requested.end() ; it++) {
-        auto s = it->reference();
+    for (const auto& it : requested) {
+        auto s = it.reference();
         if (s == ImportRef("A", "1.0"))
-            doc->addPackage(*it, A_IMPORTS_B);
+            doc->addPackage(it, A_IMPORTS_B);
     }
 
     // We don't request "B" again even though "A" imports it with a different version
     ASSERT_EQ(0, doc->getRequestedPackages().size());
 
-    for (auto it = requested.begin() ; it != requested.end() ; it++) {
-        auto s = it->reference();
+    for (const auto& it : requested) {
+        auto s = it.reference();
         if (s == ImportRef("B", "1.0"))
-            doc->addPackage(*it, B);
+            doc->addPackage(it, B);
     }
 
     ASSERT_FALSE(doc->isWaiting());
@@ -1411,16 +1411,16 @@ TEST(DocumentTest, NestedRepeatedImportLoadedDoesNotRequest)
     // The requested list is cleared
     ASSERT_EQ(0, doc->getRequestedPackages().size());
 
-    for (auto it = requested.begin() ; it != requested.end() ; it++) {
-        auto s = it->reference();
+    for (const auto& it : requested) {
+        auto s = it.reference();
         if (s == ImportRef("B", "1.0"))
-            doc->addPackage(*it, B);
+            doc->addPackage(it, B);
     }
 
-    for (auto it = requested.begin() ; it != requested.end() ; it++) {
-        auto s = it->reference();
+    for (const auto& it : requested) {
+        auto s = it.reference();
         if (s == ImportRef("A", "1.0"))
-            doc->addPackage(*it, A_IMPORTS_B);
+            doc->addPackage(it, A_IMPORTS_B);
     }
 
     ASSERT_EQ(0, doc->getRequestedPackages().size());
@@ -1465,10 +1465,10 @@ TEST(DocumentTest, RepeatedImportDifferentSources)
     // The requested list is cleared
     ASSERT_EQ(0, doc->getRequestedPackages().size());
 
-    for (auto it = requested.begin() ; it != requested.end() ; it++) {
-        auto s = it->reference();
-        if (s == ImportRef("B", "1.0") && it->source() == "custom.json")
-            doc->addPackage(*it, B);
+    for (const auto& it : requested) {
+        auto s = it.reference();
+        if (s == ImportRef("B", "1.0") && it.source() == "custom.json")
+            doc->addPackage(it, B);
     }
 
     ASSERT_EQ(0, doc->getRequestedPackages().size());

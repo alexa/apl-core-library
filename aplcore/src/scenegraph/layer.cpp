@@ -90,6 +90,7 @@ Layer::debugCharacteristicString() const
     static const char *FIXED_NAMES[] = {
         "DO_NOT_CLIP_CHILDREN", // 1u << 0
         "RENDER_ONLY",          // 1u << 1
+        "HAS_MEDIA",            // 1u << 2
         nullptr
     };
 

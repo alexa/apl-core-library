@@ -169,6 +169,14 @@ CommandFactory::inflate(const ContextPtr& context,
 }
 
 CommandPtr
+CommandFactory::inflate(const ContextPtr& context,
+                        CommandData&& commandData,
+                        const std::shared_ptr<const CoreCommand>& parent)
+{
+    return inflate(context, std::move(commandData), Properties(), parent->base(), parent->sequencer());
+}
+
+CommandPtr
 CommandFactory::inflate(CommandData&& commandData, const std::shared_ptr<const CoreCommand>& parent)
 {
     return inflate(parent->context(), std::move(commandData), Properties(), parent->base(), parent->sequencer());

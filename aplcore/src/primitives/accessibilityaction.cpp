@@ -17,13 +17,19 @@
 #include "apl/component/corecomponent.h"
 #include "apl/engine/typeddependant.h"
 #include "apl/engine/dependantmanager.h"
-#include "apl/engine/evaluate.h"
 #include "apl/engine/propdef.h"
-#include "apl/primitives/boundsymbolset.h"
 #include "apl/time/sequencer.h"
 #include "apl/utils/session.h"
 
 namespace apl {
+
+const char* AccessibilityAction::ACCESSIBILITY_ACTION_ACTIVATE = "activate";
+const char* AccessibilityAction::ACCESSIBILITY_ACTION_TAP = "tap";
+const char* AccessibilityAction::ACCESSIBILITY_ACTION_DOUBLETAP = "doubletap";
+const char* AccessibilityAction::ACCESSIBILITY_ACTION_LONGPRESS = "longpress";
+const char* AccessibilityAction::ACCESSIBILITY_ACTION_SWIPEAWAY = "swipeaway";
+const char* AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD = "scrollforward";
+const char* AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD = "scrollbackward";
 
 /**
  * The accessibility action can have a dynamic "enabled" property.  This dependant is used
@@ -34,7 +40,7 @@ namespace apl {
 
 using AccessibilityActionDependent = TypedDependant<AccessibilityAction, AccessibilityActionKey>;
 
-std::shared_ptr<AccessibilityAction>
+AccessibilityActionPtr
 AccessibilityAction::create(const CoreComponentPtr& component, const Object& object)
 {
     auto context = component->getContext();
@@ -64,6 +70,13 @@ AccessibilityAction::create(const CoreComponentPtr& component, const Object& obj
                                                     std::move(label));
     aa->initialize(context, object);
     return aa;
+}
+
+AccessibilityActionPtr
+AccessibilityAction::create(
+    const CoreComponentPtr& component, const std::string& name, const std::string& label)
+{
+    return std::make_shared<AccessibilityAction>(component, name, label);
 }
 
 void
@@ -116,9 +129,11 @@ AccessibilityAction::setValue(AccessibilityActionKey key, const Object& value, b
     if (enabled != mEnabled) {
         mEnabled = enabled;
         if (useDirtyFlag) {
-            auto lock = mComponent.lock();
-            if (lock)
+            auto lock = CoreComponent::cast(mComponent.lock());
+            if (lock) {
+                // Preserves old behavior
                 lock->setDirty(kPropertyAccessibilityActions);
+            }
         }
     }
 }

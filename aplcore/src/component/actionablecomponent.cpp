@@ -46,7 +46,7 @@ ActionableComponent::propDefSet() const {
 }
 
 std::shared_ptr<ActionableComponent>
-ActionableComponent::cast(const std::shared_ptr<Component>& component) {
+ActionableComponent::cast(const ComponentPtr& component) {
     return component && CoreComponent::cast(component)->isActionable()
                ? std::static_pointer_cast<ActionableComponent>(component) : nullptr;
 }
@@ -168,6 +168,18 @@ ActionableComponent::processGestures(const PointerEvent& event, apl_time_t times
     }
 
     return false;
+}
+
+void
+ActionableComponent::getSupportedStandardAccessibilityActions(std::map<std::string, bool>& result) const
+{
+    if (getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureDynamicAccessibilityActions)) {
+        for (const auto& ga : mGestureHandlers) {
+            for (const auto& aa : ga->getAccessibilityActions()) {
+                result.emplace(aa, false);
+            }
+        }
+    }
 }
 
 void

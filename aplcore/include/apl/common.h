@@ -48,6 +48,7 @@ using apl_duration_t = double;
 // Common definitions of shared pointer data structures.  We define the XXXPtr variations
 // here so they can be conveniently used from any source file.
 
+class AccessibilityAction;
 class Action;
 class AudioPlayer;
 class AudioPlayerFactory;
@@ -96,6 +97,7 @@ class TextMeasurement;
 class Timers;
 class UIDObject;
 
+using AccessibilityActionPtr = std::shared_ptr<AccessibilityAction>;
 using ActionPtr = std::shared_ptr<Action>;
 using AudioPlayerFactoryPtr = std::shared_ptr<AudioPlayerFactory>;
 using AudioPlayerPtr = std::shared_ptr<AudioPlayer>;
@@ -107,10 +109,10 @@ using ContentPtr = std::shared_ptr<Content>;
 using ContextPtr = std::shared_ptr<Context>;
 using ContextDataPtr = std::shared_ptr<ContextData>;
 using CoreComponentPtr = std::shared_ptr<CoreComponent>;
+using ConstCoreComponentPtr = std::shared_ptr<const CoreComponent>;
 using CoreDocumentContextPtr = std::shared_ptr<CoreDocumentContext>;
 using CoreRootContextPtr = std::shared_ptr<CoreRootContext>;
 using DataSourceProviderPtr = std::shared_ptr<DataSourceProvider>;
-using DataSourcePtr = std::shared_ptr<DataSource>;
 using DependantPtr = std::shared_ptr<Dependant>;
 using DocumentConfigPtr = std::shared_ptr<DocumentConfig>;
 using DocumentContextDataPtr = std::shared_ptr<DocumentContextData>;

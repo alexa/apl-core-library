@@ -332,7 +332,7 @@ private:
     ParsedExtensionSchema mSchema;
     SessionPtr mSession;
     Object mFlags;
-    std::shared_ptr<RootConfig> mInternalRootConfig;
+    RootConfigPtr mInternalRootConfig;
     std::string mConnectionToken;
     std::map<std::string, LiveDataRef> mLiveData;
     std::map<id_type, ActionRef> mActionRefs;

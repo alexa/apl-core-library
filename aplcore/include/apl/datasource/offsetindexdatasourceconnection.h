@@ -56,7 +56,7 @@ public:
      */
     void ensure(size_t index) override;
 
-    std::shared_ptr<LiveArray> getLiveArray() override;
+    LiveArrayPtr getLiveArray() override;
 
     /**
      * Provide an update to underlying data.

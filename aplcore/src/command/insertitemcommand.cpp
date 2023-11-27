@@ -41,6 +41,16 @@ InsertItemCommand::propDefSet() const {
     return sInsertItemCommandProperties;
 }
 
+ContextPtr
+InsertItemCommand::buildBaseChildContext(int insertIndex) const
+{
+    auto length = target()->getChildCount() + 1;
+    auto childContext = Context::createFromParent(target()->getContext());
+    childContext->putSystemWriteable("index", insertIndex);
+    childContext->putSystemWriteable("length", length);
+    return childContext;
+}
+
 ActionPtr
 InsertItemCommand::execute(const TimersPtr& timers, bool fastMode) {
 
@@ -51,13 +61,29 @@ InsertItemCommand::execute(const TimersPtr& timers, bool fastMode) {
         (int) target()->getChildCount(),
         getValue(kCommandPropertyAt).asInt());
 
-    auto child = Builder().inflate(
-        target()->getContext(),
-        getValue(kCommandPropertyItem));
+    auto childContext = target()->multiChild() ?
+                                               buildBaseChildContext(index) :
+                                               Context::createFromParent(target()->getContext());
+    auto child = Builder(nullptr)
+                     .expandSingleComponentFromArray(childContext,
+                                                     arrayify(*childContext, getValue(kCommandPropertyItem)),
+                                                     Properties(),
+                                                     target(),
+                                                     target()->getPathObject().addIndex(index),
+                                                     // Force to inflate component's children as rebuilder
+                                                     // not involved and nothing will be able to inflate
+                                                     // lazily.
+                                                     true,
+                                                     true);
 
     if (!child || !child->isValid())
         CONSOLE(mContext) << "Could not inflate item to be inserted";
-    else if (!target()->insertChild(child, index))
+    else if (target()->insertChild(child, index)) {
+        // Allow lazy components to process new children layout (if any).
+        target()->processLayoutChanges(true, false);
+        // And allow for full DOM to adjust any changed relative sizes
+        CoreComponent::cast(mContext->topComponent())->processLayoutChanges(true, false);
+    } else
         CONSOLE(mContext) << "Could not insert child into '" << target()->getId() << "'";
 
     return nullptr;

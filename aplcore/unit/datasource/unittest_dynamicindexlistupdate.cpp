@@ -1326,7 +1326,7 @@ TEST_F(DynamicIndexListUpdateTest, CurrentOrTargetPageCanBeDeleted)
     // Now delete the target page
     ASSERT_TRUE(ds->processUpdate(createDelete(++listVersion, 12)));
     // And also manually try to go to page 3
-    PagerComponent::setPageUtil(context, component, 3, kPageDirectionForward, ActionRef(nullptr));
+    PagerComponent::setPageUtil(component, 3, kPageDirectionForward, ActionRef(nullptr));
     advanceTime(1000);
     // We succeed in reaching what was formally page 3 (now page 2)
     ASSERT_TRUE(CheckPager(2, {{"frame-10"}, {"frame-13"}, {"frame-15"}}));
@@ -1345,7 +1345,7 @@ TEST_F(DynamicIndexListUpdateTest, CurrentOrTargetPageCanBeDeleted)
     // Now delete the source page
     ASSERT_TRUE(ds->processUpdate(createDelete(++listVersion, 12)));
     // And also manually try to go to the last page
-    PagerComponent::setPageUtil(context, component, 4, kPageDirectionForward, ActionRef(nullptr));
+    PagerComponent::setPageUtil(component, 4, kPageDirectionForward, ActionRef(nullptr));
     advanceTime(1000);
     // We succeed in reaching the last page
     ASSERT_TRUE(CheckPager(3, {{"frame-10"}, {"frame-13"}, {"frame-88"}, {"frame-99"}}));
@@ -1420,7 +1420,7 @@ TEST_F(DynamicIndexListUpdateTest, VisualHashRecalculatedOnDynamicDataUpdate) {
     ASSERT_EQ(2, component->getChildCount());
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 1}, true));
     // Same hash reused, as it should
-    ASSERT_EQ(3, spyTextMeasure->visualHashes.size());
+    ASSERT_EQ(1, spyTextMeasure->visualHashes.size());
 
     auto currentTopItem = root->findComponentById("10");
     auto currentTopItemVisualHash = currentTopItem->getCalculated(kPropertyVisualHash).asString();

@@ -29,9 +29,9 @@ namespace apl {
  */
 class ComponentEventTargetWrapper : public ComponentEventWrapper {
 public:
-    static std::shared_ptr<ComponentEventTargetWrapper> create(const std::shared_ptr<const CoreComponent>& component);
+    static std::shared_ptr<ComponentEventTargetWrapper> create(const ConstCoreComponentPtr& component);
 
-    explicit ComponentEventTargetWrapper(const std::shared_ptr<const CoreComponent>& component)
+    explicit ComponentEventTargetWrapper(const ConstCoreComponentPtr& component)
             : ComponentEventWrapper(component) {}
 
     std::string toDebugString() const override { return "ComponentEventTargetWrapper<>"; }

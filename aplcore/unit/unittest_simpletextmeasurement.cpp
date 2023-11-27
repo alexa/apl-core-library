@@ -54,7 +54,7 @@ public:
     }
 
 public:
-    std::shared_ptr<TextMeasurement> measure;
+    TextMeasurementPtr measure;
     ContextPtr context;
     Metrics metrics;
     RootConfig config;

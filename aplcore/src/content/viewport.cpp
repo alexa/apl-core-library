@@ -32,6 +32,10 @@ Object makeViewport( const Metrics& metrics, const std::string& theme ) {
     viewport->emplace("pixelHeight", metrics.getPixelHeight());
     viewport->emplace("mode", metrics.getMode());
     viewport->emplace("theme", theme);
+    viewport->emplace("minWidth", metrics.getMinWidth());
+    viewport->emplace("maxWidth", metrics.getMaxWidth());
+    viewport->emplace("minHeight", metrics.getMinHeight());
+    viewport->emplace("maxHeight", metrics.getMaxHeight());
     return viewport;
 }
 

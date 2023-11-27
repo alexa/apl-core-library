@@ -19,6 +19,7 @@
 
 #include "apl/action/scrolltoaction.h"
 #include "apl/command/arraycommand.h"
+#include "apl/content/content.h"
 #include "apl/datasource/datasource.h"
 #include "apl/datasource/datasourceprovider.h"
 #include "apl/embed/documentregistrar.h"
@@ -37,6 +38,7 @@
 #include "apl/time/sequencer.h"
 #include "apl/time/timemanager.h"
 #include "apl/touch/pointermanager.h"
+#include "apl/utils/make_unique.h"
 #include "apl/utils/tracing.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
@@ -50,9 +52,9 @@ static const std::string SCROLL_TO_RECT_SEQUENCER = "__SCROLL_TO_RECT_SEQUENCE";
 
 RootContextPtr
 CoreRootContext::create(const Metrics& metrics,
-                    const ContentPtr& content,
-                    const RootConfig& config,
-                    std::function<void(const RootContextPtr&)> callback)
+                        const ContentPtr& content,
+                        const RootConfig& config,
+                        std::function<void(const RootContextPtr&)> callback)
 {
     if (!content->isReady()) {
         LOG(LogLevel::kError).session(content) << "Attempting to create root context with illegal content";
@@ -75,8 +77,8 @@ CoreRootContext::create(const Metrics& metrics,
 }
 
 CoreRootContext::CoreRootContext(const Metrics& metrics,
-                         const ContentPtr& content,
-                         const RootConfig& config)
+                                 const ContentPtr& content,
+                                 const RootConfig& config)
     : mTimeManager(config.getTimeManager()),
       mDisplayState(static_cast<DisplayState>(config.getProperty(RootProperty::kInitialDisplayState).getInteger()))
 {
@@ -85,20 +87,25 @@ CoreRootContext::CoreRootContext(const Metrics& metrics,
 CoreRootContext::~CoreRootContext() {
     assert(mShared);
     mTimeManager->terminate();
-    mTopDocument = nullptr;
     mShared->halt();
+    mTopDocument = nullptr;
 }
 
 void
 CoreRootContext::configurationChange(const ConfigurationChange& change)
 {
     assert(mTopDocument);
-    mTopDocument->configurationChange(change);
+    mTopDocument->configurationChange(change, false);
 
-    mShared->documentRegistrar().forEach([change](const std::shared_ptr<CoreDocumentContext>& document) {
-        // Pass change through as is, document will figure it out itself
-        return document->configurationChange(change);
-    });
+    if (!mShared->documentRegistrar().list().empty()) {
+        if (!change.empty()) {
+            mShared->documentRegistrar().forEach(
+                [change](const CoreDocumentContextPtr& document) {
+                    // Pass change through as is, document will figure it out itself
+                    return document->configurationChange(change, true);
+                });
+        }
+    }
 }
 
 void
@@ -131,11 +138,14 @@ CoreRootContext::init(const Metrics& metrics,
     APL_TRACE_BLOCK("RootContext:init");
     mShared = std::make_shared<SharedContextData>(shared_from_this(), metrics, config);
 
+    // Initialize the viewport size to the default size
+    mViewportSize = {metrics.getWidth(), metrics.getHeight()};
+
     mTopDocument = CoreDocumentContext::create(mShared, metrics, content, config);
 
     // Hm. Time is interesting. Because it's actually initialized in the context.
-    mUTCTime = config.getUTCTime();
-    mLocalTimeAdjustment = config.getLocalTimeAdjustment();
+    mUTCTime = config.getProperty(RootProperty::kUTCTime).getDouble();
+    mLocalTimeAdjustment = config.getProperty(RootProperty::kLocalTimeAdjustment).getDouble();
 }
 
 void
@@ -152,7 +162,7 @@ CoreRootContext::clearPendingInternal(bool first) const
     APL_TRACE_BLOCK("RootContext:clearPending");
     // Flush any dynamic data changes, for all documents
     mTopDocument->mCore->dataManager().flushDirty();
-    mShared->documentRegistrar().forEach([](const std::shared_ptr<CoreDocumentContext>& document) {
+    mShared->documentRegistrar().forEach([](const CoreDocumentContextPtr& document) {
         return document->mCore->dataManager().flushDirty();
     });
 
@@ -167,9 +177,13 @@ CoreRootContext::clearPendingInternal(bool first) const
 
     // Clear pending on all docs
     mTopDocument->clearPending();
-    mShared->documentRegistrar().forEach([](const std::shared_ptr<CoreDocumentContext>& document) {
+    mShared->documentRegistrar().forEach([](const CoreDocumentContextPtr& document) {
         return document->clearPending();
     });
+
+    for (const auto& comp : mShared->dirtyComponents().getAll()) {
+        CoreComponent::cast(comp)->postClearPending();
+    }
 }
 
 bool
@@ -385,7 +399,7 @@ CoreRootContext::updateTimeInternal(apl_time_t elapsedTime, apl_time_t utcTime)
 
     APL_TRACE_BEGIN("RootContext:systemUpdateAndRecalculateTime");
     mTopDocument->updateTime(mUTCTime, mLocalTimeAdjustment);
-    mShared->documentRegistrar().forEach([&](const std::shared_ptr<CoreDocumentContext>& document) {
+    mShared->documentRegistrar().forEach([&](const CoreDocumentContextPtr& document) {
         document->updateTime(mUTCTime, mLocalTimeAdjustment);
     });
     APL_TRACE_END("RootContext:systemUpdateAndRecalculateTime");
@@ -463,12 +477,7 @@ CoreRootContext::setup(bool reinflate)
     } else {
         // Update LayoutManager with the new overall size
         const auto& metrics = mTopDocument->mCore->metrics();
-        mShared->layoutManager().setSize(
-            Size(
-                static_cast<float>(metrics.getWidth()),
-                static_cast<float>(metrics.getHeight())
-                )
-            );
+        mShared->layoutManager().setSize(metrics.getViewportSize());
     }
 
     mShared->layoutManager().firstLayout();
@@ -668,15 +677,16 @@ CoreRootContext::content() const
     return mTopDocument->content();
 }
 
-bool
-CoreRootContext::getAutoWidth() const
+Size
+CoreRootContext::getViewportSize() const
 {
-    return mTopDocument->mCore->metrics().getAutoWidth(); }
+    return mViewportSize;
+}
 
-bool
-CoreRootContext::getAutoHeight() const
+void
+CoreRootContext::setViewportSize(float width, float height) const
 {
-    return mTopDocument->mCore->metrics().getAutoHeight();
+    mViewportSize = { width, height };
 }
 
 #ifdef SCENEGRAPH
@@ -697,6 +707,8 @@ CoreRootContext::getSceneGraph()
 
     if (!mSceneGraph)
         mSceneGraph = sg::SceneGraph::create();
+
+    mSceneGraph->setViewportSize(mViewportSize);
 
     if (mSceneGraph->getLayer()) {
         mSceneGraph->updates().clear();

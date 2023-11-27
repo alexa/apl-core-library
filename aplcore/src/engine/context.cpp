@@ -83,7 +83,10 @@ inline ContextDataPtr createTestContextData(
     auto contextData = std::make_shared<DocumentContextData>(nullptr,
                                                  metrics,
                                                  config,
-                                                 RuntimeState(theme, config.getReportedAPLVersion(), false),
+                                                 RuntimeState(
+                                                    theme,
+                                                    config.getProperty(RootProperty::kReportedVersion).getString(),
+                                                    false),
                                                  std::make_shared<Settings>(),
                                                  session,
                                                  std::vector<ExtensionRequest>(),
@@ -134,9 +137,8 @@ Context::createTypeEvaluationContext(const RootConfig& config, const std::string
     return contextPtr;
 }
 
-// Use this to create a free-standing context.  Only used for background extraction
 ContextPtr
-Context::createBackgroundEvaluationContext(
+Context::createContentEvaluationContext(
     const Metrics& metrics,
     const RootConfig& config,
     const std::string& aplVersion,
@@ -172,31 +174,31 @@ Context::init(const Metrics& metrics, const ContextDataPtr& core)
 {
     auto env = std::make_shared<ObjectMap>();
     auto& config = core->rootConfig();
-    env->emplace("agentName", config.getAgentName());
-    env->emplace("agentVersion", config.getAgentVersion());
-    env->emplace("allowOpenURL", config.getAllowOpenUrl());
+    env->emplace("agentName", config.getProperty(RootProperty::kAgentName).getString());
+    env->emplace("agentVersion", config.getProperty(RootProperty::kAgentVersion).getString());
+    env->emplace("allowOpenURL", config.getProperty(RootProperty::kAllowOpenUrl).getBoolean());
     env->emplace("animation", config.getAnimationQualityString());
-    env->emplace("aplVersion", config.getReportedAPLVersion());
+    env->emplace("aplVersion", config.getProperty(RootProperty::kReportedVersion).getString());
     env->emplace("disallowDialog", config.getProperty(RootProperty::kDisallowDialog).getBoolean());
     env->emplace("disallowEditText", config.getProperty(RootProperty::kDisallowEditText).getBoolean());
-    env->emplace("disallowVideo", config.getDisallowVideo());
+    env->emplace("disallowVideo", config.getProperty(RootProperty::kDisallowVideo).getBoolean());
     if (core->fullContext()) {
         env->emplace("extension", documentContextData(core)->extensionManager().getEnvironment());
     }
-    env->emplace("fontScale", config.getFontScale());
+    env->emplace("fontScale", config.getProperty(RootProperty::kFontScale).getDouble());
     env->emplace("lang", core->getLang());
     env->emplace("layoutDirection", sLayoutDirectionMap.get(core->getLayoutDirection(), ""));
     env->emplace("screenMode", config.getScreenMode());
-    env->emplace("screenReader", config.getScreenReaderEnabled());
+    env->emplace("screenReader", config.getProperty(RootProperty::kScreenReader).getBoolean());
     env->emplace("reason", core->getReinflationFlag() ? "reinflation" : "initial");
     env->emplace("documentAPLVersion", core->getRequestedAPLVersion());
 
     auto timing = std::make_shared<ObjectMap>();
-    timing->emplace("doublePressTimeout", config.getDoublePressTimeout());
-    timing->emplace("longPressTimeout", config.getLongPressTimeout());
-    timing->emplace("minimumFlingVelocity", config.getMinimumFlingVelocity());
-    timing->emplace("pressedDuration", config.getPressedDuration());
-    timing->emplace("tapOrScrollTimeout", config.getTapOrScrollTimeout());
+    timing->emplace("doublePressTimeout", config.getProperty(RootProperty::kDoublePressTimeout).getDouble());
+    timing->emplace("longPressTimeout", config.getProperty(RootProperty::kLongPressTimeout).getDouble());
+    timing->emplace("minimumFlingVelocity", config.getProperty(RootProperty::kMinimumFlingVelocity).getDouble());
+    timing->emplace("pressedDuration", config.getProperty(RootProperty::kPressedDuration).getDouble());
+    timing->emplace("tapOrScrollTimeout", config.getProperty(RootProperty::kTapOrScrollTimeout).getDouble());
     timing->emplace("maximumTapVelocity", config.getProperty(RootProperty::kMaximumTapVelocity).getInteger());
     env->emplace("timing", timing);
 

@@ -26,6 +26,7 @@ project(AlexaExt
 
 add_library(alexaext STATIC
             src/APLAudioPlayerExtension/AplAudioPlayerExtension.cpp
+            src/APLAudioNormalizationExtension/AplAudioNormalizationExtension.cpp
             src/APLE2EEncryptionExtension/AplE2eEncryptionExtension.cpp
             src/APLMetricsExtension/AplMetricsExtension.cpp
             src/APLWebflowExtension/AplWebflowBase.cpp

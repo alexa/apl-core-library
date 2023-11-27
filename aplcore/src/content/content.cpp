@@ -19,12 +19,14 @@
 
 #include "apl/buildTimeConstants.h"
 #include "apl/command/arraycommand.h"
+#include "apl/component/hostcomponent.h"
 #include "apl/content/extensionrequest.h"
 #include "apl/content/importrequest.h"
 #include "apl/content/jsondata.h"
 #include "apl/content/metrics.h"
 #include "apl/content/package.h"
 #include "apl/content/settings.h"
+#include "apl/embed/embedrequest.h"
 #include "apl/engine/arrayify.h"
 #include "apl/engine/parameterarray.h"
 #include "apl/engine/propdef.h"
@@ -41,6 +43,12 @@ const char* DOCUMENT_MAIN_TEMPLATE = "mainTemplate";
 const char* DOCUMENT_ENVIRONMENT = "environment";
 const char* DOCUMENT_LANGUAGE = "lang";
 const char* DOCUMENT_LAYOUT_DIRECTION = "layoutDirection";
+const char* PACKAGE_TYPE = "type";
+const char* PACKAGE_TYPE_PACKAGE = "package";
+const char* PACKAGE_TYPE_ONEOF = "oneOf";
+const char* PACKAGE_TYPE_ALLOF = "allOf";
+const char* PACKAGE_OTHERWISE = "otherwise";
+const char* PACKAGE_ITEMS = "items";
 
 ContentPtr
 Content::create(JsonData&& document)
@@ -50,6 +58,21 @@ Content::create(JsonData&& document)
 
 ContentPtr
 Content::create(JsonData&& document, const SessionPtr& session)
+{
+    return create(std::move(document), session, Metrics(), RootConfig(), false);
+}
+
+
+ContentPtr
+Content::create(JsonData&& document, const SessionPtr& session,
+                const Metrics& metrics, const RootConfig& config)
+{
+    return create(std::move(document), session, metrics, config, true);
+}
+
+ContentPtr
+Content::create(JsonData&& document, const SessionPtr& session, const Metrics& metrics,
+                const RootConfig& config, bool supportsEvaluation)
 {
     if (!document) {
         CONSOLE(session).log("Document parse error offset=%u: %s.", document.offset(), document.error());
@@ -67,17 +90,75 @@ Content::create(JsonData&& document, const SessionPtr& session)
         return nullptr;
     }
 
-    return std::make_shared<Content>(session, ptr, it->value);
+    auto result = std::make_shared<Content>(session, ptr, it->value, metrics, config);
+    result->init(supportsEvaluation);
+    return result;
 }
 
 Content::Content(const SessionPtr& session,
                  const PackagePtr& mainPackagePtr,
-                 const rapidjson::Value& mainTemplate)
+                 const rapidjson::Value& mainTemplate,
+                 const Metrics& metrics,
+                 const RootConfig& rootConfig)
         : mSession(session),
           mMainPackage(mainPackagePtr),
           mState(LOADING),
-          mMainTemplate(mainTemplate)
+          mMainTemplate(mainTemplate),
+          mMetrics(metrics),
+          mConfig(rootConfig)
+{}
+
+void
+Content::refresh(const Metrics& metrics, const RootConfig& config)
 {
+    LOG_IF(DEBUG_CONTENT).session(mSession) << "Refreshing evaluation context.";
+
+    // We refresh imports and settings only, for now.
+    mMetrics = metrics;
+    mConfig = config;
+    mEvaluationContext = Context::createContentEvaluationContext(
+        mMetrics,
+        mConfig,
+        mMainPackage->version(),
+        extractTheme(mMetrics),
+        getSession());
+
+    mExtensionRequests.clear();
+    mMainPackage->mDependencies.clear();
+
+    for (const auto& pkg : mLoaded) {
+        pkg.second->mDependencies.clear();
+        mStashed.emplace(pkg);
+    }
+
+    mLoaded.clear();
+    mPending.clear();
+    mRequested.clear();
+    mOrderedDependencies.clear();
+
+    mState = LOADING;
+
+    addImportList(*mMainPackage);
+    addExtensions(*mMainPackage);
+
+    updateStatus();
+}
+
+void
+Content::refresh(const EmbedRequest& request, const DocumentConfigPtr& documentConfig) {
+    auto parentHost = HostComponent::cast(request.mOriginComponent.lock());
+    if (!parentHost) return;
+
+    parentHost->refreshContent(shared_from_this(), documentConfig);
+}
+
+void
+Content::init(bool supportsEvaluation)
+{
+    if (supportsEvaluation)
+        mEvaluationContext = Context::createContentEvaluationContext(
+            mMetrics, mConfig, mMainPackage->version(), extractTheme(mMetrics), getSession());
+
     // First chance where we can extract settings. Set up the session.
     auto diagnosticLabel = getDocumentSettings()->getValue("-diagnosticLabel").asString();
     mSession->setLogIdPrefix(diagnosticLabel);
@@ -87,7 +168,7 @@ Content::Content(const SessionPtr& session,
     addExtensions(*mMainPackage);
 
     // Extract the array of main template parameters
-    mMainParameters = ParameterArray::parameterNames(mainTemplate);
+    mMainParameters = ParameterArray::parameterNames(mMainTemplate);
 
     // Extract the array of environment parameters
     const rapidjson::Value & json = mMainPackage->json();
@@ -128,6 +209,15 @@ Content::getRequestedPackages()
     auto result = mRequested;
     mRequested.clear();
     return result;
+}
+
+void
+Content::loadPackage(const ImportRef& ref, const PackagePtr& package)
+{
+    LOG_IF(DEBUG_CONTENT).session(mSession) << "Adding package: " << &package;
+    mLoaded.emplace(ref, package);
+    addExtensions(*package);
+    addImportList(*package);
 }
 
 void
@@ -178,10 +268,7 @@ Content::addPackage(const ImportRequest& request, JsonData&& raw)
         return;
     }
 
-    mLoaded.emplace(request.reference(), ptr);
-    addExtensions(*ptr);
-    // Process the import list for this package
-    addImportList(*ptr);
+    loadPackage(request.reference(), ptr);
     updateStatus();
 }
 
@@ -274,22 +361,99 @@ Content::addImportList(Package& package)
     }
 }
 
-void
-Content::addImport(Package& package, const rapidjson::Value& value)
+bool
+Content::addImport(Package& package,
+                   const rapidjson::Value& value,
+                   const std::string& name,
+                   const std::string& version,
+                   const std::set<std::string>& loadAfter)
 {
     LOG_IF(DEBUG_CONTENT).session(mSession) << "addImport " << &package;
+
+    if (mState == ERROR) return false;
 
     if (!value.IsObject()) {
         CONSOLE(mSession).log("Invalid import record in document");
         mState = ERROR;
-        return;
+        return false;
     }
 
-    ImportRequest request(value);
+    // Check for conditionality, only if context available.
+    if (mEvaluationContext) {
+        auto it_when = value.FindMember("when");
+        if (it_when != value.MemberEnd()) {
+            auto evaluatedWhen = evaluate(*mEvaluationContext, it_when->value.GetString());
+            if (!evaluatedWhen.asBoolean()) return false;
+        }
+    }
+
+    auto typeIt = value.FindMember(PACKAGE_TYPE);
+    std::string type = PACKAGE_TYPE_PACKAGE;
+    if (typeIt != value.MemberEnd() && typeIt->value.IsString()) {
+        type = typeIt->value.GetString();
+    }
+
+    if (type == PACKAGE_TYPE_ONEOF) {
+        auto sIt = value.FindMember(PACKAGE_ITEMS);
+        if (sIt != value.MemberEnd() && sIt->value.IsArray()) {
+            // Expansion. Can use common name/version/loadAfter.
+            auto commonNameAndVersion = ImportRequest::extractNameAndVersion(value, mEvaluationContext);
+            auto commonLoadAfter = ImportRequest::extractLoadAfter(value, mEvaluationContext);
+            for (const auto& s : sIt->value.GetArray()) {
+                if (addImport(package, s,
+                              commonNameAndVersion.first.empty() ? name : commonNameAndVersion.first,
+                              commonNameAndVersion.second.empty() ? version : commonNameAndVersion.second,
+                              commonLoadAfter.empty() ? loadAfter : commonLoadAfter))
+                    return true;
+            }
+        } else {
+            CONSOLE(mSession).log("%s: Missing items field for the oneOf import", package.name().c_str());
+            mState = ERROR;
+            return false;
+        }
+
+        // If no imports were matched - use otherwise
+        auto otherwiseIt = value.FindMember(PACKAGE_OTHERWISE);
+        if (otherwiseIt != value.MemberEnd() && otherwiseIt->value.IsArray()) {
+            // Expansion. Can use common name/version/loadAfter.
+            auto commonNameAndVersion = ImportRequest::extractNameAndVersion(value, mEvaluationContext);
+            auto commonLoadAfter = ImportRequest::extractLoadAfter(value, mEvaluationContext);
+            for (const auto& s : otherwiseIt->value.GetArray()) {
+                if (!addImport(package, s, commonNameAndVersion.first, commonNameAndVersion.second, commonLoadAfter)) {
+                    CONSOLE(mSession).log("%s: Otherwise imports failed", package.name().c_str());
+                    mState = ERROR;
+                    return false;
+                }
+            }
+        }
+
+        // Nothing was done, which is kinda fine
+        return true;
+    } else if (type == PACKAGE_TYPE_ALLOF) {
+        auto sIt = value.FindMember(PACKAGE_ITEMS);
+        if (sIt != value.MemberEnd() && sIt->value.IsArray()) {
+            auto commonNameAndVersion = ImportRequest::extractNameAndVersion(value, mEvaluationContext);
+            auto commonLoadAfter = ImportRequest::extractLoadAfter(value, mEvaluationContext);
+            for (const auto& s : sIt->value.GetArray()) {
+                addImport(package, s,
+                          commonNameAndVersion.first.empty() ? name : commonNameAndVersion.first,
+                          commonNameAndVersion.second.empty() ? version : commonNameAndVersion.second,
+                          commonLoadAfter.empty() ? loadAfter : commonLoadAfter);
+            }
+        } else {
+            CONSOLE(mSession).log("%s: Missing items field for the allOf import", package.name().c_str());
+            mState = ERROR;
+            return false;
+        }
+
+        return true;
+    }
+
+    ImportRequest request = ImportRequest::create(value, mEvaluationContext, name, version, loadAfter);
     if (!request.isValid()) {
-        CONSOLE(mSession).log("Malformed import record");
+        CONSOLE(mSession).log("Malformed package import record");
         mState = ERROR;
-        return;
+        return false;
     }
 
     package.addDependency(request.reference());
@@ -297,9 +461,19 @@ Content::addImport(Package& package, const rapidjson::Value& value)
     if (mRequested.find(request) == mRequested.end() &&
         mPending.find(request) == mPending.end() &&
         mLoaded.find(request.reference()) == mLoaded.end()) {
+
+        // Reuse if was already resolved
+        auto stashed = mStashed.find(request.reference());
+        if (stashed != mStashed.end()) {
+            loadPackage(request.reference(), stashed->second);
+            return true;
+        }
+
         // It is a new request
         mRequested.insert(std::move(request));
     }
+
+    return true;
 }
 
 void
@@ -391,7 +565,6 @@ Content::loadExtensionSettings()
 
         // get the settings for this extension from each package
         for (auto pkg: mOrderedDependencies) {
-
             auto sItr = sMap.find(pkg->name());
             SettingsPtr settings;
 
@@ -413,9 +586,11 @@ Content::loadExtensionSettings()
                 continue; // no settings for this extension
 
             // override / augment existing settings
-            for (auto v: val.getMap())
+            for (const auto& v: val.getMap())
                 (*esMap)[v.first] = v.second;
-            LOG_IF(DEBUG_CONTENT).session(mSession) << "extension:" << name << " pkg:" << pkg << " inserting: " << val;
+            LOG_IF(DEBUG_CONTENT).session(mSession) << "extension:" << name
+                                                    << " pkg:" << pkg
+                                                    << " inserting: " << val;
         }
 
     }
@@ -423,38 +598,62 @@ Content::loadExtensionSettings()
     // initialize the settings cache
     mExtensionSettings = std::make_shared<ObjectMap>();
     // store settings Object by extension uri
-    for (auto tm : tmpMap) {
+    for (const auto& tm : tmpMap) {
         auto obj = (!tm.second->empty()) ? Object(tm.second) : Object::NULL_OBJECT();
         mExtensionSettings->emplace(tm.first, obj);
         LOG_IF(DEBUG_CONTENT).session(mSession) << "extension result: " << obj.toDebugString();
     }
 }
 
+std::string
+Content::extractTheme(const Metrics& metrics) const
+{
+    // If the theme is set in the document it will override the system theme
+    const auto& json = mMainPackage->json();
+    std::string theme = metrics.getTheme();
+    auto themeIter = json.FindMember("theme");
+    if (themeIter != json.MemberEnd() && themeIter->value.IsString())
+        theme = themeIter->value.GetString();
+    return theme;
+}
 
 Object
-Content::getBackground(const Metrics& metrics, const RootConfig& config) const
+Content::extractBackground(const Context& evaluationContext) const
 {
     const auto& json = mMainPackage->json();
     auto backgroundIter = json.FindMember("background");
     if (backgroundIter == json.MemberEnd())
         return Color();  // Transparent
 
-    // If the theme is set in the document it will override the system theme
-    std::string theme = metrics.getTheme();
-    auto themeIter = json.FindMember("theme");
-    if (themeIter != json.MemberEnd() && themeIter->value.IsString())
-        theme = themeIter->value.GetString();
+    auto object = evaluate(evaluationContext, backgroundIter->value);
+    return asFill(evaluationContext, object);
+}
 
+Object
+Content::getBackground(const Metrics& metrics, const RootConfig& config) const
+{
     // Create a working context and evaluate any data-binding expression
     // This is a restricted context because we don't load any resources or styles
-    auto context = Context::createBackgroundEvaluationContext(
+    auto context = Context::createContentEvaluationContext(
         metrics,
         config,
         mMainPackage->version(),
-        theme,
+        extractTheme(metrics),
         getSession());
-    auto object = evaluate(*context, backgroundIter->value);
-    return asFill(*context, object);
+
+    return extractBackground(*context);
+}
+
+Object
+Content::getBackground() const
+{
+    if (mEvaluationContext) {
+        return extractBackground(*mEvaluationContext);
+    } else {
+        LOG(LogLevel::kError).session(mSession)
+            << "Using extractBackground() with deprecated Content constructors. No evaluation context available.";
+        return Color();
+    }
 }
 
 /**
@@ -561,9 +760,13 @@ Content::getExtensionSettings(const std::string& uri)
 
     const std::map<std::string, Object>::const_iterator& es = mExtensionSettings->find(uri);
     if (es != mExtensionSettings->end()) {
-        LOG_IF(DEBUG_CONTENT).session(mSession) << "getExtensionSettings " << uri << ":" << es->second.toDebugString()
-                              << " mapaddr:" << &es->second;
-        return es->second;
+        LOG_IF(DEBUG_CONTENT).session(mSession) << "getExtensionSettings " << uri
+                                                << ":" << es->second.toDebugString()
+                                                << " mapaddr:" << &es->second;
+        if (mEvaluationContext)
+            return evaluateNested(*mEvaluationContext, es->second);
+        else
+            return es->second;
     }
     return Object::NULL_OBJECT();
 }
@@ -579,6 +782,7 @@ Content::orderDependencyList()
     bool isOrdered = addToDependencyList(mOrderedDependencies, inProgress, mMainPackage);
     if (!isOrdered)
         CONSOLE(mSession).log("Failure to order packages");
+    mStashed.clear();
     return isOrdered;
 }
 
@@ -591,19 +795,66 @@ Content::addToDependencyList(std::vector<PackagePtr>& ordered,
                              std::set<PackagePtr>& inProgress,
                              const PackagePtr& package)
 {
-    LOG_IF(DEBUG_CONTENT).session(mSession) << "addToDependencyList " << package << " dependency count="
-                          << package->getDependencies().size();
+    LOG_IF(DEBUG_CONTENT).session(mSession) << "addToDependencyList " << package
+                                            << " dependency count=" << package->getDependencies().size();
 
     inProgress.insert(package);  // For dependency loop detection
 
-    // Start with the package dependencies
-    for (const auto& ref : package->getDependencies()) {
+    auto pds = package->getDependencies();
+    auto depQueue = std::queue<ImportRef>();
+    for (const auto& pd : pds) depQueue.emplace(pd);
+
+    std::set<std::string> available;
+    std::set<std::pair<std::string, std::string>> delayed;
+    size_t circularCounter = 0;
+    while (!depQueue.empty()) {
+        auto ref = depQueue.front();
+        depQueue.pop();
+
+        auto needDeps = false;
+
+        // Check to see if package has load dependency and it was already included
+        for (const auto& dep : ref.loadAfter()) {
+            if (!ref.loadAfter().empty() && !available.count(dep)) {
+                // Check if we have anything else to load
+                if (depQueue.empty()) {
+                    CONSOLE(mSession).log("Required loadAfter package not available %s for %s",
+                                          dep.c_str(), ref.name().c_str());
+                    return false;
+                }
+
+                // Check if we have reverse dep
+                if (delayed.count(std::make_pair(dep, ref.name()))) {
+                    CONSOLE(mSession).log("Circular package loadAfter dependency between %s and %s",
+                                          ref.name().c_str(), dep.c_str());
+                    return false;
+                }
+
+                delayed.emplace(ref.name(), dep);
+                depQueue.emplace(ref);
+                needDeps = true;
+            }
+        }
+
+        if (circularCounter > depQueue.size()) {
+            CONSOLE(mSession).log("Circular package loadAfter dependency chain");
+            return false;
+        }
+
+        circularCounter++;
+
+        if (needDeps) continue;
+
+        // Reset counter
+        circularCounter = 0;
+
         LOG_IF(DEBUG_CONTENT).session(mSession) << "checking child " << ref.toString();
 
         // Convert the reference into a loaded PackagePtr
         const auto& pkg = mLoaded.find(ref);
         if (pkg == mLoaded.end()) {
-            LOG(LogLevel::kError).session(mSession) << "Missing package '" << ref.name() << "' in the loaded set";
+            LOG(LogLevel::kError).session(mSession) << "Missing package '" << ref.name()
+                                                    << "' in the loaded set";
             return false;
         }
 
@@ -612,7 +863,8 @@ Content::addToDependencyList(std::vector<PackagePtr>& ordered,
         // Check if it is already in the dependency list (someone else included it first)
         auto it = std::find(ordered.begin(), ordered.end(), child);
         if (it != ordered.end()) {
-            LOG_IF(DEBUG_CONTENT).session(mSession) << "child package " << ref.toString() << " already in dependency list";
+            LOG_IF(DEBUG_CONTENT).session(mSession) << "child package " << ref.toString()
+                                                    << " already in dependency list";
             continue;
         }
 
@@ -626,9 +878,11 @@ Content::addToDependencyList(std::vector<PackagePtr>& ordered,
             LOG_IF(DEBUG_CONTENT).session(mSession) << "returning false with child package " << child->name();
             return false;
         }
+        available.emplace(ref.name());
     }
 
-    LOG_IF(DEBUG_CONTENT).session(mSession) << "Pushing package " << package << " onto ordered list";
+    LOG_IF(DEBUG_CONTENT).session(mSession) << "Pushing package " << package
+                                            << " onto ordered list";
     ordered.push_back(package);
     inProgress.erase(package);
     return true;

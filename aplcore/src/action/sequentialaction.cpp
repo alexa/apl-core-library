@@ -15,6 +15,7 @@
 
 #include "apl/action/sequentialaction.h"
 
+#include "apl/action/arrayaction.h"
 #include "apl/action/delayaction.h"
 #include "apl/command/commandfactory.h"
 #include "apl/time/sequencer.h"
@@ -84,10 +85,45 @@ SequentialAction::advance() {
         auto repeatCount = mCommand->getValue(kCommandPropertyRepeatCount).asInt();
 
         while (mRepeatCounter <= repeatCount) {
-            while (mNextIndex < commands.size()) {
-                const auto& command = commands.at(mNextIndex++);
-                if (doCommand({command, mCommand->data()}))
-                    return;  // Done advancing until the current action resolves
+            auto data = mCommand->getValue(kCommandPropertyData);
+
+            // If there is no data, proceed through commands list
+            if (data.empty()) {
+                while (mNextIndex < commands.size()) {
+                    const auto& command = commands.at(mNextIndex++);
+                    if (doCommand({command, mCommand->data()}))
+                        return; // Done advancing until the current action resolves
+                }
+            }
+            else {
+                while (mNextIndex < data.size()) {
+                    auto dataLength = data.size();
+                    auto index = mNextIndex++;
+                    const auto& datum = data.at(index);
+                    auto childContext = Context::createFromParent(mCommand->context());
+                    childContext->putConstant("data", datum);
+                    childContext->putConstant("index", index);
+                    childContext->putConstant("length", dataLength);
+
+                    mCurrentAction = ArrayAction::make(timers(), childContext, mCommand,
+                                                       CommandData(commands), mFastMode);
+
+                    if (!mCurrentAction)
+                        continue;
+
+                    std::weak_ptr<SequentialAction> weak_ptr(
+                        std::static_pointer_cast<SequentialAction>(shared_from_this()));
+                    mCurrentAction->then([weak_ptr](const ActionPtr&) {
+                        auto self = weak_ptr.lock();
+                        if (self) {
+                            self->mCurrentAction = nullptr;
+                            if (!self->isTerminated())
+                                self->advance();
+                        }
+                    });
+
+                    return;
+                }
             }
             mRepeatCounter++;
             mNextIndex = 0;

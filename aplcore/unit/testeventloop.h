@@ -95,7 +95,7 @@ class MixinCounter {
 public:
     int getCount() const { return mMessages.size(); }
 
-    void clear() { mMessages.clear(); }
+    virtual void clear() { mMessages.clear(); }
 
     bool check(const std::string& msg) {
         auto s = msg;
@@ -159,6 +159,17 @@ public:
     void write(const char *filename, const char *func, const char *value) override {
         mMessages.emplace_back(std::string(value));
     }
+
+    void write(LogCommandMessage&& message) override {
+        logCommandMessages.emplace_back(message);
+    }
+
+    void clear() override {
+        logCommandMessages.clear();
+        MixinCounter::clear();
+    }
+
+    std::vector<LogCommandMessage> logCommandMessages;
 };
 
 class TestLogBridge : public LogBridge, public MixinCounter {
@@ -427,14 +438,18 @@ public:
         return rootDocument->executeCommands(commands, fastMode);
     }
 
-    ActionPtr executeCommand(const std::string& name, const std::map<std::string, Object>& values, bool fastMode) {
+    ActionPtr executeCommand(const DocumentContextPtr& document, const std::string& name, const std::map<std::string, Object>& values, bool fastMode) {
         rapidjson::Value cmd(rapidjson::kObjectType);
         auto& alloc = command.GetAllocator();
         cmd.AddMember("type", rapidjson::Value(name.c_str(), alloc).Move(), alloc);
         for (auto& m : values)
             cmd.AddMember(rapidjson::StringRef(m.first.c_str()), m.second.serialize(alloc), alloc);
         command.SetArray().PushBack(cmd, alloc);
-        return executeCommands(command, fastMode);
+        return document->executeCommands(command, fastMode);
+    }
+
+    ActionPtr executeCommand(const std::string& name, const std::map<std::string, Object>& values, bool fastMode) {
+        return executeCommand(rootDocument, name, values, fastMode);
     }
 
     /// Given a provenance path, return the JSON that created this
@@ -466,8 +481,11 @@ public:
     }
 
 protected:
-    void createContent(const char *document, const char *data) {
-        content = Content::create(document, session);
+    void createContent(const char *document, const char *data, bool withConfig = false) {
+        if (withConfig)
+            content = Content::create(document, session, metrics, *config);
+        else
+            content = Content::create(document, session);
 
         postCreateContent();
 
@@ -1162,6 +1180,18 @@ CheckSendEvent(const RootContextPtr& root, Args... args) {
     }
 
     return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
+CheckComponent(const ComponentPtr& component, float width, float height) {
+    return IsEqual(Rect(0,0,width,height), component->getCalculated(kPropertyBounds));
+}
+
+inline
+::testing::AssertionResult
+CheckViewport(const RootContextPtr& root, float width, float height) {
+    return IsEqual(Size{width, height}, root->getViewportSize());
 }
 
 inline

@@ -95,7 +95,10 @@ getMemoryCounterMap() {
 }
 #endif
 
-
+/**
+ * Replicates (as closely as possible) process used in viewhosts for text measurement, but with
+ * every symbol being 10x10 square. Doesn't account for line breaks.
+ */
 LayoutSize
 SimpleTextMeasurement::measure(Component *component,
                                 float width,
@@ -103,47 +106,53 @@ SimpleTextMeasurement::measure(Component *component,
                                 float height,
                                 MeasureMode heightMode)
 {
-    auto len = component->getCalculated(kPropertyText).asString().size();
-    float w = len * 10;
-    float h = len ? 10 : 0;
-    auto working_width = 10 * std::floor(width / 10);
+    auto len = component->getCalculated(kPropertyText).asString().size(); // Number of characters
+    float singleLineWidth = static_cast<float>(len) * 10;
+    float resultingWidth = 0;
+    auto workingWidth = 10 * std::floor(width / 10); // width clamped to symbol size
 
+    // There are 3 MeasureModes:
+    //  1. Exactly - text should fit into provided metric, requested metric is reported as resulting
+    //               measurement.
+    //  2. AtMost - text should fit into provided metric, but can take less, actual text size
+    //              reported as resulting measurement.
+    //  3. Undefined - text is unbound in provided axis. Effectively AtMost with INFINITE or
+    //                 UNDEFINED limit (NaN in case of Yoga), actual text size reported as
+    //                 resulting measurement.
     switch (widthMode) {
         case MeasureMode::Exactly:
-            if (w > working_width) {
-                if (working_width > 0)
-                    h = 10 * std::ceil(w / working_width);
-                else
-                    h = 0;  // Can't lay out text
-            }
-            w = width;
+            resultingWidth = width;
             break;
         case MeasureMode::AtMost:
-            if (w > working_width) {
-                if (working_width > 0)
-                    h = 10 * std::ceil(w / working_width);
-                else
-                    h = 0;  // Can't lay out text
-                w = working_width;
-            }
+            resultingWidth = std::min(workingWidth, singleLineWidth);
             break;
         case MeasureMode::Undefined:
+            resultingWidth = singleLineWidth;
+            // Otherwise effectively undefined/NaN and height will be calculated in the wrong way.
+            workingWidth = resultingWidth;
             break;
     }
 
+    auto charactersPerLine = std::min(resultingWidth, workingWidth) / 10;
+
+    // Can't layout as line can't hold single character.
+    if (charactersPerLine <= 0) return {resultingWidth, 0};
+
+    float workingHeight = 10 * std::ceil(static_cast<float>(len) / charactersPerLine);
+    float resultingHeight = 0;
     switch (heightMode) {
         case MeasureMode::Exactly:
-            h = height;
+            resultingHeight = height;
             break;
         case MeasureMode::AtMost:
-            if (h > height)
-                h = height;
+            resultingHeight = std::min(height, workingHeight);
             break;
         case MeasureMode::Undefined:
+            resultingHeight = workingHeight;
             break;
     }
 
-    return {w, h};
+    return {resultingWidth, resultingHeight};
 }
 
 float

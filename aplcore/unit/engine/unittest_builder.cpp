@@ -1118,7 +1118,7 @@ TEST_F(BuilderTest, SimpleScrollView)
 
     // Standard properties
     ASSERT_EQ("", component->getCalculated(kPropertyAccessibilityLabel).getString());
-    ASSERT_EQ(Object::EMPTY_ARRAY(), component->getCalculated(kPropertyAccessibilityActions));
+    ASSERT_EQ(2, component->getCalculated(kPropertyAccessibilityActions).size());
     ASSERT_EQ(Object::FALSE_OBJECT(), component->getCalculated(kPropertyDisabled));
     ASSERT_EQ(Object(Dimension(100)), component->getCalculated(kPropertyHeight));
     ASSERT_EQ(Object::NULL_OBJECT(), component->getCalculated(kPropertyMaxHeight));
@@ -3265,7 +3265,7 @@ commands": [
  */
 TEST_F(BuilderTest, NullLayoutReturnsNullPointer)
 {
-    auto content = apl::Content::create(NULL_LAYOUT_NULL_POINTER);
+    auto content = apl::Content::create(NULL_LAYOUT_NULL_POINTER, session);
     EXPECT_TRUE(content != nullptr);
     EXPECT_FALSE(apl::RootContext::create(apl::Metrics()
                                               .size(1280, 800)
@@ -3273,4 +3273,5 @@ TEST_F(BuilderTest, NullLayoutReturnsNullPointer)
                                               .shape(apl::ScreenShape::ROUND),
                                           content));
 
+    ASSERT_TRUE(session->checkAndClear());
 }

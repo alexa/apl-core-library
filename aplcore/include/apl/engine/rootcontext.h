@@ -464,6 +464,11 @@ public:
      */
     virtual void mediaLoadFailed(const std::string& source, int errorCode = -1, const std::string& error = std::string()) = 0;
 
+    /**
+     * @return The size of the viewport, in dp
+     */
+    virtual Size getViewportSize() const = 0;
+
 #ifdef SCENEGRAPH
     /**
      * This method returns the current scene graph.  It will clear all dirty properties as well.

@@ -76,7 +76,7 @@ TEST_F(SGTouchTest, TouchWrapper)
 
     // Mouse down
     ASSERT_TRUE(MouseDown(root, 50, 50));
-    ASSERT_TRUE(CheckDirtyDoNotClear(frame, kPropertyBackgroundColor, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirtyDoNotClear(frame, kPropertyBackgroundColor, kPropertyBackground, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirtyDoNotClear(root, frame));
 
     sg = root->getSceneGraph();
@@ -95,7 +95,7 @@ TEST_F(SGTouchTest, TouchWrapper)
 
     // Mouse up
     ASSERT_TRUE(MouseUp(root, 60, 60));
-    ASSERT_TRUE(CheckDirtyDoNotClear(frame, kPropertyBackgroundColor, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirtyDoNotClear(frame, kPropertyBackgroundColor, kPropertyBackground, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirtyDoNotClear(root, frame));
 
     sg = root->getSceneGraph();

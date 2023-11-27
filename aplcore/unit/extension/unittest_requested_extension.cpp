@@ -790,3 +790,46 @@ TEST_F(RequestedExtensionTest, SettingsWithMultiPackage) {
     ASSERT_TRUE(IsEqual("package1-D", es.get("keyD")));
     ASSERT_TRUE(IsEqual("package2-E", es.get("keyE")));
 }
+
+static const char* EVALUATED_SETTINGS = R"({
+  "type": "APL",
+  "version": "1.2",
+  "extension": {
+    "uri": "URI1",
+    "name": "foo"
+  },
+  "settings": {
+    "foo": {
+      "keyA": "${environment.customSetting}",
+      "keyB": "valueB"
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})";
+
+
+/**
+ * Document provides extension settings
+ */
+TEST_F(RequestedExtensionTest, EvaluatedSettings) {
+    config->setEnvironmentValue("customSetting", "valueA");
+
+    createContent(EVALUATED_SETTINGS, nullptr, true);
+    inflate();
+    ASSERT_TRUE(root);
+    rootDocument = root->topDocument();
+
+    // verify extensions available
+    ASSERT_TRUE(IsEqual(Object::TRUE_OBJECT(), evaluate(*context, "${environment.extension.foo}")));
+
+    // verify settings on the named extension
+    auto es = content->getExtensionSettings("URI1");
+    ASSERT_FALSE(IsEqual(Object::NULL_OBJECT(), es));
+
+    ASSERT_TRUE(IsEqual("valueA", es.get("keyA")));
+    ASSERT_TRUE(IsEqual("valueB", es.get("keyB")));
+}

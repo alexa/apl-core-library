@@ -36,7 +36,7 @@ public:
      * @param component Pointer to cast.
      * @return Casted pointer to this type, nullptr if not possible.
      */
-    static std::shared_ptr<PagerComponent> cast(const std::shared_ptr<Component>& component);
+    static std::shared_ptr<PagerComponent> cast(const ComponentPtr& component);
 
     /// Component overrides.
     void initialize() override;
@@ -60,16 +60,18 @@ public:
 
     /**
      * Command page switch helper function.
-     * @param context Execution context.
      * @param target Target component (needs to be pager).
      * @param index page to switch to. Should be in valid [0; mChildren.size()) range.
      * @param direction Paging direction.
      * @param ref Action reference to resolve after switch completed.
      * @param skipDefaultAnimation if set to true no page switch animation will be performed in
      * case if no custom processing was assigned with handlePageMove.
+     * @param transitionDuration transition duration override, instant if 0, default will be used if
+     * negative.
      */
-    static void setPageUtil(const ContextPtr& context, const ComponentPtr& target, int index,
-        PageDirection direction, const ActionRef& ref, bool skipDefaultAnimation = false);
+    static void setPageUtil(const ComponentPtr& target, int index, PageDirection direction,
+                            const ActionRef& ref, bool skipDefaultAnimation = false,
+                            apl_duration_t transitionDuration = -1);
 
     /**
      * Start page move process. Set initial states. Should be followed by executePageMove and endPageMove.
@@ -105,6 +107,8 @@ protected:
     void ensureDisplayedChildren() override;
     void releaseSelf() override;
     void clearActiveStateSelf() override;
+    void invokeStandardAccessibilityAction(const std::string& name) override;
+    void getSupportedStandardAccessibilityActions(std::map<std::string, bool>& result) const override;
 
 private:
     bool multiChild() const override { return true; }
@@ -115,7 +119,8 @@ private:
     ActionPtr executePageChangeEvent(bool fast);
     void setPage(int page);
     void setPageImmediate(int pageIndex);
-    void handleSetPage(int index, PageDirection direction, const ActionRef& ref, bool skipDefaultAnimation);
+    void setPageImmediate(PageDirection direction);
+    void handleSetPage(int index, PageDirection direction, const ActionRef& ref, bool skipDefaultAnimation, apl_duration_t transitionDuration = -1);
     PageDirection focusDirectionToPage(FocusDirection direction);
 
     void reportLoadedInternal(size_t index);

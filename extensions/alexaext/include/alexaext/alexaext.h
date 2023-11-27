@@ -47,6 +47,7 @@
 #include "sessiondescriptor.h"
 #include "types.h"
 #include "APLAudioPlayerExtension/AplAudioPlayerExtension.h"
+#include "APLAudioNormalizationExtension/AplAudioNormalizationExtension.h"
 #include "APLE2EEncryptionExtension/AplE2eEncryptionExtension.h"
 #include "APLWebflowExtension/AplWebflowExtension.h"
 #include "APLMusicAlarmExtension/AplMusicAlarmExtension.h"

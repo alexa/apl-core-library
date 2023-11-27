@@ -24,6 +24,7 @@
 #endif
 
 #include "apl/animation/coreeasing.h"
+#include "apl/command/commandproperties.h"
 #include "apl/engine/context.h"
 #include "apl/primitives/rangegenerator.h"
 #include "apl/primitives/slicegenerator.h"
@@ -238,11 +239,21 @@ arraySlice(const ObjectArray& args)
 static Object
 stringLength(const std::vector<Object>& args)
 {
-    if (args.size() < 1)
+    if (args.empty())
         return Object::NULL_OBJECT();
 
     std::string s = args[0].asString();
     return utf8StringLength(s);
+}
+
+static Object
+stringCharAt(const std::vector<Object>& args)
+{
+    if (args.size() < 2)
+        return Object::NULL_OBJECT();
+
+    std::string s = args[0].asString();
+    return utf8StringCharAt(args[0].asString(), args[1].asInt());
 }
 
 static Object
@@ -352,6 +363,48 @@ timeFormat(const ObjectArray& args)
     return Object(timegrammar::timeToString(args.at(0).asString(), args.at(1).asNumber()));
 }
 
+Object
+logLevelName(const ObjectArray& args)
+{
+    if (args.size() != 1)
+        return Object::NULL_OBJECT();
+
+    auto level = args[0].asInt();
+    if (!sCommandLogLevelMap.has(level))
+        return Object::NULL_OBJECT();
+
+    return Object(sCommandLogLevelMap.at(level)); 
+}
+
+Object
+logLevelValue(const ObjectArray& args)
+{
+    if (args.size() != 1)
+        return Object::NULL_OBJECT();
+
+    auto level = args[0].asString();
+    if (!sCommandLogLevelMap.has(level))
+        return Object::NULL_OBJECT();
+
+    return Object(sCommandLogLevelMap.at(level)); 
+}
+
+static ObjectMapPtr
+createLogMap()
+{
+    auto map = std::make_shared<ObjectMap>();
+
+    map->emplace("levelName", Function::create("levelName", logLevelName));
+    map->emplace("levelValue", Function::create("levelValue", logLevelValue));
+    map->emplace("DEBUG", kCommandLogLevelDebug);
+    map->emplace("INFO", kCommandLogLevelInfo);
+    map->emplace("WARN", kCommandLogLevelWarn);
+    map->emplace("ERROR", kCommandLogLevelError);
+    map->emplace("CRITICAL", kCommandLogLevelCritical);
+
+    return map;
+}
+
 static ObjectMapPtr
 createMathMap()
 {
@@ -433,6 +486,7 @@ createStringMap(const std::shared_ptr<LocaleMethods>& localeMethods)
     }));
     map->emplace("slice", Function::create("slice", stringSlice));
     map->emplace("length", Function::create("length", stringLength));
+    map->emplace("charAt", Function::create("charAt", stringCharAt));
 
     return map;
 }
@@ -471,12 +525,14 @@ void
 createStandardFunctions(Context& context)
 {
     static auto sArrayFunctions = createArrayMap();
+    static auto sLogFunctions = createLogMap();
     static auto sMathFunctions = createMathMap();
     // String functions are dependent on RootConfig locale methods
     auto sStringFunctions = createStringMap(context.getLocaleMethods());
     static auto sTimeFunctions = createTimeMap();
 
     context.putConstant("Array", sArrayFunctions);
+    context.putConstant("Log", sLogFunctions);
     context.putConstant("Math", sMathFunctions);
     context.putConstant("String", sStringFunctions);
     context.putConstant("Time", sTimeFunctions);

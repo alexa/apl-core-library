@@ -92,7 +92,7 @@ public:
      * @param component Pointer to cast.
      * @return Casted pointer to this type, nullptr if not possible.
      */
-    static std::shared_ptr<ExtensionComponent> cast(const std::shared_ptr<Component>& component);
+    static ExtensionComponentPtr cast(const ComponentPtr& component);
 
 protected:
     /**

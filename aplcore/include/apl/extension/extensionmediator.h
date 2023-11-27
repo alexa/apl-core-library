@@ -24,8 +24,7 @@
 
 #include <alexaext/alexaext.h>
 
-#include "apl/content/content.h"
-#include "apl/content/rootconfig.h"
+#include "apl/common.h"
 #include "apl/document/displaystate.h"
 #include "apl/extension/extensionclient.h"
 #include "apl/extension/extensionsession.h"
@@ -135,28 +134,31 @@ public:
      * @deprecated Use ExtensionMediator::initializeExtensions(const ObjectMap& flagMap, const
      *             ContentPtr& content, const ExtensionGrantRequestCallback& grantHandler) instead
      */
-    void initializeExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content,
-                              const ExtensionGrantRequestCallback& grantHandler = nullptr);
+    APL_DEPRECATED void initializeExtensions(const RootConfigPtr& rootConfig,
+                                             const ContentPtr& content,
+                                             const ExtensionGrantRequestCallback& grantHandler = nullptr);
 
     /**
      * @deprecated Use ExtensionMediator::loadExtensions(const ObjectMap& flagMap, const ContentPtr&
      *             content, ExtensionsLoadedCallbackV2 loaded) instead
      */
-    void loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content, ExtensionsLoadedCallback loaded);
+    APL_DEPRECATED void loadExtensions(const RootConfigPtr& rootConfig,
+                                       const ContentPtr& content,
+                                       ExtensionsLoadedCallback loaded);
 
     /**
      * @deprecated Use ExtensionMediator::loadExtensions(const ObjectMap& flagMap, const ContentPtr&
      *             content, ExtensionsLoadedCallbackV2 loaded) instead
      */
-    void loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content,
-                        ExtensionsLoadedCallbackV2 loaded);
+    APL_DEPRECATED void loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content,
+                                       ExtensionsLoadedCallbackV2 loaded);
 
     /**
      * @deprecated Use ExtensionMediator::loadExtensions(const ObjectMap& flagMap, const ContentPtr&
      *             content, const std::set<std::string>* grantedExtensions) instead
      */
-    void loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content,
-                        const std::set<std::string>* grantedExtensions = nullptr);
+    APL_DEPRECATED void loadExtensions(const RootConfigPtr& rootConfig, const ContentPtr& content,
+                                       const std::set<std::string>* grantedExtensions = nullptr);
 
     /**
      * Initialize extensions available in provided content. Performance gains can be made by
@@ -294,6 +296,11 @@ public:
      */
     void onDisplayStateChanged(DisplayState displayState);
 
+    /**
+     * @return a map of loaded extension uris to activity descriptors.
+     */
+    std::unordered_map<std::string, alexaext::ActivityDescriptorPtr> getLoadedExtensions();
+
 private:
     friend class CoreDocumentContext;
     friend class ExtensionManager;
@@ -417,7 +424,7 @@ private:
     // session extracted from loaded content
     SessionPtr mSession;
     // retro extension wrapper used for message passing
-    std::map<std::string, std::shared_ptr<ExtensionClient>> mClients;
+    std::map<std::string, ExtensionClientPtr> mClients;
     // Determines whether incoming messages from extensions should be processed.
     bool mEnabled = true;
     // Pending Extension grants

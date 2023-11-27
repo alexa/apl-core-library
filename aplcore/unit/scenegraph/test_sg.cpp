@@ -756,6 +756,7 @@ IsLayer::operator()(sg::LayerPtr layer)
     SGASSERT(CompareBasic(layer->getInteraction(), mInteraction, "Interaction"), mMsg);
     SGASSERT(CheckNode(layer->content(), mContentTest), std::string("Layer Content") + mMsg);
     SGASSERT(CompareDebug(layer->children(), mLayerTests, "Layer Children"), mMsg);
+    SGASSERT(CompareBasic(layer->getCharacteristic(), mCharacteristics, "Layer Characteristics"), mMsg);
 
     // Check dirty flags
     SGASSERT(CompareBasic(layer->getAndClearFlags(), mDirtyFlags, "Layer Flags"), mMsg);

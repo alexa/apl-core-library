@@ -49,7 +49,8 @@ public:
         const CoreComponentPtr& target,
         const CoreComponentPtr& child,
         const int initialChildCount,
-        const int expectedIndex) {
+        const int expectedIndex,
+        const std::string& path) {
 
         ASSERT_FALSE(session->checkAndClear());
         ASSERT_TRUE(root->isDirty());
@@ -59,8 +60,7 @@ public:
         ASSERT_EQ(target->getChildIndex(child), expectedIndex);
         ASSERT_TRUE(CheckDirtyAtLeast(root, target, child));
         ASSERT_EQ(child->getParent()->getId(), target->getId());
-        ASSERT_EQ(child->getPathObject().toString(), "_virtual");
-        ASSERT_EQ(child->getContext()->parent(), target->getContext());
+        ASSERT_EQ(child->getPathObject().toString(), path);
     }
 
     void
@@ -241,7 +241,7 @@ TEST_F(CommandInsertItemTest, InsertItemSkippingFalseWhenClause)
         }])");
 
     auto child = CoreComponent::cast(root->findComponentById("newArrival"));
-    validateInsert(target, child, initialChildCount, 0);
+    validateInsert(target, child, initialChildCount, 0, "_main/mainTemplate/item/items/1");
     ASSERT_FALSE(root->findComponentById("whenIsFalse"));
     ASSERT_FALSE(root->findComponentById("unreachable"));
 }
@@ -275,7 +275,7 @@ TEST_F(CommandInsertItemTest, InsertItemWhenTargetAlreadyHasOnlyChild)
 
     executeInsertItem("alreadyHasAChild");
 
-    validateNonInsert("Could not insert child into 'alreadyHasAChild'", target, initialChildCount);
+    validateNonInsert("Could not insert child into 'alreadyHasAChild'", target, initialChildCount, "_main/mainTemplate/item/items/1");
 }
 
 TEST_F(CommandInsertItemTest, InsertItem)
@@ -299,7 +299,7 @@ TEST_F(CommandInsertItemTest, InsertItem)
         })");
 
     auto child = CoreComponent::cast(root->findComponentById("newArrival"));
-    validateInsert(target, child, initialChildCount, 0);
+    validateInsert(target, child, initialChildCount, 0, "_main/mainTemplate/item/items/1");
     ASSERT_EQ(TextComponent::cast(child)->getValue().asString(), "blue");
 }
 
@@ -326,7 +326,7 @@ TEST_F(CommandInsertItemTest, InsertItems)
         false);
 
     auto child = CoreComponent::cast(root->findComponentById("newArrival"));
-    validateInsert(target, child, initialChildCount, 0);
+    validateInsert(target, child, initialChildCount, 0, "_main/mainTemplate/item/items/1");
 }
 
 TEST_F(CommandInsertItemTest, InsertItemDefaultAtAppends)
@@ -343,7 +343,7 @@ TEST_F(CommandInsertItemTest, InsertItemDefaultAtAppends)
     executeInsertItem("main",INT_MAX);
 
     auto child = CoreComponent::cast(root->findComponentById("newArrival"));
-    validateInsert(target, child, initialChildCount, initialChildCount);
+    validateInsert(target, child, initialChildCount, initialChildCount, "_main/mainTemplate/item");
 }
 
 TEST_F(CommandInsertItemTest, InsertItemNegativeInsertsFromEnd)
@@ -360,7 +360,7 @@ TEST_F(CommandInsertItemTest, InsertItemNegativeInsertsFromEnd)
     executeInsertItem("multiChild",-1);
 
     auto child = CoreComponent::cast(root->findComponentById("newArrival"));
-    validateInsert(target, child, initialChildCount, initialChildCount - 1);
+    validateInsert(target, child, initialChildCount, initialChildCount - 1, "_main/mainTemplate/item/items/3");
 }
 
 TEST_F(CommandInsertItemTest, InsertItemNegativeWalksOffLeftEnd)
@@ -377,7 +377,7 @@ TEST_F(CommandInsertItemTest, InsertItemNegativeWalksOffLeftEnd)
     executeInsertItem("multiChild", -1 * (initialChildCount + 1));
 
     auto child = CoreComponent::cast(root->findComponentById("newArrival"));
-    validateInsert(target, child, initialChildCount, 0);
+    validateInsert(target, child, initialChildCount, 0, "_main/mainTemplate/item/items/3");
 }
 
 TEST_F(CommandInsertItemTest, InsertItemMultiChildZeroIsBeforeFirstItem)
@@ -394,7 +394,7 @@ TEST_F(CommandInsertItemTest, InsertItemMultiChildZeroIsBeforeFirstItem)
     executeInsertItem("multiChild");
 
     auto child = CoreComponent::cast(root->findComponentById("newArrival"));
-    validateInsert(target, child, initialChildCount, 0);
+    validateInsert(target, child, initialChildCount, 0, "_main/mainTemplate/item/items/3");
     ASSERT_EQ(target->getChildAt(1)->getId(), "firstChild");
 }
 
@@ -412,7 +412,7 @@ TEST_F(CommandInsertItemTest, InsertItemMultiChildAppendIsAfterLastItem)
     executeInsertItem("multiChild", INT_MAX);
 
     auto child = CoreComponent::cast(root->findComponentById("newArrival"));
-    validateInsert(target, child, initialChildCount, initialChildCount);
+    validateInsert(target, child, initialChildCount, initialChildCount, "_main/mainTemplate/item/items/3");
     ASSERT_EQ(target->getChildAt(initialChildCount - 1)->getId(), "lastChild");
 }
 
@@ -450,4 +450,87 @@ TEST_F(CommandInsertItemTest, InsertItemWhenTargetUsesArrayDataInflation)
     executeInsertItem("main");
 
     validateNonInsert("Could not insert child into 'main'", target, initialChildCount);
+}
+
+const char *BASE_SEQUENCE = R"({
+  "type": "APL",
+  "version": "2023.1",
+  "mainTemplate": {
+    "items": {
+      "id": "baseContainer",
+      "type": "Sequence",
+      "items": []
+    }
+  }
+})";
+
+const char *INSERT_TEXT_AT_THE_END = R"({
+  "type": "Text",
+  "height": 200,
+  "width": "100%",
+  "text": "${index} ${length}"
+})";
+
+TEST_F(CommandInsertItemTest, InsertItemProperContextResolution)
+{
+    loadDocument(BASE_SEQUENCE);
+
+    executeInsertItem("baseContainer", INT_MAX, INSERT_TEXT_AT_THE_END);
+
+    ASSERT_EQ("0 1", component->getCoreChildAt(0)->getCalculated(apl::kPropertyText).asString());
+
+    executeInsertItem("baseContainer", INT_MAX, INSERT_TEXT_AT_THE_END);
+
+    ASSERT_EQ("1 2", component->getCoreChildAt(1)->getCalculated(apl::kPropertyText).asString());
+}
+
+const char *BASE_SEQUENCE_WITH_PARAMETERS = R"({
+  "type": "APL",
+  "version": "2023.2",
+  "theme": "dark",
+  "layouts": {
+    "Bubble": {
+      "parameters": [{"name": "Content"}],
+      "items": {
+        "type": "Frame",
+        "item": {
+          "type": "Text",
+          "height": "auto",
+          "width": "100%",
+          "text": "${Content}"
+        }
+      }
+    }
+  },
+  "mainTemplate": {
+    "parameters": ["TextBox"],
+    "items": {
+      "id": "baseContainer",
+      "type": "Sequence",
+      "height": 500,
+      "items": []
+    }
+  }
+})";
+
+const char *INSERT_FRAMED_TEXT_AT_THE_END = R"({
+  "type": "Bubble",
+  "Content": "${TextBox[index]}"
+})";
+
+TEST_F(CommandInsertItemTest, InsertItemProperParameterResolution)
+{
+    loadDocument(BASE_SEQUENCE_WITH_PARAMETERS, R"({ "TextBox": [ "Index 0", "Index 1" ] })");
+
+    executeInsertItem("baseContainer", INT_MAX, INSERT_FRAMED_TEXT_AT_THE_END);
+
+    ASSERT_EQ("Index 0", component->getCoreChildAt(0)->getCoreChildAt(0)->getCalculated(apl::kPropertyText).asString());
+    LOG(LogLevel::kError) << component->getCoreChildAt(0)->getCoreChildAt(0)->getCalculated(apl::kPropertyText).asString();
+
+    executeInsertItem("baseContainer", INT_MAX, INSERT_FRAMED_TEXT_AT_THE_END);
+
+    ASSERT_EQ("Index 1", component->getCoreChildAt(1)->getCoreChildAt(0)->getCalculated(apl::kPropertyText).asString());
+    LOG(LogLevel::kError) << component->getCoreChildAt(1)->getCoreChildAt(0)->getCalculated(apl::kPropertyText).asString();
+
+    root->clearPending();
 }

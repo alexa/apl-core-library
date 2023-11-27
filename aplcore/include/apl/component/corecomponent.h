@@ -272,7 +272,7 @@ public:
      * @param key The property or data-binding to retrieve
      * @return The value or null if the property does not exist
      */
-    Object getProperty(const std::string& key) { return getPropertyAndWriteableState(key).first; }
+    Object getProperty(const std::string& key) const { return getPropertyAndWriteableState(key).first; }
 
     /**
      * Return the value of a component property.  This is the opposite of the
@@ -280,7 +280,7 @@ public:
      * @param key The property to retrieve
      * @return The value or null if the property does not exist
      */
-    Object getProperty(PropertyKey key);
+    Object getProperty(PropertyKey key) const;
 
     /**
      * Mark a property as being changed.  This only applies to properties set to
@@ -435,14 +435,14 @@ public:
     /**
      * Convert this component and all of its properties into a human-readable JSON object
      * @param allocator RapidJSON memory allocator
-     * @return The object
+     * @return The object.
      */
     rapidjson::Value serializeAll(rapidjson::Document::AllocatorType& allocator) const override;
 
     /**
      * Convert the dirty properties of this component into a JSON object.
      * @param allocator RapidJSON memory allocator
-     * @return The obje
+     * @return The object.
      */
     rapidjson::Value serializeDirty(rapidjson::Document::AllocatorType& allocator) override;
 
@@ -634,6 +634,11 @@ public:
     }
 
     /**
+     * Refresh accessibility actions set in case if any relevant parameters changed.
+     */
+    void refreshAccessibilityActions(bool useDirtyFlag);
+
+    /**
      * Get visible children of component and respective visibility values.
      * @param realOpacity cumulative opacity.
      * @param visibleRect component's visible rect.
@@ -658,9 +663,14 @@ public:
 
     /**
      * @return true when the component has 'normal' display property and an
-     * opacity greater than zero.
+     * opacity greater than zero and is not disallowed.
      */
     bool isDisplayable() const;
+
+    /**
+     * @return true when the component has been disallowed by the runtime, false otherwise.
+    */
+    bool isDisallowed() const { return mIsDisallowed; }
 
     /**
      * Calculate real opacity of component.
@@ -787,7 +797,7 @@ public:
      * Call this method to get shared ptr of CoreComponent
      * @return shared ptr of type CoreComponent.
      */
-    std::shared_ptr<CoreComponent> shared_from_corecomponent()
+    CoreComponentPtr shared_from_corecomponent()
     {
         return std::static_pointer_cast<CoreComponent>(shared_from_this());
     }
@@ -796,7 +806,7 @@ public:
      * Call this method to get shared ptr of const CoreComponent
      * @return shared ptr of type const CoreComponent.
      */
-    std::shared_ptr<const CoreComponent> shared_from_corecomponent() const
+    ConstCoreComponentPtr shared_from_corecomponent() const
     {
         return std::static_pointer_cast<const CoreComponent>(shared_from_this());
     }
@@ -957,10 +967,20 @@ public:
     void setStickyOffset(Point stickyOffset) { mStickyOffset = stickyOffset; }
 
     /**
+     * Perform any operations which is not layout based, but may depend on previous processing.
+     */
+    void postClearPending();
+
+    /**
      * @param component Pointer to cast.
      * @return Casted pointer to this type, nullptr if not possible.
      */
-    static std::shared_ptr<CoreComponent> cast(const std::shared_ptr<Component>& component);
+    static CoreComponentPtr cast(const ComponentPtr& component);
+
+    /**
+     * Mark this component needing accessibility actions refreshed.
+     */
+    void markAccessibilityDirty();
 
 #ifdef SCENEGRAPH
     /**
@@ -1023,10 +1043,10 @@ protected:
     virtual void ensureDisplayedChildren();
 
     /**
-     * @return True if layout change calculations should not be propagated to component's children. Usually the case
-     * when component itself is not taking part in the layout tree.
+     * @return True if layout change calculations should be propagated to component's children. Usually the case
+     * when component itself is part of the layout tree.
      */
-    bool shouldNotPropagateLayoutChanges() const;
+    bool shouldPropagateLayoutChanges() const;
 
     /**
      * @return hash of properties that could affect TextMeasurement.
@@ -1115,12 +1135,23 @@ protected:
         return { Object::NULL_OBJECT(), false };
     }
 
-protected:
     /**
      * @return true if children of this component should be included in the visual context, false
      * otherwise.
      */
     virtual bool includeChildrenInVisualContext() const { return true; }
+
+    /**
+     * @param result Supported standard accessibility actions, paired with true if implicit
+     *               (does not need to be enabled)
+     */
+    virtual void getSupportedStandardAccessibilityActions(std::map<std::string, bool>& result) const {}
+
+    /**
+     * @param child Component to check
+     * @return true if current component is hierarchical parent of provided one, false otherwise.
+     */
+    bool isParentOf(const CoreComponentPtr& child);
 
 private:
     friend streamer& operator<<(streamer&, const Component&);
@@ -1130,6 +1161,11 @@ private:
     friend class LayoutManager;
     friend class ChildWalker;
     friend class HostComponent; // for access to attachedToParent
+
+    enum ChildChangeAction {
+        kChildChangeActionInsert,
+        kChildChangeActionRemove
+    };
 
     bool appendChild(const ComponentPtr& child, bool useDirtyFlag);
 
@@ -1168,7 +1204,7 @@ private:
 
     std::shared_ptr<ObjectMap> createEventProperties(const std::string& handler, const Object& value) const;
 
-    void notifyChildChanged(size_t index, const std::string& uid, const std::string& action);
+    void notifyChildChanged(size_t index, const CoreComponentPtr& component, ChildChangeAction action);
 
     /**
      * The default behavior of the child insertion is to attach the child when it happens.
@@ -1188,6 +1224,12 @@ private:
     YGSize textMeasureInternal(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode);
     float textBaselineInternal(float width, float height);
 
+    void fixAccessibilityActions();
+
+    void processChildrenChanges();
+
+    static std::string toStringAction(ChildChangeAction action);
+
 protected:
     bool                             mInheritParentState;
     State                            mState;       // Operating state (pressed, checked, etc)
@@ -1202,6 +1244,7 @@ protected:
     std::shared_ptr<LayoutRebuilder> mRebuilder;
     Size                             mLayoutSize;
     bool                             mDisplayedChildrenStale;
+    bool                             mIsDisallowed;
 #ifdef SCENEGRAPH
     sg::LayerPtr                     mSceneGraphLayer;
 #endif // SCENEGRAPH
@@ -1209,6 +1252,14 @@ protected:
 private:
     // The members below are used to store cached values for performance reasons, and not part of
     // the state of this component.
+    struct ChildChange {
+        CoreComponentPtr component;
+        ChildChangeAction action;
+        size_t index;
+    };
+
+    std::vector<ChildChange>         mChildrenChanges;
+
     Transform2D                      mGlobalToLocal;
     bool                             mGlobalToLocalIsStale;
     Point                            mStickyOffset;
@@ -1216,6 +1267,7 @@ private:
     bool                             mVisualHashStale;
     std::string                      mTextMeasurementHash;
     timeout_id                       mTickHandlerId = 0;
+    bool                             mAccessibilityDirty = false;
 };
 
 }  // namespace apl

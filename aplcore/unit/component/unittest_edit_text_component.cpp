@@ -945,3 +945,65 @@ TEST_F(EditTextComponentTest, NoOpWhenAlreadyInFocus) {
     ASSERT_FALSE(root->hasEvent());
 }
 
+static const char* EDIT_TEXT_IN_CONTAINER = R"({
+  "type": "APL",
+  "version": "2023.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "width": 200,
+      "height": 200,
+      "items": {
+        "type": "EditText",
+        "id": "EDITTEXT",
+        "width": "100%",
+        "height": "100%"
+      }
+    }
+  }
+})";
+
+TEST_F(EditTextComponentTest, DisallowEditTextTrueDisallowsComponent) {
+    config->set(RootProperty::kDisallowEditText, true);
+    loadDocument(EDIT_TEXT_IN_CONTAINER);
+
+    ASSERT_TRUE(component);
+    auto et = std::static_pointer_cast<CoreComponent>(root->findComponentById("EDITTEXT"));
+    ASSERT_EQ(et->isDisallowed(), true);
+}
+
+TEST_F(EditTextComponentTest, DisallowEditTextFalseAllowsComponent) {
+    config->set(RootProperty::kDisallowEditText, false);
+    loadDocument(EDIT_TEXT_IN_CONTAINER);
+
+    ASSERT_TRUE(component);
+    auto et = std::static_pointer_cast<CoreComponent>(root->findComponentById("EDITTEXT"));
+    ASSERT_EQ(et->isDisallowed(), false);
+}
+
+TEST_F(EditTextComponentTest, ComponentNotDisplayedWhenDisallowEditTextTrue) {
+    config->set(RootProperty::kDisallowEditText, true);
+
+    loadDocument(EDIT_TEXT_IN_CONTAINER);
+
+    ASSERT_TRUE(component);
+    // Components are inflated as expected
+    ASSERT_EQ(1, component->getChildCount());
+    ASSERT_EQ(kComponentTypeEditText, component->getCoreChildAt(0)->getType());
+    // Not displayed
+    ASSERT_EQ(0, component->getDisplayedChildCount());
+}
+
+TEST_F(EditTextComponentTest, ComponentDisplayedWhenDisallowEditTextFalse) {
+    config->set(RootProperty::kDisallowEditText, false);
+
+    loadDocument(EDIT_TEXT_IN_CONTAINER);
+
+    ASSERT_TRUE(component);
+    // Components are inflated as expected
+    ASSERT_EQ(1, component->getChildCount());
+    ASSERT_EQ(kComponentTypeEditText, component->getCoreChildAt(0)->getType());
+    // Displayed
+    ASSERT_EQ(1, component->getDisplayedChildCount());
+    ASSERT_EQ(kComponentTypeEditText, component->getDisplayedChildAt(0)->getType());
+}

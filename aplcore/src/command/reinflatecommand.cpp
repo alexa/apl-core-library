@@ -52,6 +52,9 @@ ReinflateCommand::execute(const TimersPtr& timers, bool fastMode)
         return nullptr;
     }
 
+    if (CoreDocumentContext::cast(mContext->documentContext())->refreshContent())
+        LOG(LogLevel::kDebug) << "Content re-resolution required after reinflate";
+
     // Return a simple action that pushes the event and does nothing else.  The view host must
     // resolve this event to allow further events in the sequencer to execute.
     return Action::make(timers, [this](ActionRef ref) {

@@ -266,6 +266,51 @@ TEST_F(DocumentCreateTest, TestEnvironmentCreationWithIneffectiveOverrides)
     ASSERT_EQ(embeddedConfig.getProperty(RootProperty::kDisallowVideo), true);
 }
 
+static const char* CUSTOM_ENVIRONMENT = R"({
+  "type": "APL",
+  "version": "2022.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "id": "top",
+      "item": {
+        "type": "Host",
+        "id": "hostComponent",
+        "environment": {
+          "customEnvironmentString": "veryCustom",
+          "customEnvironmentBool": true,
+          "customEnvironmentNumber": 42,
+          "rotated": true,
+          "aplVersion": "2000",
+          "customEnvironmentStringEvaluated": "${environment.customEnvironmentString}"
+        },
+        "source": "embeddedDocumentUrl"
+      }
+    }
+  }
+})";
+
+TEST_F(DocumentCreateTest, CustomEnvironment)
+{
+    config->setEnvironmentValue("customEnvironmentString", "veryCustom");
+
+    loadDocument(CUSTOM_ENVIRONMENT);
+
+    // Inflate and verify the embedded document
+    auto content = Content::create(EMBEDDED_DEFAULT, makeDefaultSession());
+    ASSERT_TRUE(content->isReady());
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+    auto embeddedTop = CoreComponent::cast(CoreDocumentContext::cast(embeddedDoc)->topComponent());
+
+    auto embeddedEnvironment = embeddedTop->getRootConfig().getEnvironmentValues();
+    ASSERT_EQ(embeddedEnvironment.at("customEnvironmentString"), "veryCustom");
+    ASSERT_EQ(embeddedEnvironment.at("customEnvironmentBool"), true);
+    ASSERT_EQ(embeddedEnvironment.at("customEnvironmentNumber"), 42);
+    ASSERT_FALSE(embeddedEnvironment.count("rotated"));
+    ASSERT_FALSE(embeddedEnvironment.count("aplVersion"));
+    ASSERT_EQ(embeddedEnvironment.at("customEnvironmentStringEvaluated").asString(), "veryCustom");
+}
+
 TEST_F(DocumentCreateTest, TestRootConfigCreation)
 {
     auto dpi = Metrics::CORE_DPI;

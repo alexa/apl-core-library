@@ -75,6 +75,10 @@ TEST_F(DocumentBackgroundTest, ColorBackground)
 
     ASSERT_TRUE(background.is<Color>());
     ASSERT_TRUE(IsEqual(Color(Color::BLUE), background));
+
+    // New API will fail
+    auto content = Content::create(COLOR_BACKGROUND, makeDefaultSession());
+    ASSERT_TRUE(IsEqual(Color(Color::TRANSPARENT), content->getBackground()));
 }
 
 static const char *GRADIENT_BACKGROUND = R"({
@@ -229,6 +233,15 @@ TEST_F(DocumentBackgroundTest, DataBoundThemeOverride)
 
     metrics.theme("light");
     background = load(DATA_BOUND_THEME_OVERRIDE);
+    ASSERT_TRUE(background.is<Color>());
+    ASSERT_TRUE(IsEqual(Color(0xe0e0c0ff), background));
+}
+
+TEST_F(DocumentBackgroundTest, NewContentApi)
+{
+    metrics.theme("dark");
+    auto content = Content::create(DATA_BOUND_THEME_OVERRIDE, makeDefaultSession(), metrics, config);
+    auto background = content->getBackground();
     ASSERT_TRUE(background.is<Color>());
     ASSERT_TRUE(IsEqual(Color(0xe0e0c0ff), background));
 }

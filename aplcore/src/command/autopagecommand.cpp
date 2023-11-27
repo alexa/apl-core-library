@@ -22,9 +22,10 @@ namespace apl {
 const CommandPropDefSet&
 AutoPageCommand::propDefSet() const {
     static CommandPropDefSet sAutoPageCommandProperties( CoreCommand::propDefSet(), {
-            {kCommandPropertyComponentId, "",                              asString,  kPropRequiredId},
-            {kCommandPropertyCount,       std::numeric_limits<int>::max(), asNonNegativeInteger },
-            {kCommandPropertyDuration,    0,                               asNonNegativeInteger }
+            {kCommandPropertyComponentId,        "",                              asString,  kPropRequiredId},
+            {kCommandPropertyCount,              std::numeric_limits<int>::max(), asNonNegativeInteger },
+            {kCommandPropertyDuration,           0,                               asNonNegativeInteger },
+            {kCommandPropertyTransitionDuration, -1,                              asInteger},
     });
 
     return sAutoPageCommandProperties;

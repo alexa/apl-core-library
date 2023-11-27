@@ -63,14 +63,14 @@ AplMetricsExtension::createRegistration(const ActivityDescriptor& activity,
         return RegistrationFailure::forInvalidMessage(activity.getURI());
 
     auto settingsObject = settings->GetObject();
-    if (!settingsObject.HasMember(APPLICATION_ID))
+    if (!settingsObject.HasMember(APPLICATION_ID) || !settingsObject[APPLICATION_ID].IsString())
         return RegistrationFailure::forInvalidMessage(activity.getURI());
 
     applicationId = settingsObject[APPLICATION_ID].GetString();
     if (applicationId.empty())
         return RegistrationFailure::forInvalidMessage(activity.getURI());
 
-    if (settingsObject.HasMember(EXPERIENCE_ID))
+    if (settingsObject.HasMember(EXPERIENCE_ID) && settingsObject[EXPERIENCE_ID].IsString())
         experienceId = settingsObject[EXPERIENCE_ID].GetString();
 
     {

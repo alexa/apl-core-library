@@ -67,8 +67,11 @@ scrollIntoView(const std::shared_ptr<TimeManager>& timers, const CoreComponentPt
 }
 
 void
-FocusManager::setFocus(const CoreComponentPtr& component, bool notifyViewhost)
+FocusManager::setFocus(const CoreComponentPtr& component, bool notifyViewhost, bool shouldScrollIntoView)
 {
+    if (mTerminated)
+        return;
+
     // Specifying a null component will clear existing focus, if applicable
     if (!component) {
         clearFocus(notifyViewhost);
@@ -101,22 +104,30 @@ FocusManager::setFocus(const CoreComponentPtr& component, bool notifyViewhost)
     if (notifyViewhost) {
         auto timers = mCore.rootConfig().getTimeManager();
         mCore.sequencer().terminateSequencer(FOCUS_RELEASE_SEQUENCER);
-        // Get target into viewport (a.g. scroll it in)
-        auto action = scrollIntoView(timers, component);
-        if (action && action->isPending()) {
-            auto wrapped = Action::wrapWithCallback(timers, action, [this](bool, const ActionPtr&) {
-                reportFocusedComponent();
-            });
-            mCore.sequencer().attachToSequencer(wrapped, FOCUS_SEQUENCER);
-        } else {
-            reportFocusedComponent();
+        if (shouldScrollIntoView) {
+            // Get target into viewport (a.g. scroll it in)
+            auto action = scrollIntoView(timers, component);
+            if (action && action->isPending()) {
+                auto wrapped = Action::wrapWithCallback(timers, action, [this](bool, const ActionPtr&) {
+                    // If terminated, we want to skip reporting a focused component because the data we need no longer exists.
+                    if (!mTerminated) {
+                        reportFocusedComponent();
+                    }
+                });
+                mCore.sequencer().attachToSequencer(wrapped, FOCUS_SEQUENCER);
+                return;
+            }
         }
+        reportFocusedComponent();
     }
 }
 
 void
 FocusManager::releaseFocus(const std::shared_ptr<apl::CoreComponent>& component, bool notifyViewhost)
 {
+    if (mTerminated)
+        return;
+
     auto focused = mFocused.lock();
 
     LOG_IF(DEBUG_FOCUS).session(component) << focused << " -> " << component;
@@ -131,6 +142,9 @@ FocusManager::releaseFocus(const std::shared_ptr<apl::CoreComponent>& component,
 void
 FocusManager::clearFocus(bool notifyViewhost, FocusDirection direction, bool force)
 {
+    if (mTerminated)
+        return;
+    
     auto focused = mFocused.lock();
 
     if (focused) {
@@ -202,6 +216,9 @@ inline Rect generateOrigin(FocusDirection direction, const Rect& viewport)
 bool
 FocusManager::focus(FocusDirection direction)
 {
+    if (mTerminated)
+        return false;
+
     if (mFinder) {
         auto focused = mFocused.lock();
         if (focused) {
@@ -226,6 +243,9 @@ FocusManager::focus(FocusDirection direction)
 bool
 FocusManager::focus(FocusDirection direction, const Rect& origin)
 {
+    if (mTerminated)
+        return false;
+
     if (mFinder) {
         auto next = find(direction, origin);
         if (next) {
@@ -243,6 +263,9 @@ FocusManager::focus(FocusDirection direction, const Rect& origin)
 bool
 FocusManager::focus(FocusDirection direction, const Rect& origin, const CoreComponentPtr& root)
 {
+    if (mTerminated)
+        return false;
+
     if (mFinder) {
         auto next = mFinder->findNext(mFocused.lock(), origin, direction, root);
         if (next) {
@@ -259,6 +282,9 @@ FocusManager::focus(FocusDirection direction, const Rect& origin, const CoreComp
 CoreComponentPtr
 FocusManager::find(FocusDirection direction)
 {
+    if (mTerminated)
+        return nullptr;
+
     auto focused = mFocused.lock();
     if (focused) {
         return mFinder->findNext(focused, direction);
@@ -270,19 +296,29 @@ FocusManager::find(FocusDirection direction)
 CoreComponentPtr
 FocusManager::find(FocusDirection direction, const Rect& origin)
 {
+    if (mTerminated)
+        return nullptr;
+
     return mFinder->findNext(mFocused.lock(), origin, direction, CoreComponent::cast(mCore.topComponent()));
 }
 
 CoreComponentPtr
 FocusManager::find(FocusDirection direction, const CoreComponentPtr& origin, const Rect& originRect, const CoreComponentPtr& root)
 {
+    if (mTerminated)
+        return nullptr;
+
     return mFinder->findNext(origin, originRect, direction, root);
 }
 
 std::map<std::string, Rect>
 FocusManager::getFocusableAreas()
-{
+{   
     std::map<std::string, Rect> result;
+
+    if (mTerminated)
+        return result;
+
     auto root = CoreComponent::cast(mCore.topComponent());
     auto focusables = mFinder->getFocusables(root, false);
     if(root->isFocusable()) {
@@ -296,6 +332,13 @@ FocusManager::getFocusableAreas()
     }
 
     return result;
+}
+
+void FocusManager::terminate()
+{
+    mTerminated = true;
+    mCore.sequencer().terminateSequencer(FOCUS_RELEASE_SEQUENCER);
+    mCore.sequencer().terminateSequencer(FOCUS_SEQUENCER);
 }
 
 }

@@ -288,6 +288,8 @@ public:
 
     IsLayer& dirty(sg::Layer::FlagType flags) { mDirtyFlags = flags; return *this; }
 
+    IsLayer& characteristic(sg::Layer::CharacteristicsType flags) { mCharacteristics = flags; return *this; }
+
     ::testing::AssertionResult operator()(sg::LayerPtr layer);
 
 private:
@@ -305,6 +307,7 @@ private:
     std::string mMsg;
     sg::Layer::FlagType mDirtyFlags = 0;
     sg::Layer::InteractionType mInteraction = 0;
+    sg::Layer::CharacteristicsType mCharacteristics = 0;
 };
 
 

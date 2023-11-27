@@ -16,6 +16,7 @@ target_sources_local(unittest
         test_sg.cpp
         testedittext.cpp
         unittest_sg_accessibility.cpp
+        unittest_sg_base.cpp
         unittest_sg_edit_text.cpp
         unittest_sg_edit_text_config.cpp
         unittest_sg_filter.cpp
@@ -38,4 +39,5 @@ target_sources_local(unittest
         unittest_sg_text.cpp
         unittest_sg_text_properties.cpp
         unittest_sg_touch.cpp
+        unittest_sg_video.cpp
         )

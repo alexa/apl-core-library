@@ -700,7 +700,7 @@ TEST_F(BuilderPreserveTest, PagerChangePages)
     ASSERT_EQ(3, currentPage);
     ASSERT_TRUE(IsEqual("Belgian Sheepdog=3", component->getChildAt(currentPage)->getCalculated(kPropertyText).asString()));
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(root->isVisualContextDirty());
     root->clearVisualContextDirty();
@@ -712,7 +712,7 @@ TEST_F(BuilderPreserveTest, PagerChangePages)
     ASSERT_EQ(2, currentPage);
     ASSERT_TRUE(IsEqual("Golden Retriever=2", component->getChildAt(currentPage)->getCalculated(kPropertyText).asString()));
 
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(root->isVisualContextDirty());
     root->clearVisualContextDirty();
@@ -722,7 +722,7 @@ TEST_F(BuilderPreserveTest, PagerChangePages)
     currentPage = component->getCalculated(kPropertyCurrentPage).asInt();
     ASSERT_EQ(1, currentPage);
     ASSERT_TRUE(IsEqual("Chinook=1", component->getChildAt(currentPage)->getCalculated(kPropertyText).asString()));
-    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage));
+    ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckDirty(root, component));
     ASSERT_TRUE(root->isVisualContextDirty());
 }

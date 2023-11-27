@@ -88,9 +88,15 @@ TEST_F(SGPagerTest, BasicPager)
                 .child(IsLayer(Rect{0, 0, 300, 300}, "...Child1")
                            .content(IsDrawNode()
                                         .path(IsRoundRectPath(0, 0, 300, 300, 0))
-                                        .pathOp(IsFillOp(IsColorPaint(Color::RED)))))));
+                                        .pathOp(IsFillOp(IsColorPaint(Color::RED)))))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true)
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
 
-    // TODO: The Pager VISIBLE children properties don't get updated if you don't use touch events.
     auto ptr = executeCommand("AutoPage",
                               {{"componentId", "MyPager"}, {"count", 4}, {"duration", 100}}, false);
     root->updateTime(100); // This should be halfway through the pager animation
@@ -113,7 +119,14 @@ TEST_F(SGPagerTest, BasicPager)
                            .transform(Transform2D::translate(150, 0))
                            .content(IsDrawNode()
                                         .path(IsRoundRectPath(0, 0, 300, 300, 0))
-                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))));
+                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true)
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
 
     root->updateTime(250); // This should be in the pause between auto page animations
     sg = root->getSceneGraph();
@@ -126,5 +139,106 @@ TEST_F(SGPagerTest, BasicPager)
                            .dirty(sg::Layer::kFlagTransformChanged)  // Transform changed
                            .content(IsDrawNode()
                                         .path(IsRoundRectPath(0, 0, 300, 300, 0))
-                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))));
+                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true)
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
+}
+
+static const char *NORMAL_PAGER = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "mainTemplate": {
+        "items": {
+          "type": "Pager",
+          "id": "MyPager",
+          "width": 300,
+          "height": 300,
+          "items": {
+            "type": "Frame",
+            "width": "100%",
+            "height": "100%",
+            "backgroundColor": "${data}"
+          },
+          "data": [
+            "red",
+            "blue",
+            "green"
+          ]
+        }
+      }
+    }
+)apl";
+
+TEST_F(SGPagerTest, NormalPager)
+{
+    loadDocument(NORMAL_PAGER);
+    ASSERT_TRUE(component);
+
+    auto sg = root->getSceneGraph();
+    ASSERT_TRUE(sg);
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 300, 300}, "...Pager")
+                .horizontal()
+                .child(IsLayer(Rect{0, 0, 300, 300}, "...Child1")
+                           .content(IsDrawNode()
+                                        .path(IsRoundRectPath(0, 0, 300, 300, 0))
+                                        .pathOp(IsFillOp(IsColorPaint(Color::RED)))))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true)
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
+
+    executeCommand("SetPage", {{"componentId", "MyPager"}, {"position", "relative"}, {"value", 1}}, false);
+    advanceTime(1000);
+
+    sg = root->getSceneGraph();
+    ASSERT_TRUE(sg);
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 300, 300}, "...Pager")
+                .horizontal()
+                .dirty(sg::Layer::kFlagChildrenChanged)
+                .child(IsLayer(Rect{0, 0, 300, 300}, "...Child1")
+                           .content(IsDrawNode()
+                                        .path(IsRoundRectPath(0, 0, 300, 300, 0))
+                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true)
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
+
+    executeCommand("SetPage", {{"componentId", "MyPager"}, {"position", "relative"}, {"value", 1}}, false);
+    advanceTime(1000);
+
+    sg = root->getSceneGraph();
+    ASSERT_TRUE(sg);
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 300, 300}, "...Pager")
+                .horizontal()
+                .dirty(sg::Layer::kFlagChildrenChanged)
+                .child(IsLayer(Rect{0, 0, 300, 300}, "...Child1")
+                           .content(IsDrawNode()
+                                        .path(IsRoundRectPath(0, 0, 300, 300, 0))
+                                        .pathOp(IsFillOp(IsColorPaint(Color::GREEN)))))
+                .accessibility(IsAccessibility()
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLBACKWARD,
+                                   true)
+                           .action(AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
+                                   true))));
 }

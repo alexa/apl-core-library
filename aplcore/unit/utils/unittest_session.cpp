@@ -161,4 +161,22 @@ TEST(DefaultConsole, InvalidSessionId)
     auto currentId = session->getLogId();
     session->setLogIdPrefix("1- +1k");
     ASSERT_EQ(currentId, session->getLogId());
+
+}
+
+TEST(DefaultConsole, DefaultSessionDoesNotLogCommands)
+{
+    auto bridge = std::make_shared<TestLoggingBridge>();
+    LoggerFactory::instance().initialize(bridge);
+
+    auto session = makeDefaultSession();
+
+    session->write(LogCommandMessage{
+        "Logged from document",
+        LogLevel::kInfo,
+        Object::NULL_OBJECT(),
+        Object::NULL_OBJECT()
+    });
+
+    ASSERT_EQ(0, bridge->mCount);
 }

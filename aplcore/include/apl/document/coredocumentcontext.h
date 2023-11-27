@@ -56,30 +56,15 @@ public:
                                  const RootConfig& config);
 
     /**
-     * Create a DocumentContext for the given Content with the given environment and size.
-     *
-     * @param context The Context in which the DocumentContext is created; ...not the Context of the DocumentContext
-     * @param content Represents the document rendered within the created DocumentContext
-     * @param env May contain overrides for context to be applied within the created DocumentContext
-     * @param size Specifies the height and width in display-independent pixels of the DocumentContext
-     * @param documentConfig Document configuration
-     * @return The DocumentContext
-     */
-    static CoreDocumentContextPtr create(const ContextPtr& context,
-                                         const ContentPtr& content,
-                                         const Object& env,
-                                         const Size& size,
-                                         const DocumentConfigPtr& documentConfig);
-
-    /**
      * Notify core of a configuration change. Internally this method will trigger the "onConfigChange"
      * event handler in the APL document.  A common behavior in the onConfigChange event handler is to
      * send a Reinflate (kEventTypeReinflate) event.
      * @see RootContext::configurationChange
      *
      * @param change Configuration change information
+     * @param embedded true if embedded document change, false otherwise.
      */
-    void configurationChange(const ConfigurationChange& change);
+    void configurationChange(const ConfigurationChange& change, bool embedded);
     
     /**
      * Update the display state of the document. Internally this method will trigger the
@@ -100,6 +85,26 @@ public:
      * @return true if successful, false otherwise.
      */
     bool reinflate(const LayoutCallbackFunc& layoutCallback);
+
+    /**
+     * Start document reinflation. Extracts relevant status and stops any current processing.
+     * @param preservedSequencers output for sequencers to preserve.
+     * @return pair of success boolean and old top component, if any.
+     */
+    std::pair<bool, CoreComponentPtr> startReinflate(std::map<std::string, ActionPtr>& preservedSequencers);
+
+    /**
+     * Finish document reinflation. Relies on #startReinflate being called beforehand.
+     * @param layoutCallback Callback executed when reinflation process finished.
+     * @param oldTop Old top component, if any.
+     * @param preservedSequencers Sequencers that were preserved, if any.
+     *
+     * @return true if successful, false otherwise.
+     */
+    bool finishReinflate(
+        const LayoutCallbackFunc& layoutCallback,
+        const CoreComponentPtr& oldTop,
+        const std::map<std::string, ActionPtr>& preservedSequencers);
 
     /**
      * Trigger a resize based on stored configuration changes.
@@ -245,6 +250,17 @@ public:
     void flushDataUpdates();
 
     /**
+     * Refresh content evaluation state.
+     * @return true if content requires resolution, after refresh, false otherwise.
+     */
+    bool refreshContent();
+
+    const ConfigurationChange& activeChanges() const { return mActiveConfigurationChanges; }
+
+    const Metrics& currentMetrics() const;
+    const RootConfig& currentConfig() const;
+
+    /**
      * @param documentContext Pointer to cast.
      * @return Casted pointer to this type
      */
@@ -271,9 +287,9 @@ private:
               const SharedContextDataPtr& sharedData,
               bool reinflation);
 
-    bool verifyAPLVersionCompatibility(const std::vector<std::shared_ptr<Package>>& ordered,
+    bool verifyAPLVersionCompatibility(const std::vector<PackagePtr>& ordered,
                                        const APLVersion& compatibilityVersion);
-    bool verifyTypeField(const std::vector<std::shared_ptr<Package>>& ordered, bool enforce);
+    bool verifyTypeField(const std::vector<PackagePtr>& ordered, bool enforce);
     ObjectMapPtr createDocumentEventProperties(const std::string& handler) const;
 
 private:
@@ -283,6 +299,7 @@ private:
     ContextPtr mContext;
     DocumentContextDataPtr mCore;  // When you die, make sure to tell the data to terminate itself.
     ConfigurationChange mActiveConfigurationChanges;
+    ConfigurationChange mResultingConfigurationChange;
     DisplayState mDisplayState;
 
     apl_time_t mUTCTime;

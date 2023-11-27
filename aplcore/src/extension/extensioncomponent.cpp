@@ -37,8 +37,8 @@ ExtensionComponent::create(const ExtensionComponentDefinition& definition,
     return component;
 }
 
-std::shared_ptr<ExtensionComponent>
-ExtensionComponent::cast(const std::shared_ptr<Component>& component) {
+ExtensionComponentPtr
+ExtensionComponent::cast(const ComponentPtr& component) {
     return component && component->getType() == ComponentType::kComponentTypeExtension
             ? std::static_pointer_cast<ExtensionComponent>(component) : nullptr;
 }

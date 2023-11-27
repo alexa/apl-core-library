@@ -258,8 +258,17 @@ Builder::expandSingleComponent(const ContextPtr& context,
 
         // Construct the component
         CoreComponentPtr component = CoreComponentPtr(method(expanded, std::move(properties), path));
+
+        bool releaseAndReturnNull = false;
         if (!component || !component->isValid()) {
             CONSOLE(context) << "Unable to inflate component";
+            releaseAndReturnNull = true;
+        } else if (parent == nullptr && component->isDisallowed()) {
+            CONSOLE(context) << "Component type " << component->name() << " is top-level and disallowed, not inflating" ;
+            releaseAndReturnNull = true;
+        }
+
+        if (releaseAndReturnNull) {
             if (component)
                 component->release();
             return nullptr;
@@ -509,7 +518,8 @@ Builder::inflate(const ContextPtr& context,
 {
     APL_TRACE_BLOCK("Builder:inflate");
     return expandLayout("mainTemplate", context, mainProperties, mainDocument, nullptr,
-        Path(context->getRootConfig().getTrackProvenance() ? std::string(Path::MAIN) + "/mainTemplate" : ""), true, false);
+        Path(context->getRootConfig().getProperty(RootProperty::kTrackProvenance).getBoolean()
+                                 ? std::string(Path::MAIN) + "/mainTemplate" : ""), true, false);
 }
 
 CoreComponentPtr
@@ -519,10 +529,12 @@ Builder::inflate(const ContextPtr& context,
     assert(component.isMap() || component.isArray());
     if (component.isMap())
         return expandSingleComponent(context, component, Properties(), nullptr,
-            Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""), true, false);
+            Path(context->getRootConfig().getProperty(RootProperty::kTrackProvenance).getBoolean()
+                                              ? "_virtual" : ""), true, false);
     else if (component.isArray())
         return expandSingleComponentFromArray(context, component.getArray(), Properties(), nullptr,
-            Path(context->getRootConfig().getTrackProvenance() ? "_virtual" : ""), true, false);
+            Path(context->getRootConfig().getProperty(RootProperty::kTrackProvenance).getBoolean()
+                                                       ? "_virtual" : ""), true, false);
     else
         return nullptr;
 }
