@@ -282,7 +282,8 @@ PagerFlingGesture::onUp(const PointerEvent& event, apl_time_t timestamp)
     if (!FlingGesture::onUp(event, timestamp))
         return false;
 
-    mAmount = getTranslationAmount(mActionable, getDistance(mActionable, mStartPosition, event.pointerEventPosition));
+    auto localPoint = mActionable->toLocalPoint(event.pointerEventPosition);
+    mAmount = getTranslationAmount(mActionable, getDistance(mActionable, mStartPosition, localPoint));
     finishUp();
     return true;
 }

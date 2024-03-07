@@ -47,7 +47,18 @@ public:
 
     friend streamer& operator<<(streamer&, const BoundSymbol&);
 
-    class ObjectType final : public EvaluableReferenceObjectType<BoundSymbol> {};
+    class ObjectType final : public ReferenceHolderObjectType<BoundSymbol> {
+    public:
+        bool isEvaluable() const final { return true; }
+
+        Object eval(const Object::DataHolder& dataHolder) const final {
+            return dataHolder.data->eval();
+        }
+
+        static std::shared_ptr<ObjectData> createDirectObjectData(BoundSymbol&& content) {
+            return EvaluableDirectObjectData<BoundSymbol>::create(std::move(content));
+        }
+    };
 
 private:
     std::weak_ptr<Context> mContext;

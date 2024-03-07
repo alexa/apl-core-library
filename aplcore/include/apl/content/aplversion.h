@@ -39,6 +39,7 @@ public:
         kAPLVersion20231 = 0x1U << 12, /// Support version 2023.1
         kAPLVersion20232 = 0x1U << 13, /// Support version 2023.2
         kAPLVersion20233 = 0x1U << 14, /// Support version 2023.3
+        kAPLVersion20241 = 0x1U << 15, /// Support version 2024.1
         kAPLVersion10to11  = kAPLVersion10 | kAPLVersion11, /// Convenience ranges from 1.0 to latest,
         kAPLVersion10to12  = kAPLVersion10to11 | kAPLVersion12,
         kAPLVersion10to13  = kAPLVersion10to12 | kAPLVersion13,
@@ -53,9 +54,10 @@ public:
         kAPLVersion20222to20231 = kAPLVersion20221to20222 | kAPLVersion20231,
         kAPLVersion20231to20232 = kAPLVersion20222to20231 | kAPLVersion20232,
         kAPLVersion20232to20233 = kAPLVersion20231to20232 | kAPLVersion20233,
-        kAPLVersionLatest = kAPLVersion20232to20233, /// Support the most recent engine version
-        kAPLVersionDefault = kAPLVersion20232to20233, /// Default value
-        kAPLVersionReported = kAPLVersion20233, /// Default reported version
+        kAPLVersion20233to20241 = kAPLVersion20232to20233 | kAPLVersion20241,
+        kAPLVersionLatest = kAPLVersion20233to20241, /// Support the most recent engine version
+        kAPLVersionDefault = kAPLVersion20233to20241, /// Default value
+        kAPLVersionReported = kAPLVersion20241, /// Default reported version
         kAPLVersionAny = 0xffffffff, /// Support any versions in the list
     };
 

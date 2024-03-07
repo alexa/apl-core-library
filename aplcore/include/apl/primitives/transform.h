@@ -78,7 +78,7 @@ public:
         return "Transform<>";
     }
 
-    class ObjectType final : public PointerHolderObjectType<Transformation> {
+    class ObjectType final : public SimplePointerHolderObjectType<Transformation> {
     public:
         rapidjson::Value serialize(
             const Object::DataHolder&,

@@ -44,6 +44,7 @@
 #include "apl/livedata/livearray.h"
 #include "apl/livedata/livearrayobject.h"
 #include "apl/primitives/object.h"
+#include "apl/time/sequencer.h"
 #include "apl/utils/identifier.h"
 #include "apl/utils/log.h"
 #include "apl/utils/path.h"
@@ -68,6 +69,35 @@ static const std::map<std::string, MakeComponentFunc> sComponentMap = {
     {"VectorGraphic", VectorGraphicComponent::create},
     {"Video",         VideoComponent::create},
     {"Host",          HostComponent::create}
+};
+
+
+class BindingChangeImpl : public BindingChange {
+public:
+    static std::shared_ptr<BindingChangeImpl> create(Object&& commands)
+    {
+        return std::make_shared<BindingChangeImpl>(std::move(commands));
+    }
+
+    explicit BindingChangeImpl(Object&& commands) : BindingChange(std::move(commands)) {}
+
+    void setComponent(const CoreComponentPtr& component) { mComponent = component; }
+
+    void execute(const Object& value, const Object& previous) override {
+        auto component = mComponent.lock();
+        if (component) {
+            auto context = component->createEventContext("Change",
+                                                         std::make_shared<ObjectMap>(ObjectMap{{"current",  value},
+                                                                                               {"previous", previous}}));
+            component->getContext()->sequencer().executeCommands(commands(),
+                                                                 context,
+                                                                 component->shared_from_corecomponent(),
+                                                                 true);
+        }
+    }
+
+private:
+    std::weak_ptr<CoreComponent> mComponent;
 };
 
 void
@@ -254,7 +284,8 @@ Builder::expandSingleComponent(const ContextPtr& context,
         ContextPtr expanded = Context::createFromParent(context);
         expanded->putConstant("__source", "component");
         expanded->putConstant("__name", type);
-        attachBindings(expanded, item);
+
+        auto bindingChangeList = attachBindings(expanded, item, BindingChangeImpl::create);
 
         // Construct the component
         CoreComponentPtr component = CoreComponentPtr(method(expanded, std::move(properties), path));
@@ -273,6 +304,10 @@ Builder::expandSingleComponent(const ContextPtr& context,
                 component->release();
             return nullptr;
         }
+
+        // Assign the component to any bindings that had a "onChange" method
+        for (const auto& m : bindingChangeList)
+            std::static_pointer_cast<BindingChangeImpl>(m)->setComponent(component);
 
         CoreComponentPtr oldComponent;
         if(mOld) {
@@ -309,47 +344,6 @@ Builder::expandSingleComponent(const ContextPtr& context,
 
     CONSOLE(context) << "Unable to find layout or component '" << type << "'";
     return nullptr;
-}
-
-/**
- * Process data bindings
- * @param context The data-binding context in which to evaluate the item.
- * @param item The item that contains a "bind" property.
- */
-void
-Builder::attachBindings(const ContextPtr& context, const Object& item)
-{
-    APL_TRACE_BLOCK("Builder:attachBindings");
-    auto bindings = arrayifyProperty(*context, item, "bind");
-    for (const auto& binding : bindings) {
-        auto name = propertyAsString(*context, binding, "name");
-        if (!isValidIdentifier(name)) {
-            CONSOLE(context) << "Invalid binding name '" << name << "'";
-            continue;
-        }
-
-        if (!binding.has("value")) {
-            CONSOLE(context) << "Binding '" << name << "' did not specify a value";
-            continue;
-        }
-
-        if (context->hasLocal(name)) {
-            CONSOLE(context) << "Attempted to bind to pre-existing property '" << name << "'";
-            continue;
-        }
-
-        // Extract the binding as an optional node tree.
-        auto result = parseAndEvaluate(*context, binding.get("value"));
-        auto bindingType =
-            propertyAsMapped<BindingType>(*context, binding, "type", kBindingTypeAny, sBindingMap);
-        auto bindingFunc = sBindingFunctions.at(bindingType);
-
-        // Store the value in the new context.  Binding values are mutable; they can be changed later.
-        context->putUserWriteable(name, bindingFunc(*context, result.value));
-        if (!result.symbols.empty())
-            ContextDependant::create(context, name, std::move(result.expression), context,
-                                     std::move(bindingFunc), std::move(result.symbols));
-    }
 }
 
 /**
@@ -430,7 +424,7 @@ Builder::expandLayout(const std::string& name,
         properties.addToContext(cptr, param, true);
     }
 
-    Builder::attachBindings(cptr, layout);
+    auto bindingChangeList = attachBindings(cptr, layout, BindingChangeImpl::create);
 
     if (DEBUG_BUILDER) {
         for (ConstContextPtr p = cptr; p; p = p->parent()) {
@@ -438,13 +432,19 @@ Builder::expandLayout(const std::string& name,
                 LOG(LogLevel::kDebug).session(context) << m.first << ": " << m.second;
         }
     }
-    return expandSingleComponentFromArray(cptr,
-                                          arrayifyProperty(*cptr, layout, "item", "items"),
-                                          std::move(properties),
-                                          parent,
-                                          path.addProperty(layout, "item", "items"),
-                                          fullBuild,
-                                          useDirtyFlag);
+    auto component = expandSingleComponentFromArray(cptr,
+                                                    arrayifyProperty(*cptr, layout, "item", "items"),
+                                                    std::move(properties),
+                                                    parent,
+                                                    path.addProperty(layout, "item", "items"),
+                                                    fullBuild,
+                                                    useDirtyFlag);
+    if (component) {
+        // Assign the component to any bindings that had a "onChange" method
+        for (const auto& m : bindingChangeList)
+            std::static_pointer_cast<BindingChangeImpl>(m)->setComponent(component);
+    }
+    return component;
 }
 
 /**

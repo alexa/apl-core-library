@@ -921,8 +921,8 @@ TEST_F(DocumentObjectTest, StyledTextCast)
 TEST_F(DocumentObjectTest, Truthy)
 {
     loadDocument(STYLED_TEXT_CAST);
-    ASSERT_TRUE(Object(ComponentEventSourceWrapper::create(component, "", Object::NULL_OBJECT())).truthy());
-    ASSERT_FALSE(Object(ComponentEventSourceWrapper::create(nullptr, "", Object::NULL_OBJECT())).truthy());
+    ASSERT_TRUE(Object(ComponentEventSourceWrapper::create(component, "Test", Object::NULL_OBJECT())).truthy());
+    ASSERT_FALSE(Object(ComponentEventSourceWrapper::create(nullptr, "Test", Object::NULL_OBJECT())).truthy());
 }
 
 TEST_F(DocumentObjectTest, LiveDataAccess)

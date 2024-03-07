@@ -371,6 +371,14 @@ public:
     size_t getEventPropertySize() const;
 
     /**
+     * Return the event property at a given offset into the map.  This method is used when iterating
+     * over the set of event properties.
+     * @param index The offset of the property in the map.
+     * @return A pair where the first value is the key and the second property is the event property value.
+     */
+    std::pair<std::string, Object> getEventPropertyAt(size_t index) const;
+
+    /**
      * The component hierarchy signature is a unique text string that represents the type
      * of this component and all of the components below it in the hierarchy.  This signature
      * in mainly intended for use in recycling views where native layouts are re-used for
@@ -424,6 +432,11 @@ public:
      *  context.
      */
     void setVisualContextDirty();
+
+    /**
+     * Mark component visibility state as dirty.
+     */
+    void setVisibilityDirty();
 
     /**
      * Convert this component into a JSON object
@@ -982,6 +995,18 @@ public:
      */
     void markAccessibilityDirty();
 
+    /**
+     * Register this component for visibility calculation and tracking. No-op if component has no
+     * VisibilityChange handler.
+     */
+    void registerForVisibilityTrackingIfRequired();
+
+    /**
+     * Deregister this component from visibility calculation. No-op if it's not registered for such
+     * in a first place.
+     */
+    void deregisterFromVisibilityTracking();
+
 #ifdef SCENEGRAPH
     /**
      * @return The current scene graph node.
@@ -1228,6 +1253,9 @@ private:
 
     void processChildrenChanges();
 
+    void addDownstreamVisibilityTarget(const CoreComponentPtr& child);
+    void removeDownstreamVisibilityTarget(const CoreComponentPtr& child);
+
     static std::string toStringAction(ChildChangeAction action);
 
 protected:
@@ -1258,16 +1286,17 @@ private:
         size_t index;
     };
 
-    std::vector<ChildChange>         mChildrenChanges;
+    std::vector<ChildChange>                   mChildrenChanges;
 
-    Transform2D                      mGlobalToLocal;
-    bool                             mGlobalToLocalIsStale;
-    Point                            mStickyOffset;
-    bool                             mTextMeasurementHashStale;
-    bool                             mVisualHashStale;
-    std::string                      mTextMeasurementHash;
-    timeout_id                       mTickHandlerId = 0;
-    bool                             mAccessibilityDirty = false;
+    Transform2D                                mGlobalToLocal;
+    bool                                       mGlobalToLocalIsStale;
+    Point                                      mStickyOffset;
+    bool                                       mTextMeasurementHashStale;
+    bool                                       mVisualHashStale;
+    std::string                                mTextMeasurementHash;
+    timeout_id                                 mTickHandlerId = 0;
+    bool                                       mAccessibilityDirty = false;
+    std::unique_ptr<WeakPtrSet<CoreComponent>> mAffectedByVisibilityChange;
 };
 
 }  // namespace apl

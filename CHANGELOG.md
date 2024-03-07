@@ -1,5 +1,25 @@
 # Changelog
 
+## [2024.1]
+
+This release adds support for version 2024.1 of the APL specification.
+
+### Added
+
+- Added an “onChange” handler bound variables and moved all “bind” documentation to the Bounds Variables section
+- Added Visibility Change section discussing visibility change handlers. Added handleVisibilityChange component handler
+- Add the Map.keys() function to Map functions
+- Add pseudoLocalization to the document to enable localization-related testing of textual components
+- Add maxHeight, maxWidth, minHeight, minWidth to the onConfigChange handler
+- Add -experimentalHardwareAccelerationForAndroid as an experimental flag for enabling hardware acceleration for AVG rendering in Android devices as a document setting
+- Add accessibilityAdjustableRange and accessibilityAdjustableValue as new properties. Add the “increment” and “decrement” standard actions
+- Add 'AudioItemId' property to audioplayer extension
+
+### Changed
+
+- Bug fixes
+- Performance improvements
+
 ## [2023.3]
 
 This release adds support for version 2023.3 of the APL specification.

@@ -1,0 +1,103 @@
+@startuml
+
+abstract class ArrayFreeMixin #ffafcc
+abstract class MapFreeMixin #ffafcc
+
+abstract class ObjectType #ffc8dd
+abstract class BaseObjectType #ffc8dd
+abstract class SimpleObjectType #ffc8dd
+abstract class ReferenceHolderObjectType #ffc8dd
+abstract class PointerHolderObjectType #ffc8dd
+abstract class SimplePointerHolderObjectType #ffc8dd
+abstract class ContainerObjectType #ffc8dd
+abstract class AbstractMapObjectType #ffc8dd
+abstract class MapLikeObjectType #ffc8dd
+abstract class ArrayObjectType #ffc8dd
+abstract class MapObjectType #ffc8dd
+
+abstract class DimensionObjectType #cdb4db
+class AutoDimensionObjectType #cdb4db
+class RelativeDimensionObjectType #cdb4db
+class AbsoluteDimensionObjectType #cdb4db
+
+class AccessibilityAction::ObjectType #a2d2ff
+class Array::ObjectType #cdb4db
+class Boolean::ObjectType #cdb4db
+class BoundSymbol::ObjectType #bde0fe
+class ByteCode::ObjectType #a2d2ff
+class Color::ObjectType #cdb4db
+class ComponentEventWrapper::ObjectType #bde0fe
+class ContextWrapper::ObjectType #bde0fe
+class Easing::ObjectType #a2d2ff
+class Filter::ObjectType #bde0fe
+class Function::ObjectType #a2d2ff
+class Gradient::ObjectType #bde0fe
+class Graphic::ObjectType #a2d2ff
+class GraphicFilter::ObjectType #bde0fe
+class GraphicPattern::ObjectType #a2d2ff
+class LiveArrayObject::ObjectType #cdb4db
+class LiveMapObject::ObjectType #bde0fe
+class Map::ObjectType #bde0fe
+class MediaSource::ObjectType #bde0fe
+class Null::ObjectType #cdb4db
+class Number::ObjectType #cdb4db
+class Radii::ObjectType #bde0fe
+class Range::ObjectType #bde0fe
+class Rect::ObjectType #bde0fe
+class String::ObjectType #cdb4db
+class StyledText::ObjectType #bde0fe
+class Transform::ObjectType #a2d2ff
+class Transform2D::ObjectType #bde0fe
+class URLRequest::ObjectType #bde0fe
+
+ObjectType <-- BaseObjectType
+BaseObjectType <-- SimpleObjectType
+MapFreeMixin <-- SimpleObjectType
+ArrayFreeMixin <-- SimpleObjectType
+SimpleObjectType <-- ReferenceHolderObjectType
+SimpleObjectType <-- DimensionObjectType
+SimpleObjectType <-- Null::ObjectType
+SimpleObjectType <-- Boolean::ObjectType
+SimpleObjectType <-- Number::ObjectType
+SimpleObjectType <-- String::ObjectType
+DimensionObjectType <-- RelativeDimensionObjectType
+DimensionObjectType <-- AbsoluteDimensionObjectType
+BaseObjectType <-- PointerHolderObjectType
+SimpleObjectType <-- AutoDimensionObjectType
+SimpleObjectType <-- Color::ObjectType
+PointerHolderObjectType <-- ContainerObjectType
+ContainerObjectType <-- AbstractMapObjectType
+ArrayFreeMixin <-- AbstractMapObjectType
+AbstractMapObjectType <-- MapLikeObjectType
+AbstractMapObjectType <-- MapObjectType
+MapLikeObjectType <-- ComponentEventWrapper::ObjectType
+MapObjectType <-- Map::ObjectType
+ContainerObjectType <-- ArrayObjectType
+MapFreeMixin <-- ArrayObjectType
+SimplePointerHolderObjectType <-- ByteCode::ObjectType
+ReferenceHolderObjectType <-- Gradient::ObjectType
+ReferenceHolderObjectType <-- StyledText::ObjectType
+ReferenceHolderObjectType <-- URLRequest::ObjectType
+ReferenceHolderObjectType <-- Radii::ObjectType
+ReferenceHolderObjectType <-- Transform2D::ObjectType
+ReferenceHolderObjectType <-- Range::ObjectType
+ReferenceHolderObjectType <-- BoundSymbol::ObjectType
+ReferenceHolderObjectType <-- MediaSource::ObjectType
+ArrayObjectType <-- Array::ObjectType
+ReferenceHolderObjectType <-- Filter::ObjectType
+ReferenceHolderObjectType <-- Rect::ObjectType
+PointerHolderObjectType <-- SimplePointerHolderObjectType
+MapFreeMixin <-- SimplePointerHolderObjectType
+ArrayFreeMixin <-- SimplePointerHolderObjectType
+SimplePointerHolderObjectType <-- GraphicPattern::ObjectType
+SimplePointerHolderObjectType <-- Graphic::ObjectType
+SimplePointerHolderObjectType <-- Easing::ObjectType
+SimplePointerHolderObjectType <-- AccessibilityAction::ObjectType
+SimplePointerHolderObjectType <-- Function::ObjectType
+ReferenceHolderObjectType <-- GraphicFilter::ObjectType
+SimplePointerHolderObjectType <-- Transform::ObjectType
+MapObjectType <-- LiveMapObject::ObjectType
+ArrayObjectType <-- LiveArrayObject::ObjectType
+MapLikeObjectType <-- ContextWrapper::ObjectType
+
+@enduml

@@ -25,6 +25,7 @@ target_sources_local(apl
     mediasource.cpp
     object.cpp
     objecttype.cpp
+    pseudolocalizer.cpp
     radii.cpp
     range.cpp
     rect.cpp

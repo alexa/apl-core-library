@@ -61,6 +61,11 @@ public:
     virtual void clearDataSourceContextDirty() = 0;
 
     /**
+     * Retrieve the document's content.
+     */
+    virtual const ContentPtr& content() const = 0;
+
+    /**
      * Retrieve datasource context as a JSON array object. This method also clears the
      * datasource context dirty flag
      * @param allocator Rapidjson allocator

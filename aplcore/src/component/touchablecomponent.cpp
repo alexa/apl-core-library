@@ -89,12 +89,14 @@ const ComponentPropDefSet &
 TouchableComponent::propDefSet() const
 {
     static ComponentPropDefSet sTouchableComponentProperties(ActionableComponent::propDefSet(), {
-        {kPropertyOnCancel, Object::EMPTY_ARRAY(), asCommand, kPropIn},
-        {kPropertyOnDown,   Object::EMPTY_ARRAY(), asCommand, kPropIn},
-        {kPropertyOnMove,   Object::EMPTY_ARRAY(), asCommand, kPropIn},
-        {kPropertyOnPress,  Object::EMPTY_ARRAY(), asCommand, kPropIn},
-        {kPropertyOnUp,     Object::EMPTY_ARRAY(), asCommand, kPropIn},
-        {kPropertyGestures, Object::EMPTY_ARRAY(), asArray,   kPropIn}
+        {kPropertyOnCancel,                     Object::EMPTY_ARRAY(), asCommand,           kPropIn},
+        {kPropertyOnDown,                       Object::EMPTY_ARRAY(), asCommand,           kPropIn},
+        {kPropertyOnMove,                       Object::EMPTY_ARRAY(), asCommand,           kPropIn},
+        {kPropertyOnPress,                      Object::EMPTY_ARRAY(), asCommand,           kPropIn},
+        {kPropertyOnUp,                         Object::EMPTY_ARRAY(), asCommand,           kPropIn},
+        {kPropertyGestures,                     Object::EMPTY_ARRAY(), asArray,             kPropIn},
+        {kPropertyAccessibilityAdjustableRange, Object::NULL_OBJECT(), asAdjustableRange,   kPropInOut | kPropDynamic | kPropEvaluated},
+        {kPropertyAccessibilityAdjustableValue, "",                    asString,            kPropInOut | kPropDynamic}
     });
     return sTouchableComponentProperties;
 }

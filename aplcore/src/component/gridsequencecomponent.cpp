@@ -104,7 +104,7 @@ GridSequenceComponent::propDefSet() const
     static ComponentPropDefSet sSequenceComponentProperties(MultiChildScrollableComponent::propDefSet(), {
             {kPropertyChildHeight,     Object::EMPTY_ARRAY(),    asArray,             kPropIn | kPropRequired | kPropDynamic},
             {kPropertyChildWidth,      Object::EMPTY_ARRAY(),    asArray,             kPropIn | kPropRequired | kPropDynamic},
-            {kPropertyScrollDirection, kScrollDirectionVertical, sScrollDirectionMap, kPropInOut|kPropVisualContext,
+            {kPropertyScrollDirection, kScrollDirectionVertical, sScrollDirectionMap, kPropInOut | kPropVisualContext | kPropVisibility,
                                                                                       yn::setGridScrollDirection},
             {kPropertyWrap,            kFlexboxWrapWrap,         asInteger,           kPropOut,
                                                                                       yn::setWrap},

@@ -38,6 +38,7 @@ class LiveDataManager;
 class Sequencer;
 class Styles;
 class UIDManager;
+class VisibilityManager;
 class DataSourceConnection;
 using DataSourceConnectionPtr = std::shared_ptr<DataSourceConnection>;
 
@@ -101,6 +102,7 @@ public:
     MediaPlayerFactory& mediaPlayerFactory() const;
     UIDManager& uniqueIdManager() const { return *mUniqueIdManager; }
     DependantManager& dependantManager() const;
+    VisibilityManager& visibilityManager() const;
 
     const YGConfigRef& ygconfig() const;
     const SessionPtr& session() const override { return mSession; }

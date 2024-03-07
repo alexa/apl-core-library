@@ -773,6 +773,171 @@ TEST_F(PackagesTest, RefreshUsesStashedPackages)
     ASSERT_EQ(0x0101ffff, component->getCalculated(apl::kPropertyBorderColor).getColor());
 }
 
+static const char *MAIN_RED_GREEN_BLUE = R"apl({
+  "type": "APL",
+  "version": "2023.3",
+  "import": [
+    {
+      "name": "red",
+      "version": "1.0"
+    },
+    {
+      "name": "blue",
+      "version": "1.0",
+      "when": "${!environment.bluegreen}"
+    },
+    {
+      "name": "bluegreen",
+      "version": "1.0",
+      "when": "${environment.bluegreen}"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Frame",
+      "width": "100%",
+      "height": "100%",
+      "borderColor": "@MyBlue",
+      "backgroundColor": "@MyRed"
+    }
+  }
+})apl";
+
+static const char *BLUEGREEN = R"apl({
+  "type": "APL",
+  "version": "2023.3",
+  "import": [
+    {
+      "name": "blue",
+      "version": "1.0"
+    }
+  ],
+  "resources": [
+    {
+      "colors": {
+        "MyGreen": "#01ff01ff"
+      }
+    }
+  ]
+})apl";
+
+TEST_F(PackagesTest, RefreshUsesStashedPackagesForNewImportDependency)
+{
+    add("red:1.0", BASIC);
+    add("blue:1.0", BLUE);
+
+    content = Content::create(MAIN_RED_GREEN_BLUE, session, metrics, *config);
+    ASSERT_TRUE(content);
+    ASSERT_TRUE(content->isWaiting());
+    ASSERT_TRUE(process(content));
+    ASSERT_TRUE(content->isReady());
+
+    config->setEnvironmentValue("bluegreen", true);
+    content->refresh(metrics, *config);
+
+    // Reset the package manager to ensure we rely on stashed "blue" and "red"
+    reset();
+    // Reprocessing is needed to add the "bluegreen" import, which depends on "blue"
+    add("bluegreen:1.0", BLUEGREEN);
+    ASSERT_TRUE(content->isWaiting());
+    ASSERT_TRUE(process(content));
+    ASSERT_TRUE(content->isReady());
+
+    auto root = RootContext::create(metrics, content, *config);
+    ASSERT_TRUE(root);
+
+    rootDocument = root->topDocument();
+    component = CoreComponent::cast(root->topComponent());
+
+    ASSERT_EQ(0xff0101ff, component->getCalculated(apl::kPropertyBackgroundColor).getColor());
+    ASSERT_EQ(0x0101ffff, component->getCalculated(apl::kPropertyBorderColor).getColor());
+}
+
+static const char *MAIN_DEEP_BLUE = R"apl({
+  "type": "APL",
+  "version": "2023.3",
+  "import": [
+    {
+      "name": "red",
+      "version": "1.0"
+    },
+    {
+      "name": "blue",
+      "version": "1.0"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Frame",
+      "width": "100%",
+      "height": "100%",
+      "backgroundColor": "@MyDeepBlue"
+    }
+  }
+})apl";
+
+static const char *CONDITITIONAL_BLUE = R"apl({
+  "type": "APL",
+  "version": "2023.3",
+  "import": [
+    {
+      "name": "deepblue",
+      "version": "1.0",
+      "when": "${environment.foo}"
+    }
+  ],
+  "resources": [
+    {
+      "colors": {
+        "MyBlue": "#0101ffff"
+      }
+    }
+  ]
+})apl";
+
+static const char *DEEPBLUE = R"apl({
+  "type": "APL",
+  "version": "2023.3",
+  "resources": [
+    {
+      "colors": {
+        "MyDeepBlue": "#0000ffff"
+      }
+    }
+  ]
+})apl";
+
+TEST_F(PackagesTest, StashedPackageCanPullInNewDependency)
+{
+    add("red:1.0", BASIC);
+    add("blue:1.0", CONDITITIONAL_BLUE);
+
+    content = Content::create(MAIN_DEEP_BLUE, session, metrics, *config);
+    ASSERT_TRUE(content);
+    ASSERT_TRUE(content->isWaiting());
+    ASSERT_TRUE(process(content));
+    ASSERT_TRUE(content->isReady());
+
+    config->setEnvironmentValue("foo", true);
+    content->refresh(metrics, *config);
+
+    // Reset the package manager to ensure we rely on stashed "blue" and "red"
+    reset();
+    // Existing stashed "blue" will suddenly need "deepblue"
+    add("deepblue:1.0", DEEPBLUE);
+    ASSERT_TRUE(content->isWaiting());
+    ASSERT_TRUE(process(content));
+    ASSERT_TRUE(content->isReady());
+
+    auto root = RootContext::create(metrics, content, *config);
+    ASSERT_TRUE(root);
+
+    rootDocument = root->topDocument();
+    component = CoreComponent::cast(root->topComponent());
+
+    ASSERT_EQ(0x0000ffff, component->getCalculated(apl::kPropertyBackgroundColor).getColor());
+}
+
 TEST_F(PackagesTest, ChangeConfigAfterContentInitializationReused)
 {
     add("StyledFrame:1.0", STYLED_FRAME_OVERRIDE_DEPENDS);

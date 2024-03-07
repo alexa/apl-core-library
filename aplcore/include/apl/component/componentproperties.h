@@ -365,6 +365,10 @@ enum PropertyKey {
     kPropertyAccessibilityActions,
     /// An array of assigned accessibility actions
     kPropertyAccessibilityActionsAssigned,
+    /// Range configuration for a TouchableComponent with an adjustable role
+    kPropertyAccessibilityAdjustableRange,
+    /// Current value for a TouchableComponent with an adjustable role
+    kPropertyAccessibilityAdjustableValue,
     /// Component accessibility label
     kPropertyAccessibilityLabel,
     /// ImageComponent and VectorGraphicComponent alignment (see #ImageAlign, #VectorGraphicAlign)
@@ -463,6 +467,8 @@ enum PropertyKey {
     kPropertyFontWeight,
     /// Component handler for tick
     kPropertyHandleTick,
+    /// Component handler for visibility changes
+    kPropertyHandleVisibilityChange,
     /// EditTextComponent highlight color behind selected text.
     kPropertyHighlightColor,
     /// EditTextComponent hint text,displayed when no text has been entered
@@ -641,6 +647,8 @@ enum PropertyKey {
     kPropertyRole,
     /// ImageComponent, VideoComponent, and VectorGraphicComponent scale property (see #ImageScale, #VectorGraphicScale, #VideoScale)
     kPropertyScale,
+    /// VideoComponent screen lock
+    kPropertyScreenLock,
     /// SequenceComponent scroll animation setting
     kPropertyScrollAnimation,
     /// Scrollable preserve position by absolute scroll position

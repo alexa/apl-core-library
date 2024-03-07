@@ -2656,7 +2656,7 @@ TEST_F(ExtensionClientTest, TypeWithoutProperties) {
     ASSERT_TRUE(client->registered());
 
     // Verify the live map is configured, without properties
-    const auto &liveDataMap = client->extensionSchema().liveData;
+    const auto& liveDataMap = client->extensionSchema().liveData;
     ASSERT_EQ(1, liveDataMap.size());
     auto& map = liveDataMap.at("MyWeather");
     ASSERT_EQ(LiveObject::ObjectType::kMapType, map->getType());
@@ -2674,7 +2674,9 @@ TEST_F(ExtensionClientTest, TypeWithoutProperties) {
     ASSERT_FALSE(ConsoleMessage());
 
     // Verify the LiveData object exists in the document context with expected properties
-    ASSERT_TRUE(IsEqual(Object::EMPTY_MAP(), evaluate(*context, "${MyWeather}")));
+    const auto EXPECTED = std::make_shared<ObjectMap>(ObjectMap{
+        {"location", "Boston"}, {"temperature", "64"}, {"propNull", Object::NULL_OBJECT()}});
+    ASSERT_TRUE(IsEqual(EXPECTED, evaluate(*context, "${MyWeather}")));
     ASSERT_TRUE(IsEqual("Boston", evaluate(*context, "${MyWeather.location}")));
     ASSERT_TRUE(IsEqual("64", evaluate(*context, "${MyWeather.temperature}")));
     ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), evaluate(*context, "${MyWeather.propNull}")));

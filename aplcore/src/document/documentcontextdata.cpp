@@ -119,6 +119,7 @@ LayoutManager& DocumentContextData::layoutManager() const { return mSharedData->
 MediaManager& DocumentContextData::mediaManager() const { return mSharedData->mediaManager(); }
 MediaPlayerFactory& DocumentContextData::mediaPlayerFactory() const { return mSharedData->mediaPlayerFactory(); }
 DependantManager& DocumentContextData::dependantManager() const { return mSharedData->dependantManager(); }
+VisibilityManager& DocumentContextData::visibilityManager() const { return mSharedData->visibilityManager(); }
 const YGConfigRef& DocumentContextData::ygconfig() const { return mSharedData->ygconfig(); }
 const TextMeasurementPtr& DocumentContextData::measure() const { return mSharedData->measure(); }
 void DocumentContextData::takeScreenLock() { mSharedData->takeScreenLock(); }

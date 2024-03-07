@@ -420,3 +420,166 @@ TEST_F(TextComponentTest, ParametersChangeMeasurement)
 
     ASSERT_EQ(3, ctm->measures);
 }
+
+const char *TEXT_HORIZONTAL_GROWTH = R"({
+  "type": "APL",
+  "version": "2023.2",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Container",
+        "width": "100%",
+        "height": "100%",
+        "items": [
+          {
+            "type": "Sequence",
+            "scrollDirection": "horizontal",
+            "width": 500,
+            "height": 100,
+            "items": [
+              {
+                "type": "Text",
+                "width": "auto",
+                "height": "auto",
+                "maxLines": 1,
+                "text": "Alexa can show you even more – With a 15.6” Full HD (1080p) smart display and 5 MP camera, family organization and entertainment will look brilliant. You can choose portrait or landscape orientation.",
+                "onMount": [
+                  {
+                    "type": "SetValue",
+                    "componentId": "result",
+                    "property": "TextLength",
+                    "value": "${event.source.width}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Text",
+            "id": "result",
+            "height": "100%",
+            "bind": [
+              {
+                "name": "TextLength",
+                "value": 0
+              }
+            ],
+            "text": "Text length: ${TextLength}"
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+TEST_F(TextComponentTest, TextHorizontalGrowth)
+{
+    auto ctm = std::make_shared<CountingTextMeasurement>();
+    config->measure(ctm);
+    loadDocument(TEXT_HORIZONTAL_GROWTH);
+    advanceTime(10);
+
+    ASSERT_EQ("Text length: 2030", component->getCoreChildAt(1)->getCalculated(apl::kPropertyText).asString());
+}
+
+static const char* PSEUDO_LOCALIZATION_ENABLED_DOC = R"({
+"type": "APL",
+"version": "2023.2",
+"theme": "dark",
+"settings": {
+    "pseudoLocalization": {
+      "enabled": true,
+      "expansionPercentage": 40
+    }
+},
+"mainTemplate": {
+  "items": {
+      "type": "Text",
+      "text": "Hello World"
+    }
+  }
+}
+})";
+
+TEST_F(TextComponentTest, ValidPseudoLocalizationSettingsTest_Enabled) {
+
+    loadDocument(PSEUDO_LOCALIZATION_ENABLED_DOC);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ("[Ħḗḗŀŀǿǿ Ẇǿǿřŀḓ-]", component->getCalculated(apl::kPropertyText).asString());
+}
+
+static const char* PSEUDO_LOCALIZATION_ENABLED_DOC_ODD_STRING = R"({
+"type": "APL",
+"version": "2023.2",
+"theme": "dark",
+"settings": {
+    "pseudoLocalization": {
+      "enabled": true,
+      "expansionPercentage": 40
+    }
+},
+"mainTemplate": {
+  "items": {
+      "type": "Text",
+      "text": "Marks &amp; Spencer"
+    }
+  }
+}
+})";
+
+TEST_F(TextComponentTest, ValidPseudoLocalizationSettingsOddStringTest_Enabled) {
+
+    loadDocument(PSEUDO_LOCALIZATION_ENABLED_DOC_ODD_STRING);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ("[-Ḿȧȧřķş &ȧȧḿƥ; Şƥḗḗƞƈḗḗř--]",
+              component->getCalculated(apl::kPropertyText).asString());
+}
+
+static const char* PSEUDO_LOCALIZATION_PL_SETTINGS_EMPTY_DOC = R"({
+"type": "APL",
+"version": "2023.2",
+"theme": "dark",
+"settings": {
+    "pseudoLocalization": {
+    }
+},
+"mainTemplate": {
+  "items": {
+      "type": "Text",
+      "text": "Hello World"
+    }
+  }
+}
+})";
+
+TEST_F(TextComponentTest, EmptyEnabledPseudoLocalizationSettingTest_Disabled) {
+
+    loadDocument(PSEUDO_LOCALIZATION_PL_SETTINGS_EMPTY_DOC);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ("Hello World", component->getCalculated(apl::kPropertyText).asString());
+}
+
+static const char* PSEUDO_LOCALIZATION_EMPTY_SETTINGS_DOC = R"({
+"type": "APL",
+"version": "2023.2",
+"theme": "dark",
+"mainTemplate": {
+  "items": {
+      "type": "Text",
+      "text": "Hello World"
+    }
+  }
+}
+})";
+
+TEST_F(TextComponentTest, EmptySettings_Disabled) {
+
+    loadDocument(PSEUDO_LOCALIZATION_EMPTY_SETTINGS_DOC);
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ("Hello World", component->getCalculated(apl::kPropertyText).asString());
+}

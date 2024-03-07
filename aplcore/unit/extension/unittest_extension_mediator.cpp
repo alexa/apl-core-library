@@ -911,6 +911,67 @@ TEST_F(ExtensionMediatorTest, ParseSettings) {
     ASSERT_EQ("MAGIC", hello->mAuthorizationCode);
 }
 
+static const char* EXT_DOC_SUPER_SIMPLE = R"({
+  "type": "APL",
+  "version": "1.4",
+  "extension": [
+      {
+        "uri": "aplext:notloaded:10",
+        "name": "NotLoaded"
+      }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Text",
+      "width": 500,
+      "height": 50,
+      "text": "Loaded: ${environment.extension.NotLoaded}"
+    }
+  }
+})";
+
+TEST_F(ExtensionMediatorTest, RegistrationFlagsDontMeanExtension) {
+    config->registerExtensionFlags("aplext:notloaded:10", "--hello");
+
+    createContent(EXT_DOC_SUPER_SIMPLE, nullptr);
+
+    if (!extensionProvider) {
+        createProvider();
+    }
+
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    mediator->loadExtensions(ObjectMap{}, content);
+
+    inflate();
+
+    ASSERT_TRUE(root);
+    ASSERT_TRUE(component);
+    ASSERT_EQ("Loaded: false", component->getCalculated(kPropertyText).asString());
+}
+
+TEST_F(ExtensionMediatorTest, RegistrationFlagsDontMeanExtensionNoConfig) {
+    createContent(EXT_DOC_SUPER_SIMPLE, nullptr);
+
+    if (!extensionProvider) {
+        createProvider();
+    }
+
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    mediator->loadExtensions(ObjectMap{{"aplext:hello:10", "--hello"}}, content);
+
+    inflate();
+
+    ASSERT_TRUE(root);
+    ASSERT_TRUE(component);
+    ASSERT_EQ("Loaded: false", component->getCalculated(kPropertyText).asString());
+}
+
 TEST_F(ExtensionMediatorTest, ExtensionParseCommands) {
     loadExtensions(EXT_DOC);
 
@@ -1496,7 +1557,7 @@ TEST_F(ExtensionMediatorTest, AudioPlayerIntegration) {
     auto commands = context->extensionManager().getCommandDefinitions();
     ASSERT_EQ(11, commands.size());
     auto handlers = context->extensionManager().getEventHandlerDefinitions();
-    ASSERT_EQ(1, handlers.size());
+    ASSERT_EQ(2, handlers.size());
 
     // Validate Live Data
     auto trackers = context->dataManager().trackers();
@@ -2868,7 +2929,7 @@ TEST_F(ExtensionMediatorTest, BasicExtensionLifecycle) {
                                          session);
 
     auto extension = std::make_shared<LifecycleTestExtension>();
-    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    auto proxy = ThreadSafeExtensionProxy::create(extension);
     extensionProvider->registerExtension(proxy);
 
     createContent(LIFECYCLE_DOC, nullptr);
@@ -2920,7 +2981,7 @@ TEST_F(ExtensionMediatorTest, SessionUsedAcrossDocuments) {
 
     extensionProvider = std::make_shared<TestExtensionProvider>();
     auto extension = std::make_shared<LifecycleTestExtension>();
-    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    auto proxy = ThreadSafeExtensionProxy::create(extension);
     extensionProvider->registerExtension(proxy);
 
     // Render a first document
@@ -3001,7 +3062,7 @@ TEST_F(ExtensionMediatorTest, SessionEndedBeforeDocumentFinished) {
                                          session);
 
     auto extension = std::make_shared<LifecycleTestExtension>();
-    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    auto proxy = ThreadSafeExtensionProxy::create(extension);
     extensionProvider->registerExtension(proxy);
 
     createContent(LIFECYCLE_DOC, nullptr);
@@ -3041,7 +3102,7 @@ TEST_F(ExtensionMediatorTest, SessionEndedBeforeDocumentRendered) {
                                          session);
 
     auto extension = std::make_shared<LifecycleTestExtension>();
-    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    auto proxy = ThreadSafeExtensionProxy::create(extension);
     extensionProvider->registerExtension(proxy);
 
     createContent(LIFECYCLE_DOC, nullptr);
@@ -3072,7 +3133,7 @@ TEST_F(ExtensionMediatorTest, SessionEndedBeforeExtensionsLoaded) {
                                          session);
 
     auto extension = std::make_shared<LifecycleTestExtension>();
-    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    auto proxy = ThreadSafeExtensionProxy::create(extension);
     extensionProvider->registerExtension(proxy);
 
     createContent(LIFECYCLE_DOC, nullptr);
@@ -3153,8 +3214,8 @@ TEST_F(ExtensionMediatorTest, SessionEndsAfterAllActivitiesHaveFinished) {
 
     auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
     auto otherExtension = std::make_shared<LifecycleTestExtension>("test:lifecycleOther:2.0");
-    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
-    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(otherExtension));
+    extensionProvider->registerExtension(ThreadSafeExtensionProxy::create(extension));
+    extensionProvider->registerExtension(ThreadSafeExtensionProxy::create(otherExtension));
 
     createContent(LIFECYCLE_WITH_MULTIPLE_EXTENSIONS_DOC, nullptr);
 
@@ -3224,8 +3285,8 @@ TEST_F(ExtensionMediatorTest, RejectedExtensionsDoNotPreventEndingSessions) {
 
     auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
     auto otherExtension = std::make_shared<LifecycleTestExtension>("test:lifecycleOther:2.0");
-    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
-    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(otherExtension));
+    extensionProvider->registerExtension(ThreadSafeExtensionProxy::create(extension));
+    extensionProvider->registerExtension(ThreadSafeExtensionProxy::create(otherExtension));
 
     createContent(LIFECYCLE_WITH_MULTIPLE_EXTENSIONS_DOC, nullptr);
 
@@ -3274,8 +3335,8 @@ TEST_F(ExtensionMediatorTest, FailureDuringRegistrationDoesNotPreventEndingSessi
     auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
     auto otherExtension = std::make_shared<LifecycleTestExtension>("test:lifecycleOther:2.0");
     otherExtension->failRegistration = true;
-    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
-    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(otherExtension));
+    extensionProvider->registerExtension(ThreadSafeExtensionProxy::create(extension));
+    extensionProvider->registerExtension(ThreadSafeExtensionProxy::create(otherExtension));
 
     createContent(LIFECYCLE_WITH_MULTIPLE_EXTENSIONS_DOC, nullptr);
 
@@ -3323,7 +3384,7 @@ TEST_F(ExtensionMediatorTest, RejectedRegistrationDoesNotPreventEndingSessions) 
                                          session);
 
     auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
-    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    extensionProvider->registerExtension(ThreadSafeExtensionProxy::create(extension));
     auto failingProxy = std::make_shared<ExtensionCommunicationTestAdapter>("test:lifecycleOther:2.0", true, false);
     extensionProvider->registerExtension(failingProxy);
 
@@ -3372,8 +3433,8 @@ TEST_F(ExtensionMediatorTest, MissingProxyDoesNotPreventEndingSessions) {
 
     auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
     auto otherExtension = std::make_shared<LifecycleTestExtension>("test:lifecycleOther:2.0");
-    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
-    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(otherExtension));
+    extensionProvider->registerExtension(ThreadSafeExtensionProxy::create(extension));
+    extensionProvider->registerExtension(ThreadSafeExtensionProxy::create(otherExtension));
 
     extensionProvider->returnNullProxyForURI("test:lifecycleOther:2.0");
 
@@ -3421,7 +3482,7 @@ TEST_F(ExtensionMediatorTest, UnknownExtensionDoesNotPreventEndingSessions) {
                                          session);
 
     auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
-    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    extensionProvider->registerExtension(ThreadSafeExtensionProxy::create(extension));
 
     createContent(LIFECYCLE_WITH_MULTIPLE_EXTENSIONS_DOC, nullptr);
 
@@ -3466,8 +3527,8 @@ TEST_F(ExtensionMediatorTest, BrokenProviderDoesNotPreventEndingSessions) {
 
     auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
     auto otherExtension = std::make_shared<LifecycleTestExtension>("test:lifecycleOther:2.0");
-    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
-    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(otherExtension));
+    extensionProvider->registerExtension(ThreadSafeExtensionProxy::create(extension));
+    extensionProvider->registerExtension(ThreadSafeExtensionProxy::create(otherExtension));
 
     // Broken provider will return a valid proxy once but then nullptr subsequently for the same URI
     int proxyRequestCount = 0;
@@ -3522,7 +3583,7 @@ TEST_F(ExtensionMediatorTest, FailureToInitializeDoesNotPreventEndingSessions) {
                                          session);
 
     auto extension = std::make_shared<LifecycleTestExtension>("test:lifecycle:1.0");
-    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    extensionProvider->registerExtension(ThreadSafeExtensionProxy::create(extension));
     auto failingProxy = std::make_shared<ExtensionCommunicationTestAdapter>("test:lifecycleOther:2.0", false, true);
     extensionProvider->registerExtension(failingProxy);
 
@@ -3596,7 +3657,7 @@ TEST_F(ExtensionMediatorTest, LifecycleWithComponent) {
                                          session);
 
     auto extension = std::make_shared<LifecycleTestExtension>();
-    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    auto proxy = ThreadSafeExtensionProxy::create(extension);
     extensionProvider->registerExtension(proxy);
 
     createContent(LIFECYCLE_COMPONENT_DOC, nullptr);
@@ -3694,7 +3755,7 @@ TEST_F(ExtensionMediatorTest, LifecycleWithLiveData) {
                                          session);
 
     auto extension = std::make_shared<LifecycleTestExtension>();
-    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    auto proxy = ThreadSafeExtensionProxy::create(extension);
     extensionProvider->registerExtension(proxy);
 
     createContent(LIFECYCLE_LIVE_DATA_DOC, nullptr);
@@ -3752,7 +3813,7 @@ TEST_F(ExtensionMediatorTest, LifecycleAPIsRespectExtensionToken) {
 
     auto extension = std::make_shared<LifecycleTestExtension>();
     extension->useAutoToken = false; // make sure the extension specifies its own token
-    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    auto proxy = ThreadSafeExtensionProxy::create(extension);
     extensionProvider->registerExtension(proxy);
 
     createContent(LIFECYCLE_DOC, nullptr);
@@ -3944,7 +4005,7 @@ TEST_F(ExtensionMediatorTest, ExtensionComponentSchema) {
                                          session);
 
     auto extension = std::make_shared<ComponentExtension>();
-    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    auto proxy = ThreadSafeExtensionProxy::create(extension);
     extensionProvider->registerExtension(proxy);
 
     createContent(COMPONENT_DOC, nullptr);
@@ -4083,7 +4144,7 @@ TEST_F(ExtensionMediatorTest, RequiredExtension) {
                                          alexaext::Executor::getSynchronousExecutor(),
                                          session);
 
-    auto proxy = std::make_shared<LocalExtensionProxy>(std::make_shared<RequiredExtension>(false));
+    auto proxy = ThreadSafeExtensionProxy::create(std::make_shared<RequiredExtension>(false));
     extensionProvider->registerExtension(proxy);
 
     createContent(REQUIRED_EXTENSION, nullptr);
@@ -4115,7 +4176,7 @@ TEST_F(ExtensionMediatorTest, RequiredExtensionWithFlags) {
                                          session);
 
     auto extension = std::make_shared<RequiredExtension>(false);
-    auto proxy = std::make_shared<LocalExtensionProxy>(extension);
+    auto proxy = ThreadSafeExtensionProxy::create(extension);
     extensionProvider->registerExtension(proxy);
 
     createContent(REQUIRED_EXTENSION, nullptr);
@@ -4149,7 +4210,7 @@ TEST_F(ExtensionMediatorTest, RequiredExtensionRegistrationFail) {
                                          alexaext::Executor::getSynchronousExecutor(),
                                          session);
 
-    auto proxy = std::make_shared<LocalExtensionProxy>(std::make_shared<RequiredExtension>(true));
+    auto proxy = ThreadSafeExtensionProxy::create(std::make_shared<RequiredExtension>(true));
     extensionProvider->registerExtension(proxy);
 
     createContent(REQUIRED_EXTENSION, nullptr);
@@ -4306,7 +4367,7 @@ TEST_F(ExtensionMediatorTest, RequiredExtensionDenied) {
                                          alexaext::Executor::getSynchronousExecutor(),
                                          session);
 
-    auto proxy = std::make_shared<LocalExtensionProxy>(std::make_shared<RequiredExtension>(false));
+    auto proxy = ThreadSafeExtensionProxy::create(std::make_shared<RequiredExtension>(false));
     extensionProvider->registerExtension(proxy);
 
     createContent(REQUIRED_EXTENSION, nullptr);

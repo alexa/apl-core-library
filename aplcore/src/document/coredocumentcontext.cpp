@@ -32,6 +32,7 @@
 #include "apl/engine/sharedcontextdata.h"
 #include "apl/engine/styles.h"
 #include "apl/engine/uidmanager.h"
+#include "apl/engine/visibilitymanager.h"
 #include "apl/extension/extensionclient.h"
 #include "apl/extension/extensionmanager.h"
 #include "apl/focus/focusmanager.h"
@@ -216,8 +217,10 @@ CoreDocumentContext::finishReinflate(const LayoutCallbackFunc& layoutCallback, c
     }
 
     // If there was a previous top component, release it and its children to free memory
-    if (oldTop)
+    if (oldTop) {
+        oldTop->deregisterFromVisibilityTracking();
         oldTop->release();
+    }
 
     // Clear the old active configuration; it is reset on a reinflation
     mActiveConfigurationChanges.clear();
@@ -672,6 +675,7 @@ CoreDocumentContext::setup(const CoreComponentPtr& top)
     if (!mCore->mTop)
         return false;
 
+    mCore->mTop->registerForVisibilityTrackingIfRequired();
     mCore->mTop->markGlobalToLocalTransformStale();
 
 #ifdef ALEXAEXTENSIONS

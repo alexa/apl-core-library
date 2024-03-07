@@ -78,6 +78,7 @@ VideoComponent::playerCallback(MediaPlayerEventType eventType, const MediaState&
     auto& sequencer = mContext->sequencer();
 
     saveMediaState(mediaState);
+    updateScreenLock();
 
     // The event handlers are invoked using new sequencer logic.  In this version, the
     // onEnd/onPause/onPlay handlers are always invoked on a sequencer unique to the video
@@ -156,6 +157,7 @@ void
 VideoComponent::detachPlayer()
 {
     mMediaPlayer = nullptr;
+    mScreenLock.release();
 }
 
 void
@@ -172,7 +174,8 @@ VideoComponent::VideoComponent(const ContextPtr& context,
                                Properties&& properties,
                                const Path& path)
     : CoreComponent(context, std::move(properties), path),
-      mMediaSequencer("VIDEO"+getUniqueId())
+      mMediaSequencer("VIDEO"+getUniqueId()),
+      mScreenLock(mContext)
 {
     mIsDisallowed = context->getRootConfig().getProperty(RootProperty::kDisallowVideo).asBoolean();
 
@@ -198,6 +201,7 @@ VideoComponent::remove()
     if (mMediaPlayer)
         mMediaPlayer->halt();
 
+    mScreenLock.release();
     return CoreComponent::remove();
 }
 
@@ -209,6 +213,7 @@ VideoComponent::releaseSelf()
         mMediaPlayer = nullptr;
     }
 
+    mScreenLock.release();
     CoreComponent::releaseSelf();
 }
 
@@ -251,6 +256,7 @@ VideoComponent::propDefSet() const
 
     static auto resetMediaState = [](Component& component) {
         auto& comp = (VideoComponent&)component;
+        comp.mScreenLock.release();
         auto mediaPlayer = comp.getMediaPlayer();
         if (mediaPlayer)
             mediaPlayer->setTrackList(mediaSourcesToTracks(comp.getCalculated(kPropertySource)));
@@ -261,6 +267,11 @@ VideoComponent::propDefSet() const
       auto mediaPlayer = self.getMediaPlayer();
       if (mediaPlayer)
           mediaPlayer->setMute(self.getCalculated(kPropertyMuted).asBoolean());
+    };
+
+    static auto setScreenLock = [](Component& component) -> void {
+        auto& comp = (VideoComponent&)component;
+        comp.updateScreenLock();
     };
 
     static ComponentPropDefSet sVideoComponentProperties = ComponentPropDefSet(
@@ -285,7 +296,8 @@ VideoComponent::propDefSet() const
         { kPropertyTrackPaused,     true,                   asBoolean,          kPropRuntimeState | kPropVisualContext },
         { kPropertyTrackEnded,      false,                  asBoolean,          kPropRuntimeState | kPropVisualContext },
         { kPropertyTrackState,      kTrackNotReady,         sTrackStateMap,     kPropRuntimeState},
-        { kPropertyPlayingState,    getPlayingState,        setPlayingState,    kPropDynamic },
+        { kPropertyPlayingState,    getPlayingState,        setPlayingState,    kPropDynamic},
+        { kPropertyScreenLock,      true,                   asBoolean,          kPropDynamic| kPropIn, setScreenLock },
     });
 
     return sVideoComponentProperties;
@@ -333,6 +345,19 @@ VideoComponent::saveMediaState(const MediaState& state)
     mCalculated.set(kPropertyTrackState, state.getTrackState());
 }
 
+
+void
+VideoComponent::updateScreenLock()
+{
+    bool hasScreenLock = getProperty(kPropertyTrackCount).asInt() > 0 &&
+                         !getProperty(kPropertyTrackEnded).truthy() &&
+                         !getProperty(kPropertyTrackPaused).truthy() &&
+                         getProperty(kPropertyScreenLock).truthy();
+
+    mScreenLock.ensure(hasScreenLock);
+}
+
+
 void
 VideoComponent::updateMediaState(const MediaState& state, bool fromEvent)
 {
@@ -345,6 +370,7 @@ VideoComponent::updateMediaState(const MediaState& state, bool fromEvent)
     auto previousCurrentTime = getCalculated(kPropertyTrackCurrentTime).asInt();
     auto previousTrackState = getCalculated(kPropertyTrackState).asInt();
     saveMediaState(state);
+    updateScreenLock();
 
     if (state.getTrackIndex() != previousTrackIndex) {
         auto& commands = getCalculated(kPropertyOnTrackUpdate);

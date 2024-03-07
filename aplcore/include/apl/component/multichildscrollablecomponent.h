@@ -114,6 +114,7 @@ protected:
     std::map<int, float> getChildrenVisibility(float realOpacity, const Rect &visibleRect) const override;
     bool insertChild(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
     void removeChildAfterMarkedRemoved(const CoreComponentPtr& child, size_t index, bool useDirtyFlag) override;
+    void releaseSelf() override;
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
     virtual void layoutChildIfRequired(const CoreComponentPtr& child, size_t childIdx, bool useDirtyFlag, bool first);
     void relayoutInPlace(bool useDirtyFlag, bool first);
@@ -180,6 +181,7 @@ private:
     Point getPaddedScrollPosition(LayoutDirection layoutDirection) const;
     void processLayoutChangesInternal(bool useDirtyFlag, bool first, bool delayed, bool needsFullReProcess);
     void scheduleDelayedLayout();
+    double clampScrollPositionToValidValue(double scrollPosition, LayoutDirection layoutDirection, bool isHorizontal);
 
 private:
     Range mIndexesSeen;

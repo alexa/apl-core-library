@@ -38,9 +38,8 @@ public:
     Object get(const std::string& key) const override;
     Object opt(const std::string& key, const Object& def) const override;
     bool has(const std::string& key) const override;
+    std::pair<std::string, Object> keyAt(std::size_t offset) const override;
     std::uint64_t size() const override;
-
-    const ObjectMap& getMap() const override;
 
     ConstCoreComponentPtr getComponent() const { return mComponent.lock(); }
 

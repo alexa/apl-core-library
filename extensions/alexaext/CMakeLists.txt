@@ -24,22 +24,33 @@ project(AlexaExt
         LANGUAGES
         CXX C)
 
-add_library(alexaext STATIC
-            src/APLAudioPlayerExtension/AplAudioPlayerExtension.cpp
-            src/APLAudioNormalizationExtension/AplAudioNormalizationExtension.cpp
-            src/APLE2EEncryptionExtension/AplE2eEncryptionExtension.cpp
-            src/APLMetricsExtension/AplMetricsExtension.cpp
-            src/APLWebflowExtension/AplWebflowBase.cpp
-            src/APLWebflowExtension/AplWebflowExtension.cpp
-            src/APLMusicAlarmExtension/AplMusicAlarmExtension.cpp
-            src/APLAttentionSystemExtension/AplAttentionSystemExtension.cpp
-            src/executor.cpp
-            src/extensionmessage.cpp
-            src/extensionregistrar.cpp
-            src/localextensionproxy.cpp
-            src/random.cpp
-            src/sessiondescriptor.cpp
-    )
+include(target_sources_local.cmake)
+
+if (BUILD_SHARED)
+    add_library(alexaext SHARED)
+else()
+    add_library(alexaext STATIC)
+endif()
+
+
+target_sources_local(alexaext PRIVATE
+        src/APLAudioPlayerExtension/AplAudioPlayerExtension.cpp
+        src/APLAudioNormalizationExtension/AplAudioNormalizationExtension.cpp
+        src/APLE2EEncryptionExtension/AplE2eEncryptionExtension.cpp
+        src/APLMetricsExtension/AplMetricsExtension.cpp
+        src/APLWebflowExtension/AplWebflowBase.cpp
+        src/APLWebflowExtension/AplWebflowExtension.cpp
+        src/APLMusicAlarmExtension/AplMusicAlarmExtension.cpp
+        src/APLAttentionSystemExtension/AplAttentionSystemExtension.cpp
+        src/executor.cpp
+        src/extensionmessage.cpp
+        src/extensionregistrar.cpp
+        src/localextensionproxy.cpp
+        src/random.cpp
+        src/sessiondescriptor.cpp
+        src/threadsafeextensionproxy.cpp
+        src/threadsafeextensionregistrar.cpp
+        )
 
 if (BUILD_SHARED OR ENABLE_PIC)
     set_target_properties(alexaext
@@ -59,7 +70,9 @@ target_include_directories(alexaext
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
 )
 
-target_link_libraries(alexaext PUBLIC rapidjson-apl)
+if (NOT USE_SYSTEM_RAPIDJSON)
+    target_link_libraries(alexaext PUBLIC rapidjson-apl)
+endif()
 
 target_compile_options(alexaext
     PRIVATE

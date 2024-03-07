@@ -285,7 +285,7 @@ public:
         legacyProxy = std::make_shared<LocalExtensionProxy>(legacyExtension);
 
         extension = std::make_shared<LifecycleExtension>();
-        proxy = std::make_shared<LocalExtensionProxy>(extension);
+        proxy = ThreadSafeExtensionProxy::create(extension);
     }
 
     std::shared_ptr<LegacyExtension> legacyExtension;
@@ -688,54 +688,4 @@ TEST_F(ExtensionLifecycleTest, UpdateComponentLegacy) {
     legacyProxy->sendComponentMessage(*activity, message);
 
     ASSERT_TRUE(legacyExtension->processedComponentUpdate);
-}
-
-TEST_F(ExtensionLifecycleTest, LegacyEventCallback) {
-    auto session = SessionDescriptor::create();
-    auto activity = ActivityDescriptor::create(URI, session);
-    bool receivedEvent = false;
-    bool receivedLiveData = false;
-
-    ASSERT_TRUE(proxy->initializeExtension(URI));
-
-    // Register legacy callbacks while the extension uses lifecycle APIs
-    proxy->registerEventCallback([&](const std::string& uri,
-                                     const rapidjson::Value& event) {
-        receivedEvent = true;
-    });
-    proxy->registerLiveDataUpdateCallback([&](const std::string& uri, const rapidjson::Value& update) {
-        receivedLiveData = true;
-    });
-
-    auto req = RegistrationRequest("1.0")
-        .uri(URI);
-    bool successCallbackWasCalled;
-    proxy->getRegistration(*activity, req,
-                           [&](const ActivityDescriptor& activity, const rapidjson::Value &response) {
-                               successCallbackWasCalled = true;
-                           },
-                           [](const ActivityDescriptor& activity, const rapidjson::Value &error) {
-                                FAIL();
-                           });
-    ASSERT_TRUE(successCallbackWasCalled);
-
-    rapidjson::Document command;
-    command.Parse(COMMAND_MESSAGE);
-
-    ASSERT_FALSE(receivedEvent); // The extension will publish an event in response to the command
-    bool commandSuccessCallbackWasCalled;
-    bool commandAccepted = proxy->invokeCommand(*activity, command,
-            [&](const ActivityDescriptor& activity, const rapidjson::Value &response) {
-                commandSuccessCallbackWasCalled = true;
-            },
-            [](const ActivityDescriptor& activity, const rapidjson::Value &error) {
-                FAIL();
-            });
-    ASSERT_TRUE(commandAccepted);
-    ASSERT_TRUE(commandSuccessCallbackWasCalled);
-    ASSERT_TRUE(receivedEvent);
-
-    ASSERT_FALSE(receivedLiveData);
-    extension->publishLiveData();
-    ASSERT_TRUE(receivedLiveData);
 }

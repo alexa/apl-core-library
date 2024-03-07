@@ -342,8 +342,10 @@ accessibility(CoreComponent& component)
     auto label = component.getCalculated(kPropertyAccessibilityLabel).getString();
     auto role = component.getCalculated(kPropertyRole).asEnum<Role>();
     const auto& actions = component.getCalculated(kPropertyAccessibilityActions).getArray();
+    auto adjustableRange = component.getCalculated(kPropertyAccessibilityAdjustableRange);
+    auto adjustableValue = component.getCalculated(kPropertyAccessibilityAdjustableValue).asString();
 
-    if (label.empty() && actions.empty() && role == kRoleNone)
+    if (label.empty() && actions.empty() && role == kRoleNone && adjustableRange.isNull() && adjustableValue.empty())
         return nullptr;
 
     auto weak = std::weak_ptr<CoreComponent>(component.shared_from_corecomponent());
@@ -360,6 +362,9 @@ accessibility(CoreComponent& component)
         const auto& ptr = m.get<AccessibilityAction>();
         acc->appendAction(ptr->getName(), ptr->getLabel(), ptr->enabled());
     }
+
+    acc->setAdjustableRange(adjustableRange);
+    acc->setAdjustableValue(adjustableValue);
 
     return acc;
 }

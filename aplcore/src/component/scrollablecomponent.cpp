@@ -146,7 +146,7 @@ ScrollableComponent::propDefSet() const
     static ComponentPropDefSet sScrollableComponentProperties(ActionableComponent::propDefSet(), {
         {kPropertyScrollOffset,   getScrollOffset,  setScrollOffset,     kPropDynamic | kPropSetAfterLayout },
         {kPropertyScrollPercent,  getScrollPercent, setScrollPercent,    kPropDynamic | kPropSetAfterLayout },
-        {kPropertyScrollPosition, Dimension(0),     asAbsoluteDimension, kPropRuntimeState | kPropVisualContext | kPropAccessibility},
+        {kPropertyScrollPosition, Dimension(0),     asAbsoluteDimension, kPropRuntimeState | kPropVisualContext | kPropVisibility | kPropAccessibility },
     });
     return sScrollableComponentProperties;
 }
@@ -238,6 +238,7 @@ void
 ScrollableComponent::onScrollPositionUpdated()
 {
     setVisualContextDirty();
+    setVisibilityDirty();
     markDisplayedChildrenStale(true);
     setDirty(kPropertyScrollPosition);
 

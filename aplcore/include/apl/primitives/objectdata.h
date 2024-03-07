@@ -136,6 +136,10 @@ public:
         aplThrow("Illegal mutable map");
     }
 
+    virtual std::pair<std::string, Object> keyAt(std::size_t offset) const {
+        aplThrow("Illegal map");
+    }
+
     virtual std::string toDebugString() const {
         return "Unknown type";
     }
@@ -347,6 +351,15 @@ public:
         return *mMap;
     }
 
+    std::pair<std::string, Object> keyAt(std::size_t offset) const override {
+        if (offset >= mMap->size())
+            aplThrow("Attempted to return key beyond the end of a map");
+
+        auto it = mMap->cbegin();
+        std::advance(it, offset);
+        return *it;
+    }
+
     void
     accept(Visitor<Object>& visitor) const override
     {
@@ -430,6 +443,15 @@ public:
             return false;
 
         return mValue->FindMember(key.c_str()) != mValue->MemberEnd();
+    }
+
+    std::pair<std::string, Object> keyAt(std::size_t offset) const override {
+        if (mValue->IsObject() && mValue->MemberCount() > offset) {
+            auto itr = mValue->MemberBegin();
+            itr += offset;
+            return { itr->name.GetString(), itr->value };
+        }
+        return { "", Object::NULL_OBJECT() };
     }
 
     Object
@@ -528,6 +550,15 @@ public:
             return false;
 
         return mDoc.FindMember(key.c_str()) != mDoc.MemberEnd();
+    }
+
+    std::pair<std::string, Object> keyAt(std::size_t offset) const override {
+        if (mDoc.IsObject() && mDoc.MemberCount() > offset) {
+            auto itr = mDoc.MemberBegin();
+            itr += offset;
+            return { itr->name.GetString(), itr->value };
+        }
+        return { "", Object::NULL_OBJECT() };
     }
 
     Object

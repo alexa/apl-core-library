@@ -15,10 +15,10 @@ target_sources_local(apl
     PRIVATE
     arrayify.cpp
     binding.cpp
+    bindingchange.cpp
     builder.cpp
     context.cpp
     contextobject.cpp
-    contextwrapper.cpp
     corerootcontext.cpp
     dependant.cpp
     dependantmanager.cpp
@@ -42,4 +42,5 @@ target_sources_local(apl
     uidgenerator.cpp
     uidmanager.cpp
     uidobject.cpp
+    visibilitymanager.cpp
 )

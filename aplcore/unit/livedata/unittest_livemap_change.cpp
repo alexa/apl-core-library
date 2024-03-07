@@ -281,3 +281,41 @@ TEST_F(LiveMapChangeTest, PopulateLayoutMap)
 
     ASSERT_TRUE(IsEqual("think so", component->getCalculated(kPropertyText).asString()));
 }
+
+static const char *MAP_FUNCTION = R"apl(
+{
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": {
+        "type": "Text",
+        "text": "${data} = ${MyMap[data]}"
+      },
+      "data": "${Map.keys(MyMap)}"
+    }
+  }
+}
+)apl";
+
+TEST_F(LiveMapChangeTest, MapFunction)
+{
+    auto myMap = LiveMap::create(ObjectMap{{"a", "alpha"}, {"b", "bravo"}, {"c", "charlie"}});
+    config->liveData("MyMap", myMap);
+
+    loadDocument(MAP_FUNCTION);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(3, component->getChildCount());
+    auto a = component->getChildAt(0);
+    auto b = component->getChildAt(1);
+    auto c = component->getChildAt(2);
+    ASSERT_TRUE(IsEqual("a = alpha", a->getCalculated(apl::kPropertyText).asString()));
+    ASSERT_TRUE(IsEqual("b = bravo", b->getCalculated(apl::kPropertyText).asString()));
+    ASSERT_TRUE(IsEqual("c = charlie", c->getCalculated(apl::kPropertyText).asString()));
+
+    myMap->set("a", "another");
+    root->clearPending();
+    ASSERT_TRUE(IsEqual("a = another", a->getCalculated(apl::kPropertyText).asString()));
+    // Note: We can't add or remove from the map without re-inflating (yet).
+}

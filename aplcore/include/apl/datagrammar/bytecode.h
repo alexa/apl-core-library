@@ -283,8 +283,14 @@ public:
     friend class ByteCodeOptimizer;
     friend class ByteCodeEvaluator;
 
-    class ObjectType final : public EvaluableObjectType<ByteCode> {
+    class ObjectType final : public SimplePointerHolderObjectType<ByteCode> {
     public:
+        bool isEvaluable() const final { return true; }
+
+        Object eval(const Object::DataHolder& dataHolder) const final {
+            return dataHolder.data->eval();
+        }
+
         rapidjson::Value serialize(const Object::DataHolder&,
                                    rapidjson::Document::AllocatorType& allocator) const override {
             return {"COMPILED BYTE CODE", allocator};

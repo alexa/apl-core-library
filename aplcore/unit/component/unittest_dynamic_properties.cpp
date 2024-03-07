@@ -1486,3 +1486,95 @@ TEST_F(DynamicPropertiesTest, SequenceDynamic) {
     ASSERT_EQ(Rect(0, 40, 100, 20), child1->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(Rect(0, 70, 100, 20), child2->getCalculated(kPropertyBounds).get<Rect>());
 }
+
+static const char *ACCESSIBILITY_SETVALUE = R"apl(
+    {
+      "type": "APL",
+      "version": "2024.1",
+      "mainTemplate": {
+        "item": [{
+            "type": "TouchWrapper",
+            "role": "adjustable",
+            "id": "touch",
+            "accessibilityAdjustableRange": {
+                "minValue": "${minRange}",
+                "maxValue": "${maxRange}",
+                "currentValue": "${sliderValue}"
+            },
+            "accessibilityAdjustableValue": "${sliderValue}",
+            "bind": [
+                {
+                    "name": "sliderValue",
+                    "value": 4
+                },
+                {
+                    "name": "minRange",
+                    "value": 0
+                },
+                {
+                    "name": "maxRange",
+                    "value": 10
+                }
+            ],
+            "actions": [
+                {
+                    "name": "increment",
+                    "label": "Increment Value",
+                    "command": {
+                        "type": "SetValue",
+                        "property": "sliderValue",
+                        "value": "${Math.min(sliderValue + 1, maxRange)}"
+                    }
+                },
+                {
+                    "name": "decrement",
+                    "label": "Decrement Value",
+                    "command": {
+                        "type": "SetValue",
+                        "property": "sliderValue",
+                        "value": "${Math.max(sliderValue - 1, minRange)}"
+                    }
+                }
+            ]
+        }]
+      }
+    }
+)apl";
+
+// Test for touchable component accessibility properties for dynamic
+TEST_F(DynamicPropertiesTest, AccessibilityProperties) {
+    loadDocument(ACCESSIBILITY_SETVALUE);
+    ASSERT_TRUE(component);
+
+    auto touchwrapper = CoreComponent::cast(context->findComponentById("touch"));
+    ASSERT_TRUE(touchwrapper);
+    ASSERT_EQ(kComponentTypeTouchWrapper, touchwrapper->getType());
+    //Verify that the correct number of bindings are present
+    ASSERT_EQ(2, touchwrapper->getContext()->countDownstream("sliderValue"));
+    ASSERT_EQ(1, touchwrapper->getContext()->countDownstream("minRange"));
+    ASSERT_EQ(1, touchwrapper->getContext()->countDownstream("maxRange"));
+
+    // Verify that the "increment" action works
+    component->update(kUpdateAccessibilityAction, "increment");
+    root->clearPending();
+    ASSERT_EQ(1, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(touchwrapper, kPropertyAccessibilityAdjustableValue, kPropertyAccessibilityAdjustableRange));
+    ASSERT_TRUE(CheckDirty(root, touchwrapper));
+    root->clearDirty();
+
+    ASSERT_EQ("5", touchwrapper->getCalculated(kPropertyAccessibilityAdjustableValue).asString());
+    auto incrementJsonData = JsonData(R"({"minValue": 0, "maxValue": 10, "currentValue": 5})");
+    ASSERT_EQ(Object(incrementJsonData.get()), touchwrapper->getCalculated(kPropertyAccessibilityAdjustableRange));
+
+    // Verify that the "decrement" action works
+    component->update(kUpdateAccessibilityAction, "decrement");
+    root->clearPending();
+    ASSERT_EQ(1, root->getDirty().size());
+    ASSERT_TRUE(CheckDirty(touchwrapper, kPropertyAccessibilityAdjustableValue, kPropertyAccessibilityAdjustableRange));
+    ASSERT_TRUE(CheckDirty(root, touchwrapper));
+    root->clearDirty();
+
+    ASSERT_EQ("4", touchwrapper->getCalculated(kPropertyAccessibilityAdjustableValue).asString());
+    auto decrementJsonData = JsonData(R"({"minValue": 0, "maxValue": 10, "currentValue": 4})");
+    ASSERT_EQ(Object(decrementJsonData.get()), touchwrapper->getCalculated(kPropertyAccessibilityAdjustableRange));
+}

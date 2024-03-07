@@ -438,6 +438,7 @@ const static char *SERIALIZE_ALL_RESULT = R"({
   "fontStyle": "normal",
   "fontWeight": "normal",
   "handleTick": [],
+  "handleVisibilityChange": [],
   "height": "50%",
   "_innerBounds": [
     0,

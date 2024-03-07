@@ -159,8 +159,10 @@ public:
         return { true, it->second };
     }
 
-    class ObjectType final : public TrueObjectType<Color> {
+    class ObjectType final : public SimpleObjectType<Color> {
     public:
+        bool truthy(const Object::DataHolder&) const override { return true; }
+
         std::string asString(const Object::DataHolder& dataHolder) const override {
             return Color(dataHolder.value).asString();
         }

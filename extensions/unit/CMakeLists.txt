@@ -34,6 +34,7 @@ add_executable(alexaext-unittest
         unittest_random.cpp
         unittest_resource_provider.cpp
         unittest_session_descriptor.cpp
+        unittest_threadsafe_extension_registrar.cpp
         )
 
 target_link_libraries(alexaext-unittest

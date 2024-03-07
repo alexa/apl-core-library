@@ -17,6 +17,7 @@ target_sources_local(unittest
         unittest_decompile.cpp
         unittest_grammar.cpp
         unittest_grammar_error.cpp
+        unittest_grammar_map.cpp
         unittest_optimize.cpp
         unittest_parse.cpp
         )

@@ -232,6 +232,26 @@ arraySlice(const ObjectArray& args)
     return SliceGenerator::create(array, start, end);
 }
 
+static Object
+mapKeys(const ObjectArray& args)
+{
+    if (args.empty())
+        return Object::EMPTY_ARRAY();
+
+    if (!args.at(0).isMap())
+        return Object::EMPTY_ARRAY();
+
+    const auto length = args.at(0).size();
+    if (length == 0)
+        return Object::EMPTY_ARRAY();
+
+    auto result = std::make_shared<ObjectArray>();
+    for (auto i = 0 ; i < length ; i++)
+        result->emplace_back(args.at(0).keyAt(i).first);
+
+    return result;
+}
+
 /**
  * This method assumes a UTF-8 encoded string. It returns the number
  * of code points in the string.
@@ -521,11 +541,22 @@ createArrayMap()
     return map;
 }
 
+static ObjectMapPtr
+createMapMap()
+{
+    auto map = std::make_shared<ObjectMap>();
+
+    map->emplace("keys", Function::create("keys", mapKeys));
+
+    return map;
+}
+
 void
 createStandardFunctions(Context& context)
 {
     static auto sArrayFunctions = createArrayMap();
     static auto sLogFunctions = createLogMap();
+    static auto sMapFunctions = createMapMap();
     static auto sMathFunctions = createMathMap();
     // String functions are dependent on RootConfig locale methods
     auto sStringFunctions = createStringMap(context.getLocaleMethods());
@@ -533,6 +564,7 @@ createStandardFunctions(Context& context)
 
     context.putConstant("Array", sArrayFunctions);
     context.putConstant("Log", sLogFunctions);
+    context.putConstant("Map", sMapFunctions);
     context.putConstant("Math", sMathFunctions);
     context.putConstant("String", sStringFunctions);
     context.putConstant("Time", sTimeFunctions);

@@ -87,6 +87,8 @@ public:
     IsAccessibility(std::string msg="") : mMsg(std::move(msg)) {}
     IsAccessibility& label(std::string label) { mLabel = std::move(label); return *this; }
     IsAccessibility& role(Role role) { mRole = role; return *this; }
+    IsAccessibility& adjustableValue(std::string value) { mAdjustableValue = value; return *this; }
+    IsAccessibility& adjustableRange(sg::Accessibility::AdjustableRange range) { mAdjustableRange = range; return *this; }
 
     IsAccessibility& action(const std::string& name, const std::string& label, bool enabled) {
         mActions.emplace_back(sg::Accessibility::Action{name, label, enabled});
@@ -100,6 +102,8 @@ private:
     std::string mLabel;
     Role mRole = apl::kRoleNone;
     std::vector<sg::Accessibility::Action> mActions;
+    std::string mAdjustableValue;
+    sg::Accessibility::AdjustableRange mAdjustableRange;
 };
 
 class IsNode {

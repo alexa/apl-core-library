@@ -15,6 +15,8 @@
 
 #include "apl/scenegraph/accessibility.h"
 
+#include "apl/primitives/object.h"
+
 namespace apl {
 namespace sg {
 
@@ -51,6 +53,23 @@ Accessibility::appendAction(const std::string& name, const std::string& label, b
     mActions.emplace_back(Action{name, label, enabled});
 }
 
+bool
+Accessibility::setAdjustableValue(const std::string& adjustableValue) {
+    if (adjustableValue == mAdjustableValue)
+        return false;
+
+    mAdjustableValue = adjustableValue;
+    return true;
+}
+
+bool
+Accessibility::setAdjustableRange(const apl::Object& object) {
+    if (object.isNull())
+        return false;
+    mAdjustableRange = AdjustableRange{object.get("minValue").asNumber(), object.get("maxValue").asNumber(), object.get("currentValue").asNumber()};
+    return true;
+}
+
 rapidjson::Value
 Accessibility::serialize(rapidjson::Document::AllocatorType& allocator) const {
     auto out = rapidjson::Value(rapidjson::kObjectType);
@@ -66,6 +85,12 @@ Accessibility::serialize(rapidjson::Document::AllocatorType& allocator) const {
         actionArray.PushBack(actionItem, allocator);
     }
     out.AddMember("actions", actionArray, allocator);
+    auto range = rapidjson::Value(rapidjson::kObjectType);
+    range.AddMember("minValue", rapidjson::Value(mAdjustableRange.minValue), allocator);
+    range.AddMember("maxValue", rapidjson::Value(mAdjustableRange.maxValue), allocator);
+    range.AddMember("currentValue", rapidjson::Value(mAdjustableRange.currentValue), allocator);
+    out.AddMember("adjustableRange", range, allocator);
+    out.AddMember("adjustableValue", rapidjson::Value(mAdjustableValue.c_str(), allocator), allocator);
 
     return out;
 }

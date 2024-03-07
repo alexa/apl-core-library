@@ -45,6 +45,8 @@
 #include "extensionregistrar.h"
 #include "localextensionproxy.h"
 #include "sessiondescriptor.h"
+#include "threadsafeextensionproxy.h"
+#include "threadsafeextensionregistrar.h"
 #include "types.h"
 #include "APLAudioPlayerExtension/AplAudioPlayerExtension.h"
 #include "APLAudioNormalizationExtension/AplAudioNormalizationExtension.h"

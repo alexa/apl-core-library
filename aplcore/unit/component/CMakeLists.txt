@@ -15,6 +15,7 @@ target_sources_local(unittest
         PRIVATE
         unittest_accessibility_actions.cpp
         unittest_accessibility_api.cpp
+        unittest_accessibility_properties.cpp
         unittest_bounds.cpp
         unittest_component_events.cpp
         unittest_default_component_size.cpp

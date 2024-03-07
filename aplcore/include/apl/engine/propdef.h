@@ -104,6 +104,14 @@ inline Object asNonAutoRelativeDimension(const Context& context, const Object& o
     return object.asNonAutoRelativeDimension(context);
 }
 
+inline Object asAdjustableRange(const Context &context, const Object &object) {
+    if (!object.isMap())
+        return Object::NULL_OBJECT();
+    if (!object.has("minValue") || !object.has("maxValue") || !object.has("currentValue"))
+        return Object::NULL_OBJECT();
+    return object;
+}
+
 extern Object asStyledText(const Context& context, const Object& object);
 
 extern Object asColor(const Context& context, const Object& object);
@@ -231,6 +239,8 @@ enum PropertyDefFlags : uint32_t {
     kPropVisualHash = 0x8000,
     /// Property affects accessibility state of the component
     kPropAccessibility = 0x10000,
+    /// This property may influence the visual state of the component.
+    kPropVisibility = 0x20000,
 };
 
 /**

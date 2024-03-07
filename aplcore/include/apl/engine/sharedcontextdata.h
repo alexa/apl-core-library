@@ -45,6 +45,7 @@ class KeyboardManager;
 class LayoutManager;
 class PointerManager;
 class TickScheduler;
+class VisibilityManager;
 class UIDGenerator;
 class DataSourceConnection;
 using DataSourceConnectionPtr = std::shared_ptr<DataSourceConnection>;
@@ -128,6 +129,7 @@ public:
     UIDGenerator& uidGenerator() const { return deref(mUniqueIdGenerator); }
     EventManager& eventManager() const { return deref(mEventManager); }
     DependantManager& dependantManager() const { return deref(mDependantManager); }
+    VisibilityManager& visibilityManager() const { return deref(mVisibilityManager); }
 
     const YGConfigRef& ygconfig() const { return mYGConfigRef; }
 
@@ -181,6 +183,7 @@ private:
     std::unique_ptr<UIDGenerator> mUniqueIdGenerator;
     std::unique_ptr<EventManager> mEventManager;
     std::unique_ptr<DependantManager> mDependantManager;
+    std::unique_ptr<VisibilityManager> mVisibilityManager;
 
     const DocumentManagerPtr mDocumentManager;
     std::shared_ptr<TimeManager> mTimeManager;

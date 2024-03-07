@@ -30,6 +30,7 @@
 #include "apl/engine/sharedcontextdata.h"
 #include "apl/engine/tickscheduler.h"
 #include "apl/engine/uidmanager.h"
+#include "apl/engine/visibilitymanager.h"
 #include "apl/extension/extensionmanager.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/graphic/graphic.h"
@@ -184,6 +185,8 @@ CoreRootContext::clearPendingInternal(bool first) const
     for (const auto& comp : mShared->dirtyComponents().getAll()) {
         CoreComponent::cast(comp)->postClearPending();
     }
+
+    mShared->visibilityManager().processVisibilityChanges();
 }
 
 bool

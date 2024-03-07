@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include "apl/engine/bindingchange.h"
 #include "apl/primitives/object.h"
 #include "apl/utils/path.h"
 
@@ -54,6 +55,13 @@ public:
     ContextObject& userWriteable() { mUserWriteable = true; mMutable = true; return *this; }
 
     /**
+     * Attach a change watcher event handler to this object
+     * @param command The commands to execute when the context object changes
+     * @return This object, for chaining.
+     */
+    ContextObject& onChange(const BindingChangePtr& onChange) { mOnChange = onChange; return *this; }
+
+    /**
      * @return The value of the object.
      */
     const Object& value() const { return mValue; }
@@ -78,12 +86,7 @@ public:
      * @param value The new value to store.
      * @return True if the value was changed.
      */
-    bool set(const Object& value) {
-        bool result = (mMutable && mValue != value);
-        if (result)
-            mValue = value;
-        return result;
-    }
+    bool set(const Object& value);
 
     std::string toDebugString() const;
 
@@ -91,6 +94,7 @@ public:
 
 private:
     Object mValue;
+    BindingChangePtr mOnChange;
     Path mProvenance;
     bool mMutable = false;
     bool mUserWriteable = false;

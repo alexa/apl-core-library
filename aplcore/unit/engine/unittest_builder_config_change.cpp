@@ -58,6 +58,10 @@ static const char *CHECK_ENVIRONMENT = R"apl(
             "${event.source.handler}",
             "${event.width}",
             "${event.height}",
+            "${event.minWidth}",
+            "${event.maxWidth}",
+            "${event.minHeight}",
+            "${event.maxHeight}",
             "${event.theme}",
             "${event.viewportMode}",
             "${event.disallowVideo}",
@@ -93,38 +97,42 @@ TEST_F(BuilderConfigChange, CheckEnvironment)
 
     // Just theme, to existing one
     configChange(ConfigurationChange().theme("dark"));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 100, "dark", "hub", false, 1.0, "normal", false, false, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 100, 100, 100, 100, 100, "dark", "hub", false, 1.0, "normal", false, false, false));
 
     // Rotate the screen
     configChange(ConfigurationChange(200,100));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 200, 100, "dark", "hub", false, 1.0, "normal", false, true, true));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 200, 100, 200, 200, 100, 100, "dark", "hub", false, 1.0, "normal", false, true, true));
 
     // Resize the screen
     configChange(ConfigurationChange(400,400));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 400, 400, "dark", "hub", false, 1.0, "normal", false, true, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 400, 400, 400, 400, 400, 400, "dark", "hub", false, 1.0, "normal", false, true, false));
 
     // Rotate back. Since we never re-inflated, the sizeChanged and rotated flags should be false now
     configChange(ConfigurationChange(100,200));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "dark", "hub", false, 1.0, "normal", false, false, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, 100, 100, 200, 200, "dark", "hub", false, 1.0, "normal", false, false, false));
 
     // Modify other properties
     configChange(ConfigurationChange().theme("purple").screenReader(true));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "hub", false, 1.0, "normal", true, false, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, 100, 100, 200, 200, "purple", "hub", false, 1.0, "normal", true, false, false));
 
     configChange(ConfigurationChange().mode(kViewportModeAuto).fontScale(3.0));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "auto", false, 3.0, "normal", true, false, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, 100, 100, 200, 200, "purple", "auto", false, 3.0, "normal", true, false, false));
 
     configChange(ConfigurationChange().screenMode(RootConfig::kScreenModeHighContrast));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "auto", false, 3.0, "high-contrast", true, false, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, 100, 100, 200, 200, "purple", "auto", false, 3.0, "high-contrast", true, false, false));
 
     configChange(ConfigurationChange().disallowVideo(true));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "auto", true, 3.0, "high-contrast", true, false, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, 100, 100, 200, 200, "purple", "auto", true, 3.0, "high-contrast", true, false, false));
 
     configChange(ConfigurationChange().mode("tv"));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "tv", true, 3.0, "high-contrast", true, false, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, 100, 100, 200, 200, "purple", "tv", true, 3.0, "high-contrast", true, false, false));
 
     configChange(ConfigurationChange().screenMode("normal"));
-    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, "purple", "tv", true, 3.0, "normal", true, false, false));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 200, 100, 100, 200, 200, "purple", "tv", true, 3.0, "normal", true, false, false));
+
+    // Resize to a variable size
+    configChange(ConfigurationChange().sizeRange(100, 50, 150, 300, 250, 350));
+    ASSERT_TRUE(CheckSendEvent(root, "Document", "ConfigChange", 100, 300, 50, 150, 250, 350, "purple", "tv", true, 3.0, "normal", true, true, false));
 }
 
 TEST_F(BuilderConfigChange, NoopConfigurationChangeDoesNotCreateEvent)

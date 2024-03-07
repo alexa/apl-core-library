@@ -17,6 +17,7 @@
 #define _APL_COMMON_H
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <set>
 
@@ -45,9 +46,17 @@ using apl_time_t = double;
  */
 using apl_duration_t = double;
 
-// Common definitions of shared pointer data structures.  We define the XXXPtr variations
-// here so they can be conveniently used from any source file.
+/**
+ * Objects are used in a lot of places and are often passed by reference.
+ */
+class Object;
 
+/**
+ * Common object types which are often used in shared pointers.  Each of
+ * these objects is also declared as a shared pointer version of the form:
+ *
+ *     using MyClassPtr = std::shared_ptr<MyClass>
+ */
 class AccessibilityAction;
 class Action;
 class AudioPlayer;
@@ -147,9 +156,16 @@ using StyleInstancePtr = std::shared_ptr<StyleInstance>;
 using TextMeasurementPtr = std::shared_ptr<TextMeasurement>;
 using TimersPtr = std::shared_ptr<Timers>;
 
-// Convenience templates for creating sets of weak and strong pointers
+/**
+ * Convenience templates for creating sets of weak and strong pointers
+ */
 template<class T> using SharedPtrSet = std::set<std::shared_ptr<T>, std::owner_less<std::shared_ptr<T>>>;
 template<class T> using WeakPtrSet = std::set<std::weak_ptr<T>, std::owner_less<std::weak_ptr<T>>>;
+template<class Key, class T> using WeakPtrMap = std::map<std::weak_ptr<Key>,
+                                                T,
+                                                std::owner_less<std::weak_ptr<Key>>,
+                                                std::allocator<std::pair<const std::weak_ptr<Key>, T>>
+                                                >;
 
 } // namespace apl
 

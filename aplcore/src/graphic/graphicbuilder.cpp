@@ -132,7 +132,6 @@ GraphicBuilder::addChildren(GraphicElement& element, const Object& json)
     }
 }
 
-
 GraphicElementPtr
 GraphicBuilder::createChild(const ContextPtr& context, const Object& json)
 {
@@ -148,34 +147,13 @@ GraphicBuilder::createChild(const ContextPtr& context, const Object& json)
 
     // Create a new context and apply data binding
     ContextPtr expanded = Context::createFromParent(context);
-    auto bindings = arrayifyProperty(*context, json, "bind");
-    for (const auto& binding : bindings) {
-        auto name = propertyAsString(*expanded, binding, "name");
-        if (!isValidIdentifier(name)) {
-            CONSOLE(context) << "Invalid binding name '" << name << "'";
-            continue;
-        }
-
-        if (!binding.has("value")) {
-            CONSOLE(context) << "Binding '" << name << "' did not specify a value";
-            continue;
-        }
-
-        // Extract the binding as an optional node tree.
-        auto result = parseAndEvaluate(*context, binding.get("value"));
-        auto bindingType =
-            propertyAsMapped<BindingType>(*expanded, binding, "type", kBindingTypeAny, sBindingMap);
-        auto bindingFunc = sBindingFunctions.at(bindingType);
-        context->putUserWriteable(name, bindingFunc(*context, result.value));
-        if (!result.symbols.empty())
-            ContextDependant::create(context, name, std::move(result.expression), context,
-                                     std::move(bindingFunc), std::move(result.symbols));
-    }
+    attachBindings(context, json, nullptr);  // Attach bindings, but don't support the "onChange" handler
 
     // Inflate the child
     auto child = it->second(mGraphic, expanded, json);
     if (child && child->hasChildren())
         addChildren(*child, json);
+
     return child;
 }
 

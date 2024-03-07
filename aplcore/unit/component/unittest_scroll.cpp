@@ -3769,3 +3769,96 @@ TEST_F(ScrollTest, ScrollToComponentInstant)
     scrollToComponent(map["frame4"], kCommandScrollAlignFirst, 0);
     ASSERT_EQ(Point(0,600), component->scrollPosition());
 }
+
+static const char *LIVE_SCROLL_RAINBOWS = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "data": "${rainbows}",
+      "item": {
+        "type": "Sequence",
+        "id": "Rainbow${data}",
+        "width": 200,
+        "height": 200,
+        "data": ["red", "orange", "yellow", "green", "blue", "indigo", "violet"],
+        "items": [
+          {
+            "type": "Frame",
+            "id": "${data}${index}",
+            "backgroundColor": "${data}",
+            "width": 200,
+            "height": 50
+          }
+        ]
+      }
+    }
+  }
+}
+)";
+
+TEST_F(ScrollTest, ClearLiveDataDuringChildScrollCommand)
+{
+    auto liveArray = LiveArray::create({"One", "Two"});
+    config->liveData("rainbows", liveArray);
+    loadDocument(LIVE_SCROLL_RAINBOWS);
+    advanceTime(100);
+
+    ASSERT_EQ(2, component->getChildCount());
+
+    auto rainbowOne = component->getCoreChildAt(0);
+    ASSERT_EQ("RainbowOne", rainbowOne->getId());
+    ASSERT_EQ(Point(), rainbowOne->scrollPosition());
+
+    auto rainbowTwo = component->getCoreChildAt(1);
+    ASSERT_EQ("RainbowTwo", rainbowTwo->getId());
+    ASSERT_EQ(Point(), rainbowTwo->scrollPosition());
+
+    // Initiate scroll down by 100 over a duration of 1 second
+    executeScroll("RainbowOne", 100, 1000);
+
+    // Move forward by 0.5 seconds, and we'll be partway there
+    advanceTime(500);
+    ASSERT_NE(Point(), rainbowOne->scrollPosition());
+    ASSERT_EQ(Point(), rainbowTwo->scrollPosition());
+
+    // Clear live data
+    liveArray->clear();
+    advanceTime(10);
+
+    // Rainbows are gone
+    ASSERT_EQ(0, component->getChildCount());
+}
+
+TEST_F(ScrollTest, ClearLiveDataDuringChildScrollGesture)
+{
+  auto liveArray = LiveArray::create({"One", "Two"});
+  config->liveData("rainbows", liveArray);
+  loadDocument(LIVE_SCROLL_RAINBOWS);
+  advanceTime(100);
+
+  ASSERT_EQ(2, component->getChildCount());
+
+  auto rainbowOne = component->getCoreChildAt(0);
+  ASSERT_EQ("RainbowOne", rainbowOne->getId());
+  ASSERT_EQ(Point(), rainbowOne->scrollPosition());
+
+  auto rainbowTwo = component->getCoreChildAt(1);
+  ASSERT_EQ("RainbowTwo", rainbowTwo->getId());
+  ASSERT_EQ(Point(), rainbowTwo->scrollPosition());
+
+  // Scroll down (rainbow #2) by 100, but don't release finger
+  ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(100, 300), false));
+  advanceTime(100);
+  ASSERT_EQ(Point(), rainbowOne->scrollPosition());
+  ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(100, 200), true));
+  ASSERT_EQ(Point(0, 100), rainbowTwo->scrollPosition());
+
+  // Clear live data
+  liveArray->clear();
+  advanceTime(10);
+
+  // Rainbows are gone
+  ASSERT_EQ(0, component->getChildCount());
+}

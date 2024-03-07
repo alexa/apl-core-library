@@ -59,7 +59,7 @@ public:
         return "function<" + mName + ">";
     }
 
-    class ObjectType final : public PointerHolderObjectType<Function> {
+    class ObjectType final : public SimplePointerHolderObjectType<Function> {
     public:
         bool isCallable() const override { return true; }
 

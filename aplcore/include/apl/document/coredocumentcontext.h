@@ -182,7 +182,7 @@ public:
     /**
      * @return The content
      */
-    const ContentPtr& content() const { return mContent; }
+    const ContentPtr& content() const override { return mContent; }
 
     /**
      * Create a suitable document-level data-binding context for evaluating a document-level

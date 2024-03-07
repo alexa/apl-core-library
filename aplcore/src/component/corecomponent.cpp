@@ -30,6 +30,7 @@
 #include "apl/engine/hovermanager.h"
 #include "apl/engine/layoutmanager.h"
 #include "apl/engine/typeddependant.h"
+#include "apl/engine/visibilitymanager.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/livedata/layoutrebuilder.h"
 #include "apl/livedata/livearray.h"
@@ -41,6 +42,7 @@
 #include "apl/time/timemanager.h"
 #include "apl/touch/pointerevent.h"
 #include "apl/utils/hash.h"
+#include "apl/utils/make_unique.h"
 #include "apl/utils/searchvisitor.h"
 #include "apl/utils/session.h"
 #include "apl/utils/stickychildrentree.h"
@@ -239,6 +241,7 @@ CoreComponent::releaseSelf()
 {
     // TODO: Must remove this component from any dirty lists
     mContext->layoutManager().remove(shared_from_corecomponent());
+    deregisterFromVisibilityTracking();
     RecalculateTarget::removeUpstreamDependencies();
     mParent = nullptr;
     mChildren.clear();
@@ -562,6 +565,10 @@ CoreComponent::insertChild(const CoreComponentPtr& child, size_t index, bool use
     markDisplayedChildrenStale(useDirtyFlag);
     setVisualContextDirty();
 
+    // Register component for visibility calculation considerations, if required
+    coreChild->registerForVisibilityTrackingIfRequired();
+    setVisibilityDirty();
+
     // Update the position: sticky components tree
     auto p = stickyfunctions::getAncestorHorizontalAndVerticalScrollable(coreChild);
     auto horizontalScrollable   = std::get<0>(p);
@@ -617,7 +624,9 @@ CoreComponent::removeChildAfterMarkedRemoved(const CoreComponentPtr& child, size
     markDisplayedChildrenStale(useDirtyFlag);
     mDisplayedChildren.clear();
 
-    if (useDirtyFlag) setVisualContextDirty();
+    if (useDirtyFlag) {
+        setVisualContextDirty();
+    }
 
     // Update the position: sticky components tree
     auto p = stickyfunctions::getHorizontalAndVerticalScrollable(shared_from_corecomponent());
@@ -1002,6 +1011,9 @@ CoreComponent::handlePropertyChange(const ComponentPropDef& def, const Object& v
         // Properties with the kPropVisualContext flag the visual context as dirty
         if ((def.flags & kPropVisualContext) != 0)
             setVisualContextDirty();
+
+        if ((def.flags & kPropVisibility) != 0)
+            setVisibilityDirty();
 
         // Properties with the kPropTextHash flag the text measurement hash as dirty
         if ((def.flags & kPropTextHash) != 0)
@@ -1416,6 +1428,9 @@ CoreComponent::setDirty( PropertyKey key )
                 setVisualContextDirty();
             }
 
+            if (def->second.flags & kPropVisibility)
+                setVisibilityDirty();
+
             // Set text measurement hash as stale
             if (!mTextMeasurementHashStale && (def->second.flags & kPropTextHash)) {
                 mTextMeasurementHashStale = true;
@@ -1626,6 +1641,7 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag, bool first)
         if (mParent)
             mParent->markDisplayedChildrenStale(useDirtyFlag);
         setVisualContextDirty();
+        setVisibilityDirty();
         if (useDirtyFlag)
             setDirty(kPropertyBounds);
     }
@@ -1763,6 +1779,8 @@ CoreComponent::createEventProperties(const std::string& handler, const Object& v
 ContextPtr
 CoreComponent::createEventContext(const std::string& handler, const ObjectMapPtr& optional, const Object& value) const
 {
+    assert(!handler.empty());
+
     ContextPtr ctx = Context::createFromParent(mContext);
     auto compValue = getValue();
     if (!value.isNull()) {
@@ -1822,6 +1840,17 @@ size_t
 CoreComponent::getEventPropertySize() const
 {
     return eventPropertyMap().size();
+}
+
+std::pair<std::string, Object>
+CoreComponent::getEventPropertyAt(size_t index) const
+{
+    const auto& map = eventPropertyMap();
+    auto it = map.cbegin();
+    std::advance(it, index);
+    if (it != map.cend())
+        return { it->first, it->second(this) };
+    return { "", Object::NULL_OBJECT() };
 }
 
 void
@@ -2165,9 +2194,67 @@ CoreComponent::getVisualContextType() const
 }
 
 void
-CoreComponent::setVisualContextDirty() {
+CoreComponent::setVisualContextDirty()
+{
     // set this component as dirty visual context
     mContext->setDirtyVisualContext(shared_from_this());
+}
+
+void
+CoreComponent::setVisibilityDirty()
+{
+    mContext->visibilityManager().markDirty(shared_from_corecomponent());
+
+    if (!mAffectedByVisibilityChange) return;
+
+    for (const auto& c : *mAffectedByVisibilityChange) {
+        mContext->visibilityManager().markDirty(c.lock());
+    }
+}
+
+void
+CoreComponent::addDownstreamVisibilityTarget(const CoreComponentPtr& child)
+{
+    if (!mAffectedByVisibilityChange) {
+        mAffectedByVisibilityChange = std::make_unique<WeakPtrSet<CoreComponent>>();
+    }
+
+    mAffectedByVisibilityChange->emplace(child);
+
+    if (mParent) mParent->addDownstreamVisibilityTarget(child);
+}
+
+void
+CoreComponent::removeDownstreamVisibilityTarget(const CoreComponentPtr& child)
+{
+    if (!mAffectedByVisibilityChange) return;
+
+    mAffectedByVisibilityChange->erase(child);
+    if (mAffectedByVisibilityChange->empty())
+        mAffectedByVisibilityChange = nullptr;
+
+    if (mParent) mParent->removeDownstreamVisibilityTarget(child);
+}
+
+void
+CoreComponent::registerForVisibilityTrackingIfRequired()
+{
+    auto handlers = getCalculated(kPropertyHandleVisibilityChange);
+    if (handlers.isArray() && !handlers.empty()) {
+        mContext->visibilityManager().registerForUpdates(shared_from_corecomponent());
+        if (mParent) mParent->addDownstreamVisibilityTarget(shared_from_corecomponent());
+        setVisibilityDirty();
+    }
+}
+
+void
+CoreComponent::deregisterFromVisibilityTracking()
+{
+    mContext->visibilityManager().deregister(shared_from_corecomponent());
+    if (mParent) {
+        mParent->removeDownstreamVisibilityTarget(shared_from_corecomponent());
+        mParent->setVisibilityDirty();
+    }
 }
 
 bool
@@ -2176,7 +2263,8 @@ CoreComponent::isVisualContextDirty() {
 }
 
 std::map<int, float>
-CoreComponent::getChildrenVisibility(float realOpacity, const Rect &visibleRect) const {
+CoreComponent::getChildrenVisibility(float realOpacity, const Rect &visibleRect) const
+{
     std::map<int, float> visibleIndexes;
 
     for(int index = 0; index < mChildren.size(); index++) {
@@ -2602,6 +2690,7 @@ CoreComponent::propDefSet() const {
       {kPropertyAccessibilityActionsAssigned, Object::EMPTY_ARRAY(),   asArray,             kPropIn},
       {kPropertyBounds,                       Rect(0,0,0,0),           nullptr,             kPropOut |
                                                                                             kPropVisualContext |
+                                                                                            kPropVisibility |
                                                                                             kPropVisualHash},
       {kPropertyChecked,                      false,                   asBoolean,           kPropInOut |
                                                                                             kPropDynamic |
@@ -2611,7 +2700,8 @@ CoreComponent::propDefSet() const {
       {kPropertyDisplay,                      kDisplayNormal,          sDisplayMap,         kPropInOut |
                                                                                             kPropStyled |
                                                                                             kPropDynamic |
-                                                                                            kPropVisualContext,  yn::setDisplay},
+                                                                                            kPropVisualContext |
+                                                                                            kPropVisibility,  yn::setDisplay},
       {kPropertyDisabled,                     false,                   asBoolean,           kPropInOut |
                                                                                             kPropDynamic |
                                                                                             kPropMixedState |
@@ -2623,11 +2713,13 @@ CoreComponent::propDefSet() const {
                                                                                             kPropVisualContext},
       {kPropertyFocusable,                    false,                   nullptr,             kPropOut},
       {kPropertyHandleTick,                   Object::EMPTY_ARRAY(),   asArray,             kPropIn},
+      {kPropertyHandleVisibilityChange,       Object::EMPTY_ARRAY(),   asArray,             kPropIn},
       {kPropertyHeight,                       Dimension(),             asDimension,         kPropIn |
                                                                                             kPropDynamic |
                                                                                             kPropStyled,         yn::setHeight, defaultHeight},
       {kPropertyInnerBounds,                  Rect(0,0,0,0),           nullptr,             kPropOut |
                                                                                             kPropVisualContext |
+                                                                                            kPropVisibility |
                                                                                             kPropVisualHash},
       {kPropertyLayoutDirectionAssigned,      kLayoutDirectionInherit, sLayoutDirectionMap, kPropIn |
                                                                                             kPropDynamic |
@@ -2654,6 +2746,7 @@ CoreComponent::propDefSet() const {
                                                                                             kPropStyled |
                                                                                             kPropDynamic |
                                                                                             kPropVisualContext |
+                                                                                            kPropVisibility |
                                                                                             kPropVisualHash},
       {kPropertyPadding,                      Object::EMPTY_ARRAY(),   asPaddingArray,      kPropIn |
                                                                                             kPropDynamic |
@@ -2710,7 +2803,8 @@ CoreComponent::propDefSet() const {
       {kPropertyOnCursorEnter,                Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
       {kPropertyOnCursorExit,                 Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
       {kPropertyLaidOut,                      false,                   asBoolean,           kPropOut |
-                                                                                            kPropVisualContext},
+                                                                                            kPropVisualContext |
+                                                                                            kPropVisibility},
       {kPropertyVisualHash,                   "",                      asString,            kPropOut |
                                                                                             kPropRuntimeState},
     });

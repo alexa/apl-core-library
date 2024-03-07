@@ -27,7 +27,31 @@ static const char *NOT_SUPPORTED_ERROR = "Operation not supported on this type."
 
 /**
  * Object type class. Should be extended by specific type/class implementations, which may be stored
- * in the Object.
+ * in the Object.  A number of subclasses of ObjectType are provided to simplify the implementation
+ * of new Object types.  The hierarchy of abstract ObjectTypes is:
+ *
+ * - ObjectType
+ *   - BaseObjectType<T>                   Provides the instance() method
+ *     - SimpleObjectType<T>               Disallows Map and Array methods
+ *       - ReferenceHolderObjectType<T>    For objects of storage type kStorageTypeReference
+ *   - PointerHolderObjectType<T>          For objects of storage type kStorageTypePointer
+ *     - SimplePointerHolderObjectType<T>  Disallows map and array methods
+ *     - ContainerObjectType<T>            Support visitor method on containers
+ *       - AbstractMapObjectType<T>        Disallows array methods
+ *         - MapLikeObjectType<T>          For "almost-map" objects which support map methods but you can't directly read the map
+ *         - MapObjectType<T>              For true maps where you can read the map directly
+ *       - ArrayObjectType<T>              Disallows maps.  Supports basic array operations.
+ *
+ * The concrete types are defined inline to a class and inherit from one of the abstract types.
+ *
+ * SimpleObjectType:              Boolean, Color, Null, Number, String, Dimension, AutoDimension
+ * ReferenceHolderObjectType:     MediaSource, Radii, Range, Rect, StyledText, Transform2D, URLRequest,
+ *                                BoundSymbol, Filter, Gradient, GraphicFilter
+ * SimplePointerHolderObjectType: GraphicPattern, Transform, AccessibilityAction, ByteCode, Easing,
+ *                                Function, Graphic
+ * MapLikeObjectType:             ComponentEventWrapper, ContextWrapper
+ * MapObjectType:                 LiveMapObject, Map
+ * ArrayObjectType:               LiveArrayObject, Array
  */
 class ObjectType : public NonCopyable {
 public:
@@ -43,9 +67,6 @@ public:
     template <class T> bool is() const { return (T::ObjectType::instance() == this); }
 
     /// Complex type checks.
-    virtual bool isArray() const { return false; }
-    virtual bool isMap() const { return false; }
-    virtual bool isTrueMap() const { return false; }
     virtual bool isCallable() const { return false; }
     virtual bool isEvaluable() const { return false; }
     virtual bool isAbsoluteDimension() const { return false; }
@@ -83,16 +104,12 @@ public:
 
     /// ObjectData held types.
     template<class T>
-    const T& get(const Object::DataHolder& dataHolder) const {
+    const T& getReferenced(const Object::DataHolder& dataHolder) const {
         assert(is<T>());
         assert(T::ObjectType::scStorageType == Object::StorageType::kStorageTypeReference);
         return *static_cast<const T*>(dataHolder.data->inner());
     }
 
-    virtual const ObjectMap& getMap(const Object::DataHolder&) const { aplThrow(NOT_SUPPORTED_ERROR); }
-    virtual ObjectMap& getMutableMap(const Object::DataHolder&) const { aplThrow(NOT_SUPPORTED_ERROR); }
-    virtual const ObjectArray& getArray(const Object::DataHolder&) const { aplThrow(NOT_SUPPORTED_ERROR); }
-    virtual ObjectArray& getMutableArray(const Object::DataHolder&) const { aplThrow(NOT_SUPPORTED_ERROR); }
 
     virtual std::shared_ptr<LiveDataObject> getLiveDataObject(const Object::DataHolder&) const {
         aplThrow(NOT_SUPPORTED_ERROR);
@@ -100,15 +117,21 @@ public:
 
     virtual bool truthy(const Object::DataHolder&) const { return false; }
 
-    // MAP objects
-    virtual Object get(const Object::DataHolder&, const std::string&) const { aplThrow(NOT_SUPPORTED_ERROR); }
-    virtual bool has(const Object::DataHolder&, const std::string&) const { aplThrow(NOT_SUPPORTED_ERROR); }
-    virtual Object opt(const Object::DataHolder&, const std::string&, const Object&) const {
-        aplThrow(NOT_SUPPORTED_ERROR);
-    }
+    // MAP objects.  Subclasses must override these.  Use the MapFreeMixin class if not a map
+    virtual bool isMap() const = 0;
+    virtual bool isTrueMap() const = 0;
+    virtual const ObjectMap& getMap(const Object::DataHolder&) const = 0;
+    virtual ObjectMap& getMutableMap(const Object::DataHolder&) const = 0;
+    virtual Object get(const Object::DataHolder&, const std::string&) const = 0;
+    virtual bool has(const Object::DataHolder&, const std::string&) const = 0;
+    virtual Object opt(const Object::DataHolder&, const std::string&, const Object&) const = 0;
+    virtual std::pair<std::string, Object> keyAt(const Object::DataHolder&, std::size_t offset) const = 0;
 
-    // ARRAY objects
-    virtual Object at(const Object::DataHolder&, std::uint64_t) const { aplThrow(NOT_SUPPORTED_ERROR); }
+    // ARRAY objects.  Subclasses must override these.  Use the ArrayFreeMixin class if not an array
+    virtual bool isArray() const = 0;
+    virtual const ObjectArray& getArray(const Object::DataHolder&) const = 0;
+    virtual ObjectArray& getMutableArray(const Object::DataHolder&) const = 0;
+    virtual Object at(const Object::DataHolder&, std::uint64_t) const = 0;
 
     // MAP, ARRAY, and STRING objects
     virtual std::uint64_t size(const Object::DataHolder&) const { return 0; }
@@ -163,7 +186,7 @@ using ObjectTypeRef = const ObjectType*;
         Object::StorageType storageType() const override { return Object::StorageType::T; }
 
 template<class T>
-class BaseObjectType : public ObjectType {
+class BaseObjectType : public virtual ObjectType {
 public:
     static ObjectTypeRef instance() {
         static typename T::ObjectType sObjectType;
@@ -173,14 +196,62 @@ public:
     STORAGE_TYPE(kStorageTypeValue);
 };
 
-template<class T>
-class TrueObjectType : public BaseObjectType<T> {
+/**
+ * Mixin this class to mark an object type as NOT supporting map functions.
+ */
+class MapFreeMixin : public virtual ObjectType {
 public:
-    bool truthy(const Object::DataHolder&) const override { return true; }
+    bool isMap() const final { return false; }
+    bool isTrueMap() const final { return false; }
+    const ObjectMap& getMap(const Object::DataHolder&) const final {
+        aplThrow(NOT_SUPPORTED_ERROR);
+    }
+    ObjectMap& getMutableMap(const Object::DataHolder&) const final {
+        aplThrow(NOT_SUPPORTED_ERROR);
+    }
+    Object get(const Object::DataHolder&, const std::string&) const final {
+        aplThrow(NOT_SUPPORTED_ERROR);
+    }
+    bool has(const Object::DataHolder&, const std::string&) const final {
+        aplThrow(NOT_SUPPORTED_ERROR);
+    }
+    Object opt(const Object::DataHolder&, const std::string&, const Object&) const final {
+        aplThrow(NOT_SUPPORTED_ERROR);
+    }
+    std::pair<std::string, Object> keyAt(const Object::DataHolder&,
+                                         std::size_t offset) const final {
+        aplThrow(NOT_SUPPORTED_ERROR);
+    }
+};
+
+/**
+ * Mixin this class to mark an object type as NOT supporting array functions
+ */
+class ArrayFreeMixin : public virtual ObjectType {
+public:
+    bool isArray() const final { return false; }
+    const ObjectArray& getArray(const Object::DataHolder&) const final {
+        aplThrow(NOT_SUPPORTED_ERROR);
+    }
+    ObjectArray& getMutableArray(const Object::DataHolder&) const final {
+        aplThrow(NOT_SUPPORTED_ERROR);
+    }
+    Object at(const Object::DataHolder&, std::uint64_t) const final {
+        aplThrow(NOT_SUPPORTED_ERROR);
+    }
+};
+
+/**
+ * A simple extension of the base object that does not support maps or arrays
+ */
+template<class T>
+class SimpleObjectType : public virtual BaseObjectType<T>,
+                         public virtual MapFreeMixin,
+                         public virtual ArrayFreeMixin {
 };
 
 template<class T>
-class ReferenceHolderObjectType : public BaseObjectType<T> {
+class ReferenceHolderObjectType : public virtual SimpleObjectType<T> {
 public:
     bool truthy(const Object::DataHolder& dataHolder) const final {
         return dataHolder.data->truthy();
@@ -212,8 +283,10 @@ public:
 };
 
 template<class T>
-class PointerHolderObjectType : public TrueObjectType<T> {
+class PointerHolderObjectType : public BaseObjectType<T> {
 public:
+    bool truthy(const Object::DataHolder&) const override { return true; }
+
     rapidjson::Value serialize(
         const Object::DataHolder& dataHolder,
         rapidjson::Document::AllocatorType& allocator) const override {
@@ -240,6 +313,12 @@ public:
 };
 
 template<class T>
+class SimplePointerHolderObjectType : public virtual PointerHolderObjectType<T>,
+                                      public virtual MapFreeMixin,
+                                      public virtual ArrayFreeMixin {
+};
+
+template<class T>
 class ContainerObjectType : public PointerHolderObjectType<T> {
 public:
     bool isMutable(const Object::DataHolder& dataHolder) const final {
@@ -252,7 +331,8 @@ public:
 };
 
 template<class T>
-class MapLikeObjectType : public ContainerObjectType<T> {
+class AbstractMapObjectType : public virtual ContainerObjectType<T>,
+                              public virtual ArrayFreeMixin {
 public:
     bool isMap() const final { return true; }
 
@@ -267,10 +347,23 @@ public:
     Object opt(const Object::DataHolder& dataHolder, const std::string& key, const Object& def) const final {
         return dataHolder.data->opt(key, def);
     }
+
+    std::pair<std::string, Object> keyAt(const Object::DataHolder& dataHolder, std::size_t offset) const final {
+        return dataHolder.data->keyAt(offset);
+    }
 };
 
 template<class T>
-class MapObjectType : public MapLikeObjectType<T> {
+class MapLikeObjectType : public AbstractMapObjectType<T> {
+public:
+    // Map-like objects do not allow you to return the map
+    bool isTrueMap() const final { return false; }
+    const ObjectMap& getMap(const Object::DataHolder&) const final { aplThrow(NOT_SUPPORTED_ERROR); }
+    ObjectMap& getMutableMap(const Object::DataHolder&) const final { aplThrow(NOT_SUPPORTED_ERROR); }
+};
+
+template<class T>
+class MapObjectType : public AbstractMapObjectType<T> {
 public:
     bool isTrueMap() const final { return true; }
 
@@ -297,7 +390,8 @@ public:
 };
 
 template<class T>
-class ArrayObjectType : public ContainerObjectType<T> {
+class ArrayObjectType : public virtual ContainerObjectType<T>,
+                        public virtual MapFreeMixin {
 public:
     bool isArray() const final { return true; }
 
@@ -330,40 +424,11 @@ public:
     }
 };
 
-template<class T>
-class EvaluableObjectType : public PointerHolderObjectType<T> {
-public:
-    bool isEvaluable() const final { return true; }
-
-    Object eval(const Object::DataHolder& dataHolder) const final {
-        return dataHolder.data->eval();
-    }
-};
-
-/***
- * Store a referenced class in Object which supports the "eval" method.
- * @tparam T
- */
-template<class T>
-class EvaluableReferenceObjectType : public ReferenceHolderObjectType<T> {
-public:
-    bool isEvaluable() const final { return true; }
-
-    Object eval(const Object::DataHolder& dataHolder) const final {
-        return dataHolder.data->eval();
-    }
-
-    static std::shared_ptr<ObjectData> createDirectObjectData(T&& content) {
-        return EvaluableDirectObjectData<T>::create(std::move(content));
-    }
-};
-
-
 /// Primitive types
 
 class Null {
 public:
-    class ObjectType final : public BaseObjectType<Null> {
+    class ObjectType final : public SimpleObjectType<Null> {
     public:
         bool empty(const Object::DataHolder&) const override { return true; }
 
@@ -377,7 +442,7 @@ public:
 
 class Boolean {
 public:
-    class ObjectType final : public BaseObjectType<Boolean> {
+    class ObjectType final : public SimpleObjectType<Boolean> {
     public:
         std::string asString(const Object::DataHolder& dataHolder) const override {
             return static_cast<bool>(dataHolder.value) ? "true": "false";
@@ -426,7 +491,7 @@ public:
 
 class Number {
 public:
-    class ObjectType final : public BaseObjectType<Number> {
+    class ObjectType final : public SimpleObjectType<Number> {
     public:
         std::string asString(const Object::DataHolder& dataHolder) const override {
             return doubleToAplFormattedString(dataHolder.value);
@@ -498,7 +563,7 @@ public:
 
 class String {
 public:
-    class ObjectType final : public BaseObjectType<String> {
+    class ObjectType final : public SimpleObjectType<String> {
     public:
         std::string asString(const Object::DataHolder& dataHolder) const override {
             return dataHolder.string;

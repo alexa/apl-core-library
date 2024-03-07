@@ -107,7 +107,7 @@ public:
 
     friend streamer& operator<<(streamer&, const Dimension&);
 
-    class DimensionObjectType : public BaseObjectType<Dimension> {
+    class DimensionObjectType : public SimpleObjectType<Dimension> {
     public:
         bool isDimension() const final { return true; }
 
@@ -116,12 +116,15 @@ public:
         }
     };
 
-    class AutoDimensionObjectType final : public TrueObjectType<Dimension> {
+    class AutoDimensionObjectType final : public SimpleObjectType<Dimension> {
     public:
+
         static ObjectTypeRef instance() {
             static Dimension::AutoDimensionObjectType sType;
             return &sType;
         }
+
+        bool truthy(const Object::DataHolder&) const override { return true; }
 
         bool isAutoDimension() const override { return true; }
 

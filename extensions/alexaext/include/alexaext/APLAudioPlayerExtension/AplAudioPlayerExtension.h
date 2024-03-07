@@ -87,6 +87,14 @@ public:
     void updatePlaybackProgress(int offset);
 
     /**
+     * Call to update the audioItemId apl::LiveMap.
+     * It is expected that this is called on every "Play" directive.
+     * 
+     * @param audioItemId Unique id to identify audioItem
+     */
+    void updateCurrentAudioItemId(const std::string& audioItemId);
+
+    /**
      * This method will do nothing
      * @deprecated The extension generates it's own token on extension registration.
      * @param id The identifier of the active presentation session.
@@ -113,6 +121,7 @@ protected:
     /// The @c apl::LiveMap activity and offset for AudioPlayer playbackState data.
     std::string mPlaybackStateActivity;
     int mPlaybackStateOffset = 0;
+    std::string mAudioItemId{""};
     /// The map of activity to activity state
     std::unordered_map<ActivityDescriptor,
                        std::shared_ptr<ActivityState>,

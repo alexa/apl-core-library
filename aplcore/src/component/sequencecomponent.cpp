@@ -41,7 +41,7 @@ SequenceComponent::propDefSet() const {
     static ComponentPropDefSet sSequenceComponentProperties(MultiChildScrollableComponent::propDefSet(), {
             {kPropertyFastScrollScale, 1.0,                      asNonNegativeNumber,  kPropInOut | kPropStyled},
             {kPropertyScrollAnimation, kScrollAnimationDefault,  sScrollAnimationMap,  kPropInOut | kPropStyled},
-            {kPropertyScrollDirection, kScrollDirectionVertical, sScrollDirectionMap,  kPropInOut | kPropVisualContext,
+            {kPropertyScrollDirection, kScrollDirectionVertical, sScrollDirectionMap,  kPropInOut | kPropVisualContext | kPropVisibility,
                                                                                        yn::setScrollDirection}
     });
     return sSequenceComponentProperties;

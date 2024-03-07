@@ -128,7 +128,7 @@ public:
     AccessibilityAction(const CoreComponentPtr& component, std::string name, std::string label)
         : mComponent(component), mName(std::move(name)), mLabel(std::move(label)), mEnabled(true) {}
 
-    class ObjectType final : public PointerHolderObjectType<AccessibilityAction> {};
+    class ObjectType final : public SimplePointerHolderObjectType<AccessibilityAction> {};
 
 protected:
     void initialize(const ContextPtr& context, const Object& object);

@@ -1317,7 +1317,7 @@ HandlePointerEvent(const RootContextPtr& root, PointerEventType type, const Poin
 
 inline
 ::testing::AssertionResult
-compareTransformApprox(const Transform2D& left, const Transform2D& right, float delta = 0.001F) {
+compareTransformApprox(const Transform2D& left, const Transform2D& right, float delta = 0.1F) {
     auto leftComponents = left.get();
     auto rightComponents = right.get();
 

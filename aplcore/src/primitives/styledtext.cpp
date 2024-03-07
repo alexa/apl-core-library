@@ -21,9 +21,12 @@
 
 #include <tao/pegtl.hpp>
 
+#include "apl/content/content.h"
+#include "apl/document/coredocumentcontext.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
 #include "apl/primitives/objectdata.h"
+#include "apl/primitives/pseudolocalizer.h"
 #include "apl/primitives/styledtextstate.h"
 #include "apl/primitives/unicode.h"
 #include "apl/utils/stringfunctions.h"
@@ -244,6 +247,25 @@ StyledText::create(const Context& context, const Object& object)
     if (object.is<StyledText>())
         return object.get<StyledText>();
 
+    // Some primitive tests don't have document context added
+    if (context.documentContext() == nullptr) {
+        return {context, object.asString()};
+    }
+
+    // Get PseudoLocalization settings
+    auto pseudoLocalizationSettings = CoreDocumentContext::cast(context.documentContext())
+                                          ->content()
+                                          ->getDocumentSettings()
+                                          ->getValue("pseudoLocalization");
+    // Transform text into its Pseudo-localized version. The method returns the same string if the
+    // PseudoLocalization feature is disabled.
+    if (pseudoLocalizationSettings.isMap() &&
+        pseudoLocalizationSettings.get("enabled").asBoolean()) {
+        PseudoLocalizationTextTransformer transformer;
+        auto transformedText = transformer.transform(object.asString(), pseudoLocalizationSettings);
+        return {context, transformedText};
+    }
+
     return {context, object.asString()};
 }
 
@@ -358,69 +380,69 @@ StyledText::Iterator::spanCount() {
 std::string
 StyledText::ObjectType::asString(const Object::DataHolder& dataHolder) const
 {
-    return get<StyledText>(dataHolder).asString();
+    return getReferenced<StyledText>(dataHolder).asString();
 }
 
 double
 StyledText::ObjectType::asNumber(const Object::DataHolder& dataHolder) const
 {
-    return aplFormattedStringToDouble(get<StyledText>(dataHolder).asString());
+    return aplFormattedStringToDouble(getReferenced<StyledText>(dataHolder).asString());
 }
 
 int
 StyledText::ObjectType::asInt(const Object::DataHolder& dataHolder, int base) const
 {
-    return sutil::stoi(get<StyledText>(dataHolder).asString(), nullptr, base);
+    return sutil::stoi(getReferenced<StyledText>(dataHolder).asString(), nullptr, base);
 }
 
 int64_t
 StyledText::ObjectType::asInt64(const Object::DataHolder& dataHolder, int base) const
 {
-    return sutil::stoll(get<StyledText>(dataHolder).asString(), nullptr, base);
+    return sutil::stoll(getReferenced<StyledText>(dataHolder).asString(), nullptr, base);
 }
 
 Color
 StyledText::ObjectType::asColor(const Object::DataHolder& dataHolder, const apl::SessionPtr& session) const
 {
-    return Color(session, get<StyledText>(dataHolder).asString());
+    return Color(session, getReferenced<StyledText>(dataHolder).asString());
 }
 
 Dimension
 StyledText::ObjectType::asDimension(const Object::DataHolder& dataHolder, const Context& context) const
 {
-    return Dimension(context, get<StyledText>(dataHolder).asString());
+    return Dimension(context, getReferenced<StyledText>(dataHolder).asString());
 }
 
 Dimension
 StyledText::ObjectType::asAbsoluteDimension(const Object::DataHolder& dataHolder, const Context& context) const
 {
-    auto d = Dimension(context, get<StyledText>(dataHolder).asString());
+    auto d = Dimension(context, getReferenced<StyledText>(dataHolder).asString());
     return (d.getType() == DimensionType::Absolute ? d : Dimension(DimensionType::Absolute, 0));
 }
 
 Dimension
 StyledText::ObjectType::asNonAutoDimension(const Object::DataHolder& dataHolder, const Context& context) const
 {
-    auto d = Dimension(context, get<StyledText>(dataHolder).asString());
+    auto d = Dimension(context, getReferenced<StyledText>(dataHolder).asString());
     return (d.getType() == DimensionType::Auto ? Dimension(DimensionType::Absolute, 0) : d);
 }
 Dimension
 StyledText::ObjectType::asNonAutoRelativeDimension(const Object::DataHolder& dataHolder, const Context& context) const
 {
-    auto d = Dimension(context, get<StyledText>(dataHolder).asString(), true);
+    auto d = Dimension(context, getReferenced<StyledText>(dataHolder).asString(), true);
     return (d.getType() == DimensionType::Auto ? Dimension(DimensionType::Relative, 0) : d);
 }
 
 std::uint64_t
 StyledText::ObjectType::size(const Object::DataHolder& dataHolder) const
 {
-    return get<StyledText>(dataHolder).asString().size();
+    return getReferenced<StyledText>(dataHolder).asString().size();
 }
 
 size_t
 StyledText::ObjectType::hash(const Object::DataHolder& dataHolder) const
 {
-    return std::hash<std::string>{}(get<StyledText>(dataHolder).getRawText());
+    return std::hash<std::string>{}(getReferenced<StyledText>(dataHolder).getRawText());
 }
 
 } // namespace apl

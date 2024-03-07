@@ -75,7 +75,7 @@ public:
     bool truthy() const override { return true; }
     std::uint64_t size() const override { return mItems.size(); }
 
-    class ObjectType final : public PointerHolderObjectType<GraphicPattern> {};
+    class ObjectType final : public SimplePointerHolderObjectType<GraphicPattern> {};
 
 private:
     std::string mDescription;

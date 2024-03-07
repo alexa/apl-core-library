@@ -874,3 +874,95 @@ TEST_F(BuilderTestSequence, AutoSizeTextChild)
     textBounds = component->getChildAt(1)->getChildAt(0)->getCalculated(apl::kPropertyBounds).get<Rect>();
     ASSERT_EQ(Rect(0, 0, 50, 80), textBounds);
 }
+
+// Test that kPropertyScrollPosition is 0 after the first item is removed
+TEST_F(BuilderTestSequence, SequenceRebuildLiveDataFirstChildRemovedVerticalLTR)
+{
+    std::vector<Object> v;
+    for( int i = 0; i < 50; i++ )
+        v.push_back( i );
+
+    auto myArray = LiveArray::create(std::move(v));
+    config->liveData("TestArray", myArray);
+    config->set(RootProperty::kSequenceChildCache, 5);
+
+    loadDocument(RTL_SEQUENCE_VERTICAL_LOAD_TEST, "{\"layoutDir\": \"LTR\", \"scrollDir\": \"vertical\"}");
+
+    ASSERT_EQ(component->getCalculated(apl::kPropertyScrollPosition).asNumber(), 0);
+    ASSERT_EQ(component->getChildCount(), 50);
+
+    myArray->remove(0, 1);
+    root->clearPending();
+
+    ASSERT_EQ(component->getCalculated(apl::kPropertyScrollPosition).asNumber(), 0);
+    ASSERT_EQ(component->getChildCount(), 49);
+}
+
+// Test that kPropertyScrollPosition is 0 after the first item is removed
+TEST_F(BuilderTestSequence, SequenceRebuildLiveDataFirstChildRemovedVerticalRTL)
+{
+    std::vector<Object> v;
+    for( int i = 0; i < 50; i++ )
+        v.push_back( i );
+
+    auto myArray = LiveArray::create(std::move(v));
+    config->liveData("TestArray", myArray);
+    config->set(RootProperty::kSequenceChildCache, 5);
+
+    loadDocument(RTL_SEQUENCE_VERTICAL_LOAD_TEST, "{\"layoutDir\": \"RTL\", \"scrollDir\": \"vertical\"}");
+
+    ASSERT_EQ(component->getCalculated(apl::kPropertyScrollPosition).asNumber(), 0);
+    ASSERT_EQ(component->getChildCount(), 50);
+
+    myArray->remove(0, 1);
+    root->clearPending();
+
+    ASSERT_EQ(component->getCalculated(apl::kPropertyScrollPosition).asNumber(), 0);
+    ASSERT_EQ(component->getChildCount(), 49);
+}
+
+// Test that kPropertyScrollPosition is 0 after the first item is removed
+TEST_F(BuilderTestSequence, SequenceRebuildLiveDataFirstChildRemovedHorizontalLTR)
+{
+    std::vector<Object> v;
+    for( int i = 0; i < 50; i++ )
+        v.push_back( i );
+
+    auto myArray = LiveArray::create(std::move(v));
+    config->liveData("TestArray", myArray);
+    config->set(RootProperty::kSequenceChildCache, 5);
+
+    loadDocument(RTL_SEQUENCE_VERTICAL_LOAD_TEST, "{\"layoutDir\": \"LTR\", \"scrollDir\": \"horizontal\"}");
+
+    ASSERT_EQ(component->getCalculated(apl::kPropertyScrollPosition).asNumber(), 0);
+    ASSERT_EQ(component->getChildCount(), 50);
+
+    myArray->remove(0, 1);
+    root->clearPending();
+
+    ASSERT_EQ(component->getCalculated(apl::kPropertyScrollPosition).asNumber(), 0);
+    ASSERT_EQ(component->getChildCount(), 49);
+}
+
+// Test that kPropertyScrollPosition is 0 after the first item is removed
+TEST_F(BuilderTestSequence, SequenceRebuildLiveDataFirstChildRemovedHorizontalRTL)
+{
+    std::vector<Object> v;
+    for( int i = 0; i < 50; i++ )
+        v.push_back( i );
+
+    auto myArray = LiveArray::create(std::move(v));
+    config->liveData("TestArray", myArray);
+    config->set(RootProperty::kSequenceChildCache, 5);
+
+    loadDocument(RTL_SEQUENCE_VERTICAL_LOAD_TEST, "{\"layoutDir\": \"RTL\", \"scrollDir\": \"horizontal\"}");
+
+    ASSERT_EQ(component->getCalculated(apl::kPropertyScrollPosition).asNumber(), 0);
+    ASSERT_EQ(component->getChildCount(), 50);
+
+    myArray->remove(0, 1);
+    root->clearPending();
+
+    ASSERT_EQ(component->getCalculated(apl::kPropertyScrollPosition).asNumber(), 0);
+    ASSERT_EQ(component->getChildCount(), 49);
+}

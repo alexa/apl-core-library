@@ -23,6 +23,7 @@
 #include "apl/engine/layoutmanager.h"
 #include "apl/engine/tickscheduler.h"
 #include "apl/engine/uidgenerator.h"
+#include "apl/engine/visibilitymanager.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/media/mediamanager.h"
 #include "apl/touch/pointermanager.h"
@@ -82,6 +83,7 @@ SharedContextData::SharedContextData(const CoreRootContextPtr& root,
       mUniqueIdGenerator(std::make_unique<UIDGenerator>()),
       mEventManager(std::make_unique<EventManager>()),
       mDependantManager(std::make_unique<DependantManager>()),
+      mVisibilityManager(std::make_unique<VisibilityManager>()),
       mDocumentManager(config.getDocumentManager()),
       mTimeManager(config.getTimeManager()),
       mMediaManager(config.getMediaManager()),

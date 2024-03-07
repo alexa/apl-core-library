@@ -87,10 +87,6 @@ TEST_F(ScopedDequeueTest, ExtractScope)
     comp.emplace_back(2, 3);
     comp.emplace_back(2, 4);
 
-    std::remove_if(comp.begin(), comp.end(), [](const std::pair<int,int>& item) {
-        return item.first == 1;
-    });
-
     ASSERT_EQ(comp, scopedDequeue->getAll());
 
     ASSERT_EQ(2, scopedDequeue->size());

@@ -337,6 +337,7 @@ TEST_F(AplAudioPlayerExtensionTest, RegistrationEvents)
     // FullSet event handler for audio player
     auto expectedHandlerSet = std::set<std::string>();
     expectedHandlerSet.insert("OnPlayerActivityUpdated");
+    expectedHandlerSet.insert("OnTrackChanged");
     ASSERT_TRUE(events->IsArray() && events->Size() == expectedHandlerSet.size());
 
     // should have all event handlers defined
@@ -455,7 +456,7 @@ TEST_F(AplAudioPlayerExtensionTest, GetLiveDataObjectsSuccess)
                              GetWithDefault<const char *>(RegistrationSuccess::METHOD(), liveDataUpdate, ""));
                 const Value *ops = LiveDataUpdate::OPERATIONS().Get(liveDataUpdate);
                 ASSERT_TRUE(ops);
-                ASSERT_TRUE(ops->IsArray() && ops->Size() == 2);
+                ASSERT_TRUE(ops->IsArray() && ops->Size() == 3);
                 ASSERT_TRUE(CheckLiveData(ops->GetArray()[0], "Set", "playerActivity", "STOPPED"));
                 ASSERT_TRUE(CheckLiveData(ops->GetArray()[1], "Set", "offset", 0));
             });
@@ -582,7 +583,7 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandSeekToPositionSuccess)
                              GetWithDefault<const char *>(RegistrationSuccess::TARGET(), liveDataUpdate, ""));
                 const Value *ops = LiveDataUpdate::OPERATIONS().Get(liveDataUpdate);
                 ASSERT_TRUE(ops);
-                ASSERT_TRUE(ops->IsArray() && ops->Size() == 2);
+                ASSERT_TRUE(ops->IsArray() && ops->Size() == 3);
                 ASSERT_TRUE(CheckLiveData(ops->GetArray()[1], "Set", "offset", 42));
             });
     auto invoke = mExtension->invokeCommand(activity, command);
@@ -1073,12 +1074,63 @@ TEST_F(AplAudioPlayerExtensionTest, UpdatePlaybackProgressSuccess)
                            GetWithDefault<const char *>(RegistrationSuccess::TARGET(), liveDataUpdate, ""));
                 const Value *ops = LiveDataUpdate::OPERATIONS().Get(liveDataUpdate);
                 ASSERT_TRUE(ops);
-                ASSERT_TRUE(ops->IsArray() && ops->Size() == 2);
+                ASSERT_TRUE(ops->IsArray() && ops->Size() == 3);
                 ASSERT_TRUE(CheckLiveData(ops->GetArray()[0], "Set", "playerActivity", "STOPPED"));
                 ASSERT_TRUE(CheckLiveData(ops->GetArray()[1], "Set", "offset", 100));
             });
 
     mExtension->updatePlaybackProgress(100);
+    ASSERT_TRUE(gotUpdate);
+}
+
+/**
+ * Currently playing track info change updates live data.
+ */
+TEST_F(AplAudioPlayerExtensionTest, updateCurrentAudioItemId)
+{
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
+
+    bool gotUpdate = false;
+    mExtension->registerLiveDataUpdateCallback(
+            [&](const ActivityDescriptor& activity, const rapidjson::Value &liveDataUpdate) {
+                gotUpdate = true;
+                ASSERT_STREQ("LiveDataUpdate",
+                             GetWithDefault<const char *>(RegistrationSuccess::METHOD(), liveDataUpdate, ""));
+                ASSERT_STREQ("aplext:audioplayer:10",
+                           GetWithDefault<const char *>(RegistrationSuccess::TARGET(), liveDataUpdate, ""));
+                const Value *ops = LiveDataUpdate::OPERATIONS().Get(liveDataUpdate);
+                ASSERT_TRUE(ops);
+                ASSERT_TRUE(ops->IsArray() && ops->Size() == 3);
+                ASSERT_TRUE(CheckLiveData(ops->GetArray()[2], "Set", "audioItemId", "testAudioItemId"));
+            });
+
+    mExtension->updateCurrentAudioItemId("testAudioItemId");
+    ASSERT_TRUE(gotUpdate);
+}
+
+/**
+ * Currently playing track info change updates live data.
+ */
+TEST_F(AplAudioPlayerExtensionTest, updateCurrentlyPlayingTrackInfoEventSuccess)
+{
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
+
+    bool gotUpdate = false;
+    mExtension->registerEventCallback(
+        [&](const std::string &uri, const rapidjson::Value &event) {
+            gotUpdate = true;
+            ASSERT_STREQ("Event",
+                         GetWithDefault<const char *>(Event::METHOD(), event, ""));
+            ASSERT_STREQ("aplext:audioplayer:10",
+                         GetWithDefault<const char *>(Event::TARGET(), event, ""));
+            auto payload = Event::PAYLOAD().Get(event);
+            ASSERT_STREQ("testAudioItemId",
+                         GetWithDefault<const char *>("audioItemId", payload, ""));
+        });
+
+    mExtension->updateCurrentAudioItemId("testAudioItemId");
     ASSERT_TRUE(gotUpdate);
 }
 
@@ -1100,7 +1152,7 @@ TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivityLiveDataSuccess)
                            GetWithDefault<const char *>(LiveDataUpdate::TARGET(), liveDataUpdate, ""));
                 const Value *ops = LiveDataUpdate::OPERATIONS().Get(liveDataUpdate);
                 ASSERT_TRUE(ops);
-                ASSERT_TRUE(ops->IsArray() && ops->Size() == 2);
+                ASSERT_TRUE(ops->IsArray() && ops->Size() == 3);
                 ASSERT_TRUE(CheckLiveData(ops->GetArray()[0], "Set", "playerActivity", "PLAYING"));
                 ASSERT_TRUE(CheckLiveData(ops->GetArray()[1], "Set", "offset", 100));
             });

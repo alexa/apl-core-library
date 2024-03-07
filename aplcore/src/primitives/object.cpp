@@ -479,6 +479,7 @@ bool Object::truthy() const { return mType->truthy(mU); }
 Object Object::get(const std::string& key) const { return mType->get(mU, key); }
 bool Object::has(const std::string& key) const { return mType->has(mU, key); }
 Object Object::opt(const std::string& key, const Object& def) const { return mType->opt(mU, key, def); }
+std::pair<std::string, Object> Object::keyAt(std::size_t offset) const { return mType->keyAt(mU, offset); }
 
 // Methods for ARRAY objects
 Object Object::at(std::uint64_t index) const { return mType->at(mU, index); }

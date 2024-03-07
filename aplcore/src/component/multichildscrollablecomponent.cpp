@@ -475,21 +475,43 @@ getSpacing(const CoreComponent& component)
     return 0;
 }
 
+double
+MultiChildScrollableComponent::clampScrollPositionToValidValue(double scrollPosition, LayoutDirection layoutDirection, bool isHorizontal)
+{
+    if (isHorizontal) {
+        // scrollDirection is horizontal, clamp scrollPosition according to layoutDirection
+        if ((layoutDirection == kLayoutDirectionLTR && scrollPosition < 0) ||
+            (layoutDirection == kLayoutDirectionRTL && scrollPosition > 0)) {
+            scrollPosition = 0;
+        }
+    } else {
+        // scrollDirection is vertical, so clamp any negative scrollPosition
+        if (scrollPosition < 0) {
+            scrollPosition = 0;
+        }
+    }
+    return scrollPosition;
+}
+
 void
 MultiChildScrollableComponent::fixScrollPosition(const Rect& oldAnchorRect, const Rect& anchorRect)
 {
     if (anchorRect != oldAnchorRect) {
         auto layoutDirection = static_cast<LayoutDirection>(getCalculated(kPropertyLayoutDirection).asInt());
         auto currentPosition = getCalculated(kPropertyScrollPosition).asNumber();
-        float offset;
-        if (isHorizontal()) {
+        double offset;
+        bool horizontal = isHorizontal();
+        if (horizontal) {
             offset = layoutDirection == kLayoutDirectionLTR
                      ? anchorRect.getLeft() - oldAnchorRect.getLeft()
                      : anchorRect.getRight() - oldAnchorRect.getRight();
         } else {
             offset = anchorRect.getTop() - oldAnchorRect.getTop();
         }
-        currentPosition += offset;
+
+        currentPosition =
+            clampScrollPositionToValidValue(currentPosition + offset, layoutDirection, horizontal);
+
         mCalculated.set(kPropertyScrollPosition, Dimension(DimensionType::Absolute, currentPosition));
         setDirty(kPropertyScrollPosition);
     }
@@ -814,6 +836,15 @@ MultiChildScrollableComponent::removeChildAfterMarkedRemoved(const CoreComponent
     mChildrenVisibilityStale = true;
 }
 
+void
+MultiChildScrollableComponent::releaseSelf()
+{
+    ScrollableComponent::releaseSelf();
+
+    // Children are cleared during release, so clear any "ensured children" indices
+    mEnsuredChildren = Range();
+}
+
 /**
  * Relatively simple heuristics: take laid-out anchor component and estimate how many components will be required to
  * cover child cache region. Precise calculation is still up to proper layout pass, but (especially for cases when
@@ -1080,10 +1111,12 @@ MultiChildScrollableComponent::onScrollPositionUpdated()
 {
     ScrollableComponent::onScrollPositionUpdated();
 
-    for (int i = mEnsuredChildren.lowerBound(); i <= mEnsuredChildren.upperBound(); i++) {
-        auto child = CoreComponent::cast(mChildren.at(i));
-        if (child != nullptr && child->isAttached()) {
-            child->markGlobalToLocalTransformStale();
+    if (!mEnsuredChildren.empty()) {
+        for (int i = mEnsuredChildren.lowerBound(); i <= mEnsuredChildren.upperBound(); i++) {
+            auto child = CoreComponent::cast(mChildren.at(i));
+            if (child != nullptr && child->isAttached()) {
+                child->markGlobalToLocalTransformStale();
+            }
         }
     }
 

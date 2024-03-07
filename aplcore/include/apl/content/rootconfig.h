@@ -482,9 +482,6 @@ public:
      * @deprecated Extensions should be managed via ExtensionMediator
      */
     RootConfig& registerExtensionFlags(const std::string& uri, const Object& flags) {
-        if (mSupportedExtensions.find(uri) == mSupportedExtensions.end()) {
-            registerExtension(uri);
-        }
         mExtensionFlags[uri] = flags;
         return *this;
     }

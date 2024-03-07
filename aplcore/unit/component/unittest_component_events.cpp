@@ -16,10 +16,13 @@
 #include "gtest/gtest.h"
 
 #include "apl/component/component.h"
+#include "apl/component/componenteventsourcewrapper.h"
+#include "apl/component/componenteventtargetwrapper.h"
 #include "apl/engine/event.h"
 #include "apl/primitives/mediastate.h"
 
 #include "../testeventloop.h"
+
 
 using namespace apl;
 
@@ -440,6 +443,7 @@ TEST_F(ComponentEventsTest, MediaErrorStateChanges)
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
     ASSERT_EQ(std::to_string(state.getErrorCode()), text->getCalculated(kPropertyText).asString());
+    ASSERT_FALSE(root->screenLock());
 
     /*
      * Simulate playback error while playing
@@ -449,6 +453,8 @@ TEST_F(ComponentEventsTest, MediaErrorStateChanges)
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
     ASSERT_EQ("PLAY", text->getCalculated(kPropertyText).asString()); // Track is now playing
+    ASSERT_TRUE(root->screenLock());
+
     // Update state as error
     state = MediaState(0, 3, 7, 10, false, false, false)
         .withTrackState(kTrackFailed)
@@ -457,12 +463,16 @@ TEST_F(ComponentEventsTest, MediaErrorStateChanges)
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
     ASSERT_EQ(std::to_string(state.getErrorCode()), text->getCalculated(kPropertyText).asString());
+    ASSERT_TRUE(root->screenLock());
+
     // Advance to next track from error state
     state = MediaState(1, 3, 0, 10, false, false, false);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
     ASSERT_EQ("TRACK_UPDATE", text->getCalculated(kPropertyText).asString());
+    ASSERT_TRUE(root->screenLock());
+
     // Update state as error when playing second track
     state = MediaState(1, 3, 5, 10, false, false, false)
         .withTrackState(kTrackFailed)
@@ -471,6 +481,8 @@ TEST_F(ComponentEventsTest, MediaErrorStateChanges)
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
     ASSERT_EQ(std::to_string(state.getErrorCode()), text->getCalculated(kPropertyText).asString());
+    ASSERT_TRUE(root->screenLock());
+
     // Update state as error when moving to third track
     state = MediaState(2, 3, 0, 0, false, false, false)
         .withTrackState(kTrackFailed)
@@ -479,7 +491,17 @@ TEST_F(ComponentEventsTest, MediaErrorStateChanges)
     CheckMediaState(state, video->getCalculated());
     loop->advanceToEnd();
     ASSERT_EQ(std::to_string(state.getErrorCode()), text->getCalculated(kPropertyText).asString());
+    ASSERT_TRUE(root->screenLock());
 
+    // Mark the state as paused
+    state = MediaState(2, 3, 0, 0, true, false, false)
+                .withTrackState(kTrackFailed)
+                .withErrorCode(101);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
+    loop->advanceToEnd();
+    ASSERT_EQ("PAUSE", text->getCalculated(kPropertyText).asString());
+    ASSERT_FALSE(root->screenLock());
 }
 
 static const char *TOUCH_WRAPPER_SEND_EVENT = R"(
@@ -1005,6 +1027,7 @@ TEST_F(ComponentEventsTest, MediaOnTimeUpdate)
     auto video = context->findComponentById("video");
     ASSERT_TRUE(video);
     ASSERT_EQ(kComponentTypeVideo, video->getType());
+    ASSERT_FALSE(root->screenLock());  // Screen currently unlocked
 
     // Simulate "no change"
     MediaState state;
@@ -1014,7 +1037,7 @@ TEST_F(ComponentEventsTest, MediaOnTimeUpdate)
 
     ASSERT_FALSE(root->hasEvent());
 
-    // Simulate time update
+    // Simulate time update.  This triggers playing
     state = MediaState(0, 1, 5, 10, false, false, false);
     video->updateMediaState(state);
     CheckMediaState(state, video->getCalculated());
@@ -1036,6 +1059,13 @@ TEST_F(ComponentEventsTest, MediaOnTimeUpdate)
     ASSERT_EQ(Object(10), arguments.at(7)); // duration
     ASSERT_EQ(Object(false), arguments.at(8)); // paused
     ASSERT_EQ(Object(false), arguments.at(9)); // ended
+
+    // We should have a screen lock.
+    ASSERT_TRUE(root->screenLock());
+    // Stop the playback (by putting the media state into pause)
+    state = MediaState(0, 1, 5, 10, true, false, false);
+    video->updateMediaState(state);
+    CheckMediaState(state, video->getCalculated());
 }
 
 static const char *MEDIA_FAST_NORMAL = R"(
@@ -1245,4 +1275,127 @@ TEST_F(ComponentEventsTest, ChildrenChanged)
     ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 1, "insert"));
     ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 2, "insert"));
     ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 0, "remove"));
+}
+
+/**
+ * These tests are more intrusive into the ComponentEventWrapperStructure
+ */
+
+static const char *TEXT_COMPONENT = R"(
+ {
+   "type": "APL",
+   "version": "1.0",
+   "mainTemplate": {
+     "items": {
+       "type": "Text",
+       "text": "Hello"
+     }
+   }
+ }
+)";
+
+static const std::vector<std::string> TARGET_KEYS = {
+    "bind",
+    "checked",
+    "color",
+    "disabled",
+    "focused",
+    "height",
+    "id",
+    "layoutDirection",
+    "opacity",
+    "pressed",
+    "text",
+    "type",
+    "uid",
+    "width",
+};
+
+static const std::vector<std::string> SOURCE_KEYS = {
+    "bind",
+    "checked",
+    "color",
+    "disabled",
+    "focused",
+    "height",
+    "id",
+    "layoutDirection",
+    "opacity",
+    "pressed",
+    "text",
+    "type",
+    "uid",
+    "width",
+    "value",
+    "handler",
+    "source"
+};
+
+
+TEST_F(ComponentEventsTest, InnerLogic)
+{
+    loadDocument(TEXT_COMPONENT);
+    ASSERT_TRUE(component);
+
+    auto target_context = ComponentEventTargetWrapper::create(component);
+    // Check possession of keys
+    ASSERT_EQ(TARGET_KEYS.size(), target_context->size());
+    for (auto i = 0 ; i < TARGET_KEYS.size() ; i++) {
+        ASSERT_TRUE(target_context->has(TARGET_KEYS[i]));
+        ASSERT_EQ(target_context->keyAt(i).first, TARGET_KEYS[i]);
+    }
+
+    auto source_context = ComponentEventSourceWrapper::create(component, "Test", 243);
+    ASSERT_EQ(SOURCE_KEYS.size(), source_context->size());
+    for (auto i = 0 ; i < SOURCE_KEYS.size() ; i++) {
+        ASSERT_TRUE(source_context->has(SOURCE_KEYS[i]));
+        ASSERT_EQ(source_context->keyAt(i).first, SOURCE_KEYS[i]);
+    }
+    ASSERT_TRUE(IsEqual("Test", source_context->opt("handler", 23)));
+    ASSERT_TRUE(IsEqual(243, source_context->opt("value", 20000)));
+    ASSERT_TRUE(IsEqual("Text", source_context->opt("source", "Error")));
+    ASSERT_TRUE(IsEqual("Fuzzy", source_context->opt("MissingProperty", "Fuzzy")));
+}
+
+static const char *BINDING_CONTEXT = R"apl(
+{
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "item": {
+      "type": "Text",
+      "bind": {
+        "name": "FOO",
+        "value": "BAR"
+      },
+      "text": "Bind is ${BAR}"
+    }
+  }
+}
+)apl";
+
+TEST_F(ComponentEventsTest, BindingContext)
+{
+    loadDocument(BINDING_CONTEXT);
+    ASSERT_TRUE(component);
+    advanceTime(123);  // Move time forward
+
+    auto target_context = ComponentEventTargetWrapper::create(component);
+    ASSERT_TRUE(target_context->has("bind"));
+
+    auto bindings = target_context->get("bind");
+    ASSERT_EQ(0, bindings.size());    // The context bindings are hidden from the component event
+
+    // "elapsedTime" is a global that we can read from the context
+    // Because ContextWrapper is a "Map-Like" object, you can't read the size of the bindings
+    // or directly return a map or list of keys, but you can _get_ a value out of it.
+    auto et = component->getContext()->find("elapsedTime");
+    ASSERT_FALSE(et.empty());
+    ASSERT_TRUE(IsEqual(123, et.object().value()));
+
+    ASSERT_TRUE(bindings.has("elapsedTime"));
+    ASSERT_TRUE(IsEqual(et.object().value(), bindings.get("elapsedTime")));
+
+    ASSERT_FALSE(bindings.has("MissingProperty"));
+    ASSERT_TRUE(IsEqual("FOO", bindings.opt("MissingProperty", "FOO")));
 }

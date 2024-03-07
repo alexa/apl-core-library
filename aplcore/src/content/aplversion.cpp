@@ -36,6 +36,7 @@ static const Bimap<APLVersion::Value, std::string> sVersionMap = {
         { APLVersion::kAPLVersion20231, "2023.1" },
         { APLVersion::kAPLVersion20232, "2023.2" },
         { APLVersion::kAPLVersion20233, "2023.3" },
+        { APLVersion::kAPLVersion20241, "2024.1" },
 };
 
 bool

@@ -29,6 +29,8 @@ namespace alexaext {
  * Default implementation of ExtensionProvider, maintained by the runtime.
  * Provides a registry of directly registered extension URI to extension proxy plus provider
  * delegation.
+ *
+ * Note: This class is not thread-safe. For a thread-safe implementation use @code ThreadSafeExtensionRegistrar.
  */
 class ExtensionRegistrar : public ExtensionProvider {
 

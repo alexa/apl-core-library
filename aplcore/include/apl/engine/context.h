@@ -54,6 +54,7 @@ class KeyboardManager;
 class LayoutManager;
 class LiveDataManager;
 class UIDManager;
+class VisibilityManager;
 
 using DataSourceConnectionPtr = std::shared_ptr<DataSourceConnection>;
 
@@ -322,10 +323,11 @@ public:
      *
      * @param key The string key name
      * @param value The value to store.
+     * @param onChange A BindingChange object to execute when the object changes.  May be null.
      */
-    void putUserWriteable(const std::string& key, const Object& value)
+    void putUserWriteable(const std::string& key, const Object& value, const BindingChangePtr& onChange = nullptr)
     {
-        mMap.emplace(key, ContextObject(value).userWriteable());
+        mMap.emplace(key, ContextObject(value).userWriteable().onChange(onChange));
     }
 
     /**
@@ -640,6 +642,7 @@ public:
     MediaPlayerFactory& mediaPlayerFactory() const;
     UIDManager& uniqueIdManager() const;
     DependantManager& dependantManager() const;
+    VisibilityManager& visibilityManager() const;
 
     std::shared_ptr<Styles> styles() const;
 

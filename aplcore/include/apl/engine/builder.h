@@ -106,7 +106,6 @@ private:
                                            bool fullBuild,
                                            bool useDirtyFlag);
 
-    static void attachBindings(const ContextPtr& context, const Object& item);
 private:
 
     MakeComponentFunc findComponentBuilderFunc(const ContextPtr& context, const std::string &type);

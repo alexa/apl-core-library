@@ -25,6 +25,9 @@
 #include "apl/component/componentproperties.h"
 
 namespace apl {
+
+class Object;
+
 namespace sg {
 
 /**
@@ -56,6 +59,12 @@ public:
         }
     };
 
+    struct AdjustableRange {
+        double minValue;
+        double maxValue;
+        double currentValue;
+    };
+
     explicit Accessibility(ActionCallback callback)
         : mActionCallback(callback)
     {}
@@ -72,6 +81,12 @@ public:
     void appendAction(const std::string& name, const std::string& label, bool enabled);
 
     const std::vector<Action>& actions() const { return mActions; }
+
+    bool setAdjustableRange(const apl::Object& object);
+    AdjustableRange getAdjustableRange() const { return mAdjustableRange; }
+    
+    bool setAdjustableValue(const std::string& value);
+    std::string getAdjustableValue() const { return mAdjustableValue; }
 
     bool empty() const { return mLabel.empty() && mRole == kRoleNone && mActions.empty();}
 
@@ -90,6 +105,8 @@ protected:
     std::string mLabel;
     Role mRole = kRoleNone;
     std::vector<Action> mActions;
+    std::string mAdjustableValue;
+    AdjustableRange mAdjustableRange;
 };
 
 } // namespace sg

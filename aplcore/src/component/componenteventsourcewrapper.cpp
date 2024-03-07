@@ -20,11 +20,14 @@ namespace apl {
 
 std::shared_ptr<ComponentEventSourceWrapper>
 ComponentEventSourceWrapper::create(const ConstCoreComponentPtr &component,
-                                       std::string handler,
-                                       const Object &value) {
+                                    std::string handler,
+                                    const Object &value) {
+    assert(!handler.empty());
     auto result = std::make_shared<ComponentEventSourceWrapper>(component);
     result->mHandler = handler;
     result->mValue = value;
+    if (component)
+        result->mSource = sComponentTypeBimap.at(component->getType());
     return result;
 }
 
@@ -37,12 +40,8 @@ ComponentEventSourceWrapper::get(const std::string& key) const
     if (key == "value")
         return mValue;
 
-    if (key == "source") {
-        auto component = mComponent.lock();
-        if (component)
-            return sComponentTypeBimap.at(component->getType());
-        return "";
-    }
+    if (key == "source")
+        return mSource;
 
     return ComponentEventWrapper::get(key);
 }
@@ -56,12 +55,8 @@ ComponentEventSourceWrapper::opt(const std::string& key, const Object& def) cons
     if (key == "value")
         return mHandler.empty() ? def : mValue;
 
-    if (key == "source") {
-        auto component = mComponent.lock();
-        if (component)
-            return sComponentTypeBimap.at(component->getType());
-        return def;
-    }
+    if (key == "source")
+        return mSource.empty() ? def : mSource;
 
     return ComponentEventWrapper::opt(key, def);
 }
@@ -69,33 +64,35 @@ ComponentEventSourceWrapper::opt(const std::string& key, const Object& def) cons
 bool
 ComponentEventSourceWrapper::has(const std::string& key) const
 {
-    if (key == "handler")
-        return !mHandler.empty();
-
-    if (key == "value")
+    if (key == "handler" || key == "value" || key == "source")
         return true;
 
-    if (key == "source")
-        return mComponent.lock() != nullptr;
-
     return ComponentEventWrapper::has(key);
+}
+
+std::pair<std::string, Object>
+ComponentEventSourceWrapper::keyAt(std::size_t offset) const
+{
+    auto basicSize = ComponentEventWrapper::size();
+    if (offset < basicSize)
+        return ComponentEventWrapper::keyAt(offset);
+
+    offset -= basicSize;
+
+    // Provide a consistent ordering of "value", "handler", and "source" properties.
+    switch (offset) {
+        case 0: return { "value", mValue };
+        case 1: return { "handler", mHandler };
+        case 2: return { "source", mSource };
+        default: return { "", Object::NULL_OBJECT() };
+    }
 }
 
 std::uint64_t
 ComponentEventSourceWrapper::size() const
 {
-    // The number of properties in the source wrapper will be size of the parent class, one
-    // for the "value" property, and one each for the "handler" and "source" properties if
-    // they are present.
-    std::uint64_t result = ComponentEventWrapper::size() + 1;   // The "value" property is always present.
-
-    if (!mHandler.empty())  // The "handler" property may be not be set
-        result += 1;
-
-    if (mComponent.lock() != nullptr)  // The "source" property may not be available.
-        result += 1;
-
-    return result;
+    // We add three properties to the size of the component wrapper.
+    return ComponentEventWrapper::size() + 3;
 }
 
 rapidjson::Value
@@ -106,12 +103,11 @@ ComponentEventSourceWrapper::serialize(rapidjson::Document::AllocatorType& alloc
     if (component) {
         component->serializeEvent(m, allocator);
         // Note that the source properties are assigned AFTER serialization.  This ensures we overwrite.
-        m.AddMember("source", rapidjson::StringRef(sComponentTypeBimap.at(component->getType()).c_str()), allocator);
     }
 
     m.AddMember("value", mValue.serialize(allocator), allocator);
-    if (!mHandler.empty())
-        m.AddMember("handler", rapidjson::Value(mHandler.c_str(), allocator), allocator);
+    m.AddMember("handler", rapidjson::Value(mHandler.c_str(), allocator), allocator);
+    m.AddMember("source", rapidjson::Value(mSource.c_str(), allocator), allocator);
 
     return m;
 }

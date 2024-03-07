@@ -72,9 +72,6 @@ public:
     // Context wrappers intentionally return a size of zero
     std::uint64_t size() const override { return 0; }
 
-    // Context wrappers intentionally return an empty map
-    const ObjectMap& getMap() const override;
-
     bool truthy() const override { return !mContext.expired(); }
 
     bool empty() const override { return mContext.expired(); }

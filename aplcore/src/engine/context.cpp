@@ -484,6 +484,12 @@ Context::dependantManager() const
     return documentContextData(mCore)->dependantManager();
 }
 
+VisibilityManager&
+Context::visibilityManager() const
+{
+    return documentContextData(mCore)->visibilityManager();
+}
+
 const SessionPtr&
 Context::session() const
 {

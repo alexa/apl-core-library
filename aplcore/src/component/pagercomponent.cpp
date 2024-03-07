@@ -166,12 +166,12 @@ PagerComponent::propDefSet() const {
     static ComponentPropDefSet sPagerComponentProperties(ActionableComponent::propDefSet(), {
         {kPropertyHeight,         Dimension(100),             asNonAutoDimension,  kPropIn, yn::setHeight, defaultHeight},
         {kPropertyWidth,          Dimension(100),             asNonAutoDimension,  kPropIn, yn::setWidth,  defaultWidth},
-        {kPropertyInitialPage,    0,                          asInteger,           kPropIn},
-        {kPropertyNavigation,     kNavigationWrap,            sNavigationMap,      kPropInOut | kPropDynamic | kPropVisualContext},
-        {kPropertyPageDirection,  kScrollDirectionHorizontal, sScrollDirectionMap, kPropIn | kPropDynamic},
-        {kPropertyHandlePageMove, Object::EMPTY_ARRAY(),      asArray,             kPropIn},
-        {kPropertyOnPageChanged,  Object::EMPTY_ARRAY(),      asCommand,           kPropIn},
-        {kPropertyCurrentPage,    0,                          asInteger,           kPropRuntimeState | kPropVisualContext | kPropAccessibility},
+        {kPropertyInitialPage,    0,                          asInteger,           kPropIn },
+        {kPropertyNavigation,     kNavigationWrap,            sNavigationMap,      kPropInOut | kPropDynamic | kPropVisualContext },
+        {kPropertyPageDirection,  kScrollDirectionHorizontal, sScrollDirectionMap, kPropIn | kPropDynamic },
+        {kPropertyHandlePageMove, Object::EMPTY_ARRAY(),      asArray,             kPropIn },
+        {kPropertyOnPageChanged,  Object::EMPTY_ARRAY(),      asCommand,           kPropIn },
+        {kPropertyCurrentPage,    0,                          asInteger,           kPropRuntimeState | kPropVisualContext | kPropVisibility | kPropAccessibility },
         {kPropertyPageId,         getPageId,                  setPageId,           kPropDynamic },
         {kPropertyPageIndex,      getPageIndex,               setPageIndex,        kPropDynamic },
     });
@@ -217,6 +217,7 @@ PagerComponent::setPage(int page)
 {
     mCalculated.set(kPropertyCurrentPage, page);
     setVisualContextDirty();
+    setVisibilityDirty();
     attachPageAndReportLoaded(page);
 
     setDirty(kPropertyCurrentPage);
@@ -235,6 +236,7 @@ PagerComponent::setPageImmediate(int pageIndex)
     mContext->sequencer().releaseResource({kExecutionResourcePosition, shared_from_this()});
     mCalculated.set(kPropertyCurrentPage, pageIndex);
     setVisualContextDirty();
+    setVisibilityDirty();
     attachPageAndReportLoaded(pageIndex);
     setDirty(kPropertyCurrentPage);
 

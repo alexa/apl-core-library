@@ -224,6 +224,65 @@ TEST_F(SGAccessibilityTest, Actions)
     CheckSendEvent(root, "alpha");
 }
 
+static const char *ADJUSTABLE_RANGE = R"apl(
+{
+  "type": "APL",
+  "version": "2024.1",
+  "mainTemplate": {
+    "items": {
+      "type": "TouchWrapper",
+      "accessibilityAdjustableRange":{
+        "minValue": 0,
+        "maxValue": 10,
+        "currentValue": 5
+      }
+    }
+  }
+}
+)apl";
+
+TEST_F(SGAccessibilityTest, AdjustableRange)
+{
+    metrics.size(300, 300);
+    loadDocument(ADJUSTABLE_RANGE);
+    ASSERT_TRUE(component);
+
+    auto sg = root->getSceneGraph();
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 300, 300})
+                .pressable()
+                .accessibility(IsAccessibility()
+                                   .adjustableRange(sg::Accessibility::AdjustableRange{0, 10, 5}))));
+}
+
+static const char *ADJUSTABLE_VALUE = R"apl(
+{
+  "type": "APL",
+  "version": "2024.1",
+  "mainTemplate": {
+    "items": {
+      "type": "TouchWrapper",
+      "accessibilityAdjustableValue": 5
+    }
+  }
+}
+)apl";
+
+TEST_F(SGAccessibilityTest, AdjustableValue)
+{
+    metrics.size(300, 300);
+    loadDocument(ADJUSTABLE_VALUE);
+    ASSERT_TRUE(component);
+
+    auto sg = root->getSceneGraph();
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 300, 300})
+                .pressable()
+                .accessibility(IsAccessibility()
+                                   .adjustableValue("5"))));
+}
 
 static const char *INTERACTION_CHECKED_ENABLED = R"apl(
 {
@@ -283,6 +342,8 @@ TEST_F(SGAccessibilityTest, Serialize)
     a->setRole(Role::kRoleAlert);
     a->appendAction("bounce", "this is a bounce", true);
     a->appendAction("debounce", "this is not a bounce", false);
+    a->setAdjustableRange(JsonData(R"({"minValue": 0, "maxValue": 10, "currentValue": 5})").get());
+    a->setAdjustableValue("5");
 
     rapidjson::Document document;
     ASSERT_TRUE(IsEqual(a->serialize(document.GetAllocator()), StringToMapObject(R"apl(
@@ -300,7 +361,13 @@ TEST_F(SGAccessibilityTest, Serialize)
                     "label": "this is not a bounce",
                     "enabled": false
                 }
-            ]
+            ],
+            "adjustableRange": {
+                "minValue": 0,
+                "maxValue": 10,
+                "currentValue": 5
+            },
+            "adjustableValue": "5"
         }
     )apl")));
 }

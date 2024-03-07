@@ -1479,3 +1479,16 @@ TEST(DocumentTest, RepeatedImportDifferentSources)
     auto expected = std::vector<std::string>{ "B:1.0" };
     ASSERT_EQ(expected, doc->getLoadedPackageNames());
 }
+
+TEST(DocumentTest, DocumentContent)
+{
+    auto content = Content::create(BASIC_DOC_WITHOUT_SETTINGS, makeDefaultSession());
+
+    ASSERT_TRUE(content->isReady());
+
+    auto m = Metrics().size(1024,800).theme("dark");
+    auto rc = RootContext::create(m, content);
+
+    ASSERT_TRUE(rc);
+    ASSERT_EQ(rc->topDocument()->content(), content);
+}

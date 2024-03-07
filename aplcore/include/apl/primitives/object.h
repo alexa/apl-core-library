@@ -284,6 +284,7 @@ public:
     Object get(const std::string& key) const;
     bool has(const std::string& key) const;
     Object opt(const std::string& key, const Object& def) const;
+    std::pair<std::string, Object> keyAt(std::size_t offset) const;
 
     // ARRAY objects
     Object at(std::uint64_t index) const;

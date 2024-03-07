@@ -18,6 +18,7 @@ target_sources_local(unittest
         unittest_filters.cpp
         unittest_keyboard.cpp
         unittest_object.cpp
+        unittest_pseudolocalizer.cpp
         unittest_radii.cpp
         unittest_range.cpp
         unittest_rect.cpp

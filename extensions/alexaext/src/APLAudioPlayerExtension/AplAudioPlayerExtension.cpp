@@ -49,11 +49,13 @@ static const char *COMMAND_SKIP_BACKWARD_NAME = "SkipBackward";
 
 // Events
 static const char *EVENTHANDLER_ON_PLAYER_ACTIVITY_UPDATED_NAME = "OnPlayerActivityUpdated";
+static const char *EVENTHANDLER_ON_TRACK_CHANGED_NAME = "OnTrackChanged";
 
 // Data Types
 static const char *DATA_TYPE_PLAYBACK_STATE = "playbackState";   // spec named
 static const char *PROPERTY_PLAYER_ACTIVITY = "playerActivity";
 static const char *PROPERTY_OFFSET = "offset";
+static const char *PROPERTY_AUDIO_ITEM_ID = "audioItemId";
 static const char *DATA_TYPE_SEEK_POSITION = "SeekToPositionType";
 static const char *DATA_TYPE_TOGGLE = "ToggleType";
 static const char *PROPERTY_TOGGLE_NAME = "name";
@@ -274,6 +276,7 @@ AplAudioPlayerExtension::createRegistration(const ActivityDescriptor& activity,
                                                   });
                       })
                       .event(EVENTHANDLER_ON_PLAYER_ACTIVITY_UPDATED_NAME)
+                      .event(EVENTHANDLER_ON_TRACK_CHANGED_NAME)
                       .command(COMMAND_PLAY_NAME)
                       .command(COMMAND_PAUSE_NAME)
                       .command(COMMAND_PREVIOUS_NAME)
@@ -506,6 +509,33 @@ AplAudioPlayerExtension::updatePlaybackProgress(int offset)
 }
 
 void
+AplAudioPlayerExtension::updateCurrentAudioItemId(const std::string& audioItemId) 
+{
+    {
+        std::lock_guard<std::mutex> lock(mStateMutex);
+        mAudioItemId = audioItemId;
+    }
+
+    auto event = Event("1.0").uri(URI).target(URI)
+                             .name(EVENTHANDLER_ON_TRACK_CHANGED_NAME)
+                             .property(PROPERTY_AUDIO_ITEM_ID, audioItemId);
+    publishLiveData();
+
+    // Make a list of activities to update with the lock
+    std::vector<ActivityDescriptor> activitiesToUpdate;
+    {
+        std::lock_guard<std::mutex> lock(mStateMutex);
+        for (const auto &it: mActivityStateMap) {
+            activitiesToUpdate.emplace_back(it.first);
+        }
+    }
+
+    for (const auto &activity: activitiesToUpdate) {
+        invokeExtensionEventHandler(activity, event);
+    }
+}
+
+void
 AplAudioPlayerExtension::setActivePresentationSession(const std::string &id, const std::string &skillId)
 {
     // no-op
@@ -533,6 +563,9 @@ AplAudioPlayerExtension::publishLiveData()
                         })
                         .liveDataMapUpdate([&](LiveDataMapOperation& operation) {
                             operation.type("Set").key(PROPERTY_OFFSET).item(mPlaybackStateOffset);
+                        })
+                        .liveDataMapUpdate([&](LiveDataMapOperation& operation) {
+                            operation.type("Set").key(PROPERTY_AUDIO_ITEM_ID).item(mAudioItemId);
                         });
 
                 updates.emplace(it.first, liveDataUpdate);

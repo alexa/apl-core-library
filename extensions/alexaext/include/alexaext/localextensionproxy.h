@@ -32,6 +32,8 @@ namespace alexaext {
 /**
  * Default implementation of Extension proxy, used for built-in extensions. This
  * class forwards all calls from the extension framework directly to the extension.
+ *
+ * Note: This class is not thread-safe. For a thread-safe implementation use @code ThreadSafeExtensionProxy.
  */
 class LocalExtensionProxy final : public ExtensionProxy,
                                   public std::enable_shared_from_this<LocalExtensionProxy> {

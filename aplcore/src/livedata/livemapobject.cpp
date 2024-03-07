@@ -49,6 +49,24 @@ LiveMapObject::has(const std::string& key) const
     return mLiveMap->has(key);
 }
 
+std::pair<std::string, Object>
+LiveMapObject::keyAt(std::size_t offset) const
+{
+    const auto& map = mLiveMap->getMap();
+    if (offset < map.size()) {
+        auto it = map.cbegin();
+        std::advance(it, offset);
+        return *it;
+    }
+    return { "", Object::NULL_OBJECT() };
+}
+
+std::uint64_t
+LiveMapObject::size() const
+{
+    return mLiveMap->getMap().size();
+}
+
 const ObjectMap&
 LiveMapObject::getMap() const
 {

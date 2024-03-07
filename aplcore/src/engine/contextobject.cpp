@@ -17,6 +17,22 @@
 
 namespace apl {
 
+bool
+ContextObject::set(const Object& value) {
+    bool result = (mMutable && mValue != value);
+    if (result) {
+        if (mOnChange) {
+            auto previous = mValue;
+            mValue = value;
+            mOnChange->run(value, previous);
+        }
+        else {
+            mValue = value;
+        }
+    }
+    return result;
+}
+
 std::string
 ContextObject::toDebugString() const
 {

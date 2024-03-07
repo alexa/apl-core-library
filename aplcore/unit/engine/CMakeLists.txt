@@ -36,5 +36,6 @@ target_sources_local(unittest
         unittest_propdef.cpp
         unittest_resources.cpp
         unittest_styles.cpp
+        unittest_visibility.cpp
         unittest_viewhost.cpp
         )

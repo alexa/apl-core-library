@@ -3602,3 +3602,79 @@ TEST_F(NativeGesturesPagerTest, LiveDataTargetOrCurrentRemove)
     ASSERT_EQ(10, component->getChildCount());
     ASSERT_EQ(Object(Transform2D()), component->getDisplayedChildAt(0)->getCalculated(kPropertyTransform));
 }
+
+static const char * NESTED_PAGER_OFFSET = R"apl({
+  "type": "APL",
+  "version": "2023.3",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Container",
+        "width": "100vw",
+        "height": "100vh",
+        "direction": "row",
+        "items": [
+          {
+            "type": "Pager",
+            "position": "absolute",
+            "left": "10vw",
+            "pageDirection": "horizontal",
+            "width": "90vw",
+            "height": "100vh",
+            "data": [
+              "${Array.range(10)}"
+            ],
+            "items": [
+              {
+                "type": "Frame",
+                "width": "100%",
+                "height": "100%",
+                "background": "${index % 2 == 0 ? 'red' : 'green'}"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+})apl";
+
+// Ensure that pointer positions transformed properly when pager is offset.
+TEST_F(NativeGesturesPagerTest, NestedPagerOffset)
+{
+    metrics.size(400,400);
+    loadDocument(NESTED_PAGER_OFFSET);
+
+    auto pager = component->getChildAt(0);
+
+    auto currentChild = pager->getChildAt(0);
+    auto nextChild = pager->getChildAt(1);
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerDown, Point(400,10)));
+    advanceTime(50);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(250,10)));
+    advanceTime(50);
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(100,10)));
+    root->clearPending();
+
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(-300), currentChild));
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(60), nextChild));
+
+
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerUp, Point(100,10)));
+    advanceTime(1);
+
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(-300.1), currentChild));
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(60), nextChild));
+
+
+    // Advance to "almost finished"
+    advanceTime(300);
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(-330.1), currentChild));
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(29.9), nextChild));
+
+    // And finish
+    advanceTime(300);
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), currentChild));
+    ASSERT_TRUE(CheckTransform(Transform2D::translateX(0), nextChild));
+}

@@ -21,6 +21,7 @@ target_sources_local(unittest
         unittest_ringbuffer.cpp
         unittest_scopeddequeue.cpp
         unittest_scopedset.cpp
+        unittest_screenlockholder.cpp
         unittest_session.cpp
         unittest_stringfunctions.cpp
         unittest_url.cpp

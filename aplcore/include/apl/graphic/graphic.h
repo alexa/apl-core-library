@@ -182,7 +182,7 @@ public:
     void updateSceneGraph(sg::SceneGraphUpdates& sceneGraph);
 #endif // SCENEGRAPH
 
-    class ObjectType final : public PointerHolderObjectType<Graphic> {};
+    class ObjectType final : public SimplePointerHolderObjectType<Graphic> {};
 
 private:
     /**

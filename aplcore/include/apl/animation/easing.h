@@ -68,7 +68,7 @@ public:
     virtual bool operator==(const CoreEasing& other) const = 0;
     virtual ~Easing() noexcept;
 
-    class ObjectType final : public PointerHolderObjectType<Easing> {
+    class ObjectType final : public SimplePointerHolderObjectType<Easing> {
     public:
         bool isCallable() const override { return true; }
 

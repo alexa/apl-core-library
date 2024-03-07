@@ -56,6 +56,15 @@ ComponentEventWrapper::has(const std::string& key) const
     return false;
 }
 
+std::pair<std::string, Object>
+ComponentEventWrapper::keyAt(std::size_t offset) const
+{
+    auto component = mComponent.lock();
+    if (component)
+        return component->getEventPropertyAt(offset);
+    return { "", Object::NULL_OBJECT() };
+}
+
 std::uint64_t
 ComponentEventWrapper::size() const
 {
@@ -64,14 +73,6 @@ ComponentEventWrapper::size() const
         return component->getEventPropertySize();
 
     return 0;
-}
-
-// This routine returns an empty map to avoid crashing the system in complicated ways
-const ObjectMap&
-ComponentEventWrapper::getMap() const
-{
-    static auto empty = ObjectMap();
-    return empty;
 }
 
 }  // apl

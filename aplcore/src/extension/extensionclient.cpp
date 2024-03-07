@@ -1151,7 +1151,7 @@ ExtensionClient::readExtensionComponentDefinitions(const Context& context, const
 }
 
 rapidjson::Value
-ExtensionClient::createComponentChange(rapidjson::MemoryPoolAllocator<>& allocator, ExtensionComponent& component)
+ExtensionClient::createComponentChange(rapidjson::Document::AllocatorType& allocator, ExtensionComponent& component)
 {
     auto extensionURI = component.getUri();
     if (extensionURI != mUri) {
@@ -1246,21 +1246,21 @@ ExtensionClient::handleDisconnectionInternal(const CoreDocumentContextPtr& docum
 }
 
 rapidjson::Value
-ExtensionClient::processComponentRequest(rapidjson::MemoryPoolAllocator<>& allocator,
+ExtensionClient::processComponentRequest(rapidjson::Document::AllocatorType& allocator,
                                          ExtensionComponent& component)
 {
     return createComponentChange(allocator, component);
 }
 
 rapidjson::Value
-ExtensionClient::processComponentRelease(rapidjson::MemoryPoolAllocator<>& allocator,
+ExtensionClient::processComponentRelease(rapidjson::Document::AllocatorType& allocator,
                                          ExtensionComponent& component)
 {
     return createComponentChange(allocator, component);
 }
 
 rapidjson::Value
-ExtensionClient::processComponentUpdate(rapidjson::MemoryPoolAllocator<>& allocator,
+ExtensionClient::processComponentUpdate(rapidjson::Document::AllocatorType& allocator,
                                         ExtensionComponent& component)
 {
     return createComponentChange(allocator, component);

@@ -774,7 +774,7 @@ public:
 
 protected:
 
-    explicit LiveDataOperation(rapidjson::MemoryPoolAllocator<>* allocator)
+    explicit LiveDataOperation(rapidjson::Document::AllocatorType* allocator)
             : mAllocator(allocator),
               mValue(std::make_shared<rapidjson::Value>()) {}
 

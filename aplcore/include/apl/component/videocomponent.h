@@ -19,6 +19,7 @@
 #include "apl/component/mediacomponenttrait.h"
 #include "apl/media/mediaplayerfactory.h"
 #include "apl/primitives/mediastate.h"
+#include "apl/utils/screenlockholder.h"
 
 namespace apl {
 
@@ -26,7 +27,7 @@ class VideoComponent : public CoreComponent {
 public:
     static CoreComponentPtr create(const ContextPtr& context, Properties&& properties, const Path& path);
     VideoComponent(const ContextPtr& context, Properties&& properties, const Path& path);
-    virtual ~VideoComponent() noexcept;
+    ~VideoComponent() noexcept override;
 
     ComponentType getType() const override { return kComponentTypeVideo; }
 
@@ -77,9 +78,11 @@ private:
     std::shared_ptr<ObjectMap> createErrorEventProperties(int errorCode);
     std::shared_ptr<ObjectMap> createReadyEventProperties();
     void playerCallback(MediaPlayerEventType eventType, const MediaState& mediaState);
+    void updateScreenLock();
 
     MediaPlayerPtr mMediaPlayer;
     const std::string mMediaSequencer;  // Internal sequencer used for onEnd/onPause/onPlay
+    ScreenLockHolder mScreenLock;
 };
 
 

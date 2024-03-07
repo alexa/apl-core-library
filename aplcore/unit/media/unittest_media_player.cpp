@@ -761,10 +761,12 @@ TEST_F(MediaPlayerTest, MultiTrackPlayback)
 
     loadDocument(MULTI_TRACK_PLAYBACK);
     ASSERT_TRUE(component);
+    ASSERT_FALSE(root->screenLock());  // Nothing is playing
 
     // After 100 milliseconds the "onTrackReady" handler executes
     mediaPlayerFactory->advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, "TrackReady track1 0/P"));
+    ASSERT_FALSE(root->screenLock());  // Nothing is playing
 
     ASSERT_TRUE(CheckPlayerEvents(eventCounts, {
         {TestMediaPlayer::EventType::kPlayerEventSetTrackList, 1},
@@ -775,66 +777,83 @@ TEST_F(MediaPlayerTest, MultiTrackPlayback)
     // Start playing.  We'll let the player go through track1 onto track2.  Track 2 fails after 1200 ms.
     executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "play"}}, false);
     ASSERT_TRUE(CheckSendEvent(root, "Play track1 0/"));
+    ASSERT_TRUE(root->screenLock());  // Playing causes a screen lock
 
     mediaPlayerFactory->advanceTime(500);
     ASSERT_TRUE(CheckSendEvent(root, "TimeUpdate track1 500/"));
+    ASSERT_TRUE(root->screenLock());
 
     mediaPlayerFactory->advanceTime(500);
     ASSERT_TRUE(CheckSendEvent(root, "TrackUpdate track2 0/"));
+    ASSERT_TRUE(root->screenLock());
 
     mediaPlayerFactory->advanceTime(500);
     ASSERT_TRUE(CheckSendEvent(root, "TrackReady track2 0/"));
     ASSERT_TRUE(CheckSendEvent(root, "TimeUpdate track2 400/"));
+    ASSERT_TRUE(root->screenLock());
 
     mediaPlayerFactory->advanceTime(500);
     ASSERT_TRUE(CheckSendEvent(root, "TimeUpdate track2 900/"));
+    ASSERT_TRUE(root->screenLock());
 
     mediaPlayerFactory->advanceTime(500);
     ASSERT_TRUE(CheckSendEvent(root, "TrackFail track2 1200/P"));
+    ASSERT_FALSE(root->screenLock());
 
     // The player pauses automatically on a fail
     mediaPlayerFactory->advanceTime(100);
+    ASSERT_FALSE(root->screenLock());
     ASSERT_FALSE(root->hasEvent());
 
     // Skip to the next track
     executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "next"}}, false);
     ASSERT_TRUE(CheckSendEvent(root, "TrackUpdate track3 0/P"));
+    ASSERT_FALSE(root->screenLock());
 
     // Start playback again
     executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "play"}}, false);
     ASSERT_TRUE(CheckSendEvent(root, "Play track3 0/"));
+    ASSERT_TRUE(root->screenLock());
 
     mediaPlayerFactory->advanceTime(250);
     ASSERT_TRUE(CheckSendEvent(root, "TrackReady track3 0/"));
     ASSERT_TRUE(CheckSendEvent(root, "TimeUpdate track3 250/"));
+    ASSERT_TRUE(root->screenLock());
 
     // Note that the third track repeats once
     mediaPlayerFactory->advanceTime(250);
     ASSERT_TRUE(CheckSendEvent(root, "TimeUpdate track3 0/"));
+    ASSERT_TRUE(root->screenLock());
 
     mediaPlayerFactory->advanceTime(250);
     ASSERT_TRUE(CheckSendEvent(root, "TimeUpdate track3 250/"));
+    ASSERT_TRUE(root->screenLock());
 
     mediaPlayerFactory->advanceTime(250);
     ASSERT_TRUE(CheckSendEvent(root, "End track3 500/EP"));
+    ASSERT_FALSE(root->screenLock());
 
     // Jump back to the first track
     executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "setTrack"}, {"value", 0}}, false);
     ASSERT_TRUE(CheckSendEvent(root, "TrackUpdate track1 0/P"));
+    ASSERT_FALSE(root->screenLock());
 
     // Jump back to the first track AGAIN.  This should not generate an event (there's no new information)
     executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "setTrack"}, {"value", 0}}, false);
     ASSERT_FALSE(root->hasEvent());
+    ASSERT_FALSE(root->screenLock());
 
     // Even if we don't start playing, it buffers up to get ready
     mediaPlayerFactory->advanceTime(500);
     ASSERT_TRUE(CheckSendEvent(root, "TrackReady track1 0/P"));
+    ASSERT_FALSE(root->screenLock());
 
     // Advance to the third track
     executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "next"}}, false);
     ASSERT_TRUE(CheckSendEvent(root, "TrackUpdate track2 0/P"));
     executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "next"}}, false);
     ASSERT_TRUE(CheckSendEvent(root, "TrackUpdate track3 0/P"));
+    ASSERT_FALSE(root->screenLock());
 
     // Play through the entire track.  There is a repeat, so we need to run twice as long
     executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "play"}}, false);
@@ -844,6 +863,7 @@ TEST_F(MediaPlayerTest, MultiTrackPlayback)
     ASSERT_TRUE(CheckSendEvent(root, "TimeUpdate track3 250/"));  // One repeat has occurred, so we've wrapped
     mediaPlayerFactory->advanceTime(1000);
     ASSERT_TRUE(CheckSendEvent(root, "End track3 500/EP"));  // One repeat has occurred, so we've wrapped
+    ASSERT_FALSE(root->screenLock());
 
     // Calling setTrack on this track will reset the repeat counter and take it out of the End state
     executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "setTrack"}, {"value", 2}}, false);
@@ -854,6 +874,12 @@ TEST_F(MediaPlayerTest, MultiTrackPlayback)
     ASSERT_TRUE(CheckSendEvent(root, "TimeUpdate track3 300/"));
     mediaPlayerFactory->advanceTime(300);
     ASSERT_TRUE(CheckSendEvent(root, "TimeUpdate track3 100/"));  // We've wrapped
+    ASSERT_TRUE(root->screenLock());
+
+    // Finally, stop the playback
+    executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "pause"}}, false);
+    ASSERT_TRUE(CheckSendEvent(root, "Pause track3 100/P"));
+    ASSERT_FALSE(root->screenLock());
 }
 
 static const char *PLAY_MEDIA = R"apl(
@@ -902,6 +928,7 @@ TEST_F(MediaPlayerTest, PlayMedia)
 
     loadDocument(PLAY_MEDIA);
     ASSERT_TRUE(component);
+    ASSERT_FALSE(root->screenLock());
 
     ASSERT_TRUE(CheckPlayerEvents(eventCounts, {
         {TestMediaPlayer::EventType::kPlayerEventSetTrackList, 1},
@@ -912,10 +939,12 @@ TEST_F(MediaPlayerTest, PlayMedia)
     // After 100 milliseconds nothing happens
     mediaPlayerFactory->advanceTime(100);
     ASSERT_FALSE(root->hasEvent());
+    ASSERT_FALSE(root->screenLock());
 
     // Play an existing track
     executeCommand("PlayMedia", {{"componentId", "MyVideo"}, {"source", "track3" }}, false);
     ASSERT_TRUE(CheckSendEvent(root, "Play track3 0/"));
+    ASSERT_TRUE(root->screenLock());
 
     ASSERT_TRUE(CheckPlayerEvents(eventCounts, {
         {TestMediaPlayer::EventType::kPlayerEventSetTrackList, 1},
@@ -927,12 +956,14 @@ TEST_F(MediaPlayerTest, PlayMedia)
     mediaPlayerFactory->advanceTime(250);
     ASSERT_TRUE(CheckSendEvent(root, "TrackReady track3 0/"));
     ASSERT_TRUE(CheckSendEvent(root, "TimeUpdate track3 250/"));
+    ASSERT_TRUE(root->screenLock());
 
     // Play a non-existent track.  This will fail immediately
     executeCommand("PlayMedia", {{"componentId", "MyVideo"}, {"source", "track9" }}, false);
     // A track fail terminates action which pauses the previously playing track
     ASSERT_TRUE(CheckSendEvent(root, "Pause track3 250/P"));
     ASSERT_TRUE(CheckSendEvent(root, "Play track9 0/"));
+    ASSERT_TRUE(root->screenLock());  // We briefly think we have screen lock until told otherwise.
 
     ASSERT_TRUE(CheckPlayerEvents(eventCounts, {
         {TestMediaPlayer::EventType::kPlayerEventSetTrackList, 1},
@@ -943,10 +974,12 @@ TEST_F(MediaPlayerTest, PlayMedia)
 
     mediaPlayerFactory->advanceTime(100);
     ASSERT_TRUE(CheckSendEvent(root, "TrackFail track9 0/EP"));
+    ASSERT_FALSE(root->screenLock());
 
     // Use "SetValue" to change the tracks. This doesn't report a "PLAY" event because it wasn't a play command
     executeCommand("SetValue", {{"componentId", "MyVideo"}, {"property", "source"}, {"value", "track1" }}, false);
     ASSERT_FALSE(root->hasEvent());
+    ASSERT_FALSE(root->screenLock());
 
     // However, the track does start to buffer, so it sends a Ready
     mediaPlayerFactory->advanceTime(100);
@@ -960,6 +993,7 @@ TEST_F(MediaPlayerTest, PlayMedia)
     // Start playing, then use another SetValue to stop the existing playback
     executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "play"}}, false);
     ASSERT_TRUE(CheckSendEvent(root, "Play track1 0/"));
+    ASSERT_TRUE(root->screenLock());
     ASSERT_TRUE(CheckPlayerEvents(eventCounts, {
         {TestMediaPlayer::EventType::kPlayerEventPlay, 1},
     }));
@@ -971,6 +1005,7 @@ TEST_F(MediaPlayerTest, PlayMedia)
     // This should stop the playback, but it doesn't emit an event (should it?)
     executeCommand("SetValue", {{"componentId", "MyVideo"}, {"property", "source"}, {"value", "track3" }}, false);
     ASSERT_FALSE(root->hasEvent());
+    ASSERT_FALSE(root->screenLock());
 
     ASSERT_TRUE(CheckPlayerEvents(eventCounts, {
         {TestMediaPlayer::EventType::kPlayerEventSetTrackList, 1},
@@ -1048,6 +1083,11 @@ TEST_F(MediaPlayerTest, PlayMediaTerminationByTap)
     performTap(1, 100);
     // Player is not paused if audioTrack is anything other than foreground
     ASSERT_FALSE(CheckSendEvent(root, "Pause track3 250/P"));
+    ASSERT_TRUE(root->screenLock());  // Screen lock is still held
+
+    executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "pause"}}, false);
+    ASSERT_TRUE(CheckSendEvent(root, "Pause track3 250/P"));
+    ASSERT_FALSE(root->screenLock());  // Screen lock has been released
 }
 
 static const char *PLAY_MEDIA_IN_SEQUENCE = R"apl(
@@ -1198,12 +1238,18 @@ TEST_F(MediaPlayerTest, ControlMediaInSequence)
 
     loadDocument(CONTROL_MEDIA_IN_SEQUENCE);
     ASSERT_TRUE(component);
+    ASSERT_FALSE(root->screenLock());
 
     // Play the track in foreground
     executeCommand("PLAY_AND_SEND", {}, false);
     ASSERT_TRUE(CheckSendEvent(root, "Play track1 0/"));
     // After the command we should receive a send event immediately
     ASSERT_TRUE(CheckSendEvent(root, "STARTED"));
+    ASSERT_TRUE(root->screenLock());
+
+    executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "pause"}}, false);
+    ASSERT_TRUE(CheckSendEvent(root, "Pause track1 0/P"));
+    ASSERT_FALSE(root->screenLock());
 }
 
 
@@ -1250,6 +1296,7 @@ TEST_F(MediaPlayerTest, AutoPlay)
     ASSERT_TRUE(component);
 
     ASSERT_TRUE(CheckSendEvent(root, "Play track1 0/"));
+    ASSERT_TRUE(root->screenLock());
 
     ASSERT_TRUE(CheckPlayerEvents(eventCounts, {
         {TestMediaPlayer::EventType::kPlayerEventSetTrackList, 1},
@@ -1261,6 +1308,7 @@ TEST_F(MediaPlayerTest, AutoPlay)
     mediaPlayerFactory->advanceTime(2000);
     ASSERT_TRUE(CheckSendEvent(root, "TrackReady track1 0/"));
     ASSERT_TRUE(CheckSendEvent(root, "End track1 1000/EP"));
+    ASSERT_FALSE(root->screenLock());
 }
 
 static const char *AUTO_PLAY_NESTED = R"apl(
@@ -1309,6 +1357,7 @@ TEST_F(MediaPlayerTest, AutoPlayNested)
     ASSERT_TRUE(component);
 
     ASSERT_TRUE(CheckSendEvent(root, "Play track1 0/"));
+    ASSERT_TRUE(root->screenLock());
 
     ASSERT_TRUE(CheckPlayerEvents(eventCounts, {
         {TestMediaPlayer::EventType::kPlayerEventSetTrackList, 1},
@@ -1320,6 +1369,7 @@ TEST_F(MediaPlayerTest, AutoPlayNested)
     mediaPlayerFactory->advanceTime(2000);
     ASSERT_TRUE(CheckSendEvent(root, "TrackReady track1 0/"));
     ASSERT_TRUE(CheckSendEvent(root, "End track1 1000/EP"));
+    ASSERT_FALSE(root->screenLock());
 }
 
 
@@ -1572,11 +1622,13 @@ TEST_F(MediaPlayerTest, DestroyMediaPlayer)
 
     ASSERT_TRUE(component);
     ASSERT_EQ(1, component->getChildCount());
+    ASSERT_FALSE(root->screenLock());
 
     executeCommand("PlayMedia", {{"componentId", "MyVideo"}, {"source", "track1"}}, false);
     stepForward(500);
     ASSERT_FALSE(root->hasEvent());
     root->clearPending();
+    ASSERT_TRUE(root->screenLock());
 
     auto child = component->getChildAt(0);
     ASSERT_TRUE(child->getType() == kComponentTypeVideo);
@@ -1586,6 +1638,7 @@ TEST_F(MediaPlayerTest, DestroyMediaPlayer)
     ASSERT_TRUE(child->remove());
     child = nullptr;  // This should release the media player
     ASSERT_EQ(0, component->getChildCount());
+    ASSERT_FALSE(root->screenLock());
 
     // We need this to clear out the old OnPlay handler that is holding onto the video resource
     root->clearPending();
@@ -1669,4 +1722,208 @@ TEST_F(MediaPlayerTest, AutoplayDoesntPlayVideoWhenDisallowVideoTrue) {
     ASSERT_EQ(v->getMediaPlayer(), nullptr);
     // onPlay was not triggered
     ASSERT_FALSE(root->hasEvent());
+}
+
+
+static const char *SCREEN_LOCK_PROPERTY = R"apl(
+    {
+      "type": "APL",
+      "version": "1.7",
+      "mainTemplate": {
+        "item": {
+          "type": "Container",
+          "items": {
+            "type": "Video",
+            "id": "MyVideo",
+            "screenLock": false
+          }
+        }
+      }
+    }
+)apl";
+
+TEST_F(MediaPlayerTest, ScreenLockProperty)
+{
+    mediaPlayerFactory->addFakeContent({
+        {"track1", 1000, 0, -1},
+    });
+
+    loadDocument(SCREEN_LOCK_PROPERTY);
+    root->clearPending();
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(1, component->getChildCount());
+    ASSERT_FALSE(root->screenLock());
+
+    // Playing media with screenLock=FALSE doesn't do anything
+    executeCommand("PlayMedia", {{"componentId", "MyVideo"}, {"source", "track1"}}, false);
+    stepForward(500);
+    ASSERT_FALSE(root->hasEvent());
+    root->clearPending();
+    ASSERT_FALSE(root->screenLock());
+
+    // Changing screenLock=TRUE should toggle the screen lock
+    executeCommand("SetValue", {{"componentId", "MyVideo"}, {"property", "screenLock"}, {"value", true}}, true);
+    ASSERT_TRUE(root->screenLock());
+
+    // Change it back to false - the screen lock is released
+    executeCommand("SetValue", {{"componentId", "MyVideo"}, {"property", "screenLock"}, {"value", false}}, true);
+    ASSERT_FALSE(root->screenLock());
+
+    // Pause the media playback
+    executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "pause"}}, true);
+    ASSERT_FALSE(root->screenLock());
+
+    // Now turn screenLock=TRUE - but since there is no media, it doesn't change
+    executeCommand("SetValue", {{"componentId", "MyVideo"}, {"property", "screenLock"}, {"value", true}}, true);
+    ASSERT_FALSE(root->screenLock());
+}
+
+
+static const char *SCREEN_LOCK_AUTO_PLAY = R"apl(
+    {
+      "type": "APL",
+      "version": "1.7",
+      "mainTemplate": {
+        "item": {
+          "type": "Container",
+          "items": {
+            "type": "Video",
+            "id": "MyVideo",
+            "screenLock": true,
+            "autoplay": true,
+            "source": "track1"
+          }
+        }
+      }
+    }
+)apl";
+
+TEST_F(MediaPlayerTest, ScreenLockVideoRemoval)
+{
+    mediaPlayerFactory->addFakeContent({
+        {"track1", 1000, 0, -1},
+    });
+
+    loadDocument(SCREEN_LOCK_AUTO_PLAY);
+    root->clearPending();
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(1, component->getChildCount());
+    ASSERT_TRUE(root->screenLock());
+
+    // Now remove the component while the video is playing.
+    executeCommand("RemoveItem", {{"componentId", "MyVideo"}}, true);
+    ASSERT_FALSE(root->screenLock());
+}
+
+
+static const char *SCREEN_LOCK_MULTIPLE_VIDEOS = R"apl(
+    {
+      "type": "APL",
+      "version": "1.7",
+      "mainTemplate": {
+        "item": {
+          "type": "Container",
+          "data": ["A", "B", "C"],
+          "items": {
+            "type": "Video",
+            "id": "MyVideo${index}",
+            "screenLock": true,
+            "autoplay": true,
+            "source": "track1"
+          }
+        }
+      }
+    }
+)apl";
+
+TEST_F(MediaPlayerTest, MultipleVideos)
+{
+    mediaPlayerFactory->addFakeContent({
+        {"track1", 1000, 0, -1},
+    });
+
+    loadDocument(SCREEN_LOCK_MULTIPLE_VIDEOS);
+    root->clearPending();
+
+    ASSERT_TRUE(component);
+    ASSERT_EQ(3, component->getChildCount());
+    ASSERT_TRUE(root->screenLock());
+
+    // Stop the players one by one. Stopping the last one should remove the screen lock.
+    executeCommand("ControlMedia", {{"componentId", "MyVideo0"}, {"command", "pause"}}, true);
+    ASSERT_TRUE(root->screenLock());
+
+    executeCommand("ControlMedia", {{"componentId", "MyVideo1"}, {"command", "pause"}}, true);
+    ASSERT_TRUE(root->screenLock());
+
+    executeCommand("ControlMedia", {{"componentId", "MyVideo2"}, {"command", "pause"}}, true);
+    ASSERT_FALSE(root->screenLock());
+
+    // Restart a few videos and stop in random order
+    executeCommand("ControlMedia", {{"componentId", "MyVideo0"}, {"command", "play"}}, false);
+    ASSERT_TRUE(root->screenLock());
+
+    executeCommand("ControlMedia", {{"componentId", "MyVideo1"}, {"command", "play"}}, false);
+    ASSERT_TRUE(root->screenLock());
+
+    executeCommand("ControlMedia", {{"componentId", "MyVideo1"}, {"command", "pause"}}, true);
+    ASSERT_TRUE(root->screenLock());
+
+    executeCommand("ControlMedia", {{"componentId", "MyVideo0"}, {"command", "pause"}}, true);
+    ASSERT_FALSE(root->screenLock());
+}
+
+
+static const char * PLAY_MEDIA_WITH_SCREEN_LOCK = R"apl(
+    {
+      "type": "APL",
+      "version": "1.7",
+      "mainTemplate": {
+        "item": {
+          "type": "Video",
+          "id": "MyVideo"
+        }
+      }
+    }
+)apl";
+
+TEST_F(MediaPlayerTest, VideoWithSequencer)
+{
+    mediaPlayerFactory->addFakeContent({
+        {"track1", 1000, 0, -1},
+    });
+
+    loadDocument(PLAY_MEDIA_WITH_SCREEN_LOCK);
+    root->clearPending();
+
+    ASSERT_TRUE(component);
+    ASSERT_FALSE(root->screenLock());
+
+    // Play the video on the foreground audio track with a screen lock on the command
+    executeCommand("PlayMedia", {{"componentId", "MyVideo"}, {"source", "track1"}, {"screenLock", true}}, false);
+    ASSERT_TRUE(root->screenLock());
+
+    // Change the component screenLock value to false. Because the PlayMedia command specified
+    // a screen lock, we continue to hold the screen lock.
+    executeCommand("SetValue", {{"componentId", "MyVideo"}, {"property", "screenLock"}, {"value", false}}, true);
+    ASSERT_TRUE(root->screenLock());
+
+    // Interrupt the video playback by issuing a new command.  This should stop the PlayMedia command
+    // which will release the screen lock.
+    executeCommand("Idle", {}, false);
+    ASSERT_FALSE(root->screenLock());
+
+    // Calling PlayMedia again without a screen lock does not result in a screen lock
+    executeCommand("PlayMedia", {{"componentId", "MyVideo"}, {"source", "track1"}}, false);
+    ASSERT_FALSE(root->screenLock());
+
+    // Switch the component back to holding a screen lock
+    executeCommand("SetValue", {{"componentId", "MyVideo"}, {"property", "screenLock"}, {"value", true}}, true);
+    ASSERT_TRUE(root->screenLock());
+
+    // And stop it again
+    executeCommand("Idle", {}, false);
+    ASSERT_FALSE(root->screenLock());
 }
