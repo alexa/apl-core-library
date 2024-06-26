@@ -357,6 +357,16 @@ enum ExtensionComponentResourceState {
     kResourceError
 };
 
+/**
+ * Pointer events handling
+ */
+enum PointerEvents {
+    /// Component can be the target of the pointer events
+    kPointerEventsAuto,
+    /// The component and its children will never be target of touch events
+    kPointerEventsNone,
+};
+
 enum PropertyKey {
     // NOTE: ScrollDirection is placed early in the list so that it loads BEFORE height and width (see SequenceComponent.cpp)
     /// SequenceComponent scrolling direction (see #ScrollDirection)
@@ -563,9 +573,12 @@ enum PropertyKey {
     kPropertyOnFail,
     /// ActionableComponent handler when focus is gained
     kPropertyOnFocus,
+    /// Component handler invoked on mount and on layout changes.
+    kPropertyOnLayout,
     /// MediaComponent handler for when the media loads
     kPropertyOnLoad,
-    /// Component or Document handler for first display of the component or document
+    /// Component or Document handler for first time when it's inflated and mounted
+    /// to the hierarchy.
     kPropertyOnMount,
     /// TouchableComponent handler for move
     kPropertyOnMove,
@@ -587,6 +600,8 @@ enum PropertyKey {
     kPropertyOnSubmit,
     /// EditTextComponent Commands to execute when the text changes from a user event.
     kPropertyOnTextChange,
+    /// Component handler invoked on text layout changes.
+    kPropertyOnTextLayout,
     /// TouchableComponent handler for up
     kPropertyOnUp,
     /// VideoComponent handler for video time updates
@@ -629,6 +644,8 @@ enum PropertyKey {
     kPropertyPlayingState,
     /// ContainerComponent child absolute or relative position (see #Position)
     kPropertyPosition,
+    /// Controls whether the component can be the target of touch events
+    kPropertyPointerEvents,
     /// Component properties to preserve over configuration changes
     kPropertyPreserve,
     /// TextComponent range for karaoke target
@@ -771,6 +788,7 @@ extern Bimap<int, std::string> sFlexboxJustifyContentMap;
 extern Bimap<int, std::string> sFlexboxWrapMap;
 extern Bimap<int, std::string> sNumberingMap;
 extern Bimap<int, std::string> sPositionMap;
+extern Bimap<int, std::string> sPointerEventsMap;
 extern Bimap<int, std::string> sScrollDirectionMap;
 extern Bimap<int, std::string> sNavigationMap;
 extern Bimap<int, std::string> sAudioTrackMap;

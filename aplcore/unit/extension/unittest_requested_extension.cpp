@@ -724,6 +724,29 @@ static const char* SETTINGS_WITH_PACKAGE = R"({
   }
 })";
 
+static const char* SETTINGS_WITH_PARAMETER = R"({
+  "type": "APL",
+  "version": "1.2",
+  "extension": {
+    "uri": "URI1",
+    "name": "foo"
+  },
+  "settings": {
+    "foo": {
+      "keyA": "main-A",
+      "keyB": "main-B"
+    }
+  },
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "Text"
+    }
+  }
+})";
+
 const char* SETTINGS_PKG1 = R"({
   "type": "APL",
   "version": "1.1",
@@ -757,11 +780,29 @@ const char* SETTINGS_PKG2 = R"({
 /**
  * Extension settings cannot be accessed before document is ready.
  */
-TEST_F(RequestedExtensionTest, SettingsNotReady) {
+TEST_F(RequestedExtensionTest, SettingsIsWaiting) {
 
     content = Content::create(SETTINGS_WITH_PACKAGE, session);
 
-    ASSERT_FALSE(content->isReady());
+    ASSERT_TRUE(content->isWaiting());
+
+    // verify settings on the named extension
+    auto es = content->getExtensionSettings("URI1");
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), es));
+    ASSERT_TRUE(ConsoleMessage());
+}
+
+/**
+ * Extension settings cannot be accessed before document is ready.
+ */
+TEST_F(RequestedExtensionTest, SettingsIsError) {
+
+    content = Content::create(SETTINGS_WITH_PARAMETER, session);
+
+    // This causes content to transition to the error state.
+    content->addData("payload", nullptr);
+
+    ASSERT_TRUE(content->isError());
 
     // verify settings on the named extension
     auto es = content->getExtensionSettings("URI1");

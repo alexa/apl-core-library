@@ -15,6 +15,7 @@
 
 #include "apl/engine/sharedcontextdata.h"
 
+#include "apl/content/content.h"
 #include "apl/embed/documentregistrar.h"
 #include "apl/engine/dependantmanager.h"
 #include "apl/engine/eventmanager.h"
@@ -26,12 +27,10 @@
 #include "apl/engine/visibilitymanager.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/media/mediamanager.h"
+#include "apl/scenegraph/textlayoutcache.h"
+#include "apl/scenegraph/textpropertiescache.h"
 #include "apl/touch/pointermanager.h"
 #include "apl/utils/make_unique.h"
-
-#ifdef SCENEGRAPH
-#include "apl/scenegraph/textpropertiescache.h"
-#endif // SCENEGRAPH
 
 namespace apl {
 
@@ -91,11 +90,9 @@ SharedContextData::SharedContextData(const CoreRootContextPtr& root,
       mYGConfigRef(YGConfigNew()),
       mTextMeasurement(config.getMeasure()),
       mCachedMeasures(config.getProperty(RootProperty::kTextMeasurementCacheLimit).getInteger()),
-      mCachedBaselines(config.getProperty(RootProperty::kTextMeasurementCacheLimit).getInteger())
-#ifdef SCENEGRAPH
-      ,
+      mCachedBaselines(config.getProperty(RootProperty::kTextMeasurementCacheLimit).getInteger()),
+      mTextLayoutCache(new sg::TextLayoutCache()),
       mTextPropertiesCache(new sg::TextPropertiesCache())
-#endif // SCENEGRAPH
 {
     YGConfigSetPrintTreeFlag(mYGConfigRef, DEBUG_YG_PRINT_TREE);
     YGConfigSetLogger(mYGConfigRef, ygLogger);
@@ -109,11 +106,9 @@ SharedContextData::SharedContextData(const RootConfig& config)
       mYGConfigRef(YGConfigNew()),
       mTextMeasurement(config.getMeasure()),
       mCachedMeasures(0),
-      mCachedBaselines(0)
-#ifdef SCENEGRAPH
-      ,
+      mCachedBaselines(0),
+      mTextLayoutCache(new sg::TextLayoutCache()),
       mTextPropertiesCache(new sg::TextPropertiesCache())
-#endif // SCENEGRAPH
 {}
 
 SharedContextData::~SharedContextData() {

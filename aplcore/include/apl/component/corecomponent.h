@@ -31,6 +31,7 @@
 #include "apl/primitives/keyboard.h"
 #include "apl/primitives/size.h"
 #include "apl/primitives/transform2d.h"
+#include "apl/utils/flags.h"
 
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/common.h"
@@ -351,7 +352,7 @@ public:
     /**
      * @return inheritParentState property
      */
-    bool getInheritParentState() const { return mInheritParentState; }
+    bool getInheritParentState() const { return mCoreFlags.isSet(kCoreComponentFlagInheritParentState); }
 
     /**
      * @return The value for this component.  Used by the SendEvent "components" array.
@@ -590,14 +591,15 @@ public:
     /**
      * Walk the hierarchy updating child boundaries.
      * @param useDirtyFlag true to notify runtime about changes with dirty properties
-     * @param first true for first layout for current template
+     * @param first if this is the first layout for current template, false otherwise
      */
     virtual void processLayoutChanges(bool useDirtyFlag, bool first);
 
     /**
      * After a layout has been completed, call this to execute any actions that may occur after a layout
+     * @param first if this is the first layout for current template, false otherwise
      */
-    virtual void postProcessLayoutChanges();
+    virtual void postProcessLayoutChanges(bool first);
 
     /**
      * Update the event object map with additional properties.  These fill out "event.XXX" values other
@@ -683,7 +685,7 @@ public:
     /**
      * @return true when the component has been disallowed by the runtime, false otherwise.
     */
-    bool isDisallowed() const { return mIsDisallowed; }
+    bool isDisallowed() const { return mCoreFlags.isSet(kCoreComponentFlagIsDisallowed); }
 
     /**
      * Calculate real opacity of component.
@@ -908,7 +910,7 @@ public:
      * parent when they need to determine whether their own cached transform is stale. This has the advantage
      * of scaling with the depth of a component in the tree, and not the total size of the tree.
      */
-    void markGlobalToLocalTransformStale() { mGlobalToLocalIsStale = true; }
+    void markGlobalToLocalTransformStale() { mCoreFlags.set(kCoreComponentFlagGlobalToLocalIsStale); }
 
     /**
      * Check if component can consume focus event coming from particular direction (by taking focus or performing some
@@ -1007,6 +1009,30 @@ public:
      */
     void deregisterFromVisibilityTracking();
 
+    /**
+     * Add child as valid visibility target.
+     * @param child this component's child.
+     */
+    void addDownstreamVisibilityTarget(const CoreComponentPtr& child);
+
+    /**
+     * Queue up item rebuild
+     * @param childContext current child context.
+     */
+    void scheduleRebuildChange(const ContextPtr& childContext);
+
+    /**
+     * Apply all pending rebuild changes.
+     */
+    void processRebuildChanges();
+
+    /**
+     * Stash child-related context holding rebuild dependency. Only required when there are no
+     * existing child to hold the same (initially evaluated to nothing).
+     * @param context context to stash.
+     */
+    void stashRebuildContext(const ContextPtr& context);
+
 #ifdef SCENEGRAPH
     /**
      * @return The current scene graph node.
@@ -1018,6 +1044,14 @@ public:
      */
     void updateSceneGraph(sg::SceneGraphUpdates& sceneGraph);
 #endif // SCENEGRAPH
+
+    // Test only
+#ifdef DEBUG_MEMORY_USE
+    bool isTempCacheClean() const {
+        return (!mChildrenChanges || mChildrenChanges->empty()) &&
+               (!mPendingRebuildChanges || mPendingRebuildChanges->empty());
+    }
+#endif
 
 protected:
     // internal, do not call directly
@@ -1076,7 +1110,7 @@ protected:
     /**
      * @return hash of properties that could affect TextMeasurement.
      */
-    std::string textMeasurementHash() const;
+    size_t textMeasurementHash() const;
 
     /**
      * Update text measurement hash
@@ -1178,6 +1212,24 @@ protected:
      */
     bool isParentOf(const CoreComponentPtr& child);
 
+    /**
+     * Measure callback
+     * @param width Requested width
+     * @param widthMode Width measure mode
+     * @param height Requested height
+     * @param heightMode Height measure mode
+     * @return Yoga size of measured text
+     */
+    virtual YGSize textMeasure(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode);
+
+    /**
+     * Text baseline callback
+     * @param width Requested width
+     * @param height Requested height
+     * @return Baseline width.
+     */
+    virtual float textBaseline(float width, float height);
+
 private:
     friend streamer& operator<<(streamer&, const Component&);
 
@@ -1246,20 +1298,41 @@ private:
      */
     void ensureGlobalToLocalTransform();
 
-    YGSize textMeasureInternal(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode);
-    float textBaselineInternal(float width, float height);
-
     void fixAccessibilityActions();
 
     void processChildrenChanges();
 
-    void addDownstreamVisibilityTarget(const CoreComponentPtr& child);
     void removeDownstreamVisibilityTarget(const CoreComponentPtr& child);
+
+    /**
+     * Rebuild children set based on previously scheduled changes. Multi-child components defined
+     * through items set have constant elements (indexes/ordinals/etc) which may require a full
+     * rebuild.
+     * @see #scheduleRebuildChange(const ContextPtr& childContext)
+     */
+    void rebuildItems();
+
+    /**
+     * Replace particular child with an new rebuilt one.
+     */
+    void replaceChild(const ObjectArray& items, const CoreComponentPtr& child, const ContextPtr& childContext, int originIndex, int childIndex);
 
     static std::string toStringAction(ChildChangeAction action);
 
 protected:
-    bool                             mInheritParentState;
+    /**
+     * Various flags used by component.
+     */
+    enum CoreComponentFlags : uint8_t {
+        kCoreComponentFlagInheritParentState = 1u << 0,
+        kCoreComponentFlagDisplayedChildrenStale = 1u << 1,
+        kCoreComponentFlagIsDisallowed = 1u << 2,
+        kCoreComponentFlagGlobalToLocalIsStale = 1u << 3,
+        kCoreComponentFlagTextMeasurementHashStale = 1u << 4,
+        kCoreComponentFlagVisualHashStale = 1u << 5,
+        kCoreComponentFlagAccessibilityDirty = 1u << 6,
+    };
+
     State                            mState;       // Operating state (pressed, checked, etc)
     std::string                      mStyle;       // Name of the current STYLE
     Properties                       mProperties;  // Assigned properties from JSON
@@ -1271,8 +1344,7 @@ protected:
     Path                             mPath;
     std::shared_ptr<LayoutRebuilder> mRebuilder;
     Size                             mLayoutSize;
-    bool                             mDisplayedChildrenStale;
-    bool                             mIsDisallowed;
+    Flags<CoreComponentFlags>        mCoreFlags;
 #ifdef SCENEGRAPH
     sg::LayerPtr                     mSceneGraphLayer;
 #endif // SCENEGRAPH
@@ -1281,22 +1353,24 @@ private:
     // The members below are used to store cached values for performance reasons, and not part of
     // the state of this component.
     struct ChildChange {
-        CoreComponentPtr component;
+        std::weak_ptr<CoreComponent> component;
+        std::string uid;
         ChildChangeAction action;
         size_t index;
     };
 
-    std::vector<ChildChange>                   mChildrenChanges;
-
     Transform2D                                mGlobalToLocal;
-    bool                                       mGlobalToLocalIsStale;
     Point                                      mStickyOffset;
-    bool                                       mTextMeasurementHashStale;
-    bool                                       mVisualHashStale;
-    std::string                                mTextMeasurementHash;
+    size_t                                     mTextMeasurementHash;
     timeout_id                                 mTickHandlerId = 0;
-    bool                                       mAccessibilityDirty = false;
+
+    /// Permanent caches
     std::unique_ptr<WeakPtrSet<CoreComponent>> mAffectedByVisibilityChange;
+    std::unique_ptr<std::map<int, ContextPtr>> mStashedRebuildCtxs;
+
+    /// Temporary caches
+    std::unique_ptr<std::vector<ChildChange>>  mChildrenChanges;
+    std::unique_ptr<std::set<int>> mPendingRebuildChanges;
 };
 
 }  // namespace apl

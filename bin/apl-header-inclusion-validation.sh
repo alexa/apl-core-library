@@ -46,9 +46,11 @@ public_apl_headers=(
     "apl/content/jsondata.h"
     "apl/content/metrics.h"
     "apl/content/package.h"
+    "apl/content/packagemanager.h"
     "apl/content/rootconfig.h"
     "apl/content/rootproperties.h"
     "apl/content/settings.h"
+    "apl/content/sharedjsondata.h"
     "apl/datasource/datasourceconnection.h"
     "apl/datasource/datasourceprovider.h"
     "apl/datasource/dynamicindexlistdatasourceprovider.h"
@@ -146,6 +148,7 @@ public_apl_headers=(
     "apl/utils/bimap.h"
     "apl/utils/counter.h"
     "apl/utils/deprecated.h"
+    "apl/utils/flags.h"
     "apl/utils/localemethods.h"
     "apl/utils/log.h"
     "apl/utils/noncopyable.h"
@@ -156,11 +159,14 @@ public_apl_headers=(
     "apl/utils/throw.h"
     "apl/utils/userdata.h"
     "apl/utils/visitor.h"
+    "apl/versioning/semanticversion.h"
+    "apl/versioning/semanticpattern.h"
 )
 
 public_external_headers=(
     "rapidjson/document.h"
     "rapidjson/error/en.h"
+    "rapidjson/pointer.h"
     "rapidjson/stringbuffer.h"
     "rapidjson/writer.h"
 )

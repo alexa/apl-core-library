@@ -29,6 +29,7 @@
 #include "apl/primitives/rect.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/deprecated.h"
+#include "apl/utils/flags.h"
 #include "apl/utils/userdata.h"
 #include "apl/utils/visitor.h"
 
@@ -253,12 +254,12 @@ public:
      * @return True if this component was properly created with all required
      *         properties specified.
      */
-    bool isValid() { return (mFlags & kComponentFlagInvalid) == 0; }
+    bool isValid() { return !mFlags.isSet(kComponentFlagInvalid); }
 
     /**
      * @return True if this component has been inflated and should now run event handlers on a SetValue or equivalent.
      */
-    bool allowEventHandlers() { return (mFlags & kComponentFlagAllowEventHandlers) != 0; }
+    bool allowEventHandlers() { return mFlags.isSet(kComponentFlagAllowEventHandlers);}
 
     /**
      * An update message from the viewhost.  This method is used for all updates that take
@@ -516,16 +517,16 @@ protected:
     friend streamer& operator<<(streamer&, const Component&);
     friend class Builder;
 
-    std::string                mId;
-    CalculatedPropertyMap      mCalculated;  // Current calculated object properties
-    std::set<PropertyKey>      mDirty;
+    std::string            mId;
+    CalculatedPropertyMap  mCalculated;  // Current calculated object properties
+    std::set<PropertyKey>  mDirty;
 
-    enum {
-        kComponentFlagInvalid = 0x01,  // Marks a component missing a required property
-        kComponentFlagAllowEventHandlers = 0x02,  // Event handlers don't run when the component is first inflated
+    enum ComponentFlags : uint8_t {
+        kComponentFlagInvalid = 1u << 0,  // Marks a component missing a required property
+        kComponentFlagAllowEventHandlers = 1u << 1,  // Event handlers don't run when the component is first inflated
     };
 
-    unsigned int               mFlags = 0;
+    Flags<ComponentFlags>  mFlags;
 };
 
 }  // namespace apl

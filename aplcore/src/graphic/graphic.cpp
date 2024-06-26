@@ -78,14 +78,14 @@ Graphic::create(const ContextPtr& context,
     LOG_IF(DEBUG_GRAPHIC).session(context) << "Creating graphic data=" << context->opt("data").toDebugString();
 
     // Check and extract the version
-    auto version = propertyAsMapped(*context, json, "version", -1, sGraphicVersionBimap);
-    if (version == -1) {
+    auto version = requiredMappedProperty(*context, json, "version", sGraphicVersionBimap);
+    if (!version.second) {
         CONSOLE(context) << "Illegal graphics version";
         return nullptr;
     }
-    LOG_IF(DEBUG_GRAPHIC).session(context) << "Found version" << version;
+    LOG_IF(DEBUG_GRAPHIC).session(context) << "Found version" << version.first;
 
-    auto graphic = std::make_shared<Graphic>(context, json, static_cast<GraphicVersions>(version));
+    auto graphic = std::make_shared<Graphic>(context, json, static_cast<GraphicVersions>(version.first));
     graphic->initialize(context, json, std::move(properties), component, path, styledPtr);
     return graphic;
 }

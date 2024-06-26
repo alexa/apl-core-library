@@ -16,6 +16,7 @@
 
 #include "apl/component/corecomponent.h"
 #include "apl/content/rootconfig.h"
+#include "apl/engine/propdef.h"
 #include "apl/utils/visitor.h"
 #include "apl/utils/searchvisitor.h"
 
@@ -90,7 +91,8 @@ TouchableAtPosition::universalCondition(const CoreComponent& component,
                                         const Point& pointInCurrent) {
     return component.containsLocalPosition(pointInCurrent)
            && component.getCalculated(kPropertyDisplay).asInt() == kDisplayNormal
-           && component.getCalculated(kPropertyOpacity).asNumber() > 0.0;
+           && component.getCalculated(kPropertyOpacity).asNumber() > 0.0
+           && !(component.getCalculated(kPropertyPointerEvents) == kPointerEventsNone);
 }
 
 bool

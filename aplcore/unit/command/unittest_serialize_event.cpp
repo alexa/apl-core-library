@@ -754,7 +754,9 @@ TEST_F(SerializeEventTest, ScrollViewDocument) {
             "value": 0.5,
             "handler": "Scroll",
             "uid": "[EXISTS]",
-            "position": 0.5
+            "position": 0.5,
+            "allowForward": true,
+            "allowBackwards": true
           }
         }
     )"));
@@ -824,7 +826,9 @@ TEST_F(SerializeEventTest, GridSequenceScrollEvent) {
             "firstVisibleChild": 1,
             "firstFullyVisibleChild": 2,
             "lastFullyVisibleChild": 4,
-            "lastVisibleChild": 5
+            "lastVisibleChild": 5,
+            "allowForward": true,
+            "allowBackwards": true
           }
         }
     )"));
@@ -854,7 +858,9 @@ TEST_F(SerializeEventTest, GridSequenceScrollEvent) {
             "firstVisibleChild": 6,
             "firstFullyVisibleChild": 6,
             "lastFullyVisibleChild": 9,
-            "lastVisibleChild": 9
+            "lastVisibleChild": 9,
+            "allowForward": true,
+            "allowBackwards": true
           }
         }
     )"));
@@ -885,7 +891,9 @@ TEST_F(SerializeEventTest, GridSequenceScrollEvent) {
             "firstVisibleChild": 8,
             "firstFullyVisibleChild": 8,
             "lastFullyVisibleChild": 11,
-            "lastVisibleChild": 11
+            "lastVisibleChild": 11,
+            "allowForward": false,
+            "allowBackwards": true
           }
         }
     )"));
@@ -973,7 +981,9 @@ TEST_F(SerializeEventTest, GridSequenceOpacityUpEvent) {
             "firstVisibleChild": -1,
             "firstFullyVisibleChild": -1,
             "lastFullyVisibleChild": -1,
-            "lastVisibleChild": -1
+            "lastVisibleChild": -1,
+            "allowForward": true,
+            "allowBackwards": false
           }
         }
     )"));
@@ -1005,7 +1015,9 @@ TEST_F(SerializeEventTest, GridSequenceOpacityUpEvent) {
             "firstVisibleChild": 0,
             "firstFullyVisibleChild": 0,
             "lastFullyVisibleChild": 3,
-            "lastVisibleChild": 3
+            "lastVisibleChild": 3,
+            "allowForward": true,
+            "allowBackwards": false
           }
         }
     )"));
@@ -1076,7 +1088,9 @@ TEST_F(SerializeEventTest, GridSequenceZeroOpacityScrollEvent) {
             "firstVisibleChild": -1,
             "firstFullyVisibleChild": -1,
             "lastFullyVisibleChild": -1,
-            "lastVisibleChild": -1
+            "lastVisibleChild": -1,
+            "allowForward": true,
+            "allowBackwards": true
           }
         }
     )"));
@@ -1146,7 +1160,9 @@ TEST_F(SerializeEventTest, GridSequenceMultiChildEvent) {
             "firstVisibleChild": 0,
             "firstFullyVisibleChild": 4,
             "lastFullyVisibleChild": 7,
-            "lastVisibleChild": 9
+            "lastVisibleChild": 9,
+            "allowForward": true,
+            "allowBackwards": true
           }
         }
     )"));
@@ -1209,7 +1225,9 @@ TEST_F(SerializeEventTest, SequenceDocument) {
             "firstVisibleChild": 1,
             "firstFullyVisibleChild": 1,
             "lastFullyVisibleChild": 1,
-            "lastVisibleChild": 2
+            "lastVisibleChild": 2,
+            "allowForward": true,
+            "allowBackwards": true
           }
         }
     )"));
@@ -2116,7 +2134,9 @@ TEST_F(SerializeEventTest, TargetScrollView) {
             "pressed": false,
             "type": "ScrollView",
             "uid": "[EXISTS]",
-            "width": 100.0
+            "width": 100.0,
+            "allowForward": true,
+            "allowBackwards": true
           }
         }
     )"));
@@ -2217,7 +2237,9 @@ TEST_F(SerializeEventTest, TargetSequence) {
             "firstVisibleChild": 2,
             "firstFullyVisibleChild": -1,
             "lastFullyVisibleChild": -1,
-            "lastVisibleChild": 3
+            "lastVisibleChild": 3,
+            "allowForward": true,
+            "allowBackwards": true
           }
         }
     )"));

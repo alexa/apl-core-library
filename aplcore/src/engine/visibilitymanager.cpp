@@ -24,8 +24,10 @@ namespace apl {
 void
 VisibilityManager::registerForUpdates(const CoreComponentPtr& component)
 {
-    // Stash tracked component itself
-    mTrackedComponentVisibility.emplace(component, VisibilityState{-1, -1});
+    // Add component to registration queue. We can't really create a tree properly until component
+    // requested for registration ultimately attached to the hierarchy root, and this only happens
+    // when all children processed.
+    mRegistrationQueue.emplace(component);
 }
 
 void
@@ -47,6 +49,21 @@ VisibilityManager::markDirty(const CoreComponentPtr& component)
 void
 VisibilityManager::processVisibilityChanges()
 {
+    // Register any new added components.
+    for (const auto& weak : mRegistrationQueue) {
+        auto component = weak.lock();
+        if (!component) continue;
+
+        mTrackedComponentVisibility.emplace(component, VisibilityState{-1, -1});
+        auto parent = CoreComponent::cast(component->getParent());
+
+        if (parent) parent->addDownstreamVisibilityTarget(component);
+
+        markDirty(component);
+    }
+
+    mRegistrationQueue.clear();
+
     for (const auto& cc : mDirtyVisibility) {
         auto it = mTrackedComponentVisibility.find(cc);
         if (it == mTrackedComponentVisibility.end()) continue;

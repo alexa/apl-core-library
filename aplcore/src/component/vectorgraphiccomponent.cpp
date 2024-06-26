@@ -446,8 +446,9 @@ VectorGraphicComponent::getSources() {
 }
 
 void
-VectorGraphicComponent::postProcessLayoutChanges() {
-    CoreComponent::postProcessLayoutChanges();
+VectorGraphicComponent::postProcessLayoutChanges(bool first)
+{
+    CoreComponent::postProcessLayoutChanges(first);
     MediaComponentTrait::postProcessLayoutChanges();
 }
 

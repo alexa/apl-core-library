@@ -55,6 +55,11 @@ public:
         return config.getDefaultIdleTimeout();
     }
 
+    bool reactiveConditionalInflation(const RootConfig & config) const {
+        Object value = getValue("-experimentalIsReactive");
+        return value.asBoolean();
+    }
+
     /**
      * @deprecated removed in APL 1.4
      * @return  Recommended time in milliseconds that the document should be kept on the screen

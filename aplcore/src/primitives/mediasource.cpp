@@ -63,7 +63,7 @@ MediaSource::create(const Context& context, const Object& object)
     if (!object.isMap())
         return Object::NULL_OBJECT();
 
-    std::string url = propertyAsString(context, object, "url");
+    auto url = propertyAsString(context, object, "url");
     if(url.empty()) {
         CONSOLE(context) << "Media Source has no URL defined.";
         return Object::NULL_OBJECT();
@@ -82,34 +82,33 @@ MediaSource::create(const Context& context, const Object& object)
             continue;
         }
 
-        auto type = propertyAsMapped<TextTrackType>(context, m, "type", static_cast<TextTrackType>(-1), sTextTrackTypeMap);
-        if (type < 0) {
+        auto type = requiredMappedProperty<TextTrackType>(context, m, "type", sTextTrackTypeMap);
+        if (!type.second) {
             CONSOLE(context) << "Unrecognized type field in Text Track";
             continue;
         }
 
-        std::string url = propertyAsString(context, m, "url");
-        if (url.empty()) {
+        // TODO: Why is this here?
+        auto dummyURL = propertyAsString(context, m, "url");
+        if (dummyURL.empty()) {
             CONSOLE(context) << "Text Track has no URL defined.";
             continue;
         }
 
-        std::string description = propertyAsString(context, m, "description");
-
         tracks.push_back(TextTrack{
-            static_cast<TextTrackType>(type),
+            type.first,
             URLRequest::create(context, m).get<URLRequest>().getUrl(),
-            description
+            propertyAsString(context, m, "description")
         });
     }
 
-    return Object(MediaSource(URLRequest::create(context, object).get<URLRequest>(),
+    return MediaSource(URLRequest::create(context, object).get<URLRequest>(),
                               description,
                               duration,
                               repeatCount,
                               entities,
                               offset,
-                              tracks));
+                              tracks);
 }
 
 std::string

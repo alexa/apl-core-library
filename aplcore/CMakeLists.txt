@@ -86,9 +86,8 @@ add_subdirectory(src/scaling)
 add_subdirectory(src/time)
 add_subdirectory(src/touch)
 add_subdirectory(src/utils)
-if(ENABLE_SCENEGRAPH)
-    add_subdirectory(src/scenegraph)
-endif(ENABLE_SCENEGRAPH)
+add_subdirectory(src/versioning)
+add_subdirectory(src/scenegraph)
 
 set(
     PUBLIC_HEADER_LIST

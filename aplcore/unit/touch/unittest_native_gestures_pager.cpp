@@ -933,7 +933,6 @@ static const char *PAGER_DEFAULT_DATA = R"apl({
 TEST_F(NativeGesturesPagerTest, PageFlingLeftDefault)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_DEFAULT_DATA);
-    ASSERT_TRUE(ConsoleMessage());  // Extra "do" data
 
     advanceTime(10);
     root->clearDirty();
@@ -996,7 +995,6 @@ TEST_F(NativeGesturesPagerTest, PageFlingLeftDefault)
 TEST_F(NativeGesturesPagerTest, PageFlingChangeOfNav)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_DEFAULT_DATA);
-    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
 
     // Set page to last
     component->update(kUpdatePagerPosition, 11);
@@ -1127,7 +1125,6 @@ TEST_F(NativeGesturesPagerTest, PageFlingChangeOfNav)
 TEST_F(NativeGesturesPagerTest, PageFlingLeftDefaultRTL)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_DEFAULT_DATA);
-    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
 
     advanceTime(10);
     root->clearDirty();
@@ -1203,7 +1200,6 @@ TEST_F(NativeGesturesPagerTest, PageFlingLeftDefaultRTL)
 TEST_F(NativeGesturesPagerTest, PageFlingRightDefault)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_DEFAULT_DATA);
-    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
 
     advanceTime(10);
     root->clearDirty();
@@ -1276,7 +1272,6 @@ TEST_F(NativeGesturesPagerTest, PageFlingRightDefault)
 TEST_F(NativeGesturesPagerTest, PageFlingRightDefaultRTL)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_DEFAULT_DATA);
-    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
 
     advanceTime(10);
     root->clearDirty();
@@ -1354,7 +1349,6 @@ static const char *PAGER_VERTICAL_DATA = R"apl({
 TEST_F(NativeGesturesPagerTest, PageFlingUpDefault)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_VERTICAL_DATA);
-    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
 
     advanceTime(10);
     root->clearDirty();
@@ -1484,7 +1478,6 @@ NativeGesturesPagerTest::pageFlingDownDefaultTest(NativeGesturesPagerTest& self)
 TEST_F(NativeGesturesPagerTest, PageFlingDownDefault)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_VERTICAL_DATA);
-    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
 
     advanceTime(10);
     root->clearDirty();
@@ -1497,7 +1490,6 @@ TEST_F(NativeGesturesPagerTest, PageFlingDownDefault)
 TEST_F(NativeGesturesPagerTest, PageFlingDownDefaultRTL)
 {
     loadDocument(PAGER_TEST_DEFAULT_ANIMATION, PAGER_VERTICAL_DATA);
-    ASSERT_TRUE(ConsoleMessage());  // Incorrect arguments for data
 
     advanceTime(10);
     root->clearDirty();

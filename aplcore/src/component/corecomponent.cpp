@@ -24,11 +24,14 @@
 #include "apl/component/componenteventtargetwrapper.h"
 #include "apl/component/componentpropdef.h"
 #include "apl/component/yogaproperties.h"
+#include "apl/content/content.h"
 #include "apl/content/rootconfig.h"
+#include "apl/document/coredocumentcontext.h"
 #include "apl/engine/builder.h"
 #include "apl/engine/contextwrapper.h"
 #include "apl/engine/hovermanager.h"
 #include "apl/engine/layoutmanager.h"
+#include "apl/engine/rebuilddependant.h"
 #include "apl/engine/typeddependant.h"
 #include "apl/engine/visibilitymanager.h"
 #include "apl/focus/focusmanager.h"
@@ -41,6 +44,7 @@
 #include "apl/time/sequencer.h"
 #include "apl/time/timemanager.h"
 #include "apl/touch/pointerevent.h"
+#include "apl/utils/constants.h"
 #include "apl/utils/hash.h"
 #include "apl/utils/make_unique.h"
 #include "apl/utils/searchvisitor.h"
@@ -64,8 +68,6 @@ const std::string VISUAL_CONTEXT_TYPE_EMPTY = "empty";
 
 /*****************************************************************/
 
-const std::string CHILDREN_CHANGE_UID = "uid";
-const std::string CHILDREN_CHANGE_INDEX = "index";
 const std::string CHILDREN_CHANGE_ACTION = "action";
 const std::string CHILDREN_CHANGE_CHANGES = "changes";
 
@@ -114,17 +116,21 @@ CoreComponent::CoreComponent(const ContextPtr& context,
                              Properties&& properties,
                              const Path& path)
     : Component(context, properties.asLabel(*context, "id")),
-      mInheritParentState(properties.asBoolean(*context, "inheritParentState", false)),
       mStyle(properties.asString(*context, "style", "")),
       mProperties(std::move(properties)),
       mParent(nullptr),
       mYGNodeRef(YGNodeNewWithConfig(context->ygconfig())),
-      mPath(path),
-      mDisplayedChildrenStale(true),
-      mIsDisallowed(false),
-      mGlobalToLocalIsStale(true),
-      mTextMeasurementHashStale(true),
-      mVisualHashStale(true) {
+      mPath(path)
+{
+    mCoreFlags = Flags<CoreComponentFlags>(
+        kCoreComponentFlagDisplayedChildrenStale |
+        kCoreComponentFlagGlobalToLocalIsStale |
+        kCoreComponentFlagTextMeasurementHashStale |
+        kCoreComponentFlagVisualHashStale);
+
+    if (mProperties.asBoolean(*context, "inheritParentState", false))
+        mCoreFlags.set(kCoreComponentFlagInheritParentState);
+
     YGNodeSetContext(mYGNodeRef, this);
 }
 
@@ -177,7 +183,7 @@ CoreComponent::initialize()
     mCalculated.set(kPropertyNotifyChildrenChanged, Object::EMPTY_MUTABLE_ARRAY());
 
     // Fix up the state variables that can be assigned as a property
-    if (mInheritParentState && mParent)
+    if (mParent && mCoreFlags.isSet(kCoreComponentFlagInheritParentState))
         mState = mParent->getState();
 
     // Assign the built-in properties.
@@ -350,7 +356,7 @@ CoreComponent::attachedToParent(const CoreComponentPtr& parent)
         assignProperties(*layoutPropDefSet);
 
     // Update our state.
-    if (mInheritParentState) {
+    if (mCoreFlags.isSet(kCoreComponentFlagInheritParentState)) {
         updateMixedStateProperty(kPropertyChecked, mParent->getCalculated(kPropertyChecked).asBoolean());
         updateMixedStateProperty(kPropertyDisabled, mParent->getCalculated(kPropertyDisabled).asBoolean());
         updateInheritedState();
@@ -417,7 +423,8 @@ CoreComponent::appendChild(const ComponentPtr& child, bool useDirtyFlag)
 void
 CoreComponent::notifyChildChanged(size_t index, const CoreComponentPtr& component, ChildChangeAction action)
 {
-    mChildrenChanges.emplace_back(ChildChange{component, action, index});
+    if (!mChildrenChanges) mChildrenChanges = std::make_unique<std::vector<ChildChange>>();
+    mChildrenChanges->emplace_back(ChildChange{component, component->getUniqueId(), action, index});
     // Mark component as dirty so required processing will take place
     mContext->setDirty(shared_from_this());
 }
@@ -443,7 +450,7 @@ CoreComponent::markDisplayedChildrenStale(bool useDirtyFlag)
 {
     // Children visibility can't be stale if component can't have one.
     if (multiChild() || singleChild()) {
-        mDisplayedChildrenStale = true;
+        mCoreFlags.set(kCoreComponentFlagDisplayedChildrenStale);
         if (useDirtyFlag) setDirty(kPropertyNotifyChildrenChanged);
     }
 }
@@ -475,8 +482,7 @@ CoreComponent::isDisplayedChild(const CoreComponent& child) const
 void
 CoreComponent::ensureDisplayedChildren()
 {
-
-    if (!mDisplayedChildrenStale)
+    if (!mCoreFlags.isSet(kCoreComponentFlagDisplayedChildrenStale))
         return;
 
     // clear previous calculations
@@ -524,7 +530,7 @@ CoreComponent::ensureDisplayedChildren()
     // Insert the sticky elements at the end
     mDisplayedChildren.insert(mDisplayedChildren.end(), sticky.begin(), sticky.end());
 
-    mDisplayedChildrenStale = false;
+    mCoreFlags.clear(kCoreComponentFlagDisplayedChildrenStale);
 }
 
 bool
@@ -567,7 +573,6 @@ CoreComponent::insertChild(const CoreComponentPtr& child, size_t index, bool use
 
     // Register component for visibility calculation considerations, if required
     coreChild->registerForVisibilityTrackingIfRequired();
-    setVisibilityDirty();
 
     // Update the position: sticky components tree
     auto p = stickyfunctions::getAncestorHorizontalAndVerticalScrollable(coreChild);
@@ -933,7 +938,7 @@ CoreComponent::assignProperties(const ComponentPropDefSet& propDefSet)
             else {
                 // Make sure this wasn't a required property
                 if ((pd.flags & kPropRequired) != 0) {
-                    mFlags |= kComponentFlagInvalid;
+                    mFlags.set(kComponentFlagInvalid);
                     CONSOLE(mContext) << "Missing required property: " << pd.names;
                 }
 
@@ -972,7 +977,7 @@ CoreComponent::assignProperties(const ComponentPropDefSet& propDefSet)
 void
 CoreComponent::handlePropertyChange(const ComponentPropDef& def, const Object& value) {
     // If the mixed state inherits from the parent, we block the change.
-    if ((def.flags & kPropMixedState) != 0 && mInheritParentState)
+    if ((def.flags & kPropMixedState) != 0 && mCoreFlags.isSet(kCoreComponentFlagInheritParentState))
         return;
 
     auto previous = getCalculated(def.key);
@@ -1017,11 +1022,11 @@ CoreComponent::handlePropertyChange(const ComponentPropDef& def, const Object& v
 
         // Properties with the kPropTextHash flag the text measurement hash as dirty
         if ((def.flags & kPropTextHash) != 0)
-            mTextMeasurementHashStale = true;
+            mCoreFlags.set(kCoreComponentFlagTextMeasurementHashStale);
 
         // Properties with kPropVisualHash flag the visual hash is dirty
         if ((def.flags & kPropVisualHash) != 0)
-            mVisualHashStale = true;
+            mCoreFlags.set(kCoreComponentFlagVisualHashStale);
 
         if ((def.flags & kPropAccessibility) != 0)
             markAccessibilityDirty();
@@ -1079,7 +1084,7 @@ CoreComponent::getLayoutRoot() {
 void
 CoreComponent::updateMixedStateProperty(apl::PropertyKey key, bool value)
 {
-    if (!mInheritParentState || value == mCalculated.get(key).asBoolean())
+    if (!mCoreFlags.isSet(kCoreComponentFlagInheritParentState) || value == mCalculated.get(key).asBoolean())
         return;
 
     mCalculated.set(key, value);
@@ -1183,8 +1188,235 @@ CoreComponent::setProperty(PropertyKey key, const Object& value)
     return false;
 }
 
+/**
+ * Walk the list of children and change as appropriate, only makes sense when mPendingRebuildChanges
+ * non-empty.
+ *
+ * 1. Skip through all items in the original item list.
+ * 2. If in changed list - create/remove/recreate
+ * 3. Any item that got mis-aligned index after the changed one is recreated.
+ * 4. If nothing changed - item stays the same.
+ */
 void
-CoreComponent::setProperty( const std::string& key, const Object& value )
+CoreComponent::rebuildItems()
+{
+    if (!mPendingRebuildChanges || mPendingRebuildChanges->empty()) return;
+
+    auto childPath = getPathObject();
+    auto itemsObject = getContext()->opt(REBUILD_ITEMS);
+
+    if (!itemsObject.isArray() || itemsObject.empty()) return;
+
+    int currentChildIndex = 0;
+    int currentReportedIndex = 0;
+
+    bool numbered = getCalculated(kPropertyNumbered).asBoolean();
+    auto length = itemsObject.size();
+    int ordinal = 1;
+
+    if (!mChildren.empty() && getCoreChildAt(0)->getContext()->has(REBUILD_IS_FIRST_ITEM))
+        currentChildIndex++;
+
+    for (int i = 0; i < itemsObject.size(); i++) {
+        CoreComponentPtr old;
+        int oldIndex = -1;
+
+        if (currentChildIndex < mChildren.size()) {
+            auto child = getCoreChildAt(currentChildIndex);
+            auto sourceIndexObject = child->getContext()->opt(REBUILD_SOURCE_INDEX);
+            // Break out if have no sourceIndex - likely last item.
+            if (sourceIndexObject.isNull())
+                break;
+
+            if (sourceIndexObject.asInt() == i) {
+                old = child;
+                oldIndex = old->getContext()->opt(COMPONENT_INDEX).asInt();
+            }
+        }
+
+        CoreComponentPtr replaceChild;
+        ContextPtr childContext;
+
+        // If index is in change queue - create new context for rebuild
+        if (mPendingRebuildChanges->count(i)) {
+            childContext = Builder::createIndexItemContext(getContext(), i, currentReportedIndex, length,
+                                                           numbered, ordinal);
+        } else if (old) {
+            // Index is aligned with expected - just skip (fast). If not - rebuild.
+            if (oldIndex == currentReportedIndex) {
+                replaceChild = old;
+            } else {
+                childContext = Builder::createIndexItemContext(getContext(), i, currentReportedIndex, length,
+                                                               numbered, ordinal);
+            }
+        }
+
+        // Handle rebuild
+        if (childContext && !replaceChild) {
+            if (mStashedRebuildCtxs) {
+                auto stash = mStashedRebuildCtxs->find(i);
+                if (stash != mStashedRebuildCtxs->end()) {
+                    mStashedRebuildCtxs->erase(stash);
+                }
+            }
+
+            auto items = arrayifyAsObject(*childContext, itemsObject.at(i)).getArray();
+            replaceChild = Builder(nullptr).expandSingleComponentFromArray(
+                childContext, items, Properties(), shared_from_corecomponent(), childPath,
+                shouldBeFullyInflated(currentChildIndex), true, oldIndex == currentReportedIndex ? old : nullptr);
+            if (old && replaceChild != old)
+                old->remove();
+
+            if (replaceChild && replaceChild->isValid())
+                insertChild(replaceChild, currentChildIndex, true);
+
+            Builder::registerRebuildDependencyIfRequired(shared_from_corecomponent(), childContext,
+                                                         items, replaceChild != nullptr);
+        }
+
+        // And advance common counters
+        if (replaceChild && replaceChild->isValid()) {
+            currentChildIndex++;
+            currentReportedIndex++;
+
+            if (numbered) {
+                int numbering = replaceChild->getCalculated(kPropertyNumbering).getInteger();
+                if (numbering == kNumberingNormal) ordinal++;
+                else if (numbering == kNumberingReset) ordinal = 1;
+            }
+        }
+    }
+}
+
+void
+CoreComponent::scheduleRebuildChange(const ContextPtr& childContext)
+{
+    int originIndex = 0;
+
+    if (childContext->opt(REBUILD_IS_FIRST_ITEM).asBoolean()) {
+        originIndex = -1;
+    } else if (childContext->opt(REBUILD_IS_LAST_ITEM).asBoolean()) {
+        originIndex = INT_MAX;
+    } else {
+        // If children are live data controlled - pass to rebuilder for evaluation. Marking array as
+        // dirty will trigger dataIndex-reconciled rebuild.
+        if (mRebuilder) {
+            mRebuilder->getBackingArray()->markDirty();
+            return;
+        }
+        originIndex = childContext->opt(REBUILD_SOURCE_INDEX).asInt();
+    }
+
+    if (!mPendingRebuildChanges) mPendingRebuildChanges = std::make_unique<std::set<int>>();
+    mPendingRebuildChanges->emplace(originIndex);
+    getContext()->setDirty(shared_from_this());
+}
+
+void
+CoreComponent::processRebuildChanges()
+{
+    if (!mPendingRebuildChanges || mPendingRebuildChanges->empty()) return;
+
+    // Process first
+    auto firstIt = mPendingRebuildChanges->find(-1);
+    if (firstIt != mPendingRebuildChanges->end()) {
+        auto items = mContext->opt(REBUILD_FIRST_ITEMS);
+        auto firstChild = mChildren.at(0);
+        auto old = firstChild->getContext()->has(REBUILD_IS_FIRST_ITEM) ? firstChild : nullptr;
+
+        replaceChild(items.getArray(), old, Builder::createFirstItemContext(mContext), -1, 0);
+
+        mPendingRebuildChanges->erase(firstIt);
+    }
+
+    if (!mPendingRebuildChanges->empty()) {
+        if (singleChild()) {
+            auto it = mPendingRebuildChanges->begin();
+            auto items = mContext->opt(REBUILD_ITEMS);
+            CoreComponentPtr old;
+            if (getChildCount())
+                old = mChildren.at(0);
+
+            replaceChild(
+                items.getArray(),
+                old,
+                Builder::createIndexItemContext(mContext, 0, 0, items.size(), false, 0),
+                *it,
+                0);
+        }
+        else {
+            rebuildItems();
+        }
+
+        // Process last
+        auto lastIt = mPendingRebuildChanges->find(INT_MAX);
+        if (lastIt != mPendingRebuildChanges->end()) {
+            auto items = mContext->opt(REBUILD_LAST_ITEMS);
+            auto lastChild = mChildren.at(mChildren.size() - 1);
+            auto old = lastChild->getContext()->has(REBUILD_IS_LAST_ITEM) ? lastChild : nullptr;
+
+            replaceChild(
+                items.getArray(),
+                old,
+                Builder::createLastItemContext(mContext),
+                INT_MAX,
+                old ? mChildren.size() - 1 : mChildren.size());
+        }
+    }
+
+    mPendingRebuildChanges->clear();
+    mPendingRebuildChanges = nullptr;
+}
+
+void
+CoreComponent::stashRebuildContext(const ContextPtr& context)
+{
+    int index = 0;
+    if (context->opt(REBUILD_IS_FIRST_ITEM).asBoolean()) {
+        index = -1;
+    } else if (context->opt(REBUILD_IS_LAST_ITEM).asBoolean()) {
+        index = INT_MAX;
+    } else {
+        auto sourceIndex = context->opt(REBUILD_SOURCE_INDEX);
+        if (sourceIndex.isNumber()) {
+            index = sourceIndex.asInt();
+        } else {
+            index = context->opt(COMPONENT_DATA_INDEX).asInt();
+        }
+    }
+    if (!mStashedRebuildCtxs) mStashedRebuildCtxs = std::make_unique<std::map<int, ContextPtr>>();
+    mStashedRebuildCtxs->emplace(index, context);
+}
+
+void
+CoreComponent::replaceChild(const ObjectArray& items, const CoreComponentPtr& child, const ContextPtr& childContext, int originIndex, int childIndex)
+{
+    // Remove context stashed for this origin (if any)
+    if (mStashedRebuildCtxs) {
+        auto stash = mStashedRebuildCtxs->find(originIndex);
+        if (stash != mStashedRebuildCtxs->end()) {
+            mStashedRebuildCtxs->erase(stash);
+        }
+    }
+
+    // There are no need to re-attach dependency. We are reusing same context.
+    auto replaceChild = Builder(shared_from_corecomponent()).expandSingleComponentFromArray(
+        childContext, items, Properties(), shared_from_corecomponent(), getPathObject(),
+        shouldBeFullyInflated(childIndex), true, child);
+    if (replaceChild != child) {
+        if (child) removeChildAt(childIndex, true);
+
+        if (replaceChild && replaceChild->isValid()) {
+            // Add new one with reused context
+            insertChild(replaceChild, childIndex, true);
+        }
+    }
+
+    Builder::registerRebuildDependencyIfRequired(shared_from_corecomponent(), childContext, items, replaceChild != nullptr);
+}
+
+void
+CoreComponent::setProperty(const std::string& key, const Object& value)
 {
     if (sComponentPropertyBimap.has(key) &&
         setProperty(static_cast<PropertyKey>(sComponentPropertyBimap.at(key)), value))
@@ -1357,7 +1589,7 @@ CoreComponent::updateStyle()
             updateStyleInternal(stylePtr, *layoutPDS);
     }
     for (const auto& child : mChildren) {
-        if (child->mInheritParentState)
+        if (child->mCoreFlags.isSet(kCoreComponentFlagInheritParentState))
             child->updateStyle();
     }
 }
@@ -1372,7 +1604,7 @@ CoreComponent::updateStyle()
 void
 CoreComponent::setState( StateProperty stateProperty, bool value )
 {
-    if (mInheritParentState) {
+    if (mCoreFlags.isSet(kCoreComponentFlagInheritParentState)) {
         CONSOLE(mContext) << "Cannot assign state properties to a child that inherits parent state";
         return;
     }
@@ -1417,7 +1649,9 @@ CoreComponent::setDirty( PropertyKey key )
     if (mDirty.emplace(key).second) {
         mContext->setDirty(shared_from_this());
 
-        if (!isVisualContextDirty() || !mTextMeasurementHashStale || !mVisualHashStale) {
+        if (!isVisualContextDirty() ||
+            !mCoreFlags.isSet(kCoreComponentFlagTextMeasurementHashStale) ||
+            !mCoreFlags.isSet(kCoreComponentFlagVisualHashStale)) {
             auto def = propDefSet().find(key);
             if (def == propDefSet().end()) return;
 
@@ -1432,13 +1666,13 @@ CoreComponent::setDirty( PropertyKey key )
                 setVisibilityDirty();
 
             // Set text measurement hash as stale
-            if (!mTextMeasurementHashStale && (def->second.flags & kPropTextHash)) {
-                mTextMeasurementHashStale = true;
+            if (!mCoreFlags.isSet(kCoreComponentFlagTextMeasurementHashStale) && (def->second.flags & kPropTextHash)) {
+                mCoreFlags.set(kCoreComponentFlagTextMeasurementHashStale);
             }
 
             // Set visual hash as stale
-            if (!mVisualHashStale && (def->second.flags & kPropVisualHash)) {
-                mVisualHashStale = true;
+            if (!mCoreFlags.isSet(kCoreComponentFlagVisualHashStale) && (def->second.flags & kPropVisualHash)) {
+                mCoreFlags.set(kCoreComponentFlagVisualHashStale);
             }
 
             if (def->second.flags & kPropAccessibility) {
@@ -1478,7 +1712,7 @@ CoreComponent::getParentIfInDocument() const
 void
 CoreComponent::updateInheritedState()
 {
-    if (!mInheritParentState || !mParent)
+    if (!mCoreFlags.isSet(kCoreComponentFlagInheritParentState) || !mParent)
         return;
 
     mState = mParent->getState();
@@ -1543,7 +1777,7 @@ CoreComponent::shouldPropagateLayoutChanges() const
     return !mChildren.empty() && static_cast<Display>(getCalculated(kPropertyDisplay).getInteger()) != kDisplayNone;
 }
 
-std::string
+size_t
 CoreComponent::textMeasurementHash() const
 {
     return mTextMeasurementHash;
@@ -1553,8 +1787,7 @@ void
 CoreComponent::fixTextMeasurementHash()
 {
     auto& pds = propDefSet();
-    if (!mTextMeasurementHashStale) return;
-    mTextMeasurementHashStale = false;
+    if (!mCoreFlags.checkAndClear(kCoreComponentFlagTextMeasurementHashStale)) return;
 
     size_t hash = 0;
     for (const auto& cpd : pds) {
@@ -1565,14 +1798,13 @@ CoreComponent::fixTextMeasurementHash()
     }
 
     // Need to keep as string, as double or int will lead to loss of precision.
-    mTextMeasurementHash = std::to_string(hash);
+    mTextMeasurementHash = hash;
 }
 
 void
 CoreComponent::fixVisualHash(bool useDirtyFlag)
 {
-    if (!mVisualHashStale) return;
-    mVisualHashStale = false;
+    if (!mCoreFlags.checkAndClear(kCoreComponentFlagVisualHashStale)) return;
 
     size_t hash = 0;
     for (const auto& cpd : propDefSet()) {
@@ -1698,6 +1930,8 @@ CoreComponent::postClearPending()
     // Process and report DOM (not layout) changes.
     processChildrenChanges();
     refreshAccessibilityActions(true);
+
+    processRebuildChanges();
 }
 
 std::string
@@ -1707,16 +1941,16 @@ CoreComponent::toStringAction(ChildChangeAction action) {
 
 void
 CoreComponent::processChildrenChanges() {
-    if (mChildrenChanges.empty())
+    if (!mChildrenChanges || mChildrenChanges->empty())
         return;
 
     // Report children changes to the runtime
     {
         auto& changes = mCalculated.get(kPropertyNotifyChildrenChanged).getMutableArray();
-        for (const auto& c : mChildrenChanges) {
+        for (const auto& c : *mChildrenChanges) {
             auto change = std::make_shared<ObjectMap>();
-            change->emplace(CHILDREN_CHANGE_INDEX, c.index);
-            change->emplace(CHILDREN_CHANGE_UID, c.component->getUniqueId());
+            change->emplace(COMPONENT_INDEX, c.index);
+            change->emplace(COMPONENT_UID, c.uid);
             change->emplace(CHILDREN_CHANGE_ACTION, toStringAction(c.action));
             changes.emplace_back(change);
         }
@@ -1728,38 +1962,50 @@ CoreComponent::processChildrenChanges() {
     auto commands = mCalculated.get(kPropertyOnChildrenChanged);
     if (multiChild() && !commands.empty()) {
         auto handlerChanges = std::make_shared<ObjectArray>();
-        for (const auto& c : mChildrenChanges) {
+        for (const auto& c : *mChildrenChanges) {
             auto change = std::make_shared<ObjectMap>();
-            if (c.action == kChildChangeActionInsert)
-                change->emplace(
-                    CHILDREN_CHANGE_INDEX,
-                    getChildIndex(c.component)
-                );
-            change->emplace(CHILDREN_CHANGE_UID, c.component->getUniqueId());
+            if (c.action == kChildChangeActionInsert) {
+                auto comp = c.component.lock();
+                if (comp) change->emplace(COMPONENT_INDEX, getChildIndex(comp));
+            }
+            change->emplace(COMPONENT_UID, c.uid);
             change->emplace(CHILDREN_CHANGE_ACTION, toStringAction(c.action));
             handlerChanges->emplace_back(change);
         }
 
         auto changesMap = std::make_shared<ObjectMap>();
         changesMap->emplace(CHILDREN_CHANGE_CHANGES, handlerChanges);
+        changesMap->emplace(COMPONENT_LENGTH, getChildCount());
         mContext->sequencer().executeCommands(
             commands,
             createEventContext("ChildrenChanged", changesMap, getValue()),
             shared_from_corecomponent(), true);
 
     }
-    mChildrenChanges.clear();
+    mChildrenChanges->clear();
 }
 
 void
-CoreComponent::postProcessLayoutChanges()
+CoreComponent::postProcessLayoutChanges(bool first)
 {
     // Mark this component as having been laid out at least once
-    mFlags |= kComponentFlagAllowEventHandlers;
+    mFlags.set(kComponentFlagAllowEventHandlers);
+
+    auto commands = mCalculated.get(kPropertyOnLayout);
+    // Notify document about layout changes
+    if (!commands.empty() && (isDirty(kPropertyBounds) || first)) {
+        auto propMap = std::make_shared<ObjectMap>();
+        auto bounds = getCalculated(kPropertyBounds).get<Rect>();
+        propMap->emplace("height", bounds.getHeight());
+        propMap->emplace("width", bounds.getWidth());
+        propMap->emplace("x", bounds.getX());
+        propMap->emplace("y", bounds.getY());
+        mContext->sequencer().executeCommands(commands, createEventContext("Layout", propMap, getValue()), shared_from_corecomponent(), true);
+    }
 
     for (auto& child : mChildren)
         if (child->isAttached())
-            child->postProcessLayoutChanges();
+            child->postProcessLayoutChanges(first);
 
     // update the displayed children
     ensureDisplayedChildren();
@@ -2032,7 +2278,7 @@ CoreComponent::serializeAll(rapidjson::Document::AllocatorType& allocator) const
     component.AddMember("type", rapidjson::StringRef(sComponentTypeBimap.at(getType()).c_str()), allocator);
 
     component.AddMember("__id", rapidjson::Value(mId.c_str(), allocator), allocator);
-    component.AddMember("__inheritParentState", mInheritParentState, allocator);
+    component.AddMember("__inheritParentState", mCoreFlags.isSet(kCoreComponentFlagInheritParentState), allocator);
     component.AddMember("__style", rapidjson::Value(mStyle.c_str(), allocator), allocator);
     component.AddMember("__path", rapidjson::Value(mPath.toString().c_str(), allocator), allocator);
 
@@ -2242,8 +2488,6 @@ CoreComponent::registerForVisibilityTrackingIfRequired()
     auto handlers = getCalculated(kPropertyHandleVisibilityChange);
     if (handlers.isArray() && !handlers.empty()) {
         mContext->visibilityManager().registerForUpdates(shared_from_corecomponent());
-        if (mParent) mParent->addDownstreamVisibilityTarget(shared_from_corecomponent());
-        setVisibilityDirty();
     }
 }
 
@@ -2304,7 +2548,7 @@ CoreComponent::getTags(rapidjson::Value &outMap, rapidjson::Document::AllocatorT
     bool actionable = false;
     bool checked = mState.get(kStateChecked);
     bool disabled = mState.get(kStateDisabled);
-    if(checked && !mInheritParentState) {
+    if(checked && !mCoreFlags.isSet(kCoreComponentFlagInheritParentState)) {
         outMap.AddMember("checked", checked, allocator);
     }
 
@@ -2319,12 +2563,12 @@ CoreComponent::getTags(rapidjson::Value &outMap, rapidjson::Document::AllocatorT
 
     if(mParent && mParent->scrollable() && mParent->multiChild()) {
         rapidjson::Value listItem(rapidjson::kObjectType);
-        listItem.AddMember("index", mContext->opt("index").asInt(), allocator);
+        listItem.AddMember("index", mContext->opt(COMPONENT_INDEX).asInt(), allocator);
         outMap.AddMember("listItem", listItem, allocator);
     }
 
-    if(mParent && mParent->getCalculated(kPropertyNumbered).truthy() && mContext->has("ordinal")) {
-        outMap.AddMember("ordinal", mContext->opt("ordinal").asInt(), allocator);
+    if(mParent && mParent->getCalculated(kPropertyNumbered).truthy() && mContext->has(COMPONENT_ORDINAL)) {
+        outMap.AddMember("ordinal", mContext->opt(COMPONENT_ORDINAL).asInt(), allocator);
     }
 
     if(!getCalculated(kPropertySpeech).empty()) {
@@ -2376,7 +2620,7 @@ bool
 CoreComponent::isDisplayable() const {
     return (getCalculated(kPropertyDisplay).asInt() == kDisplayNormal)
     && (getCalculated(kPropertyOpacity).asNumber() > 0)
-    && !mIsDisallowed;
+    && !mCoreFlags.isSet(kCoreComponentFlagIsDisallowed);
 }
 
 void
@@ -2516,22 +2760,22 @@ CoreComponent::executeEventHandler(const std::string& event, const Object& comma
 }
 
 YGSize
-CoreComponent::textMeasureInternal(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)
+CoreComponent::textMeasure(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)
 {
     APL_TRACE_BLOCK("CoreComponent:textMeasureInternal");
     // Recalculate visual hash if marked as stale
     fixVisualHash(true);
 
-    auto componentHash = textMeasurementHash();
+    auto textPropertiesHash = textMeasurementHash();
     LOG_IF(DEBUG_MEASUREMENT).session(mContext)
         << "Measuring: " << getUniqueId()
-        << " hash: " << componentHash
+        << " hash: " << textPropertiesHash
         << " width: " << width
         << " widthMode: " << widthMode
         << " height: " << height
         << " heightMode: " << heightMode;
 
-    TextMeasureRequest tmr = {width, widthMode, height, heightMode, componentHash};
+    TextMeasureRequest tmr = {width, widthMode, height, heightMode, textPropertiesHash};
     auto& measuresCache = getContext()->cachedMeasures();
     if (measuresCache.has(tmr)) {
         return measuresCache.get(tmr);
@@ -2548,7 +2792,7 @@ CoreComponent::textMeasureInternal(float width, YGMeasureMode widthMode, float h
 }
 
 float
-CoreComponent::textBaselineInternal(float width, float height)
+CoreComponent::textBaseline(float width, float height)
 {
     APL_TRACE_BEGIN("CoreComponent:textBaselineInternal");
     TextMeasureRequest tmr = {
@@ -2579,7 +2823,7 @@ CoreComponent::textMeasureFunc( YGNodeRef node,
 {
     auto *component = static_cast<CoreComponent*>(node->getContext());
     assert(component);
-    return component->textMeasureInternal(width, widthMode, height, heightMode);
+    return component->textMeasure(width, widthMode, height, heightMode);
 }
 
 float
@@ -2587,7 +2831,7 @@ CoreComponent::textBaselineFunc( YGNodeRef node, float width, float height )
 {
     auto *component = static_cast<CoreComponent*>(node->getContext());
     assert(component);
-    return component->textBaselineInternal(width, height);
+    return component->textBaseline(width, height);
 }
 
 // Old style static actions. Just copy defined and implicit to the output.
@@ -2621,7 +2865,7 @@ CoreComponent::markAccessibilityDirty()
         return;
 
     mContext->setDirty(shared_from_this());
-    mAccessibilityDirty = true;
+    mCoreFlags.set(kCoreComponentFlagAccessibilityDirty);
 }
 
 // New style dynamic actions
@@ -2631,8 +2875,7 @@ CoreComponent::refreshAccessibilityActions(bool useDirtyFlag)
     if (!getRootConfig().experimentalFeatureEnabled(RootConfig::kExperimentalFeatureDynamicAccessibilityActions))
         return;
 
-    if (!mAccessibilityDirty) return;
-    mAccessibilityDirty = false;
+    if (!mCoreFlags.checkAndClear(kCoreComponentFlagAccessibilityDirty)) return;
 
     auto current = getCalculated(kPropertyAccessibilityActions).getArray();
     if (getCalculated(kPropertyDisabled).asBoolean()) {
@@ -2688,6 +2931,8 @@ CoreComponent::propDefSet() const {
                                                                                             kPropDynamic},
       {kPropertyAccessibilityActions,         Object::EMPTY_ARRAY(),   asArray,             kPropOut | kPropAccessibility},
       {kPropertyAccessibilityActionsAssigned, Object::EMPTY_ARRAY(),   asArray,             kPropIn},
+      {kPropertyBackground,                   Color(),                 asFill,              kPropOut |
+                                                                                            kPropVisualHash},
       {kPropertyBounds,                       Rect(0,0,0,0),           nullptr,             kPropOut |
                                                                                             kPropVisualContext |
                                                                                             kPropVisibility |
@@ -2740,6 +2985,7 @@ CoreComponent::propDefSet() const {
                                                                                             kPropDynamic |
                                                                                             kPropStyled,         yn::setMinWidth},
       {kPropertyOnChildrenChanged,            Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
+      {kPropertyOnLayout,                     Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
       {kPropertyOnMount,                      Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
       {kPropertyOnSpeechMark,                 Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
       {kPropertyOpacity,                      1.0,                     asOpacity,           kPropInOut |
@@ -2807,6 +3053,8 @@ CoreComponent::propDefSet() const {
                                                                                             kPropVisibility},
       {kPropertyVisualHash,                   "",                      asString,            kPropOut |
                                                                                             kPropRuntimeState},
+      {kPropertyPointerEvents,                kPointerEventsAuto,   sPointerEventsMap,      kPropIn |
+                                                                                            kPropDynamic},
     });
 
     return sCommonComponentProperties;
@@ -2893,7 +3141,7 @@ CoreComponent::ensureGlobalToLocalTransform() {
         mParent->ensureGlobalToLocalTransform();
     }
 
-    if (!mGlobalToLocalIsStale) {
+    if (!mCoreFlags.isSet(kCoreComponentFlagGlobalToLocalIsStale)) {
         return;
     }
 
@@ -2928,7 +3176,7 @@ CoreComponent::ensureGlobalToLocalTransform() {
         }
     }
 
-    mGlobalToLocalIsStale = false;
+    mCoreFlags.clear(kCoreComponentFlagGlobalToLocalIsStale);
 }
 
 const Transform2D&

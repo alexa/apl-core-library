@@ -49,6 +49,7 @@ enum CommandType {
     kCommandTypeInsertItem,
     kCommandTypeRemoveItem,
     kCommandTypeLog,
+    kCommandTypeImportPackage,
 };
 
 enum CommandScrollAlign {
@@ -104,6 +105,7 @@ enum CommandLogLevel {
 };
 
 enum CommandPropertyKey {
+    kCommandPropertyAccept,
     kCommandPropertyAlign,
     kCommandPropertyArguments,
     kCommandPropertyAt,
@@ -128,7 +130,9 @@ enum CommandPropertyKey {
     kCommandPropertyLevel,
     kCommandPropertyMessage,
     kCommandPropertyMinimumDwellTime,
+    kCommandPropertyName,
     kCommandPropertyOnFail,
+    kCommandPropertyOnLoad,
     kCommandPropertyOtherwise,
     kCommandPropertyPosition,
     kCommandPropertyPreservedSequencers,
@@ -144,6 +148,7 @@ enum CommandPropertyKey {
     kCommandPropertyTargetDuration,
     kCommandPropertyTransitionDuration,
     kCommandPropertyValue,
+    kCommandPropertyVersion,
 };
 
 extern Bimap<int, std::string> sCommandNameBimap;

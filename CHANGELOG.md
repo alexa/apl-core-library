@@ -1,5 +1,24 @@
 # Changelog
 
+## [2024.2]
+
+This release adds support for version 2024.2 of the APL specification.
+
+### Added
+
+- Add "onLayout" handler for components.
+- Add 'allowForward' and 'allowBackwards' properties to the event context of ScrollView, Sequence and GridSequence.
+- Add 'screenLock' property to the video component
+- Add text metrics to text component’s "onTextLayout" handler.
+- Add -experimentalIsReactive and Reactive Conditional Inflation.
+- Add 'pointerEvents' to control pointer events consumption rules.
+- Add PackageManager API to handle imports.
+
+### Changed
+
+- Bug fixes
+- Performance improvements
+
 ## [2024.1]
 
 This release adds support for version 2024.1 of the APL specification.

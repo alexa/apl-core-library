@@ -568,8 +568,6 @@ CoreDocumentContext::setup(const CoreComponentPtr& top)
         return false;
     }
 
-    bool trackProvenance = mCore->rootConfig().getProperty(RootProperty::kTrackProvenance).getBoolean();
-
     // Read settings
     {
         APL_TRACE_BEGIN("DocumentContext:readSettings");
@@ -577,74 +575,8 @@ CoreDocumentContext::setup(const CoreComponentPtr& top)
         APL_TRACE_END("DocumentContext:readSettings");
     }
 
-    // Resource processing:
-    APL_TRACE_BEGIN("DocumentContext:processResources");
-    for (const auto& child : ordered) {
-        const auto& json = child->json();
-        const auto path = Path(trackProvenance ? child->name() : std::string());
-        addNamedResourcesBlock(*mContext, json, path, "resources");
-    }
-    APL_TRACE_END("DocumentContext:processResources");
-
-    // Style processing
-    APL_TRACE_BEGIN("DocumentContext:processStyles");
-    for (const auto& child : ordered) {
-        const auto& json = child->json();
-        const auto path = Path(trackProvenance ? child->name() : std::string());
-
-        auto styleIter = json.FindMember("styles");
-        if (styleIter != json.MemberEnd() && styleIter->value.IsObject())
-            mCore->styles()->addStyleDefinitions(mCore->session(), &styleIter->value, path.addObject("styles"));
-    }
-    APL_TRACE_END("DocumentContext:processStyles");
-
-    // Layout processing
-    APL_TRACE_BEGIN("DocumentContext:processLayouts");
-    for (const auto& child : ordered) {
-        const auto& json = child->json();
-        const auto path = Path(trackProvenance ? child->name() : std::string()).addObject("layouts");
-
-        auto layoutIter = json.FindMember("layouts");
-        if (layoutIter != json.MemberEnd() && layoutIter->value.IsObject()) {
-            for (const auto& kv : layoutIter->value.GetObject()) {
-                const auto& name = kv.name.GetString();
-                mCore->mLayouts[name] = { &kv.value, path.addObject(name) };
-            }
-        }
-    }
-    APL_TRACE_END("DocumentContext:processLayouts");
-
-    // Command processing
-    APL_TRACE_BEGIN("DocumentContext:processCommands");
-    for (const auto& child : ordered) {
-        const auto& json = child->json();
-        const auto path = Path(trackProvenance ? child->name() : std::string()).addObject("commands");
-
-        auto commandIter = json.FindMember("commands");
-        if (commandIter != json.MemberEnd() && commandIter->value.IsObject()) {
-            for (const auto& kv : commandIter->value.GetObject()) {
-                const auto& name = kv.name.GetString();
-                mCore->mCommands[name] = { &kv.value, path.addObject(name) };
-            }
-        }
-    }
-    APL_TRACE_END("DocumentContext:processCommands");
-
-    // Graphics processing
-    APL_TRACE_BEGIN("DocumentContext:processGraphics");
-    for (const auto& child : ordered) {
-        const auto& json = child->json();
-        const auto path = Path(trackProvenance ? child->name() : std::string()).addObject("graphics");
-
-        auto graphicsIter = json.FindMember("graphics");
-        if (graphicsIter != json.MemberEnd() && graphicsIter->value.IsObject()) {
-            for (const auto& kv : graphicsIter->value.GetObject()) {
-                const auto& name = kv.name.GetString();
-                mCore->mGraphics[name] = { &kv.value, path.addObject(name)};
-            }
-        }
-    }
-    APL_TRACE_END("DocumentContext:processGraphics");
+    // Process the contents the packages into context
+    processPackagesIntoContext(ordered);
 
     // Identify all registered event handlers in all ordered documents
     APL_TRACE_BEGIN("DocumentContext:processExtensionHandlers");
@@ -689,6 +621,88 @@ CoreDocumentContext::setup(const CoreComponentPtr& top)
 #endif
 
     return true;
+}
+
+void
+CoreDocumentContext::processPackagesIntoContext(const std::vector<PackagePtr> packages) {
+    // Filter out any packages we've already processed as more may be added dynamically.
+    std::vector<PackagePtr> toProcess;
+    for (const auto& package : packages) {
+        if (mCore->mProcessedPackages.emplace(package->name(), package).second) {
+            toProcess.push_back(package);
+        }
+    }
+
+    bool trackProvenance = mCore->rootConfig().getProperty(RootProperty::kTrackProvenance).getBoolean();
+
+    // Resource processing:
+    APL_TRACE_BEGIN("DocumentContext:processResources");
+    for (const auto& child : toProcess) {
+        const auto& json = child->json();
+        const auto path = Path(trackProvenance ? child->name() : std::string());
+        addNamedResourcesBlock(*mContext, json, path, "resources");
+    }
+    APL_TRACE_END("DocumentContext:processResources");
+
+    // Style processing
+    APL_TRACE_BEGIN("DocumentContext:processStyles");
+    for (const auto& child : toProcess) {
+        const auto& json = child->json();
+        const auto path = Path(trackProvenance ? child->name() : std::string());
+
+        auto styleIter = json.FindMember("styles");
+        if (styleIter != json.MemberEnd() && styleIter->value.IsObject())
+            mCore->styles()->addStyleDefinitions(mCore->session(), &styleIter->value, path.addObject("styles"));
+    }
+    APL_TRACE_END("DocumentContext:processStyles");
+
+    // Layout processing
+    APL_TRACE_BEGIN("DocumentContext:processLayouts");
+    for (const auto& child : toProcess) {
+        const auto& json = child->json();
+        const auto path = Path(trackProvenance ? child->name() : std::string()).addObject("layouts");
+
+        auto layoutIter = json.FindMember("layouts");
+        if (layoutIter != json.MemberEnd() && layoutIter->value.IsObject()) {
+            for (const auto& kv : layoutIter->value.GetObject()) {
+                const auto& name = kv.name.GetString();
+                mCore->mLayouts[name] = { &kv.value, path.addObject(name) };
+            }
+        }
+    }
+    APL_TRACE_END("DocumentContext:processLayouts");
+
+    // Command processing
+    APL_TRACE_BEGIN("DocumentContext:processCommands");
+    for (const auto& child : toProcess) {
+        const auto& json = child->json();
+        const auto path = Path(trackProvenance ? child->name() : std::string()).addObject("commands");
+
+        auto commandIter = json.FindMember("commands");
+        if (commandIter != json.MemberEnd() && commandIter->value.IsObject()) {
+            for (const auto& kv : commandIter->value.GetObject()) {
+                const auto& name = kv.name.GetString();
+                mCore->mCommands[name] = { &kv.value, path.addObject(name) };
+            }
+        }
+    }
+    APL_TRACE_END("DocumentContext:processCommands");
+
+    // Graphics processing
+    APL_TRACE_BEGIN("DocumentContext:processGraphics");
+    for (const auto& child : toProcess) {
+        const auto& json = child->json();
+        const auto path = Path(trackProvenance ? child->name() : std::string()).addObject("graphics");
+
+        auto graphicsIter = json.FindMember("graphics");
+        if (graphicsIter != json.MemberEnd() && graphicsIter->value.IsObject()) {
+            for (const auto& kv : graphicsIter->value.GetObject()) {
+                const auto& name = kv.name.GetString();
+                mCore->mGraphics[name] = { &kv.value, path.addObject(name)};
+            }
+        }
+    }
+    APL_TRACE_END("DocumentContext:processGraphics");
 }
 
 bool

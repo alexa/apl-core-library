@@ -122,6 +122,7 @@ PointerManager::handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t 
     ActionableComponentPtr target = nullptr;
     // save the last active pointer before it gets updated
     auto previousPointer = mLastActivePointer;
+    mLastestPointerTimeStamp = timestamp;
 
     switch (pointerEvent.pointerEventType) {
         case kPointerDown:
@@ -196,6 +197,10 @@ PointerManager::handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t 
 void
 PointerManager::handleTimeUpdate(apl_time_t timestamp)
 {
+    if (mLastestPointerTimeStamp > timestamp) {
+        LOG(LogLevel::kWarn) << "TimeUpdate pointer proccessed later than expected. Latest Pointer TimeStamp: "
+                             << mLastestPointerTimeStamp << " TimeUpdate timestamp: " << timestamp;
+    }
     sendEventToTarget(kPointerTimeUpdate, mLastActivePointer, timestamp);
 }
 

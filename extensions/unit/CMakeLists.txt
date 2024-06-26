@@ -22,6 +22,7 @@ add_executable(alexaext-unittest
         unittest_apl_audio_player.cpp
         unittest_apl_e2e_encryption.cpp
         unittest_apl_metric.cpp
+        unittest_apl_metricV2.cpp
         unittest_apl_webflow.cpp
         unittest_apl_music_alarm.cpp
         unittest_activity_descriptor.cpp

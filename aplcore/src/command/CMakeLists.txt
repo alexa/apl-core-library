@@ -26,6 +26,7 @@ target_sources_local(apl
     documentcommand.cpp
     extensioneventcommand.cpp
     finishcommand.cpp
+    importpackagecommand.cpp
     insertitemcommand.cpp
     logcommand.cpp
     openurlcommand.cpp

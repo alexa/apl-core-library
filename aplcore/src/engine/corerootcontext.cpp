@@ -57,15 +57,18 @@ CoreRootContext::create(const Metrics& metrics,
                         const RootConfig& config,
                         std::function<void(const RootContextPtr&)> callback)
 {
+    // Fill any unresolved parameters with empty objects.
+    auto pendingParametersCopy = content->getPendingParameters();
+    for (const auto& parameter : pendingParametersCopy) {
+        content->addObjectData(parameter, Object::NULL_OBJECT());
+    }
+
     if (!content->isReady()) {
         LOG(LogLevel::kError).session(content) << "Attempting to create root context with illegal content";
         return nullptr;
     }
 
-    auto root = std::make_shared<CoreRootContext>(
-        metrics,
-        content,
-        config);
+    auto root = std::make_shared<CoreRootContext>(config);
 
     root->init(metrics, config, content);
 
@@ -77,9 +80,7 @@ CoreRootContext::create(const Metrics& metrics,
     return root;
 }
 
-CoreRootContext::CoreRootContext(const Metrics& metrics,
-                                 const ContentPtr& content,
-                                 const RootConfig& config)
+CoreRootContext::CoreRootContext(const RootConfig& config)
     : mTimeManager(config.getTimeManager()),
       mDisplayState(static_cast<DisplayState>(config.getProperty(RootProperty::kInitialDisplayState).getInteger()))
 {
@@ -343,6 +344,9 @@ CoreRootContext::cancelExecution()
 {
     assert(mTopDocument);
     mTopDocument->mCore->sequencer().reset();
+    mShared->documentRegistrar().forEach([](const CoreDocumentContextPtr& document) {
+        return document->mCore->sequencer().reset();
+    });
 }
 
 ComponentPtr
@@ -522,8 +526,19 @@ CoreRootContext::handleKeyboard(KeyHandlerType type, const Keyboard &keyboard)
 bool
 CoreRootContext::handlePointerEvent(const PointerEvent& pointerEvent)
 {
+    return handlePointerEvent(pointerEvent, mTimeManager->currentTime());
+}
+
+bool
+CoreRootContext::handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t timestamp)
+{
     assert(mShared);
-    return mShared->pointerManager().handlePointerEvent(pointerEvent, mTimeManager->currentTime());
+    if (timestamp < currentTime()) {
+        LOG(LogLevel::kWarn) << "Pointer event ignored as timestamp before last tick. Pointer timestamp: "
+                             << timestamp << " Tick timestamp: " << currentTime();
+        return false;
+    }
+    return mShared->pointerManager().handlePointerEvent(pointerEvent, timestamp);
 }
 
 const RootConfig&

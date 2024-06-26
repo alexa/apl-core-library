@@ -22,6 +22,7 @@ target_sources_local(apl
     delayaction.cpp
     documentaction.cpp
     extensioneventaction.cpp
+    importpackageaction.cpp
     openurlaction.cpp
     playmediaaction.cpp
     resourceholdingaction.cpp

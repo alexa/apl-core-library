@@ -42,6 +42,7 @@
 #include "apl/command/setvaluecommand.h"
 #include "apl/command/speakitemcommand.h"
 #include "apl/command/speaklistcommand.h"
+#include "apl/command/importpackagecommand.h"
 #include "apl/component/componenteventtargetwrapper.h"
 #include "apl/component/selector.h"
 #include "apl/engine/layoutmanager.h"
@@ -333,6 +334,7 @@ std::map<int, CommandCreateFunc> sCommandCreatorMap = {
     {kCommandTypeReinflate,         ReinflateCommand::create},
     {kCommandTypeInsertItem,        InsertItemCommand::create},
     {kCommandTypeRemoveItem,        RemoveItemCommand::create},
+    {kCommandTypeImportPackage,     ImportPackageCommand::create},
 };
 
 }

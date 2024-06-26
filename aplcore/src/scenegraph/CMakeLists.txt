@@ -11,22 +11,32 @@
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
-target_sources_local(apl
-        PRIVATE
-        accessibility.cpp
-        builder.cpp
-        edittextconfig.cpp
-        filter.cpp
-        layer.cpp
-        node.cpp
-        graphicfragment.cpp
-        paint.cpp
-        path.cpp
-        pathop.cpp
-        pathbounds.cpp
-        pathparser.cpp
-        scenegraph.cpp
-        scenegraphupdates.cpp
-        textproperties.cpp
-        utilities.cpp
-        )
+if(ENABLE_SCENEGRAPH)
+    target_sources_local(apl
+            PRIVATE
+            accessibility.cpp
+            builder.cpp
+            edittextconfig.cpp
+            filter.cpp
+            layer.cpp
+            node.cpp
+            graphicfragment.cpp
+            paint.cpp
+            path.cpp
+            pathop.cpp
+            pathbounds.cpp
+            pathparser.cpp
+            scenegraph.cpp
+            scenegraphupdates.cpp
+            textproperties.cpp
+            utilities.cpp
+            )
+else()
+    target_sources_local(apl
+            PRIVATE
+            edittextconfig.cpp
+            textproperties.cpp
+            utilities.cpp
+            )
+endif(ENABLE_SCENEGRAPH)
+

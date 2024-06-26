@@ -28,6 +28,7 @@ public:
     }
 
     bool collectVisibilityChanges() {
+        root->clearPending();
         auto hasChanges = false;
         while (root->hasEvent()) {
             auto event = root->popEvent();
@@ -677,4 +678,76 @@ TEST_F(ViewabilityTest, EventOrdering)
     ASSERT_TRUE(collectVisibilityChanges());
     ASSERT_FALSE(CheckVisibilityChange("boxred:1:0.75"));
     ASSERT_TRUE(CheckVisibilityChange("boxgreen:1:0.75"));
+}
+
+static const char *SIMPLE_SCROLL_VIEW = R"({
+  "type": "APL",
+  "version": "2024.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "bind": [
+        {
+          "name": "Percentage",
+          "value": -1
+        }
+      ],
+      "items": [
+        {
+          "type": "Text",
+          "text": "${Percentage}"
+        },
+        {
+          "type": "ScrollView",
+          "width": "100%",
+          "height": 500,
+          "item": {
+            "type": "Container",
+            "width": "100%",
+            "height": 1000,
+            "items": {
+              "type": "Frame",
+              "width": 100,
+              "height": 100,
+              "position": "absolute",
+              "top": 500,
+              "borderWidth": 2,
+              "borderColor": "blue",
+              "handleVisibilityChange": {
+                "commands": [
+                  {
+                    "type": "SetValue",
+                    "componentId": ":root",
+                    "property": "Percentage",
+                    "value": "${event.visibleRegionPercentage}"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(ViewabilityTest, SimpleScrollView)
+{
+    loadDocument(SIMPLE_SCROLL_VIEW);
+
+    ASSERT_TRUE(component);
+    advanceTime(16);
+
+    ASSERT_EQ("0", component->getChildAt(0)->getCalculated(apl::kPropertyText).asString());
+
+    executeCommand("Scroll", {{"componentId", ":root:child(1)"}, {"distance", 2}}, false);
+
+    // Advance 100 frames
+    for (auto i = 0; i < 100; i++) {
+        advanceTime(16);
+    }
+
+    ASSERT_EQ("1", component->getChildAt(0)->getCalculated(apl::kPropertyText).asString());
 }

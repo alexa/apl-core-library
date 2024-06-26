@@ -370,6 +370,14 @@ public:
     virtual bool handlePointerEvent(const PointerEvent& pointerEvent) = 0;
 
     /**
+     * Handle a given PointerEvent with coordinates relative to the viewport.
+     * @param pointerEvent The pointer event to handle.
+     * @param timestamp The pointer timestamp.
+     * @return true if was consumed and should not be passed through any platform handling.
+     */
+    virtual bool handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t timestamp) = 0;
+
+    /**
      * An update message from the viewhost called when a key is pressed.  The
      * keyboard message is directed to the focused component, or the document
      * if no component is in focus.  If the key event is handled and not propagated

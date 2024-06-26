@@ -64,8 +64,9 @@ PageMoveHandler::create(
         }
 
         auto commands = arrayifyPropertyAsObject(*eventContext, object, "commands");
-        auto action = propertyAsMapped<PageMoveDrawOrder>(*eventContext, object, "drawOrder",
-            kPageMoveDrawOrderHigherAbove, sPageMoveDrawOrderBimap);
+        auto action = optionalMappedProperty<PageMoveDrawOrder>(*eventContext, object, "drawOrder",
+                                                                kPageMoveDrawOrderHigherAbove,
+                                                                sPageMoveDrawOrderBimap);
 
         return std::make_unique<PageMoveHandler>(std::move(commands), action,
             swipeDirection, pageDirection, currentChild, nextChild);

@@ -21,7 +21,7 @@
 #include "apl/action/action.h"
 #include "apl/command/command.h"
 #include "apl/engine/context.h"
-#include "apl/component/corecomponent.h"
+#include "apl/engine/properties.h"
 #include "apl/primitives/object.h"
 #include "apl/primitives/commanddata.h"
 

@@ -128,6 +128,11 @@ Bimap<int, std::string> sPositionMap = {
     {kPositionSticky, "sticky"}
 };
 
+Bimap<int, std::string> sPointerEventsMap = {
+    {kPointerEventsAuto, "auto"},
+    {kPointerEventsNone, "none"}
+};
+
 Bimap<int, std::string> sScrollDirectionMap = {
     {kScrollDirectionHorizontal, "horizontal"},
     {kScrollDirectionVertical,   "vertical"}
@@ -400,6 +405,7 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyOnFail,                       "onFail"},
     {kPropertyResourceOnFatalError,         "onFatalError"},
     {kPropertyOnFocus,                      "onFocus"},
+    {kPropertyOnLayout,                     "onLayout"},
     {kPropertyOnLoad,                       "onLoad"},
     {kPropertyOnMount,                      "onMount"},
     {kPropertyOnMove,                       "onMove"},
@@ -413,6 +419,7 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyOnPress,                      "onPress"},
     {kPropertyOnSubmit,                     "onSubmit"},
     {kPropertyOnTextChange,                 "onTextChange"},
+    {kPropertyOnTextLayout,                 "onTextLayout"},
     {kPropertyOnTimeUpdate,                 "onTimeUpdate"},
     {kPropertyOnTrackUpdate,                "onTrackUpdate"},
     {kPropertyOnUp,                         "onUp"},
@@ -433,6 +440,7 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyParameters,                   "parameter"},
     {kPropertyPlayingState,                 "playingState"},
     {kPropertyPosition,                     "position"},
+    {kPropertyPointerEvents,                "pointerEvents"},
     {kPropertyPreserve,                     "preserve"},
     {kPropertyRangeKaraokeTarget,           "_rangeKaraokeTarget"},
     {kPropertyResourceId,                   "resourceId"},

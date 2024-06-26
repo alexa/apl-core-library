@@ -21,19 +21,20 @@
 #include "apl/engine/event.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/primitives/unicode.h"
+#include "apl/scenegraph/edittextbox.h"
+#include "apl/scenegraph/edittextconfig.h"
+#include "apl/scenegraph/textchunk.h"
+#include "apl/scenegraph/textlayout.h"
+#include "apl/scenegraph/textmeasurement.h"
+#include "apl/scenegraph/textproperties.h"
+#include "apl/scenegraph/utilities.h"
 #include "apl/time/sequencer.h"
 #include "apl/touch/pointerevent.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
 #include "apl/scenegraph/edittext.h"
-#include "apl/scenegraph/edittextbox.h"
-#include "apl/scenegraph/edittextconfig.h"
 #include "apl/scenegraph/edittextfactory.h"
 #include "apl/scenegraph/scenegraphupdates.h"
-#include "apl/scenegraph/textchunk.h"
-#include "apl/scenegraph/textlayout.h"
-#include "apl/scenegraph/textmeasurement.h"
-#include "apl/scenegraph/utilities.h"
 #endif // SCENEGRAPH
 
 namespace apl {
@@ -53,33 +54,40 @@ EditTextComponent::EditTextComponent(const ContextPtr& context,
                                      const Path& path)
         : ActionableComponent(context, std::move(properties), path)
 {
-    mIsDisallowed = context->getRootConfig().getProperty(RootProperty::kDisallowEditText).asBoolean();
+    if (context->getRootConfig().getProperty(RootProperty::kDisallowEditText).asBoolean())
+        mCoreFlags.set(kCoreComponentFlagIsDisallowed);
+
+    YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc);
+    YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc);
 #ifdef SCENEGRAPH
-    static auto sgTextMeasureFunc = [](YGNodeRef node, float width, YGMeasureMode widthMode,
-                                       float height, YGMeasureMode heightMode) -> YGSize {
-        // TODO: Hash this properly so we don't call it multiple times
-        auto self = static_cast<EditTextComponent *>(node->getContext());
-        return self->measureEditText(
-            MeasureRequest(width, toMeasureMode(widthMode), height, toMeasureMode(heightMode)));
-    };
-
-    static auto sgTextBaselineFunc = [](YGNodeRef node, float width, float height) -> float {
-        auto self = static_cast<EditTextComponent*>(node->getContext());
-        return self->baselineText(width, height);
-    };
-
     if (context->getRootConfig().getEditTextFactory()) {
-        YGNodeSetMeasureFunc(mYGNodeRef, sgTextMeasureFunc);
-        YGNodeSetBaselineFunc(mYGNodeRef, sgTextBaselineFunc);
         YGNodeSetNodeType(mYGNodeRef, YGNodeTypeDefault);
     } else {
 #endif // SCENEGRAPH
-        YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc);
-        YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc);
         YGNodeSetNodeType(mYGNodeRef, YGNodeTypeText);
 #ifdef SCENEGRAPH
     }
 #endif // SCENEGRAPH
+}
+
+YGSize
+EditTextComponent::textMeasure(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)
+{
+    if (mContext->measure()->layoutCompatible()) {
+        return measureEditText(MeasureRequest(width, toMeasureMode(widthMode), height, toMeasureMode(heightMode)));
+    } else {
+        return ActionableComponent::textMeasure(width, widthMode, height, heightMode);
+    }
+}
+
+float
+EditTextComponent::textBaseline(float width, float height)
+{
+    if (mContext->measure()->layoutCompatible()) {
+        return baselineText(width, height);
+    } else {
+        return ActionableComponent::textBaseline(width, height);
+    }
 }
 
 /*
@@ -190,10 +198,10 @@ EditTextComponent::propDefSet() const
     };
 
     static auto styleOrWeightChanged = [](Component& component) -> void {
-#ifdef SCENEGRAPH
         auto& self = static_cast<EditTextComponent&>(component);
         self.mEditTextProperties = nullptr;
         self.mEditTextBox = nullptr;
+#ifdef SCENEGRAPH
         self.mEditTextConfig = nullptr;
 
         if (!self.mLastMeasureRequest.isExact())
@@ -202,12 +210,12 @@ EditTextComponent::propDefSet() const
     };
 
     static auto familyOrSizeChanged = [](Component& component) -> void {
-#ifdef SCENEGRAPH
         auto& self = static_cast<EditTextComponent&>(component);
-        self.mHintLayout = nullptr;
-        self.mHintTextProperties = nullptr;
         self.mEditTextProperties = nullptr;
         self.mEditTextBox = nullptr;
+#ifdef SCENEGRAPH
+        self.mHintLayout = nullptr;
+        self.mHintTextProperties = nullptr;
         self.mEditTextConfig = nullptr;
 
         if (!self.mLastMeasureRequest.isExact())
@@ -216,10 +224,9 @@ EditTextComponent::propDefSet() const
     };
 
     static auto sizeChanged = [](Component& component) -> void {
-#ifdef SCENEGRAPH
         auto& self = static_cast<EditTextComponent&>(component);
         self.mEditTextBox = nullptr;
-
+#ifdef SCENEGRAPH
         if (!self.mLastMeasureRequest.isExact())
             YGNodeMarkDirty(self.mYGNodeRef);
 #endif // SCENEGRAPH
@@ -382,7 +389,6 @@ EditTextComponent::executeOnFocus() {
 #endif // SCENEGRAPH
 }
 
-#ifdef SCENEGRAPH
 YGSize
 EditTextComponent::measureEditText(MeasureRequest&& request)
 {
@@ -394,10 +400,11 @@ EditTextComponent::measureEditText(MeasureRequest&& request)
     if (!mEditTextBox) {
         ensureEditTextProperties();
 
-        assert(mContext->measure()->sceneGraphCompatible());
+        assert(mContext->measure()->layoutCompatible());
         auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
 
         mEditTextBox = measure->box(
+            this,
             getCalculated(kPropertySize).getInteger(),
             mEditTextProperties,
             mLastMeasureRequest.width(),
@@ -420,6 +427,50 @@ EditTextComponent::baselineText(float width, float height)
     return mEditTextBox ? mEditTextBox->getBaseline() : 0.0f;
 }
 
+bool
+EditTextComponent::ensureEditTextBox()
+{
+    if (mEditTextBox)
+        return false;
+
+    ensureEditTextProperties();
+
+    assert(mContext->measure()->layoutCompatible());
+    auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
+
+    const auto& innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();
+
+    mEditTextBox = measure->box(this,
+                                getCalculated(kPropertySize).getInteger(),
+                                mEditTextProperties,
+                                innerBounds.getWidth(),
+                                MeasureMode::AtMost,
+                                innerBounds.getHeight(),
+                                MeasureMode::AtMost);
+
+    return true;
+}
+
+bool
+EditTextComponent::ensureEditTextProperties()
+{
+    if (mEditTextProperties)
+        return false;
+
+    mEditTextProperties = sg::TextProperties::create(
+        mContext->textPropertiesCache(),
+        sg::splitFontString(mContext->getRootConfig(),
+                            mContext->session(),
+                            getCalculated(kPropertyFontFamily).getString()),
+        getCalculated(kPropertyFontSize).asFloat(),
+        getCalculated(kPropertyFontStyle).asEnum<FontStyle>(),
+        getCalculated(kPropertyLang).getString(),
+        getCalculated(kPropertyFontWeight).getInteger());
+
+    return true;
+}
+
+#ifdef SCENEGRAPH
 /*
  * The EditText scene graph structure:
  *
@@ -601,30 +652,6 @@ EditTextComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
     return result;
 }
 
-
-bool
-EditTextComponent::ensureEditTextBox()
-{
-    if (mEditTextBox)
-        return false;
-
-    ensureEditTextProperties();
-
-    assert(mContext->measure()->sceneGraphCompatible());
-    auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
-
-    const auto& innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();
-
-    mEditTextBox = measure->box(getCalculated(kPropertySize).getInteger(),
-                                mEditTextProperties,
-                                innerBounds.getWidth(),
-                                MeasureMode::AtMost,
-                                innerBounds.getHeight(),
-                                MeasureMode::AtMost);
-
-    return true;
-}
-
 bool
 EditTextComponent::ensureEditConfig()
 {
@@ -644,25 +671,6 @@ EditTextComponent::ensureEditConfig()
         getCalculated(kPropertySelectOnFocus).asBoolean(),
         getCalculated(kPropertyKeyboardBehaviorOnFocus).asEnum<KeyboardBehaviorOnFocus>(),
         mEditTextProperties);
-
-    return true;
-}
-
-bool
-EditTextComponent::ensureEditTextProperties()
-{
-    if (mEditTextProperties)
-        return false;
-
-    mEditTextProperties = sg::TextProperties::create(
-        mContext->textPropertiesCache(),
-        sg::splitFontString(mContext->getRootConfig(),
-                            mContext->session(),
-                            getCalculated(kPropertyFontFamily).getString()),
-        getCalculated(kPropertyFontSize).asFloat(),
-        getCalculated(kPropertyFontStyle).asEnum<FontStyle>(),
-        getCalculated(kPropertyLang).getString(),
-        getCalculated(kPropertyFontWeight).getInteger());
 
     return true;
 }
@@ -700,7 +708,7 @@ EditTextComponent::ensureHintLayout()
 
     auto borderWidth = getCalculated(kPropertyBorderWidth).asFloat();
     auto innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>().inset(borderWidth);
-    assert(mContext->measure()->sceneGraphCompatible());
+    assert(mContext->measure()->layoutCompatible());
     auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
 
     mHintLayout =

@@ -22,8 +22,10 @@ using namespace apl;
 class SGTextTest : public DocumentWrapper {
 public:
     SGTextTest() : DocumentWrapper() {
-        config->measure(std::make_shared<MyTestMeasurement>());
+        config->measure(measurement);
     }
+
+    std::shared_ptr<MyTestMeasurement> measurement = std::make_shared<MyTestMeasurement>();
 };
 
 struct SplitTestCase {
@@ -408,7 +410,8 @@ static const char *CHANGING_SIZE = R"apl(
       "type": "Container",
       "id": "BOX",
       "width": 200,
-      "height": 200,
+      "height": "auto",
+      "maxHeight": 600,
       "item": {
         "type": "Text",
         "text": "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
@@ -428,7 +431,7 @@ TEST_F(SGTextTest, ChangingSize) {
     auto sg = root->getSceneGraph();
 
     ASSERT_TRUE(CheckSceneGraph(
-        sg, IsLayer(Rect{0, 0, 200, 200})
+        sg, IsLayer(Rect{0, 0, 200, 240})
                 .child(IsLayer(Rect{0, 0, 200, 240})   // 5 characters per line
                            .content(IsTransformNode().child(
                                IsTextNode()
@@ -442,7 +445,7 @@ TEST_F(SGTextTest, ChangingSize) {
     sg = root->getSceneGraph();
 
     ASSERT_TRUE(CheckSceneGraph(
-        sg, IsLayer(Rect{0, 0, 100, 200})
+        sg, IsLayer(Rect{0, 0, 100, 520})
                 .dirty(sg::Layer::kFlagSizeChanged)
                 .child(IsLayer(Rect{0, 0, 100, 40 * 13})   // 2 characters per line
                            .dirty(sg::Layer::kFlagSizeChanged |
@@ -459,7 +462,7 @@ TEST_F(SGTextTest, ChangingSize) {
     sg = root->getSceneGraph();
 
     ASSERT_TRUE(CheckSceneGraph(
-        sg, IsLayer(Rect{0, 0, 200, 200})
+        sg, IsLayer(Rect{0, 0, 200, 240})
                 .dirty(sg::Layer::kFlagSizeChanged)
                 .child(IsLayer(Rect{0, 0, 200, 240})   // 5 characters per line
                            .dirty(sg::Layer::kFlagSizeChanged |
@@ -471,6 +474,44 @@ TEST_F(SGTextTest, ChangingSize) {
                                    .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))));
 }
 
+static const char *LIMIT_SIZE = R"apl(
+{
+  "type": "APL",
+  "version": "1.8",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "id": "BOX",
+      "width": 200,
+      "height": "auto",
+      "maxHeight": 200,
+      "item": {
+        "type": "Text",
+        "text": "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "fontSize": 40,
+        "color": "blue",
+        "width": "100%"
+      }
+    }
+  }
+}
+)apl";
+
+TEST_F(SGTextTest, LimitSize) {
+    loadDocument(LIMIT_SIZE);
+    ASSERT_TRUE(component);
+
+    auto sg = root->getSceneGraph();
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 200, 200})
+                .child(IsLayer(Rect{0, 0, 200, 200})   // 5 characters per line
+                           .content(IsTransformNode().child(
+                               IsTextNode()
+                                   .measuredSize({200,200})
+                                   .text("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))));
+}
 
 static const char * RESIZE = R"apl(
     {
@@ -505,4 +546,170 @@ TEST_F(SGTextTest, Resize) {
                                 .dirty(sg::Layer::kFlagSizeChanged | sg::Layer::kFlagRedrawContent)
                                 .content(IsTransformNode().child(IsTextNode().text("Hello").pathOp(
                                     IsFillOp(IsColorPaint(Color::RED)))))));
+}
+
+const char* FIXED_SIZE_LAYOUT_REQUESTS = R"({
+  "type": "APL",
+  "version": "2023.2",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": {
+      "type": "Text",
+      "id": "TEXT",
+      "text": "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.",
+      "width": 400,
+      "height": 400,
+      "fontSize": 20
+    }
+  }
+})";
+
+TEST_F(SGTextTest, FixedLayoutRequestedOnce) {
+    loadDocument(FIXED_SIZE_LAYOUT_REQUESTS);
+
+    auto sg = root->getSceneGraph();
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 400, 400})
+            .content(IsTransformNode().child(
+                IsTextNode()
+                    .measuredSize({400,120})
+                    .text("Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.")
+                    .pathOp(IsFillOp(IsColorPaint(0xFAFAFAFF)))))));
+
+    ASSERT_EQ(1, measurement->getLayoutCount());
+
+    executeCommand("SetValue", {{"componentId", "TEXT"}, {"property", "color"}, {"value", "red"}}, false);
+    advanceTime(17);
+
+    sg = root->getSceneGraph();
+    // Layout hasn't changed, only paint. No request required.
+    ASSERT_EQ(1, measurement->getLayoutCount());
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 400, 400})
+            .dirty(sg::Layer::kFlagRedrawContent)
+            .content(IsTransformNode().child(
+                IsTextNode()
+                    .measuredSize({400,120})
+                    .text("Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.")
+                    .pathOp(IsFillOp(IsColorPaint(Color::RED)))))));
+}
+
+const char* IDENTICAL_LAYOUTS_NO_REQUESTS = R"({
+  "type": "APL",
+  "version": "2024.2",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "id": "BOX",
+      "width": 200,
+      "height": "auto",
+      "maxHeight": 800,
+      "data": [1, 2],
+      "item": {
+        "type": "Text",
+        "text": "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "fontSize": 40,
+        "color": "blue",
+        "width": "100%"
+      }
+    }
+  }
+})";
+
+TEST_F(SGTextTest, IdenticalLayoutsRequestedOnce) {
+    loadDocument(IDENTICAL_LAYOUTS_NO_REQUESTS);
+
+    auto sg = root->getSceneGraph();
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 200, 480})
+                .children({
+                    IsLayer(Rect{0, 0, 200, 240})   // 5 characters per line
+                           .content(IsTransformNode().child(
+                               IsTextNode()
+                                   .measuredSize({200,240})
+                                   .text("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))),
+                    IsLayer(Rect{0, 240, 200, 240})   // 5 characters per line
+                        .content(IsTransformNode().child(
+                            IsTextNode()
+                                .measuredSize({200,240})
+                                .text("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                                .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))
+                })));
+
+    ASSERT_EQ(1, measurement->getLayoutCount());
+}
+
+const char* AUTOSIZE_WITH_EVENT = R"({
+  "type": "APL",
+  "version": "2023.2",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "width": 400,
+      "height": 400,
+      "bind": [
+        {
+          "name": "LongText",
+          "value": "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa."
+        }
+      ],
+      "items": [
+        {
+          "bind": [
+            {
+              "name": "FontSize",
+              "value": 40
+            }
+          ],
+          "type": "Text",
+          "text": "${LongText}",
+          "width": "100%",
+          "height": "50%",
+          "fontSize": "${FontSize}",
+          "onTextLayout": [
+            {
+              "when": "${event.isTruncated && event.source.bind.FontSize > 10}",
+              "type": "SetValue",
+              "property": "FontSize",
+              "value": "${event.source.bind.FontSize - 10}"
+            },
+            {
+              "type": "SendEvent",
+              "sequencer": "EVENTER",
+              "arguments": [
+                "${event.laidOutText}",
+                "${event.isTruncated}",
+                "${event.textWidth}",
+                "${event.textHeight}"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(SGTextTest, TextLayoutAutosizeFixed) {
+    loadDocument(AUTOSIZE_WITH_EVENT);
+
+    ASSERT_TRUE(CheckSendEvent(root, "Lorem ipsum dolor sit amet, consectetuer adipiscin", true, 400, 200));
+    ASSERT_TRUE(CheckSendEvent(root, "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligul", true, 390, 200));
+    ASSERT_TRUE(CheckSendEvent(root, "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.", false, 400, 120));
+    ASSERT_FALSE(CheckSendEvent(root));
+
+    auto sg = root->getSceneGraph();
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 400, 400})
+                .child(IsLayer(Rect{0, 0, 400, 200})
+                           .content(IsTransformNode().child(
+                               IsTextNode()
+                                   .measuredSize({400,120})
+                                   .text("Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.")
+                                   .pathOp(IsFillOp(IsColorPaint(0xFAFAFAFF))))))));
+
+
 }

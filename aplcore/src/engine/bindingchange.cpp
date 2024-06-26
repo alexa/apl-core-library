@@ -25,6 +25,26 @@
 
 namespace apl {
 
+bool
+isValidBinding(const ContextPtr& context, const Object& binding, const std::string& name)
+{
+    if (!isValidIdentifier(name)) {
+        CONSOLE(context) << "Invalid binding name '" << name << "'";
+        return false;
+    }
+
+    if (!binding.has("value")) {
+        CONSOLE(context) << "Binding '" << name << "' did not specify a value";
+        return false;
+    }
+
+    if (context->hasLocal(name)) {
+        CONSOLE(context) << "Attempted to bind to pre-existing property '" << name << "'";
+        return false;
+    }
+    return true;
+}
+
 std::vector<BindingChangePtr>
 attachBindings(const ContextPtr& context, const Object& item, std::function<BindingChangePtr(Object&&)> makeBCP)
 {
@@ -34,26 +54,15 @@ attachBindings(const ContextPtr& context, const Object& item, std::function<Bind
 
     for (const auto& binding : bindings) {
         auto name = propertyAsString(*context, binding, "name");
-        if (!isValidIdentifier(name)) {
-            CONSOLE(context) << "Invalid binding name '" << name << "'";
-            continue;
-        }
-
-        if (!binding.has("value")) {
-            CONSOLE(context) << "Binding '" << name << "' did not specify a value";
-            continue;
-        }
-
-        if (context->hasLocal(name)) {
-            CONSOLE(context) << "Attempted to bind to pre-existing property '" << name << "'";
-            continue;
-        }
+        if (!isValidBinding(context, binding, name)) continue;
 
         // Extract the binding as an optional node tree.
         auto result = parseAndEvaluate(*context, binding.get("value"));
-        auto bindingType =
-                propertyAsMapped<BindingType>(*context, binding, "type", kBindingTypeAny, sBindingMap);
+        auto bindingType = optionalMappedProperty<BindingType>(*context, binding, "type",
+                                                               kBindingTypeAny, sBindingMap);
+
         auto bindingFunc = sBindingFunctions.at(bindingType);
+        auto value = bindingFunc(*context, result.value);
 
         BindingChangePtr ptr;
         if (makeBCP) {
@@ -69,7 +78,7 @@ attachBindings(const ContextPtr& context, const Object& item, std::function<Bind
         }
 
         // Store the value in the new context.  Binding values are mutable; they can be changed later.
-        context->putUserWriteable(name, bindingFunc(*context, result.value), ptr);
+        context->putUserWriteable(name, value, ptr);
 
         if (!result.symbols.empty())
             ContextDependant::create(context, name, std::move(result.expression), context,

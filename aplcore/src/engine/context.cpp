@@ -548,13 +548,17 @@ Context::documentContext() const
     return documentContextData(mCore)->documentContext();
 }
 
-#ifdef SCENEGRAPH
+sg::TextLayoutCache&
+Context::textLayoutCache() const
+{
+    return documentContextData(mCore)->textLayoutCache();
+}
+
 sg::TextPropertiesCache&
 Context::textPropertiesCache() const
 {
     return documentContextData(mCore)->textPropertiesCache();
 }
-#endif // SCENEGRAPH
 
 ComponentPtr
 Context::inflate(const rapidjson::Value& component)

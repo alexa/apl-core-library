@@ -573,8 +573,11 @@ ExtensionMediator::loadExtensions(const RootConfigPtr& rootConfig, const Content
 void
 ExtensionMediator::loadExtensions(const ObjectMap& flagMap, const ContentPtr& content,
                                   const std::set<std::string>* grantedExtensions) {
-    if (!content->isReady()) {
-        CONSOLE(content) << "Cannot load extensions when Content is not ready";
+    if (content->isError()) {
+        CONSOLE(content) << "Cannot load extensions when Content has errors";
+        return;
+    } else if (content->isWaiting()) {
+        CONSOLE(content) << "Cannot load extensions when Content is waiting for packages";
         return;
     }
 

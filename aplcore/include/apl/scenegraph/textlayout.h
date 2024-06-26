@@ -39,7 +39,9 @@ public:
     virtual Size getSize() const = 0;
     virtual float getBaseline() const = 0;
     virtual int getLineCount() const = 0;
+    virtual std::string getLaidOutText() const { return ""; }
     virtual std::string toDebugString() const = 0;
+    virtual bool isTruncated() const { return false; }
 
     virtual unsigned int getByteLength() const = 0;
     virtual Range getLineRangeFromByteRange(Range byteRange) const = 0;

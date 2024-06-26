@@ -232,6 +232,12 @@ public:
     RootConfig mergeRootConfig(const RootConfig& oldRootConfig) const;
 
     /**
+     * Applies this configuration change to a root config object
+     * @param rootConfig The root config to apply this change to
+     */
+    void applyToRootConfig(RootConfig& rootConfig) const;
+
+    /**
      * Merge this configuration change into an environment object bag.
      * @param oldEnvironment The old environment to merge with this change
      * @return A new environment object bag.

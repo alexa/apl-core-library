@@ -22,7 +22,7 @@
 namespace apl {
 
 /**
- * A weak cache is a map from a unique string to a weak_ptr.
+ * A weak cache is a map from a unique key to a weak_ptr.
  * As strong pointers are released the entries in the cache become invalid.
  * Periodically running the "clean()" method will remove those invalid entries.
  *

@@ -41,6 +41,9 @@ public:
     }
 
     void emplace(const BoundSymbol& boundSymbol);
+    void merge(const BoundSymbolSet& other) {
+        for (const auto& symbol : other.mSymbols) emplace(symbol);
+    }
 
     bool empty() const { return mSymbols.empty(); }
     size_t size() const { return mSymbols.size(); }

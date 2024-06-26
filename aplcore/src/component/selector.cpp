@@ -21,6 +21,7 @@
 #include "apl/component/corecomponent.h"
 #include "apl/datagrammar/grammarpolyfill.h"
 #include "apl/document/documentcontextdata.h"
+#include "apl/utils/constants.h"
 #include "apl/utils/make_unique.h"
 #include "apl/utils/session.h"
 
@@ -383,16 +384,16 @@ static bool matchComponentType(const CoreComponentPtr& component, const std::str
 {
     // The first context should have __source=component
     auto context = component->getContext();
-    assert(context->opt("__source").asString() == "component");
+    assert(context->opt(COMPONENT_CONTEXT_SOURCE).asString() == "component");
 
     // Check the __name property for a quick match
-    auto name = context->opt("__name");
+    auto name = context->opt(COMPONENT_CONTEXT_NAME);
     if (name.isString() && name.getString() == type)
         return true;
 
     // Search upwards through the context for a layout that matches.
     while ((context = context->parent()) != nullptr) {
-        auto source = context->opt("__source");
+        auto source = context->opt(COMPONENT_CONTEXT_SOURCE);
         if (!source.isString())
             return false;
 
@@ -401,7 +402,7 @@ static bool matchComponentType(const CoreComponentPtr& component, const std::str
             return false;
 
         // We match if a containing layout has this name
-        if (source.getString() == "layout" && context->opt("__name").asString() == type)
+        if (source.getString() == "layout" && context->opt(COMPONENT_CONTEXT_NAME).asString() == type)
             return true;
     }
 

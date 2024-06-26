@@ -30,6 +30,13 @@
 
 namespace apl {
 
+#ifndef SCENEGRAPH
+namespace sg {
+class TextLayoutCache;
+class TextPropertiesCache;
+}
+#endif // SCENEGRAPH
+
 class ExtensionManager;
 class FocusManager;
 class HoverManager;
@@ -144,12 +151,15 @@ public:
      */
     DocumentContextPtr documentContext() const { return mDocument.lock(); }
 
-#ifdef SCENEGRAPH
+    /**
+     * @return A cache of TextLayout
+     */
+    sg::TextLayoutCache& textLayoutCache();
+
     /**
      * @return A cache of TextProperties
      */
     sg::TextPropertiesCache& textPropertiesCache();
-#endif // SCENEGRAPH
 
     double getWidth() const { return mMetrics.getWidth(); }
     double getHeight() const { return mMetrics.getHeight(); }
@@ -190,6 +200,7 @@ private:
     WeakPtrSet<CoreComponent> mPendingOnMounts;
     std::set<ComponentPtr> mDirtyVisualContext;
     std::set<DataSourceConnectionPtr> mDirtyDatasourceContext;
+    std::map<std::string, PackagePtr> mProcessedPackages;
 #ifdef ALEXAEXTENSIONS
     std::queue<Event> mExtensionEvents;
 #endif

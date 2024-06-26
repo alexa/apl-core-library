@@ -87,6 +87,25 @@ TextProperties::create(TextPropertiesCache& cache,
     return properties;
 }
 
+size_t
+TextProperties::hash() const
+{
+    size_t hash = 0;
+    for (const auto& m : mFontFamily)
+        hashCombine(hash, m);
+    hashCombine(hash, mFontSize);
+    hashCombine(hash, static_cast<int>(mFontStyle));
+    hashCombine(hash, mLanguage);
+    hashCombine(hash, mFontWeight);
+    hashCombine(hash, mLetterSpacing);
+    hashCombine(hash, mLineHeight);
+    hashCombine(hash, mMaxLines);
+    hashCombine(hash, static_cast<int>(mTextAlign));
+    hashCombine(hash, static_cast<int>(mTextAlignVertical));
+
+    return hash;
+}
+
 bool
 operator==(const TextProperties& lhs, const TextProperties& rhs)
 {

@@ -38,6 +38,7 @@ target_sources_local(alexaext PRIVATE
         src/APLAudioNormalizationExtension/AplAudioNormalizationExtension.cpp
         src/APLE2EEncryptionExtension/AplE2eEncryptionExtension.cpp
         src/APLMetricsExtension/AplMetricsExtension.cpp
+        src/APLMetricsExtensionV2/AplMetricsExtensionV2.cpp
         src/APLWebflowExtension/AplWebflowBase.cpp
         src/APLWebflowExtension/AplWebflowExtension.cpp
         src/APLMusicAlarmExtension/AplMusicAlarmExtension.cpp

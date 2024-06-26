@@ -97,8 +97,6 @@ FrameComponent::propDefSet() const
         {kPropertyBackgroundAssigned,      Object::NULL_OBJECT(), asFill,                         kPropIn |
                                                                                                   kPropStyled |
                                                                                                   kPropDynamic, inlineFixBackground},
-        {kPropertyBackground,              Color(),               asFill,                         kPropOut |
-                                                                                                  kPropVisualHash},
         {kPropertyBorderRadii,             Radii(),               nullptr,                        kPropOut |
                                                                                                   kPropVisualHash},
         {kPropertyBorderColor,             Color(),               asColor,                        kPropInOut |

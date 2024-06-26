@@ -33,6 +33,7 @@ class TextChunk;
 class TextProperties;
 class TextPropertiesCache;
 class TextLayout;
+class TextLayoutCache;
 
 class Accessibility;
 class Filter;

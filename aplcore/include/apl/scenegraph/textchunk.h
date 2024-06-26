@@ -37,6 +37,8 @@ public:
 
     const StyledText& styledText() const { return mStyledText; }
 
+    std::size_t hash() const { return std::hash<std::string>{}(mStyledText.asString()); }
+
 private:
     StyledText mStyledText;
 };

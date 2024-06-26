@@ -97,15 +97,24 @@ Gradient::create(const Context& context, const Object& object, bool avg)
     if (!object.isMap())
         return Object::NULL_OBJECT();
 
-    if (avg && !object.has("type")) {
-        CONSOLE(context) << "Type field is required in AVG gradient";
-        return Object::NULL_OBJECT();
+    auto type = GradientType::LINEAR;
+    if (avg) {
+        // An avg gradient is required to specify the type
+        auto result = requiredMappedProperty(context, object, "type", sGradientTypeMap);
+        if (!result.second) {
+            CONSOLE(context) << "Type field is required in AVG gradient";
+            return Object::NULL_OBJECT();
+        }
+        type = result.first;
     }
-
-    auto type = propertyAsMapped<GradientType>(context, object, "type", LINEAR, sGradientTypeMap);
-    if (type < 0) {
-        CONSOLE(context) << "Unrecognized type field in gradient";
-        return Object::NULL_OBJECT();
+    else {
+        // A regular gradient defaults to "linear"'
+        auto result = optionalStrictMappedProperty(context, object, "type", LINEAR, sGradientTypeMap);
+        if (!result.second) {
+            CONSOLE(context) << "Unrecognized type field in gradient";
+            return Object::NULL_OBJECT();
+        }
+        type = result.first;
     }
 
     // Extract and evaluate the color range
@@ -157,8 +166,8 @@ Gradient::create(const Context& context, const Object& object, bool avg)
     properties.emplace(kGradientPropertyColorRange, std::move(colors));
     properties.emplace(kGradientPropertyInputRange, std::move(inputs));
 
-    auto units = propertyAsMapped<GradientUnits>(context, object, "units",
-                                                 kGradientUnitsBoundingBox, sGradientUnitsMap);
+    auto units = optionalMappedProperty<GradientUnits>(
+        context, object, "units", kGradientUnitsBoundingBox, sGradientUnitsMap);
     properties.emplace(kGradientPropertyUnits, units);
 
     // AVG specific handling
@@ -171,8 +180,8 @@ Gradient::create(const Context& context, const Object& object, bool avg)
         double y2 = 1.0;
 
         if (avg) {
-            spreadMethod = propertyAsMapped<GradientSpreadMethod>(context, object, "spreadMethod", PAD,
-                                                                  sGradientSpreadMethodMap);
+            spreadMethod = optionalMappedProperty<GradientSpreadMethod>(
+                context, object, "spreadMethod", PAD, sGradientSpreadMethodMap);
             x1 = propertyAsDouble(context, object, "x1", 0.0);
             x2 = propertyAsDouble(context, object, "x2", 1.0);
             y1 = propertyAsDouble(context, object, "y1", 0.0);

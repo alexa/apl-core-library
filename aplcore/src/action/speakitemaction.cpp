@@ -593,7 +593,7 @@ SpeakItemAction::SpeakItemAction(const TimersPtr& timers, const std::shared_ptr<
 #ifdef SCENEGRAPH
         // If a sg::TextMeasurement is installed, we use that to select the text to highlight
         // Otherwise we use an event mechanism to set highlighted lines
-        if (rootConfig.getMeasure()->sceneGraphCompatible())
+        if (rootConfig.getMeasure()->layoutCompatible())
             mPrivate = std::make_unique<SpeakItemActionPrivateSceneGraph>();
         else
 #endif // SCENEGRAPH

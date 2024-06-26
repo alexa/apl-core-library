@@ -59,6 +59,7 @@ public:
 
     friend bool operator==(const TextProperties& lhs, const TextProperties& rhs);
     friend bool operator!=(const TextProperties& lhs, const TextProperties& rhs);
+    size_t hash() const;
 
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 

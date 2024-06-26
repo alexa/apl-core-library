@@ -17,19 +17,19 @@
 #define _ALEXAEXT_H
 
 /**
-* Public facing API for Alexa Extensions
-*
-* Extensions are optional enhancements to a runtime that provide additional sources of data,
-* commands, and event handlers. Extensions must be explicitly requested before they are made
-* available.  The extension user must ask for each extension that it is interested in and then
-* check to see if the requested extension is available on that runtime.
-*
-* Each extension version has a unique URI. The URI is defined by the extension author. Extension
-* authors should follow RFC-3986 Uniform Resource Identifier (URI): Generic Syntax when
-* specifying the URI of an extension.  A sample extension URI that defines version 1.0 of a
-* feature for the Alexa platform, may look like:
-*                     alexaext:myfeature:10
-*/
+ * Public facing API for Alexa Extensions
+ *
+ * Extensions are optional enhancements to a runtime that provide additional sources of data,
+ * commands, and event handlers. Extensions must be explicitly requested before they are made
+ * available.  The extension user must ask for each extension that it is interested in and then
+ * check to see if the requested extension is available on that runtime.
+ *
+ * Each extension version has a unique URI. The URI is defined by the extension author. Extension
+ * authors should follow RFC-3986 Uniform Resource Identifier (URI): Generic Syntax when
+ * specifying the URI of an extension.  A sample extension URI that defines version 1.0 of a
+ * feature for the Alexa platform, may look like:
+ *                     alexaext:myfeature:10
+ */
 
 #include "activitydescriptor.h"
 #include "extension.h"
@@ -54,6 +54,10 @@
 #include "APLWebflowExtension/AplWebflowExtension.h"
 #include "APLMusicAlarmExtension/AplMusicAlarmExtension.h"
 #include "APLMetricsExtension/AplMetricsExtension.h"
+#include "APLMetricsExtensionV2/AplMetricsExtensionV2.h"
+#include "APLMetricsExtensionV2/DestinationFactoryInterface.h"
+#include "APLMetricsExtensionV2/DestinationInterface.h"
+#include "APLMetricsExtensionV2/MetricData.h"
 #include "APLAttentionSystemExtension/AplAttentionSystemExtension.h"
 
 #endif //_ALEXAEXT_H

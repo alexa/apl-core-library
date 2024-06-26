@@ -28,15 +28,12 @@
 #include "apl/engine/styleinstance.h"
 #include "apl/primitives/object.h"
 #include "apl/primitives/textmeasurerequest.h"
+#include "apl/scenegraph/common.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/localemethods.h"
 #include "apl/utils/lrucache.h"
 #include "apl/utils/noncopyable.h"
 #include "apl/utils/path.h"
-
-#ifdef SCENEGRAPH
-#include "apl/scenegraph/common.h"
-#endif // SCENEGRAPH
 
 namespace apl {
 
@@ -618,12 +615,15 @@ public:
      */
     DocumentContextPtr documentContext() const;
 
-#ifdef SCENEGRAPH
+    /**
+     * @return A cache of TextLayout
+     */
+    sg::TextLayoutCache& textLayoutCache() const;
+
     /**
      * @return A cache of TextProperties
      */
     sg::TextPropertiesCache& textPropertiesCache() const;
-#endif // SCENEGRAPH
 
     void pushEvent(Event&& event);
 

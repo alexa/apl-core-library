@@ -16,10 +16,12 @@
 #ifndef _APL_BUILDER_H
 #define _APL_BUILDER_H
 
-#include "apl/component/corecomponent.h"
+#include "apl/common.h"
+#include "apl/engine/properties.h"
 
 namespace apl {
 
+class LayoutRebuilder;
 class Path;
 class InsertItemCommand;
 
@@ -32,6 +34,7 @@ using MakeComponentFunc = std::function<CoreComponentPtr(const ContextPtr&, Prop
 class Builder {
     friend LayoutRebuilder;
     friend InsertItemCommand;
+    friend CoreComponent;
 
 public:
     /**
@@ -96,7 +99,8 @@ private:
                                                     const CoreComponentPtr& parent,
                                                     const Path& path,
                                                     bool fullBuild,
-                                                    bool useDirtyFlag);
+                                                    bool useDirtyFlag,
+                                                    const CoreComponentPtr& old = nullptr);
 
     CoreComponentPtr expandSingleComponent(const ContextPtr& context,
                                            const Object& item,
@@ -106,9 +110,21 @@ private:
                                            bool fullBuild,
                                            bool useDirtyFlag);
 
+    Path simulateLocalPath(const Path& parentPath, const ContextPtr& context, const Object& item, const Properties& properties) const;
+
+    static void registerRebuildDependencyIfRequired(const CoreComponentPtr& parent,
+                                                    const ContextPtr& childContext,
+                                                    const ObjectArray& items,
+                                                    bool hasChild,
+                                                    const std::set<std::string>& symbolIgnoreList = {});
+
+    // Generate different child contexts
+    static ContextPtr createFirstItemContext(const ContextPtr& parent);
+    static ContextPtr createLastItemContext(const ContextPtr& parent);
+    static ContextPtr createIndexItemContext(const ContextPtr& parent, int sourceIndex, int itemIndex, size_t numberOfItems, bool numbered, int ordinal);
 private:
 
-    MakeComponentFunc findComponentBuilderFunc(const ContextPtr& context, const std::string &type);
+    MakeComponentFunc findComponentBuilderFunc(const ContextPtr& context, const std::string &type) const;
     CoreComponentPtr mOld;
 };
 

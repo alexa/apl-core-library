@@ -17,6 +17,7 @@
 
 #include <stack>
 
+#include "apl/content/sharedjsondata.h"
 #include "apl/engine/context.h"
 #include "apl/primitives/boundsymbol.h"
 #include "apl/primitives/color.h"
@@ -335,9 +336,18 @@ Object::Object(const rapidjson::Value& value) : mType(Null::ObjectType::instance
     }
 }
 
-Object::Object(rapidjson::Document&& value) : mType(Null::ObjectType::instance())
+Object::Object(rapidjson::Document&& value)
+    : Object(SharedJsonData(std::move(value)))
 {
-    if (OBJECT_DEBUG) LOG(LogLevel::kDebug) << "Object constructor value: " << this;
+}
+
+Object::Object(const SharedJsonData& doc) : mType(Null::ObjectType::instance())
+{
+    if (OBJECT_DEBUG) LOG(LogLevel::kDebug) << "Object constructor SharedJsonData: " << this;
+
+    if (!doc) return;
+
+    const rapidjson::Value& value = doc.get();
 
     switch(value.GetType()) {
         case rapidjson::kNullType:
@@ -361,11 +371,11 @@ Object::Object(rapidjson::Document&& value) : mType(Null::ObjectType::instance()
             break;
         case rapidjson::kObjectType:
             mType = Map::ObjectType::instance();
-            new(&mU.data) std::shared_ptr<ObjectData>(std::make_shared<JSONDocumentData>(std::move(value)));
+            new(&mU.data) std::shared_ptr<ObjectData>(std::make_shared<JSONSharedData>(doc.getSharedDoc(), &value));
             break;
         case rapidjson::kArrayType:
             mType = Array::ObjectType::instance();
-            new(&mU.data) std::shared_ptr<ObjectData>(std::make_shared<JSONDocumentData>(std::move(value)));
+            new(&mU.data) std::shared_ptr<ObjectData>(std::make_shared<JSONSharedData>(doc.getSharedDoc(), &value));
             break;
     }
 }

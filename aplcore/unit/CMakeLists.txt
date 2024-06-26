@@ -17,6 +17,7 @@ message("Adding APL Core unit test target")
 
 # Google testing
 add_executable( unittest
+        test_sg_textmeasure.cpp
         testeventloop.cpp
         debugtools.cpp
         unittest_simpletextmeasurement.cpp
@@ -46,9 +47,11 @@ add_subdirectory(livedata)
 add_subdirectory(media)
 add_subdirectory(primitives)
 add_subdirectory(scaling)
+add_subdirectory(text)
 add_subdirectory(time)
 add_subdirectory(touch)
 add_subdirectory(utils)
+add_subdirectory(versioning)
 if(ENABLE_SCENEGRAPH)
 add_subdirectory(scenegraph)
 endif(ENABLE_SCENEGRAPH)

@@ -24,13 +24,16 @@ static const char *IMPORT_NAME = "name";
 static const char *IMPORT_VERSION = "version";
 static const char *IMPORT_SOURCE = "source";
 static const char *IMPORT_LOAD_AFTER = "loadAfter";
+static const char *IMPORT_ACCEPT = "accept";
 
 ImportRequest
 ImportRequest::create(const rapidjson::Value& value,
                       const ContextPtr& context,
+                      const SessionPtr& session,
                       const std::string& commonName,
                       const std::string& commonVersion,
-                      const std::set<std::string>& commonLoadAfter)
+                      const std::set<std::string>& commonLoadAfter,
+                      const std::string& commonAccept)
 {
     if (value.IsObject()) {
         auto nameAndVersion = extractNameAndVersion(value, context);
@@ -55,7 +58,17 @@ ImportRequest::create(const rapidjson::Value& value,
         loadAfter = loadAfter.empty() ? commonLoadAfter : loadAfter;
         if (loadAfter.count(nameAndVersion.first)) return {};
 
-        return {name, version, source, loadAfter};
+        std::string accept;
+        auto it = value.FindMember(IMPORT_ACCEPT);
+        if (it != value.MemberEnd()) {
+            accept = it->value.GetString();
+            if (context) accept = evaluate(*context, accept).asString();
+        }
+        accept = accept.empty() ? commonAccept : accept;
+        auto semanticVersion = SemanticVersion::create(session, version);
+        auto acceptPattern = accept.empty() ? nullptr : SemanticPattern::create(session, accept);
+
+        return ImportRequest(name, version, source, loadAfter, semanticVersion, acceptPattern);
     }
 
     return {};
@@ -66,29 +79,17 @@ ImportRequest::ImportRequest() : mValid(false), mUniqueId(ImportRequest::sNextId
 ImportRequest::ImportRequest(const std::string& name,
                              const std::string& version,
                              const std::string& source,
-                             const std::set<std::string>& loadAfter)
-    : mReference(name, version, source, loadAfter), mValid(true), mUniqueId(ImportRequest::sNextId++)
+                             const std::set<std::string>& loadAfter,
+                             const SemanticVersionPtr& semanticVersion,
+                             const SemanticPatternPtr& acceptPattern)
+    : mReference(name, version, source, loadAfter, semanticVersion, acceptPattern), mValid(true), mUniqueId(ImportRequest::sNextId++)
 {
 }
 
 std::pair<std::string, std::string>
 ImportRequest::extractNameAndVersion(const rapidjson::Value& value, const ContextPtr& context)
 {
-    std::string name;
-    std::string version;
-
-    auto it_name = value.FindMember(IMPORT_NAME);
-    if (it_name != value.MemberEnd()) {
-        name = it_name->value.GetString();
-        if (context) name = evaluate(*context, name).asString();
-    }
-
-    auto it_version = value.FindMember(IMPORT_VERSION);
-    if (it_version != value.MemberEnd()) {
-        version = it_version->value.GetString();
-        if (context) version = evaluate(*context, version).asString();
-    }
-    return std::make_pair(name, version);
+    return std::make_pair(extractString(IMPORT_NAME, value, context), extractString(IMPORT_VERSION, value, context));
 }
 
 std::set<std::string>
@@ -110,6 +111,25 @@ ImportRequest::extractLoadAfter(const rapidjson::Value& value, const ContextPtr&
                 }
             }
         }
+    }
+
+    return result;
+}
+
+std::string
+ImportRequest::extractAccept(const rapidjson::Value& value, const ContextPtr& context)
+{
+    return extractString(IMPORT_ACCEPT, value, context);
+}
+
+std::string
+ImportRequest::extractString(const std::string& key, const rapidjson::Value& value, const ContextPtr& context)
+{
+    std::string result;
+    auto it_name = value.FindMember(key.c_str());
+    if (it_name != value.MemberEnd()) {
+        result = it_name->value.GetString();
+        if (context) result = evaluate(*context, result).asString();
     }
 
     return result;

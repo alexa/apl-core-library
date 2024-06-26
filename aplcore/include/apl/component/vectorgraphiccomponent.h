@@ -33,7 +33,7 @@ public:
     bool updateGraphic(const GraphicContentPtr& json) override;
     void clearDirty() override;
     std::shared_ptr<ObjectMap> createTouchEventProperties(const Point &point) const override;
-    void postProcessLayoutChanges() override;
+    void postProcessLayoutChanges(bool first) override;
 
     bool isFocusable() const override;
     bool isActionable() const override;

@@ -42,6 +42,14 @@ ConfigurationChange::mergeRootConfig(const RootConfig& oldRootConfig) const
 {
     auto rootConfig = oldRootConfig;
 
+    applyToRootConfig(rootConfig);
+
+    return rootConfig;
+}
+
+void
+ConfigurationChange::applyToRootConfig(RootConfig& rootConfig) const
+{
     if ((mFlags & kConfigurationChangeScreenMode) != 0)
         rootConfig.set(RootProperty::kScreenMode, mScreenMode);
 
@@ -59,8 +67,6 @@ ConfigurationChange::mergeRootConfig(const RootConfig& oldRootConfig) const
             rootConfig.setEnvironmentValue(prop.first, prop.second);
         }
     }
-
-    return rootConfig;
 }
 
 ObjectMap

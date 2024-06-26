@@ -13,8 +13,10 @@
  * permissions and limitations under the License.
  */
 
-#include "apl/utils/stickyfunctions.h"
 #include "apl/utils/stickychildrentree.h"
+
+#include "apl/component/corecomponent.h"
+#include "apl/utils/stickyfunctions.h"
 
 namespace apl {
 

@@ -249,6 +249,7 @@ HostComponent::initializeEmbedded(EmbeddedRequestSuccessResponse&& response)
         onFailHandler(url, "Embedded document failed to inflate");
         return nullptr;
     }
+    mCalculated.set(kPropertyBackground, embedded->content()->getBackground());
 
     auto coreTop = CoreComponent::cast(embedded->topComponent());
 
@@ -317,6 +318,7 @@ HostComponent::reinflate()
 
     // Resolving asynchronously, required to get extensions resolved.
     embedded->content()->refresh(metrics, config);
+    mCalculated.set(kPropertyBackground, embedded->content()->getBackground());
 
     if (embedded->content()->isWaiting()) {
         auto timers = std::static_pointer_cast<Timers>(config.getTimeManager());
@@ -636,9 +638,9 @@ HostComponent::processLayoutChanges(bool useDirtyFlag, bool first)
 }
 
 void
-HostComponent::postProcessLayoutChanges()
+HostComponent::postProcessLayoutChanges(bool first)
 {
-    ActionableComponent::postProcessLayoutChanges();
+    ActionableComponent::postProcessLayoutChanges(first);
     if (mNeedToRequestDocument) requestEmbedded();
 }
 

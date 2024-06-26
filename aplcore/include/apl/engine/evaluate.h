@@ -16,6 +16,8 @@
 #ifndef _APL_EVALUATE_H
 #define _APL_EVALUATE_H
 
+#include <utility>
+
 #include "apl/engine/binding.h"
 #include "apl/primitives/boundsymbolset.h"
 #include "apl/primitives/object.h"
@@ -79,7 +81,7 @@ struct ParseResult {
  */
 struct ApplyResult {
     Object value;  /// The calculated value after all data-binding expressions are evaluated
-    BoundSymbolSet symbols;  // The bound symbols used when calculating the value.
+    BoundSymbolSet symbols;  /// The bound symbols used when calculating the value.
 };
 
 
@@ -125,36 +127,107 @@ int propertyAsInt(const Context& context, const Object& object, const char *name
 Object propertyAsObject(const Context& context, const Object& object, const char *name);
 Object propertyAsRecursive(const Context& context, const Object& object, const char *name);
 
+
 /**
- * Look up a mapped property.  Return (T) -1 if the property is invalid.  If the property
- * is not specified, return defValue.
+ * Look up a mapped property.  Return a pair of { T, bool } of the calculated value and a boolean
+ * indicating if the calculated value is valid.  The calculated value is only valid if (a) the
+ * property existed in the item and (b) the property value maps correctly to one of the defined
+ * values in the bimap.
+ *
  * @tparam T The enumerated type (should map to int).
  * @param context The data-binding context.
  * @param item The host object which contains the property (must be a map).
  * @param name The name of the property.
- * @param defValue The default value to return if the property is not defined.
  * @param bimap The bimap to use to map from valid name to value.
- * @return The property value or -1 if the property is invalid.
+ * @return std::pair{ value, bool } where the bool is true only if the property was valid.
  */
 template<class T>
-T propertyAsMapped(const Context& context,
-                   const Object& item,
-                   const char *name,
-                   T defValue,
-                   const Bimap<T, std::string>& bimap)
+std::pair<T, bool>
+requiredMappedProperty(const Context& context,
+                       const Object& item,
+                       const char *name,
+                       const Bimap<T, std::string>& bimap)
 {
-    if (!item.isMap())
-        return static_cast<T>(-1);
+    if (!item.isMap() || !item.has(name))
+        return { static_cast<T>(-1), false };
 
-    if (!item.has(name))
+    auto s = evaluate(context, item.get(name)).asString();
+    if (s.empty())
+        return { static_cast<T>(-1), false };
+
+    auto it = bimap.find(s);
+    if (it == bimap.endBtoA())
+        return { static_cast<T>(-1), false };
+
+    return { it->second, true };
+}
+
+/**
+ * Look up a mapped property.  Return the value of the mapped property if it is found and valid.
+ * Otherwise return the default value.
+ *
+ * @tparam T The enumerated type (should map to int).
+ * @param context The data-binding context.
+ * @param item The host object which contains the property (must be a map).
+ * @param name The name of the property.
+ * @param defValue The default value.
+ * @param bimap The bimap to use to map from valid name to value.
+ * @return The mapped value or the default value.
+ */
+template<class T>
+T
+optionalMappedProperty(const Context& context,
+                       const Object& item,
+                       const char *name,
+                       T defValue,
+                       const Bimap<T, std::string>& bimap)
+{
+    if (!item.isMap() || !item.has(name))
         return defValue;
 
     auto s = evaluate(context, item.get(name)).asString();
     if (s.empty())
         return defValue;
 
-    return bimap.get(s, static_cast<T>(-1));
+    return bimap.get(s, defValue);
 }
+
+
+/**
+ * Look up a mapped property.  If the property isn't specified, return the default value.
+ * If it is specified, but invalid, return an error.
+ *
+ * @tparam T The enumerated type (should map to int).
+ * @param context The data-binding context.
+ * @param item The host object which contains the property (must be a map).
+ * @param name The name of the property.
+ * @param defValue The default value.
+ * @param bimap The bimap to use to map from valid name to value.
+ * @return A pair of (value, boolean), where the boolean is true if the value is valid.
+ */
+template<class T>
+std::pair<T, bool>
+optionalStrictMappedProperty(const Context& context,
+                             const Object& item,
+                             const char *name,
+                             T defValue,
+                             const Bimap<T, std::string>& bimap)
+{
+    if (!item.isMap() || !item.has(name))
+        return { defValue, true };
+
+    auto s = evaluate(context, item.get(name)).asString();
+    if (s.empty())
+        return { defValue, false };
+
+    auto it = bimap.find(s);
+    if (it == bimap.endBtoA())
+        return { defValue, false };
+
+    return { it->second, true };
+}
+
+
 
 }  // Namespace apl
 

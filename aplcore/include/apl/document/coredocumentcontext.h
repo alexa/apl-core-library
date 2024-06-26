@@ -281,6 +281,7 @@ private:
     #ifdef ALEXAEXTENSIONS
         friend class ExtensionMediator;
     #endif
+    friend class ImportPackageCommand;
 
     void init(const Metrics& metrics,
               const RootConfig& config,
@@ -291,6 +292,8 @@ private:
                                        const APLVersion& compatibilityVersion);
     bool verifyTypeField(const std::vector<PackagePtr>& ordered, bool enforce);
     ObjectMapPtr createDocumentEventProperties(const std::string& handler) const;
+    void processPackagesIntoContext(const std::vector<PackagePtr> packages);
+    bool isPackageProcessed(const std::string& packageName) const { return mCore->mProcessedPackages.count(packageName) > 0; }
 
 private:
     friend class CoreRootContext;

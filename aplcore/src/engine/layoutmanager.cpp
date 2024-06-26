@@ -158,7 +158,7 @@ LayoutManager::layout(bool useDirtyFlag, bool first)
 
     // After layout has completed we mark individual components as allowing event handlers
     for (const auto& m : laidOut)
-        m->postProcessLayoutChanges();
+        m->postProcessLayoutChanges(first);
 }
 
 void

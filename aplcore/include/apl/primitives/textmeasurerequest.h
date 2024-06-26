@@ -34,10 +34,10 @@ struct TextMeasureRequest {
     YGMeasureMode widthMode;
     float height;
     YGMeasureMode heightMode;
-    std::string paramHash;
+    size_t paramHash;
 
     std::size_t hash() const {
-        auto result = std::hash<std::string>{}(paramHash);
+        auto result = paramHash;
         hashCombine<float>(result, width);
         hashCombine<int>(result, widthMode);
         hashCombine<float>(result, height);
@@ -67,7 +67,7 @@ struct TextMeasureRequest {
         result += "widthMode=" + std::to_string(widthMode) + ",";
         result += "height=" + sutil::to_string(height) + ",";
         result += "heightMode=" + std::to_string(heightMode) + ",";
-        result += "paramHash=" + paramHash + ">";
+        result += "paramHash=" + std::to_string(paramHash) + ">";
         return result;
     }
 };

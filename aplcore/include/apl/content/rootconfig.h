@@ -173,6 +173,16 @@ public:
     }
 
     /**
+     * Specify the package manager used for loading imported packages.
+     * @param packageManager The package manager object.
+     * @return This object for chaining.
+     */
+    RootConfig& packageManager(const PackageManagerPtr& packageManager) {
+        mPackageManager = packageManager;
+        return *this;
+    }
+
+    /**
      * Specify the media player factory used for creating media players for video
      * @param mediaPlayerFactory The media player factory object.
      * @return This object for chaining
@@ -937,6 +947,11 @@ public:
     MediaManagerPtr getMediaManager() const { return mMediaManager; }
 
     /**
+     * @return The configured package manager object
+     */
+    PackageManagerPtr getPackageManager() const { return mPackageManager; }
+
+    /**
      * @return The configured media player factory
      */
     MediaPlayerFactoryPtr getMediaPlayerFactory() const { return mMediaPlayerFactory; }
@@ -1492,6 +1507,7 @@ private:
     TextMeasurementPtr mTextMeasurement;
     DocumentManagerPtr mDocumentManager;
     MediaManagerPtr mMediaManager;
+    PackageManagerPtr mPackageManager;
     MediaPlayerFactoryPtr mMediaPlayerFactory;
     AudioPlayerFactoryPtr mAudioPlayerFactory;
 #ifdef SCENEGRAPH

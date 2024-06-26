@@ -200,6 +200,8 @@ ScrollableComponent::eventPropertyMap() const
             CoreComponent::eventPropertyMap(),
             {
                     {"position", [](const CoreComponent *c) { return c->getValue(); }},
+                    {"allowForward", [](const CoreComponent *c) { return c->allowForward(); }},
+                    {"allowBackwards", [](const CoreComponent *c) { return c->allowBackwards(); }},
             });
 
     return sScrollableEventProperties;

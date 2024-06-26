@@ -116,6 +116,11 @@ public:
      */
     void removeFlushCallback(int token);
 
+    /**
+     * Explicitly mark LiveObject as dirty
+     */
+    void markDirty();
+
     // ObjectData overrides.
     bool operator==(const ObjectData& rhs) const override {
         // In progress of changes propagation. Considered not-equal for comparisons.
@@ -125,7 +130,6 @@ public:
 
 protected:
     LiveDataObject(const ContextPtr& context, const std::string& key) : mContext(context), mKey(key) {}
-    void markDirty();
 
 protected:
     std::weak_ptr<Context> mContext;

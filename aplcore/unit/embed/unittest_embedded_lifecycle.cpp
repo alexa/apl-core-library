@@ -435,6 +435,37 @@ TEST_F(EmbeddedLifecycleTest, Finish) {
     ASSERT_EQ(kEventTypeFinish, root->popEvent().getType());
 }
 
+TEST_F(EmbeddedLifecycleTest, EmbeddedDocCommandCancelExecution) {
+    loadDocument(HOST_DOC);
+
+    auto content = Content::create(EMBEDDED_DOC, session);
+    ASSERT_TRUE(content->isReady());
+
+    auto embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    root->clearDirty();
+
+    auto cmd = JsonData(R"([{
+      "type": "AnimateItem",
+      "componentId": "embeddedText",
+      "duration": "3000",
+      "easing": "linear",
+      "value": [
+        {
+          "property": "opacity",
+          "to": "0.0"
+        }
+      ]
+    }])");
+    ASSERT_TRUE(cmd);
+
+    auto command = embeddedDocumentContext->executeCommands(cmd.get(), false);
+    root->cancelExecution();
+    ASSERT_TRUE(command->isTerminated());
+}
+
 const static char *PARENT_VC = R"({
   "children": [
     {
@@ -1443,4 +1474,81 @@ TEST_F(EmbeddedLifecycleTest, ComplexScrollable)
     ASSERT_TRUE(CheckComponent(component->getCoreChildAt(1)->getCoreChildAt(0), 200, 30));
     ASSERT_TRUE(CheckComponent(component->getCoreChildAt(2)->getCoreChildAt(0), 200, 20));
     ASSERT_TRUE(CheckComponent(component->getCoreChildAt(3)->getCoreChildAt(0), 100, 10));
+}
+
+static const char* HOST_WITH_PARAMETERS = R"({
+  "type": "APL",
+  "version": "2024.2",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "item": {
+        "type": "Host",
+        "width": "100%",
+        "height": "100%",
+        "id": "hostComponent",
+        "source": "embeddedDocumentUrl",
+        "parameters": {
+          "ResolveMeFromHost": "World"
+        },
+        "onLoad": [
+          {
+            "type": "SendEvent",
+            "sequencer": "SEND_EVENTER",
+            "arguments": ["LOADED"]
+          }
+        ],
+        "onFail": [
+          {
+            "type": "SendEvent",
+            "sequencer": "SEND_EVENTER",
+            "arguments": ["FAILED"]
+          }
+        ]
+      }
+    }
+  }
+})";
+
+static const char* EMBEDDED_WITH_PARAMETERS = R"({
+  "type": "APL",
+  "version": "2023.2",
+  "mainTemplate": {
+    "parameters": [
+      "ResolveMeFromRuntime",
+      "ResolveMeFromHost",
+      "IAmUnusedYouKnow"
+    ],
+    "item": {
+      "type": "Text",
+      "id": "embeddedText",
+      "text": "${ResolveMeFromRuntime}, ${ResolveMeFromHost}${IAmUnusedYouKnow}"
+    }
+  }
+})";
+
+TEST_F(EmbeddedLifecycleTest, ParameterResolution)
+{
+    session = std::make_shared<TestSession>();
+    loadDocument(HOST_WITH_PARAMETERS);
+
+    auto requestWeak = documentManager->get("embeddedDocumentUrl");
+    ASSERT_TRUE(requestWeak.lock());
+    auto request = requestWeak.lock();
+    ASSERT_EQ(request->getUrlRequest().getUrl(), "embeddedDocumentUrl");
+
+    auto embeddedSession = std::make_shared<TestSession>();
+    auto content = Content::create(EMBEDDED_WITH_PARAMETERS, embeddedSession);
+    // Resolve what we have
+    content->addObjectData("ResolveMeFromRuntime", "Hello");
+    // Still needs more
+    ASSERT_FALSE(content->isReady());
+
+    // Now request can be answered.
+    auto embeddedDocumentContext = documentManager->succeed("embeddedDocumentUrl", content, true);
+    ASSERT_TRUE(embeddedDocumentContext);
+    ASSERT_TRUE(CheckSendEvent(root, "LOADED"));
+
+    auto embeddedText = root->findComponentById("embeddedText");
+    ASSERT_EQ("Hello, World", embeddedText->getCalculated(kPropertyText).asString());
 }

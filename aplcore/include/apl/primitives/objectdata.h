@@ -518,6 +518,19 @@ private:
 
 /****************************************************************************/
 
+class JSONSharedData : public JSONData {
+public:
+    JSONSharedData(std::shared_ptr<rapidjson::Document> doc,
+                   const rapidjson::Value *value)
+        : JSONData(value),
+          mDoc(std::move(doc)) { assert(value); }
+
+private:
+    const std::shared_ptr<rapidjson::Document> mDoc;
+};
+
+/****************************************************************************/
+
 class JSONDocumentData : public JSONBaseData {
 public:
     JSONDocumentData(rapidjson::Document&& doc) : mDoc(std::move(doc)) {}

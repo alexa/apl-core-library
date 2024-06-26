@@ -177,9 +177,10 @@ VideoComponent::VideoComponent(const ContextPtr& context,
       mMediaSequencer("VIDEO"+getUniqueId()),
       mScreenLock(mContext)
 {
-    mIsDisallowed = context->getRootConfig().getProperty(RootProperty::kDisallowVideo).asBoolean();
+    if (context->getRootConfig().getProperty(RootProperty::kDisallowVideo).asBoolean())
+        mCoreFlags.set(kCoreComponentFlagIsDisallowed);
 
-    if (!mIsDisallowed) {
+    if (!mCoreFlags.isSet(kCoreComponentFlagIsDisallowed)) {
         mMediaPlayer = mContext->mediaPlayerFactory().createPlayer(
             [this] (MediaPlayerEventType eventType, const MediaState& mediaState) {
                 playerCallback(eventType, mediaState);

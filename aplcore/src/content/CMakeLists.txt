@@ -23,7 +23,10 @@ target_sources_local(apl
     jsondata.cpp
     metrics.cpp
     package.cpp
+    packageresolver.cpp
+    pendingimportpackage.cpp
     rootconfig.cpp
     rootproperties.cpp
+    sharedjsondata.cpp
     viewport.cpp
 )

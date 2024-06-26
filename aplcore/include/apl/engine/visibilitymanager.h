@@ -64,6 +64,7 @@ private:
 
     WeakPtrMap<CoreComponent, VisibilityState> mTrackedComponentVisibility;
     WeakPtrSet<CoreComponent> mDirtyVisibility;
+    WeakPtrSet<CoreComponent> mRegistrationQueue;
 };
 
 } // namespace apl

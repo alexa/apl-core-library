@@ -19,16 +19,19 @@
 #include "apl/component/textmeasurement.h"
 #include "apl/content/rootconfig.h"
 #include "apl/primitives/styledtext.h"
+#include "apl/time/sequencer.h"
 #include "apl/utils/session.h"
+
+#include "apl/scenegraph/textchunk.h"
+#include "apl/scenegraph/textlayout.h"
+#include "apl/scenegraph/textlayoutcache.h"
+#include "apl/scenegraph/textmeasurement.h"
+#include "apl/scenegraph/textproperties.h"
+#include "apl/scenegraph/utilities.h"
 
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
 #include "apl/scenegraph/scenegraph.h"
-#include "apl/scenegraph/textchunk.h"
-#include "apl/scenegraph/textlayout.h"
-#include "apl/scenegraph/textmeasurement.h"
-#include "apl/scenegraph/textproperties.h"
-#include "apl/scenegraph/utilities.h"
 #endif // SCENEGRAPH
 
 namespace apl {
@@ -47,31 +50,11 @@ TextComponent::create(const ContextPtr& context,
 TextComponent::TextComponent(const ContextPtr& context,
                              Properties&& properties,
                              const Path& path)
-    : CoreComponent(context, std::move(properties), path)
+    : CoreComponent(context, std::move(properties), path),
+      mLayoutPossiblyStale(false)
 {
-#ifdef SCENEGRAPH
-    static auto sgTextMeasureFunc = [](YGNodeRef node, float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode) -> YGSize {
-        // TODO: Hash this properly so we don't call it multiple times
-        auto self = static_cast<TextComponent *>(node->getContext());
-        return self->measureText(width, widthMode, height, heightMode);
-    };
-
-    static auto sgTextBaselineFunc = [](YGNodeRef node, float width, float height) -> float {
-        auto self = static_cast<TextComponent*>(node->getContext());
-        return self->baselineText(width, height);
-    };
-
-    if (mContext->measure()->sceneGraphCompatible()) {
-        YGNodeSetMeasureFunc(mYGNodeRef, sgTextMeasureFunc);
-        YGNodeSetBaselineFunc(mYGNodeRef, sgTextBaselineFunc);
-    } else {
-#endif // SCENEGRAPH
-        YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc);
-        YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc);
-#ifdef SCENEGRAPH
-    }
-#endif // SCENEGRAPH
-
+    YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc);
+    YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc);
     YGNodeSetNodeType(mYGNodeRef, YGNodeTypeText);
 }
 
@@ -97,28 +80,22 @@ TextComponent::propDefSet() const
     };
 
     static auto fixTextAlignTrigger = [](Component& component) -> void {
-      auto& coreComp = (TextComponent&)component;
-      coreComp.updateTextAlign(true);
-#ifdef SCENEGRAPH
-      coreComp.mTextProperties = nullptr;
-      coreComp.mLayout = nullptr;
-#endif // SCENEGRAPH
+      auto& textComp = (TextComponent&)component;
+      textComp.updateTextAlign(true);
+      textComp.mTextProperties = nullptr;
+      textComp.mLayout = nullptr;
     };
 
     static auto fixTextTrigger = [](Component& component) -> void {
-#ifdef SCENEGRAPH
-      auto& coreComp = (TextComponent&)component;
-      coreComp.mTextProperties = nullptr;
-      coreComp.mLayout = nullptr;
-#endif // SCENEGRAPH
+      auto& textComp = (TextComponent&)component;
+      textComp.mTextProperties = nullptr;
+      textComp.mLayout = nullptr;
     };
 
     static auto fixTextChunkTrigger = [](Component& component) -> void {
-#ifdef SCENEGRAPH
-        auto& coreComp = (TextComponent&)component;
-        coreComp.mTextChunk = nullptr;
-        coreComp.mLayout = nullptr;
-#endif // SCENEGRAPH
+        auto& textComp = (TextComponent&)component;
+        textComp.mTextChunk = nullptr;
+        textComp.mLayout = nullptr;
     };
 
     static ComponentPropDefSet sTextComponentProperties(CoreComponent::propDefSet(), {
@@ -134,6 +111,7 @@ TextComponent::propDefSet() const
         {kPropertyLetterSpacing,       Dimension(0),            asAbsoluteDimension,   kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash, fixTextTrigger},
         {kPropertyLineHeight,          1.25,                    asNonNegativeNumber,   kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash, fixTextTrigger},
         {kPropertyMaxLines,            0,                       asInteger,             kPropInOut | kPropLayout | kPropStyled | kPropTextHash | kPropVisualHash, fixTextTrigger},
+        {kPropertyOnTextLayout,        Object::EMPTY_ARRAY(),   asCommand,             kPropIn},
         {kPropertyText,                StyledText::EMPTY(),     asStyledText,          kPropInOut | kPropLayout | kPropDynamic | kPropVisualContext | kPropTextHash | kPropVisualHash, fixTextChunkTrigger},
         {kPropertyTextAlign,           kTextAlignAuto,          sTextAlignMap,         kPropOut | kPropTextHash | kPropVisualHash, fixTextTrigger},
         {kPropertyTextAlignAssigned,   kTextAlignAuto,          sTextAlignMap,         kPropIn  | kPropLayout | kPropStyled | kPropDynamic,                                       fixTextAlignTrigger},
@@ -287,28 +265,136 @@ TextComponent::assignProperties(const ComponentPropDefSet& propDefSet)
     fixTextMeasurementHash();
 }
 
-rapidjson::Value
-TextComponent::serializeMeasure(rapidjson::Document::AllocatorType& allocator) const
-{
-    rapidjson::Value component(rapidjson::kObjectType);
-
-    component.AddMember("id", rapidjson::Value(mUniqueId.c_str(), allocator).Move(), allocator);
-
-    for (const auto& pds : propDefSet()) {
-        if ((pds.second.flags & kPropLayout) != 0)
-            component.AddMember(
-                rapidjson::StringRef(pds.second.names[0].c_str()),   // We assume long-lived strings here
-                mCalculated.get(pds.first).serialize(allocator),
-                allocator);
-    }
-
-    return component;
-}
-
 std::string
 TextComponent::getVisualContextType() const
 {
     return getValue().empty() ? VISUAL_CONTEXT_TYPE_EMPTY : VISUAL_CONTEXT_TYPE_TEXT;
+}
+
+YGSize
+TextComponent::textMeasure(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)
+{
+    if (mContext->measure()->layoutCompatible()) {
+        auto tm = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
+
+        ensureTextProperties();
+
+        auto hash = mTextProperties->hash();
+        hashCombine(hash, mTextChunk->hash());
+        TextMeasureRequest tmr = {width, widthMode, height, heightMode, hash};
+        auto& layoutCache = getContext()->textLayoutCache();
+        auto layout = layoutCache.find(tmr);
+        if (layout) {
+            mLayout = layout;
+        } else {
+            mLayout = tm->layout(this, mTextChunk, mTextProperties, width, toMeasureMode(widthMode),
+                                 height, toMeasureMode(heightMode));
+            layoutCache.insert(tmr, mLayout);
+        }
+
+        if (!mLayout)
+            return {0, 0};  // No text, no layout
+
+        auto size = mLayout->getSize();
+
+        onTextLayout();
+
+        return YGSize{size.getWidth(), size.getHeight()};
+    } else {
+        return CoreComponent::textMeasure(width, widthMode, height, heightMode);
+    }
+}
+
+float
+TextComponent::textBaseline(float width, float height)
+{
+    if (mContext->measure()->layoutCompatible()) {
+        // Make the large assumption that Yoga needs baseline information with a text layout
+        if (!mLayout) {
+            auto tm = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
+            ensureTextProperties();
+            mLayout = tm->layout(this, mTextChunk, mTextProperties, width, MeasureMode::Undefined,
+                                 height, MeasureMode::Undefined);
+        }
+
+        return mLayout ? mLayout->getBaseline() : 0;
+    } else {
+        return CoreComponent::textBaseline(width, height);
+    }
+}
+
+void
+TextComponent::ensureTextLayout()
+{
+    if (!mContext->measure()->layoutCompatible()) return;
+
+    // Having a layout is no guarantee that the layout is correct.  Yoga caches previous layout calculations
+    // for efficiency.  If the layout exists, you also need to check that it matches the desired size and scaling modes.
+    if (mLayout) {
+        if (!mLayoutPossiblyStale) return;
+        mLayoutPossiblyStale = false;
+
+        // Yoga rounds text box sizes.  They should be rounded UP (to ensure no clipping).
+        // They round to the nearest pixel dimension.  We'll assume that if the layout size
+        // is within 2 pixels of the measured size and _larger_ than the measured size, then
+        // we are okay and don't need to re-layout.
+        auto s = mLayout->getSize();
+        auto dw = mContext->dpToPx(YGNodeLayoutGetWidth(mYGNodeRef) - s.getWidth());
+        auto dh = mContext->dpToPx(YGNodeLayoutGetHeight(mYGNodeRef) - s.getHeight());
+
+        if (dw >= 0.0 && dw <= 2.0 && dh >= 0.0 && dh <= 2.0)
+            return;
+    }
+
+    auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
+
+    const auto& innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();
+
+    ensureTextProperties();
+    mLayout = measure->layout(this, mTextChunk, mTextProperties, innerBounds.getWidth(),
+                              MeasureMode::AtMost, innerBounds.getHeight(), MeasureMode::AtMost);
+
+    if (!mLayout) return;
+
+    onTextLayout();
+}
+
+void
+TextComponent::ensureTextProperties()
+{
+    if (!mTextChunk)
+        mTextChunk = sg::TextChunk::create(getCalculated(kPropertyText).get<StyledText>());
+
+    if (!mTextProperties)
+        mTextProperties = sg::TextProperties::create(
+            mContext->textPropertiesCache(),
+            sg::splitFontString(mContext->getRootConfig(),
+                                mContext->session(),
+                                getCalculated(kPropertyFontFamily).getString()),
+            getCalculated(kPropertyFontSize).asFloat(),
+            getCalculated(kPropertyFontStyle).asEnum<FontStyle>(),
+            getCalculated(kPropertyLang).getString(),
+            getCalculated(kPropertyFontWeight).getInteger(),
+            getCalculated(kPropertyLetterSpacing).asFloat(),
+            getCalculated(kPropertyLineHeight).asFloat(),
+            getCalculated(kPropertyMaxLines).getInteger(),
+            getCalculated(kPropertyTextAlign).asEnum<TextAlign>(),
+            getCalculated(kPropertyTextAlignVertical).asEnum<TextAlignVertical>());
+}
+
+void
+TextComponent::onTextLayout() {
+    assert(mLayout);
+    auto commands = mCalculated.get(kPropertyOnTextLayout);
+    if (!commands.empty()) {
+        auto propMap = std::make_shared<ObjectMap>();
+        auto size = mLayout->getSize();
+        propMap->emplace("isTruncated", mLayout->isTruncated());
+        propMap->emplace("laidOutText", mLayout->getLaidOutText());
+        propMap->emplace("textWidth", size.getWidth());
+        propMap->emplace("textHeight", size.getHeight());
+        mContext->sequencer().executeCommands(commands, createEventContext("TextLayout", propMap, getValue()), shared_from_corecomponent(), true);
+    }
 }
 
 #ifdef SCENEGRAPH
@@ -366,7 +452,9 @@ TextComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) {
     auto layer = CoreComponent::constructSceneGraphLayer(sceneGraph);
     assert(layer);
 
-    ensureSGTextLayout();
+    // Non-layout measure does not work for SG.
+    assert(mContext->measure()->layoutCompatible());
+    ensureTextLayout();
 
     auto transform = sg::transform(calcSceneGraphOffset(), nullptr);
     populateTextNodes(sg::TransformNode::cast(transform));
@@ -409,7 +497,7 @@ TextComponent::updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph)
     auto* transform = sg::TransformNode::cast(mSceneGraphLayer->content());
     auto* text = sg::TextNode::cast(transform->child());
 
-    ensureSGTextLayout();
+    ensureTextLayout();
 
     const bool fixText = text->getTextLayout() != mLayout;
     const bool fixColor = isDirty(kPropertyColor);
@@ -478,92 +566,10 @@ TextComponent::populateTextNodes(sg::Node *transform)
     }
 }
 
-YGSize
-TextComponent::measureText(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)
-{
-    assert(mContext->measure()->sceneGraphCompatible());
-    auto *tm = (sg::TextMeasurement *)(mContext->measure().get());
-
-    // TODO: Hash and check for cache hits
-    ensureTextProperties();
-    mLayout = tm->layout(mTextChunk, mTextProperties, width, toMeasureMode(widthMode),
-                         height, toMeasureMode(heightMode));
-    if (!mLayout)
-        return {0, 0};  // No text, no layout
-
-    auto size = mLayout->getSize();
-    return YGSize{size.getWidth(), size.getHeight()};
-}
-
-float
-TextComponent::baselineText(float width, float height)
-{
-    // Make the large assumption that Yoga needs baseline information with a text layout
-    if (!mLayout) {
-        assert(mContext->measure()->sceneGraphCompatible());
-        auto *tm = (sg::TextMeasurement *)(mContext->measure().get());
-        ensureTextProperties();
-        mLayout = tm->layout(mTextChunk, mTextProperties, width, MeasureMode::Undefined,
-                             height, MeasureMode::Undefined);
-    }
-
-    return mLayout ? mLayout->getBaseline() : 0;
-}
-
-void
-TextComponent::ensureSGTextLayout()
-{
-    // Having a layout is no guarantee that the layout is correct.  Yoga caches previous layout calculations
-    // for efficiency.  If the layout exists, you also need to check that it matches the desired size and scaling modes.
-    if (mLayout) {
-        // Yoga rounds text box sizes.  They should be rounded UP (to ensure no clipping).
-        // They round to the nearest pixel dimension.  We'll assume that if the layout size
-        // is within 2 pixels of the measured size and _larger_ than the measured size, then
-        // we are okay and don't need to re-layout.
-        auto s = mLayout->getSize();
-        auto dw = mContext->dpToPx(YGNodeLayoutGetWidth(mYGNodeRef) - s.getWidth());
-        auto dh = mContext->dpToPx(YGNodeLayoutGetHeight(mYGNodeRef) - s.getHeight());
-
-        if (dw >= 0.0 && dw <= 2.0 && dh >= 0.0 && dh <= 2.0)
-            return;
-    }
-
-    assert(mContext->measure()->sceneGraphCompatible());
-    auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
-
-    const auto& innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();
-
-    ensureTextProperties();
-    mLayout = measure->layout(mTextChunk, mTextProperties, innerBounds.getWidth(),
-                              MeasureMode::AtMost, innerBounds.getHeight(), MeasureMode::AtMost);
-}
-
-void
-TextComponent::ensureTextProperties()
-{
-    if (!mTextChunk)
-        mTextChunk = sg::TextChunk::create(getCalculated(kPropertyText).get<StyledText>());
-
-    if (!mTextProperties)
-        mTextProperties = sg::TextProperties::create(
-            mContext->textPropertiesCache(),
-            sg::splitFontString(mContext->getRootConfig(),
-                                mContext->session(),
-                                getCalculated(kPropertyFontFamily).getString()),
-            getCalculated(kPropertyFontSize).asFloat(),
-            getCalculated(kPropertyFontStyle).asEnum<FontStyle>(),
-            getCalculated(kPropertyLang).getString(),
-            getCalculated(kPropertyFontWeight).getInteger(),
-            getCalculated(kPropertyLetterSpacing).asFloat(),
-            getCalculated(kPropertyLineHeight).asFloat(),
-            getCalculated(kPropertyMaxLines).getInteger(),
-            getCalculated(kPropertyTextAlign).asEnum<TextAlign>(),
-            getCalculated(kPropertyTextAlignVertical).asEnum<TextAlignVertical>());
-}
-
 bool
 TextComponent::setKaraokeLine(Range byteRange)
 {
+    assert(mContext->measure()->layoutCompatible());
     const auto& previousLineRange = mCalculated.get(kPropertyRangeKaraokeTarget).get<Range>();
 
     if (byteRange.empty()) {
@@ -576,9 +582,8 @@ TextComponent::setKaraokeLine(Range byteRange)
     }
 
     // We have to ensure we have a text layout so we can find the start and end of lines
-    ensureSGTextLayout();
+    ensureTextLayout();
     auto lineRange = mLayout->getLineRangeFromByteRange(byteRange);
-
     if (previousLineRange != lineRange) {
         mCalculated.set(kPropertyRangeKaraokeTarget, std::move(lineRange));
         setDirty(kPropertyRangeKaraokeTarget);
@@ -595,9 +600,24 @@ TextComponent::getKaraokeBounds()
     if (range.empty())
         return {};
 
-    ensureSGTextLayout();
+    ensureTextLayout();
     return mLayout->getBoundingBoxForLines(range);
 }
 #endif // SCENEGRAPH
+
+void
+TextComponent::postProcessLayoutChanges(bool first)
+{
+    CoreComponent::postProcessLayoutChanges(first);
+    if (isDirty(kPropertyInnerBounds)) {
+        // Text layout MAY need to be changed.
+        mLayoutPossiblyStale = true;
+    }
+
+    // If text layout was not populated during layout - report it now
+    if (!mCalculated.get(kPropertyOnTextLayout).empty()) {
+        ensureTextLayout();
+    }
+}
 
 } // namespace apl

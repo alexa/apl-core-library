@@ -95,6 +95,29 @@ getMemoryCounterMap() {
 }
 #endif
 
+static inline size_t getTextLength(Component* component) {
+    size_t len = component->getCalculated(kPropertyText).asString().size();
+    const auto& size = component->getCalculated(kPropertySize);
+    if (size.isNumber()) {
+        len = size.asInt();
+    }
+
+    return len;
+}
+
+static inline Size getSymbolSize(Component* component, Size& baseSize) {
+    const auto& fontSize = component->getCalculated(kPropertyFontSize);
+
+    Size symbolSize = {10, 10};
+    if (fontSize.isDimension()) {
+        symbolSize = Size{
+            (float)fontSize.asNumber() / 40 * baseSize.getWidth(),
+            (float)fontSize.asNumber() / 40 * baseSize.getHeight()};
+    }
+
+    return symbolSize;
+}
+
 /**
  * Replicates (as closely as possible) process used in viewhosts for text measurement, but with
  * every symbol being 10x10 square. Doesn't account for line breaks.
@@ -106,10 +129,11 @@ SimpleTextMeasurement::measure(Component *component,
                                 float height,
                                 MeasureMode heightMode)
 {
-    auto len = component->getCalculated(kPropertyText).asString().size(); // Number of characters
-    float singleLineWidth = static_cast<float>(len) * 10;
+    auto len = getTextLength(component); // Number of characters
+    Size symbolSize = getSymbolSize(component, mSymbolSize);
+    float singleLineWidth = static_cast<float>(len) * symbolSize.getWidth();
     float resultingWidth = 0;
-    auto workingWidth = 10 * std::floor(width / 10); // width clamped to symbol size
+    auto workingWidth = symbolSize.getWidth() * std::floor(width / symbolSize.getWidth()); // width clamped to symbol size
 
     // There are 3 MeasureModes:
     //  1. Exactly - text should fit into provided metric, requested metric is reported as resulting
@@ -133,12 +157,12 @@ SimpleTextMeasurement::measure(Component *component,
             break;
     }
 
-    auto charactersPerLine = std::min(resultingWidth, workingWidth) / 10;
+    auto charactersPerLine = std::min(resultingWidth, workingWidth) / symbolSize.getWidth();
 
     // Can't layout as line can't hold single character.
     if (charactersPerLine <= 0) return {resultingWidth, 0};
 
-    float workingHeight = 10 * std::ceil(static_cast<float>(len) / charactersPerLine);
+    float workingHeight = symbolSize.getHeight() * std::ceil(static_cast<float>(len) / charactersPerLine);
     float resultingHeight = 0;
     switch (heightMode) {
         case MeasureMode::Exactly:

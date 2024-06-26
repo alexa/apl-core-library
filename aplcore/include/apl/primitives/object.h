@@ -132,6 +132,7 @@ public:
     Object(const Dimension& dimension);
     Object(const rapidjson::Value& v);
     Object(rapidjson::Document&& doc);
+    Object(const SharedJsonData& json);
 
     template<
         class T,

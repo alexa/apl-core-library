@@ -32,7 +32,11 @@ namespace alexaext {
 namespace audioplayer {
 
 static const std::string URI = "aplext:audioplayer:10";
+static const std::string URI_11 = "aplext:audioplayer:11";
+static const std::set<std::string>EXTENSION_URIS({URI, URI_11});
+
 static const std::string ENVIRONMENT_VERSION = "APLAudioPlayerExtension-1.0";
+static const std::string ENVIRONMENT_VERSION_11 = "APLAudioPlayerExtension-1.1";
 
 /**
  * An APL Extension designed for bi-directional communication between an @c AudioPlayer and APL document
@@ -102,7 +106,21 @@ public:
      */
     void setActivePresentationSession(const std::string& id, const std::string& skillId);
 
+    /**
+     * Call to update normalized energies in musicAnalysisState of apl::LiveMap
+     * It is expected that this function is called after audio features are read from Audio Server during active
+     * track playback.
+     * @param beatsPerMinute Beats Per Minute for current track
+     * @param normalizedEnergies Normalized energies at current track offset
+     */
+    void updateMusicAnalysis(int beatsPerMinute, std::vector<float> normalizedEnergies);
 
+    /**
+     * Call to set music analysis related details in environment properties within assigned extension namespace.
+     * @param canAnalyze Music Analysis capability
+     * @param maxNormalizedEnergies Maximum supported normalized energies
+     */
+    void setMusicAnalysisDetails(bool canAnalyze, int maxNormalizedEnergies = 0);
 
 protected:
 
@@ -111,6 +129,9 @@ protected:
 
     // Publishes a LiveDataUpdate
     void publishLiveData();
+
+    //Publish LiveDataUpdate for music analysis
+    void publishLiveDataForMusicAnalysis();
 
 protected:
 
@@ -122,6 +143,17 @@ protected:
     std::string mPlaybackStateActivity;
     int mPlaybackStateOffset = 0;
     std::string mAudioItemId{""};
+    /// The @c apl::LiveMap beats per minute for AudioPlayer musicAnalysisState data.
+    int mBeatsPerMinute{0};
+    /// The @c apl::LiveMap normalized energies for AudioPlayer musicAnalysisState data.
+    std::vector<float> mNormalizedEnergies;
+    /// Holds requested valid URIs of Audio Player Extensions.
+    std::set<std::string> mRequestedURIs;
+    /// Set to true if device runtime is capable of analyzing playback signal.
+    bool mCanAnalyzeMusic{false};
+    /// Holds maximum number of normalized energies that device runtime can provide.
+    int mMaxNormalizedEnergies{0};
+
     /// The map of activity to activity state
     std::unordered_map<ActivityDescriptor,
                        std::shared_ptr<ActivityState>,
@@ -140,6 +172,21 @@ private:
      * @param descriptor The activity descriptor
      */
     std::shared_ptr<ActivityState> getOrCreateActivityState(const ActivityDescriptor& activity);
+
+    /**
+     * Internal function to validate audio player extension URI.
+     * @param uri The requested audio player extension URI.
+     * @return True if audio player extension URI is valid.
+     */
+    bool isValidURI(const std::string &uri);
+
+    /**
+     * Internal function to check if a supported extension URI is requested during registration.
+     * @param uri Supported extension URI.
+     * @return True if URI is requested during registration.
+     */
+    bool isURIRequested(const std::string &uri);
+
 };
 
 using AplAudioPlayerExtensionPtr = std::shared_ptr<AplAudioPlayerExtension>;

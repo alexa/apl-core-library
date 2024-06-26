@@ -921,11 +921,41 @@ TEST_F(GrammarTest, PropertyAsMapped)
     map->emplace("wrong", "wrong");
     auto obj = Object(map);
 
-    ASSERT_EQ(kTestMappingOne, propertyAsMapped<TestMapping>(*c, obj, "one", kTestMappingDefault, sTestMappingBimap));
-    ASSERT_EQ(kTestMappingTwo, propertyAsMapped<TestMapping>(*c, obj, "two", kTestMappingDefault, sTestMappingBimap));
-    ASSERT_EQ(kTestMappingDefault, propertyAsMapped<TestMapping>(*c, obj, "empty", kTestMappingDefault, sTestMappingBimap));
-    ASSERT_EQ(-1, propertyAsMapped<TestMapping>(*c, obj, "wrong", kTestMappingDefault, sTestMappingBimap));
-    ASSERT_EQ(kTestMappingDefault, propertyAsMapped<TestMapping>(*c, obj, "none", kTestMappingDefault, sTestMappingBimap));
+    // Required properties
+    ASSERT_EQ((std::pair<TestMapping, bool>(kTestMappingOne, true)),
+              requiredMappedProperty<TestMapping>(*c, obj, "one", sTestMappingBimap));
+    ASSERT_EQ((std::pair<TestMapping, bool>(kTestMappingTwo, true)),
+              requiredMappedProperty<TestMapping>(*c, obj, "two", sTestMappingBimap));
+    ASSERT_EQ((std::pair<TestMapping, bool>(static_cast<TestMapping>(-1), false)),
+              requiredMappedProperty<TestMapping>(*c, obj, "empty", sTestMappingBimap));
+    ASSERT_EQ((std::pair<TestMapping, bool>(static_cast<TestMapping>(-1), false)),
+              requiredMappedProperty<TestMapping>(*c, obj, "wrong", sTestMappingBimap));
+    ASSERT_EQ((std::pair<TestMapping, bool>(static_cast<TestMapping>(-1), false)),
+              requiredMappedProperty<TestMapping>(*c, obj, "none", sTestMappingBimap));
+
+    // Properties with default values
+    ASSERT_EQ(kTestMappingOne, optionalMappedProperty<TestMapping>(
+                                   *c, obj, "one", kTestMappingDefault, sTestMappingBimap));
+    ASSERT_EQ(kTestMappingTwo, optionalMappedProperty<TestMapping>(
+                                   *c, obj, "two", kTestMappingDefault, sTestMappingBimap));
+    ASSERT_EQ(kTestMappingDefault, optionalMappedProperty<TestMapping>(
+                                       *c, obj, "empty", kTestMappingDefault, sTestMappingBimap));
+    ASSERT_EQ(kTestMappingDefault, optionalMappedProperty<TestMapping>(
+                                       *c, obj, "wrong", kTestMappingDefault, sTestMappingBimap));
+    ASSERT_EQ(kTestMappingDefault, optionalMappedProperty<TestMapping>(
+                                       *c, obj, "none", kTestMappingDefault, sTestMappingBimap));
+
+    // Strict checking with default values
+    ASSERT_EQ((std::pair<TestMapping, bool>(kTestMappingOne, true)),
+              optionalStrictMappedProperty<TestMapping>(*c, obj, "one", kTestMappingDefault, sTestMappingBimap));
+    ASSERT_EQ((std::pair<TestMapping, bool>(kTestMappingTwo, true)),
+              optionalStrictMappedProperty<TestMapping>(*c, obj, "two", kTestMappingDefault, sTestMappingBimap));
+    ASSERT_EQ((std::pair<TestMapping, bool>(kTestMappingDefault, false)),
+              optionalStrictMappedProperty<TestMapping>(*c, obj, "empty", kTestMappingDefault, sTestMappingBimap));
+    ASSERT_EQ((std::pair<TestMapping, bool>(kTestMappingDefault, false)),
+              optionalStrictMappedProperty<TestMapping>(*c, obj, "wrong", kTestMappingDefault, sTestMappingBimap));
+    ASSERT_EQ((std::pair<TestMapping, bool>(kTestMappingDefault, true)),
+              optionalStrictMappedProperty<TestMapping>(*c, obj, "none", kTestMappingDefault, sTestMappingBimap));
 }
 
 

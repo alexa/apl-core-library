@@ -20,9 +20,9 @@
 
 #include "apl/apl_config.h"
 #include "apl/component/actionablecomponent.h"
+#include "apl/scenegraph/common.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/edittext.h"
-#include "apl/scenegraph/textproperties.h"
 #include "apl/utils/principal_ptr.h"
 #endif // SCENEGRAPH
 
@@ -54,31 +54,38 @@ protected:
     PointerCaptureStatus processPointerEvent(const PointerEvent& event, apl_time_t timestamp, bool onlyProcessGestures) override;
     void executeOnBlur() override;
     void executeOnFocus() override;
-
-#ifdef SCENEGRAPH
-    // Common scene graph handling
-    sg::LayerPtr constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) override;
-    bool updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph) override;
+    YGSize textMeasure(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode) override;
+    float textBaseline(float width, float height) override;
 
 private:
     YGSize measureEditText(MeasureRequest&& request);
     float baselineText(float width, float height);
 
     bool ensureEditTextBox();
-    bool ensureEditConfig();
     bool ensureEditTextProperties();
-    bool ensureHintLayout();
 
 private:
     MeasureRequest mLastMeasureRequest;
 
+    // These configure the edit control.  They are nulled when an internal value changes and
+    // re-created during the text measure pass
+    sg::EditTextBoxPtr mEditTextBox;
+    sg::TextPropertiesPtr mEditTextProperties;
+
+#ifdef SCENEGRAPH
+private:
+    bool ensureHintLayout();
+    bool ensureEditConfig();
+
+protected:
+    // Common scene graph handling
+    sg::LayerPtr constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) override;
+    bool updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph) override;
+
+private:
     // This is created once with the scene graph and used to communicate with the view host
     principal_ptr<sg::EditText, &sg::EditText::release> mEditText;
 
-    // These configure the edit control.  They are nulled when an internal value changes and
-    // re-created during the scene graph update (or measure pass, for edit text box)
-    sg::EditTextBoxPtr mEditTextBox;
-    sg::TextPropertiesPtr mEditTextProperties;
     sg::EditTextConfigPtr mEditTextConfig;
 
     // These configure the hint display.  They are nulled when an internal values changes and

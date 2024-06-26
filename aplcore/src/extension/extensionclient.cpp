@@ -197,13 +197,17 @@ ExtensionClient::processMessageInternal(const CoreDocumentContextPtr& documentCo
 
     const auto& context = documentContext ? documentContext->context() : mInternalRootConfig->evaluationContext();
     auto evaluated = Object(std::move(message).get());
-    auto method = propertyAsMapped<ExtensionMethod>(context, evaluated, "method", static_cast<ExtensionMethod>(-1), sExtensionMethodBimap);
+    auto method = requiredMappedProperty(context, evaluated, "method", sExtensionMethodBimap);
+    if (!method.second) {
+        CONSOLE(mSession).log("Missing or invalid method property");
+        return false;
+    }
 
     if (!mRegistered) {
         if (mRegistrationProcessed) {
             CONSOLE(mSession).log("Can't process message after failed registration.");
             return false;
-        } else if (method != kExtensionMethodRegisterSuccess && method != kExtensionMethodRegisterFailure) {
+        } else if (method.first != kExtensionMethodRegisterSuccess && method.first != kExtensionMethodRegisterFailure) {
             CONSOLE(mSession).log("Can't process message before registration.");
             return false;
         }
@@ -221,7 +225,7 @@ ExtensionClient::processMessageInternal(const CoreDocumentContextPtr& documentCo
     }
 
     bool result = true;
-    switch (method) {
+    switch (method.first) {
         case kExtensionMethodRegisterSuccess:
             result = processRegistrationResponse(context, evaluated);
             // FALL_THROUGH
@@ -571,9 +575,9 @@ ExtensionClient::processLiveDataUpdate(const Context& context, const Object& upd
 
     auto& dataRef = mLiveData.at(name.getString());
     for (const auto& operation : operations.getArray()) {
-        auto type = propertyAsMapped<ExtensionLiveDataUpdateType>(context, operation, "type",
-                static_cast<ExtensionLiveDataUpdateType>(-1), sExtensionLiveDataUpdateTypeBimap);
-        if (type == static_cast<ExtensionLiveDataUpdateType>(-1)) {
+        auto type = requiredMappedProperty<ExtensionLiveDataUpdateType>(
+            context, operation, "type", sExtensionLiveDataUpdateTypeBimap);
+        if (!type.second) {
             CONSOLE(mSession) << "Wrong operation type for=" << name;
             return false;
         }
@@ -581,10 +585,10 @@ ExtensionClient::processLiveDataUpdate(const Context& context, const Object& upd
         bool result;
         switch (dataRef.objectType) {
             case kExtensionLiveDataTypeObject:
-                result = updateLiveMap(type, dataRef, operation);
+                result = updateLiveMap(type.first, dataRef, operation);
                 break;
             case kExtensionLiveDataTypeArray:
-                result = updateLiveArray(type, dataRef, operation);
+                result = updateLiveArray(type.first, dataRef, operation);
                 break;
             default:
                 result = false;
@@ -594,7 +598,7 @@ ExtensionClient::processLiveDataUpdate(const Context& context, const Object& upd
 
         if (!result) {
             CONSOLE(mSession) << "LiveMap operation failed=" << dataRef.name << " operation="
-                                << sExtensionLiveDataUpdateTypeBimap.at(type);
+                                << sExtensionLiveDataUpdateTypeBimap.at(type.first);
         } else {
             dataRef.hasPendingUpdate = true;
         }
@@ -783,10 +787,8 @@ ExtensionClient::readExtensionTypes(const Context& context, const Object& types)
                 continue;
             } else {
                 defValue = propertyAsRecursive(context, ps, "default");
-                ptype = propertyAsMapped<BindingType>(context, ps, "type", kBindingTypeAny, sBindingMap);
-                if (!sBindingMap.has(ptype)) {
-                    ptype = kBindingTypeAny;
-                }
+                ptype = optionalMappedProperty<BindingType>(context, ps, "type", kBindingTypeAny,
+                                                            sBindingMap);
                 preq = propertyAsBoolean(context, ps, "required", false);
             }
 
@@ -887,8 +889,9 @@ ExtensionClient::readExtensionEventHandlers(const Context& context, const Object
             CONSOLE(mSession).log("Invalid extension event handler for extension=%s", mUri.c_str());
             return false;
         } else {
-            auto mode = propertyAsMapped<ExtensionEventExecutionMode>(context, handler, "mode",
-                    kExtensionEventExecutionModeFast, sExtensionEventExecutionModeBimap);
+            auto mode = optionalMappedProperty<ExtensionEventExecutionMode>(
+                context, handler, "mode", kExtensionEventExecutionModeFast,
+                sExtensionEventExecutionModeBimap);
             mSchema.eventModes.emplace(name.asString(), mode);
             mSchema.eventHandlers.emplace_back(ExtensionEventHandler(mUri, name.asString()));
         }
@@ -1063,7 +1066,7 @@ ExtensionClient::readExtensionComponentEventHandlers(const Context& context,
                 return false;
             }
             else {
-                auto mode = propertyAsMapped<ExtensionEventExecutionMode>(
+                auto mode = optionalMappedProperty<ExtensionEventExecutionMode>(
                     context, handler, "mode", kExtensionEventExecutionModeFast,
                     sExtensionEventExecutionModeBimap);
                 mSchema.eventModes.emplace(name.asString(), mode);
@@ -1127,10 +1130,8 @@ ExtensionClient::readExtensionComponentDefinitions(const Context& context, const
                     continue;
                 } else {
                     defValue = propertyAsObject(context, ps, "default");
-                    ptype = propertyAsMapped<BindingType>(context, ps, "type", kBindingTypeAny, sBindingMap);
-                    if (!sBindingMap.has(ptype)) {
-                        ptype = kBindingTypeAny;
-                    }
+                    ptype = optionalMappedProperty<BindingType>(context, ps, "type",
+                                                                kBindingTypeAny, sBindingMap);
                     preq = propertyAsBoolean(context, ps, "required", false);
                 }
 

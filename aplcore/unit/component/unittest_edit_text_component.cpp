@@ -1007,3 +1007,36 @@ TEST_F(EditTextComponentTest, ComponentDisplayedWhenDisallowEditTextFalse) {
     ASSERT_EQ(1, component->getDisplayedChildCount());
     ASSERT_EQ(kComponentTypeEditText, component->getDisplayedChildAt(0)->getType());
 }
+
+static const char* EDIT_TEXT_AUTOSIZED = R"({
+  "type": "APL",
+  "version": "2024.2",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "direction": "row",
+      "items": [
+        {
+          "type": "EditText",
+          "id": "EDITTEXT",
+          "text": "hello",
+          "size": 8,
+          "shrink": 1.0
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(EditTextComponentTest, EditTextAutosize) {
+    loadDocument(EDIT_TEXT_AUTOSIZED);
+
+    auto et = root->findComponentById("EDITTEXT");
+    ASSERT_EQ(Size(80, 800), et->getCalculated(apl::kPropertyBounds).get<Rect>().getSize());
+
+    // Change FontSize and ensure resize happened
+    executeCommands(JsonData(R"([{ "type": "SetValue", "componentId": "EDITTEXT", "property": "fontSize", "value": 60 }])").moveToObject(), false);
+    advanceTime(100);
+
+    ASSERT_EQ(Size(120, 800), et->getCalculated(apl::kPropertyBounds).get<Rect>().getSize());
+}

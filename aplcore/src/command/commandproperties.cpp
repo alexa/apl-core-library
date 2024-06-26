@@ -44,9 +44,11 @@ Bimap<int, std::string> sCommandNameBimap = {
     {kCommandTypeInsertItem,        "InsertItem"},
     {kCommandTypeRemoveItem,        "RemoveItem"},
     {kCommandTypeLog,               "Log"},
+    {kCommandTypeImportPackage,     "ImportPackage"},
 };
 
 Bimap<int, std::string> sCommandPropertyBimap = {
+    {kCommandPropertyAccept,              "accept"},
     {kCommandPropertyAlign,               "align"},
     {kCommandPropertyArguments,           "arguments"},
     {kCommandPropertyAt,                  "at"},
@@ -72,7 +74,9 @@ Bimap<int, std::string> sCommandPropertyBimap = {
     {kCommandPropertyLevel,               "level"},
     {kCommandPropertyMessage,             "message"},
     {kCommandPropertyMinimumDwellTime,    "minimumDwellTime"},
+    {kCommandPropertyName,                "name"},
     {kCommandPropertyOnFail,              "onFail"},
+    {kCommandPropertyOnLoad,              "onLoad"},
     {kCommandPropertyOtherwise,           "otherwise"},
     {kCommandPropertyPosition,            "position"},
     {kCommandPropertyPreservedSequencers, "preservedSequencers"},
@@ -89,6 +93,7 @@ Bimap<int, std::string> sCommandPropertyBimap = {
     {kCommandPropertyTransitionDuration,  "transitionDuration"},
     {kCommandPropertyValue,               "value"},
     {kCommandPropertyValue,               "values"},
+    {kCommandPropertyVersion,             "version"},
 };
 
 Bimap<int, std::string> sCommandAlignMap = {

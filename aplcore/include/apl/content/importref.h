@@ -19,6 +19,9 @@
 #include <string>
 #include <set>
 
+#include "apl/versioning/semanticversion.h"
+#include "apl/versioning/semanticpattern.h"
+
 namespace apl {
 
 /**
@@ -32,15 +35,17 @@ public:
     ImportRef(
         const std::string& name,
         const std::string& version)
-        : ImportRef(name, version, "", std::set<std::string>())
+        : ImportRef(name, version, "", std::set<std::string>(), nullptr, nullptr)
     {}
 
     ImportRef(
         const std::string& name,
         const std::string& version,
         const std::string& source,
-        const std::set<std::string>& loadAfter)
-        : mName(name), mVersion(version), mSource(source), mLoadAfter(loadAfter)
+        const std::set<std::string>& loadAfter,
+        const SemanticVersionPtr& semanticVersion,
+        const SemanticPatternPtr& acceptPattern)
+        : mName(name), mVersion(version), mSource(source), mLoadAfter(loadAfter), mSemanticVersion(semanticVersion), mAcceptPattern(acceptPattern)
     {}
 
     ImportRef(const ImportRef&) = default;
@@ -52,7 +57,26 @@ public:
     const std::string& version() const { return mVersion; }
     const std::string& source() const { return mSource; }
     const std::set<std::string>& loadAfter() const { return mLoadAfter; }
+    const SemanticVersionPtr& semanticVersion() const { return mSemanticVersion; }
+    const SemanticPatternPtr& acceptPattern() const { return mAcceptPattern; }
     std::string toString() const { return mName + ":" + mVersion; }
+
+    /**
+     * Determines if this import is an acceptable replacement for the other import.
+     *
+     * @param other the import reference that may accept this one as a replacement
+     * @return true if this import reference is acceptable as a replacement for the other import.
+     */
+    bool isAcceptableReplacementFor(const ImportRef& other) const {
+        // If names differ then other is not acceptable.
+        if (mName != other.mName) return false;
+
+        // If this has no semantic version or the other does not have an accept pattern, then versions
+        // must match exactly.
+        if (!mSemanticVersion || !other.mAcceptPattern) return mVersion == other.mVersion;
+
+        return other.mAcceptPattern->match(mSemanticVersion);
+    }
 
     bool operator==(const ImportRef& other) const { return this->compare(other) == 0; }
     bool operator!=(const ImportRef& other) const { return this->compare(other) != 0; }
@@ -68,6 +92,8 @@ private:
     std::string mVersion;
     std::string mSource;
     std::set<std::string> mLoadAfter;
+    SemanticVersionPtr mSemanticVersion;
+    SemanticPatternPtr mAcceptPattern;
 };
 
 } // namespace apl

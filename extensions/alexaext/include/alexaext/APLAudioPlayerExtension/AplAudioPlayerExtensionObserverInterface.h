@@ -99,6 +99,13 @@ public:
      * https://developer.amazon.com/en-US/docs/alexa/alexa-voice-service/playbackcontroller.html#buttoncommandissued
      */
     virtual void onAudioPlayerSkipBackward() = 0;
+
+    /**
+     * Used to notify the observer when the extension has read setting for requested 
+     * normalizedEnergies
+     * @param count Number of requested normalized energies by APL Document.
+     */
+    virtual void onRequestedNormalizedEnergies(int count) {}
 };
 
 }  // namespace audioplayer

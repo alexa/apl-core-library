@@ -48,9 +48,14 @@ JsonData::moveToObject()
         mValuePtr = nullptr;
         return obj;
     }
-    else {
+    else if (mType == kShared) {
         mType = kNullPtr;
-        return {std::move(mDocument) };
+        Object obj(mSharedJson);
+        mSharedJson = {};
+        return obj;
+    }
+    else {
+        return {};
     }
 }
 

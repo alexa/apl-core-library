@@ -48,15 +48,10 @@ SwipeAwayGesture::create(const ActionablePtr& actionable, const Context& context
         return nullptr;
     }
 
-    auto action = propertyAsMapped<SwipeAwayActionType>(context, object, "action", kSwipeAwayActionSlide,
-                                                        sSwipeAwayActionTypeBimap);
-    if (action == static_cast<SwipeAwayActionType>(-1)) {
-        CONSOLE(context) << "Unrecognized action field in SwipeAway gesture handler";
-        return nullptr;
-    }
-
-    auto direction = propertyAsMapped<int>(context, object, "direction", -1, sSwipeDirectionMap);
-    if (direction < 0) {
+    auto action = optionalMappedProperty<SwipeAwayActionType>(
+        context, object, "action", kSwipeAwayActionSlide, sSwipeAwayActionTypeBimap);
+    auto direction = requiredMappedProperty<int>(context, object, "direction", sSwipeDirectionMap);
+    if (!direction.second) {
         CONSOLE(context) << "Unrecognized direction field in SwipeAway gesture handler";
         return nullptr;
     }
@@ -65,8 +60,9 @@ SwipeAwayGesture::create(const ActionablePtr& actionable, const Context& context
     Object onSwipeDone = arrayifyPropertyAsObject(context, object, "onSwipeDone");
     Object items = arrayifyPropertyAsObject(context, object, "item", "items");
 
-    return std::make_shared<SwipeAwayGesture>(actionable, action, static_cast<SwipeDirection>(direction),
-        std::move(onSwipeMove), std::move(onSwipeDone), std::move(items));
+    return std::make_shared<SwipeAwayGesture>(
+        actionable, action, static_cast<SwipeDirection>(direction.first), std::move(onSwipeMove),
+        std::move(onSwipeDone), std::move(items));
 }
 
 SwipeAwayGesture::SwipeAwayGesture(const ActionablePtr& actionable, SwipeAwayActionType action,

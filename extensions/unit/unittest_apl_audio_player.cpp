@@ -65,12 +65,16 @@ public:
     void onAudioPlayerSkipBackward() override
     { mCommand = "BACKWARD"; }
 
+    void onRequestedNormalizedEnergies(int count) override
+    { mRequestedNormalizedEnergies = count; }
+
 public:
     std::string mCommand;
     double mParaNum;
     bool mParamBool;
     std::string mParamJson; //  string representation of json
     std::string mParamString;
+    int mRequestedNormalizedEnergies;
 };
 
 class TestAudioPlayerExtension : public AplAudioPlayerExtension {
@@ -108,13 +112,21 @@ public:
     /**
      * Simple registration for testing event/command/data.
      */
-    ::testing::AssertionResult registerExtension(const alexaext::ActivityDescriptor& activity)
+    ::testing::AssertionResult registerExtension(const alexaext::ActivityDescriptor& activity, std::string uri = URI)
     {
         Document settings(kObjectType);
         settings.AddMember("playbackStateName", Value("MyPlayBackState"), settings.GetAllocator());
 
-        Document regReq = RegistrationRequest("1.0").uri(URI)
+        if (uri == URI_11) {
+            rapidjson::Value musicAnalysisBindings(kObjectType);
+            musicAnalysisBindings.AddMember("bindingName", "musicAnalysisStatus", settings.GetAllocator());
+            musicAnalysisBindings.AddMember("requestedNormalizedEnergies", 5, settings.GetAllocator());
+            settings.AddMember("musicAnalysisBindings", musicAnalysisBindings, settings.GetAllocator());
+        }
+
+        Document regReq = RegistrationRequest("1.0").uri(uri)
                                                     .settings(settings);
+        mExtension->setMusicAnalysisDetails(true, 5);
         auto registration = mExtension->createRegistration(activity, regReq);
         mExtension->onActivityRegistered(activity);
         auto method = GetWithDefault<const char *>(RegistrationSuccess::METHOD(), registration, "Fail");
@@ -225,7 +237,7 @@ TEST_F(AplAudioPlayerExtensionTest, CreateExtension)
     ASSERT_TRUE(mObserver);
     ASSERT_TRUE(mExtension);
     auto supported = mExtension->getURIs();
-    ASSERT_EQ(1, supported.size());
+    ASSERT_EQ(2, supported.size());
     ASSERT_NE(supported.end(), supported.find(URI));
 }
 
@@ -413,6 +425,62 @@ TEST_F(AplAudioPlayerExtensionTest, RegistrationSettingsHasLiveData)
             "properties": {
                 "playerActivity": "string",
                 "offset": "number"
+            }
+        }
+    )");
+    ASSERT_FALSE(expected.HasParseError());
+    ASSERT_TRUE(IsEqual(expected, *stateType));
+
+}
+
+/**
+ * LiveData registration is defined with settings for audio metadata.
+ */
+TEST_F(AplAudioPlayerExtensionTest, RegistrationSettingsHasAudioMetadataLiveData)
+{
+    Document settings(kObjectType);
+    rapidjson::Value musicAnalysisBindings(kObjectType);
+    musicAnalysisBindings.AddMember("bindingName", "musicAnalysisStatus", settings.GetAllocator());
+    musicAnalysisBindings.AddMember("requestedNormalizedEnergies", 5, settings.GetAllocator());
+    settings.AddMember("musicAnalysisBindings", musicAnalysisBindings, settings.GetAllocator());
+
+    auto activity = createActivityDescriptor(URI_11);
+    Document regReq = RegistrationRequest("1.0").uri(URI_11)
+                                                .settings(settings);
+    mExtension->setMusicAnalysisDetails(true, 5);
+    auto registration = mExtension->createRegistration(activity, regReq);
+    ASSERT_STREQ("RegisterSuccess",
+                GetWithDefault<const char *>(RegistrationSuccess::METHOD(), registration, ""));
+    Value *schema = RegistrationSuccess::SCHEMA().Get(registration);
+    ASSERT_TRUE(schema);
+
+    // live data defined
+    Value *liveData = ExtensionSchema::LIVE_DATA().Get(*schema);
+    ASSERT_TRUE(liveData);
+    ASSERT_TRUE(liveData->IsArray() && liveData->Size() == 1);
+
+    const Value& data = (*liveData)[0];
+    ASSERT_TRUE(data.IsObject());
+    auto name = GetWithDefault<const char *>(LiveDataSchema::NAME(), data, "");
+    ASSERT_STREQ("musicAnalysisStatus", name);
+    auto type = GetWithDefault<const char *>(LiveDataSchema::DATA_TYPE(), data, "");
+    ASSERT_STREQ("musicAnalysisState", type);
+
+    Value *types = ExtensionSchema::TYPES().Get(*schema);
+    ASSERT_TRUE(types);
+    ASSERT_TRUE(liveData->IsArray());
+
+    Value *stateType = findDataType(types, "musicAnalysisState");
+    ASSERT_NE(nullptr, stateType);
+    ASSERT_TRUE(stateType->IsObject());
+
+    rapidjson::Document expected;
+    expected.Parse(R"(
+        {
+            "name": "musicAnalysisState",
+            "properties": {
+                "beatsPerMinute": "number",
+                "normalizedEnergies": "array"
             }
         }
     )");
@@ -1057,6 +1125,36 @@ TEST_F(AplAudioPlayerExtensionTest, InvokeCommandAddLyricsDurationInMilliseconds
 }
 
 /**
+ * Command on null player
+ */
+TEST_F(AplAudioPlayerExtensionTest, InvokeCommandNullPlayer)
+{
+    std::shared_ptr<TestAudioPlayerExtension>  testExtension = std::make_shared<TestAudioPlayerExtension>(nullptr);
+    auto activity = createActivityDescriptor();
+
+    auto command = Command("1.0").target(mClientToken)
+                                 .uri(URI)
+                                 .name("Play");
+    auto invoke = testExtension->invokeCommand(activity, command);
+    ASSERT_FALSE(invoke);
+}
+
+/**
+ * Command on invalid URI
+ */
+TEST_F(AplAudioPlayerExtensionTest, InvokeCommandInvalidURI)
+{
+    std::string uri = "aplext:audioplayer:50";
+    auto activity = createActivityDescriptor(uri);
+
+    auto command = Command("1.0").target(mClientToken)
+                                 .uri(uri)
+                                 .name("Play");
+    auto invoke = mExtension->invokeCommand(activity, command);
+    ASSERT_FALSE(invoke);
+}
+
+/**
  * Playback progress change updates live data.
  */
 TEST_F(AplAudioPlayerExtensionTest, UpdatePlaybackProgressSuccess)
@@ -1080,6 +1178,40 @@ TEST_F(AplAudioPlayerExtensionTest, UpdatePlaybackProgressSuccess)
             });
 
     mExtension->updatePlaybackProgress(100);
+    ASSERT_TRUE(gotUpdate);
+}
+
+/**
+ * Track music analysis update change updates live data.
+ */
+TEST_F(AplAudioPlayerExtensionTest, UpdateMusicAnalysisSuccess)
+{
+    auto activity = createActivityDescriptor(URI_11);
+    ASSERT_TRUE(registerExtension(activity, URI_11));
+
+    bool gotUpdate = false;
+    mExtension->registerLiveDataUpdateCallback(
+            [&](const ActivityDescriptor& activity, const rapidjson::Value &liveDataUpdate) {
+                gotUpdate = true;
+                ASSERT_STREQ("LiveDataUpdate",
+                            GetWithDefault<const char *>(RegistrationSuccess::METHOD(), liveDataUpdate, ""));
+                ASSERT_STREQ("aplext:audioplayer:11",
+                        GetWithDefault<const char *>(RegistrationSuccess::TARGET(), liveDataUpdate, ""));
+                const Value *ops = LiveDataUpdate::OPERATIONS().Get(liveDataUpdate);
+                ASSERT_TRUE(ops);
+                ASSERT_TRUE(ops->IsArray() && ops->Size() == 2);
+                ASSERT_TRUE(CheckLiveData(ops->GetArray()[0], "Set", "beatsPerMinute", 20));
+                ASSERT_TRUE(CheckLiveData(ops->GetArray()[1], "Set", "normalizedEnergies"));
+                const rapidjson::Value *itm = LiveDataMapOperation::ITEM().Get(ops->GetArray()[1]);
+                ASSERT_TRUE(itm->IsArray() && itm->Size() == 5);
+                if (itm->IsArray()) {
+                    for (auto& v : itm->GetArray()) {
+                        ASSERT_TRUE(v == 0.25);
+                    }
+                }
+            });
+    std::vector<float> normalizedEnergies{ 0.25, 0.25, 0.25, 0.25, 0.25 };
+    mExtension->updateMusicAnalysis(20, normalizedEnergies);
     ASSERT_TRUE(gotUpdate);
 }
 
@@ -1186,6 +1318,29 @@ TEST_F(AplAudioPlayerExtensionTest, UpdatePlayerActivityEventSuccess)
 
     mExtension->updatePlayerActivity("PLAYING", 100);
     ASSERT_TRUE(gotUpdate);
+}
+
+/**
+ * Music analysis update change for lower version
+ * and disabled runtime is ignored.
+ */
+TEST_F(AplAudioPlayerExtensionTest, UpdateMusicAnalysisFailure)
+{
+    auto activity = createActivityDescriptor();
+    ASSERT_TRUE(registerExtension(activity));
+
+    bool gotUpdate = false;
+    mExtension->registerLiveDataUpdateCallback(
+            [&](const ActivityDescriptor& activity, const rapidjson::Value &liveDataUpdate) {
+                gotUpdate = true;
+            });
+    std::vector<float> normalizedEnergies{ 0.25, 0.25, 0.25, 0.25, 0.25 };
+    mExtension->updateMusicAnalysis(20, normalizedEnergies);
+    ASSERT_FALSE(gotUpdate);
+
+    mExtension->setMusicAnalysisDetails(false);
+    mExtension->updateMusicAnalysis(20, normalizedEnergies);
+    ASSERT_FALSE(gotUpdate);
 }
 
 /**

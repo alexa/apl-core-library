@@ -13,12 +13,15 @@
 
 target_sources_local(unittest
         PRIVATE
+        testpackagemanager.cpp
         unittest_apl.cpp
         unittest_directive.cpp
         unittest_document.cpp
         unittest_document_background.cpp
         unittest_jsondata.cpp
         unittest_metrics.cpp
+        unittest_packagemanager.cpp
         unittest_packages.cpp
         unittest_rootconfig.cpp
+        unittest_sharedjsondata.cpp
         )

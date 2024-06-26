@@ -67,6 +67,15 @@ private:
 using BindingChangePtr = std::shared_ptr<BindingChange>;
 
 /**
+ * Check if binding with provided name valid in provided context.
+ * @param context Context.
+ * @param binding binding definition.
+ * @param name Binding name.
+ * @return true if valid, false otherwise.
+ */
+extern bool isValidBinding(const ContextPtr& context, const Object& binding, const std::string& name);
+
+/**
  * Process the "bind" variable in a component or graphic element and add all bound values
  * to the data-binding context.
  *

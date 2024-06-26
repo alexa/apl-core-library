@@ -1273,3 +1273,155 @@ TEST_F(PointerTest, TouchWrapperInheritsState) {
     auto event = root->popEvent();
     ASSERT_EQ(event.getType(), kEventTypeSendEvent);
 }
+
+static const char *POINTER_EVENTS = R"({
+  "type": "APL",
+  "version": "2024.2",
+  "theme": "dark",
+  "graphics": {
+    "GradientPanel": {
+      "type": "AVG",
+      "version": "1.2",
+      "width": 400,
+      "height": 100,
+      "resources": {
+        "gradients": {
+          "linearGradient": {
+            "inputRange": [
+              0,
+              0.8
+            ],
+            "colorRange": [
+              "#ffffff00",
+              "#000000ff"
+            ],
+            "type": "linear",
+            "x2": 0,
+            "y2": 1,
+            "x1": 0,
+            "y1": 0
+          },
+          "radialGradient": {
+            "inputRange": [
+              0,
+              1
+            ],
+            "colorRange": [
+              "#ffffffff",
+              "#ff0000ff"
+            ],
+            "type": "radial",
+            "centerX": 0.6480013075429227,
+            "centerY": 0.4348329629565578,
+            "radius": 1
+          }
+        }
+      },
+      "items": [
+        {
+          "type": "path",
+          "pathData": "M0,0 L400,0 L400,100 L0,100 Z",
+          "fill": "@linearGradient"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "height": 400,
+      "width": 400,
+      "items": [
+        {
+          "type": "Sequence",
+          "height": "100%",
+          "width": "100%",
+          "data": [
+            "red",
+            "blue",
+            "green",
+            "yellow",
+            "gray",
+            "purple"
+          ],
+          "item": {
+            "type": "Frame",
+            "height": 125,
+            "width": "100%",
+            "background": "${data}"
+          }
+        },
+        {
+          "type": "VectorGraphic",
+          "id": "OverlayEffect",
+          "position": "absolute",
+          "height": 100,
+          "width": "100%",
+          "top": 300,
+          "source": "GradientPanel",
+          "pointerEvents": "none"
+        }
+      ]
+    }
+  }
+})";
+
+TEST_F(PointerTest, PointerEvents) {
+    metrics.size(400, 400);
+    config->set(RootProperty::kTapOrScrollTimeout, 5);
+
+    loadDocument(POINTER_EVENTS);
+
+    auto sqnc = component->getChildAt(0);
+    ASSERT_EQ(Point(0,0), sqnc->scrollPosition());
+    ASSERT_TRUE(MouseDown(root, 200, 375));
+    advanceTime(50);
+    ASSERT_TRUE(MouseMove(root, 200, 275));
+    advanceTime(50);
+    ASSERT_EQ(Point(0,100), sqnc->scrollPosition());
+    ASSERT_TRUE(MouseMove(root, 200, 75));
+    ASSERT_TRUE(MouseUp(root, 200, 75));
+    ASSERT_EQ(Point(0,300), sqnc->scrollPosition());
+    root->clearPending();
+}
+
+TEST_F(PointerTest, PointerEventsFromEdge) {
+    metrics.size(400, 400);
+
+    loadDocument(POINTER_EVENTS);
+
+    auto sqnc = component->getChildAt(0);
+    ASSERT_EQ(Point(0,0), sqnc->scrollPosition());
+    ASSERT_TRUE(MouseDown(root, 200, 375));
+    advanceTime(50);
+    ASSERT_TRUE(MouseMove(root, 200, 325));
+    advanceTime(50);
+    ASSERT_TRUE(MouseMove(root, 200, 275));
+    advanceTime(50);
+    ASSERT_TRUE(MouseMove(root, 200, 75));
+    ASSERT_TRUE(MouseUp(root, 200, 75));
+    ASSERT_EQ(Point(0,300), sqnc->scrollPosition());
+    root->clearPending();
+}
+
+TEST_F(PointerTest, PointerEventsEnable) {
+    metrics.size(400, 400);
+    config->set(RootProperty::kTapOrScrollTimeout, 5);
+
+    loadDocument(POINTER_EVENTS);
+
+    executeCommand("SetValue", {{"componentId", "OverlayEffect"}, {"property", "pointerEvents"}, {"value", "auto"}}, true);
+    root->clearPending();
+
+    auto sqnc = component->getChildAt(0);
+    ASSERT_EQ(Point(0,0), sqnc->scrollPosition());
+    ASSERT_FALSE(MouseDown(root, 200, 375));
+    advanceTime(50);
+    ASSERT_TRUE(MouseMove(root, 200, 275));
+    advanceTime(50);
+    ASSERT_EQ(Point(0,0), sqnc->scrollPosition());
+    ASSERT_TRUE(MouseMove(root, 200, 75));
+    ASSERT_TRUE(MouseUp(root, 200, 75));
+    ASSERT_EQ(Point(0,0), sqnc->scrollPosition());
+    root->clearPending();
+}

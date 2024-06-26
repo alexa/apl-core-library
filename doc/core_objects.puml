@@ -240,6 +240,7 @@ class SharedContextData {
     int mScreenLockCount
     LruCache<TextMeasureRequest, YGSize> mCachedMeasures;
     LruCache<TextMeasureRequest, float> mCachedBaselines;
+    std::unique_ptr<sg::TextLayoutCache> mTextLayoutCache;
     std::unique_ptr<sg::TextPropertiesCache> mTextPropertiesCache;
 }
 

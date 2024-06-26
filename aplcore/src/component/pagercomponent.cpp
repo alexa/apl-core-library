@@ -534,10 +534,7 @@ PagerComponent::allowBackwards() const
 void
 PagerComponent::ensureDisplayedChildren() {
 
-    if (mChildren.empty() || !mDisplayedChildrenStale)
-        return;
-
-    mDisplayedChildrenStale = false;
+    if (mChildren.empty() || !mCoreFlags.checkAndClear(kCoreComponentFlagDisplayedChildrenStale)) return;
 
     // clear previous calculations
     mDisplayedChildren.clear();

@@ -17,10 +17,8 @@
 #define _APL_TEXT_COMPONENT_H
 
 #include "apl/component/corecomponent.h"
-#ifdef SCENEGRAPH
-#include "apl/scenegraph/textproperties.h"
-#endif // SCENEGRAPH
 #include "apl/primitives/range.h"
+#include "apl/scenegraph/textproperties.h"
 
 namespace apl {
 
@@ -36,8 +34,6 @@ public:
     Object getValue() const override;
     void preLayoutProcessing(bool useDirtyFlag) override;
 
-    rapidjson::Value serializeMeasure(rapidjson::Document::AllocatorType& allocator) const;
-
 #ifdef SCENEGRAPH
     sg::TextLayoutPtr getTextLayout() const { return mLayout; }
 
@@ -48,6 +44,10 @@ public:
 
 private:
     void updateTextAlign(bool useDirtyFlag);
+    void ensureTextProperties();
+    void ensureTextLayout();
+    void onTextLayout();
+    void postProcessLayoutChanges(bool first) override;
 
 protected:
     void handleLayoutDirectionChange(bool useDirtyFlag) override { updateTextAlign(useDirtyFlag); };
@@ -58,22 +58,24 @@ protected:
 
     std::string getVisualContextType() const override;
 
+    YGSize textMeasure(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode) override;
+    float textBaseline(float width, float height) override;
+
+private:
+    sg::TextPropertiesPtr mTextProperties;
+    sg::TextChunkPtr mTextChunk;
+    sg::TextLayoutPtr mLayout;
+    bool mLayoutPossiblyStale;
+
 #ifdef SCENEGRAPH
+protected:
     // Common scene graph handling
     sg::LayerPtr constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph) override;
     bool updateSceneGraphInternal(sg::SceneGraphUpdates& sceneGraph) override;
 
 private:
     Point calcSceneGraphOffset() const;
-    YGSize measureText(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode);
-    float baselineText(float width, float height);
-    void ensureSGTextLayout();
-    void ensureTextProperties();
     void populateTextNodes(sg::Node *transform);
-
-    sg::TextPropertiesPtr mTextProperties;
-    sg::TextChunkPtr mTextChunk;
-    sg::TextLayoutPtr mLayout;
 #endif // SCENEGRAPH
 };
 

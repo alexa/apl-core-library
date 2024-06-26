@@ -46,6 +46,8 @@ TEST(JsonData, ValueReference)
 
         ASSERT_TRUE(data);     // Always valid, even if the parse failed
         ASSERT_STREQ(m.isvalid ? m.expected : "null", data.toString().c_str());
+        ASSERT_STREQ("Value-constructed; no error", data.error());
+        ASSERT_EQ(0, data.offset());
     }
 }
 
@@ -55,6 +57,42 @@ TEST(JsonData, MoveDocument)
         rapidjson::Document doc;
         doc.Parse(m.original);
         auto data = JsonData(std::move(doc));
+        ASSERT_EQ(m.isvalid, (bool) data);
+        if (m.isvalid) {
+            ASSERT_STREQ(m.expected, data.toString().c_str());
+        }
+        else {
+            ASSERT_GT(strlen(data.error()), 0);
+            ASSERT_EQ(m.offset, data.offset());
+            ASSERT_STREQ("INVALID", data.toString().c_str());
+        }
+    }
+}
+
+TEST(JsonData, MoveFromSharedJson)
+{
+    for (const auto& m : sTestCases) {
+        auto doc = std::make_shared<rapidjson::Document>();
+        doc->Parse(m.original);
+        auto data = JsonData(SharedJsonData(doc));
+        ASSERT_EQ(m.isvalid, (bool) data);
+        if (m.isvalid) {
+            ASSERT_STREQ(m.expected, data.toString().c_str());
+        }
+        else {
+            ASSERT_EQ(m.offset, data.offset());
+            ASSERT_STREQ("INVALID", data.toString().c_str());
+        }
+    }
+}
+
+TEST(JsonData, CopyFromSharedJson)
+{
+    for (const auto& m : sTestCases) {
+        auto doc = std::make_shared<rapidjson::Document>();
+        doc->Parse(m.original);
+        SharedJsonData sjson(doc); 
+        auto data = JsonData(sjson);
         ASSERT_EQ(m.isvalid, (bool) data);
         if (m.isvalid) {
             ASSERT_STREQ(m.expected, data.toString().c_str());
@@ -108,6 +146,7 @@ TEST(JsonData, Char)
             ASSERT_STREQ(m.expected, data.toString().c_str());
         }
         else {
+            ASSERT_GT(strlen(data.error()), 0);
             ASSERT_EQ(m.offset, data.offset());
             ASSERT_STREQ("INVALID", data.toString().c_str());
         }
@@ -119,8 +158,20 @@ TEST(JsonData, NullPointer)
     auto data = JsonData((char *) nullptr);
     ASSERT_FALSE(data);
     ASSERT_STREQ("INVALID", data.toString().c_str());
+    ASSERT_STREQ("Nullptr", data.error());
 
     data = JsonData((const char *)nullptr);
     ASSERT_FALSE(data);
     ASSERT_STREQ("INVALID", data.toString().c_str());
+    ASSERT_STREQ("Nullptr", data.error());
+
+    data = JsonData("{}");
+    auto _ = data.moveToObject();
+    ASSERT_FALSE(data);
+    ASSERT_STREQ("INVALID", data.toString().c_str());
+    ASSERT_STREQ("Nullptr", data.error());
+    ASSERT_EQ(0, data.offset());
+
+    auto nullObj = data.moveToObject();
+    ASSERT_TRUE(nullObj.isNull());
 }

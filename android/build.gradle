@@ -1,0 +1,44 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+def version = "2024.2.0";
+
+buildscript {
+    repositories {
+        google()
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.0.2'
+        classpath 'org.jacoco:org.jacoco.core:0.8.8'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+subprojects {
+    apply plugin: 'maven-publish'
+
+    if (System.getenv("VERSION")) {
+        project.version = System.getenv("VERSION")
+    } else if (System.getenv("BUILD_ID")) {
+        project.version = "${version}." + System.getenv("BUILD_ID")
+    } else {
+        project.version = "${version}." + System.currentTimeMillis()
+    }
+    project.group = "com.amazon.apl.android"
+
+    repositories {
+        google()
+        jcenter()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

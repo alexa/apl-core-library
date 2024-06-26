@@ -213,7 +213,10 @@ TEST_F(MapGrammarTest, OnScrollSourceEventKeys)
     executeCommand("Scroll", {{"componentId", ":root"}, {"distance", 1}}, false);
     advanceTime(300);
 
-    ASSERT_TRUE(CheckSendEvent(root, "bind",
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "allowBackwards",
+                               "allowForward",
+                               "bind",
                                "checked",
                                "disabled",
                                "focused",
@@ -261,7 +264,10 @@ TEST_F(MapGrammarTest, OnScrollTargetEventKeys)
     executeCommand("Scroll", {{"componentId", ":root"}, {"distance", 1}}, false);
     advanceTime(300);
 
-    ASSERT_TRUE(CheckSendEvent(root, "bind",
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "allowBackwards",
+                               "allowForward",
+                               "bind",
                                "checked",
                                "disabled",
                                "focused",

@@ -108,9 +108,7 @@ public:
                             float width,
                             float height ) = 0;
 
-#ifdef SCENEGRAPH
-    virtual bool sceneGraphCompatible() const { return false; }
-#endif // SCENEGRAPH
+    virtual bool layoutCompatible() const { return false; }
 };
 
 } // namespace apl

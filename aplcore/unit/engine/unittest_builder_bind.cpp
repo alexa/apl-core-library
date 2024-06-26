@@ -335,6 +335,173 @@ TEST_F(BuilderBindTest, MissingValue)
     ASSERT_TRUE(ConsoleMessage());
 }
 
+static const char *BINDING_TYPE = R"apl(
+{
+  "type": "APL",
+  "version": "2024.2",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "items": {
+        "type": "Container",
+        "bind": {
+          "name": "DataType",
+          "value": "${data}"
+        },
+        "items": {
+          "type": "Text",
+          "bind": {
+            "name": "X",
+            "value": "${data}",
+            "type": "${DataType}"
+          },
+          "text": "${DataType} ${data} ${X}"
+        },
+        "data": [
+          "",
+          "fuzzy ducks",
+          23,
+          23.3,
+          false,
+          true,
+          "23dp",
+          "23.3dp",
+          "green",
+          "#f3d423",
+          null
+        ]
+      },
+      "data": [
+        "any",
+        "boolean",
+        "string",
+        "number",
+        "dimension",
+        "color",
+        "foo"
+      ]
+    }
+  }
+}
+)apl";
+
+static const std::vector<std::vector<std::string>> BINDING_TYPE_EXPECTED = {
+    {
+        "any  ",
+        "any fuzzy ducks fuzzy ducks",
+        "any 23 23",
+        "any 23.3 23.3",
+        "any false false",
+        "any true true",
+        "any 23dp 23dp",
+        "any 23.3dp 23.3dp",
+        "any green green",
+        "any #f3d423 #f3d423",
+        "any  ",
+    },
+    {
+        "boolean  false",
+        "boolean fuzzy ducks true",
+        "boolean 23 true",
+        "boolean 23.3 true",
+        "boolean false false",
+        "boolean true true",
+        "boolean 23dp true",
+        "boolean 23.3dp true",
+        "boolean green true",
+        "boolean #f3d423 true",
+        "boolean  false",
+    },
+    {
+        "string  ",
+        "string fuzzy ducks fuzzy ducks",
+        "string 23 23",
+        "string 23.3 23.3",
+        "string false false",
+        "string true true",
+        "string 23dp 23dp",
+        "string 23.3dp 23.3dp",
+        "string green green",
+        "string #f3d423 #f3d423",
+        "string  ",
+    },
+    {
+        "number  nan",
+        "number fuzzy ducks nan",
+        "number 23 23",
+        "number 23.3 23.3",
+        "number false 0",
+        "number true 1",
+        "number 23dp 23",
+        "number 23.3dp 23.3",
+        "number green nan",
+        "number #f3d423 nan",
+        "number  nan",
+    },
+    {
+        "dimension  0dp",
+        "dimension fuzzy ducks 0dp",
+        "dimension 23 23dp",
+        "dimension 23.3 23.3dp",
+        "dimension false 0dp",
+        "dimension true 0dp",
+        "dimension 23dp 23dp",
+        "dimension 23.3dp 23.3dp",
+        "dimension green 0dp",
+        "dimension #f3d423 0dp",
+        "dimension  0dp",
+    },
+    {
+        "color  #00000000",
+        "color fuzzy ducks #00000000",
+        "color 23 #00000017",
+        "color 23.3 #00000017",
+        "color false #00000000",
+        "color true #00000000",
+        "color 23dp #00000000",
+        "color 23.3dp #00000000",
+        "color green #008000ff",
+        "color #f3d423 #f3d423ff",
+        "color  #00000000",
+    },
+    {
+        "foo  ",
+        "foo fuzzy ducks fuzzy ducks",
+        "foo 23 23",
+        "foo 23.3 23.3",
+        "foo false false",
+        "foo true true",
+        "foo 23dp 23dp",
+        "foo 23.3dp 23.3dp",
+        "foo green green",
+        "foo #f3d423 #f3d423",
+        "foo  ",
+    },
+};
+
+TEST_F(BuilderBindTest, BindingTypes)
+{
+    loadDocument(BINDING_TYPE);
+    ASSERT_TRUE(component);
+
+    auto f = [&](int x, int y){
+        return component->getChildAt(x)->getChildAt(y)->getCalculated(kPropertyText).asString();
+    };
+
+    ASSERT_EQ(BINDING_TYPE_EXPECTED.size(), component->getChildCount());
+
+    for (int i = 0 ; i < BINDING_TYPE_EXPECTED.size() ; i++) {
+        const auto& expectedArray = BINDING_TYPE_EXPECTED.at(i);
+        ASSERT_EQ(expectedArray.size(), component->getChildAt(i)->getChildCount());
+        for (int j = 0 ; j < expectedArray.size() ; j++) {
+            ASSERT_EQ(expectedArray.at(j), f(i, j)) << i << " " << j;
+        }
+    }
+
+    // Clear console messages
+    session->clear();
+}
+
 static const char *ON_CHANGE = R"apl(
 {
   "type": "APL",

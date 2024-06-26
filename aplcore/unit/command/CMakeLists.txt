@@ -18,6 +18,7 @@ target_sources_local(unittest
         unittest_command_array.cpp
         unittest_command_document.cpp
         unittest_command_event_binding.cpp
+        unittest_command_importpackage.cpp
         unittest_command_insertitem.cpp
         unittest_command_log.cpp
         unittest_command_macros.cpp

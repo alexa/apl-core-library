@@ -165,15 +165,17 @@ struct GradientFilterTest {
 };
 
 std::vector<GradientFilterTest> GRADIENT_TESTS = {
-    { // Minimal gradient
+    {
+        // Minimal gradient
         R"({"type":"Gradient", "gradient": {"type": "linear", "colorRange":["blue", "red"]}})",
         Gradient::GradientType::LINEAR,
         std::vector<Object>{Color(Color::BLUE), Color(Color::RED)},
         std::vector<Object>{0, 1},
     },
-    { // Bad gradient - need to specify an actual gradient
+    {
+        // Bad gradient - need to specify an actual gradient
         R"({"type": "Gradient"})",
-        static_cast<Gradient::GradientType>(-1),  // Mark a bad gradient
+        static_cast<Gradient::GradientType>(-1), // Mark a bad gradient
         {},
         {}
     },
@@ -183,9 +185,17 @@ std::vector<GradientFilterTest> GRADIENT_TESTS = {
         std::vector<Object>{Color(Color::GREEN), Color(Color::RED)},
         std::vector<Object>{0, 1},
     },
-    {  // Invalid gradient - one that does not have a type
+    {
+        // Invalid gradient - the type is incorrect
         R"({"type":"Gradient", "gradient": {"type": "odd", "colorRange":["green", "red"]}})",
-        static_cast<Gradient::GradientType>(-1),  // Mark a bad gradient
+        static_cast<Gradient::GradientType>(-1), // Mark a bad gradient
+        {},
+        {}
+    },
+    {
+        // Invalid gradient - one that does not have a color range
+        R"({"type":"Gradient", "gradient": {"type": "odd"}})",
+        static_cast<Gradient::GradientType>(-1), // Mark a bad gradient
         {},
         {}
     }

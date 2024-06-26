@@ -1107,3 +1107,84 @@ TEST_F(HostComponentTest, ExperimentalFeaturesCopiedCorrectly) {
     ASSERT_EQ(hostExperimentalFeatures, childExperimentalFeatures);
 }
 
+TEST_F(HostComponentTest, DefaultBackgroundPropertyAppliedToEmbedded) {
+    nominalLoadHostAndEmbedded();
+    ASSERT_TRUE(host);
+
+    auto content = Content::create(EMBEDDED_DEFAULT, makeDefaultSession(), metrics, *config);
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+
+    ASSERT_TRUE(IsEqual(Color(), host->getCalculated(kPropertyBackground)));
+}
+
+static const char* BLUE_BACKGROUND_EMBEDDED = R"({
+  "type": "APL",
+  "version": "2022.3",
+  "background": "blue",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "id": "embeddedTop",
+      "item": {
+        "type": "Text",
+        "id": "embeddedText",
+        "value": "Hello, World!"
+      }
+    }
+  }
+})";
+
+TEST_F(HostComponentTest, ColorBackgroundPropertyAppliedToEmbedded) {
+    loadDocument();
+    ASSERT_TRUE(host);
+
+    auto content = Content::create(BLUE_BACKGROUND_EMBEDDED, makeDefaultSession(), metrics, *config);
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+
+    ASSERT_TRUE(IsEqual(Color(Color::BLUE), host->getCalculated(kPropertyBackground)));
+}
+
+static const char* GRADIENT_BACKGROUND_EMBEDDED = R"({
+  "type": "APL",
+  "version": "2022.3",
+  "background": {
+    "type": "linear",
+    "colorRange": [
+      "blue",
+      "white"
+    ],
+    "inputRange": [
+      0,
+      1
+    ],
+    "angle": 90
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "id": "embeddedTop",
+      "item": {
+        "type": "Text",
+        "id": "embeddedText",
+        "value": "Hello, World!"
+      }
+    }
+  }
+})";
+
+TEST_F(HostComponentTest, GradientBackgroundPropertyAppliedToEmbedded) {
+    loadDocument();
+    ASSERT_TRUE(host);
+
+    auto content = Content::create(GRADIENT_BACKGROUND_EMBEDDED, makeDefaultSession(), metrics, *config);
+    auto embeddedDoc = documentManager->succeed("embeddedDocumentUrl", content, true);
+
+    auto background = host->getCalculated(kPropertyBackground);
+    ASSERT_TRUE(background.is<Gradient>());
+
+    auto gradient = background.get<Gradient>();
+    ASSERT_EQ(Gradient::GradientType::LINEAR, gradient.getType());
+    ASSERT_EQ(90, gradient.getProperty(kGradientPropertyAngle).getInteger());
+    ASSERT_EQ(std::vector<Object>({Color(Color::BLUE), Color(Color::WHITE)}), gradient.getProperty(kGradientPropertyColorRange).getArray());
+    ASSERT_EQ(std::vector<Object>({0.0, 1.0}), gradient.getProperty(kGradientPropertyInputRange).getArray());
+}

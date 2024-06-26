@@ -20,6 +20,7 @@
 #include "apl/content/extensionrequest.h"
 #include "apl/content/metrics.h"
 #include "apl/content/package.h"
+#include "apl/content/packagemanager.h"
 #include "apl/content/settings.h"
 #include "apl/engine/properties.h"
 #include "apl/utils/counter.h"
@@ -40,21 +41,8 @@ class RootConfig;
  *      auto content = Content::create( document );
  *      if (!content)
  *         return;  // Failed to create the document
- *      if (checkRequests(content))
- *         return READY_TO_GO;
  *
- *      // When a package comes in, call:
- *      content->addPackage(request, data);
- *      if (checkRequests(content))
- *          return READY_TO_GO
- *
- *      // Helper method to check for new packages that are needed
- *      bool checkRequests(ContentPtr& content) {
- *        for (ImportRequest request : content->getRequestedPackages())
- *          // Request package "request"
- *
- *        return content->isReady();
- *      }
+ *      content->load(std::move(handleSuccess), std::move(handleFailure));
  *
  * The other aspect of content is connecting the named APL document parameters
  * with actual data sets.  Use the addData() method to wire up parameter names
@@ -94,6 +82,16 @@ public:
     static ContentPtr create(JsonData&& document, const SessionPtr& session,
                              const Metrics& metrics, const RootConfig& config);
 
+    using SuccessCallback = std::function<void()>;
+    using FailureCallback = std::function<void()>;
+
+    /**
+     * Have this content load its imported packages from the PackageManager supplied via RootConfig.
+     * @param onSuccess the callback for when the content is ready.
+     * @param onFailure the callback for when the content failed to load.
+     */
+    void load(SuccessCallback&& onSuccess, FailureCallback&& onFailure);
+
     /**
      * Refresh content with new (or finally known) parameters.
      * @param metrics Viewport metrics.
@@ -121,6 +119,8 @@ public:
     PackagePtr getPackage(const std::string& name) const;
 
     /**
+     * @deprecated Supply a PackageManager and use load(SuccessCallback, FailureCallback).
+     *
      * Retrieve a set of packages that have been requested.  This method only returns an
      * individual package a single time.  Once it has been called, the "requested" packages
      * are moved internally into a "pending" list of packages.
@@ -130,9 +130,11 @@ public:
     std::set<ImportRequest> getRequestedPackages();
 
     /**
+     * @deprecated Supply a PackageManager and use load(SuccessCallback, FailureCallback).
+     *
      * @return true if this document is waiting for a number of packages to be loaded.
      */
-    bool isWaiting() const { return mRequested.size() > 0 || mPending.size() > 0; }
+    bool isWaiting() const;
 
     /**
      * @return True if this content is complete and ready to be inflated.
@@ -145,6 +147,7 @@ public:
     bool isError() const { return mState == State::ERROR; }
 
     /**
+     * @deprecated Supply a PackageManager and use load(SuccessCallback, FailureCallback).
      * Add a requested package to the document.
      * @param request The requested package import structure.
      * @param raw Parsed data for the package.
@@ -257,6 +260,11 @@ public:
      */
     bool isMutable() const { return mEvaluationContext != nullptr; }
 
+    /**
+     *  Document-wide setting to enable reactive conditional handling.
+     */
+    bool reactiveConditionalInflation() const;
+
 private:  // Non-public methods used by other classes
     friend class CoreDocumentContext;
 
@@ -279,30 +287,34 @@ public:
 
 private:  // Private internal methods
     void init(bool supportsEvaluation);
-    void addImportList(Package& package);
-    bool addImport(
-        Package& package,
-        const rapidjson::Value& value,
-        const std::string& name = "",
-        const std::string& version = "",
-        const std::set<std::string>& loadAfter = {});
-    void addExtensions(Package& package);
+    void addExtensions(const Package& package);
     void updateStatus();
     void loadExtensionSettings();
-    bool orderDependencyList();
-    bool addToDependencyList(std::vector<PackagePtr>& ordered, std::set<PackagePtr>& inProgress, const PackagePtr& package);
     bool allowAdd(const std::string& name);
     std::string extractTheme(const Metrics& metrics) const;
     static ContentPtr create(JsonData&& document, const SessionPtr& session, const Metrics& metrics,
                              const RootConfig& config, bool supportsEvaluation);
     Object extractBackground(const Context& evaluationContext) const;
-    void loadPackage(const ImportRef& ref, const PackagePtr& package);
+    bool isManual() const { return mConfig.getPackageManager() == nullptr; }
 
 private:
     enum State {
         LOADING,
         READY,
         ERROR
+    };
+
+    /**
+     * Implementation of PackageManager for backwards compatibility.
+     */
+    class ContentPackageManager : public PackageManager {
+    public:
+        void loadPackage(const PackageRequestPtr& packageRequest) override
+        {
+            mRequested.emplace(packageRequest->request());
+        }
+
+        std::set<ImportRequest> mRequested;
     };
 
 private:
@@ -318,11 +330,10 @@ private:
     RootConfig mConfig;
     ContextPtr mEvaluationContext;
 
-    std::set<ImportRequest> mRequested;
-    std::set<ImportRequest> mPending;
-    std::map<ImportRef, PackagePtr> mLoaded;
-    std::map<ImportRef, PackagePtr> mStashed;
+    PackageResolverPtr mPackageResolver;
+    std::shared_ptr<ContentPackageManager> mContentPackageManager;
     std::vector<PackagePtr> mOrderedDependencies;
+    PendingImportPackagePtr mCurrentPendingImports;
 
     std::map<std::string, Object> mParameterValues;
     std::vector<std::string> mMainParameters;  // Requested by the main template

@@ -25,6 +25,7 @@
 #include "apl/component/component.h"
 #include "apl/component/componenteventsourcewrapper.h"
 #include "apl/content/metrics.h"
+#include "apl/content/sharedjsondata.h"
 #include "apl/engine/arrayify.h"
 #include "apl/engine/context.h"
 #include "apl/livedata/livearrayobject.h"
@@ -198,6 +199,61 @@ TEST(ObjectTest, RapidJson)
     ASSERT_EQ(2, o.get("a").getDouble());
 }
 
+TEST(ObjectTest, SharedJson)
+{
+    auto d0 = std::make_shared<rapidjson::Document>(rapidjson::kObjectType);
+    d0->AddMember("a", rapidjson::Value(rapidjson::kNullType).Move(), d0->GetAllocator());
+    SharedJsonData v0(d0, rapidjson::Pointer("/a"));
+    Object o0(v0);
+    ASSERT_TRUE(o0.isNull());
+
+    o0 = Object(SharedJsonData(nullptr));
+    ASSERT_TRUE(o0.isNull());
+
+    auto d1 = std::make_shared<rapidjson::Document>(rapidjson::kObjectType);
+    d1->AddMember("a", rapidjson::Value(10).Move(), d1->GetAllocator());
+    SharedJsonData v1(d1, rapidjson::Pointer("/a"));
+    Object o1(v1);
+    ASSERT_TRUE(o1.isNumber());
+    ASSERT_EQ(10, o1.getInteger());
+
+    auto d2 = std::make_shared<rapidjson::Document>(rapidjson::kObjectType);
+    d2->AddMember("a", rapidjson::Value("twelve").Move(), d2->GetAllocator());
+    SharedJsonData v2(d2, rapidjson::Pointer("/a"));
+    Object o2(v2);
+    ASSERT_TRUE(o2.isString());
+    ASSERT_STREQ("twelve", o2.getString().c_str());
+
+    auto d3 = std::make_shared<rapidjson::Document>(rapidjson::kObjectType);
+    d3->AddMember("a", rapidjson::Value(true).Move(), d3->GetAllocator());
+    SharedJsonData v3(d3, rapidjson::Pointer("/a"));
+    Object o3(v3);
+    ASSERT_TRUE(o3.isBoolean());
+    ASSERT_TRUE(o3.getBoolean());
+
+    auto d4 = std::make_shared<rapidjson::Document>(rapidjson::kObjectType);
+    d4->AddMember("a", rapidjson::Value(false).Move(), d4->GetAllocator());
+    SharedJsonData v4(d4, rapidjson::Pointer("/a"));
+    Object o4(v4);
+    ASSERT_TRUE(o4.isBoolean());
+    ASSERT_FALSE(o4.getBoolean());
+
+    auto d5 = std::make_shared<rapidjson::Document>();
+    d5->Parse("[1,2,3]");
+    SharedJsonData v5(d5);
+    Object o5(v5);
+    ASSERT_EQ(3, o5.size());
+    ASSERT_EQ(1, o5.at(0).getInteger());
+
+    auto d6 = std::make_shared<rapidjson::Document>();
+    d6->Parse(R"({"a":2,"b": 4})");
+    SharedJsonData v6(d6);
+    Object o6(v6);
+    ASSERT_TRUE(o6.isMap());
+    ASSERT_EQ(2, o6.size());
+    ASSERT_EQ(2, o6.get("a").getDouble());
+}
+
 TEST(ObjectTest, Color)
 {
     class TestSession : public Session {
@@ -299,69 +355,69 @@ TEST(ObjectTest, Gradient)
     ASSERT_EQ(0xff0000ff, a.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0).getColor());
 }
 
-const char *BAD_CASES =
-    "{"
-    "  \"badType\": {"
-    "    \"type\": \"fuzzy\","
-    "    \"colorRange\": ["
-    "      \"red\","
-    "      \"green\""
-    "    ]"
-    "  },"
-    "  \"tooShort\": {"
-    "    \"type\": \"linear\","
-    "    \"colorRange\": ["
-    "      \"red\""
-    "    ]"
-    "  },"
-    "  \"mismatchedRange\": {"
-    "    \"type\": \"radial\","
-    "    \"colorRange\": ["
-    "      \"red\","
-    "      \"blue\","
-    "      \"green\","
-    "      \"purple\""
-    "    ],"
-    "    \"inputRange\": ["
-    "      0,"
-    "      0.5,"
-    "      1"
-    "    ]"
-    "  },"
-    "  \"rangeOutOfBounds\": {"
-    "    \"type\": \"linear\","
-    "    \"colorRange\": ["
-    "      \"red\","
-    "      \"blue\""
-    "    ],"
-    "    \"inputRange\": ["
-    "      0,"
-    "      1.2"
-    "    ]"
-    "  },"
-    "  \"rangeOutOfBounds2\": {"
-    "    \"type\": \"linear\","
-    "    \"colorRange\": ["
-    "      \"red\","
-    "      \"blue\""
-    "    ],"
-    "    \"inputRange\": ["
-    "      -0.3,"
-    "      1.0"
-    "    ]"
-    "  },"
-    "  \"rangeMisordered\": {"
-    "    \"type\": \"linear\","
-    "    \"colorRange\": ["
-    "      \"red\","
-    "      \"blue\""
-    "    ],"
-    "    \"inputRange\": ["
-    "      1,"
-    "      0"
-    "    ]"
-    "  }"
-    "}";
+const char *BAD_CASES = R"(
+{
+  "badType": {
+    "type": "fuzzy",
+    "colorRange": [
+      "red",
+      "green"
+    ]
+  },
+  "tooShort": {
+    "type": "linear",
+    "colorRange": [
+      "red"
+    ]
+  },
+  "mismatchedRange": {
+    "type": "radial",
+    "colorRange": [
+      "red",
+      "blue",
+      "green",
+      "purple"
+    ],
+    "inputRange": [
+      0,
+      0.5,
+      1
+    ]
+  },
+  "rangeOutOfBounds": {
+    "type": "linear",
+    "colorRange": [
+      "red",
+      "blue"
+    ],
+    "inputRange": [
+      0,
+      1.2
+    ]
+  },
+  "rangeOutOfBounds2": {
+    "type": "linear",
+    "colorRange": [
+      "red",
+      "blue"
+    ],
+    "inputRange": [
+      -0.3,
+      1.0
+    ]
+  },
+  "rangeMisordered": {
+    "type": "linear",
+    "colorRange": [
+      "red",
+      "blue"
+    ],
+    "inputRange": [
+      1,
+      0
+    ]
+  }
+})";
 
 
 TEST(ObjectTest, MalformedGradient)

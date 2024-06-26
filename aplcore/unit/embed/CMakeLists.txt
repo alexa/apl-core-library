@@ -16,6 +16,7 @@ target_sources_local(unittest
         testdocumentmanager.cpp
         unittest_documentcreate.cpp
         unittest_embedded_extensions.cpp
+        unittest_embedded_importpackage.cpp
         unittest_embedded_lifecycle.cpp
         unittest_embedded_reinflate.cpp
         unittest_rootcontexttargeting.cpp

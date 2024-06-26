@@ -21,6 +21,8 @@
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
 
+#include "apl/content/sharedjsondata.h"
+
 namespace apl {
 
 class Object;
@@ -35,7 +37,7 @@ class Object;
  */
 class JsonData {
 private:
-    enum Type { kDocument, kValue, kNullPtr };
+    enum Type { kShared, kValue, kNullPtr };
 
 public:
     /**
@@ -43,8 +45,26 @@ public:
      * @param document A RapidJSON document
      */
     JsonData(rapidjson::Document&& document)
-        : mDocument(std::move(document)),
-          mType(kDocument)
+        : mSharedJson(SharedJsonData(std::move(document))),
+          mType(kShared)
+    {}
+
+    /**
+     * Initialize by moving an existing SharedJsonData.
+     * @param sharedJson A SharedJsonData to move in
+     */
+    JsonData(SharedJsonData&& sharedJson)
+        : mSharedJson(std::move(sharedJson)),
+          mType(kShared)
+    {}
+
+    /**
+     * Initialize by copying an existing SharedJsonData.
+     * @param sharedJson A SharedJsonData to copy from
+     */
+    JsonData(const SharedJsonData& sharedJson)
+        : mSharedJson(sharedJson),
+          mType(kShared)
     {}
 
     /**
@@ -52,6 +72,8 @@ public:
      * is not copied, so another agent must keep it alive during the
      * lifespan of this object.
      * @param value A RapidJSON value
+     * @deprecated Use SharedJsonData(const std::shared_ptr<rapidjson::Document>&,
+                   const rapidjson::Pointer& pointer) instead
      */
     JsonData(const rapidjson::Value& value)
         : mValuePtr(&value),
@@ -63,11 +85,9 @@ public:
      * @param raw The string
      */
     JsonData(const std::string& raw)
-        : mType(kDocument)
-    {
-        mDocument.Parse<rapidjson::kParseValidateEncodingFlag |
-                        rapidjson::kParseStopWhenDoneFlag>(raw.c_str());
-    }
+        : mSharedJson(raw),
+          mType(kShared)
+    {}
 
     /**
      * Initialize by parsing a raw string.  The string may be released
@@ -75,34 +95,17 @@ public:
      * @param raw The string
      */
     JsonData(const char *raw)
-        : mType(raw ? kDocument : kNullPtr)
-    {
-        if (raw != nullptr)
-            mDocument.Parse<rapidjson::kParseValidateEncodingFlag |
-                            rapidjson::kParseStopWhenDoneFlag>(raw);
-    }
-
-    /**
-     * Initialize by parsing a raw string in situ.  The string may be
-     * modified. Another agent must keep the raw string in memory until
-     * this object is destroyed.
-     * @param raw The string
-     */
-    JsonData(char *raw)
-        : mType(raw ? kDocument : kNullPtr)
-    {
-        if (raw != nullptr)
-            mDocument.ParseInsitu<rapidjson::kParseValidateEncodingFlag |
-                                  rapidjson::kParseStopWhenDoneFlag>(raw);
-    }
+        : mSharedJson(raw),
+          mType(kShared)
+    {}
 
     /**
      * @return True if this appears to be a valid JSON object.
      */
     operator bool() const {
         switch (mType) {
-            case kDocument:
-                return !mDocument.HasParseError();
+            case kShared:
+                return mSharedJson;
             case kValue:
                 return true;
             case kNullPtr:
@@ -114,17 +117,15 @@ public:
     /**
      * @return The offset of the first parse error.
      */
-    size_t offset() const {
-        return mType == kDocument ? mDocument.GetErrorOffset() : 0;
-    }
+    size_t offset() const { return mType == kShared ? mSharedJson.offset() : 0; }
 
     /**
      * @return The human-readable error state of the parser.
      */
     const char * error() const {
         switch (mType) {
-            case kDocument:
-                return rapidjson::GetParseError_En(mDocument.GetParseError());
+            case kShared:
+                return mSharedJson.error();
             case kValue:
                 return "Value-constructed; no error";
             case kNullPtr:
@@ -142,7 +143,7 @@ public:
     /**
      * @return A reference to the top-level rapidjson Value.
      */
-    const rapidjson::Value& get() const { return mType == kValue ? *mValuePtr : mDocument; }
+    const rapidjson::Value& get() const { return mType == kValue ? *mValuePtr : mSharedJson.get(); }
 
     /**
      * @return JSON serialized to a string.
@@ -155,7 +156,7 @@ public:
     std::string toDebugString() const;
 
 private:
-    rapidjson::Document mDocument;
+    SharedJsonData mSharedJson;
     const rapidjson::Value *mValuePtr = nullptr;
     Type mType;
 };

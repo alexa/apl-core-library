@@ -144,6 +144,7 @@ private:
     HoverManager& mHoverManager;
     std::shared_ptr<Pointer> mActivePointer;
     std::shared_ptr<Pointer> mLastActivePointer;
+    apl_time_t mLastestPointerTimeStamp = 0;
 };
 
 }

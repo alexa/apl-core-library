@@ -18,6 +18,7 @@
 #include "../testeventloop.h"
 
 #include "../embed/testdocumentmanager.h"
+#include "testpackagemanager.h"
 
 using namespace apl;
 
@@ -533,22 +534,22 @@ static const char *MULTI_DEPENDS = R"apl({
   "import": [
     {
       "name": "A",
-      "version": "A",
+      "version": "1.0",
       "loadAfter": "B"
     },
     {
       "name": "B",
-      "version": "B",
+      "version": "1.0",
       "loadAfter": [ "C", "D" ]
     },
     {
       "name": "C",
-      "version": "C",
+      "version": "1.0",
       "loadAfter": "D"
     },
     {
       "name": "D",
-      "version": "D"
+      "version": "1.0"
     }
   ],
   "mainTemplate": {
@@ -560,10 +561,10 @@ static const char *MULTI_DEPENDS = R"apl({
 
 TEST_F(PackagesTest, MultiDepends)
 {
-    add("A:A", BASIC);
-    add("B:B", BASIC);
-    add("C:C", BASIC);
-    add("D:D", BASIC);
+    add("A:1.0", BASIC);
+    add("B:1.0", BASIC);
+    add("C:1.0", BASIC);
+    add("D:1.0", BASIC);
     content = Content::create(MULTI_DEPENDS, session, metrics, *config);
     ASSERT_TRUE(content);
     ASSERT_TRUE(content->isWaiting());
@@ -760,6 +761,7 @@ TEST_F(PackagesTest, RefreshUsesStashedPackages)
     // Refresh it
     content->refresh(metrics, *config);
 
+    ASSERT_FALSE(content->isWaiting());
     // Use of stashed packages means no re-processing needed
     ASSERT_TRUE(content->isReady());
 
@@ -1446,6 +1448,9 @@ static const char *THEME_BASED_CONDITIONAL = R"apl({
     }
   },
   "mainTemplate": {
+    "parameters": [
+      "MyParams"
+    ],
     "item": {
       "type": "StyledFrame",
       "id": "magicFrame"
@@ -1470,15 +1475,18 @@ TEST_F(PackagesTest, ConditionalEmbeddedReinflateTheme)
     ASSERT_TRUE(root);
 
     auto embeddedContent = Content::create(THEME_BASED_CONDITIONAL, session);
+    ASSERT_TRUE(process(embeddedContent));
+    ASSERT_FALSE(embeddedContent->isWaiting());
 
     ASSERT_TRUE(documentManager->getUnresolvedRequests().size());
-
     auto request = documentManager->get("embeddedDocumentUrl").lock();
     auto documentConfig = DocumentConfig::create();
     embeddedContent->refresh(*request, documentConfig);
 
     // Content becomes "Waiting again"
     ASSERT_TRUE(embeddedContent->isWaiting());
+    ASSERT_FALSE(embeddedContent->isReady());
+
     // Re-resolve
     ASSERT_TRUE(process(embeddedContent));
     ASSERT_TRUE(embeddedContent->isReady());
@@ -2321,6 +2329,280 @@ TEST_F(PackagesTest, LongCircularLoadDependency)
     ASSERT_FALSE(content->isReady());
 
     ASSERT_TRUE(session->checkAndClear("Failure to order packages"));
+}
+
+const char* ACCEPT_ALL_OF = R"apl({
+    "type": "APL",
+    "version": "1.0",
+    "import": [
+      {
+        "type": "allOf",
+        "accept": ">1.0",
+        "items": [
+          {
+            "name": "A",
+            "version": "1.2"
+          },
+          {
+            "name": "B",
+            "version": "1.3"
+          }
+        ]
+      }
+    ],
+    "mainTemplate": {
+      "item": {
+        "type": "Text"
+      }
+    }
+})apl";
+
+TEST_F(PackagesTest, CommonAccept)
+{
+    auto requestA = ImportRequest("A", "1.1", "", {}, SemanticVersion::create(session, "1.1"), nullptr);
+    auto requestB = ImportRequest("B", "1.5", "", {}, SemanticVersion::create(session, "1.5"), nullptr);
+
+    content = Content::create(ACCEPT_ALL_OF, session, metrics, *config);
+    ASSERT_TRUE(content);
+    ASSERT_TRUE(content->isWaiting());
+    auto requested = content->getRequestedPackages();
+    for (const auto& request : requested) {
+        if (requestA.isAcceptableReplacementFor(request))
+            content->addPackage(request, BASIC);
+        if (requestB.isAcceptableReplacementFor(request))
+            content->addPackage(request, BASIC);
+    }
+    ASSERT_TRUE(content->isReady());
+}
+
+const char* ACCEPT_ALL_OF_DEEP = R"apl({
+    "type": "APL",
+    "version": "1.0",
+    "import": [
+      {
+        "type": "allOf",
+        "accept": ">1.0",
+        "items": [
+          {
+            "name": "A",
+            "version": "1.2"
+          },
+          {
+            "type": "allOf",
+            "items": [
+              {
+                "name": "B",
+                "version": "1.3"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "mainTemplate": {
+      "item": {
+        "type": "Text"
+      }
+    }
+})apl";
+
+TEST_F(PackagesTest, CommonAcceptDeep)
+{
+    auto requestA = ImportRequest("A", "1.1", "", {}, SemanticVersion::create(session, "1.1"), nullptr);
+    auto requestB = ImportRequest("B", "1.5", "", {}, SemanticVersion::create(session, "1.5"), nullptr);
+
+    content = Content::create(ACCEPT_ALL_OF_DEEP, session, metrics, *config);
+    ASSERT_TRUE(content);
+    ASSERT_TRUE(content->isWaiting());
+    auto requested = content->getRequestedPackages();
+    for (const auto& request : requested) {
+        if (requestA.isAcceptableReplacementFor(request))
+            content->addPackage(request, BASIC);
+        if (requestB.isAcceptableReplacementFor(request))
+            content->addPackage(request, BASIC);
+    }
+    ASSERT_TRUE(content->isReady());
+}
+
+const char* ACCEPT_ALL_OF_DEEP_DIFFERENT_ACCEPT = R"apl({
+    "type": "APL",
+    "version": "1.0",
+    "import": [
+      {
+        "type": "allOf",
+        "accept": ">1.0",
+        "items": [
+          {
+            "name": "A",
+            "version": "1.2"
+          },
+          {
+            "type": "allOf",
+            "accept": ">0.5",
+            "items": [
+              {
+                "name": "B",
+                "version": "0.9"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "mainTemplate": {
+      "item": {
+        "type": "Text"
+      }
+    }
+})apl";
+
+TEST_F(PackagesTest, CommonAcceptDeepDifferent)
+{
+    auto requestA = ImportRequest("A", "1.1", "", {}, SemanticVersion::create(session, "1.1"), nullptr);
+    auto requestB = ImportRequest("B", "0.8", "", {}, SemanticVersion::create(session, "0.8"), nullptr);
+
+    content = Content::create(ACCEPT_ALL_OF_DEEP_DIFFERENT_ACCEPT, session, metrics, *config);
+    ASSERT_TRUE(content);
+    ASSERT_TRUE(content->isWaiting());
+    auto requested = content->getRequestedPackages();
+    for (const auto& request : requested) {
+        if (requestA.isAcceptableReplacementFor(request))
+            content->addPackage(request, BASIC);
+        if (requestB.isAcceptableReplacementFor(request))
+            content->addPackage(request, BASIC);
+    }
+    ASSERT_TRUE(content->isReady());
+}
+
+const char* ACCEPT_ALL_OF_OVERRIDE_ACCEPT = R"apl({
+    "type": "APL",
+    "version": "1.0",
+    "import": [
+      {
+        "type": "allOf",
+        "accept": ">1.0",
+        "items": [
+          {
+            "name": "A",
+            "version": "1.2"
+          },
+          {
+            "name": "B",
+            "version": "0.9",
+            "accept": "<1.0"
+          }
+        ]
+      }
+    ],
+    "mainTemplate": {
+      "item": {
+        "type": "Text"
+      }
+    }
+})apl";
+
+TEST_F(PackagesTest, CommonAcceptOverrideAccept)
+{
+    auto requestA = ImportRequest("A", "1.1", "", {}, SemanticVersion::create(session, "1.1"), nullptr);
+    auto requestB = ImportRequest("B", "0.8", "", {}, SemanticVersion::create(session, "0.8"), nullptr);
+
+    content = Content::create(ACCEPT_ALL_OF_OVERRIDE_ACCEPT, session, metrics, *config);
+    ASSERT_TRUE(content);
+    ASSERT_TRUE(content->isWaiting());
+    auto requested = content->getRequestedPackages();
+    for (const auto& request : requested) {
+        if (requestA.isAcceptableReplacementFor(request))
+            content->addPackage(request, BASIC);
+        if (requestB.isAcceptableReplacementFor(request))
+            content->addPackage(request, BASIC);
+    }
+    ASSERT_TRUE(content->isReady());
+}
+
+const char* ACCEPT_ALREADY_REQUESTED = R"apl({
+    "type": "APL",
+    "version": "1.0",
+    "import": [
+      {
+        "name": "A",
+        "version": "1.2"
+      },
+      {
+        "name": "A",
+        "version": "0.9",
+        "accept": ">1.0"
+      }
+    ],
+    "mainTemplate": {
+      "item": {
+        "type": "Text"
+      }
+    }
+})apl";
+
+TEST_F(PackagesTest, AlreadyRequestedAcceptedVersion)
+{
+    auto requestA = ImportRequest("A", "1.2", "", {}, SemanticVersion::create(session, "1.2"), nullptr);
+
+    content = Content::create(ACCEPT_ALREADY_REQUESTED, session, metrics, *config);
+    ASSERT_TRUE(content);
+    ASSERT_TRUE(content->isWaiting());
+    auto requested = content->getRequestedPackages();
+    for (const auto& request : requested) {
+        if (requestA.isAcceptableReplacementFor(request))
+            content->addPackage(request, BASIC);
+    }
+    ASSERT_TRUE(content->isReady());
+}
+
+const char* ACCEPT_ALREADY_LOADED = R"apl({
+    "type": "APL",
+    "version": "1.0",
+    "import": [
+      {
+        "name": "A",
+        "version": "1.2"
+      },
+      {
+        "name": "B",
+        "version": "1.2"
+      }
+    ],
+    "mainTemplate": {
+      "item": {
+        "type": "Text"
+      }
+    }
+})apl";
+
+const char* PACKAGE_ALREADY_LOADED = R"apl({
+    "type": "APL",
+    "version": "1.0",
+    "import": [
+      {
+        "name": "B",
+        "version": "1.3",
+        "accept": ">1.0"
+      }
+    ]
+})apl";
+
+TEST_F(PackagesTest, AcceptAlreadyLoaded)
+{
+    auto requestA = ImportRequest("A", "1.2", "", {}, SemanticVersion::create(session, "1.2"), nullptr);
+    auto requestB = ImportRequest("B", "1.2", "", {}, SemanticVersion::create(session, "1.2"), nullptr);
+
+    content = Content::create(ACCEPT_ALREADY_LOADED, session, metrics, *config);
+    ASSERT_TRUE(content);
+    ASSERT_TRUE(content->isWaiting());
+    auto requested = content->getRequestedPackages();
+    for (const auto& request : requested) {
+        if (requestA.isAcceptableReplacementFor(request))
+            content->addPackage(request, PACKAGE_ALREADY_LOADED);
+        if (requestB.isAcceptableReplacementFor(request))
+            content->addPackage(request, BASIC);
+    }
+    ASSERT_TRUE(content->isReady());
 }
 
 #ifdef ALEXAEXTENSIONS

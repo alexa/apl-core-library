@@ -22,6 +22,7 @@
 #include "apl/livedata/layoutrebuilder.h"
 #include "apl/time/sequencer.h"
 #include "apl/time/timemanager.h"
+#include "apl/utils/constants.h"
 #include "apl/utils/session.h"
 #include "apl/utils/tracing.h"
 
@@ -657,7 +658,7 @@ MultiChildScrollableComponent::getTags(rapidjson::Value& outMap, rapidjson::Docu
             auto highestOrdinalSeen = -1;
 
             for(int i = mIndexesSeen.lowerBound(); i<= mIndexesSeen.upperBound(); i++) {
-                auto ordinal = mChildren.at(i)->getContext()->opt("ordinal");
+                auto ordinal = mChildren.at(i)->getContext()->opt(COMPONENT_ORDINAL);
                 if(ordinal.isNull())
                     continue;
 

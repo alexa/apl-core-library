@@ -36,6 +36,21 @@ TEST(RootConfigTest, CustomEnvironmentProperties)
     ASSERT_TRUE(rootConfig.getEnvironmentValues().find("environment") == rootConfig.getEnvironmentValues().end());
 }
 
+TEST(RootConfigTest, ApplyConfigurationChange)
+{
+    RootConfig rootConfig;
+    ASSERT_FALSE(rootConfig.getProperty(RootProperty::kDisallowVideo).asBoolean());
+
+    ConfigurationChange configurationChange;
+    configurationChange.environmentValue("number", 42);
+    configurationChange.disallowVideo(true);
+
+    configurationChange.applyToRootConfig(rootConfig);
+
+    ASSERT_EQ(42, rootConfig.getEnvironmentValues().at("number").asInt());
+    ASSERT_TRUE(rootConfig.getProperty(RootProperty::kDisallowVideo).asBoolean());
+}
+
 TEST(RootConfigTest, CannotShadowExistingNames)
 {
     RootConfig rootConfig;

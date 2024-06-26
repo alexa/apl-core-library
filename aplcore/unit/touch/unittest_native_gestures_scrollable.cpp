@@ -152,6 +152,48 @@ TEST_F(NativeGesturesScrollableTest, Scroll)
     ASSERT_EQ(Point(0, 0), component->scrollPosition());
 }
 
+TEST_F(NativeGesturesScrollableTest, ScrollWithTimeStampFromVH)
+{
+    loadDocument(SCROLL_TEST);
+
+    ASSERT_EQ(Point(), component->scrollPosition());
+
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(0,100), root->currentTime(), false, "onDown:green1"));
+    advanceTime(100);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,50), root->currentTime()+20,true, "onMove:green1"));
+    ASSERT_TRUE(CheckSendEvent(root, "onCancel:green1"));
+    ASSERT_EQ(Point(0, 50), component->scrollPosition());
+    advanceTime(100);
+    // Drop pointer due to timestamp before last tick
+    ASSERT_FALSE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,0), root->currentTime()-20, true));
+
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,0), root->currentTime()+20, true));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(0,0), root->currentTime()+50, true));
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyScrollPosition, kPropertyNotifyChildrenChanged));
+
+    ASSERT_EQ(Point(0, 100), component->scrollPosition());
+
+    advanceTime(2600);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,100), root->currentTime()+20, false));
+
+    // Scroll back up
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerDown, Point(0,100), root->currentTime()+50, false, "onDown:red6"));
+    advanceTime(100);
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,150), root->currentTime()+20, true, "onMove:red6"));
+    ASSERT_TRUE(CheckSendEvent(root, "onCancel:red6"));
+    advanceTime(100);
+    // Drop pointer due to timestamp before last tick
+    ASSERT_FALSE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,0), root->currentTime()-20, true));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerMove, Point(0,200), root->currentTime()+20, true));
+    ASSERT_TRUE(HandlePointerEvent(root, PointerEventType::kPointerUp, Point(0,200), root->currentTime()+50, true));
+
+    ASSERT_TRUE(CheckDirty(component, kPropertyScrollPosition, kPropertyNotifyChildrenChanged));
+
+    advanceTime(2600);
+    ASSERT_EQ(Point(0, 0), component->scrollPosition());
+}
+
 TEST_F(NativeGesturesScrollableTest, ScrollRotated)
 {
     loadDocument(SCROLL_TEST);
@@ -2628,7 +2670,7 @@ TEST_F(NativeGesturesScrollableTest, DisplayConditional)
     ASSERT_TRUE(root->handlePointerEvent(PointerEvent(apl::kPointerUp, Point(10, 100))));
     advanceTime(50);
 
-    ASSERT_EQ(Point(0,180), scrollable->scrollPosition());
+    ASSERT_EQ(Point(0,176), scrollable->scrollPosition());
 }
 
 static const char *NESTED_SCROLL_VIEWS = R"({

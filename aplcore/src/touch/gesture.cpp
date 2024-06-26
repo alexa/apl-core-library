@@ -56,13 +56,13 @@ Gesture::create(const ActionablePtr& actionable, const Object& object)
 
     auto contextPtr = actionable->getContext();
 
-    auto type = propertyAsMapped<GestureType>(*contextPtr, object, "type", kGestureTypeDoublePress, sGestureTypeBimap);
-    if (type == static_cast<GestureType>(-1)) {
+    auto type = requiredMappedProperty<GestureType>(*contextPtr, object, "type", sGestureTypeBimap);
+    if (!type.second) {
         CONSOLE(*contextPtr) << "Unrecognized type field in gesture handler";
         return nullptr;
     }
 
-    auto method = sGestureFunctions.find(type);
+    auto method = sGestureFunctions.find(type.first);
     if (method != sGestureFunctions.end()) {
         return method->second(actionable, *contextPtr, object);
     }

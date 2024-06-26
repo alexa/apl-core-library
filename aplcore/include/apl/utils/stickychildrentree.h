@@ -17,10 +17,10 @@
 #define APL_STICKYCHILDRENTREE_H
 
 #include "apl/common.h"
-#include "apl/component/corecomponent.h"
 
 namespace apl {
 
+class StickyChildrenTree;
 class StickyNode;
 using StickyChildrenTreePtr = std::shared_ptr<StickyChildrenTree>;
 /**

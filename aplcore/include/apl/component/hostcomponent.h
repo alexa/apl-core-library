@@ -47,7 +47,7 @@ public:
 
     void processLayoutChanges(bool useDirtyFlag, bool first) override;
 
-    void postProcessLayoutChanges() override;
+    void postProcessLayoutChanges(bool first) override;
 
     /**
      * Reinflate contained document.

@@ -333,7 +333,7 @@ GraphicElementText::ensureSGTextLayout()
     if (!context)
         return;
 
-    assert(mContext->measure()->sceneGraphCompatible());
+    assert(mContext->measure()->layoutCompatible());
     auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
 
     ensureTextProperties();

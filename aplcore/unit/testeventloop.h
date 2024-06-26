@@ -43,9 +43,14 @@ namespace apl {
 
 class SimpleTextMeasurement : public TextMeasurement {
 public:
+    SimpleTextMeasurement(int symbolWidth = 10, int symbolHeight = 10)
+        : mSymbolSize(symbolWidth, symbolHeight) {}
+
     LayoutSize measure(Component *component, float width, MeasureMode widthMode,
                        float height, MeasureMode heightMode) override;
     float baseline(Component *component, float width, float height) override;
+private:
+    Size mSymbolSize;
 };
 
 class SpyTextMeasure : public TextMeasurement {
@@ -241,6 +246,32 @@ public:
         return logBridge->checkAndClear();
     }
 
+#ifdef DEBUG_MEMORY_USE
+    static size_t getAliveCountersFor(const std::string& name) {
+        return getMemoryCounterMap().at(name)().alive();
+    }
+
+    static
+    ::testing::AssertionResult
+    CheckAliveCountersNotChanged(const std::string& name, size_t initial) {
+        auto alive = getAliveCountersFor(name);
+        if (initial != alive)
+            return ::testing::AssertionFailure() << "Initial: " << initial << ", current: " << alive;
+
+        return ::testing::AssertionSuccess();
+    }
+#else
+    static size_t getAliveCountersFor(const std::string& name) {
+        return 0;
+    }
+
+    static
+    ::testing::AssertionResult
+    CheckAliveCountersNotChanged(const std::string& name, int initial) {
+        return ::testing::AssertionSuccess();;
+    }
+#endif
+
 protected:
     void TearDown() override
     {
@@ -405,6 +436,23 @@ public:
      * destructed.
      */
     void TearDown() override {
+#ifdef DEBUG_MEMORY_USE
+        if (root) root->clearPending();
+        if (component) {
+            // Collect all components and check for cache leaks
+            auto clist = std::queue<CoreComponentPtr>();
+            clist.emplace(component);
+
+            while (!clist.empty()) {
+                auto comp = clist.front();
+                clist.pop();
+
+                ASSERT_TRUE(component->isTempCacheClean()) << "Component: " << component->getUniqueId() << " has stale cache.";
+
+                for (int i = 0; i < comp->getChildCount(); i++) clist.emplace(comp->getCoreChildAt(i));
+            }
+        }
+#endif // DEBUG_MEMORY_USE
         component = nullptr;
         rootDocument = nullptr;
 
@@ -492,17 +540,14 @@ protected:
         if (!data)
             return;
 
-        // If the content calls for a single parameter named "payload", we assign the data directly
-        if (content->getParameterCount() == 1 && content->getParameterAt(0) == "payload") {
-            content->addData("payload", data);
-        }
-        else {  // Otherwise, we require "data" to be a JSON object where the keys match the requested parameters
-            rawData = std::make_unique<JsonData>(data);
-            ASSERT_TRUE(rawData->get().IsObject());
-            for (auto it = rawData->get().MemberBegin() ;
-                      it != rawData->get().MemberEnd() ;
-                      it++) {
-                content->addData(it->name.GetString(), it->value);
+        rawData = std::make_unique<JsonData>(data);
+        for (int i = 0; i < content->getParameterCount(); i++) {
+            auto parameterName = content->getParameterAt(i);
+            auto it = rawData->get().FindMember(parameterName.c_str());
+            if (it != rawData->get().MemberEnd()) {
+                content->addData(parameterName, it->value);
+            } else if (parameterName == "payload") {
+                content->addData(parameterName, data);
             }
         }
     }
@@ -1306,6 +1351,19 @@ template<class... Args>
 ::testing::AssertionResult
 HandlePointerEvent(const RootContextPtr& root, PointerEventType type, const Point& point, bool consumed, Args... args) {
     if (root->handlePointerEvent(PointerEvent(type, point)) != consumed)
+        return ::testing::AssertionFailure() << "Event consumption mismatch.";
+
+    if (sizeof...(Args) > 0) {
+        return CheckSendEvent(root, args...);
+    }
+
+    return ::testing::AssertionSuccess();
+}
+
+template<class... Args>
+::testing::AssertionResult
+HandlePointerEvent(const RootContextPtr& root, PointerEventType type, const Point& point, apl_time_t timestamp, bool consumed, Args... args) {
+    if (root->handlePointerEvent(PointerEvent(type, point), timestamp) != consumed)
         return ::testing::AssertionFailure() << "Event consumption mismatch.";
 
     if (sizeof...(Args) > 0) {

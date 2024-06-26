@@ -78,14 +78,9 @@ private:
     friend class Content;
     friend class RootContext;
 
-    void addDependency(const ImportRef& ref) { mDependencies.push_back(ref); }
-
-    const std::vector<ImportRef>& getDependencies() const { return mDependencies; }
-
 private:
     std::string mName;
     const JsonData mJson;
-    std::vector<ImportRef> mDependencies;
 };
 
 } // namespace apl

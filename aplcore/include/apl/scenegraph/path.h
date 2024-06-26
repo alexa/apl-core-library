@@ -20,7 +20,6 @@
 #include <rapidjson/document.h>
 
 #include "apl/scenegraph/common.h"
-#include "apl/component/textmeasurement.h"
 #include "apl/primitives/rect.h"
 #include "apl/primitives/roundedrect.h"
 #include "apl/utils/counter.h"

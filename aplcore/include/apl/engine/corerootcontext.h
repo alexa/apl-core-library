@@ -41,11 +41,9 @@ public:
 
     /**
      * Public constructor.  Use the ::create method instead.
-     * @param metrics Display metrics
-     * @param content Processed APL content data
      * @param config Configuration information
      */
-    CoreRootContext(const Metrics& metrics, const ContentPtr& content, const RootConfig& config);
+    CoreRootContext(const RootConfig& config);
 
     ~CoreRootContext() override;
 
@@ -94,6 +92,7 @@ public:
     Info info() const override;
     void updateCursorPosition(Point cursorPosition) override;
     bool handlePointerEvent(const PointerEvent& pointerEvent) override;
+    bool handlePointerEvent(const PointerEvent& pointerEvent, apl_time_t timestamp) override;
     bool handleKeyboard(KeyHandlerType type, const Keyboard &keyboard) override;
     const RootConfig& getRootConfig() const override;
     std::string getTheme() const override;

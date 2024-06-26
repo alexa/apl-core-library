@@ -40,7 +40,9 @@
 #include "apl/content/jsondata.h"
 #include "apl/content/metrics.h"
 #include "apl/content/package.h"
+#include "apl/content/packagemanager.h"
 #include "apl/content/rootconfig.h"
+#include "apl/content/sharedjsondata.h"
 #include "apl/datasource/datasourceconnection.h"
 #include "apl/datasource/datasourceprovider.h"
 #include "apl/document/documentcontext.h"
@@ -76,6 +78,11 @@
 #include "apl/utils/localemethods.h"
 #include "apl/utils/log.h"
 #include "apl/utils/session.h"
+#include "apl/scenegraph/edittextbox.h"
+#include "apl/scenegraph/textchunk.h"
+#include "apl/scenegraph/textlayout.h"
+#include "apl/scenegraph/textproperties.h"
+#include "apl/scenegraph/textmeasurement.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/accessibility.h"
 #include "apl/scenegraph/edittextconfig.h"
@@ -88,11 +95,6 @@
 #include "apl/scenegraph/path.h"
 #include "apl/scenegraph/pathop.h"
 #include "apl/scenegraph/scenegraph.h"
-#include "apl/scenegraph/edittextbox.h"
-#include "apl/scenegraph/textchunk.h"
-#include "apl/scenegraph/textlayout.h"
-#include "apl/scenegraph/textmeasurement.h"
-#include "apl/scenegraph/textproperties.h"
 #endif // SCENEGRAPH
 
 #ifdef ALEXAEXTENSIONS

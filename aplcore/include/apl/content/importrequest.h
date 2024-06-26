@@ -22,6 +22,9 @@
 #include "apl/content/importref.h"
 #include "rapidjson/document.h"
 
+#include "apl/versioning/semanticpattern.h"
+#include "apl/versioning/semanticversion.h"
+
 namespace apl {
 
 class Object;
@@ -32,26 +35,33 @@ class Object;
  */
 class ImportRequest {
 public:
+    ImportRequest();
+
     /**
-     * Create ImportRequest.
+     * Creates an ImportRequest reusing existing requests that satisfy the accept criteria.
      * @param value JSON with package import specification.
      * @param context data binding context.
      * @param commonName name to be used if none specified in *value*.
      * @param commonVersion version to be used if none specified in *value*.
      * @param commonLoadAfter loadAfter to be used if none specified in *value*.
+     * @param commonAccept accept to be used if none specified in *value*.
+     * @param session session for reporting errors parsing version and accept
      * @return ImportRequest. May be invalid, use #isValid() to check.
      */
     static ImportRequest create(const rapidjson::Value& value,
                                 const ContextPtr& context,
-                                const std::string& commonName,
-                                const std::string& commonVersion,
-                                const std::set<std::string>& commonLoadAfter);
+                                const SessionPtr& session,
+                                const std::string& commonName = "",
+                                const std::string& commonVersion = "",
+                                const std::set<std::string>& commonLoadAfter = {},
+                                const std::string& commonAccept = "");
 
-    ImportRequest();
     ImportRequest(const std::string& name,
                   const std::string& version,
                   const std::string& source,
-                  const std::set<std::string>& loadAfter);
+                  const std::set<std::string>& loadAfter,
+                  const SemanticVersionPtr& semanticVersion,
+                  const SemanticPatternPtr& acceptPattern);
 
     ImportRequest(const ImportRequest&) = default;
     ImportRequest(ImportRequest&&) = default;
@@ -69,8 +79,24 @@ public:
     uint32_t getUniqueId() const { return mUniqueId; }
     const std::string& source() const { return mReference.source(); }
 
+    /**
+     * Determines if this import is an acceptable replacement for the other import.
+     *
+     * Runtimes will want to keep a registry of cached imports by name to determine if a given cached
+     * import satisfies a new import request to prevent a network call. See the APL specification
+     * regarding import requests and accept.
+     *
+     * @param other the import request that may accept this one as a replacement.
+     * @return true if this import reference is acceptable as a replacement for the other import.
+     */
+    bool isAcceptableReplacementFor(const ImportRequest& other) const { return mReference.isAcceptableReplacementFor(other.reference()); }
+
     static std::pair<std::string, std::string> extractNameAndVersion(const rapidjson::Value& value, const ContextPtr& context);
     static std::set<std::string> extractLoadAfter(const rapidjson::Value& value, const ContextPtr& context);
+    static std::string extractAccept(const rapidjson::Value& value, const ContextPtr& context);
+
+private:
+    static std::string extractString(const std::string& key, const rapidjson::Value& value, const ContextPtr& context);
 
 private:
     ImportRef mReference;

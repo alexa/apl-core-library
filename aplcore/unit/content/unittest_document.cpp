@@ -25,6 +25,8 @@
 #include "apl/engine/context.h"
 #include "apl/engine/rootcontext.h"
 
+#include "packagegenerator.h"
+
 using namespace apl;
 
 const char *BASIC_DOC = R"apl({
@@ -35,7 +37,8 @@ const char *BASIC_DOC = R"apl({
       "payload"
     ],
     "item": {
-      "type": "Text"
+      "type": "Text",
+      "text": "${payload}"
     }
   }
 })apl";
@@ -59,6 +62,8 @@ TEST(DocumentTest, Load)
 
     ASSERT_TRUE(doc);
     ASSERT_EQ(15000, content->getDocumentSettings()->idleTimeout(config));
+
+    ASSERT_EQ("duck", doc->topComponent()->getCalculated(kPropertyText).asString());
 }
 
 const char *BASIC_DOC_NO_TYPE_FIELD = R"apl({
@@ -396,8 +401,12 @@ TEST(DocumentTest, IncompatibleImportVersion)
 
     ASSERT_EQ("1.1", content->getAPLVersion());
 
+    content->addData("payload", "{}");
+    auto config = RootConfig();
+    config.enforceAPLVersion(APLVersion::kAPLVersionAny);
+
     auto m = Metrics().size(1024,800).theme("dark");
-    auto doc = RootContext::create(m, content);
+    auto doc = RootContext::create(m, content, config);
 
     ASSERT_FALSE(doc);
 }
@@ -674,7 +683,7 @@ TEST(DocumentTest, MultipleDependencies)
     ASSERT_EQ(Object("Original_B"), context->opt("@overwrite_B"));
     ASSERT_EQ(Object("B"), context->opt("@overwrite_C"));
 
-    auto expected = std::vector<std::string>{ "A:2.2", "B:1.0", "C:1.5" };
+    auto expected = std::vector<std::string>{ "C:1.5", "A:2.2", "B:1.0" };
     ASSERT_EQ(expected, doc->getLoadedPackageNames());
 }
 
@@ -767,55 +776,6 @@ TEST(DocumentTest, Duplicate)
     ASSERT_EQ(expected, doc->getLoadedPackageNames());
 }
 
-const char *FAKE_MAIN_TEMPLATE = R"apl({
- "item": {
-   "type": "Text"
- }
-})apl";
-
-static std::string
-makeTestPackage(const std::vector<const char *>& dependencies, std::map<const char *, const char *> stringMap)
-{
-    rapidjson::Document doc;
-    doc.SetObject();
-    auto& allocator = doc.GetAllocator();
-
-    doc.AddMember("type", "APL", allocator);
-    doc.AddMember("version", "1.1", allocator);
-
-    // Add imports
-    rapidjson::Value imports(rapidjson::kArrayType);
-    for (const char *it : dependencies) {
-        rapidjson::Value importBlock(rapidjson::kObjectType);
-        importBlock.AddMember("name", rapidjson::StringRef(it), allocator);
-        importBlock.AddMember("version", "1.0", allocator);
-        imports.PushBack(importBlock, allocator);
-    }
-    doc.AddMember("import", imports, allocator);
-
-    // Add resources
-    rapidjson::Value resources(rapidjson::kArrayType);
-    rapidjson::Value resourceBlock(rapidjson::kObjectType);
-    rapidjson::Value resourceStrings(rapidjson::kObjectType);
-    for (auto it : stringMap)
-        resourceStrings.AddMember(rapidjson::StringRef(it.first), rapidjson::StringRef(it.second), allocator);
-    resourceBlock.AddMember("strings", resourceStrings, allocator);
-    resources.PushBack(resourceBlock, allocator);
-    doc.AddMember("resources", resources, allocator);
-
-    // Add a mainTemplate section (just in case)
-    rapidjson::Document mainTemplate;
-    mainTemplate.Parse(FAKE_MAIN_TEMPLATE);
-    doc.AddMember("mainTemplate", mainTemplate, allocator);
-
-    // Convert to a string
-    rapidjson::StringBuffer buffer;
-    buffer.Clear();
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    doc.Accept(writer);
-    return {buffer.GetString()};
-}
-
 TEST(DocumentTest, Generated)
 {
     auto m = Metrics().size(1024,800).theme("dark");
@@ -890,7 +850,6 @@ TEST(DocumentTest, Loop)
     }
 
     ASSERT_TRUE(content->isError());
-
 }
 
 TEST(DocumentTest, NonReversal)
@@ -1396,7 +1355,7 @@ TEST(DocumentTest, NestedRepeatedImportPendingDoesNotRequest)
     ASSERT_FALSE(doc->isWaiting());
     ASSERT_TRUE(doc->isReady());
 
-    auto expected = std::vector<std::string>{ "A:1.0", "B:1.0" };
+    auto expected = std::vector<std::string>{ "B:1.0", "A:1.0" };
     ASSERT_EQ(expected, doc->getLoadedPackageNames());
 }
 
@@ -1428,7 +1387,7 @@ TEST(DocumentTest, NestedRepeatedImportLoadedDoesNotRequest)
     ASSERT_FALSE(doc->isWaiting());
     ASSERT_TRUE(doc->isReady());
 
-    auto expected = std::vector<std::string>{ "A:1.0", "B:1.0" };
+    auto expected = std::vector<std::string>{ "B:1.0", "A:1.0" };
     ASSERT_EQ(expected, doc->getLoadedPackageNames());
 }
 
@@ -1491,4 +1450,53 @@ TEST(DocumentTest, DocumentContent)
 
     ASSERT_TRUE(rc);
     ASSERT_EQ(rc->topDocument()->content(), content);
+}
+
+TEST(DocumentTest, WrongPackageAdded)
+{
+    auto json = makeTestPackage({"A"}, {{"test", "value"}});
+
+    auto session = makeDefaultSession();
+    auto content = Content::create(json, session, Metrics(), RootConfig());
+    ASSERT_TRUE(content);
+
+    content->addPackage(ImportRequest("B", "1.0", "", {}, nullptr, nullptr), makeTestPackage({},{}));
+
+    ASSERT_FALSE(content->isReady());
+}
+
+TEST(DocumentTest, WrongBadPackageAdded)
+{
+    auto json = makeTestPackage({"A"}, {{"test", "value"}});
+
+    auto session = makeDefaultSession();
+    auto content = Content::create(json, session, Metrics(), RootConfig());
+    ASSERT_TRUE(content);
+
+    content->addPackage(ImportRequest("B", "1.0", "", {}, nullptr, nullptr), "<bad package>");
+
+    ASSERT_FALSE(content->isReady());
+}
+
+TEST(DocumentTest, MissingParametersEmpty)
+{
+    auto content = Content::create(BASIC_DOC, makeDefaultSession());
+
+    ASSERT_FALSE(content->isReady());
+    ASSERT_FALSE(content->isWaiting());
+    ASSERT_FALSE(content->isError());
+
+    ASSERT_EQ(1, content->getParameterCount());
+    ASSERT_EQ(std::string("payload"), content->getParameterAt(0));
+    ASSERT_FALSE(content->isReady());
+
+    auto m = Metrics().size(1024,800).theme("dark");
+    auto config = RootConfig().set(RootProperty::kDefaultIdleTimeout, 15000);
+    auto doc = RootContext::create(m, content, config);
+
+    ASSERT_TRUE(doc);
+    ASSERT_EQ(15000, content->getDocumentSettings()->idleTimeout(config));
+
+    // Empty object == empty string
+    ASSERT_EQ("", doc->topComponent()->getCalculated(kPropertyText).asString());
 }

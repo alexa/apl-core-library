@@ -1582,6 +1582,341 @@ TEST_F(ExtensionMediatorTest, AudioPlayerIntegration) {
     ASSERT_TRUE(IsEqual("123", activityOffset->getCalculated(kPropertyText).get<StyledText>().getText()));
 }
 
+static const char* AUDIO_PLAYER_11 = R"(
+{
+  "type": "APL",
+  "version": "2024.1",
+  "extensions": [
+    {
+      "name": "AudioPlayer",
+      "uri": "aplext:audioplayer:11"
+    }
+  ],
+  "settings": {
+    "AudioPlayer": {
+      "playbackStateName": "playerStatus",
+      "musicAnalysisBindings": {
+          "bindingName": "musicAnalysisStatus",
+          "requestedNormalizedEnergies": 5
+      }
+    }
+  },
+  "AudioPlayer:OnPlayerActivityUpdated": [
+    {
+      "type": "SetValue",
+      "componentId": "ActivityTxt",
+      "property": "text",
+      "value": "${playerActivity}"
+    },
+    {
+      "type": "SetValue",
+      "componentId": "OffsetTxt",
+      "property": "text",
+      "value": "${offset}"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "Touch",
+          "width": "100%",
+          "height": "100%",
+          "onPress": [
+            {
+              "when": "${playerStatus.playerActivity == 'PLAYING'}",
+              "type": "AudioPlayer:Pause"
+            },
+            {
+              "when": "${playerStatus.playerActivity == 'PAUSED'}",
+              "type": "AudioPlayer:Play"
+            }
+          ]
+        },
+        {
+          "type": "Text",
+          "id": "ActivityTxt"
+        },
+        {
+          "type": "Text",
+          "id": "OffsetTxt"
+        },
+        {
+            "type": "Text",
+            "id": "bpmText",
+            "when": "${environment.extension.AudioPlayer.musicAnalysis}",
+            "text": "${musicAnalysisStatus.beatsPerMinute}"
+        }
+      ]
+    }
+  }
+}
+)";
+
+TEST_F(ExtensionMediatorTest, AudioPlayerV11Integration) {
+
+    createProvider();
+    auto stub = std::make_shared<AudioPlayerObserverStub>();
+    auto extension = std::make_shared<::AudioPlayer::AplAudioPlayerExtension>(stub);
+    extension->setMusicAnalysisDetails(true, 5);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    loadExtensions(AUDIO_PLAYER_11);
+
+    inflate();
+
+    // Validate the Extension environment
+    auto env = context->extensionManager().getEnvironment();
+    ASSERT_EQ(1, env->size());
+    ASSERT_EQ(1, env->count("AudioPlayer"));
+    ASSERT_TRUE(env->at("AudioPlayer").truthy());
+    ASSERT_TRUE(evaluate(*context, "${environment.extension.AudioPlayer}").isMap());
+    ASSERT_TRUE(IsEqual("APLAudioPlayerExtension-1.1", evaluate(*context, "${environment.extension.AudioPlayer.version}")));
+    ASSERT_TRUE(IsEqual(true, evaluate(*context, "${environment.extension.AudioPlayer.musicAnalysis}")));
+    ASSERT_TRUE(IsEqual(5, evaluate(*context, "${environment.extension.AudioPlayer.maxNormalizedEnergies}")));
+
+    // Validate presence of command and event handler definitions
+    auto commands = context->extensionManager().getCommandDefinitions();
+    ASSERT_EQ(11, commands.size());
+    auto handlers = context->extensionManager().getEventHandlerDefinitions();
+    ASSERT_EQ(2, handlers.size());
+
+    // Validate Live Data
+    auto trackers = context->dataManager().trackers();
+    ASSERT_EQ(2, trackers.size());
+    extension->updatePlayerActivity("PLAYING", 123);
+    std::vector<float> normalizedEnergies{1};
+    extension->updateMusicAnalysis(20, normalizedEnergies);
+    ASSERT_FALSE(ConsoleMessage());
+    root->clearPending();
+
+    ASSERT_TRUE(evaluate(*context, "${playerStatus}").isTrueMap());
+    ASSERT_TRUE(IsEqual("PLAYING", evaluate(*context, "${playerStatus.playerActivity}")));
+    ASSERT_TRUE(IsEqual(123, evaluate(*context, "${playerStatus.offset}")));
+
+    ASSERT_TRUE(IsEqual(20, evaluate(*context, "${musicAnalysisStatus.beatsPerMinute}")));
+
+    auto activityText = root->findComponentById("ActivityTxt");
+    ASSERT_TRUE(activityText);
+    auto activityOffset = root->findComponentById("OffsetTxt");
+    ASSERT_TRUE(activityOffset);
+    auto touch = root->findComponentById("Touch");
+    ASSERT_TRUE(touch);
+    auto bpmText = root->findComponentById("bpmText");
+    ASSERT_TRUE(bpmText);
+
+    // Basic data is loaded
+    ASSERT_TRUE(IsEqual("PLAYING", activityText->getCalculated(kPropertyText).get<StyledText>().getText()));
+    ASSERT_TRUE(IsEqual("123", activityOffset->getCalculated(kPropertyText).get<StyledText>().getText()));
+    ASSERT_TRUE(IsEqual("20", bpmText->getCalculated(kPropertyText).get<StyledText>().getText()));
+}
+
+TEST_F(ExtensionMediatorTest, AudioPlayerV11NoMusicAnalysisIntegration) {
+
+    createProvider();
+    auto stub = std::make_shared<AudioPlayerObserverStub>();
+    auto extension = std::make_shared<::AudioPlayer::AplAudioPlayerExtension>(stub);
+    extension->setMusicAnalysisDetails(false);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    loadExtensions(AUDIO_PLAYER_11);
+
+    inflate();
+
+    // Validate the Extension environment
+    auto env = context->extensionManager().getEnvironment();
+    ASSERT_EQ(1, env->size());
+    ASSERT_EQ(1, env->count("AudioPlayer"));
+    ASSERT_TRUE(env->at("AudioPlayer").truthy());
+    ASSERT_TRUE(evaluate(*context, "${environment.extension.AudioPlayer}").isMap());
+    ASSERT_TRUE(IsEqual("APLAudioPlayerExtension-1.1", evaluate(*context, "${environment.extension.AudioPlayer.version}")));
+    ASSERT_TRUE(IsEqual(false, evaluate(*context, "${environment.extension.AudioPlayer.musicAnalysis}")));
+    ASSERT_TRUE(IsEqual(0, evaluate(*context, "${environment.extension.AudioPlayer.maxNormalizedEnergies}")));
+
+    // Validate presence of command and event handler definitions
+    auto commands = context->extensionManager().getCommandDefinitions();
+    ASSERT_EQ(11, commands.size());
+    auto handlers = context->extensionManager().getEventHandlerDefinitions();
+    ASSERT_EQ(2, handlers.size());
+
+    // Validate Live Data
+    auto trackers = context->dataManager().trackers();
+    ASSERT_EQ(1, trackers.size());
+    extension->updatePlayerActivity("PLAYING", 123);
+    ASSERT_FALSE(ConsoleMessage());
+    root->clearPending();
+
+    ASSERT_TRUE(evaluate(*context, "${playerStatus}").isTrueMap());
+    ASSERT_TRUE(IsEqual("PLAYING", evaluate(*context, "${playerStatus.playerActivity}")));
+    ASSERT_TRUE(IsEqual(123, evaluate(*context, "${playerStatus.offset}")));
+
+
+    auto activityText = root->findComponentById("ActivityTxt");
+    ASSERT_TRUE(activityText);
+    auto activityOffset = root->findComponentById("OffsetTxt");
+    ASSERT_TRUE(activityOffset);
+    auto touch = root->findComponentById("Touch");
+    ASSERT_TRUE(touch);
+    auto bpmText = root->findComponentById("bpmText");
+    ASSERT_FALSE(bpmText);
+
+    // Basic data is loaded
+    ASSERT_TRUE(IsEqual("PLAYING", activityText->getCalculated(kPropertyText).get<StyledText>().getText()));
+    ASSERT_TRUE(IsEqual("123", activityOffset->getCalculated(kPropertyText).get<StyledText>().getText()));
+}
+
+static const char* AUDIO_PLAYER_10_11 = R"(
+{
+  "type": "APL",
+  "version": "2024.1",
+  "extensions": [
+    {
+      "name": "AudioPlayer",
+      "uri": "aplext:audioplayer:10"
+    },
+    {
+      "name": "AudioPlayer11",
+      "uri": "aplext:audioplayer:11"
+    }
+  ],
+  "settings": {
+    "AudioPlayer": {
+      "playbackStateName": "playerStatus"
+    },
+    "AudioPlayer11": {
+      "playbackStateName": "playerStatus11",
+      "musicAnalysisBindings": {
+          "bindingName": "musicAnalysisStatus",
+          "requestedNormalizedEnergies": 5
+      }
+    }
+  },
+  "AudioPlayer:OnPlayerActivityUpdated": [
+    {
+      "type": "SetValue",
+      "componentId": "ActivityTxt",
+      "property": "text",
+      "value": "${playerActivity}"
+    },
+    {
+      "type": "SetValue",
+      "componentId": "OffsetTxt",
+      "property": "text",
+      "value": "${offset}"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "TouchWrapper",
+          "id": "Touch",
+          "width": "100%",
+          "height": "100%",
+          "onPress": [
+            {
+              "when": "${playerStatus.playerActivity == 'PLAYING'}",
+              "type": "AudioPlayer:Pause"
+            },
+            {
+              "when": "${playerStatus.playerActivity == 'PAUSED'}",
+              "type": "AudioPlayer:Play"
+            }
+          ]
+        },
+        {
+          "type": "Text",
+          "id": "ActivityTxt"
+        },
+        {
+          "type": "Text",
+          "id": "OffsetTxt"
+        },
+        {
+            "type": "Text",
+            "id": "playerActivity11",
+            "text": "${playerStatus11.playerActivity}"
+        },
+        {
+            "type": "Text",
+            "id": "bpmText",
+            "when": "${environment.extension.AudioPlayer11.musicAnalysis}",
+            "text": "${musicAnalysisStatus.beatsPerMinute}"
+        }
+      ]
+    }
+  }
+}
+)";
+
+TEST_F(ExtensionMediatorTest, AudioPlayerV10And11Integration) {
+
+    createProvider();
+    auto stub = std::make_shared<AudioPlayerObserverStub>();
+    auto extension = std::make_shared<::AudioPlayer::AplAudioPlayerExtension>(stub);
+    extension->setMusicAnalysisDetails(true, 5);
+    extensionProvider->registerExtension(std::make_shared<LocalExtensionProxy>(extension));
+    loadExtensions(AUDIO_PLAYER_10_11);
+
+    inflate();
+
+    // Validate the Extension environment
+    auto env = context->extensionManager().getEnvironment();
+    ASSERT_EQ(2, env->size());
+    ASSERT_EQ(1, env->count("AudioPlayer"));
+    ASSERT_EQ(1, env->count("AudioPlayer11"));
+    ASSERT_TRUE(env->at("AudioPlayer").truthy());
+    ASSERT_TRUE(env->at("AudioPlayer11").truthy());
+    ASSERT_TRUE(evaluate(*context, "${environment.extension.AudioPlayer}").isMap());
+    ASSERT_TRUE(evaluate(*context, "${environment.extension.AudioPlayer11}").isMap());
+    ASSERT_TRUE(IsEqual("APLAudioPlayerExtension-1.0", evaluate(*context, "${environment.extension.AudioPlayer.version}")));
+    ASSERT_TRUE(IsEqual("APLAudioPlayerExtension-1.1", evaluate(*context, "${environment.extension.AudioPlayer11.version}")));
+    ASSERT_TRUE(IsEqual(true, evaluate(*context, "${environment.extension.AudioPlayer11.musicAnalysis}")));
+    ASSERT_TRUE(IsEqual(5, evaluate(*context, "${environment.extension.AudioPlayer11.maxNormalizedEnergies}")));
+
+    // Validate presence of command and event handler definitions.
+    auto commands = context->extensionManager().getCommandDefinitions();
+    ASSERT_EQ(22, commands.size());
+    auto handlers = context->extensionManager().getEventHandlerDefinitions();
+    ASSERT_EQ(4, handlers.size());
+
+    // Validate Live Data
+    auto trackers = context->dataManager().trackers();
+    ASSERT_EQ(3, trackers.size());
+    extension->updatePlayerActivity("PLAYING", 123);
+    std::vector<float> normalizedEnergies{1};
+    extension->updateMusicAnalysis(20, normalizedEnergies);
+    ASSERT_TRUE(ConsoleMessage());
+    root->clearPending();
+
+    ASSERT_TRUE(evaluate(*context, "${playerStatus}").isTrueMap());
+    ASSERT_TRUE(evaluate(*context, "${playerStatus11}").isTrueMap());
+    ASSERT_TRUE(IsEqual("PLAYING", evaluate(*context, "${playerStatus.playerActivity}")));
+    ASSERT_TRUE(IsEqual("PLAYING", evaluate(*context, "${playerStatus11.playerActivity}")));
+    ASSERT_TRUE(IsEqual(123, evaluate(*context, "${playerStatus.offset}")));
+    ASSERT_TRUE(IsEqual(123, evaluate(*context, "${playerStatus11.offset}")));
+
+    ASSERT_TRUE(IsEqual(20, evaluate(*context, "${musicAnalysisStatus.beatsPerMinute}")));
+
+    auto activityText = root->findComponentById("ActivityTxt");
+    ASSERT_TRUE(activityText);
+    auto activityOffset = root->findComponentById("OffsetTxt");
+    ASSERT_TRUE(activityOffset);
+    auto touch = root->findComponentById("Touch");
+    ASSERT_TRUE(touch);
+    auto activityText11 = root->findComponentById("playerActivity11");
+    ASSERT_TRUE(activityText11);
+    auto bpmText = root->findComponentById("bpmText");
+    ASSERT_TRUE(bpmText);
+
+    // Basic data is loaded
+    ASSERT_TRUE(IsEqual("PLAYING", activityText->getCalculated(kPropertyText).get<StyledText>().getText()));
+    ASSERT_TRUE(IsEqual("123", activityOffset->getCalculated(kPropertyText).get<StyledText>().getText()));
+    ASSERT_TRUE(IsEqual("PLAYING", activityText11->getCalculated(kPropertyText).get<StyledText>().getText()));
+    ASSERT_TRUE(IsEqual("20", bpmText->getCalculated(kPropertyText).get<StyledText>().getText()));
+}
+
 class SimpleExtensionTestAdapter : public ExtensionBase {
 public:
     SimpleExtensionTestAdapter(const std::string& uri, const std::string& registrationMessage)
@@ -2142,7 +2477,49 @@ TEST_F(ExtensionMediatorTest, LoadAllGranted) {
 }
 
 
-TEST_F(ExtensionMediatorTest, LoadContentNotReady) {
+TEST_F(ExtensionMediatorTest, LoadContentIsWaiting) {
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, true);
+    extensionProvider->registerExtension(adapter);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    const char* DOC = R"(
+        {
+          "type": "APL",
+          "version": "1.1",
+          "import": [
+            {
+              "name": "C",
+              "version": "1.0"
+            }
+          ],
+          "mainTemplate": {
+            "parameters": [
+              "payload"
+            ],
+            "item": {
+              "type": "Text"
+            }
+          }
+        }
+    )";
+
+    createContent(DOC, nullptr);
+    ASSERT_TRUE(content->isWaiting());
+
+    // Loading should skip due to waiting state.
+    mediator->loadExtensions(ObjectMap{}, content);
+
+    ASSERT_TRUE(ConsoleMessage());
+    ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
+}
+
+TEST_F(ExtensionMediatorTest, LoadContentHasError) {
     createProvider();
 
     auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(TEST_EXTENSION_URI, true, true);
@@ -2169,16 +2546,17 @@ TEST_F(ExtensionMediatorTest, LoadContentNotReady) {
     )";
 
     createContent(DOC, nullptr);
-    ASSERT_FALSE(content->isReady());
+    
+    // This will transition the content to error.
+    content->addData("payload", nullptr);
+    ASSERT_TRUE(content->isError());
 
-    // when content ready, unspecified grant list means all extensions granted
-    // without ready content load not attempted
+    // Loading should skip due to error state.
     mediator->loadExtensions(ObjectMap{}, content);
 
-    ASSERT_TRUE(ConsoleMessage());
+    ASSERT_TRUE(ConsoleMessage());  
     ASSERT_FALSE(adapter->isInitialized(TEST_EXTENSION_URI));
 }
-
 
 
 static const char* SIMPLE_COMPONENT_DOC = R"({

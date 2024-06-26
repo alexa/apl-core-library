@@ -29,7 +29,7 @@ public:
 
     ComponentType getType() const override { return kComponentTypeImage; }
 
-    void postProcessLayoutChanges() override;
+    void postProcessLayoutChanges(bool first) override;
 
 protected:
     const EventPropertyMap& eventPropertyMap() const override;

@@ -1214,7 +1214,8 @@ static const char *CHILDREN_CHANGED = R"apl({
           "arguments": [
             "${event.source.handler}",
             "${data.index ? data.index : 0}",
-            "${data.action}"
+            "${data.action}",
+            "${event.length}"
           ],
           "components": [ "textComp" ]
         }
@@ -1247,14 +1248,14 @@ TEST_F(ComponentEventsTest, ChildrenChanged)
     root->clearPending();
     advanceTime(500);
 
-    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 0, "insert"));
+    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 0, "insert", 1));
 
     executeCommands(apl::Object(doc), false);
 
     root->clearPending();
     advanceTime(500);
 
-    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 1, "insert"));
+    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 1, "insert", 2));
 
 
     executeCommands(apl::Object(doc), false);
@@ -1272,9 +1273,10 @@ TEST_F(ComponentEventsTest, ChildrenChanged)
     root->clearPending();
     advanceTime(500);
 
-    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 1, "insert"));
-    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 2, "insert"));
-    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 0, "remove"));
+    // Single event group
+    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 1, "insert", 3));
+    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 2, "insert", 3));
+    ASSERT_TRUE(CheckSendEvent(root, "ChildrenChanged", 0, "remove", 3));
 }
 
 /**

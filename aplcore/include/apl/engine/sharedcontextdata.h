@@ -27,13 +27,10 @@
 #include "apl/engine/styles.h"
 #include "apl/primitives/size.h"
 #include "apl/primitives/textmeasurerequest.h"
+#include "apl/scenegraph/common.h"
 #include "apl/utils/counter.h"
 #include "apl/utils/lrucache.h"
 #include "apl/utils/scopedset.h"
-
-#ifdef SCENEGRAPH
-#include "apl/scenegraph/common.h"
-#endif // SCENEGRAPH
 
 namespace apl {
 
@@ -163,12 +160,15 @@ public:
      */
     LruCache<TextMeasureRequest, float>& cachedBaselines() { return mCachedBaselines; }
 
-#ifdef SCENEGRAPH
+    /**
+     * @return A cache of TextLayout
+     */
+    sg::TextLayoutCache& textLayoutCache() { return *mTextLayoutCache; }
+
     /**
      * @return A cache of TextProperties
      */
     sg::TextPropertiesCache& textPropertiesCache() { return *mTextPropertiesCache; }
-#endif // SCENEGRAPH
 
 private:
     std::string mRequestedVersion;
@@ -196,9 +196,8 @@ private:
     LruCache<TextMeasureRequest, YGSize> mCachedMeasures;
     LruCache<TextMeasureRequest, float> mCachedBaselines;
 
-#ifdef SCENEGRAPH
+    std::unique_ptr<sg::TextLayoutCache> mTextLayoutCache;
     std::unique_ptr<sg::TextPropertiesCache> mTextPropertiesCache;
-#endif // SCENEGRAPH
 };
 
 

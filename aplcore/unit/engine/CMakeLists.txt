@@ -31,9 +31,11 @@ target_sources_local(unittest
         unittest_event_manager.cpp
         unittest_hover.cpp
         unittest_keyboard_manager.cpp
+        unittest_layout_handler.cpp
         unittest_layouts.cpp
         unittest_memory.cpp
         unittest_propdef.cpp
+        unittest_reactive_rebuilds.cpp
         unittest_resources.cpp
         unittest_styles.cpp
         unittest_visibility.cpp

@@ -1,0 +1,131 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import org.apache.tools.ant.taskdefs.condition.Os
+
+apply plugin: 'com.android.library'
+apply plugin: 'maven-publish'
+
+ext {
+    cmakeProjectPath = projectDir.absolutePath
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        cmakeProjectPath = cmakeProjectPath.replace('\\', '/')
+    }
+
+    rootDirectory = "${cmakeProjectPath}/../../"
+    cmakeArg = "-DAPL_PROJECT_DIR=${rootDirectory}"
+}
+
+android {
+    namespace 'com.amazon.apl.android.coreengine'
+    compileSdk 33
+    ndkVersion "23.0.7599858"
+    buildToolsVersion = "33.0.0"
+
+    defaultConfig {
+        minSdkVersion 22
+        targetSdkVersion 33
+        externalNativeBuild {
+            cmake {
+                // Sets optional flags for the C++ compiler.
+                cppFlags "-std=c++11", "-fno-rtti", "-fno-exceptions"
+                // Build the APL Core JNI library (excludes all other targets)
+                targets "apl", "alexaext", "generate-android-enums", "rapidjson", "copy-headers", "copy-config"
+                // Enable APL Core JNI build, and be verbose.
+                arguments cmakeArg
+            }
+        }
+    }
+
+    buildTypes {
+        releaseWithSceneGraph {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            matchingFallbacks = ['release']
+            externalNativeBuild {
+                cmake {
+                    arguments cmakeArg, "-DSCENE_GRAPH=ON"
+                }
+            }
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            version "3.18.1"
+
+            // Tells Gradle to find the root CMake APL build script. path is relative to
+            // the directory containing the module's build.gradle file. Gradle requires this
+            // build script to designate a CMake project as a build dependency and
+            // pull native sources into the Android project.
+            path "CMakeLists.txt"
+        }
+    }
+    publishing {
+        multipleVariants {
+            allVariants()
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    buildFeatures {
+        prefabPublishing true
+    }
+    prefab {
+        apl {
+            headers "src/main/cpp/apl/include"
+        }
+        alexaext {
+            headers "${project.property('rootDirectory')}/extensions/alexaext/include/"
+        }
+        rapidjson {
+            headers "src/main/cpp/rapidjson/include"
+            headerOnly true
+        }
+    }
+}
+
+dependencies {
+}
+
+publishing {
+    publications {
+        release(MavenPublication) {
+            afterEvaluate {
+                from components.default
+            }
+        }
+    }
+}
+
+task buildHostBinary(type: com.amazon.apl.android.CMakeTask) {
+    cmakeArgs cmakeArg
+    makeTargets "apl", "alexaext"
+}
+
+project.afterEvaluate {
+    // Dump configuration settings
+    println "APL Core Directory: " + cmakeArg
+    println "Android SDK Directory: " + android.sdkDirectory.path
+    println "Android NDK Directory: " + android.ndkDirectory.path
+
+    // Since we generate enums using CMake, the java compilation has to occur after.
+    compileDebugJavaWithJavac.dependsOn externalNativeBuildDebug
+    compileReleaseJavaWithJavac.dependsOn externalNativeBuildRelease
+}
+
+task release(dependsOn: ['build', 'publish', 'buildHostBinary']) {
+    doLast {
+        copy {
+            from '.cxx/cmake/debug/host/'
+            into '../build'
+        }
+    }
+}

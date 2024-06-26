@@ -48,6 +48,9 @@ struct CounterPair {
     size_type destroyed;
 
     CounterPair(size_type created, size_type destroyed) : created(created), destroyed(destroyed) {}
+
+    size_type alive() const { return created - destroyed; }
+
     bool operator==(const CounterPair& rhs) {
         return created - destroyed == rhs.created - rhs.destroyed;
     }

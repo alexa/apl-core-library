@@ -26,10 +26,6 @@
 #include "apl/touch/pointermanager.h"
 #include "apl/utils/make_unique.h"
 
-#ifdef SCENEGRAPH
-#include "apl/scenegraph/textpropertiescache.h"
-#endif // SCENEGRAPH
-
 namespace apl {
 
 /**
@@ -128,9 +124,7 @@ LruCache<TextMeasureRequest, YGSize>& DocumentContextData::cachedMeasures() { re
 LruCache<TextMeasureRequest, float>& DocumentContextData::cachedBaselines() { return mSharedData->cachedBaselines(); }
 void DocumentContextData::setDirty(const ComponentPtr& component) { mSharedData->dirtyComponents().emplace(shared_from_this(), component); }
 void DocumentContextData::clearDirty(const ComponentPtr& component) { mSharedData->dirtyComponents().eraseValue(component); }
-
-#ifdef SCENEGRAPH
+sg::TextLayoutCache& DocumentContextData::textLayoutCache() { return mSharedData->textLayoutCache(); }
 sg::TextPropertiesCache& DocumentContextData::textPropertiesCache() { return mSharedData->textPropertiesCache(); }
-#endif // SCENEGRAPH
 
 } // namespace apl

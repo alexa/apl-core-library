@@ -123,9 +123,9 @@ ImageComponent::getVisualContextType() const
 }
 
 void
-ImageComponent::postProcessLayoutChanges()
+ImageComponent::postProcessLayoutChanges(bool first)
 {
-    CoreComponent::postProcessLayoutChanges();
+    CoreComponent::postProcessLayoutChanges(first);
     MediaComponentTrait::postProcessLayoutChanges();
 }
 

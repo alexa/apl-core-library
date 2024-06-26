@@ -22,7 +22,6 @@
 #include "apl/common.h"
 #include "apl/scenegraph/common.h"
 #include "apl/component/componentproperties.h"
-#include "apl/component/textmeasurement.h"
 #include "apl/primitives/range.h"
 #include "apl/primitives/rect.h"
 #include "apl/primitives/transform2d.h"
